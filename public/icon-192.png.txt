@@ -1,8 +1,0 @@
-PLACEHOLDER: Substitua este arquivo por um ícone PNG 192x192 real.
-
-Gere o ícone do logo 🦅 Senior Scout 360:
-1. Use Canva/Figma/Photoshop
-2. Background: #0f172a (slate-950)
-3. Logo/texto: #ef4444 (red-500)
-4. Exportar como PNG 192x192px
-5. Renomear para icon-192.png
