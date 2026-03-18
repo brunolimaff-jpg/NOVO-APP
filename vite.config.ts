@@ -32,7 +32,7 @@ export default defineConfig(() => {
           short_name: 'Scout 360',
           description: 'Inteligência Comercial para Agronegócio · Sênior Sistemas',
           theme_color: '#059669',
-          background_color: '#0f172a',
+          background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait-primary',
           start_url: '/',
