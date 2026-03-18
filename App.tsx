@@ -9,6 +9,7 @@ import ChatInterface from './components/ChatInterface';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
+import InstallPrompt from './components/InstallPrompt';
 import { useAuth } from './contexts/AuthContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
@@ -1171,6 +1172,7 @@ const App: React.FC = () => {
         />
       )}
 
+      <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   );
