@@ -200,14 +200,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     const prompt = `Conta alvo:
 - Empresa: ${payload.companyName}
 - CNPJ: ${payload.cnpj || 'não informado'}
-- Localização: ${payload.city}/${payload.state}
-- Cliente Senior: ✅ CONFIRMADO`;
+- Localização: ${payload.city}/${payload.state}`;
 
     const hiddenPrompt = [
       'INVESTIGACAO_COMPLETA_INTEGRADA (MVP):',
       'Execute um dossie completo combinando os protocolos abaixo sem repetir seções.',
       'Priorize objetividade, fontes auditáveis e síntese executiva final.',
-      `Contexto cadastral obrigatório: Empresa=${payload.companyName}; CNPJ=${payload.cnpj || 'N/D'}; Cidade=${payload.city}; UF=${payload.state}; ClienteSenior=CONFIRMADO.`,
+      `Contexto cadastral obrigatório: Empresa=${payload.companyName}; CNPJ=${payload.cnpj || 'N/D'}; Cidade=${payload.city}; UF=${payload.state}.`,
       PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
       PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
       PROMPT_RISCOS_COMPLIANCE_GOD_MODE,

@@ -64,7 +64,7 @@ export function getFeatureAccessForUser(user: Pick<AuthUser, 'displayName' | 'em
     miniCRM: hasRestrictedAccess,
     dashboard: hasRestrictedAccess,
     integrityCheck: hasRestrictedAccess,
-    clientLookup: hasRestrictedAccess,
+    clientLookup: true,
     deepDive: hasRestrictedAccess,
     warRoom: hasRestrictedAccess,
   };

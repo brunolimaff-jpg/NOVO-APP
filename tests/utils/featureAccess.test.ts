@@ -10,13 +10,13 @@ describe('featureAccess', () => {
     expect(isAdminUser({ displayName: 'Usuário', email: 'admin@empresa.com', id: '', isGuest: false })).toBe(true);
   });
 
-  it('locks restricted features for non-admin users', () => {
+  it('locks restricted features for non-admin users but allows clientLookup', () => {
     const access = getFeatureAccessForUser({ displayName: 'Maria', email: 'maria@empresa.com', id: '', isGuest: false });
     expect(access).toEqual({
       miniCRM: false,
       dashboard: false,
       integrityCheck: false,
-      clientLookup: false,
+      clientLookup: true,
       deepDive: false,
       warRoom: false,
     });
@@ -51,12 +51,12 @@ describe('featureAccess', () => {
         id: '',
         isGuest: false,
       }).clientLookup,
-    ).toBe(false);
+    ).toBe(true);
 
-    expect(getFeatureAccessForUser(null).clientLookup).toBe(false);
+    expect(getFeatureAccessForUser(null).clientLookup).toBe(true);
   });
 
-  it('keeps all restricted features disabled for guest-like users', () => {
+  it('keeps most restricted features disabled for guest-like users but allows clientLookup', () => {
     const access = getFeatureAccessForUser({
       displayName: 'Visitante',
       email: '',
@@ -67,7 +67,7 @@ describe('featureAccess', () => {
       miniCRM: false,
       dashboard: false,
       integrityCheck: false,
-      clientLookup: false,
+      clientLookup: true,
       deepDive: false,
       warRoom: false,
     });
