@@ -23,10 +23,29 @@ import {
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
 } from '../prompts/megaPrompts';
 
+import type { RadarAlert, RadarConfig } from '../types';
+const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
+const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('./RadarPanel')));
+const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('./RadarSettings')));
+
+export interface RadarProps {
+  alerts: RadarAlert[];
+  config: RadarConfig;
+  unreadCount: number;
+  isScanning: boolean;
+  lastScanAt: number | null;
+  onUpdateConfig: (partial: Partial<RadarConfig>) => void;
+  onMarkAsRead: (id: string) => void;
+  onMarkAllAsRead: () => void;
+  onDismiss: (id: string) => void;
+  onForceScan: () => void;
+}
+
 type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onDeleteMessage?: (id: string) => void;
   onSaveToCRM?: (sessionId: string) => void;
   onOpenKanban?: () => void;
+  radar?: RadarProps;
 };
 
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
@@ -70,6 +89,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onDeleteMessage,
   onSaveToCRM,
   onOpenKanban,
+  radar,
   canAccessMiniCRM = true,
   canAccessDashboard = true,
   canAccessIntegrityCheck = true,
@@ -88,6 +108,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showWarRoom, setShowWarRoom] = useState(false);
+  const [showRadarPanel, setShowRadarPanel] = useState(false);
+  const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -372,6 +394,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 ⚔️
               </button>
             )}
+            {radar && (
+              <React.Suspense fallback={null}>
+                <RadarBell
+                  unreadCount={radar.unreadCount}
+                  isScanning={radar.isScanning}
+                  onClick={() => setShowRadarPanel(true)}
+                  isDarkMode={isDarkMode}
+                />
+              </React.Suspense>
+            )}
             <button
               onClick={() => setShowSettings(true)}
               className={`p-2 rounded-lg transition-all ${
@@ -610,6 +642,36 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               defaultCompetitorTarget={null}
             />
           </SuspenseWithError>
+        )}
+
+        {radar && showRadarPanel && (
+          <React.Suspense fallback={null}>
+            <RadarPanel
+              alerts={radar.alerts}
+              isScanning={radar.isScanning}
+              lastScanAt={radar.lastScanAt}
+              unreadCount={radar.unreadCount}
+              onMarkAsRead={radar.onMarkAsRead}
+              onMarkAllAsRead={radar.onMarkAllAsRead}
+              onDismiss={radar.onDismiss}
+              onForceScan={radar.onForceScan}
+              onOpenSettings={() => { setShowRadarPanel(false); setShowRadarSettings(true); }}
+              onClose={() => setShowRadarPanel(false)}
+              isDarkMode={isDarkMode}
+            />
+          </React.Suspense>
+        )}
+
+        {radar && showRadarSettings && (
+          <React.Suspense fallback={null}>
+            <RadarSettings
+              config={radar.config}
+              onUpdateConfig={radar.onUpdateConfig}
+              lastScanAt={radar.lastScanAt}
+              onClose={() => setShowRadarSettings(false)}
+              isDarkMode={isDarkMode}
+            />
+          </React.Suspense>
         )}
       </main>
     </div>

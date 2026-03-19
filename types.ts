@@ -295,3 +295,71 @@ export interface CRMPipelineProps {
   onMoveCard: (cardId: string, toStage: CRMStage) => void;
   onSelectCard: (cardId: string) => void;
 }
+
+// ===================================================================
+// RADAR COMPETITIVO & SETORIAL
+// ===================================================================
+
+export type RadarCategory = 'concorrentes' | 'agro_tech' | 'regulatorio' | 'mercado' | 'rh_trabalho' | 'ma_expansao';
+
+export const RADAR_CATEGORY_LABELS: Record<RadarCategory, string> = {
+  concorrentes: 'Movimentos Competitivos',
+  agro_tech: 'Inovação AgTech',
+  regulatorio: 'Regulatório & Compliance',
+  mercado: 'Mercado & Commodities',
+  rh_trabalho: 'RH & Trabalhista',
+  ma_expansao: 'M&A & Expansão',
+};
+
+export const RADAR_CATEGORY_ICONS: Record<RadarCategory, string> = {
+  concorrentes: '⚔️',
+  agro_tech: '🚜',
+  regulatorio: '📋',
+  mercado: '📈',
+  rh_trabalho: '👷',
+  ma_expansao: '🏢',
+};
+
+export const RADAR_CATEGORY_COLORS: Record<RadarCategory, string> = {
+  concorrentes: 'bg-red-500/15 text-red-600 dark:text-red-400',
+  agro_tech: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  regulatorio: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  mercado: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+  rh_trabalho: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+  ma_expansao: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
+};
+
+export const BRASIL_UFS = [
+  'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
+  'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO',
+] as const;
+
+export type BrasilUF = typeof BRASIL_UFS[number];
+
+export interface RadarAlert {
+  id: string;
+  title: string;
+  summary: string;
+  sourceUrl: string;
+  sourceName: string;
+  category: RadarCategory;
+  relevance: 'alta' | 'media' | 'baixa';
+  publishedAt: string;
+  scannedAt: string;
+  estado?: string;
+  read?: boolean;
+}
+
+export interface RadarConfig {
+  enabled: boolean;
+  categories: RadarCategory[];
+  estados: string[];
+  scanIntervalHours: number;
+}
+
+export const DEFAULT_RADAR_CONFIG: RadarConfig = {
+  enabled: true,
+  categories: ['concorrentes', 'agro_tech', 'regulatorio', 'mercado', 'rh_trabalho', 'ma_expansao'],
+  estados: [],
+  scanIntervalHours: 12,
+};

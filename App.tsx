@@ -4,6 +4,7 @@ import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
 import { useSessionStorage } from './hooks/useSessionStorage';
+import { useRadar } from './hooks/useRadar';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { AuthModal } from './components/AuthModal';
@@ -118,6 +119,7 @@ const App: React.FC = () => {
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
+  const radar = useRadar();
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const lastActionRef = useRef<LastAction | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1053,6 +1055,18 @@ const App: React.FC = () => {
               lastUserQuery={lastQuery}
               processing={{ stage: loadingStatus, completedStages: completedLoadingStatuses }}
               onDeleteMessage={handleDeleteMessage}
+              radar={{
+                alerts: radar.alerts,
+                config: radar.config,
+                unreadCount: radar.unreadCount,
+                isScanning: radar.isScanning,
+                lastScanAt: radar.lastScanAt,
+                onUpdateConfig: radar.updateConfig,
+                onMarkAsRead: radar.markAsRead,
+                onMarkAllAsRead: radar.markAllAsRead,
+                onDismiss: radar.dismissAlert,
+                onForceScan: radar.forceScan,
+              }}
             />
           ) : (
             <div className={`flex h-full w-full ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
