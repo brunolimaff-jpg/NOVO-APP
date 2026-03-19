@@ -208,7 +208,11 @@ async function summarizeWithGemini(
   const batch = unique.slice(0, 15);
 
   const articleList = batch.map((item, i) =>
-    `[${i + 1}] TÍTULO: ${item.title}\nDESCRIÇÃO: ${item.description}\nFONTE: ${item.sourceName}\nURL: ${item.link}\nDATA: ${item.pubDate || 'N/D'}`
+    `[ID: ${i + 1}]
+TÍTULO: ${item.title}
+DESCRIÇÃO: ${item.description}
+FONTE: ${item.sourceName}
+DATA: ${item.pubDate || 'N/D'}`
   ).join('\n\n');
 
   const estadoCtx = estados.length > 0
@@ -216,15 +220,13 @@ async function summarizeWithGemini(
     : '';
 
   const prompt = `Você é um analista de inteligência de mercado agro.
-Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}" do agronegócio brasileiro.
-${estadoCtx}
+Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}".
 
 Para cada artigo selecionado, retorne EXATAMENTE este bloco:
 ---ALERTA---
+ID_REF: [o número do ID, ex: 1]
 TITULO: [título limpo e conciso]
 RESUMO: [resumo de impacto em 2 frases]
-URL: [URL original do artigo]
-FONTE: [nome da fonte]
 RELEVANCIA: [alta, media, ou baixa]
 DATA: [YYYY-MM-DD]
 ESTADO: [Sigla UF se mencionado, ou none]
@@ -257,7 +259,7 @@ ${articleList}`;
     }
 
     console.log(`[RADAR] Gemini summary for ${category} (200 chars): ${text.slice(0, 200)}`);
-    return parseAlerts(text, category, new Date().toISOString());
+    return parseAlerts(text, category, new Date().toISOString(), batch);
   } catch (err) {
     console.error(`[RADAR] Gemini summarize failed for ${category}:`, err instanceof Error ? err.message : '');
     // Fallback: return raw items without AI classification
@@ -300,7 +302,7 @@ function parseDate(dateStr: string): string {
   }
 }
 
-function parseAlerts(text: string, category: string, scannedAt: string): any[] {
+function parseAlerts(text: string, category: string, scannedAt: string, originalItems?: RSSItem[]): any[] {
   if (text.includes('NENHUM_RESULTADO')) return [];
 
   const alerts: any[] = [];
@@ -316,13 +318,26 @@ function parseAlerts(text: string, category: string, scannedAt: string): any[] {
       return match ? match[1].trim().replace(/^\[|\]$/g, '') : '';
     };
 
+    const idRef = parseInt(getField('ID_REF'));
     const title = getField('TITULO');
     const summary = getField('RESUMO');
-    const sourceUrl = getField('URL');
-    const sourceName = getField('FONTE');
     const relevanceRaw = getField('RELEVANCIA').toLowerCase() || 'media';
     const publishedAt = getField('DATA');
     const estadoRaw = getField('ESTADO');
+
+    // Recuperar dados originais se o ID bater (garante URL íntegra)
+    let sourceUrl = '#';
+    let sourceName = 'Fonte';
+    
+    if (originalItems && !isNaN(idRef) && originalItems[idRef - 1]) {
+      const orig = originalItems[idRef - 1];
+      sourceUrl = orig.link;
+      sourceName = orig.sourceName;
+    } else {
+      // Fallback (se Gemini não retornar ID correto ou falhar)
+      sourceUrl = '#'; 
+      sourceName = 'Fonte';
+    }
 
     if (!title || title.length < 5) continue;
 
@@ -330,8 +345,8 @@ function parseAlerts(text: string, category: string, scannedAt: string): any[] {
       id: hashId(title, sourceUrl),
       title: title.slice(0, 300),
       summary: summary.slice(0, 500),
-      sourceUrl: sourceUrl.slice(0, 1000) || '#',
-      sourceName: sourceName.slice(0, 100) || 'Fonte desconhecida',
+      sourceUrl: sourceUrl.slice(0, 1000),
+      sourceName: sourceName.slice(0, 100),
       category,
       relevance: ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media',
       publishedAt: publishedAt && publishedAt.length === 10 ? publishedAt : scannedAt.split('T')[0],
