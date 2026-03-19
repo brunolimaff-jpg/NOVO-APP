@@ -220,6 +220,8 @@ ID_REF: [o número do ID, ex: 1]
 TITULO: [título limpo e conciso]
 RESUMO: [resumo de impacto em 2 frases]
 RELEVANCIA: [alta, media, ou baixa]
+IMPACTO: [oportunidade, ameaca, vulnerabilidade, ou neutro]
+ESTAGIO: [fato_consumado ou sinal_fraco]
 DATA: [YYYY-MM-DD]
 ESTADO: [Sigla UF se mencionado, ou none]
 ---FIM---
@@ -314,6 +316,8 @@ function parseAlerts(text: string, category: string, scannedAt: string, original
     const title = getField('TITULO');
     const summary = getField('RESUMO');
     const relevanceRaw = getField('RELEVANCIA').toLowerCase() || 'media';
+    const impactoRaw = getField('IMPACTO').toLowerCase() || 'neutro';
+    const estagioRaw = getField('ESTAGIO').toLowerCase() || 'fato_consumado';
     const publishedAt = getField('DATA');
     const estadoRaw = getField('ESTADO');
 
@@ -341,6 +345,8 @@ function parseAlerts(text: string, category: string, scannedAt: string, original
       sourceName: sourceName.slice(0, 100),
       category,
       relevance: ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media',
+      impacto: ['oportunidade', 'ameaca', 'vulnerabilidade', 'neutro'].includes(impactoRaw) ? impactoRaw : 'neutro',
+      estagio: ['fato_consumado', 'sinal_fraco'].includes(estagioRaw) ? estagioRaw : 'fato_consumado',
       publishedAt: publishedAt && publishedAt.length === 10 ? publishedAt : scannedAt.split('T')[0],
       scannedAt,
       estado: estadoRaw && estadoRaw.length === 2 && estadoRaw !== 'no' ? estadoRaw : undefined,
@@ -425,8 +431,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return true;
     });
 
+    let metaInsight = null;
+    if (allAlerts.length > 0) {
+      try {
+        const topTitles = allAlerts.slice(0, 10).map(a => `- [${a.category}] ${a.title}`).join('\n');
+        const insightPrompt = `Você é um analista estratégico C-Level.
+Com base nestas manchetes mais relevantes do dia, escreva um parágrafo (máximo 300 caracteres) sintetizando o cenário estratégico cruzando essas informações. Seja direto e insight-driven, sem introduções.
+
+MANCHETES:
+${topTitles}`;
+        
+        const insightChat = ai.chats.create({
+          model: DEFAULT_MODEL,
+          config: { temperature: 0.3, maxOutputTokens: 200 }
+        });
+        const insightRes = await insightChat.sendMessage({ message: insightPrompt });
+        metaInsight = insightRes.text?.trim() || null;
+      } catch (e) {
+        console.warn('[RADAR] Failed to generate meta-insight', e instanceof Error ? e.message : e);
+      }
+    }
+
     console.log(`[RADAR] Total: ${rawAlerts.length} raw → ${allAlerts.length} after dedup`);
-    return res.status(200).json({ alerts: allAlerts, scannedAt });
+    return res.status(200).json({ alerts: allAlerts, metaInsight, scannedAt });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[RADAR] Error:', message);

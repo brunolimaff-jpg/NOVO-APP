@@ -105,9 +105,9 @@ export function generateAlertId(title: string, sourceUrl: string): string {
 // FETCH API
 // ===================================================================
 
-export async function fetchRadarAlerts(config: RadarConfig): Promise<RadarAlert[]> {
+export async function fetchRadarAlerts(config: RadarConfig): Promise<{ alerts: RadarAlert[], metaInsight: string | null }> {
   const { categories, estados } = config;
-  if (categories.length === 0) return [];
+  if (categories.length === 0) return { alerts: [], metaInsight: null };
 
   const res = await fetch(RADAR_API_PATH, {
     method: 'POST',
@@ -120,5 +120,8 @@ export async function fetchRadarAlerts(config: RadarConfig): Promise<RadarAlert[
   }
 
   const data = await res.json();
-  return (data.alerts || []) as RadarAlert[];
+  return {
+    alerts: (data.alerts || []) as RadarAlert[],
+    metaInsight: data.metaInsight || null
+  };
 }
