@@ -221,6 +221,32 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
             )}
           </div>
         </div>
+
+        {/* Footer CTA */}
+        <div className={`flex-shrink-0 p-4 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+          {!config.isConfigured && config.categories.length === 0 && (
+            <p className={`text-xs text-center mb-2 ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+              ⚠️ Selecione pelo menos 1 categoria para ativar o Radar
+            </p>
+          )}
+          <button
+            onClick={() => {
+              if (config.categories.length === 0) return;
+              onUpdateConfig({ isConfigured: true, enabled: true });
+              onClose();
+            }}
+            disabled={config.categories.length === 0}
+            className={`w-full px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+              config.categories.length === 0
+                ? isDarkMode
+                  ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.01] active:scale-[0.99]'
+            }`}
+          >
+            {config.isConfigured ? '💾 Salvar Configurações' : '🚀 Salvar e Ativar Radar'}
+          </button>
+        </div>
       </div>
     </div>
   );

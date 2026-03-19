@@ -651,6 +651,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               isScanning={radar.isScanning}
               lastScanAt={radar.lastScanAt}
               unreadCount={radar.unreadCount}
+              isConfigured={radar.config.isConfigured}
               onMarkAsRead={radar.onMarkAsRead}
               onMarkAllAsRead={radar.onMarkAllAsRead}
               onDismiss={radar.onDismiss}

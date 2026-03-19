@@ -9,8 +9,9 @@ import { z } from 'zod';
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
-const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
-const SCAN_TIMEOUT_MS = 25_000; // 25s por categoria (execução paralela)
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const FETCH_TIMEOUT_MS = 12_000;
+const GEMINI_TIMEOUT_MS = 25_000;
 
 const VALID_CATEGORIES = [
   'concorrentes', 'agro_tech', 'regulatorio', 'mercado', 'rh_trabalho', 'ma_expansao',
@@ -22,73 +23,251 @@ const RequestSchema = z.object({
 });
 
 // ===================================================================
-// NOMES DE CONCORRENTES (inline para serverless — sem import do frontend)
+// GOOGLE NEWS RSS QUERIES POR CATEGORIA
 // ===================================================================
 
-const CONCORRENTES_NOMES = [
-  'SAP', 'TOTVS', 'Protheus', 'Sankhya', 'SIAGRI', 'CHB Sistemas',
-  'Benner', 'LG Sistemas', 'Viasoft', 'Korp', 'Unisystem',
-  'Senior Sistemas', 'GAtec', 'SimpleFarm', 'Aegro', 'Solinftec',
-  'Aliare', 'Agrotitan', 'Oracle', 'Datasul',
+const CATEGORY_QUERIES: Record<string, string[]> = {
+  concorrentes: [
+    '"TOTVS" agro OR "SAP" agronegócio OR "Sankhya" OR "SIAGRI" OR "Senior Sistemas" software',
+    '"ERP agro" OR "software gestão rural" lançamento OR parceria OR aquisição',
+  ],
+  agro_tech: [
+    '"agricultura de precisão" OR "agtech" OR "drone agro" OR "IoT campo" OR "inteligência artificial agro"',
+    '"conectividade rural" OR "automação agrícola" OR "sensoriamento remoto" safra',
+  ],
+  regulatorio: [
+    '"Plano Safra" OR "IBAMA" regulamentação OR "Código Florestal" OR "rastreabilidade" agro',
+    '"ESG agronegócio" OR "crédito carbono" rural OR "MAPA" regulação',
+  ],
+  mercado: [
+    '"soja" preço cotação safra 2025 OR 2026',
+    '"milho" OR "algodão" OR "café" commodities agro Brasil exportação',
+  ],
+  rh_trabalho: [
+    '"NR-31" OR "eSocial rural" trabalhista agro OR "mão de obra" campo',
+    '"direito trabalhista rural" OR "sindicato rural" OR "SST agro"',
+  ],
+  ma_expansao: [
+    '"fusão" OR "aquisição" agronegócio OR "IPO agro" OR "investimento" terras',
+    '"cooperativa" expansão agro OR "compra fazenda" OR "fundo investimento" agrícola',
+  ],
+};
+
+// ===================================================================
+// RSS FEEDS FIXOS POR CATEGORIA
+// ===================================================================
+
+interface FeedSource {
+  url: string;
+  name: string;
+  categories: string[];
+}
+
+const RSS_FEEDS: FeedSource[] = [
+  { url: 'https://www.canalrural.com.br/feed/', name: 'Canal Rural', categories: ['agro_tech', 'mercado', 'ma_expansao'] },
+  { url: 'https://www.noticiasagricolas.com.br/rss/ultimas-noticias.xml', name: 'Notícias Agrícolas', categories: ['mercado', 'concorrentes'] },
+  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['agro_tech', 'regulatorio', 'mercado'] },
+  { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes', 'agro_tech'] },
+  { url: 'https://www.infomoney.com.br/feed/', name: 'InfoMoney', categories: ['mercado', 'ma_expansao'] },
 ];
 
 // ===================================================================
-// PROMPTS POR CATEGORIA
+// RSS PARSER (manual — sem dependência)
 // ===================================================================
 
-function buildPrompt(category: string, estados: string[]): string {
+interface RSSItem {
+  title: string;
+  link: string;
+  description: string;
+  pubDate: string;
+  sourceName: string;
+}
+
+function extractTag(xml: string, tag: string): string {
+  // Handle CDATA
+  const cdataRegex = new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${tag}>`, 'i');
+  const cdataMatch = xml.match(cdataRegex);
+  if (cdataMatch) return cdataMatch[1].trim();
+
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i');
+  const match = xml.match(regex);
+  return match ? match[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : '';
+}
+
+function parseRSSXml(xml: string, sourceName: string): RSSItem[] {
+  const items: RSSItem[] = [];
+  const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1];
+    const title = extractTag(block, 'title');
+    const link = extractTag(block, 'link') || extractTag(block, 'guid');
+    const description = extractTag(block, 'description')
+      .replace(/<[^>]*>/g, '') // strip HTML
+      .slice(0, 300);
+    const pubDate = extractTag(block, 'pubDate');
+
+    if (title && title.length > 5) {
+      items.push({ title, link, description, pubDate, sourceName });
+    }
+  }
+  return items.slice(0, 10); // max 10 per feed
+}
+
+// ===================================================================
+// FETCH HELPERS
+// ===================================================================
+
+async function fetchWithTimeout(url: string, ms: number): Promise<string> {
+  const controller = new AbortController();
+  const handle = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ScoutRadar/1.0)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } finally {
+    clearTimeout(handle);
+  }
+}
+
+async function fetchGoogleNewsRSS(queries: string[]): Promise<RSSItem[]> {
+  const allItems: RSSItem[] = [];
+  for (const query of queries) {
+    try {
+      const encoded = encodeURIComponent(query);
+      const url = `https://news.google.com/rss/search?q=${encoded}+when:7d&hl=pt-BR&gl=BR&ceid=BR:pt-419`;
+      const xml = await fetchWithTimeout(url, FETCH_TIMEOUT_MS);
+      const items = parseRSSXml(xml, 'Google News');
+      allItems.push(...items);
+    } catch (err) {
+      console.warn(`[RADAR] Google News RSS failed for query: ${query}`, err instanceof Error ? err.message : '');
+    }
+  }
+  return allItems;
+}
+
+async function fetchFixedRSSFeeds(category: string): Promise<RSSItem[]> {
+  const relevantFeeds = RSS_FEEDS.filter(f => f.categories.includes(category));
+  const allItems: RSSItem[] = [];
+  
+  await Promise.allSettled(
+    relevantFeeds.map(async (feed) => {
+      try {
+        const xml = await fetchWithTimeout(feed.url, FETCH_TIMEOUT_MS);
+        const items = parseRSSXml(xml, feed.name);
+        allItems.push(...items);
+      } catch (err) {
+        console.warn(`[RADAR] RSS feed failed: ${feed.name}`, err instanceof Error ? err.message : '');
+      }
+    }),
+  );
+  
+  return allItems;
+}
+
+// ===================================================================
+// GEMINI SUMMARIZER (não usa googleSearch — só classifica)
+// ===================================================================
+
+async function summarizeWithGemini(
+  ai: GoogleGenAI,
+  items: RSSItem[],
+  category: string,
+  estados: string[],
+): Promise<any[]> {
+  if (items.length === 0) return [];
+
+  // Deduplicate by title similarity
+  const seen = new Set<string>();
+  const unique = items.filter(item => {
+    const key = item.title.toLowerCase().trim().slice(0, 60);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Limit to top 15 to save tokens
+  const batch = unique.slice(0, 15);
+
+  const articleList = batch.map((item, i) =>
+    `[${i + 1}] TÍTULO: ${item.title}\nDESCRIÇÃO: ${item.description}\nFONTE: ${item.sourceName}\nURL: ${item.link}\nDATA: ${item.pubDate || 'N/D'}`
+  ).join('\n\n');
+
   const estadoCtx = estados.length > 0
-    ? `\nFOCO REGIONAL: Priorize notícias para: ${estados.join(', ')}.`
+    ? `\nFOCO REGIONAL: Priorize artigos relevantes para: ${estados.join(', ')}.`
     : '';
 
-  const base = `Você é um Head de Inteligência de Mercado de agronegócio brasileiro.
-USE A FERRAMENTA DE BUSCA NA WEB para pesquisar notícias reais dos últimos 7 dias. Não responda de memória.
+  const prompt = `Você é um analista de inteligência de mercado agro.
+Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}" do agronegócio brasileiro.
 ${estadoCtx}
 
-REGRAS:
-- APENAS notícias reais com fontes verificáveis (URL pública).
-- Não invente. Se não encontrar, retorne vazio.
-- Portais prioritários: Valor Econômico, Canal Rural, Agrolink, TI Inside, InfoMoney, Reuters, Bloomberg, Globo Rural.
-- Máximo 5 alertas.
-
-FORMATO DA RESPOSTA:
-Para cada alerta, retorne EXATAMENTE este bloco, substituindo os espaços:
+Para cada artigo selecionado, retorne EXATAMENTE este bloco:
 ---ALERTA---
-TITULO: [título da notícia]
-RESUMO: [resumo em 2 frases]
-URL: [link completo]
-FONTE: [nome do site]
+TITULO: [título limpo e conciso]
+RESUMO: [resumo de impacto em 2 frases]
+URL: [URL original do artigo]
+FONTE: [nome da fonte]
 RELEVANCIA: [alta, media, ou baixa]
 DATA: [YYYY-MM-DD]
-ESTADO: [Sigla da UF ou none]
+ESTADO: [Sigla UF se mencionado, ou none]
 ---FIM---
-`;
 
-  const topics: Record<string, string> = {
-    concorrentes: `\nCATEGORIA: MOVIMENTOS COMPETITIVOS ERP/SOFTWARE AGRO\nEmpresas: ${CONCORRENTES_NOMES.join(', ')}.\nFoco: lançamentos, investimentos IA, aquisições, parcerias, novos módulos agro, expansão regional, mudanças de liderança.`,
-    agro_tech: `\nCATEGORIA: INOVAÇÃO AGTECH\nFoco: agricultura de precisão, drones, IoT campo, IA aplicada, sensoriamento remoto, automação, conectividade rural, startups agtech.`,
-    regulatorio: `\nCATEGORIA: REGULATÓRIO & COMPLIANCE AGRO\nFoco: leis ambientais, IBAMA, SEMA, rastreabilidade, créditos carbono, ESG agro, certificações, Código Florestal, outorgas ANA, normas MAPA, Plano Safra.`,
-    mercado: `\nCATEGORIA: MERCADO & COMMODITIES\nFoco: preços commodities (soja, milho, algodão, café), previsão safra, balança comercial, rotas logísticas, câmbio, cooperativas.`,
-    rh_trabalho: `\nCATEGORIA: RH & TRABALHISTA AGRO\nFoco: reforma trabalhista rural, NR-31, eSocial rural, sindicatos, mão de obra, SST agro, gestão de terceiros.`,
-    ma_expansao: `\nCATEGORIA: M&A & EXPANSÃO AGRO\nFoco: fusões, aquisições, compra de terras, consolidação cooperativas, investidores estrangeiros, IPOs agro, expansão grupos.`,
-  };
+Se nenhum artigo for relevante para a categoria, retorne apenas: NENHUM_RESULTADO
 
-  return base + (topics[category] || '');
+ARTIGOS PARA ANÁLISE:
+${articleList}`;
+
+  try {
+    const chat = ai.chats.create({
+      model: DEFAULT_MODEL,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 3000,
+        // NO googleSearch tool — just analyzing provided text
+      },
+    });
+
+    const controller = new AbortController();
+    const handle = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+    let text: string;
+    try {
+      const response = await chat.sendMessage({ message: prompt });
+      text = response.text || '';
+    } finally {
+      clearTimeout(handle);
+    }
+
+    console.log(`[RADAR] Gemini summary for ${category} (200 chars): ${text.slice(0, 200)}`);
+    return parseAlerts(text, category, new Date().toISOString());
+  } catch (err) {
+    console.error(`[RADAR] Gemini summarize failed for ${category}:`, err instanceof Error ? err.message : '');
+    // Fallback: return raw items without AI classification
+    return batch.slice(0, 5).map(item => ({
+      id: hashId(item.title, item.link),
+      title: item.title.slice(0, 300),
+      summary: item.description.slice(0, 500) || 'Sem resumo disponível',
+      sourceUrl: item.link || '#',
+      sourceName: item.sourceName || 'Fonte desconhecida',
+      category,
+      relevance: 'media',
+      publishedAt: parseDate(item.pubDate),
+      scannedAt: new Date().toISOString(),
+      estado: undefined,
+      read: false,
+    }));
+  }
 }
 
 // ===================================================================
-// PARSE RESPOSTA DO GEMINI
+// PARSE HELPERS
 // ===================================================================
-
-interface RawAlert {
-  title?: string;
-  summary?: string;
-  sourceUrl?: string;
-  sourceName?: string;
-  relevance?: string;
-  publishedAt?: string;
-  estado?: string;
-}
 
 function hashId(title: string, url: string): string {
   const raw = `${(title || '').toLowerCase().trim()}|${(url || '').toLowerCase().trim()}`;
@@ -100,15 +279,25 @@ function hashId(title: string, url: string): string {
   return `radar_${Math.abs(h).toString(36)}`;
 }
 
+function parseDate(dateStr: string): string {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  try {
+    return new Date(dateStr).toISOString().split('T')[0];
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
 function parseAlerts(text: string, category: string, scannedAt: string): any[] {
+  if (text.includes('NENHUM_RESULTADO')) return [];
+
   const alerts: any[] = [];
   const blocks = text.split('---ALERTA---');
-  
+
   for (let i = 1; i < blocks.length; i++) {
     const block = blocks[i].split('---FIM---')[0];
     if (!block) continue;
-    
-    // Extract fields
+
     const getField = (label: string) => {
       const regex = new RegExp(`${label}:\\s*(.*)`);
       const match = block.match(regex);
@@ -124,9 +313,6 @@ function parseAlerts(text: string, category: string, scannedAt: string): any[] {
     const estadoRaw = getField('ESTADO');
 
     if (!title || title.length < 5) continue;
-    
-    const relevanceStr = ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media';
-    const estadoStr = estadoRaw && estadoRaw.length === 2 && estadoRaw !== 'no' ? estadoRaw : undefined;
 
     alerts.push({
       id: hashId(title, sourceUrl),
@@ -135,34 +321,15 @@ function parseAlerts(text: string, category: string, scannedAt: string): any[] {
       sourceUrl: sourceUrl.slice(0, 1000) || '#',
       sourceName: sourceName.slice(0, 100) || 'Fonte desconhecida',
       category,
-      relevance: relevanceStr,
+      relevance: ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media',
       publishedAt: publishedAt && publishedAt.length === 10 ? publishedAt : scannedAt.split('T')[0],
       scannedAt,
-      estado: estadoStr,
+      estado: estadoRaw && estadoRaw.length === 2 && estadoRaw !== 'no' ? estadoRaw : undefined,
       read: false,
     });
   }
-  
-  if (alerts.length === 0) {
-    console.warn(`[RADAR] No alerts parsed for ${category}. Raw (200 chars): ${text.slice(0, 200)}`);
-  }
+
   return alerts.slice(0, 5);
-}
-
-// ===================================================================
-// TIMEOUT HELPER
-// ===================================================================
-
-async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let handle: ReturnType<typeof setTimeout> | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    handle = setTimeout(() => reject(new Error(`${label} timeout ${ms}ms`)), ms);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (handle) clearTimeout(handle);
-  }
 }
 
 // ===================================================================
@@ -170,7 +337,6 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 // ===================================================================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Suporta GET (cron) e POST (frontend)
   if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -181,7 +347,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
     }
 
-    // Para GET (cron), usa todas as categorias
     const body = req.method === 'GET'
       ? { categories: [...VALID_CATEGORIES], estados: [] }
       : req.body;
@@ -195,28 +360,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ai = new GoogleGenAI({ apiKey });
     const scannedAt = new Date().toISOString();
 
-    // Processa categorias em PARALELO para caber no maxDuration de 120s
+    // Fase 1: Buscar RSS em PARALELO (Google News + feeds fixos)
     const results = await Promise.allSettled(
       categories.map(async (category) => {
-        const prompt = buildPrompt(category, estados);
-        const chat = ai.chats.create({
-          model: DEFAULT_MODEL,
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 4096,
-            tools: [{ googleSearch: {} }],
-          },
-        });
+        const queries = CATEGORY_QUERIES[category] || [];
 
-        const response = await withTimeout(
-          chat.sendMessage({ message: prompt }),
-          SCAN_TIMEOUT_MS,
-          `radar-${category}`,
-        );
+        // Buscar de ambas as fontes em paralelo
+        const [googleNewsItems, fixedFeedItems] = await Promise.all([
+          fetchGoogleNewsRSS(queries),
+          fetchFixedRSSFeeds(category),
+        ]);
 
-        const text = response.text || '';
-        console.log(`[RADAR] ${category} response (200 chars): ${text.slice(0, 200)}`);
-        return parseAlerts(text, category, scannedAt);
+        const allItems = [...googleNewsItems, ...fixedFeedItems];
+        console.log(`[RADAR] ${category}: ${googleNewsItems.length} Google News + ${fixedFeedItems.length} RSS = ${allItems.length} total items`);
+
+        if (allItems.length === 0) {
+          console.warn(`[RADAR] No RSS items found for ${category}`);
+          return [];
+        }
+
+        // Fase 2: Gemini resume e classifica (SEM googleSearch)
+        return summarizeWithGemini(ai, allItems, category, estados);
       }),
     );
 

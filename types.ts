@@ -352,14 +352,16 @@ export interface RadarAlert {
 
 export interface RadarConfig {
   enabled: boolean;
+  isConfigured: boolean;
   categories: RadarCategory[];
   estados: string[];
   scanIntervalHours: number;
 }
 
 export const DEFAULT_RADAR_CONFIG: RadarConfig = {
-  enabled: true,
-  categories: ['concorrentes', 'agro_tech', 'regulatorio', 'mercado', 'rh_trabalho', 'ma_expansao'],
+  enabled: false,
+  isConfigured: false,
+  categories: [],
   estados: [],
   scanIntervalHours: 12,
 };
