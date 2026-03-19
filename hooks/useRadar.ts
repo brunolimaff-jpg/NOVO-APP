@@ -10,10 +10,12 @@ import { fetchRadarAlerts } from '../services/radarService';
 const IDB_ALERTS_KEY = 'scout360_radar_alerts';
 const IDB_CONFIG_KEY = 'scout360_radar_config';
 const IDB_LAST_SCAN_KEY = 'scout360_radar_last_scan';
+const IDB_META_INSIGHT_KEY = 'scout360_radar_meta_insight';
 const MAX_ALERTS = 100;
 
 export interface UseRadarReturn {
   alerts: RadarAlert[];
+  metaInsight: string | null;
   config: RadarConfig;
   unreadCount: number;
   isScanning: boolean;
@@ -33,6 +35,7 @@ interface ToastActions {
 
 export function useRadar(toast?: ToastActions): UseRadarReturn {
   const [alerts, setAlerts] = useState<RadarAlert[]>([]);
+  const [metaInsight, setMetaInsight] = useState<string | null>(null);
   const [config, setConfig] = useState<RadarConfig>(DEFAULT_RADAR_CONFIG);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
@@ -57,6 +60,10 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     try { await set(IDB_LAST_SCAN_KEY, ts); } catch { /* IDB unavailable */ }
   }, []);
 
+  const persistMetaInsight = useCallback(async (insight: string | null) => {
+    try { await set(IDB_META_INSIGHT_KEY, insight); } catch { /* IDB unavailable */ }
+  }, []);
+
   // ===================================================================
   // LOAD INICIAL
   // ===================================================================
@@ -65,15 +72,17 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     let cancelled = false;
     (async () => {
       try {
-        const [savedAlerts, savedConfig, savedLastScan] = await Promise.all([
+        const [savedAlerts, savedConfig, savedLastScan, savedMetaInsight] = await Promise.all([
           get<RadarAlert[]>(IDB_ALERTS_KEY),
           get<RadarConfig>(IDB_CONFIG_KEY),
           get<number>(IDB_LAST_SCAN_KEY),
+          get<string | null>(IDB_META_INSIGHT_KEY),
         ]);
         if (cancelled) return;
         if (savedAlerts) setAlerts(savedAlerts);
         if (savedConfig) setConfig(savedConfig);
         if (savedLastScan) setLastScanAt(savedLastScan);
+        if (savedMetaInsight) setMetaInsight(savedMetaInsight);
       } catch {
         // IDB unavailable, use defaults
       }
@@ -105,11 +114,15 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     toast?.info('Radar: varrendo notícias...');
 
     try {
-      const newAlerts = await fetchRadarAlerts(config);
+      const { alerts: newAlerts, metaInsight: newMetaInsight } = await fetchRadarAlerts(config);
       const now = Date.now();
 
       setLastScanAt(now);
       persistLastScan(now);
+      if (newMetaInsight) {
+        setMetaInsight(newMetaInsight);
+        persistMetaInsight(newMetaInsight);
+      }
 
       setAlerts(prev => {
         const existingIds = new Set(prev.map(a => a.id));
@@ -190,6 +203,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
 
   return {
     alerts,
+    metaInsight,
     config,
     unreadCount,
     isScanning,

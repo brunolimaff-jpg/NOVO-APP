@@ -219,6 +219,8 @@ export interface ChatInterfaceProps {
   canAccessMiniCRM?: boolean;
   canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
+  canDeepDive?: boolean;
+  canWarRoom?: boolean;
   onLogout: () => void;
   lastUserQuery?: string;
   processing?: {
@@ -300,13 +302,15 @@ export interface CRMPipelineProps {
 // RADAR COMPETITIVO & SETORIAL
 // ===================================================================
 
-export type RadarCategory = 'concorrentes' | 'regulatorio' | 'mercado' | 'ma_expansao';
+export type RadarCategory = 'concorrentes' | 'regulatorio' | 'mercado' | 'ma_expansao' | 'agro_tech' | 'rh_trabalho';
 
 export const RADAR_CATEGORY_LABELS: Record<RadarCategory, string> = {
   concorrentes: 'Radar da Concorrência',
   regulatorio: 'Regulatório & Compliance',
   mercado: 'Mercado & Commodities',
   ma_expansao: 'M&A & Expansão',
+  agro_tech: 'Inovação & AgTech',
+  rh_trabalho: 'RH & Trabalhista',
 };
 
 export const RADAR_CATEGORY_ICONS: Record<RadarCategory, string> = {
@@ -314,6 +318,8 @@ export const RADAR_CATEGORY_ICONS: Record<RadarCategory, string> = {
   regulatorio: '📋',
   mercado: '📈',
   ma_expansao: '🏢',
+  agro_tech: '💡',
+  rh_trabalho: '👥',
 };
 
 export const RADAR_CATEGORY_COLORS: Record<RadarCategory, string> = {
@@ -321,6 +327,8 @@ export const RADAR_CATEGORY_COLORS: Record<RadarCategory, string> = {
   regulatorio: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   mercado: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
   ma_expansao: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
+  agro_tech: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+  rh_trabalho: 'bg-pink-500/15 text-pink-600 dark:text-pink-400',
 };
 
 export const BRASIL_UFS = [
@@ -338,6 +346,8 @@ export interface RadarAlert {
   sourceName: string;
   category: RadarCategory;
   relevance: 'alta' | 'media' | 'baixa';
+  impacto?: 'oportunidade' | 'ameaca' | 'vulnerabilidade' | 'neutro';
+  estagio?: 'fato_consumado' | 'sinal_fraco';
   publishedAt: string;
   scannedAt: string;
   estado?: string;

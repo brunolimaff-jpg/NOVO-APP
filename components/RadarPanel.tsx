@@ -4,6 +4,7 @@ import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS, RADAR_CATEGORY_COLORS } fr
 
 interface RadarPanelProps {
   alerts: RadarAlert[];
+  metaInsight: string | null;
   isScanning: boolean;
   lastScanAt: number | null;
   unreadCount: number;
@@ -35,6 +36,7 @@ const RELEVANCE_BADGES: Record<string, string> = {
 
 const RadarPanel: React.FC<RadarPanelProps> = ({
   alerts,
+  metaInsight,
   isScanning,
   lastScanAt,
   unreadCount,
@@ -169,6 +171,19 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               Último scan: {new Date(lastScanAt).toLocaleString('pt-BR')}
             </p>
           )}
+
+          {/* Meta Insight Display */}
+          {metaInsight && (
+            <div className={`mt-3 p-3 rounded-lg border text-xs leading-relaxed ${
+              isDarkMode ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-200' : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+            }`}>
+              <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold tracking-wider uppercase opacity-80">
+                <span role="img" aria-label="insight">🧠</span>
+                Insight Estratégico (Gemini)
+              </div>
+              {metaInsight}
+            </div>
+          )}
         </div>
 
         {/* Alerts List */}
@@ -216,14 +231,20 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map(alert => (
+              {filtered.map(alert => {
+                const isVulnerabilidade = alert.impacto === 'vulnerabilidade';
+                return (
                 <div
                   key={alert.id}
                   className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg ${
                     !alert.read
                       ? isDarkMode
-                        ? 'bg-gradient-to-br from-emerald-900/20 to-gray-800/80 border-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
-                        : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
+                        ? isVulnerabilidade 
+                          ? 'bg-gradient-to-br from-red-900/20 to-gray-800/80 border-red-500/50 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
+                          : 'bg-gradient-to-br from-emerald-900/20 to-gray-800/80 border-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
+                        : isVulnerabilidade
+                          ? 'bg-gradient-to-br from-red-50 to-white border-red-300 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
+                          : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
                       : isDarkMode
                         ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:border-gray-600'
                         : 'bg-gray-50/80 border-gray-200/60 hover:bg-white hover:border-gray-300'
@@ -242,6 +263,23 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                         <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${RADAR_CATEGORY_COLORS[alert.category]}`}>
                           {RADAR_CATEGORY_ICONS[alert.category]} {RADAR_CATEGORY_LABELS[alert.category]}
                         </span>
+                        
+                        {alert.impacto && alert.impacto !== 'neutro' && (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            alert.impacto === 'vulnerabilidade' || alert.impacto === 'ameaca'
+                              ? 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
+                              : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                          }`}>
+                            {alert.impacto.toUpperCase()}
+                          </span>
+                        )}
+
+                        {alert.estagio === 'sinal_fraco' && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30 truncate" title="Sinal Fraco Captado pelo Radar">
+                            🔮 Preditivo
+                          </span>
+                        )}
+
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${RELEVANCE_BADGES[alert.relevance]}`}>
                           {alert.relevance}
                         </span>
@@ -292,7 +330,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                     </button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

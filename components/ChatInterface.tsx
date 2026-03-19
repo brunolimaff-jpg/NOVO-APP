@@ -30,6 +30,7 @@ const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('./RadarS
 
 export interface RadarProps {
   alerts: RadarAlert[];
+  metaInsight: string | null;
   config: RadarConfig;
   unreadCount: number;
   isScanning: boolean;
@@ -259,7 +260,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     if (onRetry) onRetry();
   };
   const handleExportDoc = () => {
-    onExportConversation('doc', 'complete');
+    onExportConversation('doc', 'full');
   };
 
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || 'Nova Investigação');
@@ -648,6 +649,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           <React.Suspense fallback={null}>
             <RadarPanel
               alerts={radar.alerts}
+              metaInsight={radar.metaInsight}
               isScanning={radar.isScanning}
               lastScanAt={radar.lastScanAt}
               unreadCount={radar.unreadCount}
