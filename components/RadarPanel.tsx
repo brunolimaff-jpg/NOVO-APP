@@ -228,7 +228,12 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                         ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:border-gray-600'
                         : 'bg-gray-50/80 border-gray-200/60 hover:bg-white hover:border-gray-300'
                   }`}
-                  onClick={() => onMarkAsRead(alert.id)}
+                  onClick={() => {
+                    onMarkAsRead(alert.id);
+                    if (alert.sourceUrl && alert.sourceUrl !== '#') {
+                      window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -250,18 +255,17 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                         )}
                       </div>
 
-                      {/* Title */}
-                      <a
-                        href={alert.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`text-sm font-semibold leading-tight hover:underline block ${
-                          isDarkMode ? 'text-gray-200' : 'text-slate-800'
-                        }`}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {alert.title}
-                      </a>
+                      {/* Title with external link indicator */}
+                      <div className="flex items-start gap-1">
+                        <span className={`text-sm font-semibold leading-tight flex-1 ${
+                          isDarkMode ? 'text-gray-200 group-hover:text-emerald-400' : 'text-slate-800 group-hover:text-emerald-600'
+                        } transition-colors`}>
+                          {alert.title}
+                        </span>
+                        <span className={`text-[10px] mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${
+                          isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+                        }`}>↗</span>
+                      </div>
 
                       {/* Summary */}
                       <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -270,7 +274,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
 
                       {/* Footer */}
                       <div className={`flex items-center gap-2 mt-1.5 text-[10px] ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                        <span>{alert.sourceName}</span>
+                        <span>{alert.sourceName || 'Fonte'}</span>
                         <span>·</span>
                         <span>{timeAgo(alert.scannedAt)}</span>
                       </div>
