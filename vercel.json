@@ -7,12 +7,6 @@
       "maxDuration": 120
     }
   },
-  "crons": [
-    {
-      "path": "/api/radar-scan",
-      "schedule": "0 7,19 * * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
