@@ -1,0 +1,183 @@
+// hooks/useRadar.ts
+// Gerencia estado do Radar Competitivo & Setorial: alertas, config, auto-scan, persistência IDB.
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { get, set } from 'idb-keyval';
+import type { RadarAlert, RadarConfig } from '../types';
+import { DEFAULT_RADAR_CONFIG } from '../types';
+import { fetchRadarAlerts } from '../services/radarService';
+
+const IDB_ALERTS_KEY = 'scout360_radar_alerts';
+const IDB_CONFIG_KEY = 'scout360_radar_config';
+const IDB_LAST_SCAN_KEY = 'scout360_radar_last_scan';
+const MAX_ALERTS = 100;
+
+export interface UseRadarReturn {
+  alerts: RadarAlert[];
+  config: RadarConfig;
+  unreadCount: number;
+  isScanning: boolean;
+  lastScanAt: number | null;
+  updateConfig: (partial: Partial<RadarConfig>) => void;
+  markAsRead: (alertId: string) => void;
+  markAllAsRead: () => void;
+  dismissAlert: (alertId: string) => void;
+  forceScan: () => Promise<void>;
+}
+
+export function useRadar(): UseRadarReturn {
+  const [alerts, setAlerts] = useState<RadarAlert[]>([]);
+  const [config, setConfig] = useState<RadarConfig>(DEFAULT_RADAR_CONFIG);
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScanAt, setLastScanAt] = useState<number | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const scanLockRef = useRef(false);
+
+  const unreadCount = alerts.filter(a => !a.read).length;
+
+  // ===================================================================
+  // PERSISTÊNCIA IDB
+  // ===================================================================
+
+  const persistAlerts = useCallback(async (data: RadarAlert[]) => {
+    try { await set(IDB_ALERTS_KEY, data); } catch { /* IDB unavailable */ }
+  }, []);
+
+  const persistConfig = useCallback(async (data: RadarConfig) => {
+    try { await set(IDB_CONFIG_KEY, data); } catch { /* IDB unavailable */ }
+  }, []);
+
+  const persistLastScan = useCallback(async (ts: number) => {
+    try { await set(IDB_LAST_SCAN_KEY, ts); } catch { /* IDB unavailable */ }
+  }, []);
+
+  // ===================================================================
+  // LOAD INICIAL
+  // ===================================================================
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [savedAlerts, savedConfig, savedLastScan] = await Promise.all([
+          get<RadarAlert[]>(IDB_ALERTS_KEY),
+          get<RadarConfig>(IDB_CONFIG_KEY),
+          get<number>(IDB_LAST_SCAN_KEY),
+        ]);
+        if (cancelled) return;
+        if (savedAlerts) setAlerts(savedAlerts);
+        if (savedConfig) setConfig(savedConfig);
+        if (savedLastScan) setLastScanAt(savedLastScan);
+      } catch {
+        // IDB unavailable, use defaults
+      }
+      if (!cancelled) setIsInitialized(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // ===================================================================
+  // PERSIST ON CHANGE
+  // ===================================================================
+
+  useEffect(() => {
+    if (isInitialized) persistAlerts(alerts);
+  }, [alerts, isInitialized, persistAlerts]);
+
+  useEffect(() => {
+    if (isInitialized) persistConfig(config);
+  }, [config, isInitialized, persistConfig]);
+
+  // ===================================================================
+  // SCAN
+  // ===================================================================
+
+  const runScan = useCallback(async () => {
+    if (scanLockRef.current || !config.enabled || config.categories.length === 0) return;
+    scanLockRef.current = true;
+    setIsScanning(true);
+
+    try {
+      const newAlerts = await fetchRadarAlerts(config);
+      const now = Date.now();
+
+      setAlerts(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const fresh = newAlerts.filter(a => !existingIds.has(a.id));
+        const merged = [...fresh, ...prev].slice(0, MAX_ALERTS);
+        return merged;
+      });
+
+      setLastScanAt(now);
+      persistLastScan(now);
+    } catch (err) {
+      console.error('[RADAR] Scan failed:', err);
+    } finally {
+      setIsScanning(false);
+      scanLockRef.current = false;
+    }
+  }, [config, persistLastScan]);
+
+  // ===================================================================
+  // AUTO-SCAN (verifica intervalo)
+  // ===================================================================
+
+  useEffect(() => {
+    if (!isInitialized || !config.enabled) return;
+
+    const intervalMs = config.scanIntervalHours * 3600_000;
+    const now = Date.now();
+
+    if (!lastScanAt || (now - lastScanAt) >= intervalMs) {
+      runScan();
+    }
+
+    // Re-check a cada hora
+    const timer = setInterval(() => {
+      const current = Date.now();
+      const lastScan = lastScanAt || 0;
+      if ((current - lastScan) >= intervalMs) {
+        runScan();
+      }
+    }, 3600_000);
+
+    return () => clearInterval(timer);
+  }, [isInitialized, config.enabled, config.scanIntervalHours, lastScanAt, runScan]);
+
+  // ===================================================================
+  // ACTIONS
+  // ===================================================================
+
+  const updateConfig = useCallback((partial: Partial<RadarConfig>) => {
+    setConfig(prev => ({ ...prev, ...partial }));
+  }, []);
+
+  const markAsRead = useCallback((alertId: string) => {
+    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a));
+  }, []);
+
+  const markAllAsRead = useCallback(() => {
+    setAlerts(prev => prev.map(a => ({ ...a, read: true })));
+  }, []);
+
+  const dismissAlert = useCallback((alertId: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  }, []);
+
+  const forceScan = useCallback(async () => {
+    await runScan();
+  }, [runScan]);
+
+  return {
+    alerts,
+    config,
+    unreadCount,
+    isScanning,
+    lastScanAt,
+    updateConfig,
+    markAsRead,
+    markAllAsRead,
+    dismissAlert,
+    forceScan,
+  };
+}
