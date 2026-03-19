@@ -68,8 +68,8 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
 
       {/* Panel */}
       <div
-        className={`relative w-full max-w-md h-full flex flex-col shadow-2xl ${
-          isDarkMode ? 'bg-gray-900 border-l border-gray-800' : 'bg-white border-l border-gray-200'
+        className={`relative w-full max-w-md h-full flex flex-col shadow-2xl transition-all duration-300 ${
+          isDarkMode ? 'bg-gray-900/95 backdrop-blur-xl border-l border-white/10' : 'bg-white/95 backdrop-blur-xl border-l border-gray-200/60'
         }`}
       >
         {/* Header */}
@@ -195,14 +195,14 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               {filtered.map(alert => (
                 <div
                   key={alert.id}
-                  className={`p-3 rounded-lg border transition-all ${
+                  className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg ${
                     !alert.read
                       ? isDarkMode
-                        ? 'bg-gray-800/80 border-emerald-800/50'
-                        : 'bg-emerald-50/50 border-emerald-200/50'
+                        ? 'bg-gradient-to-br from-emerald-900/20 to-gray-800/80 border-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
+                        : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
                       : isDarkMode
-                        ? 'bg-gray-800/40 border-gray-800'
-                        : 'bg-gray-50/50 border-gray-100'
+                        ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:border-gray-600'
+                        : 'bg-gray-50/80 border-gray-200/60 hover:bg-white hover:border-gray-300'
                   }`}
                   onClick={() => onMarkAsRead(alert.id)}
                 >

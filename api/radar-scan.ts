@@ -47,12 +47,22 @@ ${estadoCtx}
 
 REGRAS:
 - APENAS notícias reais com fontes verificáveis (URL pública).
-- Não invente. Se não encontrar, retorne [].
-- Portais prioritários: Valor Econômico, Canal Rural, Agrolink, TI Inside, InfoMoney, Reuters, Bloomberg, Globo Rural, Nova Cana, Notícias Agrícolas, ComputerWorld, Convergência Digital.
+- Não invente. Se não encontrar, retorne vazio.
+- Portais prioritários: Valor Econômico, Canal Rural, Agrolink, TI Inside, InfoMoney, Reuters, Bloomberg, Globo Rural.
 - Máximo 5 alertas.
 
-FORMATO: Responda APENAS um JSON array, sem texto antes/depois:
-[{"title":"...","summary":"...","sourceUrl":"https://...","sourceName":"...","relevance":"alta|media|baixa","publishedAt":"YYYY-MM-DD","estado":"UF ou null"}]`;
+FORMATO DA RESPOSTA:
+Para cada alerta, retorne EXATAMENTE este bloco, substituindo os espaços:
+---ALERTA---
+TITULO: [título da notícia]
+RESUMO: [resumo em 2 frases]
+URL: [link completo]
+FONTE: [nome do site]
+RELEVANCIA: [alta, media, ou baixa]
+DATA: [YYYY-MM-DD]
+ESTADO: [Sigla da UF ou none]
+---FIM---
+`;
 
   const topics: Record<string, string> = {
     concorrentes: `\nCATEGORIA: MOVIMENTOS COMPETITIVOS ERP/SOFTWARE AGRO\nEmpresas: ${CONCORRENTES_NOMES.join(', ')}.\nFoco: lançamentos, investimentos IA, aquisições, parcerias, novos módulos agro, expansão regional, mudanças de liderança.`,
@@ -90,37 +100,53 @@ function hashId(title: string, url: string): string {
   return `radar_${Math.abs(h).toString(36)}`;
 }
 
-function parseAlerts(text: string, category: string, scannedAt: string): RawAlert[] {
-  // Strip markdown code blocks if present
-  let cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '');
-  const jsonMatch = cleaned.match(/\[[\s\S]*?\]/); // non-greedy
-  if (!jsonMatch) {
-    console.warn(`[RADAR] No JSON array found for ${category}. Raw (200 chars): ${text.slice(0, 200)}`);
-    return [];
+function parseAlerts(text: string, category: string, scannedAt: string): any[] {
+  const alerts: any[] = [];
+  const blocks = text.split('---ALERTA---');
+  
+  for (let i = 1; i < blocks.length; i++) {
+    const block = blocks[i].split('---FIM---')[0];
+    if (!block) continue;
+    
+    // Extract fields
+    const getField = (label: string) => {
+      const regex = new RegExp(`${label}:\\s*(.*)`);
+      const match = block.match(regex);
+      return match ? match[1].trim().replace(/^\[|\]$/g, '') : '';
+    };
+
+    const title = getField('TITULO');
+    const summary = getField('RESUMO');
+    const sourceUrl = getField('URL');
+    const sourceName = getField('FONTE');
+    const relevanceRaw = getField('RELEVANCIA').toLowerCase() || 'media';
+    const publishedAt = getField('DATA');
+    const estadoRaw = getField('ESTADO');
+
+    if (!title || title.length < 5) continue;
+    
+    const relevanceStr = ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media';
+    const estadoStr = estadoRaw && estadoRaw.length === 2 && estadoRaw !== 'no' ? estadoRaw : undefined;
+
+    alerts.push({
+      id: hashId(title, sourceUrl),
+      title: title.slice(0, 300),
+      summary: summary.slice(0, 500),
+      sourceUrl: sourceUrl.slice(0, 1000) || '#',
+      sourceName: sourceName.slice(0, 100) || 'Fonte desconhecida',
+      category,
+      relevance: relevanceStr,
+      publishedAt: publishedAt && publishedAt.length === 10 ? publishedAt : scannedAt.split('T')[0],
+      scannedAt,
+      estado: estadoStr,
+      read: false,
+    });
   }
-  try {
-    const arr = JSON.parse(jsonMatch[0]);
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter((a: RawAlert) => a.title)
-      .slice(0, 5)
-      .map((a: RawAlert) => ({
-        id: hashId(a.title || '', a.sourceUrl || ''),
-        title: (a.title || '').slice(0, 300),
-        summary: (a.summary || '').slice(0, 500),
-        sourceUrl: (a.sourceUrl || '').slice(0, 1000),
-        sourceName: (a.sourceName || 'Fonte desconhecida').slice(0, 100),
-        category,
-        relevance: ['alta', 'media', 'baixa'].includes(a.relevance || '') ? a.relevance : 'media',
-        publishedAt: a.publishedAt || scannedAt.split('T')[0],
-        scannedAt,
-        estado: typeof a.estado === 'string' && a.estado.length === 2 ? a.estado : undefined,
-        read: false,
-      }));
-  } catch (e) {
-    console.warn(`[RADAR] JSON parse failed for ${category}:`, e, `Raw (200 chars): ${text.slice(0, 200)}`);
-    return [];
+  
+  if (alerts.length === 0) {
+    console.warn(`[RADAR] No alerts parsed for ${category}. Raw (200 chars): ${text.slice(0, 200)}`);
   }
+  return alerts.slice(0, 5);
 }
 
 // ===================================================================

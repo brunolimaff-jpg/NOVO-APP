@@ -108,23 +108,23 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
       const newAlerts = await fetchRadarAlerts(config);
       const now = Date.now();
 
-      let freshCount = 0;
-      setAlerts(prev => {
-        const existingIds = new Set(prev.map(a => a.id));
-        const fresh = newAlerts.filter(a => !existingIds.has(a.id));
-        freshCount = fresh.length;
-        const merged = [...fresh, ...prev].slice(0, MAX_ALERTS);
-        return merged;
-      });
-
       setLastScanAt(now);
       persistLastScan(now);
 
-      if (freshCount > 0) {
-        toast?.success(`Radar: ${freshCount} novo${freshCount > 1 ? 's' : ''} alerta${freshCount > 1 ? 's' : ''}`);
-      } else {
-        toast?.info('Radar: nenhuma novidade encontrada');
-      }
+      setAlerts(prev => {
+        const existingIds = new Set(prev.map(a => a.id));
+        const fresh = newAlerts.filter(a => !existingIds.has(a.id));
+        const count = fresh.length;
+        
+        if (count > 0) {
+          toast?.success(`Radar: ${count} novo${count > 1 ? 's' : ''} alerta${count > 1 ? 's' : ''}`);
+        } else {
+          toast?.info('Radar: nenhuma novidade encontrada');
+        }
+
+        const merged = [...fresh, ...prev].slice(0, MAX_ALERTS);
+        return merged;
+      });
     } catch (err) {
       console.error('[RADAR] Scan failed:', err);
       toast?.error('Radar: falha na varredura');
