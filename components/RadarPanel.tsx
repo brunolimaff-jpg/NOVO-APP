@@ -171,7 +171,18 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
 
         {/* Alerts List */}
         <div className="flex-1 overflow-y-auto p-2">
-          {filtered.length === 0 ? (
+          {isScanning && filtered.length === 0 ? (
+            <div className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+              <span className="text-4xl mb-3 animate-pulse">📡</span>
+              <p className="text-sm font-medium animate-pulse">Buscando notícias do setor...</p>
+              <p className="text-xs mt-2">Isso costuma levar de 15 a 30 segundos</p>
+              <div className="flex gap-1 mt-3">
+                {[0, 1, 2].map(i => (
+                  <span key={i} className={`w-2 h-2 rounded-full bg-emerald-400 animate-bounce`} style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
               <span className="text-4xl mb-2">📡</span>
               <p className="text-sm font-medium">Nenhum alerta encontrado</p>

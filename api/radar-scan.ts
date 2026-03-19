@@ -10,7 +10,7 @@ export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
 const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
-const SCAN_TIMEOUT_MS = 50_000;
+const SCAN_TIMEOUT_MS = 25_000; // 25s por categoria (execução paralela)
 
 const VALID_CATEGORIES = [
   'concorrentes', 'agro_tech', 'regulatorio', 'mercado', 'rh_trabalho', 'ma_expansao',
@@ -42,7 +42,7 @@ function buildPrompt(category: string, estados: string[]): string {
     : '';
 
   const base = `Você é um Head de Inteligência de Mercado de agronegócio brasileiro.
-Pesquise AGORA as notícias mais recentes (últimos 7 dias) usando busca na web.
+USE A FERRAMENTA DE BUSCA NA WEB para pesquisar notícias reais dos últimos 7 dias. Não responda de memória.
 ${estadoCtx}
 
 REGRAS:
@@ -91,13 +91,18 @@ function hashId(title: string, url: string): string {
 }
 
 function parseAlerts(text: string, category: string, scannedAt: string): RawAlert[] {
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
+  // Strip markdown code blocks if present
+  let cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '');
+  const jsonMatch = cleaned.match(/\[[\s\S]*?\]/); // non-greedy
+  if (!jsonMatch) {
+    console.warn(`[RADAR] No JSON array found for ${category}. Raw (200 chars): ${text.slice(0, 200)}`);
+    return [];
+  }
   try {
     const arr = JSON.parse(jsonMatch[0]);
     if (!Array.isArray(arr)) return [];
     return arr
-      .filter((a: RawAlert) => a.title && a.sourceUrl)
+      .filter((a: RawAlert) => a.title)
       .slice(0, 5)
       .map((a: RawAlert) => ({
         id: hashId(a.title || '', a.sourceUrl || ''),
@@ -112,7 +117,8 @@ function parseAlerts(text: string, category: string, scannedAt: string): RawAler
         estado: typeof a.estado === 'string' && a.estado.length === 2 ? a.estado : undefined,
         read: false,
       }));
-  } catch {
+  } catch (e) {
+    console.warn(`[RADAR] JSON parse failed for ${category}:`, e, `Raw (200 chars): ${text.slice(0, 200)}`);
     return [];
   }
 }
@@ -162,11 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { categories, estados } = parsed.data;
     const ai = new GoogleGenAI({ apiKey });
     const scannedAt = new Date().toISOString();
-    const allAlerts: unknown[] = [];
 
-    // Processa categorias sequencialmente para evitar rate limit
-    for (const category of categories) {
-      try {
+    // Processa categorias em PARALELO para caber no maxDuration de 120s
+    const results = await Promise.allSettled(
+      categories.map(async (category) => {
         const prompt = buildPrompt(category, estados);
         const chat = ai.chats.create({
           model: DEFAULT_MODEL,
@@ -184,13 +189,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
         const text = response.text || '';
-        const alerts = parseAlerts(text, category, scannedAt);
-        allAlerts.push(...alerts);
-      } catch (err) {
-        console.error(`[RADAR] Erro na categoria ${category}:`, err);
-        // Continua com as próximas categorias
+        console.log(`[RADAR] ${category} response (200 chars): ${text.slice(0, 200)}`);
+        return parseAlerts(text, category, scannedAt);
+      }),
+    );
+
+    const allAlerts: unknown[] = [];
+    results.forEach((result, i) => {
+      if (result.status === 'fulfilled') {
+        allAlerts.push(...result.value);
+      } else {
+        console.error(`[RADAR] Erro na categoria ${categories[i]}:`, result.reason);
       }
-    }
+    });
 
     return res.status(200).json({ alerts: allAlerts, scannedAt });
   } catch (error: unknown) {

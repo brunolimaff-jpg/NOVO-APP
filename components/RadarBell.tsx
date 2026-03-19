@@ -12,10 +12,14 @@ const RadarBell: React.FC<RadarBellProps> = ({ unreadCount, isScanning, onClick,
     <button
       onClick={onClick}
       className={`relative p-2 rounded-lg transition-all ${
-        isDarkMode
-          ? 'text-gray-500 hover:text-amber-400 hover:bg-gray-800'
-          : 'text-gray-400 hover:text-amber-500 hover:bg-gray-100'
-      } ${isScanning ? 'animate-pulse' : ''}`}
+        isScanning
+          ? isDarkMode
+            ? 'text-emerald-400 bg-gray-800 animate-pulse'
+            : 'text-emerald-500 bg-emerald-50 animate-pulse'
+          : isDarkMode
+            ? 'text-gray-500 hover:text-amber-400 hover:bg-gray-800'
+            : 'text-gray-400 hover:text-amber-500 hover:bg-gray-100'
+      }`}
       title={isScanning ? 'Radar varrendo...' : `Radar Setorial${unreadCount > 0 ? ` (${unreadCount} novas)` : ''}`}
     >
       <span className={`text-base ${unreadCount > 0 ? 'animate-[bell-shake_0.5s_ease-in-out]' : ''}`}>
