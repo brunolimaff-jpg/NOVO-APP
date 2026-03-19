@@ -16,6 +16,11 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: true,
         },
+        '/api/radar-scan': {
+          target: 'https://scoutagro.vercel.app',
+          changeOrigin: true,
+          secure: true,
+        },
       },
     },
     plugins: [
