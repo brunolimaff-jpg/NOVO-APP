@@ -303,7 +303,7 @@ export interface CRMPipelineProps {
 export type RadarCategory = 'concorrentes' | 'agro_tech' | 'regulatorio' | 'mercado' | 'rh_trabalho' | 'ma_expansao';
 
 export const RADAR_CATEGORY_LABELS: Record<RadarCategory, string> = {
-  concorrentes: 'Movimentos Competitivos',
+  concorrentes: 'Radar da Concorrência',
   agro_tech: 'Inovação AgTech',
   regulatorio: 'Regulatório & Compliance',
   mercado: 'Mercado & Commodities',

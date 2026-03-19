@@ -28,9 +28,9 @@ const RequestSchema = z.object({
 
 const CATEGORY_QUERIES: Record<string, string[]> = {
   concorrentes: [
-    '"TOTVS" agro OR "SAP" agronegócio OR "Sankhya" OR "SIAGRI" OR "Senior Sistemas" software',
+    '"TOTVS" OR "Sankhya" OR "Aliare" OR "Unysistem" OR "CHB" OR "Viasoft" software',
+    '"TOTVS" agro OR "Sankhya" agro OR "Aliare" agro OR "Viasoft" agronegócio',
     '"ERP agro" OR "software gestão rural" lançamento OR parceria OR aquisição',
-    '"Aegro" OR "Solinftec" OR "SimpleFarm" OR "Aliare" agro tecnologia',
   ],
   agro_tech: [
     '"agricultura de precisão" OR "agtech" OR "drone agro" OR "IoT campo" OR "inteligência artificial agro"',
@@ -216,11 +216,13 @@ DATA: ${item.pubDate || 'N/D'}`
   ).join('\n\n');
 
   const estadoCtx = estados.length > 0
-    ? `\nFOCO REGIONAL: Priorize artigos relevantes para: ${estados.join(', ')}.`
+    ? `\nFOCO REGIONAL: Priorize artigos relevantes para os estados: ${estados.join(', ')}.
+IMPORTANTE: Notícias que tenham impacto no Brasil TODO (nacional) são ALTAMENTE relevantes e NÃO devem ser filtradas, mesmo que o foco regional esteja ativo.`
     : '';
 
   const prompt = `Você é um analista de inteligência de mercado agro.
 Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}".
+${estadoCtx}
 
 Para cada artigo selecionado, retorne EXATAMENTE este bloco:
 ---ALERTA---
