@@ -30,26 +30,32 @@ const CATEGORY_QUERIES: Record<string, string[]> = {
   concorrentes: [
     '"TOTVS" agro OR "SAP" agronegócio OR "Sankhya" OR "SIAGRI" OR "Senior Sistemas" software',
     '"ERP agro" OR "software gestão rural" lançamento OR parceria OR aquisição',
+    '"Aegro" OR "Solinftec" OR "SimpleFarm" OR "Aliare" agro tecnologia',
   ],
   agro_tech: [
     '"agricultura de precisão" OR "agtech" OR "drone agro" OR "IoT campo" OR "inteligência artificial agro"',
     '"conectividade rural" OR "automação agrícola" OR "sensoriamento remoto" safra',
+    '"startup agro" OR "inovação campo" OR "5G rural" OR "machine learning" agricultura',
   ],
   regulatorio: [
     '"Plano Safra" OR "IBAMA" regulamentação OR "Código Florestal" OR "rastreabilidade" agro',
     '"ESG agronegócio" OR "crédito carbono" rural OR "MAPA" regulação',
+    '"CAR" cadastro ambiental OR "defesa sanitária" OR "certificação" agro exportação',
   ],
   mercado: [
     '"soja" preço cotação safra 2025 OR 2026',
     '"milho" OR "algodão" OR "café" commodities agro Brasil exportação',
+    '"boi gordo" OR "açúcar" OR "etanol" mercado agronegócio cotação',
   ],
   rh_trabalho: [
     '"NR-31" OR "eSocial rural" trabalhista agro OR "mão de obra" campo',
     '"direito trabalhista rural" OR "sindicato rural" OR "SST agro"',
+    '"trabalho rural" reforma OR "CLT campo" OR "gestão pessoas" agronegócio',
   ],
   ma_expansao: [
     '"fusão" OR "aquisição" agronegócio OR "IPO agro" OR "investimento" terras',
     '"cooperativa" expansão agro OR "compra fazenda" OR "fundo investimento" agrícola',
+    '"joint venture" agro OR "private equity" fazenda OR "consolidação" setor agro',
   ],
 };
 
@@ -69,6 +75,8 @@ const RSS_FEEDS: FeedSource[] = [
   { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['agro_tech', 'regulatorio', 'mercado'] },
   { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes', 'agro_tech'] },
   { url: 'https://www.infomoney.com.br/feed/', name: 'InfoMoney', categories: ['mercado', 'ma_expansao'] },
+  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['agro_tech', 'mercado', 'regulatorio', 'ma_expansao'] },
+  { url: 'https://valor.globo.com/agronegocios/rss', name: 'Valor Agro', categories: ['mercado', 'ma_expansao', 'concorrentes'] },
 ];
 
 // ===================================================================
@@ -94,7 +102,7 @@ function extractTag(xml: string, tag: string): string {
   return match ? match[1].trim().replace(/<!\[CDATA\[|\]\]>/g, '') : '';
 }
 
-function parseRSSXml(xml: string, sourceName: string): RSSItem[] {
+function parseRSSXml(xml: string, fallbackSourceName: string): RSSItem[] {
   const items: RSSItem[] = [];
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
   let match;
@@ -107,11 +115,15 @@ function parseRSSXml(xml: string, sourceName: string): RSSItem[] {
       .slice(0, 300);
     const pubDate = extractTag(block, 'pubDate');
 
+    // Google News RSS includes <source> with the real publisher name
+    const realSource = extractTag(block, 'source');
+    const itemSourceName = realSource && realSource.length > 1 ? realSource : fallbackSourceName;
+
     if (title && title.length > 5) {
-      items.push({ title, link, description, pubDate, sourceName });
+      items.push({ title, link, description, pubDate, sourceName: itemSourceName });
     }
   }
-  return items.slice(0, 10); // max 10 per feed
+  return items.slice(0, 20); // max 20 per feed
 }
 
 // ===================================================================
@@ -329,7 +341,7 @@ function parseAlerts(text: string, category: string, scannedAt: string): any[] {
     });
   }
 
-  return alerts.slice(0, 5);
+  return alerts.slice(0, 8);
 }
 
 // ===================================================================
@@ -384,15 +396,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     );
 
-    const allAlerts: unknown[] = [];
+    const rawAlerts: any[] = [];
     results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
-        allAlerts.push(...result.value);
+        rawAlerts.push(...result.value);
       } else {
         console.error(`[RADAR] Erro na categoria ${categories[i]}:`, result.reason);
       }
     });
 
+    // Cross-category dedup by normalized title
+    const seenTitles = new Set<string>();
+    const allAlerts = rawAlerts.filter(alert => {
+      const key = (alert.title || '').toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .slice(0, 80);
+      if (seenTitles.has(key)) return false;
+      seenTitles.add(key);
+      return true;
+    });
+
+    console.log(`[RADAR] Total: ${rawAlerts.length} raw → ${allAlerts.length} after dedup`);
     return res.status(200).json({ alerts: allAlerts, scannedAt });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
