@@ -119,8 +119,8 @@ const App: React.FC = () => {
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
-  const radar = useRadar();
   const { toasts, toast, dismiss: dismissToast } = useToast();
+  const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeGenerationRef = useRef<Record<string, string>>({});

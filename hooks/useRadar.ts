@@ -25,7 +25,13 @@ export interface UseRadarReturn {
   forceScan: () => Promise<void>;
 }
 
-export function useRadar(): UseRadarReturn {
+interface ToastActions {
+  info: (msg: string) => void;
+  success: (msg: string) => void;
+  error: (msg: string) => void;
+}
+
+export function useRadar(toast?: ToastActions): UseRadarReturn {
   const [alerts, setAlerts] = useState<RadarAlert[]>([]);
   const [config, setConfig] = useState<RadarConfig>(DEFAULT_RADAR_CONFIG);
   const [isScanning, setIsScanning] = useState(false);
@@ -96,27 +102,37 @@ export function useRadar(): UseRadarReturn {
     if (scanLockRef.current || !config.enabled || config.categories.length === 0) return;
     scanLockRef.current = true;
     setIsScanning(true);
+    toast?.info('Radar: varrendo notícias...');
 
     try {
       const newAlerts = await fetchRadarAlerts(config);
       const now = Date.now();
 
+      let freshCount = 0;
       setAlerts(prev => {
         const existingIds = new Set(prev.map(a => a.id));
         const fresh = newAlerts.filter(a => !existingIds.has(a.id));
+        freshCount = fresh.length;
         const merged = [...fresh, ...prev].slice(0, MAX_ALERTS);
         return merged;
       });
 
       setLastScanAt(now);
       persistLastScan(now);
+
+      if (freshCount > 0) {
+        toast?.success(`Radar: ${freshCount} novo${freshCount > 1 ? 's' : ''} alerta${freshCount > 1 ? 's' : ''}`);
+      } else {
+        toast?.info('Radar: nenhuma novidade encontrada');
+      }
     } catch (err) {
       console.error('[RADAR] Scan failed:', err);
+      toast?.error('Radar: falha na varredura');
     } finally {
       setIsScanning(false);
       scanLockRef.current = false;
     }
-  }, [config, persistLastScan]);
+  }, [config, persistLastScan, toast]);
 
   // ===================================================================
   // AUTO-SCAN (verifica intervalo)
