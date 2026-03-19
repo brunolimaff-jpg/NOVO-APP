@@ -300,32 +300,26 @@ export interface CRMPipelineProps {
 // RADAR COMPETITIVO & SETORIAL
 // ===================================================================
 
-export type RadarCategory = 'concorrentes' | 'agro_tech' | 'regulatorio' | 'mercado' | 'rh_trabalho' | 'ma_expansao';
+export type RadarCategory = 'concorrentes' | 'regulatorio' | 'mercado' | 'ma_expansao';
 
 export const RADAR_CATEGORY_LABELS: Record<RadarCategory, string> = {
   concorrentes: 'Radar da Concorrência',
-  agro_tech: 'Inovação AgTech',
   regulatorio: 'Regulatório & Compliance',
   mercado: 'Mercado & Commodities',
-  rh_trabalho: 'RH & Trabalhista',
   ma_expansao: 'M&A & Expansão',
 };
 
 export const RADAR_CATEGORY_ICONS: Record<RadarCategory, string> = {
   concorrentes: '⚔️',
-  agro_tech: '🚜',
   regulatorio: '📋',
   mercado: '📈',
-  rh_trabalho: '👷',
   ma_expansao: '🏢',
 };
 
 export const RADAR_CATEGORY_COLORS: Record<RadarCategory, string> = {
   concorrentes: 'bg-red-500/15 text-red-600 dark:text-red-400',
-  agro_tech: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
   regulatorio: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
   mercado: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
-  rh_trabalho: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
   ma_expansao: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
 };
 
