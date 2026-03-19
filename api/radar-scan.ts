@@ -14,7 +14,7 @@ const FETCH_TIMEOUT_MS = 12_000;
 const GEMINI_TIMEOUT_MS = 25_000;
 
 const VALID_CATEGORIES = [
-  'concorrentes', 'agro_tech', 'regulatorio', 'mercado', 'rh_trabalho', 'ma_expansao',
+  'concorrentes', 'regulatorio', 'mercado', 'ma_expansao',
 ] as const;
 
 const RequestSchema = z.object({
@@ -28,14 +28,9 @@ const RequestSchema = z.object({
 
 const CATEGORY_QUERIES: Record<string, string[]> = {
   concorrentes: [
-    '"TOTVS" agro OR "SAP" agronegócio OR "Sankhya" OR "SIAGRI" OR "Senior Sistemas" software',
+    '"TOTVS" OR "Sankhya" OR "Aliare" OR "Unysistem" OR "CHB" OR "Viasoft" software',
+    '"TOTVS" agro OR "Sankhya" agro OR "Aliare" agro OR "Viasoft" agronegócio',
     '"ERP agro" OR "software gestão rural" lançamento OR parceria OR aquisição',
-    '"Aegro" OR "Solinftec" OR "SimpleFarm" OR "Aliare" agro tecnologia',
-  ],
-  agro_tech: [
-    '"agricultura de precisão" OR "agtech" OR "drone agro" OR "IoT campo" OR "inteligência artificial agro"',
-    '"conectividade rural" OR "automação agrícola" OR "sensoriamento remoto" safra',
-    '"startup agro" OR "inovação campo" OR "5G rural" OR "machine learning" agricultura',
   ],
   regulatorio: [
     '"Plano Safra" OR "IBAMA" regulamentação OR "Código Florestal" OR "rastreabilidade" agro',
@@ -46,11 +41,6 @@ const CATEGORY_QUERIES: Record<string, string[]> = {
     '"soja" preço cotação safra 2025 OR 2026',
     '"milho" OR "algodão" OR "café" commodities agro Brasil exportação',
     '"boi gordo" OR "açúcar" OR "etanol" mercado agronegócio cotação',
-  ],
-  rh_trabalho: [
-    '"NR-31" OR "eSocial rural" trabalhista agro OR "mão de obra" campo',
-    '"direito trabalhista rural" OR "sindicato rural" OR "SST agro"',
-    '"trabalho rural" reforma OR "CLT campo" OR "gestão pessoas" agronegócio',
   ],
   ma_expansao: [
     '"fusão" OR "aquisição" agronegócio OR "IPO agro" OR "investimento" terras',
@@ -70,12 +60,12 @@ interface FeedSource {
 }
 
 const RSS_FEEDS: FeedSource[] = [
-  { url: 'https://www.canalrural.com.br/feed/', name: 'Canal Rural', categories: ['agro_tech', 'mercado', 'ma_expansao'] },
+  { url: 'https://www.canalrural.com.br/feed/', name: 'Canal Rural', categories: ['mercado', 'ma_expansao'] },
   { url: 'https://www.noticiasagricolas.com.br/rss/ultimas-noticias.xml', name: 'Notícias Agrícolas', categories: ['mercado', 'concorrentes'] },
-  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['agro_tech', 'regulatorio', 'mercado'] },
-  { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes', 'agro_tech'] },
+  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['regulatorio', 'mercado'] },
+  { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes'] },
   { url: 'https://www.infomoney.com.br/feed/', name: 'InfoMoney', categories: ['mercado', 'ma_expansao'] },
-  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['agro_tech', 'mercado', 'regulatorio', 'ma_expansao'] },
+  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['mercado', 'regulatorio', 'ma_expansao'] },
   { url: 'https://valor.globo.com/agronegocios/rss', name: 'Valor Agro', categories: ['mercado', 'ma_expansao', 'concorrentes'] },
 ];
 
@@ -216,11 +206,13 @@ DATA: ${item.pubDate || 'N/D'}`
   ).join('\n\n');
 
   const estadoCtx = estados.length > 0
-    ? `\nFOCO REGIONAL: Priorize artigos relevantes para: ${estados.join(', ')}.`
+    ? `\nFOCO REGIONAL: Priorize artigos relevantes para os estados: ${estados.join(', ')}.
+IMPORTANTE: Notícias que tenham impacto no Brasil TODO (nacional) são ALTAMENTE relevantes e NÃO devem ser filtradas, mesmo que o foco regional esteja ativo.`
     : '';
 
   const prompt = `Você é um analista de inteligência de mercado agro.
 Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}".
+${estadoCtx}
 
 Para cada artigo selecionado, retorne EXATAMENTE este bloco:
 ---ALERTA---
