@@ -99,7 +99,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   // ===================================================================
 
   const runScan = useCallback(async () => {
-    if (scanLockRef.current || !config.enabled || config.categories.length === 0) return;
+    if (scanLockRef.current || !config.enabled || !config.isConfigured || config.categories.length === 0) return;
     scanLockRef.current = true;
     setIsScanning(true);
     toast?.info('Radar: varrendo notícias...');
@@ -139,7 +139,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   // ===================================================================
 
   useEffect(() => {
-    if (!isInitialized || !config.enabled) return;
+    if (!isInitialized || !config.enabled || !config.isConfigured) return;
 
     const intervalMs = config.scanIntervalHours * 3600_000;
     const now = Date.now();
@@ -181,8 +181,12 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   }, []);
 
   const forceScan = useCallback(async () => {
+    if (!config.isConfigured) {
+      toast?.error('Configure o Radar antes de varrer (clique em ⚙️)');
+      return;
+    }
     await runScan();
-  }, [runScan]);
+  }, [config.isConfigured, runScan, toast]);
 
   return {
     alerts,

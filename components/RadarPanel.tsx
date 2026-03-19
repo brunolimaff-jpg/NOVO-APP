@@ -7,6 +7,7 @@ interface RadarPanelProps {
   isScanning: boolean;
   lastScanAt: number | null;
   unreadCount: number;
+  isConfigured: boolean;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
   onDismiss: (id: string) => void;
@@ -37,6 +38,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
   isScanning,
   lastScanAt,
   unreadCount,
+  isConfigured,
   onMarkAsRead,
   onMarkAllAsRead,
   onDismiss,
@@ -171,7 +173,29 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
 
         {/* Alerts List */}
         <div className="flex-1 overflow-y-auto p-2">
-          {isScanning && filtered.length === 0 ? (
+          {!isConfigured ? (
+            <div className={`flex flex-col items-center justify-center h-full px-6 text-center`}>
+              <div className={`w-full max-w-xs p-6 rounded-2xl border-2 border-dashed ${
+                isDarkMode
+                  ? 'border-emerald-800/50 bg-emerald-900/10'
+                  : 'border-emerald-300 bg-emerald-50/50'
+              }`}>
+                <span className="text-5xl block mb-4">🛰️</span>
+                <h3 className={`text-base font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  Configure seu Radar
+                </h3>
+                <p className={`text-xs leading-relaxed mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Selecione as categorias e estados que deseja monitorar para receber alertas personalizados do setor.
+                </p>
+                <button
+                  onClick={onOpenSettings}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-all bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  ⚙️ Configurar Radar
+                </button>
+              </div>
+            </div>
+          ) : isScanning && filtered.length === 0 ? (
             <div className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
               <span className="text-4xl mb-3 animate-pulse">📡</span>
               <p className="text-sm font-medium animate-pulse">Buscando notícias do setor...</p>
