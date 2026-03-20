@@ -52,7 +52,51 @@ function readGuestNamePreference(): string {
   }
 }
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// Provedor usado quando Clerk está DESATIVADO — não chama nenhum hook do Clerk.
+const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
+
+  const guestUser: AuthUser = {
+    id: 'guest',
+    displayName: guestDisplayName || 'Visitante',
+    email: '',
+    isGuest: true,
+  };
+
+  const updateName = (name: string) => {
+    const normalizedName = name.trim() || 'Visitante';
+    setGuestDisplayName(normalizedName);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
+      } catch {
+        // Ignora falhas de storage.
+      }
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user: guestUser,
+        userId: 'guest',
+        isAuthenticated: true,
+        loading: false,
+        continueAsGuest: () => {},
+        login: async () => {},
+        register: async () => {},
+        logout: async () => {},
+        updateName,
+        error: null,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Provedor usado quando Clerk está ATIVO — pode chamar hooks do Clerk normalmente.
+const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerkAuth();
   const clerk = useClerk();
@@ -74,27 +118,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   useEffect(() => {
-    if (isSignedIn && guestModeEnabled && !TEMPORARILY_DISABLE_CLERK) setGuestMode(false);
+    if (isSignedIn && guestModeEnabled) setGuestMode(false);
   }, [guestModeEnabled, isSignedIn, setGuestMode]);
 
   useEffect(() => {
     if (REQUIRE_CLERK_AUTH && guestModeEnabled) setGuestMode(false);
   }, [guestModeEnabled, setGuestMode]);
 
-  useEffect(() => {
-    if (!TEMPORARILY_DISABLE_CLERK) return;
-    try {
-      // Fecha qualquer modal/portal de autenticação remanescente do Clerk no modo visitante.
-      (clerk as { closeSignIn?: () => void; closeSignUp?: () => void }).closeSignIn?.();
-      (clerk as { closeSignIn?: () => void; closeSignUp?: () => void }).closeSignUp?.();
-    } catch {
-      // Evita quebrar a app caso a API interna do Clerk mude.
-    }
-  }, [clerk]);
-
-  // Mapeia o usuário real do Clerk para o formato que o seu App já usava
   const user: AuthUser | null =
-    isSignedIn && clerkUser && !TEMPORARILY_DISABLE_CLERK
+    isSignedIn && clerkUser
       ? {
           id: clerkUser.id,
           displayName:
@@ -105,7 +137,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
           isGuest: false,
         }
-      : (!REQUIRE_CLERK_AUTH && guestModeEnabled) || TEMPORARILY_DISABLE_CLERK
+      : !REQUIRE_CLERK_AUTH && guestModeEnabled
         ? {
             id: 'guest',
             displayName: guestDisplayName || 'Visitante',
@@ -114,18 +146,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         : null;
 
-  // As funções abaixo agora acionam o Clerk
   const continueAsGuest = () => {
     if (REQUIRE_CLERK_AUTH) return;
     setGuestMode(true);
   };
   const login = async () => {
-    if (TEMPORARILY_DISABLE_CLERK) return;
     setGuestMode(false);
     clerk.openSignIn();
   };
   const register = async () => {
-    if (TEMPORARILY_DISABLE_CLERK) return;
     setGuestMode(false);
     clerk.openSignUp();
   };
@@ -134,17 +163,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setGuestMode(false);
       return;
     }
-    if (!TEMPORARILY_DISABLE_CLERK) {
-      await signOut();
-    }
+    await signOut();
     setGuestMode(false);
   };
-  
+
   const updateName = async (name: string) => {
     const normalizedName = name.trim() || 'Visitante';
 
-    // Modo visitante: persiste localmente e atualiza imediatamente a UI.
-    if (TEMPORARILY_DISABLE_CLERK || guestModeEnabled || !isSignedIn) {
+    if (guestModeEnabled || !isSignedIn) {
       setGuestDisplayName(normalizedName);
       if (typeof window !== 'undefined') {
         try {
@@ -156,7 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    if (clerkUser && !TEMPORARILY_DISABLE_CLERK) {
+    if (clerkUser) {
       const parts = normalizedName.split(' ');
       await clerkUser.update({
         firstName: parts[0],
@@ -170,8 +196,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         userId: user?.id || '',
-        isAuthenticated: !!isSignedIn || (!REQUIRE_CLERK_AUTH && guestModeEnabled) || TEMPORARILY_DISABLE_CLERK,
-        loading: TEMPORARILY_DISABLE_CLERK ? false : !isLoaded,
+        isAuthenticated: !!isSignedIn || (!REQUIRE_CLERK_AUTH && guestModeEnabled),
+        loading: !isLoaded,
         continueAsGuest,
         login,
         register,
@@ -183,6 +209,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  if (TEMPORARILY_DISABLE_CLERK) {
+    return <GuestOnlyAuthProvider>{children}</GuestOnlyAuthProvider>;
+  }
+  return <ClerkAuthProvider>{children}</ClerkAuthProvider>;
 };
 
 export const useAuth = () => {
