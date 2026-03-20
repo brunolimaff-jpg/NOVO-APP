@@ -348,15 +348,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
         <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
         <header
-          className={`z-10 flex flex-shrink-0 flex-col gap-2 border-b px-3 py-2.5 backdrop-blur-md ${
+          className={`z-10 flex flex-shrink-0 flex-col gap-2 border-b px-3 py-2.5 backdrop-blur-md md:flex-row md:items-center md:gap-3 md:py-2 ${
             isDarkMode ? 'border-gray-800 bg-gray-900/85' : 'border-gray-200 bg-white/90'
           }`}
         >
-          <div className="flex min-h-[40px] items-center gap-2">
+          {/* Mobile: linha 1 = menu + título + ações. Desktop (md): filhos viram uma linha via md:contents + order */}
+          <div className="flex min-h-[40px] items-center gap-2 md:contents">
             <button
               type="button"
               onClick={onToggleSidebar}
-              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
+              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors md:order-1 ${
                 isDarkMode
                   ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -366,7 +367,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             >
               ☰
             </button>
-            <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="min-w-0 flex-1 overflow-hidden md:order-2 md:w-44 md:flex-none lg:w-52 xl:w-56">
               <p
                 className={`text-[10px] font-semibold uppercase tracking-wide ${
                   isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
@@ -379,7 +380,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 {displayTitle}
               </h1>
             </div>
-            <div className="flex flex-shrink-0 items-center gap-0.5">
+            <div className="flex flex-shrink-0 items-center gap-0.5 md:order-4">
             {hasReport && !isLoading && (
               <>
                 <button
@@ -446,7 +447,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             </div>
           </div>
 
-          <div className="min-w-0 w-full">
+          {/* Mobile: linha 2 = busca. Desktop: entre título e ações, ocupa o espaço central */}
+          <div className="min-w-0 w-full md:order-3 md:min-w-0 md:flex-1">
             <HeaderSessionSearch
               value={sessionSearchTerm}
               onChange={setSessionSearchTerm}
