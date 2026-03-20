@@ -148,7 +148,10 @@ function consolidateScore(): void {
 
   let multiplier = 1;
   for (const flag of flags) {
-    multiplier *= PORTA_FLAG_PENALTIES[flag];
+    const penalty = PORTA_FLAG_PENALTIES[flag];
+    if (typeof penalty === 'number' && !isNaN(penalty)) {
+      multiplier *= penalty;
+    }
   }
   const score = Math.round(scoreBruto * multiplier);
 

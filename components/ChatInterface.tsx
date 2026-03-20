@@ -646,7 +646,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         )}
 
         {radar && showRadarPanel && (
-          <React.Suspense fallback={null}>
+          <SuspenseWithError>
             <RadarPanel
               alerts={radar.alerts}
               metaInsight={radar.metaInsight}
@@ -662,7 +662,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               onClose={() => setShowRadarPanel(false)}
               isDarkMode={isDarkMode}
             />
-          </React.Suspense>
+          </SuspenseWithError>
         )}
 
         {radar && showRadarSettings && (
