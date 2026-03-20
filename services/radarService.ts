@@ -116,7 +116,16 @@ export async function fetchRadarAlerts(config: RadarConfig): Promise<{ alerts: R
   });
 
   if (!res.ok) {
-    throw new Error(`Radar scan failed: ${res.status}`);
+    let detail = '';
+    try {
+      const err = await res.json();
+      const parts = [err?.error, err?.detail, err?.message].filter(Boolean);
+      detail = parts.join(' | ');
+      if (!detail && err?.details) detail = JSON.stringify(err.details);
+    } catch {
+      // ignore parse failures and keep status-only error
+    }
+    throw new Error(`Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`);
   }
 
   const data = await res.json();

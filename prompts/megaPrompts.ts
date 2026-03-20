@@ -15,7 +15,7 @@ O usuário já recebeu um dossiê com as 9 fases. Você NÃO deve:
 Você DEVE:
 1. Ir 10x mais fundo que o dossiê NA SUA ÁREA ESPECÍFICA
 2. Trazer dados e fontes NOVAS
-3. Preencher o bloco ALIMENTAÇÃO PORTA com markers [[PORTA_FEED_*]]
+3. Preencher o bloco de feeds PORTA com markers [[PORTA_FEED_*]]
 4. Gerar gatilhos de abordagem específicos da sua área
 5. Se referenciar algo do dossiê, faça em 1 frase e siga em frente
 `;
@@ -193,7 +193,7 @@ graph TD
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 Com base na investigação acima, preencha:
 
@@ -395,7 +395,7 @@ Se NÃO identificar linguagem legada, declare explicitamente: "Sistema legado pa
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
 [[PORTA_FLAG:LOCK:[SIM/NAO]]]
@@ -501,7 +501,7 @@ Se houver histórico negativo antigo com remediação atual, deixe isso explíci
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 **Dimensão R (Pressão Externa):**
 - Pressões fiscais: [lista]
@@ -662,7 +662,7 @@ graph TD
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 **Dimensão P (Porte):**
 - Hectares totais: [X]
@@ -751,7 +751,7 @@ Ceticismo absoluto. NÃO INVENTE NOMES, CARGOS, NÚMEROS. Se não encontrar, dec
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 **Dimensão P (proxy — dimensionamento):**
 - Funcionários totais estimados: [X]
@@ -915,7 +915,7 @@ graph TD
 
 ---
 
-### 📊 ALIMENTAÇÃO PORTA (OBRIGATÓRIO)
+### 📊 BLOCO DE FEEDS PORTA (OBRIGATÓRIO)
 
 **Dimensão A:**
 - Nota A1 (Cultural): [0-10]
