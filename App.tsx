@@ -445,7 +445,8 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, displayText?: string) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
-    if (!sessionId) {
+    const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
+    if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
       const immediateTitle = cleanTitle(extractCompanyName(displayText || text));
       const newSession: ChatSession = {
