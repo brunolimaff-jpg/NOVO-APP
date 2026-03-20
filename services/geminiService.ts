@@ -55,6 +55,7 @@ export interface GeminiRequestOptions {
   onStatus?: (status: string) => void;
   onScorePorta?: (score: ScorePortaData) => void;
   onCompetitor?: (detection: CompetitorDetection) => void;
+  onRagFailed?: () => void;
   nomeVendedor?: string;
   sessionId?: string;
   hintedCompany?: string | null;
@@ -540,6 +541,7 @@ export async function sendMessageToGemini(
     onStatus,
     onScorePorta,
     onCompetitor,
+    onRagFailed,
     nomeVendedor   = 'Vendedor',
     sessionId,
     hintedCompany  = null,
@@ -648,8 +650,9 @@ export async function sendMessageToGemini(
         buscarContextoPinecone(userMessage, empresaAlvo || ''),
         buscarContextoDocsPinecone(userMessage),
       ]);
-      ragContext     = pinecone || '';
-      ragDocsContext = docs     || '';
+      ragContext     = pinecone.context;
+      ragDocsContext = docs.context;
+      if (pinecone.failed || docs.failed) onRagFailed?.();
     } catch { /* silencioso */ }
   }
 
@@ -752,7 +755,7 @@ export async function sendMessageToGemini(
         useGrounding:      shouldUseGrounding,
         thinkingMode,
       }, signal),
-      { maxRetries: 2 },
+      { maxRetries: 2, abortSignal: signal },
     );
   } catch (error) {
     const appError = normalizeAppError(error);
@@ -772,7 +775,7 @@ export async function sendMessageToGemini(
         useGrounding:      false,
         thinkingMode,
       }, signal),
-      { maxRetries: 2, baseDelayMs: 800, maxDelayMs: 3000 },
+      { maxRetries: 2, baseDelayMs: 800, maxDelayMs: 3000, abortSignal: signal },
     );
   }
 

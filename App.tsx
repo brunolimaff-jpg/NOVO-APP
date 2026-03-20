@@ -5,6 +5,8 @@ import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
 import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
+import { useAppInitialization } from './hooks/useAppInitialization';
+import { useSessionManager } from './hooks/useSessionManager';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { AuthModal } from './components/AuthModal';
@@ -26,7 +28,7 @@ import {
   sendMessageToGemini,
   generateContinuityQuestion,
 } from './services/geminiService';
-import { listRemoteSessions, getRemoteSession, saveRemoteSession } from './services/sessionRemoteStore';
+import { getRemoteSession, saveRemoteSession } from './services/sessionRemoteStore';
 import { sendFeedbackRemote } from './services/feedbackRemoteStore';
 import { APP_NAME, MODE_LABELS } from './constants';
 import { normalizeAppError } from './utils/errorHelpers';
@@ -176,121 +178,40 @@ const App: React.FC = () => {
     [currentSessionId, setSessions],
   );
 
-  // --- Initialization ---
-  useEffect(() => {
-    const initApp = async () => {
-      const localSessions = await loadSessions();
-      try {
-        const remoteList = await listRemoteSessions();
-        const sessionMap = new Map<string, ChatSession>();
-        localSessions.forEach(s => sessionMap.set(s.id, s));
-        remoteList.forEach(r => {
-          const existing = sessionMap.get(r.id);
-          if (existing) {
-            sessionMap.set(r.id, {
-              ...existing,
-              ...r,
-              messages: existing.messages.length > 0 ? existing.messages : [],
-            });
-          } else {
-            sessionMap.set(r.id, r);
-          }
-        });
-        const mergedSessions = Array.from(sessionMap.values()).sort(
-          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-        );
-        setSessions(mergedSessions);
-        if (mergedSessions.length > 0) setCurrentSessionId(mergedSessions[0].id);
-        else handleNewSession();
-      } catch {
-        setSessions(localSessions);
-        if (localSessions.length > 0) setCurrentSessionId(localSessions[0].id);
-        else handleNewSession();
-      }
-      if (window.innerWidth < 768) setIsSidebarOpen(false);
-      setIsInitialized(true);
-    };
-    initApp();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   useEffect(() => {
     document.title = `${APP_NAME} ${MODE_LABELS[mode].icon}`;
   }, [mode]);
 
-  // --- Session handlers ---
-  const handleNewSession = useCallback(() => {
-    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
-    const newSession: ChatSession = {
-      id: uuidv4(),
-      title: 'Nova Investigação',
-      empresaAlvo: null,
-      cnpj: null,
-      modoPrincipal: null,
-      scoreOportunidade: null,
-      resumoDossie: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      messages: [],
-    };
-    setSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
-    setVisibleCount(PAGE_SIZE);
-    setRemoteSaveStatus('idle');
-    setExportStatus('idle');
-    setPdfReportContent(null);
-    setInvestigationLogged(false);
-    lastActionRef.current = null;
-    setLastQuery('');
-    setLoadingStatus('Iniciando análise');
-  }, [isLoading, setSessions]);
+  // --- Session handlers (extracted to useSessionManager) ---
+  const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager({
+    sessions,
+    setSessions,
+    currentSessionId,
+    setCurrentSessionId,
+    isLoading,
+    abortControllerRef,
+    activeGenerationRef,
+    updateSessionById,
+    setVisibleCount,
+    setRemoteSaveStatus,
+    setExportStatus,
+    setPdfReportContent,
+    setInvestigationLogged,
+    lastActionRef,
+    setLastQuery,
+    setLoadingStatus,
+    setIsLoading,
+  });
 
-  const handleSelectSession = async (sessionId: string) => {
-    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
-    setCurrentSessionId(sessionId);
-    setVisibleCount(PAGE_SIZE);
-    setRemoteSaveStatus('idle');
-    setExportStatus('idle');
-    setPdfReportContent(null);
-    setInvestigationLogged(false);
-    lastActionRef.current = null;
-    setLoadingStatus('Iniciando análise');
-    const targetSession = sessions.find(s => s.id === sessionId);
-    if (targetSession && targetSession.messages.length === 0) {
-      try {
-        const fullSession = await getRemoteSession(sessionId);
-        if (fullSession) updateSessionById(sessionId, () => fullSession);
-      } catch (e) {
-        console.error('Lazy load error', e);
-      }
-    }
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    if (sessionId === currentSessionId && isLoading && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      setIsLoading(false);
-    }
-    delete activeGenerationRef.current[sessionId];
-    const newSessions = sessions.filter(s => s.id !== sessionId);
-    setSessions(newSessions);
-    if (currentSessionId === sessionId) {
-      if (newSessions.length > 0) {
-        const nextSession = newSessions[0];
-        setCurrentSessionId(nextSession.id);
-        if (nextSession.messages.length === 0) {
-          getRemoteSession(nextSession.id)
-            .then(fullSession => {
-              if (fullSession) updateSessionById(nextSession.id, () => fullSession);
-            })
-            .catch(() => {});
-        }
-      } else {
-        handleNewSession();
-      }
-    }
-  };
+  // --- Initialization (extracted to useAppInitialization) ---
+  useAppInitialization({
+    loadSessions,
+    setSessions,
+    setCurrentSessionId,
+    setIsSidebarOpen,
+    setIsInitialized,
+    handleNewSession,
+  });
 
   const handleSaveRemote = async () => {
     if (!currentSession || !isAuthenticated) return;
@@ -423,6 +344,9 @@ const App: React.FC = () => {
               }
               return normalizedStatus;
             });
+          },
+          onRagFailed: () => {
+            toast.warning('Busca de contexto indisponível — resposta pode ser menos precisa');
           },
           nomeVendedor: typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
           sessionId,

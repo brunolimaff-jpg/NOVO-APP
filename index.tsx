@@ -7,6 +7,7 @@ import { ModeProvider } from './contexts/ModeContext';
 import { CRMProvider } from './contexts/CRMContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { TEMPORARILY_DISABLE_CLERK } from './contexts/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -48,19 +49,27 @@ if (!PUBLISHABLE_KEY) {
 }
 
 const root = createRoot(rootElement);
+const appTree = (
+  <AuthProvider>
+    <ModeProvider>
+      <CRMProvider>
+        <App />
+      </CRMProvider>
+    </ModeProvider>
+  </AuthProvider>
+);
+
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ variables: { colorPrimary: '#059669' } }}>
-          <AuthProvider>
-            <ModeProvider>
-              <CRMProvider>
-                <App />
-              </CRMProvider>
-            </ModeProvider>
-          </AuthProvider>
-        </ClerkProvider>
+        {TEMPORARILY_DISABLE_CLERK ? (
+          appTree
+        ) : (
+          <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ variables: { colorPrimary: '#059669' } }}>
+            {appTree}
+          </ClerkProvider>
+        )}
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>
