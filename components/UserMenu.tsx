@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
-import { TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 
 export interface UserMenuProps {
   isDarkMode: boolean;
   displayName: string;
   isGuest?: boolean;
+  /** Foto do perfil (ex.: Clerk). Fora do ClerkProvider, omitir e usar iniciais. */
+  avatarUrl?: string | null;
   onOpenSettings: () => void;
   onLogout: () => void;
 }
@@ -21,15 +21,13 @@ const UserMenu: React.FC<UserMenuProps> = ({
   isDarkMode,
   displayName,
   isGuest = false,
+  avatarUrl = null,
   onOpenSettings,
   onLogout,
 }) => {
-  const { user: clerkUser } = useUser();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const avatarUrl =
-    !TEMPORARILY_DISABLE_CLERK && clerkUser?.imageUrl ? clerkUser.imageUrl : null;
   const label = displayName.trim() || 'Usuário';
   const initials = initialsFromName(label);
 

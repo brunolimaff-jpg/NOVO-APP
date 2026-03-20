@@ -3,10 +3,11 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
 import AppIconRail from './AppIconRail';
 import UserMenu from './UserMenu';
+import UserMenuClerkBridge from './UserMenuClerkBridge';
 import EmptyStateHome from './EmptyStateHome';
 import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
@@ -450,13 +451,23 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 />
               </React.Suspense>
             )}
-            <UserMenu
-              isDarkMode={isDarkMode}
-              displayName={user?.displayName || 'Usuário'}
-              isGuest={user?.isGuest}
-              onOpenSettings={() => setShowSettings(true)}
-              onLogout={onLogout}
-            />
+            {TEMPORARILY_DISABLE_CLERK ? (
+              <UserMenu
+                isDarkMode={isDarkMode}
+                displayName={user?.displayName || 'Usuário'}
+                isGuest={user?.isGuest}
+                onOpenSettings={() => setShowSettings(true)}
+                onLogout={onLogout}
+              />
+            ) : (
+              <UserMenuClerkBridge
+                isDarkMode={isDarkMode}
+                displayName={user?.displayName || 'Usuário'}
+                isGuest={user?.isGuest}
+                onOpenSettings={() => setShowSettings(true)}
+                onLogout={onLogout}
+              />
+            )}
           </div>
         </header>
 
