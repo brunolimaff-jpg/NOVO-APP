@@ -108,7 +108,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
       />
 
       <aside className={`
-        fixed inset-y-0 left-14 z-30 h-full border-r flex flex-col
+        fixed inset-y-0 left-0 z-30 h-full border-r flex flex-col
         ${theme.bg}
         transition-all duration-300 ease-in-out
         w-72

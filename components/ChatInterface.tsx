@@ -5,7 +5,7 @@ import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth, TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
-import AppIconRail from './AppIconRail';
+import HeaderSessionSearch from './HeaderSessionSearch';
 import UserMenu from './UserMenu';
 import UserMenuClerkBridge from './UserMenuClerkBridge';
 import EmptyStateHome from './EmptyStateHome';
@@ -268,16 +268,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onExportConversation('doc', 'full');
   };
 
-  const railNewSession = () => {
-    onNewSession();
-    if (typeof window !== 'undefined' && window.innerWidth < 768 && isSidebarOpen) onToggleSidebar();
-  };
-
-  const railOpenKanban = () => {
-    onOpenKanban?.();
-    if (typeof window !== 'undefined' && window.innerWidth < 768 && isSidebarOpen) onToggleSidebar();
-  };
-
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || 'Nova Investigação');
   const displayTitle = headerTitle.length > 35 ? headerTitle.substring(0, 32) + '...' : headerTitle;
   const hasReport = messages.some(
@@ -338,15 +328,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   return (
     <div className={`flex h-full w-full overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-white'}`}>
-      <AppIconRail
-        isDarkMode={isDarkMode}
-        isSidebarOpen={isSidebarOpen}
-        onToggleSidebar={onToggleSidebar}
-        onNewSession={railNewSession}
-        onOpenKanban={onOpenKanban ? railOpenKanban : undefined}
-        canAccessMiniCRM={canAccessMiniCRM}
-      />
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-row">
         <SessionsSidebar
           sessions={sessions}
@@ -367,45 +348,38 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
         <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
         <header
-          className={`z-10 flex h-14 flex-shrink-0 items-center gap-2 border-b px-2 py-2 backdrop-blur-md sm:px-3 ${
-            isDarkMode ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-gray-200'
+          className={`z-10 flex flex-shrink-0 flex-col gap-2 border-b px-3 py-2.5 backdrop-blur-md ${
+            isDarkMode ? 'border-gray-800 bg-gray-900/85' : 'border-gray-200 bg-white/90'
           }`}
         >
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden sm:flex-row sm:items-center sm:gap-3">
-            <p
-              className={`hidden text-[10px] font-semibold uppercase tracking-wide text-emerald-600/90 sm:block sm:max-w-[140px] sm:truncate ${
-                isDarkMode ? 'text-emerald-400/90' : ''
+          <div className="flex min-h-[40px] items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
+                isDarkMode
+                  ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
               }`}
-              title={APP_NAME}
+              aria-label={isSidebarOpen ? 'Fechar painel de histórico' : 'Abrir painel de histórico'}
+              aria-expanded={isSidebarOpen}
             >
-              Senior Scout 360
-            </p>
-            <h1 className={`truncate text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              {displayTitle}
-            </h1>
-          </div>
-
-          <div className="flex min-w-0 max-w-xl flex-1 justify-center px-1 sm:px-2">
-            <label className="relative w-full min-w-0 max-w-md">
-              <span className="sr-only">Buscar empresa ou CNPJ no histórico</span>
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-50">
-                🔍
-              </span>
-              <input
-                type="search"
-                value={sessionSearchTerm}
-                onChange={e => setSessionSearchTerm(e.target.value)}
-                placeholder="Buscar no histórico..."
-                className={`w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-800/80 text-white placeholder-slate-500'
-                    : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'
+              ☰
+            </button>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <p
+                className={`text-[10px] font-semibold uppercase tracking-wide ${
+                  isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
                 }`}
-              />
-            </label>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center gap-1">
+                title={APP_NAME}
+              >
+                Senior Scout 360
+              </p>
+              <h1 className={`truncate text-sm font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                {displayTitle}
+              </h1>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-0.5">
             {hasReport && !isLoading && (
               <>
                 <button
@@ -469,6 +443,15 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 onLogout={onLogout}
               />
             )}
+            </div>
+          </div>
+
+          <div className="min-w-0 w-full">
+            <HeaderSessionSearch
+              value={sessionSearchTerm}
+              onChange={setSessionSearchTerm}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </header>
 
