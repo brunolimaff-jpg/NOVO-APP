@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Feedback } from '../types';
-import { PDFGenerator } from '../utils/PDFGenerator';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 
 interface MessageActionsBarProps {
@@ -78,6 +77,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       const title = titleMatch ? titleMatch[1].trim() : 'Análise Scout 360';
       const normalizedContent = normalizeMermaidBlocks(content);
 
+      const { PDFGenerator } = await import('../utils/PDFGenerator');
       const pdf = new PDFGenerator();
       pdf.addHeader(title, `${dateStr} às ${timeStr}`);
       await pdf.renderMarkdown(normalizedContent);
