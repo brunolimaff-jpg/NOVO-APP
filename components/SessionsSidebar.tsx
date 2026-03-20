@@ -19,6 +19,8 @@ interface SessionsSidebarProps {
   /** Busca sincronizada com a barra superior (opcional = estado interno). */
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
+  /** Se false, o campo de busca não é exibido (filtro continua vindo do pai via searchTerm). */
+  showSearchField?: boolean;
 }
 
 const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
@@ -35,6 +37,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   canAccessMiniCRM = true,
   searchTerm: searchTermProp,
   onSearchChange,
+  showSearchField = true,
 }) => {
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const searchControlled = searchTermProp !== undefined && onSearchChange !== undefined;
@@ -143,6 +146,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                     )}
                 </div>
                 
+                {showSearchField && (
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-xs opacity-50">🔍</span>
                     <input 
@@ -154,6 +158,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                       className={`w-full pl-8 pr-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${theme.inputBg}`}
                     />
                 </div>
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">

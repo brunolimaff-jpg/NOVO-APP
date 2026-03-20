@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { ChatMode, APP_NAME } from '../constants';
+import { ChatMode, MODE_LABELS } from '../constants';
 import {
   fetchCompanyByCnpj,
   formatCnpj,
@@ -21,17 +21,28 @@ const VALID_UFS = new Set([
   'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]);
 
+const BULLETS: Record<ChatMode, string[]> = {
+  operacao: [
+    'Dossiê integrado com síntese objetiva e rastreio de fontes.',
+    'CNPJ opcional com validação na BrasilAPI e localização conferida no IBGE.',
+    'Fluxo pronto para continuar no chat, exportar e enviar ao CRM.',
+  ],
+  diretoria: [
+    'Enquadramento estratégico da conta e leitura de risco/oportunidade.',
+    'Base para decisão: contexto, stakeholders e próximos passos sugeridos.',
+    'Compatível com aprofundamento em Modo Operação após o cadastro.',
+  ],
+};
+
 const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode }) => {
   const { user } = useAuth();
   const userName = user?.displayName;
 
   const [randomGreeting] = useState(() => {
     const greetings = [
-      'E aí, parceiro! Qual empresa a gente vai fuçar hoje?',
-      'Bora, comandante! Qual alvo vamos investigar?',
-      'Pronto pra ação! Qual empresa quer desvendar hoje?',
-      'Salve, bandeirante! Quem é o alvo da vez?',
-      'Tamo on! Manda o nome da empresa que eu faço o resto.',
+      'Qual empresa ou grupo econômico vamos mapear agora?',
+      'Informe o alvo para montar o contexto inicial da investigação.',
+      'Comece pelo cadastro mínimo; o restante segue no fluxo assistido.',
     ];
     return greetings[Math.floor(Math.random() * greetings.length)];
   });
@@ -39,22 +50,12 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const displayGreeting =
     userName && userName !== 'Sair' && userName.trim().length > 0
       ? mode === 'operacao'
-        ? `E aí, ${userName}! Bão? Bora vender.`
-        : `Olá, ${userName}. Vamos investigar quem hoje?`
+        ? `Olá, ${userName}. Vamos iniciar uma nova investigação.`
+        : `Olá, ${userName}. Selecione a conta para análise executiva.`
       : randomGreeting;
 
-  const heroContent = {
-    diretoria: {
-      title: APP_NAME,
-      subtitle: 'Inteligência comercial estratégica para contas complexas.',
-    },
-    operacao: {
-      title: 'Modo Operação 🛻',
-      subtitle: 'Inteligência forense direto ao ponto — sem rodeio, sem enrolação.',
-    },
-  };
-
-  const currentHero = heroContent[mode];
+  const modeMeta = MODE_LABELS[mode];
+  const bullets = BULLETS[mode];
 
   const [companyName, setCompanyName] = useState('');
   const [cnpjInput, setCnpjInput] = useState('');
@@ -66,13 +67,19 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const [lastLookupCnpj, setLastLookupCnpj] = useState<string | null>(null);
   const [didSubmit, setDidSubmit] = useState(false);
 
-  const theme = {
-    textPrimary: isDarkMode ? 'text-white' : 'text-slate-900',
-    textSecondary: isDarkMode ? 'text-gray-400' : 'text-slate-500',
-    heading: isDarkMode ? 'text-gray-500' : 'text-slate-400',
-    cardHoverBorder: isDarkMode ? 'hover:border-green-600' : 'hover:border-emerald-500',
-    highlight: mode === 'operacao' ? 'text-orange-500' : 'text-green-500',
-  };
+  const pageBg = isDarkMode
+    ? 'bg-slate-950'
+    : 'bg-slate-50/90';
+  const textPrimary = isDarkMode ? 'text-white' : 'text-slate-900';
+  const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-600';
+  const textMuted = isDarkMode ? 'text-slate-500' : 'text-slate-500';
+  const cardBg = isDarkMode ? 'bg-slate-900/80' : 'bg-white';
+  const cardBorder = isDarkMode ? 'border-slate-700/80' : 'border-slate-200';
+  const inputClass = `w-full rounded-md border px-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-600 ${
+    isDarkMode
+      ? 'border-slate-600 bg-slate-950/50 text-slate-100 placeholder:text-slate-500'
+      : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400'
+  }`;
 
   const cnpjDigits = normalizeCnpj(cnpjInput);
   const hasValidCnpj = cnpjDigits.length === 14 && isValidCnpj(cnpjDigits);
@@ -123,101 +130,158 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   };
 
   return (
-    <div className="w-full h-full animate-fade-in pb-10">
-      <div className="max-w-3xl mx-auto px-4 pt-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">{mode === 'operacao' ? '🛻' : '✈️'}</div>
-          <h1 className={`text-2xl font-bold mb-1 ${theme.textPrimary}`}>{currentHero.title}</h1>
-          <p className={`${theme.textSecondary} text-sm`}>{currentHero.subtitle}</p>
-          <p className={`${theme.highlight} font-medium text-sm mt-2`}>{displayGreeting}</p>
-        </div>
+    <div className={`animate-fade-in min-h-full w-full ${pageBg}`}>
+      <div
+        className="h-0.5 w-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-500"
+        aria-hidden
+      />
 
-        {/* Formulário obrigatório de entrada */}
-        <div className="mb-8">
-          <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 px-1 ${theme.heading}`}>
-            Cadastro inicial da conta
-          </h2>
-          <p className={`text-xs mb-3 px-1 ${theme.textSecondary}`}>
-            Para iniciar o mapeamento profundo, preencha: empresa, CNPJ (opcional), cidade e UF.
-          </p>
-          <div
-            className={`space-y-3 rounded-2xl border p-4 ${
-              isDarkMode ? 'bg-gray-900/40 border-gray-700/60' : 'bg-slate-50 border-slate-200'
-            }`}
-          >
-            <input
-              value={companyName}
-              onChange={e => setCompanyName(e.target.value)}
-              placeholder="Nome da empresa *"
-              className={`w-full rounded-lg border px-3 py-2 text-sm bg-transparent ${
-                isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'
-              }`}
-            />
-            <div className="flex gap-2">
-              <input
-                value={formatCnpj(cnpjInput)}
-                onChange={e => setCnpjInput(normalizeCnpj(e.target.value))}
-                onBlur={handleCnpjLookup}
-                placeholder="CNPJ (opcional)"
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm bg-transparent ${
-                  isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'
-                }`}
-              />
-              <button
-                onClick={handleCnpjLookup}
-                disabled={!canLookupCnpj}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold ${
-                  canLookupCnpj
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                    : isDarkMode
-                      ? 'bg-slate-800 text-slate-500'
-                      : 'bg-slate-200 text-slate-500'
+      <div className="mx-auto max-w-5xl px-4 py-8 md:py-10 lg:px-8 lg:py-12">
+        <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-12">
+          {/* Coluna contextual — tom corporativo */}
+          <div className="lg:col-span-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
+              Nova investigação
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <h1 className={`text-2xl font-bold tracking-tight md:text-3xl ${textPrimary}`}>
+                {modeMeta.label}
+              </h1>
+              <span
+                className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                  isDarkMode
+                    ? 'border-emerald-700/60 bg-emerald-950/40 text-emerald-300'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'
                 }`}
               >
-                {isFetchingCnpj ? 'Buscando...' : 'Validar CNPJ'}
-              </button>
+                {mode === 'operacao' ? 'Campo' : 'Estratégia'}
+              </span>
             </div>
-            {cnpjStatus && <p className={`text-[11px] ${theme.textSecondary}`}>{cnpjStatus}</p>}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input
-                value={city}
-                onChange={e => setCity(e.target.value)}
-                placeholder="Cidade *"
-                className={`sm:col-span-2 rounded-lg border px-3 py-2 text-sm bg-transparent ${
-                  isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'
-                }`}
-              />
-              <input
-                value={state}
-                onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
-                placeholder="UF *"
-                className={`rounded-lg border px-3 py-2 text-sm bg-transparent ${
-                  isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'
-                }`}
-              />
-            </div>
-            {didSubmit && !isFormValid && (
-              <p className="text-[11px] text-amber-500">
-                Preencha empresa, cidade e UF válida para iniciar.
-              </p>
-            )}
-            {locationStatus && <p className={`text-[11px] ${theme.textSecondary}`}>{locationStatus}</p>}
-            <button
-              onClick={handleSubmit}
-              className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold py-2.5 transition-colors"
+            <p className={`mt-3 text-sm leading-relaxed ${textSecondary}`}>{modeMeta.description}</p>
+            <p className={`mt-5 text-sm ${textMuted}`}>{displayGreeting}</p>
+
+            <ul className={`mt-8 space-y-3 text-sm leading-snug ${textSecondary}`}>
+              {bullets.map(line => (
+                <li key={line} className="flex gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Formulário — cartão principal */}
+          <div className="lg:col-span-7">
+            <div
+              className={`overflow-hidden rounded-xl border shadow-sm ${cardBorder} ${cardBg} border-l-[3px] border-l-emerald-600 dark:border-l-emerald-500 dark:shadow-none`}
             >
-              Iniciar investigação completa
-            </button>
+              <div
+                className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
+              >
+                <h2 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
+                  Cadastro inicial da conta
+                </h2>
+                <p className={`mt-1 text-sm ${textSecondary}`}>
+                  Preencha empresa, CNPJ (opcional), cidade e UF para iniciar o mapeamento.
+                </p>
+              </div>
+
+              <div className="space-y-4 p-5 md:p-6">
+                <div>
+                  <label htmlFor="empty-company" className={`mb-1.5 block text-xs font-medium ${textMuted}`}>
+                    Nome da empresa <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="empty-company"
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    placeholder="Razão social ou nome fantasia"
+                    autoComplete="organization"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <span className={`mb-1.5 block text-xs font-medium ${textMuted}`}>CNPJ (opcional)</span>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={formatCnpj(cnpjInput)}
+                      onChange={e => setCnpjInput(normalizeCnpj(e.target.value))}
+                      onBlur={handleCnpjLookup}
+                      placeholder="00.000.000/0000-00"
+                      inputMode="numeric"
+                      className={`${inputClass} sm:flex-1`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCnpjLookup}
+                      disabled={!canLookupCnpj}
+                      className={`shrink-0 rounded-md px-4 py-2.5 text-xs font-semibold transition-colors ${
+                        canLookupCnpj
+                          ? 'bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500'
+                          : isDarkMode
+                            ? 'cursor-not-allowed bg-slate-800 text-slate-500'
+                            : 'cursor-not-allowed bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {isFetchingCnpj ? 'Buscando…' : 'Validar CNPJ'}
+                    </button>
+                  </div>
+                  {cnpjStatus && <p className={`mt-1.5 text-[11px] ${textMuted}`}>{cnpjStatus}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
+                  <div className="sm:col-span-4">
+                    <label htmlFor="empty-city" className={`mb-1.5 block text-xs font-medium ${textMuted}`}>
+                      Cidade <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="empty-city"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder="Município"
+                      autoComplete="address-level2"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="empty-uf" className={`mb-1.5 block text-xs font-medium ${textMuted}`}>
+                      UF <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="empty-uf"
+                      value={state}
+                      onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
+                      placeholder="SP"
+                      maxLength={2}
+                      autoComplete="address-level1"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {didSubmit && !isFormValid && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Preencha empresa, cidade e UF válida para iniciar.
+                  </p>
+                )}
+                {locationStatus && <p className={`text-[11px] ${textMuted}`}>{locationStatus}</p>}
+
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="w-full rounded-md bg-emerald-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus-visible:ring-offset-slate-950"
+                >
+                  Iniciar investigação completa
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div
-          className={`text-center text-xs font-bold ${theme.textSecondary} mt-6 pb-12 opacity-40 uppercase tracking-widest`}
-        >
-          SENIOR SCOUT 360 — INTELIGÊNCIA FORENSE
-        </div>
+        <p className={`mt-12 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${textMuted} opacity-70`}>
+          Senior Scout 360 — Inteligência forense
+        </p>
       </div>
     </div>
   );

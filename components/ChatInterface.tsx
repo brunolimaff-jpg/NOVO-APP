@@ -362,6 +362,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           canAccessMiniCRM={canAccessMiniCRM}
           searchTerm={sessionSearchTerm}
           onSearchChange={setSessionSearchTerm}
+          showSearchField={false}
         />
 
         <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
@@ -384,8 +385,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             </h1>
           </div>
 
-          <div className="hidden min-w-0 max-w-xl flex-1 px-2 sm:flex sm:justify-center">
-            <label className="relative w-full max-w-md">
+          <div className="flex min-w-0 max-w-xl flex-1 justify-center px-1 sm:px-2">
+            <label className="relative w-full min-w-0 max-w-md">
               <span className="sr-only">Buscar empresa ou CNPJ no histórico</span>
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-50">
                 🔍
@@ -394,7 +395,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 type="search"
                 value={sessionSearchTerm}
                 onChange={e => setSessionSearchTerm(e.target.value)}
-                placeholder="Buscar empresa ou CNPJ..."
+                placeholder="Buscar no histórico..."
                 className={`w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-800/80 text-white placeholder-slate-500'
@@ -508,7 +509,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
         <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-hidden">
           {messages.length === 0 ? (
-            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               <EmptyStateHome
                 mode={mode}
                 onStartInvestigation={handleStartInvestigation}
