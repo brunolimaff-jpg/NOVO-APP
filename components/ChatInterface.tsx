@@ -5,7 +5,10 @@ import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
+import AppIconRail from './AppIconRail';
+import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
+import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
 const InvestigationDashboard = React.lazy(() => loadWithChunkRetry(() => import('./InvestigationDashboard')));
@@ -112,6 +115,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
+  const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -263,6 +267,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onExportConversation('doc', 'full');
   };
 
+  const railNewSession = () => {
+    onNewSession();
+    if (typeof window !== 'undefined' && window.innerWidth < 768 && isSidebarOpen) onToggleSidebar();
+  };
+
+  const railOpenKanban = () => {
+    onOpenKanban?.();
+    if (typeof window !== 'undefined' && window.innerWidth < 768 && isSidebarOpen) onToggleSidebar();
+  };
+
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || 'Nova Investigação');
   const displayTitle = headerTitle.length > 35 ? headerTitle.substring(0, 32) + '...' : headerTitle;
   const hasReport = messages.some(
@@ -323,42 +337,73 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   return (
     <div className={`flex h-full w-full overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-white'}`}>
-      <SessionsSidebar
-        sessions={sessions}
-        currentSessionId={currentSession?.id || null}
-        onSelectSession={onSelectSession}
-        onNewSession={onNewSession}
-        onDeleteSession={onDeleteSession}
-        onSaveToCRM={onSaveToCRM || (() => {})}
-        onOpenKanban={onOpenKanban || (() => {})}
-        isOpen={isSidebarOpen}
-        onCloseMobile={onToggleSidebar}
+      <AppIconRail
         isDarkMode={isDarkMode}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={onToggleSidebar}
+        onNewSession={railNewSession}
+        onOpenKanban={onOpenKanban ? railOpenKanban : undefined}
         canAccessMiniCRM={canAccessMiniCRM}
       />
 
-      <main className="flex-1 flex flex-col h-full min-h-0 relative w-full transition-all duration-300">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+        <SessionsSidebar
+          sessions={sessions}
+          currentSessionId={currentSession?.id || null}
+          onSelectSession={onSelectSession}
+          onNewSession={onNewSession}
+          onDeleteSession={onDeleteSession}
+          onSaveToCRM={onSaveToCRM || (() => {})}
+          onOpenKanban={onOpenKanban || (() => {})}
+          isOpen={isSidebarOpen}
+          onCloseMobile={onToggleSidebar}
+          isDarkMode={isDarkMode}
+          canAccessMiniCRM={canAccessMiniCRM}
+          searchTerm={sessionSearchTerm}
+          onSearchChange={setSessionSearchTerm}
+        />
+
+        <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
         <header
-          className={`h-14 flex-shrink-0 flex items-center justify-between px-3 py-2 border-b backdrop-blur-md z-10 ${
+          className={`z-10 flex h-14 flex-shrink-0 items-center gap-2 border-b px-2 py-2 backdrop-blur-md sm:px-3 ${
             isDarkMode ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-gray-200'
           }`}
         >
-          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
-            <button
-              onClick={onToggleSidebar}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden sm:flex-row sm:items-center sm:gap-3">
+            <p
+              className={`hidden text-[10px] font-semibold uppercase tracking-wide text-emerald-600/90 sm:block sm:max-w-[140px] sm:truncate ${
+                isDarkMode ? 'text-emerald-400/90' : ''
               }`}
+              title={APP_NAME}
             >
-              ☰
-            </button>
-            <h1 className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              Senior Scout 360
+            </p>
+            <h1 className={`truncate text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {displayTitle}
             </h1>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+
+          <div className="hidden min-w-0 max-w-xl flex-1 px-2 sm:flex sm:justify-center">
+            <label className="relative w-full max-w-md">
+              <span className="sr-only">Buscar empresa ou CNPJ no histórico</span>
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-50">
+                🔍
+              </span>
+              <input
+                type="search"
+                value={sessionSearchTerm}
+                onChange={e => setSessionSearchTerm(e.target.value)}
+                placeholder="Buscar empresa ou CNPJ..."
+                className={`w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                  isDarkMode
+                    ? 'border-slate-700 bg-slate-800/80 text-white placeholder-slate-500'
+                    : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400'
+                }`}
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-shrink-0 items-center gap-1">
             {hasReport && !isLoading && (
               <>
                 <button
@@ -379,16 +424,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 >
                   📅
                 </button>
-                <div className={`w-px h-4 mx-1 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+                <div className={`mx-1 h-4 w-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
               </>
             )}
             {canWarRoom && (
               <button
                 onClick={() => setShowWarRoom(true)}
-                className={`p-2 rounded-lg transition-all ${
+                className={`rounded-lg p-2 transition-all ${
                   isDarkMode
-                    ? 'text-gray-500 hover:text-red-400 hover:bg-gray-800'
-                    : 'text-gray-400 hover:text-red-500 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:bg-gray-800 hover:text-red-400'
+                    : 'text-gray-400 hover:bg-gray-100 hover:text-red-500'
                 }`}
                 title="War Room: Inteligência Competitiva"
               >
@@ -405,17 +450,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 />
               </React.Suspense>
             )}
-            <button
-              onClick={() => setShowSettings(true)}
-              className={`p-2 rounded-lg transition-all ${
-                isDarkMode
-                  ? 'text-gray-500 hover:text-emerald-400 hover:bg-gray-800'
-                  : 'text-gray-400 hover:text-emerald-500 hover:bg-gray-100'
-              }`}
-              title="Configurações"
-            >
-              ⚙️
-            </button>
+            <UserMenu
+              isDarkMode={isDarkMode}
+              displayName={user?.displayName || 'Usuário'}
+              isGuest={user?.isGuest}
+              onOpenSettings={() => setShowSettings(true)}
+              onLogout={onLogout}
+            />
           </div>
         </header>
 
@@ -617,7 +658,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     }`}
                   >
                     <span className="text-lg ml-0.5">➤</span>
-          </button>
+                  </button>
                 )}
               </div>
             </div>
@@ -676,7 +717,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             />
           </React.Suspense>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

@@ -16,6 +16,9 @@ interface SessionsSidebarProps {
   onCloseMobile: () => void;
   isDarkMode: boolean;
   canAccessMiniCRM?: boolean;
+  /** Busca sincronizada com a barra superior (opcional = estado interno). */
+  searchTerm?: string;
+  onSearchChange?: (term: string) => void;
 }
 
 const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
@@ -30,8 +33,16 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   onCloseMobile,
   isDarkMode,
   canAccessMiniCRM = true,
+  searchTerm: searchTermProp,
+  onSearchChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [internalSearchTerm, setInternalSearchTerm] = useState('');
+  const searchControlled = searchTermProp !== undefined && onSearchChange !== undefined;
+  const searchTerm = searchControlled ? searchTermProp! : internalSearchTerm;
+  const setSearchTerm = (v: string) => {
+    if (searchControlled) onSearchChange!(v);
+    else setInternalSearchTerm(v);
+  };
 
   const getDisplayName = (session: ChatSession): string => {
     if (session.empresaAlvo) {
@@ -94,7 +105,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
       />
 
       <aside className={`
-        fixed inset-y-0 left-0 z-30 h-full border-r flex flex-col
+        fixed inset-y-0 left-14 z-30 h-full border-r flex flex-col
         ${theme.bg}
         transition-all duration-300 ease-in-out
         w-72
@@ -139,6 +150,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                       placeholder="Buscar empresa ou CNPJ..." 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      aria-label="Buscar no histórico"
                       className={`w-full pl-8 pr-3 py-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors ${theme.inputBg}`}
                     />
                 </div>
