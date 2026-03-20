@@ -5,7 +5,6 @@ import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth, TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
-import HeaderSessionSearch from './HeaderSessionSearch';
 import UserMenu from './UserMenu';
 import UserMenuClerkBridge from './UserMenuClerkBridge';
 import EmptyStateHome from './EmptyStateHome';
@@ -343,44 +342,42 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           canAccessMiniCRM={canAccessMiniCRM}
           searchTerm={sessionSearchTerm}
           onSearchChange={setSessionSearchTerm}
-          showSearchField={false}
+          showSearchField
         />
 
         <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
         <header
-          className={`z-10 flex flex-shrink-0 flex-col gap-2 border-b px-3 py-2.5 backdrop-blur-md md:flex-row md:items-center md:gap-3 md:py-2 ${
+          className={`z-10 grid flex-shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 border-b px-3 py-2.5 backdrop-blur-md md:grid-cols-[2.5rem_minmax(0,1fr)_auto] md:gap-x-3 md:py-2 ${
             isDarkMode ? 'border-gray-800 bg-gray-900/85' : 'border-gray-200 bg-white/90'
           }`}
         >
-          {/* Mobile: linha 1 = menu + título + ações. Desktop (md): filhos viram uma linha via md:contents + order */}
-          <div className="flex min-h-[40px] items-center gap-2 md:contents">
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors md:order-1 ${
-                isDarkMode
-                  ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className={`col-start-1 row-start-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
+              isDarkMode
+                ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+            aria-label={isSidebarOpen ? 'Fechar painel de histórico' : 'Abrir painel de histórico'}
+            aria-expanded={isSidebarOpen}
+          >
+            ☰
+          </button>
+          <div className="col-start-2 row-start-1 min-w-0 overflow-hidden">
+            <p
+              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
               }`}
-              aria-label={isSidebarOpen ? 'Fechar painel de histórico' : 'Abrir painel de histórico'}
-              aria-expanded={isSidebarOpen}
+              title={APP_NAME}
             >
-              ☰
-            </button>
-            <div className="min-w-0 flex-1 overflow-hidden md:order-2 md:w-44 md:flex-none lg:w-52 xl:w-56">
-              <p
-                className={`text-[10px] font-semibold uppercase tracking-wide ${
-                  isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
-                }`}
-                title={APP_NAME}
-              >
-                Senior Scout 360
-              </p>
-              <h1 className={`truncate text-sm font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {displayTitle}
-              </h1>
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-0.5 md:order-4">
+              Senior Scout 360
+            </p>
+            <h1 className={`truncate text-sm font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              {displayTitle}
+            </h1>
+          </div>
+          <div className="col-start-3 row-start-1 flex flex-shrink-0 items-center gap-0.5 md:col-start-3">
             {hasReport && !isLoading && (
               <>
                 <button
@@ -444,16 +441,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 onLogout={onLogout}
               />
             )}
-            </div>
-          </div>
-
-          {/* Mobile: linha 2 = busca. Desktop: entre título e ações, ocupa o espaço central */}
-          <div className="min-w-0 w-full md:order-3 md:min-w-0 md:flex-1">
-            <HeaderSessionSearch
-              value={sessionSearchTerm}
-              onChange={setSessionSearchTerm}
-              isDarkMode={isDarkMode}
-            />
           </div>
         </header>
 
