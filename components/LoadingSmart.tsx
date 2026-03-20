@@ -8,6 +8,8 @@ import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textC
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
+const STEP_REVEAL_DELAY_MS = 1200;  // min delay between revealing each step
+const STEP_REVEAL_MIN_MS = 800;     // absolute minimum even for fast bursts
 const SOURCE_LINKS: Record<string, string> = {
   ibge:    'https://www.ibge.gov.br/',
   conab:   'https://www.conab.gov.br/',
@@ -171,6 +173,13 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const curiositiesRef = useRef<string[]>([]);
 
+  // ── Visual queue: drip-feed stages instead of showing them all at once ──
+  const [displayedCompleted, setDisplayedCompleted] = useState<string[]>([]);
+  const [displayedCurrent, setDisplayedCurrent] = useState<string>('Preparando análise...');
+  const queueRef = useRef<string[]>([]);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRevealTimeRef = useRef<number>(0);
+
   // ── Company extraction ──
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -237,6 +246,107 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     return () => clearInterval(interval);
   }, [isLoading]);
 
+  // ── 1b. Visual queue — drip-feed stages one at a time ──
+  useEffect(() => {
+    if (!isLoading) {
+      // Reset on stop
+      setDisplayedCompleted([]);
+      setDisplayedCurrent('Preparando análise...');
+      queueRef.current = [];
+      lastRevealTimeRef.current = 0;
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      return;
+    }
+
+    const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
+    const realCurrent = processing?.stage || 'Preparando análise...';
+
+    // Find new stages that haven't been queued or displayed yet
+    const alreadyKnown = new Set([...displayedCompleted, ...queueRef.current]);
+    const newStages: string[] = [];
+    for (const stage of realCompleted) {
+      if (!alreadyKnown.has(stage)) {
+        newStages.push(stage);
+      }
+    }
+
+    if (newStages.length > 0) {
+      queueRef.current = [...queueRef.current, ...newStages];
+    }
+
+    // Always update the "real" current stage (what comes after displayed ones)
+    setDisplayedCurrent(stripInternalMarkers(realCurrent));
+
+    // Process queue: reveal one item at a time with minimum delay
+    const revealNext = () => {
+      if (queueRef.current.length === 0) return;
+
+      const now = Date.now();
+      const timeSinceLast = now - lastRevealTimeRef.current;
+      const delay = Math.max(0, STEP_REVEAL_MIN_MS - timeSinceLast);
+
+      revealTimerRef.current = setTimeout(() => {
+        const next = queueRef.current.shift();
+        if (next) {
+          lastRevealTimeRef.current = Date.now();
+          setDisplayedCompleted(prev => [...prev, next]);
+          // Schedule next reveal if there are more in queue
+          if (queueRef.current.length > 0) {
+            revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
+          }
+        }
+      }, delay);
+    };
+
+    // Start draining queue if not already draining
+    if (queueRef.current.length > 0 && !revealTimerRef.current) {
+      revealNext();
+    } else if (queueRef.current.length > 0) {
+      // Timer already running, it will pick up new items
+    }
+
+    return () => {
+      // Don't clear the timer on every re-render — let it run
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, processing?.completedStages?.length, processing?.stage]);
+
+  // ── 1c. Keep draining queue continuously ──
+  useEffect(() => {
+    if (!isLoading || queueRef.current.length === 0) return;
+
+    const drain = () => {
+      if (queueRef.current.length === 0) {
+        revealTimerRef.current = null;
+        return;
+      }
+      const next = queueRef.current.shift();
+      if (next) {
+        lastRevealTimeRef.current = Date.now();
+        setDisplayedCompleted(prev => [...prev, next]);
+      }
+      if (queueRef.current.length > 0) {
+        revealTimerRef.current = setTimeout(drain, STEP_REVEAL_DELAY_MS);
+      } else {
+        revealTimerRef.current = null;
+      }
+    };
+
+    if (!revealTimerRef.current) {
+      const timeSinceLast = Date.now() - lastRevealTimeRef.current;
+      const initialDelay = Math.max(STEP_REVEAL_MIN_MS, STEP_REVEAL_DELAY_MS - timeSinceLast);
+      revealTimerRef.current = setTimeout(drain, initialDelay);
+    }
+
+    return () => {
+      if (revealTimerRef.current) {
+        clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, displayedCompleted.length]);
+
   // ── 2. Curiosidades ──
   useEffect(() => {
     if (!isLoading) return;
@@ -301,10 +411,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
   if (!isVisible) return null;
 
-  // ── Stage normalization ──
-  const rawCurrentStage = processing?.stage || 'Preparando análise...';
-  const rawCompletedStages = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
-
+  // ── Stage normalization (uses visual queue, not raw props) ──
   const enrichStage = (raw: string): RichLoadingStatus => {
     const rich = toRichStatus(stripInternalMarkers(raw));
     if (rich) return rich;
@@ -313,11 +420,19 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     return { label, icon: isPhase ? '📌' : '⚡', category: 'unknown' };
   };
 
-  const completedRich: RichLoadingStatus[] = rawCompletedStages.map(enrichStage);
-  const currentRich: RichLoadingStatus = enrichStage(rawCurrentStage);
+  const completedRich: RichLoadingStatus[] = displayedCompleted.map(enrichStage);
+  const currentRich: RichLoadingStatus = enrichStage(displayedCurrent);
   const completedCount = completedRich.length;
-  const expectedTotal = Math.max(EXPECTED_STAGES[mode] ?? 12, completedCount + 2);
-  const percent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
+  const pendingInQueue = queueRef.current.length;
+  const realTotalCompleted = (processing?.completedStages || []).length;
+  const expectedTotal = Math.max(EXPECTED_STAGES[mode] ?? 12, realTotalCompleted + 2);
+  // Smooth progress: interpolate between displayed and real
+  const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
+  const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
+  // Show a value between displayed and real so bar feels alive even while queue drains
+  const percent = pendingInQueue > 0
+    ? Math.min(displayedPercent + Math.round((realPercent - displayedPercent) * 0.3), 95)
+    : displayedPercent;
 
   const elapsed = (() => {
     const s = Math.floor(elapsedTime / 1000);
@@ -426,8 +541,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                 </span>
               </div>
 
-              {/* Pending placeholder steps */}
-              {Array.from({ length: Math.max(0, Math.min(3, expectedTotal - completedCount - 1)) }).map((_, i) => (
+              {/* Pending placeholder steps (exclude queued items that will reveal soon) */}
+              {Array.from({ length: Math.max(0, Math.min(3, expectedTotal - completedCount - pendingInQueue - 1)) }).map((_, i) => (
                 <div key={`pending-${i}`} className="flex items-center gap-3 opacity-40">
                   <StepPending isDarkMode={isDarkMode} />
                   <span className={`text-sm italic ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
