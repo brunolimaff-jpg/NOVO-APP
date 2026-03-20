@@ -17,6 +17,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
 import { loadWithChunkRetry } from './utils/chunkRetry';
+import SuspenseWithError from './components/SuspenseWithError';
 const CRMPipeline = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMPipeline')).then(m => ({ default: m.CRMPipeline })),
 );
@@ -1066,7 +1067,7 @@ const App: React.FC = () => {
       </div>
 
       {selectedCRMCard && canAccessMiniCRM && (
-        <React.Suspense fallback={null}>
+        <SuspenseWithError>
           <CRMDetail
             card={selectedCRMCard}
             sessions={sessions}
@@ -1076,7 +1077,7 @@ const App: React.FC = () => {
             onCreateSessionFromCard={handleCreateSessionFromDetail}
             isDarkMode={isDarkMode}
           />
-        </React.Suspense>
+        </SuspenseWithError>
       )}
 
       {showEmailModal && (

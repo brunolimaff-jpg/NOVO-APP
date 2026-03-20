@@ -92,6 +92,7 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
   const [websiteInput, setWebsiteInput] = useState(website);
   const [briefDescriptionInput, setBriefDescriptionInput] = useState(briefDescription);
   const [isGeneratingBrief, setIsGeneratingBrief] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const currentStage = card.stage as CRMStageKey;
@@ -250,6 +251,7 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
   const handleGenerateBriefWithAI = async () => {
     if (isGeneratingBrief) return;
     setIsGeneratingBrief(true);
+    setBriefError(null);
     try {
       const contextParts: string[] = [];
       if (spotterRaw?.trim()) contextParts.push(`FICHA SPOTTER:\n${spotterRaw.substring(0, 3500)}`);
@@ -266,6 +268,7 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
       await persistBriefDescription(clean);
     } catch (err) {
       console.error('Erro ao gerar resumo breve com IA:', err);
+      setBriefError('Nao foi possivel gerar o resumo agora. Verifique sua conexao e tente novamente.');
     } finally {
       setIsGeneratingBrief(false);
     }
@@ -417,14 +420,23 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
                           type="button"
                           onClick={handleGenerateBriefWithAI}
                           disabled={isGeneratingBrief}
-                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium ${isGeneratingBrief ? 'bg-slate-400 text-white cursor-wait' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 ${isGeneratingBrief ? 'bg-slate-400 text-white cursor-wait' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
                         >
+                          {isGeneratingBrief && (
+                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                            </svg>
+                          )}
                           {isGeneratingBrief ? 'Gerando...' : 'Gerar com IA'}
                         </button>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500">
                           A IA usa dossies, Spotter e anotacoes para montar um resumo de 2–3 frases.
                         </span>
                       </div>
+                      {briefError && (
+                        <p className="text-[11px] text-red-400 mt-1">{briefError}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -452,8 +464,15 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
                     <button
                       type="button"
                       onClick={handleScanExactLink}
-                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                      disabled={exactScanStatus === 'scanning'}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5"
                     >
+                      {exactScanStatus === 'scanning' && (
+                        <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                        </svg>
+                      )}
                       {exactScanStatus === 'scanning' ? 'Verificando...' : 'Verificar link'}
                     </button>
                   )}
