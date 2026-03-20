@@ -12,3 +12,49 @@
 .custom-scrollbar {
   padding-bottom: env(safe-area-inset-bottom, 12px);
 }
+
+/* ── Radar Animation (LoadingSmart overlay) ── */
+@keyframes radar-sweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes radar-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes radar-blip {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  30%, 70% { opacity: 0.8; transform: scale(1); }
+}
+
+@keyframes radar-ring-expand {
+  0% { transform: scale(0.3); opacity: 0.6; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+@keyframes overlay-enter {
+  0% { opacity: 0; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 3s linear infinite;
+}
+
+.animate-radar-pulse {
+  animation: radar-pulse 2s ease-in-out infinite;
+}
+
+.animate-radar-blip {
+  animation: radar-blip 3.5s ease-in-out infinite;
+}
+
+.animate-radar-ring {
+  animation: radar-ring-expand 2.5s ease-out infinite;
+}
+
+.animate-overlay-enter {
+  animation: overlay-enter 0.4s ease-out forwards;
+}

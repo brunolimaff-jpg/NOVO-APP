@@ -8,7 +8,12 @@ export default {
     ],
     darkMode: 'class',
     theme: {
-        extend: {},
+        extend: {
+            animation: {
+                'fade-in': 'overlay-enter 0.4s ease-out forwards',
+                'slide-up': 'overlay-enter 0.3s ease-out forwards',
+            },
+        },
     },
     plugins: [],
 }
