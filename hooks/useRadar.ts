@@ -140,7 +140,8 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
       });
     } catch (err) {
       console.error('[RADAR] Scan failed:', err);
-      toast?.error('Radar: falha na varredura');
+      const detail = err instanceof Error ? err.message : '';
+      toast?.error(detail ? `Radar: falha na varredura (${detail})` : 'Radar: falha na varredura');
     } finally {
       setIsScanning(false);
       scanLockRef.current = false;

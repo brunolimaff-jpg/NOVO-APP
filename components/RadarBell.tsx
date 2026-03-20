@@ -10,15 +10,16 @@ interface RadarBellProps {
 const RadarBell: React.FC<RadarBellProps> = ({ unreadCount, isScanning, onClick, isDarkMode }) => {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`relative p-2.5 rounded-xl transition-all duration-300 shadow-sm border ${
+      className={`relative rounded-lg p-2 transition-colors duration-200 ${
         isScanning
           ? isDarkMode
-            ? 'text-emerald-400 bg-gray-800/80 border-emerald-900/50 backdrop-blur-md animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-            : 'text-emerald-600 bg-emerald-50/90 border-emerald-200 backdrop-blur-md animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+            ? 'text-emerald-400 animate-pulse hover:bg-gray-800'
+            : 'text-emerald-600 animate-pulse hover:bg-gray-100'
           : isDarkMode
-            ? 'text-gray-400 bg-gray-800/50 border-gray-700/50 backdrop-blur-sm hover:text-amber-400 hover:bg-gray-800 hover:border-amber-900/50'
-            : 'text-gray-500 bg-white/80 border-gray-200 backdrop-blur-sm hover:text-amber-500 hover:bg-amber-50/80 hover:border-amber-200'
+            ? 'text-gray-500 hover:bg-gray-800 hover:text-amber-400'
+            : 'text-gray-400 hover:bg-gray-100 hover:text-amber-500'
       }`}
       title={isScanning ? 'Radar varrendo...' : `Radar Setorial${unreadCount > 0 ? ` (${unreadCount} novas)` : ''}`}
     >

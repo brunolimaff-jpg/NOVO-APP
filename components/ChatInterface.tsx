@@ -3,9 +3,12 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
+import UserMenu from './UserMenu';
+import UserMenuClerkBridge from './UserMenuClerkBridge';
 import EmptyStateHome from './EmptyStateHome';
+import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
 const InvestigationDashboard = React.lazy(() => loadWithChunkRetry(() => import('./InvestigationDashboard')));
@@ -112,6 +115,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
+  const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -323,42 +327,57 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   return (
     <div className={`flex h-full w-full overflow-hidden ${isDarkMode ? 'bg-slate-950' : 'bg-white'}`}>
-      <SessionsSidebar
-        sessions={sessions}
-        currentSessionId={currentSession?.id || null}
-        onSelectSession={onSelectSession}
-        onNewSession={onNewSession}
-        onDeleteSession={onDeleteSession}
-        onSaveToCRM={onSaveToCRM || (() => {})}
-        onOpenKanban={onOpenKanban || (() => {})}
-        isOpen={isSidebarOpen}
-        onCloseMobile={onToggleSidebar}
-        isDarkMode={isDarkMode}
-        canAccessMiniCRM={canAccessMiniCRM}
-      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-row">
+        <SessionsSidebar
+          sessions={sessions}
+          currentSessionId={currentSession?.id || null}
+          onSelectSession={onSelectSession}
+          onNewSession={onNewSession}
+          onDeleteSession={onDeleteSession}
+          onSaveToCRM={onSaveToCRM || (() => {})}
+          onOpenKanban={onOpenKanban || (() => {})}
+          isOpen={isSidebarOpen}
+          onCloseMobile={onToggleSidebar}
+          isDarkMode={isDarkMode}
+          canAccessMiniCRM={canAccessMiniCRM}
+          searchTerm={sessionSearchTerm}
+          onSearchChange={setSessionSearchTerm}
+          showSearchField
+        />
 
-      <main className="flex-1 flex flex-col h-full min-h-0 relative w-full transition-all duration-300">
+        <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
         <header
-          className={`h-14 flex-shrink-0 flex items-center justify-between px-3 py-2 border-b backdrop-blur-md z-10 ${
-            isDarkMode ? 'bg-gray-900/80 border-gray-800' : 'bg-white/80 border-gray-200'
+          className={`z-10 grid flex-shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 border-b px-3 py-2.5 backdrop-blur-md md:grid-cols-[2.5rem_minmax(0,1fr)_auto] md:gap-x-3 md:py-2 ${
+            isDarkMode ? 'border-gray-800 bg-gray-900/85' : 'border-gray-200 bg-white/90'
           }`}
         >
-          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
-            <button
-              onClick={onToggleSidebar}
-              className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                isDarkMode
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className={`col-start-1 row-start-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
+              isDarkMode
+                ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+            aria-label={isSidebarOpen ? 'Fechar painel de histórico' : 'Abrir painel de histórico'}
+            aria-expanded={isSidebarOpen}
+          >
+            ☰
+          </button>
+          <div className="col-start-2 row-start-1 min-w-0 overflow-hidden">
+            <p
+              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
               }`}
+              title={APP_NAME}
             >
-              ☰
-            </button>
-            <h1 className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              Senior Scout 360
+            </p>
+            <h1 className={`truncate text-sm font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {displayTitle}
             </h1>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="col-start-3 row-start-1 flex flex-shrink-0 items-center gap-0.5 md:col-start-3">
             {hasReport && !isLoading && (
               <>
                 <button
@@ -379,16 +398,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 >
                   📅
                 </button>
-                <div className={`w-px h-4 mx-1 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
+                <div className={`mx-1 h-4 w-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
               </>
             )}
             {canWarRoom && (
               <button
                 onClick={() => setShowWarRoom(true)}
-                className={`p-2 rounded-lg transition-all ${
+                className={`rounded-lg p-2 transition-all ${
                   isDarkMode
-                    ? 'text-gray-500 hover:text-red-400 hover:bg-gray-800'
-                    : 'text-gray-400 hover:text-red-500 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:bg-gray-800 hover:text-red-400'
+                    : 'text-gray-400 hover:bg-gray-100 hover:text-red-500'
                 }`}
                 title="War Room: Inteligência Competitiva"
               >
@@ -405,17 +424,23 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 />
               </React.Suspense>
             )}
-            <button
-              onClick={() => setShowSettings(true)}
-              className={`p-2 rounded-lg transition-all ${
-                isDarkMode
-                  ? 'text-gray-500 hover:text-emerald-400 hover:bg-gray-800'
-                  : 'text-gray-400 hover:text-emerald-500 hover:bg-gray-100'
-              }`}
-              title="Configurações"
-            >
-              ⚙️
-            </button>
+            {TEMPORARILY_DISABLE_CLERK ? (
+              <UserMenu
+                isDarkMode={isDarkMode}
+                displayName={user?.displayName || 'Usuário'}
+                isGuest={user?.isGuest}
+                onOpenSettings={() => setShowSettings(true)}
+                onLogout={onLogout}
+              />
+            ) : (
+              <UserMenuClerkBridge
+                isDarkMode={isDarkMode}
+                displayName={user?.displayName || 'Usuário'}
+                isGuest={user?.isGuest}
+                onOpenSettings={() => setShowSettings(true)}
+                onLogout={onLogout}
+              />
+            )}
           </div>
         </header>
 
@@ -456,7 +481,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
         <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-hidden">
           {messages.length === 0 ? (
-            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               <EmptyStateHome
                 mode={mode}
                 onStartInvestigation={handleStartInvestigation}
@@ -617,7 +642,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     }`}
                   >
                     <span className="text-lg ml-0.5">➤</span>
-          </button>
+                  </button>
                 )}
               </div>
             </div>
@@ -676,7 +701,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             />
           </React.Suspense>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

@@ -32,8 +32,12 @@ export function useAppInitialization({
       if (cancelled) return;
 
       // Phase 1: make the app interactive with local data immediately
-      if (localSessions.length > 0) setCurrentSessionId(localSessions[0].id);
-      else handleNewSession();
+      if (localSessions.length > 0) {
+        setSessions(() => localSessions);
+        setCurrentSessionId(localSessions[0].id);
+      } else {
+        handleNewSession();
+      }
       if (window.innerWidth < 768) setIsSidebarOpen(false);
       setIsInitialized(true);
 

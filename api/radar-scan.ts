@@ -15,6 +15,7 @@ const GEMINI_TIMEOUT_MS = 25_000;
 
 const VALID_CATEGORIES = [
   'concorrentes', 'regulatorio', 'mercado', 'ma_expansao',
+  'agro_tech', 'rh_trabalho',
 ] as const;
 
 const RequestSchema = z.object({
@@ -47,6 +48,16 @@ const CATEGORY_QUERIES: Record<string, string[]> = {
     '"cooperativa" expansão agro OR "compra fazenda" OR "fundo investimento" agrícola',
     '"joint venture" agro OR "private equity" fazenda OR "consolidação" setor agro',
   ],
+  agro_tech: [
+    '"agtech" OR "agro digital" OR "agricultura de precisão" OR "IoT no campo" Brasil',
+    '"drones agrícolas" OR "telemetria" OR "sensoriamento remoto" OR "IA no agronegócio"',
+    '"software agro" OR "plataforma rural" OR "conectividade no campo" OR "5G rural"',
+  ],
+  rh_trabalho: [
+    '"NR-31" OR "eSocial rural" OR "MPT" OR "trabalhista" agronegócio',
+    '"lista suja" OR "ação civil pública" OR "fiscalização do trabalho" OR "SST agro"',
+    '"mão de obra rural" OR "safrista" OR "temporários no campo" OR "sindicato rural"',
+  ],
 };
 
 // ===================================================================
@@ -62,11 +73,11 @@ interface FeedSource {
 const RSS_FEEDS: FeedSource[] = [
   { url: 'https://www.canalrural.com.br/feed/', name: 'Canal Rural', categories: ['mercado', 'ma_expansao'] },
   { url: 'https://www.noticiasagricolas.com.br/rss/ultimas-noticias.xml', name: 'Notícias Agrícolas', categories: ['mercado', 'concorrentes'] },
-  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['regulatorio', 'mercado'] },
-  { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes'] },
+  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['regulatorio', 'mercado', 'agro_tech', 'rh_trabalho'] },
+  { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes', 'agro_tech'] },
   { url: 'https://www.infomoney.com.br/feed/', name: 'InfoMoney', categories: ['mercado', 'ma_expansao'] },
-  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['mercado', 'regulatorio', 'ma_expansao'] },
-  { url: 'https://valor.globo.com/agronegocios/rss', name: 'Valor Agro', categories: ['mercado', 'ma_expansao', 'concorrentes'] },
+  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['mercado', 'regulatorio', 'ma_expansao', 'agro_tech', 'rh_trabalho'] },
+  { url: 'https://valor.globo.com/agronegocios/rss', name: 'Valor Agro', categories: ['mercado', 'ma_expansao', 'concorrentes', 'agro_tech'] },
 ];
 
 // ===================================================================
