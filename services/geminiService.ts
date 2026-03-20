@@ -336,6 +336,17 @@ export function cleanPortaFeedMarkers(text: string): string {
   return stripPortaMarkers(text);
 }
 
+export function parseMarkers(content: string): ParsedContent {
+  const scorePorta = parsePortaMarkerV2(content);
+  const text = stripInternalMarkers(stripPortaMarkers(content)).trim();
+
+  return {
+    text,
+    statuses: [],
+    scorePorta,
+  };
+}
+
 function isDeepDiveMessage(message: string, isMegaPromptMessage: boolean): boolean {
   if (!isMegaPromptMessage) return false;
   const deepDiveHints = [

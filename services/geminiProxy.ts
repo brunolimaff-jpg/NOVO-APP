@@ -41,7 +41,7 @@ interface GeminiHealthResponse {
 }
 
 const LOCAL_DEV_GEMINI_PROXY_URL =
-  import.meta.env.VITE_GEMINI_PROXY_URL || '/api/gemini';
+  import.meta.env.VITE_GEMINI_PROXY_URL || 'https://scoutagro.vercel.app/api/gemini';
 // O serverless usa 55s para chat normal e até 180s para investigações pesadas.
 // Frontend dá margem de 210s para cobrir o cenário mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);

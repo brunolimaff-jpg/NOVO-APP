@@ -848,7 +848,7 @@ Ceticismo absoluto. NÃO INVENTE NOMES, CARGOS OU CONSULTORIAS. Se não encontra
 ### 📊 AVALIAÇÃO A1/A2 (ALIMENTA DIMENSÃO A DO PORTA)
 
 Regra de formatação (obrigatória):
-- Use tabela markdown válida com `|` em todas as linhas.
+- Use tabela markdown válida com \`|\` em todas as linhas.
 - Não use colunas alinhadas por espaços (isso quebra o render visual).
 - Se faltar dado para preencher linha útil, troque por bullets em texto.
 

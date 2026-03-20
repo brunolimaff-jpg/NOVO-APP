@@ -82,7 +82,7 @@ const STATUS_ICON_MAP: Record<StatusPhaseKey, string> = {
 };
 
 function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
-  const match = status.match(/^Executando Fase\s*(-?\d+)\b/i);
+  const match = status.match(/^(?:Executando\s+)?Fase\s*(-?\d+)\s*:/i);
   if (!match) return null;
   const phaseNumber = Number.parseInt(match[1], 10);
   const phase = LIVE_PHASE_LABELS[phaseNumber];
@@ -109,7 +109,9 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
     return { key: 'deepResearch', extra: rawCompany };
   }
   if (/^(Mapeando benchmarks|Cruzando referências de mercado)/i.test(s))   return { key: 'benchmark' };
-  if (/^(Consultando bases de conhecimento|Consultando inteligência interna|base RAG)/i.test(s)) return { key: 'rag' };
+  if (/^(Consultando bases de conhecimento|Consultando inteligência interna)/i.test(s)) return { key: 'knowledgeBase' };
+  if (/^Consultando base de conhecimento interna/i.test(s)) return { key: 'rag' };
+  if (/^base RAG/i.test(s)) return { key: 'rag' };
   if (/^(Consultando modelo analítico|Consultando modelo de IA|Processando no modelo)/i.test(s)) return { key: 'model' };
   if (/^(Validando consistência|Validando coerência|Validando achados)/i.test(s)) return { key: 'validation' };
   if (/^(Sintetizando narrativa executiva|Sintetizando resposta executiva)/i.test(s)) return { key: 'synthesis' };
@@ -153,7 +155,7 @@ export function toRichStatus(rawStatus?: string | null): RichLoadingStatus | nul
 
 // Retrocompatibilidade — usada em ChatInterface e outros locais
 export function isPhaseTimelineStatus(status: string): boolean {
-  return /^Fase\s*-?\d+\s*:/i.test(status.trim());
+  return /^(?:Executando\s+)?Fase\s*-?\d+\s*:/i.test(status.trim());
 }
 
 export function normalizeLoadingStatus(rawStatus?: string | null): string | null {
@@ -164,5 +166,7 @@ export function statusKey(status: string): string {
   const rich = toRichStatus(status);
   if (!rich) return status;
   if (rich.category === 'fase' && rich.phaseNumber !== undefined) return `fase_${rich.phaseNumber}`;
+  if (rich.category === 'deepResearch' && /^Buscando histórico de/i.test(rich.label)) return 'historico';
+  if (rich.category === 'response') return 'resposta';
   return rich.category;
 }
