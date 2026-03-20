@@ -7,6 +7,8 @@ interface RadarPanelProps {
   metaInsight: string | null;
   isScanning: boolean;
   lastScanAt: number | null;
+  scanError: { code: string; message: string; retryable: boolean } | null;
+  scanWarning: string | null;
   unreadCount: number;
   isConfigured: boolean;
   onMarkAsRead: (id: string) => void;
@@ -39,6 +41,8 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
   metaInsight,
   isScanning,
   lastScanAt,
+  scanError,
+  scanWarning,
   unreadCount,
   isConfigured,
   onMarkAsRead,
@@ -170,6 +174,41 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
             <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
               Último scan: {new Date(lastScanAt).toLocaleString('pt-BR')}
             </p>
+          )}
+
+          {scanWarning && (
+            <div
+              className={`mt-2 rounded-md border px-2.5 py-2 text-[11px] ${
+                isDarkMode
+                  ? 'border-amber-700/50 bg-amber-950/30 text-amber-200'
+                  : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
+            >
+              {scanWarning}
+            </div>
+          )}
+
+          {scanError && (
+            <div
+              className={`mt-2 rounded-md border px-2.5 py-2 text-[11px] ${
+                isDarkMode ? 'border-red-700/50 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-800'
+              }`}
+              role="alert"
+            >
+              <div className="font-semibold">Falha na varredura ({scanError.code})</div>
+              <div className="mt-0.5">{scanError.message}</div>
+              {scanError.retryable && (
+                <button
+                  onClick={onForceScan}
+                  disabled={isScanning}
+                  className={`mt-2 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
+                    isDarkMode ? 'bg-red-900/50 hover:bg-red-900 text-red-100' : 'bg-red-100 hover:bg-red-200 text-red-800'
+                  }`}
+                >
+                  Tentar novamente
+                </button>
+              )}
+            </div>
           )}
 
           {/* Meta Insight Display */}

@@ -987,6 +987,8 @@ const App: React.FC = () => {
                 unreadCount: radar.unreadCount,
                 isScanning: radar.isScanning,
                 lastScanAt: radar.lastScanAt,
+                lastError: radar.lastError,
+                lastWarning: radar.lastWarning,
                 onUpdateConfig: radar.updateConfig,
                 onMarkAsRead: radar.markAsRead,
                 onMarkAllAsRead: radar.markAllAsRead,

@@ -412,20 +412,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (allItems.length === 0) {
           console.warn(`[RADAR] No RSS items found for ${category}`);
-          return [];
+          return { alerts: [], sourceItems: 0 };
         }
 
         // Fase 2: Gemini resume e classifica (SEM googleSearch)
-        return summarizeWithGemini(ai, allItems, category, estados);
+        const alerts = await summarizeWithGemini(ai, allItems, category, estados);
+        return { alerts, sourceItems: allItems.length };
       }),
     );
 
     const rawAlerts: any[] = [];
+    const partialFailures: Array<{ category: string; reason: string }> = [];
+    const categoryStats: Array<{ category: string; sourceItems: number; generatedAlerts: number; ok: boolean }> = [];
     results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
-        rawAlerts.push(...result.value);
+        rawAlerts.push(...result.value.alerts);
+        categoryStats.push({
+          category: categories[i],
+          sourceItems: result.value.sourceItems,
+          generatedAlerts: result.value.alerts.length,
+          ok: true,
+        });
       } else {
         console.error(`[RADAR] Erro na categoria ${categories[i]}:`, result.reason);
+        partialFailures.push({
+          category: categories[i],
+          reason: result.reason instanceof Error ? result.reason.message : 'Falha desconhecida',
+        });
+        categoryStats.push({
+          category: categories[i],
+          sourceItems: 0,
+          generatedAlerts: 0,
+          ok: false,
+        });
       }
     });
 
@@ -464,7 +483,7 @@ ${topTitles}`;
     }
 
     console.log(`[RADAR] Total: ${rawAlerts.length} raw → ${allAlerts.length} after dedup`);
-    return res.status(200).json({ alerts: allAlerts, metaInsight, scannedAt });
+    return res.status(200).json({ alerts: allAlerts, metaInsight, scannedAt, partialFailures, categoryStats });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[RADAR] Error:', message);
