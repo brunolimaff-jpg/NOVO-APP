@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode, useCallback, useEffect, useState } from 'react';
-import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/clerk-react';
+import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/react';
 
 export interface AuthUser {
   id: string;
@@ -25,9 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
 const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
-// TEMPORARY: Desativando o Clerk temporariamente conforme solicitado.
-// Para reativar depois, mude TEMPORARILY_DISABLE_CLERK para false.
-export const TEMPORARILY_DISABLE_CLERK = true;
+export const TEMPORARILY_DISABLE_CLERK = false;
 
 export const REQUIRE_CLERK_AUTH = !TEMPORARILY_DISABLE_CLERK && import.meta.env.VITE_REQUIRE_AUTH === 'true';
 

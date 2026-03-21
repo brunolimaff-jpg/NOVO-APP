@@ -24,7 +24,7 @@ const clerkState = vi.hoisted(() => ({
   openSignUp: vi.fn(),
 }));
 
-vi.mock('@clerk/clerk-react', () => ({
+vi.mock('@clerk/react', () => ({
   useUser: () => ({
     user: clerkState.user,
     isLoaded: clerkState.isLoaded,
