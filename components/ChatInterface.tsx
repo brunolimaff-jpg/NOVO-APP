@@ -4,6 +4,7 @@ import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
 import { useAuth, TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
+import { useClickBypass } from '../hooks/useClickBypass';
 import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import UserMenuClerkBridge from './UserMenuClerkBridge';
@@ -101,7 +102,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   canWarRoom = false,
 }) => {
   const { mode, setMode } = useMode();
-  const { user, userId, updateName } = useAuth();
+  const { user, userId, updateName, continueAsGuest } = useAuth();
+  const [showBypassToast, setShowBypassToast] = useState(false);
+  const handleBypassClick = useClickBypass(useCallback(() => {
+    continueAsGuest();
+    setShowBypassToast(true);
+    setTimeout(() => setShowBypassToast(false), 3000);
+  }, [continueAsGuest]));
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -370,6 +377,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 isDarkMode ? 'text-emerald-400/95' : 'text-emerald-600'
               }`}
               title={APP_NAME}
+              onClick={handleBypassClick}
             >
               Senior Scout 360
             </p>
@@ -514,6 +522,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             />
           )}
         </div>
+
+        {showBypassToast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+            <div
+              className={`rounded-xl shadow-lg border px-4 py-2.5 ${
+                isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+              }`}
+            >
+              <p className="text-sm font-medium">Modo visitante ativado</p>
+            </div>
+          </div>
+        )}
 
         {showRetryToast && (
           <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">

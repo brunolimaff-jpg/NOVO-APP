@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@clerk/react';
 import UserMenu, { type UserMenuProps } from './UserMenu';
 
 export type UserMenuClerkBridgeProps = Omit<UserMenuProps, 'avatarUrl'>;
