@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 export interface UserMenuProps {
   isDarkMode: boolean;
   displayName: string;
-  isGuest?: boolean;
   /** Foto do perfil (ex.: Clerk). Fora do ClerkProvider, omitir e usar iniciais. */
   avatarUrl?: string | null;
   onOpenSettings: () => void;
@@ -20,7 +19,6 @@ function initialsFromName(name: string): string {
 const UserMenu: React.FC<UserMenuProps> = ({
   isDarkMode,
   displayName,
-  isGuest = false,
   avatarUrl = null,
   onOpenSettings,
   onLogout,
@@ -103,13 +101,6 @@ const UserMenu: React.FC<UserMenuProps> = ({
           role="menu"
           className={`absolute right-0 z-50 mt-1 min-w-[200px] rounded-lg py-1 ${panelClass}`}
         >
-          {isGuest && (
-            <p
-              className={`px-3 py-2 text-[11px] border-b ${isDarkMode ? 'text-slate-500 border-slate-800' : 'text-slate-500 border-slate-100'}`}
-            >
-              Modo visitante
-            </p>
-          )}
           <button
             type="button"
             role="menuitem"

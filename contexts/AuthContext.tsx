@@ -22,61 +22,17 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
-const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
 export const TEMPORARILY_DISABLE_CLERK = false;
 
-export const REQUIRE_CLERK_AUTH = !TEMPORARILY_DISABLE_CLERK && import.meta.env.VITE_REQUIRE_AUTH === 'true';
-
-function readGuestModePreference(): boolean {
-  if (TEMPORARILY_DISABLE_CLERK) return true; // Força visitante
-  if (REQUIRE_CLERK_AUTH) return false;
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(GUEST_MODE_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function readGuestNamePreference(): string {
-  if (typeof window === 'undefined') return 'Visitante';
-  try {
-    const stored = (window.localStorage.getItem(GUEST_NAME_STORAGE_KEY) || '').trim();
-    return stored || 'Visitante';
-  } catch {
-    return 'Visitante';
-  }
-}
+export const REQUIRE_CLERK_AUTH = true;
 
 // Provedor usado quando Clerk está DESATIVADO — não chama nenhum hook do Clerk.
 const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
-
-  const guestUser: AuthUser = {
-    id: 'guest',
-    displayName: guestDisplayName || 'Visitante',
-    email: '',
-    isGuest: true,
-  };
-
-  const updateName = (name: string) => {
-    const normalizedName = name.trim() || 'Visitante';
-    setGuestDisplayName(normalizedName);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
-      } catch {
-        // Ignora falhas de storage.
-      }
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
-        user: guestUser,
+        user: { id: 'guest', displayName: 'Visitante', email: '', isGuest: true },
         userId: 'guest',
         isAuthenticated: true,
         loading: false,
@@ -84,7 +40,7 @@ const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         login: async () => {},
         register: async () => {},
         logout: async () => {},
-        updateName,
+        updateName: () => {},
         error: null,
       }}
     >
@@ -93,35 +49,11 @@ const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 };
 
-// Provedor usado quando Clerk está ATIVO — pode chamar hooks do Clerk normalmente.
+// Provedor usado quando Clerk está ATIVO — requer autenticação via Clerk.
 const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerkAuth();
   const clerk = useClerk();
-  const [guestModeEnabled, setGuestModeEnabled] = useState<boolean>(() => readGuestModePreference());
-  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
-
-  const setGuestMode = useCallback((enabled: boolean) => {
-    setGuestModeEnabled(enabled);
-    if (typeof window === 'undefined') return;
-    try {
-      if (enabled) {
-        window.localStorage.setItem(GUEST_MODE_STORAGE_KEY, '1');
-      } else {
-        window.localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
-      }
-    } catch {
-      // Ignora falhas de storage (modo privado/restrições do browser).
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isSignedIn && guestModeEnabled) setGuestMode(false);
-  }, [guestModeEnabled, isSignedIn, setGuestMode]);
-
-  useEffect(() => {
-    if (REQUIRE_CLERK_AUTH && guestModeEnabled) setGuestMode(false);
-  }, [guestModeEnabled, setGuestMode]);
 
   const user: AuthUser | null =
     isSignedIn && clerkUser
@@ -135,50 +67,20 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
           isGuest: false,
         }
-      : !REQUIRE_CLERK_AUTH && guestModeEnabled
-        ? {
-            id: 'guest',
-            displayName: guestDisplayName || 'Visitante',
-            email: '',
-            isGuest: true,
-          }
-        : null;
+      : null;
 
-  const continueAsGuest = () => {
-    if (REQUIRE_CLERK_AUTH) return;
-    setGuestMode(true);
-  };
   const login = async () => {
-    setGuestMode(false);
     clerk.openSignIn();
   };
   const register = async () => {
-    setGuestMode(false);
     clerk.openSignUp();
   };
   const logout = async () => {
-    if (guestModeEnabled && !isSignedIn) {
-      setGuestMode(false);
-      return;
-    }
     await signOut();
-    setGuestMode(false);
   };
 
   const updateName = async (name: string) => {
-    const normalizedName = name.trim() || 'Visitante';
-
-    if (guestModeEnabled || !isSignedIn) {
-      setGuestDisplayName(normalizedName);
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
-        } catch {
-          // Ignora falhas de storage.
-        }
-      }
-      return;
-    }
+    const normalizedName = name.trim() || 'Usuário';
 
     if (clerkUser) {
       const parts = normalizedName.split(' ');
@@ -194,9 +96,9 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       value={{
         user,
         userId: user?.id || '',
-        isAuthenticated: !!isSignedIn || (!REQUIRE_CLERK_AUTH && guestModeEnabled),
+        isAuthenticated: !!isSignedIn,
         loading: !isLoaded,
-        continueAsGuest,
+        continueAsGuest: () => {},
         login,
         register,
         logout,

@@ -4,6 +4,7 @@ import React from 'react';
 import {
   AuthProvider,
   TEMPORARILY_DISABLE_CLERK,
+  REQUIRE_CLERK_AUTH,
   useAuth,
 } from '../../contexts/AuthContext';
 
@@ -40,13 +41,12 @@ vi.mock('@clerk/react', () => ({
 }));
 
 const Probe: React.FC = () => {
-  const { isAuthenticated, user, continueAsGuest, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   return (
     <div>
       <span data-testid="is-auth">{String(isAuthenticated)}</span>
       <span data-testid="display-name">{user?.displayName || 'null'}</span>
       <span data-testid="is-guest">{String(user?.isGuest || false)}</span>
-      <button onClick={continueAsGuest}>guest</button>
       <button onClick={() => logout()}>logout</button>
     </div>
   );
@@ -60,7 +60,7 @@ function renderProvider() {
   );
 }
 
-describe('AuthProvider guest mode', () => {
+describe('AuthProvider (Clerk required)', () => {
   beforeEach(() => {
     window.localStorage.clear();
     clerkState.user = null;
@@ -71,48 +71,18 @@ describe('AuthProvider guest mode', () => {
     clerkState.openSignUp.mockClear();
   });
 
-  it('reflects guest access according to the current auth mode', () => {
+  it('requires Clerk auth — REQUIRE_CLERK_AUTH is true', () => {
+    expect(REQUIRE_CLERK_AUTH).toBe(true);
+    expect(TEMPORARILY_DISABLE_CLERK).toBe(false);
+  });
+
+  it('shows unauthenticated state when not signed in', () => {
     renderProvider();
-
-    if (TEMPORARILY_DISABLE_CLERK) {
-      expect(screen.getByTestId('is-auth')).toHaveTextContent('true');
-      expect(screen.getByTestId('display-name')).toHaveTextContent('Visitante');
-      expect(screen.getByTestId('is-guest')).toHaveTextContent('true');
-      expect(window.localStorage.getItem('scout360:guest_mode')).toBeNull();
-      return;
-    }
-
     expect(screen.getByTestId('is-auth')).toHaveTextContent('false');
     expect(screen.getByTestId('display-name')).toHaveTextContent('null');
-
-    fireEvent.click(screen.getByText('guest'));
-
-    expect(screen.getByTestId('is-auth')).toHaveTextContent('true');
-    expect(screen.getByTestId('display-name')).toHaveTextContent('Visitante');
-    expect(screen.getByTestId('is-guest')).toHaveTextContent('true');
-    expect(window.localStorage.getItem('scout360:guest_mode')).toBe('1');
   });
 
-  it('handles logout without forcing Clerk signOut in guest mode', async () => {
-    renderProvider();
-    fireEvent.click(screen.getByText('guest'));
-    fireEvent.click(screen.getByText('logout'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('is-auth')).toHaveTextContent(
-        TEMPORARILY_DISABLE_CLERK ? 'true' : 'false',
-      );
-    });
-    expect(clerkState.signOut).not.toHaveBeenCalled();
-    expect(window.localStorage.getItem('scout360:guest_mode')).toBeNull();
-
-    if (TEMPORARILY_DISABLE_CLERK) {
-      expect(screen.getByTestId('display-name')).toHaveTextContent('Visitante');
-      expect(screen.getByTestId('is-guest')).toHaveTextContent('true');
-    }
-  });
-
-  it('maps signed Clerk users only when Clerk is enabled', () => {
+  it('maps signed Clerk users correctly', () => {
     clerkState.user = {
       id: 'usr_123',
       fullName: 'Maria Souza',
@@ -121,17 +91,29 @@ describe('AuthProvider guest mode', () => {
       update: vi.fn(),
     };
     clerkState.isSignedIn = true;
-    window.localStorage.setItem('scout360:guest_mode', '1');
 
     renderProvider();
 
     expect(screen.getByTestId('is-auth')).toHaveTextContent('true');
-    if (TEMPORARILY_DISABLE_CLERK) {
-      expect(screen.getByTestId('display-name')).toHaveTextContent('Visitante');
-      expect(screen.getByTestId('is-guest')).toHaveTextContent('true');
-    } else {
-      expect(screen.getByTestId('display-name')).toHaveTextContent('Maria Souza');
-      expect(screen.getByTestId('is-guest')).toHaveTextContent('false');
-    }
+    expect(screen.getByTestId('display-name')).toHaveTextContent('Maria Souza');
+    expect(screen.getByTestId('is-guest')).toHaveTextContent('false');
+  });
+
+  it('calls Clerk signOut on logout', async () => {
+    clerkState.user = {
+      id: 'usr_123',
+      fullName: 'Maria Souza',
+      firstName: 'Maria',
+      primaryEmailAddress: { emailAddress: 'maria@empresa.com' },
+      update: vi.fn(),
+    };
+    clerkState.isSignedIn = true;
+
+    renderProvider();
+    fireEvent.click(screen.getByText('logout'));
+
+    await waitFor(() => {
+      expect(clerkState.signOut).toHaveBeenCalled();
+    });
   });
 });
