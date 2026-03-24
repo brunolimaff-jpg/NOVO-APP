@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ModeProvider } from './contexts/ModeContext';
 import { CRMProvider } from './contexts/CRMContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -49,11 +49,12 @@ if (!PUBLISHABLE_KEY) {
 }
 
 /**
- * Gate que exige login via Clerk antes de mostrar o app.
- * Enquanto o Clerk carrega, exibe um spinner; quando não autenticado, mostra <SignIn />.
+ * Gate que exige login via Clerk ou modo visitante antes de mostrar o app.
+ * Enquanto o Clerk carrega, exibe um spinner; quando não autenticado, mostra <SignIn /> + botão visitante.
  */
 const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoaded, isSignedIn } = useClerkAuth();
+  const { isAuthenticated, continueAsGuest } = useAuth();
 
   if (!isLoaded) {
     return (
@@ -63,7 +64,7 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     );
   }
 
-  if (!isSignedIn) {
+  if (!isSignedIn && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
         <div className="text-center">
@@ -74,6 +75,15 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
           <h1 className="text-2xl font-bold text-white mb-6">Scout 360</h1>
           <SignIn appearance={{ variables: { colorPrimary: '#059669' } }} />
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={continueAsGuest}
+              className="text-sm text-gray-400 hover:text-emerald-400 transition-colors underline underline-offset-4"
+            >
+              Continuar como visitante
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -83,27 +93,30 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const root = createRoot(rootElement);
-const appTree = (
-  <AuthProvider>
-    <ModeProvider>
-      <CRMProvider>
-        <App />
-      </CRMProvider>
-    </ModeProvider>
-  </AuthProvider>
-);
 
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         {TEMPORARILY_DISABLE_CLERK ? (
-          appTree
+          <AuthProvider>
+            <ModeProvider>
+              <CRMProvider>
+                <App />
+              </CRMProvider>
+            </ModeProvider>
+          </AuthProvider>
         ) : (
           <ClerkProvider publishableKey={PUBLISHABLE_KEY} appearance={{ variables: { colorPrimary: '#059669' } }}>
-            <AuthGate>
-              {appTree}
-            </AuthGate>
+            <AuthProvider>
+              <AuthGate>
+                <ModeProvider>
+                  <CRMProvider>
+                    <App />
+                  </CRMProvider>
+                </ModeProvider>
+              </AuthGate>
+            </AuthProvider>
           </ClerkProvider>
         )}
       </QueryClientProvider>
