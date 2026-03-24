@@ -41,12 +41,13 @@ vi.mock('@clerk/react', () => ({
 }));
 
 const Probe: React.FC = () => {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, continueAsGuest, logout } = useAuth();
   return (
     <div>
       <span data-testid="is-auth">{String(isAuthenticated)}</span>
       <span data-testid="display-name">{user?.displayName || 'null'}</span>
       <span data-testid="is-guest">{String(user?.isGuest || false)}</span>
+      <button onClick={continueAsGuest}>guest</button>
       <button onClick={() => logout()}>logout</button>
     </div>
   );
@@ -60,7 +61,7 @@ function renderProvider() {
   );
 }
 
-describe('AuthProvider (Clerk required)', () => {
+describe('AuthProvider', () => {
   beforeEach(() => {
     window.localStorage.clear();
     clerkState.user = null;
@@ -71,15 +72,40 @@ describe('AuthProvider (Clerk required)', () => {
     clerkState.openSignUp.mockClear();
   });
 
-  it('requires Clerk auth — REQUIRE_CLERK_AUTH is true', () => {
-    expect(REQUIRE_CLERK_AUTH).toBe(true);
+  it('has correct flag values', () => {
     expect(TEMPORARILY_DISABLE_CLERK).toBe(false);
+    expect(REQUIRE_CLERK_AUTH).toBe(false);
   });
 
-  it('shows unauthenticated state when not signed in', () => {
+  it('shows unauthenticated state when not signed in and no guest mode', () => {
     renderProvider();
     expect(screen.getByTestId('is-auth')).toHaveTextContent('false');
     expect(screen.getByTestId('display-name')).toHaveTextContent('null');
+  });
+
+  it('activates guest mode via continueAsGuest', () => {
+    renderProvider();
+
+    expect(screen.getByTestId('is-auth')).toHaveTextContent('false');
+
+    fireEvent.click(screen.getByText('guest'));
+
+    expect(screen.getByTestId('is-auth')).toHaveTextContent('true');
+    expect(screen.getByTestId('display-name')).toHaveTextContent('Visitante');
+    expect(screen.getByTestId('is-guest')).toHaveTextContent('true');
+    expect(window.localStorage.getItem('scout360:guest_mode')).toBe('1');
+  });
+
+  it('handles logout in guest mode without calling Clerk signOut', async () => {
+    renderProvider();
+    fireEvent.click(screen.getByText('guest'));
+    fireEvent.click(screen.getByText('logout'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('is-auth')).toHaveTextContent('false');
+    });
+    expect(clerkState.signOut).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('scout360:guest_mode')).toBeNull();
   });
 
   it('maps signed Clerk users correctly', () => {
@@ -99,7 +125,7 @@ describe('AuthProvider (Clerk required)', () => {
     expect(screen.getByTestId('is-guest')).toHaveTextContent('false');
   });
 
-  it('calls Clerk signOut on logout', async () => {
+  it('calls Clerk signOut on logout when signed in via Clerk', async () => {
     clerkState.user = {
       id: 'usr_123',
       fullName: 'Maria Souza',

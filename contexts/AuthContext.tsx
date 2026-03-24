@@ -22,10 +22,33 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
+const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
 export const TEMPORARILY_DISABLE_CLERK = false;
 
-export const REQUIRE_CLERK_AUTH = true;
+export const REQUIRE_CLERK_AUTH = false;
+
+function readGuestModePreference(): boolean {
+  if (TEMPORARILY_DISABLE_CLERK) return true;
+  if (REQUIRE_CLERK_AUTH) return false;
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(GUEST_MODE_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function readGuestNamePreference(): string {
+  if (typeof window === 'undefined') return 'Visitante';
+  try {
+    const stored = (window.localStorage.getItem(GUEST_NAME_STORAGE_KEY) || '').trim();
+    return stored || 'Visitante';
+  } catch {
+    return 'Visitante';
+  }
+}
 
 // Provedor usado quando Clerk está DESATIVADO — não chama nenhum hook do Clerk.
 const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -49,11 +72,32 @@ const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 };
 
-// Provedor usado quando Clerk está ATIVO — requer autenticação via Clerk.
+// Provedor usado quando Clerk está ATIVO — suporta Clerk auth + guest mode.
 const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerkAuth();
   const clerk = useClerk();
+  const [guestModeEnabled, setGuestModeEnabled] = useState<boolean>(() => readGuestModePreference());
+  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
+
+  const setGuestMode = useCallback((enabled: boolean) => {
+    setGuestModeEnabled(enabled);
+    if (typeof window === 'undefined') return;
+    try {
+      if (enabled) {
+        window.localStorage.setItem(GUEST_MODE_STORAGE_KEY, '1');
+      } else {
+        window.localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
+      }
+    } catch {
+      // Ignora falhas de storage (modo privado/restrições do browser).
+    }
+  }, []);
+
+  // Auto-desativa guest mode quando o usuário faz login via Clerk
+  useEffect(() => {
+    if (isSignedIn && guestModeEnabled) setGuestMode(false);
+  }, [guestModeEnabled, isSignedIn, setGuestMode]);
 
   const user: AuthUser | null =
     isSignedIn && clerkUser
@@ -67,20 +111,50 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
           isGuest: false,
         }
-      : null;
+      : guestModeEnabled
+        ? {
+            id: 'guest',
+            displayName: guestDisplayName || 'Visitante',
+            email: '',
+            isGuest: true,
+          }
+        : null;
 
+  const continueAsGuest = () => {
+    if (REQUIRE_CLERK_AUTH) return;
+    setGuestMode(true);
+  };
   const login = async () => {
+    setGuestMode(false);
     clerk.openSignIn();
   };
   const register = async () => {
+    setGuestMode(false);
     clerk.openSignUp();
   };
   const logout = async () => {
+    if (guestModeEnabled && !isSignedIn) {
+      setGuestMode(false);
+      return;
+    }
     await signOut();
+    setGuestMode(false);
   };
 
   const updateName = async (name: string) => {
-    const normalizedName = name.trim() || 'Usuário';
+    const normalizedName = name.trim() || 'Visitante';
+
+    if (guestModeEnabled || !isSignedIn) {
+      setGuestDisplayName(normalizedName);
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
+        } catch {
+          // Ignora falhas de storage.
+        }
+      }
+      return;
+    }
 
     if (clerkUser) {
       const parts = normalizedName.split(' ');
@@ -96,9 +170,9 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       value={{
         user,
         userId: user?.id || '',
-        isAuthenticated: !!isSignedIn,
+        isAuthenticated: !!isSignedIn || guestModeEnabled,
         loading: !isLoaded,
-        continueAsGuest: () => {},
+        continueAsGuest,
         login,
         register,
         logout,
