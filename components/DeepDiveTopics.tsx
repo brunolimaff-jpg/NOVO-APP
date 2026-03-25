@@ -6,6 +6,7 @@ import {
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RH_SINDICATOS_GOD_MODE,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+  PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from '../prompts/megaPrompts';
 
 interface DeepDiveTopicsProps {
@@ -55,6 +56,13 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
       tooltip: 'Identificar C-Level, Shadow Board, gatekeepers externos e sabotadores internos do projeto.',
       icon: '🎭',
       hiddenPrompt: PROMPT_MAPEAMENTO_DECISORES_GOD_MODE
+    },
+    {
+      id: 'orcamento-janela',
+      label: 'Orçamento & Janela',
+      tooltip: 'Decodificar capacidade de investimento, crédito rural, ciclo orçamentário e timing ideal de abordagem.',
+      icon: '💵',
+      hiddenPrompt: PROMPT_ORCAMENTO_JANELA_GOD_MODE
     }
   ];
 
