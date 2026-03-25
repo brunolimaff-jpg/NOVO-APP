@@ -531,6 +531,7 @@ export async function sendMessageToGemini(
   sources?: unknown[];
   suggestions?: string[];
   scorePorta?: ScorePortaData | null;
+  clienteSeniorData?: ClienteSeniorData;
   ghostReason?: string | null;
 }> {
   const {
@@ -669,7 +670,7 @@ export async function sendMessageToGemini(
   if (canUseLookup === true && isMegaPromptMessage && empresaAlvo) {
     emitDossieStatus(onStatus, 'benchmark');
     try {
-      benchmarkData = await benchmarkClientes(empresaAlvo);
+      benchmarkData = await benchmarkClientes([empresaAlvo]);
     } catch { /* silencioso */ }
   }
 
