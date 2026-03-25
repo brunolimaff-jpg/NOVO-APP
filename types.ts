@@ -232,6 +232,44 @@ export interface ChatInterfaceProps {
 }
 
 // ===================================================================
+// REVENUE INTELLIGENCE
+// ===================================================================
+
+export type RevenueStreamType = 'licenca' | 'suporte' | 'subscricao' | 'implantacao' | 'treinamento' | 'customizacao';
+
+export type RevenueConfidence = 'confirmado' | 'estimado' | 'potencial';
+
+export type PorteCliente = 'pequeno' | 'medio' | 'grande';
+
+export interface RevenueStream {
+  id: string;
+  tipo: RevenueStreamType;
+  familiasProduto: string; // 'GATec', 'ERP', 'HCM', etc.
+  modulo?: string;
+  descricao: string;
+  valorMensal?: number;
+  valorAnual?: number;
+  custoImplantacao?: number;
+  prazoContratoMeses?: number;
+  recorrente: boolean; // true = RR, false = NR
+  confianca: RevenueConfidence;
+  fonte: string;
+  criadoEm: string;
+}
+
+export interface CustomerRevenueProfile {
+  cardId: string;
+  porte: PorteCliente;
+  totalRRAnual: number;
+  totalNR: number;
+  streamsAtivos: RevenueStream[];
+  oportunidadesExpansao: RevenueStream[];
+  tcvEstimado?: number; // Total Contract Value (RR * prazo + NR)
+  prazoContratoPadrao: number; // meses
+  atualizadoEm: string;
+}
+
+// ===================================================================
 // MINI CRM - Kanban
 // ===================================================================
 
@@ -290,6 +328,8 @@ export interface CRMCard {
   newsRadarEnabled: boolean;
   lastNewsCheckAt?: string;
   unreadNewsCount?: number;
+  // Revenue Intelligence
+  revenueProfile?: CustomerRevenueProfile;
 }
 
 export interface CRMPipelineProps {
