@@ -13,13 +13,6 @@ export default [
       '.agent/**',
       'old.tsx',
       'old_appcore*.tsx',
-      'fix*.cjs',
-      'restore*.cjs',
-      'unescape*.cjs',
-      'clean_refactor.cjs',
-      'extract.cjs',
-      'refactor_script.*',
-      'view_ts.cjs',
     ],
   },
 
