@@ -36,6 +36,9 @@ const shouldLogLookupDebug = import.meta.env?.VITE_VERBOSE_LOGS === 'true';
 // Após 30s, a próxima chamada refaz a busca ao invés de retornar o cache de cold start
 const NOT_FOUND_TTL_MS = 30_000;
 
+// Delay de retry quando JSON.parse falha (sinal de cold start retornando HTML)
+const COLD_START_RETRY_DELAY_MS = 1500;
+
 export interface ClienteResult {
   grupo: string;
   razoes_sociais: string[];
@@ -156,8 +159,6 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   }
 
   // Cache temporário de "não encontrado" — respeita TTL de 30s
-  // Se ainda dentro do TTL, retorna o cache. Se expirou, descarta e refaz a chamada
-  // (Apps Script já está aquecido após os primeiros segundos)
   const notFoundEntry = _notFoundCache.get(cacheKey);
   if (notFoundEntry) {
     if (Date.now() < notFoundEntry.expiresAt) {
@@ -166,7 +167,6 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
       }
       return notFoundEntry.data;
     }
-    // TTL expirado — remove e deixa passar para nova chamada
     _notFoundCache.delete(cacheKey);
     if (shouldLogLookupDebug) {
       console.log("[LOOKUP] Cache not-found expirado, refazendo chamada:", cacheKey);
@@ -178,7 +178,6 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   }
 
   try {
-    // Monta variantes de busca únicas para disparo paralelo
     const p1 = nomeLimpo.includes(' ')
       ? nomeLimpo.split(/\s+/).filter(p => p.length > 2)[0] ?? null
       : null;
@@ -191,13 +190,8 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     if (p1 && p1 !== nomeLimpo) variants.push(p1);
     if (strongest && strongest !== nomeLimpo && strongest !== p1) variants.push(strongest);
 
-    // Dispara todas as variantes em paralelo
     const settled = await Promise.allSettled(variants.map(v => fetchLookup(v)));
 
-    // Seleciona o melhor resultado:
-    // 1º) Prioriza encontrado=true
-    // 2º) Desempata pelo maior total de resultados (mais rico em dados)
-    // 3º) Fallback seguro se todas falharam
     const fulfilled = settled.filter(
       (r): r is PromiseFulfilledResult<LookupResponse> => r.status === 'fulfilled'
     );
@@ -220,9 +214,6 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
       console.log("[LOOKUP] Resultado:", data.encontrado ? "ENCONTRADO ✅" : "NÃO ENCONTRADO", "| Total:", data.total);
     }
 
-    // Estratégia de cache condicional:
-    // - encontrado=true  → cache permanente (dado confiável, não muda na sessão)
-    // - encontrado=false → cache temporário com TTL de 30s (pode ser cold start do Apps Script)
     if (data.encontrado) {
       _lookupCache.set(cacheKey, data);
     } else {
@@ -333,35 +324,61 @@ export interface BenchmarkResponse {
 }
 
 export async function benchmarkClientes(keywords: string[]): Promise<BenchmarkResponse> {
-  try {
-    const kw = keywords.join(',');
-    const url = `${LOOKUP_API_URL}?mode=benchmark&keywords=${encodeURIComponent(kw)}`;
+  const kw = keywords.join(',');
+  const url = `${LOOKUP_API_URL}?mode=benchmark&keywords=${encodeURIComponent(kw)}`;
 
+  // FIX: Apps Script pode retornar HTML (cold start) na primeira chamada.
+  // Tentamos parsear o JSON e, se falhar, aguardamos COLD_START_RETRY_DELAY_MS e
+  // fazemos uma segunda tentativa antes de registrar erro.
+  const attemptParse = async (): Promise<BenchmarkResponse> => {
     const resp = await fetchWithRetry(url);
     if (!resp.ok) {
       scoutDiag.warn("Benchmark", "HTTP não OK no benchmark", { status: resp.status, kw: kw.slice(0, 80) });
       return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: `HTTP ${resp.status}` };
     }
-
     const text = await resp.text();
     try {
       return JSON.parse(text);
     } catch {
-      scoutDiag.warn("Benchmark", "JSON parse falhou", { kw: kw.slice(0, 80), preview: text.slice(0, 120) });
-      return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: "JSON parse" };
+      // Sinal de cold start — Apps Script retornou HTML em vez de JSON
+      scoutDiag.warn("Benchmark", "JSON parse falhou (possível cold start) — aguardando retry", {
+        kw: kw.slice(0, 80),
+        preview: text.slice(0, 120),
+      });
+      throw new Error("JSON_PARSE_FAILED");
     }
-  } catch (err: any) {
-    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: String(err?.message || err) });
-    return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(err) };
+  };
+
+  try {
+    return await attemptParse();
+  } catch (firstErr: any) {
+    if (firstErr?.message === "JSON_PARSE_FAILED") {
+      // Cold start detectado — aguarda o Apps Script aquecer e tenta uma vez mais
+      await new Promise(resolve => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
+      try {
+        return await attemptParse();
+      } catch (retryErr: any) {
+        scoutDiag.error("Benchmark", "benchmark falhou após retry de cold start", {
+          error: String(retryErr?.message || retryErr),
+        });
+        return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(retryErr) };
+      }
+    }
+    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: String(firstErr?.message || firstErr) });
+    return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(firstErr) };
   }
 }
 
 export function formatarBenchmarkParaPrompt(bench: BenchmarkResponse, empresaAlvo: string): string {
   if (!bench?.ok || !bench.results?.length) {
-    return `\n\n---\n## 🏭 BENCHMARK SENIOR\nNenhum cliente Senior encontrado com operação similar a "${empresaAlvo}".\n---\n`;
+    // FIX: fallback visual informativo ao invés de bloco vazio silencioso
+    const motivo = bench?.error === 'JSON_PARSE_FAILED'
+      ? 'Benchmark sendo processado — tente novamente em instantes.'
+      : 'Nenhum cliente Senior encontrado com operação similar.';
+    return `\n\n---\n## 🏷️ BENCHMARK SENIOR\n_${motivo}_\n---\n`;
   }
 
-  let md = `\n\n---\n## 🏭 BENCHMARK SENIOR [🟢 CONFIRMADO]\n`;
+  let md = `\n\n---\n## 🏷️ BENCHMARK SENIOR [🟢 CONFIRMADO]\n`;
   md += `**Encontrados:** ${bench.total} clientes Senior similares\n\n`;
 
   const top = bench.results.slice(0, 5);
