@@ -41,12 +41,12 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 
 export async function listRemoteSessions(): Promise<ChatSession[]> {
   const apiCall = async () => {
-    // Apps Script espera POST com action
-    const res = await fetchWithTimeout(SESSIONS_API_URL, {
-      method: "POST",
+    // FIX: Apps Script converte POST→GET no redirect 302, perdendo o body.
+    // Usando GET com querystring garante que o parâmetro chega após o redirect.
+    const url = `${SESSIONS_API_URL}?action=listSessions`;
+    const res = await fetchWithTimeout(url, {
+      method: "GET",
       redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "listSessions" })
     });
     
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
@@ -139,7 +139,7 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
       cnpj: s.cnpj || null,
       modoPrincipal: null,
       scoreOportunidade: s.scoreOportunidade ? Number(s.scoreOportunidade) : null,
-      resumoDossie: s.resumoDossie || null,
+      resumoDossie: r.resumoDossie || null,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
       messages
