@@ -13,14 +13,12 @@ import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
 import InstallPrompt from './components/InstallPrompt';
+import { CRMView } from './components/CRMView';
 import { useAuth } from './contexts/AuthContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
 import { loadWithChunkRetry } from './utils/chunkRetry';
 import SuspenseWithError from './components/SuspenseWithError';
-const CRMPipeline = React.lazy(() =>
-  loadWithChunkRetry(() => import('./components/CRMPipeline')).then(m => ({ default: m.CRMPipeline })),
-);
 const CRMDetail = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
 );
@@ -80,14 +78,6 @@ function pickCompanyLabel(...candidates: Array<string | null | undefined>): stri
   return '';
 }
 
-/**
- * Resolve o hintedCompany a partir do texto visível da mensagem.
- * Prioridade:
- *  1. empresaAlvo já salvo na sessão
- *  2. extractCompanyName com resultado válido (≠ 'Empresa')
- *  3. Fallback: usa o texto bruto quando for curto (≤ 60 chars, sem quebra de linha)
- *     — cobre o caso do vendedor digitar apenas o nome da empresa (ex: "Amaggi", "JBS MT")
- */
 function resolveHintedCompany(
   sessionEmpresaAlvo: string | null | undefined,
   safeVisibleText: string,
@@ -97,7 +87,6 @@ function resolveHintedCompany(
   const extracted = cleanTitle(extractCompanyName(safeVisibleText));
   if (extracted && extracted !== 'Empresa') return extracted;
 
-  // Ficha Spotter / formato estruturado: "- Empresa: NOME DA EMPRESA"
   const fromEmpresaField = safeVisibleText.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
   if (fromEmpresaField) return cleanTitle(fromEmpresaField);
 
@@ -109,24 +98,10 @@ function resolveHintedCompany(
   return null;
 }
 
-// Skeleton reutilizável para lazy loads de CRM
-function CRMLoadingSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
-  return (
-    <div className={`flex h-full w-full items-center justify-center ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-        <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-          Carregando CRM...
-        </p>
-      </div>
-    </div>
-  );
-}
-
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated } = useAuth();
   const { mode, systemInstruction } = useMode();
-  const { cards, createCardFromSession, createManualCard, moveCardToStage } = useCRM();
+  const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
   const { isDarkMode, toggleTheme } = useTheme();
   const { sessions, setSessions, sessionsRef, isInitialized, setIsInitialized, loadSessions } = useSessionStorage();
@@ -146,13 +121,6 @@ const App: React.FC = () => {
   const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
-
-  // CRM form state
-  const [showNewCrmForm, setShowNewCrmForm] = useState(false);
-  const [newCrmName, setNewCrmName] = useState('');
-  const [newCrmWebsite, setNewCrmWebsite] = useState('');
-  const [newCrmResumo, setNewCrmResumo] = useState('');
-  const [isCreatingCrmCard, setIsCreatingCrmCard] = useState(false);
 
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -227,7 +195,6 @@ const App: React.FC = () => {
     document.title = `${APP_NAME} ${MODE_LABELS[mode].icon}`;
   }, [mode]);
 
-  // --- Session handlers (extracted to useSessionManager) ---
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager({
     sessions,
     setSessions,
@@ -248,7 +215,6 @@ const App: React.FC = () => {
     setIsLoading,
   });
 
-  // --- Initialization (extracted to useAppInitialization) ---
   useAppInitialization({
     loadSessions,
     setSessions,
@@ -291,7 +257,6 @@ const App: React.FC = () => {
     setVisibleCount(PAGE_SIZE);
   };
 
-  // --- Message processing ---
   const processMessage = async (
     text: string,
     explicitSessionId?: string,
@@ -312,10 +277,7 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
-
-    // FIX: usa resolveHintedCompany para cobrir o caso de nomes curtos (ex: "Amaggi")
     const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
-
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
       safeVisibleText,
@@ -419,22 +381,23 @@ const App: React.FC = () => {
           ...s,
           title: shouldRewriteTitle ? finalCompany || s.title : s.title,
           empresaAlvo: finalCompany || s.empresaAlvo,
-        scoreOportunidade: scorePorta?.score ?? s.scoreOportunidade,
-        messages: s.messages.map(msg =>
-          msg.id === botMessageId
-            ? {
-                ...msg,
-                text: responseText,
-                groundingSources: sources,
-                suggestions,
-                scorePorta: scorePorta || undefined,
-                clienteSeniorData: clienteSeniorData || undefined,
-                isThinking: false,
-                ...(ghostReason && { ghostDetails: ghostReason }),
-              }
-            : msg,
-        ),
-      }});
+          scoreOportunidade: scorePorta?.score ?? s.scoreOportunidade,
+          messages: s.messages.map(msg =>
+            msg.id === botMessageId
+              ? {
+                  ...msg,
+                  text: responseText,
+                  groundingSources: sources,
+                  suggestions,
+                  scorePorta: scorePorta || undefined,
+                  clienteSeniorData: clienteSeniorData || undefined,
+                  isThinking: false,
+                  ...(ghostReason && { ghostDetails: ghostReason }),
+                }
+              : msg,
+          ),
+        };
+      });
 
       if (!investigationLogged && responseText.length > 500) {
         setInvestigationLogged(true);
@@ -629,7 +592,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Feedback ---
   const handleReportError = async (messageId: string, error: AppError) => {
     if (!currentSession) return;
     const errorPayload = JSON.stringify(
@@ -716,7 +678,6 @@ const App: React.FC = () => {
     }));
   };
 
-  // --- Export ---
   async function handleExportPDF() {
     try {
       const { text: fullText, sections, allLinks } = collectFullReport(allMessages);
@@ -724,7 +685,6 @@ const App: React.FC = () => {
         alert('Nenhum dossiê para exportar.');
         return;
       }
-
       const inconsistenciesSection = detectInconsistencies(sections);
       const normalizedFullText = normalizeMermaidBlocks(fullText);
       const executiveSummary = generateExecutiveSummary(normalizedFullText, sections, inconsistenciesSection);
@@ -734,13 +694,11 @@ const App: React.FC = () => {
       const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
       const horaStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const metaLine = `${dataStr} às ${horaStr} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
-
       const { PDFGenerator } = await import('./utils/PDFGenerator');
       const pdf = new PDFGenerator();
       pdf.addHeader(empresa, metaLine);
       await pdf.renderMarkdown(finalText);
       pdf.addSources(allLinks.map(l => ({ text: l.title || l.url, url: l.url })));
-
       const safeTitle = empresa.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
       pdf.save(`SeniorScout_${safeTitle}_${now.toISOString().slice(0, 10)}.pdf`);
     } catch (e) {
@@ -762,10 +720,7 @@ const App: React.FC = () => {
         reportType === 'executive'
           ? executiveSummary
           : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`;
-
-      const safeTitle = cleanTitle(currentSession.title)
-        .replace(/[^a-z0-9]/gi, '_')
-        .substring(0, 50);
+      const safeTitle = cleanTitle(currentSession.title).replace(/[^a-z0-9]/gi, '_').substring(0, 50);
       const dateStr = new Date().toISOString().slice(0, 10);
       const reportSuffix = reportType === 'executive' ? 'EXEC' : reportType === 'tech' ? 'FICHA' : 'DOSSIE';
       const filename = `SeniorScout_${safeTitle}_${reportSuffix}_${dateStr}`;
@@ -783,7 +738,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Email ---
   async function handleSendEmail() {
     if (!emailTo.includes('@')) return;
     setEmailStatus('sending');
@@ -833,7 +787,6 @@ const App: React.FC = () => {
     }
   }
 
-  // --- Follow-up ---
   function handleScheduleFollowUp(result: FollowUpScheduleResult) {
     setFollowUpStatus('sending');
     if (result.ok) {
@@ -849,7 +802,6 @@ const App: React.FC = () => {
     toast.error(result.error || 'Não foi possível preparar o follow-up.');
   }
 
-  // --- CRM ---
   const handleSaveToCRM = async (sessionId: string) => {
     if (!canAccessMiniCRM) {
       toast.error('Mini CRM indisponível no modo MVP.');
@@ -870,37 +822,6 @@ const App: React.FC = () => {
     setActiveView('crm');
   };
 
-  const handleCreateManualCRMCard = async () => {
-    if (!newCrmName.trim()) return;
-    setIsCreatingCrmCard(true);
-    try {
-      const card = await createManualCard({
-        companyName: newCrmName.trim(),
-        website: newCrmWebsite.trim() || undefined,
-        briefDescription: newCrmResumo.trim() || undefined,
-        stage: 'prospeccao',
-      });
-      setNewCrmName('');
-      setNewCrmWebsite('');
-      setNewCrmResumo('');
-      setShowNewCrmForm(false);
-      setSelectedCRMCardId(card.id);
-    } catch (err) {
-      console.error('Erro ao criar card:', err);
-    } finally {
-      setIsCreatingCrmCard(false);
-    }
-  };
-
-  const handleMoveCRMCard = async (cardId: string, toStage: CRMStage) => {
-    await moveCardToStage(cardId, toStage);
-  };
-  const handleSelectCRMCard = (cardId: string) => {
-    setSelectedCRMCardId(cardId);
-  };
-  const handleCloseCRMDetail = () => {
-    setSelectedCRMCardId(null);
-  };
   const handleMoveStageFromDetail = async (stage: string) => {
     if (selectedCRMCardId) await moveCardToStage(selectedCRMCardId, stage as CRMStage);
   };
@@ -1055,74 +976,12 @@ const App: React.FC = () => {
               }}
             />
           ) : (
-            <div className={`flex h-full w-full ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
-              <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      Pipeline · Kanban
-                    </p>
-                    <h1 className="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-100">Mini CRM</h1>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowNewCrmForm(prev => !prev)}
-                      className="text-[11px] px-3 py-1.5 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 font-medium transition-colors"
-                    >
-                      {showNewCrmForm ? '✕ Cancelar' : '+ Nova empresa'}
-                    </button>
-                    <button
-                      onClick={() => setActiveView('chat')}
-                      className="text-[11px] px-3 py-1.5 rounded-full border border-slate-300/70 dark:border-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      ← Voltar
-                    </button>
-                  </div>
-                </div>
-                {showNewCrmForm && (
-                  <div
-                    className={`mb-5 rounded-xl border p-4 space-y-3 ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <input
-                        type="text"
-                        value={newCrmName}
-                        onChange={e => setNewCrmName(e.target.value)}
-                        placeholder="Nome da empresa *"
-                        autoFocus
-                        className={`rounded-lg border px-3 py-2 text-sm bg-transparent ${isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'}`}
-                      />
-                      <input
-                        type="text"
-                        value={newCrmWebsite}
-                        onChange={e => setNewCrmWebsite(e.target.value)}
-                        placeholder="Website (opcional)"
-                        className={`rounded-lg border px-3 py-2 text-sm bg-transparent ${isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'}`}
-                      />
-                      <input
-                        type="text"
-                        value={newCrmResumo}
-                        onChange={e => setNewCrmResumo(e.target.value)}
-                        placeholder="Resumo breve (opcional)"
-                        className={`rounded-lg border px-3 py-2 text-sm bg-transparent ${isDarkMode ? 'border-slate-700 text-slate-100' : 'border-slate-300 text-slate-900'}`}
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        onClick={handleCreateManualCRMCard}
-                        disabled={!newCrmName.trim() || isCreatingCrmCard}
-                        className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                      >
-                        {isCreatingCrmCard ? 'Criando...' : 'Criar empresa'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <React.Suspense fallback={<CRMLoadingSkeleton isDarkMode={isDarkMode} />}>
-                  <CRMPipeline cards={cards} onMoveCard={handleMoveCRMCard} onSelectCard={handleSelectCRMCard} />
-                </React.Suspense>
-              </div>
-            </div>
+            <CRMView
+              isDarkMode={isDarkMode}
+              onSelectCard={setSelectedCRMCardId}
+              onBackToChat={() => setActiveView('chat')}
+              canAccessMiniCRM={canAccessMiniCRM}
+            />
           )}
         </div>
       </div>
@@ -1132,7 +991,7 @@ const App: React.FC = () => {
           <CRMDetail
             card={selectedCRMCard}
             sessions={sessions}
-            onClose={handleCloseCRMDetail}
+            onClose={() => setSelectedCRMCardId(null)}
             onSelectSession={handleSelectSessionFromDetail}
             onMoveStage={handleMoveStageFromDetail}
             onCreateSessionFromCard={handleCreateSessionFromDetail}
