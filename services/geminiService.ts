@@ -529,11 +529,21 @@ export async function generateContinuityQuestion(
   }
 }
 
+/**
+ * Envia uma mensagem para o Gemini e retorna a resposta processada.
+ *
+ * @param userMessage    - Texto da mensagem do usuário (pode ser megaprompt)
+ * @param conversationHistory - Histórico da conversa atual
+ * @param systemPrompt   - System instruction do modo ativo
+ * @param options        - Opções de request (streaming, callbacks, hints)
+ * @param canUseLookup   - Se false, o lookup na planilha Senior é bloqueado (controle de acesso)
+ */
 export async function sendMessageToGemini(
   userMessage: string,
   conversationHistory: Message[],
   systemPrompt: string,
   options: GeminiRequestOptions = {},
+  canUseLookup: boolean = true,
 ): Promise<{
   text: string;
   sources?: unknown[];
@@ -587,9 +597,10 @@ export async function sendMessageToGemini(
   // cnpjDetected é mantido separado para enriquecimento via BrasilAPI/Comex.
   // Se o usuário digitou apenas CNPJ (empresaAlvo=null), o lookup será tentado
   // após a resolução do nome via clienteData.nome mais abaixo no fluxo.
-  let targetCompanyForLookup: string | null = empresaAlvo;
+  // GUARD: só define targetCompanyForLookup se o usuário tiver permissão (canUseLookup).
+  let targetCompanyForLookup: string | null = canUseLookup ? (empresaAlvo ?? null) : null;
 
-  if (!targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
+  if (canUseLookup && !targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
     // Em deep dive sem empresa alvo, tenta recuperar o nome do histórico
     const previousTargetMsg = [...conversationHistory]
       .reverse()
