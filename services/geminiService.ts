@@ -171,7 +171,6 @@ function normalizeGroundingSources(response: unknown): Array<{ title: string; ur
     groundingChunks?: unknown[];
   };
 
-  // Compatibilidade com payload antigo do proxy.
   if (Array.isArray(r.sources)) {
     for (const item of r.sources) {
       const src = item as { title?: unknown; url?: unknown };
@@ -179,7 +178,6 @@ function normalizeGroundingSources(response: unknown): Array<{ title: string; ur
     }
   }
 
-  // Payload atual do proxy (Google Search grounding chunks).
   if (Array.isArray(r.groundingChunks)) {
     for (const chunk of r.groundingChunks) {
       const c = chunk as {
@@ -430,7 +428,6 @@ async function shouldRecoverOpenQuestionByJudge(
   }
 }
 
-// ─── Helpers de status granular para dossiê ──────────────────────────────────
 function emitDossieStatus(
   onStatus: ((s: string) => void) | undefined,
   key: keyof typeof DOSSIE_STATUS,
@@ -537,7 +534,6 @@ export async function sendMessageToGemini(
   conversationHistory: Message[],
   systemPrompt: string,
   options: GeminiRequestOptions = {},
-  canUseLookup?: boolean,
 ): Promise<{
   text: string;
   sources?: unknown[];
@@ -571,7 +567,7 @@ export async function sendMessageToGemini(
   let clienteData: LookupResponse | null = null;
   let benchmarkData: BenchmarkResponse | null = null;
   let clienteSeniorData: ClienteSeniorData | undefined;
-  let comexData: any = null; // Guardará o retorno da API de Comex
+  let comexData: any = null;
   emitDossieStatus(onStatus, 'context');
   emitDossieStatus(onStatus, 'enrichment');
 
@@ -586,7 +582,6 @@ export async function sendMessageToGemini(
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
   const hasActiveContextHint    = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
-  // Se for Deep Dive e a empresaAlvo estiver ausente, tenta extrair das mensagens anteriores
   let targetCompanyForLookup = cnpjDetected || empresaAlvo;
   if (!targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
     const previousTargetMsg = [...conversationHistory].reverse().find(m => m.sender === Sender.User && m.text?.includes('DOSSIÊ'));
@@ -597,17 +592,16 @@ export async function sendMessageToGemini(
   }
 
   // ── Consultas Paralelas (Lookup Cliente Senior + Comex Stat) ─────────────
-  if (canUseLookup === true && targetCompanyForLookup) {
+  if (targetCompanyForLookup) {
     emitDossieStatus(onStatus, 'cadastral');
+    console.log('[LOOKUP 🔍] Iniciando lookup para:', targetCompanyForLookup);
     try {
       const lookupPromises: Promise<any>[] = [lookupCliente(targetCompanyForLookup)];
-      
-      // Só chama a API do Comex se for um CNPJ válido (apenas números, 14 dígitos)
+
       const cleanCnpj = targetCompanyForLookup.replace(/\D/g, '');
       if (cleanCnpj.length === 14) {
         // TODO: A API /api/comex atual usa um mock determinístico para simular exportadores.
-        // Quando a base oficial do MDIC estiver hospedada (ex: em um DB Postgres ou Edge Config),
-        // descomente as linhas abaixo para reativar o lookup real de exportação.
+        // Descomente abaixo quando a base oficial do MDIC estiver disponível.
         /*
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const comexPromise = fetch(`${origin}/api/comex?cnpj=${cleanCnpj}`)
@@ -619,7 +613,6 @@ export async function sendMessageToGemini(
 
       const results = await Promise.allSettled(lookupPromises);
 
-      // Processa Lookup Senior (sempre o primeiro)
       if (results[0].status === 'rejected') {
         scoutDiag.error('Cadastral', 'lookupCliente rejeitado', {
           target: String(targetCompanyForLookup).slice(0, 80),
@@ -649,9 +642,15 @@ export async function sendMessageToGemini(
             modulosPorFamilia: r.modulos_por_familia
           };
         }
+
+        console.log('[LOOKUP 🔍] Resultado:', {
+          encontrado: clienteData?.encontrado,
+          query: clienteData?.query,
+          ok: clienteData?.ok,
+          totalModulos: clienteSeniorData?.totalModulos ?? null,
+        });
       }
 
-      // Processa Comex Stat (se existir, será o segundo)
       if (results.length > 1 && results[1].status === 'fulfilled' && results[1].value) {
         comexData = results[1].value;
       }
@@ -663,12 +662,12 @@ export async function sendMessageToGemini(
     }
   }
 
-  // Se for Deep Dive e falhou no lookup local, tenta puxar do histórico da sessão (mensagens anteriores do bot)
+  // Se for Deep Dive e falhou no lookup local, tenta puxar do histórico da sessão
   if (isDeepDive && (!clienteSeniorData || !clienteSeniorData.encontrado)) {
     const previousBotMessageWithClientData = [...conversationHistory]
       .reverse()
       .find(m => m.sender === Sender.Bot && m.clienteSeniorData?.encontrado);
-      
+
     if (previousBotMessageWithClientData && previousBotMessageWithClientData.clienteSeniorData) {
       clienteSeniorData = previousBotMessageWithClientData.clienteSeniorData;
     }
@@ -706,8 +705,9 @@ export async function sendMessageToGemini(
   }
 
   // ── Benchmark ────────────────────────────────────────────────────────────
-  if (canUseLookup === true && isMegaPromptMessage && empresaAlvo) {
+  if (isMegaPromptMessage && empresaAlvo) {
     emitDossieStatus(onStatus, 'benchmark');
+    console.log('[BENCHMARK 🔍] Iniciando benchmark para:', empresaAlvo);
     try {
       benchmarkData = await benchmarkClientes([empresaAlvo]);
       if (benchmarkData?.error) {
