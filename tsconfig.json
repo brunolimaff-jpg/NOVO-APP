@@ -26,10 +26,34 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    // Strict gradual — fase 1: bloqueia `any` implícito e null não verificado
-    // Para novos arquivos: toda declaração precisa de tipo explícito.
-    // Arquivos legados com erros: adicione `// @ts-expect-error` pontualmente.
     "noImplicitAny": true,
     "strictNullChecks": true
-  }
+  },
+  "include": [
+    "App.tsx",
+    "index.tsx",
+    "types.ts",
+    "constants.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "components/**/*",
+    "hooks/**/*",
+    "services/**/*",
+    "contexts/**/*",
+    "config/**/*",
+    "prompts/**/*",
+    "utils/**/*",
+    "api/**/*",
+    "scripts/**/*",
+    "tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tmp",
+    "**/*.cjs",
+    "**/*.py",
+    "**/*.fixed",
+    "**/*.txt"
+  ]
 }
