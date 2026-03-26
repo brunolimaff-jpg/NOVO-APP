@@ -109,6 +109,20 @@ function resolveHintedCompany(
   return null;
 }
 
+// Skeleton reutilizável para lazy loads de CRM
+function CRMLoadingSkeleton({ isDarkMode }: { isDarkMode: boolean }) {
+  return (
+    <div className={`flex h-full w-full items-center justify-center ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}>
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          Carregando CRM...
+        </p>
+      </div>
+    </div>
+  );
+}
+
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated } = useAuth();
   const { mode, systemInstruction } = useMode();
@@ -795,9 +809,9 @@ const App: React.FC = () => {
         }),
       });
       const text = await response.text();
-      let result;
+      let result: { success: boolean };
       try {
-        result = JSON.parse(text);
+        result = JSON.parse(text) as { success: boolean };
       } catch {
         result = response.ok ? { success: true } : { success: false };
       }
@@ -811,7 +825,9 @@ const App: React.FC = () => {
       } else {
         setEmailStatus('error');
       }
-    } catch {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      scoutDiag.warn('Email', 'handleSendEmail falhou', { error: message });
       setEmailStatus('error');
       toast.error('Falha ao enviar email. Verifique sua conexão.');
     }
@@ -1102,7 +1118,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <React.Suspense fallback={null}>
+                <React.Suspense fallback={<CRMLoadingSkeleton isDarkMode={isDarkMode} />}>
                   <CRMPipeline cards={cards} onMoveCard={handleMoveCRMCard} onSelectCard={handleSelectCRMCard} />
                 </React.Suspense>
               </div>
