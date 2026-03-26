@@ -9,7 +9,7 @@ export interface UserFeatureAccess {
   warRoom: boolean;
 }
 
-const MVP_LOCK_RESTRICTED_FEATURES = true;
+const MVP_LOCK_RESTRICTED_FEATURES = false;
 const ADMIN_IDENTIFIER = 'admin';
 
 const FULL_ACCESS: UserFeatureAccess = {
@@ -53,7 +53,6 @@ function extractIdentifiers(user: Pick<AuthUser, 'displayName' | 'email'> | null
 export function isAdminUser(user: Pick<AuthUser, 'displayName' | 'email'> | null): boolean {
   if (!user) return false;
   const identifiers = extractIdentifiers(user);
-  // Mantém a regra de MVP explícita: somente identificador "admin" libera recursos restritos.
   return identifiers.has(ADMIN_IDENTIFIER);
 }
 
