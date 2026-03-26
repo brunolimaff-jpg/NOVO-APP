@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
 const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
-export const TEMPORARILY_DISABLE_CLERK = false;
+export const TEMPORARILY_DISABLE_CLERK = true;
 
 export const REQUIRE_CLERK_AUTH = false;
 
