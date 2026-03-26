@@ -582,12 +582,22 @@ export async function sendMessageToGemini(
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
   const hasActiveContextHint    = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
-  let targetCompanyForLookup = cnpjDetected || empresaAlvo;
+  // FIX: A planilha de clientes Senior é indexada por NOME, nunca por CNPJ.
+  // targetCompanyForLookup usa apenas empresaAlvo (nome).
+  // cnpjDetected é mantido separado para enriquecimento via BrasilAPI/Comex.
+  // Se o usuário digitou apenas CNPJ (empresaAlvo=null), o lookup será tentado
+  // após a resolução do nome via clienteData.nome mais abaixo no fluxo.
+  let targetCompanyForLookup: string | null = empresaAlvo;
+
   if (!targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
-    const previousTargetMsg = [...conversationHistory].reverse().find(m => m.sender === Sender.User && m.text?.includes('DOSSIÊ'));
+    // Em deep dive sem empresa alvo, tenta recuperar o nome do histórico
+    const previousTargetMsg = [...conversationHistory]
+      .reverse()
+      .find(m => m.sender === Sender.User && m.text?.includes('DOSSIÊ'));
     if (previousTargetMsg) {
-      const match = previousTargetMsg.text.match(/\b(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14})\b/);
-      if (match) targetCompanyForLookup = match[1].replace(/\D/g, '');
+      // Tenta extrair o nome da empresa do histórico (busca por padrão "de [NOME]")
+      const nameMatch = previousTargetMsg.text.match(/(?:DOSSIÊ|DOSSIE)\s+(?:COMPLETO\s+)?(?:DE\s+)?\[?([A-ZÀ-Ú][^\]\n]{2,60})\]?/i);
+      if (nameMatch?.[1]) targetCompanyForLookup = nameMatch[1].trim();
     }
   }
 
@@ -598,7 +608,7 @@ export async function sendMessageToGemini(
     try {
       const lookupPromises: Promise<any>[] = [lookupCliente(targetCompanyForLookup)];
 
-      const cleanCnpj = targetCompanyForLookup.replace(/\D/g, '');
+      const cleanCnpj = cnpjDetected || '';
       if (cleanCnpj.length === 14) {
         // TODO: A API /api/comex atual usa um mock determinístico para simular exportadores.
         // Descomente abaixo quando a base oficial do MDIC estiver disponível.
