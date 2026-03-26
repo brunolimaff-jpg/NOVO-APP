@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ChatSession } from '../types';
 import { listRemoteSessions } from '../services/sessionRemoteStore';
+import { LOOKUP_URL } from '../services/apiConfig';
 
 interface UseAppInitializationOptions {
   loadSessions: () => Promise<ChatSession[]>;
@@ -15,6 +16,9 @@ interface UseAppInitializationOptions {
  * Handles app initialization in two phases:
  * 1. (Blocking) Load local sessions immediately so the UI is interactive.
  * 2. (Background) Merge remote sessions without disrupting the current session.
+ *
+ * Warm-up: dispara um ping silencioso ao Apps Script do lookup logo no boot
+ * para evitar cold start quando o vendedor fizer a primeira consulta.
  */
 export function useAppInitialization({
   loadSessions,
@@ -26,6 +30,11 @@ export function useAppInitialization({
 }: UseAppInitializationOptions) {
   useEffect(() => {
     let cancelled = false;
+
+    // WARM-UP: acorda o Apps Script do lookup silenciosamente.
+    // Não aguarda resposta nem trata erros — o objetivo é apenas tirar o serviço do cold start
+    // antes do vendedor digitar a primeira empresa.
+    fetch(`${LOOKUP_URL}?q=warmup`, { method: 'GET', redirect: 'follow' }).catch(() => {});
 
     const init = async () => {
       const localSessions = await loadSessions();
