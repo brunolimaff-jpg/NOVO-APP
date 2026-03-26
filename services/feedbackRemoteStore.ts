@@ -1,5 +1,5 @@
-
 import { withAutoRetry } from "../utils/retry";
+import { scoutDiag } from "../utils/diagnosticLog";
 import { BACKEND_URL } from "./apiConfig";
 
 // URL agora vem do apiConfig
@@ -53,7 +53,11 @@ export async function sendFeedbackRemote(entry: RemoteFeedbackPayload) {
   try {
     return await withAutoRetry('Feedback:send', apiCall, { maxRetries: 2 });
   } catch (error) {
-    console.error("Feedback failed after retries", error);
+    scoutDiag.error("Feedback", "envio falhou após retries", {
+      error: error instanceof Error ? error.message : String(error),
+      sessionId: entry.sessionId,
+      messageId: entry.messageId,
+    });
     return false;
   }
 }

@@ -1,6 +1,6 @@
 import { ChatSession, Message } from "../types";
 import { withAutoRetry } from "../utils/retry";
-import { normalizeAppError } from "../utils/errorHelpers";
+import { scoutDiag } from "../utils/diagnosticLog";
 import { BACKEND_URL } from "./apiConfig";
 import { stripInternalMarkers } from "../utils/textCleaners";
 
@@ -79,7 +79,10 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
       messages: [] 
     }));
   } catch (error) {
-    console.warn("[RemoteStore] Failed to list sessions, returning empty:", error);
+    scoutDiag.warn("RemoteStore", "listRemoteSessions falhou — retornando vazio", {
+      error: error instanceof Error ? error.message : String(error),
+      action: "listSessions",
+    });
     return [];
   }
 }
@@ -120,7 +123,13 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
           text: stripInternalMarkers(String(m.text || '')),
           timestamp: new Date(m.timestamp)
         }));
-      } catch { messages = []; }
+      } catch (parseErr: unknown) {
+        scoutDiag.warn("RemoteStore", "messagesJson inválido ao restaurar sessão", {
+          sessionId: s.sessionId,
+          error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        });
+        messages = [];
+      }
     }
 
     return {
@@ -136,7 +145,10 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
       messages
     };
   } catch (error) {
-    console.error("[RemoteStore] Failed to get session:", error);
+    scoutDiag.error("RemoteStore", "getRemoteSession falhou", {
+      id,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }

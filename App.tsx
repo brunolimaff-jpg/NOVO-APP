@@ -47,6 +47,7 @@ import {
   normalizeMermaidBlocks,
 } from './utils/reportUtils';
 import { getFeatureAccessForUser } from './utils/featureAccess';
+import { scoutDiag } from './utils/diagnosticLog';
 
 const PAGE_SIZE = 20;
 type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
@@ -401,7 +402,11 @@ const App: React.FC = () => {
             modo: mode || '',
             resumo: responseText.substring(0, 200),
           }),
-        }).catch(err => console.log('Log falhou:', err));
+        }).catch((err: unknown) => {
+          scoutDiag.warn('RemoteLog', 'logInvestigation falhou (Apps Script)', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
       }
     } catch (error: unknown) {
       const err = error as Error;

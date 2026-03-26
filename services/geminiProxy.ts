@@ -1,3 +1,5 @@
+import { scoutDiag } from '../utils/diagnosticLog';
+
 type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health';
 
 interface GeminiApiBaseRequest {
@@ -82,10 +84,15 @@ async function callGeminiApi<TResponse>(
       body: JSON.stringify(payload),
       signal: controller.signal
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (timedOut) {
+      scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint: GEMINI_API_ENDPOINT });
       throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`);
     }
+    scoutDiag.error('GeminiProxy', 'falha de rede ou abort no fetch', {
+      endpoint: GEMINI_API_ENDPOINT,
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw error;
   } finally {
     clearTimeout(timeoutId);
@@ -94,6 +101,11 @@ async function callGeminiApi<TResponse>(
 
   if (!response.ok) {
     const text = await response.text();
+    scoutDiag.error('GeminiProxy', 'resposta HTTP não OK', {
+      status: response.status,
+      endpoint: GEMINI_API_ENDPOINT,
+      bodyPreview: (text || '').slice(0, 200),
+    });
     throw new Error(`Gemini proxy failed (${response.status}): ${text || 'unknown error'}`);
   }
 
