@@ -97,6 +97,10 @@ function resolveHintedCompany(
   const extracted = cleanTitle(extractCompanyName(safeVisibleText));
   if (extracted && extracted !== 'Empresa') return extracted;
 
+  // Ficha Spotter / formato estruturado: "- Empresa: NOME DA EMPRESA"
+  const fromEmpresaField = safeVisibleText.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
+  if (fromEmpresaField) return cleanTitle(fromEmpresaField);
+
   const trimmed = safeVisibleText.trim();
   if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n')) {
     return trimmed;
