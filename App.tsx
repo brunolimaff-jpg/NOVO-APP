@@ -80,6 +80,31 @@ function pickCompanyLabel(...candidates: Array<string | null | undefined>): stri
   return '';
 }
 
+/**
+ * Resolve o hintedCompany a partir do texto visível da mensagem.
+ * Prioridade:
+ *  1. empresaAlvo já salvo na sessão
+ *  2. extractCompanyName com resultado válido (≠ 'Empresa')
+ *  3. Fallback: usa o texto bruto quando for curto (≤ 60 chars, sem quebra de linha)
+ *     — cobre o caso do vendedor digitar apenas o nome da empresa (ex: "Amaggi", "JBS MT")
+ */
+function resolveHintedCompany(
+  sessionEmpresaAlvo: string | null | undefined,
+  safeVisibleText: string,
+): string | null {
+  if (sessionEmpresaAlvo) return sessionEmpresaAlvo;
+
+  const extracted = cleanTitle(extractCompanyName(safeVisibleText));
+  if (extracted && extracted !== 'Empresa') return extracted;
+
+  const trimmed = safeVisibleText.trim();
+  if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n')) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated } = useAuth();
   const { mode, systemInstruction } = useMode();
@@ -268,8 +293,10 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
-    const extracted = cleanTitle(extractCompanyName(safeVisibleText));
-    const hintedCompany = sessionForHint?.empresaAlvo || (extracted && extracted !== 'Empresa' ? extracted : null);
+
+    // FIX: usa resolveHintedCompany para cobrir o caso de nomes curtos (ex: "Amaggi")
+    const hintedCompany = resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
+
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
       safeVisibleText,
