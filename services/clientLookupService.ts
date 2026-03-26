@@ -1,5 +1,5 @@
 // services/clientLookupService.ts
-// CORRIGIDO: Timeout + Retry para App Script
+// CORRIGIDO: Timeout + Retry para App Script + Cache condicional com TTL para cold start
 
 import { LOOKUP_URL } from "./apiConfig";
 import { CONCORRENTES } from "./competitors";
@@ -31,6 +31,10 @@ const LOOKUP_API_URL = LOOKUP_URL;
 const TIMEOUT_MS = 15000; // 15 segundos (Apps Script cold start pode demorar)
 const MAX_RETRIES = 3;
 const shouldLogLookupDebug = import.meta.env?.VITE_VERBOSE_LOGS === 'true';
+
+// TTL para resultados negativos — tempo suficiente para o Apps Script aquecer
+// Após 30s, a próxima chamada refaz a busca ao invés de retornar o cache de cold start
+const NOT_FOUND_TTL_MS = 30_000;
 
 export interface ClienteResult {
   grupo: string;
@@ -112,8 +116,12 @@ async function fetchWithRetry(url: string, retries: number = MAX_RETRIES): Promi
   throw lastError || new Error('Falha após todas as tentativas');
 }
 
-// Cache em memória por sessão — evita requests duplicados para o mesmo nome
+// Cache permanente — apenas resultados encontrado=true (persiste toda a sessão)
 const _lookupCache = new Map<string, LookupResponse>();
+
+// Cache temporário para resultados negativos — protege contra cold start do Apps Script
+// Expira após NOT_FOUND_TTL_MS para permitir nova tentativa quando o script já estiver aquecido
+const _notFoundCache = new Map<string, { data: LookupResponse; expiresAt: number }>();
 
 function normalizeCacheKey(name: string): string {
   return name
@@ -139,12 +147,30 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
 
   const cacheKey = normalizeCacheKey(nomeEmpresa);
 
-  // Cache hit: retorna imediatamente sem novas chamadas HTTP
+  // Cache permanente (encontrado=true) — retorna imediatamente
   if (_lookupCache.has(cacheKey)) {
     if (shouldLogLookupDebug) {
-      console.log("[LOOKUP] Cache hit:", cacheKey);
+      console.log("[LOOKUP] Cache hit (permanente):", cacheKey);
     }
     return _lookupCache.get(cacheKey)!;
+  }
+
+  // Cache temporário de "não encontrado" — respeita TTL de 30s
+  // Se ainda dentro do TTL, retorna o cache. Se expirou, descarta e refaz a chamada
+  // (Apps Script já está aquecido após os primeiros segundos)
+  const notFoundEntry = _notFoundCache.get(cacheKey);
+  if (notFoundEntry) {
+    if (Date.now() < notFoundEntry.expiresAt) {
+      if (shouldLogLookupDebug) {
+        console.log("[LOOKUP] Cache hit (not-found TTL):", cacheKey);
+      }
+      return notFoundEntry.data;
+    }
+    // TTL expirado — remove e deixa passar para nova chamada
+    _notFoundCache.delete(cacheKey);
+    if (shouldLogLookupDebug) {
+      console.log("[LOOKUP] Cache not-found expirado, refazendo chamada:", cacheKey);
+    }
   }
 
   if (shouldLogLookupDebug) {
@@ -165,25 +191,47 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     if (p1 && p1 !== nomeLimpo) variants.push(p1);
     if (strongest && strongest !== nomeLimpo && strongest !== p1) variants.push(strongest);
 
-    // Dispara todas as variantes em paralelo (substitui 3 chamadas sequenciais)
+    // Dispara todas as variantes em paralelo
     const settled = await Promise.allSettled(variants.map(v => fetchLookup(v)));
 
-    // Usa o primeiro resultado com encontrado=true, senão o primeiro disponível
-    const found = settled.find(
-      (r): r is PromiseFulfilledResult<LookupResponse> =>
-        r.status === 'fulfilled' && r.value.encontrado
+    // Seleciona o melhor resultado:
+    // 1º) Prioriza encontrado=true
+    // 2º) Desempata pelo maior total de resultados (mais rico em dados)
+    // 3º) Fallback seguro se todas falharam
+    const fulfilled = settled.filter(
+      (r): r is PromiseFulfilledResult<LookupResponse> => r.status === 'fulfilled'
     );
 
-    const data = found
-      ? found.value
-      : settled[0].status === 'fulfilled'
-        ? settled[0].value
-        : { ok: false, query: nomeLimpo, encontrado: false, total: 0, results: [] };
+    const best = fulfilled.sort((a, b) => {
+      if (a.value.encontrado && !b.value.encontrado) return -1;
+      if (!a.value.encontrado && b.value.encontrado) return 1;
+      return (b.value.total ?? 0) - (a.value.total ?? 0);
+    })[0];
+
+    const data: LookupResponse = best?.value ?? {
+      ok: false,
+      query: nomeLimpo,
+      encontrado: false,
+      total: 0,
+      results: [],
+    };
 
     if (shouldLogLookupDebug) {
       console.log("[LOOKUP] Resultado:", data.encontrado ? "ENCONTRADO ✅" : "NÃO ENCONTRADO", "| Total:", data.total);
     }
-    _lookupCache.set(cacheKey, data);
+
+    // Estratégia de cache condicional:
+    // - encontrado=true  → cache permanente (dado confiável, não muda na sessão)
+    // - encontrado=false → cache temporário com TTL de 30s (pode ser cold start do Apps Script)
+    if (data.encontrado) {
+      _lookupCache.set(cacheKey, data);
+    } else {
+      _notFoundCache.set(cacheKey, {
+        data,
+        expiresAt: Date.now() + NOT_FOUND_TTL_MS,
+      });
+    }
+
     return data;
   } catch (err: any) {
     if (shouldLogLookupDebug) {
@@ -339,10 +387,7 @@ export function formatarComexParaPrompt(comexData: any): string {
     md += `**Principais Produtos (NCM):** ${comexData.principaisNCMs.join(', ')}\n`;
   }
   
-  md += `\n**⚠️ INSTRUÇÃO (SCORE PORTA):** 
-- A presença deste dado de exportação CONFIRMADA oficial do MDIC **AUMENTA A NOTA DA DIMENSÃO O (Operação)**. Considere a complexidade logística e aduaneira na análise.
-- É OBRIGATÓRIO recomendar o módulo **Commerce Log** na Fase 8 como fit perfeito para essa operação de exportação. Se os produtos envolverem grãos/commodities, recomendar também o **OneClick**.
----\n`;
+  md += `\n**⚠️ INSTRUÇÃO (SCORE PORTA):** \n- A presença deste dado de exportação CONFIRMADA oficial do MDIC **AUMENTA A NOTA DA DIMENSÃO O (Operação)**. Considere a complexidade logística e aduaneira na análise.\n- É OBRIGATÓRIO recomendar o módulo **Commerce Log** na Fase 8 como fit perfeito para essa operação de exportação. Se os produtos envolverem grãos/commodities, recomendar também o **OneClick**.\n---\n`;
 
   return md;
 }
