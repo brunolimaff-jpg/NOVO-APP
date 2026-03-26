@@ -279,6 +279,7 @@ const App: React.FC = () => {
     explicitSessionId?: string,
     explicitHistory?: Message[],
     visibleTextForUi?: string,
+    hintedCompanyOverride?: string | null,
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
@@ -295,7 +296,7 @@ const App: React.FC = () => {
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
 
     // FIX: usa resolveHintedCompany para cobrir o caso de nomes curtos (ex: "Amaggi")
-    const hintedCompany = resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
+    const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
 
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
@@ -478,11 +479,13 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, displayText?: string) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
+    let immediateCompany: string | null = null;
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
       const rawTitle = cleanTitle(extractCompanyName(displayText || text));
       const immediateTitle = rawTitle && rawTitle !== 'Empresa' ? rawTitle : '';
+      immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
         id: sessionId,
         title: immediateTitle || 'Nova Investigação',
@@ -501,6 +504,7 @@ const App: React.FC = () => {
     } else {
       const session = sessions.find(s => s.id === sessionId);
       currentHistory = session ? [...session.messages] : [];
+      immediateCompany = session?.empresaAlvo || null;
     }
     const userMessage: Message = {
       id: uuidv4(),
@@ -514,7 +518,7 @@ const App: React.FC = () => {
       ),
     );
     setVisibleCount(prev => prev + 1);
-    await processMessage(text, sessionId, currentHistory, displayText || text);
+    await processMessage(text, sessionId, currentHistory, displayText || text, immediateCompany);
   };
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
