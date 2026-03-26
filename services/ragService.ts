@@ -1,9 +1,17 @@
+import { scoutDiag } from '../utils/diagnosticLog';
+
 const RAG_FETCH_TIMEOUT_MS = 15000;
-const shouldLogRagDebug = import.meta.env?.VITE_VERBOSE_LOGS === 'true';
+const RAG_QUERY_MAX_CHARS = 9500;
 
 export interface RagResult {
   context: string;
   failed: boolean;
+}
+
+function normalizeRagQuery(query: string): string {
+  const normalized = (query || '').replace(/\s+/g, ' ').trim();
+  if (normalized.length <= RAG_QUERY_MAX_CHARS) return normalized;
+  return normalized.slice(0, RAG_QUERY_MAX_CHARS);
 }
 
 async function fetchRagContext(
@@ -26,9 +34,10 @@ async function fetchRagContext(
       });
 
       if (!response.ok) {
-        if (shouldLogRagDebug) {
-          console.warn(`[${label}] Server returned ${response.status}`);
-        }
+        scoutDiag.warn(label, 'servidor retornou status não OK', {
+          status: response.status,
+          endpoint,
+        });
         // Retry once on server errors (5xx)
         if (response.status >= 500) throw new Error(`server_error_${response.status}`);
         return { context: '', failed: true };
@@ -39,15 +48,11 @@ async function fetchRagContext(
 
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
-        if (shouldLogRagDebug) {
-          console.warn(`[${label}] Timeout de ${RAG_FETCH_TIMEOUT_MS / 1000}s — continuando sem RAG.`);
-        }
+        scoutDiag.warn(label, `timeout ${RAG_FETCH_TIMEOUT_MS / 1000}s — continuando sem RAG`, { endpoint });
         return { context: '', failed: true };
       }
       const msg = error instanceof Error ? error.message : 'Unknown error';
-      if (shouldLogRagDebug) {
-        console.error(`[${label}] Erro ao buscar contexto:`, msg);
-      }
+      scoutDiag.error(label, 'erro ao buscar contexto RAG', { endpoint, message: msg });
       // Re-throw server errors so the outer retry can catch them
       if (msg.startsWith('server_error_')) throw error;
       return { context: '', failed: true };
@@ -59,21 +64,29 @@ async function fetchRagContext(
   // One retry on 5xx errors
   try {
     return await attempt();
-  } catch {
+  } catch (first: unknown) {
+    scoutDiag.warn(label, 'primeira tentativa RAG falhou (5xx), repetindo', {
+      endpoint,
+      error: first instanceof Error ? first.message : String(first),
+    });
     try {
       return await attempt();
-    } catch {
+    } catch (second: unknown) {
+      scoutDiag.error(label, 'RAG falhou após retry', {
+        endpoint,
+        error: second instanceof Error ? second.message : String(second),
+      });
       return { context: '', failed: true };
     }
   }
 }
 
 export function buscarContextoPinecone(query: string, empresaAlvo?: string): Promise<RagResult> {
-  const q = empresaAlvo ? `${empresaAlvo} ${query}` : query;
+  const q = normalizeRagQuery(empresaAlvo ? `${empresaAlvo} ${query}` : query);
   return fetchRagContext('/api/rag', 'RAG', q);
 }
 
 export function buscarContextoDocsPinecone(query: string, namespace?: string): Promise<RagResult> {
   const label = namespace ? `RAG DOCS:${namespace}` : 'RAG DOCS';
-  return fetchRagContext('/api/docs-rag', label, query, namespace);
+  return fetchRagContext('/api/docs-rag', label, normalizeRagQuery(query), namespace);
 }

@@ -1,4 +1,11 @@
-import { PORTA_FLAG_PENALTIES, PORTA_WEIGHTS, PortaFlag, PortaSegmento, ScorePortaData } from '../types';
+import {
+  PORTA_FLAG_PENALTIES,
+  PORTA_WEIGHTS,
+  PortaDimension,
+  PortaFlag,
+  PortaSegmento,
+  ScorePortaData,
+} from '../types';
 
 export const PORTA_MARKER_ANY_REGEX = /\[\[(?:PORTA(?::[^\]]*|_[^\]]*))\]\]/g;
 export const PORTA_MARKER_V2_REGEX =
@@ -266,6 +273,8 @@ export function parsePortaMarkerV2(content: string): ScorePortaData | null {
       }
     }
 
+    const hasAnyJustificativa = Object.values(justificativas).some(value => value.trim().length > 0);
+
     return {
       score: Number.parseInt(v2Match[1], 10),
       p,
@@ -276,7 +285,7 @@ export function parsePortaMarkerV2(content: string): ScorePortaData | null {
       segmento,
       flags,
       scoreBruto: calculatePortaScoreBruto(p, o, r, t, a, segmento),
-      justificativas
+      ...(hasAnyJustificativa ? { justificativas } : {}),
     };
   }
 

@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { get, set } from 'idb-keyval';
 import type { RadarAlert, RadarConfig } from '../types';
 import { DEFAULT_RADAR_CONFIG } from '../types';
-import { fetchRadarAlerts } from '../services/radarService';
+import { fetchRadarAlerts, type RadarScanError, type RadarScanErrorCode } from '../services/radarService';
 
 const IDB_ALERTS_KEY = 'scout360_radar_alerts';
 const IDB_CONFIG_KEY = 'scout360_radar_config';
@@ -20,6 +20,8 @@ export interface UseRadarReturn {
   unreadCount: number;
   isScanning: boolean;
   lastScanAt: number | null;
+  lastError: { code: RadarScanErrorCode; message: string; retryable: boolean } | null;
+  lastWarning: string | null;
   updateConfig: (partial: Partial<RadarConfig>) => void;
   markAsRead: (alertId: string) => void;
   markAllAsRead: () => void;
@@ -39,6 +41,10 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   const [config, setConfig] = useState<RadarConfig>(DEFAULT_RADAR_CONFIG);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanAt, setLastScanAt] = useState<number | null>(null);
+  const [lastError, setLastError] = useState<{ code: RadarScanErrorCode; message: string; retryable: boolean } | null>(
+    null,
+  );
+  const [lastWarning, setLastWarning] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const scanLockRef = useRef(false);
 
@@ -111,10 +117,12 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     if (scanLockRef.current || !config.enabled || !config.isConfigured || config.categories.length === 0) return;
     scanLockRef.current = true;
     setIsScanning(true);
+    setLastError(null);
+    setLastWarning(null);
     toast?.info('Radar: varrendo notícias...');
 
     try {
-      const { alerts: newAlerts, metaInsight: newMetaInsight } = await fetchRadarAlerts(config);
+      const { alerts: newAlerts, metaInsight: newMetaInsight, partialFailures } = await fetchRadarAlerts(config);
       const now = Date.now();
 
       setLastScanAt(now);
@@ -128,8 +136,16 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
         const existingIds = new Set(prev.map(a => a.id));
         const fresh = newAlerts.filter(a => !existingIds.has(a.id));
         const count = fresh.length;
-        
-        if (count > 0) {
+
+        const hasPartialFailures = partialFailures.length > 0;
+        if (hasPartialFailures) {
+          const failedCategories = partialFailures.map(f => f.category).join(', ');
+          const warningMessage = count > 0
+            ? `Varredura parcial: alguns temas falharam (${failedCategories}).`
+            : `Não foi possível varrer alguns temas (${failedCategories}).`;
+          setLastWarning(warningMessage);
+          toast?.info(`Radar: varredura parcial (${failedCategories})`);
+        } else if (count > 0) {
           toast?.success(`Radar: ${count} novo${count > 1 ? 's' : ''} alerta${count > 1 ? 's' : ''}`);
         } else {
           toast?.info('Radar: nenhuma novidade encontrada');
@@ -140,8 +156,12 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
       });
     } catch (err) {
       console.error('[RADAR] Scan failed:', err);
-      const detail = err instanceof Error ? err.message : '';
-      toast?.error(detail ? `Radar: falha na varredura (${detail})` : 'Radar: falha na varredura');
+      const scanError = err as RadarScanError;
+      const userMessage = scanError?.userMessage || 'Falha na varredura do Radar.';
+      const code = scanError?.code || 'RADAR_UNKNOWN';
+      const retryable = typeof scanError?.retryable === 'boolean' ? scanError.retryable : true;
+      setLastError({ code, message: userMessage, retryable });
+      toast?.error(`Radar: ${userMessage}`);
     } finally {
       setIsScanning(false);
       scanLockRef.current = false;
@@ -196,7 +216,12 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
 
   const forceScan = useCallback(async () => {
     if (!config.isConfigured) {
-      toast?.error('Configure o Radar antes de varrer (clique em ⚙️)');
+      setLastError({
+        code: 'RADAR_BAD_REQUEST',
+        message: 'Configure o Radar antes de iniciar a varredura.',
+        retryable: false,
+      });
+      toast?.error('Configure o Radar antes de iniciar a varredura.');
       return;
     }
     await runScan();
@@ -209,6 +234,8 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     unreadCount,
     isScanning,
     lastScanAt,
+    lastError,
+    lastWarning,
     updateConfig,
     markAsRead,
     markAllAsRead,

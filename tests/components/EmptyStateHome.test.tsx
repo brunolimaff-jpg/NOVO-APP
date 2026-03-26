@@ -45,9 +45,9 @@ describe('EmptyStateHome onboarding gate', () => {
       />,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Nome da empresa *'), { target: { value: 'Grupo Scheffer' } });
-    fireEvent.change(screen.getByPlaceholderText('Cidade *'), { target: { value: 'Cuiabá' } });
-    fireEvent.change(screen.getByPlaceholderText('UF *'), { target: { value: 'MT' } });
+    fireEvent.change(screen.getByLabelText(/Nome da empresa/i), { target: { value: 'Grupo Scheffer' } });
+    fireEvent.change(screen.getByLabelText(/Cidade/i), { target: { value: 'Cuiabá' } });
+    fireEvent.change(screen.getByLabelText(/^UF/i), { target: { value: 'MT' } });
     fireEvent.click(screen.getByRole('button', { name: /Iniciar investigação completa/i }));
 
     await waitFor(() => {

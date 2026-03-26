@@ -5,6 +5,48 @@
 import type { RadarAlert, RadarCategory, RadarConfig } from '../types';
 
 const RADAR_API_PATH = '/api/radar-scan';
+const RADAR_TIMEOUT_MS = 25000;
+
+export type RadarScanErrorCode =
+  | 'RADAR_TIMEOUT'
+  | 'RADAR_NETWORK'
+  | 'RADAR_BAD_REQUEST'
+  | 'RADAR_RATE_LIMIT'
+  | 'RADAR_SERVER'
+  | 'RADAR_UNKNOWN';
+
+export class RadarScanError extends Error {
+  code: RadarScanErrorCode;
+  retryable: boolean;
+  userMessage: string;
+
+  constructor(code: RadarScanErrorCode, userMessage: string, retryable: boolean, technicalMessage?: string) {
+    super(technicalMessage || userMessage);
+    this.name = 'RadarScanError';
+    this.code = code;
+    this.retryable = retryable;
+    this.userMessage = userMessage;
+  }
+}
+
+export interface RadarPartialFailure {
+  category: string;
+  reason: string;
+}
+
+export interface RadarCategoryStat {
+  category: string;
+  sourceItems: number;
+  generatedAlerts: number;
+  ok: boolean;
+}
+
+export interface RadarScanResult {
+  alerts: RadarAlert[];
+  metaInsight: string | null;
+  partialFailures: RadarPartialFailure[];
+  categoryStats: RadarCategoryStat[];
+}
 
 // ===================================================================
 // CATEGORIAS → PROMPTS (usados pelo serverless, exportados para reuso)
@@ -105,15 +147,40 @@ export function generateAlertId(title: string, sourceUrl: string): string {
 // FETCH API
 // ===================================================================
 
-export async function fetchRadarAlerts(config: RadarConfig): Promise<{ alerts: RadarAlert[], metaInsight: string | null }> {
+export async function fetchRadarAlerts(config: RadarConfig): Promise<RadarScanResult> {
   const { categories, estados } = config;
-  if (categories.length === 0) return { alerts: [], metaInsight: null };
+  if (categories.length === 0) return { alerts: [], metaInsight: null, partialFailures: [], categoryStats: [] };
 
-  const res = await fetch(RADAR_API_PATH, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ categories, estados }),
-  });
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), RADAR_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(RADAR_API_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories, estados }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutHandle);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new RadarScanError(
+        'RADAR_TIMEOUT',
+        'O Radar demorou além do esperado. Tente novamente em instantes.',
+        true,
+        'Radar request timed out',
+      );
+    }
+    throw new RadarScanError(
+      'RADAR_NETWORK',
+      'Falha de conexão ao consultar o Radar. Verifique sua internet e tente de novo.',
+      true,
+      err instanceof Error ? err.message : 'Network error',
+    );
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
 
   if (!res.ok) {
     let detail = '';
@@ -125,12 +192,43 @@ export async function fetchRadarAlerts(config: RadarConfig): Promise<{ alerts: R
     } catch {
       // ignore parse failures and keep status-only error
     }
-    throw new Error(`Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`);
+    if (res.status === 400) {
+      throw new RadarScanError(
+        'RADAR_BAD_REQUEST',
+        'Configuração do Radar inválida. Revise categorias e estados.',
+        false,
+        `Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`,
+      );
+    }
+    if (res.status === 429) {
+      throw new RadarScanError(
+        'RADAR_RATE_LIMIT',
+        'O Radar está temporariamente sobrecarregado. Tente novamente em alguns minutos.',
+        true,
+        `Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`,
+      );
+    }
+    if (res.status >= 500) {
+      throw new RadarScanError(
+        'RADAR_SERVER',
+        'O serviço do Radar está instável no momento. Tente novamente em instantes.',
+        true,
+        `Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`,
+      );
+    }
+    throw new RadarScanError(
+      'RADAR_UNKNOWN',
+      'Não foi possível concluir a varredura do Radar.',
+      true,
+      `Radar scan failed (${res.status})${detail ? `: ${detail}` : ''}`,
+    );
   }
 
   const data = await res.json();
   return {
     alerts: (data.alerts || []) as RadarAlert[],
-    metaInsight: data.metaInsight || null
+    metaInsight: data.metaInsight || null,
+    partialFailures: (data.partialFailures || []) as RadarPartialFailure[],
+    categoryStats: (data.categoryStats || []) as RadarCategoryStat[],
   };
 }

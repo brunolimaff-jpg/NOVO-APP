@@ -3,6 +3,7 @@
 
 import { LOOKUP_URL } from "./apiConfig";
 import { CONCORRENTES } from "./competitors";
+import { scoutDiag } from "../utils/diagnosticLog";
 
 // Deriva termos-raiz a partir dos IDs dos concorrentes cadastrados (ex: 'totvs_protheus' → 'totvs')
 // + termos extras (própria empresa, produtos e marcas próprias)
@@ -188,6 +189,10 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     if (shouldLogLookupDebug) {
       console.error("[LOOKUP] ERRO:", err.message);
     }
+    scoutDiag.error("Lookup", "exceção em lookupCliente", {
+      query: nomeEmpresa.slice(0, 120),
+      error: String(err?.message || err),
+    });
     return { ok: false, query: nomeEmpresa, encontrado: false, total: 0, results: [], error: String(err) };
   }
 }
@@ -197,7 +202,13 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
 
   try {
     const resp = await fetchWithRetry(url);
-    if (!resp.ok) return { ok: false, query, encontrado: false, total: 0, results: [], error: `HTTP ${resp.status}` };
+    if (!resp.ok) {
+      scoutDiag.warn("Lookup", "HTTP não OK na planilha (Apps Script)", {
+        query: query.slice(0, 80),
+        status: resp.status,
+      });
+      return { ok: false, query, encontrado: false, total: 0, results: [], error: `HTTP ${resp.status}` };
+    }
 
     const text = await resp.text();
     if (shouldLogLookupDebug) {
@@ -207,9 +218,18 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
     try {
       return JSON.parse(text);
     } catch {
-      return { ok: false, query, encontrado: false, total: 0, results: [], error: "JSON parse error" };
+      const err = "JSON parse error";
+      scoutDiag.warn("Lookup", "resposta não é JSON válido", {
+        query: query.slice(0, 80),
+        preview: text.slice(0, 120),
+      });
+      return { ok: false, query, encontrado: false, total: 0, results: [], error: err };
     }
   } catch (err: any) {
+    scoutDiag.warn("Lookup", "fetchLookup falhou", {
+      query: query.slice(0, 80),
+      error: err?.message || String(err),
+    });
     return { ok: false, query, encontrado: false, total: 0, results: [], error: err.message };
   }
 }
@@ -271,13 +291,19 @@ export async function benchmarkClientes(keywords: string[]): Promise<BenchmarkRe
 
     const resp = await fetchWithRetry(url);
     if (!resp.ok) {
+      scoutDiag.warn("Benchmark", "HTTP não OK no benchmark", { status: resp.status, kw: kw.slice(0, 80) });
       return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: `HTTP ${resp.status}` };
     }
 
     const text = await resp.text();
-    try { return JSON.parse(text); }
-    catch { return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: "JSON parse" }; }
+    try {
+      return JSON.parse(text);
+    } catch {
+      scoutDiag.warn("Benchmark", "JSON parse falhou", { kw: kw.slice(0, 80), preview: text.slice(0, 120) });
+      return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: "JSON parse" };
+    }
   } catch (err: any) {
+    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: String(err?.message || err) });
     return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(err) };
   }
 }

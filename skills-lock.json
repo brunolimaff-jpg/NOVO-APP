@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "skills": {
+    "api-design": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "95a24f1bdddc5b608e04026fc51a4626ce13bd882ea13929cf712f4f3e50af7f"
+    },
+    "clean-code": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "935f494a2d0d92ed04ece288786be7455a4cc913b0c0abedc902083dc7b87794"
+    },
+    "codedocs": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "cf61c221c02c6331e9523f9189bcda17027917925146766f0a2d2e4882ced85a"
+    },
+    "debugging-tools": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "5efc2a45d6151f0c4b63b5678818dc6ecfb245dd00445252a0b6c978a9b1a6c4"
+    },
+    "frontend-developer": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "4a2837cc300b425ba4d16300ad90ea1a74bebcdbf7ab22b0917feebef7745025"
+    },
+    "observability": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "95778309a313bbbcb7982dead08e10e97a3408f690d1025f38773df161730f81"
+    },
+    "playwright-testing": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "3ef458ce869ce2c95b3266db8bf621e1dfec0c3ccdf30be76a45a929cadec82b"
+    },
+    "skill-audit": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "f7d70c5f8700d137c64735cc2e265694c4d61451f6fc261262eec7e6637498b6"
+    },
+    "super-brainstorm": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "61ce1dde7910c067de1223885ae94906ff1ac43647d6c19ea54e8c1f3c59392a"
+    },
+    "superhuman": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "18bbf1ce0c243b3069fc41d3502719d45460ec59d0d48ad94fb7655e5eacc1dd"
+    },
+    "test-strategy": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "2a755e4af886214e41d50ce3c16701c987e533f332f2692df27006d329ac3e1d"
+    }
+  }
+}

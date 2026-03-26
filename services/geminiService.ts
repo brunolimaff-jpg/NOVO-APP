@@ -44,6 +44,7 @@ import {
   resetPortaState,
   setBaseScore,
 } from './portaStateService';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 export { parsePortaMarkerV2 } from '../utils/porta';
 
@@ -336,6 +337,17 @@ export function cleanPortaFeedMarkers(text: string): string {
   return stripPortaMarkers(text);
 }
 
+export function parseMarkers(content: string): ParsedContent {
+  const scorePorta = parsePortaMarkerV2(content);
+  const text = stripInternalMarkers(stripPortaMarkers(content)).trim();
+
+  return {
+    text,
+    statuses: [],
+    scorePorta,
+  };
+}
+
 function isDeepDiveMessage(message: string, isMegaPromptMessage: boolean): boolean {
   if (!isMegaPromptMessage) return false;
   const deepDiveHints = [
@@ -608,11 +620,25 @@ export async function sendMessageToGemini(
       const results = await Promise.allSettled(lookupPromises);
 
       // Processa Lookup Senior (sempre o primeiro)
-      if (results[0].status === 'fulfilled' && results[0].value) {
+      if (results[0].status === 'rejected') {
+        scoutDiag.error('Cadastral', 'lookupCliente rejeitado', {
+          target: String(targetCompanyForLookup).slice(0, 80),
+          reason: String((results[0] as PromiseRejectedResult).reason),
+        });
+      } else if (results[0].status === 'fulfilled' && results[0].value) {
         clienteData = results[0].value;
         // @ts-ignore
         if (clienteData?.nome && !empresaAlvo) empresaAlvo = clienteData.nome;
-        
+
+        if (clienteData?.error) {
+          scoutDiag.warn('Cadastral', 'lookup com falha técnica ou resposta inválida', {
+            query: clienteData.query,
+            error: clienteData.error,
+            ok: clienteData.ok,
+            encontrado: clienteData.encontrado,
+          });
+        }
+
         if (clienteData?.encontrado && clienteData.results?.length > 0) {
           const r = clienteData.results[0];
           clienteSeniorData = {
@@ -629,7 +655,12 @@ export async function sendMessageToGemini(
       if (results.length > 1 && results[1].status === 'fulfilled' && results[1].value) {
         comexData = results[1].value;
       }
-    } catch { /* silencioso */ }
+    } catch (err: unknown) {
+      scoutDiag.error('Cadastral', 'exceção no bloco de lookup', {
+        target: String(targetCompanyForLookup).slice(0, 80),
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Se for Deep Dive e falhou no lookup local, tenta puxar do histórico da sessão (mensagens anteriores do bot)
@@ -654,7 +685,11 @@ export async function sendMessageToGemini(
       ragContext     = pinecone.context;
       ragDocsContext = docs.context;
       if (pinecone.failed || docs.failed) onRagFailed?.();
-    } catch { /* silencioso */ }
+    } catch (err: unknown) {
+      scoutDiag.error('RAG', 'exceção ao buscar contexto Pinecone/docs', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // ── Concorrentes ─────────────────────────────────────────────────────────
@@ -663,7 +698,11 @@ export async function sendMessageToGemini(
     emitDossieStatus(onStatus, 'concorrentes');
     try {
       concorrentesContext = await getContextoConcorrentesRegionais(empresaAlvo || userMessage);
-    } catch { /* silencioso */ }
+    } catch (err: unknown) {
+      scoutDiag.warn('Concorrentes', 'falha ao montar contexto regional', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // ── Benchmark ────────────────────────────────────────────────────────────
@@ -671,7 +710,19 @@ export async function sendMessageToGemini(
     emitDossieStatus(onStatus, 'benchmark');
     try {
       benchmarkData = await benchmarkClientes([empresaAlvo]);
-    } catch { /* silencioso */ }
+      if (benchmarkData?.error) {
+        scoutDiag.warn('Benchmark', 'benchmark retornou erro', {
+          empresaAlvo: empresaAlvo.slice(0, 80),
+          error: benchmarkData.error,
+          ok: benchmarkData.ok,
+        });
+      }
+    } catch (err: unknown) {
+      scoutDiag.error('Benchmark', 'exceção ao buscar benchmark', {
+        empresaAlvo: empresaAlvo.slice(0, 80),
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // ── Sinaliza deep research ────────────────────────────────────────────────
@@ -690,7 +741,9 @@ export async function sendMessageToGemini(
 
   // ── Monta contexto adicional ─────────────────────────────────────────────
   const clienteFormatado    = clienteData    ? formatarParaPrompt(clienteData)              : '';
-  const benchmarkFormatado  = benchmarkData  ? formatarBenchmarkParaPrompt(benchmarkData)   : '';
+  const benchmarkFormatado  = benchmarkData
+    ? formatarBenchmarkParaPrompt(benchmarkData, empresaAlvo || userMessage.slice(0, 80))
+    : '';
   const comexFormatado      = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
   const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive()       : '';
 

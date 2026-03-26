@@ -38,6 +38,8 @@ export interface RadarProps {
   unreadCount: number;
   isScanning: boolean;
   lastScanAt: number | null;
+  lastError: { code: string; message: string; retryable: boolean } | null;
+  lastWarning: string | null;
   onUpdateConfig: (partial: Partial<RadarConfig>) => void;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
@@ -107,6 +109,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   const [input, setInput] = useState('');
   const [showDashboard, setShowDashboard] = useState(false);
@@ -207,12 +210,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
-    }
-    if (e.key === 'Enter' && e.ctrlKey) {
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleSend();
     }
@@ -343,6 +346,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           searchTerm={sessionSearchTerm}
           onSearchChange={setSessionSearchTerm}
           showSearchField
+          toggleButtonRef={sidebarToggleRef}
         />
 
         <main className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col transition-all duration-300">
@@ -353,6 +357,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         >
           <button
             type="button"
+            ref={sidebarToggleRef}
             onClick={onToggleSidebar}
             className={`col-start-1 row-start-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-lg transition-colors ${
               isDarkMode
@@ -361,6 +366,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             }`}
             aria-label={isSidebarOpen ? 'Fechar painel de histórico' : 'Abrir painel de histórico'}
             aria-expanded={isSidebarOpen}
+            aria-controls="sessions-sidebar-panel"
           >
             ☰
           </button>
@@ -605,6 +611,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  aria-label="Mensagem da investigação"
                   placeholder={
                     isLoading ? 'Gerando resposta...' : 'Investigar empresa, CNPJ ou colar ficha do Spotter...'
                   }
@@ -675,6 +682,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               metaInsight={radar.metaInsight}
               isScanning={radar.isScanning}
               lastScanAt={radar.lastScanAt}
+              scanError={radar.lastError}
+              scanWarning={radar.lastWarning}
               unreadCount={radar.unreadCount}
               isConfigured={radar.config.isConfigured}
               onMarkAsRead={radar.onMarkAsRead}
