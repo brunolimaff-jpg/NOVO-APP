@@ -434,7 +434,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               <UserMenu
                 isDarkMode={isDarkMode}
                 displayName={user?.displayName || 'Usuário'}
-                isGuest={user?.isGuest}
                 onOpenSettings={() => setShowSettings(true)}
                 onLogout={onLogout}
               />
@@ -442,7 +441,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               <UserMenuClerkBridge
                 isDarkMode={isDarkMode}
                 displayName={user?.displayName || 'Usuário'}
-                isGuest={user?.isGuest}
                 onOpenSettings={() => setShowSettings(true)}
                 onLogout={onLogout}
               />

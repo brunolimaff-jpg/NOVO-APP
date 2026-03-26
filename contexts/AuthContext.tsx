@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode, useCallback, useEffect, useState } from 'react';
-import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/clerk-react';
+import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/react';
 
 export interface AuthUser {
   id: string;
@@ -25,14 +25,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
 const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
-// TEMPORARY: Desativando o Clerk temporariamente conforme solicitado.
-// Para reativar depois, mude TEMPORARILY_DISABLE_CLERK para false.
-export const TEMPORARILY_DISABLE_CLERK = true;
+export const TEMPORARILY_DISABLE_CLERK = false;
 
-export const REQUIRE_CLERK_AUTH = !TEMPORARILY_DISABLE_CLERK && import.meta.env.VITE_REQUIRE_AUTH === 'true';
+export const REQUIRE_CLERK_AUTH = false;
 
 function readGuestModePreference(): boolean {
-  if (TEMPORARILY_DISABLE_CLERK) return true; // Força visitante
+  if (TEMPORARILY_DISABLE_CLERK) return true;
   if (REQUIRE_CLERK_AUTH) return false;
   if (typeof window === 'undefined') return false;
   try {
@@ -54,31 +52,10 @@ function readGuestNamePreference(): string {
 
 // Provedor usado quando Clerk está DESATIVADO — não chama nenhum hook do Clerk.
 const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
-
-  const guestUser: AuthUser = {
-    id: 'guest',
-    displayName: guestDisplayName || 'Visitante',
-    email: '',
-    isGuest: true,
-  };
-
-  const updateName = (name: string) => {
-    const normalizedName = name.trim() || 'Visitante';
-    setGuestDisplayName(normalizedName);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
-      } catch {
-        // Ignora falhas de storage.
-      }
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
-        user: guestUser,
+        user: { id: 'guest', displayName: 'Visitante', email: '', isGuest: true },
         userId: 'guest',
         isAuthenticated: true,
         loading: false,
@@ -86,7 +63,7 @@ const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         login: async () => {},
         register: async () => {},
         logout: async () => {},
-        updateName,
+        updateName: () => {},
         error: null,
       }}
     >
@@ -95,7 +72,7 @@ const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 };
 
-// Provedor usado quando Clerk está ATIVO — pode chamar hooks do Clerk normalmente.
+// Provedor usado quando Clerk está ATIVO — suporta Clerk auth + guest mode.
 const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: clerkUser, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerkAuth();
@@ -117,13 +94,10 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, []);
 
+  // Auto-desativa guest mode quando o usuário faz login via Clerk
   useEffect(() => {
     if (isSignedIn && guestModeEnabled) setGuestMode(false);
   }, [guestModeEnabled, isSignedIn, setGuestMode]);
-
-  useEffect(() => {
-    if (REQUIRE_CLERK_AUTH && guestModeEnabled) setGuestMode(false);
-  }, [guestModeEnabled, setGuestMode]);
 
   const user: AuthUser | null =
     isSignedIn && clerkUser
@@ -137,7 +111,7 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
           isGuest: false,
         }
-      : !REQUIRE_CLERK_AUTH && guestModeEnabled
+      : guestModeEnabled
         ? {
             id: 'guest',
             displayName: guestDisplayName || 'Visitante',
@@ -196,7 +170,7 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       value={{
         user,
         userId: user?.id || '',
-        isAuthenticated: !!isSignedIn || (!REQUIRE_CLERK_AUTH && guestModeEnabled),
+        isAuthenticated: !!isSignedIn || guestModeEnabled,
         loading: !isLoaded,
         continueAsGuest,
         login,

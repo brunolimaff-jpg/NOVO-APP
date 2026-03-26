@@ -15,7 +15,7 @@
     "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.0.0",
+    "@clerk/react": "^6.1.2",
     "@google/genai": "^1.41.0",
     "@pinecone-database/pinecone": "^2.2.2",
     "@tanstack/react-query": "^5.90.21",

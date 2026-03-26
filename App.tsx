@@ -268,7 +268,8 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
-    const hintedCompany = sessionForHint?.empresaAlvo || cleanTitle(extractCompanyName(safeVisibleText)) || null;
+    const extracted = cleanTitle(extractCompanyName(safeVisibleText));
+    const hintedCompany = sessionForHint?.empresaAlvo || (extracted && extracted !== 'Empresa' ? extracted : null);
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
       safeVisibleText,
@@ -453,7 +454,8 @@ const App: React.FC = () => {
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const immediateTitle = cleanTitle(extractCompanyName(displayText || text));
+      const rawTitle = cleanTitle(extractCompanyName(displayText || text));
+      const immediateTitle = rawTitle && rawTitle !== 'Empresa' ? rawTitle : '';
       const newSession: ChatSession = {
         id: sessionId,
         title: immediateTitle || 'Nova Investigação',

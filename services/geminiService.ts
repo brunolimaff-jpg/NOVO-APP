@@ -543,6 +543,7 @@ export async function sendMessageToGemini(
   sources?: unknown[];
   suggestions?: string[];
   scorePorta?: ScorePortaData | null;
+  clienteSeniorData?: ClienteSeniorData;
   ghostReason?: string | null;
 }> {
   const {
@@ -708,7 +709,7 @@ export async function sendMessageToGemini(
   if (canUseLookup === true && isMegaPromptMessage && empresaAlvo) {
     emitDossieStatus(onStatus, 'benchmark');
     try {
-      benchmarkData = await benchmarkClientes(empresaAlvo);
+      benchmarkData = await benchmarkClientes([empresaAlvo]);
       if (benchmarkData?.error) {
         scoutDiag.warn('Benchmark', 'benchmark retornou erro', {
           empresaAlvo: empresaAlvo.slice(0, 80),
@@ -740,7 +741,9 @@ export async function sendMessageToGemini(
 
   // ── Monta contexto adicional ─────────────────────────────────────────────
   const clienteFormatado    = clienteData    ? formatarParaPrompt(clienteData)              : '';
-  const benchmarkFormatado  = benchmarkData  ? formatarBenchmarkParaPrompt(benchmarkData)   : '';
+  const benchmarkFormatado  = benchmarkData
+    ? formatarBenchmarkParaPrompt(benchmarkData, empresaAlvo || userMessage.slice(0, 80))
+    : '';
   const comexFormatado      = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
   const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive()       : '';
 

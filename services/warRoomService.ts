@@ -239,6 +239,7 @@ function buildHistorySnippet(history: WarRoomMessage[]): string {
     return `## CONVERSA ANTERIOR\n${chunks.join('')}---\n\n`;
 }
 
+// ─── FIX: extrai .context do RagResult (era tratado como string → "[object Object]")
 async function getDocsContextCached(query: string, namespace: string = DEFAULT_DOCS_NAMESPACE): Promise<string> {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return '';
@@ -255,10 +256,16 @@ async function getDocsContextCached(query: string, namespace: string = DEFAULT_D
 
     const fetchPromise = (async () => {
         try {
-            const docs = await buscarContextoDocsPinecone(query, namespace);
-            const clean = trimText(docs || '', MAX_DOCS_CHARS);
+            const result = await buscarContextoDocsPinecone(query, namespace);
+            if (result.failed) {
+                console.warn(`[WarRoom][Pinecone Docs] RAG falhou — namespace="${namespace}", query="${query.slice(0, 80)}"`);
+            }
+            const clean = trimText(result.context || '', MAX_DOCS_CHARS);
             _docsCache.set(key, { value: clean, expiresAt: Date.now() + DOCS_CACHE_TTL_MS });
             return clean;
+        } catch (err) {
+            _docsCache.delete(key);
+            throw err; // propaga ao catch externo para docsUnavailable ser ativado
         } finally {
             _docsInflight.delete(key);
         }
@@ -268,6 +275,7 @@ async function getDocsContextCached(query: string, namespace: string = DEFAULT_D
     return fetchPromise;
 }
 
+// ─── FIX: extrai .context do RagResult (era tratado como string → "[object Object]")
 async function getGlobalContextCached(query: string): Promise<string> {
     const key = query.trim().toLowerCase();
     if (!key) return '';
@@ -283,10 +291,16 @@ async function getGlobalContextCached(query: string): Promise<string> {
 
     const fetchPromise = (async () => {
         try {
-            const docs = await buscarContextoPinecone(query);
-            const clean = trimText(docs || '', MAX_DOCS_CHARS);
+            const result = await buscarContextoPinecone(query);
+            if (result.failed) {
+                console.warn(`[WarRoom][Pinecone Global] RAG falhou — query="${query.slice(0, 80)}"`);
+            }
+            const clean = trimText(result.context || '', MAX_DOCS_CHARS);
             _globalCache.set(key, { value: clean, expiresAt: Date.now() + DOCS_CACHE_TTL_MS });
             return clean;
+        } catch (err) {
+            _globalCache.delete(key);
+            throw err; // propaga ao catch externo para docsUnavailable ser ativado
         } finally {
             _globalInflight.delete(key);
         }
@@ -347,12 +361,10 @@ function filterNoisyDocsContext(
     const kept = blocks.filter((block) => {
         const lower = block.toLowerCase();
 
-        // Drop explicit broken pages.
         if (lower.includes('404 - página não encontrada') || lower.includes('404 - pagina nao encontrada')) {
             return false;
         }
 
-        // Remove known noisy HCM customizations for "fer..." collisions.
         if (
             options.fercus &&
             (lower.includes('/gestao-de-pessoas-hcm/6.10.4/customizacoes/') ||
@@ -362,7 +374,6 @@ function filterNoisyDocsContext(
             return false;
         }
 
-        // In agricultural process questions, avoid unrelated docs families.
         if (
             options.processoAgricola &&
             !options.fercus &&
@@ -601,7 +612,6 @@ export async function queryWarRoom(
                 docsContext = mergeDocContexts([GATEC_AGRICOLA_REFERENCE_BLOCK, docsContext]);
             }
             if (wantsBanking) {
-                // Sempre injeta referências oficiais de ERP Banking para evitar resposta genérica.
                 docsContext = mergeDocContexts([ERP_BANKING_REFERENCE_BLOCK, docsContext]);
             }
             if (wantsFercus) {
@@ -629,8 +639,10 @@ export async function queryWarRoom(
                 docsUnavailable = true;
                 onStatus?.('⚠️ Pinecone indisponível — usando conhecimento complementar.');
             }
-        } catch {
+        } catch (ragError: unknown) {
             docsUnavailable = true;
+            const ragDetails = ragError instanceof Error ? ragError.message : String(ragError);
+            console.error('[WarRoom][Pinecone] Falha crítica no bloco RAG:', ragDetails);
             onStatus?.('⚠️ Falha ao consultar Pinecone — continuando sem RAG.');
         }
     }
@@ -638,16 +650,13 @@ export async function queryWarRoom(
     // 3. Monta o payload completo como um único prompt (stateless, sem chat session)
     let fullPrompt = '';
 
-    // Inclui histórico como contexto inline
     fullPrompt += buildHistorySnippet(history);
 
-    // No modo unificado, injeta docs RAG para rotas técnicas e benchmark
     if ((mode === 'tech' || mode === 'benchmark') && docsContext) {
         onStatus?.('🔍 Analisando documentação...');
         fullPrompt += `## DOCUMENTAÇÃO OFICIAL (USE PARA EMBASAR)\n\n${docsContext}\n\n---\n\n`;
     }
 
-    // Pergunta atual
     fullPrompt += `## PERGUNTA DO USUÁRIO\n"${trimText(message, MAX_USER_QUESTION_CHARS)}"\n\nResponda agora.`;
     if (wantsProcessoAgricola && !wantsIntegracao) {
         fullPrompt +=

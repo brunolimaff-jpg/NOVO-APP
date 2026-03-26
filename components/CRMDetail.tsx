@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { ChatSession, CRM_STAGE_LABELS } from '../types';
 import { useCRM } from '../contexts/CRMContext';
 import { sendMessageToGemini } from '../services/geminiService';
 import ConfirmPopover from './ConfirmPopover';
+import RevenueIntelligence from './RevenueIntelligence';
+import { buildRevenueProfile } from '../services/revenueService';
 
 interface CRMDetailProps {
   card: any; // intencionalmente flexível para permitir campos adicionais do CRM
@@ -97,6 +99,26 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
 
   const currentStage = card.stage as CRMStageKey;
   const allAttachments: CRMAttachment[] = Array.isArray(card.attachments) ? card.attachments : [];
+
+  // Revenue Intelligence: usa perfil salvo no card ou deriva de sessões vinculadas
+  const revenueProfile = useMemo(() => {
+    if (card.revenueProfile) return card.revenueProfile;
+
+    // Tenta extrair clienteSeniorData das sessões vinculadas
+    const seniorMsg = linkedSessions
+      .flatMap(s => s.messages)
+      .find(m => m.clienteSeniorData?.encontrado && m.clienteSeniorData.familias?.length);
+
+    const senior = seniorMsg?.clienteSeniorData;
+    if (!senior?.familias?.length) return null;
+
+    return buildRevenueProfile({
+      cardId: card.id,
+      familias: senior.familias ?? [],
+      modulosPorFamilia: senior.modulosPorFamilia ?? {},
+      totalModulos: senior.totalModulos ?? (senior.familias?.length ?? 0),
+    });
+  }, [card.id, card.revenueProfile, linkedSessions]);
   const stageAttachments = allAttachments.filter(a => a.stage === currentStage);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -527,6 +549,10 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
                     Com novos aprofundamentos de pesquisa, o PORTA pode mudar.
                   </p>
                 </div>
+              )}
+
+              {revenueProfile && (
+                <RevenueIntelligence profile={revenueProfile} isDarkMode={isDarkMode} />
               )}
 
               <div className={`rounded-xl border p-4 ${isDarkMode ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>

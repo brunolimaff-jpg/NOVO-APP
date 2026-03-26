@@ -30,11 +30,28 @@ describe('extractCompanyName', () => {
     expect(extractCompanyName('Investigar Marfrig...')).toBe('Marfrig');
   });
 
-  it('returns cleaned title when no pattern matches', () => {
-    expect(extractCompanyName('BRF S.A.')).toBe('BRF S.A.');
+  it('returns "Empresa" when no pattern matches (avoids sending full text to lookup)', () => {
+    expect(extractCompanyName('BRF S.A.')).toBe('Empresa');
   });
 
-  it('rejects very short names (<=2 chars)', () => {
-    expect(extractCompanyName('Investigar AB')).toBe('Investigar AB');
+  it('returns "Empresa" when extracted name is too short (<=2 chars)', () => {
+    expect(extractCompanyName('Investigar AB')).toBe('Empresa');
+  });
+
+  it('extracts from new conversational patterns', () => {
+    expect(extractCompanyName('me fala da Bom Futuro')).toBe('Bom Futuro');
+    expect(extractCompanyName('quero saber sobre Agrindus')).toBe('Agrindus');
+    expect(extractCompanyName('informações da SLC Agrícola')).toBe('SLC Agrícola');
+    expect(extractCompanyName('como está a Copersucar')).toBe('Copersucar');
+    expect(extractCompanyName('cliente Marfrig')).toBe('Marfrig');
+  });
+
+  it('strips trailing noise from greedy captures', () => {
+    expect(extractCompanyName('investigar a Bom Futuro e suas operações')).toBe('Bom Futuro');
+    expect(extractCompanyName('sobre a JBS por favor')).toBe('JBS');
+  });
+
+  it('extracts from "sobre X" without article', () => {
+    expect(extractCompanyName('sobre Bunge')).toBe('Bunge');
   });
 });
