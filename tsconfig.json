@@ -48,6 +48,8 @@
     "tests/**/*"
   ],
   "exclude": [
+    "old.tsx",
+    "old_appcore*.tsx",
     "node_modules",
     "dist",
     "tmp",
