@@ -11,9 +11,13 @@ export default [
       'dist/**',
       'node_modules/**',
       '.agent/**',
+      '.claude/**',
+      'NOVO-APP/**',
+      'tmp/**',
       'old.tsx',
       'old_appcore*.tsx',
       'fix*.cjs',
+      'fix*.js',
       'restore*.cjs',
       'unescape*.cjs',
       'clean_refactor.cjs',
@@ -53,6 +57,32 @@ export default [
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  // JavaScript files (sem TypeScript parser) — browser + node + es2022
+  {
+    files: ['**/*.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2022,
+      },
+    },
+    rules: {
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+
+  // Service Worker files
+  {
+    files: ['**/sw.js', '**/workbox-*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        ...globals.browser,
+      },
     },
   },
 

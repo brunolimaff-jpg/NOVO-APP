@@ -168,7 +168,7 @@ export function fixGoogleSearchLinks(text: string): string {
   // Padrão: [Texto do Link](https://www.google.com/search?q=...)
   return text.replace(
     /\[([^\]]+)\]\((https?:\/\/(?:www\.)?google\.com\/search\?[^)]+)\)/gi,
-    (match, linkText, googleUrl) => {
+    (match, linkText, _googleUrl) => {
       // Tentar encontrar a URL real pelo texto do link
       const realUrl = findSeniorProductUrl(linkText);
       if (realUrl) {

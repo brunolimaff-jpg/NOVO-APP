@@ -23,7 +23,7 @@ export function parseMarkdownSections(markdown: string): ParsedSection[] {
   const headerRegex = /^(#{2,3})\s+(.+)$/gm;
   
   let match;
-  let lastIndex = 0;
+  let _lastIndex = 0;
   
   // Se não começa com header, cria seção genérica "intro"
   // Procura onde começa o primeiro header para definir o fim da intro
@@ -44,14 +44,14 @@ export function parseMarkdownSections(markdown: string): ParsedSection[] {
         level: 2
       });
     }
-    lastIndex = introEnd;
+    _lastIndex = introEnd;
   }
   
   // Extrai cada seção subsequente
   while ((match = headerRegex.exec(markdown)) !== null) {
-    const [fullMatch, hashes, title] = match;
-    const level = hashes.length;
-    const startIndex = match.index;
+    const [_fullMatch, _hashes, _title] = match;
+    const _level = _hashes.length;
+    const _startIndex = match.index;
     
     // Se já processou uma seção anterior (que não seja a intro), define o conteúdo dela agora
     // O conteúdo vai do final do header anterior até o início deste header

@@ -68,7 +68,7 @@ export async function withAutoRetry<T>(
       // Isso evita o problema de "thundering herd" onde todos retentam ao mesmo tempo
       const finalDelay = jitter ? Math.random() * cappedDelay : cappedDelay;
 
-      console.log(`[AutoRetry] ${actionName} error (${appError.code}). Retrying in ${Math.round(finalDelay)}ms (Attempt ${attempt}/${maxRetries})`);
+      console.warn(`[AutoRetry] ${actionName} error (${appError.code}). Retrying in ${Math.round(finalDelay)}ms (Attempt ${attempt}/${maxRetries})`);
 
       await wait(finalDelay);
     }

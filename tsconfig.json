@@ -31,5 +31,13 @@
     // Arquivos legados com erros: adicione `// @ts-expect-error` pontualmente.
     "noImplicitAny": true,
     "strictNullChecks": true
-  }
+  },
+  "exclude": [
+    "old.tsx",
+    "old_appcore.tsx",
+    "old_appcore.tsx.fixed",
+    "old_appcore_utf8.tsx",
+    "node_modules",
+    "dist"
+  ]
 }
