@@ -29,10 +29,33 @@
     "noImplicitAny": true,
     "strictNullChecks": true
   },
+  "include": [
+    "App.tsx",
+    "index.tsx",
+    "types.ts",
+    "constants.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "components/**/*",
+    "hooks/**/*",
+    "services/**/*",
+    "contexts/**/*",
+    "config/**/*",
+    "prompts/**/*",
+    "utils/**/*",
+    "api/**/*",
+    "scripts/**/*",
+    "tests/**/*"
+  ],
   "exclude": [
     "old.tsx",
     "old_appcore*.tsx",
     "node_modules",
-    "dist"
+    "dist",
+    "tmp",
+    "**/*.cjs",
+    "**/*.py",
+    "**/*.fixed",
+    "**/*.txt"
   ]
 }

@@ -10,7 +10,7 @@ const sharedRules = {
 };
 
 export default [
-  // Ignora arquivos de build, backup e scripts de manutenção
+  // Ignora arquivos de build, backup e scripts de manutençao
   {
     ignores: [
       'dist/**',
