@@ -4,15 +4,31 @@ import tsParser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
+// Regra compartilhada: no-console aplicada a todos os arquivos de script
+const sharedRules = {
+  'no-console': ['warn', { allow: ['warn', 'error'] }],
+};
+
 export default [
-  // Ignora arquivos de build, backup e scripts de manutenção
+  // Ignora arquivos de build, backup e scripts de manutençao
   {
     ignores: [
       'dist/**',
       'node_modules/**',
       '.agent/**',
+      '.claude/**',
+      'NOVO-APP/**',
+      'tmp/**',
       'old.tsx',
       'old_appcore*.tsx',
+      'fix*.cjs',
+      'fix*.js',
+      'restore*.cjs',
+      'unescape*.cjs',
+      'clean_refactor.cjs',
+      'extract.cjs',
+      'refactor_script.*',
+      'view_ts.cjs',
     ],
   },
 
@@ -45,7 +61,33 @@ export default [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      ...sharedRules,
+    },
+  },
+
+  // JavaScript files (sem TypeScript parser) — browser + node + es2022
+  {
+    files: ['**/*.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2022,
+      },
+    },
+    rules: {
+      ...sharedRules,
+    },
+  },
+
+  // Service Worker files
+  {
+    files: ['**/sw.js', '**/workbox-*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        ...globals.browser,
+      },
     },
   },
 
