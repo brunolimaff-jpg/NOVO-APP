@@ -60,7 +60,7 @@ export function convertMarkdownToHTML(md: string, includeSources: boolean = true
       /\^(\d+)/g,
       '<sup style="background:#059669;color:#fff;padding:1px 5px;border-radius:8px;font-size:10px;margin:0 1px;">$1</sup>',
     )
-    .replace(/^[\-\*] (.*$)/gm, '<li>$1</li>')
+    .replace(/^[-*] (.*$)/gm, '<li>$1</li>')
     .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br>')
