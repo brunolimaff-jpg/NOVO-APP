@@ -1,0 +1,14 @@
+{
+  "autoDreamEnabled": true,
+  "extraKnownMarketplaces": {
+    "claude-code-skills": {
+      "source": {
+        "source": "github",
+        "repo": "alirezarezvani/claude-skills",
+        "ref": "main",
+        "path": ".claude-plugin/marketplace.json"
+      },
+      "autoUpdate": true
+    }
+  }
+}
