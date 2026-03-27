@@ -4,6 +4,11 @@ import tsParser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
+// Regra compartilhada: no-console aplicada a todos os arquivos de script
+const sharedRules = {
+  'no-console': ['warn', { allow: ['warn', 'error'] }],
+};
+
 export default [
   // Ignora arquivos de build, backup e scripts de manutenção
   {
@@ -56,7 +61,7 @@ export default [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      ...sharedRules,
     },
   },
 
@@ -71,7 +76,7 @@ export default [
       },
     },
     rules: {
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      ...sharedRules,
     },
   },
 
