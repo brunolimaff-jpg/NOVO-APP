@@ -378,6 +378,63 @@ ChatInterface.onSendMessage
 
 ---
 
+## Protocolo de Consulta de Skills (OBRIGATÓRIO)
+
+> **Aplica-se a:** Claude Code, Cursor, Perplexity, Windsurf, ou qualquer agente que leia este arquivo.
+
+Antes de executar qualquer tarefa, o agente DEVE consultar as skills relevantes instaladas no projeto (`.agents/skills/` e `.claude/commands/`). A consulta significa: ler o SKILL.md ou .md correspondente e seguir as diretrizes antes de implementar.
+
+### Mapeamento Tarefa → Skills
+
+| Tipo de Tarefa | Skills Obrigatórias | Quando Consultar |
+|---|---|---|
+| **Edição de código** | `clean-code`, `frontend-developer` | ANTES de editar qualquer arquivo .ts/.tsx |
+| **Criar/modificar API** | `api-design`, `observability` | ANTES de tocar em services/ ou api/ |
+| **Debugging** | `debugging-tools` | ANTES de propor fix para bug |
+| **Testes** | `test-strategy`, `playwright-testing` | ANTES de criar ou modificar testes |
+| **Nova feature** | `super-brainstorm` → depois `skill-audit` | ANTES de iniciar implementação |
+| **Documentação** | `codedocs` | ANTES de criar/editar docs |
+| **Revisão pré-entrega** | `review` (via `/review`) | DEPOIS de implementar, ANTES de commit |
+| **Segurança pré-push** | `security-scan` (via `/security-scan`) | DEPOIS de commit, ANTES de push |
+| **Refatoração** | `clean-code`, `skill-audit` | ANTES de refatorar |
+| **Performance** | `frontend-developer`, `observability` | ANTES de otimizar |
+
+### Como Consultar
+
+1. **Ler** o arquivo da skill: `.agents/skills/<nome>/SKILL.md` ou `.claude/commands/<nome>.md`
+2. **Aplicar** as diretrizes da skill ao trabalho em andamento
+3. **Mencionar** na deliberação qual skill foi consultada e o que influenciou a decisão
+
+### Skills Disponíveis no Projeto
+
+**Skills instaladas (.agents/skills/):**
+- `api-design` — Padrões de design de API REST/GraphQL
+- `clean-code` — Princípios de código limpo, SOLID, refatoração
+- `codedocs` — Documentação técnica e de código
+- `debugging-tools` — Ferramentas e técnicas de debugging
+- `frontend-developer` — Padrões React, performance, acessibilidade
+- `observability` — Logging, monitoring, tracing
+- `playwright-testing` — Testes E2E com Playwright
+- `skill-audit` — Auditoria de qualidade de skills
+- `super-brainstorm` — Brainstorming estruturado para features
+- `superhuman` — Produtividade e execução de alto nível
+- `test-strategy` — Estratégia de testes (unit, integration, E2E)
+
+**Comandos automáticos (.claude/commands/):**
+- `/dream-memory` — Consolidação de memória entre sessões
+- `/focused-fix` — Reparação profunda de feature/módulo
+- `/plugin-audit` — Auditoria completa de plugin
+- `/review` — Gate de revisão local (rodar antes de push)
+- `/security-scan` — Varredura de segurança (secrets, LGPD, deps)
+- `/seo-auditor` — Auditoria SEO de documentação
+- `/update-docs` — Atualização de documentação
+
+### Marketplace Configurado
+
+O projeto está conectado ao marketplace `alirezarezvani/claude-skills` (205 skills) com auto-update habilitado. Para instalar skills adicionais, consulte o catálogo em: https://github.com/alirezarezvani/claude-skills
+
+---
+
 ## Documentação complementar
 
 - `ARQUITETURA.md` — arquitetura técnica detalhada e dívida técnica

@@ -10,5 +10,18 @@
       },
       "autoUpdate": true
     }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🔒 Security scan: verifique secrets expostas antes de encerrar sessão'"
+          }
+        ]
+      }
+    ]
   }
 }
