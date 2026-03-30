@@ -1,273 +1,134 @@
 # 🦅 Senior Scout 360
-
-Aplicação web de inteligência comercial com IA para prospecção e investigação de empresas (foco em agronegócio), com chat assistido, exportação de dossiês e mini CRM em formato kanban.
-
-## Sumário
-
-- [Visão geral](#visão-geral)
-- [Se você é iniciante](#se-você-é-iniciante)
-- [Principais funcionalidades](#principais-funcionalidades)
-- [Arquitetura](#arquitetura)
-- [Estrutura do projeto](#estrutura-do-projeto)
-- [Fluxos principais](#fluxos-principais)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Como rodar localmente](#como-rodar-localmente)
-- [Scripts disponíveis](#scripts-disponíveis)
-- [APIs internas (serverless)](#apis-internas-serverless)
-- [FAQ de segurança (resposta curta)](#faq-de-segurança-resposta-curta)
-- [Riscos técnicos conhecidos](#riscos-técnicos-conhecidos)
-- [Roadmap sugerido](#roadmap-sugerido)
-
-## Visão geral
-
-O **🦅 Senior Scout 360** é um app React/TypeScript com:
-
-- Chat com IA (Gemini), em modo streaming;
-- Enriquecimento por RAG (Pinecone) para contexto interno e documentação;
-- Autenticação via Clerk;
-- Persistência local (IndexedDB/localStorage) e remota (Apps Script backend);
-- Exportação de análises (PDF/Markdown/DOC);
-- Mini CRM (pipeline kanban com estágios comerciais).
-
-## Se você é iniciante
-
-Se você começou agora (vibe coding), siga nesta ordem:
-
-1. Leia: [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)
-2. Configure `.env` usando `.env.example`
-3. Rode:
-   - `npm install`
-   - `npm run dev`
-4. Se tiver erro de chave/API, veja:
-   - [`docs/SEGURANCA-API.md`](./docs/SEGURANCA-API.md)
-
-## Principais funcionalidades
-
-- **Chat investigativo com IA**  
-  Recebe perguntas sobre empresas, gera análise estruturada e sugestões de próximos passos.
-
-- **Dois modos de conversa**  
-  - `operacao`: linguagem direta para campo/execução;
-  - `diretoria`: linguagem executiva orientada a estratégia.
-
-- **RAG de duas fontes**  
-  - Contexto interno (`/api/rag`);
-  - Documentação técnica (`/api/docs-rag`).
-
-- **Sessões de conversa**  
-  - Criação, seleção, exclusão e retomada;
-  - Sincronização local/remota.
-
-- **Mini CRM integrado**  
-  Criação de card a partir da sessão, movimentação por estágio e leitura de saúde da oportunidade.
-
-- **Exportação e compartilhamento**  
-  PDF, DOC, Markdown, envio por e-mail e agendamento de follow-up.
-
-## Arquitetura
-
-### Stack
-
-- **Frontend:** React 19 + TypeScript + Vite + Tailwind + Vitest
-- **Auth:** Clerk
-- **LLM:** Gemini (`@google/genai`)
-- **RAG:** Pinecone
-- **Persistência local:** IndexedDB (`idb-keyval`) + fallback localStorage
-- **Backends externos:** Google Apps Script (sessões/feedback/email/follow-up)
-- **Deploy API interna:** Vercel Functions (`api/*.ts`)
-
-### Diagrama de alto nível
-
-```text
-Usuário
-  ↓
-React App (App.tsx / ChatInterface)
-  ↓
-geminiService.ts
-  ├─ scanInput (promptGuard)
-  ├─ lookupCliente / benchmark
-  ├─ RAG interno (/api/rag)
-  ├─ RAG docs (/api/docs-rag)
-  └─ Gemini (stream)
-  ↓
-Render da resposta + fontes + sugestões
-  ↓
-Persistência local (IDB) e opcional remota (Apps Script)
-  ↓
-Conversão em oportunidade (CRM Kanban)
-```
-
-## Estrutura do projeto
-
-```text
-.
-├── api/                    # Funções serverless (RAG e validação de links)
-├── components/             # UI principal (chat, mensagens, CRM, modais)
-├── config/                 # Configs de modelos
-├── contexts/               # Auth, modo de chat e CRM state
-├── hooks/                  # Hooks de estado/tema/offline/storage
-├── services/               # Integrações (Gemini, RAG, remoto, war room)
-├── tests/                  # Testes unitários
-├── utils/                  # Helpers (erro, markdown, prompt guard, PDF, etc.)
-├── App.tsx                 # Orquestração principal da aplicação
-├── index.tsx               # Bootstrap React + Providers
-└── constants.ts            # Prompts e configuração textual principal
-```
-
-## Fluxos principais
-
-### 1) Inicialização
-
-1. `index.tsx` monta providers (`ClerkProvider`, `AuthProvider`, `ModeProvider`, `CRMProvider`).
-2. `App.tsx` chama `loadSessions()` (local).
-3. Tenta mesclar com `listRemoteSessions()` (remoto).
-4. Define sessão ativa e renderiza chat.
-
-### 2) Envio de mensagem
-
-1. Usuário envia mensagem (`handleSendMessage`).
-2. Mensagem do usuário é anexada à sessão.
-3. `processMessage` cria placeholder do bot e inicia streaming.
-4. `sendMessageToGemini`:
-   - valida entrada (`scanInput`);
-   - analisa intenção;
-   - agrega RAG + lookup + benchmark;
-   - envia prompt ao modelo;
-   - parseia marcadores (`STATUS`, `PORTA`).
-5. UI atualiza texto final, fontes e sugestões.
-
-### 3) Persistência
-
-- **Automática local** via `useSessionStorage` (IDB/localStorage).
-- **Manual remota** via `saveRemoteSession` (Apps Script).
-
-### 4) Conversão para CRM
-
-1. Usuário clica para salvar investigação no CRM.
-2. `createCardFromSession` extrai dados relevantes.
-3. Card entra no pipeline (`prospeccao` inicialmente).
-4. Movimentações atualizam `updatedAt`, `movedToStageAt` e health.
-
-## Variáveis de ambiente
-
-### Frontend (Vite)
-
-| Variável | Obrigatória | Descrição |
-|---|---:|---|
-| `VITE_CLERK_PUBLISHABLE_KEY` | Sim (produção) | Chave pública do Clerk |
-| `VITE_BACKEND_URL` | Não | Endpoint Apps Script principal |
-| `VITE_LOOKUP_URL` | Não | Endpoint Apps Script de lookup |
-| `VITE_ROUTER_MODEL` | Não | Modelo de roteamento (default: `gemini-3.1-pro-preview`) |
-| `VITE_TACTICAL_MODEL` | Não | Modelo tático (default: `gemini-3.1-pro-preview`) |
-| `VITE_DEEP_CHAT_MODEL` | Não | Modelo deep chat (default: `gemini-3.1-pro-preview`) |
-| `VITE_DEEP_RESEARCH_MODEL` | Não | Modelo deep research (default: `gemini-3.1-pro-preview`) |
-
-### Backend / Serverless (`api/*.ts`)
-
-| Variável | Obrigatória | Descrição |
-|---|---:|---|
-| `GEMINI_API_KEY` | Sim | Chave da API Gemini |
-| `PINECONE_API_KEY` | Sim* | Chave Pinecone (`*` ou `PINECONE_DOCS_KEY`) |
-| `PINECONE_DOCS_KEY` | Não | Chave alternativa para docs RAG |
-| `PINECONE_DOCS_INDEX` | Não | Índice Pinecone (default: `scout-arsenal`) |
-| `PINECONE_NAMESPACE` | Não | Namespace padrão |
-| `PINECONE_DOCS_NAMESPACE` | Não | Namespace docs (default fallback interno) |
-
-## Como rodar localmente
-
-### Pré-requisitos
-
-- Node.js 20+
-- npm 10+
-
-### Passos
-
-```bash
-npm install
-cp .env.example .env   # se existir; caso não, crie manualmente
-npm run dev
-```
-
-Aplicação: `http://localhost:3000`
-
-## Scripts disponíveis
-
-```bash
-npm run dev         # ambiente de desenvolvimento
-npm run build       # build de produção
-npm run preview     # preview do build
-npm run test        # testes unitários (vitest run)
-npm run test:watch  # vitest em watch
-npm run lint        # eslint
-npm run format      # prettier
-npm run typecheck   # tsc --noEmit
-```
-
-## APIs internas (serverless)
-
-- `POST /api/rag`  
-  Recebe `{ query }`, gera embedding e consulta Pinecone para contexto interno.
-
-- `POST /api/docs-rag`  
-  Recebe `{ query }`, consulta namespace de documentação no Pinecone.
-
-- `POST /api/link-status`  
-  Recebe `{ urls: string[] }`, valida links (HEAD/GET) e retorna status.
-
-## FAQ de segurança (resposta curta)
-
-### "Tem como esconder chave API sem backend?"
-
-**Não, de forma segura não tem.**
-
-Se o app roda no navegador e chama a IA direto do frontend, a chave sempre pode ser descoberta por alguém (DevTools, source map, requests etc.).
-
-### "Então o que eu faço sendo leigo?"
-
-Use um **backend mínimo** (pode ser serverless: Vercel Functions, Netlify Functions, Cloudflare Workers).  
-Este projeto já usa `api/*.ts`, então você já está a meio caminho.
-
-### "Não quero mexer em backend agora. Qual paliativo?"
-
-- Restrinja a chave no provedor (domínio/IP, se disponível);
-- Coloque limite de quota e alertas de uso;
-- Nunca commitar `.env` no Git.
-
-Isso **reduz risco**, mas **não protege totalmente**.
-
-## Riscos técnicos conhecidos
-
-1. **Garantir uso do proxy em produção**  
-   O projeto agora usa `/api/gemini` para chamadas do modelo com chave no servidor.  
-   Recomendação: manter esse padrão e não reintroduzir chamadas diretas do frontend para Gemini.
-
-2. **Arquivo `App.tsx` muito extenso**  
-   Alta concentração de responsabilidades (estado, fluxo, handlers, UI).
-
-3. **Prompts muito longos em `constants.ts`**  
-   Pode aumentar bundle size e dificultar manutenção/versionamento.
-
-4. **Validação de URL em endpoint público**  
-   Endurecer políticas de allowlist/rate limit para reduzir risco de abuso.
-
-## Roadmap sugerido
-
-- [ ] Extrair lógica do `App.tsx` para hooks de domínio (`useChatFlow`, `useExportFlow`, etc.).
-- [ ] Mover chamadas Gemini para backend com segredo isolado.
-- [ ] Criar `docs/` com:
-  - arquitetura detalhada,
-  - contrato de payloads,
-  - playbook operacional de incidentes.
-- [ ] Ativar `strict` no TypeScript de forma gradual.
-- [ ] Publicar `.env.example` com comentários por ambiente.
-
-## Documentos adicionais
-
-- [`ARQUITETURA.md`](./ARQUITETURA.md): visão técnica detalhada de módulos e fluxos.
-- [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md): passo a passo para quem está começando.
-- [`docs/SEGURANCA-API.md`](./docs/SEGURANCA-API.md): como proteger chave de API sem complicação.
-- [`docs/CHECKLIST-PRODUCAO.md`](./docs/CHECKLIST-PRODUCAO.md): checklist prático antes de publicar.
+### Copiloto de Inteligência Comercial para o Agronegócio
 
 ---
 
-Documentação inicial consolidada para facilitar onboarding técnico, manutenção e evolução do produto.
+## O que é
+
+**Senior Scout 360** é o copiloto de inteligência comercial de executivos de contas da Senior Sistemas.
+
+Em menos de 5 minutos, entrega um dossiê completo do prospect, qualifica a oportunidade com o **Score PORTA** e sugere a abordagem certa para fechar — sem pesquisa manual, sem achismo, sem tempo perdido.
+
+---
+
+## O problema que resolve
+
+| Antes do Scout | Com o Scout |
+|---|---|
+| 2 a 4 horas de pesquisa antes de cada reunião | Dossiê completo em menos de 5 minutos |
+| Qualificação baseada em intuição | Score PORTA 0–100 com base em evidências reais |
+| Análise genérica, igual para todos os prospects | Dossiê por área: Fiscal, TI, RH, Supply Chain |
+| Oportunidades esfriando sem acompanhamento | Radar de monitoramento contínuo dos prospects |
+
+---
+
+## Como funciona
+
+A jornada do vendedor em 5 passos:
+
+**1. Busca a empresa**
+Insere o nome ou CNPJ do prospect no Scout.
+
+**2. A IA investiga**
+O Scout pesquisa em múltiplas fontes, cruza dados e monta o Dossiê 360 automaticamente.
+
+**3. Qualifica com o Score PORTA**
+A oportunidade é pontuada nas 5 dimensões que realmente indicam potencial de fechamento no Agronegócio.
+
+**4. Recebe a estratégia de abordagem**
+O Scout sugere táticas calibradas para a realidade daquele prospect — não um roteiro genérico.
+
+**5. Registra e monitora**
+A investigação vai para o CRM integrado. O Radar avisa quando algo relevante muda no prospect.
+
+---
+
+## Capacidades principais
+
+**Dossiê 360 por área**
+Análise investigativa por dimensão: situação fiscal, maturidade de TI, gestão de pessoas, operação de supply chain. Exportável em PDF ou DOC para levar direto para a reunião.
+
+**Score PORTA**
+Framework proprietário de qualificação preditiva. Elimina o julgamento subjetivo e entrega um score baseado em evidências do próprio prospect.
+
+**Dois modos de análise**
+— *Campo:* linguagem direta, focada em execução e próximos passos táticos.
+— *Diretoria:* linguagem executiva, orientada a estratégia e ROI.
+
+**CRM integrado**
+Pipeline kanban que nasce da investigação — sem retrabalho de copiar e colar dados entre ferramentas.
+
+**Radar de monitoramento**
+Acompanha os prospects salvos e sinaliza quando há movimentação relevante: expansão, licitação, mudança societária, pressão regulatória.
+
+---
+
+## Score PORTA — a qualificação que faz sentido no Agro
+
+O **Score PORTA** resolve um problema clássico: sistemas de qualificação tradicionais subestimam ou superestimam empresas do agronegócio porque olham só para faturamento no CNPJ. O PORTA olha para o que realmente importa.
+
+| Dimensão | O que avalia |
+|---|---|
+| **P — Porte** | Tamanho real do grupo econômico: hectares, cabeças, unidades industriais |
+| **O — Operação** | Complexidade operacional: integração vertical, diversificação de culturas, rastreabilidade |
+| **R — Retorno** | Pressão externa: compliance, financiamento rural, exigências de auditoria |
+| **T — Tecnologia** | Maturidade e dívida tecnológica interna: sistemas legados, planilhas, silos de dados |
+| **A — Adoção** | Janela política e cultural: perfil do decisor, histórico com tecnologia, urgência percebida |
+
+**Como interpretar o score:**
+
+| Faixa | Prioridade |
+|---|---|
+| 80 – 100 | Prioridade máxima — ação imediata de Field Sales |
+| 65 – 79 | Pipeline ativo — trabalhar com senso de urgência |
+| 50 – 64 | Ciclo longo — Inside Sales ou nutrição |
+| 35 – 49 | Monitorar — ainda não é o momento certo |
+| < 35 | Fora do ICP atual |
+
+---
+
+## Para quem é
+
+**Executivo de Contas Senior Sistemas** com foco em Agronegócio, responsável pela venda de ERP, GATEC (gestão agrícola) e HCM (gestão de pessoas) para:
+
+- Usinas sucroalcooleiras
+- Cooperativas agrícolas
+- Fazendas corporativas e grupos produtores
+- Agroindústrias e frigoríficos
+- Tradings e distribuidoras de insumos
+
+---
+
+## Impacto esperado
+
+- **Prep de reunião:** de 2–4 horas para menos de 5 minutos
+- **Taxa de conversão:** meta de +30% com qualificação mais precisa
+- **Qualidade do dossiê:** baseado em evidências, não em suposições
+- **Foco do vendedor:** em fechar, não em pesquisar
+
+---
+
+## Primeiros passos (para o time técnico)
+
+```bash
+npm install
+cp .env.example .env   # configure as chaves necessárias
+npm run dev            # acesse em http://localhost:3000
+```
+
+Para configuração completa, consulte [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md).
+
+---
+
+## Documentação interna
+
+| Documento | Finalidade |
+|---|---|
+| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md) | Onboarding passo a passo |
+| [`docs/CHECKLIST-PRODUCAO.md`](./docs/CHECKLIST-PRODUCAO.md) | Checklist antes de publicar |
+| [`ARQUITETURA.md`](./ARQUITETURA.md) | Visão técnica detalhada (para devs) |
+| [`CLAUDE.md`](./CLAUDE.md) | Guia de referência para assistentes de IA |
+
+---
+
+*Senior Scout 360 — Inteligência que fecha negócio.*
