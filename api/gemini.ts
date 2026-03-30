@@ -70,6 +70,17 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
+function extractGeminiHttpStatus(error: unknown): number {
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (/"code"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
+  }
+  const err = error as Record<string, unknown>;
+  if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
+  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
+  return 500;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -175,6 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Gemini API proxy error:', message);
-    return res.status(500).json({ error: 'Gemini proxy failed', detail: message });
+    const httpStatus = extractGeminiHttpStatus(error);
+    return res.status(httpStatus).json({ error: 'Gemini proxy failed', detail: message });
   }
 }
