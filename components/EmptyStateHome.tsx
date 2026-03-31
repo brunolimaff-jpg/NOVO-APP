@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMode, MODE_LABELS } from '../constants';
 import {
@@ -68,6 +68,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const [didSubmit, setDidSubmit] = useState(false);
   const [cnpjLocked, setCnpjLocked] = useState(false);
 
+  // Rastreia quais campos foram preenchidos automaticamente via BrasilAPI.
+  // Campos preenchidos manualmente pelo usuário NÃO são limpos ao clicar "Alterar".
+  const filledByCnpj = useRef({ companyName: false, city: false, state: false });
+
   const pageBg = isDarkMode
     ? 'bg-slate-950'
     : 'bg-slate-50/90';
@@ -100,9 +104,23 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
     try {
       const data = await fetchCompanyByCnpj(cnpjDigits);
       setLastLookupCnpj(data.cnpj);
-      setCompanyName(prev => prev.trim() || data.companyName);
-      setCity(prev => prev.trim() || data.city);
-      setState(prev => (prev.trim() || data.state).toUpperCase());
+
+      // Preenche nome apenas se vazio; marca como preenchido via CNPJ.
+      if (!companyName.trim()) {
+        setCompanyName(data.companyName);
+        filledByCnpj.current.companyName = true;
+      }
+      // Sempre sobrescreve cidade e UF vindas de um lookup anterior (marcadas).
+      // Se o usuário digitou manualmente, mantém o valor digitado.
+      if (!city.trim() || filledByCnpj.current.city) {
+        setCity(data.city);
+        filledByCnpj.current.city = true;
+      }
+      if (!state.trim() || filledByCnpj.current.state) {
+        setState(data.state.toUpperCase());
+        filledByCnpj.current.state = true;
+      }
+
       setCnpjStatus('CNPJ validado e dados preenchidos.');
       setCnpjLocked(true);
     } catch {
@@ -117,6 +135,20 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
     setCnpjLocked(false);
     setLastLookupCnpj(null);
     setCnpjStatus(null);
+    // FIX: limpa apenas os campos que foram preenchidos automaticamente via BrasilAPI,
+    // preservando valores digitados manualmente pelo usuário.
+    if (filledByCnpj.current.companyName) {
+      setCompanyName('');
+      filledByCnpj.current.companyName = false;
+    }
+    if (filledByCnpj.current.city) {
+      setCity('');
+      filledByCnpj.current.city = false;
+    }
+    if (filledByCnpj.current.state) {
+      setState('');
+      filledByCnpj.current.state = false;
+    }
   };
 
   const handleSubmit = async () => {
@@ -203,7 +235,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                   <input
                     id="empty-company"
                     value={companyName}
-                    onChange={e => setCompanyName(e.target.value)}
+                    onChange={e => {
+                      setCompanyName(e.target.value);
+                      filledByCnpj.current.companyName = false;
+                    }}
                     placeholder="Razão social ou nome fantasia"
                     autoComplete="organization"
                     className={inputClass}
@@ -286,7 +321,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     <input
                       id="empty-city"
                       value={city}
-                      onChange={e => setCity(e.target.value)}
+                      onChange={e => {
+                        setCity(e.target.value);
+                        filledByCnpj.current.city = false;
+                      }}
                       placeholder="Município"
                       autoComplete="address-level2"
                       className={inputClass}
@@ -299,7 +337,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     <input
                       id="empty-uf"
                       value={state}
-                      onChange={e => setState(e.target.value.toUpperCase().slice(0, 2))}
+                      onChange={e => {
+                        setState(e.target.value.toUpperCase().slice(0, 2));
+                        filledByCnpj.current.state = false;
+                      }}
                       placeholder="SP"
                       maxLength={2}
                       autoComplete="address-level1"
