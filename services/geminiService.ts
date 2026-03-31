@@ -142,6 +142,17 @@ function sanitizeHistoryText(text: string): string {
     .trim();
 }
 
+// ─── GUARD: nomes genéricos/placeholder que NÃO devem ir para o benchmark ────
+// Evita consultas inúteis à planilha e retornos como CORREIOS quando
+// empresaAlvo ainda não foi resolvida (ex: 1ª passada sem hintedCompany).
+const BENCHMARK_NAME_BLOCKLIST =
+  /^(empresa|empresas|companhia|cia|cliente|clientes|alvo|investigada|unknown|undefined|null|empresa\s+n[aã]o\s+identificada|a\s+empresa|nova\s+investiga[cç][aã]o)$/i;
+
+function isValidEmpresaParaBenchmark(name: string | null): boolean {
+  if (!name || name.trim().length < 3) return false;
+  return !BENCHMARK_NAME_BLOCKLIST.test(name.trim());
+}
+
 function isRecoveryDebugEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -294,7 +305,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension: 'A', suggestedValue: aFinal, justification: `Deep dive ${source}: A1(cultural)=${a1}, A2(timing)=${a2}, Geração=${geracao || 'N/A'}`, subScores: { A1: a1, A2: a2 }, metadata: geracao ? { GERACAO: geracao } : undefined });
   }
 
-  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
+  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\\]?)?(?::FAT:(?:\[)?([^\]]*)\\]?)?]]/g;
   while ((match = pFeedRegex.exec(content)) !== null) {
     const pFinal   = clampFeedValue(Number.parseInt(match[1], 10));
     const metadata: Record<string, string> = {};
@@ -604,6 +615,20 @@ export async function sendMessageToGemini(
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
   const hasActiveContextHint    = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
+  // ── CIRURGIA 2: Extração do nome diretamente do megaprompt na 1ª passada ──
+  // Quando empresaAlvo ainda é null (sem hintedCompany), o nome real da empresa
+  // já está embutido no userMessage no padrão "Dossiê completo de [NOME]".
+  // Isso garante que o lookup funcione na 1ª passada sem depender da sessão.
+  if (!empresaAlvo && isMegaPromptMessage) {
+    const nameFromMegaprompt = userMessage.match(
+      /dossi[eê]\s+completo\s+de\s+\[?([A-ZÀ-Úa-zà-ú][^\]\n]{2,80})\]?/i,
+    )?.[1]?.trim();
+    if (nameFromMegaprompt && isValidEmpresaParaBenchmark(nameFromMegaprompt)) {
+      empresaAlvo = nameFromMegaprompt;
+      scoutDiag.info?.('EmpresaAlvo', 'extraído do megaprompt na 1ª passada', { empresaAlvo });
+    }
+  }
+
   // FIX: A planilha de clientes Senior é indexada por NOME, nunca por CNPJ.
   // targetCompanyForLookup usa apenas empresaAlvo (nome).
   // cnpjDetected é mantido separado para enriquecimento via BrasilAPI/Comex.
@@ -738,21 +763,24 @@ export async function sendMessageToGemini(
   }
 
   // ── Benchmark ────────────────────────────────────────────────────────────
-  if (isMegaPromptMessage && empresaAlvo) {
+  // CIRURGIA 1: Guard contra nomes genéricos/placeholder.
+  // Impede que "Empresa", "Cliente", "Empresa não identificada" etc. gerem
+  // consultas inúteis à planilha e retornem CORREIOS como resultado.
+  if (isMegaPromptMessage && isValidEmpresaParaBenchmark(empresaAlvo)) {
     emitDossieStatus(onStatus, 'benchmark');
     console.log('[BENCHMARK 🔍] Iniciando benchmark para:', empresaAlvo);
     try {
-      benchmarkData = await benchmarkClientes([empresaAlvo]);
+      benchmarkData = await benchmarkClientes([empresaAlvo!]);
       if (benchmarkData?.error) {
         scoutDiag.warn('Benchmark', 'benchmark retornou erro', {
-          empresaAlvo: empresaAlvo.slice(0, 80),
+          empresaAlvo: empresaAlvo!.slice(0, 80),
           error: benchmarkData.error,
           ok: benchmarkData.ok,
         });
       }
     } catch (err: unknown) {
       scoutDiag.error('Benchmark', 'exceção ao buscar benchmark', {
-        empresaAlvo: empresaAlvo.slice(0, 80),
+        empresaAlvo: empresaAlvo!.slice(0, 80),
         error: err instanceof Error ? err.message : String(err),
       });
     }
