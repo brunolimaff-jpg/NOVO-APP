@@ -130,6 +130,18 @@ PROIBIÇÕES:
 Responda EXCLUSIVAMENTE em Português (Brasil) usando um Array JSON de strings.
 `;
 
+// ─── FIX: Remove blocos de benchmark do histórico enviado ao Gemini.
+// Impede que o modelo confunda clientes similares (ex: CORREIOS) listados
+// como referência de mercado com a empresa investigada na conversa atual.
+const BENCHMARK_HISTORY_STRIP_REGEX =
+  /## 🏷️ CLIENTES SIMILARES PARA REFERÊNCIA[\s\S]*?(?=\n##|\n\[|$)/g;
+
+function sanitizeHistoryText(text: string): string {
+  return sanitizeStreamText(text)
+    .replace(BENCHMARK_HISTORY_STRIP_REGEX, '')
+    .trim();
+}
+
 function isRecoveryDebugEnabled(): boolean {
   if (typeof window === 'undefined') return false;
   try {
@@ -252,7 +264,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     result.adjustments.push(adjustment);
   };
 
-  const feedORRegex = /\[\[PORTA_FEED_([OR]):(?:\[)?(\d+)(?:\])?(?::([^:\]]+):(?:\[)?([^\]]*)(?:\])?)?\]\]/g;
+  const feedORRegex = /\[\[PORTA_FEED_([OR]):(?:\[)?(\d+)(?:\])?(?::([^:\]]+):(?:\[)?([^\]]+)(?:\])?)?]]/g;
   let match: RegExpExecArray | null;
   while ((match = feedORRegex.exec(content)) !== null) {
     const dimension  = match[1] as 'O' | 'R';
@@ -263,7 +275,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension, suggestedValue: value, justification: `Deep dive ${source} sugere ${dimension}=${value}`, metadata });
   }
 
-  const tFeedRegex = /\[\[PORTA_FEED_T:(?:\[)?(\d+)(?:\])?:T1:(?:\[)?(\d+)(?:\])?:T2:(?:\[)?(\d+)(?:\])?:T3:(?:\[)?(\d+)(?:\])?(?::STACK:(?:\[)?([^\]]+)(?:\])?)?\]\]/g;
+  const tFeedRegex = /\[\[PORTA_FEED_T:(?:\[)?(\d+)(?:\])?:T1:(?:\[)?(\d+)(?:\])?:T2:(?:\[)?(\d+)(?:\])?:T3:(?:\[)?(\d+)(?:\])?(?::STACK:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = tFeedRegex.exec(content)) !== null) {
     const tFinal = clampFeedValue(Number.parseInt(match[1], 10));
     const t1     = clampFeedValue(Number.parseInt(match[2], 10));
@@ -273,7 +285,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension: 'T', suggestedValue: tFinal, justification: `Deep dive ${source}: T1(stack)=${t1}, T2(dor)=${t2}, T3(liberdade)=${t3}`, subScores: { T1: t1, T2: t2, T3: t3 }, metadata: stack ? { STACK: stack } : undefined });
   }
 
-  const aFeedRegex = /\[\[PORTA_FEED_A:(?:\[)?(\d+)(?:\])?:A1:(?:\[)?(\d+)(?:\])?:A2:(?:\[)?(\d+)(?:\])?(?::GERACAO:(?:\[)?([^\]]+)(?:\])?)?\]\]/g;
+  const aFeedRegex = /\[\[PORTA_FEED_A:(?:\[)?(\d+)(?:\])?:A1:(?:\[)?(\d+)(?:\])?:A2:(?:\[)?(\d+)(?:\])?(?::GERACAO:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = aFeedRegex.exec(content)) !== null) {
     const aFinal  = clampFeedValue(Number.parseInt(match[1], 10));
     const a1      = clampFeedValue(Number.parseInt(match[2], 10));
@@ -282,7 +294,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension: 'A', suggestedValue: aFinal, justification: `Deep dive ${source}: A1(cultural)=${a1}, A2(timing)=${a2}, Geração=${geracao || 'N/A'}`, subScores: { A1: a1, A2: a2 }, metadata: geracao ? { GERACAO: geracao } : undefined });
   }
 
-  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)(?:\])?)?(?::CNPJS:(?:\[)?([^\]:]*)(?:\])?)?(?::FAT:(?:\[)?([^\]]*)(?:\])?)?\]\]/g;
+  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
   while ((match = pFeedRegex.exec(content)) !== null) {
     const pFinal   = clampFeedValue(Number.parseInt(match[1], 10));
     const metadata: Record<string, string> = {};
@@ -295,7 +307,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension: 'P', suggestedValue: pFinal, justification: `Deep dive ${source} sugere P=${pFinal}`, metadata: Object.keys(metadata).length ? metadata : undefined });
   }
 
-  const genericFeedRegex = /\[\[PORTA_FEED_([PORTA])(?:_[A-Z0-9]+)?:(?:\[)?(\d+)(?:\])?(?::([^\]]+))?\]\]/g;
+  const genericFeedRegex = /\[\[PORTA_FEED_([PORTA])(?:_[A-Z0-9]+)?:(?:\[)?(\d+)(?:\])?(?::([^\]]+))?]]/g;
   while ((match = genericFeedRegex.exec(content)) !== null) {
     const dimension  = match[1] as 'P' | 'O' | 'R' | 'T' | 'A';
     const hasSpecific = result.adjustments.some(a => a.dimension === dimension);
@@ -305,25 +317,25 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension, suggestedValue, justification: `Deep dive ${source} sugere ${dimension}=${suggestedValue}`, subScores, metadata });
   }
 
-  const proxyRegex = /\[\[PORTA_FEED_P_PROXY:FUNC:(?:\[)?(\d+)(?:\])?\]\]/g;
+  const proxyRegex = /\[\[PORTA_FEED_P_PROXY:FUNC:(?:\[)?(\d+)(?:\])?]]/g;
   while ((match = proxyRegex.exec(content)) !== null) {
     const value    = normalizeFeedToken(match[1]);
     const existing = result.adjustments.find(a => a.dimension === 'P');
     if (existing) existing.metadata = { ...(existing.metadata || {}), FUNCIONARIOS: value };
   }
 
-  const flagRegex = /\[\[PORTA_FLAG:(TRAD|LOCK|NOFIT):(?:\[)?(SIM|NAO|NÃO)(?:\])?(?::[^\]]+)?\]\]/g;
+  const flagRegex = /\[\[PORTA_FLAG:(TRAD|LOCK|NOFIT):(?:\[)?(SIM|NAO|NÃO)(?:\])?(?::[^\]]+)?]]/g;
   while ((match = flagRegex.exec(content)) !== null) {
     result.flags.push({ source, flag: match[1] as PortaFlag, active: match[2] === 'SIM', justification: `Deep dive ${source} ${match[2] === 'SIM' ? 'ativou' : 'desativou'} flag ${match[1]}` });
   }
 
-  const tradFlagRegex = /\[\[PORTA_FLAG:TRAD:(?:\[)?(SIM|NAO|NÃO)(?:\])?:NATUREZA:(?:\[)?(PRODUCAO|TRADING|MISTA)(?:\])?\]\]/g;
+  const tradFlagRegex = /\[\[PORTA_FLAG:TRAD:(?:\[)?(SIM|NAO|NÃO)(?:\])?:NATUREZA:(?:\[)?(PRODUCAO|TRADING|MISTA)(?:\])?]]/g;
   while ((match = tradFlagRegex.exec(content)) !== null) {
     result.flags = result.flags.filter(flag => flag.flag !== 'TRAD');
     result.flags.push({ source, flag: 'TRAD', active: match[1] === 'SIM', justification: `Natureza da receita: ${match[2]}` });
   }
 
-  const segmentRegex = /\[\[PORTA_SEG:(?:\[)?(PRD|AGI|COP)(?:\])?\]\]/g;
+  const segmentRegex = /\[\[PORTA_SEG:(?:\[)?(PRD|AGI|COP)(?:\])?]]/g;
   while ((match = segmentRegex.exec(content)) !== null) {
     result.segments.push({ source, segmento: match[1] as PortaSegmento, justification: `Deep dive ${source} inferiu segmento ${match[1]}` });
   }
@@ -762,9 +774,16 @@ export async function sendMessageToGemini(
 
   // ── Monta contexto adicional ─────────────────────────────────────────────
   const clienteFormatado    = clienteData    ? formatarParaPrompt(clienteData)              : '';
-  const benchmarkFormatado  = benchmarkData
-    ? formatarBenchmarkParaPrompt(benchmarkData, empresaAlvo || userMessage.slice(0, 80))
-    : '';
+
+  // FIX: Injeta âncora explícita de empresa investigada no bloco de benchmark
+  // para que o modelo não confunda clientes similares com o alvo da investigação.
+  const benchmarkFormatado  = benchmarkData && empresaAlvo
+    ? `> ⚠️ EMPRESA INVESTIGADA: **${empresaAlvo}** — Os clientes abaixo são APENAS referência de mercado, NÃO são o alvo desta investigação.\n\n` +
+      formatarBenchmarkParaPrompt(benchmarkData, empresaAlvo)
+    : benchmarkData
+      ? formatarBenchmarkParaPrompt(benchmarkData, userMessage.slice(0, 80))
+      : '';
+
   const comexFormatado      = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
   const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive()       : '';
 
@@ -785,12 +804,15 @@ export async function sendMessageToGemini(
   emitDossieStatus(onStatus, 'prompt');
 
   // ── Histórico ────────────────────────────────────────────────────────────
+  // FIX: usa sanitizeHistoryText (que inclui strip do bloco de benchmark)
+  // para evitar que clientes similares listados na resposta anterior
+  // contaminem o contexto da próxima investigação com identidade errada.
   emitDossieStatus(onStatus, 'history');
   const history = conversationHistory
     .filter(m => m.text && m.text.trim().length > 0)
     .map(m => ({
       role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
-      text: sanitizeStreamText(m.text || ''),
+      text: sanitizeHistoryText(m.text || ''),
     }));
 
   // ── Score PORTA inicial ──────────────────────────────────────────────────
