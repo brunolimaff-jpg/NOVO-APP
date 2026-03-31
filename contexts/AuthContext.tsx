@@ -1,180 +1,136 @@
-import React, { createContext, useContext, ReactNode, useCallback, useEffect, useState } from 'react';
-import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/react';
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
+import { storageGet, storageSet, storageRemove } from '../utils/idbStorage';
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
   id: string;
   displayName: string;
   email: string;
   isGuest: boolean;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   userId: string;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   loading: boolean;
-  continueAsGuest: () => void;
-  login: (email?: string, password?: string) => Promise<void>;
-  register: (name?: string, email?: string, password?: string) => Promise<void>;
-  logout: () => Promise<void>;
+  login: (name: string) => void;
+  logout: () => void;
   updateName: (name: string) => void;
   error: string | null;
 }
 
+// ─── Constantes ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY_NAME = 'username';
+const STORAGE_KEY_ID   = 'userid';
+
+/**
+ * Lista de userNames que recebem acesso ao Dashboard Admin.
+ * Configurável via variável de ambiente para nunca precisar mudar código.
+ * Ex: VITE_ADMIN_USERNAMES=admin123,brunolima
+ */
+function getAdminNames(): string[] {
+  const raw = import.meta.env.VITE_ADMIN_USERNAMES ?? '';
+  return raw
+    .split(',')
+    .map((s: string) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isAdminUser(name: string): boolean {
+  return getAdminNames().includes(name.trim().toLowerCase());
+}
+
+/** Gera um ID único e persistente para o dispositivo/usuário. */
+function generateUserId(): string {
+  return 'u_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+// ─── Context ─────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const GUEST_MODE_STORAGE_KEY = 'scout360:guest_mode';
-const GUEST_NAME_STORAGE_KEY = 'scout360:guest_name';
 
-export const TEMPORARILY_DISABLE_CLERK = true;
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export const REQUIRE_CLERK_AUTH = false;
-
-function readGuestModePreference(): boolean {
-  if (TEMPORARILY_DISABLE_CLERK) return true;
-  if (REQUIRE_CLERK_AUTH) return false;
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(GUEST_MODE_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function readGuestNamePreference(): string {
-  if (typeof window === 'undefined') return 'Visitante';
-  try {
-    const stored = (window.localStorage.getItem(GUEST_NAME_STORAGE_KEY) || '').trim();
-    return stored || 'Visitante';
-  } catch {
-    return 'Visitante';
-  }
-}
-
-// Provedor usado quando Clerk está DESATIVADO — não chama nenhum hook do Clerk.
-const GuestOnlyAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  return (
-    <AuthContext.Provider
-      value={{
-        user: { id: 'guest', displayName: 'Visitante', email: '', isGuest: true },
-        userId: 'guest',
-        isAuthenticated: true,
-        loading: false,
-        continueAsGuest: () => {},
-        login: async () => {},
-        register: async () => {},
-        logout: async () => {},
-        updateName: () => {},
-        error: null,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-// Provedor usado quando Clerk está ATIVO — suporta Clerk auth + guest mode.
-const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerkAuth();
-  const clerk = useClerk();
-  const [guestModeEnabled, setGuestModeEnabled] = useState<boolean>(() => readGuestModePreference());
-  const [guestDisplayName, setGuestDisplayName] = useState<string>(() => readGuestNamePreference());
-
-  const setGuestMode = useCallback((enabled: boolean) => {
-    setGuestModeEnabled(enabled);
-    if (typeof window === 'undefined') return;
-    try {
-      if (enabled) {
-        window.localStorage.setItem(GUEST_MODE_STORAGE_KEY, '1');
-      } else {
-        window.localStorage.removeItem(GUEST_MODE_STORAGE_KEY);
-      }
-    } catch {
-      // Ignora falhas de storage (modo privado/restrições do browser).
-    }
-  }, []);
-
-  // Auto-desativa guest mode quando o usuário faz login via Clerk
+  // Na montagem: restaura sessão persistida pelo PWA (localStorage).
   useEffect(() => {
-    if (isSignedIn && guestModeEnabled) setGuestMode(false);
-  }, [guestModeEnabled, isSignedIn, setGuestMode]);
+    const savedName = storageGet(STORAGE_KEY_NAME);
+    const savedId   = storageGet(STORAGE_KEY_ID);
 
-  const user: AuthUser | null =
-    isSignedIn && clerkUser
-      ? {
-          id: clerkUser.id,
-          displayName:
-            clerkUser.fullName ||
-            clerkUser.firstName ||
-            clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] ||
-            'Usuário',
-          email: clerkUser.primaryEmailAddress?.emailAddress || '',
-          isGuest: false,
-        }
-      : guestModeEnabled
-        ? {
-            id: 'guest',
-            displayName: guestDisplayName || 'Visitante',
-            email: '',
-            isGuest: true,
-          }
-        : null;
+    if (savedName) {
+      const id = savedId || generateUserId();
+      if (!savedId) storageSet(STORAGE_KEY_ID, id);
 
-  const continueAsGuest = () => {
-    if (REQUIRE_CLERK_AUTH) return;
-    setGuestMode(true);
-  };
-  const login = async () => {
-    setGuestMode(false);
-    clerk.openSignIn();
-  };
-  const register = async () => {
-    setGuestMode(false);
-    clerk.openSignUp();
-  };
-  const logout = async () => {
-    if (guestModeEnabled && !isSignedIn) {
-      setGuestMode(false);
-      return;
-    }
-    await signOut();
-    setGuestMode(false);
-  };
-
-  const updateName = async (name: string) => {
-    const normalizedName = name.trim() || 'Visitante';
-
-    if (guestModeEnabled || !isSignedIn) {
-      setGuestDisplayName(normalizedName);
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(GUEST_NAME_STORAGE_KEY, normalizedName);
-        } catch {
-          // Ignora falhas de storage.
-        }
-      }
-      return;
-    }
-
-    if (clerkUser) {
-      const parts = normalizedName.split(' ');
-      await clerkUser.update({
-        firstName: parts[0],
-        lastName: parts.length > 1 ? parts.slice(1).join(' ') : '',
+      setUser({
+        id,
+        displayName: savedName,
+        email: '',
+        isGuest: false,
+        isAdmin: isAdminUser(savedName),
       });
     }
-  };
+    setLoading(false);
+  }, []);
+
+  /**
+   * login — registra o nome do vendedor e persiste no dispositivo.
+   * Em PWA instalado, este dado sobrevive entre sessões.
+   */
+  const login = useCallback((name: string) => {
+    const displayName = name.trim() || 'Visitante';
+    let id = storageGet(STORAGE_KEY_ID);
+    if (!id) {
+      id = generateUserId();
+      storageSet(STORAGE_KEY_ID, id);
+    }
+    storageSet(STORAGE_KEY_NAME, displayName);
+    setUser({
+      id,
+      displayName,
+      email: '',
+      isGuest: false,
+      isAdmin: isAdminUser(displayName),
+    });
+  }, []);
+
+  const logout = useCallback(() => {
+    storageRemove(STORAGE_KEY_NAME);
+    storageRemove(STORAGE_KEY_ID);
+    setUser(null);
+  }, []);
+
+  const updateName = useCallback((name: string) => {
+    const displayName = name.trim() || 'Visitante';
+    storageSet(STORAGE_KEY_NAME, displayName);
+    setUser((prev) =>
+      prev
+        ? { ...prev, displayName, isAdmin: isAdminUser(displayName) }
+        : null,
+    );
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        userId: user?.id || '',
-        isAuthenticated: !!isSignedIn || guestModeEnabled,
-        loading: !isLoaded,
-        continueAsGuest,
+        userId: user?.id ?? '',
+        isAuthenticated: !!user,
+        isAdmin: user?.isAdmin ?? false,
+        loading,
         login,
-        register,
         logout,
         updateName,
         error: null,
@@ -185,14 +141,7 @@ const ClerkAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   );
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  if (TEMPORARILY_DISABLE_CLERK) {
-    return <GuestOnlyAuthProvider>{children}</GuestOnlyAuthProvider>;
-  }
-  return <ClerkAuthProvider>{children}</ClerkAuthProvider>;
-};
-
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth deve estar dentro de AuthProvider');
   return ctx;
