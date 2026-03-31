@@ -14,6 +14,7 @@ import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
+import { AdminDash } from './components/AdminDash';
 import { useAuth } from './contexts/AuthContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
@@ -99,7 +100,7 @@ function resolveHintedCompany(
 }
 
 const App: React.FC = () => {
-  const { userId, user, logout, isAuthenticated } = useAuth();
+  const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
   const { mode, systemInstruction } = useMode();
   const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
@@ -119,7 +120,7 @@ const App: React.FC = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [pdfReportContent, setPdfReportContent] = useState<string | null>(null);
   const [investigationLogged, setInvestigationLogged] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'crm'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
 
   // Email modal state
@@ -169,7 +170,10 @@ const App: React.FC = () => {
       setActiveView('chat');
       setSelectedCRMCardId(null);
     }
-  }, [activeView, canAccessMiniCRM]);
+    if (!isAdmin && activeView === 'admin') {
+      setActiveView('chat');
+    }
+  }, [activeView, canAccessMiniCRM, isAdmin]);
 
   const updateSessionById = useCallback(
     (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
@@ -901,7 +905,13 @@ const App: React.FC = () => {
         className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
         <div className="flex-1 min-h-0">
-          {activeView === 'chat' || !canAccessMiniCRM ? (
+          {activeView === 'admin' && isAdmin ? (
+            <AdminDash
+              sessions={sessions}
+              isDarkMode={isDarkMode}
+              onClose={() => setActiveView('chat')}
+            />
+          ) : activeView === 'chat' || !canAccessMiniCRM ? (
             <ChatInterface
               currentSession={currentSession}
               sessions={sessions}
@@ -910,6 +920,7 @@ const App: React.FC = () => {
               onDeleteSession={handleDeleteSession}
               onSaveToCRM={handleSaveToCRM}
               onOpenKanban={handleOpenKanbanSafe}
+              onOpenAdminDash={isAdmin ? () => setActiveView('admin') : undefined}
               isSidebarOpen={isSidebarOpen}
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               messages={allMessages.slice(-visibleCount)}
