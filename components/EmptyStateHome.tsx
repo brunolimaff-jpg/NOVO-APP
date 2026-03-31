@@ -66,6 +66,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [lastLookupCnpj, setLastLookupCnpj] = useState<string | null>(null);
   const [didSubmit, setDidSubmit] = useState(false);
+  const [cnpjLocked, setCnpjLocked] = useState(false);
 
   const pageBg = isDarkMode
     ? 'bg-slate-950'
@@ -103,11 +104,19 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
       setCity(prev => prev.trim() || data.city);
       setState(prev => (prev.trim() || data.state).toUpperCase());
       setCnpjStatus('CNPJ validado e dados preenchidos.');
+      setCnpjLocked(true);
     } catch {
       setCnpjStatus('Não foi possível preencher via CNPJ. Complete manualmente.');
+      setCnpjLocked(false);
     } finally {
       setIsFetchingCnpj(false);
     }
+  };
+
+  const handleUnlockCnpj = () => {
+    setCnpjLocked(false);
+    setLastLookupCnpj(null);
+    setCnpjStatus(null);
   };
 
   const handleSubmit = async () => {
@@ -203,31 +212,70 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
                 <div>
                   <span className={`mb-1.5 block text-xs font-medium ${textMuted}`}>CNPJ (opcional)</span>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      value={formatCnpj(cnpjInput)}
-                      onChange={e => setCnpjInput(normalizeCnpj(e.target.value))}
-                      onBlur={handleCnpjLookup}
-                      placeholder="00.000.000/0000-00"
-                      inputMode="numeric"
-                      className={`${inputClass} sm:flex-1`}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCnpjLookup}
-                      disabled={!canLookupCnpj}
-                      className={`shrink-0 rounded-md px-4 py-2.5 text-xs font-semibold transition-colors ${
-                        canLookupCnpj
-                          ? 'bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500'
-                          : isDarkMode
-                            ? 'cursor-not-allowed bg-slate-800 text-slate-500'
-                            : 'cursor-not-allowed bg-slate-200 text-slate-500'
-                      }`}
-                    >
-                      {isFetchingCnpj ? 'Buscando…' : 'Validar CNPJ'}
-                    </button>
-                  </div>
-                  {cnpjStatus && <p className={`mt-1.5 text-[11px] ${textMuted}`}>{cnpjStatus}</p>}
+
+                  {cnpjLocked ? (
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex flex-1 items-center gap-2 rounded-md border px-3 py-2.5 text-sm ${
+                          isDarkMode
+                            ? 'border-emerald-700/60 bg-emerald-950/30 text-emerald-300'
+                            : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                        }`}
+                      >
+                        <span className="text-emerald-500">✓</span>
+                        <span className="font-mono font-semibold">{formatCnpj(cnpjInput)}</span>
+                        <span
+                          className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                            isDarkMode
+                              ? 'bg-emerald-900/60 text-emerald-400'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          Validado
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleUnlockCnpj}
+                        className={`shrink-0 rounded-md px-4 py-2.5 text-xs font-semibold transition-colors ${
+                          isDarkMode
+                            ? 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                        }`}
+                      >
+                        Alterar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={formatCnpj(cnpjInput)}
+                        onChange={e => setCnpjInput(normalizeCnpj(e.target.value))}
+                        onBlur={handleCnpjLookup}
+                        placeholder="00.000.000/0000-00"
+                        inputMode="numeric"
+                        className={`${inputClass} sm:flex-1`}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCnpjLookup}
+                        disabled={!canLookupCnpj}
+                        className={`shrink-0 rounded-md px-4 py-2.5 text-xs font-semibold transition-colors ${
+                          canLookupCnpj
+                            ? 'bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500'
+                            : isDarkMode
+                              ? 'cursor-not-allowed bg-slate-800 text-slate-500'
+                              : 'cursor-not-allowed bg-slate-200 text-slate-500'
+                        }`}
+                      >
+                        {isFetchingCnpj ? 'Buscando…' : 'Validar CNPJ'}
+                      </button>
+                    </div>
+                  )}
+
+                  {cnpjStatus && !cnpjLocked && (
+                    <p className={`mt-1.5 text-[11px] ${textMuted}`}>{cnpjStatus}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
