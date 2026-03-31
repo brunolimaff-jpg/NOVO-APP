@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatMode } from '../constants';
 import { usePWA } from '../hooks/usePWA';
 import { version } from '../package.json';
@@ -40,21 +39,40 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onLogout,
   exportStatus,
   canAccessDashboard = true,
-  canAccessIntegrityCheck = true
+  canAccessIntegrityCheck = true,
 }) => {
   const { canInstall, isInstalled, installApp } = usePWA();
   const [showHealthCheck, setShowHealthCheck] = useState(false);
-  
+
+  // Estado local para edição do nome — evita cursor pulando ao digitar
+  const [localName, setLocalName] = useState(userName);
+
+  // Sincroniza se o userName externo mudar (ex: logout/login)
+  useEffect(() => {
+    setLocalName(userName);
+  }, [userName]);
+
+  // Confirma a alteração ao sair do campo ou pressionar Enter
+  const commitName = () => {
+    const trimmed = localName.trim();
+    if (trimmed && trimmed !== userName) {
+      onUpdateName(trimmed);
+    } else if (!trimmed) {
+      // Não permite nome vazio — restaura o valor anterior
+      setLocalName(userName);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Overlay escuro */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
         onClick={onClose}
       />
-      
+
       {/* Drawer lateral direito */}
       <div className={`fixed right-0 top-0 h-full w-80 md:w-96 border-l z-50 overflow-y-auto shadow-2xl transform transition-transform duration-300 animate-slide-in ${
         isDarkMode
@@ -82,9 +100,9 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             ✕
           </button>
         </div>
-        
+
         <div className="p-5 space-y-8">
-        
+
           {/* ===== PERFIL ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Perfil</h3>
@@ -93,8 +111,14 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <label className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Como quer ser chamado?</label>
               <input
                 type="text"
-                value={userName}
-                onChange={(e) => onUpdateName(e.target.value)}
+                value={localName}
+                onChange={(e) => setLocalName(e.target.value)}
+                onBlur={commitName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="Ex: Bruno Lima"
                 className={`w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all ${
                   isDarkMode
@@ -102,25 +126,27 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400'
                 }`}
               />
-              <p className={`text-[10px] ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Usado na saudação e nos relatórios exportados.</p>
+              <p className={`text-[10px] ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Pressione Enter ou clique fora para salvar.
+              </p>
             </div>
           </section>
-          
+
           {/* ===== MODO DE INVESTIGAÇÃO ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Modo de Investigação</h3>
-            
+
             <div className="grid gap-3">
               {/* Operação */}
               <button
                 onClick={() => onSetMode('operacao')}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all relative overflow-hidden group ${
-                  mode === 'operacao' 
-                    ? 'border-orange-500/50 bg-orange-500/10' 
+                  mode === 'operacao'
+                    ? 'border-orange-500/50 bg-orange-500/10'
                     : 'border-gray-700/50 bg-gray-800/30 hover:bg-gray-800 hover:border-gray-600'
                 }`}
               >
-                <span className="text-3xl filter drop-shadow-lg group-hover:scale-110 transition-transform">🛛</span>
+                <span className="text-3xl filter drop-shadow-lg group-hover:scale-110 transition-transform">🛰️</span>
                 <div className="text-left">
                   <p className={`text-sm font-bold ${mode === 'operacao' ? 'text-orange-400' : 'text-gray-200'}`}>Operação</p>
                   <p className="text-xs text-gray-400 mt-0.5">Direto ao ponto, linguagem de campo</p>
@@ -143,7 +169,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </div>
             </div>
           </section>
-          
+
           {/* ===== APARÊNCIA ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Aparência</h3>
@@ -168,13 +194,12 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </button>
             </div>
           </section>
-          
+
           {/* ===== AÇÕES ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ações</h3>
 
             <div className="space-y-2">
-              {/* Instalar PWA */}
               {canInstall && (
                 <button
                   onClick={installApp}
@@ -259,15 +284,15 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>Inteligência Comercial para Agronegócio</p>
             </div>
           </section>
-          
+
         </div>
       </div>
 
       {/* Modal de Teste de Integridade */}
       {showHealthCheck && canAccessIntegrityCheck && (
         <React.Suspense fallback={null}>
-          <SystemHealthCheck 
-            isDarkMode={isDarkMode} 
+          <SystemHealthCheck
+            isDarkMode={isDarkMode}
             onClose={() => setShowHealthCheck(false)}
           />
         </React.Suspense>
