@@ -1,7 +1,9 @@
 import React from 'react';
-import { TEMPORARILY_DISABLE_CLERK } from '../contexts/AuthContext';
 
-export const AuthModal: React.FC = () => {
-  if (TEMPORARILY_DISABLE_CLERK) return null;
-  return null;
-};
+/**
+ * AuthModal — Clerk desabilitado permanentemente.
+ * Componente mantido para não quebrar imports existentes.
+ */
+export const AuthModal: React.FC = () => null;
+
+export default AuthModal;
