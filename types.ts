@@ -146,6 +146,12 @@ export interface Message {
   ghostDetails?: string;
   // NOVO: Dados de Cliente Senior (Lookup)
   clienteSeniorData?: ClienteSeniorData;
+  /**
+   * false = fallback silencioso foi acionado (grounding falhou, resposta gerada sem busca web).
+   * true  = grounding funcionou normalmente com chunks retornados.
+   * undefined = grounding não era aplicável nesta mensagem (thinking mode, megaprompt, deep dive).
+   */
+  groundingUsed?: boolean;
 }
 
 export interface ClienteSeniorData {
