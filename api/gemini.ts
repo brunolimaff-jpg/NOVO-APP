@@ -166,19 +166,35 @@ async function executeGeminiAction(
       );
     };
 
+    // groundingActivated rastreia se o grounding estava ativo na requisição original.
+    // Torna-se false quando o fallback silencioso é acionado.
+    let groundingActivated = useGrounding;
+
     let response;
     try {
       response = await runChat(useGrounding);
     } catch (primaryError) {
       if (!useGrounding) throw primaryError;
       // Contingência em produção: tenta sem grounding para evitar timeout total.
+      // Registra o fallback para que o cliente possa exibir aviso ao usuário.
+      console.warn('[GeminiProxy] Fallback silencioso acionado: grounding falhou, tentando sem grounding.', {
+        error: primaryError instanceof Error ? primaryError.message : String(primaryError),
+      });
+      groundingActivated = false;
       response = await runChat(false);
     }
+
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+    // groundingUsed = true somente se o grounding estava ativo E retornou evidências.
+    // Se o grounding estava ativo mas não encontrou chunks, ainda é um fallback parcial
+    // — o modelo pode ter respondido sem ancoragem real em fontes verificadas.
+    const groundingUsed = groundingActivated && groundingChunks.length > 0;
 
     return res.status(200).json({
       text: response.text || '',
-      groundingChunks
+      groundingChunks,
+      groundingUsed,
     });
   }
 

@@ -32,9 +32,16 @@ interface GeminiGenerateResponse {
   candidates?: unknown[];
 }
 
+/** Resposta do endpoint chatSendMessage.
+ *  groundingUsed: true  → grounding ativo e com evidências (fontes retornadas).
+ *  groundingUsed: false → grounding inativo, falhou silenciosamente (fallback)
+ *                         ou ativo mas sem chunks — resposta pode não estar ancorada.
+ */
 interface GeminiChatResponse {
   text: string;
   groundingChunks?: unknown[];
+  /** Indica se o grounding foi efetivamente utilizado nesta resposta. */
+  groundingUsed: boolean;
 }
 
 interface GeminiHealthResponse {

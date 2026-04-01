@@ -146,6 +146,12 @@ export interface Message {
   ghostDetails?: string;
   // NOVO: Dados de Cliente Senior (Lookup)
   clienteSeniorData?: ClienteSeniorData;
+  /**
+   * true quando o grounding foi solicitado mas não foi efetivamente utilizado
+   * (fallback silencioso ou grounding ativo sem chunks de evidência).
+   * Usado para exibir o badge '⚠️ Resposta sem verificação web'.
+   */
+  groundingFallback?: boolean;
 }
 
 export interface ClienteSeniorData {
