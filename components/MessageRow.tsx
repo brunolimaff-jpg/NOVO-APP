@@ -44,6 +44,39 @@ interface MessageRowProps {
   data: MessageRowData;
 }
 
+// Exibe aviso discreto quando o grounding falhou silenciosamente.
+// Regra: so aparece quando groundingUsed === false (explicitamente false,
+// nao undefined). undefined = grounding nao era aplicavel nesta mensagem.
+function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-medium mt-2 px-2 py-0.5 rounded-full select-none ${
+        isDarkMode
+          ? 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
+          : 'bg-amber-50 text-amber-700 border border-amber-200'
+      }`}
+      title="O grounding (busca web) falhou nesta resposta. O conteudo foi gerado sem verificacao de fontes externas — valide informacoes criticas."
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      Resposta sem verificacao web
+    </span>
+  );
+}
+
 const MessageRow = memo(({ index, data }: MessageRowProps) => {
   const {
     messages,
@@ -83,6 +116,10 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     [msg.text, msg.groundingSources],
   );
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
+
+  // groundingUsed === false (explicitamente): fallback silencioso acionado.
+  // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
+  const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
 
   let content: React.ReactNode;
 
@@ -200,6 +237,9 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 onRegenerateSuggestions={onRegenerateSuggestions}
                 hideSuggestions={msg.id === hideSuggestionsForMessageId}
               />
+              {showGroundingFallbackWarning && (
+                <GroundingFallbackBadge isDarkMode={isDarkMode} />
+              )}
               {isLast && !isLoading && onDeepDive && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar
                 content={msg.text}
@@ -231,8 +271,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                       const context =
                         s.contexts[0] ||
                         (s.url
-                          ? 'Referência usada para embasar parte da resposta; valide aderência ao contexto.'
-                          : 'Menção inferida sem URL explícita; validação manual necessária.');
+                          ? 'Referencia usada para embasar parte da resposta; valide aderencia ao contexto.'
+                          : 'Mencao inferida sem URL explicita; validacao manual necessaria.');
 
                       return (
                         <li key={s.key || i} className="text-xs">
