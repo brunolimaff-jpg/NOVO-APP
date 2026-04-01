@@ -167,18 +167,33 @@ async function executeGeminiAction(
     };
 
     let response;
+    // groundingActivated rastreia se o grounding estava ativo na chamada que
+    // efetivamente retornou. Inicia com a intenção original e é atualizado para
+    // false caso o fallback silencioso seja acionado.
+    let groundingActivated = useGrounding;
+
     try {
       response = await runChat(useGrounding);
     } catch (primaryError) {
       if (!useGrounding) throw primaryError;
-      // Contingência em produção: tenta sem grounding para evitar timeout total.
+      // Fallback: tenta sem grounding para evitar timeout total.
+      // Registra que o fallback foi acionado para notificar o cliente.
+      console.warn('[GeminiProxy] Grounding falhou, acionando fallback sem grounding:', primaryError instanceof Error ? primaryError.message : String(primaryError));
+      groundingActivated = false;
       response = await runChat(false);
     }
+
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+    // groundingUsed = true somente quando o grounding estava ativo E retornou
+    // chunks concretos. Grounding ativo sem chunks (sem resultados relevantes)
+    // ainda conta como fallback para fins de aviso ao usuário.
+    const groundingUsed: boolean = groundingActivated && groundingChunks.length > 0;
 
     return res.status(200).json({
       text: response.text || '',
-      groundingChunks
+      groundingChunks,
+      groundingUsed,
     });
   }
 
