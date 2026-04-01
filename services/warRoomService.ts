@@ -660,7 +660,7 @@ export async function queryWarRoom(
     fullPrompt += `## PERGUNTA DO USUÁRIO\n"${trimText(message, MAX_USER_QUESTION_CHARS)}"\n\nResponda agora.`;
     if (wantsProcessoAgricola && !wantsIntegracao) {
         fullPrompt +=
-            '\n\n## FOCO DE RESPOSTA\nExplique fluxo operacional agrícola (planejamento, ordens de serviço, execução em campo, apontamentos, monitoramento, safra e fechamento). Evite desviar para arquitetura de integração com ERP, exceto se o usuário pedir explicitamente.';
+            '\n\n## FOCO DE RESPOSTA\nExplique fluxo operacional agrícola (planejamento, Ordem de Serviço, ordens de serviço, execução em campo, apontamentos, monitoramento, safra e fechamento). Evite desviar para arquitetura de integração com ERP, exceto se o usuário pedir explicitamente.';
     }
     if (wantsFercus) {
         fullPrompt +=
