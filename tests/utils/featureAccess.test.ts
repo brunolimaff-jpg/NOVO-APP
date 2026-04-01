@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getFeatureAccessForUser, isAdminUser } from '../../utils/featureAccess';
 
+// NOTA: MVP_LOCK_RESTRICTED_FEATURES = false → todos os usuários recebem acesso total.
+// Os testes abaixo refletem esse comportamento de produção.
+
 describe('featureAccess', () => {
   it('recognizes admin by first name', () => {
     expect(isAdminUser({ displayName: 'Admin Lima', email: 'outro@empresa.com', id: '', isGuest: false })).toBe(true);
@@ -10,15 +13,15 @@ describe('featureAccess', () => {
     expect(isAdminUser({ displayName: 'Usuário', email: 'admin@empresa.com', id: '', isGuest: false })).toBe(true);
   });
 
-  it('locks restricted features for non-admin users but allows clientLookup', () => {
+  it('grants full access to non-admin users when MVP lock is disabled', () => {
     const access = getFeatureAccessForUser({ displayName: 'Maria', email: 'maria@empresa.com', id: '', isGuest: false });
     expect(access).toEqual({
-      miniCRM: false,
-      dashboard: false,
-      integrityCheck: false,
+      miniCRM: true,
+      dashboard: true,
+      integrityCheck: true,
       clientLookup: true,
-      deepDive: false,
-      warRoom: false,
+      deepDive: true,
+      warRoom: true,
     });
   });
 
@@ -56,7 +59,7 @@ describe('featureAccess', () => {
     expect(getFeatureAccessForUser(null).clientLookup).toBe(true);
   });
 
-  it('keeps most restricted features disabled for guest-like users but allows clientLookup', () => {
+  it('grants full access to guest-like users when MVP lock is disabled', () => {
     const access = getFeatureAccessForUser({
       displayName: 'Visitante',
       email: '',
@@ -64,12 +67,12 @@ describe('featureAccess', () => {
       isGuest: true,
     });
     expect(access).toEqual({
-      miniCRM: false,
-      dashboard: false,
-      integrityCheck: false,
+      miniCRM: true,
+      dashboard: true,
+      integrityCheck: true,
       clientLookup: true,
-      deepDive: false,
-      warRoom: false,
+      deepDive: true,
+      warRoom: true,
     });
   });
 });
