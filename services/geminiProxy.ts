@@ -32,9 +32,17 @@ interface GeminiGenerateResponse {
   candidates?: unknown[];
 }
 
-interface GeminiChatResponse {
+export interface GeminiChatResponse {
   text: string;
   groundingChunks?: unknown[];
+  /**
+   * true  = grounding ativo e retornou chunks concretos.
+   * false = fallback silencioso foi acionado (grounding falhou) OU grounding
+   *         ativo mas sem chunks relevantes. Ambos os casos exigem aviso visual.
+   * Ausente (undefined) quando o campo nao foi retornado pela API (compatibilidade
+   * com versoes antigas — tratar como undefined, nao como false).
+   */
+  groundingUsed?: boolean;
 }
 
 interface GeminiHealthResponse {
@@ -44,8 +52,8 @@ interface GeminiHealthResponse {
 
 const LOCAL_DEV_GEMINI_PROXY_URL =
   import.meta.env.VITE_GEMINI_PROXY_URL || 'https://scoutagro.vercel.app/api/gemini';
-// O serverless usa 55s para chat normal e até 180s para investigações pesadas.
-// Frontend dá margem de 210s para cobrir o cenário mais longo + overhead de rede.
+// O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
+// Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
 
 export function resolveGeminiApiEndpoint(
@@ -101,7 +109,7 @@ async function callGeminiApi<TResponse>(
 
   if (!response.ok) {
     const text = await response.text();
-    scoutDiag.error('GeminiProxy', 'resposta HTTP não OK', {
+    scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
       status: response.status,
       endpoint: GEMINI_API_ENDPOINT,
       bodyPreview: (text || '').slice(0, 200),
