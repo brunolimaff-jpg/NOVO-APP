@@ -62,7 +62,7 @@ function makeData(messages: Message[], overrides: Partial<MessageRowData> = {}):
     messages,
     isLoading: false,
     isDarkMode: false,
-    mode: 'operacao',
+    modoPrincipal: null,
     onFeedback: vi.fn(),
     onSendFeedback: vi.fn(),
     onToggleMessageSources: vi.fn(),
