@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
+import { SHARED_FOUNDATION_BLOCK } from '../prompts/megaPrompts';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
@@ -227,20 +228,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     state: string;
   }) => {
     const prompt = `Conta alvo:\n- Empresa: ${payload.companyName}\n- CNPJ: ${payload.cnpj || 'não informado'}\n- Localização: ${payload.city}/${payload.state}`;
-
-// ChatInterface.tsx — handleStartInvestigation()
-// ANTES:
-const hiddenPrompt = [
-  'INVESTIGACAO_COMPLETA_INTEGRADA (MVP):',
-  'Execute um dossie completo...',
-  `Contexto cadastral obrigatório: Empresa=${payload.companyName}...`,
-  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-  // ...etc
-].join('\n\n---\n\n');
-
-// DEPOIS:
-import { SHARED_FOUNDATION_BLOCK } from '../prompts/megaPrompts';
 
 const hiddenPrompt = [
   'INVESTIGACAO_COMPLETA_INTEGRADA (MVP):',
