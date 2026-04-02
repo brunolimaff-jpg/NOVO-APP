@@ -24,7 +24,9 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     updatedAt: new Date('2024-01-01').toISOString(),
     empresaAlvo: null,
     cnpj: null,
-    mode: 'operacao',
+    modoPrincipal: null,
+    scoreOportunidade: null,
+    resumoDossie: null,
   };
   return { ...base, ...overrides };
 }
