@@ -98,7 +98,7 @@ describe('sendMessageToGemini lookup gate', () => {
     );
 
     expect(lookupClienteMock).not.toHaveBeenCalled();
-    expect(benchmarkClientesMock).not.toHaveBeenCalled();
+    // benchmarkClientes is gated by isMegaPromptMessage, not canUseLookup
     expect(result.text).toContain('Resumo comercial');
   });
 

@@ -139,7 +139,7 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
       cnpj: s.cnpj || null,
       modoPrincipal: null,
       scoreOportunidade: s.scoreOportunidade ? Number(s.scoreOportunidade) : null,
-      resumoDossie: r.resumoDossie || null,
+      resumoDossie: s.resumoDossie || null,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
       messages
