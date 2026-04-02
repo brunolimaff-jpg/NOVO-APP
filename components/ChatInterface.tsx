@@ -226,10 +226,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     city: string;
     state: string;
   }) => {
-    const prompt = `Conta alvo:
-- Empresa: ${payload.companyName}
-- CNPJ: ${payload.cnpj || 'não informado'}
-- Localização: ${payload.city}/${payload.state}`;
+    const prompt = `Conta alvo:\n- Empresa: ${payload.companyName}\n- CNPJ: ${payload.cnpj || 'não informado'}\n- Localização: ${payload.city}/${payload.state}`;
 
     const hiddenPrompt = [
       'INVESTIGACAO_COMPLETA_INTEGRADA (MVP):',
@@ -495,8 +492,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   mode={mode}
                   onStartInvestigation={handleStartInvestigation}
                   isDarkMode={isDarkMode}
-                  radarAlerts={radar?.alerts ?? []}
-                  radarIsScanning={radar?.isScanning ?? false}
+                  radarAlerts={radar?.alerts}
+                  radarIsScanning={radar?.isScanning}
                   onForceScan={radar?.onForceScan}
                   onOpenRadar={() => setShowRadarPanel(true)}
                 />
