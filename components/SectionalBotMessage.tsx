@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { parseMarkdownSections } from '../utils/sectionParser';
@@ -20,6 +20,70 @@ interface SectionalBotMessageProps {
   auditableSources?: AuditableSource[];
 }
 
+const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isDarkMode }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback para ambientes sem clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [text]);
+
+  const base = isDarkMode
+    ? 'bg-slate-700/80 hover:bg-slate-600 text-slate-300 border-slate-600'
+    : 'bg-white/90 hover:bg-slate-50 text-slate-500 border-slate-200';
+
+  return (
+    <button
+      onClick={handleCopy}
+      title={copied ? 'Copiado!' : 'Copiar dossiê'}
+      aria-label={copied ? 'Conteúdo copiado' : 'Copiar dossiê completo'}
+      className={`
+        absolute top-0 right-0 z-10
+        flex items-center gap-1.5 px-2.5 py-1.5
+        rounded-md border text-xs font-medium
+        shadow-sm backdrop-blur-sm
+        transition-all duration-200 ease-out
+        ${base}
+        ${copied ? 'scale-95' : 'scale-100'}
+      `}
+      style={{ opacity: copied ? 1 : undefined }}
+    >
+      {copied ? (
+        <>
+          <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-emerald-500">Copiado!</span>
+        </>
+      ) : (
+        <>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+          </svg>
+          <span>Copiar</span>
+        </>
+      )}
+    </button>
+  );
+};
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId = "preview_session",
@@ -38,15 +102,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
 
-  const activeOptions = message.suggestions && message.suggestions.length > 0 
-    ? message.suggestions 
+  const activeOptions = message.suggestions && message.suggestions.length > 0
+    ? message.suggestions
     : parsedOptions;
 
-  // Substituir [NOME DA EMPRESA] nas sugestões
   const processedOptions = useMemo(() => {
     if (!empresaAlvo || !activeOptions || activeOptions.length === 0) return activeOptions;
-    
-    return activeOptions.map(option => 
+    return activeOptions.map(option =>
       option
         .replace(/\[NOME DA EMPRESA\]/gi, empresaAlvo)
         .replace(/\[Nome da Empresa\]/gi, empresaAlvo)
@@ -63,51 +125,65 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     }
   };
 
+  // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
+  const showCopyButton = cleanText.length > 300;
+
   if (sections.length <= 1 && !cleanText.includes('##')) {
-     return (
-       <div className="flex flex-col gap-2">
-         <MarkdownRenderer 
-            content={cleanText} 
-            isDarkMode={isDarkMode} 
-            groundingSources={message.groundingSources}
-            auditableSources={auditableSources}
-         />
-         {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
-            <SmartOptions 
-              options={processedOptions} 
-              onPreFillInput={onPreFillInput}
-              isRegenerating={isRegenerating}
-              onRegenerate={handleRegenerate}
-            />
-         )}
-       </div>
-     );
+    return (
+      <div className="flex flex-col gap-2">
+        {showCopyButton && (
+          <div className="relative h-0">
+            <CopyButton text={cleanText} isDarkMode={isDarkMode} />
+          </div>
+        )}
+        <MarkdownRenderer
+          content={cleanText}
+          isDarkMode={isDarkMode}
+          groundingSources={message.groundingSources}
+          auditableSources={auditableSources}
+        />
+        {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
+          <SmartOptions
+            options={processedOptions}
+            onPreFillInput={onPreFillInput}
+            isRegenerating={isRegenerating}
+            onRegenerate={handleRegenerate}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="sectional-message space-y-4">
+      {showCopyButton && (
+        <div className="relative flex justify-end mb-1">
+          <CopyButton text={cleanText} isDarkMode={isDarkMode} />
+        </div>
+      )}
+
       {sections.map((section, idx) => (
         <div key={section.key} className="section-block group relative">
           <div className="section-content">
-             <MarkdownRenderer
-                content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
-                isDarkMode={isDarkMode}
-                groundingSources={message.groundingSources}
-                auditableSources={auditableSources}
-                showCollapsibleSources={idx === sections.length - 1}
-             />
+            <MarkdownRenderer
+              content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
+              isDarkMode={isDarkMode}
+              groundingSources={message.groundingSources}
+              auditableSources={auditableSources}
+              showCollapsibleSources={idx === sections.length - 1}
+            />
           </div>
         </div>
       ))}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
         <div className="pt-2 border-t border-dashed border-gray-500/20 mt-4">
-           <SmartOptions 
-              options={processedOptions} 
-              onPreFillInput={onPreFillInput}
-              isRegenerating={isRegenerating}
-              onRegenerate={handleRegenerate}
-           />
+          <SmartOptions
+            options={processedOptions}
+            onPreFillInput={onPreFillInput}
+            isRegenerating={isRegenerating}
+            onRegenerate={handleRegenerate}
+          />
         </div>
       )}
     </div>
