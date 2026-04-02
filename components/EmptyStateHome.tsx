@@ -268,6 +268,14 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
     });
   };
 
+  // ── Derivações de estado do Radar ──────────────────────────────────────────
+  // radarAlerts === undefined  → Radar não configurado ainda
+  // radarAlerts definido       → Radar ativo (pode estar varrendo ou com/sem dados)
+  const radarConfigured = radarAlerts !== undefined;
+  const radarScanning   = radarConfigured && !!radarIsScanning && radarAlerts.length === 0;
+  const radarEmpty      = radarConfigured && !radarIsScanning && radarAlerts.length === 0;
+  const radarHasData    = radarConfigured && radarAlerts.length > 0;
+
   return (
     <div className={`animate-fade-in min-h-full w-full ${pageBg}`}>
       <div
@@ -466,13 +474,22 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
           </div>
         </div>
 
-        {radarAlerts && radarAlerts.length > 0 && (
-          <section className="mt-12">
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h2 className={`text-xl font-bold tracking-tight ${textPrimary}`}>Radar Setorial</h2>
-                <p className={`mt-1 text-sm ${textSecondary}`}>Sinais vitais e inteligência de mercado em tempo real.</p>
-              </div>
+        {/* ══════════════════════════════════════════════════════════════════
+            RADAR SETORIAL — sempre visível, 4 estados distintos
+            ══════════════════════════════════════════════════════════════════ */}
+        <section className="mt-12" aria-label="Radar Setorial">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 className={`text-xl font-bold tracking-tight ${textPrimary}`}>Radar Setorial</h2>
+              <p className={`mt-1 text-sm ${textSecondary}`}>
+                {radarConfigured
+                  ? 'Sinais vitais e inteligência de mercado em tempo real.'
+                  : 'Monitoramento automático de oportunidades e ameaças no Agro.'}
+              </p>
+            </div>
+
+            {/* Botão "Varrer agora" só aparece quando o Radar já está configurado */}
+            {radarConfigured && (
               <button
                 type="button"
                 onClick={onForceScan ?? onOpenRadar}
@@ -483,11 +500,110 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
                 }`}
               >
-                <span className={radarIsScanning ? 'animate-spin' : ''}>↻</span>
+                <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
                 {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
               </button>
-            </div>
+            )}
+          </div>
 
+          {/* ── ESTADO 1: Radar não configurado ────────────────────────────── */}
+          {!radarConfigured && (
+            <div
+              className={`flex flex-col items-center rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+                isDarkMode
+                  ? 'border-slate-700/60 bg-slate-900/40'
+                  : 'border-slate-200 bg-slate-50/60'
+              }`}
+            >
+              {/* Ícone com ping animado */}
+              <div className="relative mb-5 flex h-14 w-14 items-center justify-center" aria-hidden>
+                <span className="text-3xl">📡</span>
+                <span
+                  className={`absolute inset-0 animate-ping rounded-full opacity-20 ${
+                    isDarkMode ? 'bg-emerald-500' : 'bg-emerald-400'
+                  }`}
+                  style={{ animationDuration: '2.5s' }}
+                />
+              </div>
+
+              <h3 className={`text-base font-bold ${textPrimary}`}>
+                Radar Setorial não configurado
+              </h3>
+              <p className={`mt-2 max-w-xs text-sm leading-relaxed ${textSecondary}`}>
+                Configure temas, culturas e regiões de interesse para receber
+                inteligência de mercado automaticamente — antes da concorrência.
+              </p>
+
+              {/* Bullets de valor do Radar */}
+              <ul className={`mt-5 space-y-2 text-left text-xs ${textSecondary}`}>
+                {[
+                  'Alertas de oportunidade e ameaça em tempo real',
+                  'Filtros por cultura, região e tipo de operação',
+                  'Sinais integrados ao Dossiê da investigação',
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span
+                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                      aria-hidden
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                type="button"
+                onClick={onOpenRadar}
+                disabled={!onOpenRadar}
+                className={`mt-8 inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
+                  isDarkMode
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40'
+                    : 'bg-emerald-700 text-white hover:bg-emerald-600 disabled:opacity-40'
+                }`}
+              >
+                <span aria-hidden>⚙️</span>
+                Configurar Radar agora
+              </button>
+            </div>
+          )}
+
+          {/* ── ESTADO 2: Radar configurado, varrendo, sem dados ainda ─────── */}
+          {radarScanning && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Carregando sinais do radar">
+              {[1, 2, 3].map(i => (
+                <div
+                  key={i}
+                  className={`h-48 animate-pulse rounded-xl border ${
+                    isDarkMode
+                      ? 'border-slate-700/60 bg-slate-900/60'
+                      : 'border-slate-200 bg-slate-100/80'
+                  }`}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ── ESTADO 3: Radar configurado, varredura concluída, sem sinais ── */}
+          {radarEmpty && (
+            <div
+              className={`rounded-xl border px-6 py-10 text-center ${
+                isDarkMode
+                  ? 'border-slate-700/60 bg-slate-900/40'
+                  : 'border-slate-200 bg-slate-50/60'
+              }`}
+            >
+              <p className={`text-sm font-medium ${textMuted}`}>
+                Nenhum sinal relevante detectado no momento.
+              </p>
+              <p className={`mt-1 text-xs ${textMuted}`}>
+                O Radar varre automaticamente. Clique em "Varrer agora" para forçar uma nova leitura.
+              </p>
+            </div>
+          )}
+
+          {/* ── ESTADO 4: Radar com dados — comportamento original ──────────── */}
+          {radarHasData && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {radarAlerts.slice(0, 6).map(alert => (
                 <RadarCard
@@ -498,8 +614,8 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                 />
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         <p className={`mt-12 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${textMuted} opacity-70`}>
           Senior Scout 360 — Inteligência forense
