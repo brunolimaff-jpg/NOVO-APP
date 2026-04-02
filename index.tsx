@@ -9,10 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
-const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [
-  { key: 'VITE_GEMINI_API_KEY', label: 'Chave da API Gemini' },
-  { key: 'VITE_CLERK_PUBLISHABLE_KEY', label: 'Chave pública do Clerk' },
-];
+const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
 
 const OPTIONAL_ENV_VARS: Array<{ key: string; label: string }> = [
   { key: 'VITE_PINECONE_API_KEY', label: 'Chave Pinecone (RAG)' },
