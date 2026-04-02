@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMode, MODE_LABELS } from '../constants';
+import type { RadarAlert } from '../types';
+import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS } from '../types';
 import {
   fetchCompanyByCnpj,
   formatCnpj,
@@ -13,6 +15,10 @@ interface EmptyStateHomeProps {
   mode: ChatMode;
   onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => void;
   isDarkMode: boolean;
+  radarAlerts?: RadarAlert[];
+  radarIsScanning?: boolean;
+  onForceScan?: () => void;
+  onOpenRadar?: () => void;
 }
 
 const VALID_UFS = new Set([
@@ -34,7 +40,99 @@ const BULLETS: Record<ChatMode, string[]> = {
   ],
 };
 
-const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode }) => {
+const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
+  oportunidade: { label: 'OPORTUNIDADE', cls: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
+  ameaca:       { label: 'AMEAÇA',        cls: 'bg-red-500/20 text-red-700 dark:text-red-300' },
+  vulnerabilidade: { label: 'VULNERABILIDADE', cls: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
+  neutro:       { label: 'NEUTRO',        cls: 'bg-slate-500/15 text-slate-600 dark:text-slate-400' },
+};
+
+const RELEVANCE_BARS: Record<string, { label: string; bars: number; cls: string }> = {
+  alta:  { label: 'ALTA',  bars: 3, cls: 'text-red-500 dark:text-red-400' },
+  media: { label: 'MÉDIA', bars: 2, cls: 'text-amber-500 dark:text-amber-400' },
+  baixa: { label: 'BAIXA', bars: 1, cls: 'text-slate-500 dark:text-slate-400' },
+};
+
+const ACTION_LABEL: Record<string, string> = {
+  oportunidade: 'Ver Dossiê',
+  ameaca: 'Monitorar',
+  vulnerabilidade: 'Mitigar',
+  neutro: 'Ver mais',
+};
+
+function timeAgoHome(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `HÁ ${mins} MIN`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `HÁ ${hours} HORA${hours > 1 ? 'S' : ''}`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'ONTEM';
+  return `HÁ ${days} DIAS`;
+}
+
+interface RadarCardProps {
+  alert: RadarAlert;
+  isDarkMode: boolean;
+  onOpenRadar?: () => void;
+}
+
+const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar }) => {
+  const impacto = alert.impacto ?? 'neutro';
+  const badge = IMPACTO_BADGE[impacto] ?? IMPACTO_BADGE.neutro;
+  const rel = RELEVANCE_BARS[alert.relevance] ?? RELEVANCE_BARS.baixa;
+  const catLabel = RADAR_CATEGORY_LABELS[alert.category] ?? alert.category;
+  const catIcon = RADAR_CATEGORY_ICONS[alert.category] ?? '📡';
+  const actionLabel = ACTION_LABEL[impacto] ?? 'Ver mais';
+
+  const cardBg = isDarkMode ? 'bg-slate-900/80 border-slate-700/60' : 'bg-white border-slate-200';
+  const textTitle = isDarkMode ? 'text-slate-100' : 'text-slate-900';
+  const textBody = isDarkMode ? 'text-slate-400' : 'text-slate-600';
+  const textMeta = isDarkMode ? 'text-slate-500' : 'text-slate-500';
+
+  return (
+    <div className={`flex flex-col rounded-xl border ${cardBg} overflow-hidden transition-shadow hover:shadow-md`}>
+      <div className="flex items-start justify-between gap-2 p-4 pb-3">
+        <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}>
+          {badge.label}
+        </span>
+        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${rel.cls}`}>
+          {rel.label}
+          <span aria-hidden className="font-mono tracking-tighter">
+            {'|'.repeat(rel.bars)}
+          </span>
+        </span>
+      </div>
+
+      <div className="flex-1 px-4 pb-3">
+        <p className={`text-sm font-semibold leading-snug ${textTitle}`}>{alert.title}</p>
+        <p className={`mt-1.5 text-xs leading-relaxed line-clamp-3 ${textBody}`}>{alert.summary}</p>
+      </div>
+
+      <div className={`flex items-center justify-between gap-2 border-t px-4 py-3 ${isDarkMode ? 'border-slate-700/60' : 'border-slate-100'}`}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[11px]">{catIcon}</span>
+          <span className={`truncate text-[10px] font-medium uppercase tracking-wide ${textMeta}`}>{catLabel}</span>
+          <span className={`text-[10px] ${textMeta}`}>·</span>
+          <span className={`shrink-0 text-[10px] font-semibold ${textMeta}`}>{timeAgoHome(alert.publishedAt)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenRadar}
+          className={`shrink-0 rounded px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+            isDarkMode
+              ? 'bg-slate-800 text-emerald-400 hover:bg-slate-700'
+              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+          }`}
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode, radarAlerts, radarIsScanning, onForceScan, onOpenRadar }) => {
   const { user } = useAuth();
   const userName = user?.displayName;
 
@@ -367,6 +465,41 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
             </div>
           </div>
         </div>
+
+        {radarAlerts && radarAlerts.length > 0 && (
+          <section className="mt-12">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className={`text-xl font-bold tracking-tight ${textPrimary}`}>Radar Setorial</h2>
+                <p className={`mt-1 text-sm ${textSecondary}`}>Sinais vitais e inteligência de mercado em tempo real.</p>
+              </div>
+              <button
+                type="button"
+                onClick={onForceScan ?? onOpenRadar}
+                disabled={radarIsScanning}
+                className={`shrink-0 flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
+                  isDarkMode
+                    ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                }`}
+              >
+                <span className={radarIsScanning ? 'animate-spin' : ''}>↻</span>
+                {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {radarAlerts.slice(0, 6).map(alert => (
+                <RadarCard
+                  key={alert.id}
+                  alert={alert}
+                  isDarkMode={isDarkMode}
+                  onOpenRadar={onOpenRadar}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         <p className={`mt-12 text-center text-[10px] font-semibold uppercase tracking-[0.2em] ${textMuted} opacity-70`}>
           Senior Scout 360 — Inteligência forense

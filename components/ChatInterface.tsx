@@ -495,6 +495,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   mode={mode}
                   onStartInvestigation={handleStartInvestigation}
                   isDarkMode={isDarkMode}
+                  radarAlerts={radar?.alerts ?? []}
+                  radarIsScanning={radar?.isScanning ?? false}
+                  onForceScan={radar?.onForceScan}
+                  onOpenRadar={() => setShowRadarPanel(true)}
                 />
               </div>
             ) : (
