@@ -35,6 +35,51 @@ interface ToastActions {
   error: (msg: string) => void;
 }
 
+// ===================================================================
+// DEDUP SEMÂNTICO — Jaccard de bigramas (threshold 0.55)
+// Detecta o mesmo artigo reescrito pelo Gemini entre varreduras.
+// ===================================================================
+
+function normTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')   // remove acentos
+    .replace(/[^a-z0-9\s]/g, '')       // remove pontuação
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function bigrams(str: string): Set<string> {
+  const s = normTitle(str);
+  const set = new Set<string>();
+  for (let i = 0; i < s.length - 1; i++) {
+    set.add(s.slice(i, i + 2));
+  }
+  return set;
+}
+
+function jaccardSimilarity(a: string, b: string): number {
+  const ba = bigrams(a);
+  const bb = bigrams(b);
+  if (ba.size === 0 && bb.size === 0) return 1;
+  if (ba.size === 0 || bb.size === 0) return 0;
+  let intersection = 0;
+  ba.forEach(g => { if (bb.has(g)) intersection++; });
+  return intersection / (ba.size + bb.size - intersection);
+}
+
+const DEDUP_THRESHOLD = 0.55;
+
+function isDuplicate(candidate: RadarAlert, existing: RadarAlert[]): boolean {
+  // Exact ID match — fast path
+  if (existing.some(a => a.id === candidate.id)) return true;
+  // Semantic match via Jaccard bigramas
+  return existing.some(a => jaccardSimilarity(candidate.title, a.title) >= DEDUP_THRESHOLD);
+}
+
+// ===================================================================
+
 export function useRadar(toast?: ToastActions): UseRadarReturn {
   const [alerts, setAlerts] = useState<RadarAlert[]>([]);
   const [metaInsight, setMetaInsight] = useState<string | null>(null);
@@ -133,8 +178,9 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
       }
 
       setAlerts(prev => {
-        const existingIds = new Set(prev.map(a => a.id));
-        const fresh = newAlerts.filter(a => !existingIds.has(a.id));
+        // Dedup semântico: filtra alertas novos que já existem no histórico
+        // por ID exato OU por similaridade de título >= DEDUP_THRESHOLD
+        const fresh = newAlerts.filter(a => !isDuplicate(a, prev));
         const count = fresh.length;
 
         const hasPartialFailures = partialFailures.length > 0;
