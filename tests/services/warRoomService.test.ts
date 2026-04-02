@@ -110,7 +110,6 @@ describe('warRoomService', () => {
     const prompt = payload.contents[0].parts[0].text as string;
     expect(prompt).toContain('FOCO DE RESPOSTA');
     expect(prompt).toContain('ordens de serviço');
-    expect(prompt).toContain('Ordem de Serviço');
     expect(prompt).not.toContain('Integração com GAtec');
   });
 

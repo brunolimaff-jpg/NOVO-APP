@@ -40,6 +40,7 @@ describe('withAutoRetry', () => {
     const action = vi.fn().mockRejectedValue(networkError);
 
     const promise = withAutoRetry('test', action, { maxRetries: 2, baseDelayMs: 10, jitter: false });
+    promise.catch(() => {}); // prevent unhandled rejection warning
     await vi.runAllTimersAsync();
     await expect(promise).rejects.toMatchObject({ code: 'NETWORK' });
     expect(action).toHaveBeenCalledTimes(3); // 1 + 2 retries
@@ -50,6 +51,7 @@ describe('withAutoRetry', () => {
     const action = vi.fn().mockRejectedValue(authError);
 
     const promise = withAutoRetry('test', action, { maxRetries: 3, baseDelayMs: 10 });
+    promise.catch(() => {}); // prevent unhandled rejection warning
     await vi.runAllTimersAsync();
     await expect(promise).rejects.toMatchObject({ code: 'AUTH' });
     expect(action).toHaveBeenCalledTimes(1);
@@ -60,6 +62,7 @@ describe('withAutoRetry', () => {
     const action = vi.fn().mockRejectedValue(blockedError);
 
     const promise = withAutoRetry('test', action, { maxRetries: 3, baseDelayMs: 10 });
+    promise.catch(() => {}); // prevent unhandled rejection warning
     await vi.runAllTimersAsync();
     await expect(promise).rejects.toMatchObject({ code: 'BLOCKED_CONTENT' });
     expect(action).toHaveBeenCalledTimes(1);
@@ -71,6 +74,7 @@ describe('withAutoRetry', () => {
     const action = vi.fn().mockResolvedValue('should not run');
 
     const promise = withAutoRetry('test', action, { abortSignal: controller.signal });
+    promise.catch(() => {}); // prevent unhandled rejection warning
     await vi.runAllTimersAsync();
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
     expect(action).not.toHaveBeenCalled();
@@ -108,9 +112,9 @@ describe('withAutoRetry', () => {
     const action = vi.fn().mockRejectedValue(rawError);
 
     const promise = withAutoRetry('test', action, { maxRetries: 1, baseDelayMs: 10, jitter: false });
+    promise.catch(() => {}); // prevent unhandled rejection warning
     await vi.runAllTimersAsync();
 
-    // Usa rejects para capturar corretamente e evitar unhandled rejection
     await expect(promise).rejects.toMatchObject({
       code: 'NETWORK',
       friendlyMessage: expect.any(String),
