@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
-import { SHARED_FOUNDATION_BLOCK } from '../prompts/megaPrompts';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
@@ -15,15 +14,10 @@ const InvestigationDashboard = React.lazy(() => loadWithChunkRetry(() => import(
 const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('./SettingsDrawer')));
 const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('./WarRoom')));
 import { cleanTitle } from '../utils/textCleaners';
-import { extractCompanyName } from '../utils/companyNameExtractor';
 import { parseSmartOptions } from './SmartOptions';
 import {
-  PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
-  PROMPT_RADAR_EXPANSAO_GOD_MODE,
-  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  PROMPT_RH_SINDICATOS_GOD_MODE,
-  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+  buildInvestigationHiddenPrompt,
+  PROMPT_VERSION,
 } from '../prompts/megaPrompts';
 
 import type { RadarAlert, RadarConfig } from '../types';
@@ -53,6 +47,68 @@ type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onOpenKanban?: () => void;
   onOpenAdminDash?: () => void;
   radar?: RadarProps;
+};
+
+type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
+
+const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode => {
+  const raw = String(appMode || '').toLowerCase();
+
+  if (raw.includes('war')) return 'warMode';
+  if (raw.includes('ultra')) return 'ultraDepth';
+  if (raw.includes('deep')) return 'ultraDepth';
+  if (raw.includes('exec')) return 'executive';
+
+  if (canWarRoom) return 'executive';
+  return 'executive';
+};
+
+const shouldIncludeBudgetPrompt = (
+  payload: { companyName: string; cnpj: string | null; city: string; state: string },
+  promptMode: PromptMode,
+  radar?: RadarProps,
+): boolean => {
+  if (promptMode === 'warMode') return true;
+  if (promptMode === 'ultraDepth') return true;
+  if (payload.cnpj) return true;
+  if (radar?.metaInsight) return true;
+  if ((radar?.alerts?.length || 0) > 0) return true;
+  return false;
+};
+
+const buildRadarContextBlock = (radar?: RadarProps): string => {
+  if (!radar) return '';
+
+  const topAlerts = (radar.alerts || [])
+    .slice(0, 3)
+    .map((alert: any, index) => {
+      const title =
+        alert?.title ||
+        alert?.headline ||
+        alert?.label ||
+        alert?.companyName ||
+        `Alerta ${index + 1}`;
+      const detail =
+        alert?.summary ||
+        alert?.message ||
+        alert?.description ||
+        alert?.reason ||
+        'Sem detalhe adicional';
+      return `- ${title}: ${detail}`;
+    });
+
+  return [
+    '<radar_context>',
+    `RadarConfigured=${radar.config?.isConfigured ? 'SIM' : 'NAO'}`,
+    `RadarUnreadCount=${radar.unreadCount ?? 0}`,
+    `RadarIsScanning=${radar.isScanning ? 'SIM' : 'NAO'}`,
+    `RadarMetaInsight=${radar.metaInsight || 'N/D'}`,
+    `RadarLastWarning=${radar.lastWarning || 'N/D'}`,
+    `RadarLastError=${radar.lastError ? `${radar.lastError.code}: ${radar.lastError.message}` : 'N/D'}`,
+    topAlerts.length ? 'TopRadarAlerts:' : 'TopRadarAlerts: N/D',
+    ...(topAlerts.length ? topAlerts : []),
+    '</radar_context>',
+  ].join('\n');
 };
 
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
@@ -221,39 +277,45 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     }
   };
 
-  const handleStartInvestigation = async (payload: {
-    companyName: string;
-    cnpj: string | null;
-    city: string;
-    state: string;
-  }) => {
-    const prompt = `Conta alvo:\n- Empresa: ${payload.companyName}\n- CNPJ: ${payload.cnpj || 'não informado'}\n- Localização: ${payload.city}/${payload.state}`;
+  const handleStartInvestigation = useCallback(
+    async (payload: {
+      companyName: string;
+      cnpj: string | null;
+      city: string;
+      state: string;
+    }) => {
+      const prompt = `Conta alvo:
+- Empresa: ${payload.companyName}
+- CNPJ: ${payload.cnpj || 'não informado'}
+- Localização: ${payload.city}/${payload.state}`;
 
-const hiddenPrompt = [
-  'INVESTIGACAO_COMPLETA_INTEGRADA (MVP):',
-  'Execute um dossie completo combinando os protocolos abaixo sem repetir seções.',
-  'Priorize objetividade, fontes auditáveis e síntese executiva final.',
-  `Contexto cadastral obrigatório: Empresa=${payload.companyName}; CNPJ=${payload.cnpj || 'N/D'}; Cidade=${payload.city}; UF=${payload.state}.`,
-  SHARED_FOUNDATION_BLOCK,  // ← UMA VEZ no topo
-  '---',
-  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  '---',
-  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-  '---',
-  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-  '---',
-  PROMPT_RADAR_EXPANSAO_GOD_MODE,
-  '---',
-  PROMPT_RH_SINDICATOS_GOD_MODE,
-  '---',
-  PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
-  // Para ativar Orçamento (Fase 2):
-  // '---',
-  // PROMPT_ORCAMENTO_JANELA_GOD_MODE,
-].join('\n\n');
+      const promptMode = resolvePromptMode(mode, canWarRoom);
+      const includeBudget = shouldIncludeBudgetPrompt(payload, promptMode, radar);
+      const radarContextBlock = buildRadarContextBlock(radar);
 
-    await onDeepDive(prompt, hiddenPrompt, payload.companyName);
-  };
+      const hiddenPromptBase = buildInvestigationHiddenPrompt(
+        {
+          companyName: payload.companyName,
+          cnpj: payload.cnpj || undefined,
+          city: payload.city,
+          state: payload.state,
+        },
+        {
+          includeBudget,
+          mode: promptMode,
+          strictAudit: true,
+          enableDiscrepancyHunter: true,
+          enableCostOfDelay: true,
+          promptVersion: PROMPT_VERSION,
+        },
+      );
+
+      const hiddenPrompt = [hiddenPromptBase, radarContextBlock].filter(Boolean).join('\n\n');
+
+      await onDeepDive(prompt, hiddenPrompt, payload.companyName);
+    },
+    [mode, canWarRoom, radar, onDeepDive],
+  );
 
   const handleCopyMarkdown = useCallback(() => {
     const text = messages
@@ -279,7 +341,7 @@ const hiddenPrompt = [
   };
 
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || 'Nova Investigação');
-  const displayTitle = headerTitle.length > 35 ? headerTitle.substring(0, 32) + '...' : headerTitle;
+  const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
   const hasReport = messages.some(
     m => m.sender === Sender.Bot && !m.isThinking && !m.isError && (m.text?.length || 0) > 100,
   );
@@ -331,7 +393,6 @@ const hiddenPrompt = [
       userId,
       processing,
       lastUserQuery,
-      handleStopWithToast,
       onSendMessage,
     ],
   );
@@ -378,6 +439,7 @@ const hiddenPrompt = [
             >
               ☰
             </button>
+
             <div className="col-start-2 row-start-1 min-w-0 overflow-hidden">
               <p
                 className={`text-[10px] font-semibold uppercase tracking-wide ${
@@ -391,6 +453,7 @@ const hiddenPrompt = [
                 {displayTitle}
               </h1>
             </div>
+
             <div className="col-start-3 row-start-1 flex flex-shrink-0 items-center gap-0.5 md:col-start-3">
               {hasReport && !isLoading && (
                 <>
@@ -415,6 +478,7 @@ const hiddenPrompt = [
                   <div className={`mx-1 h-4 w-px ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`} />
                 </>
               )}
+
               {canWarRoom && (
                 <button
                   onClick={() => setShowWarRoom(true)}
@@ -428,6 +492,7 @@ const hiddenPrompt = [
                   ⚔️
                 </button>
               )}
+
               {onOpenAdminDash && (
                 <button
                   onClick={onOpenAdminDash}
@@ -442,6 +507,7 @@ const hiddenPrompt = [
                   📊
                 </button>
               )}
+
               {radar && (
                 <React.Suspense fallback={null}>
                   <RadarBell
@@ -452,6 +518,7 @@ const hiddenPrompt = [
                   />
                 </React.Suspense>
               )}
+
               <UserMenu
                 isDarkMode={isDarkMode}
                 displayName={user?.displayName || 'Usuário'}
@@ -524,37 +591,37 @@ const hiddenPrompt = [
                       <div className="flex justify-center py-2">
                         <button
                           onClick={onLoadMore}
-                          className="text-xs text-slate-500 hover:text-emerald-500 bg-white/80 dark:bg-slate-900/80 backdrop-blur px-3 py-1 rounded-full shadow"
+                          className="rounded-full bg-white/80 px-3 py-1 text-xs text-slate-500 shadow backdrop-blur hover:text-emerald-500 dark:bg-slate-900/80"
                         >
                           Carregar anteriores
                         </button>
                       </div>
                     ) : null,
                 }}
-                itemContent={(idx) => <MessageRow index={idx} data={itemData} />}
+                itemContent={idx => <MessageRow index={idx} data={itemData} />}
               />
             )}
           </div>
 
           {showRetryToast && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+            <div className="fixed left-1/2 top-4 z-50 -translate-x-1/2 animate-fade-in">
               <div
-                className={`rounded-xl shadow-2xl border px-4 py-3 min-w-[320px] max-w-md ${
-                  isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                className={`min-w-[320px] max-w-md rounded-xl border px-4 py-3 shadow-2xl ${
+                  isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-xl mt-0.5">⚠️</span>
+                  <span className="mt-0.5 text-xl">⚠️</span>
                   <div className="flex-1">
-                    <p className={`text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>
+                    <p className={`mb-2 text-sm font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>
                       Cancelado — Tentar novamente?
                     </p>
                     <button
                       onClick={handleRetryNormal}
-                      className={`w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      className={`w-full rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
                         isDarkMode
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                          : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          : 'bg-emerald-500 text-white hover:bg-emerald-600'
                       }`}
                     >
                       🔄 Tentar novamente
@@ -562,7 +629,7 @@ const hiddenPrompt = [
                   </div>
                   <button
                     onClick={() => setShowRetryToast(false)}
-                    className={`text-xl opacity-50 hover:opacity-100 transition-opacity ${
+                    className={`text-xl opacity-50 transition-opacity hover:opacity-100 ${
                       isDarkMode ? 'text-slate-400' : 'text-slate-500'
                     }`}
                   >
@@ -574,16 +641,16 @@ const hiddenPrompt = [
           )}
 
           {pendingDeleteId && (
-            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+            <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 animate-fade-in">
               <div
-                className={`flex items-center gap-3 rounded-xl shadow-xl border px-4 py-2.5 ${
-                  isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 shadow-xl ${
+                  isDarkMode ? 'border-slate-700 bg-slate-800 text-slate-200' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               >
                 <span className="text-sm">Mensagem excluída</span>
                 <button
                   onClick={handleUndoDelete}
-                  className="text-sm font-bold text-emerald-500 hover:text-emerald-400 transition-colors"
+                  className="text-sm font-bold text-emerald-500 transition-colors hover:text-emerald-400"
                 >
                   Desfazer
                 </button>
@@ -593,29 +660,29 @@ const hiddenPrompt = [
 
           {!isInitialGateActive && (
             <div
-              className={`flex-shrink-0 p-3 pb-4 md:p-6 border-t ${
-                isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-              } z-20`}
+              className={`z-20 flex-shrink-0 border-t p-3 pb-4 md:p-6 ${
+                isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white'
+              }`}
             >
-              <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-1 md:px-6 lg:px-8 relative">
+              <div className="relative mx-auto w-full max-w-5xl px-1 md:px-6 lg:px-8 xl:max-w-6xl">
                 <div
-                  className={`relative flex items-end w-full rounded-2xl border pl-4 pr-12 py-2 shadow-sm ${
+                  className={`relative flex w-full items-end rounded-2xl border py-2 pl-4 pr-12 shadow-sm ${
                     isDarkMode ? 'border-gray-700/50 bg-gray-800/80' : 'border-gray-300 bg-white'
                   }`}
                 >
                   {!isLoading && messages.length > 0 && messages[messages.length - 1].sender === Sender.User && (
-                    <div className="absolute bottom-full left-0 mb-3 w-full flex justify-center animate-fade-in">
+                    <div className="absolute bottom-full left-0 mb-3 flex w-full justify-center animate-fade-in">
                       <div
-                        className={`flex items-center gap-3 px-4 py-2 rounded-full shadow-md border text-xs font-semibold ${
+                        className={`flex items-center gap-3 rounded-full border px-4 py-2 text-xs font-semibold shadow-md ${
                           isDarkMode
-                            ? 'bg-slate-800 border-red-900/50 text-slate-200'
-                            : 'bg-red-50 border-red-200 text-red-700'
+                            ? 'border-red-900/50 bg-slate-800 text-slate-200'
+                            : 'border-red-200 bg-red-50 text-red-700'
                         }`}
                       >
                         <span>⚠️ A resposta falhou ou foi perdida no reload.</span>
                         <button
                           onClick={handleRetryNormal}
-                          className="px-3 py-1 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-sm transition-all flex items-center gap-1"
+                          className="flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-white shadow-sm transition-all hover:bg-red-500"
                         >
                           <span className="text-sm">🔄</span> Gerar Resposta
                         </button>
@@ -634,18 +701,19 @@ const hiddenPrompt = [
                     }
                     disabled={isLoading}
                     rows={1}
-                    className={`flex-1 bg-transparent text-sm outline-none resize-none min-h-[36px] max-h-[100px] mb-1 px-2 custom-scrollbar ${
+                    className={`custom-scrollbar mb-1 min-h-[36px] max-h-[100px] flex-1 resize-none bg-transparent px-2 text-sm outline-none ${
                       isDarkMode ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'
                     }`}
                     style={{ overflow: 'hidden' }}
                   />
+
                   {isLoading ? (
                     <button
                       onClick={handleStopWithToast}
-                      className={`absolute right-2 bottom-2 w-10 h-10 flex items-center justify-center rounded-xl transition-all border ${
+                      className={`absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-xl border transition-all ${
                         isDarkMode
-                          ? 'bg-red-950/70 hover:bg-red-900/90 border-red-900/60 text-red-400 hover:text-red-300'
-                          : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-500 hover:text-red-600'
+                          ? 'border-red-900/60 bg-red-950/70 text-red-400 hover:bg-red-900/90 hover:text-red-300'
+                          : 'border-red-200 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600'
                       }`}
                       title="Parar geração"
                     >
@@ -655,15 +723,15 @@ const hiddenPrompt = [
                     <button
                       onClick={handleSend}
                       disabled={!input.trim()}
-                      className={`absolute right-2 bottom-2 w-10 h-10 flex items-center justify-center rounded-xl transition-all shadow-md ${
+                      className={`absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-xl shadow-md transition-all ${
                         !input.trim()
                           ? isDarkMode
                             ? 'bg-slate-700 text-slate-500'
                             : 'bg-slate-200 text-slate-400'
-                          : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white hover:scale-105 active:scale-95 shadow-emerald-500/30'
+                          : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/30 hover:scale-105 hover:from-emerald-400 hover:to-emerald-500 active:scale-95'
                       }`}
                     >
-                      <span className="text-lg ml-0.5">➤</span>
+                      <span className="ml-0.5 text-lg">➤</span>
                     </button>
                   )}
                 </div>
@@ -675,7 +743,9 @@ const hiddenPrompt = [
             <SuspenseWithError
               fallback={
                 <div
-                  className={`fixed inset-0 z-50 flex items-center justify-center ${isDarkMode ? 'bg-slate-950/90' : 'bg-white/90'}`}
+                  className={`fixed inset-0 z-50 flex items-center justify-center ${
+                    isDarkMode ? 'bg-slate-950/90' : 'bg-white/90'
+                  }`}
                 >
                   <div className={`text-sm font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                     Carregando War Room...
@@ -707,7 +777,10 @@ const hiddenPrompt = [
                 onMarkAllAsRead={radar.onMarkAllAsRead}
                 onDismiss={radar.onDismiss}
                 onForceScan={radar.onForceScan}
-                onOpenSettings={() => { setShowRadarPanel(false); setShowRadarSettings(true); }}
+                onOpenSettings={() => {
+                  setShowRadarPanel(false);
+                  setShowRadarSettings(true);
+                }}
                 onClose={() => setShowRadarPanel(false)}
                 isDarkMode={isDarkMode}
               />
