@@ -20,7 +20,7 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     model: z.string().min(1).max(200).optional(),
     systemInstruction: z.string().max(100000).optional(),
     history: z.array(HistoryItemSchema).optional(),
-    message: z.string().min(1).max(50000),
+    message: z.string().min(1).max(200000),
     useGrounding: z.boolean().optional(),
     thinkingMode: z.boolean().optional(),
   }),
@@ -48,7 +48,7 @@ function getApiKeys(): string[] {
 
 function isQuotaExhausted(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota/i.test(msg) || /"code"\s*:\s*429/.test(msg);
+  return /RESOURCE_EXHAUSTED|check quota/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -80,7 +80,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 function extractGeminiHttpStatus(error: unknown): number {
   if (error instanceof Error) {
     const msg = error.message;
-    if (/"code"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
+    if (/\"code\"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
   }
   const err = error as Record<string, unknown>;
   if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
