@@ -28,7 +28,7 @@ interface LoadingSmartProps {
   mode: ChatMode;
   isDarkMode: boolean;
   onStop?: () => void;
-  processing?: { stage?: string; completedStages?: string[] };
+  processing?: { stage?: string; completedStages?: string[]; failureCount?: number };
   searchQuery?: string;
   empresaAlvo?: string | null;
 }
@@ -274,8 +274,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       queueRef.current = [...queueRef.current, ...newStages];
     }
 
+    const getBackoffMessage = (count: number) => {
+      if (count === 1) return "Refinando sinais para alta precisão...";
+      if (count === 2) return "Ajustando filtros de profundidade executiva...";
+      if (count >= 3) return "Finalizando orquestração de dados complexos...";
+      return null;
+    };
+
+    const backoffMsg = getBackoffMessage(processing?.failureCount || 0);
     // Always update the "real" current stage (what comes after displayed ones)
-    setDisplayedCurrent(stripInternalMarkers(realCurrent));
+    setDisplayedCurrent(backoffMsg || stripInternalMarkers(realCurrent));
 
     // Process queue: reveal one item at a time with minimum delay
     const revealNext = () => {
