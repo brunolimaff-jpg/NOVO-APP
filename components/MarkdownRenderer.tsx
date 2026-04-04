@@ -58,7 +58,22 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
         const mermaid = (await loadWithChunkRetry(() => import('mermaid'))).default;
         mermaid.initialize({
           startOnLoad: false,
-          theme: isDarkMode ? 'dark' : 'default',
+          theme: 'base',
+          themeVariables: {
+            fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+            primaryColor: isDarkMode ? '#1e293b' : '#f1f5f9',
+            primaryTextColor: isDarkMode ? '#f8fafc' : '#334155',
+            primaryBorderColor: isDarkMode ? '#334155' : '#cbd5e1',
+            lineColor: isDarkMode ? '#475569' : '#94a3b8',
+            secondaryColor: isDarkMode ? '#0f172a' : '#f8fafc',
+            tertiaryColor: isDarkMode ? '#020617' : '#ffffff',
+            mainBkg: 'transparent',
+            nodeBorder: isDarkMode ? '#334155' : '#e2e8f0',
+            clusterBkg: isDarkMode ? '#0f172a' : '#f8fafc',
+            clusterBorder: isDarkMode ? '#334155' : '#cbd5e1',
+            defaultLinkColor: isDarkMode ? '#64748b' : '#94a3b8',
+            textColor: isDarkMode ? '#f8fafc' : '#0f172a',
+          },
           securityLevel: 'loose',
         });
 
@@ -107,10 +122,18 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
   if (!svg) return null;
 
   return (
-    <div
-      className="mermaid-chart my-3 overflow-x-auto"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <div className="my-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/50 shadow-sm dark:border-slate-800/80 dark:bg-slate-900/50 backdrop-blur-sm">
+      <div className="border-b border-slate-200/60 bg-slate-100/40 px-4 py-2.5 dark:border-slate-800/60 dark:bg-slate-800/40 flex items-center gap-2">
+        <div className="flex h-2 w-2 items-center justify-center rounded-full bg-emerald-400"></div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+          Mapa Visual
+        </span>
+      </div>
+      <div
+        className="mermaid-chart flex items-center justify-center overflow-x-auto p-4 sm:p-6"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    </div>
   );
 };
 
@@ -362,14 +385,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <h1 className="text-lg md:text-xl font-black tracking-tight mb-3 text-slate-900 dark:text-white">{children}</h1>
     ),
     h2: ({ children }: any) => (
-      <h2 className="text-base md:text-lg font-black tracking-tight mt-4 mb-2 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-1 flex items-center gap-2">
-        <span className="w-1 h-4 rounded-full bg-emerald-500/80" />{children}
+      <h2 className="text-base md:text-lg font-black tracking-tight mt-6 mb-3 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-2 flex items-start gap-2">
+        <span className="w-1.5 h-4 mt-1 rounded-full bg-emerald-500/80 shrink-0" />
+        <span className="block leading-snug">{children}</span>
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-3 mb-1 text-slate-900 dark:text-slate-50 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{children}
+      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
+        <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
+        <span className="block leading-snug">{children}</span>
       </h3>
+    ),
+    hr: () => (
+      <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />
     ),
     h4: ({ children }: any) => (
       <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>

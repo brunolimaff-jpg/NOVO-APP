@@ -183,26 +183,26 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
   );
 
   return (
-    <div className="my-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600">
+    <div className="my-6">
+      <div className="mb-4 space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+            </span>
             Deep Dives
-          </p>
+          </div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
             Investigações cirúrgicas por frente
           </h3>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Escolha uma frente para aprofundar com máxima densidade analítica, foco comercial e rigor forense.
-          </p>
         </div>
-
-        <div className="hidden rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 md:block">
-          {PROMPT_VERSION}
-        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+          Escolha uma frente para aprofundar com máxima densidade analítica, foco comercial e rigor forense.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {topics.map(topic => {
           const hiddenPrompt = buildDeepDiveHiddenPrompt(topic.basePrompt, topic.label);
 
@@ -210,36 +210,22 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
             <button
               key={topic.id}
               type="button"
-              title={topic.tooltip}
+              title={`${topic.subtitle}\n\nImpacto: ${topic.impact}`}
               onClick={() =>
                 onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt)
               }
-              className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50/40 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-700 dark:hover:bg-slate-800"
+              className="group flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/40 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800"
             >
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-xl transition-colors group-hover:bg-emerald-100 dark:bg-slate-800 dark:group-hover:bg-emerald-900/40">
-                  {topic.icon}
-                </div>
-
-                <span className="rounded-full border border-slate-200 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 text-sm shadow-inner ring-1 ring-slate-200/50 transition-all duration-300 group-hover:scale-110 group-hover:from-emerald-100 group-hover:to-emerald-50 group-hover:ring-emerald-200 dark:from-slate-800 dark:to-slate-800/80 dark:ring-slate-700 dark:group-hover:from-emerald-900/60 dark:group-hover:to-emerald-900/30 dark:group-hover:ring-emerald-800">
+                {topic.icon}
+              </div>
+              <div className="flex flex-col justify-center overflow-hidden">
+                <span className="truncate text-xs font-bold text-slate-800 transition-colors group-hover:text-emerald-700 dark:text-slate-200 dark:group-hover:text-emerald-400">
+                  {topic.label}
+                </span>
+                <span className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-slate-400 transition-colors group-hover:text-emerald-600/70 dark:text-slate-500 dark:group-hover:text-emerald-400/70">
                   {topic.shortLabel}
                 </span>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="text-sm font-bold leading-tight text-slate-900 dark:text-white">
-                  {topic.label}
-                </h4>
-
-                <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                  {topic.subtitle}
-                </p>
-
-                <div className="pt-1">
-                  <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                    {topic.impact}
-                  </span>
-                </div>
               </div>
             </button>
           );
