@@ -68,20 +68,33 @@ interface LastAction {
   payload: { text?: string; displayText?: string; messageId?: string };
 }
 
+function isGenericCompanyLabel(value: string | null | undefined): boolean {
+  const normalized = cleanTitle(value).trim();
+  if (!normalized) return true;
+  return /^(empresa|nova investiga[cç][aã]o|a empresa desta conversa|empresa n[aã]o identificada|prospect|companhia|grupo)$/i.test(
+    normalized,
+  );
+}
+
 function pickCompanyLabel(...candidates: Array<string | null | undefined>): string {
   for (const value of candidates) {
     const raw = (value || '').trim();
     if (!raw) continue;
 
     const fromEmpresaField = raw.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-    if (fromEmpresaField) return cleanTitle(fromEmpresaField);
+    if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) {
+      return cleanTitle(fromEmpresaField);
+    }
 
     const fromDossieBracket = raw.match(/dossi[êe]\s+completo\s+de\s*\[([^\]]+)\]/i)?.[1]?.trim();
-    if (fromDossieBracket) return cleanTitle(fromDossieBracket);
+    if (fromDossieBracket && !isGenericCompanyLabel(fromDossieBracket)) {
+      return cleanTitle(fromDossieBracket);
+    }
 
     const extracted = cleanTitle(extractCompanyName(raw));
     if (
       extracted &&
+      !isGenericCompanyLabel(extracted) &&
       extracted.length <= 80 &&
       !/investigacao_completa_integrada|protocolo de investiga|contexto cadastral obrigat/i.test(extracted)
     ) {
@@ -95,20 +108,36 @@ function resolveHintedCompany(
   sessionEmpresaAlvo: string | null | undefined,
   safeVisibleText: string,
 ): string | null {
-  if (sessionEmpresaAlvo) return sessionEmpresaAlvo;
+  if (sessionEmpresaAlvo && !isGenericCompanyLabel(sessionEmpresaAlvo)) return sessionEmpresaAlvo;
 
   const extracted = cleanTitle(extractCompanyName(safeVisibleText));
-  if (extracted && extracted !== 'Empresa') return extracted;
+  if (extracted && !isGenericCompanyLabel(extracted)) return extracted;
 
   const fromEmpresaField = safeVisibleText.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-  if (fromEmpresaField) return cleanTitle(fromEmpresaField);
+  if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) return cleanTitle(fromEmpresaField);
 
   const trimmed = safeVisibleText.trim();
-  if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n')) {
+  if (
+    trimmed.length > 0 &&
+    trimmed.length <= 60 &&
+    !trimmed.includes('\n') &&
+    !isGenericCompanyLabel(trimmed)
+  ) {
     return trimmed;
   }
 
   return null;
+}
+
+function buildDossierSeedContext(rawPrompt: string): string {
+  if (!rawPrompt) return '';
+
+  const sections = [
+    rawPrompt.match(/Contexto cadastral obrigatório:[^\n]+/i)?.[0]?.trim(),
+    rawPrompt.match(/<radar_context>[\s\S]*?<\/radar_context>/i)?.[0]?.trim(),
+  ].filter(Boolean);
+
+  return sections.join('\n\n');
 }
 
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
@@ -348,6 +377,8 @@ const App: React.FC = () => {
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---
         let accumulatedText = "";
+        const dossierSeedContext = buildDossierSeedContext(text);
+        const resolvedMegaCompany = normalizedCompany || hintedCompany || "";
         const updateBotText = (chunk: string) => {
           accumulatedText += (accumulatedText ? "\n\n---\n\n" : "") + chunk;
           updateSessionById(sessionId, s => ({
@@ -370,10 +401,10 @@ const App: React.FC = () => {
         setLoadingStatus("Mapeando inteligência operacional...");
         const firstModule = await generateDossierModule(
           modules[0].name,
-          normalizedCompany || hintedCompany || "Empresa",
+          resolvedMegaCompany || "Empresa",
           SHARED_FOUNDATION_BLOCK,
           modules[0].prompt,
-          "",
+          dossierSeedContext,
           { signal }
         );
         updateBotText(firstModule);
@@ -384,10 +415,17 @@ const App: React.FC = () => {
           setLoadingStatus(`Investigando ${modules[i].name.toLowerCase()}...`);
           const moduleResult = await generateDossierModule(
             modules[i].name,
-            normalizedCompany || hintedCompany || "Empresa",
+            resolvedMegaCompany || "Empresa",
             SHARED_FOUNDATION_BLOCK,
             modules[i].prompt,
-            `Contexto anterior: ${firstModule.substring(0, 500)}...`, // Elo de ligação
+            [
+              dossierSeedContext,
+              accumulatedText
+                ? `Contexto anterior consolidado:\n${accumulatedText.slice(-2500)}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
             { signal }
           );
           updateBotText(moduleResult);
@@ -395,7 +433,7 @@ const App: React.FC = () => {
 
         // 3. Benchmark Isolado (Fim do vazamento Correios)
         setLoadingStatus("Cruzando referências de mercado isoladas...");
-        const benchmark = await getIsolatedBenchmark(normalizedCompany || hintedCompany || "", { signal });
+        const benchmark = await getIsolatedBenchmark(resolvedMegaCompany, { signal });
         if (benchmark) updateBotText(benchmark);
 
         setLoadingStatus("Finalizando dossiê modular...");
@@ -538,15 +576,19 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (text: string, displayText?: string) => {
+  const handleSendMessage = async (
+    text: string,
+    displayText?: string,
+    hintedCompanyOverride?: string | null,
+  ) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const rawTitle = cleanTitle(extractCompanyName(displayText || text));
-      const immediateTitle = rawTitle && rawTitle !== 'Empresa' ? rawTitle : '';
+      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(displayText || text));
+      const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
       immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
         id: sessionId,
@@ -566,7 +608,7 @@ const App: React.FC = () => {
     } else {
       const session = sessions.find(s => s.id === sessionId);
       currentHistory = session ? [...session.messages] : [];
-      immediateCompany = session?.empresaAlvo || null;
+      immediateCompany = hintedCompanyOverride || session?.empresaAlvo || null;
     }
     const userMessage: Message = {
       id: uuidv4(),
@@ -580,7 +622,7 @@ const App: React.FC = () => {
       ),
     );
     setVisibleCount(prev => prev + 1);
-    await processMessage(text, sessionId, currentHistory, displayText || text, immediateCompany);
+    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany);
   };
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
@@ -589,6 +631,7 @@ const App: React.FC = () => {
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
+      empresaContext,
     );
   };
 

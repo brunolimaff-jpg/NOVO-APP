@@ -13,6 +13,12 @@ describe('extractCompanyName', () => {
     expect(extractCompanyName('investigar a SLC Agrícola')).toBe('SLC Agrícola');
   });
 
+  it('extracts company name from gerund labels used by the UI shell', () => {
+    expect(extractCompanyName('Investigando SCHEFFER & CIA LTDA...')).toBe('SCHEFFER & CIA LTDA');
+    expect(extractCompanyName('🔍 Investigando Grupo Scheffer...')).toBe('Scheffer');
+    expect(extractCompanyName('Mapeando Bom Futuro')).toBe('Bom Futuro');
+  });
+
   it('extracts company name from "empresa" pattern', () => {
     expect(extractCompanyName('empresa Bunge')).toBe('Bunge');
     expect(extractCompanyName('Grupo Amaggi')).toBe('Amaggi');
