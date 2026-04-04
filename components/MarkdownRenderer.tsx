@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -39,12 +39,55 @@ function extractNodeText(node: React.ReactNode): string {
 }
 
 // ---------------------------------------------------------------------------
+// FIX #3 — Singleton Mermaid: initialize apenas uma vez por tema.
+// Chamar initialize() antes de cada render() causava race conditions quando
+// múltiplos diagramas carregavam simultaneamente na mesma página.
+// ---------------------------------------------------------------------------
+let _mermaidSingleton: typeof import('mermaid')['default'] | null = null;
+let _mermaidTheme: string | null = null;
+
+async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')['default']> {
+  const themeKey = isDarkMode ? 'dark' : 'light';
+  const mod = await loadWithChunkRetry(() => import('mermaid'));
+  const mermaid = mod.default;
+
+  if (!_mermaidSingleton || _mermaidTheme !== themeKey) {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        primaryColor: isDarkMode ? '#1e293b' : '#f1f5f9',
+        primaryTextColor: isDarkMode ? '#f8fafc' : '#334155',
+        primaryBorderColor: isDarkMode ? '#334155' : '#cbd5e1',
+        lineColor: isDarkMode ? '#475569' : '#94a3b8',
+        secondaryColor: isDarkMode ? '#0f172a' : '#f8fafc',
+        tertiaryColor: isDarkMode ? '#020617' : '#ffffff',
+        mainBkg: 'transparent',
+        nodeBorder: isDarkMode ? '#334155' : '#e2e8f0',
+        clusterBkg: isDarkMode ? '#0f172a' : '#f8fafc',
+        clusterBorder: isDarkMode ? '#334155' : '#cbd5e1',
+        defaultLinkColor: isDarkMode ? '#64748b' : '#94a3b8',
+        textColor: isDarkMode ? '#f8fafc' : '#0f172a',
+      },
+      securityLevel: 'loose',
+    });
+    _mermaidSingleton = mermaid;
+    _mermaidTheme = themeKey;
+  }
+
+  return mermaid;
+}
+
+// ---------------------------------------------------------------------------
 // MermaidChart
 // ---------------------------------------------------------------------------
 const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  // ID estável por instância de componente — evita colisões entre diagramas
+  const idRef = useRef<string>('mermaid-' + Math.random().toString(36).substring(2, 9));
 
   useEffect(() => {
     if (!chart?.trim()) return;
@@ -55,38 +98,18 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
         const clean = sanitizeMermaidCode(chart);
         if (!clean) return;
 
-        const mermaid = (await loadWithChunkRetry(() => import('mermaid'))).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'base',
-          themeVariables: {
-            fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-            primaryColor: isDarkMode ? '#1e293b' : '#f1f5f9',
-            primaryTextColor: isDarkMode ? '#f8fafc' : '#334155',
-            primaryBorderColor: isDarkMode ? '#334155' : '#cbd5e1',
-            lineColor: isDarkMode ? '#475569' : '#94a3b8',
-            secondaryColor: isDarkMode ? '#0f172a' : '#f8fafc',
-            tertiaryColor: isDarkMode ? '#020617' : '#ffffff',
-            mainBkg: 'transparent',
-            nodeBorder: isDarkMode ? '#334155' : '#e2e8f0',
-            clusterBkg: isDarkMode ? '#0f172a' : '#f8fafc',
-            clusterBorder: isDarkMode ? '#334155' : '#cbd5e1',
-            defaultLinkColor: isDarkMode ? '#64748b' : '#94a3b8',
-            textColor: isDarkMode ? '#f8fafc' : '#0f172a',
-          },
-          securityLevel: 'loose',
-        });
+        const mermaid = await getMermaid(isDarkMode ?? false);
+        const { svg: rendered } = await mermaid.render(idRef.current, clean);
 
-        const id = 'mermaid-' + Math.random().toString(36).substring(2, 9);
-        const { svg: rendered } = await mermaid.render(id, clean);
         if (!cancelled) {
           setSvg(rendered);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
+          const e = err as { str?: string; message?: string };
           console.error('Erro Mermaid:', err);
-          setError(err?.str || err?.message || 'Falha ao renderizar diagrama');
+          setError(e?.str || e?.message || 'Falha ao renderizar diagrama');
         }
       }
     };
@@ -139,20 +162,26 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
 
 // ---------------------------------------------------------------------------
 // sanitizeMermaidCode
+// FIX #1 — Removidas as regexes unicode que mutilavam labels válidos gerados
+// pelo Gemini (\u2600-\u27BF incluía ─ ┌ └ e símbolos técnicos legítimos;
+// \u{1F000}-\u{1FFFF} era desnecessária para diagramas de fluxo).
 // ---------------------------------------------------------------------------
 function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
   let code = input
+    // Converte <br> e entidades em quebra de linha
     .replace(new RegExp('<br\\s*/?>\\s*', 'gi'), '\n')
     .replace(new RegExp('&lt;br\\s*/?&gt;\\s*', 'gi'), '\n')
+    // Remove comentários HTML
     .replace(new RegExp('<' + '!--[\\s\\S]*?--' + '>', 'g'), '')
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-    .replace(/[\u2600-\u27BF]/gu, '')
+    // Normaliza travessões — único unicode que realmente quebra o parser Mermaid
     .replace(/[\u2013\u2014]/g, '-')
-    .replace(/^[^a-zA-Z0-9]+/, '')
+    // Remove prefixo não-alfabético antes do tipo de diagrama
+    .replace(/^[^a-zA-Z]+/, '')
     .trim();
 
+  // Garante que subgraph labels com espaços/caracteres especiais ficam entre aspas
   code = code.replace(
     /^(\s*subgraph\s+)([^"'\n\[\]{]+?)(\s*)$/gm,
     (full, prefix, label, suffix) => {
@@ -223,39 +252,33 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     const restoreMermaid = (input: string): string =>
       input.replace(/@@__MERMAID_BLOCK_(\d+)__@@/g, (_match, index) => preservedMermaidBlocks[Number(index)] || '');
 
-    // Protege blocos Mermaid para evitar que tratamentos de links/citações quebrem o parser.
-    text = preserveMermaid(text);
-
-    // 1) Converter {"mermaid":"..."} → bloco mermaid
+    // FIX #2 — Converter JSON inline {"mermaid":"..."} ANTES do preserveMermaid,
+    // para que esses blocos também sejam protegidos das transformações de links.
+    // No código original, a conversão era feita DEPOIS, deixando o conteúdo
+    // dos diagramas JSON expostos ao autoLinkSeniorTerms e outros processadores.
     const FENCE = '`'.repeat(3);
     text = text.replace(/\{"mermaid":"([\s\S]*?)"\}/g, (_m, raw: string) => {
       const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
       return '\n' + FENCE + 'mermaid\n' + unescaped + '\n' + FENCE + '\n';
     });
 
-    // 2) Corrigir links falsos e limpar fontes no final
+    // Protege TODOS os blocos mermaid (incluindo os recém-convertidos)
+    text = preserveMermaid(text);
+
+    // Transformações de links e citações — agora seguras
     text = fixFakeLinks(text);
     text = rewriteMarkdownLinksToGoogle(text);
     text = autoLinkSeniorTerms(text);
     text = cleanFakeSourcesBlock(text);
 
-    // 3) LIMPEZA DE EMOJI BADGES mas mantendo a URL COMPLETA original para auditoria
+    // Limpeza de emoji badges mantendo URL completa para auditoria
     text = text.replace(
       /\[(🟢|🟡|🟠|🔴)\s*(?:Fonte oficial|Não confirmado|Evidência forte|Suspeito)?[\s-–:]*([^\]\n]+?)\]/gi,
       (_, _emoji, rawUrl) => {
         let fullUrl = rawUrl.trim();
-
-        // Se não começar com http, adiciona https://
-        if (!fullUrl.startsWith('http')) {
-          fullUrl = 'https://' + fullUrl;
-        }
-
-        // Extrai o domínio apenas para o title/hover
+        if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
         const displayDomain = fullUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-
         const citationIndex = citationMap.get(normalizeSourceUrl(fullUrl));
-
-        // O href agora aponta para a URL completa que a IA usou
         if (!citationIndex) {
           return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${displayDomain}</a>`;
         }
@@ -266,7 +289,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return restoreMermaid(text);
   }, [content, citationMap]);
 
-  const components: any = {
+  const components: Record<string, React.FC<any>> = {
     code: ({ inline, className, children, ...props }: any) => {
       const langMatch = /language-(\w+)/.exec(className || '');
       const isMermaid = !inline && langMatch && langMatch[1] === 'mermaid';
@@ -291,7 +314,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     },
 
     a: ({ href, children, className, title, ...props }: any) => {
-      // Se é uma citação gerada pelo useMemo
       if (className === 'citation-link') {
         return (
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline no-underline" title={title} {...props}>
@@ -302,8 +324,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
       const textContent = extractNodeText(children);
       const cleanText = textContent.trim();
-
-      // Se ainda sobrou algum link markdown com emoji da IA que não foi capturado
       const isBadgeMatch = textContent.match(/^(🟢|🟡|🟠|🔴)/);
       const citationIndex = href ? citationMap.get(normalizeSourceUrl(href)) : undefined;
       const isDomainLike = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(cleanText);
@@ -311,14 +331,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
       if (isBadgeMatch) {
         const displayDomain = href.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-
         return (
           <sup className="ml-0.5">
-            <a 
-              href={href} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline no-underline" 
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline no-underline"
               title={displayDomain}
               {...props}
             >
@@ -328,7 +347,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
-      // Estilo "Wikipedia" para links citados que podem poluir visualmente.
       if (citationIndex && (isDomainLike || isLongLinkLabel)) {
         return (
           <sup className="ml-0.5">
@@ -346,7 +364,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
-      // Se não houver índice, mas for URL longa, reduz visual para domínio curto.
       if (!citationIndex && isDomainLike) {
         const displayDomain = cleanText.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
         return (
@@ -356,7 +373,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
-      // Link normal
       return (
         <span>
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words" {...props}>
@@ -366,7 +382,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         </span>
       );
     },
-    
+
     sup: ({ children }: any) => (
       <sup className="ml-0.5">{children}</sup>
     ),
