@@ -300,7 +300,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           // Schedule next reveal if there are more in queue
           if (queueRef.current.length > 0) {
             revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
+          } else {
+            revealTimerRef.current = null;
           }
+        } else {
+          revealTimerRef.current = null;
         }
       }, delay);
     };

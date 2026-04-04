@@ -23,13 +23,15 @@ import SuspenseWithError from './components/SuspenseWithError';
 const CRMDetail = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
 );
-import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppError, CRMStage } from './types';
+import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppError, CRMStage, ClienteSeniorData } from './types';
 import {
   sendMessageToGemini,
   generateContinuityQuestion,
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
+import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
+import { lookupCliente } from './services/clientLookupService';
 import { 
   SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -475,7 +477,7 @@ const App: React.FC = () => {
           updateSessionById(sessionId, s => ({
             ...s,
             messages: s.messages.map(msg =>
-              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
+              msg.id === botMessageId ? { ...msg, text: accumulatedText } : msg
             )
           }));
         };
@@ -609,6 +611,54 @@ const App: React.FC = () => {
         } else {
           setFailureCount(0);
         }
+
+        // --- PÓS-PROCESSAMENTO DO WATERFALL ---
+        // Extrair Score PORTA dos markers no texto acumulado
+        const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
+        const waterfallCleanText = stripPortaMarkers(accumulatedText);
+
+        // Lookup Cliente Senior (mesma lógica do fluxo regular)
+        let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+        const lookupTarget = normalizedCompany || hintedCompany || '';
+        if (lookupTarget) {
+          try {
+            const clienteData = await lookupCliente(lookupTarget);
+            if (clienteData?.encontrado && clienteData.results?.length > 0) {
+              const r = clienteData.results[0];
+              waterfallClienteSeniorData = {
+                encontrado: true,
+                grupo: r.grupo,
+                totalModulos: r.total_modulos,
+                familias: r.familias_presentes,
+                modulosPorFamilia: r.modulos_por_familia,
+              };
+            }
+          } catch {
+            // Lookup falhou — não bloqueia o dossiê
+          }
+        }
+
+        // Update final da mensagem com score, cliente e texto limpo
+        updateSessionById(sessionId, s => {
+          const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
+          return {
+            ...s,
+            empresaAlvo: finalCompany || s.empresaAlvo,
+            scoreOportunidade: waterfallScorePorta?.score ?? s.scoreOportunidade,
+            messages: s.messages.map(msg =>
+              msg.id === botMessageId
+                ? {
+                    ...msg,
+                    text: waterfallCleanText,
+                    scorePorta: waterfallScorePorta || undefined,
+                    clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    suggestions: [],
+                    isThinking: false,
+                  }
+                : msg,
+            ),
+          };
+        });
 
         completeLoadingProgress();
         return;
