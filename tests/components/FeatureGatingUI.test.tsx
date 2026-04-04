@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import SettingsDrawer from '../../components/SettingsDrawer';
 import SessionsSidebar from '../../components/SessionsSidebar';
 import { ChatSession } from '../../types';
@@ -33,6 +33,7 @@ const baseSession: ChatSession = {
 
 describe('MVP feature gating UI', () => {
   it('hides dashboard and integrity actions when restricted', () => {
+    const onExportConversation = vi.fn();
     render(
       <SettingsDrawer
         isOpen={true}
@@ -45,6 +46,7 @@ describe('MVP feature gating UI', () => {
         onToggleTheme={vi.fn()}
         onOpenDashboard={vi.fn()}
         onExportPDF={vi.fn()}
+        onExportConversation={onExportConversation}
         onCopyMarkdown={vi.fn()}
         onScheduleFollowUp={vi.fn()}
         onLogout={vi.fn()}
@@ -57,6 +59,9 @@ describe('MVP feature gating UI', () => {
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Teste de Integridade')).not.toBeInTheDocument();
     expect(screen.queryByText(/modo de investigação/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Baixar Word'));
+    expect(onExportConversation).toHaveBeenCalledWith('doc', 'full');
   });
 
   it('hides mini CRM entries in sessions sidebar when restricted', () => {

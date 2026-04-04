@@ -80,4 +80,26 @@ describe('parseMarkdownSections', () => {
     const sections = parseMarkdownSections(md);
     expect(sections[0].content).not.toContain('## Seção Limpa');
   });
+
+  it('agrupa módulos principais por header H1 e preserva subseções dentro do conteúdo', () => {
+    const md = [
+      '# 🦅 DOSSIÊ SCOUT 360: OPERACIONAL',
+      '',
+      '## 🎯 RADAR',
+      'Bullet 1',
+      '',
+      '# 🦅 DOSSIÊ SCOUT 360: TECH STACK',
+      '',
+      '### 🗺️ MAPA',
+      'Detalhe técnico',
+    ].join('\n');
+
+    const sections = parseMarkdownSections(md);
+    expect(sections).toHaveLength(2);
+    expect(sections[0].level).toBe(1);
+    expect(sections[0].title).toContain('OPERACIONAL');
+    expect(sections[0].content).toContain('## 🎯 RADAR');
+    expect(sections[1].title).toContain('TECH STACK');
+    expect(sections[1].content).toContain('### 🗺️ MAPA');
+  });
 });
