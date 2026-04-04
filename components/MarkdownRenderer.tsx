@@ -362,14 +362,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <h1 className="text-lg md:text-xl font-black tracking-tight mb-3 text-slate-900 dark:text-white">{children}</h1>
     ),
     h2: ({ children }: any) => (
-      <h2 className="text-base md:text-lg font-black tracking-tight mt-4 mb-2 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-1 flex items-center gap-2">
-        <span className="w-1 h-4 rounded-full bg-emerald-500/80" />{children}
+      <h2 className="text-base md:text-lg font-black tracking-tight mt-6 mb-3 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-2 flex items-start gap-2">
+        <span className="w-1.5 h-4 mt-1 rounded-full bg-emerald-500/80 shrink-0" />
+        <span className="block leading-snug">{children}</span>
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-3 mb-1 text-slate-900 dark:text-slate-50 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{children}
+      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
+        <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
+        <span className="block leading-snug">{children}</span>
       </h3>
+    ),
+    hr: () => (
+      <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />
     ),
     h4: ({ children }: any) => (
       <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>
