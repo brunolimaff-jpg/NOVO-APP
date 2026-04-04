@@ -25,17 +25,6 @@
     
     <title>🦅 Senior Scout 360</title>
     
-    <!-- Service Worker Registration -->
-    <script>
-      const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-      if ('serviceWorker' in navigator && !isLocalDevHost) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ Service Worker registered:', reg.scope))
-            .catch(err => console.log('❌ SW registration failed:', err));
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>
