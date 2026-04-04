@@ -78,6 +78,7 @@ function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
 }
 
 const MessageRow = memo(({ index, data }: MessageRowProps) => {
+  if (!data) return null;
   const {
     messages,
     isLoading,
@@ -104,6 +105,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     empresaAlvo,
   } = data;
 
+  if (!messages || !Array.isArray(messages)) return null;
   const msg = messages[index];
   if (!msg) return null;
 

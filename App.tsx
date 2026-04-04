@@ -289,7 +289,7 @@ const App: React.FC = () => {
   }, [showEmailModal, showFollowUpModal]);
 
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
-  const allMessages = currentSession ? currentSession.messages : [];
+  const allMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccessForUser(user);
   const canAccessMiniCRM = featureAccess.miniCRM;
@@ -767,7 +767,7 @@ const App: React.FC = () => {
       currentHistory = [];
     } else {
       const session = sessions.find(s => s.id === sessionId);
-      currentHistory = session ? [...session.messages] : [];
+      currentHistory = session?.messages ? [...session.messages] : [];
       immediateCompany = hintedCompanyOverride || session?.empresaAlvo || null;
     }
     const userMessage: Message = {
@@ -778,7 +778,7 @@ const App: React.FC = () => {
     };
     setSessions(prev =>
       prev.map(s =>
-        s.id === sessionId ? { ...s, messages: [...s.messages, userMessage], updatedAt: new Date().toISOString() } : s,
+        s.id === sessionId ? { ...s, messages: [...(s.messages || []), userMessage], updatedAt: new Date().toISOString() } : s,
       ),
     );
     setVisibleCount(prev => prev + 1);
