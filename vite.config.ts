@@ -21,6 +21,11 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: true,
         },
+        '/api/gerar-dossie': {
+          target: 'https://scoutagro.vercel.app',
+          changeOrigin: true,
+          secure: true,
+        },
       },
     },
     plugins: [
@@ -120,10 +125,16 @@ export default defineConfig(() => {
             // Sem isso, o browser busca mermaid-aBc123.js que não existe mais
             // após redeploy, recebendo index.html com MIME text/html → erro fatal.
             mermaid: ['mermaid'],
-            // FIX: isola constants.ts e types.ts em chunk dedicado.
-            // Garante que sejam avaliados ANTES dos componentes que os importam,
-            // prevenindo Temporal Dead Zone (TDZ) no bundle minificado de produção.
-            'app-core': ['./constants.ts', './types.ts'],
+            // FIX: isola módulos raiz em chunk dedicado — avaliados ANTES dos
+            // componentes que os importam, prevenindo TDZ no bundle minificado.
+            // geminiProxy.ts incluído pois suas funções são importadas por
+            // geminiService.ts e warRoomService.ts (alto risco de TDZ).
+            'app-core': [
+              './constants.ts',
+              './types.ts',
+              './services/investigationStore.ts',
+              './services/geminiProxy.ts',
+            ],
           },
         },
       },

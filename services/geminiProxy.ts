@@ -56,6 +56,9 @@ const LOCAL_DEV_BASE_URL =
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
 
+// FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
+// Chamá-la no nível de módulo causaria TDZ quando outro módulo importa geminiProxy
+// antes que window/import.meta estejam disponíveis no bundle minificado.
 function resolveEndpoint(path: string): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isLocalDev = import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1');
@@ -70,8 +73,9 @@ export function resolveGeminiApiEndpoint(
   return isDev && isLocalDevHost ? `${LOCAL_DEV_BASE_URL}/api/gemini` : '/api/gemini';
 }
 
-const GEMINI_API_ENDPOINT = resolveGeminiApiEndpoint();
-const GERAR_DOSSIE_ENDPOINT = resolveEndpoint('/api/gerar-dossie');
+// FIX: removidas as const GEMINI_API_ENDPOINT e GERAR_DOSSIE_ENDPOINT do escopo
+// de módulo. Cada função resolve seu endpoint de forma lazy (na primeira chamada),
+// garantindo que window e import.meta estejam disponíveis no momento da avaliação.
 
 async function callGeminiApi<TResponse>(
   endpoint: string,
@@ -132,18 +136,21 @@ export async function proxyGenerateContent(
   params: Omit<GeminiGenerateRequest, 'action'>,
   signal?: AbortSignal
 ): Promise<GeminiGenerateResponse> {
-  return callGeminiApi<GeminiGenerateResponse>(GEMINI_API_ENDPOINT, { action: 'generateContent', ...params }, signal);
+  // endpoint resolvido lazy — sem const de módulo
+  return callGeminiApi<GeminiGenerateResponse>(resolveGeminiApiEndpoint(), { action: 'generateContent', ...params }, signal);
 }
 
 export async function proxyChatSendMessage(
   params: Omit<GeminiChatRequest, 'action'>,
   signal?: AbortSignal
 ): Promise<GeminiChatResponse> {
-  return callGeminiApi<GeminiChatResponse>(GEMINI_API_ENDPOINT, { action: 'chatSendMessage', ...params }, signal);
+  // endpoint resolvido lazy — sem const de módulo
+  return callGeminiApi<GeminiChatResponse>(resolveGeminiApiEndpoint(), { action: 'chatSendMessage', ...params }, signal);
 }
 
 export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
-  return callGeminiApi<GeminiHealthResponse>(GEMINI_API_ENDPOINT, { action: 'health' }, signal);
+  // endpoint resolvido lazy — sem const de módulo
+  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: 'health' }, signal);
 }
 
 /** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */
@@ -151,5 +158,7 @@ export async function proxyGerarDossie(
   params: Omit<GeminiGenerateRequest, 'action'>,
   signal?: AbortSignal
 ): Promise<GeminiGenerateResponse> {
-  return callGeminiApi<GeminiGenerateResponse>(GERAR_DOSSIE_ENDPOINT, params, signal);
+  // FIX: endpoint resolvido lazy dentro da função, não como const de módulo.
+  // Previne TDZ "Cannot access '$i' before initialization" em produção.
+  return callGeminiApi<GeminiGenerateResponse>(resolveEndpoint('/api/gerar-dossie'), params, signal);
 }
