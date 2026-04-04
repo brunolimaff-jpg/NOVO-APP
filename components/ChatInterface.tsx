@@ -10,6 +10,7 @@ import EmptyStateHome from './EmptyStateHome';
 import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
+import { scoutDiag } from '../utils/diagnosticLog';
 const InvestigationDashboard = React.lazy(() => loadWithChunkRetry(() => import('./InvestigationDashboard')));
 const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('./SettingsDrawer')));
 const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('./WarRoom')));
@@ -172,6 +173,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   // ── Scroll behavior refs ──────────────────────────────────────────────────
   const userHasScrolledUpRef = useRef(false);
   const prevIsLoadingRef = useRef(false);
+  const malformedProcessingSignatureRef = useRef<string | null>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
   const [input, setInput] = useState('');
@@ -274,6 +276,59 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         .pop(),
     [messages],
   );
+
+  const processingInfo = useMemo(() => {
+    if (!processing) return null;
+
+    const stage = typeof processing.stage === 'string' ? processing.stage.trim() : '';
+    const completedStages = Array.isArray(processing.completedStages) ? processing.completedStages : [];
+    const failureCount =
+      typeof processing.failureCount === 'number' && Number.isFinite(processing.failureCount)
+        ? processing.failureCount
+        : 0;
+
+    const details: string[] = [];
+    if (completedStages.length > 0) {
+      details.push(`${completedStages.length} ${completedStages.length === 1 ? 'etapa' : 'etapas'}`);
+    }
+    if (failureCount > 0) {
+      details.push(`tentativa ${failureCount + 1}`);
+    }
+
+    return {
+      label: stage || 'Processando...',
+      detailText: details.join(' • '),
+      stageType: typeof processing.stage,
+      completedStagesIsArray: Array.isArray(processing.completedStages),
+      failureCountType: typeof processing.failureCount,
+      isMalformed:
+        typeof processing.stage !== 'string' ||
+        !Array.isArray(processing.completedStages),
+    };
+  }, [processing]);
+
+  useEffect(() => {
+    if (!processingInfo?.isMalformed) {
+      malformedProcessingSignatureRef.current = null;
+      return;
+    }
+
+    const logPayload = {
+      stageType: processingInfo.stageType,
+      completedStagesIsArray: processingInfo.completedStagesIsArray,
+      failureCountType: processingInfo.failureCountType,
+      sessionId: currentSession?.id ?? null,
+    };
+    const signature = JSON.stringify(logPayload);
+    if (malformedProcessingSignatureRef.current === signature) return;
+
+    malformedProcessingSignatureRef.current = signature;
+    scoutDiag.warn(
+      'ChatInterface',
+      'processing payload malformado no indicador inferior',
+      logPayload,
+    );
+  }, [currentSession?.id, processingInfo]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Ao concluir geração: volta suavemente para a mensagem do usuário ──────
@@ -616,10 +671,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         {/* ── Input area ──────────────────────────────────────────────────── */}
         <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
           {/* Processing indicator */}
-          {processing && (
-            <div className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5`}>
+          {processing && processingInfo && (
+            <div className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {processing}
+              <span>{processingInfo.label}</span>
+              {processingInfo.detailText ? (
+                <span className="opacity-80">{processingInfo.detailText}</span>
+              ) : null}
             </div>
           )}
 
