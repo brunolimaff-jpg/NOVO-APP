@@ -1,12 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ChatMode, DEFAULT_MODE } from '../constants';
-// FIX: namespace import adia a resolução dos bindings para o runtime do provider,
-// prevenindo Temporal Dead Zone (TDZ) no bundle minificado de produção.
-// Importação named direta de OPERACAO_PROMPT / DIRETORIA_PROMPT causava
-// "Cannot access 'Sn' before initialization" quando o React Compiler
-// reescrevia os closures alterando a ordem de avaliação dos módulos.
-import * as Constants from '../constants';
+import { OPERACAO_PROMPT } from '../prompts/systemPrompts';
 
 interface ModeContextType {
   mode: ChatMode;
@@ -22,13 +16,12 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const ENFORCED_MODE: ChatMode = 'operacao';
 
   useEffect(() => {
-    // MVP: diretoria desativado temporariamente. Força operação.
+    // Modo diretoria descontinuado. Forca operacao permanentemente.
     setModeState(ENFORCED_MODE);
     try {
       localStorage.setItem('scout360_mode', ENFORCED_MODE);
     } catch {
-      // localStorage indisponível em alguns contextos (Safari private, iframe) — ignora silenciosamente
-      console.warn('[ModeProvider] localStorage indisponível, modo não persiste entre sessões.');
+      console.warn('[ModeProvider] localStorage indisponivel, modo nao persiste entre sessoes.');
     }
   }, []);
 
@@ -37,7 +30,7 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       localStorage.setItem('scout360_mode', ENFORCED_MODE);
     } catch {
-      console.warn('[ModeProvider] localStorage indisponível.');
+      console.warn('[ModeProvider] localStorage indisponivel.');
     }
   };
 
@@ -45,9 +38,8 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setMode(ENFORCED_MODE);
   };
 
-  // FIX: acesso via namespace — resolvido no runtime do provider, não no init do módulo
-  const systemInstruction =
-    mode === 'operacao' ? Constants.OPERACAO_PROMPT : Constants.DIRETORIA_PROMPT;
+  // Modo unico: operacao. DIRETORIA_PROMPT removido.
+  const systemInstruction = OPERACAO_PROMPT;
 
   return (
     <ModeContext.Provider value={{ mode, setMode, toggleMode, systemInstruction }}>
