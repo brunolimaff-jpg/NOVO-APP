@@ -153,7 +153,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
       : randomGreeting;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
-  const bullets = BULLETS[mode];
+  const bullets = BULLETS[mode] ?? BULLETS[DEFAULT_MODE];
 
   const [companyName, setCompanyName] = useState('');
   const [cnpjInput, setCnpjInput] = useState('');
