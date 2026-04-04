@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import { ChatSession } from '../types';
 import { listRemoteSessions } from '../services/sessionRemoteStore';
 import { LOOKUP_URL } from '../services/apiConfig';
@@ -6,10 +6,9 @@ import { LOOKUP_URL } from '../services/apiConfig';
 interface UseAppInitializationOptions {
   loadSessions: () => Promise<ChatSession[]>;
   setSessions: (updater: (prev: ChatSession[]) => ChatSession[]) => void;
-  setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>>;
+  setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
   setIsSidebarOpen: (open: boolean) => void;
   setIsInitialized: (initialized: boolean) => void;
-  handleNewSession: () => void;
 }
 
 /**
@@ -26,7 +25,6 @@ export function useAppInitialization({
   setCurrentSessionId,
   setIsSidebarOpen,
   setIsInitialized,
-  handleNewSession,
 }: UseAppInitializationOptions) {
   useEffect(() => {
     let cancelled = false;
@@ -44,8 +42,6 @@ export function useAppInitialization({
       if (localSessions.length > 0) {
         setSessions(() => localSessions);
         setCurrentSessionId(localSessions[0].id);
-      } else {
-        handleNewSession();
       }
       if (window.innerWidth < 768) setIsSidebarOpen(false);
       setIsInitialized(true);

@@ -240,7 +240,6 @@ const App: React.FC = () => {
     setCurrentSessionId,
     setIsSidebarOpen,
     setIsInitialized,
-    handleNewSession,
   });
 
   const handleSaveRemote = async () => {
