@@ -309,7 +309,7 @@ export default function InvestigationDashboard({
         </div>
 
         {/* LISTA */}
-        <div className="overflow-y-auto flex-1 p-4 md:p-5 space-y-2.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="overflow-y-auto flex-1 p-4 md:p-5 space-y-2.5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
           {filtered.length === 0 && (searchText || scoreFilter !== "todos" || clienteFilter !== "todos") && (
             <p className="text-center text-gray-500 text-sm py-12">
               Nenhuma empresa encontrada para os filtros selecionados.

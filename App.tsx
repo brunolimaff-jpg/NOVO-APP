@@ -904,17 +904,7 @@ const App: React.FC = () => {
       <div
         className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        {/* FIX MOBILE: quando isLoading=true (tela de investigação ativa),
-            libera scroll no filho flex-1 com overscroll-contain para o bounce
-            não vazar para o body. -webkit-overflow-scrolling garante momentum no iOS. */}
-        <div
-          className="flex-1 min-h-0"
-          style={isLoading ? {
-            overflowY: 'auto',
-            overscrollBehavior: 'contain',
-            WebkitOverflowScrolling: 'touch',
-          } : undefined}
-        >
+        <div className="flex-1 min-h-0">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
