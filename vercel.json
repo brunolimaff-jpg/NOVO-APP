@@ -3,6 +3,9 @@
     "api/gemini.ts": {
       "maxDuration": 300
     },
+    "api/gerar-dossie.ts": {
+      "maxDuration": 300
+    },
     "api/radar-scan.ts": {
       "maxDuration": 120
     }

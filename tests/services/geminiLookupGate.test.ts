@@ -47,7 +47,7 @@ vi.mock('../../services/portaStateService', () => ({
   setBaseScore: vi.fn(),
 }));
 
-vi.mock('../../components/InvestigationDashboard', () => ({
+vi.mock('../../services/investigationStore', () => ({
   addInvestigation: vi.fn(),
 }));
 

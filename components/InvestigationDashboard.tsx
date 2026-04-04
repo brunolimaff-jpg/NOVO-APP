@@ -1,56 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
+import {
+  addInvestigation,
+  getInvestigations,
+  subscribe,
+  type Investigation,
+} from '../services/investigationStore';
 
-// ================================================================
-// TIPAGEM
-// ================================================================
-export interface Investigation {
-  id: string;
-  empresa: string;
-  score: number;
-  scoreLabel: string;
-  gaps: string[];
-  familias: string[];
-  isCliente: boolean;
-  modo: string;
-  data: string;
-  resumo: string;
-}
+// Re-exporta para não quebrar imports externos que usam o path do componente.
+export type { Investigation };
 
 export type ScoreFilter = "todos" | "quentes" | "mornas" | "frias";
 export type ClienteFilter = "todos" | "clientes" | "prospects";
-
-// ================================================================
-// STORE GLOBAL — publisher/subscriber, sem localStorage
-// ================================================================
-let investigationsStore: Investigation[] = [];
-let listeners: Array<() => void> = [];
-
-function notifyListeners() {
-  listeners.forEach((fn) => fn());
-}
-
-export function addInvestigation(inv: Investigation): void {
-  const idx = investigationsStore.findIndex(
-    (i) => i.empresa.toUpperCase() === inv.empresa.toUpperCase()
-  );
-  if (idx >= 0) {
-    investigationsStore[idx] = { ...inv, id: investigationsStore[idx].id };
-  } else {
-    investigationsStore = [inv, ...investigationsStore];
-  }
-  notifyListeners();
-}
-
-export function getInvestigations(): Investigation[] {
-  return [...investigationsStore];
-}
-
-function subscribe(fn: () => void): () => void {
-  listeners.push(fn);
-  return () => {
-    listeners = listeners.filter((l) => l !== fn);
-  };
-}
 
 // ================================================================
 // HELPERS
