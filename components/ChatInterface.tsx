@@ -834,11 +834,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               onToggleTheme={onToggleTheme}
               onOpenDashboard={() => canAccessDashboard && setShowDashboard(true)}
               onExportPDF={onExportPDF}
+              onExportConversation={onExportConversation}
               onCopyMarkdown={handleCopyMarkdown}
               onScheduleFollowUp={onOpenFollowUpModal}
               onLogout={onLogout}
               onClose={handleCloseSettings}
               exportStatus={exportStatus}
+              exportError={exportError}
               canAccessDashboard={canAccessDashboard}
               canAccessIntegrityCheck={canAccessIntegrityCheck}
             />

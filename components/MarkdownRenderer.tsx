@@ -183,6 +183,20 @@ function sanitizeMermaidCode(input: string): string {
     .replace(/^[^a-zA-Z]+/, '')
     .trim();
 
+  const collectedClassLines: string[] = [];
+  const seenClassAssignments = new Set<string>();
+  code = code.replace(
+    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
+    (_full, nodeId: string, nodeShape: string, className: string) => {
+      const classLine = `class ${nodeId} ${className};`;
+      if (!seenClassAssignments.has(classLine)) {
+        seenClassAssignments.add(classLine);
+        collectedClassLines.push(classLine);
+      }
+      return `${nodeId}${nodeShape}`;
+    }
+  );
+
   // Garante que subgraph labels com espaços/caracteres especiais ficam entre aspas
   code = code.replace(
     /^(\s*subgraph\s+)([^"'\n\[\]{]+?)(\s*)$/gm,
@@ -207,6 +221,10 @@ function sanitizeMermaidCode(input: string): string {
     )
   ) {
     return '';
+  }
+
+  if (collectedClassLines.length > 0) {
+    code = `${code}\n${collectedClassLines.join('\n')}`;
   }
 
   return code;
@@ -400,7 +418,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     ),
     li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
     h1: ({ children }: any) => (
-      <h1 className="text-lg md:text-xl font-black tracking-tight mb-3 text-slate-900 dark:text-white">{children}</h1>
+      <h1 className="text-lg md:text-[1.45rem] font-black tracking-tight mb-4 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-slate-800 pb-3">
+        {children}
+      </h1>
     ),
     h2: ({ children }: any) => (
       <h2 className="text-base md:text-lg font-black tracking-tight mt-6 mb-3 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-2 flex items-start gap-2">
