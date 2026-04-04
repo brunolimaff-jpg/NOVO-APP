@@ -180,7 +180,8 @@ PROFUNDIDADE > AMPLITUDE
 </scope_discipline>
 
 <mermaid_construction_rules>
-Ao gerar diagramas Mermaid (graph TD):
+Ao gerar diagramas Mermaid:
+SEMPRE utilize a orientação horizontal para otimizar espaço vertical: "graph LR" (E NUNCA "graph TD" ou "graph TB").
 
 Regras de construção:
 1. Construa com DADOS REAIS encontrados na pesquisa
@@ -192,11 +193,18 @@ Regras de construção:
 7. Use labels curtos para evitar quebra visual
 8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
 
-Classes de estilo padrão:
-- classDef core fill:#1e40af (azul - sistemas core)
-- classDef satellite fill:#047857 (verde - satélites)
-- classDef danger fill:#b91c1c (vermelho - gaps/problemas)
-- classDef warning fill:#b45309 (laranja - integrações manuais)
+Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
+- classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
+- classDef satellite fill:#f0fdf4,stroke:#86efac,stroke-width:1px,color:#166534,rx:12px,ry:12px;
+- classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px,color:#991b1b,rx:12px,ry:12px;
+- classDef warning fill:#fffbeb,stroke:#fcd34d,stroke-width:1px,color:#92400e,rx:12px,ry:12px;
+- classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
+
+Ao invés de azul ou verde genéricos, agora utilize as classes acima:
+- :::core para sistemas centrais/principais
+- :::satellite para periféricos benéficos
+- :::danger para gargalos crônicos, perdas ou falta de sistemas cruciais
+- :::warning para áreas de atrito manual
 </mermaid_construction_rules>
 
 <output_discipline>
