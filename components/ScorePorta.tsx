@@ -65,6 +65,7 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
   const subtleBg = isDarkMode ? '#0b1220' : '#f8fafc';
   const subtleBorder = isDarkMode ? 'rgba(148,163,184,0.12)' : '#e2e8f0';
 
+  const validFlags = flags.filter(flag => flag in PORTA_FLAG_META);
   const values: Record<string, number> = { p, o, r, t, a };
   const justificativasObj: Record<string, string> = { 
     p: scoreData.justificativas?.P || '',
@@ -178,7 +179,7 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
         </span>
       </div>
 
-      {flags.length > 0 && (
+      {validFlags.length > 0 && (
         <div
           style={{
             display: 'flex',
@@ -191,7 +192,7 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
             border: `1px solid ${subtleBorder}`,
           }}
         >
-          {flags.map(flag => (
+          {validFlags.map(flag => (
             <span
               key={flag}
               title={PORTA_FLAG_META[flag].description}

@@ -1,11 +1,11 @@
 
 import React from 'react';
 import { useMode } from '../contexts/ModeContext';
-import { MODE_LABELS } from '../constants';
+import { MODE_LABELS, DEFAULT_MODE } from '../constants';
 
 const ModeToggle: React.FC = () => {
   const { mode } = useMode();
-  const currentConfig = MODE_LABELS[mode];
+  const currentConfig = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
 
   const { theme } = currentConfig;
 

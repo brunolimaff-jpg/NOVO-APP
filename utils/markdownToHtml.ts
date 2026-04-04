@@ -24,6 +24,7 @@ export function convertMarkdownToHTML(md: string, includeSources: boolean = true
             : `Score final ${porta.score}`;
         const flagsHtml = porta.flags.length
           ? porta.flags
+              .filter(flag => flag in PORTA_FLAG_META)
               .map(
                 flag => `<span class="pill">${PORTA_FLAG_META[flag].icon} ${PORTA_FLAG_META[flag].shortLabel}</span>`,
               )
