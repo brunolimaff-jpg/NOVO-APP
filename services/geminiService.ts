@@ -13,7 +13,7 @@ import {
   Sender,
   ClienteSeniorData,
 } from '../types';
-import { ChatMode, NOME_VENDEDOR_PLACEHOLDER } from '../constants';
+import { NOME_VENDEDOR_PLACEHOLDER } from '../constants';
 import { normalizeAppError } from '../utils/errorHelpers';
 import { withAutoRetry } from '../utils/retry';
 import { parsePortaMarkerV2, stripPortaMarkers } from '../utils/porta';
@@ -458,6 +458,42 @@ function emitDossieStatus(
   key: keyof typeof DOSSIE_STATUS,
 ): void {
   onStatus?.(DOSSIE_STATUS[key]);
+}
+
+function buildTimeoutError(label: string, timeoutMs: number): Error {
+  const error = new Error(`${label} timeout after ${timeoutMs}ms`);
+  error.name = 'TimeoutError';
+  return error;
+}
+
+async function runWithStepTimeout<T>(
+  label: string,
+  action: (signal?: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<T> {
+  if (!timeoutMs || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return action(signal);
+  }
+
+  const timeoutController = new AbortController();
+  const relayAbort = () => timeoutController.abort();
+  signal?.addEventListener('abort', relayAbort, { once: true });
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timeoutController.abort();
+      reject(buildTimeoutError(label, timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([action(timeoutController.signal), timeoutPromise]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    signal?.removeEventListener('abort', relayAbort);
+  }
 }
 
 export async function generateLoadingCuriosities(
@@ -1005,7 +1041,7 @@ export async function generateDossierModule(
   foundationBlock: string,
   specialistPrompt: string,
   extraContext: string = '',
-  options: { signal?: AbortSignal; onText?: (text: string) => void } = {}
+  options: { signal?: AbortSignal; onText?: (text: string) => void; timeoutMs?: number } = {}
 ): Promise<string> {
   const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${extraContext}`;
   const promptChars = finalPrompt.length;
@@ -1026,12 +1062,18 @@ export async function generateDossierModule(
       promptChars,
     });
   }
-  
-  const response = await proxyGenerateContent({
-    model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
-    contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
-    config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
-  }, options.signal);
+
+  const response = await runWithStepTimeout(
+    `DossierModule:${moduleName}`,
+    stepSignal =>
+      proxyGenerateContent({
+        model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
+        contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
+        config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
+      }, stepSignal),
+    options.signal,
+    options.timeoutMs,
+  );
   
   const finalText = response.text || '';
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
@@ -1051,13 +1093,19 @@ export async function generateDossierModule(
  */
 export async function getIsolatedBenchmark(
   empresaAlvo: string,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<string> {
   if (!isValidEmpresaParaBenchmark(empresaAlvo)) return '';
 
-  const benchmarkResult = await withAutoRetry('Benchmark:Isolated', () => 
-    benchmarkClientes(empresaAlvo),
-    { maxRetries: 3, abortSignal: options.signal }
+  const benchmarkResult = await runWithStepTimeout(
+    `Benchmark:Isolated:${empresaAlvo}`,
+    stepSignal =>
+      withAutoRetry('Benchmark:Isolated', () =>
+        benchmarkClientes(empresaAlvo),
+        { maxRetries: 3, abortSignal: stepSignal },
+      ),
+    options.signal,
+    options.timeoutMs,
   );
 
   if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';

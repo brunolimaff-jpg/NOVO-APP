@@ -23,18 +23,18 @@ describe('constants', () => {
   });
 
   describe('DEFAULT_MODE', () => {
-    it('e operacao', () => {
-      expect(DEFAULT_MODE).toBe('operacao');
+    it('e investigacao', () => {
+      expect(DEFAULT_MODE).toBe('investigacao');
     });
   });
 
   describe('MODE_LABELS', () => {
-    it('tem entrada para operacao', () => {
-      expect(MODE_LABELS['operacao']).toBeDefined();
+    it('tem entrada para investigacao', () => {
+      expect(MODE_LABELS['investigacao']).toBeDefined();
     });
 
-    it('modo operacao tem label, icon e description', () => {
-      const mode: ChatMode = 'operacao';
+    it('modo investigacao tem label, icon e description', () => {
+      const mode: ChatMode = 'investigacao';
       expect(MODE_LABELS[mode].label).toBeTruthy();
       expect(MODE_LABELS[mode].icon).toBeTruthy();
       expect(MODE_LABELS[mode].description).toBeTruthy();

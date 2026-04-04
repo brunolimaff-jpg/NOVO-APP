@@ -286,10 +286,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       typeof processing.failureCount === 'number' && Number.isFinite(processing.failureCount)
         ? processing.failureCount
         : 0;
+    const totalStages =
+      typeof processing.totalStages === 'number' && Number.isFinite(processing.totalStages)
+        ? processing.totalStages
+        : null;
 
     const details: string[] = [];
     if (completedStages.length > 0) {
-      details.push(`${completedStages.length} ${completedStages.length === 1 ? 'etapa' : 'etapas'}`);
+      details.push(
+        totalStages && totalStages > 0
+          ? `${completedStages.length}/${totalStages} etapas`
+          : `${completedStages.length} ${completedStages.length === 1 ? 'etapa' : 'etapas'}`,
+      );
     }
     if (failureCount > 0) {
       details.push(`tentativa ${failureCount + 1}`);
@@ -301,6 +309,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       stageType: typeof processing.stage,
       completedStagesIsArray: Array.isArray(processing.completedStages),
       failureCountType: typeof processing.failureCount,
+      totalStagesType: typeof processing.totalStages,
       isMalformed:
         typeof processing.stage !== 'string' ||
         !Array.isArray(processing.completedStages),
@@ -317,6 +326,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       stageType: processingInfo.stageType,
       completedStagesIsArray: processingInfo.completedStagesIsArray,
       failureCountType: processingInfo.failureCountType,
+      totalStagesType: processingInfo.totalStagesType,
       sessionId: currentSession?.id ?? null,
     };
     const signature = JSON.stringify(logPayload);
@@ -701,7 +711,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         {!showInitialHome && (
           <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
             {/* Processing indicator */}
-            {processing && processingInfo && (
+            {isLoading && processing && processingInfo && (
               <div className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}>
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>{processingInfo.label}</span>

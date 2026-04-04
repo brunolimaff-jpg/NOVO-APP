@@ -62,7 +62,7 @@ function makeData(messages: Message[], overrides: Partial<MessageRowData> = {}):
     messages,
     isLoading: false,
     isDarkMode: false,
-    mode: 'operacao',
+    mode: 'investigacao',
     onFeedback: vi.fn(),
     onSendFeedback: vi.fn(),
     onToggleMessageSources: vi.fn(),
@@ -107,6 +107,7 @@ describe('MessageRow', () => {
   it('renderiza mensagem de erro com ErrorMessageCard', () => {
     const errorDetails = {
       code: 'NETWORK' as const,
+      message: 'Falha de conexão',
       friendlyMessage: 'Falha de conexão',
       httpStatus: 0,
       retryable: true,
@@ -144,7 +145,6 @@ describe('MessageRow', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       text: '',
-      ghostReason: 'EMPRESA_NAO_IDENTIFICADA',
     });
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.getByTestId('ghost-block')).toBeInTheDocument();

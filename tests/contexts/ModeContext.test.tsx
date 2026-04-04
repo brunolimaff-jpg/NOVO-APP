@@ -1,6 +1,6 @@
 // tests/contexts/ModeContext.test.tsx
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, act, screen } from '@testing-library/react';
 import { ModeProvider, useMode } from '../../contexts/ModeContext';
 
@@ -12,7 +12,7 @@ const ModeDisplay: React.FC = () => {
       <span data-testid="mode">{mode}</span>
       <span data-testid="instruction">{systemInstruction.slice(0, 20)}</span>
       <button data-testid="toggle" onClick={toggleMode}>toggle</button>
-      <button data-testid="set-diretoria" onClick={() => setMode('diretoria')}>set diretoria</button>
+      <button data-testid="set-investigacao" onClick={() => setMode('investigacao')}>set investigacao</button>
     </div>
   );
 };
@@ -22,28 +22,28 @@ describe('ModeContext', () => {
     localStorage.clear();
   });
 
-  it('fornece modo inicial operacao (MVP enforcement)', async () => {
+  it('fornece modo inicial investigacao', async () => {
     render(
       <ModeProvider>
         <ModeDisplay />
       </ModeProvider>,
     );
-    // After useEffect runs (async), mode must be operacao
+    // After useEffect runs (async), mode must be investigacao
     await act(async () => {});
-    expect(screen.getByTestId('mode').textContent).toBe('operacao');
+    expect(screen.getByTestId('mode').textContent).toBe('investigacao');
   });
 
-  it('persiste operacao no localStorage após mount', async () => {
+  it('persiste investigacao no localStorage após mount', async () => {
     render(
       <ModeProvider>
         <ModeDisplay />
       </ModeProvider>,
     );
     await act(async () => {});
-    expect(localStorage.getItem('scout360_mode')).toBe('operacao');
+    expect(localStorage.getItem('scout360_mode')).toBe('investigacao');
   });
 
-  it('toggleMode sempre retorna operacao (MVP: diretoria desativado)', async () => {
+  it('toggleMode mantém o fluxo único de investigação', async () => {
     render(
       <ModeProvider>
         <ModeDisplay />
@@ -53,10 +53,10 @@ describe('ModeContext', () => {
     act(() => {
       screen.getByTestId('toggle').click();
     });
-    expect(screen.getByTestId('mode').textContent).toBe('operacao');
+    expect(screen.getByTestId('mode').textContent).toBe('investigacao');
   });
 
-  it('setMode(diretoria) ainda força operacao (MVP enforcement)', async () => {
+  it('setMode mantém investigacao como modo único', async () => {
     render(
       <ModeProvider>
         <ModeDisplay />
@@ -64,9 +64,9 @@ describe('ModeContext', () => {
     );
     await act(async () => {});
     act(() => {
-      screen.getByTestId('set-diretoria').click();
+      screen.getByTestId('set-investigacao').click();
     });
-    expect(screen.getByTestId('mode').textContent).toBe('operacao');
+    expect(screen.getByTestId('mode').textContent).toBe('investigacao');
   });
 
   it('systemInstruction é não-vazia', async () => {

@@ -27,18 +27,11 @@ const VALID_UFS = new Set([
   'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]);
 
-const BULLETS: Record<ChatMode, string[]> = {
-  operacao: [
-    'Dossiê integrado com síntese objetiva e rastreio de fontes.',
-    'CNPJ opcional com validação na BrasilAPI e localização conferida no IBGE.',
-    'Fluxo pronto para continuar no chat, exportar e enviar ao CRM.',
-  ],
-  diretoria: [
-    'Enquadramento estratégico da conta e leitura de risco/oportunidade.',
-    'Base para decisão: contexto, stakeholders e próximos passos sugeridos.',
-    'Compatível com aprofundamento em Modo Operação após o cadastro.',
-  ],
-};
+const BULLETS: string[] = [
+  'Dossiê integrado com síntese objetiva e rastreio de fontes.',
+  'CNPJ opcional com validação na BrasilAPI e localização conferida no IBGE.',
+  'Fluxo pronto para continuar no chat, exportar e enviar ao CRM.',
+];
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
   oportunidade: { label: 'OPORTUNIDADE', cls: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
@@ -147,13 +140,11 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
   const displayGreeting =
     userName && userName !== 'Sair' && userName.trim().length > 0
-      ? mode === 'operacao'
-        ? `Olá, ${userName}. Vamos iniciar uma nova investigação.`
-        : `Olá, ${userName}. Selecione a conta para análise executiva.`
+      ? `Olá, ${userName}. Vamos iniciar uma nova investigação.`
       : randomGreeting;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
-  const bullets = BULLETS[mode] ?? BULLETS[DEFAULT_MODE];
+  const bullets = BULLETS;
 
   const [companyName, setCompanyName] = useState('');
   const [cnpjInput, setCnpjInput] = useState('');
@@ -301,7 +292,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     : 'border-emerald-200 bg-emerald-50 text-emerald-800'
                 }`}
               >
-                {mode === 'operacao' ? 'Campo' : 'Estratégia'}
+                Fluxo único
               </span>
             </div>
             <p className={`mt-3 text-sm leading-relaxed ${textSecondary}`}>{modeMeta.description}</p>

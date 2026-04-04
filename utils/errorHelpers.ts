@@ -108,29 +108,16 @@ function isAppError(error: any): error is AppError {
 }
 
 /**
- * Retorna uma mensagem amigável baseada no Modo (Diretoria vs Operação)
+ * Retorna uma mensagem amigável para o fluxo único de investigação.
  */
-export function getFriendlyErrorMessage(error: AppError, mode: ChatMode): string {
-  if (mode === 'diretoria') {
-    switch (error.code) {
-      case 'NETWORK': return "Verifique sua conexão com a internet e tente novamente.";
-      case 'RATE_LIMIT': return "Muitas requisições simultâneas. Aguarde alguns instantes.";
-      case 'MODEL_OVERLOADED': return "O serviço de IA está temporariamente instável.";
-      case 'BLOCKED_CONTENT': return "Não consegui processar essa solicitação por políticas de segurança.";
-      case 'SERVER': return "Ocorreu uma falha temporária nos servidores do Google.";
-      case 'ABORTED': return "Geração interrompida.";
-      default: return error.friendlyMessage || "Não foi possível completar a solicitação.";
-    }
-  } else {
-    // Modo Operação
-    switch (error.code) {
-      case 'NETWORK': return "Ih, caiu a internet aí ou aqui? O sinal sumiu no meio do pasto.";
-      case 'RATE_LIMIT': return "Calma lá, boiadeiro! O sistema tá congestionado que nem estrada em dia de chuva.";
-      case 'MODEL_OVERLOADED': return "A IA deu uma engasgada no carburador. Muita gente usando.";
-      case 'BLOCKED_CONTENT': return "Opa, esse assunto aí barrou na cerca elétrica. Num passa.";
-      case 'SERVER': return "Deu ruim no servidor lá na gringa. Bora tentar de novo.";
-      case 'ABORTED': return "Freou o trator bruscamente, hein?";
-      default: return "Eita, deu um enrosco aqui que eu nem sei explicar. Tenta de novo aí.";
-    }
+export function getFriendlyErrorMessage(error: AppError, _mode: ChatMode): string {
+  switch (error.code) {
+    case 'NETWORK': return "Verifique sua conexão com a internet e tente novamente.";
+    case 'RATE_LIMIT': return "Muitas requisições simultâneas. Aguarde alguns instantes.";
+    case 'MODEL_OVERLOADED': return "O serviço de IA está temporariamente instável.";
+    case 'BLOCKED_CONTENT': return "Não consegui processar essa solicitação por políticas de segurança.";
+    case 'SERVER': return "Ocorreu uma falha temporária nos servidores de IA.";
+    case 'ABORTED': return "Geração interrompida.";
+    default: return error.friendlyMessage || "Não foi possível completar a solicitação.";
   }
 }

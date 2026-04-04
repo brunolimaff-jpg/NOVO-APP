@@ -234,6 +234,7 @@ export interface ChatInterfaceProps {
     stage?: string;
     completedStages?: string[];
     failureCount?: number;
+    totalStages?: number;
   };
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;

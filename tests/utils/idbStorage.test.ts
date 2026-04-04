@@ -1,5 +1,5 @@
 // tests/utils/idbStorage.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { storageSet, storageGet, storageRemove } from '../../utils/idbStorage';
 
 const PREFIX = 'scout360:';
@@ -33,8 +33,8 @@ describe('idbStorage', () => {
 
   describe('storageGet', () => {
     it('retorna valor armazenado', () => {
-      localStorage.setItem(PREFIX + 'mode', 'operacao');
-      expect(storageGet('mode')).toBe('operacao');
+      localStorage.setItem(PREFIX + 'mode', 'investigacao');
+      expect(storageGet('mode')).toBe('investigacao');
     });
 
     it('retorna null para chave inexistente', () => {

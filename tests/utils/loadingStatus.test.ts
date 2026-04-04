@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isPhaseTimelineStatus, normalizeLoadingStatus, statusKey } from '../../utils/loadingStatus';
+import {
+  finalizeLoadingProgress,
+  isPhaseTimelineStatus,
+  normalizeLoadingStatus,
+  statusKey,
+  transitionLoadingProgress,
+} from '../../utils/loadingStatus';
 
 describe('loadingStatus', () => {
   it('normaliza status live de fase para trilha padronizada', () => {
@@ -37,5 +43,56 @@ describe('loadingStatus', () => {
     expect(statusKey('Buscando histórico de grupo scheffer...')).toBe('historico');
     expect(statusKey('Gerando resposta...')).toBe('resposta');
     expect(statusKey('Montando resposta prática...')).toBe('resposta');
+  });
+
+  it('acumula etapa concluída ao transicionar de um estágio real para outro', () => {
+    expect(
+      transitionLoadingProgress(
+        'Estruturando contexto da conta...',
+        'Consultando modelo analítico...',
+        [],
+      ),
+    ).toEqual({
+      stage: 'Consultando modelo analítico...',
+      completedStages: ['Estruturando contexto da conta...'],
+    });
+  });
+
+  it('não adiciona placeholders genéricos ao histórico concluído', () => {
+    expect(
+      transitionLoadingProgress('Realizando pesquisa...', 'Estruturando contexto da conta...', []),
+    ).toEqual({
+      stage: 'Estruturando contexto da conta...',
+      completedStages: [],
+    });
+  });
+
+  it('deduplica estágios equivalentes pela statusKey', () => {
+    expect(
+      transitionLoadingProgress(
+        'Gerando resposta...',
+        'Montando resposta prática...',
+        ['Estruturando contexto da conta...'],
+      ),
+    ).toEqual({
+      stage: 'Montando resposta prática...',
+      completedStages: ['Estruturando contexto da conta...'],
+    });
+  });
+
+  it('finaliza corretamente o último estágio visível', () => {
+    expect(
+      finalizeLoadingProgress(
+        'Preparando próximos passos...',
+        ['Estruturando contexto da conta...', 'Montando resposta prática...'],
+      ),
+    ).toEqual({
+      stage: '',
+      completedStages: [
+        'Estruturando contexto da conta...',
+        'Montando resposta prática...',
+        'Preparando próximos passos...',
+      ],
+    });
   });
 });

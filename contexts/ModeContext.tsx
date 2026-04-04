@@ -13,10 +13,10 @@ const ModeContext = createContext<ModeContextType | undefined>(undefined);
 
 export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [mode, setModeState] = useState<ChatMode>(DEFAULT_MODE);
-  const ENFORCED_MODE: ChatMode = 'operacao';
+  const ENFORCED_MODE: ChatMode = DEFAULT_MODE;
 
   useEffect(() => {
-    // Modo diretoria descontinuado. Forca operacao permanentemente.
+    // Fluxo unificado: sempre opera no modo único de investigação.
     setModeState(ENFORCED_MODE);
     try {
       localStorage.setItem('scout360_mode', ENFORCED_MODE);
@@ -38,7 +38,7 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setMode(ENFORCED_MODE);
   };
 
-  // Modo unico: operacao. DIRETORIA_PROMPT removido.
+  // Fluxo único de investigação.
   const systemInstruction = OPERACAO_PROMPT;
 
   return (

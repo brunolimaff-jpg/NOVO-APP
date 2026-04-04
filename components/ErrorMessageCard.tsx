@@ -18,7 +18,7 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
   onRetry, 
   isLoadingRetry,
   isDarkMode,
-  mode = 'diretoria',
+  mode = 'investigacao',
   onReportError
 }) => {
   const [showDetails, setShowDetails] = useState(false);
@@ -62,7 +62,7 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
         <div className="flex-1 space-y-3 min-w-0">
           <div>
             <h3 className={`font-bold text-sm md:text-base ${theme.textPrimary}`}>
-              {mode === 'operacao' ? 'Deu ruim na máquina.' : 'Falha na solicitação.'}
+              Não foi possível concluir a investigação.
             </h3>
             <p className={`text-sm mt-1 leading-relaxed ${theme.textSecondary}`}>
               {friendlyMessage}
@@ -93,9 +93,7 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
                   <span>🔄</span>
                   <span>
                     {error.retryable
-                      ? mode === 'operacao'
-                        ? 'Tentar de novo'
-                        : 'Tentar novamente'
+                      ? 'Tentar novamente'
                       : 'Regenerar resposta'}
                   </span>
                   </>

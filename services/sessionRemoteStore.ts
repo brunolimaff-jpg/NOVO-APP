@@ -3,6 +3,7 @@ import { withAutoRetry } from "../utils/retry";
 import { scoutDiag } from "../utils/diagnosticLog";
 import { BACKEND_URL } from "./apiConfig";
 import { stripInternalMarkers } from "../utils/textCleaners";
+import { DEFAULT_MODE } from "../constants";
 
 const SESSIONS_API_URL = BACKEND_URL;
 const TIMEOUT_MS = 10000;
@@ -71,7 +72,7 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
       title: r.title || "Sessão sem título",
       empresaAlvo: r.empresaAlvo || null,
       cnpj: r.cnpj || null,
-      modoPrincipal: null,
+      modoPrincipal: DEFAULT_MODE,
       scoreOportunidade: r.scoreOportunidade ? Number(r.scoreOportunidade) : null,
       resumoDossie: r.resumoDossie || null,
       createdAt: r.createdAt,
@@ -137,7 +138,7 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
       title: s.title || "Sessão sem título",
       empresaAlvo: s.empresaAlvo || null,
       cnpj: s.cnpj || null,
-      modoPrincipal: null,
+      modoPrincipal: DEFAULT_MODE,
       scoreOportunidade: s.scoreOportunidade ? Number(s.scoreOportunidade) : null,
       resumoDossie: s.resumoDossie || null,
       createdAt: s.createdAt,

@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
 import { ChatSession } from '../types';
 
+function normalizeModeLabel(mode: string | null | undefined): string {
+  if (!mode) return 'investigacao';
+  if (mode === 'operacao' || mode === 'diretoria') return 'investigacao';
+  return mode;
+}
+
 export interface VendorMetric {
   name: string;
   sessions: number;
@@ -69,7 +75,7 @@ export function useAdminMetrics(sessions: ChatSession[]): AdminMetrics {
       const date = (s.createdAt ?? '').slice(0, 10);
       if (date) activityMap.set(date, (activityMap.get(date) ?? 0) + 1);
 
-      const mode = s.modoPrincipal ?? 'scout';
+      const mode = normalizeModeLabel(s.modoPrincipal);
       modeMap.set(mode, (modeMap.get(mode) ?? 0) + 1);
     }
 
