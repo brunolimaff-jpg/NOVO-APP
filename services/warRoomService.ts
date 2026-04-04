@@ -4,7 +4,7 @@
 import { normalizeAppError } from '../utils/errorHelpers';
 import { withAutoRetry } from '../utils/retry';
 import { buscarContextoDocsPinecone, buscarContextoPinecone } from './ragService';
-import { proxyGenerateContent } from './geminiProxy';
+import { proxyGerarDossie } from './geminiProxy';
 
 // ─── TIPOS ───────────────────────────────────────────
 export type WarRoomMode = 'tech' | 'killscript' | 'benchmark' | 'objections';
@@ -682,7 +682,7 @@ export async function queryWarRoom(
             () =>
                 runWithTimeoutAndSignal(
                     () =>
-                        proxyGenerateContent(
+                        proxyGerarDossie(
                             {
                                 model: MODEL_ID,
                                 contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],

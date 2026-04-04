@@ -1,56 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
+import {
+  addInvestigation,
+  getInvestigations,
+  subscribe,
+  type Investigation,
+} from '../services/investigationStore';
 
-// ================================================================
-// TIPAGEM
-// ================================================================
-export interface Investigation {
-  id: string;
-  empresa: string;
-  score: number;
-  scoreLabel: string;
-  gaps: string[];
-  familias: string[];
-  isCliente: boolean;
-  modo: string;
-  data: string;
-  resumo: string;
-}
+// Re-exporta para não quebrar imports externos que usam o path do componente.
+export type { Investigation };
 
 export type ScoreFilter = "todos" | "quentes" | "mornas" | "frias";
 export type ClienteFilter = "todos" | "clientes" | "prospects";
-
-// ================================================================
-// STORE GLOBAL — publisher/subscriber, sem localStorage
-// ================================================================
-let investigationsStore: Investigation[] = [];
-let listeners: Array<() => void> = [];
-
-function notifyListeners() {
-  listeners.forEach((fn) => fn());
-}
-
-export function addInvestigation(inv: Investigation): void {
-  const idx = investigationsStore.findIndex(
-    (i) => i.empresa.toUpperCase() === inv.empresa.toUpperCase()
-  );
-  if (idx >= 0) {
-    investigationsStore[idx] = { ...inv, id: investigationsStore[idx].id };
-  } else {
-    investigationsStore = [inv, ...investigationsStore];
-  }
-  notifyListeners();
-}
-
-export function getInvestigations(): Investigation[] {
-  return [...investigationsStore];
-}
-
-function subscribe(fn: () => void): () => void {
-  listeners.push(fn);
-  return () => {
-    listeners = listeners.filter((l) => l !== fn);
-  };
-}
 
 // ================================================================
 // HELPERS
@@ -73,7 +33,7 @@ function formatDate(dateStr: string): string {
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("pt-BR", { day: "2digit", month: "short", year: "numeric" });
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
   } catch {
     return dateStr;
   }
@@ -95,8 +55,8 @@ function KPICard({
   bgClass: string;
 }) {
   return (
-    <div className={`${bgClass} rounded-xl p-4 flex flex-col items-center justify-center gap-1`}>
-      <span className={`text-2xl font-bold tabular-nums ${valueClass}`}>{value}</span>
+    <div className={`${bgClass} rounded-xl p-3 md:p-4 flex flex-col items-center justify-center gap-1`}>
+      <span className={`text-xl md:text-2xl font-bold tabular-nums ${valueClass}`}>{value}</span>
       <span className="text-xs text-gray-400 font-medium">{label}</span>
     </div>
   );
@@ -216,14 +176,19 @@ export default function InvestigationDashboard({
   }, [tick, searchText, scoreFilter, clienteFilter, sortBy]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-end md:items-center justify-center md:p-4">
+      <div className="bg-gray-900 border-t md:border border-gray-700 rounded-t-2xl md:rounded-2xl w-full md:max-w-4xl h-[92dvh] md:max-h-[90vh] overflow-hidden flex flex-col">
+
+        {/* DRAG HANDLE — mobile only */}
+        <div className="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0">
+          <div className="w-10 h-1 bg-gray-600 rounded-full" />
+        </div>
 
         {/* HEADER */}
-        <div className="p-5 border-b border-gray-800 flex-shrink-0">
+        <div className="p-4 md:p-5 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold text-white leading-tight">
+              <h2 className="text-lg md:text-xl font-bold text-white leading-tight">
                 Meu Painel
               </h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -232,7 +197,7 @@ export default function InvestigationDashboard({
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl leading-none transition-colors"
+              className="text-gray-400 hover:text-white text-2xl leading-none transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-800"
               aria-label="Fechar painel"
             >
               &times;
@@ -240,7 +205,7 @@ export default function InvestigationDashboard({
           </div>
 
           {/* KPIs */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3 mb-4">
             <KPICard value={stats.total} label="Total" valueClass="text-white" bgClass="bg-gray-800" />
             <KPICard value={stats.quentes} label="Quentes" valueClass="text-green-400" bgClass="bg-green-900/20 border border-green-900" />
             <KPICard value={stats.mornas} label="Mornas" valueClass="text-yellow-400" bgClass="bg-yellow-900/20 border border-yellow-900" />
@@ -262,7 +227,7 @@ export default function InvestigationDashboard({
               />
               <button
                 onClick={() => setSortBy(sortBy === "data" ? "score" : "data")}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500 text-white transition-colors whitespace-nowrap"
+                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm hover:border-gray-500 text-white transition-colors whitespace-nowrap min-h-[44px]"
                 aria-label="Alternar ordenacao"
               >
                 {sortBy === "data" ? "Recentes" : "Por Score"}
@@ -274,7 +239,7 @@ export default function InvestigationDashboard({
                 <button
                   key={f}
                   onClick={() => setScoreFilter(f)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors min-h-[36px] ${
                     scoreFilter === f
                       ? "bg-green-500/20 border-green-500 text-green-300"
                       : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"
@@ -290,7 +255,7 @@ export default function InvestigationDashboard({
                 <button
                   key={f}
                   onClick={() => setClienteFilter(f)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors min-h-[36px] ${
                     clienteFilter === f
                       ? "bg-blue-500/20 border-blue-500 text-blue-300"
                       : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500"
@@ -304,7 +269,7 @@ export default function InvestigationDashboard({
         </div>
 
         {/* LISTA */}
-        <div className="overflow-y-auto flex-1 p-5 space-y-2.5">
+        <div className="overflow-y-auto flex-1 p-4 md:p-5 space-y-2.5" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
           {filtered.length === 0 && (searchText || scoreFilter !== "todos" || clienteFilter !== "todos") && (
             <p className="text-center text-gray-500 text-sm py-12">
               Nenhuma empresa encontrada para os filtros selecionados.
@@ -321,7 +286,7 @@ export default function InvestigationDashboard({
               <div
                 key={inv.id}
                 onClick={() => { onSelectEmpresa(inv.empresa); onClose(); }}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:border-gray-500 cursor-pointer transition-colors group"
+                className="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:border-gray-500 cursor-pointer transition-colors group active:bg-gray-750"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
@@ -381,7 +346,7 @@ export default function InvestigationDashboard({
 
         {/* FOOTER */}
         {filtered.length > 0 && (
-          <div className="px-5 py-3 border-t border-gray-800 flex-shrink-0 flex justify-between items-center">
+          <div className="px-4 md:px-5 py-3 border-t border-gray-800 flex-shrink-0 flex justify-between items-center" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             <span className="text-xs text-gray-500">
               {filtered.length} de {stats.total} empresas
             </span>

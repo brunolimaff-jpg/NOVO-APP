@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === MOBILE FOUNDATION FIXES === */
+html, body, #root {
+  background-color: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body, #root {
+    background-color: #020617;
+  }
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
 @supports (height: 100dvh) {
   .h-screen {
     height: 100dvh !important;

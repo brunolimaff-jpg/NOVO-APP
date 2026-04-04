@@ -169,6 +169,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
+  // ── Scroll behavior refs ──────────────────────────────────────────────────
+  const userHasScrolledUpRef = useRef(false);
+  const prevIsLoadingRef = useRef(false);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const [input, setInput] = useState('');
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -225,6 +230,48 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [showRetryToast]);
+
+  // ── Detecta scroll manual do usuário durante a geração ───────────────────
+  useEffect(() => {
+    // O Virtuoso renderiza o scroller como um filho direto do container
+    const container = scrollContainerRef.current?.querySelector(
+      '[data-virtuoso-scroller]',
+    ) as HTMLElement | null;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      // > 120px do fundo = usuário scrollou para cima intencionalmente
+      userHasScrolledUpRef.current = distanceFromBottom > 120;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // ── Ao concluir geração: volta suavemente para a mensagem do usuário ──────
+  useEffect(() => {
+    const wasLoading = prevIsLoadingRef.current;
+    prevIsLoadingRef.current = isLoading;
+
+    // Só age na transição loading true → false
+    if (!wasLoading || isLoading) return;
+
+    // Reseta flag de scroll manual para o próximo ciclo
+    userHasScrolledUpRef.current = false;
+
+    if (lastUserIndex == null || !virtuosoRef.current) return;
+
+    setTimeout(() => {
+      virtuosoRef.current?.scrollToIndex({
+        index: lastUserIndex,
+        behavior: 'smooth',
+        align: 'start',
+      });
+    }, 100);
+  }, [isLoading, lastUserIndex]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const lastBotWithSuggestionsIndex = useMemo(
     () =>
@@ -284,10 +331,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       city: string;
       state: string;
     }) => {
-      const prompt = `Conta alvo:
-- Empresa: ${payload.companyName}
-- CNPJ: ${payload.cnpj || 'não informado'}
-- Localização: ${payload.city}/${payload.state}`;
+      const prompt = `Conta alvo:\n- Empresa: ${payload.companyName}\n- CNPJ: ${payload.cnpj || 'não informado'}\n- Localização: ${payload.city}/${payload.state}`;
 
       const promptMode = resolvePromptMode(mode, canWarRoom);
       const includeBudget = shouldIncludeBudgetPrompt(payload, promptMode, radar);
@@ -583,7 +627,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 className="custom-scrollbar"
                 data={messages}
                 computeItemKey={(_, message) => message.id}
-                followOutput="smooth"
+                followOutput={isLoading && !userHasScrolledUpRef.current ? 'smooth' : false}
                 initialTopMostItemIndex={messages.length - 1}
                 components={{
                   Header: () =>

@@ -50,24 +50,32 @@ interface GeminiHealthResponse {
   text?: string;
 }
 
-const LOCAL_DEV_GEMINI_PROXY_URL =
-  import.meta.env.VITE_GEMINI_PROXY_URL || 'https://scoutagro.vercel.app/api/gemini';
+const LOCAL_DEV_BASE_URL =
+  (import.meta.env.VITE_GEMINI_PROXY_URL || 'https://scoutagro.vercel.app/api/gemini').replace(/\/api\/gemini$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
+
+function resolveEndpoint(path: string): string {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isLocalDev = import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1');
+  return isLocalDev ? `${LOCAL_DEV_BASE_URL}${path}` : path;
+}
 
 export function resolveGeminiApiEndpoint(
   hostname: string = typeof window !== 'undefined' ? window.location.hostname : '',
   isDev: boolean = import.meta.env.DEV,
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  return isDev && isLocalDevHost ? LOCAL_DEV_GEMINI_PROXY_URL : '/api/gemini';
+  return isDev && isLocalDevHost ? `${LOCAL_DEV_BASE_URL}/api/gemini` : '/api/gemini';
 }
 
 const GEMINI_API_ENDPOINT = resolveGeminiApiEndpoint();
+const GERAR_DOSSIE_ENDPOINT = resolveEndpoint('/api/gerar-dossie');
 
 async function callGeminiApi<TResponse>(
-  payload: GeminiGenerateRequest | GeminiChatRequest | GeminiHealthRequest,
+  endpoint: string,
+  payload: GeminiGenerateRequest | GeminiChatRequest | GeminiHealthRequest | Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<TResponse> {
   const controller = new AbortController();
@@ -86,7 +94,7 @@ async function callGeminiApi<TResponse>(
 
   let response: Response;
   try {
-    response = await fetch(GEMINI_API_ENDPOINT, {
+    response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -94,11 +102,11 @@ async function callGeminiApi<TResponse>(
     });
   } catch (error: unknown) {
     if (timedOut) {
-      scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint: GEMINI_API_ENDPOINT });
+      scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint });
       throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`);
     }
     scoutDiag.error('GeminiProxy', 'falha de rede ou abort no fetch', {
-      endpoint: GEMINI_API_ENDPOINT,
+      endpoint,
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;
@@ -111,7 +119,7 @@ async function callGeminiApi<TResponse>(
     const text = await response.text();
     scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
       status: response.status,
-      endpoint: GEMINI_API_ENDPOINT,
+      endpoint,
       bodyPreview: (text || '').slice(0, 200),
     });
     throw new Error(`Gemini proxy failed (${response.status}): ${text || 'unknown error'}`);
@@ -124,16 +132,24 @@ export async function proxyGenerateContent(
   params: Omit<GeminiGenerateRequest, 'action'>,
   signal?: AbortSignal
 ): Promise<GeminiGenerateResponse> {
-  return callGeminiApi<GeminiGenerateResponse>({ action: 'generateContent', ...params }, signal);
+  return callGeminiApi<GeminiGenerateResponse>(GEMINI_API_ENDPOINT, { action: 'generateContent', ...params }, signal);
 }
 
 export async function proxyChatSendMessage(
   params: Omit<GeminiChatRequest, 'action'>,
   signal?: AbortSignal
 ): Promise<GeminiChatResponse> {
-  return callGeminiApi<GeminiChatResponse>({ action: 'chatSendMessage', ...params }, signal);
+  return callGeminiApi<GeminiChatResponse>(GEMINI_API_ENDPOINT, { action: 'chatSendMessage', ...params }, signal);
 }
 
 export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
-  return callGeminiApi<GeminiHealthResponse>({ action: 'health' }, signal);
+  return callGeminiApi<GeminiHealthResponse>(GEMINI_API_ENDPOINT, { action: 'health' }, signal);
+}
+
+/** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */
+export async function proxyGerarDossie(
+  params: Omit<GeminiGenerateRequest, 'action'>,
+  signal?: AbortSignal
+): Promise<GeminiGenerateResponse> {
+  return callGeminiApi<GeminiGenerateResponse>(GERAR_DOSSIE_ENDPOINT, params, signal);
 }
