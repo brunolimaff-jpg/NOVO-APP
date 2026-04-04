@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { ChatMode, MODE_LABELS } from '../constants';
+import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
 import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS } from '../types';
 import {
@@ -152,7 +152,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
         : `Olá, ${userName}. Selecione a conta para análise executiva.`
       : randomGreeting;
 
-  const modeMeta = MODE_LABELS[mode];
+  const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
   const bullets = BULLETS[mode];
 
   const [companyName, setCompanyName] = useState('');
