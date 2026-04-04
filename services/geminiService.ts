@@ -80,8 +80,7 @@ import { MODEL_IDS } from '../config/models';
 const ROUTER_MODEL_ID        = MODEL_IDS.router;
 const TACTICAL_MODEL_ID      = MODEL_IDS.tactical;
 const DEEP_CHAT_MODEL_ID     = MODEL_IDS.deepChat;
-const DEEP_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
-const STABLE_RESEARCH_MODEL_ID = 'gemini-3.1-pro-preview';
+const STABLE_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
 const LOADING_CURIOSITY_MODEL_ID = (import.meta.env.VITE_LOADING_CURIOSITIES_MODEL || 'gemini-3-flash-preview').trim();
 const OPEN_QUESTION_RECOVERY_METRIC_KEY = 'scout360_open_question_recovery_count';
 const RECOVERY_DEBUG_FLAG_KEY           = 'scout360_debug_recovery';
@@ -305,7 +304,7 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     pushAdjustment({ source, dimension: 'A', suggestedValue: aFinal, justification: `Deep dive ${source}: A1(cultural)=${a1}, A2(timing)=${a2}, Geração=${geracao || 'N/A'}`, subScores: { A1: a1, A2: a2 }, metadata: geracao ? { GERACAO: geracao } : undefined });
   }
 
-  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\\]?)?(?::FAT:(?:\[)?([^\]]*)\\]?)?]]/g;
+  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
   while ((match = pFeedRegex.exec(content)) !== null) {
     const pFinal   = clampFeedValue(Number.parseInt(match[1], 10));
     const metadata: Record<string, string> = {};
@@ -378,6 +377,7 @@ function isDeepDiveMessage(message: string, isMegaPromptMessage: boolean): boole
     'TEIA SOCIETÁRIA',
     'RH, SST E GESTÃO DE PESSOAS',
     'CADEIA DE COMANDO',
+    'ORÇAMENTO E JANELA DE COMPRA',
   ];
   return deepDiveHints.some(hint => message.includes(hint));
 }
@@ -401,6 +401,7 @@ function getDeepDiveSource(message: string): DeepDiveSource {
   if (message.includes('TEIA SOCIETÁRIA') || message.includes('M&A'))               return DEEP_DIVE_SOURCES.EXPANSAO;
   if (message.includes('RH, SST') || message.includes('SINDICATOS'))                 return DEEP_DIVE_SOURCES.RH;
   if (message.includes('CADEIA DE COMANDO') || message.includes('DECISORES'))        return DEEP_DIVE_SOURCES.DECISORES;
+  if (message.includes('ORÇAMENTO') || message.includes('JANELA DE COMPRA'))         return DEEP_DIVE_SOURCES.ORCAMENTO;
   return 'UNKNOWN';
 }
 

@@ -36,7 +36,7 @@ const CHAT_TIMEOUT_MS = 55_000;
 // Investigações pesadas (mega-prompt / deep dive) desativam grounding e
 // precisam de mais tempo para o modelo processar prompts grandes.
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-pro-preview';
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
@@ -117,7 +117,7 @@ async function executeGeminiAction(
     const configIn = (body.config ?? {}) as Record<string, unknown>;
     const genConfig: Record<string, unknown> = {
       temperature: toNumberSafe(configIn.temperature, 0.2),
-      maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 8192),
+      maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
     };
 
     if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
@@ -153,7 +153,7 @@ async function executeGeminiAction(
           // Thinking mode trades creativity for deterministic factual output.
           temperature: thinkingMode ? 0.1 : 0.15,
           // Limite conservador para reduzir latência e risco de timeout.
-          maxOutputTokens: 8192,
+          maxOutputTokens: 65536,
           tools: withGrounding ? [{ googleSearch: {} }] : undefined
         }
       });

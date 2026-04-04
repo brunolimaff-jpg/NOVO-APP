@@ -11,6 +11,9 @@ import {
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from '../prompts/megaPrompts';
 
+const withFoundation = (prompt: string) =>
+  SHARED_FOUNDATION_BLOCK + '\n\n---\n\n' + prompt;
+
 interface DeepDiveTopicsProps {
   onSelectTopic: (displayMessage: string, hiddenPrompt: string) => void;
 }

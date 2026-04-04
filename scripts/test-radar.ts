@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const DEFAULT_MODEL = 'gemini-3.1-pro-preview';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 const CONCORRENTES_NOMES = [
   'SAP', 'TOTVS', 'Protheus', 'Sankhya', 'SIAGRI', 'CHB Sistemas',
   'Benner', 'LG Sistemas', 'Viasoft', 'Korp', 'Unisystem',
