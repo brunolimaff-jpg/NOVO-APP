@@ -111,6 +111,10 @@ export default defineConfig(() => {
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom'],
+            // FIX: chunk com nome fixo evita hash variável a cada deploy.
+            // Sem isso, o browser busca mermaid-aBc123.js que não existe mais
+            // após redeploy, recebendo index.html com MIME text/html → erro fatal.
+            mermaid: ['mermaid'],
           },
         },
       },
