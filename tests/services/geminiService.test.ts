@@ -46,7 +46,7 @@ vi.mock('../../services/portaStateService', () => ({
   generatePortaContextForDeepDive: vi.fn().mockReturnValue(''),
 }));
 
-vi.mock('../../components/InvestigationDashboard', () => ({
+vi.mock('../../services/investigationStore', () => ({
   addInvestigation: vi.fn(),
 }));
 

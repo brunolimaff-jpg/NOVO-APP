@@ -27,7 +27,7 @@ import {
   LookupResponse,
   formatarComexParaPrompt,
 } from './clientLookupService';
-import { addInvestigation } from '../components/InvestigationDashboard';
+import { addInvestigation } from './investigationStore';
 import { CompetitorDetection, getContextoConcorrentesRegionais } from './competitorService';
 import { buscarContextoPinecone, buscarContextoDocsPinecone } from './ragService';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../utils/loadingCuriosities';
