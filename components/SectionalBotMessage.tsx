@@ -102,12 +102,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
 
-  const activeOptions = message.suggestions && message.suggestions.length > 0
+  const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
     : parsedOptions;
 
   const processedOptions = useMemo(() => {
-    if (!empresaAlvo || !activeOptions || activeOptions.length === 0) return activeOptions;
+    if (!Array.isArray(activeOptions) || activeOptions.length === 0) return [];
+    if (!empresaAlvo) return activeOptions;
     return activeOptions.map(option =>
       option
         .replace(/\[NOME DA EMPRESA\]/gi, empresaAlvo)
