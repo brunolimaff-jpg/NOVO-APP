@@ -9,7 +9,7 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     title: 'Sessão Teste',
     empresaAlvo: 'Empresa A',
     cnpj: null,
-    modoPrincipal: 'operacao',
+    modoPrincipal: 'investigacao',
     scoreOportunidade: 70,
     resumoDossie: null,
     createdAt: '2025-01-10T10:00:00.000Z',
@@ -91,22 +91,22 @@ describe('useAdminMetrics', () => {
     expect(jan10?.count).toBe(2);
   });
 
-  it('conta modo das sessões no modeBreakdown', () => {
+  it('normaliza modos antigos para investigacao no modeBreakdown', () => {
     const sessions = [
       makeSession({ modoPrincipal: 'operacao' }),
       makeSession({ modoPrincipal: 'operacao' }),
       makeSession({ modoPrincipal: 'diretoria' }),
     ];
     const { result } = renderHook(() => useAdminMetrics(sessions));
-    const operacao = result.current.modeBreakdown.find(m => m.mode === 'operacao');
-    expect(operacao?.count).toBe(2);
+    const investigacao = result.current.modeBreakdown.find(m => m.mode === 'investigacao');
+    expect(investigacao?.count).toBe(3);
   });
 
-  it('usa modo "scout" para sessões sem modoPrincipal', () => {
+  it('usa investigacao para sessões sem modoPrincipal', () => {
     const sessions = [makeSession({ modoPrincipal: null })];
     const { result } = renderHook(() => useAdminMetrics(sessions));
-    const scout = result.current.modeBreakdown.find(m => m.mode === 'scout');
-    expect(scout?.count).toBe(1);
+    const investigacao = result.current.modeBreakdown.find(m => m.mode === 'investigacao');
+    expect(investigacao?.count).toBe(1);
   });
 
   it('limita topVendors a no máximo 10', () => {

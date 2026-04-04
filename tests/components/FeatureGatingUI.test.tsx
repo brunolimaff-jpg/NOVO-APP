@@ -39,15 +39,15 @@ describe('MVP feature gating UI', () => {
         onClose={vi.fn()}
         userName="Maria"
         onUpdateName={vi.fn()}
-        mode="operacao"
+        mode="investigacao"
         onSetMode={vi.fn()}
         isDarkMode={true}
         onToggleTheme={vi.fn()}
         onOpenDashboard={vi.fn()}
         onExportPDF={vi.fn()}
         onCopyMarkdown={vi.fn()}
-        onSendEmail={vi.fn()}
         onScheduleFollowUp={vi.fn()}
+        onLogout={vi.fn()}
         exportStatus="idle"
         canAccessDashboard={false}
         canAccessIntegrityCheck={false}
@@ -56,8 +56,7 @@ describe('MVP feature gating UI', () => {
 
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Teste de Integridade')).not.toBeInTheDocument();
-    expect(screen.queryByText('Diretoria')).not.toBeInTheDocument();
-    expect(screen.getByText(/temporariamente desativado no MVP/i)).toBeInTheDocument();
+    expect(screen.queryByText(/modo de investigação/i)).not.toBeInTheDocument();
   });
 
   it('hides mini CRM entries in sessions sidebar when restricted', () => {

@@ -43,14 +43,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
     btnSubmit: 'bg-emerald-600 text-white hover:bg-emerald-500'
   };
 
-  // Textos baseados no modo
-  const texts = mode === 'operacao' ? {
-    label: "Ajudou?",
-    like: "Valeu",
-    dislike: "Pode melhorar",
-    successLike: "🤠 Boi gordo!",
-    successDislike: "👎 Anotado chefia."
-  } : {
+  const texts = {
     label: "Avaliar seção:",
     like: "Útil",
     dislike: "Melhorar",

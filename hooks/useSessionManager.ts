@@ -2,6 +2,7 @@ import { useCallback, MutableRefObject } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatSession } from '../types';
 import { getRemoteSession } from '../services/sessionRemoteStore';
+import { DEFAULT_MODE } from '../constants';
 
 const PAGE_SIZE = 20;
 
@@ -21,7 +22,7 @@ interface UseSessionManagerOptions {
   setInvestigationLogged: (logged: boolean) => void;
   lastActionRef: MutableRefObject<unknown>;
   setLastQuery: (query: string) => void;
-  setLoadingStatus: (status: string) => void;
+  resetLoadingProgress: (stage?: string) => void;
   setIsLoading: (loading: boolean) => void;
 }
 
@@ -45,7 +46,7 @@ export function useSessionManager({
   setInvestigationLogged,
   lastActionRef,
   setLastQuery,
-  setLoadingStatus,
+  resetLoadingProgress,
   setIsLoading,
 }: UseSessionManagerOptions) {
   const resetSessionUI = useCallback(() => {
@@ -56,11 +57,11 @@ export function useSessionManager({
     setInvestigationLogged(false);
     lastActionRef.current = null;
     setLastQuery('');
-    setLoadingStatus('Iniciando análise');
+    resetLoadingProgress('Iniciando análise');
   }, [
     setVisibleCount, setRemoteSaveStatus, setExportStatus,
     setPdfReportContent, setInvestigationLogged, lastActionRef,
-    setLastQuery, setLoadingStatus,
+    setLastQuery, resetLoadingProgress,
   ]);
 
   const handleNewSession = useCallback(() => {
@@ -70,7 +71,7 @@ export function useSessionManager({
       title: 'Nova Investigação',
       empresaAlvo: null,
       cnpj: null,
-      modoPrincipal: null,
+      modoPrincipal: DEFAULT_MODE,
       scoreOportunidade: null,
       resumoDossie: null,
       createdAt: new Date().toISOString(),

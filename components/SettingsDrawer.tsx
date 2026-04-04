@@ -28,8 +28,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onClose,
   userName,
   onUpdateName,
-  mode,
-  onSetMode,
   isDarkMode,
   onToggleTheme,
   onOpenDashboard,
@@ -129,44 +127,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <p className={`text-[10px] ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 Pressione Enter ou clique fora para salvar.
               </p>
-            </div>
-          </section>
-
-          {/* ===== MODO DE INVESTIGAÇÃO ===== */}
-          <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Modo de Investigação</h3>
-
-            <div className="grid gap-3">
-              {/* Operação */}
-              <button
-                onClick={() => onSetMode('operacao')}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all relative overflow-hidden group ${
-                  mode === 'operacao'
-                    ? 'border-orange-500/50 bg-orange-500/10'
-                    : 'border-gray-700/50 bg-gray-800/30 hover:bg-gray-800 hover:border-gray-600'
-                }`}
-              >
-                <span className="text-3xl filter drop-shadow-lg group-hover:scale-110 transition-transform">🛰️</span>
-                <div className="text-left">
-                  <p className={`text-sm font-bold ${mode === 'operacao' ? 'text-orange-400' : 'text-gray-200'}`}>Operação</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Direto ao ponto, linguagem de campo</p>
-                </div>
-                {mode === 'operacao' && <span className="absolute top-3 right-3 text-orange-500">✓</span>}
-              </button>
-              <div
-                className={`w-full flex items-center justify-between p-3 rounded-xl border ${
-                  isDarkMode ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-slate-50'
-                }`}
-              >
-                <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Modo Diretoria temporariamente desativado no MVP
-                </span>
-                <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
-                  isDarkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  Em breve
-                </span>
-              </div>
             </div>
           </section>
 

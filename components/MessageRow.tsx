@@ -32,7 +32,7 @@ export interface MessageRowData {
   setInput: (text: string) => void;
   sessionId?: string;
   userId?: string;
-  processing?: { stage?: string; completedStages?: string[] };
+  processing?: { stage?: string; completedStages?: string[]; failureCount?: number; totalStages?: number };
   lastUserQuery?: string;
   onStop?: () => void;
   onSendMessage?: (text: string) => void;
@@ -120,6 +120,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // groundingUsed === false (explicitamente): fallback silencioso acionado.
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
+  const assistantLabel = '🦅 Scout 360';
 
   let content: React.ReactNode;
 
@@ -146,7 +147,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
           } px-3 md:px-5 py-3 md:py-4`}
         >
           <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
-            <span>{mode === 'operacao' ? '😺 Operação' : '✈️ Diretoria'}</span>
+            <span>{assistantLabel}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           <LoadingSmart
@@ -210,7 +211,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
           }`}
         >
           <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
-            <span>{isBot ? (mode === 'operacao' ? '😺 Operação' : '✈️ Diretoria') : '👤 Você'}</span>
+            <span>{isBot ? assistantLabel : '👤 Você'}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           {isBot ? (

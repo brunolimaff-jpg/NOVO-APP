@@ -142,7 +142,7 @@ export function toRichStatus(rawStatus?: string | null): RichLoadingStatus | nul
   const matched = matchCategory(status);
   if (matched) {
     const key = matched.key;
-    let label = STATUS_PHASES[key];
+    let label: string = STATUS_PHASES[key];
     if (key === 'deepResearch' && matched.extra) {
       const safeCompany = sanitizeLoadingContextText(matched.extra);
       if (safeCompany) label = `Buscando histórico de ${safeCompany}...`;
@@ -160,6 +160,73 @@ export function isPhaseTimelineStatus(status: string): boolean {
 
 export function normalizeLoadingStatus(rawStatus?: string | null): string | null {
   return toRichStatus(rawStatus)?.label ?? null;
+}
+
+function sanitizeStatusLabel(rawStatus?: string | null): string {
+  return (normalizeLoadingStatus(rawStatus) ?? rawStatus ?? '').trim();
+}
+
+function isIgnorableLoadingStatus(status?: string | null): boolean {
+  const sanitized = sanitizeStatusLabel(status);
+  if (!sanitized) return true;
+  return /^(realizando pesquisa|iniciando an[aá]lise|preparando an[aá]lise|processando)\.\.\.$/i.test(sanitized);
+}
+
+function appendCompletedStage(completedStages: string[], stage?: string | null): string[] {
+  const sanitizedStage = sanitizeStatusLabel(stage);
+  if (!sanitizedStage || isIgnorableLoadingStatus(sanitizedStage)) return [...completedStages];
+
+  const stageIdentifier = statusKey(sanitizedStage);
+  if (completedStages.some(existing => statusKey(existing) === stageIdentifier)) {
+    return [...completedStages];
+  }
+
+  return [...completedStages, sanitizedStage];
+}
+
+export interface LoadingProgressSnapshot {
+  stage: string;
+  completedStages: string[];
+}
+
+export function transitionLoadingProgress(
+  currentStage: string | null | undefined,
+  nextStage: string | null | undefined,
+  completedStages: string[] = [],
+): LoadingProgressSnapshot {
+  const sanitizedNext = sanitizeStatusLabel(nextStage);
+  const sanitizedCurrent = sanitizeStatusLabel(currentStage);
+  const safeCompleted = Array.isArray(completedStages) ? [...completedStages] : [];
+
+  if (!sanitizedNext) {
+    return {
+      stage: sanitizedCurrent,
+      completedStages: safeCompleted,
+    };
+  }
+
+  if (!sanitizedCurrent || statusKey(sanitizedCurrent) === statusKey(sanitizedNext)) {
+    return {
+      stage: sanitizedNext,
+      completedStages: safeCompleted,
+    };
+  }
+
+  return {
+    stage: sanitizedNext,
+    completedStages: appendCompletedStage(safeCompleted, sanitizedCurrent),
+  };
+}
+
+export function finalizeLoadingProgress(
+  currentStage: string | null | undefined,
+  completedStages: string[] = [],
+): LoadingProgressSnapshot {
+  const safeCompleted = Array.isArray(completedStages) ? [...completedStages] : [];
+  return {
+    stage: '',
+    completedStages: appendCompletedStage(safeCompleted, currentStage),
+  };
 }
 
 export function statusKey(status: string): string {

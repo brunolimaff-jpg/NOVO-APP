@@ -89,7 +89,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   sessionId = "preview_session",
   userId,
   isDarkMode,
-  mode = 'diretoria',
+  mode = 'investigacao',
   onPreFillInput,
   onRegenerateSuggestions,
   hideSuggestions = false,

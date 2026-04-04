@@ -12,7 +12,7 @@ import { cleanTitle, sanitizeLoadingContextText, stripInternalMarkers } from '..
 import { normalizeAppError } from '../utils/errorHelpers';
 import { BACKEND_URL } from '../services/apiConfig';
 import { useToast } from './useToast';
-
+import { APP_NAME, DEFAULT_MODE } from '../constants';
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v1';
 const THEME_KEY = 'scout360_theme';
 const PAGE_SIZE = 20;
@@ -176,7 +176,7 @@ export const useChat = () => {
 
   useEffect(() => {
     resetChatSession();
-    document.title = `${APP_NAME} ${MODE_LABELS[mode].icon}`;
+    document.title = APP_NAME;
   }, [mode]);
 
   const handleNewSession = useCallback(() => {
@@ -186,7 +186,7 @@ export const useChat = () => {
       title: 'Nova Investigação',
       empresaAlvo: null,
       cnpj: null,
-      modoPrincipal: null,
+      modoPrincipal: DEFAULT_MODE,
       scoreOportunidade: null,
       resumoDossie: null,
       createdAt: new Date().toISOString(),
@@ -479,7 +479,7 @@ export const useChat = () => {
         title: immediateTitle,
         empresaAlvo: resolvedCompany,
         cnpj: null,
-        modoPrincipal: null,
+        modoPrincipal: DEFAULT_MODE,
         scoreOportunidade: null,
         resumoDossie: null,
         createdAt: new Date().toISOString(),

@@ -29,7 +29,7 @@ vi.mock('../../components/MessageRow', () => ({
 }));
 
 vi.mock('../../contexts/ModeContext', () => ({
-  useMode: () => ({ mode: 'operacao', setMode: vi.fn() }),
+  useMode: () => ({ mode: 'investigacao', setMode: vi.fn() }),
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({
@@ -204,6 +204,7 @@ describe('ChatInterface shell regression', () => {
           currentSession: buildSession(messages),
           sessions: [buildSession(messages)],
           messages,
+          isLoading: true,
           processing: {
             stage: 'Buscando dados',
             completedStages: ['consulta', 'analise'],
@@ -229,6 +230,7 @@ describe('ChatInterface shell regression', () => {
           currentSession: buildSession(messages),
           sessions: [buildSession(messages)],
           messages,
+          isLoading: true,
           processing: { failureCount: 0 } as React.ComponentProps<typeof ChatInterface>['processing'],
         })}
       />,
