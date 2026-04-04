@@ -33,11 +33,17 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const entries: unknown[] = raw ? JSON.parse(raw) : [];
       entries.push(entry);
       localStorage.setItem(AUDIT_KEY, JSON.stringify(entries.slice(-50)));
-    } catch {
-      // localStorage indisponível — ignora
+    } catch (storageError) {
+      // FIX: catch nunca vazio — localStorage indisponível em Safari private / iframe
+      console.warn('[ErrorBoundary] localStorage indisponível, audit trail não persiste:', storageError);
     }
     console.error('[ErrorBoundary] Erro capturado:', error, info);
   }
+
+  private handleRetry = () => {
+    // Recovery sem reload: reseta o boundary preservando o estado da aplicação
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -53,7 +59,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             </h2>
             <p className="text-sm text-gray-400 mb-6 leading-relaxed">
               Ocorreu um erro inesperado. Seus dados locais estão seguros.
-              Recarregue o aplicativo para continuar.
+              Tente novamente ou recarregue o aplicativo.
             </p>
             {this.state.error && (
               <details className="mb-6 text-left">
@@ -65,12 +71,20 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
                 </pre>
               </details>
             )}
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors shadow-lg"
-            >
-              Recarregar aplicativo
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={this.handleRetry}
+                className="w-full py-3 px-6 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors"
+              >
+                Tentar novamente
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors shadow-lg"
+              >
+                Recarregar aplicativo
+              </button>
+            </div>
           </div>
         </div>
       );
