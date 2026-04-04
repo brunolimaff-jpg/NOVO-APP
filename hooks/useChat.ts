@@ -12,6 +12,7 @@ import { cleanTitle, sanitizeLoadingContextText, stripInternalMarkers } from '..
 import { normalizeAppError } from '../utils/errorHelpers';
 import { BACKEND_URL } from '../services/apiConfig';
 import { useToast } from './useToast';
+import { APP_NAME, MODE_LABELS } from '../constants';
 
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v1';
 const THEME_KEY = 'scout360_theme';
@@ -62,6 +63,21 @@ export const useChat = () => {
   const { toast } = useToast();
   const [, startTransition] = useTransition();
 
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [pdfReportContent, setPdfReportContent] = useState<string | null>(null);
+  const [investigationLogged, setInvestigationLogged] = useState(false);
+  const [completedPhases, setCompletedPhases] = useState<string[]>([]);
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastActionRef = useRef<LastAction | null>(null);
+  const activeGenerationRef = useRef<boolean>(false);
+  const lastStatusRef = useRef<string>('');
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const { data: remoteSessions } = useQuery({
     queryKey: ['remoteSessions'],
     queryFn: listRemoteSessions,
@@ -82,17 +98,25 @@ export const useChat = () => {
   const [isSavingRemote, setIsSavingRemote] = useState(false);
   const [remoteSaveStatus, setRemoteSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  const updateSessionById = useCallback(
+    (id: string, updater: (session: ChatSession) => ChatSession) => {
+      setSessions(prev => 
+        prev.map(s => (s.id === id ? { ...updater(s), updatedAt: new Date().toISOString() } : s))
+      );
+    },
+    [],
+  );
+
   const updateCurrentSession = useCallback(
     (updater: (session: ChatSession) => ChatSession) => {
-      setSessions(prev => {
-        const target = prev.find(s => s.id === currentSessionId);
-        if (!target) return prev;
-        return prev.map(s =>
-          s.id === currentSessionId ? { ...updater(s), updatedAt: new Date().toISOString() } : s,
-        );
-      });
+      if (currentSessionId) updateSessionById(currentSessionId, updater);
     },
-    [currentSessionId],
+    [currentSessionId, updateSessionById],
+  );
+
+  const currentSession = useMemo(() => 
+    sessions.find(s => s.id === currentSessionId) || null,
+    [sessions, currentSessionId]
   );
 
   useEffect(() => {
@@ -103,7 +127,7 @@ export const useChat = () => {
         const parsed = JSON.parse(savedSessions);
         localSessions = parsed.map((s: any) => ({
           ...s,
-          messages: s.messages.map((m: any) => ({
+          messages: (s.messages || []).map((m: any) => ({
             ...m,
             text: stripInternalMarkers(m.text || ''),
             timestamp: new Date(m.timestamp),
@@ -123,7 +147,7 @@ export const useChat = () => {
     if (savedTheme) setIsDarkMode(savedTheme === 'dark');
     if (window.innerWidth < 768) setIsSidebarOpen(false);
     setIsInitialized(true);
-  }, []);
+  }, [handleNewSession]);
 
   useEffect(() => {
     if (!remoteSessions || remoteSessions.length === 0) return;
@@ -196,7 +220,7 @@ export const useChat = () => {
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
     setVisibleCount(PAGE_SIZE);
-    resetChatSession();
+    resetPortaState();
     setRemoteSaveStatus('idle');
     setExportStatus('idle');
     setPdfReportContent(null);
@@ -780,6 +804,14 @@ export const useChat = () => {
     handleToggleMessageSources,
     setVisibleCount,
     setSessions,
-    updateSessionById,
+    updateCurrentSession,
+    isDarkMode,
+    setIsDarkMode,
+    isSidebarOpen,
+    setIsSidebarOpen,
+    exportStatus,
+    pdfReportContent,
+    investigationLogged,
+    setInvestigationLogged
   };
 };

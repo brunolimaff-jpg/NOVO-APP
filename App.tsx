@@ -170,7 +170,7 @@ const App: React.FC = () => {
   }, [showEmailModal, showFollowUpModal]);
 
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
-  const allMessages = currentSession ? currentSession.messages : [];
+  const allMessages = currentSession?.messages || [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccessForUser(user);
   const canAccessMiniCRM = featureAccess.miniCRM;
@@ -353,7 +353,7 @@ const App: React.FC = () => {
           accumulatedText += (accumulatedText ? "\n\n---\n\n" : "") + chunk;
           updateSessionById(sessionId, s => ({
             ...s,
-            messages: s.messages.map(msg =>
+            messages: (s.messages || []).map(msg =>
               msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
             )
           }));
@@ -464,7 +464,7 @@ const App: React.FC = () => {
           title: shouldRewriteTitle ? finalCompany || s.title : s.title,
           empresaAlvo: finalCompany || s.empresaAlvo,
           scoreOportunidade: scorePorta?.score ?? s.scoreOportunidade,
-          messages: s.messages.map(msg =>
+          messages: (s.messages || []).map(msg =>
             msg.id === botMessageId
               ? {
                   ...msg,
@@ -508,7 +508,7 @@ const App: React.FC = () => {
             s.id === sessionId
               ? {
                   ...s,
-                  messages: s.messages.filter(msg => msg.id !== botMessageId || msg.text.trim().length > 0),
+                  messages: (s.messages || []).filter(msg => msg.id !== botMessageId || msg.text.trim().length > 0),
                 }
               : s,
           ),
@@ -522,7 +522,7 @@ const App: React.FC = () => {
       updateSessionById(sessionId, s => ({
         ...s,
         messages: [
-          ...s.messages.filter(m => m.id !== botMessageId),
+          ...(s.messages || []).filter(m => m.id !== botMessageId),
           {
             id: uuidv4(),
             sender: Sender.Bot,
@@ -577,7 +577,7 @@ const App: React.FC = () => {
     };
     setSessions(prev =>
       prev.map(s =>
-        s.id === sessionId ? { ...s, messages: [...s.messages, userMessage], updatedAt: new Date().toISOString() } : s,
+        s.id === sessionId ? { ...s, messages: [...(s.messages || []), userMessage], updatedAt: new Date().toISOString() } : s,
       ),
     );
     setVisibleCount(prev => prev + 1);
@@ -598,7 +598,7 @@ const App: React.FC = () => {
     updateSessionById(currentSessionId, session => {
       const msgIndex = session.messages.findIndex(m => m.id === id);
       if (msgIndex === -1) return session;
-      return { ...session, messages: session.messages.slice(0, msgIndex) };
+      return { ...session, messages: (session.messages || []).slice(0, msgIndex) };
     });
   };
 
@@ -618,7 +618,7 @@ const App: React.FC = () => {
           const messages = session.messages;
           const lastMsg = messages[messages.length - 1];
           if (lastMsg && lastMsg.sender === Sender.Bot && (lastMsg.isError || !lastMsg.text || lastMsg.ghostDetails)) {
-            return { ...session, messages: messages.slice(0, -1) };
+            return { ...session, messages: (messages || []).slice(0, -1) };
           }
           return session;
         });
@@ -648,7 +648,7 @@ const App: React.FC = () => {
 
     updateSessionById(sessionId, session => ({
       ...session,
-      messages: session.messages.map(msg => (msg.id === messageId ? { ...msg, isRegeneratingSuggestions: true } : msg)),
+      messages: (session.messages || []).map(msg => (msg.id === messageId ? { ...msg, isRegeneratingSuggestions: true } : msg)),
     }));
     try {
       const newSuggestions = await generateContinuityQuestion(
@@ -658,7 +658,7 @@ const App: React.FC = () => {
       );
       updateSessionById(sessionId, session => ({
         ...session,
-        messages: session.messages.map(msg =>
+        messages: (session.messages || []).map(msg =>
           msg.id === messageId ? { ...msg, suggestions: newSuggestions, isRegeneratingSuggestions: false } : msg,
         ),
       }));
@@ -667,7 +667,7 @@ const App: React.FC = () => {
       toast.error(e instanceof Error ? e.message : 'Falha na conexão com a IA.');
       updateSessionById(sessionId, session => ({
         ...session,
-        messages: session.messages.map(msg =>
+        messages: (session.messages || []).map(msg =>
           msg.id === messageId ? { ...msg, isRegeneratingSuggestions: false } : msg,
         ),
       }));
@@ -704,7 +704,7 @@ const App: React.FC = () => {
     if (!currentSession) return;
     updateCurrentSession(session => ({
       ...session,
-      messages: session.messages.map(m =>
+      messages: (session.messages || []).map(m =>
         m.id === messageId ? { ...m, feedback: m.feedback === feedback ? undefined : feedback } : m,
       ),
     }));
@@ -715,7 +715,7 @@ const App: React.FC = () => {
     const snapshotSessionId = currentSession.id;
     updateSessionById(snapshotSessionId, session => ({
       ...session,
-      messages: session.messages.map(m => (m.id === messageId ? { ...m, feedback } : m)),
+      messages: (session.messages || []).map(m => (m.id === messageId ? { ...m, feedback } : m)),
     }));
     try {
       await sendFeedbackRemote({
@@ -739,7 +739,7 @@ const App: React.FC = () => {
   const handleSectionFeedback = (messageId: string, sectionTitle: string, feedback: Feedback) => {
     updateCurrentSession(session => ({
       ...session,
-      messages: session.messages.map(msg => {
+      messages: (session.messages || []).map(msg => {
         if (msg.id !== messageId) return msg;
         const currentSections = msg.sectionFeedback || {};
         const newVal = currentSections[sectionTitle] === feedback ? undefined : feedback;
@@ -754,7 +754,7 @@ const App: React.FC = () => {
   const handleToggleMessageSources = (messageId: string) => {
     updateCurrentSession(session => ({
       ...session,
-      messages: session.messages.map(msg =>
+      messages: (session.messages || []).map(msg =>
         msg.id === messageId ? { ...msg, isSourcesOpen: !msg.isSourcesOpen } : msg,
       ),
     }));

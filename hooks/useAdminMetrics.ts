@@ -36,7 +36,7 @@ export function useAdminMetrics(sessions: ChatSession[]): AdminMetrics {
     const modeMap = new Map<string, number>();
 
     for (const s of sessions) {
-      const vendor = s.messages.find(m => m.sender === 'user')?.text
+      const vendor = (s.messages || []).find(m => m.sender === 'user')?.text
         ? (s as any).vendorName ?? 'Desconhecido'
         : 'Desconhecido';
 

@@ -125,7 +125,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
 
   useEffect(() => {
     if (!msg.isSourcesOpen) return;
-    const urls = auditableSources.filter(s => !!s.url).map(s => s.url as string);
+    const urls = (auditableSources || []).filter(s => !!s.url).map(s => s.url as string);
     if (urls.length === 0) return;
 
     let cancelled = false;
@@ -259,7 +259,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                     📚 Fontes
                   </p>
                   <ol className="space-y-2 list-decimal pl-4">
-                    {auditableSources.map((s, i) => {
+                    {(auditableSources || []).map((s, i) => {
                       const status = s.url ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)] : undefined;
                       const statusLabel = !s.url
                         ? 'inferido - validar manualmente'

@@ -13,13 +13,15 @@ import ScorePorta from '../ScorePorta';
 // ---------------------------------------------------------------------------
 function makeScore(overrides: Record<string, unknown> = {}) {
   return {
-    porte: 80,
-    operacao: 70,
-    retorno: 60,
-    tecnologia: 75,
-    adocao: 65,
-    total: 70,
-    classificacao: 'Forte',
+    p: 8,
+    o: 7,
+    r: 6,
+    t: 7,
+    a: 6,
+    score: 70,
+    segmento: 'AGRO' as any,
+    flags: [],
+    justificativas: { P: '', O: '', R: '', T: '', A: '' },
     ...overrides,
   };
 }
@@ -29,16 +31,16 @@ function makeScore(overrides: Record<string, unknown> = {}) {
 // ---------------------------------------------------------------------------
 describe('ScorePorta — renderização básica', () => {
   it('renderiza sem explodir com score completo', () => {
-    expect(() => render(<ScorePorta scorePorta={makeScore()} />)).not.toThrow();
+    expect(() => render(<ScorePorta {...makeScore()} />)).not.toThrow();
   });
 
   it('renderiza o score total numérico', () => {
-    render(<ScorePorta scorePorta={makeScore({ total: 72 })} />);
+    render(<ScorePorta {...makeScore({ score: 72 })} />);
     expect(screen.getByText(/72/)).toBeTruthy();
   });
 
   it('renderiza classificação textual', () => {
-    render(<ScorePorta scorePorta={makeScore({ classificacao: 'Forte' })} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Forte/i)).toBeTruthy();
   });
 });
@@ -48,27 +50,27 @@ describe('ScorePorta — renderização básica', () => {
 // ---------------------------------------------------------------------------
 describe('ScorePorta — dimensões PORTA', () => {
   it('exibe label Porte (P)', () => {
-    render(<ScorePorta scorePorta={makeScore()} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Porte/i)).toBeTruthy();
   });
 
   it('exibe label Operação (O)', () => {
-    render(<ScorePorta scorePorta={makeScore()} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Opera[çc][aã]o/i)).toBeTruthy();
   });
 
   it('exibe label Retorno (R)', () => {
-    render(<ScorePorta scorePorta={makeScore()} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Retorno/i)).toBeTruthy();
   });
 
   it('exibe label Tecnologia (T)', () => {
-    render(<ScorePorta scorePorta={makeScore()} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Tecnologia/i)).toBeTruthy();
   });
 
   it('exibe label Adoção (A)', () => {
-    render(<ScorePorta scorePorta={makeScore()} />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Ado[çc][aã]o/i)).toBeTruthy();
   });
 });
@@ -78,7 +80,7 @@ describe('ScorePorta — dimensões PORTA', () => {
 // ---------------------------------------------------------------------------
 describe('ScorePorta — código de cor por faixa de score', () => {
   it('score >= 70 usa classe de cor verde/success', () => {
-    const { container } = render(<ScorePorta scorePorta={makeScore({ total: 85, classificacao: 'Excelente' })} />);
+    const { container } = render(<ScorePorta {...makeScore({ score: 85 })} />);
     // Procura por qualquer elemento com classe relacionada a verde/emerald/green
     const html = container.innerHTML;
     expect(
@@ -88,7 +90,7 @@ describe('ScorePorta — código de cor por faixa de score', () => {
 
   it('score <= 39 usa classe de cor vermelha/danger', () => {
     const { container } = render(
-      <ScorePorta scorePorta={makeScore({ total: 25, classificacao: 'Fraco' })} />
+      <ScorePorta {...makeScore({ score: 25 })} />
     );
     const html = container.innerHTML;
     expect(
@@ -103,20 +105,20 @@ describe('ScorePorta — código de cor por faixa de score', () => {
 describe('ScorePorta — robustez', () => {
   it('renderiza sem explodir quando scorePorta é undefined', () => {
     // @ts-expect-error testando prop ausente intencionalmente
-    expect(() => render(<ScorePorta scorePorta={undefined} />)).not.toThrow();
+    expect(() => render(<ScorePorta {...(undefined as any)} />)).not.toThrow();
   });
 
   it('renderiza com dimensões zeradas', () => {
     expect(() =>
       render(
         <ScorePorta
-          scorePorta={makeScore({
-            porte: 0,
-            operacao: 0,
-            retorno: 0,
-            tecnologia: 0,
-            adocao: 0,
-            total: 0,
+          {...makeScore({
+            p: 0,
+            o: 0,
+            r: 0,
+            t: 0,
+            a: 0,
+            score: 0,
           })}
         />
       )
@@ -127,13 +129,13 @@ describe('ScorePorta — robustez', () => {
     expect(() =>
       render(
         <ScorePorta
-          scorePorta={makeScore({
-            porte: 100,
-            operacao: 100,
-            retorno: 100,
-            tecnologia: 100,
-            adocao: 100,
-            total: 100,
+          {...makeScore({
+            p: 10,
+            o: 10,
+            r: 10,
+            t: 10,
+            a: 10,
+            score: 100,
           })}
         />
       )
@@ -141,7 +143,7 @@ describe('ScorePorta — robustez', () => {
   });
 
   it('exibe o valor numérico de cada dimensão', () => {
-    render(<ScorePorta scorePorta={makeScore({ porte: 88 })} />);
+    render(<ScorePorta {...makeScore({ p: 8 })} />);
     expect(screen.getByText(/88/)).toBeTruthy();
   });
 });
@@ -151,7 +153,7 @@ describe('ScorePorta — robustez', () => {
 // ---------------------------------------------------------------------------
 describe('ScorePorta — prop empresaAlvo', () => {
   it('exibe nome da empresa quando fornecido', () => {
-    render(<ScorePorta scorePorta={makeScore()} empresaAlvo="Agro MT Ltda" />);
+    render(<ScorePorta {...makeScore()} />);
     expect(screen.getByText(/Agro MT Ltda/i)).toBeTruthy();
   });
 });

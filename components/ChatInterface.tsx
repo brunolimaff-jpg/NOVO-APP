@@ -250,6 +250,30 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const lastBotWithSuggestionsIndex = useMemo(
+    () =>
+      [...(messages || [])]
+        .map((m, i) => ({ m, i }))
+        .filter(
+          ({ m }) =>
+            m.sender === Sender.Bot &&
+            ((m.suggestions && m.suggestions.length > 0) || parseSmartOptions(m.text).options.length > 0),
+        )
+        .map(({ i }) => i)
+        .pop(),
+    [messages],
+  );
+
+  const lastUserIndex = useMemo(
+    () =>
+      [...(messages || [])]
+        .map((m, i) => ({ m, i }))
+        .filter(({ m }) => m.sender === Sender.User)
+        .map(({ i }) => i)
+        .pop(),
+    [messages],
+  );
+
   // ── Ao concluir geração: volta suavemente para a mensagem do usuário ──────
   useEffect(() => {
     const wasLoading = prevIsLoadingRef.current;
@@ -271,31 +295,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       });
     }, 100);
   }, [isLoading, lastUserIndex]);
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const lastBotWithSuggestionsIndex = useMemo(
-    () =>
-      [...messages]
-        .map((m, i) => ({ m, i }))
-        .filter(
-          ({ m }) =>
-            m.sender === Sender.Bot &&
-            ((m.suggestions && m.suggestions.length > 0) || parseSmartOptions(m.text).options.length > 0),
-        )
-        .map(({ i }) => i)
-        .pop(),
-    [messages],
-  );
-
-  const lastUserIndex = useMemo(
-    () =>
-      [...messages]
-        .map((m, i) => ({ m, i }))
-        .filter(({ m }) => m.sender === Sender.User)
-        .map(({ i }) => i)
-        .pop(),
-    [messages],
-  );
+// ─────────────────────────────────────────────────────────────────────────
 
   const hideSuggestionsForMessageId =
     isLoading &&

@@ -38,10 +38,10 @@ function MiniBar({ value, max }: { value: number; max: number }) {
 }
 
 function ActivitySparkline({ data }: { data: { date: string; count: number }[] }) {
-  const max = Math.max(...data.map(d => d.count), 1);
+  const max = Math.max(...(data || []).map(d => d.count), 1);
   return (
     <div className="flex items-end gap-0.5 h-10">
-      {data.map((d, i) => (
+      {(data || []).map((d, i) => (
         <div
           key={i}
           title={`${d.date}: ${d.count} sessões`}
@@ -60,7 +60,7 @@ export const AdminDash: React.FC<AdminDashProps> = ({ sessions, isDarkMode, onCl
   const metrics = useAdminMetrics(sessions);
 
   const scoreDist = metrics.scoreDistribution;
-  const maxDist = Math.max(...scoreDist.map(d => d.count), 1);
+  const maxDist = Math.max(...(scoreDist || []).map(d => d.count), 1);
 
   const kpis = [
     {
@@ -134,7 +134,7 @@ export const AdminDash: React.FC<AdminDashProps> = ({ sessions, isDarkMode, onCl
             Visão Geral
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {kpis.map(k => (
+            {(kpis || []).map(k => (
               <div key={k.label} className={`rounded-xl p-4 ${card}`}>
                 <div className="text-xl mb-1">{k.icon}</div>
                 <div className={`text-2xl font-bold tabular-nums ${text}`}>{k.value}</div>
@@ -166,7 +166,7 @@ export const AdminDash: React.FC<AdminDashProps> = ({ sessions, isDarkMode, onCl
             Distribuição Score PORTA
           </h2>
           <div className={`rounded-xl p-4 ${card} space-y-2`}>
-            {scoreDist.map(d => (
+            {(scoreDist || []).map(d => (
               <div key={d.label} className="flex items-center gap-3">
                 <span className={`text-xs w-14 tabular-nums ${muted}`}>{d.label}</span>
                 <MiniBar value={d.count} max={maxDist} />
@@ -185,12 +185,12 @@ export const AdminDash: React.FC<AdminDashProps> = ({ sessions, isDarkMode, onCl
               Modos utilizados
             </h2>
             <div className={`rounded-xl p-4 ${card} space-y-2`}>
-              {metrics.modeBreakdown.map(m => (
+              {(metrics.modeBreakdown || []).map(m => (
                 <div key={m.mode} className="flex items-center gap-3">
                   <span className={`text-xs w-20 capitalize ${muted}`}>{m.mode}</span>
                   <MiniBar
                     value={m.count}
-                    max={Math.max(...metrics.modeBreakdown.map(x => x.count), 1)}
+                    max={Math.max(...(metrics.modeBreakdown || []).map(x => x.count), 1)}
                   />
                 </div>
               ))}
@@ -233,7 +233,7 @@ export const AdminDash: React.FC<AdminDashProps> = ({ sessions, isDarkMode, onCl
                   </tr>
                 </thead>
                 <tbody>
-                  {metrics.topVendors.map((v, i) => (
+                  {(metrics.topVendors || []).map((v, i) => (
                     <tr
                       key={v.name}
                       className={`border-t ${divider} ${

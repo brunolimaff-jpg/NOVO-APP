@@ -69,14 +69,14 @@ function extractFirstUrl(text: string): string | undefined {
 }
 
 function extractExactLinkFromSession(session: ChatSession): string | undefined {
-  const text = session.messages.map(m => m.text || '').join('\n');
+  const text = (session.messages || []).map(m => m.text || '').join('\n');
   const matches = text.match(/https?:\/\/[^\s)]+/g) || [];
   const exact = matches.map(normalizeUrl).find(u => u.includes('app.exactspotter.com'));
   return exact;
 }
 
 function extractWebsiteFromSession(session: ChatSession): string | undefined {
-  const blob = [session.companyContext || '', session.messages.map(m => m.text || '').join('\n')].join('\n');
+  const blob = [session.companyContext || '', (session.messages || []).map(m => m.text || '').join('\n')].join('\n');
   const matches = blob.match(/https?:\/\/[^\s)]+/g) || [];
   const cleaned = matches.map(normalizeUrl);
 
