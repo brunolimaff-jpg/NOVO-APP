@@ -192,6 +192,8 @@ Regras de construção:
 6. Máximo 15 nós por diagrama para manter legibilidade
 7. Use labels curtos para evitar quebra visual
 8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
+9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
+10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
 
 Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
 - classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
@@ -201,10 +203,10 @@ Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimali
 - classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
 
 Ao invés de azul ou verde genéricos, agora utilize as classes acima:
-- :::core para sistemas centrais/principais
-- :::satellite para periféricos benéficos
-- :::danger para gargalos crônicos, perdas ou falta de sistemas cruciais
-- :::warning para áreas de atrito manual
+- class A core; para sistemas centrais/principais
+- class B satellite; para periféricos benéficos
+- class C danger; para gargalos crônicos, perdas ou falta de sistemas cruciais
+- class D warning; para áreas de atrito manual
 </mermaid_construction_rules>
 
 <output_discipline>
@@ -219,6 +221,24 @@ Linguagem:
 Tempo de leitura:
 - Cada seção narrativa: máximo 3 minutos de leitura
 - Tabelas e diagramas não contam no limite
+
+Estrutura obrigatória de cada módulo:
+1. Abra com UM header H1 claro do módulo
+2. Em seguida traga uma leitura executiva em 3 a 5 bullets curtos
+3. Depois entregue o artefato principal do módulo (tabela, mapa ou diagrama)
+4. Traga 1 bloco de dor/oportunidade com implicação comercial
+5. Feche com gatilhos de abordagem
+6. Deixe o BLOCO DE FEEDS PORTA sempre por último
+
+Repetição entre módulos:
+- Se o mesmo gap aparecer em mais de um módulo, trate-o por ângulos diferentes
+- NÃO repita a mesma frase, o mesmo insight ou o mesmo pitch quase idêntico
+- Cada módulo deve acrescentar algo novo e útil para venda
+
+Escaneabilidade:
+- Prefira bullets, quadros e tabelas a blocos longos de texto
+- Parágrafos devem ter no máximo 3 linhas
+- Se houver excesso de detalhe, corte volume e preserve clareza
 
 Prioridade de conteúdo (se espaço for curto):
 1. Feeds PORTA (markers obrigatórios)
@@ -1607,7 +1627,7 @@ Para cada elo, marque:
 ### 🗺️ MAPA DO CAOS OPERACIONAL
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef backoffice fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
     classDef fisico fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
     classDef logistica fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
@@ -1615,6 +1635,7 @@ graph TD
 
     %% CONSTRUIR COM DADOS REAIS — omitir nós não confirmados
     %% -.-> para gap/manual; ==> para fluxo confirmado
+    %% aplicar classes em linhas separadas no final: class A backoffice;
 \`\`\`
 
 ---
@@ -1958,7 +1979,7 @@ Sistema legado paralelo não identificado nas fontes públicas.
 ### 🗺️ MAPA DA TORRE DE BABEL
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
     classDef satellite fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
     classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
@@ -1966,6 +1987,7 @@ graph TD
 
     %% CONSTRUIR COM DADOS REAIS — omitir sistemas não confirmados
     %% -.-> integração manual / remendo
+    %% aplicar classes em linhas separadas no final: class ERP core;
 \`\`\`
 
 ---
@@ -2496,13 +2518,14 @@ Se houver mais de 15 CNPJs:
 ### 📊 MAPA DE PODER SOCIETÁRIO
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef target fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
     classDef person fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#fff
     classDef company fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
     classDef parallel fill:#7e22ce,stroke:#581c87,stroke-width:2px,color:#fff
 
     %% CONSTRUIR COM DADOS REAIS
+    %% aplicar classes em linhas separadas no final: class Grupo company;
 \`\`\`
 
 ---
@@ -2951,12 +2974,13 @@ A2 — Timing / Janela
 ### 🗺️ MAPA DE INFLUÊNCIA E PODER
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
     classDef warning fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
     classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
 
     %% CONSTRUIR COM DADOS REAIS
+    %% aplicar classes em linhas separadas no final: class CFO core;
 \`\`\`
 
 ---

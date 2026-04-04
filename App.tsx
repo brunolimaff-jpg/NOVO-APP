@@ -31,7 +31,12 @@ import {
   getIsolatedBenchmark,
 } from './services/geminiService';
 import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
-import { lookupCliente } from './services/clientLookupService';
+import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
+import {
+  appendSeniorEvidenceNote,
+  buildSeniorEvidenceContext,
+  extractClienteSeniorData,
+} from './utils/seniorEvidence';
 import { 
   SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -467,13 +472,36 @@ const App: React.FC = () => {
 
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---
-        let accumulatedText = "";
+        let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures: string[] = [];
         const dossierSeedContext = buildDossierSeedContext(text);
-        const resolvedMegaCompany = normalizedCompany || hintedCompany || "";
+        const resolvedMegaCompany = normalizedCompany || hintedCompany || '';
+        const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
+        let waterfallLookupContext = '';
+        let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+
+        if (lookupTarget) {
+          try {
+            const clienteData = await lookupCliente(lookupTarget);
+            waterfallLookupContext = formatarParaPrompt(clienteData);
+            waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
+              sessionId,
+              company: lookupTarget,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        const seniorEvidenceContext = buildSeniorEvidenceContext(
+          resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          waterfallClienteSeniorData,
+        );
+
         const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? "\n\n---\n\n" : "") + chunk;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
           updateSessionById(sessionId, s => ({
             ...s,
             messages: s.messages.map(msg =>
@@ -542,6 +570,8 @@ const App: React.FC = () => {
               module.prompt,
               [
                 dossierSeedContext,
+                waterfallLookupContext,
+                seniorEvidenceContext,
                 accumulatedText
                   ? `Contexto anterior consolidado:\n${accumulatedText.slice(-2500)}`
                   : '',
@@ -615,27 +645,41 @@ const App: React.FC = () => {
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
         // Extrair Score PORTA dos markers no texto acumulado
         const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
-        const waterfallCleanText = stripPortaMarkers(accumulatedText);
+        const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
+        const waterfallFinalText = appendSeniorEvidenceNote(
+          waterfallCleanText,
+          resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          waterfallClienteSeniorData,
+        );
 
-        // Lookup Cliente Senior (mesma lógica do fluxo regular)
-        let waterfallClienteSeniorData: ClienteSeniorData | undefined;
-        const lookupTarget = normalizedCompany || hintedCompany || '';
-        if (lookupTarget) {
-          try {
-            const clienteData = await lookupCliente(lookupTarget);
-            if (clienteData?.encontrado && clienteData.results?.length > 0) {
-              const r = clienteData.results[0];
-              waterfallClienteSeniorData = {
-                encontrado: true,
-                grupo: r.grupo,
-                totalModulos: r.total_modulos,
-                familias: r.familias_presentes,
-                modulosPorFamilia: r.modulos_por_familia,
-              };
-            }
-          } catch {
-            // Lookup falhou — não bloqueia o dossiê
-          }
+        let waterfallSuggestions: string[] = [];
+        try {
+          waterfallSuggestions = await generateContinuityQuestion(
+            [
+              ...historyToPass,
+              {
+                id: uuidv4(),
+                sender: Sender.User,
+                text: safeVisibleText,
+                timestamp: new Date(),
+              },
+              {
+                id: uuidv4(),
+                sender: Sender.Bot,
+                text: waterfallFinalText,
+                timestamp: new Date(),
+                clienteSeniorData: waterfallClienteSeniorData,
+              },
+            ],
+            resolvedMegaCompany || null,
+            typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+          );
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
 
         // Update final da mensagem com score, cliente e texto limpo
@@ -649,10 +693,10 @@ const App: React.FC = () => {
               msg.id === botMessageId
                 ? {
                     ...msg,
-                    text: waterfallCleanText,
+                    text: waterfallFinalText,
                     scorePorta: waterfallScorePorta || undefined,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
-                    suggestions: [],
+                    suggestions: waterfallSuggestions,
                     isThinking: false,
                   }
                 : msg,

@@ -520,27 +520,29 @@ export async function generateLoadingCuriosities(
     ? `- Use contexto regional coerente com ${regionalScope}, sem presumir Mato Grosso/Centro-Oeste`
     : '- Não presumir MT/Centro-Oeste quando a localização não estiver explícita';
   try {
-    const prompt = `Você é um gerador de curiosidades curtas para tela de carregamento do Senior Scout 360.
+    const prompt = `Você é um gerador de mensagens curtas para tela de carregamento do Senior Scout 360.
 Contexto da investigação: "${safeContext}"
 Consulta original: "${querySample}"
 
-Gere um array JSON com 6 a 8 curiosidades concisas (máximo 180 caracteres cada), em português-BR, mesclando:
-- Curiosidades da empresa/segmento investigado (prioridade)
-- Curiosidades sobre Senior/ERP quando fizer sentido
+Gere um array JSON com 7 a 9 frases concisas (máximo 180 caracteres cada), em português-BR, mesclando:
+- [2-3 itens] Ações do Scout com contexto da empresa, em tom ativo e investigativo
+- [3-4 itens] Curiosidades factuais da empresa/segmento investigado (prioridade)
+- [1-2 itens] Curiosidades práticas sobre Senior/ERP quando fizer sentido
 - Curiosidades de mercado regional conforme localização disponível
 - ${regionalLine}
-- Curiosidades práticas sobre digitalização/ERP (incluindo Senior quando fizer sentido)
 
 Regras:
 - Responda EXCLUSIVAMENTE com um array JSON de strings
 - Cada string deve ser uma frase única e informativa
+- As frases de ação devem citar a empresa quando ela estiver explícita no contexto
+- Misture sensação de análise em andamento com aprendizado útil; não faça lista só de curiosidades nem só de status
 - Não inclua dados internos do sistema, nomes de prompts ou instruções
 - Evite propaganda institucional ou tom comercial exagerado
 - Evite repetir a mesma ideia com palavras diferentes
 - ${regionalRule}
 
 Exemplo:
-["O agronegócio representa 27% do PIB brasileiro, com MT liderando produção de soja.", "Empresas que adotam ERP reduzem custo operacional em até 18% no primeiro ano."]`;
+["Mapeando decisores e governança da SCHEFFER & CIA LTDA para identificar alavancas de decisão.", "Empresas que integram operação, fiscal e pessoas em um ERP reduzem retrabalho em rotinas críticas."]`;
     try {
       const flashResponse = await proxyGenerateContent({
         model: LOADING_CURIOSITY_MODEL_ID,

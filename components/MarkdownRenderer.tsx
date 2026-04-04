@@ -40,6 +40,11 @@ function extractNodeText(node: React.ReactNode): string {
   return '';
 }
 
+function isHiddenSupportHeading(node: React.ReactNode): boolean {
+  const text = extractNodeText(node).replace(/\s+/g, ' ').trim();
+  return /BLOCO DE FEEDS PORTA/i.test(text);
+}
+
 // ---------------------------------------------------------------------------
 // FIX #3 — Singleton Mermaid: initialize apenas uma vez por tema.
 // Chamar initialize() antes de cada render() causava race conditions quando
@@ -183,6 +188,20 @@ function sanitizeMermaidCode(input: string): string {
     .replace(/^[^a-zA-Z]+/, '')
     .trim();
 
+  const collectedClassLines: string[] = [];
+  const seenClassAssignments = new Set<string>();
+  code = code.replace(
+    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
+    (_full, nodeId: string, nodeShape: string, className: string) => {
+      const classLine = `class ${nodeId} ${className};`;
+      if (!seenClassAssignments.has(classLine)) {
+        seenClassAssignments.add(classLine);
+        collectedClassLines.push(classLine);
+      }
+      return `${nodeId}${nodeShape}`;
+    }
+  );
+
   // Garante que subgraph labels com espaços/caracteres especiais ficam entre aspas
   code = code.replace(
     /^(\s*subgraph\s+)([^"'\n\[\]{]+?)(\s*)$/gm,
@@ -207,6 +226,10 @@ function sanitizeMermaidCode(input: string): string {
     )
   ) {
     return '';
+  }
+
+  if (collectedClassLines.length > 0) {
+    code = `${code}\n${collectedClassLines.join('\n')}`;
   }
 
   return code;
@@ -400,7 +423,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     ),
     li: ({ children }: any) => <li className="leading-relaxed">{children}</li>,
     h1: ({ children }: any) => (
-      <h1 className="text-lg md:text-xl font-black tracking-tight mb-3 text-slate-900 dark:text-white">{children}</h1>
+      <h1 className="text-lg md:text-[1.45rem] font-black tracking-tight mb-4 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-slate-800 pb-3">
+        {children}
+      </h1>
     ),
     h2: ({ children }: any) => (
       <h2 className="text-base md:text-lg font-black tracking-tight mt-6 mb-3 text-slate-900 dark:text-slate-50 border-b border-emerald-100 dark:border-emerald-900/60 pb-2 flex items-start gap-2">
@@ -409,16 +434,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
-        <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
-        <span className="block leading-snug">{children}</span>
-      </h3>
+      isHiddenSupportHeading(children) ? null : (
+        <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
+          <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
+          <span className="block leading-snug">{children}</span>
+        </h3>
+      )
     ),
     hr: () => (
       <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />
     ),
     h4: ({ children }: any) => (
-      <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>
+      isHiddenSupportHeading(children) ? null : (
+        <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>
+      )
     ),
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-emerald-400/80 bg-emerald-50/50 dark:bg-emerald-900/20 dark:border-emerald-500/70 px-3 py-2 my-2 rounded-r-md text-xs md:text-[0.9rem] text-emerald-900 dark:text-emerald-100">

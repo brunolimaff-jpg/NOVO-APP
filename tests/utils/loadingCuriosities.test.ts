@@ -8,7 +8,7 @@ describe('loadingCuriosities', () => {
     const lines = buildLoadingCuriositiesFallback('Coprosoja');
     expect(lines.some((line) => line.toLowerCase().includes('coprosoja'))).toBe(true);
     expect(lines.some((line) => line.toLowerCase().includes('senior sistemas'))).toBe(false);
-    expect(lines.some((line) => statusLike.test(line))).toBe(false);
+    expect(lines.some((line) => /score porta/i.test(line))).toBe(true);
   });
 
   it('parseia resposta estruturada com foco em empresa/setor/região', () => {
@@ -25,7 +25,8 @@ describe('loadingCuriosities', () => {
     const lines = parseLoadingCuriosities('texto livre inválido', 'Grupo Scheffer');
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.some((line) => line.toLowerCase().includes('grupo scheffer'))).toBe(true);
-    expect(lines.some((line) => statusLike.test(line))).toBe(false);
+    expect(lines.some((line) => statusLike.test(line))).toBe(true);
+    expect(lines.some((line) => /score porta/i.test(line))).toBe(true);
   });
 
   it('filtra textos internos de prompt e protocolo do loading', () => {
@@ -43,7 +44,7 @@ describe('loadingCuriosities', () => {
     expect(lines.some((line) => line.includes('Grupo Scheffer'))).toBe(true);
   });
 
-  it('remove linhas que pareçam status operacional', () => {
+  it('preserva linhas longas de processo com contexto da empresa e remove status genérico', () => {
     const raw = JSON.stringify({
       empresa: [
         'Cruzando Grupo Scheffer com benchmarks operacionais para identificar lacunas de gestão...',
@@ -52,7 +53,7 @@ describe('loadingCuriosities', () => {
       setor: ['Consultando inteligência interna...']
     });
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
-    expect(lines.some((line) => /cruzando grupo scheffer/i.test(line))).toBe(false);
+    expect(lines.some((line) => /cruzando grupo scheffer/i.test(line))).toBe(true);
     expect(lines.some((line) => /consultando inteligência interna/i.test(line))).toBe(false);
     expect(lines.some((line) => /grupo scheffer reforça controle logístico/i.test(line))).toBe(true);
   });

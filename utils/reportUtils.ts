@@ -53,13 +53,36 @@ export function collectFullReport(messages: Message[]): { text: string; sections
 
 const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
 
+function normalizeInlineMermaidClasses(chart: string): string {
+  const classLines: string[] = [];
+  const seenClassAssignments = new Set<string>();
+  const normalized = chart.replace(
+    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
+    (_full, nodeId: string, nodeShape: string, className: string) => {
+      const classLine = `class ${nodeId} ${className};`;
+      if (!seenClassAssignments.has(classLine)) {
+        seenClassAssignments.add(classLine);
+        classLines.push(classLine);
+      }
+      return `${nodeId}${nodeShape}`;
+    }
+  );
+
+  if (classLines.length === 0) return normalized;
+  return `${normalized}\n${classLines.join('\n')}`;
+}
+
 export function normalizeMermaidBlocks(markdown: string): string {
   if (!markdown) return '';
   const fence = '`'.repeat(3);
-  return markdown.replace(MERMAID_JSON_PATTERN, (_m, raw: string) => {
-    const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-    return `\n${fence}mermaid\n${unescaped}\n${fence}\n`;
-  });
+  return markdown
+    .replace(MERMAID_JSON_PATTERN, (_m, raw: string) => {
+      const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+      return `\n${fence}mermaid\n${normalizeInlineMermaidClasses(unescaped)}\n${fence}\n`;
+    })
+    .replace(/```mermaid\s*([\s\S]*?)```/gi, (_m, raw: string) => {
+      return `${fence}mermaid\n${normalizeInlineMermaidClasses(raw.trim())}\n${fence}`;
+    });
 }
 
 function normalizeComparableValue(value: string): string {
