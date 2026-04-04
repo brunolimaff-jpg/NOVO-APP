@@ -365,7 +365,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     curiositiesRef.current = [];
     setCurrentInsight(
       companyFocus
-        ? `${companyFocus} ganha previsibilidade quando operação e gestão acompanham os mesmos indicadores críticos.`
+        ? `Mapeando sinais operacionais e footprint de mercado da ${companyFocus} — isso leva alguns instantes.`
         : 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
     );
     if (!loadingContext || loadingContext.length < 2) {
