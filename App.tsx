@@ -27,7 +27,19 @@ import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppEr
 import {
   sendMessageToGemini,
   generateContinuityQuestion,
+  generateDossierModule,
+  getIsolatedBenchmark,
 } from './services/geminiService';
+import { 
+  SHARED_FOUNDATION_BLOCK,
+  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+  PROMPT_RADAR_EXPANSAO_GOD_MODE,
+  PROMPT_RH_SINDICATOS_GOD_MODE,
+  PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+  PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+} from './prompts/megaPrompts';
 import { getRemoteSession, saveRemoteSession } from './services/sessionRemoteStore';
 import { sendFeedbackRemote } from './services/feedbackRemoteStore';
 import { APP_NAME, MODE_LABELS } from './constants';
@@ -99,6 +111,8 @@ function resolveHintedCompany(
   return null;
 }
 
+const MAX_FAILURES_BEFORE_FEEDBACK = 2;
+
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
   const { mode, systemInstruction } = useMode();
@@ -111,6 +125,7 @@ const App: React.FC = () => {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<string>('Iniciando análise');
+  const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
@@ -329,6 +344,67 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
 
     try {
+      const isMegaPrompt = text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO');
+      
+      if (isMegaPrompt) {
+        // --- INÍCIO WATERFALL ORCHESTRATION ---
+        let accumulatedText = "";
+        const updateBotText = (chunk: string) => {
+          accumulatedText += (accumulatedText ? "\n\n---\n\n" : "") + chunk;
+          updateSessionById(sessionId, s => ({
+            ...s,
+            messages: s.messages.map(msg =>
+              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
+            )
+          }));
+        };
+
+        const modules = [
+          { name: 'Raio-X Operacional', prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE },
+          { name: 'Tech Stack', prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE },
+          { name: 'Riscos & Compliance', prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE },
+          { name: 'Estratégia & Expansão', prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE },
+          { name: 'RH & Decisores', prompt: PROMPT_RH_SINDICATOS_GOD_MODE },
+        ];
+
+        // 1. Fundação e Primeiro Módulo (Raio-X)
+        setLoadingStatus("Mapeando inteligência operacional...");
+        const firstModule = await generateDossierModule(
+          modules[0].name,
+          normalizedCompany || hintedCompany || "Empresa",
+          SHARED_FOUNDATION_BLOCK,
+          modules[0].prompt,
+          "",
+          { signal }
+        );
+        updateBotText(firstModule);
+
+        // 2. Cascata Sequencial (WaterFall)
+        for(let i = 1; i < modules.length; i++) {
+          if (signal.aborted) break;
+          setLoadingStatus(`Investigando ${modules[i].name.toLowerCase()}...`);
+          const moduleResult = await generateDossierModule(
+            modules[i].name,
+            normalizedCompany || hintedCompany || "Empresa",
+            SHARED_FOUNDATION_BLOCK,
+            modules[i].prompt,
+            `Contexto anterior: ${firstModule.substring(0, 500)}...`, // Elo de ligação
+            { signal }
+          );
+          updateBotText(moduleResult);
+        }
+
+        // 3. Benchmark Isolado (Fim do vazamento Correios)
+        setLoadingStatus("Cruzando referências de mercado isoladas...");
+        const benchmark = await getIsolatedBenchmark(normalizedCompany || hintedCompany || "", { signal });
+        if (benchmark) updateBotText(benchmark);
+
+        setLoadingStatus("Finalizando dossiê modular...");
+        setFailureCount(0); // Sucesso limpa falhas anteriores
+        return;
+        // --- FIM WATERFALL ORCHESTRATION ---
+      }
+
       const {
         text: responseText,
         sources,
@@ -342,7 +418,9 @@ const App: React.FC = () => {
         systemInstruction,
         {
           signal,
-          onText: () => {},
+          onText: () => {
+            setFailureCount(0); // Qualquer texto de volta limpa o contador de falhas
+          },
           onStatus: newStatus => {
             const normalizedStatus = normalizeLoadingStatus(newStatus);
             if (!normalizedStatus) return;
@@ -391,8 +469,8 @@ const App: React.FC = () => {
               ? {
                   ...msg,
                   text: responseText,
-                  groundingSources: sources,
-                  suggestions,
+                  groundingSources: sources as { title: string; url: string }[] | undefined,
+                  suggestions: (suggestions || []) as string[],
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,
@@ -969,7 +1047,11 @@ const App: React.FC = () => {
               canWarRoom={canWarRoom}
               onLogout={logout}
               lastUserQuery={lastQuery}
-              processing={{ stage: loadingStatus, completedStages: completedLoadingStatuses }}
+              processing={{
+                stage: loadingStatus,
+                completedStages: completedLoadingStatuses,
+                failureCount: failureCount,
+              }}
               onDeleteMessage={handleDeleteMessage}
               radar={{
                 alerts: radar.alerts,
@@ -984,6 +1066,7 @@ const App: React.FC = () => {
                 onMarkAllAsRead: radar.markAllAsRead,
                 onDismiss: radar.dismissAlert,
                 onForceScan: radar.forceScan,
+                metaInsight: null, // Adicionado para satisfazer RadarProps
               }}
             />
           ) : (

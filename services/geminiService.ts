@@ -44,6 +44,7 @@ import {
   resetPortaState,
   setBaseScore,
 } from './portaStateService';
+export { getPortaState, resetPortaState, initPortaState };
 import { scoutDiag } from '../utils/diagnosticLog';
 
 export { parsePortaMarkerV2 } from '../utils/porta';
@@ -382,7 +383,7 @@ function isDeepDiveMessage(message: string, isMegaPromptMessage: boolean): boole
   return deepDiveHints.some(hint => message.includes(hint));
 }
 
-function isMegaPromptRequest(userMessage: string, systemPrompt: string): boolean {
+export function isMegaPromptRequest(userMessage: string, systemPrompt: string): boolean {
   const combined = `${systemPrompt}\n${userMessage}`.toUpperCase();
   return (
     combined.includes('INVESTIGACAO_COMPLETA_INTEGRADA') ||
@@ -764,28 +765,9 @@ export async function sendMessageToGemini(
   }
 
   // ── Benchmark ────────────────────────────────────────────────────────────
-  // CIRURGIA 1: Guard contra nomes genéricos/placeholder.
-  // Impede que "Empresa", "Cliente", "Empresa não identificada" etc. gerem
-  // consultas inúteis à planilha e retornem CORREIOS como resultado.
-  if (isMegaPromptMessage && isValidEmpresaParaBenchmark(empresaAlvo)) {
-    emitDossieStatus(onStatus, 'benchmark');
-    console.log('[BENCHMARK 🔍] Iniciando benchmark para:', empresaAlvo);
-    try {
-      benchmarkData = await benchmarkClientes([empresaAlvo!]);
-      if (benchmarkData?.error) {
-        scoutDiag.warn('Benchmark', 'benchmark retornou erro', {
-          empresaAlvo: empresaAlvo!.slice(0, 80),
-          error: benchmarkData.error,
-          ok: benchmarkData.ok,
-        });
-      }
-    } catch (err: unknown) {
-      scoutDiag.error('Benchmark', 'exceção ao buscar benchmark', {
-        empresaAlvo: empresaAlvo!.slice(0, 80),
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  // CIRURGIA 3: O benchmark foi removido do dossiê principal e isolado em 
+  // uma chamada separada (Prompt Chaining) para evitar alucinações de contexto.
+  // Variável e fetch retirados daqui.
 
   // ── Sinaliza deep research ────────────────────────────────────────────────
   if (isMegaPromptMessage || isDeepDive) {
@@ -804,21 +786,11 @@ export async function sendMessageToGemini(
   // ── Monta contexto adicional ─────────────────────────────────────────────
   const clienteFormatado    = clienteData    ? formatarParaPrompt(clienteData)              : '';
 
-  // FIX: Injeta âncora explícita de empresa investigada no bloco de benchmark
-  // para que o modelo não confunda clientes similares com o alvo da investigação.
-  const benchmarkFormatado  = benchmarkData && empresaAlvo
-    ? `> ⚠️ EMPRESA INVESTIGADA: **${empresaAlvo}** — Os clientes abaixo são APENAS referência de mercado, NÃO são o alvo desta investigação.\n\n` +
-      formatarBenchmarkParaPrompt(benchmarkData, empresaAlvo)
-    : benchmarkData
-      ? formatarBenchmarkParaPrompt(benchmarkData, userMessage.slice(0, 80))
-      : '';
-
   const comexFormatado      = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
-  const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive()       : '';
+  const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive(deepDiveSource || 'MEGA') : '';
 
   const extraContext = [
     clienteFormatado,
-    benchmarkFormatado,
     comexFormatado,
     ragContext     ? `\n[CONTEXTO RAG]\n${ragContext}`          : '',
     ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}`         : '',
@@ -941,9 +913,9 @@ export async function sendMessageToGemini(
   // ── Detecção de concorrente no fluxo ─────────────────────────────────────
   if (onCompetitor && finalText) {
     try {
-      const competitorMatches = isConcorrenteOuPropria(finalText);
-      if (competitorMatches?.length > 0) {
-        onCompetitor({ detected: true, names: competitorMatches });
+      const isCompetitor = isConcorrenteOuPropria(finalText);
+      if (isCompetitor) {
+        onCompetitor({ encontrado: true, detected: true, names: ['Concorrente Detectado'] });
       }
     } catch { /* silencioso */ }
   }
@@ -978,4 +950,63 @@ export async function sendMessageToGemini(
   const suggestions: string[] = [];
 
   return { text: finalText, sources, suggestions, scorePorta, clienteSeniorData, ghostReason: null };
+}
+
+/**
+ * NOVA FUNÇÃO DE PROMPT CHAINING:
+ * Gera apenas um módulo específico (Raio-X, Decisores, etc.) acoplado ao 
+ * SHARED_FOUNDATION_BLOCK. Usado para orquestração sequencial (Waterfall).
+ */
+export async function generateDossierModule(
+  moduleName: string,
+  empresaAlvo: string,
+  foundationBlock: string,
+  specialistPrompt: string,
+  extraContext: string = '',
+  options: { signal?: AbortSignal; onText?: (text: string) => void } = {}
+): Promise<string> {
+  const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${extraContext}`;
+  
+  const response = await proxyGenerateContent({
+    model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
+    contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
+    config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
+  }, options.signal);
+  
+  const finalText = response.text || '';
+  if (options.onText && finalText) options.onText(finalText);
+  return finalText;
+}
+
+/**
+ * BUSCA ISOLADA DE BENCHMARK:
+ * Resolve o problema de alucinação 'Correios' isolando a busca de 
+ * referências em uma chamada sem histórico de conversa poluído.
+ */
+export async function getIsolatedBenchmark(
+  empresaAlvo: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<string> {
+  if (!isValidEmpresaParaBenchmark(empresaAlvo)) return '';
+
+  const benchmarkResult = await withAutoRetry('Benchmark:Isolated', () => 
+    benchmarkClientes(empresaAlvo),
+    { maxRetries: 3, abortSignal: options.signal }
+  );
+
+  if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';
+
+  const benchmarkPrompt = formatarBenchmarkParaPrompt(benchmarkResult, empresaAlvo);
+  
+  const response = await proxyGenerateContent({
+    model: TACTICAL_MODEL_ID,
+    contents: `Sua tarefa é formatar Referências de Mercado Estratégicas para a empresa: ${empresaAlvo}.
+Use EXCLUSIVAMENTE os dados abaixo:
+${benchmarkPrompt}
+
+Diretriz: Crie um bloco de alto impacto para o final do dossiê, listando cases similares atendidos pela Senior.`,
+    config: { temperature: 0.1 }
+  }, options.signal);
+
+  return response.text || '';
 }

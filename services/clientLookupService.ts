@@ -317,14 +317,14 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
 export interface BenchmarkResponse {
   ok: boolean;
   mode: string;
-  keywords: string[];
+  keywords: string | string[];
   total: number;
   results: ClienteResult[];
   error?: string;
 }
 
-export async function benchmarkClientes(keywords: string[]): Promise<BenchmarkResponse> {
-  const kw = keywords.join(',');
+export async function benchmarkClientes(keywords: string | string[]): Promise<BenchmarkResponse> {
+  const kw = Array.isArray(keywords) ? keywords.join(',') : keywords;
   const url = `${LOOKUP_API_URL}?mode=benchmark&keywords=${encodeURIComponent(kw)}`;
 
   // FIX: Apps Script pode retornar HTML (cold start) na primeira chamada.
