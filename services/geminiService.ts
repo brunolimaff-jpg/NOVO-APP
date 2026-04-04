@@ -815,6 +815,20 @@ export async function sendMessageToGemini(
       role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
       text: sanitizeHistoryText(m.text || ''),
     }));
+  const historyChars = history.reduce((total, item) => total + item.text.length, 0);
+  const promptBudget = {
+    sessionId: sessionId ?? null,
+    hintedCompany: hintedCompany ?? null,
+    resolvedCompany: empresaAlvo ?? null,
+    modelToUse: null as string | null,
+    userChars: userMessage.length,
+    systemChars: fullSystemPrompt.length,
+    historyChars,
+    historyMessages: history.length,
+    isMegaPromptMessage,
+    isDeepDive,
+    shouldUseGrounding: false,
+  };
 
   // ── Score PORTA inicial ──────────────────────────────────────────────────
   if (isMegaPromptMessage) {
@@ -836,6 +850,19 @@ export async function sendMessageToGemini(
         ? TACTICAL_MODEL_ID
         : DEEP_CHAT_MODEL_ID;
   const shouldUseGrounding = useGrounding && !isMegaPromptMessage && !isDeepDive;
+  promptBudget.modelToUse = modelToUse;
+  promptBudget.shouldUseGrounding = shouldUseGrounding;
+
+  if (isMegaPromptMessage || isDeepDive) {
+    scoutDiag.info?.('GeminiBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
+    const totalChars = promptBudget.userChars + promptBudget.systemChars + promptBudget.historyChars;
+    if (totalChars > 120000) {
+      scoutDiag.warn('GeminiBudget', 'payload elevado para investigação', {
+        ...promptBudget,
+        totalChars,
+      });
+    }
+  }
 
   // ── Envia para o modelo ──────────────────────────────────────────────────
   let finalText: string;
@@ -843,6 +870,8 @@ export async function sendMessageToGemini(
   emitDossieStatus(onStatus, 'response');
 
   let response;
+  const requestStartedAt = Date.now();
+  let usedGroundingFallback = false;
   try {
     response = await withAutoRetry('Gemini:sendMessage', () =>
       proxyChatSendMessage({
@@ -864,6 +893,7 @@ export async function sendMessageToGemini(
     if (!canFallbackWithoutGrounding) throw error;
 
     onStatus?.('Entrando em contingência sem busca externa...');
+    usedGroundingFallback = true;
     response = await withAutoRetry('Gemini:sendMessage:fallback-no-grounding', () =>
       proxyChatSendMessage({
         model:             TACTICAL_MODEL_ID,
@@ -878,6 +908,18 @@ export async function sendMessageToGemini(
   }
 
   finalText = sanitizeStreamText(response.text || '');
+  if (isMegaPromptMessage || isDeepDive) {
+    scoutDiag.info?.('GeminiTiming', 'investigação concluída', {
+      sessionId: sessionId ?? null,
+      resolvedCompany: empresaAlvo ?? null,
+      modelToUse,
+      durationMs: Date.now() - requestStartedAt,
+      responseChars: finalText.length,
+      usedGroundingFallback,
+      isMegaPromptMessage,
+      isDeepDive,
+    });
+  }
   emitDossieStatus(onStatus, 'validation');
   emitDossieStatus(onStatus, 'synthesis');
 
@@ -966,6 +1008,24 @@ export async function generateDossierModule(
   options: { signal?: AbortSignal; onText?: (text: string) => void } = {}
 ): Promise<string> {
   const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${extraContext}`;
+  const promptChars = finalPrompt.length;
+  const startedAt = Date.now();
+
+  scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
+    moduleName,
+    empresaAlvo,
+    foundationChars: foundationBlock.length,
+    specialistChars: specialistPrompt.length,
+    extraContextChars: extraContext.length,
+    promptChars,
+  });
+  if (promptChars > 80000) {
+    scoutDiag.warn('DossierModule', 'módulo especializado com prompt elevado', {
+      moduleName,
+      empresaAlvo,
+      promptChars,
+    });
+  }
   
   const response = await proxyGenerateContent({
     model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
@@ -974,6 +1034,12 @@ export async function generateDossierModule(
   }, options.signal);
   
   const finalText = response.text || '';
+  scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
+    moduleName,
+    empresaAlvo,
+    durationMs: Date.now() - startedAt,
+    responseChars: finalText.length,
+  });
   if (options.onText && finalText) options.onText(finalText);
   return finalText;
 }

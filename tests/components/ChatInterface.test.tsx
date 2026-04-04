@@ -1,10 +1,31 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ChatInterface from '../../components/ChatInterface';
+import { Sender, type Message, type ChatSession } from '../../types';
 
 const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
+}));
+
+vi.mock('react-virtuoso', () => {
+  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, _ref) => (
+    <div data-testid="virtuoso" style={style}>
+      {components?.Header ? <components.Header /> : null}
+      {data.map((item: any, index: number) => (
+        <div key={item?.id ?? index}>{itemContent(index, item)}</div>
+      ))}
+    </div>
+  ));
+  Virtuoso.displayName = 'VirtuosoMock';
+
+  return { Virtuoso };
+});
+
+vi.mock('../../components/MessageRow', () => ({
+  default: ({ index, data }: { index: number; data: { messages: Array<{ text: string }> } }) => (
+    <div data-testid={`message-row-${index}`}>{data.messages[index].text}</div>
+  ),
 }));
 
 vi.mock('../../contexts/ModeContext', () => ({
@@ -13,7 +34,13 @@ vi.mock('../../contexts/ModeContext', () => ({
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
-    user: { firstName: 'Bruno', lastName: 'Lima', username: 'bruno' },
+    user: {
+      id: 'user-1',
+      displayName: 'Bruno Lima',
+      email: 'bruno@example.com',
+      isGuest: false,
+      isAdmin: false,
+    },
     userId: 'user-1',
     updateName: vi.fn(),
   }),
@@ -28,14 +55,54 @@ vi.mock('../../components/UserMenu', () => ({
 }));
 
 vi.mock('../../components/EmptyStateHome', () => ({
-  default: () => <div data-testid="empty-state-home" />,
+  default: ({ onStartInvestigation }: { onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => void }) => (
+    <div data-testid="empty-state-home">
+      <button
+        type="button"
+        onClick={() =>
+          onStartInvestigation({
+            companyName: 'Acme Agro',
+            cnpj: '12.345.678/0001-90',
+            city: 'Cuiaba',
+            state: 'MT',
+          })
+        }
+      >
+        mock-start-investigation
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../../utils/diagnosticLog', () => ({
-  scoutDiag: { warn: warnMock },
+  scoutDiag: { warn: warnMock, info: vi.fn(), error: vi.fn() },
 }));
 
-function buildProps(): React.ComponentProps<typeof ChatInterface> {
+function buildMessage(id: string, sender: Sender, text: string): Message {
+  return {
+    id,
+    sender,
+    text,
+    timestamp: new Date('2026-04-04T12:00:00.000Z'),
+  };
+}
+
+function buildSession(messages: Message[]): ChatSession {
+  return {
+    id: 'session-1',
+    title: 'Acme Agro',
+    empresaAlvo: 'Acme Agro',
+    cnpj: '12.345.678/0001-90',
+    modoPrincipal: null,
+    scoreOportunidade: null,
+    resumoDossie: null,
+    createdAt: '2026-04-04T12:00:00.000Z',
+    updatedAt: '2026-04-04T12:00:00.000Z',
+    messages,
+  };
+}
+
+function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface>> = {}): React.ComponentProps<typeof ChatInterface> {
   return {
     currentSession: null,
     sessions: [],
@@ -75,23 +142,74 @@ function buildProps(): React.ComponentProps<typeof ChatInterface> {
     onOpenEmailModal: vi.fn(),
     onOpenFollowUpModal: vi.fn(),
     onLogout: vi.fn(),
+    ...overrides,
   };
 }
 
-describe('ChatInterface processing indicator', () => {
+describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renderiza o status de processamento sem tentar imprimir o objeto bruto', () => {
+  it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
+    render(<ChatInterface {...buildProps()} />);
+
+    expect(screen.getByTestId('empty-state-home')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Campo de mensagem')).not.toBeInTheDocument();
+  });
+
+  it('aciona a investigacao inicial a partir da home', async () => {
+    const onDeepDive = vi.fn(async () => undefined);
+
+    render(<ChatInterface {...buildProps({ onDeepDive })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'mock-start-investigation' }));
+
+    await waitFor(() => {
+      expect(onDeepDive).toHaveBeenCalledWith(
+        '🔍 Investigando Acme Agro...',
+        expect.stringContaining('Acme Agro'),
+        'Acme Agro',
+      );
+    });
+  });
+
+  it('renderiza mensagens no contrato esperado pelo MessageRow', () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
     render(
       <ChatInterface
-        {...buildProps()}
-        processing={{
-          stage: 'Buscando dados',
-          completedStages: ['consulta', 'analise'],
-          failureCount: 1,
-        }}
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('virtuoso')).toBeInTheDocument();
+    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
+  });
+
+  it('renderiza o status de processamento sem imprimir o objeto bruto', () => {
+    const messages = [buildMessage('m1', Sender.User, 'Investigar Acme Agro')];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          processing: {
+            stage: 'Buscando dados',
+            completedStages: ['consulta', 'analise'],
+            failureCount: 1,
+          },
+        })}
       />,
     );
 
@@ -102,11 +220,17 @@ describe('ChatInterface processing indicator', () => {
     expect(warnMock).not.toHaveBeenCalled();
   });
 
-  it('faz fallback para texto seguro e loga quando processing vem malformado', async () => {
+  it('faz fallback seguro e loga quando processing vem malformado', async () => {
+    const messages = [buildMessage('m1', Sender.User, 'Investigar Acme Agro')];
+
     render(
       <ChatInterface
-        {...buildProps()}
-        processing={{ failureCount: 0 } as React.ComponentProps<typeof ChatInterface>['processing']}
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          processing: { failureCount: 0 } as React.ComponentProps<typeof ChatInterface>['processing'],
+        })}
       />,
     );
 
@@ -120,7 +244,7 @@ describe('ChatInterface processing indicator', () => {
           stageType: 'undefined',
           completedStagesIsArray: false,
           failureCountType: 'number',
-          sessionId: null,
+          sessionId: 'session-1',
         }),
       );
     });
