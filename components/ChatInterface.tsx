@@ -188,7 +188,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showInitialHome = !currentSession || messages.length === 0;
+  const safeMessages = Array.isArray(messages) ? messages : [];
+  const showInitialHome = !currentSession || safeMessages.length === 0;
 
   const handleDeleteWithUndo = (msgId: string) => {
     if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
@@ -255,7 +256,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
   const lastBotWithSuggestionsIndex = useMemo(
     () =>
-      [...messages]
+      [...safeMessages]
         .map((m, i) => ({ m, i }))
         .filter(
           ({ m }) =>
@@ -264,17 +265,17 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         )
         .map(({ i }) => i)
         .pop(),
-    [messages],
+    [safeMessages],
   );
 
   const lastUserIndex = useMemo(
     () =>
-      [...messages]
+      [...safeMessages]
         .map((m, i) => ({ m, i }))
         .filter(({ m }) => m.sender === Sender.User)
         .map(({ i }) => i)
         .pop(),
-    [messages],
+    [safeMessages],
   );
 
   const processingInfo = useMemo(() => {
@@ -369,7 +370,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     lastBotWithSuggestionsIndex !== undefined &&
     lastUserIndex !== undefined &&
     lastUserIndex > lastBotWithSuggestionsIndex
-      ? messages[lastBotWithSuggestionsIndex].id
+      ? safeMessages[lastBotWithSuggestionsIndex]?.id ?? null
       : null;
 
   const handleSend = () => {
@@ -415,14 +416,14 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   );
 
   const handleCopyMarkdown = useCallback(() => {
-    const text = messages
+    const text = safeMessages
       .filter(m => !m.isError && !m.isThinking)
       .map(m => `**${m.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${m.text}`)
       .join('\n\n---\n\n')
       .replace(/\[\[PORTA:[^\]]+\]\]/g, '');
 
     void navigator.clipboard.writeText(text);
-  }, [messages]);
+  }, [safeMessages]);
 
   const handleStopWithToast = useCallback(() => {
     onStop?.();
@@ -441,7 +442,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const itemData = useMemo<MessageRowData>(
     () => ({
-      messages,
+      messages: safeMessages,
       isLoading,
       isDarkMode,
       mode,
@@ -466,7 +467,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       empresaAlvo: currentSession?.empresaAlvo || null,
     }),
     [
-      messages,
+      safeMessages,
       isLoading,
       isDarkMode,
       mode,
@@ -682,12 +683,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           ) : (
             <Virtuoso
               ref={virtuosoRef}
-              data={messages}
+              data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
               followOutput={isLoading && !userHasScrolledUpRef.current ? 'smooth' : false}
               increaseViewportBy={{ top: 400, bottom: 400 }}
-              initialTopMostItemIndex={messages.length - 1}
+              initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
               style={{ height: '100%' }}
               components={{
                 Header: () =>
