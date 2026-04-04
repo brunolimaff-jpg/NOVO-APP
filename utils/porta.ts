@@ -53,6 +53,35 @@ export const PORTA_FLAG_META: Record<
   },
 };
 
+export function stripVisiblePortaFeedSections(content: string): string {
+  if (!content) return '';
+
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const cleanedLines: string[] = [];
+  let skipping = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (/^#{1,6}\s+.*BLOCO DE FEEDS PORTA/i.test(trimmed)) {
+      skipping = true;
+      continue;
+    }
+
+    if (skipping) {
+      if (/^#{1,6}\s+/.test(trimmed)) {
+        skipping = false;
+        cleanedLines.push(line);
+      }
+      continue;
+    }
+
+    cleanedLines.push(line);
+  }
+
+  return cleanedLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export function getPortaCompatibility(score: number): {
   emoji: string;
   label: string;
@@ -87,6 +116,7 @@ export function getPortaCompatibility(score: number): {
 
 export function stripPortaMarkers(content: string): string {
   let cleaned = normalizePortaContent(content).replace(PORTA_MARKER_ANY_REGEX, '');
+  cleaned = stripVisiblePortaFeedSections(cleaned);
   
   // Limpa o bloco de texto onde o Gemini explica as notas para n poluir o layout, já q vao no hover agora.
   // Pode vir como "**SCORE PORTA**" ou "### SCORE PORTA" etc.
