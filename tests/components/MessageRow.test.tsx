@@ -134,6 +134,39 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
   });
 
+  it('renderiza badge Cliente Senior quando dados estiverem presentes', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+      clienteSeniorData: {
+        encontrado: true,
+        grupo: 'Grupo Scheffer',
+        totalModulos: 4,
+        familias: ['ERP'],
+        modulosPorFamilia: {},
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.getByTestId('cliente-senior-score')).toBeInTheDocument();
+  });
+
+  it('renderiza DeepDiveTopics na última mensagem finalizada', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          isLoading: false,
+          onDeepDive: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.getByTestId('deep-dive-topics')).toBeInTheDocument();
+  });
+
   it('renderiza mensagem do usuário sem crashar no modo dark', () => {
     const msg = makeMessage({ text: 'Pesquisar empresa', sender: Sender.User });
     expect(() =>
