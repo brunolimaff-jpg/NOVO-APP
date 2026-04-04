@@ -29,7 +29,8 @@ export interface WarRoomQueryOptions {
 }
 
 // ─── CONFIG ───────────────────────────────────────
-const MODEL_ID = 'gemini-3.1-pro-preview';
+import { MODEL_IDS } from '../config/models';
+const MODEL_ID = MODEL_IDS.deepResearch;
 const DEFAULT_COMPETITOR_TARGET = 'concorrente principal';
 const MODEL_TIMEOUT_MS = 90000;
 const MAX_HISTORY_TURNS = 8;

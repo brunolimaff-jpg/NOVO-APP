@@ -113,6 +113,7 @@ export const DEEP_DIVE_SOURCES = {
   EXPANSAO: 'RADAR_EXPANSAO',
   RH: 'RH_SINDICATOS',
   DECISORES: 'MAPEAMENTO_DECISORES',
+  ORCAMENTO: 'ORCAMENTO_JANELA',
 } as const;
 
 export interface ParsedContent {

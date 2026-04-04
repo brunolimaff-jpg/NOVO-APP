@@ -76,6 +76,157 @@ Ao gerar diagramas Mermaid (graph TD):
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BLOCO APEX 1 — CUSTO DA DEMORA (Cost of Delay)
+// Injetado APÓS SHARED_FOUNDATION_BLOCK, ANTES dos prompts especialistas.
+// Objetivo: forçar cálculo de impacto financeiro da inação em cada dimensão.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SHARED_COST_OF_DELAY_BLOCK = `
+<apex_cost_of_delay>
+
+<purpose>
+Para CADA dimensão do SCORE PORTA analisada neste dossiê, QUANTIFIQUE o custo
+da inação — o prejuízo financeiro, operacional ou competitivo que o prospect
+sofre a cada mês SEM agir. Isso transforma o dossiê de "relatório descritivo"
+em "argumento de urgência com números".
+</purpose>
+
+<methodology>
+Para cada dimensão aplicável, calcule:
+
+**P (Porte/Potencial):**
+- Custo de oportunidade: receita estimada × margem perdida por não escalar operação
+- Ex: "Se X hectares estão sem gestão integrada, ~R$ Y/mês em ineficiência logística"
+
+**O (Operação):**
+- Custo de retrabalho manual: horas/mês × custo médio/hora da atividade
+- Custo de falhas de integração: erros de estoque, NFs incorretas, perdas rastreáveis
+- Ex: "Planilha manual para controle de X silos = ~Y horas/mês desperdiçadas"
+
+**R (Risco/Pressão):**
+- Custo de multas regulatórias: valor médio por tipo de infração identificada
+- Custo de juros/mora por atraso fiscal: valor calculado sobre débitos encontrados
+- Ex: "LCDPR em malha fina = multa mínima de R$ X + exposição a [risco]"
+
+**T (Tecnologia):**
+- Custo de manter ERP legado: licenças antigas + customizações + perda de produtividade
+- Custo de NÃO ter BI/dados: decisões baseadas em "feeling" vs dados reais
+- Ex: "ERP de 2017 sem API = R$ X/mês em integrações manuais ou impossíveis"
+
+**A (Abertura/Timing):**
+- Custo de perder a janela: se há evento de capital, M&A ou ciclo orçamentário se fechando
+- Ex: "Assembleia da cooperativa em [mês] — perder essa janela = 12 meses de espera"
+</methodology>
+
+<output_rules>
+- NÃO invente números. Use dados encontrados nas seções anteriores como base.
+- Se o dado exato não existir, use faixas de mercado com prefixo "ESTIMATIVA:".
+- Formato obrigatório por dimensão analisada:
+
+  **💸 Custo da Demora — [Dimensão]:**
+  - Cenário identificado: [descrição]
+  - Impacto estimado: R$ [valor]/mês ou R$ [valor]/ano
+  - Base do cálculo: [fonte ou referência de mercado]
+  - Urgência: 🔴 CRÍTICA / 🟡 MODERADA / 🟢 BAIXA
+
+- COMPILE ao final uma tabela resumo:
+
+  | Dimensão | Custo Mensal Estimado | Urgência | Gatilho |
+  |----------|---------------------|----------|---------|
+  | O | R$ X | 🔴/🟡/🟢 | [gatilho de abordagem] |
+  | R | R$ Y | 🔴/🟡/🟢 | [gatilho de abordagem] |
+  | ... | ... | ... | ... |
+  | **TOTAL** | **R$ Z/mês** | — | — |
+
+- A tabela TOTAL é o argumento de ROI para o vendedor.
+- NÃO gere seção vazia. Se não há dados para calcular custo, OMITA a dimensão.
+</output_rules>
+
+</apex_cost_of_delay>
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BLOCO APEX 2 — CAÇADOR DE DISCREPÂNCIAS (Discrepancy Hunter)
+// Injetado APÓS COST_OF_DELAY, ANTES dos prompts especialistas.
+// Objetivo: cruzar dados entre seções e expor contradições, gaps e red flags.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const SHARED_DISCREPANCY_HUNTER_BLOCK = `
+<apex_discrepancy_hunter>
+
+<purpose>
+APÓS gerar todas as seções do dossiê, REVISE o conteúdo completo e CRUZE
+afirmações entre seções para identificar contradições, dados incompatíveis,
+gaps lógicos e informações que não "batem". Isso é a camada de integridade
+que transforma dados brutos em inteligência auditável.
+</purpose>
+
+<detection_matrix>
+Cruzamentos OBRIGATÓRIOS (executar todos que forem aplicáveis):
+
+1. **Porte vs. Headcount:**
+   - Número de funcionários (RH) compatível com hectares/silos/unidades (Raio-X)?
+   - Ex: 50.000 ha com 30 funcionários → inconsistente (mínimo esperado: ~150-200)
+
+2. **Faturamento vs. Decisores:**
+   - Faturamento estimado compatível com nível de C-Level encontrado?
+   - Ex: empresa com R$ 500M de faturamento mas sem CFO profissional → red flag
+
+3. **Tech Stack vs. Vagas de TI:**
+   - ERP declarado como "satisfatório" mas vagas de TI para "novo sistema" abertas?
+   - Software X declarado mas vaga pedindo software Y → transição em andamento
+
+4. **Compliance vs. Expansão:**
+   - Empresa em expansão agressiva mas com multas fiscais pendentes?
+   - Ex: nova filial em 2024 + LCDPR atrasado = risco de alavancagem forçada
+
+5. **Decisores vs. Orçamento:**
+   - CFO recém-contratado (< 12 meses) + sem investimento em TI recente = provável revisão
+   - CEO fundador sem conselho + decisão centralizada = gatilho diferente
+
+6. **Fontes conflitantes:**
+   - Dado A de fonte X contradiz dado B de fonte Y no mesmo campo?
+   - Ex: RAIS diz 200 funcionários, LinkedIn mostra 500 → qual é real? Declarar.
+
+7. **Segmento vs. Operação:**
+   - Classificação como PRD (produtor rural) mas com trading de commodities significativo?
+   - Classificação como COP (cooperativa) mas com operação industrial própria?
+
+8. **Timeline inconsistente:**
+   - Últimas notícias de 3+ anos atrás mas dossiê trata como informação atual?
+   - Fonte com data de 2019 usada para afirmação sobre estado atual = flag
+</detection_matrix>
+
+<output_rules>
+- GERE uma seção exclusiva no final do dossiê (antes dos feeds PORTA finais):
+
+  ## ⚠️ VERIFICAÇÃO DE INTEGRIDADE (Discrepancy Hunter)
+
+- Para CADA inconsistência encontrada, formato obrigatório:
+
+  **🔍 CRUZAMENTO [N]: [Título curto]**
+  - **Seção A:** [dado da seção X]
+  - **Seção B:** [dado da seção Y]
+  - **Inconsistência:** [descrição do conflito]
+  - **Impacto no SCORE:** [qual dimensão PORTA é afetada e como]
+  - **Recomendação:** [ação para o vendedor resolver antes da abordagem]
+
+- Se NENHUMA inconsistência for encontrada (raro):
+  "✅ Nenhuma inconsistência crítica detectada entre seções. Dados coerentes."
+
+- AJUSTE as notas PORTA retroativamente:
+  - Inconsistência grave (dados que invalidam uma nota) → rebaixar nota em 1-2 pontos
+  - Inconsistência leve (fonte desatualizada) → manter nota mas declarar risco
+  - NÃO altere notas silenciosamente. DECLARE: "Nota [X] ajustada de [N] para [M] por [motivo]"
+
+- Máximo: 5 cruzamentos mais relevantes (priorizar por impacto no score).
+- NÃO gere cruzamentos triviais ou forçados. Qualidade > quantidade.
+</output_rules>
+
+</apex_discrepancy_hunter>
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PROMPT 1 — RAIO-X OPERACIONAL
 // Alimenta: dimensão O (Operação) e R (Pressão Externa) do SCORE PORTA
 // ═══════════════════════════════════════════════════════════════════════════════

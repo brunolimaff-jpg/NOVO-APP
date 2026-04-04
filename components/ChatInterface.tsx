@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
-import { SHARED_FOUNDATION_BLOCK } from '../prompts/megaPrompts';
+import { SHARED_FOUNDATION_BLOCK, SHARED_COST_OF_DELAY_BLOCK, SHARED_DISCREPANCY_HUNTER_BLOCK } from '../prompts/megaPrompts';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
@@ -19,6 +19,7 @@ import { extractCompanyName } from '../utils/companyNameExtractor';
 import { parseSmartOptions } from './SmartOptions';
 import {
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+  PROMPT_ORCAMENTO_JANELA_GOD_MODE,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_RH_SINDICATOS_GOD_MODE,
@@ -235,6 +236,8 @@ const hiddenPrompt = [
   'Priorize objetividade, fontes auditáveis e síntese executiva final.',
   `Contexto cadastral obrigatório: Empresa=${payload.companyName}; CNPJ=${payload.cnpj || 'N/D'}; Cidade=${payload.city}; UF=${payload.state}.`,
   SHARED_FOUNDATION_BLOCK,  // ← UMA VEZ no topo
+  SHARED_COST_OF_DELAY_BLOCK,  // APEX: custo da inação por dimensão
+  SHARED_DISCREPANCY_HUNTER_BLOCK,  // APEX: cruzamento de dados entre seções
   '---',
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   '---',
@@ -247,9 +250,8 @@ const hiddenPrompt = [
   PROMPT_RH_SINDICATOS_GOD_MODE,
   '---',
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
-  // Para ativar Orçamento (Fase 2):
-  // '---',
-  // PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+  '---',
+  PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 ].join('\n\n');
 
     await onDeepDive(prompt, hiddenPrompt, payload.companyName);

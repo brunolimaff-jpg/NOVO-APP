@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
@@ -8,6 +9,9 @@ import {
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from '../prompts/megaPrompts';
+
+const withFoundation = (prompt: string) =>
+  SHARED_FOUNDATION_BLOCK + '\n\n---\n\n' + prompt;
 
 interface DeepDiveTopicsProps {
   onSelectTopic: (displayMessage: string, hiddenPrompt: string) => void;
@@ -20,49 +24,49 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
       label: 'Raio-X Operacional',
       tooltip: 'Mapear hectares, silos, frotas e armazéns. (Gatilho para GAtec/WMS)',
       icon: '🚜',
-      hiddenPrompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE
+      hiddenPrompt: withFoundation(PROMPT_RAIO_X_OPERACIONAL_ATAQUE)
     },
     {
       id: 'tech-stack',
       label: 'Tech Stack & ERP',
       tooltip: 'Descobrir qual sistema usam hoje e vagas de TI abertas. (Gatilho de migração)',
       icon: '💻',
-      hiddenPrompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE
+      hiddenPrompt: withFoundation(PROMPT_TECH_STACK_GOD_MODE_ATAQUE)
     },
     {
       id: 'compliance',
       label: 'Riscos & Compliance',
       tooltip: 'Buscar execuções fiscais, malha fina de LCDPR e passivos ambientais.',
       icon: '🚨',
-      hiddenPrompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE
+      hiddenPrompt: withFoundation(PROMPT_RISCOS_COMPLIANCE_GOD_MODE)
     },
     {
       id: 'radar',
       label: 'Teia Societária (M&A)',
       tooltip: 'Vasculhar CNPJs cruzados, holdings, laranjas e estimar faturamento.',
       icon: '🕸️',
-      hiddenPrompt: PROMPT_RADAR_EXPANSAO_GOD_MODE
+      hiddenPrompt: withFoundation(PROMPT_RADAR_EXPANSAO_GOD_MODE)
     },
     {
       id: 'rh-sindicatos',
       label: 'RH, SST & Cultura',
       tooltip: 'Mapear Headcount, sistemas de DP ocultos, CAEPF e risco FAP/RAT.',
       icon: '👥',
-      hiddenPrompt: PROMPT_RH_SINDICATOS_GOD_MODE
+      hiddenPrompt: withFoundation(PROMPT_RH_SINDICATOS_GOD_MODE)
     },
     {
       id: 'mapeamento-decisores',
       label: 'Mapa de Decisores',
       tooltip: 'Identificar C-Level, Shadow Board, gatekeepers externos e sabotadores internos do projeto.',
       icon: '🎭',
-      hiddenPrompt: PROMPT_MAPEAMENTO_DECISORES_GOD_MODE
+      hiddenPrompt: withFoundation(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE)
     },
     {
       id: 'orcamento-janela',
       label: 'Orçamento & Janela',
       tooltip: 'Decodificar capacidade de investimento, crédito rural, ciclo orçamentário e timing ideal de abordagem.',
       icon: '💵',
-      hiddenPrompt: PROMPT_ORCAMENTO_JANELA_GOD_MODE
+      hiddenPrompt: withFoundation(PROMPT_ORCAMENTO_JANELA_GOD_MODE)
     }
   ];
 
