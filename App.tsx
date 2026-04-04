@@ -59,6 +59,7 @@ import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
 import {
+  buildMainDossierExecutiveIntro,
   collectFullReport,
   detectInconsistencies,
   generateExecutiveSummary,
@@ -646,11 +647,19 @@ const App: React.FC = () => {
         // Extrair Score PORTA dos markers no texto acumulado
         const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-        const waterfallFinalText = appendSeniorEvidenceNote(
+        const waterfallNarrativeText = appendSeniorEvidenceNote(
           waterfallCleanText,
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
+        const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
+          waterfallNarrativeText,
+          normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
+          waterfallClienteSeniorData,
+        );
+        const waterfallFinalText = waterfallExecutiveIntro
+          ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeText}`
+          : waterfallNarrativeText;
 
         let waterfallSuggestions: string[] = [];
         try {

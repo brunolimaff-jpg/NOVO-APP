@@ -47,4 +47,33 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/INTELIGÊNCIA OPERACIONAL/)).toBeInTheDocument();
     expect(screen.getByText(/ARQUITETURA DE TI/)).toBeInTheDocument();
   });
+
+  it('renderiza uma abertura executiva antes dos módulos principais', () => {
+    const message: Message = {
+      id: 'bot-2',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '## 📌 Resumo Executivo',
+        '',
+        'Conta já dominada pela Senior com tese prioritária de expansão.',
+        '',
+        '## 🔭 Leitura do Caso',
+        '',
+        '- **Operação:** Existe gargalo logístico na ponta.',
+        '',
+        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL',
+        '',
+        '## 🎯 RADAR DE ESTRUTURA',
+        'Resumo operacional',
+      ].join('\n'),
+    };
+
+    render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+    expect(screen.getByText(/Resumo Executivo/)).toBeInTheDocument();
+    expect(screen.getByText(/Leitura do Caso/)).toBeInTheDocument();
+    expect(screen.getByText('Módulo 1')).toBeInTheDocument();
+    expect(screen.getByText(/Conta já dominada pela Senior/)).toBeInTheDocument();
+  });
 });

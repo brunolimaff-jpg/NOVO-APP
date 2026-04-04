@@ -43,6 +43,26 @@ describe('PORTA helpers', () => {
     expect(stripPortaMarkers('Antes [[PORTA:45:P9:O9:R8:T6:A5:AGI:LOCK]] depois')).toBe('Antes  depois');
   });
 
+  it('removes the visible PORTA feed block while preserving the narrative above it', () => {
+    const cleaned = stripPortaMarkers([
+      'Texto principal do módulo.',
+      '',
+      '### 📊 BLOCO DE FEEDS PORTA',
+      '',
+      '**Dimensão O — Cadeia de Valor:**',
+      '- Nota O sugerida: 9',
+      '[[PORTA_FEED_O:9:ELOS:Plantio,Armazenagem]]',
+      '',
+      '# Próximo módulo',
+      'Continua aqui.',
+    ].join('\n'));
+
+    expect(cleaned).toContain('Texto principal do módulo.');
+    expect(cleaned).toContain('# Próximo módulo');
+    expect(cleaned).not.toContain('BLOCO DE FEEDS PORTA');
+    expect(cleaned).not.toContain('Nota O sugerida');
+  });
+
   it('builds score from consolidated feed markers for a large agroindustrial group', () => {
     const parsed = buildPortaScoreFromFeeds(`
 [[PORTA_FEED_O:[8]:ELOS:[Plantio,Armazenagem,Beneficiamento,Exportacao,Logistica]]]
