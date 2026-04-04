@@ -40,6 +40,11 @@ function extractNodeText(node: React.ReactNode): string {
   return '';
 }
 
+function isHiddenSupportHeading(node: React.ReactNode): boolean {
+  const text = extractNodeText(node).replace(/\s+/g, ' ').trim();
+  return /BLOCO DE FEEDS PORTA/i.test(text);
+}
+
 // ---------------------------------------------------------------------------
 // FIX #3 — Singleton Mermaid: initialize apenas uma vez por tema.
 // Chamar initialize() antes de cada render() causava race conditions quando
@@ -429,16 +434,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       </h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
-        <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
-        <span className="block leading-snug">{children}</span>
-      </h3>
+      isHiddenSupportHeading(children) ? null : (
+        <h3 className="text-[0.95rem] md:text-[1rem] font-extrabold mt-5 mb-2 text-slate-900 dark:text-slate-50 flex items-start gap-2">
+          <span className="w-1.5 h-1.5 mt-2 rounded-full bg-emerald-400 shrink-0" />
+          <span className="block leading-snug">{children}</span>
+        </h3>
+      )
     ),
     hr: () => (
       <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />
     ),
     h4: ({ children }: any) => (
-      <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>
+      isHiddenSupportHeading(children) ? null : (
+        <h4 className="text-[0.9rem] font-bold mt-2 mb-1 text-slate-900 dark:text-slate-50">{children}</h4>
+      )
     ),
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-emerald-400/80 bg-emerald-50/50 dark:bg-emerald-900/20 dark:border-emerald-500/70 px-3 py-2 my-2 rounded-r-md text-xs md:text-[0.9rem] text-emerald-900 dark:text-emerald-100">

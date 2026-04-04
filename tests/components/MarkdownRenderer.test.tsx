@@ -32,4 +32,16 @@ describe('MarkdownRenderer', () => {
     expect(container.textContent).toContain('[1]');
     expect(container.textContent).toContain('[2]');
   });
+
+  it('oculta o heading visual de BLOCO DE FEEDS PORTA sem remover o conteúdo subsequente', () => {
+    render(
+      <MarkdownRenderer
+        content={'### 📊 BLOCO DE FEEDS PORTA\n\n- Nota O sugerida: 9'}
+        allowRawHtml={false}
+      />
+    );
+
+    expect(screen.queryByText(/BLOCO DE FEEDS PORTA/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Nota O sugerida: 9/i)).toBeInTheDocument();
+  });
 });
