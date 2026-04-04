@@ -183,30 +183,26 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
   );
 
   return (
-    <div className="my-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-50/50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-600 backdrop-blur-sm dark:border-emerald-400/10 dark:bg-emerald-400/10 dark:text-emerald-400">
+    <div className="my-6">
+      <div className="mb-4 space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
             </span>
             Deep Dives
           </div>
-          <h3 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
             Investigações cirúrgicas por frente
           </h3>
-          <p className="max-w-xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Escolha uma frente para aprofundar com máxima densidade analítica, foco comercial e rigor forense.
-          </p>
         </div>
-
-        <div className="hidden shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/50 px-3 py-1.5 text-[11px] font-mono font-medium text-slate-500 shadow-sm backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-800/50 dark:text-slate-400 md:flex">
-          {PROMPT_VERSION}
-        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+          Escolha uma frente para aprofundar com máxima densidade analítica, foco comercial e rigor forense.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {topics.map(topic => {
           const hiddenPrompt = buildDeepDiveHiddenPrompt(topic.basePrompt, topic.label);
 
@@ -214,49 +210,21 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
             <button
               key={topic.id}
               type="button"
-              title={topic.tooltip}
+              title={`${topic.subtitle}\n\nImpacto: ${topic.impact}`}
               onClick={() =>
                 onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt)
               }
-              className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-white p-5 text-left transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl hover:shadow-emerald-900/5 dark:bg-slate-900/40 dark:hover:shadow-emerald-900/20 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/50 hover:border-emerald-500/30 dark:hover:border-emerald-500/30"
+              className="group flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/40 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800"
             >
-              {/* Subtle background glow on hover */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 pointer-events-none" />
-              
-              {/* Magic corner orb */}
-              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-400/10 blur-3xl transition-all duration-700 group-hover:bg-emerald-400/20 group-hover:blur-2xl pointer-events-none" />
-
-              <div className="relative z-10 w-full mb-4">
-                <div className="mb-5 flex items-start justify-between gap-3 relative">
-                  {/* Icon Block */}
-                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 text-xl shadow-sm ring-1 ring-slate-200/50 transition-all duration-500 group-hover:scale-110 group-hover:from-emerald-50 group-hover:to-emerald-100/50 group-hover:ring-emerald-200 dark:from-slate-800 dark:to-slate-800/80 dark:ring-slate-700 dark:group-hover:from-emerald-900/40 dark:group-hover:to-emerald-900/20 dark:group-hover:ring-emerald-800">
-                    {/* Underlying glow for icon */}
-                    <div className="absolute inset-0 -z-10 rounded-xl bg-emerald-400/0 blur-md transition-all duration-500 group-hover:bg-emerald-400/40" />
-                    <span className="relative z-10">{topic.icon}</span>
-                  </div>
-                  
-                  {/* Short Label Pill */}
-                  <span className="shrink-0 rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-[0_1px_2px_rgba(0,0,0,0.02)] backdrop-blur-md transition-all duration-500 group-hover:border-emerald-200 group-hover:text-emerald-700 group-hover:shadow-emerald-900/5 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400 dark:group-hover:border-emerald-800 dark:group-hover:text-emerald-400">
-                    {topic.shortLabel}
-                  </span>
-                </div>
-
-                <div className="space-y-2 relative">
-                  <h4 className="text-[15px] font-bold tracking-tight text-slate-900 transition-colors duration-500 group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">
-                    {topic.label}
-                  </h4>
-
-                  <p className="text-[12px] leading-relaxed text-slate-500 dark:text-slate-400 transition-colors duration-500 group-hover:text-slate-600 dark:group-hover:text-slate-300">
-                    {topic.subtitle}
-                  </p>
-                </div>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 text-sm shadow-inner ring-1 ring-slate-200/50 transition-all duration-300 group-hover:scale-110 group-hover:from-emerald-100 group-hover:to-emerald-50 group-hover:ring-emerald-200 dark:from-slate-800 dark:to-slate-800/80 dark:ring-slate-700 dark:group-hover:from-emerald-900/60 dark:group-hover:to-emerald-900/30 dark:group-hover:ring-emerald-800">
+                {topic.icon}
               </div>
-
-              <div className="relative z-10 mt-auto flex w-full items-center justify-start border-t border-slate-100 pt-3 transition-colors duration-500 dark:border-slate-800/60 group-hover:border-emerald-100 dark:group-hover:border-emerald-900/30">
-                {/* Impact Level Pill */}
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10 transition-all duration-500 group-hover:bg-emerald-100 group-hover:ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20 dark:group-hover:bg-emerald-500/20">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 transition-transform duration-500 group-hover:scale-125" />
-                  {topic.impact}
+              <div className="flex flex-col justify-center overflow-hidden">
+                <span className="truncate text-xs font-bold text-slate-800 transition-colors group-hover:text-emerald-700 dark:text-slate-200 dark:group-hover:text-emerald-400">
+                  {topic.label}
+                </span>
+                <span className="truncate text-[9.5px] font-semibold uppercase tracking-wide text-slate-400 transition-colors group-hover:text-emerald-600/70 dark:text-slate-500 dark:group-hover:text-emerald-400/70">
+                  {topic.shortLabel}
                 </span>
               </div>
             </button>
