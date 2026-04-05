@@ -16,9 +16,9 @@ interface ModeTheme {
 
 export const MODE_LABELS: Record<ChatMode, { label: string; icon: string; description: string; theme: ModeTheme }> = {
   investigacao: {
-    label: 'Investigação Guiada',
+    label: 'Inteligência de Campo',
     icon: '🦅',
-    description: 'Fluxo único com onboarding, dossiê assistido e continuidade no chat',
+    description: 'Do alvo ao dossiê completo em minutos — Score PORTA, táticas e próximos passos.',
     theme: {
       bg: 'bg-emerald-700',
       text: 'text-emerald-50',
