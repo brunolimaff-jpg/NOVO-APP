@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
+import GreetingWelcomeScreen from './GreetingWelcomeScreen';
 import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
@@ -162,7 +163,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   canWarRoom = false,
 }) => {
   const { mode, setMode } = useMode();
-  const { user, userId, updateName } = useAuth();
+  const { user, userId, updateName, login, loading } = useAuth();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -670,15 +671,22 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
           {showInitialHome ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-              <EmptyStateHome
-                mode={mode}
-                isDarkMode={isDarkMode}
-                onStartInvestigation={handleStartInvestigation}
-                radarAlerts={radar?.alerts}
-                radarIsScanning={radar?.isScanning}
-                onForceScan={radar?.onForceScan}
-                onOpenRadar={() => setShowRadarPanel(true)}
-              />
+              {!loading && !user ? (
+                <GreetingWelcomeScreen
+                  isDarkMode={isDarkMode}
+                  onConfirmName={(name) => login(name)}
+                />
+              ) : (
+                <EmptyStateHome
+                  mode={mode}
+                  isDarkMode={isDarkMode}
+                  onStartInvestigation={handleStartInvestigation}
+                  radarAlerts={radar?.alerts}
+                  radarIsScanning={radar?.isScanning}
+                  onForceScan={radar?.onForceScan}
+                  onOpenRadar={() => setShowRadarPanel(true)}
+                />
+              )}
             </div>
           ) : (
             <Virtuoso
