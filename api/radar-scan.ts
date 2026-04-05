@@ -112,7 +112,11 @@ function parseRSSXml(xml: string, fallbackSourceName: string): RSSItem[] {
     const title = extractTag(block, 'title');
     const link = extractTag(block, 'link') || extractTag(block, 'guid');
     const description = extractTag(block, 'description')
-      .replace(/<[^>]*>/g, '') // strip HTML
+      .replace(/<[^>]*>/g, '') // strip HTML tags
+      .replace(/&lt;[^&]*&gt;/g, '') // strip escaped HTML tags like &lt;a ...&gt;
+      .replace(/&amp;[a-z0-9#]+;/gi, '') // strip HTML entities
+      .replace(/\s+/g, ' ')
+      .trim()
       .slice(0, 300);
     const pubDate = extractTag(block, 'pubDate');
 
@@ -225,11 +229,16 @@ IMPORTANTE: Notícias que tenham impacto no Brasil TODO (nacional) são ALTAMENT
 Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}".
 ${estadoCtx}
 
+CRVAL:
+- PROIBIDO incluir tags HTML ou links (<a href>, &lt;a, etc) no RESUMO.
+- O RESUMO deve ser texto puro.
+- Garanta que o DATA seja no formato YYYY-MM-DD.
+
 Para cada artigo selecionado, retorne EXATAMENTE este bloco:
 ---ALERTA---
 ID_REF: [o número do ID, ex: 1]
 TITULO: [título limpo e conciso]
-RESUMO: [resumo de impacto em 2 frases]
+RESUMO: [resumo de impacto em 2 frases - SEM HTML E SEM LINKS]
 RELEVANCIA: [alta, media, ou baixa]
 IMPACTO: [oportunidade, ameaca, vulnerabilidade, ou neutro]
 ESTAGIO: [fato_consumado ou sinal_fraco]

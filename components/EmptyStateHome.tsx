@@ -77,15 +77,33 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   const rel = RELEVANCE_BARS[alert.relevance] ?? RELEVANCE_BARS.baixa;
   const catLabel = RADAR_CATEGORY_LABELS[alert.category] ?? alert.category;
   const catIcon = RADAR_CATEGORY_ICONS[alert.category] ?? '📡';
-  const actionLabel = ACTION_LABEL[impacto] ?? 'Ver mais';
+  const actionLabel = alert.sourceUrl && alert.sourceUrl !== '#' ? 'LER NOTÍCIA' : (ACTION_LABEL[impacto] ?? 'Ver mais');
 
-  const cardBg = isDarkMode ? 'bg-slate-900/80 border-slate-700/60' : 'bg-white border-slate-200';
+  const cardBg = isDarkMode ? 'bg-slate-900/80 border-slate-700/60 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-500/50';
   const textTitle = isDarkMode ? 'text-slate-100' : 'text-slate-900';
   const textBody = isDarkMode ? 'text-slate-400' : 'text-slate-600';
   const textMeta = isDarkMode ? 'text-slate-500' : 'text-slate-500';
 
+  // Limpeza profunda do resumo de qualquer lixo HTML que possa ter vindo da IA ou do RSS
+  const cleanSummary = (alert.summary || '')
+    .replace(/&lt;[^&]*&gt;/g, '') // remove &lt;a ...&gt;
+    .replace(/<[^>]*>/g, '')      // remove <a ...>
+    .replace(/&amp;[a-z0-9#]+;/gi, '') // remove entidades
+    .trim();
+
+  const handleCardClick = () => {
+    if (alert.sourceUrl && alert.sourceUrl !== '#') {
+      window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
+    } else if (onOpenRadar) {
+      onOpenRadar();
+    }
+  };
+
   return (
-    <div className={`flex flex-col rounded-xl border ${cardBg} overflow-hidden transition-shadow hover:shadow-md`}>
+    <div 
+      className={`flex flex-col rounded-xl border ${cardBg} overflow-hidden transition-all hover:shadow-lg cursor-pointer group`}
+      onClick={handleCardClick}
+    >
       <div className="flex items-start justify-between gap-2 p-4 pb-3">
         <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}>
           {badge.label}
@@ -99,8 +117,13 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
       </div>
 
       <div className="flex-1 px-4 pb-3">
-        <p className={`text-sm font-semibold leading-snug ${textTitle}`}>{alert.title}</p>
-        <p className={`mt-1.5 text-xs leading-relaxed line-clamp-3 ${textBody}`}>{alert.summary}</p>
+        <div className="flex items-start justify-between gap-1">
+          <p className={`text-sm font-semibold leading-snug group-hover:text-emerald-500 transition-colors ${textTitle}`}>
+            {alert.title}
+          </p>
+          <span className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs">↗</span>
+        </div>
+        <p className={`mt-1.5 text-xs leading-relaxed line-clamp-3 ${textBody}`}>{cleanSummary}</p>
       </div>
 
       <div className={`flex items-center justify-between gap-2 border-t px-4 py-3 ${isDarkMode ? 'border-slate-700/60' : 'border-slate-100'}`}>
@@ -112,11 +135,10 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
         </div>
         <button
           type="button"
-          onClick={onOpenRadar}
           className={`shrink-0 rounded px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
             isDarkMode
-              ? 'bg-slate-800 text-emerald-400 hover:bg-slate-700'
-              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              ? 'bg-slate-800 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white'
+              : 'bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white'
           }`}
         >
           {actionLabel}
