@@ -31,8 +31,8 @@ describe('downloadFile', () => {
       revokeObjectURL: revokeObjectURLMock,
     });
 
-    vi.spyOn(document.body, 'appendChild').mockImplementation(appendChildMock);
-    vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildMock);
+    vi.spyOn(document.body, 'appendChild').mockImplementation(appendChildMock as any);
+    vi.spyOn(document.body, 'removeChild').mockImplementation(removeChildMock as any);
     vi.spyOn(document, 'createElement').mockReturnValue(linkEl as unknown as HTMLElement);
   });
 

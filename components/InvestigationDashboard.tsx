@@ -83,7 +83,7 @@ function FamiliasTags({ familias }: { familias: string[] }) {
   if (!familias.length) return null;
   return (
     <div className="flex flex-wrap gap-1">
-      {familias.slice(0, 4).map((f) => (
+      {(familias || []).slice(0, 4).map((f) => (
         <span
           key={f}
           className="text-xs bg-gray-700 text-gray-300 rounded-full px-2.5 py-0.5"
@@ -280,7 +280,7 @@ export default function InvestigationDashboard({
             <EmptyState />
           )}
 
-          {filtered.map((inv) => {
+          {(filtered || []).map((inv) => {
             const badge = scoreBadge(inv.score);
             return (
               <div

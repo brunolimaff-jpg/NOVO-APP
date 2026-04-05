@@ -10,7 +10,7 @@ function pushSourceUnique(allLinks: SourceRef[], link: SourceRef): void {
   const normalized = normalizeSourceUrl(link.url);
   if (!normalized) return;
   if (!allLinks.find(l => normalizeSourceUrl(l.url) === normalized)) {
-    allLinks.push({ title: link.title, url: normalized });
+    allLinks.push({ id: `src-${allLinks.length + 1}`, title: link.title, url: normalized });
   }
 }
 
@@ -27,7 +27,7 @@ export function collectFullReport(messages: Message[]): { text: string; sections
   const dossieLinks = extractAllLinksFromMarkdown(dossieText);
   dossieLinks.forEach(link => pushSourceUnique(allLinks, link));
   (botMessages[0].groundingSources || []).forEach(source =>
-    pushSourceUnique(allLinks, { title: source.title || source.url, url: source.url }),
+    pushSourceUnique(allLinks, { id: `grnd-0-${allLinks.length}`, title: source.title || source.url, url: source.url }),
   );
 
   for (let i = 1; i < botMessages.length; i++) {
@@ -45,7 +45,7 @@ export function collectFullReport(messages: Message[]): { text: string; sections
       const sectionLinks = extractAllLinksFromMarkdown(botText);
       sectionLinks.forEach(link => pushSourceUnique(allLinks, link));
       (botMessages[i].groundingSources || []).forEach(source =>
-        pushSourceUnique(allLinks, { title: source.title || source.url, url: source.url }),
+        pushSourceUnique(allLinks, { id: `grnd-${i}-${allLinks.length}`, title: source.title || source.url, url: source.url }),
       );
     }
   }

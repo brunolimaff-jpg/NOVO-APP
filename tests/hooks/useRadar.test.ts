@@ -30,10 +30,10 @@ function makeAlert(id: string, read = false): RadarAlert {
     sourceUrl: 'https://example.com',
     sourceName: 'Portal',
     relevance: 'alta',
-    publishedAt: '2024-01-01',
     category: 'concorrentes',
+    publishedAt: new Date().toISOString(),
+    scannedAt: new Date().toISOString(),
     read,
-    receivedAt: Date.now(),
   };
 }
 
@@ -42,7 +42,7 @@ describe('useRadar', () => {
     vi.mocked(idbGet).mockResolvedValue(undefined);
     vi.mocked(idbSet).mockResolvedValue(undefined);
     vi.mocked(fetchRadarAlerts).mockResolvedValue({
-      alerts: [],
+      alerts: [] as RadarAlert[],
       metaInsight: null,
       partialFailures: [],
       categoryStats: [],

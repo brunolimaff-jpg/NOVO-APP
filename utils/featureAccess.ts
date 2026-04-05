@@ -29,7 +29,7 @@ function normalizeValue(value: string): string {
     .toLowerCase();
 }
 
-function extractIdentifiers(user: Pick<AuthUser, 'displayName' | 'email'> | null): Set<string> {
+function extractIdentifiers(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): Set<string> {
   const identifiers = new Set<string>();
   if (!user) return identifiers;
 
@@ -50,13 +50,13 @@ function extractIdentifiers(user: Pick<AuthUser, 'displayName' | 'email'> | null
   return identifiers;
 }
 
-export function isAdminUser(user: Pick<AuthUser, 'displayName' | 'email'> | null): boolean {
+export function isAdminUser(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): boolean {
   if (!user) return false;
   const identifiers = extractIdentifiers(user);
   return identifiers.has(ADMIN_IDENTIFIER);
 }
 
-export function getFeatureAccessForUser(user: Pick<AuthUser, 'displayName' | 'email'> | null): UserFeatureAccess {
+export function getFeatureAccessForUser(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): UserFeatureAccess {
   if (!MVP_LOCK_RESTRICTED_FEATURES) return FULL_ACCESS;
   const hasRestrictedAccess = isAdminUser(user);
   return {

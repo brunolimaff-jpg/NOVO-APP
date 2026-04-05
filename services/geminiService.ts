@@ -624,7 +624,7 @@ export async function sendMessageToGemini(
   canUseLookup: boolean = true,
 ): Promise<{
   text: string;
-  sources?: unknown[];
+  sources?: Array<{ title: string; url: string }>;
   suggestions?: string[];
   scorePorta?: ScorePortaData | null;
   clienteSeniorData?: ClienteSeniorData;

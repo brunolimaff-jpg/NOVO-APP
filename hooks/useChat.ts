@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useTransition } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../contexts/AuthContext';
 import { useMode } from '../contexts/ModeContext';
 import { Message, Sender, Feedback, ChatSession, AppError } from '../types';
-import { sendMessageToGemini, generateNewSuggestions, resetChatSession } from '../services/geminiService';
+import { sendMessageToGemini, generateContinuityQuestion as generateNewSuggestions, resetPortaState as resetChatSession } from '../services/geminiService';
 import { listRemoteSessions, getRemoteSession, saveRemoteSession } from '../services/sessionRemoteStore';
 import { sendFeedbackRemote } from '../services/feedbackRemoteStore';
 import { extractCompanyName } from '../utils/companyNameExtractor';
@@ -12,7 +12,7 @@ import { cleanTitle, sanitizeLoadingContextText, stripInternalMarkers } from '..
 import { normalizeAppError } from '../utils/errorHelpers';
 import { BACKEND_URL } from '../services/apiConfig';
 import { useToast } from './useToast';
-import { APP_NAME, DEFAULT_MODE } from '../constants';
+import { APP_NAME, MODE_LABELS, DEFAULT_MODE } from '../constants';
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v1';
 const THEME_KEY = 'scout360_theme';
 const PAGE_SIZE = 20;
@@ -62,6 +62,16 @@ export const useChat = () => {
   const { toast } = useToast();
   const [, startTransition] = useTransition();
 
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [pdfReportContent, setPdfReportContent] = useState<string | null>(null);
+  const [investigationLogged, setInvestigationLogged] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastActionRef = useRef<LastAction | null>(null);
+  const activeGenerationRef = useRef<Record<string, string>>({}); // Fixed from boolean
+  const lastStatusRef = useRef<string>('');
+
   const { data: remoteSessions } = useQuery({
     queryKey: ['remoteSessions'],
     queryFn: listRemoteSessions,
@@ -82,18 +92,78 @@ export const useChat = () => {
   const [isSavingRemote, setIsSavingRemote] = useState(false);
   const [remoteSaveStatus, setRemoteSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
+  const updateSessionById = useCallback(
+    (id: string, updater: (session: ChatSession) => ChatSession) => {
+      setSessions(prev => 
+        prev.map(s => (s.id === id ? { ...updater(s), updatedAt: new Date().toISOString() } : s))
+      );
+    },
+    [],
+  );
+
   const updateCurrentSession = useCallback(
     (updater: (session: ChatSession) => ChatSession) => {
-      setSessions(prev => {
-        const target = prev.find(s => s.id === currentSessionId);
-        if (!target) return prev;
-        return prev.map(s =>
-          s.id === currentSessionId ? { ...updater(s), updatedAt: new Date().toISOString() } : s,
-        );
-      });
+      if (currentSessionId) updateSessionById(currentSessionId, updater);
     },
-    [currentSessionId],
+    [currentSessionId, updateSessionById],
   );
+
+  const currentSession = useMemo(() => 
+    sessions.find(s => s.id === currentSessionId) || null,
+    [sessions, currentSessionId]
+  );
+
+  const handleNewSession = useCallback(() => {
+    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+    const newSession: ChatSession = {
+      id: uuidv4(),
+      title: 'Nova Investigação',
+      empresaAlvo: null,
+      cnpj: null,
+      modoPrincipal: DEFAULT_MODE,
+      scoreOportunidade: null,
+      resumoDossie: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+    };
+    setSessions(prev => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setVisibleCount(PAGE_SIZE);
+    resetChatSession();
+    setRemoteSaveStatus('idle');
+    setExportStatus('idle');
+    setPdfReportContent(null);
+    setInvestigationLogged(false);
+    lastActionRef.current = null;
+    setLastQuery('');
+    setLoadingStatus('Iniciando análise');
+  }, [isLoading]);
+
+  const handleSelectSession = async (sessionId: string) => {
+    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+    setCurrentSessionId(sessionId);
+    setVisibleCount(PAGE_SIZE);
+    resetChatSession();
+    setRemoteSaveStatus('idle');
+    setExportStatus('idle');
+    setPdfReportContent(null);
+    setInvestigationLogged(false);
+    lastActionRef.current = null;
+    setLoadingStatus('Iniciando análise');
+    const targetSession = sessions.find(s => s.id === sessionId);
+    if (targetSession && targetSession.messages.length === 0) {
+      setIsLoadingSession(true);
+      try {
+        const fullSession = await getRemoteSession(sessionId);
+        if (fullSession) updateSessionById(sessionId, () => fullSession);
+      } catch (e) {
+        console.error('Lazy load error', e);
+      } finally {
+        setIsLoadingSession(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const savedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
@@ -103,7 +173,7 @@ export const useChat = () => {
         const parsed = JSON.parse(savedSessions);
         localSessions = parsed.map((s: any) => ({
           ...s,
-          messages: s.messages.map((m: any) => ({
+          messages: (s.messages || []).map((m: any) => ({
             ...m,
             text: stripInternalMarkers(m.text || ''),
             timestamp: new Date(m.timestamp),
@@ -123,7 +193,7 @@ export const useChat = () => {
     if (savedTheme) setIsDarkMode(savedTheme === 'dark');
     if (window.innerWidth < 768) setIsSidebarOpen(false);
     setIsInitialized(true);
-  }, []);
+  }, [handleNewSession]);
 
   useEffect(() => {
     if (!remoteSessions || remoteSessions.length === 0) return;
@@ -178,58 +248,6 @@ export const useChat = () => {
     resetChatSession();
     document.title = APP_NAME;
   }, [mode]);
-
-  const handleNewSession = useCallback(() => {
-    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
-    const newSession: ChatSession = {
-      id: uuidv4(),
-      title: 'Nova Investigação',
-      empresaAlvo: null,
-      cnpj: null,
-      modoPrincipal: DEFAULT_MODE,
-      scoreOportunidade: null,
-      resumoDossie: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      messages: [],
-    };
-    setSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
-    setVisibleCount(PAGE_SIZE);
-    resetChatSession();
-    setRemoteSaveStatus('idle');
-    setExportStatus('idle');
-    setPdfReportContent(null);
-    setInvestigationLogged(false);
-    lastActionRef.current = null;
-    setLastQuery('');
-    setLoadingStatus('Iniciando análise');
-  }, [isLoading]);
-
-  const handleSelectSession = async (sessionId: string) => {
-    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
-    setCurrentSessionId(sessionId);
-    setVisibleCount(PAGE_SIZE);
-    resetChatSession();
-    setRemoteSaveStatus('idle');
-    setExportStatus('idle');
-    setPdfReportContent(null);
-    setInvestigationLogged(false);
-    lastActionRef.current = null;
-    setLoadingStatus('Iniciando análise');
-    const targetSession = sessions.find(s => s.id === sessionId);
-    if (targetSession && targetSession.messages.length === 0) {
-      setIsLoadingSession(true);
-      try {
-        const fullSession = await getRemoteSession(sessionId);
-        if (fullSession) updateSessionById(sessionId, () => fullSession);
-      } catch (e) {
-        console.error('Lazy load error', e);
-      } finally {
-        setIsLoadingSession(false);
-      }
-    }
-  };
 
   const handleDeleteSession = (sessionId: string) => {
     if (sessionId === currentSessionId && isLoading && abortControllerRef.current) {
@@ -569,7 +587,7 @@ export const useChat = () => {
         updateSessionById(currentSessionId, session => {
           const messages = session.messages;
           const lastMsg = messages[messages.length - 1];
-          if (lastMsg && lastMsg.sender === Sender.Bot && (lastMsg.isError || !lastMsg.text || lastMsg.ghostReason)) {
+          if (lastMsg && lastMsg.sender === Sender.Bot && (lastMsg.isError || !lastMsg.text || lastMsg.ghostDetails)) {
             return { ...session, messages: messages.slice(0, -1) };
           }
           return session;
@@ -622,7 +640,7 @@ export const useChat = () => {
       ),
     }));
     try {
-      const newSuggestions = await generateNewSuggestions(contextText, oldSuggestions);
+      const newSuggestions = await generateNewSuggestions(targetSession.messages, companyName, user?.displayName || 'Vendedor');
       updateSessionById(sessionId, session => ({
         ...session,
         messages: session.messages.map(msg =>
@@ -780,6 +798,14 @@ export const useChat = () => {
     handleToggleMessageSources,
     setVisibleCount,
     setSessions,
-    updateSessionById,
+    updateCurrentSession,
+    isDarkMode,
+    setIsDarkMode,
+    isSidebarOpen,
+    setIsSidebarOpen,
+    exportStatus,
+    pdfReportContent,
+    investigationLogged,
+    setInvestigationLogged
   };
 };

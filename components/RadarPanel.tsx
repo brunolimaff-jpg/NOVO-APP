@@ -127,7 +127,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               }`}
             >
               <option value="all">Todas categorias</option>
-              {categories.map(cat => (
+              {(categories || []).map(cat => (
                 <option key={cat} value={cat}>
                   {RADAR_CATEGORY_ICONS[cat]} {RADAR_CATEGORY_LABELS[cat]}
                 </option>
@@ -270,7 +270,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map(alert => {
+              {(filtered || []).map(alert => {
                 const isVulnerabilidade = alert.impacto === 'vulnerabilidade';
                 return (
                 <div

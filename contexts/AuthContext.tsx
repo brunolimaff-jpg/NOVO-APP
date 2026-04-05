@@ -24,7 +24,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
-  login: (name: string) => void;
+  login: (name: string, password?: string) => void;
   logout: () => void;
   updateName: (name: string) => void;
   error: string | null;
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * login — registra o nome do vendedor e persiste no dispositivo.
    * Em PWA instalado, este dado sobrevive entre sessões.
    */
-  const login = useCallback((name: string) => {
+  const login = useCallback((name: string, _password?: string) => {
     const displayName = name.trim() || 'Visitante';
     let id = storageGet(STORAGE_KEY_ID);
     if (!id) {

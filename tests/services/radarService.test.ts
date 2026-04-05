@@ -12,7 +12,8 @@ const DEFAULT_CONFIG: RadarConfig = {
   enabled: true,
   categories: ['concorrentes'],
   estados: [],
-  scanInterval: 60,
+  scanIntervalHours: 60,
+  isConfigured: true,
 };
 
 describe('RadarScanError', () => {
@@ -232,7 +233,7 @@ describe('fetchRadarAlerts', () => {
       json: async () => ({ error: 'internal error', detail: 'db timeout' }),
     } as Response);
 
-    const err = await fetchRadarAlerts(DEFAULT_CONFIG).catch(e => e as RadarScanError);
+    const err = await fetchRadarAlerts(DEFAULT_CONFIG).catch(e => e as any);
     expect(err.message).toContain('internal error');
   });
 });

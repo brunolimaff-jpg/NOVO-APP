@@ -114,8 +114,9 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({ cards, onMoveCard, onS
 
   const cardsByStage = useMemo(() => {
     const map: Record<string, typeof cards> = {};
+    const safeCards = cards || [];
     for (const stage of stages) {
-      map[stage] = cards.filter(c => c.stage === stage);
+      map[stage] = safeCards.filter(c => c.stage === stage);
     }
     return map;
   }, [cards]);
@@ -175,8 +176,8 @@ export const CRMPipeline: React.FC<CRMPipelineProps> = ({ cards, onMoveCard, onS
                   const isRecentlyMoved = lastMove && lastMove.cardId === card.id && lastMove.to === stage && undoVisible;
 
                   const porta = card.latestScorePorta as number | undefined;
-                  const portaColor = porta >= 71 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' :
-                    porta >= 41 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' :
+                  const portaColor = (porta !== undefined && porta >= 71) ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' :
+                    (porta !== undefined && porta >= 41) ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' :
                     'bg-red-500/15 text-red-700 dark:text-red-300';
 
                   const healthLabel = card.health === 'green'
