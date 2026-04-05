@@ -87,14 +87,14 @@ describe('CRMContext', () => {
       await capturedCRM!.createManualCard({
         companyName: 'Cooperativa Central',
         cnpj: '98765432000112',
-        stage: 'qualificacao',
+        stage: 'prospeccao',
       });
     });
 
     expect(capturedCRM!.cards).toHaveLength(1);
     const card = capturedCRM!.cards[0];
     expect(card.companyName).toBe('Cooperativa Central');
-    expect(card.stage).toBe('qualificacao');
+    expect(card.stage).toBe('prospeccao');
     expect(card.linkedSessionIds).toEqual([]);
   });
 
@@ -159,11 +159,11 @@ describe('CRMContext', () => {
     const cardId = capturedCRM!.cards[0].id;
 
     await act(async () => {
-      await capturedCRM!.moveCardToStage(cardId, 'proposta');
+      await capturedCRM!.moveCardToStage(cardId, 'defesa_tecnica');
     });
 
-    expect(capturedCRM!.cards[0].stage).toBe('proposta');
-    expect(capturedCRM!.cards[0].movedToStageAt['proposta']).toBeDefined();
+    expect(capturedCRM!.cards[0].stage).toBe('defesa_tecnica');
+    expect(capturedCRM!.cards[0].movedToStageAt['defesa_tecnica']).toBeDefined();
   });
 
   it('useCRM fora de CRMProvider lança erro', () => {
@@ -199,7 +199,7 @@ describe('CRMContext', () => {
     const existingCard = {
       id: 'crm_existing',
       companyName: 'Granja São João',
-      stage: 'qualificacao',
+      stage: 'prospeccao',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       movedToStageAt: {},

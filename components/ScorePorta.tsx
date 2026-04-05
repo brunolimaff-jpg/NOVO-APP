@@ -38,16 +38,16 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
   },
 };
 
-  const ScorePorta: React.FC<ScorePortaProps> = (scoreData) => {
+  const ScorePorta: React.FC<ScorePortaProps> = (scoreData = {} as ScorePortaProps) => {
   const {
-    score,
-    p,
-    o,
-    r,
-    t,
-    a,
-    segmento,
-    flags,
+    score = 0,
+    p = 0,
+    o = 0,
+    r = 0,
+    t = 0,
+    a = 0,
+    segmento = 'Não Identificado',
+    flags = [],
     isDarkMode = true,
   } = scoreData;
 

@@ -82,7 +82,7 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       
       updateTest('🧠 RAG - Base Interna', { 
         status: 'success', 
-        message: `${resultado.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
+        message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
         duration 
       });
     } catch (error: any) {
@@ -102,7 +102,7 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       
       updateTest('📚 RAG - Documentação', { 
         status: 'success', 
-        message: `${resultado.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
+        message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
         duration 
       });
     } catch (error: any) {

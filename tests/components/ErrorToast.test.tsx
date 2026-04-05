@@ -3,8 +3,7 @@
  * 5 cenários Whittaker para garantir comportamento em produção.
  */
 
-import { render, screen, waitFor, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { ErrorToast } from '../../components/ErrorToast';
 
@@ -41,7 +40,6 @@ describe('ErrorToast', () => {
 
   // Cenário 3 — Dismiss manual: callback onClose chamado ao clicar no botão
   it('chama onClose quando usuário clica no botão fechar', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const onClose = vi.fn();
 
     render(
@@ -53,7 +51,7 @@ describe('ErrorToast', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /fechar aviso de erro/i }));
+    fireEvent.click(screen.getByRole('button', { name: /fechar aviso de erro/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -74,9 +72,7 @@ describe('ErrorToast', () => {
       vi.advanceTimersByTime(5000);
     });
 
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalledTimes(1);
-    });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   // Cenário 5 — Contexto RAG: mensagem correta para falha de base de dados
