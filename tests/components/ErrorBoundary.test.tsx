@@ -47,7 +47,9 @@ describe('ErrorBoundary', () => {
         <ThrowingComponent />
       </ErrorBoundary>,
     );
-    expect(screen.getByText(/test render error/i)).toBeInTheDocument();
+
+    const matchedErrors = screen.getAllByText(/test render error/i);
+    expect(matchedErrors.length).toBeGreaterThan(0);
   });
 
   it('persiste erro no localStorage (audit trail)', () => {

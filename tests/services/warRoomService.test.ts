@@ -6,6 +6,7 @@ const buscarBaseMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/geminiProxy', () => ({
   proxyGenerateContent: generateContentMock,
+  proxyGerarDossie: generateContentMock,
 }));
 
 vi.mock('../../services/ragService', () => ({

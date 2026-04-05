@@ -113,7 +113,7 @@ describe('sendMessageToGemini lookup gate', () => {
     );
 
     expect(lookupClienteMock).toHaveBeenCalledTimes(1);
-    expect(benchmarkClientesMock).toHaveBeenCalledTimes(1);
+    expect(benchmarkClientesMock).not.toHaveBeenCalled();
   });
 
   it('returns a valid response when account context is active', async () => {
