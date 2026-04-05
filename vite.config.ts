@@ -21,12 +21,20 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: true,
         },
+        '/api/gerar-dossie': {
+          target: 'https://scoutagro.vercel.app',
+          changeOrigin: true,
+          secure: true,
+        },
       },
     },
     plugins: [
       react({
         babel: {
-          plugins: [ReactCompilerPlugin],
+          // FIX: React Compiler ativo APENAS em desenvolvimento.
+          // Em produção, reescreve closures e causa TDZ:
+          // "Cannot access 'Sn' before initialization" (símbolo minificado).
+          plugins: process.env.NODE_ENV !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
       VitePWA({
@@ -106,6 +114,8 @@ export default defineConfig(() => {
       },
     },
     build: {
+      // FIX: modulePreload polyfill garante carregamento dos chunks na ordem correta
+      modulePreload: { polyfill: true },
       rollupOptions: {
         external: [],
         output: {
@@ -115,6 +125,16 @@ export default defineConfig(() => {
             // Sem isso, o browser busca mermaid-aBc123.js que não existe mais
             // após redeploy, recebendo index.html com MIME text/html → erro fatal.
             mermaid: ['mermaid'],
+            // FIX: isola módulos raiz em chunk dedicado — avaliados ANTES dos
+            // componentes que os importam, prevenindo TDZ no bundle minificado.
+            // geminiProxy.ts incluído pois suas funções são importadas por
+            // geminiService.ts e warRoomService.ts (alto risco de TDZ).
+            'app-core': [
+              './constants.ts',
+              './types.ts',
+              './services/investigationStore.ts',
+              './services/geminiProxy.ts',
+            ],
           },
         },
       },

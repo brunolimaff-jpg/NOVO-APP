@@ -297,7 +297,7 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
 
   if (!isOpen) return null;
 
-  const cfg = MODE_CONFIG[lastRoute];
+  const cfg = MODE_CONFIG[lastRoute] ?? MODE_CONFIG['tech'];
 
   const t = {
     pageBg: dk ? 'bg-slate-950' : 'bg-slate-50',

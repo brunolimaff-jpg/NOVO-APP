@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ChatMode, DEFAULT_MODE, DIRETORIA_PROMPT, OPERACAO_PROMPT } from '../constants';
+import { ChatMode, DEFAULT_MODE } from '../constants';
+import { OPERACAO_PROMPT } from '../prompts/systemPrompts';
 
 interface ModeContextType {
   mode: ChatMode;
@@ -16,21 +16,30 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const ENFORCED_MODE: ChatMode = 'operacao';
 
   useEffect(() => {
-    // MVP: diretoria desativado temporariamente. Força operação.
+    // Modo diretoria descontinuado. Forca operacao permanentemente.
     setModeState(ENFORCED_MODE);
-    localStorage.setItem('scout360_mode', ENFORCED_MODE);
+    try {
+      localStorage.setItem('scout360_mode', ENFORCED_MODE);
+    } catch {
+      console.warn('[ModeProvider] localStorage indisponivel, modo nao persiste entre sessoes.');
+    }
   }, []);
 
   const setMode = (_newMode: ChatMode) => {
     setModeState(ENFORCED_MODE);
-    localStorage.setItem('scout360_mode', ENFORCED_MODE);
+    try {
+      localStorage.setItem('scout360_mode', ENFORCED_MODE);
+    } catch {
+      console.warn('[ModeProvider] localStorage indisponivel.');
+    }
   };
 
   const toggleMode = () => {
     setMode(ENFORCED_MODE);
   };
 
-  const systemInstruction = mode === 'operacao' ? OPERACAO_PROMPT : DIRETORIA_PROMPT;
+  // Modo unico: operacao. DIRETORIA_PROMPT removido.
+  const systemInstruction = OPERACAO_PROMPT;
 
   return (
     <ModeContext.Provider value={{ mode, setMode, toggleMode, systemInstruction }}>

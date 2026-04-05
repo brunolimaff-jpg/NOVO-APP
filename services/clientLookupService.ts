@@ -17,6 +17,8 @@ const _concorrentesSet = new Set<string>([
   'ronda', 'rubi', 'vetorh', 'erpx',
 ]);
 
+export type MatchType = 'exact' | 'partial' | 'broad';
+
 /**
  * Retorna true se a empresa for um concorrente cadastrado, a própria Senior,
  * ou um produto/marca reconhecido (ex: "ERP Senior", "GAtec").
@@ -26,6 +28,13 @@ export function isConcorrenteOuPropria(empresa: string): boolean {
   const words = empresa.toLowerCase().trim().split(/[\s,]+/);
   return words.some(w => _concorrentesSet.has(w));
 }
+
+// Prefixos comuns que geram muitos falsos positivos se buscados sozinhos
+const _genericPrefixes = new Set([
+  'fundacao', 'fundação', 'instituto', 'cooperativa', 'cia', 'companhia',
+  'grupo', 'usina', 'fazenda', 'centro', 'associacao', 'associaçao', 'associaçâo',
+  'servico', 'serviço', 'brasil', 'brasileira'
+]);
 
 const LOOKUP_API_URL = LOOKUP_URL;
 const TIMEOUT_MS = 15000; // 15 segundos (Apps Script cold start pode demorar)
@@ -52,6 +61,7 @@ export interface ClienteResult {
   tem_erp: boolean;
   tem_hcm: boolean;
   tem_logistica: boolean;
+  matchType?: MatchType;
 }
 
 export interface LookupResponse {
@@ -181,13 +191,20 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     const p1 = nomeLimpo.includes(' ')
       ? nomeLimpo.split(/\s+/).filter(p => p.length > 2)[0] ?? null
       : null;
+    
+    // Se p1 for um prefixo genérico (ex: "FUNDACAO"), não usamos como variante de busca isolada
+    const isP1Generic = p1 && _genericPrefixes.has(p1.toLowerCase());
+
     const words = nomeLimpo.split(/\s+/).filter(w => w.length > 3);
-    const strongest = words.length > 0
-      ? [...words].sort((a, b) => b.length - a.length)[0]
+    
+    // Pick the longest word that is NOT a generic prefix
+    const nonGenericWords = words.filter(w => !_genericPrefixes.has(w.toLowerCase()));
+    const strongest = nonGenericWords.length > 0
+      ? [...nonGenericWords].sort((a, b) => b.length - a.length)[0]
       : null;
 
     const variants: string[] = [nomeLimpo];
-    if (p1 && p1 !== nomeLimpo) variants.push(p1);
+    if (p1 && p1 !== nomeLimpo && !isP1Generic) variants.push(p1);
     if (strongest && strongest !== nomeLimpo && strongest !== p1) variants.push(strongest);
 
     const settled = await Promise.allSettled(variants.map(v => fetchLookup(v)));
@@ -196,19 +213,52 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
       (r): r is PromiseFulfilledResult<LookupResponse> => r.status === 'fulfilled'
     );
 
+    // Lógica de seleção aprimorada:
+    // 1. Prioriza resultados encontrados.
+    // 2. Entre os encontrados, prioriza aquele que contém o nomeLimpo original no grupo ou razoes_sociais.
+    // 3. Se empatar, usa o total de resultados como desempate (mais específico geralmente tem menos resultados).
     const best = fulfilled.sort((a, b) => {
       if (a.value.encontrado && !b.value.encontrado) return -1;
       if (!a.value.encontrado && b.value.encontrado) return 1;
+      
+      if (a.value.encontrado && b.value.encontrado) {
+        const queryNorm = nomeLimpo.toLowerCase();
+        
+        const scoreA = a.value.results.some(r => 
+          r.grupo.toLowerCase().includes(queryNorm) || 
+          r.razoes_sociais.some(rs => rs.toLowerCase().includes(queryNorm))
+        ) ? 100 : 0;
+
+        const scoreB = b.value.results.some(r => 
+          r.grupo.toLowerCase().includes(queryNorm) || 
+          r.razoes_sociais.some(rs => rs.toLowerCase().includes(queryNorm))
+        ) ? 100 : 0;
+
+        if (scoreA !== scoreB) return scoreB - scoreA;
+      }
+
       return (b.value.total ?? 0) - (a.value.total ?? 0);
     })[0];
 
-    const data: LookupResponse = best?.value ?? {
+    // Atribui matchType baseado na precisão
+    let data: LookupResponse = best?.value ?? {
       ok: false,
       query: nomeLimpo,
       encontrado: false,
       total: 0,
       results: [],
     };
+
+    if (data.encontrado && data.results.length > 0) {
+      const q = nomeLimpo.toLowerCase();
+      data.results = data.results.map(r => {
+        const fullMatch = r.grupo.toLowerCase().includes(q) || r.razoes_sociais.some(rs => rs.toLowerCase().includes(q));
+        return {
+          ...r,
+          matchType: fullMatch ? 'exact' : (data.query.length > 5 ? 'partial' : 'broad')
+        };
+      });
+    }
 
     if (shouldLogLookupDebug) {
       console.log("[LOOKUP] Resultado:", data.encontrado ? "ENCONTRADO ✅" : "NÃO ENCONTRADO", "| Total:", data.total);
@@ -279,10 +329,14 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
   }
 
   const r = lookup.results[0];
+  const isExact = r.matchType === 'exact';
 
-  let md = `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟢 CONFIRMADO — dados CRM interno Senior]\n`;
+  let md = `\n\n---\n## 🔍 BASE INTERNA SENIOR ${isExact ? '[🟢 CONFIRMADO — dados CRM interno Senior]' : '[🟡 POSSÍVEL MATCH — verificar precisão]'}\n`;
+  if (!isExact) {
+    md += `**Atenção:** Busca retornou dados de um grupo similar. Valide se "${r.grupo}" corresponde à "${lookup.query}".\n\n`;
+  }
   md += `**Grupo Cliente:** ${r.grupo}\n`;
-  md += `**É cliente Senior:** ✅ SIM — CONFIRMADO na base interna\n`;
+  md += `**É cliente Senior:** ✅ SIM\n`;
   md += `**Total módulos contratados:** ${r.total_modulos}\n\n`;
 
   md += `### Soluções Senior contratadas:\n`;
