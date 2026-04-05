@@ -460,6 +460,45 @@ function emitDossieStatus(
   onStatus?.(DOSSIE_STATUS[key]);
 }
 
+/**
+ * Extrai até 4 sugestões de acompanhamento do texto da resposta.
+ * Suporta o formato padrão do prompt: separador (---/-----) + **Sugestões** + lista com *.
+ */
+function extractSuggestionsFromText(text: string): string[] {
+  if (!text) return [];
+
+  const SUGGESTION_REGEXES = [
+    /[-_*]{3,}[\s\S]{0,4}[\r\n]+\s*\*{0,2}\s*(?:O que você quer descobrir agora|E aí[^,\n]*|Próximos\s+passos|Sugestões?(?:\s+de\s+perguntas)?)\s*\*{0,2}\s*[\r\n]+/i,
+    /(?:---|___|\*\*\*)\s*[\r\n]+(?:\*\*|##|###)?\s*(?:Sugestões?(?:\s+de\s+perguntas)?|Próximos\s+passos)(?:.*?)[\r\n]+/i,
+    /\n+(?:\*\*|##|###)\s*(?:Sugestões?(?:\s+de\s+perguntas)?|Próximos\s+passos)\s*\*?\*?\s*[\r\n]+/i,
+  ];
+
+  for (const regex of SUGGESTION_REGEXES) {
+    const parts = text.split(regex);
+    if (parts.length >= 2) {
+      const block = parts[parts.length - 1];
+      const items = block
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => /^[\*\-•\+]\s/.test(l) || /^\d+\./.test(l))
+        .map(l =>
+          l
+            .replace(/^[\*\-•\+\d\.]+\s*/, '')
+            .replace(/^"|"$/g, '')
+            .replace(/^'|'$/g, '')
+            .replace(/\*+/g, '')
+            .trim(),
+        )
+        .filter(l => l.length > 0)
+        .slice(0, 4);
+
+      if (items.length > 0) return items;
+    }
+  }
+
+  return [];
+}
+
 function buildTimeoutError(label: string, timeoutMs: number): Error {
   const error = new Error(`${label} timeout after ${timeoutMs}ms`);
   error.name = 'TimeoutError';
@@ -1027,9 +1066,11 @@ export async function sendMessageToGemini(
   }
 
   const sources = normalizeGroundingSources(response);
-  const suggestions: string[] = [];
 
-  return { text: finalText, sources, suggestions, scorePorta, clienteSeniorData, ghostReason: null };
+  // Extrai sugestões diretamente do texto para garantir exibição sem depender de parsing no render
+  const suggestionsFromText = extractSuggestionsFromText(finalText);
+
+  return { text: finalText, sources, suggestions: suggestionsFromText, scorePorta, clienteSeniorData, ghostReason: null };
 }
 
 /**

@@ -157,7 +157,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   }
 
   return (
-    <div className="sectional-message space-y-4">
+    <div className="sectional-message space-y-3 md:space-y-4">
       {showCopyButton && (
         <div className="relative flex justify-end mb-1">
           <CopyButton text={cleanText} isDarkMode={isDarkMode} />
@@ -176,7 +176,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
           }`}
         >
           {section.level === 1 && section.kind === 'module' && (
-            <div className={`flex items-center justify-between gap-3 px-4 pt-4 pb-1 md:px-5 ${
+            <div className={`flex items-center justify-between gap-3 px-3 pt-3 pb-1 md:px-5 md:pt-4 ${
               isDarkMode ? 'border-slate-800/70' : 'border-slate-200'
             }`}>
               <div className="flex items-center gap-2">
@@ -187,17 +187,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 }`}>
                   Módulo {sections.slice(0, idx + 1).filter(item => item.level === 1 && item.kind === 'module').length}
                 </span>
-                {hasPrimaryModules && (
-                  <span className={`text-[11px] font-medium ${
-                    isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    Deep dive consolidado
-                  </span>
-                )}
               </div>
             </div>
           )}
-          <div className={section.level === 1 && section.kind === 'module' ? 'section-content px-4 pb-4 md:px-5 md:pb-5' : 'section-content'}>
+          <div className={section.level === 1 && section.kind === 'module' ? 'section-content px-3 pb-3 md:px-5 md:pb-5' : 'section-content'}>
             <MarkdownRenderer
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
               isDarkMode={isDarkMode}

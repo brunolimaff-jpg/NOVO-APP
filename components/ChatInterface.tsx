@@ -441,6 +441,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
 
+  const consolidatedScore = useMemo(() => {
+    for (let i = safeMessages.length - 1; i >= 0; i--) {
+      if (safeMessages[i].scorePorta) return safeMessages[i].scorePorta;
+    }
+    return null;
+  }, [safeMessages]);
+
   const itemData = useMemo<MessageRowData>(
     () => ({
       messages: safeMessages,
@@ -466,6 +473,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onStop: handleStopWithToast,
       onSendMessage,
       empresaAlvo: currentSession?.empresaAlvo || null,
+      consolidatedScore,
     }),
     [
       safeMessages,
@@ -490,6 +498,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       lastUserQuery,
       handleStopWithToast,
       onSendMessage,
+      consolidatedScore,
     ],
   );
 

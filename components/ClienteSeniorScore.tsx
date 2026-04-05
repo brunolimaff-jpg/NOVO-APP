@@ -28,7 +28,7 @@ const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMod
   const subtleBorder = isDarkMode ? 'rgba(148,163,184,0.12)' : '#e2e8f0';
   const labelColor = isDarkMode ? '#94a3b8' : '#64748b';
   const valueColor = isDarkMode ? '#e2e8f0' : '#334155';
-  const badgeBg = isDarkMode ? '#111827' : '#e2e8f0';
+  const badgeBg = isDarkMode ? '#111827' : '#cbd5e1';
 
   const modulosArray = Object.entries(data.modulosPorFamilia || {});
 

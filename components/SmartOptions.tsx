@@ -13,7 +13,9 @@ export function parseSmartOptions(text?: string): { cleanText: string; options: 
 
   // Tenta vários padrões de cabeçalho de sugestões (do mais específico ao mais genérico)
   const regexes = [
-    // Com separador (---, ___, ***) antes do header
+    // Separador com 3+ traços/underscores/asteriscos seguido de header **Sugestões** (formato prescrito no prompt)
+    /[-_*]{3,}[\s\S]{0,4}[\r\n]+\s*\*{0,2}\s*(?:🔎|⚡|🤠)?\s*(?:O que você quer descobrir agora|E aí, onde a gente joga o adubo agora|E aí, qual desses você quer cavucar|Próximos\s+passos|Sugestões?(?:\s+de\s+perguntas)?)\s*\*{0,2}\s*[\r\n]+/i,
+    // Com separador (---, ___, ***) antes do header (padrão original)
     /(?:---|___|\*\*\*)\s*[\r\n]+(?:\*\*|##|###)?\s*(?:🔎|⚡|🤠)?\s*(?:O que você quer descobrir agora|E aí, onde a gente joga o adubo agora|E aí, qual desses você quer cavucar|Próximos passos|Sugestões?(?:\s+de\s+perguntas)?)(?:.*?)[\r\n]+/i,
     // Sem separador: **Sugestões** ou ## Sugestões (no fim do texto)
     /\n+(?:\*\*|##|###)\s*(?:🔎|⚡|🤠)?\s*(?:Sugestões?(?:\s+de\s+perguntas)?|Próximos\s+passos|O que você quer descobrir agora)\s*\*?\*?\s*[\r\n]+/i,
