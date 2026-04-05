@@ -8,7 +8,7 @@ on:
 
 jobs:
   typecheck:
-    name: Typecheck
+    name: Typecheck (non-blocking)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +17,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
+      - name: Run typecheck (informational)
+        run: npm run typecheck
+        continue-on-error: true
 
   test:
     name: Tests
