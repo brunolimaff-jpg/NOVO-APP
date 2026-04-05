@@ -64,10 +64,10 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
           {greeting}!
         </h1>
         <p className={`mt-3 text-lg font-medium ${textPrimary}`}>
-          Seja bem-vindo ao seu copiloto de inteligência comercial.
+          Inteligência de campo para fechar negócios no Agro.
         </p>
         <p className={`mt-1 text-sm ${textSecondary}`}>
-          Para personalizar sua experiência, me diga como posso chamar você.
+          Me diz como te chamo e vamos à caça.
         </p>
 
         {/* Card com formulário */}
@@ -78,7 +78,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
             className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
           >
             <h2 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
-              Identificação
+              Quem está na missão?
             </h2>
           </div>
 
@@ -88,7 +88,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                 htmlFor="greeting-name-input"
                 className={`block text-sm font-medium ${textPrimary}`}
               >
-                Como posso chamar você?
+                Seu nome
               </label>
               <input
                 id="greeting-name-input"
@@ -99,7 +99,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                 onChange={(e) => setName(e.target.value)}
                 onBlur={() => setTouched(true)}
                 onKeyDown={handleKeyDown}
-                placeholder="Seu nome"
+                placeholder="Nome ou apelido"
                 aria-describedby={showError ? 'greeting-name-error' : undefined}
                 aria-invalid={showError}
                 className={inputClass}
@@ -118,13 +118,13 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
               disabled={touched && !isValid}
               className="mt-4 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Começar
+              Entrar em campo →
             </button>
           </form>
         </div>
 
         <p className={`mt-6 text-center text-xs ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
-          Seu nome é salvo apenas neste dispositivo.
+          Salvo localmente — apenas neste dispositivo.
         </p>
       </div>
     </div>

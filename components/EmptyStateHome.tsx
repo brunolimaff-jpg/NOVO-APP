@@ -29,9 +29,9 @@ const VALID_UFS = new Set([
 ]);
 
 const BULLETS: string[] = [
-  'Dossiê integrado com síntese objetiva e rastreio de fontes.',
-  'CNPJ opcional com validação na BrasilAPI e localização conferida no IBGE.',
-  'Fluxo pronto para continuar no chat, exportar e enviar ao CRM.',
+  'Dossiê completo por área: Fiscal, TI, RH e Supply Chain com fontes rastreáveis.',
+  'Score PORTA com qualificação preditiva em 5 dimensões — feche os certos primeiro.',
+  'Exportável e direto para o CRM — sem etapa manual.',
 ];
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
@@ -134,7 +134,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
   const displayGreeting =
     userName && userName !== 'Sair' && userName.trim().length > 0
-      ? `${timeGreeting}, ${userName}. Vamos iniciar uma nova investigação.`
+      ? `${timeGreeting}, ${userName}. Qual é o próximo alvo?`
       : `${timeGreeting}! Qual empresa vamos investigar agora?`;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
@@ -311,10 +311,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                 className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
               >
                 <h2 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
-                  Cadastro inicial da conta
+                  Dados do alvo
                 </h2>
                 <p className={`mt-1 text-sm ${textSecondary}`}>
-                  Preencha empresa, CNPJ (opcional), cidade e UF para iniciar o mapeamento.
+                  Empresa e localização são suficientes para começar.
                 </p>
               </div>
 
