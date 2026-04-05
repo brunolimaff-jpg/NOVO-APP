@@ -85,11 +85,17 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   const textMeta = isDarkMode ? 'text-slate-500' : 'text-slate-500';
 
   // Limpeza profunda do resumo de qualquer lixo HTML que possa ter vindo da IA ou do RSS
-  const cleanSummary = (alert.summary || '')
+  const cleanSummaryRaw = (alert.summary || '')
     .replace(/&lt;[^&]*&gt;/g, '') // remove &lt;a ...&gt;
     .replace(/<[^>]*>/g, '')      // remove <a ...>
     .replace(/&amp;[a-z0-9#]+;/gi, '') // remove entidades
     .trim();
+
+  // Tenta remover o nome da fonte se ele estiver grudado no final do resumo (comum em RSS do Google)
+  const sourceName = alert.sourceName || '';
+  const cleanSummary = cleanSummaryRaw && sourceName 
+    ? cleanSummaryRaw.replace(new RegExp(`${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), '').trim()
+    : cleanSummaryRaw;
 
   const handleCardClick = () => {
     if (alert.sourceUrl && alert.sourceUrl !== '#') {
@@ -127,9 +133,9 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
       </div>
 
       <div className={`flex items-center justify-between gap-2 border-t px-4 py-3 ${isDarkMode ? 'border-slate-700/60' : 'border-slate-100'}`}>
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className="text-[11px]">{catIcon}</span>
-          <span className={`truncate text-[10px] font-medium uppercase tracking-wide ${textMeta}`}>{catLabel}</span>
+          <span className={`truncate text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-slate-300' : 'text-slate-900'}`}>{sourceName}</span>
           <span className={`text-[10px] ${textMeta}`}>·</span>
           <span className={`shrink-0 text-[10px] font-semibold ${textMeta}`}>{timeAgoHome(alert.publishedAt)}</span>
         </div>
