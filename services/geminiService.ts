@@ -460,6 +460,21 @@ function emitDossieStatus(
   onStatus?.(DOSSIE_STATUS[key]);
 }
 
+function buildConversationHistory(
+  conversationHistory: Message[],
+  isDeepDive: boolean,
+): Array<{ role: 'user' | 'model'; text: string }> {
+  const validMessages = conversationHistory.filter(m => m.text && m.text.trim().length > 0);
+  const sourceMessages = isDeepDive
+    ? validMessages.filter(m => m.sender === Sender.User).slice(-4)
+    : validMessages;
+
+  return sourceMessages.map(m => ({
+    role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
+    text: sanitizeHistoryText(m.text || ''),
+  }));
+}
+
 function buildTimeoutError(label: string, timeoutMs: number): Error {
   const error = new Error(`${label} timeout after ${timeoutMs}ms`);
   error.name = 'TimeoutError';
@@ -847,12 +862,7 @@ export async function sendMessageToGemini(
   // para evitar que clientes similares listados na resposta anterior
   // contaminem o contexto da próxima investigação com identidade errada.
   emitDossieStatus(onStatus, 'history');
-  const history = conversationHistory
-    .filter(m => m.text && m.text.trim().length > 0)
-    .map(m => ({
-      role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
-      text: sanitizeHistoryText(m.text || ''),
-    }));
+  const history = buildConversationHistory(conversationHistory, isDeepDive);
   const historyChars = history.reduce((total, item) => total + item.text.length, 0);
   const promptBudget = {
     sessionId: sessionId ?? null,

@@ -251,4 +251,34 @@ describe('sendMessageToGemini — cenários de erro', () => {
       }),
     ).rejects.toThrow('quota exhausted');
   });
+
+  it('em deep dive envia apenas histórico recente do vendedor para evitar repetição do dossiê anterior', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini(
+      'Dossiê completo de [Acme Agro]. Protocolo de investigação forense especializada:\n\nARQUITETURA DE TI',
+      [
+        { id: '1', sender: 'user' as any, text: 'Investigue Acme Agro', timestamp: new Date() } as any,
+        {
+          id: '2',
+          sender: 'bot' as any,
+          text: 'Dossiê inicial longo com resumo executivo e vários módulos...',
+          timestamp: new Date(),
+        } as any,
+        { id: '3', sender: 'user' as any, text: 'Agora aprofunde em ERP', timestamp: new Date() } as any,
+      ],
+      'system',
+      {
+        onText: vi.fn(),
+        onStatus: vi.fn(),
+      },
+    );
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    const payload = proxyChatSendMessageMock.mock.calls[0][0];
+    expect(payload.history).toEqual([
+      { role: 'user', text: 'Investigue Acme Agro' },
+      { role: 'user', text: 'Agora aprofunde em ERP' },
+    ]);
+  });
 });

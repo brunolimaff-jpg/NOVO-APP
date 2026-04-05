@@ -101,7 +101,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
-  const hasPrimaryModules = sections.some(section => section.level === 1 && section.kind === 'module');
 
   const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
@@ -187,13 +186,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 }`}>
                   Módulo {sections.slice(0, idx + 1).filter(item => item.level === 1 && item.kind === 'module').length}
                 </span>
-                {hasPrimaryModules && (
-                  <span className={`text-[11px] font-medium ${
-                    isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    Deep dive consolidado
-                  </span>
-                )}
               </div>
             </div>
           )}
