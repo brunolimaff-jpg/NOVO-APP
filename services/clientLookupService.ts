@@ -130,6 +130,7 @@ function normalizeCacheKey(name: string): string {
   return name
     .replace(/^(grupo|empresa|fazenda|usina|cia)\s+/i, '')
     .replace(/\s+(ltda|s\/a|sa|eireli|me|epp)\.?$/i, '')
+    .replace(/\.(?=[a-z])/gi, '') // remove pontos internos (ex: "agropec.de" → "agropecde")
     .replace(/[.,;:!?]+$/, '')
     .trim()
     .toLowerCase();
@@ -144,6 +145,7 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     .replace(/^(grupo|empresa|fazenda|usina|cia)\s+/i, '')
     .replace(/\s+(ltda|s\/a|sa|eireli|me|epp)\.?$/i, '')
     .replace(/,\s*/g, ' ')   // vírgula vira espaço ("SENIOR, TOTVS" → "SENIOR TOTVS")
+    .replace(/\.(?=[a-z])/gi, '') // remove pontos internos (ex: "agropec.de" → "agropecde")
     .replace(/[.;:!?]+$/, '')
     .trim()
     .replace(/\s+/g, ' ');   // normaliza espaços múltiplos
@@ -181,7 +183,7 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     const p1 = nomeLimpo.includes(' ')
       ? nomeLimpo.split(/\s+/).filter(p => p.length > 2)[0] ?? null
       : null;
-    const words = nomeLimpo.split(/\s+/).filter(w => w.length > 3);
+    const words = nomeLimpo.split(/\s+/).filter(w => w.length > 3 && !w.includes('.'));
     const strongest = words.length > 0
       ? [...words].sort((a, b) => b.length - a.length)[0]
       : null;
