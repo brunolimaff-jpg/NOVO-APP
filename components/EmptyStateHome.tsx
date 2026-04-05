@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getTimeGreeting } from '../utils/timeGreeting';
 import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
 import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS } from '../types';
@@ -27,18 +28,11 @@ const VALID_UFS = new Set([
   'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ]);
 
-const BULLETS: Record<ChatMode, string[]> = {
-  operacao: [
-    'Dossiê integrado com síntese objetiva e rastreio de fontes.',
-    'CNPJ opcional com validação na BrasilAPI e localização conferida no IBGE.',
-    'Fluxo pronto para continuar no chat, exportar e enviar ao CRM.',
-  ],
-  diretoria: [
-    'Enquadramento estratégico da conta e leitura de risco/oportunidade.',
-    'Base para decisão: contexto, stakeholders e próximos passos sugeridos.',
-    'Compatível com aprofundamento em Modo Operação após o cadastro.',
-  ],
-};
+const BULLETS: string[] = [
+  'Dossiê completo por área: Fiscal, TI, RH e Supply Chain com fontes rastreáveis.',
+  'Score PORTA com qualificação preditiva em 5 dimensões — feche os certos primeiro.',
+  'Exportável e direto para o CRM — sem etapa manual.',
+];
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
   oportunidade: { label: 'OPORTUNIDADE', cls: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
@@ -136,24 +130,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const { user } = useAuth();
   const userName = user?.displayName;
 
-  const [randomGreeting] = useState(() => {
-    const greetings = [
-      'Qual empresa ou grupo econômico vamos mapear agora?',
-      'Informe o alvo para montar o contexto inicial da investigação.',
-      'Comece pelo cadastro mínimo; o restante segue no fluxo assistido.',
-    ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
-  });
+  const timeGreeting = getTimeGreeting();
 
   const displayGreeting =
     userName && userName !== 'Sair' && userName.trim().length > 0
-      ? mode === 'operacao'
-        ? `Olá, ${userName}. Vamos iniciar uma nova investigação.`
-        : `Olá, ${userName}. Selecione a conta para análise executiva.`
-      : randomGreeting;
+      ? `${timeGreeting}, ${userName}. Qual é o próximo alvo?`
+      : `${timeGreeting}! Qual empresa vamos investigar agora?`;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
-  const bullets = BULLETS[mode];
+  const bullets = BULLETS;
 
   const [companyName, setCompanyName] = useState('');
   const [cnpjInput, setCnpjInput] = useState('');
@@ -301,7 +286,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     : 'border-emerald-200 bg-emerald-50 text-emerald-800'
                 }`}
               >
-                {mode === 'operacao' ? 'Campo' : 'Estratégia'}
+                Fluxo único
               </span>
             </div>
             <p className={`mt-3 text-sm leading-relaxed ${textSecondary}`}>{modeMeta.description}</p>
@@ -326,10 +311,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                 className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
               >
                 <h2 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
-                  Cadastro inicial da conta
+                  Dados do alvo
                 </h2>
                 <p className={`mt-1 text-sm ${textSecondary}`}>
-                  Preencha empresa, CNPJ (opcional), cidade e UF para iniciar o mapeamento.
+                  Empresa e localização são suficientes para começar.
                 </p>
               </div>
 

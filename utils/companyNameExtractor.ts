@@ -3,8 +3,10 @@ const COMPANY_PATTERNS: RegExp[] = [
   /completa?\s+d[oa]s?\s+(.+)/i,
   // "empresa X", "grupo X", "companhia X"
   /(?:empresa|grupo|companhia)\s+(.+)/i,
+  // "investigando X", "analisando X", "pesquisando X", "mapeando X"
+  /(?:investigando|analisando|pesquisando|mapeando)\s+(?:a\s+|o\s+)?(.+)/i,
   // "investigar (a) X", "analisar (o) X", "pesquisar X"
-  /(?:investigar?|analisar?|pesquisar?)\s+(?:a\s+|o\s+)?(.+)/i,
+  /(?:investigar|analisar|pesquisar|mapear)\s+(?:a\s+|o\s+)?(.+)/i,
   // "sobre a X", "sobre o X", "sobre X" (artigo opcional)
   /(?:sobre\s+(?:a\s+|o\s+)?)(.+)/i,
   // "dossiê da X", "dossie do X"
@@ -38,7 +40,10 @@ const TRAILING_NOISE = /\s+(?:e\s+(?:su[ao]s?|del[ea]s?|d?ess[ea]s?)|por\s+favor
 export function extractCompanyName(title: string | null | undefined): string {
   if (!title) return 'Empresa';
 
-  const cleaned = title.trim();
+  const cleaned = title
+    .trim()
+    .replace(/^[^A-Za-zÀ-ÿ0-9]+/, '')
+    .trim();
 
   for (const pattern of COMPANY_PATTERNS) {
     const match = cleaned.match(pattern);

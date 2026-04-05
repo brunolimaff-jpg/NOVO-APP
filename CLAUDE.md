@@ -89,6 +89,24 @@ Antes de propor mudanças, consulte os arquivos de contexto:
 - `docs/ai-context/BUSINESS_INTELLIGENCE.md` — Contexto de negócio, persona do vendedor, mercado Agro
 - `docs/ai-context/TECH_STANDARDS.md` — Padrões de código, prompts, erros, performance, integrações
 
+## Roteamento de Skills do Projeto
+
+Este repositório deve priorizar skills versionadas no próprio projeto, sem depender
+de instalação local por máquina. A skill principal de roteamento é:
+
+- `.agents/skills/scoutagro-pilot-os/SKILL.md`
+
+Ao trabalhar neste repositório, ative essa skill por padrão e deixe que ela
+encaminhe o trabalho para as skills mais adequadas por cenário.
+
+Prioridade prática para o Scout:
+- UX/UI e percepção premium: `scoutagro-pilot-os` + `ui-ux-pro-max` + `ui-styling` + `frontend-developer`
+- Scraping, investigação e enriquecimento: `scoutagro-pilot-os` + `data-scraper-agent` + `deep-research` + `search-first`
+- Debug, regressão e hardening: `scoutagro-pilot-os` + `debugging-tools` + `playwright-testing` + `verification-loop` + `security-review`
+
+Não espere o usuário pedir explicitamente "use as skills" quando o cenário já
+indicar claramente qual conjunto deve ser aplicado.
+
 ## Diretrizes Técnicas
 
 ### Prompts/IA (Sophia)

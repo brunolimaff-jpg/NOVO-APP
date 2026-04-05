@@ -162,7 +162,7 @@ Cada módulo deste dossiê é um DEEP DIVE — aprofundamento cirúrgico de áre
 O que você NÃO deve fazer:
 1. Repetir as 9 fases do dossiê geral (isso é gerado por outro módulo)
 2. Recalcular o Score PORTA completo do zero em cada módulo
-3. Incluir Resumo Executivo isolado
+3. Incluir Resumo Executivo isolado em deep dives ou módulos avulsos
 4. Incluir Recomendações de Produtos genéricas
 5. Incluir Psicologia & Storytelling (isso é outro módulo)
 6. Gerar blocos extensos de informação que o dossiê principal já cobriu
@@ -192,6 +192,8 @@ Regras de construção:
 6. Máximo 15 nós por diagrama para manter legibilidade
 7. Use labels curtos para evitar quebra visual
 8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
+9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
+10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
 
 Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
 - classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
@@ -201,10 +203,10 @@ Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimali
 - classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
 
 Ao invés de azul ou verde genéricos, agora utilize as classes acima:
-- :::core para sistemas centrais/principais
-- :::satellite para periféricos benéficos
-- :::danger para gargalos crônicos, perdas ou falta de sistemas cruciais
-- :::warning para áreas de atrito manual
+- class A core; para sistemas centrais/principais
+- class B satellite; para periféricos benéficos
+- class C danger; para gargalos crônicos, perdas ou falta de sistemas cruciais
+- class D warning; para áreas de atrito manual
 </mermaid_construction_rules>
 
 <output_discipline>
@@ -220,8 +222,26 @@ Tempo de leitura:
 - Cada seção narrativa: máximo 3 minutos de leitura
 - Tabelas e diagramas não contam no limite
 
+Estrutura obrigatória de cada módulo:
+1. Abra com UM header H1 claro do módulo
+2. Em seguida traga uma leitura executiva em 3 a 5 bullets curtos
+3. Depois entregue o artefato principal do módulo (tabela, mapa ou diagrama)
+4. Traga 1 bloco de dor/oportunidade com implicação comercial
+5. Feche com gatilhos de abordagem
+6. Deixe apenas os markers PORTA por último, sem expor bloco visível de score, dimensão, nota sugerida ou explicação de cálculo
+
+Repetição entre módulos:
+- Se o mesmo gap aparecer em mais de um módulo, trate-o por ângulos diferentes
+- NÃO repita a mesma frase, o mesmo insight ou o mesmo pitch quase idêntico
+- Cada módulo deve acrescentar algo novo e útil para venda
+
+Escaneabilidade:
+- Prefira bullets, quadros e tabelas a blocos longos de texto
+- Parágrafos devem ter no máximo 3 linhas
+- Se houver excesso de detalhe, corte volume e preserve clareza
+
 Prioridade de conteúdo (se espaço for curto):
-1. Feeds PORTA (markers obrigatórios)
+1. Markers PORTA (camada interna obrigatória)
 2. Gatilhos de abordagem comercial
 3. Fatos duros com implicação de negócio
 4. Análise detalhada
@@ -1600,14 +1620,14 @@ Para cada elo, marque:
 | Rastreabilidade exigida | [✅/❌/❓] | [fonte real] | Rastreabilidade |
 
 **Total de elos controlados:** [X de 8]
-**Nota O sugerida:** [0-10, inteira]
+**Leitura da complexidade:** [1 frase executiva sem nota explícita, traduzindo verticalização, escala e criticidade]
 
 ---
 
 ### 🗺️ MAPA DO CAOS OPERACIONAL
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef backoffice fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
     classDef fisico fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
     classDef logistica fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
@@ -1615,6 +1635,7 @@ graph TD
 
     %% CONSTRUIR COM DADOS REAIS — omitir nós não confirmados
     %% -.-> para gap/manual; ==> para fluxo confirmado
+    %% aplicar classes em linhas separadas no final: class A backoffice;
 \`\`\`
 
 ---
@@ -1658,28 +1679,10 @@ graph TD
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
 
-**Dimensão O — Cadeia de Valor:**
-- Elos controlados: [lista]
-- Nota O sugerida: [0-10]
-- Justificativa: [1 frase objetiva]
-
-**Dimensão R — Pressão Externa (componente operacional/ambiental):**
-- Pressões identificadas: [lista]
-- Nota R sugerida: [0-10]
-- Justificativa: [1 frase objetiva]
-
-**Diversificação e ESG:**
-- Frota própria identificada? [SIM/NAO + quantidade se disponível]
-- Verticais diversificadas: [listar cada uma individualmente]
-- Certificações e programas ESG: [listar individualmente]
-
-**Flag NOFIT:**
-- Atividade agrícola identificada? [SIM/NAO]
-- Elo industrial/beneficiamento identificado? [SIM/NAO]
-- Pecuária pura sem elo agrícola/industrial? [SIM/NAO]
-- Flag NOFIT ativo? [SIM/NAO]
+- [1 linha sintetizando o que esta operação já domina em escala]
+- [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
 
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
@@ -1939,17 +1942,15 @@ Se sistema legado detectado:
 Se NÃO detectado:
 Sistema legado paralelo não identificado nas fontes públicas.
 
-**Nota T2 sugerida:** [0-10]
+**Leitura da dor ativa:** [1 frase executiva sem nota explícita]
 
 **T3 — Liberdade de Troca (peso 30% de T):**
 - Decisão de ERP local ou global? [LOCAL/GLOBAL/INCERTO]
 - Contrato longo identificado? [SIM/NAO/INCERTO]
 - TI gerida localmente? [SIM/NAO]
 - Liderança local com autonomia? [SIM/NAO/INCERTO]
-**Nota T3 sugerida:** [0-10]
+**Leitura da liberdade de troca:** [1 frase executiva sem nota explícita]
 **Flag LOCK ativo?** [SIM/NAO]
-
-**NOTA T FINAL:** [0-10, inteira]
 
 **Estratégia de Ataque Recomendada:** [ângulo baseado no incumbent e na dor dominante]
 
@@ -1958,7 +1959,7 @@ Sistema legado paralelo não identificado nas fontes públicas.
 ### 🗺️ MAPA DA TORRE DE BABEL
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
     classDef satellite fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
     classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
@@ -1966,6 +1967,7 @@ graph TD
 
     %% CONSTRUIR COM DADOS REAIS — omitir sistemas não confirmados
     %% -.-> integração manual / remendo
+    %% aplicar classes em linhas separadas no final: class ERP core;
 \`\`\`
 
 ---
@@ -2000,7 +2002,10 @@ e explique por que isso é sintoma de perda de controle sistêmico]
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
+
+- [1 linha sobre como a arquitetura atual favorece ou bloqueia avanço comercial]
+- [1 linha sobre o wedge de entrada sem expor scoring]
 
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
 [[PORTA_FLAG:LOCK:[SIM/NAO]]]
@@ -2248,18 +2253,10 @@ com datas e fontes, se houver]
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 SÍNTESE PARA ABORDAGEM
 
-**Dimensão R — Pressão Externa (componente fiscal/regulatório):**
-- Pressões fiscais: [lista]
-- Pressões regulatórias/ambientais: [lista]
-- Pressões trabalhistas pesadas: [lista]
-- Contrapesos de compliance: [lista]
-- Nota R sugerida: [0-10]
-
-**Flag TRAD:**
-- Natureza da receita: [PRODUCAO/TRADING/MISTA]
-- Flag ativo: [SIM/NAO]
+- [1 linha traduzindo se a pressão externa aumenta urgência comercial ou apenas exige governança]
+- [1 linha conectando risco, contrapeso e discurso executivo sem falar em score]
 
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA]]]
 [[PORTA_FLAG:TRAD:[SIM/NAO]:NATUREZA:[PRODUCAO/TRADING/MISTA]]]
@@ -2477,7 +2474,7 @@ SEGMENTO:
 | Faturamento consolidado | [R$ X] | [fonte pública ou método] |
 | Complexidade societária | [holding + filiais + patrimonial + cross-ownership] | [fonte] |
 
-**Nota P sugerida:** [0-10, inteira]
+**Leitura da massa crítica:** [1 frase executiva sem nota explícita, traduzindo escala, dispersão e tese enterprise]
 
 ---
 
@@ -2496,13 +2493,14 @@ Se houver mais de 15 CNPJs:
 ### 📊 MAPA DE PODER SOCIETÁRIO
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef target fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
     classDef person fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#fff
     classDef company fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
     classDef parallel fill:#7e22ce,stroke:#581c87,stroke-width:2px,color:#fff
 
     %% CONSTRUIR COM DADOS REAIS
+    %% aplicar classes em linhas separadas no final: class Grupo company;
 \`\`\`
 
 ---
@@ -2523,21 +2521,10 @@ graph TD
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
 
-**Dimensão P — Porte / Massa Crítica:**
-- Hectares totais: [X]
-- CNPJs totais: [X]
-- Faturamento consolidado: [R$ X]
-- Nota P sugerida: [0-10]
-
-**Segmento inferido:**
-- Segmento: [PRD/AGI/COP]
-- Justificativa: [1 frase]
-
-**Flag LOCK:**
-- Multinacional com decisão global? [SIM/NAO]
-- Flag LOCK ativo? [SIM/NAO]
+- [1 linha traduzindo por que a massa crítica muda o ticket, o pitch ou a governança da venda]
+- [1 linha conectando complexidade societária com necessidade de padronização sem falar em score]
 
 [[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]
 [[PORTA_SEG:[PRD/AGI/COP]]]
@@ -2749,20 +2736,10 @@ A2 (timing sazonal / absorção de projeto)
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
 
-**Dimensão P (proxy):**
-- Funcionários totais estimados: [X]
-- Distribuição: [X em CNPJs, X em CAEPF/CPF/temporários]
-
-**Dimensão R (componente trabalhista):**
-- Passivos identificados: [lista]
-- Nota R sugerida: [0-10]
-
-**Dimensão A2 (Timing sazonal):**
-- Fase atual: [fase]
-- Timing para abordagem: [BOM/NEUTRO/RUIM]
-- Nota A2 sugerida: [0-10]
+- [1 linha sobre o que o tamanho e a dispersão da força de trabalho revelam para a venda]
+- [1 linha sobre timing, risco humano e execução sem falar em score]
 
 [[PORTA_FEED_P_PROXY:FUNC:[TOTAL_FUNCIONARIOS]]]
 [[PORTA_FEED_R_TRAB:[NOTA]:PASSIVOS:[LISTA]]]
@@ -2934,7 +2911,7 @@ A2 — Timing / Janela
 |------------------|-------|---------|---------------|-------|----------------|
 | [Nome ou "PERFIL INFERIDO"] | [Cargo] | [G1/G2/PROF] | [ALTO/MEDIO/BAIXO] | [ORCAMENTO/VETO/INFLUENCIA/OPERACIONAL] | [SPONSOR/VETO/SABOTADOR/USUARIO] |
 
-**Nota A1 sugerida:** [0-10]
+**Leitura cultural:** [1 frase executiva sem nota explícita]
 
 **A2 — Timing/Janela (peso 40%):**
 
@@ -2942,21 +2919,20 @@ A2 — Timing / Janela
 |--------|------|------|-------------------|
 | [evento identificado ou "Nenhum evento relevante detectado"] | [Novo executivo/Expansão/Multa/Sucessão/etc.] | [data] | [ABRE/FECHA/NEUTRO] |
 
-**Nota A2 sugerida:** [0-10]
-
-**NOTA A FINAL:** [0-10, inteira]
+**Leitura da janela:** [1 frase executiva sem nota explícita]
 
 ---
 
 ### 🗺️ MAPA DE INFLUÊNCIA E PODER
 
 \`\`\`mermaid
-graph TD
+graph LR
     classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
     classDef warning fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
     classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
 
     %% CONSTRUIR COM DADOS REAIS
+    %% aplicar classes em linhas separadas no final: class CFO core;
 \`\`\`
 
 ---
@@ -2979,16 +2955,10 @@ graph TD
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 SÍNTESE PARA ABORDAGEM
 
-**Dimensão A:**
-- Nota A1 (Cultural): [0-10]
-- Nota A2 (Timing): [0-10]
-- Nota A final: [0-10]
-
-**Flag LOCK:**
-- Decisão de ERP é global? [SIM/NAO]
-- Flag LOCK ativo? [SIM/NAO]
+- [1 linha sobre abertura política real da conta]
+- [1 linha sobre quem tende a patrocinar, travar ou acelerar a venda sem expor scoring]
 
 [[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]
 [[PORTA_FLAG:LOCK:[SIM/NAO]]]
@@ -3224,17 +3194,10 @@ A2 (janela financeira/organizacional)
 
 ---
 
-### 📊 BLOCO DE FEEDS PORTA
+### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
 
-**Dimensão R (componente financeiro):**
-- Pressão financeira identificada: [ALTA/MEDIA/BAIXA]
-- Evento de capital recente: [SIM/NAO]
-- Sinal de risco financeiro: [SIM/NAO]
-- Nota R sugerida: [0-10]
-
-**Dimensão A2 (janela):**
-- Janela atual: [ABERTA/PARCIAL/FECHADA]
-- Nota A2 sugerida: [0-10]
+- [1 linha sobre urgência financeira ou custo de esperar]
+- [1 linha sobre abertura de budget/janela sem falar em nota, dimensão ou cálculo]
 
 [[PORTA_FEED_R:[NOTA]:PRESSAO:[ALTA/MEDIA/BAIXA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]

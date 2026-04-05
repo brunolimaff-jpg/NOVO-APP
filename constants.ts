@@ -1,9 +1,9 @@
 export const APP_NAME = '🦅 Senior Scout 360';
 export const APP_VERSION = 'Investigação Completa v4.7';
 
-export type ChatMode = 'operacao' | 'diretoria';
+export type ChatMode = 'investigacao';
 
-export const DEFAULT_MODE: ChatMode = 'operacao';
+export const DEFAULT_MODE: ChatMode = 'investigacao';
 
 export const NOME_VENDEDOR_PLACEHOLDER = '{{NOME_VENDEDOR}}';
 
@@ -15,26 +15,15 @@ interface ModeTheme {
 }
 
 export const MODE_LABELS: Record<ChatMode, { label: string; icon: string; description: string; theme: ModeTheme }> = {
-  operacao: {
-    label: 'Modo Operação',
-    icon: '🛻',
-    description: 'Direto, linguagem de campo, foco na linha de frente',
+  investigacao: {
+    label: 'Inteligência de Campo',
+    icon: '🦅',
+    description: 'Do alvo ao dossiê completo em minutos — Score PORTA, táticas e próximos passos.',
     theme: {
-      bg: 'bg-[#8B4513]',
-      text: 'text-[#FFD700]',
-      border: 'border-orange-500',
-      hover: 'hover:bg-[#A0522D]',
-    },
-  },
-  diretoria: {
-    label: 'Modo Diretoria',
-    icon: '✈️',
-    description: 'Executivo, estratégico e pronto para o board',
-    theme: {
-      bg: 'bg-[#1a365d]',
-      text: 'text-[#63b3ed]',
-      border: 'border-blue-500',
-      hover: 'hover:bg-[#2c5282]',
+      bg: 'bg-emerald-700',
+      text: 'text-emerald-50',
+      border: 'border-emerald-500',
+      hover: 'hover:bg-emerald-600',
     },
   },
 };
@@ -1044,5 +1033,4 @@ export const OPERACAO_PROMPT =
 - Humor leve e analogias do agro são bem-vindos no CORPO do dossiê — nunca na abertura.
 - Se a empresa é má oportunidade, diz sem rodeios. Se é boa, apresenta os números que provam.
 `;
-
 

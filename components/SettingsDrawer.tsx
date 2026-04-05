@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChatMode } from '../constants';
 import { usePWA } from '../hooks/usePWA';
 import { version } from '../package.json';
+import type { ExportFormat, ReportType } from '../types';
 const SystemHealthCheck = React.lazy(() => import('./SystemHealthCheck'));
 
 interface SettingsDrawerProps {
@@ -15,10 +16,12 @@ interface SettingsDrawerProps {
   onToggleTheme: () => void;
   onOpenDashboard: () => void;
   onExportPDF: () => void;
+  onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
   onCopyMarkdown: () => void;
   onScheduleFollowUp: () => void;
   onLogout?: () => void;
   exportStatus: 'idle' | 'loading' | 'success' | 'error';
+  exportError?: string | null;
   canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
 }
@@ -28,16 +31,16 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onClose,
   userName,
   onUpdateName,
-  mode,
-  onSetMode,
   isDarkMode,
   onToggleTheme,
   onOpenDashboard,
   onExportPDF,
+  onExportConversation,
   onCopyMarkdown,
   onScheduleFollowUp,
   onLogout,
   exportStatus,
+  exportError,
   canAccessDashboard = true,
   canAccessIntegrityCheck = true,
 }) => {
@@ -61,6 +64,10 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       // Não permite nome vazio — restaura o valor anterior
       setLocalName(userName);
     }
+  };
+
+  const runExport = (format: ExportFormat, reportType: ReportType = 'full') => {
+    onExportConversation?.(format, reportType);
   };
 
   if (!isOpen) return null;
@@ -132,44 +139,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
           </section>
 
-          {/* ===== MODO DE INVESTIGAÇÃO ===== */}
-          <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Modo de Investigação</h3>
-
-            <div className="grid gap-3">
-              {/* Operação */}
-              <button
-                onClick={() => onSetMode('operacao')}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all relative overflow-hidden group ${
-                  mode === 'operacao'
-                    ? 'border-orange-500/50 bg-orange-500/10'
-                    : 'border-gray-700/50 bg-gray-800/30 hover:bg-gray-800 hover:border-gray-600'
-                }`}
-              >
-                <span className="text-3xl filter drop-shadow-lg group-hover:scale-110 transition-transform">🛰️</span>
-                <div className="text-left">
-                  <p className={`text-sm font-bold ${mode === 'operacao' ? 'text-orange-400' : 'text-gray-200'}`}>Operação</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Direto ao ponto, linguagem de campo</p>
-                </div>
-                {mode === 'operacao' && <span className="absolute top-3 right-3 text-orange-500">✓</span>}
-              </button>
-              <div
-                className={`w-full flex items-center justify-between p-3 rounded-xl border ${
-                  isDarkMode ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-200 bg-slate-50'
-                }`}
-              >
-                <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Modo Diretoria temporariamente desativado no MVP
-                </span>
-                <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${
-                  isDarkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  Em breve
-                </span>
-              </div>
-            </div>
-          </section>
-
           {/* ===== APARÊNCIA ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Aparência</h3>
@@ -192,6 +161,99 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   isDarkMode ? 'translate-x-6' : 'translate-x-0'
                 }`} />
               </button>
+            </div>
+          </section>
+
+          {/* ===== EXPORTAÇÃO ===== */}
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Exportação do dossiê</h3>
+
+            <div className="space-y-2">
+              <button
+                onClick={onExportPDF}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-emerald-500/30 ${
+                  isDarkMode
+                    ? 'bg-emerald-900/15 hover:bg-emerald-900/30'
+                    : 'bg-emerald-50 hover:bg-emerald-100'
+                }`}
+              >
+                <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-emerald-800/50' : 'bg-emerald-200'}`}>📕</span>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-900'}`}>Baixar PDF</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-emerald-500' : 'text-emerald-700'}`}>Versão completa com layout premium</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => runExport('doc', 'full')}
+                disabled={!onExportConversation}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
+                  onExportConversation
+                    ? isDarkMode
+                      ? 'bg-gray-800/30 border-gray-700/30 hover:bg-gray-800 hover:border-gray-600'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                    : 'opacity-50 cursor-not-allowed border-gray-300/30'
+                }`}
+              >
+                <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>📝</span>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Baixar Word</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Arquivo .doc para compartilhar e editar</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => runExport('md', 'full')}
+                disabled={!onExportConversation}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
+                  onExportConversation
+                    ? isDarkMode
+                      ? 'bg-gray-800/30 border-gray-700/30 hover:bg-gray-800 hover:border-gray-600'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                    : 'opacity-50 cursor-not-allowed border-gray-300/30'
+                }`}
+              >
+                <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>📄</span>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Baixar Markdown</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Texto estruturado do dossiê completo</p>
+                </div>
+              </button>
+
+              <button
+                onClick={onCopyMarkdown}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
+                  isDarkMode
+                    ? 'bg-gray-800/30 border-gray-700/30 hover:bg-gray-800 hover:border-gray-600'
+                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                }`}
+              >
+                <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>📋</span>
+                <div>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Copiar Markdown</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Leva o dossiê para área de transferência</p>
+                </div>
+              </button>
+
+              {exportStatus !== 'idle' && (
+                <div className={`rounded-xl border px-3 py-2 text-xs ${
+                  exportStatus === 'error'
+                    ? isDarkMode
+                      ? 'border-red-500/30 bg-red-900/20 text-red-300'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                    : exportStatus === 'success'
+                      ? isDarkMode
+                        ? 'border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : isDarkMode
+                        ? 'border-blue-500/30 bg-blue-900/20 text-blue-300'
+                        : 'border-blue-200 bg-blue-50 text-blue-700'
+                }`}>
+                  {exportStatus === 'loading' && 'Preparando exportação do dossiê...'}
+                  {exportStatus === 'success' && 'Exportação concluída.'}
+                  {exportStatus === 'error' && (exportError || 'Falha ao exportar o dossiê.')}
+                </div>
+              )}
             </div>
           </section>
 

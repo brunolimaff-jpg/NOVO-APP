@@ -23,13 +23,20 @@ import SuspenseWithError from './components/SuspenseWithError';
 const CRMDetail = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
 );
-import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppError, CRMStage } from './types';
+import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppError, CRMStage, ClienteSeniorData } from './types';
 import {
   sendMessageToGemini,
   generateContinuityQuestion,
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
+import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
+import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
+import {
+  appendSeniorEvidenceNote,
+  buildSeniorEvidenceContext,
+  extractClienteSeniorData,
+} from './utils/seniorEvidence';
 import { 
   SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -42,16 +49,17 @@ import {
 } from './prompts/megaPrompts';
 import { getRemoteSession, saveRemoteSession } from './services/sessionRemoteStore';
 import { sendFeedbackRemote } from './services/feedbackRemoteStore';
-import { APP_NAME, MODE_LABELS } from './constants';
+import { APP_NAME, DEFAULT_MODE } from './constants';
 import { normalizeAppError } from './utils/errorHelpers';
 import { downloadFile } from './utils/downloadHelpers';
 import { cleanTitle, sanitizeLoadingContextText } from './utils/textCleaners';
 import { fixFakeLinksHTML } from './utils/linkFixer';
-import { normalizeLoadingStatus, statusKey } from './utils/loadingStatus';
+import { finalizeLoadingProgress, transitionLoadingProgress } from './utils/loadingStatus';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
 import {
+  buildMainDossierExecutiveIntro,
   collectFullReport,
   detectInconsistencies,
   generateExecutiveSummary,
@@ -68,20 +76,33 @@ interface LastAction {
   payload: { text?: string; displayText?: string; messageId?: string };
 }
 
+function isGenericCompanyLabel(value: string | null | undefined): boolean {
+  const normalized = cleanTitle(value).trim();
+  if (!normalized) return true;
+  return /^(empresa|nova investiga[cç][aã]o|a empresa desta conversa|empresa n[aã]o identificada|prospect|companhia|grupo)$/i.test(
+    normalized,
+  );
+}
+
 function pickCompanyLabel(...candidates: Array<string | null | undefined>): string {
   for (const value of candidates) {
     const raw = (value || '').trim();
     if (!raw) continue;
 
     const fromEmpresaField = raw.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-    if (fromEmpresaField) return cleanTitle(fromEmpresaField);
+    if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) {
+      return cleanTitle(fromEmpresaField);
+    }
 
     const fromDossieBracket = raw.match(/dossi[êe]\s+completo\s+de\s*\[([^\]]+)\]/i)?.[1]?.trim();
-    if (fromDossieBracket) return cleanTitle(fromDossieBracket);
+    if (fromDossieBracket && !isGenericCompanyLabel(fromDossieBracket)) {
+      return cleanTitle(fromDossieBracket);
+    }
 
     const extracted = cleanTitle(extractCompanyName(raw));
     if (
       extracted &&
+      !isGenericCompanyLabel(extracted) &&
       extracted.length <= 80 &&
       !/investigacao_completa_integrada|protocolo de investiga|contexto cadastral obrigat/i.test(extracted)
     ) {
@@ -95,23 +116,48 @@ function resolveHintedCompany(
   sessionEmpresaAlvo: string | null | undefined,
   safeVisibleText: string,
 ): string | null {
-  if (sessionEmpresaAlvo) return sessionEmpresaAlvo;
+  if (sessionEmpresaAlvo && !isGenericCompanyLabel(sessionEmpresaAlvo)) return sessionEmpresaAlvo;
 
   const extracted = cleanTitle(extractCompanyName(safeVisibleText));
-  if (extracted && extracted !== 'Empresa') return extracted;
+  if (extracted && !isGenericCompanyLabel(extracted)) return extracted;
 
   const fromEmpresaField = safeVisibleText.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-  if (fromEmpresaField) return cleanTitle(fromEmpresaField);
+  if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) return cleanTitle(fromEmpresaField);
 
   const trimmed = safeVisibleText.trim();
-  if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n')) {
+  if (
+    trimmed.length > 0 &&
+    trimmed.length <= 60 &&
+    !trimmed.includes('\n') &&
+    !isGenericCompanyLabel(trimmed)
+  ) {
     return trimmed;
   }
 
   return null;
 }
 
+function buildDossierSeedContext(rawPrompt: string): string {
+  if (!rawPrompt) return '';
+
+  const sections = [
+    rawPrompt.match(/Contexto cadastral obrigatório:[^\n]+/i)?.[0]?.trim(),
+    rawPrompt.match(/<radar_context>[\s\S]*?<\/radar_context>/i)?.[0]?.trim(),
+  ].filter(Boolean);
+
+  return sections.join('\n\n');
+}
+
+function isAbortLikeError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'AbortError' || error.message?.includes('aborted');
+}
+
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
+const MODULAR_DOSSIER_TOTAL_STAGES = 7;
+const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
+const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
+const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -127,6 +173,7 @@ const App: React.FC = () => {
   const [loadingStatus, setLoadingStatus] = useState<string>('Iniciando análise');
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
+  const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
   const [isSavingRemote, setIsSavingRemote] = useState(false);
@@ -155,6 +202,86 @@ const App: React.FC = () => {
   const lastActionRef = useRef<LastAction | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeGenerationRef = useRef<Record<string, string>>({});
+  const loadingProgressRef = useRef<{ stage: string; completedStages: string[]; totalStages?: number }>({
+    stage: 'Iniciando análise',
+    completedStages: [],
+    totalStages: undefined,
+  });
+
+  const commitLoadingProgress = useCallback(
+    (nextState: { stage?: string; completedStages?: string[]; totalStages?: number }) => {
+      const updated = {
+        stage:
+          typeof nextState.stage === 'string'
+            ? nextState.stage
+            : loadingProgressRef.current.stage,
+        completedStages: Array.isArray(nextState.completedStages)
+          ? nextState.completedStages
+          : loadingProgressRef.current.completedStages,
+        totalStages:
+          Object.prototype.hasOwnProperty.call(nextState, 'totalStages')
+            ? nextState.totalStages
+            : loadingProgressRef.current.totalStages,
+      };
+
+      loadingProgressRef.current = updated;
+      setLoadingStatus(updated.stage);
+      setCompletedLoadingStatuses(updated.completedStages);
+      setLoadingTotalStages(updated.totalStages);
+    },
+    [],
+  );
+
+  const resetLoadingProgress = useCallback(
+    (stage: string = 'Realizando pesquisa...', totalStages?: number) => {
+      setFailureCount(0);
+      commitLoadingProgress({ stage, completedStages: [], totalStages });
+    },
+    [commitLoadingProgress],
+  );
+
+  const advanceLoadingProgress = useCallback(
+    (nextStage: string, totalStages?: number) => {
+      const next = transitionLoadingProgress(
+        loadingProgressRef.current.stage,
+        nextStage,
+        loadingProgressRef.current.completedStages,
+      );
+      commitLoadingProgress({
+        ...next,
+        totalStages:
+          typeof totalStages === 'number'
+            ? totalStages
+            : loadingProgressRef.current.totalStages,
+      });
+    },
+    [commitLoadingProgress],
+  );
+
+  const replaceLoadingProgressStage = useCallback(
+    (stage: string, totalStages?: number) => {
+      commitLoadingProgress({
+        stage,
+        completedStages: loadingProgressRef.current.completedStages,
+        totalStages:
+          typeof totalStages === 'number'
+            ? totalStages
+            : loadingProgressRef.current.totalStages,
+      });
+    },
+    [commitLoadingProgress],
+  );
+
+  const completeLoadingProgress = useCallback(() => {
+    const next = finalizeLoadingProgress(
+      loadingProgressRef.current.stage,
+      loadingProgressRef.current.completedStages,
+    );
+    commitLoadingProgress({
+      ...next,
+      totalStages: loadingProgressRef.current.totalStages,
+    });
+  }, [commitLoadingProgress]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -170,7 +297,7 @@ const App: React.FC = () => {
   }, [showEmailModal, showFollowUpModal]);
 
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
-  const allMessages = currentSession?.messages || [];
+  const allMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccessForUser(user);
   const canAccessMiniCRM = featureAccess.miniCRM;
@@ -211,7 +338,7 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
-    document.title = `${APP_NAME} ${MODE_LABELS[mode].icon}`;
+    document.title = APP_NAME;
   }, [mode]);
 
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager({
@@ -230,7 +357,7 @@ const App: React.FC = () => {
     setInvestigationLogged,
     lastActionRef,
     setLastQuery,
-    setLoadingStatus,
+    resetLoadingProgress,
     setIsLoading,
   });
 
@@ -240,7 +367,6 @@ const App: React.FC = () => {
     setCurrentSessionId,
     setIsSidebarOpen,
     setIsInitialized,
-    handleNewSession,
   });
 
   const handleSaveRemote = async () => {
@@ -270,7 +396,7 @@ const App: React.FC = () => {
       updatedAt: new Date().toISOString(),
     }));
     setInvestigationLogged(false);
-    setLoadingStatus('Realizando pesquisa...');
+    resetLoadingProgress();
     lastActionRef.current = null;
     setLastQuery('');
     setVisibleCount(PAGE_SIZE);
@@ -287,8 +413,7 @@ const App: React.FC = () => {
     if (!sessionId) return;
 
     setIsLoading(true);
-    setLoadingStatus('Realizando pesquisa...');
-    setCompletedLoadingStatuses([]);
+    resetLoadingProgress();
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
     const safeVisibleText = visibleTextForUi || text;
@@ -345,12 +470,39 @@ const App: React.FC = () => {
 
     try {
       const isMegaPrompt = text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO');
-      
+
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---
-        let accumulatedText = "";
+        let accumulatedText = '';
+        let previousStageCompleted = false;
+        const optionalStepFailures: string[] = [];
+        const dossierSeedContext = buildDossierSeedContext(text);
+        const resolvedMegaCompany = normalizedCompany || hintedCompany || '';
+        const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
+        let waterfallLookupContext = '';
+        let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+
+        if (lookupTarget) {
+          try {
+            const clienteData = await lookupCliente(lookupTarget);
+            waterfallLookupContext = formatarParaPrompt(clienteData);
+            waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
+              sessionId,
+              company: lookupTarget,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        const seniorEvidenceContext = buildSeniorEvidenceContext(
+          resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          waterfallClienteSeniorData,
+        );
+
         const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? "\n\n---\n\n" : "") + chunk;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
           updateSessionById(sessionId, s => ({
             ...s,
             messages: (s.messages || []).map(msg =>
@@ -360,47 +512,208 @@ const App: React.FC = () => {
         };
 
         const modules = [
-          { name: 'Raio-X Operacional', prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE },
-          { name: 'Tech Stack', prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE },
-          { name: 'Riscos & Compliance', prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE },
-          { name: 'Estratégia & Expansão', prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE },
-          { name: 'RH & Decisores', prompt: PROMPT_RH_SINDICATOS_GOD_MODE },
+          {
+            name: 'Raio-X Operacional',
+            prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+            stage: 'Mapeando inteligência operacional...',
+            optional: false,
+            timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+          },
+          {
+            name: 'Tech Stack',
+            prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+            stage: 'Investigando tech stack...',
+            optional: true,
+            timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          },
+          {
+            name: 'Riscos & Compliance',
+            prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+            stage: 'Investigando riscos & compliance...',
+            optional: true,
+            timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          },
+          {
+            name: 'Estratégia & Expansão',
+            prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
+            stage: 'Investigando estratégia & expansão...',
+            optional: true,
+            timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          },
+          {
+            name: 'RH & Decisores',
+            prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
+            stage: 'Investigando RH & decisores...',
+            optional: true,
+            timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          },
         ];
 
-        // 1. Fundação e Primeiro Módulo (Raio-X)
-        setLoadingStatus("Mapeando inteligência operacional...");
-        const firstModule = await generateDossierModule(
-          modules[0].name,
-          normalizedCompany || hintedCompany || "Empresa",
-          SHARED_FOUNDATION_BLOCK,
-          modules[0].prompt,
-          "",
-          { signal }
-        );
-        updateBotText(firstModule);
+        resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES);
 
-        // 2. Cascata Sequencial (WaterFall)
-        for(let i = 1; i < modules.length; i++) {
+        for (let i = 0; i < modules.length; i++) {
           if (signal.aborted) break;
-          setLoadingStatus(`Investigando ${modules[i].name.toLowerCase()}...`);
-          const moduleResult = await generateDossierModule(
-            modules[i].name,
-            normalizedCompany || hintedCompany || "Empresa",
-            SHARED_FOUNDATION_BLOCK,
-            modules[i].prompt,
-            `Contexto anterior: ${firstModule.substring(0, 500)}...`, // Elo de ligação
-            { signal }
-          );
-          updateBotText(moduleResult);
+
+          const module = modules[i];
+          if (i > 0) {
+            if (previousStageCompleted) {
+              advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
+            } else {
+              replaceLoadingProgressStage(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
+            }
+          }
+
+          try {
+            const moduleResult = await generateDossierModule(
+              module.name,
+              resolvedMegaCompany || "Empresa",
+              SHARED_FOUNDATION_BLOCK,
+              module.prompt,
+              [
+                dossierSeedContext,
+                waterfallLookupContext,
+                seniorEvidenceContext,
+                accumulatedText
+                  ? `Contexto anterior consolidado:\n${accumulatedText.slice(-2500)}`
+                  : '',
+              ]
+                .filter(Boolean)
+                .join('\n\n'),
+              { signal, timeoutMs: module.timeoutMs }
+            );
+
+            updateBotText(moduleResult);
+            previousStageCompleted = true;
+            setFailureCount(0);
+          } catch (error) {
+            if (isAbortLikeError(error)) throw error;
+            if (!module.optional) throw error;
+
+            previousStageCompleted = false;
+            optionalStepFailures.push(module.name);
+            setFailureCount(count => count + 1);
+            scoutDiag.warn('ModularDossier', 'módulo opcional falhou e será ignorado', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              moduleName: module.name,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
-        // 3. Benchmark Isolado (Fim do vazamento Correios)
-        setLoadingStatus("Cruzando referências de mercado isoladas...");
-        const benchmark = await getIsolatedBenchmark(normalizedCompany || hintedCompany || "", { signal });
-        if (benchmark) updateBotText(benchmark);
+        if (previousStageCompleted) {
+          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+        }
 
-        setLoadingStatus("Finalizando dossiê modular...");
-        setFailureCount(0); // Sucesso limpa falhas anteriores
+        let benchmarkCompleted = false;
+        try {
+          const benchmark = await getIsolatedBenchmark(resolvedMegaCompany, {
+            signal,
+            timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
+          });
+          if (benchmark) updateBotText(benchmark);
+          benchmarkCompleted = true;
+          setFailureCount(0);
+        } catch (error) {
+          if (isAbortLikeError(error)) throw error;
+
+          benchmarkCompleted = false;
+          optionalStepFailures.push('Benchmark de mercado');
+          setFailureCount(count => count + 1);
+          scoutDiag.warn('ModularDossier', 'benchmark isolado falhou e será ignorado', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        if (benchmarkCompleted) {
+          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+        }
+
+        if (optionalStepFailures.length > 0) {
+          updateBotText(
+            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
+          );
+        } else {
+          setFailureCount(0);
+        }
+
+        // --- PÓS-PROCESSAMENTO DO WATERFALL ---
+        // Extrair Score PORTA dos markers no texto acumulado
+        const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
+        const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
+        const waterfallNarrativeText = appendSeniorEvidenceNote(
+          waterfallCleanText,
+          resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          waterfallClienteSeniorData,
+        );
+        const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
+          waterfallNarrativeText,
+          normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
+          waterfallClienteSeniorData,
+        );
+        const waterfallFinalText = waterfallExecutiveIntro
+          ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeText}`
+          : waterfallNarrativeText;
+
+        let waterfallSuggestions: string[] = [];
+        try {
+          waterfallSuggestions = await generateContinuityQuestion(
+            [
+              ...historyToPass,
+              {
+                id: uuidv4(),
+                sender: Sender.User,
+                text: safeVisibleText,
+                timestamp: new Date(),
+              },
+              {
+                id: uuidv4(),
+                sender: Sender.Bot,
+                text: waterfallFinalText,
+                timestamp: new Date(),
+                clienteSeniorData: waterfallClienteSeniorData,
+              },
+            ],
+            resolvedMegaCompany || null,
+            typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+          );
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        // Update final da mensagem com score, cliente e texto limpo
+        updateSessionById(sessionId, s => {
+          const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
+          return {
+            ...s,
+            empresaAlvo: finalCompany || s.empresaAlvo,
+            scoreOportunidade: waterfallScorePorta?.score ?? s.scoreOportunidade,
+            messages: s.messages.map(msg =>
+              msg.id === botMessageId
+                ? {
+                    ...msg,
+                    text: waterfallFinalText,
+                    scorePorta: waterfallScorePorta || undefined,
+                    clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    suggestions: waterfallSuggestions,
+                    isThinking: false,
+                  }
+                : msg,
+            ),
+          };
+        });
+
+        completeLoadingProgress();
         return;
         // --- FIM WATERFALL ORCHESTRATION ---
       }
@@ -422,21 +735,7 @@ const App: React.FC = () => {
             setFailureCount(0); // Qualquer texto de volta limpa o contador de falhas
           },
           onStatus: newStatus => {
-            const normalizedStatus = normalizeLoadingStatus(newStatus);
-            if (!normalizedStatus) return;
-            setLoadingStatus(prev => {
-              const normalizedPrev = normalizeLoadingStatus(prev) || prev;
-              const prevKey = normalizedPrev ? statusKey(normalizedPrev) : null;
-              const newKey = statusKey(normalizedStatus);
-              if (normalizedPrev && normalizedPrev !== normalizedStatus && prevKey !== newKey) {
-                setCompletedLoadingStatuses(completed =>
-                  completed.some(existing => statusKey(existing) === prevKey)
-                    ? completed
-                    : [...completed, normalizedPrev],
-                );
-              }
-              return normalizedStatus;
-            });
+            advanceLoadingProgress(newStatus);
           },
           onRagFailed: () => {
             toast.warning('Busca de contexto indisponível — resposta pode ser menos precisa');
@@ -480,6 +779,7 @@ const App: React.FC = () => {
           ),
         };
       });
+      completeLoadingProgress();
 
       if (!investigationLogged && responseText.length > 500) {
         setInvestigationLogged(true);
@@ -502,7 +802,7 @@ const App: React.FC = () => {
       }
     } catch (error: unknown) {
       const err = error as Error;
-      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+      if (isAbortLikeError(err)) {
         setSessions(prev =>
           prev.map(s =>
             s.id === sessionId
@@ -539,22 +839,26 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (text: string, displayText?: string) => {
+  const handleSendMessage = async (
+    text: string,
+    displayText?: string,
+    hintedCompanyOverride?: string | null,
+  ) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const rawTitle = cleanTitle(extractCompanyName(displayText || text));
-      const immediateTitle = rawTitle && rawTitle !== 'Empresa' ? rawTitle : '';
+      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(displayText || text));
+      const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
       immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
         id: sessionId,
         title: immediateTitle || 'Nova Investigação',
         empresaAlvo: immediateTitle || null,
         cnpj: null,
-        modoPrincipal: null,
+        modoPrincipal: DEFAULT_MODE,
         scoreOportunidade: null,
         resumoDossie: null,
         createdAt: new Date().toISOString(),
@@ -566,8 +870,8 @@ const App: React.FC = () => {
       currentHistory = [];
     } else {
       const session = sessions.find(s => s.id === sessionId);
-      currentHistory = session ? [...session.messages] : [];
-      immediateCompany = session?.empresaAlvo || null;
+      currentHistory = session?.messages ? [...session.messages] : [];
+      immediateCompany = hintedCompanyOverride || session?.empresaAlvo || null;
     }
     const userMessage: Message = {
       id: uuidv4(),
@@ -581,7 +885,7 @@ const App: React.FC = () => {
       ),
     );
     setVisibleCount(prev => prev + 1);
-    await processMessage(text, sessionId, currentHistory, displayText || text, immediateCompany);
+    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany);
   };
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
@@ -590,6 +894,7 @@ const App: React.FC = () => {
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
+      empresaContext,
     );
   };
 
@@ -1051,6 +1356,7 @@ const App: React.FC = () => {
                 stage: loadingStatus,
                 completedStages: completedLoadingStatuses,
                 failureCount: failureCount,
+                totalStages: loadingTotalStages,
               }}
               onDeleteMessage={handleDeleteMessage}
               radar={{

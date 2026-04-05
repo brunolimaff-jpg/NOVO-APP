@@ -149,6 +149,20 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
   const [expandido, setExpandido] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState<'ativos' | 'expansao'>('ativos');
 
+  const resolvedPorte = PORTE_LABELS[profile.porte] ? profile.porte : 'pequeno';
+  const streamsAtivos = Array.isArray(profile.streamsAtivos) ? profile.streamsAtivos : [];
+  const oportunidadesExpansao = Array.isArray(profile.oportunidadesExpansao)
+    ? profile.oportunidadesExpansao
+    : [];
+  const totalRRAnual = typeof profile.totalRRAnual === 'number' ? profile.totalRRAnual : 0;
+  const totalNR = typeof profile.totalNR === 'number' ? profile.totalNR : 0;
+  const prazoContratoPadrao =
+    typeof profile.prazoContratoPadrao === 'number' && profile.prazoContratoPadrao > 0
+      ? profile.prazoContratoPadrao
+      : 24;
+  const tcvEstimado =
+    typeof profile.tcvEstimado === 'number' ? profile.tcvEstimado : undefined;
+
   const cardBg = isDarkMode ? '#0f172a' : '#ffffff';
   const subtleBorder = isDarkMode ? 'rgba(148,163,184,0.12)' : '#e2e8f0';
   const labelColor = isDarkMode ? '#94a3b8' : '#64748b';
@@ -156,15 +170,15 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
   const abaBg = isDarkMode ? '#111827' : '#f1f5f9';
   const abaAtivaColor = '#3b82f6';
 
-  const rrMensal = profile.totalRRAnual / 12;
-  const porteColor = PORTE_COLORS[profile.porte];
+  const rrMensal = totalRRAnual / 12;
+  const porteColor = PORTE_COLORS[resolvedPorte];
 
-  const rrStreams = profile.streamsAtivos.filter(s => s.recorrente);
-  const nrStreams = profile.streamsAtivos.filter(s => !s.recorrente);
+  const rrStreams = streamsAtivos.filter(s => s.recorrente);
+  const nrStreams = streamsAtivos.filter(s => !s.recorrente);
 
   // Razão RR/(RR+NR) anualizado
-  const totalTudo = profile.totalRRAnual + profile.totalNR;
-  const rrRatio = totalTudo > 0 ? Math.round((profile.totalRRAnual / totalTudo) * 100) : 0;
+  const totalTudo = totalRRAnual + totalNR;
+  const rrRatio = totalTudo > 0 ? Math.round((totalRRAnual / totalTudo) * 100) : 0;
 
   return (
     <motion.div
@@ -205,7 +219,7 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
               color: porteColor,
             }}
           >
-            {PORTE_LABELS[profile.porte].toUpperCase()}
+            {PORTE_LABELS[resolvedPorte].toUpperCase()}
           </span>
         </div>
         <button
@@ -229,22 +243,22 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
       <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
         <MetricCard
           label="RR Anual"
-          value={formatarMoeda(profile.totalRRAnual)}
+          value={formatarMoeda(totalRRAnual)}
           sub={`${formatarMoeda(rrMensal)}/mês`}
           color="#10b981"
           isDarkMode={isDarkMode}
         />
         <MetricCard
           label="NR Total"
-          value={formatarMoeda(profile.totalNR)}
+          value={formatarMoeda(totalNR)}
           sub="implantação"
           color="#f59e0b"
           isDarkMode={isDarkMode}
         />
-        {profile.tcvEstimado !== undefined && (
+        {tcvEstimado !== undefined && (
           <MetricCard
-            label={`TCV (${profile.prazoContratoPadrao}m)`}
-            value={formatarMoeda(profile.tcvEstimado)}
+            label={`TCV (${prazoContratoPadrao}m)`}
+            value={formatarMoeda(tcvEstimado)}
             sub="valor total contrato"
             color="#3b82f6"
             isDarkMode={isDarkMode}
@@ -275,10 +289,10 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
         </div>
         <div style={{ fontSize: '10px', color: labelColor, marginTop: '4px' }}>
           Expansão potencial: +{formatarMoeda(
-            profile.oportunidadesExpansao
+            oportunidadesExpansao
               .filter(o => o.valorAnual)
               .reduce((acc, o) => acc + (o.valorAnual ?? 0), 0),
-          )}/ano em {profile.oportunidadesExpansao.length} famílias
+          )}/ano em {oportunidadesExpansao.length} famílias
         </div>
       </div>
 
@@ -310,8 +324,8 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
                   }}
                 >
                   {aba === 'ativos'
-                    ? `Carteira Ativa (${profile.streamsAtivos.length})`
-                    : `Cross-sell (${profile.oportunidadesExpansao.length})`}
+                    ? `Carteira Ativa (${streamsAtivos.length})`
+                    : `Cross-sell (${oportunidadesExpansao.length})`}
                 </button>
               ))}
             </div>
@@ -344,16 +358,16 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
 
             {abaAtiva === 'expansao' && (
               <div>
-                {profile.oportunidadesExpansao.length === 0 ? (
+                {oportunidadesExpansao.length === 0 ? (
                   <div style={{ fontSize: '12px', color: labelColor, textAlign: 'center', padding: '16px 0' }}>
                     Cliente já possui todas as famílias de produto
                   </div>
                 ) : (
                   <>
                     <div style={{ fontSize: '10px', color: labelColor, marginBottom: '8px' }}>
-                      Oportunidades identificadas por gap de portfólio — estimativa por porte {PORTE_LABELS[profile.porte].toLowerCase()}
+                      Oportunidades identificadas por gap de portfólio — estimativa por porte {PORTE_LABELS[resolvedPorte].toLowerCase()}
                     </div>
-                    {profile.oportunidadesExpansao.map(s => (
+                    {oportunidadesExpansao.map(s => (
                       <StreamRow key={s.id} stream={s} isDarkMode={isDarkMode} />
                     ))}
                     <div
@@ -369,12 +383,12 @@ const RevenueIntelligence: React.FC<RevenueIntelligenceProps> = ({
                     >
                       <span style={{ color: '#10b981', fontWeight: 700 }}>Potencial total de expansão: </span>
                       {formatarMoeda(
-                        profile.oportunidadesExpansao
+                        oportunidadesExpansao
                           .filter(o => o.valorAnual)
                           .reduce((acc, o) => acc + (o.valorAnual ?? 0), 0),
                       )}{'/ano + '}
                       {formatarMoeda(
-                        profile.oportunidadesExpansao
+                        oportunidadesExpansao
                           .filter(o => o.custoImplantacao)
                           .reduce((acc, o) => acc + (o.custoImplantacao ?? 0), 0),
                       )}{' NR'}

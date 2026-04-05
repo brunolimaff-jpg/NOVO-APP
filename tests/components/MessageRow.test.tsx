@@ -62,7 +62,7 @@ function makeData(messages: Message[], overrides: Partial<MessageRowData> = {}):
     messages,
     isLoading: false,
     isDarkMode: false,
-    mode: 'operacao',
+    mode: 'investigacao',
     onFeedback: vi.fn(),
     onSendFeedback: vi.fn(),
     onToggleMessageSources: vi.fn(),
@@ -107,6 +107,7 @@ describe('MessageRow', () => {
   it('renderiza mensagem de erro com ErrorMessageCard', () => {
     const errorDetails = {
       code: 'NETWORK' as const,
+      message: 'Falha de conexão',
       friendlyMessage: 'Falha de conexão',
       httpStatus: 0,
       retryable: true,
@@ -133,6 +134,39 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
   });
 
+  it('renderiza badge Cliente Senior quando dados estiverem presentes', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+      clienteSeniorData: {
+        encontrado: true,
+        grupo: 'Grupo Scheffer',
+        totalModulos: 4,
+        familias: ['ERP'],
+        modulosPorFamilia: {},
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.getByTestId('cliente-senior-score')).toBeInTheDocument();
+  });
+
+  it('renderiza DeepDiveTopics na última mensagem finalizada', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          isLoading: false,
+          onDeepDive: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.getByTestId('deep-dive-topics')).toBeInTheDocument();
+  });
+
   it('renderiza mensagem do usuário sem crashar no modo dark', () => {
     const msg = makeMessage({ text: 'Pesquisar empresa', sender: Sender.User });
     expect(() =>
@@ -144,7 +178,6 @@ describe('MessageRow', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       text: '',
-      ghostReason: 'EMPRESA_NAO_IDENTIFICADA',
     });
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.getByTestId('ghost-block')).toBeInTheDocument();

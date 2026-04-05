@@ -129,29 +129,16 @@ describe('normalizeAppError', () => {
 });
 
 describe('getFriendlyErrorMessage', () => {
-  it('retorna mensagem formal para modo diretoria + NETWORK', () => {
+  it('retorna mensagem amigável para NETWORK no modo único', () => {
     const error = normalizeAppError(new TypeError('fetch failed'));
-    const msg = getFriendlyErrorMessage(error, 'diretoria');
-    expect(msg).toContain('internet');
-    expect(msg).not.toContain('boiadeiro');
-  });
-
-  it('retorna mensagem regional para modo operacao + NETWORK', () => {
-    const error = normalizeAppError(new TypeError('fetch failed'));
-    const msg = getFriendlyErrorMessage(error, 'operacao');
+    const msg = getFriendlyErrorMessage(error, 'investigacao');
     expect(msg).toContain('internet');
   });
 
-  it('retorna mensagem de rate limit para modo diretoria', () => {
+  it('retorna mensagem de rate limit no modo único', () => {
     const error = normalizeAppError({ message: 'quota exceeded', status: 429 });
-    const msg = getFriendlyErrorMessage(error, 'diretoria');
+    const msg = getFriendlyErrorMessage(error, 'investigacao');
     expect(msg.toLowerCase()).toMatch(/requisições|muitas/);
-  });
-
-  it('retorna mensagem de rate limit para modo operacao', () => {
-    const error = normalizeAppError({ message: 'quota exceeded', status: 429 });
-    const msg = getFriendlyErrorMessage(error, 'operacao');
-    expect(msg.length).toBeGreaterThan(5);
   });
 
   it('retorna fallback friendlyMessage para código desconhecido', () => {
@@ -163,7 +150,7 @@ describe('getFriendlyErrorMessage', () => {
       transient: false,
       source: 'UNKNOWN' as const,
     };
-    const msg = getFriendlyErrorMessage(appError, 'diretoria');
+    const msg = getFriendlyErrorMessage(appError, 'investigacao');
     expect(msg).toBe('Mensagem custom');
   });
 });

@@ -9,7 +9,7 @@ vi.mock('../../services/sessionRemoteStore', () => ({
 }));
 
 import { useSessionManager } from '../../hooks/useSessionManager';
-import { ChatSession } from '../../types';
+import { ChatSession, Sender } from '../../types';
 import { MutableRefObject } from 'react';
 
 function makeSession(id: string, title: string, hasMessages = false): ChatSession {
@@ -24,7 +24,7 @@ function makeSession(id: string, title: string, hasMessages = false): ChatSessio
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     messages: hasMessages
-      ? [{ id: 'm1', sender: 'user' as const, text: 'Msg', timestamp: new Date() }]
+      ? [{ id: 'm1', sender: Sender.User, text: 'Msg', timestamp: new Date() }]
       : [],
   };
 }
@@ -44,7 +44,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
   const setPdfReportContent = vi.fn();
   const setInvestigationLogged = vi.fn();
   const setLastQuery = vi.fn();
-  const setLoadingStatus = vi.fn();
+  const resetLoadingProgress = vi.fn();
   const setIsLoading = vi.fn();
 
   return {
@@ -63,7 +63,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
     setInvestigationLogged,
     lastActionRef: makeRef<unknown>(null),
     setLastQuery,
-    setLoadingStatus,
+    resetLoadingProgress,
     setIsLoading,
     ...overrides,
   };
@@ -118,7 +118,7 @@ describe('useSessionManager', () => {
     expect(opts.setPdfReportContent).toHaveBeenCalledWith(null);
     expect(opts.setInvestigationLogged).toHaveBeenCalledWith(false);
     expect(opts.setLastQuery).toHaveBeenCalledWith('');
-    expect(opts.setLoadingStatus).toHaveBeenCalledWith('Iniciando análise');
+    expect(opts.resetLoadingProgress).toHaveBeenCalledWith('Iniciando análise');
   });
 
   it('handleSelectSession define currentSessionId', async () => {

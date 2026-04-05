@@ -24,7 +24,7 @@ describe('EmptyStateHome onboarding gate', () => {
 
     render(
       <EmptyStateHome
-        mode="operacao"
+        mode="investigacao"
         onStartInvestigation={onStartInvestigation}
         isDarkMode={true}
       />,
@@ -39,7 +39,7 @@ describe('EmptyStateHome onboarding gate', () => {
 
     render(
       <EmptyStateHome
-        mode="operacao"
+        mode="investigacao"
         onStartInvestigation={onStartInvestigation}
         isDarkMode={false}
       />,

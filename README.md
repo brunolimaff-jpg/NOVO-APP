@@ -1,4 +1,6 @@
 # 🦅 Senior Scout 360
+[![CI](https://github.com/SEU-USUARIO/SEU-REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/SEU-USUARIO/SEU-REPO/actions/workflows/ci.yml)
+
 ### Copiloto de Inteligência Comercial para o Agronegócio
 
 ---
@@ -132,3 +134,12 @@ Para configuração completa, consulte [`docs/GUIA-INICIANTE.md`](./docs/GUIA-IN
 ---
 
 *Senior Scout 360 — Inteligência que fecha negócio.*
+
+## CI/CD e Governança de Merge
+
+- Workflow de CI em `.github/workflows/ci.yml` com checks de `typecheck`, `test` e `build`.
+- Recomenda-se proteger a branch `main` exigindo os status checks desse workflow antes de merge.
+- No painel da Vercel, mantenha **Production Branch = `main`** para publicar somente código já aprovado no CI.
+
+> **Nota:** substitua `SEU-USUARIO/SEU-REPO` no badge acima pelo caminho real do seu repositório no GitHub.
+

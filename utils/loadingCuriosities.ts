@@ -16,7 +16,7 @@ function toLines(value: unknown): string[] {
 
   const sanitizeLine = (line: string): string => line.replace(/\s+/g, ' ').trim();
   const isStatusLikeLine = (line: string): boolean => (
-    /^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando)\b/i.test(line) ||
+    (/^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando)\b/i.test(line) && line.length < 65) ||
     /^(passo|fase)\s+\d+/i.test(line) ||
     /(em andamento|investiga[cç][aã]o em andamento)/i.test(line)
   );
@@ -61,19 +61,19 @@ export function buildLoadingCuriositiesFallback(context: string): string[] {
   const safeCompany = sanitizeLoadingContext(context || '');
 
   const genericFallback = [
-    'Estamos consolidando sinais públicos, contexto operacional e referências de mercado para montar uma resposta objetiva.',
-    'A análise em andamento prioriza consistência entre operação, contexto regional e possíveis alavancas de eficiência.',
-    'Enquanto a investigação avança, o sistema organiza evidências para evitar ruído e destacar apenas sinais úteis.',
-    'O diagnóstico cruza histórico, contexto competitivo e pistas operacionais antes de sugerir próximos passos.'
+    'Consolidando sinais públicos, contexto operacional e referências de mercado para montar uma resposta objetiva.',
+    'Cruzando evidências observáveis com benchmarks do setor antes de calibrar o Score PORTA.',
+    'Empresas com disciplina operacional transformam dados em vantagem competitiva mais rápido que concorrentes.',
+    'O Scout filtra ruído antes de sugerir táticas — qualidade dos dados define qualidade das recomendações.',
   ];
 
   if (!safeCompany) return genericFallback;
 
   return [
-    `${safeCompany} está sendo analisada com foco em sinais operacionais, contexto de mercado e possíveis prioridades de gestão.`,
-    'A investigação em andamento cruza evidências públicas e padrões de operação para reduzir ruído na resposta final.',
-    'O sistema está organizando indícios de eficiência, expansão e governança antes de consolidar recomendações.',
-    'As próximas etapas priorizam clareza, síntese e consistência entre fatos observáveis e hipóteses de negócio.'
+    `${safeCompany}: mapeando sinais operacionais, footprint de mercado e padrões de tomada de decisão.`,
+    `Cruzando dados públicos da ${safeCompany} com benchmarks do setor para calibrar o Score PORTA.`,
+    'Empresas que integram gestão agrícola, fiscal e de pessoas em um ERP reduzem retrabalho em até 30%.',
+    'O Scout prioriza evidências factuais antes de sugerir táticas — dados ruidosos geram recomendações erradas.',
   ];
 }
 

@@ -89,7 +89,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   sessionId = "preview_session",
   userId,
   isDarkMode,
-  mode = 'diretoria',
+  mode = 'investigacao',
   onPreFillInput,
   onRegenerateSuggestions,
   hideSuggestions = false,
@@ -102,12 +102,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
 
-  const activeOptions = message.suggestions && message.suggestions.length > 0
+  const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
     : parsedOptions;
 
   const processedOptions = useMemo(() => {
-    if (!empresaAlvo || !activeOptions || activeOptions.length === 0) return activeOptions;
+    if (!Array.isArray(activeOptions) || activeOptions.length === 0) return [];
+    if (!empresaAlvo) return activeOptions;
     return activeOptions.map(option =>
       option
         .replace(/\[NOME DA EMPRESA\]/gi, empresaAlvo)
@@ -128,7 +129,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = cleanText.length > 300;
 
-  if (sections.length <= 1 && !cleanText.includes('##')) {
+  if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(cleanText)) {
     return (
       <div className="flex flex-col gap-2">
         {showCopyButton && (
@@ -163,8 +164,32 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
       )}
 
       {sections.map((section, idx) => (
-        <div key={section.key} className="section-block group relative">
-          <div className="section-content">
+        <div
+          key={section.key}
+          className={`section-block group relative ${
+            section.level === 1 && section.kind === 'module'
+              ? isDarkMode
+                ? 'rounded-2xl border border-slate-800/80 bg-slate-900/50 shadow-sm'
+                : 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm'
+              : ''
+          }`}
+        >
+          {section.level === 1 && section.kind === 'module' && (
+            <div className={`flex items-center justify-between gap-3 px-4 pt-4 pb-1 md:px-5 ${
+              isDarkMode ? 'border-slate-800/70' : 'border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                  isDarkMode
+                    ? 'bg-emerald-500/10 text-emerald-300'
+                    : 'bg-emerald-50 text-emerald-700'
+                }`}>
+                  Módulo {sections.slice(0, idx + 1).filter(item => item.level === 1 && item.kind === 'module').length}
+                </span>
+              </div>
+            </div>
+          )}
+          <div className={section.level === 1 && section.kind === 'module' ? 'section-content px-4 pb-4 md:px-5 md:pb-5' : 'section-content'}>
             <MarkdownRenderer
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
               isDarkMode={isDarkMode}

@@ -125,6 +125,36 @@ function generateBriefDescriptionFromSession(session: ChatSession): string | und
   return slice.trim().replace(/[,:;-]\s*$/, '') + '...';
 }
 
+function sanitizeLoadedCard(card: CRMCard): CRMCard {
+  return {
+    ...card,
+    linkedSessionIds: Array.isArray(card.linkedSessionIds) ? card.linkedSessionIds : [],
+    cnpjs: Array.isArray(card.cnpjs)
+      ? card.cnpjs.filter((cnpj): cnpj is string => typeof cnpj === 'string' && cnpj.trim().length > 0)
+      : undefined,
+    movedToStageAt: card.movedToStageAt ?? {},
+    stages: card.stages ?? {},
+    revenueProfile: card.revenueProfile
+      ? {
+          ...card.revenueProfile,
+          streamsAtivos: Array.isArray(card.revenueProfile.streamsAtivos)
+            ? card.revenueProfile.streamsAtivos
+            : [],
+          oportunidadesExpansao: Array.isArray(card.revenueProfile.oportunidadesExpansao)
+            ? card.revenueProfile.oportunidadesExpansao
+            : [],
+          totalRRAnual:
+            typeof card.revenueProfile.totalRRAnual === 'number' ? card.revenueProfile.totalRRAnual : 0,
+          totalNR: typeof card.revenueProfile.totalNR === 'number' ? card.revenueProfile.totalNR : 0,
+          prazoContratoPadrao:
+            typeof card.revenueProfile.prazoContratoPadrao === 'number'
+              ? card.revenueProfile.prazoContratoPadrao
+              : 24,
+        }
+      : undefined,
+  };
+}
+
 export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cards, setCards] = useState<CRMCard[]>([]);
 
@@ -133,7 +163,7 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const raw = window.localStorage.getItem(LOCAL_KEY);
       if (!raw) return;
       const parsed: CRMCard[] = JSON.parse(raw);
-      setCards(parsed);
+      setCards(parsed.map(sanitizeLoadedCard));
     } catch (err) {
       console.error('Erro ao carregar CRM do localStorage', err);
     }
@@ -219,7 +249,11 @@ export const CRMProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateCard = async (card: CRMCard) => {
-    const updated: CRMCard = { ...card, updatedAt: new Date().toISOString(), health: computeHealth(card) };
+    const updated: CRMCard = sanitizeLoadedCard({
+      ...card,
+      updatedAt: new Date().toISOString(),
+      health: computeHealth(card),
+    });
     setCards(prev => prev.map(c => (c.id === card.id ? updated : c)));
     await saveFull(updated);
   };

@@ -19,8 +19,7 @@ const SOURCE_LINKS: Record<string, string> = {
 };
 
 const EXPECTED_STAGES: Record<string, number> = {
-  operacao: 8,
-  diretoria: 14,
+  investigacao: 8,
 };
 
 interface LoadingSmartProps {
@@ -28,7 +27,7 @@ interface LoadingSmartProps {
   mode: ChatMode;
   isDarkMode: boolean;
   onStop?: () => void;
-  processing?: { stage?: string; completedStages?: string[]; failureCount?: number };
+  processing?: { stage?: string; completedStages?: string[]; failureCount?: number; totalStages?: number };
   searchQuery?: string;
   empresaAlvo?: string | null;
 }
@@ -301,7 +300,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           // Schedule next reveal if there are more in queue
           if (queueRef.current.length > 0) {
             revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
+          } else {
+            revealTimerRef.current = null;
           }
+        } else {
+          revealTimerRef.current = null;
         }
       }, delay);
     };
@@ -362,7 +365,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     curiositiesRef.current = [];
     setCurrentInsight(
       companyFocus
-        ? `${companyFocus} ganha previsibilidade quando operação e gestão acompanham os mesmos indicadores críticos.`
+        ? `Mapeando sinais operacionais e footprint de mercado da ${companyFocus} — isso leva alguns instantes.`
         : 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
     );
     if (!loadingContext || loadingContext.length < 2) {
@@ -433,7 +436,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const completedCount = completedRich.length;
   const pendingInQueue = queueRef.current.length;
   const realTotalCompleted = (processing?.completedStages || []).length;
-  const expectedTotal = Math.max(EXPECTED_STAGES[mode] ?? 12, realTotalCompleted + 2);
+  const declaredTotalStages =
+    typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
+      ? processing.totalStages
+      : null;
+  const expectedTotal = declaredTotalStages ?? Math.max(EXPECTED_STAGES[mode] ?? 12, realTotalCompleted + 2);
   // Smooth progress: interpolate between displayed and real
   const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);

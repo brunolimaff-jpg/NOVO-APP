@@ -1,4 +1,5 @@
-import { Message, Sender } from '../types';
+import { Message, Sender, type ClienteSeniorData } from '../types';
+import { parseMarkdownSections } from './sectionParser';
 import { extractAllLinksFromMarkdown, SourceRef } from './textCleaners';
 
 function normalizeSourceUrl(url: string): string {
@@ -53,13 +54,169 @@ export function collectFullReport(messages: Message[]): { text: string; sections
 
 const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
 
+function normalizeInlineMermaidClasses(chart: string): string {
+  const classLines: string[] = [];
+  const seenClassAssignments = new Set<string>();
+  const normalized = chart.replace(
+    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
+    (_full, nodeId: string, nodeShape: string, className: string) => {
+      const classLine = `class ${nodeId} ${className};`;
+      if (!seenClassAssignments.has(classLine)) {
+        seenClassAssignments.add(classLine);
+        classLines.push(classLine);
+      }
+      return `${nodeId}${nodeShape}`;
+    }
+  );
+
+  if (classLines.length === 0) return normalized;
+  return `${normalized}\n${classLines.join('\n')}`;
+}
+
 export function normalizeMermaidBlocks(markdown: string): string {
   if (!markdown) return '';
   const fence = '`'.repeat(3);
-  return markdown.replace(MERMAID_JSON_PATTERN, (_m, raw: string) => {
-    const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-    return `\n${fence}mermaid\n${unescaped}\n${fence}\n`;
-  });
+  return markdown
+    .replace(MERMAID_JSON_PATTERN, (_m, raw: string) => {
+      const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+      return `\n${fence}mermaid\n${normalizeInlineMermaidClasses(unescaped)}\n${fence}\n`;
+    })
+    .replace(/```mermaid\s*([\s\S]*?)```/gi, (_m, raw: string) => {
+      return `${fence}mermaid\n${normalizeInlineMermaidClasses(raw.trim())}\n${fence}`;
+    });
+}
+
+function stripMarkdownFormatting(value: string): string {
+  return value
+    .replace(/\[\[PORTA[^\]]*\]\]/g, '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
+    .replace(/[*_`>#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mapModuleTitleToLabel(title: string): string {
+  const normalized = stripMarkdownFormatting(title).toLowerCase();
+  if (/inteligencia operacional|operacional/.test(normalized)) return 'Operação';
+  if (/arquitetura de ti|divida tecnica|tech stack/.test(normalized)) return 'Arquitetura';
+  if (/compliance|risco fiscal/.test(normalized)) return 'Compliance';
+  if (/teia societaria|massa real|expansao/.test(normalized)) return 'Escala';
+  if (/rh|gestao de pessoas|sst/.test(normalized)) return 'Pessoas';
+  if (/cadeia de comando|decisores/.test(normalized)) return 'Decisão';
+  if (/orcamento|janela/.test(normalized)) return 'Orçamento';
+  return 'Leitura';
+}
+
+function extractExecutiveSignal(sectionContent: string): string | null {
+  const lines = sectionContent
+    .split('\n')
+    .map(line => stripMarkdownFormatting(line))
+    .filter(line => {
+      if (!line) return false;
+      if (/^#{1,6}\s/.test(line)) return false;
+      if (/^```/.test(line)) return false;
+      if (/^\|/.test(line)) return false;
+      if (/^[-–—]{3,}$/.test(line)) return false;
+      if (/^(o fato|a mecanica da dor|impacto estimado|conexao com sistema|evidencia|status)$/i.test(line)) {
+        return false;
+      }
+      return line.length >= 28;
+    });
+
+  for (const line of lines) {
+    const afterLabel = line.match(/^[A-Za-zÀ-ÿ0-9\s()/.-]{3,40}:\s*(.+)$/)?.[1]?.trim();
+    if (afterLabel && afterLabel.length >= 24) {
+      return afterLabel.replace(/\.+$/, '');
+    }
+  }
+
+  return lines[0]?.replace(/\.+$/, '') || null;
+}
+
+function extractStrategicGap(text: string): string | null {
+  const lines = text
+    .split('\n')
+    .map(line => stripMarkdownFormatting(line))
+    .filter(Boolean);
+
+  const targetLabels = [
+    'calcanhar de aquiles',
+    'ruptura critica',
+    'ponto cego',
+    'bomba relogio',
+    'fraqueza do incumbente',
+    'hemorragias da fragmentacao',
+  ];
+
+  for (const line of lines) {
+    const normalized = line
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (targetLabels.some(label => normalized.includes(label))) {
+      const afterColon = line.match(/:\s*(.+)$/)?.[1]?.trim();
+      return (afterColon || line).replace(/\.+$/, '');
+    }
+  }
+
+  return null;
+}
+
+export function buildMainDossierExecutiveIntro(
+  fullText: string,
+  companyName?: string | null,
+  clienteSeniorData?: ClienteSeniorData,
+): string {
+  const sections = parseMarkdownSections(fullText);
+  const modules = sections.filter(section => section.level === 1 && section.kind === 'module');
+  if (modules.length === 0) return '';
+
+  const displayCompany =
+    stripMarkdownFormatting(companyName || '') ||
+    stripMarkdownFormatting(clienteSeniorData?.grupo || '') ||
+    'A conta analisada';
+  const totalModulos = clienteSeniorData?.totalModulos;
+  const primaryGap =
+    extractStrategicGap(fullText) ||
+    extractExecutiveSignal(modules[0]?.content || '') ||
+    'há sinais de fricção operacional e necessidade de maior integração entre operação e gestão';
+
+  const opening = clienteSeniorData?.encontrado
+    ? `${displayCompany} já opera uma base relevante do ecossistema Senior${
+        totalModulos ? ` (${totalModulos} módulos confirmados)` : ''
+      }, o que desloca a tese comercial para expansão de conta, consolidação e defesa do território já conquistado.`
+    : `${displayCompany} reúne sinais de escala e complexidade suficientes para uma abordagem executiva orientada a governança, eficiência operacional e captura de margem.`;
+
+  const approach = clienteSeniorData?.encontrado
+    ? 'A abordagem dominante deve fechar gaps periféricos, ampliar cobertura e impedir que soluções satélite avancem sobre uma conta que já tem core instalado.'
+    : 'A abordagem dominante deve conectar dor observável, ganho executivo e janela real de decisão, evitando narrativa genérica de prospecção.'
+    ;
+
+  const bullets = modules
+    .slice(0, 4)
+    .map(section => {
+      const label = mapModuleTitleToLabel(section.title);
+      const signal = extractExecutiveSignal(section.content);
+      if (!signal) return null;
+      return `- **${label}:** ${signal}.`;
+    })
+    .filter((line): line is string => Boolean(line));
+
+  if (bullets.length === 0) {
+    bullets.push('- **Leitura consolidada:** o dossiê organiza a conta por operação, arquitetura, compliance e capacidade de execução comercial.');
+  }
+
+  return [
+    '## 📌 Resumo Executivo',
+    '',
+    `${opening} A maior fissura observável hoje está em ${primaryGap}. ${approach}`,
+    '',
+    '## 🔭 Leitura do Caso',
+    '',
+    ...bullets,
+    '',
+  ].join('\n');
 }
 
 function normalizeComparableValue(value: string): string {

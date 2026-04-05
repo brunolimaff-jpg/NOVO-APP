@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildMainDossierExecutiveIntro,
   collectFullReport,
   detectInconsistencies,
   generateExecutiveSummary,
@@ -63,6 +64,31 @@ describe('report export helpers', () => {
     expect(summary).toContain('Validação obrigatória');
     expect(summary).toContain('precisa validar');
     expect(summary).toContain('Diagramas mermaid');
+  });
+
+  it('builds an executive intro for the main dossier without exposing PORTA language', () => {
+    const intro = buildMainDossierExecutiveIntro(
+      [
+        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - GRUPO SCHEFFER',
+        '',
+        '**🎯 RADAR DE ESTRUTURA E CAPEX**',
+        '* **O Calcanhar de Aquiles:** a logística de saída ainda opera fora da esteira nativa da Senior.',
+        '',
+        '# 🦅 DOSSIÊ SCOUT 360: ARQUITETURA DE TI E DÍVIDA TÉCNICA - GRUPO SCHEFFER',
+        '',
+        '**🎯 RADAR DO ECOSSISTEMA SISTÊMICO**',
+        '* **A Ruptura Crítica:** o gap de WMS/TMS mantém shadow IT na ponta logística.',
+      ].join('\n'),
+      'Grupo Scheffer',
+      { encontrado: true, grupo: 'GRUPO SCHEFFER', totalModulos: 74 },
+    );
+
+    expect(intro).toContain('## 📌 Resumo Executivo');
+    expect(intro).toContain('## 🔭 Leitura do Caso');
+    expect(intro).toContain('74 módulos confirmados');
+    expect(intro).toContain('expansão de conta');
+    expect(intro).not.toContain('Dimensão O');
+    expect(intro).not.toContain('Nota O sugerida');
   });
 
   it('includes grounding sources from bot messages in exported links', () => {

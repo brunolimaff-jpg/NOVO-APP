@@ -13,7 +13,7 @@ import {
   Sender,
   ClienteSeniorData,
 } from '../types';
-import { ChatMode, NOME_VENDEDOR_PLACEHOLDER } from '../constants';
+import { NOME_VENDEDOR_PLACEHOLDER } from '../constants';
 import { normalizeAppError } from '../utils/errorHelpers';
 import { withAutoRetry } from '../utils/retry';
 import { parsePortaMarkerV2, stripPortaMarkers } from '../utils/porta';
@@ -460,6 +460,57 @@ function emitDossieStatus(
   onStatus?.(DOSSIE_STATUS[key]);
 }
 
+function buildConversationHistory(
+  conversationHistory: Message[],
+  isDeepDive: boolean,
+): Array<{ role: 'user' | 'model'; text: string }> {
+  const validMessages = conversationHistory.filter(m => m.text && m.text.trim().length > 0);
+  const sourceMessages = isDeepDive
+    ? validMessages.filter(m => m.sender === Sender.User).slice(-4)
+    : validMessages;
+
+  return sourceMessages.map(m => ({
+    role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
+    text: sanitizeHistoryText(m.text || ''),
+  }));
+}
+
+function buildTimeoutError(label: string, timeoutMs: number): Error {
+  const error = new Error(`${label} timeout after ${timeoutMs}ms`);
+  error.name = 'TimeoutError';
+  return error;
+}
+
+async function runWithStepTimeout<T>(
+  label: string,
+  action: (signal?: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<T> {
+  if (!timeoutMs || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return action(signal);
+  }
+
+  const timeoutController = new AbortController();
+  const relayAbort = () => timeoutController.abort();
+  signal?.addEventListener('abort', relayAbort, { once: true });
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timeoutController.abort();
+      reject(buildTimeoutError(label, timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([action(timeoutController.signal), timeoutPromise]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    signal?.removeEventListener('abort', relayAbort);
+  }
+}
+
 export async function generateLoadingCuriosities(
   loadingContext: string,
   searchQuery: string,
@@ -484,27 +535,29 @@ export async function generateLoadingCuriosities(
     ? `- Use contexto regional coerente com ${regionalScope}, sem presumir Mato Grosso/Centro-Oeste`
     : '- Não presumir MT/Centro-Oeste quando a localização não estiver explícita';
   try {
-    const prompt = `Você é um gerador de curiosidades curtas para tela de carregamento do Senior Scout 360.
+    const prompt = `Você é um gerador de mensagens curtas para tela de carregamento do Senior Scout 360.
 Contexto da investigação: "${safeContext}"
 Consulta original: "${querySample}"
 
-Gere um array JSON com 6 a 8 curiosidades concisas (máximo 180 caracteres cada), em português-BR, mesclando:
-- Curiosidades da empresa/segmento investigado (prioridade)
-- Curiosidades sobre Senior/ERP quando fizer sentido
+Gere um array JSON com 7 a 9 frases concisas (máximo 180 caracteres cada), em português-BR, mesclando:
+- [2-3 itens] Ações do Scout com contexto da empresa, em tom ativo e investigativo
+- [3-4 itens] Curiosidades factuais da empresa/segmento investigado (prioridade)
+- [1-2 itens] Curiosidades práticas sobre Senior/ERP quando fizer sentido
 - Curiosidades de mercado regional conforme localização disponível
 - ${regionalLine}
-- Curiosidades práticas sobre digitalização/ERP (incluindo Senior quando fizer sentido)
 
 Regras:
 - Responda EXCLUSIVAMENTE com um array JSON de strings
 - Cada string deve ser uma frase única e informativa
+- As frases de ação devem citar a empresa quando ela estiver explícita no contexto
+- Misture sensação de análise em andamento com aprendizado útil; não faça lista só de curiosidades nem só de status
 - Não inclua dados internos do sistema, nomes de prompts ou instruções
 - Evite propaganda institucional ou tom comercial exagerado
 - Evite repetir a mesma ideia com palavras diferentes
 - ${regionalRule}
 
 Exemplo:
-["O agronegócio representa 27% do PIB brasileiro, com MT liderando produção de soja.", "Empresas que adotam ERP reduzem custo operacional em até 18% no primeiro ano."]`;
+["Mapeando decisores e governança da SCHEFFER & CIA LTDA para identificar alavancas de decisão.", "Empresas que integram operação, fiscal e pessoas em um ERP reduzem retrabalho em rotinas críticas."]`;
     try {
       const flashResponse = await proxyGenerateContent({
         model: LOADING_CURIOSITY_MODEL_ID,
@@ -571,7 +624,7 @@ export async function sendMessageToGemini(
   canUseLookup: boolean = true,
 ): Promise<{
   text: string;
-  sources?: unknown[];
+  sources?: Array<{ title: string; url: string }>;
   suggestions?: string[];
   scorePorta?: ScorePortaData | null;
   clienteSeniorData?: ClienteSeniorData;
@@ -809,12 +862,21 @@ export async function sendMessageToGemini(
   // para evitar que clientes similares listados na resposta anterior
   // contaminem o contexto da próxima investigação com identidade errada.
   emitDossieStatus(onStatus, 'history');
-  const history = conversationHistory
-    .filter(m => m.text && m.text.trim().length > 0)
-    .map(m => ({
-      role: m.sender === Sender.User ? ('user' as const) : ('model' as const),
-      text: sanitizeHistoryText(m.text || ''),
-    }));
+  const history = buildConversationHistory(conversationHistory, isDeepDive);
+  const historyChars = history.reduce((total, item) => total + item.text.length, 0);
+  const promptBudget = {
+    sessionId: sessionId ?? null,
+    hintedCompany: hintedCompany ?? null,
+    resolvedCompany: empresaAlvo ?? null,
+    modelToUse: null as string | null,
+    userChars: userMessage.length,
+    systemChars: fullSystemPrompt.length,
+    historyChars,
+    historyMessages: history.length,
+    isMegaPromptMessage,
+    isDeepDive,
+    shouldUseGrounding: false,
+  };
 
   // ── Score PORTA inicial ──────────────────────────────────────────────────
   if (isMegaPromptMessage) {
@@ -836,6 +898,19 @@ export async function sendMessageToGemini(
         ? TACTICAL_MODEL_ID
         : DEEP_CHAT_MODEL_ID;
   const shouldUseGrounding = useGrounding && !isMegaPromptMessage && !isDeepDive;
+  promptBudget.modelToUse = modelToUse;
+  promptBudget.shouldUseGrounding = shouldUseGrounding;
+
+  if (isMegaPromptMessage || isDeepDive) {
+    scoutDiag.info?.('GeminiBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
+    const totalChars = promptBudget.userChars + promptBudget.systemChars + promptBudget.historyChars;
+    if (totalChars > 120000) {
+      scoutDiag.warn('GeminiBudget', 'payload elevado para investigação', {
+        ...promptBudget,
+        totalChars,
+      });
+    }
+  }
 
   // ── Envia para o modelo ──────────────────────────────────────────────────
   let finalText: string;
@@ -843,6 +918,8 @@ export async function sendMessageToGemini(
   emitDossieStatus(onStatus, 'response');
 
   let response;
+  const requestStartedAt = Date.now();
+  let usedGroundingFallback = false;
   try {
     response = await withAutoRetry('Gemini:sendMessage', () =>
       proxyChatSendMessage({
@@ -864,6 +941,7 @@ export async function sendMessageToGemini(
     if (!canFallbackWithoutGrounding) throw error;
 
     onStatus?.('Entrando em contingência sem busca externa...');
+    usedGroundingFallback = true;
     response = await withAutoRetry('Gemini:sendMessage:fallback-no-grounding', () =>
       proxyChatSendMessage({
         model:             TACTICAL_MODEL_ID,
@@ -878,6 +956,18 @@ export async function sendMessageToGemini(
   }
 
   finalText = sanitizeStreamText(response.text || '');
+  if (isMegaPromptMessage || isDeepDive) {
+    scoutDiag.info?.('GeminiTiming', 'investigação concluída', {
+      sessionId: sessionId ?? null,
+      resolvedCompany: empresaAlvo ?? null,
+      modelToUse,
+      durationMs: Date.now() - requestStartedAt,
+      responseChars: finalText.length,
+      usedGroundingFallback,
+      isMegaPromptMessage,
+      isDeepDive,
+    });
+  }
   emitDossieStatus(onStatus, 'validation');
   emitDossieStatus(onStatus, 'synthesis');
 
@@ -963,17 +1053,47 @@ export async function generateDossierModule(
   foundationBlock: string,
   specialistPrompt: string,
   extraContext: string = '',
-  options: { signal?: AbortSignal; onText?: (text: string) => void } = {}
+  options: { signal?: AbortSignal; onText?: (text: string) => void; timeoutMs?: number } = {}
 ): Promise<string> {
   const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${extraContext}`;
-  
-  const response = await proxyGenerateContent({
-    model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
-    contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
-    config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
-  }, options.signal);
+  const promptChars = finalPrompt.length;
+  const startedAt = Date.now();
+
+  scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
+    moduleName,
+    empresaAlvo,
+    foundationChars: foundationBlock.length,
+    specialistChars: specialistPrompt.length,
+    extraContextChars: extraContext.length,
+    promptChars,
+  });
+  if (promptChars > 80000) {
+    scoutDiag.warn('DossierModule', 'módulo especializado com prompt elevado', {
+      moduleName,
+      empresaAlvo,
+      promptChars,
+    });
+  }
+
+  const response = await runWithStepTimeout(
+    `DossierModule:${moduleName}`,
+    stepSignal =>
+      proxyGenerateContent({
+        model: STABLE_RESEARCH_MODEL_ID, // Usando modelo de pesquisa para precisão
+        contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
+        config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
+      }, stepSignal),
+    options.signal,
+    options.timeoutMs,
+  );
   
   const finalText = response.text || '';
+  scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
+    moduleName,
+    empresaAlvo,
+    durationMs: Date.now() - startedAt,
+    responseChars: finalText.length,
+  });
   if (options.onText && finalText) options.onText(finalText);
   return finalText;
 }
@@ -985,13 +1105,19 @@ export async function generateDossierModule(
  */
 export async function getIsolatedBenchmark(
   empresaAlvo: string,
-  options: { signal?: AbortSignal } = {}
+  options: { signal?: AbortSignal; timeoutMs?: number } = {}
 ): Promise<string> {
   if (!isValidEmpresaParaBenchmark(empresaAlvo)) return '';
 
-  const benchmarkResult = await withAutoRetry('Benchmark:Isolated', () => 
-    benchmarkClientes(empresaAlvo),
-    { maxRetries: 3, abortSignal: options.signal }
+  const benchmarkResult = await runWithStepTimeout(
+    `Benchmark:Isolated:${empresaAlvo}`,
+    stepSignal =>
+      withAutoRetry('Benchmark:Isolated', () =>
+        benchmarkClientes(empresaAlvo),
+        { maxRetries: 3, abortSignal: stepSignal },
+      ),
+    options.signal,
+    options.timeoutMs,
   );
 
   if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';

@@ -95,109 +95,112 @@ async function executeGeminiAction(
   body: ParsedBody,
   res: VercelResponse,
 ): Promise<VercelResponse> {
-  if (body.action === 'health') {
-    const response = await ai.models.generateContent({
-      model: DEFAULT_GEMINI_MODEL,
-      contents: 'Responda apenas: OK',
-      config: { temperature: 0, maxOutputTokens: 10 }
-    });
-
-    const text = response.text || '';
-    const ok = /ok/i.test(text);
-    return res.status(200).json({ ok, text });
-  }
-
-  if (body.action === 'generateContent') {
-    const model = body.model ?? DEFAULT_GEMINI_MODEL;
-    const contents = body.contents;
-    if (!contents) {
-      return res.status(400).json({ error: 'Missing contents' });
-    }
-
-    const configIn = (body.config ?? {}) as Record<string, unknown>;
-    const genConfig: Record<string, unknown> = {
-      temperature: toNumberSafe(configIn.temperature, 0.2),
-      maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
-    };
-
-    if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
-    if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
-    if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
-
-    const response = await ai.models.generateContent({
-      model,
-      contents,
-      config: genConfig
-    });
-
-    return res.status(200).json({
-      text: response.text || '',
-      candidates: response.candidates || []
-    });
-  }
-
-  if (body.action === 'chatSendMessage') {
-    const model = body.model ?? DEFAULT_GEMINI_MODEL;
-    const systemInstruction = body.systemInstruction ?? '';
-    const history = normalizeHistory(body.history);
-    const message = body.message;
-    const useGrounding = body.useGrounding ?? true;
-    const thinkingMode = body.thinkingMode ?? false;
-
-    const runChat = async (withGrounding: boolean) => {
-      const chat = ai.chats.create({
-        model,
-        history,
-        config: {
-          systemInstruction,
-          // Thinking mode trades creativity for deterministic factual output.
-          temperature: thinkingMode ? 0.1 : 0.15,
-          // Limite conservador para reduzir latência e risco de timeout.
-          maxOutputTokens: 65536,
-          tools: withGrounding ? [{ googleSearch: {} }] : undefined
-        }
+  switch (body.action) {
+    case 'health': {
+      const response = await ai.models.generateContent({
+        model: DEFAULT_GEMINI_MODEL,
+        contents: 'Responda apenas: OK',
+        config: { temperature: 0, maxOutputTokens: 10 }
       });
 
-      const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-      return withTimeout(
-        chat.sendMessage({ message }),
-        timeout,
-        withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
-      );
-    };
-
-    let response;
-    // groundingActivated rastreia se o grounding estava ativo na chamada que
-    // efetivamente retornou. Inicia com a intenção original e é atualizado para
-    // false caso o fallback silencioso seja acionado.
-    let groundingActivated = useGrounding;
-
-    try {
-      response = await runChat(useGrounding);
-    } catch (primaryError) {
-      if (!useGrounding) throw primaryError;
-      // Fallback: tenta sem grounding para evitar timeout total.
-      // Registra que o fallback foi acionado para notificar o cliente.
-      console.warn('[GeminiProxy] Grounding falhou, acionando fallback sem grounding:', primaryError instanceof Error ? primaryError.message : String(primaryError));
-      groundingActivated = false;
-      response = await runChat(false);
+      const text = response.text || '';
+      const ok = /ok/i.test(text);
+      return res.status(200).json({ ok, text });
     }
 
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    case 'generateContent': {
+      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const contents = body.contents;
+      if (!contents) {
+        return res.status(400).json({ error: 'Missing contents' });
+      }
 
-    // groundingUsed = true somente quando o grounding estava ativo E retornou
-    // chunks concretos. Grounding ativo sem chunks (sem resultados relevantes)
-    // ainda conta como fallback para fins de aviso ao usuário.
-    const groundingUsed: boolean = groundingActivated && groundingChunks.length > 0;
+      const configIn = (body.config ?? {}) as Record<string, unknown>;
+      const genConfig: Record<string, unknown> = {
+        temperature: toNumberSafe(configIn.temperature, 0.2),
+        maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
+      };
 
-    return res.status(200).json({
-      text: response.text || '',
-      groundingChunks,
-      groundingUsed,
-    });
+      if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
+      if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
+      if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: genConfig
+      });
+
+      return res.status(200).json({
+        text: response.text || '',
+        candidates: response.candidates || []
+      });
+    }
+
+    case 'chatSendMessage': {
+      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const systemInstruction = body.systemInstruction ?? '';
+      const history = normalizeHistory(body.history);
+      const message = body.message;
+      const useGrounding = body.useGrounding ?? true;
+      const thinkingMode = body.thinkingMode ?? false;
+
+      const runChat = async (withGrounding: boolean) => {
+        const chat = ai.chats.create({
+          model,
+          history,
+          config: {
+            systemInstruction,
+            // Thinking mode trades creativity for deterministic factual output.
+            temperature: thinkingMode ? 0.1 : 0.15,
+            // Limite conservador para reduzir latência e risco de timeout.
+            maxOutputTokens: 65536,
+            tools: withGrounding ? [{ googleSearch: {} }] : undefined
+          }
+        });
+
+        const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
+        return withTimeout(
+          chat.sendMessage({ message }),
+          timeout,
+          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
+        );
+      };
+
+      let response;
+      // groundingActivated rastreia se o grounding estava ativo na chamada que
+      // efetivamente retornou. Inicia com a intenção original e é atualizado para
+      // false caso o fallback silencioso seja acionado.
+      let groundingActivated = useGrounding;
+
+      try {
+        response = await runChat(useGrounding);
+      } catch (primaryError) {
+        if (!useGrounding) throw primaryError;
+        // Fallback: tenta sem grounding para evitar timeout total.
+        // Registra que o fallback foi acionado para notificar o cliente.
+        console.warn('[GeminiProxy] Grounding falhou, acionando fallback sem grounding:', primaryError instanceof Error ? primaryError.message : String(primaryError));
+        groundingActivated = false;
+        response = await runChat(false);
+      }
+
+      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+      // groundingUsed = true somente quando o grounding estava ativo E retornou
+      // chunks concretos. Grounding ativo sem chunks (sem resultados relevantes)
+      // ainda conta como fallback para fins de aviso ao usuário.
+      const groundingUsed: boolean = groundingActivated && groundingChunks.length > 0;
+
+      return res.status(200).json({
+        text: response.text || '',
+        groundingChunks,
+        groundingUsed,
+      });
+    }
+
+    default:
+      return res.status(400).json({ error: 'Unsupported action' });
   }
-
-  return res.status(400).json({ error: `Unsupported action: ${body.action}` });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

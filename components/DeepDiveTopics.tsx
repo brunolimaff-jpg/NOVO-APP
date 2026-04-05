@@ -124,17 +124,6 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         basePrompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
       },
       {
-        id: 'compliance',
-        label: 'Riscos & Compliance',
-        shortLabel: 'Compliance',
-        tooltip:
-          'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.',
-        subtitle: 'Passivo fiscal, regulatório, trabalhista e pressão externa real',
-        impact: 'Impacto alto em R + TRAD',
-        icon: '🚨',
-        basePrompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-      },
-      {
         id: 'radar',
         label: 'Teia Societária (M&A)',
         shortLabel: 'Teia Societária',
@@ -144,17 +133,6 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         impact: 'Impacto brutal em P + SEG',
         icon: '🕸️',
         basePrompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-      },
-      {
-        id: 'rh-sindicatos',
-        label: 'RH, SST & Cultura Operacional',
-        shortLabel: 'RH & SST',
-        tooltip:
-          'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.',
-        subtitle: 'Força de trabalho real, SST e timing operacional',
-        impact: 'Impacto em P proxy + R + A2',
-        icon: '👥',
-        basePrompt: PROMPT_RH_SINDICATOS_GOD_MODE,
       },
       {
         id: 'mapeamento-decisores',
@@ -177,6 +155,28 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         impact: 'Impacto em R + A2',
         icon: '💵',
         basePrompt: PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+      },
+      {
+        id: 'compliance',
+        label: 'Riscos & Compliance',
+        shortLabel: 'Compliance',
+        tooltip:
+          'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.',
+        subtitle: 'Passivo fiscal, regulatório, trabalhista e pressão externa real',
+        impact: 'Impacto alto em R + TRAD',
+        icon: '🚨',
+        basePrompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+      },
+      {
+        id: 'rh-sindicatos',
+        label: 'RH, SST & Cultura Operacional',
+        shortLabel: 'RH & SST',
+        tooltip:
+          'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.',
+        subtitle: 'Força de trabalho real, SST e timing operacional',
+        impact: 'Impacto em P proxy + R + A2',
+        icon: '👥',
+        basePrompt: PROMPT_RH_SINDICATOS_GOD_MODE,
       },
     ],
     [],

@@ -15,9 +15,6 @@
     <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Inteligência comercial e análise de mercado para vendas B2B no agronegócio" />
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    
     <!-- PWA Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
@@ -25,17 +22,6 @@
     
     <title>🦅 Senior Scout 360</title>
     
-    <!-- Service Worker Registration -->
-    <script>
-      const isLocalDevHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-      if ('serviceWorker' in navigator && !isLocalDevHost) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('✅ Service Worker registered:', reg.scope))
-            .catch(err => console.log('❌ SW registration failed:', err));
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>
