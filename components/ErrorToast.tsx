@@ -12,18 +12,39 @@
  */
 
 import { useEffect } from 'react';
-import {
-  WifiOff,
-  Clock3,
-  ShieldAlert,
-  XCircle,
-  AlertTriangle,
-  X,
-} from 'lucide-react';
 import type { ErrorContext } from '../utils/friendlyErrorMessage';
 import {
   getFriendlyErrorMessage,
 } from '../utils/friendlyErrorMessage';
+
+type IconProps = {
+  className?: string;
+};
+
+const IconBase = ({ className, symbol, label }: IconProps & { symbol: string; label: string }) => (
+  <span className={className} role="img" aria-label={label}>
+    {symbol}
+  </span>
+);
+
+const WifiOff = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="📡" label="Sem conexão" />
+);
+const Clock3 = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="⏱️" label="Tempo esgotado" />
+);
+const ShieldAlert = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="🛡️" label="Acesso bloqueado" />
+);
+const XCircle = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="❌" label="Erro" />
+);
+const AlertTriangle = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="⚠️" label="Alerta" />
+);
+const X = ({ className }: IconProps) => (
+  <IconBase className={className} symbol="✖️" label="Fechar" />
+);
 
 export interface ErrorToastProps {
   /** Erro bruto (Error, string ou null). Null = toast oculto. */
