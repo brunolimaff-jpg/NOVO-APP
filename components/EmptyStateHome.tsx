@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getTimeGreeting } from '../utils/timeGreeting';
 import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
 import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS } from '../types';
@@ -129,19 +130,12 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const { user } = useAuth();
   const userName = user?.displayName;
 
-  const [randomGreeting] = useState(() => {
-    const greetings = [
-      'Qual empresa ou grupo econômico vamos mapear agora?',
-      'Informe o alvo para montar o contexto inicial da investigação.',
-      'Comece pelo cadastro mínimo; o restante segue no fluxo assistido.',
-    ];
-    return greetings[Math.floor(Math.random() * greetings.length)];
-  });
+  const timeGreeting = getTimeGreeting();
 
   const displayGreeting =
     userName && userName !== 'Sair' && userName.trim().length > 0
-      ? `Olá, ${userName}. Vamos iniciar uma nova investigação.`
-      : randomGreeting;
+      ? `${timeGreeting}, ${userName}. Vamos iniciar uma nova investigação.`
+      : `${timeGreeting}! Qual empresa vamos investigar agora?`;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
   const bullets = BULLETS;
