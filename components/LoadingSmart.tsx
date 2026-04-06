@@ -18,9 +18,8 @@ const SOURCE_LINKS: Record<string, string> = {
   gatec:   'https://www.gatec.com.br/',
 };
 
-const EXPECTED_STAGES: Record<string, number> = {
-  investigacao: 7,
-};
+// EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
+// do que qualquer hardcode por modo. declaredTotalStages tem precedência quando disponível.
 
 /** Formata milissegundos em string legível: 45s | 1m 5s */
 function formatElapsed(ms: number): string {
@@ -362,7 +361,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const declaredTotalStages =
     typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
       ? processing.totalStages : null;
-  const expectedTotal = declaredTotalStages ?? Math.max(EXPECTED_STAGES[mode] ?? 12, realTotalCompleted + 2);
+  // Fallback dinâmico: sem hardcode por modo — autoajusta conforme etapas reais chegam
+  const expectedTotal = declaredTotalStages ?? Math.max(12, realTotalCompleted + 2);
   const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
   const percent = pendingInQueue > 0
