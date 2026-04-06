@@ -61,6 +61,12 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
+import {
+  resolveDeepDiveRequestKind,
+  resolveLoadingVariant,
+  type LoadingVariant,
+  type RequestKind,
+} from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -164,8 +170,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-type RequestKind = 'default' | 'deep_dive';
-type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -453,7 +457,10 @@ const App: React.FC = () => {
 
     const requestKind = options?.requestKind ?? (options?.isDeepDive ? 'deep_dive' : 'default');
     const fixedLoadingLine = options?.fixedLoadingLine;
-    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    const resolvedLoadingVariant = resolveLoadingVariant({
+      requestKind,
+      isFollowUp: options?.isFollowUp,
+    });
     setLoadingVariant(resolvedLoadingVariant);
     setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
     setIsLoading(true);
@@ -498,21 +505,13 @@ const App: React.FC = () => {
 
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
-    const hasConsolidatedBotResponse = historyToPass.some(
-      message =>
-        message.sender === Sender.Bot &&
-        !message.isError &&
-        !message.isThinking &&
-        Boolean(message.text?.trim()),
-    );
-
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant: resolvedLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -968,13 +967,28 @@ const App: React.FC = () => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
+    const hasCompletedBotResponse = Boolean(
+      currentSession?.messages?.some(
+        message =>
+          message.sender === Sender.Bot &&
+          !message.isError &&
+          !message.isThinking &&
+          Boolean(message.text?.trim()),
+      ),
+    );
+    const requestKind = resolveDeepDiveRequestKind(hasCompletedBotResponse);
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind: 'deep_dive',
-        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+        requestKind,
+        fixedLoadingLine:
+          requestKind === 'deep_dive'
+            ? topicLabel
+              ? `Deep Dive em andamento: ${topicLabel}`
+              : 'Deep Dive em andamento'
+            : undefined,
       },
     );
   };
