@@ -22,6 +22,9 @@ vi.mock('../../components/SectionalBotMessage', () => ({
 vi.mock('../../components/LoadingSmart', () => ({
   default: () => <div data-testid="loading-smart" />,
 }));
+vi.mock('../../components/InlineTypingResponse', () => ({
+  default: () => <div data-testid="inline-typing-response" />,
+}));
 vi.mock('../../components/ScorePorta', () => ({
   default: () => <div data-testid="score-porta" />,
 }));
@@ -102,6 +105,18 @@ describe('MessageRow', () => {
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
     expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+  });
+
+  it('renderiza thinking state inline quando loadingVariant=inline', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      isThinking: true,
+      loadingVariant: 'inline',
+      text: '',
+    });
+    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(screen.getByTestId('inline-typing-response')).toBeInTheDocument();
+    expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
   });
 
   it('renderiza mensagem de erro com ErrorMessageCard', () => {
