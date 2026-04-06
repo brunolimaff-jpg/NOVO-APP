@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { ChatMode } from '../constants';
 import { generateLoadingCuriosities } from '../services/geminiService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
-import { toRichStatus, isPhaseTimelineStatus, type RichLoadingStatus } from '../utils/loadingStatus';
+import { toRichStatus, isPhaseTimelineStatus, statusKey, type RichLoadingStatus } from '../utils/loadingStatus';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 
 const FADE_DURATION = 400;
@@ -17,6 +17,31 @@ const SOURCE_LINKS: Record<string, string> = {
   senior:  'https://www.senior.com.br/',
   gatec:   'https://www.gatec.com.br/',
 };
+
+const MODULAR_DOSSIER_STAGES = [
+  'Mapeando inteligência operacional...',
+  'Investigando tech stack...',
+  'Investigando riscos & compliance...',
+  'Investigando estratégia & expansão...',
+  'Investigando RH & decisores...',
+  'Cruzando referências de mercado...',
+  'Finalizando dossiê modular...',
+];
+
+const INVESTIGATION_TIMELINE_STAGES = [
+  'Consolidando perímetro da conta alvo...',
+  'Recuperando inteligência de conversas anteriores...',
+  'Enriquecendo sinais e contexto comercial estratégico...',
+  'Orquestrando protocolo de investigação forense...',
+  'Consultando inteligência Senior...',
+  'Infiltrando em fontes externas e sinais digitais...',
+  'Analisando stack tecnológico e legados digitais...',
+  'Escaneando riscos fiscais e compliance SEFAZ...',
+  'Mapeando centro de gravidade: Decisores e RH...',
+  'Calibrando Score PORTA contra o setor...',
+  'Sintetizando narrativa executiva de alto impacto...',
+  'Materializando recomendações práticas...',
+];
 
 // EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
 // do que qualquer hardcode por modo. declaredTotalStages tem precedência quando disponível.
@@ -361,6 +386,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     return { label, icon: isPhaseTimelineStatus(label) ? '📌' : '', category: 'unknown' };
   };
 
+  const getStageIdentity = (raw: string): string => {
+    const label = stripInternalMarkers(raw).trim();
+    return label ? statusKey(label) : '';
+  };
+
   const completedRich: RichLoadingStatus[] = displayedCompleted.map(enrichStage);
   const currentRich: RichLoadingStatus = enrichStage(displayedCurrent);
   const completedCount = completedRich.length;
@@ -370,8 +400,26 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
       ? processing.totalStages : null;
   const isIncremental = Boolean(processing?.isIncremental);
+  const observedLabels = [...displayedCompleted, displayedCurrent]
+    .map(step => stripInternalMarkers(step).trim())
+    .filter(Boolean);
+  const observedKeys = new Set(observedLabels.map(getStageIdentity).filter(Boolean));
+  const matchesPlan = (candidate: string[]) =>
+    candidate.some(stage => observedKeys.has(getStageIdentity(stage)));
+  const plannedStageLabels =
+    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES)
+      ? MODULAR_DOSSIER_STAGES
+      : matchesPlan(INVESTIGATION_TIMELINE_STAGES)
+        ? INVESTIGATION_TIMELINE_STAGES
+        : observedLabels;
+  const plannedRich = plannedStageLabels.map(enrichStage);
+  const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
+  const completedStageKeys = new Set(displayedCompleted.map(getStageIdentity).filter(Boolean));
+  const currentStageKey = getStageIdentity(displayedCurrent);
+  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
   // Fallback dinâmico: sem hardcode por modo — autoajusta conforme etapas reais chegam
-  const expectedTotal = declaredTotalStages ?? (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2));
+  const expectedTotal = declaredTotalStages
+    ?? (plannedRich.length > 0 ? plannedRich.length : (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2)));
   const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
   const percent = pendingInQueue > 0
@@ -380,8 +428,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
   const elapsed = formatElapsed(elapsedTime);
   const totalCuriosities = curiositiesRef.current.length || 1;
-  // Qtd de skeletons futuros (após a etapa atual) — máx 2
-  const futureSkeletonCount = Math.max(0, Math.min(2, expectedTotal - completedCount - pendingInQueue - 1));
 
   // ── Inline placeholder ──
   const inlinePlaceholder = (
@@ -475,7 +521,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           }`}>{currentRich.label}</h2>
           <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
             isDarkMode ? 'text-slate-500' : 'text-slate-400'
-          }`}>Etapa {completedCount + 1} de {expectedTotal} — Investigação Forense Scout360</p>
+          }`}>Módulos reais da análise em execução</p>
         </div>
         <div className={`w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <ProgressBar percent={percent} isDarkMode={isDarkMode} />
@@ -493,60 +539,52 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             }`}>Etapas da Investigação</h2>
 
             <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[35vh] md:max-h-[45vh] pr-2">
+              {plannedRich.map((step, i) => {
+                const stepKey = getStageIdentity(step.label);
+                const isCompleted = completedStageKeys.has(stepKey);
+                const isCurrent = !isCompleted && stepKey === currentStageKey;
 
-              {/* Etapas concluídas */}
-              {completedRich.map((step, i) => (
-                <div key={`done-${i}`} className="flex items-center gap-3 animate-fade-in">
-                  <StepCheckIcon isDarkMode={isDarkMode} />
-                  <span className={`text-sm flex-1 min-w-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {step.icon && <span className="mr-1.5">{step.icon}</span>}
-                    {step.label}
-                  </span>
-                  {/* Timestamp em minutos/segundos */}
-                  {stepTimestampsRef.current[step.label] !== undefined && (
-                    <span className={`text-xs font-mono flex-shrink-0 tabular-nums ${
-                      isDarkMode ? 'text-slate-600' : 'text-slate-300'
+                return (
+                  <div key={`${stepKey || 'step'}-${i}`} className={`flex items-center gap-3 ${isCompleted ? 'animate-fade-in' : ''}`}>
+                    {isCompleted ? (
+                      <StepCheckIcon isDarkMode={isDarkMode} />
+                    ) : isCurrent ? (
+                      <StepSpinner isDarkMode={isDarkMode} />
+                    ) : (
+                      <StepPending isDarkMode={isDarkMode} />
+                    )}
+                    <span className={`text-sm flex-1 min-w-0 ${
+                      isCompleted
+                        ? (isDarkMode ? 'text-slate-500' : 'text-slate-400')
+                        : isCurrent
+                          ? (isDarkMode ? 'text-slate-200 font-medium' : 'text-slate-700 font-medium')
+                          : (isDarkMode ? 'text-slate-500' : 'text-slate-500')
                     }`}>
-                      +{formatElapsed(stepTimestampsRef.current[step.label])}
+                      {step.icon && <span className="mr-1.5">{step.icon}</span>}
+                      {step.label}
                     </span>
-                  )}
-                </div>
-              ))}
+                    {isCompleted && stepTimestampsRef.current[step.label] !== undefined ? (
+                      <span className={`text-xs font-mono flex-shrink-0 tabular-nums ${
+                        isDarkMode ? 'text-slate-600' : 'text-slate-300'
+                      }`}>
+                        +{formatElapsed(stepTimestampsRef.current[step.label])}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
 
-              {/* Separador "Em andamento" */}
-              {completedCount > 0 && (
-                <div className="flex items-center gap-2 py-1">
-                  <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/80' : 'bg-slate-200'}`} />
-                  <span className={`text-[10px] font-bold uppercase tracking-widest flex-shrink-0 ${
-                    isDarkMode ? 'text-slate-600' : 'text-slate-300'
-                  }`}>Em andamento</span>
-                  <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/80' : 'bg-slate-200'}`} />
+              {shouldAppendCurrentStage ? (
+                <div className="flex items-center gap-3">
+                  <StepSpinner isDarkMode={isDarkMode} />
+                  <span className={`text-sm flex-1 min-w-0 font-medium ${
+                    isDarkMode ? 'text-slate-200' : 'text-slate-700'
+                  }`}>
+                    {currentRich.icon && <span className="mr-1.5">{currentRich.icon}</span>}
+                    {currentRich.label}
+                  </span>
                 </div>
-              )}
-
-              {/* Etapa atual com nome real + spinner */}
-              <div className="flex items-center gap-3">
-                <StepSpinner isDarkMode={isDarkMode} />
-                <span className={`text-sm flex-1 min-w-0 font-medium ${
-                  isDarkMode ? 'text-slate-200' : 'text-slate-700'
-                }`}>
-                  {currentRich.icon && <span className="mr-1.5">{currentRich.icon}</span>}
-                  {currentRich.label}
-                </span>
-              </div>
-
-              {/* Skeletons shimmer para etapas FUTURAS desconhecidas */}
-              {Array.from({ length: futureSkeletonCount }).map((_, i) => (
-                <div key={`future-${i}`} className="flex items-center gap-3 opacity-35">
-                  <StepPending isDarkMode={isDarkMode} />
-                  <div
-                    className={`h-3 rounded-full animate-pulse ${
-                      isDarkMode ? 'bg-slate-700/60' : 'bg-slate-200'
-                    }`}
-                    style={{ width: `${60 + (i % 3) * 12}%` }}
-                  />
-                </div>
-              ))}
+              ) : null}
             </div>
           </div>
 

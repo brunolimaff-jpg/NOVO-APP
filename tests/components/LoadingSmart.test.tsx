@@ -82,4 +82,32 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.getAllByText(/95%/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/próxima etapa/i)).not.toBeInTheDocument();
   });
+
+  it('mostra os módulos reais do dossiê e remove o contador genérico de etapas', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando inteligência operacional...',
+          completedStages: [],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getAllByText('Mapeando inteligência operacional...').length).toBeGreaterThan(0);
+    expect(screen.getByText('Investigando tech stack...')).toBeInTheDocument();
+    expect(screen.getByText('Investigando riscos & compliance...')).toBeInTheDocument();
+    expect(screen.getByText(/Módulos reais da análise em execução/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Etapa\s+\d+\s+de\s+\d+/i)).not.toBeInTheDocument();
+  });
 });
