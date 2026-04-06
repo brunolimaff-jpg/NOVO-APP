@@ -265,12 +265,12 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                     {(auditableSources || []).map((s, i) => {
                       const status = s.url ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)] : undefined;
                       const statusLabel = !s.url
-                        ? 'inferido - validar manualmente'
+                        ? 'ANÁLISE INFERIDA'
                         : status?.status === 'valid'
-                          ? 'validado'
+                          ? 'CONFIRMADO'
                           : status?.status === 'broken'
-                            ? status.note || 'indisponivel'
-                            : 'validacao pendente';
+                            ? (status.note || 'OFF-LINE').toUpperCase()
+                            : 'AUDITORIA EM CURSO';
                       const context =
                         s.contexts[0] ||
                         (s.url
@@ -297,13 +297,17 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                             )}
                             <span
                               className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                statusLabel.includes('validado')
+                                statusLabel.includes('CONFIRMADO')
                                   ? isDarkMode
-                                    ? 'bg-emerald-900/50 text-emerald-300'
-                                    : 'bg-emerald-100 text-emerald-700'
-                                  : isDarkMode
-                                    ? 'bg-amber-900/40 text-amber-300'
-                                    : 'bg-amber-100 text-amber-700'
+                                    ? 'bg-emerald-900/50 text-emerald-300 font-bold'
+                                    : 'bg-emerald-100 text-emerald-700 font-bold'
+                                  : statusLabel.includes('OFF-LINE')
+                                    ? isDarkMode
+                                      ? 'bg-red-900/50 text-red-300'
+                                      : 'bg-red-100 text-red-700'
+                                    : isDarkMode
+                                      ? 'bg-amber-900/40 text-amber-300'
+                                      : 'bg-amber-100 text-amber-700'
                               }`}
                             >
                               {statusLabel}

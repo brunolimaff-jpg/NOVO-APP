@@ -399,12 +399,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
+      // Evita duplicação se o texto do link já for a própria citação [1]
+      const isAlreadyCitation = typeof children === 'string' && /^\[\d+\]$/.test(children.trim());
+
       return (
-        <span>
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words" {...props}>
+        <span className="inline-flex items-baseline">
+          <a 
+            href={href} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-600 dark:text-blue-400 hover:underline break-words transition-colors" 
+            {...props}
+          >
             {children}
           </a>
-          {citationIndex ? <sup className="ml-1 text-[10px] text-blue-600 dark:text-blue-400">[{citationIndex}]</sup> : null}
+          {citationIndex && !isAlreadyCitation ? (
+            <sup className="ml-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors">
+              [{citationIndex}]
+            </sup>
+          ) : null}
         </span>
       );
     },
