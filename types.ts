@@ -128,7 +128,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   isThinking?: boolean;
-  loadingVariant?: 'default' | 'inline';
+  loadingVariant?: 'hero' | 'inline';
   groundingSources?: Array<{
     title: string;
     url: string;
