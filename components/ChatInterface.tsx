@@ -151,6 +151,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onLogout,
   lastUserQuery,
   processing,
+  loadingPinnedLabel,
   onDeepDive,
   onDeleteMessage,
   onSaveToCRM,
@@ -448,6 +449,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onStop: handleStopWithToast,
       onSendMessage,
       empresaAlvo: currentSession?.empresaAlvo || null,
+      loadingPinnedLabel,
     }),
     [
       safeMessages,
@@ -472,6 +474,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       lastUserQuery,
       handleStopWithToast,
       onSendMessage,
+      loadingPinnedLabel,
     ],
   );
 

@@ -37,6 +37,7 @@ export interface MessageRowData {
   onStop?: () => void;
   onSendMessage?: (text: string) => void;
   empresaAlvo?: string | null;
+  loadingPinnedLabel?: string | null;
 }
 
 interface MessageRowProps {
@@ -103,6 +104,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     onStop,
     onSendMessage,
     empresaAlvo,
+    loadingPinnedLabel,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;
@@ -156,6 +158,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             isLoading={isLoading}
             mode={mode}
             isDarkMode={isDarkMode}
+            loadingVariant="inline"
+            fixedStatusLine={loadingPinnedLabel || undefined}
             onStop={isLoading ? onStop : undefined}
             processing={processing}
             searchQuery={lastUserQuery}

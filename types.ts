@@ -236,6 +236,8 @@ export interface ChatInterfaceProps {
     failureCount?: number;
     totalStages?: number;
   };
+  loadingVariant?: 'hero' | 'inline';
+  loadingPinnedLabel?: string | null;
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;
 }

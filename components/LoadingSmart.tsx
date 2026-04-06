@@ -31,6 +31,8 @@ interface LoadingSmartProps {
   isLoading: boolean;
   mode: ChatMode;
   isDarkMode: boolean;
+  loadingVariant?: 'hero' | 'inline';
+  fixedStatusLine?: string;
   onStop?: () => void;
   processing?: { stage?: string; completedStages?: string[]; failureCount?: number; totalStages?: number };
   searchQuery?: string;
@@ -149,7 +151,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
 /* ── Main component ──────────────────────────────────────────────────── */
 
 const LoadingSmart: React.FC<LoadingSmartProps> = ({
-  isLoading, mode, isDarkMode, onStop, processing, searchQuery, empresaAlvo,
+  isLoading, mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
 }) => {
   const [currentInsight, setCurrentInsight] = useState<string>(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
@@ -388,6 +390,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           <ClockIcon className="w-3.5 h-3.5" />{elapsed}
         </span>
       </div>
+      {fixedStatusLine ? (
+        <p className={`text-xs font-semibold ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>
+          {fixedStatusLine}
+        </p>
+      ) : null}
       <div className="flex items-center gap-3">
         <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>
           <div className={`h-full rounded-full transition-all duration-700 ${isDarkMode ? 'bg-emerald-500' : 'bg-emerald-600'}`}
@@ -587,6 +594,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
     </div>
   );
+
+  if (loadingVariant === 'inline') return inlinePlaceholder;
 
   return (
     <>

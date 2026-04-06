@@ -159,6 +159,8 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+type RequestKind = 'default' | 'deep_dive';
+type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -175,6 +177,8 @@ const App: React.FC = () => {
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
   const [isSavingRemote, setIsSavingRemote] = useState(false);
@@ -409,10 +413,15 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
+    requestKind: RequestKind = 'default',
+    fixedLoadingLine?: string,
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
+    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    setLoadingVariant(resolvedLoadingVariant);
+    setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
     setIsLoading(true);
     resetLoadingProgress();
     abortControllerRef.current = new AbortController();
@@ -836,6 +845,7 @@ const App: React.FC = () => {
       }));
     } finally {
       setIsLoading(false);
+      setLoadingPinnedLabel(null);
       abortControllerRef.current = null;
     }
   };
@@ -844,6 +854,7 @@ const App: React.FC = () => {
     text: string,
     displayText?: string,
     hintedCompanyOverride?: string | null,
+    options?: { requestKind?: RequestKind; fixedLoadingLine?: string },
   ) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
@@ -886,16 +897,29 @@ const App: React.FC = () => {
       ),
     );
     setVisibleCount(prev => prev + 1);
-    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany);
+    await processMessage(
+      text,
+      sessionId,
+      currentHistory,
+      displayText || text,
+      hintedCompanyOverride || immediateCompany,
+      options?.requestKind || 'default',
+      options?.fixedLoadingLine,
+    );
   };
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
+    const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
+      {
+        requestKind: 'deep_dive',
+        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+      },
     );
   };
 
@@ -1330,6 +1354,8 @@ const App: React.FC = () => {
               exportStatus={exportStatus}
               exportError={exportError}
               pdfReportContent={pdfReportContent}
+              loadingVariant={loadingVariant}
+              loadingPinnedLabel={loadingPinnedLabel}
               onOpenEmailModal={() => {
                 setEmailSubject(
                   'Dossiê de Inteligência — ' +
@@ -1426,11 +1452,13 @@ const App: React.FC = () => {
         />
       )}
 
-      {isLoading && (
+      {isLoading && loadingVariant === 'hero' && (
         <LoadingSmart
           isLoading={isLoading}
           mode={mode}
           isDarkMode={isDarkMode}
+          loadingVariant={loadingVariant}
+          fixedStatusLine={loadingPinnedLabel || undefined}
           onStop={handleStopGeneration}
           processing={{
             stage: loadingStatus,
