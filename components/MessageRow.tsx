@@ -141,7 +141,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   }, [auditableSources, msg.isSourcesOpen]);
 
   if (msg.isThinking) {
-    const isInlineThinking = msg.loadingVariant === 'inline';
     content = (
       <div className="flex justify-start animate-fade-in">
         <div
@@ -153,37 +152,15 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             <span>{assistantLabel}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          {isInlineThinking ? (
-            <div
-              className={`flex flex-col gap-2 rounded-xl p-3 ${
-                isDarkMode
-                  ? 'bg-slate-800/60 border border-emerald-500/10'
-                  : 'bg-emerald-50/50 border border-emerald-100'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
-                <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Investigação em andamento...
-                </span>
-              </div>
-              {processing?.stage && (
-                <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {processing.stage}
-                </span>
-              )}
-            </div>
-          ) : (
-            <LoadingSmart
-              isLoading={isLoading}
-              mode={mode}
-              isDarkMode={isDarkMode}
-              onStop={isLoading ? onStop : undefined}
-              processing={processing}
-              searchQuery={lastUserQuery}
-              empresaAlvo={empresaAlvo}
-            />
-          )}
+          <LoadingSmart
+            isLoading={isLoading}
+            mode={mode}
+            isDarkMode={isDarkMode}
+            onStop={isLoading ? onStop : undefined}
+            processing={processing}
+            searchQuery={lastUserQuery}
+            empresaAlvo={empresaAlvo}
+          />
         </div>
       </div>
     );

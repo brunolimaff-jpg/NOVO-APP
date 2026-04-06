@@ -20,7 +20,7 @@ vi.mock('../../components/SectionalBotMessage', () => ({
   default: ({ text }: { text: string }) => <div data-testid="sectional-bot">{text}</div>,
 }));
 vi.mock('../../components/LoadingSmart', () => ({
-  default: () => <div data-testid="loading-smart-hero" />,
+  default: () => <div data-testid="loading-smart" />,
 }));
 vi.mock('../../components/ScorePorta', () => ({
   default: () => <div data-testid="score-porta" />,
@@ -101,35 +101,7 @@ describe('MessageRow', () => {
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('loading-smart-hero')).toBeInTheDocument();
-  });
-
-
-  it("renderiza thinking inline quando loadingVariant='inline' sem hero do LoadingSmart", () => {
-    const msg = makeMessage({
-      sender: Sender.Bot,
-      isThinking: true,
-      text: '',
-      loadingVariant: 'inline',
-    });
-
-    render(
-      <MessageRow
-        index={0}
-        data={makeData([msg], {
-          isLoading: true,
-          processing: {
-            stage: 'Buscando sinais de mercado...',
-            completedStages: ['Mapeando inteligência operacional...'],
-            failureCount: 0,
-          },
-        })}
-      />,
-    );
-
-    expect(screen.getByText('Investigação em andamento...')).toBeInTheDocument();
-    expect(screen.getByText('Buscando sinais de mercado...')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-smart-hero')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
   });
 
   it('renderiza mensagem de erro com ErrorMessageCard', () => {

@@ -447,17 +447,12 @@ const App: React.FC = () => {
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
 
-    const shouldUseInlineLoading =
-      historyToPass.some(m => m.sender === Sender.Bot && !m.isThinking && !m.isError && !!m.text?.trim()) ||
-      /dossi[eê]\s+completo/i.test(text);
-
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: shouldUseInlineLoading ? 'inline' : 'hero',
       isSourcesOpen: false,
     };
 
