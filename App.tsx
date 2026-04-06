@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
@@ -1547,6 +1548,7 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <SpeedInsights />
     </>
   );
 };
