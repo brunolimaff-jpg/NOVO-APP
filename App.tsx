@@ -653,7 +653,6 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        // Extrair Score PORTA dos markers no texto acumulado
         const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeText = appendSeniorEvidenceNote(
@@ -700,7 +699,6 @@ const App: React.FC = () => {
           });
         }
 
-        // Update final da mensagem com score, cliente e texto limpo
         updateSessionById(sessionId, s => {
           const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
           return {
@@ -741,7 +739,7 @@ const App: React.FC = () => {
         {
           signal,
           onText: () => {
-            setFailureCount(0); // Qualquer texto de volta limpa o contador de falhas
+            setFailureCount(0);
           },
           onStatus: newStatus => {
             advanceLoadingProgress(newStatus);
@@ -1375,7 +1373,7 @@ const App: React.FC = () => {
                 onMarkAllAsRead: radar.markAllAsRead,
                 onDismiss: radar.dismissAlert,
                 onForceScan: radar.forceScan,
-                metaInsight: null, // Adicionado para satisfazer RadarProps
+                metaInsight: null,
               }}
             />
           ) : (
