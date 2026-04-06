@@ -182,6 +182,8 @@ const App: React.FC = () => {
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
   const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
@@ -438,11 +440,19 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
-    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
+    options?: {
+      isFollowUp?: boolean;
+      isDeepDive?: boolean;
+      isFirstInteraction?: boolean;
+      requestKind?: RequestKind;
+      fixedLoadingLine?: string;
+    },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
+    const requestKind = options?.requestKind ?? (options?.isDeepDive ? 'deep_dive' : 'default');
+    const fixedLoadingLine = options?.fixedLoadingLine;
     const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
     setLoadingVariant(resolvedLoadingVariant);
     setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
@@ -949,6 +959,8 @@ const App: React.FC = () => {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
+      requestKind: options?.requestKind,
+      fixedLoadingLine: options?.fixedLoadingLine,
     });
   };
 
