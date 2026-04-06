@@ -166,17 +166,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const { mode, setMode } = useMode();
   const { user, userId, updateName, login, loading } = useAuth();
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   // ── Scroll behavior refs ──────────────────────────────────────────────────
-  const userHasScrolledUpRef = useRef(false);
-  const prevIsLoadingRef = useRef(false);
-  const prevMessageCountRef = useRef(0);
-  const prevLastStableBotSignatureRef = useRef<string | null>(null);
-  const scrollRealignTimersRef = useRef<number[]>([]);
   const malformedProcessingSignatureRef = useRef<string | null>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -239,20 +232,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [showRetryToast]);
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
-  const syncUserScrollIntent = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    // > 120px do fundo = usuário scrollou para cima intencionalmente
-    userHasScrolledUpRef.current = distanceFromBottom > 120;
-  }, []);
-
-  useEffect(() => {
-    if (showInitialHome) return;
-    syncUserScrollIntent();
-  }, [showInitialHome, safeMessages.length, syncUserScrollIntent]);
 
   // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
   const lastBotWithSuggestionsIndex = useMemo(
@@ -480,210 +459,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     (index: number) => <MessageRow index={index} data={itemData} />,
     [itemData],
   );
-
-  const scrollLatestMessageIntoView = useCallback(
-    (align: 'start' | 'end' = 'start') => {
-      if (safeMessages.length === 0) return;
-
-      const container = scrollContainerRef.current;
-      if (!container) return;
-
-      const lastMessage = container.querySelector(
-        '[data-message-row]:last-of-type',
-      ) as HTMLElement | null;
-
-      const scrollToLatest = () => {
-        const targetTop =
-          align === 'end'
-            ? container.scrollHeight
-            : Math.max(0, (lastMessage?.offsetTop ?? messagesEndRef.current?.offsetTop ?? 0) - 12);
-
-        if (typeof container.scrollTo === 'function') {
-          container.scrollTo({ top: targetTop, behavior: 'auto' });
-          return;
-        }
-
-        container.scrollTop = targetTop;
-      };
-
-      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(() => {
-          scrollToLatest();
-          window.setTimeout(scrollToLatest, 96);
-        });
-        return;
-      }
-
-      scrollToLatest();
-    },
-    [safeMessages.length],
-  );
-
-  const clearScrollRealignTimers = useCallback(() => {
-    if (typeof window === 'undefined') {
-      scrollRealignTimersRef.current = [];
-      return;
-    }
-
-    scrollRealignTimersRef.current.forEach(timerId => window.clearTimeout(timerId));
-    scrollRealignTimersRef.current = [];
-  }, []);
-
-  const handleUserScrollGesture = useCallback(() => {
-    userHasScrolledUpRef.current = true;
-    clearScrollRealignTimers();
-  }, [clearScrollRealignTimers]);
-
-  const scheduleLatestMessageAlignment = useCallback(
-    (align: 'start' | 'end' = 'start', delays: number[] = [0, 96, 220, 420]) => {
-      if (safeMessages.length === 0) return;
-
-      clearScrollRealignTimers();
-
-      const uniqueDelays = Array.from(new Set(delays)).filter(delay => delay >= 0);
-
-      const runAlignment = () => {
-        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(() => scrollLatestMessageIntoView(align));
-          return;
-        }
-
-        scrollLatestMessageIntoView(align);
-      };
-
-      if (typeof window === 'undefined') {
-        runAlignment();
-        return;
-      }
-
-      scrollRealignTimersRef.current = uniqueDelays.map(delay =>
-        window.setTimeout(runAlignment, delay),
-      );
-    },
-    [clearScrollRealignTimers, safeMessages.length, scrollLatestMessageIntoView],
-  );
-
-  useEffect(() => () => clearScrollRealignTimers(), [clearScrollRealignTimers]);
-
-  const lastStableBotSignature = useMemo(() => {
-    const lastMessage = safeMessages.at(-1);
-
-    if (!lastMessage) return null;
-    if (lastMessage.sender !== Sender.Bot) return null;
-    if (lastMessage.isThinking || lastMessage.isError) return null;
-
-    return `${lastMessage.id}:${lastMessage.text?.length ?? 0}`;
-  }, [safeMessages]);
-
-  useEffect(() => {
-    const previousMessageCount = prevMessageCountRef.current;
-    const hasNewMessages = safeMessages.length > previousMessageCount;
-    const lastMessage = safeMessages.at(-1);
-
-    if (hasNewMessages && !userHasScrolledUpRef.current && lastMessage) {
-      scheduleLatestMessageAlignment(
-        lastMessage.isThinking ? 'end' : 'start',
-        lastMessage.isThinking ? [0, 48, 120, 240] : [0, 96, 220, 420],
-      );
-    }
-
-    prevMessageCountRef.current = safeMessages.length;
-  }, [safeMessages, scheduleLatestMessageAlignment]);
-
-  useEffect(() => {
-    const wasLoading = prevIsLoadingRef.current;
-    const justFinishedLoading = wasLoading && !isLoading;
-    const lastMessage = safeMessages.at(-1);
-
-    if (
-      justFinishedLoading &&
-      lastMessage?.sender === Sender.Bot &&
-      !lastMessage.isThinking &&
-      !lastMessage.isError &&
-      !userHasScrolledUpRef.current
-    ) {
-      // O loading hero é muito mais alto que a resposta final; reposiciona no topo
-      // da última mensagem para evitar a "área em branco" após o colapso de altura.
-      scheduleLatestMessageAlignment('start', [0, 80, 180, 320, 520]);
-    }
-
-    prevIsLoadingRef.current = isLoading;
-  }, [isLoading, safeMessages, scheduleLatestMessageAlignment]);
-
-  useEffect(() => {
-    const previousSignature = prevLastStableBotSignatureRef.current;
-
-    if (!lastStableBotSignature) {
-      prevLastStableBotSignatureRef.current = null;
-      return;
-    }
-
-    prevLastStableBotSignatureRef.current = lastStableBotSignature;
-
-    if (
-      !isLoading &&
-      previousSignature &&
-      previousSignature !== lastStableBotSignature &&
-      !userHasScrolledUpRef.current
-    ) {
-      // Alguns blocos expandem depois do primeiro paint. Reforca o alinhamento
-      // quando a altura final da mensagem estabiliza.
-      scheduleLatestMessageAlignment('start', [0, 120, 280]);
-    }
-  }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
-
-  useEffect(() => {
-    if (isLoading || userHasScrolledUpRef.current) return;
-    if (!lastStableBotSignature) return;
-    if (typeof ResizeObserver === 'undefined') return;
-
-    const container = scrollContainerRef.current;
-    const lastMessage = container?.querySelector(
-      '[data-message-row]:last-of-type',
-    ) as HTMLElement | null;
-
-    if (!lastMessage) return;
-
-    let frameId = 0;
-    let stopObserverTimer = 0;
-    const observer = new ResizeObserver(() => {
-      if (userHasScrolledUpRef.current) return;
-
-      if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && frameId) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-        frameId = window.requestAnimationFrame(() => {
-          scheduleLatestMessageAlignment('start', [0, 80]);
-        });
-        return;
-      }
-
-      scheduleLatestMessageAlignment('start', [0, 80]);
-    });
-
-    observer.observe(lastMessage);
-
-    if (typeof window !== 'undefined') {
-      stopObserverTimer = window.setTimeout(() => {
-        observer.disconnect();
-      }, 1200);
-    }
-
-    return () => {
-      observer.disconnect();
-
-      if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && frameId) {
-        window.cancelAnimationFrame(frameId);
-      }
-
-      if (typeof window !== 'undefined' && stopObserverTimer) {
-        window.clearTimeout(stopObserverTimer);
-      }
-    };
-  }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
-
   const handleOpenSettings = () => setShowSettings(true);
   const handleCloseSettings = () => setShowSettings(false);
   const handleOpenWarRoom = () => setShowWarRoom(true);
@@ -886,7 +661,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         {/* ── Messages area ───────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 relative">
           {showInitialHome ? (
-            <div ref={scrollContainerRef} className="h-full min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               {!loading && !user ? (
                 <GreetingWelcomeScreen
                   isDarkMode={isDarkMode}
@@ -906,12 +681,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             </div>
           ) : (
             <div
-              ref={scrollContainerRef}
               data-testid="messages-scroller"
               className="h-full min-h-0 overflow-y-auto custom-scrollbar"
-              onScroll={syncUserScrollIntent}
-              onWheel={handleUserScrollGesture}
-              onTouchMove={handleUserScrollGesture}
             >
               {hasMore ? (
                 <div className="flex justify-center py-3">
@@ -930,7 +701,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   {itemContent(index)}
                 </div>
               ))}
-              <div ref={messagesEndRef} />
             </div>
           )}
         </div>

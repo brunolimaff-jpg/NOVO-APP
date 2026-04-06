@@ -8,11 +8,6 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
-const { scrollIntoViewMock, scrollToMock } = vi.hoisted(() => ({
-  scrollIntoViewMock: vi.fn(),
-  scrollToMock: vi.fn(),
-}));
-
 vi.mock('../../components/MessageRow', () => ({
   default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];
@@ -160,16 +155,6 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    scrollIntoViewMock.mockReset();
-    scrollToMock.mockReset();
-    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-      configurable: true,
-      value: scrollIntoViewMock,
-    });
-    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-      configurable: true,
-      value: scrollToMock,
-    });
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -394,7 +379,7 @@ describe('ChatInterface shell regression', () => {
     });
   });
 
-  it('reposiciona a ultima resposta do bot quando o loading termina', async () => {
+  it('nao faz auto-scroll quando o loading termina', async () => {
     const loadingMessages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
       {
@@ -424,9 +409,6 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    scrollIntoViewMock.mockClear();
-    scrollToMock.mockClear();
-
     rerender(
       <ChatInterface
         {...buildProps({
@@ -439,10 +421,7 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(scrollToMock).toHaveBeenCalledWith({
-        top: expect.any(Number),
-        behavior: 'auto',
-      });
+      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     });
   });
 });
