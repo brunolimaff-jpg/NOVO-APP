@@ -8,15 +8,25 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
+const { scrollToIndexMock } = vi.hoisted(() => ({
+  scrollToIndexMock: vi.fn(),
+}));
+
 vi.mock('react-virtuoso', () => {
-  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, _ref) => (
-    <div data-testid="virtuoso" style={style}>
-      {components?.Header ? <components.Header /> : null}
-      {data.map((item: any, index: number) => (
-        <div key={item?.id ?? index}>{itemContent(index, item)}</div>
-      ))}
-    </div>
-  ));
+  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      scrollToIndex: scrollToIndexMock,
+    }));
+
+    return (
+      <div data-testid="virtuoso" style={style}>
+        {components?.Header ? <components.Header /> : null}
+        {data.map((item: any, index: number) => (
+          <div key={item?.id ?? index}>{itemContent(index, item)}</div>
+        ))}
+      </div>
+    );
+  });
   Virtuoso.displayName = 'VirtuosoMock';
 
   return { Virtuoso };
@@ -169,6 +179,7 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    scrollToIndexMock.mockReset();
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -390,6 +401,58 @@ describe('ChatInterface shell regression', () => {
           sessionId: 'session-1',
         }),
       );
+    });
+  });
+
+  it('reposiciona a ultima resposta do bot quando o loading termina', async () => {
+    const loadingMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, ''),
+        isThinking: true,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const finalMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, '# Dossie final\n\nConclusao pronta'),
+        isThinking: false,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(loadingMessages),
+          sessions: [buildSession(loadingMessages)],
+          messages: loadingMessages,
+          isLoading: true,
+        })}
+      />,
+    );
+
+    expect(scrollToIndexMock).not.toHaveBeenCalled();
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(finalMessages),
+          sessions: [buildSession(finalMessages)],
+          messages: finalMessages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(scrollToIndexMock).toHaveBeenCalledWith({
+        index: 1,
+        align: 'start',
+        behavior: 'auto',
+      });
     });
   });
 });

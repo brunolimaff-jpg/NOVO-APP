@@ -239,7 +239,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
   useEffect(() => {
-    // O Virtuoso renderiza o scroller como um filho direto do container
+    if (showInitialHome) return;
+
+    // O Virtuoso renderiza o scroller como um filho direto do container.
     const container = scrollContainerRef.current?.querySelector(
       '[data-virtuoso-scroller]',
     ) as HTMLElement | null;
@@ -252,9 +254,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       userHasScrolledUpRef.current = distanceFromBottom > 120;
     };
 
+    handleScroll();
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [showInitialHome, safeMessages.length]);
 
   // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
   const lastBotWithSuggestionsIndex = useMemo(
@@ -482,6 +485,47 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     (index: number) => <MessageRow index={index} data={itemData} />,
     [itemData],
   );
+
+  const scrollLatestMessageIntoView = useCallback(
+    (align: 'start' | 'end' = 'start') => {
+      if (safeMessages.length === 0) return;
+
+      const index = safeMessages.length - 1;
+      const scrollToLatest = () =>
+        virtuosoRef.current?.scrollToIndex({ index, align, behavior: 'auto' });
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => {
+          scrollToLatest();
+          window.setTimeout(scrollToLatest, 96);
+        });
+        return;
+      }
+
+      scrollToLatest();
+    },
+    [safeMessages.length],
+  );
+
+  useEffect(() => {
+    const wasLoading = prevIsLoadingRef.current;
+    const justFinishedLoading = wasLoading && !isLoading;
+    const lastMessage = safeMessages.at(-1);
+
+    if (
+      justFinishedLoading &&
+      lastMessage?.sender === Sender.Bot &&
+      !lastMessage.isThinking &&
+      !lastMessage.isError &&
+      !userHasScrolledUpRef.current
+    ) {
+      // O loading hero é muito mais alto que a resposta final; reposiciona no topo
+      // da última mensagem para evitar a "área em branco" após o colapso de altura.
+      scrollLatestMessageIntoView('start');
+    }
+
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading, safeMessages, scrollLatestMessageIntoView]);
 
   const handleOpenSettings = () => setShowSettings(true);
   const handleCloseSettings = () => setShowSettings(false);
