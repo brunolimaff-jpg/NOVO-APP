@@ -128,6 +128,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   isThinking?: boolean;
+  loadingVariant?: 'default' | 'inline';
   groundingSources?: Array<{
     title: string;
     url: string;

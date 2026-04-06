@@ -453,6 +453,7 @@ const App: React.FC = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
+      loadingVariant: 'inline',
       isSourcesOpen: false,
     };
 

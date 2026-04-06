@@ -5,6 +5,7 @@ import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
 import LoadingSmart from './LoadingSmart';
+import InlineTypingResponse from './InlineTypingResponse';
 import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
@@ -123,6 +124,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
   const assistantLabel = '🦅 Scout 360';
+  const isInlineThinking = msg.isThinking && msg.loadingVariant === 'inline';
 
   let content: React.ReactNode;
 
@@ -152,15 +154,19 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             <span>{assistantLabel}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <LoadingSmart
-            isLoading={isLoading}
-            mode={mode}
-            isDarkMode={isDarkMode}
-            onStop={isLoading ? onStop : undefined}
-            processing={processing}
-            searchQuery={lastUserQuery}
-            empresaAlvo={empresaAlvo}
-          />
+          {isInlineThinking ? (
+            <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
+          ) : (
+            <LoadingSmart
+              isLoading={isLoading}
+              mode={mode}
+              isDarkMode={isDarkMode}
+              onStop={isLoading ? onStop : undefined}
+              processing={processing}
+              searchQuery={lastUserQuery}
+              empresaAlvo={empresaAlvo}
+            />
+          )}
         </div>
       </div>
     );

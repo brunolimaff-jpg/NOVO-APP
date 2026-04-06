@@ -358,6 +358,7 @@ export const useChat = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
+      loadingVariant: 'inline',
       isSourcesOpen: false,
     };
 
