@@ -439,8 +439,8 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(scrollIntoViewMock).toHaveBeenCalledWith({
-        block: 'start',
+      expect(scrollToMock).toHaveBeenCalledWith({
+        top: expect.any(Number),
         behavior: 'auto',
       });
     });

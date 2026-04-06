@@ -492,32 +492,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         '[data-message-row]:last-of-type',
       ) as HTMLElement | null;
 
-      const tryNativeScrollIntoView = (element: HTMLElement | null): boolean => {
-        if (!element || typeof element.scrollIntoView !== 'function') return false;
-        element.scrollIntoView({ block: align, behavior: 'auto' });
-        return true;
-      };
-
       const scrollToLatest = () => {
-        if (tryNativeScrollIntoView(lastMessage)) {
-          return;
-        }
-
-        if (tryNativeScrollIntoView(messagesEndRef.current)) {
-          return;
-        }
-
-        const fallbackTop =
+        const targetTop =
           align === 'end'
             ? container.scrollHeight
-            : lastMessage?.offsetTop ?? messagesEndRef.current?.offsetTop ?? 0;
+            : Math.max(0, (lastMessage?.offsetTop ?? messagesEndRef.current?.offsetTop ?? 0) - 12);
 
         if (typeof container.scrollTo === 'function') {
-          container.scrollTo({ top: fallbackTop, behavior: 'auto' });
+          container.scrollTo({ top: targetTop, behavior: 'auto' });
           return;
         }
 
-        container.scrollTop = fallbackTop;
+        container.scrollTop = targetTop;
       };
 
       if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -639,6 +625,47 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       // quando a altura final da mensagem estabiliza.
       scheduleLatestMessageAlignment('start', [0, 120, 320, 640]);
     }
+  }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
+
+  useEffect(() => {
+    if (isLoading || userHasScrolledUpRef.current) return;
+    if (!lastStableBotSignature) return;
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const container = scrollContainerRef.current;
+    const lastMessage = container?.querySelector(
+      '[data-message-row]:last-of-type',
+    ) as HTMLElement | null;
+
+    if (!lastMessage) return;
+
+    let frameId = 0;
+    const observer = new ResizeObserver(() => {
+      if (userHasScrolledUpRef.current) return;
+
+      if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        frameId = window.requestAnimationFrame(() => {
+          scheduleLatestMessageAlignment('start', [0, 80]);
+        });
+        return;
+      }
+
+      scheduleLatestMessageAlignment('start', [0, 80]);
+    });
+
+    observer.observe(lastMessage);
+
+    return () => {
+      observer.disconnect();
+
+      if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
   }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
 
   const handleOpenSettings = () => setShowSettings(true);
