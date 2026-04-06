@@ -131,6 +131,18 @@ Para configuração completa, consulte [`docs/GUIA-INICIANTE.md`](./docs/GUIA-IN
 | [`ARQUITETURA.md`](./ARQUITETURA.md) | Visão técnica detalhada (para devs) |
 | [`CLAUDE.md`](./CLAUDE.md) | Guia de referência para assistentes de IA |
 
+## Instalar a skill `ai-setup` (Codex)
+
+Se você quiser reutilizar a configuração do repositório oficial
+`https://github.com/caliber-ai-org/ai-setup` como skill do Codex, execute:
+
+```bash
+./scripts/install-ai-setup-skill.sh
+```
+
+O script instala em `~/.codex/skills/ai-setup` e usa o instalador oficial de skills já disponível no ambiente.
+Depois da instalação, reinicie o Codex para carregar a skill.
+
 ---
 
 *Senior Scout 360 — Inteligência que fecha negócio.*
@@ -142,4 +154,3 @@ Para configuração completa, consulte [`docs/GUIA-INICIANTE.md`](./docs/GUIA-IN
 - No painel da Vercel, mantenha **Production Branch = `main`** para publicar somente código já aprovado no CI.
 
 > **Nota:** substitua `SEU-USUARIO/SEU-REPO` no badge acima pelo caminho real do seu repositório no GitHub.
-
