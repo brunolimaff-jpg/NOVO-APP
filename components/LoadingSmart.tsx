@@ -34,7 +34,13 @@ interface LoadingSmartProps {
   loadingVariant?: 'hero' | 'inline';
   fixedStatusLine?: string;
   onStop?: () => void;
-  processing?: { stage?: string; completedStages?: string[]; failureCount?: number; totalStages?: number };
+  processing?: {
+    stage?: string;
+    completedStages?: string[];
+    failureCount?: number;
+    totalStages?: number;
+    isIncremental?: boolean;
+  };
   searchQuery?: string;
   empresaAlvo?: string | null;
 }
@@ -363,8 +369,9 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const declaredTotalStages =
     typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
       ? processing.totalStages : null;
+  const isIncremental = Boolean(processing?.isIncremental);
   // Fallback dinâmico: sem hardcode por modo — autoajusta conforme etapas reais chegam
-  const expectedTotal = declaredTotalStages ?? Math.max(12, realTotalCompleted + 2);
+  const expectedTotal = declaredTotalStages ?? (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2));
   const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
   const percent = pendingInQueue > 0
@@ -461,23 +468,23 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
       {/* ── Centralized Progress Control ── */}
       <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-4 md:py-8">
-        <div className="flex flex-col items-center gap-2 mb-3 w-full max-w-2xl">
+        <div className={`flex flex-col items-center gap-2 mb-3 w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <StepSpinner isDarkMode={isDarkMode} />
-          <h2 className={`text-lg md:text-3xl font-black tracking-tight text-center line-clamp-2 ${
+          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
             isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
           }`}>{currentRich.label}</h2>
-          <p className={`text-xs md:text-sm font-bold uppercase tracking-widest text-center ${
+          <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
             isDarkMode ? 'text-slate-500' : 'text-slate-400'
           }`}>Etapa {completedCount + 1} de {expectedTotal} — Investigação Forense Scout360</p>
         </div>
-        <div className="w-full max-w-2xl">
+        <div className={`w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <ProgressBar percent={percent} isDarkMode={isDarkMode} />
         </div>
       </div>
 
       {/* ── Two-column: Steps + Radar ── */}
       <div className="flex-1 min-h-0 px-4 md:px-8 overflow-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 max-w-5xl mx-auto h-full">
+        <div className={`grid grid-cols-1 ${isIncremental ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl' : 'max-w-5xl'} mx-auto h-full`}>
 
           {/* Steps column */}
           <div className="flex flex-col">
@@ -543,10 +550,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             </div>
           </div>
 
-          {/* Radar — oculto em mobile */}
-          <div className="hidden md:flex items-center justify-center">
-            <RadarAnimation isDarkMode={isDarkMode} />
-          </div>
+          {!isIncremental && (
+            <div className="hidden md:flex items-center justify-center">
+              <RadarAnimation isDarkMode={isDarkMode} />
+            </div>
+          )}
         </div>
       </div>
 

@@ -201,6 +201,12 @@ export interface LoadingProgressSnapshot {
   completedStages: string[];
 }
 
+export interface IncrementalLoadingOptions {
+  stage?: string;
+  totalStages?: number;
+  maxHistory?: number;
+}
+
 export function transitionLoadingProgress(
   currentStage: string | null | undefined,
   nextStage: string | null | undefined,
@@ -238,6 +244,33 @@ export function finalizeLoadingProgress(
   return {
     stage: '',
     completedStages: appendCompletedStage(safeCompleted, currentStage),
+  };
+}
+
+export function startIncrementalLoadingProgress(
+  currentStage: string | null | undefined,
+  completedStages: string[] = [],
+  options: IncrementalLoadingOptions = {},
+): LoadingProgressSnapshot & { totalStages?: number; isIncremental: true } {
+  const nextStage = sanitizeStatusLabel(options.stage || 'Aprofundando análise...');
+  const maxHistory = Math.max(1, options.maxHistory ?? 4);
+  const safeCompleted = Array.isArray(completedStages) ? [...completedStages] : [];
+  const withCurrentStage = appendCompletedStage(safeCompleted, currentStage);
+  const dedupedByKey = new Map<string, string>();
+
+  for (const stage of withCurrentStage) {
+    const sanitized = sanitizeStatusLabel(stage);
+    if (!sanitized) continue;
+    dedupedByKey.set(statusKey(sanitized), sanitized);
+  }
+
+  const summarizedHistory = Array.from(dedupedByKey.values()).slice(-maxHistory);
+
+  return {
+    stage: nextStage || 'Aprofundando análise...',
+    completedStages: summarizedHistory,
+    totalStages: options.totalStages,
+    isIncremental: true,
   };
 }
 
