@@ -1380,9 +1380,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex min-h-screen w-full flex-col ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <main className="flex min-h-0 flex-grow flex-col overflow-hidden overscroll-none">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1475,7 +1475,9 @@ const App: React.FC = () => {
             />
           )}
         </main>
-        <FooterCredits />
+        <div className="flex-none">
+          <FooterCredits />
+        </div>
       </div>
 
       {selectedCRMCard && canAccessMiniCRM && (

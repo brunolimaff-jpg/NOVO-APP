@@ -508,7 +508,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const radarUnread = radar?.unreadCount ?? 0;
 
   return (
-    <div className={`flex h-full min-h-0 overflow-hidden ${theme.bg}`}>
+    <div className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <SessionsSidebar
         sessions={sessions}
