@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { stripVisiblePortaFeedSections } from '../utils/porta';
+import { stripVisiblePortaFeedSections, stripPortaMarkers } from '../utils/porta';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
 
@@ -265,7 +265,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const processedContent = useMemo(() => {
     if (!content) return '';
 
-    let text = stripVisiblePortaFeedSections(content);
+    let text = stripPortaMarkers(content);
     const preservedMermaidBlocks: string[] = [];
 
     const preserveMermaid = (input: string): string =>
