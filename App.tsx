@@ -60,6 +60,7 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
+import { resolveLoadingVariant, type LoadingVariant, type RequestKind } from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -168,8 +169,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-type RequestKind = 'default' | 'deep_dive';
-type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -446,14 +445,25 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
-    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
+    options?: {
+      isFollowUp?: boolean;
+      isDeepDive?: boolean;
+      isFirstInteraction?: boolean;
+      requestKind?: RequestKind;
+      fixedLoadingLine?: string;
+    },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
-    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    const resolvedRequestKind = options?.requestKind ?? requestKind;
+    const fixedLoadingLine = options?.fixedLoadingLine ?? null;
+    const resolvedLoadingVariant = resolveLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+    });
     setLoadingVariant(resolvedLoadingVariant);
-    setLoadingPinnedLabel(requestKind === 'deep_dive' ? loadingPinnedLabel || null : null);
+    setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -504,13 +514,16 @@ const App: React.FC = () => {
         Boolean(message.text?.trim()),
     );
 
+    const placeholderLoadingVariant: LoadingVariant =
+      resolvedLoadingVariant === 'inline' || hasConsolidatedBotResponse ? 'inline' : 'hero';
+
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant: placeholderLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -913,18 +926,12 @@ const App: React.FC = () => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
-    
-    // Process the options to set state
-    if (options?.requestKind) {
-      setRequestKind(options.requestKind);
-    } else {
-      setRequestKind('default');
-    }
-    
-    if (options?.fixedLoadingLine) {
-      setLoadingPinnedLabel(options.fixedLoadingLine);
-    }
-    
+    const resolvedRequestKind = options?.requestKind ?? 'default';
+    const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+
+    setRequestKind(resolvedRequestKind);
+    setLoadingPinnedLabel(fixedLoadingLine);
+
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
@@ -969,6 +976,8 @@ const App: React.FC = () => {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
+      requestKind: resolvedRequestKind,
+      fixedLoadingLine: fixedLoadingLine ?? undefined,
     });
   };
 
