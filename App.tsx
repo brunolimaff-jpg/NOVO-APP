@@ -73,6 +73,11 @@ import {
 import { getFeatureAccessForUser } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 
+// --- INJETADO ANALYTICS AQUI ---
+import { Analytics } from "@vercel/analytics/react";
+// --- INJETADO SPEED INSIGHTS AQUI ---
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
 const PAGE_SIZE = 20;
 type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
 
@@ -204,6 +209,10 @@ const App: React.FC = () => {
   const [followUpDias, setFollowUpDias] = useState(7);
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
@@ -444,7 +453,7 @@ const App: React.FC = () => {
 
     const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
     setLoadingVariant(resolvedLoadingVariant);
-    setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
+    setLoadingPinnedLabel(requestKind === 'deep_dive' ? loadingPinnedLabel || null : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -904,6 +913,18 @@ const App: React.FC = () => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
+    
+    // Process the options to set state
+    if (options?.requestKind) {
+      setRequestKind(options.requestKind);
+    } else {
+      setRequestKind('default');
+    }
+    
+    if (options?.fixedLoadingLine) {
+      setLoadingPinnedLabel(options.fixedLoadingLine);
+    }
+    
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
@@ -1517,6 +1538,11 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
+      <Analytics />
+      {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}
+      <SpeedInsights />
     </>
   );
 };
