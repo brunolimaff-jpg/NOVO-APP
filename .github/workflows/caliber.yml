@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Caliber Score
-        uses: caliber-ai-org/ai-setup@main
+        uses: caliber-ai-org/ai-setup@v1
         with:
           agent: 'cursor'
           comment: 'true'

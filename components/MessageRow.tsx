@@ -5,6 +5,7 @@ import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
 import LoadingSmart from './LoadingSmart';
+import InlineTypingResponse from './InlineTypingResponse';
 import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
@@ -37,6 +38,7 @@ export interface MessageRowData {
   onStop?: () => void;
   onSendMessage?: (text: string) => void;
   empresaAlvo?: string | null;
+  loadingPinnedLabel?: string | null;
 }
 
 interface MessageRowProps {
@@ -103,6 +105,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     onStop,
     onSendMessage,
     empresaAlvo,
+    loadingPinnedLabel,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;
@@ -122,7 +125,10 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // groundingUsed === false (explicitamente): fallback silencioso acionado.
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
-  const assistantLabel = '🦅 Scout 360';
+  const assistantLabel = '\uD83E\uDD85 Scout 360';
+  const loadingVariant = msg.loadingVariant ?? 'hero';
+  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
+  const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
 
   let content: React.ReactNode;
 
@@ -140,7 +146,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     };
   }, [auditableSources, msg.isSourcesOpen]);
 
-  if (msg.isThinking) {
+  if (showHeroLoading) {
     content = (
       <div className="flex justify-start animate-fade-in">
         <div
@@ -156,11 +162,29 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             isLoading={isLoading}
             mode={mode}
             isDarkMode={isDarkMode}
+            loadingVariant="inline"
+            fixedStatusLine={loadingPinnedLabel || undefined}
             onStop={isLoading ? onStop : undefined}
             processing={processing}
             searchQuery={lastUserQuery}
             empresaAlvo={empresaAlvo}
           />
+        </div>
+      </div>
+    );
+  } else if (showInlineLoading) {
+    content = (
+      <div className="flex justify-start animate-fade-in">
+        <div
+          className={`rounded-2xl p-4 shadow-sm w-full ${
+            isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
+          } px-3 md:px-5 py-3 md:py-4`}
+        >
+          <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
+            <span>{assistantLabel}</span>
+            <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
         </div>
       </div>
     );
@@ -202,7 +226,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             }`}
             title="Excluir esta mensagem"
           >
-            🗑️
+            \uD83D\uDDD1\uFE0F
           </button>
         )}
         <div
@@ -213,7 +237,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
           }`}
         >
           <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
-            <span>{isBot ? assistantLabel : '👤 Você'}</span>
+            <span>{isBot ? assistantLabel : '\uD83D\uDC64 Você'}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           {isBot ? (
@@ -259,7 +283,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                   <p
                     className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
                   >
-                    📚 Fontes
+                    \uD83D\uDCDA Fontes
                   </p>
                   <ol className="space-y-2 list-decimal pl-4">
                     {(auditableSources || []).map((s, i) => {

@@ -163,6 +163,8 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+type RequestKind = 'default' | 'deep_dive';
+type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -440,6 +442,9 @@ const App: React.FC = () => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
+    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    setLoadingVariant(resolvedLoadingVariant);
+    setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -482,6 +487,13 @@ const App: React.FC = () => {
 
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
+    const hasConsolidatedBotResponse = historyToPass.some(
+      message =>
+        message.sender === Sender.Bot &&
+        !message.isError &&
+        !message.isThinking &&
+        Boolean(message.text?.trim()),
+    );
 
     const botMessagePlaceholder: Message = {
       id: botMessageId,
@@ -489,6 +501,7 @@ const App: React.FC = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
+      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
       isSourcesOpen: false,
     };
 
@@ -688,7 +701,6 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        // Extrair Score PORTA dos markers no texto acumulado
         const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeText = appendSeniorEvidenceNote(
@@ -735,7 +747,6 @@ const App: React.FC = () => {
           });
         }
 
-        // Update final da mensagem com score, cliente e texto limpo
         updateSessionById(sessionId, s => {
           const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
           return {
@@ -776,7 +787,7 @@ const App: React.FC = () => {
         {
           signal,
           onText: () => {
-            setFailureCount(0); // Qualquer texto de volta limpa o contador de falhas
+            setFailureCount(0);
           },
           onStatus: newStatus => {
             advanceLoadingProgress(newStatus);
@@ -879,6 +890,7 @@ const App: React.FC = () => {
       }));
     } finally {
       setIsLoading(false);
+      setLoadingPinnedLabel(null);
       abortControllerRef.current = null;
     }
   };
@@ -887,6 +899,7 @@ const App: React.FC = () => {
     text: string,
     displayText?: string,
     hintedCompanyOverride?: string | null,
+    options?: { requestKind?: RequestKind; fixedLoadingLine?: string },
   ) => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
@@ -941,10 +954,15 @@ const App: React.FC = () => {
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
+    const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
+      {
+        requestKind: 'deep_dive',
+        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+      },
     );
   };
 
@@ -1379,6 +1397,8 @@ const App: React.FC = () => {
               exportStatus={exportStatus}
               exportError={exportError}
               pdfReportContent={pdfReportContent}
+              loadingVariant={loadingVariant}
+              loadingPinnedLabel={loadingPinnedLabel}
               onOpenEmailModal={() => {
                 setEmailSubject(
                   'Dossiê de Inteligência — ' +
@@ -1416,7 +1436,7 @@ const App: React.FC = () => {
                 onMarkAllAsRead: radar.markAllAsRead,
                 onDismiss: radar.dismissAlert,
                 onForceScan: radar.forceScan,
-                metaInsight: null, // Adicionado para satisfazer RadarProps
+                metaInsight: null,
               }}
             />
           ) : (
@@ -1475,11 +1495,13 @@ const App: React.FC = () => {
         />
       )}
 
-      {isLoading && (
+      {isLoading && loadingVariant === 'hero' && (
         <LoadingSmart
           isLoading={isLoading}
           mode={mode}
           isDarkMode={isDarkMode}
+          loadingVariant={loadingVariant}
+          fixedStatusLine={loadingPinnedLabel || undefined}
           onStop={handleStopGeneration}
           processing={{
             stage: loadingStatus,
