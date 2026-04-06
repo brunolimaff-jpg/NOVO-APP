@@ -26,6 +26,7 @@ function toLines(value: unknown): string[] {
       text.includes('investigacao_completa_integrada') ||
       text.includes('protocolo de investigação forense') ||
       text.includes('dossiê completo de [') ||
+      text.includes('deep dive de [') ||
       text.includes('conta alvo:') ||
       text.includes('nunca viole') ||
       text.includes('porta_feed') ||

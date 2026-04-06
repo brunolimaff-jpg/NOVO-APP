@@ -212,7 +212,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
               type="button"
               title={`${topic.subtitle}\n\nImpacto: ${topic.impact}`}
               onClick={() =>
-                onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt)
+                onSelectTopic(`Deep Dive: ${topic.label}`, hiddenPrompt)
               }
               className="group flex w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(33.33%-0.6rem)] lg:w-[calc(25%-0.6rem)] flex-row items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/40 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800"
             >

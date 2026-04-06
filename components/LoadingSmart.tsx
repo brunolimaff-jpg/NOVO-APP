@@ -180,7 +180,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
     const cleanQuery = query.trim().replace(/[.]{2,}$/g, '').replace(/\s+/g, ' ');
-    const deepDiveMatch = cleanQuery.match(/Dossi[eê]\s+completo\s+de\s+\[([^\]]+)\]/i);
+    const deepDiveMatch = cleanQuery.match(/(?:Dossi[eê]\s+completo|Deep\s*Dive)\s+de\s+\[([^\]]+)\]/i);
     if (deepDiveMatch?.[1]) return deepDiveMatch[1].trim();
     const cadastroMatch = cleanQuery.match(/Contexto\s+cadastral\s+obrigat[oó]rio:\s*Empresa=([^;]+);/i);
     if (cadastroMatch?.[1]) return cadastroMatch[1].trim();

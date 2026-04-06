@@ -34,7 +34,7 @@ describe('loadingStatus', () => {
   });
 
   it('bloqueia payload interno em status dinâmico de histórico', () => {
-    const leaked = 'Buscando histórico de Dossiê completo de [BOM FUTURO]. Protocolo de investigação forense especializada...';
+    const leaked = 'Buscando histórico de Deep Dive de [BOM FUTURO]. Protocolo de investigação forense especializada...';
     expect(normalizeLoadingStatus(leaked)).toBe('Infiltrando em fontes externas e sinais digitais...');
   });
 

@@ -53,8 +53,8 @@ describe('useChat — sanitizeSessionCompanyName (lógica interna testada via ut
   });
 
   it('extrai empresa de padrão [[Empresa]]', () => {
-    const text = 'dossiê completo de [Cooperativa Central de MT]';
-    const bracketMatch = text.match(/dossi[eê]\s+completo\s+de\s+\[([^\]]+)\]/i);
+    const text = 'deep dive de [Cooperativa Central de MT]';
+    const bracketMatch = text.match(/(?:dossi[eê]\s+completo|deep\s*dive)\s+de\s+\[([^\]]+)\]/i);
     expect(bracketMatch?.[1]?.trim()).toBe('Cooperativa Central de MT');
   });
 

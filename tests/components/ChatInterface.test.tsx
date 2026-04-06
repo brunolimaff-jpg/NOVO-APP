@@ -38,7 +38,7 @@ vi.mock('../../components/MessageRow', () => ({
         {message.sender === 'bot' && !message.isThinking && !data.isLoading && data.onDeepDive ? (
           <button
             type="button"
-            onClick={() => data.onDeepDive?.('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH')}
+            onClick={() => data.onDeepDive?.('Deep Dive: Tech Stack', 'HIDDEN_PROMPT_TECH')}
           >
             deep-dive-row-{index}
           </button>
@@ -282,12 +282,12 @@ describe('ChatInterface shell regression', () => {
     fireEvent.click(screen.getByRole('button', { name: 'deep-dive-row-1' }));
 
     await waitFor(() => {
-      expect(onDeepDive).toHaveBeenCalledWith('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH');
+      expect(onDeepDive).toHaveBeenCalledWith('Deep Dive: Tech Stack', 'HIDDEN_PROMPT_TECH');
     });
 
     const deepDiveThinkingMessages: Message[] = [
       ...baseMessages,
-      buildMessage('m3', Sender.User, 'Dossiê completo: Tech Stack'),
+      buildMessage('m3', Sender.User, 'Deep Dive: Tech Stack'),
       {
         ...buildMessage('m4', Sender.Bot, ''),
         isThinking: true,

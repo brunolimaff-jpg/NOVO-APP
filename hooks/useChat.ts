@@ -27,7 +27,7 @@ function sanitizeSessionCompanyName(...candidates: Array<string | null | undefin
     const raw = (candidate || '').trim();
     if (!raw) continue;
 
-    const bracketMatch = raw.match(/dossi[eê]\s+completo\s+de\s+\[([^\]]+)\]/i);
+    const bracketMatch = raw.match(/(?:dossi[eê]\s+completo|deep\s*dive)\s+de\s+\[([^\]]+)\]/i);
     const companyLineMatch = raw.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n]+)/i);
     const cadastroMatch = raw.match(/Empresa=([^;\n]+)/i);
 
@@ -553,7 +553,7 @@ export const useChat = () => {
 
     const empresaContext = resolvedCompany || 'a empresa desta conversa';
     await handleSendMessage(
-      `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${finalPrompt}`,
+      `Deep Dive de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${finalPrompt}`,
       displayMessage,
     );
   };

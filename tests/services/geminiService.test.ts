@@ -256,7 +256,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
     await sendMessageToGemini(
-      'Dossiê completo de [Acme Agro]. Protocolo de investigação forense especializada:\n\nARQUITETURA DE TI',
+      'Deep Dive de [Acme Agro]. Protocolo de investigação forense especializada:\n\nARQUITETURA DE TI',
       [
         { id: '1', sender: 'user' as any, text: 'Investigue Acme Agro', timestamp: new Date() } as any,
         {

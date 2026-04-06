@@ -19,7 +19,7 @@ describe('textCleaners security hardening', () => {
 
   it('sanitiza query de loading suspeita usando fallback da empresa', () => {
     const leakedPrompt =
-      'Dossiê completo de [BOM FUTURO]. Protocolo de investigação forense especializada: INVESTIGACAO_COMPLETA_INTEGRADA';
+      'Deep Dive de [BOM FUTURO]. Protocolo de investigação forense especializada: INVESTIGACAO_COMPLETA_INTEGRADA';
     const sanitized = sanitizeLoadingContextText(leakedPrompt, 'BOM FUTURO');
     expect(sanitized).toBe('Investigação da empresa BOM FUTURO');
   });
