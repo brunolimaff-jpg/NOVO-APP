@@ -529,6 +529,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     scrollRealignTimersRef.current = [];
   }, []);
 
+  const handleUserScrollGesture = useCallback(() => {
+    userHasScrolledUpRef.current = true;
+    clearScrollRealignTimers();
+  }, [clearScrollRealignTimers]);
+
   const scheduleLatestMessageAlignment = useCallback(
     (align: 'start' | 'end' = 'start', delays: number[] = [0, 96, 220, 420]) => {
       if (safeMessages.length === 0) return;
@@ -599,7 +604,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     ) {
       // O loading hero é muito mais alto que a resposta final; reposiciona no topo
       // da última mensagem para evitar a "área em branco" após o colapso de altura.
-      scheduleLatestMessageAlignment('start', [0, 96, 220, 420, 720, 1100]);
+      scheduleLatestMessageAlignment('start', [0, 80, 180, 320, 520]);
     }
 
     prevIsLoadingRef.current = isLoading;
@@ -623,7 +628,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     ) {
       // Alguns blocos expandem depois do primeiro paint. Reforca o alinhamento
       // quando a altura final da mensagem estabiliza.
-      scheduleLatestMessageAlignment('start', [0, 120, 320, 640]);
+      scheduleLatestMessageAlignment('start', [0, 120, 280]);
     }
   }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
 
@@ -640,6 +645,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     if (!lastMessage) return;
 
     let frameId = 0;
+    let stopObserverTimer = 0;
     const observer = new ResizeObserver(() => {
       if (userHasScrolledUpRef.current) return;
 
@@ -659,11 +665,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
     observer.observe(lastMessage);
 
+    if (typeof window !== 'undefined') {
+      stopObserverTimer = window.setTimeout(() => {
+        observer.disconnect();
+      }, 1200);
+    }
+
     return () => {
       observer.disconnect();
 
       if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && frameId) {
         window.cancelAnimationFrame(frameId);
+      }
+
+      if (typeof window !== 'undefined' && stopObserverTimer) {
+        window.clearTimeout(stopObserverTimer);
       }
     };
   }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
@@ -894,6 +910,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               data-testid="messages-scroller"
               className="h-full min-h-0 overflow-y-auto custom-scrollbar"
               onScroll={syncUserScrollIntent}
+              onWheel={handleUserScrollGesture}
+              onTouchMove={handleUserScrollGesture}
             >
               {hasMore ? (
                 <div className="flex justify-center py-3">
