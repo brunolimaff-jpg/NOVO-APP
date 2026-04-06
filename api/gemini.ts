@@ -31,12 +31,18 @@ export const config = {
 };
 
 export const maxDuration = 300;
-// Timeout interno para chat normal (com grounding).
 const CHAT_TIMEOUT_MS = 55_000;
-// Investigações pesadas (mega-prompt / deep dive) desativam grounding e
-// precisam de mais tempo para o modelo processar prompts grandes.
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+
+// Modelos para fallback em cascata caso haja Rate Limit (429)
+const MODEL_CASCADING_ORDER = [
+  'gemini-1.5-flash',       // Plano gratuito tem cota generosa
+  'gemini-1.5-pro',
+  'gemini-3.1-pro-preview', // Estourando 429
+  'gemini-3.1-flash-lite-preview'
+];
+
+const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || MODEL_CASCADING_ORDER[0];
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
@@ -48,7 +54,7 @@ function getApiKeys(): string[] {
 
 function isQuotaExhausted(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
+  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -94,107 +100,64 @@ async function executeGeminiAction(
   ai: GoogleGenAI,
   body: ParsedBody,
   res: VercelResponse,
+  modelOverride?: string
 ): Promise<VercelResponse> {
   switch (body.action) {
     case 'health': {
       const response = await ai.models.generateContent({
-        model: DEFAULT_GEMINI_MODEL,
+        model: modelOverride || DEFAULT_GEMINI_MODEL,
         contents: 'Responda apenas: OK',
         config: { temperature: 0, maxOutputTokens: 10 }
       });
-
       const text = response.text || '';
-      const ok = /ok/i.test(text);
-      return res.status(200).json({ ok, text });
+      return res.status(200).json({ ok: /ok/i.test(text), text });
     }
 
     case 'generateContent': {
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
-      const contents = body.contents;
-      if (!contents) {
-        return res.status(400).json({ error: 'Missing contents' });
-      }
-
-      const configIn = (body.config ?? {}) as Record<string, unknown>;
-      const genConfig: Record<string, unknown> = {
-        temperature: toNumberSafe(configIn.temperature, 0.2),
-        maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
-      };
-
-      if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
-      if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
-      if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
-
+      const model = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
       const response = await ai.models.generateContent({
         model,
-        contents,
-        config: genConfig
+        contents: body.contents as any,
+        config: {
+          temperature: toNumberSafe(body.config?.temperature, 0.2),
+          maxOutputTokens: toNumberSafe(body.config?.maxOutputTokens, 65536),
+        }
       });
-
-      return res.status(200).json({
-        text: response.text || '',
-        candidates: response.candidates || []
-      });
+      return res.status(200).json({ text: response.text || '', candidates: response.candidates || [] });
     }
 
     case 'chatSendMessage': {
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
-      const systemInstruction = body.systemInstruction ?? '';
-      const history = normalizeHistory(body.history);
-      const message = body.message;
-      const useGrounding = body.useGrounding ?? true;
-      const thinkingMode = body.thinkingMode ?? false;
-
+      const model = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
       const runChat = async (withGrounding: boolean) => {
         const chat = ai.chats.create({
           model,
-          history,
+          history: normalizeHistory(body.history),
           config: {
-            systemInstruction,
-            // Thinking mode trades creativity for deterministic factual output.
-            temperature: thinkingMode ? 0.1 : 0.15,
-            // Limite conservador para reduzir latência e risco de timeout.
+            systemInstruction: body.systemInstruction,
+            temperature: body.thinkingMode ? 0.1 : 0.15,
             maxOutputTokens: 65536,
             tools: withGrounding ? [{ googleSearch: {} }] : undefined
           }
         });
-
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-        return withTimeout(
-          chat.sendMessage({ message }),
-          timeout,
-          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
-        );
+        return withTimeout(chat.sendMessage({ message: body.message }), timeout, 'gemini-call');
       };
 
       let response;
-      // groundingActivated rastreia se o grounding estava ativo na chamada que
-      // efetivamente retornou. Inicia com a intenção original e é atualizado para
-      // false caso o fallback silencioso seja acionado.
-      let groundingActivated = useGrounding;
-
+      let groundingActivated = body.useGrounding ?? true;
       try {
-        response = await runChat(useGrounding);
-      } catch (primaryError) {
-        if (!useGrounding) throw primaryError;
-        // Fallback: tenta sem grounding para evitar timeout total.
-        // Registra que o fallback foi acionado para notificar o cliente.
-        console.warn('[GeminiProxy] Grounding falhou, acionando fallback sem grounding:', primaryError instanceof Error ? primaryError.message : String(primaryError));
+        response = await runChat(groundingActivated);
+      } catch (e) {
+        if (!groundingActivated) throw e;
         groundingActivated = false;
         response = await runChat(false);
       }
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
-      // groundingUsed = true somente quando o grounding estava ativo E retornou
-      // chunks concretos. Grounding ativo sem chunks (sem resultados relevantes)
-      // ainda conta como fallback para fins de aviso ao usuário.
-      const groundingUsed: boolean = groundingActivated && groundingChunks.length > 0;
-
       return res.status(200).json({
         text: response.text || '',
         groundingChunks,
-        groundingUsed,
+        groundingUsed: groundingActivated && groundingChunks.length > 0,
       });
     }
 
@@ -204,40 +167,35 @@ async function executeGeminiAction(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const parsed = GeminiRequestSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
-    }
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid request' });
 
     const body = parsed.data;
     const keys = getApiKeys();
-    let lastError: unknown;
-
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: keys[i] });
-        return await executeGeminiAction(ai, body, res);
-      } catch (error: unknown) {
-        const hasNextKey = i < keys.length - 1;
-        if (isQuotaExhausted(error) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando chave de fallback...`);
-          lastError = error;
-          continue;
+    
+    // Tenta primeiro as chaves de API, depois tenta os modelos em cascata se der 429
+    for (const key of keys) {
+      const ai = new GoogleGenAI({ apiKey: key });
+      
+      for (const modelCandidate of MODEL_CASCADING_ORDER) {
+        try {
+          return await executeGeminiAction(ai, body, res, modelCandidate);
+        } catch (error: unknown) {
+          if (isQuotaExhausted(error)) {
+            console.warn(`[Cascading] Modelo ${modelCandidate} falhou cota. Tentando próximo...`);
+            continue;
+          }
+          throw error;
         }
-        throw error;
       }
     }
-
-    throw lastError;
+    
+    return res.status(429).json({ error: 'Todas as chaves e modelos atingiram o limite de cota.' });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Gemini API proxy error:', message);
-    const httpStatus = extractGeminiHttpStatus(error);
-    return res.status(httpStatus).json({ error: 'Gemini proxy failed', detail: message });
+    console.error('Gemini API final error:', error);
+    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Gemini service unavailable' });
   }
 }
