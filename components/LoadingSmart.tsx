@@ -32,7 +32,26 @@ interface LoadingSmartProps {
   empresaAlvo?: string | null;
 }
 
-/* ── Sub-components ─────────────────────────────────────────────────── */
+/* ── SVG Icons ───────────────────────────────────────────────────────── */
+
+/** P3.1 — SVG relógio inline, consistente em todos OS/browsers */
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
+    </svg>
+  );
+}
+
+/* ── Sub-components ──────────────────────────────────────────────────── */
 
 function StepCheckIcon({ isDarkMode }: { isDarkMode: boolean }) {
   return (
@@ -152,7 +171,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
   );
 }
 
-/* ── Main component ─────────────────────────────────────────────────── */
+/* ── Main component ──────────────────────────────────────────────────── */
 
 const LoadingSmart: React.FC<LoadingSmartProps> = ({
   isLoading,
@@ -170,6 +189,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
+  /** P3.2 — confirmação antes de parar */
+  const [confirmStop, setConfirmStop] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const curiositiesRef = useRef<string[]>([]);
@@ -179,6 +200,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const queueRef = useRef<string[]>([]);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
+  /** P2.4 — timestamps por etapa: chave = label da etapa, valor = elapsed em ms */
+  const stepTimestampsRef = useRef<Record<string, number>>({});
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -255,6 +278,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setDisplayedCurrent('Preparando análise...');
       queueRef.current = [];
       lastRevealTimeRef.current = 0;
+      stepTimestampsRef.current = {};
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       return;
     }
@@ -288,6 +312,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         const next = queueRef.current.shift();
         if (next) {
           lastRevealTimeRef.current = Date.now();
+          // P2.4 — captura timestamp no momento exato da revelação
+          stepTimestampsRef.current[next] = elapsedTime;
           setDisplayedCompleted(prev => [...prev, next]);
           if (queueRef.current.length > 0) {
             revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
@@ -314,6 +340,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       const next = queueRef.current.shift();
       if (next) {
         lastRevealTimeRef.current = Date.now();
+        // P2.4 — captura timestamp no drain também
+        stepTimestampsRef.current[next] = elapsedTime;
         setDisplayedCompleted(prev => [...prev, next]);
       }
       if (queueRef.current.length > 0) {
@@ -386,6 +414,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     if (isLoading) {
       setIsVisible(true);
       setIsFadingOut(false);
+      setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
     } else {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -441,7 +470,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             Investigação em andamento...
           </span>
         </div>
-        <span className={`text-xs font-mono ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>⏱ {elapsed}</span>
+        {/* P3.1 — SVG relógio inline no placeholder */}
+        <span className={`flex items-center gap-1 text-xs font-mono ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          <ClockIcon className="w-3.5 h-3.5" />
+          {elapsed}
+        </span>
       </div>
       <div className="flex items-center gap-3">
         <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>
@@ -475,7 +508,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           <h1 className={`text-sm md:text-base font-bold tracking-tight truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
             Senior Scout 360
           </h1>
-          {/* P1.4 — Badge empresa alvo quando disponível */}
           {companyFocus && (
             <span className={`hidden sm:inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ${
               isDarkMode
@@ -490,34 +522,59 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-2">
-          <span className={`text-xs font-mono px-2 py-1 rounded-lg ${
+          {/* P3.1 — SVG relógio inline no header */}
+          <span className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg ${
             isDarkMode ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
           }`}>
-            ⏱ {elapsed}
+            <ClockIcon className="w-3.5 h-3.5" />
+            {elapsed}
           </span>
+          {/* P3.2 — Confirmação PARAR: primeiro clique mostra botões Sim/Não */}
           {onStop && (
-            <button
-              onClick={onStop}
-              className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold"
-            >
-              PARAR
-            </button>
+            confirmStop ? (
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Interromper?
+                </span>
+                <button
+                  onClick={() => { setConfirmStop(false); onStop(); }}
+                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-all text-xs font-bold"
+                >
+                  Sim
+                </button>
+                <button
+                  onClick={() => setConfirmStop(false)}
+                  className={`px-3 py-1.5 rounded-full transition-all text-xs font-bold border ${
+                    isDarkMode
+                      ? 'border-slate-600 text-slate-400 hover:bg-slate-700'
+                      : 'border-slate-300 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  Não
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmStop(true)}
+                className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold"
+              >
+                PARAR
+              </button>
+            )
           )}
         </div>
       </div>
 
       {/* ── Centralized Progress Control ── */}
-      {/* P1.3 — flex-shrink-0 garante que este bloco nunca é comprimido em viewports curtos */}
       <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-4 md:py-8">
-        <div className="flex flex-col items-center gap-3 mb-3 w-full max-w-2xl">
-          <div className="flex items-center gap-3 w-full justify-center">
-            <StepSpinner isDarkMode={isDarkMode} />
-            <h2 className={`text-lg md:text-3xl font-black tracking-tight text-center line-clamp-2 ${
-              isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-            }`}>
-              {currentRich.label}
-            </h2>
-          </div>
+        {/* P2.1 — Spinner acima do h2, flex-col centralizado */}
+        <div className="flex flex-col items-center gap-2 mb-3 w-full max-w-2xl">
+          <StepSpinner isDarkMode={isDarkMode} />
+          <h2 className={`text-lg md:text-3xl font-black tracking-tight text-center line-clamp-2 ${
+            isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+          }`}>
+            {currentRich.label}
+          </h2>
           <p className={`text-xs md:text-sm font-bold uppercase tracking-widest text-center ${
             isDarkMode ? 'text-slate-500' : 'text-slate-400'
           }`}>
@@ -546,22 +603,43 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
               {completedRich.map((step, i) => (
                 <div key={`done-${i}`} className="flex items-center gap-3 animate-fade-in">
                   <StepCheckIcon isDarkMode={isDarkMode} />
-                  <span className={`text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <span className={`text-sm flex-1 min-w-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                     {step.icon && <span className="mr-1.5">{step.icon}</span>}
                     {step.label}
                   </span>
+                  {/* P2.4 — timestamp da etapa */}
+                  {stepTimestampsRef.current[step.label] !== undefined && (
+                    <span className={`text-xs font-mono flex-shrink-0 tabular-nums ${
+                      isDarkMode ? 'text-slate-600' : 'text-slate-300'
+                    }`}>
+                      +{Math.floor(stepTimestampsRef.current[step.label] / 1000)}s
+                    </span>
+                  )}
                 </div>
               ))}
 
-              {/* P1.2 — REMOVIDO: bloco "Próxima: {currentRich.label}" que duplicava o header central */}
+              {/* P2.2 — Separador visual entre concluídas e pendentes */}
+              {completedCount > 0 && (
+                <div className="flex items-center gap-2 py-1">
+                  <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/80' : 'bg-slate-200'}`} />
+                  <span className={`text-[10px] font-bold uppercase tracking-widest flex-shrink-0 ${
+                    isDarkMode ? 'text-slate-600' : 'text-slate-300'
+                  }`}>
+                    Em andamento
+                  </span>
+                  <div className={`flex-1 h-px ${isDarkMode ? 'bg-slate-700/80' : 'bg-slate-200'}`} />
+                </div>
+              )}
 
-              {/* Placeholders futuros */}
+              {/* P2.3 — Skeleton shimmer no lugar de texto estático */}
               {Array.from({ length: Math.max(0, Math.min(3, expectedTotal - completedCount - pendingInQueue - 1)) }).map((_, i) => (
                 <div key={`pending-${i}`} className="flex items-center gap-3 opacity-40">
                   <StepPending isDarkMode={isDarkMode} />
-                  <span className={`text-sm italic ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                    Próxima etapa...
-                  </span>
+                  <div className={`flex-1 h-3 rounded-full animate-pulse ${
+                    isDarkMode ? 'bg-slate-700/60' : 'bg-slate-200'
+                  }`}
+                    style={{ width: `${65 + (i % 3) * 10}%` }}
+                  />
                 </div>
               ))}
             </div>
@@ -575,7 +653,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Insight carousel ── */}
-      {/* P1.3 — max-h controlada + overflow interno para nunca cortar em viewports curtos */}
       <div className={`flex-shrink-0 px-4 md:px-8 py-3 border-t ${
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
@@ -590,7 +667,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
               }`}>
                 Inteligência & Insight
               </p>
-              {/* P1.3 — max-h + overflow-y-auto no texto para nunca explodir o card */}
               <div className="max-h-[80px] md:max-h-[100px] overflow-y-auto">
                 <p className={`text-sm font-medium leading-relaxed ${
                   isDarkMode ? 'text-slate-100' : 'text-slate-700'
