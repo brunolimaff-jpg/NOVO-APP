@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../../utils/loadingCuriosities';
 
 describe('loadingCuriosities', () => {
-  const statusLike = /^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando)\b/i;
+  const statusLike = /^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando|rastreando|desconstruindo|auditando|infiltrando|inovação|sabia|aguarde)\b/i;
 
   it('fallback com empresa mantém foco na conta alvo', () => {
     const lines = buildLoadingCuriositiesFallback('Coprosoja');

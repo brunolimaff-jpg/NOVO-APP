@@ -97,12 +97,12 @@ function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
 
 function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } | null {
   const s = status.trim();
-  if (/^(Capturando intenção tática|Entendendo o objetivo da pergunta)/i.test(s)) return { key: 'intent' };
-  if (/^(Avaliando profundidade|Entendendo sua necessidade)/i.test(s))   return { key: 'complexity' };
+  if (/^(Capturando intenção tática|Entendendo o objetivo da pergunta|Mapeando objetivo estratégico)/i.test(s)) return { key: 'intent' };
+  if (/^(Avaliando profundidade|Entendendo sua necessidade|Analisando complexidade)/i.test(s))   return { key: 'complexity' };
   if (/^(Consolidando perímetro|Preparando contexto)/i.test(s)) return { key: 'context' };
   if (/^(Recuperando inteligência|Organizando histórico da conversa)/i.test(s)) return { key: 'history' };
-  if (/^(Enriquecendo sinais e contexto comercial estratégico|Enriquecendo contexto comercial)/i.test(s)) return { key: 'enrichment' };
-  if (/^(Orquestrando protocolo de investigação forense|Montando protocolo de análise)/i.test(s)) return { key: 'prompt' };
+  if (/^(Enriquecendo sinais e contexto comercial estratégico|Enriquecendo sinais e contexto comercial|Enriquecendo contexto comercial)/i.test(s)) return { key: 'enrichment' };
+  if (/^(Orquestrando protocolo de investigação forense|Orquestrando protocolo de análise|Montando protocolo de análise)/i.test(s)) return { key: 'prompt' };
   if (/^(Infiltrando em fontes externas|Deep Research ativado|Sinais externos em análise)/i.test(s))      return { key: 'deepResearch' };
   if (/^Buscando histórico de/i.test(s)) {
     const rawCompany = s.replace(/^Buscando histórico de\s*/i, '').replace(/\.{0,3}\s*$/, '').trim();
@@ -114,7 +114,7 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
   if (/^(Processando em motores de inferência tática|Consultando modelo analítico|Consultando modelo de IA|Processando no modelo)/i.test(s)) return { key: 'model' };
   if (/^(Validando integridade|Validando consistência|Validando coerência|Validando achados)/i.test(s)) return { key: 'validation' };
   if (/^(Sintetizando narrativa executiva de alto impacto|Sintetizando resposta executiva)/i.test(s)) return { key: 'synthesis' };
-  if (/^(Auditando consistência final|Revisando consistência final|Revisando entrega final)/i.test(s)) return { key: 'finalReview' };
+  if (/^(Auditando consistência final|Revisando consistência final|Revisando entrega final|Auditando consistência final da entrega)/i.test(s)) return { key: 'finalReview' };
   if (/^(Materializando recomendações práticas|Gerando resposta|Montando resposta prática)/i.test(s))            return { key: 'response' };
   if (/^(Preparando ganchos para fechamento|Gerando ganchos|Preparando próximos passos)/i.test(s))            return { key: 'hooks' };
   if (/^(Rastreando registros cadastrais|Consultando dados cadastrais|Buscando CNPJ|dados da empresa)/i.test(s)) return { key: 'cadastral' };

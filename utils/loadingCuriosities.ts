@@ -71,7 +71,7 @@ export function buildLoadingCuriositiesFallback(context: string): string[] {
 
   return [
     `Rastreando a ${safeCompany}: Capturando sinais operacionais e pegada de mercado em múltiplas fontes.`,
-    `Desconstruindo a teia societária da ${safeCompany} para identificar os reais centros de poder.`,
+    `Desconstruindo a teia societária da ${safeCompany} para calibrar o Score PORTA contra o setor.`,
     `Inovação: A Senior lidera o mercado Agtech com soluções que integram do campo ao escritório.`,
     `Auditando o perímetro fiscal da ${safeCompany} para detectar riscos e incentivos ocultos.`,
   ];

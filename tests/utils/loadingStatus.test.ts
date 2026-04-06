@@ -15,18 +15,18 @@ describe('loadingStatus', () => {
   });
 
   it('normaliza etapas canônicas', () => {
-    expect(normalizeLoadingStatus('Entendendo sua necessidade...')).toBe('Entendendo sua necessidade...');
-    expect(normalizeLoadingStatus('Consultando inteligência interna...')).toBe('Consultando inteligência interna...');
-    expect(normalizeLoadingStatus('Montando resposta prática...')).toBe('Montando resposta prática...');
+    expect(normalizeLoadingStatus('Avaliando profundidade da infraestrutura...')).toBe('Avaliando profundidade da infraestrutura...');
+    expect(normalizeLoadingStatus('Consultando inteligência Senior...')).toBe('Consultando inteligência Senior...');
+    expect(normalizeLoadingStatus('Materializando recomendações práticas...')).toBe('Materializando recomendações práticas...');
   });
 
   it('aceita frases antigas como alias e retorna o texto novo', () => {
-    expect(normalizeLoadingStatus('Analisando complexidade do pedido...')).toBe('Entendendo sua necessidade...');
-    expect(normalizeLoadingStatus('Deep Research ativado — varredura web iniciada...')).toBe('Sinais externos em análise...');
-    expect(normalizeLoadingStatus('Mapeando benchmarks...')).toBe('Cruzando referências de mercado...');
-    expect(normalizeLoadingStatus('Consultando bases de conhecimento...')).toBe('Consultando inteligência interna...');
-    expect(normalizeLoadingStatus('Gerando resposta...')).toBe('Montando resposta prática...');
-    expect(normalizeLoadingStatus('Gerando ganchos comerciais finais...')).toBe('Preparando próximos passos...');
+    expect(normalizeLoadingStatus('Analisando complexidade do pedido...')).toBe('Avaliando profundidade da infraestrutura...');
+    expect(normalizeLoadingStatus('Deep Research ativado — varredura web iniciada...')).toBe('Infiltrando em fontes externas e sinais digitais...');
+    expect(normalizeLoadingStatus('Mapeando benchmarks...')).toBe('Auditando referências e contrapartidas de mercado...');
+    expect(normalizeLoadingStatus('Consultando bases de conhecimento...')).toBe('Consultando inteligência Senior...');
+    expect(normalizeLoadingStatus('Gerando resposta...')).toBe('Materializando recomendações práticas...');
+    expect(normalizeLoadingStatus('Gerando ganchos comerciais finais...')).toBe('Preparando ganchos para fechamento...');
   });
 
   it('mantém etapa dinâmica de histórico da empresa', () => {
@@ -35,7 +35,7 @@ describe('loadingStatus', () => {
 
   it('bloqueia payload interno em status dinâmico de histórico', () => {
     const leaked = 'Buscando histórico de Dossiê completo de [BOM FUTURO]. Protocolo de investigação forense especializada...';
-    expect(normalizeLoadingStatus(leaked)).toBe('Sinais externos em análise...');
+    expect(normalizeLoadingStatus(leaked)).toBe('Infiltrando em fontes externas e sinais digitais...');
   });
 
   it('gera a mesma chave para estágios equivalentes', () => {
@@ -48,21 +48,21 @@ describe('loadingStatus', () => {
   it('acumula etapa concluída ao transicionar de um estágio real para outro', () => {
     expect(
       transitionLoadingProgress(
-        'Estruturando contexto da conta...',
-        'Consultando modelo analítico...',
+        'Consolidando perímetro da conta alvo...',
+        'Processando em motores de inferência tática...',
         [],
       ),
     ).toEqual({
-      stage: 'Consultando modelo analítico...',
-      completedStages: ['Estruturando contexto da conta...'],
+      stage: 'Processando em motores de inferência tática...',
+      completedStages: ['Consolidando perímetro da conta alvo...'],
     });
   });
 
   it('não adiciona placeholders genéricos ao histórico concluído', () => {
     expect(
-      transitionLoadingProgress('Realizando pesquisa...', 'Estruturando contexto da conta...', []),
+      transitionLoadingProgress('Realizando pesquisa...', 'Consolidando perímetro da conta alvo...', []),
     ).toEqual({
-      stage: 'Estruturando contexto da conta...',
+      stage: 'Consolidando perímetro da conta alvo...',
       completedStages: [],
     });
   });
@@ -71,27 +71,27 @@ describe('loadingStatus', () => {
     expect(
       transitionLoadingProgress(
         'Gerando resposta...',
-        'Montando resposta prática...',
-        ['Estruturando contexto da conta...'],
+        'Materializando recomendações práticas...',
+        ['Consolidando perímetro da conta alvo...'],
       ),
     ).toEqual({
-      stage: 'Montando resposta prática...',
-      completedStages: ['Estruturando contexto da conta...'],
+      stage: 'Materializando recomendações práticas...',
+      completedStages: ['Consolidando perímetro da conta alvo...'],
     });
   });
 
   it('finaliza corretamente o último estágio visível', () => {
     expect(
       finalizeLoadingProgress(
-        'Preparando próximos passos...',
-        ['Estruturando contexto da conta...', 'Montando resposta prática...'],
+        'Preparando ganchos para fechamento...',
+        ['Consolidando perímetro da conta alvo...', 'Materializando recomendações práticas...'],
       ),
     ).toEqual({
       stage: '',
       completedStages: [
-        'Estruturando contexto da conta...',
-        'Montando resposta prática...',
-        'Preparando próximos passos...',
+        'Consolidando perímetro da conta alvo...',
+        'Materializando recomendações práticas...',
+        'Preparando ganchos para fechamento...',
       ],
     });
   });
