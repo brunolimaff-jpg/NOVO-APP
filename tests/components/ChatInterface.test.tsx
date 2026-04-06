@@ -8,29 +8,10 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
-const { scrollToIndexMock } = vi.hoisted(() => ({
-  scrollToIndexMock: vi.fn(),
+const { scrollIntoViewMock, scrollToMock } = vi.hoisted(() => ({
+  scrollIntoViewMock: vi.fn(),
+  scrollToMock: vi.fn(),
 }));
-
-vi.mock('react-virtuoso', () => {
-  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, ref) => {
-    React.useImperativeHandle(ref, () => ({
-      scrollToIndex: scrollToIndexMock,
-    }));
-
-    return (
-      <div data-testid="virtuoso" style={style}>
-        {components?.Header ? <components.Header /> : null}
-        {data.map((item: any, index: number) => (
-          <div key={item?.id ?? index}>{itemContent(index, item)}</div>
-        ))}
-      </div>
-    );
-  });
-  Virtuoso.displayName = 'VirtuosoMock';
-
-  return { Virtuoso };
-});
 
 vi.mock('../../components/MessageRow', () => ({
   default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
@@ -179,7 +160,16 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    scrollToIndexMock.mockReset();
+    scrollIntoViewMock.mockReset();
+    scrollToMock.mockReset();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollToMock,
+    });
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -221,7 +211,7 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('virtuoso')).toBeInTheDocument();
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
   });
@@ -434,7 +424,8 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(scrollToIndexMock).not.toHaveBeenCalled();
+    scrollIntoViewMock.mockClear();
+    scrollToMock.mockClear();
 
     rerender(
       <ChatInterface
@@ -448,9 +439,8 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(scrollToIndexMock).toHaveBeenCalledWith({
-        index: 1,
-        align: 'start',
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({
+        block: 'start',
         behavior: 'auto',
       });
     });

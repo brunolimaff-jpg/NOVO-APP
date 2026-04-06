@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
@@ -169,13 +168,15 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   // ── Scroll behavior refs ──────────────────────────────────────────────────
   const userHasScrolledUpRef = useRef(false);
   const prevIsLoadingRef = useRef(false);
+  const prevMessageCountRef = useRef(0);
+  const prevLastStableBotSignatureRef = useRef<string | null>(null);
+  const scrollRealignTimersRef = useRef<number[]>([]);
   const malformedProcessingSignatureRef = useRef<string | null>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -238,26 +239,20 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [showRetryToast]);
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
-  useEffect(() => {
-    if (showInitialHome) return;
-
-    // O Virtuoso renderiza o scroller como um filho direto do container.
-    const container = scrollContainerRef.current?.querySelector(
-      '[data-virtuoso-scroller]',
-    ) as HTMLElement | null;
+  const syncUserScrollIntent = useCallback(() => {
+    const container = scrollContainerRef.current;
     if (!container) return;
 
-    const handleScroll = () => {
-      const distanceFromBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight;
-      // > 120px do fundo = usuário scrollou para cima intencionalmente
-      userHasScrolledUpRef.current = distanceFromBottom > 120;
-    };
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    // > 120px do fundo = usuário scrollou para cima intencionalmente
+    userHasScrolledUpRef.current = distanceFromBottom > 120;
+  }, []);
 
-    handleScroll();
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [showInitialHome, safeMessages.length]);
+  useEffect(() => {
+    if (showInitialHome) return;
+    syncUserScrollIntent();
+  }, [showInitialHome, safeMessages.length, syncUserScrollIntent]);
 
   // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
   const lastBotWithSuggestionsIndex = useMemo(
@@ -490,9 +485,40 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     (align: 'start' | 'end' = 'start') => {
       if (safeMessages.length === 0) return;
 
-      const index = safeMessages.length - 1;
-      const scrollToLatest = () =>
-        virtuosoRef.current?.scrollToIndex({ index, align, behavior: 'auto' });
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const lastMessage = container.querySelector(
+        '[data-message-row]:last-of-type',
+      ) as HTMLElement | null;
+
+      const tryNativeScrollIntoView = (element: HTMLElement | null): boolean => {
+        if (!element || typeof element.scrollIntoView !== 'function') return false;
+        element.scrollIntoView({ block: align, behavior: 'auto' });
+        return true;
+      };
+
+      const scrollToLatest = () => {
+        if (tryNativeScrollIntoView(lastMessage)) {
+          return;
+        }
+
+        if (tryNativeScrollIntoView(messagesEndRef.current)) {
+          return;
+        }
+
+        const fallbackTop =
+          align === 'end'
+            ? container.scrollHeight
+            : lastMessage?.offsetTop ?? messagesEndRef.current?.offsetTop ?? 0;
+
+        if (typeof container.scrollTo === 'function') {
+          container.scrollTo({ top: fallbackTop, behavior: 'auto' });
+          return;
+        }
+
+        container.scrollTop = fallbackTop;
+      };
 
       if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
         window.requestAnimationFrame(() => {
@@ -506,6 +532,72 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     },
     [safeMessages.length],
   );
+
+  const clearScrollRealignTimers = useCallback(() => {
+    if (typeof window === 'undefined') {
+      scrollRealignTimersRef.current = [];
+      return;
+    }
+
+    scrollRealignTimersRef.current.forEach(timerId => window.clearTimeout(timerId));
+    scrollRealignTimersRef.current = [];
+  }, []);
+
+  const scheduleLatestMessageAlignment = useCallback(
+    (align: 'start' | 'end' = 'start', delays: number[] = [0, 96, 220, 420]) => {
+      if (safeMessages.length === 0) return;
+
+      clearScrollRealignTimers();
+
+      const uniqueDelays = Array.from(new Set(delays)).filter(delay => delay >= 0);
+
+      const runAlignment = () => {
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(() => scrollLatestMessageIntoView(align));
+          return;
+        }
+
+        scrollLatestMessageIntoView(align);
+      };
+
+      if (typeof window === 'undefined') {
+        runAlignment();
+        return;
+      }
+
+      scrollRealignTimersRef.current = uniqueDelays.map(delay =>
+        window.setTimeout(runAlignment, delay),
+      );
+    },
+    [clearScrollRealignTimers, safeMessages.length, scrollLatestMessageIntoView],
+  );
+
+  useEffect(() => () => clearScrollRealignTimers(), [clearScrollRealignTimers]);
+
+  const lastStableBotSignature = useMemo(() => {
+    const lastMessage = safeMessages.at(-1);
+
+    if (!lastMessage) return null;
+    if (lastMessage.sender !== Sender.Bot) return null;
+    if (lastMessage.isThinking || lastMessage.isError) return null;
+
+    return `${lastMessage.id}:${lastMessage.text?.length ?? 0}`;
+  }, [safeMessages]);
+
+  useEffect(() => {
+    const previousMessageCount = prevMessageCountRef.current;
+    const hasNewMessages = safeMessages.length > previousMessageCount;
+    const lastMessage = safeMessages.at(-1);
+
+    if (hasNewMessages && !userHasScrolledUpRef.current && lastMessage) {
+      scheduleLatestMessageAlignment(
+        lastMessage.isThinking ? 'end' : 'start',
+        lastMessage.isThinking ? [0, 48, 120, 240] : [0, 96, 220, 420],
+      );
+    }
+
+    prevMessageCountRef.current = safeMessages.length;
+  }, [safeMessages, scheduleLatestMessageAlignment]);
 
   useEffect(() => {
     const wasLoading = prevIsLoadingRef.current;
@@ -521,11 +613,33 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     ) {
       // O loading hero é muito mais alto que a resposta final; reposiciona no topo
       // da última mensagem para evitar a "área em branco" após o colapso de altura.
-      scrollLatestMessageIntoView('start');
+      scheduleLatestMessageAlignment('start', [0, 96, 220, 420, 720, 1100]);
     }
 
     prevIsLoadingRef.current = isLoading;
-  }, [isLoading, safeMessages, scrollLatestMessageIntoView]);
+  }, [isLoading, safeMessages, scheduleLatestMessageAlignment]);
+
+  useEffect(() => {
+    const previousSignature = prevLastStableBotSignatureRef.current;
+
+    if (!lastStableBotSignature) {
+      prevLastStableBotSignatureRef.current = null;
+      return;
+    }
+
+    prevLastStableBotSignatureRef.current = lastStableBotSignature;
+
+    if (
+      !isLoading &&
+      previousSignature &&
+      previousSignature !== lastStableBotSignature &&
+      !userHasScrolledUpRef.current
+    ) {
+      // Alguns blocos expandem depois do primeiro paint. Reforca o alinhamento
+      // quando a altura final da mensagem estabiliza.
+      scheduleLatestMessageAlignment('start', [0, 120, 320, 640]);
+    }
+  }, [isLoading, lastStableBotSignature, scheduleLatestMessageAlignment]);
 
   const handleOpenSettings = () => setShowSettings(true);
   const handleCloseSettings = () => setShowSettings(false);
@@ -727,9 +841,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
+        <div className="flex-1 min-h-0 relative">
           {showInitialHome ? (
-            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
+            <div ref={scrollContainerRef} className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               {!loading && !user ? (
                 <GreetingWelcomeScreen
                   isDarkMode={isDarkMode}
@@ -748,30 +862,31 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               )}
             </div>
           ) : (
-            <Virtuoso
-              ref={virtuosoRef}
-              data={safeMessages}
-              computeItemKey={(_, message) => message.id}
-              itemContent={itemContent}
-              followOutput={false}
-              increaseViewportBy={{ top: 400, bottom: 400 }}
-              initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
-              style={{ height: '100%' }}
-              components={{
-                Header: () =>
-                  hasMore ? (
-                    <div className="flex justify-center py-3">
-                      <button
-                        type="button"
-                        onClick={onLoadMore}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                      >
-                        Carregar mensagens anteriores
-                      </button>
-                    </div>
-                  ) : null,
-              }}
-            />
+            <div
+              ref={scrollContainerRef}
+              data-testid="messages-scroller"
+              className="h-full min-h-0 overflow-y-auto custom-scrollbar"
+              onScroll={syncUserScrollIntent}
+            >
+              {hasMore ? (
+                <div className="flex justify-center py-3">
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+                  >
+                    Carregar mensagens anteriores
+                  </button>
+                </div>
+              ) : null}
+
+              {safeMessages.map((message, index) => (
+                <div key={message.id} data-message-row data-message-id={message.id}>
+                  {itemContent(index)}
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           )}
         </div>
 
