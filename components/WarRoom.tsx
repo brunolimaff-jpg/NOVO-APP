@@ -549,12 +549,12 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
                           {mergedSources.map((s, i) => {
                             const status = s.url ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)] : undefined;
                             const statusLabel = !s.url
-                              ? 'inferido - validar manualmente'
+                              ? 'ANÁLISE INFERIDA'
                               : status?.status === 'valid'
-                                ? 'validado'
+                                ? 'CONFIRMADO'
                                 : status?.status === 'broken'
-                                  ? status.note || 'indisponivel'
-                                  : 'validacao pendente';
+                                  ? (status.note || 'OFF-LINE').toUpperCase()
+                                  : 'AUDITORIA EM CURSO';
                             const context = s.contexts[0] || (s.url
                               ? 'Referência usada para sustentar parte da resposta.'
                               : 'Menção inferida sem URL explícita; valide manualmente.');
@@ -573,9 +573,11 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
                                     <span className={dk ? 'text-slate-300' : 'text-slate-700'}>{s.title}</span>
                                   )}
                                   <span className={`px-1.5 py-0.5 rounded-full ${
-                                    statusLabel.includes('validado')
-                                      ? (dk ? 'bg-emerald-900/50 text-emerald-300' : 'bg-emerald-100 text-emerald-700')
-                                      : (dk ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700')
+                                    statusLabel.includes('CONFIRMADO')
+                                      ? (dk ? 'bg-emerald-900/50 text-emerald-300 font-bold' : 'bg-emerald-100 text-emerald-700 font-bold')
+                                      : statusLabel.includes('OFF-LINE')
+                                        ? (dk ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-700')
+                                        : (dk ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700')
                                   }`}>
                                     {statusLabel}
                                   </span>

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { stripVisiblePortaFeedSections } from '../utils/porta';
+import { stripVisiblePortaFeedSections, stripPortaMarkers } from '../utils/porta';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
 
@@ -265,7 +265,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const processedContent = useMemo(() => {
     if (!content) return '';
 
-    let text = stripVisiblePortaFeedSections(content);
+    let text = stripPortaMarkers(content);
     const preservedMermaidBlocks: string[] = [];
 
     const preserveMermaid = (input: string): string =>
@@ -399,12 +399,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
+      // Evita duplicação se o texto do link já for a própria citação [1]
+      const isAlreadyCitation = typeof children === 'string' && /^\[\d+\]$/.test(children.trim());
+
       return (
-        <span>
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words" {...props}>
+        <span className="inline-flex items-baseline">
+          <a 
+            href={href} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-blue-600 dark:text-blue-400 hover:underline break-words transition-colors" 
+            {...props}
+          >
             {children}
           </a>
-          {citationIndex ? <sup className="ml-1 text-[10px] text-blue-600 dark:text-blue-400">[{citationIndex}]</sup> : null}
+          {citationIndex && !isAlreadyCitation ? (
+            <sup className="ml-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 transition-colors">
+              [{citationIndex}]
+            </sup>
+          ) : null}
         </span>
       );
     },

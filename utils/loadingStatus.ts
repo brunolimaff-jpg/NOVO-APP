@@ -128,6 +128,10 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
   if (/^(Calibrando Score PORTA|Calculando Score|PORTA score)/i.test(s))                          return { key: 'scoring' };
   if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final)/i.test(s))     return { key: 'consolidando' };
   if (/^(Mapeando ecossistema competitivo regional|Cruzando concorrentes|concorrentes regionais|mapeamento competitivo)/i.test(s)) return { key: 'concorrentes' };
+
+  // Bloqueio de vazamento de prompts e metadados internos
+  if (/^[@\[{]|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
+  
   return null;
 }
 
@@ -162,7 +166,16 @@ export function normalizeLoadingStatus(rawStatus?: string | null): string | null
 }
 
 function sanitizeStatusLabel(rawStatus?: string | null): string {
-  return (normalizeLoadingStatus(rawStatus) ?? rawStatus ?? '').trim();
+  const normalized = normalizeLoadingStatus(rawStatus);
+  if (normalized) return normalized.trim();
+  
+  // Se for lixo ou prompt (@, [, {) não vaza para a tela se não for reconhecido
+  if (!rawStatus || /^[@\[{]|INVESTIGACAO_COMPLETA|PROMPT_/i.test(rawStatus)) return '';
+  
+  // Permite strings dinâmicas curtas que não pareçam prompts
+  if (rawStatus.length < 100 && !rawStatus.includes('\n')) return rawStatus.trim();
+  
+  return '';
 }
 
 function isIgnorableLoadingStatus(status?: string | null): boolean {

@@ -207,16 +207,19 @@ export function extractSources(text: string): SourceRef[] {
             }
           }
 
-          if (!title && url) {
-            try {
-              title = new URL(url).hostname.replace('www.', '');
-            } catch {
-              title = url.substring(0, 50);
-            }
-          }
+          const cleanTitle = (t: string) => 
+            t.replace(/\*\*/g, '')
+             .replace(/__/g, '')
+             .replace(/[`*]/g, '')
+             .replace(/^[:\-\s]+|[:\-\s]+$/g, '')
+             .trim();
 
           if (url && url.startsWith('http')) {
-            sources.push({ id: id.replace(/\D/g, ''), title: title || 'Fonte ' + id, url });
+            sources.push({ 
+              id: id.replace(/\D/g, ''), 
+              title: cleanTitle(title) || cleanTitle(new URL(url).hostname.replace('www.', '')), 
+              url 
+            });
           }
           break;
         }

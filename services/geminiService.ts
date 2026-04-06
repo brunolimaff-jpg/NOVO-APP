@@ -894,7 +894,7 @@ export async function sendMessageToGemini(
       : shouldForceDirectAnswer
         ? TACTICAL_MODEL_ID
         : DEEP_CHAT_MODEL_ID;
-  const shouldUseGrounding = useGrounding && !isMegaPromptMessage && !isDeepDive;
+  const shouldUseGrounding = useGrounding;
   promptBudget.modelToUse = modelToUse;
   promptBudget.shouldUseGrounding = shouldUseGrounding;
 

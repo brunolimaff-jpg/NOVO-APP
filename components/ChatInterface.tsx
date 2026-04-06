@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
@@ -590,18 +591,42 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             {/* War Room button */}
             {canWarRoom && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
+                whileTap={{ scale: 0.9 }}
                 type="button"
                 onClick={handleOpenWarRoom}
-                className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
+                className={`group relative p-2.5 rounded-xl transition-all shadow-md overflow-hidden ${
+                  isDarkMode 
+                    ? 'bg-slate-900 border border-red-500/30' 
+                    : 'bg-white border border-red-200 shadow-red-200/50'
+                }`}
                 title="War Room"
                 aria-label="Abrir War Room"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                </svg>
-              </button>
+                {/* Background Glow */}
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
+                  isDarkMode ? 'from-red-600/20 to-rose-900/20' : 'from-red-50 to-rose-100'
+                }`} />
+
+                <div className="relative flex items-center justify-center">
+                  <svg className="w-5 h-5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    {/* Crossed Axes */}
+                    {/* Axe 1 */}
+                    <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="m14 12-8.5 8.5a2.12 2.12 0 1 1-3-3L11 9" />
+                    <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M15 13 9 7l4-4 6 6h3l-3 3z" />
+                    {/* Axe 2 (Mirrored) */}
+                    <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="m10 12 8.5 8.5a2.12 2.12 0 1 0 3-3L13 9" />
+                    <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M9 13 15 7l-4-4-6 6H2l3 3z" />
+                  </svg>
+                </div>
+                
+                {/* Status Dot for "Active/Dangerous" vibe */}
+                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                </span>
+              </motion.button>
             )}
 
             {/* Dashboard button */}
