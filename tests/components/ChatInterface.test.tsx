@@ -215,6 +215,29 @@ describe('ChatInterface shell regression', () => {
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
   });
 
+  it('mantem o shell do chat ancorado em flex-1 min-h-0 sem depender de h-full', () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    const { container } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+        })}
+      />,
+    );
+
+    const shell = container.firstElementChild;
+    expect(shell).not.toBeNull();
+    expect(shell?.className).toContain('flex-1');
+    expect(shell?.className).toContain('min-h-0');
+    expect(shell?.className).not.toContain('h-full');
+  });
+
 
   it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', () => {
     const firstRoundMessages = [

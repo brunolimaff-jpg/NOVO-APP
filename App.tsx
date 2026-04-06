@@ -12,6 +12,7 @@ import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
+import FooterCredits from './components/FooterCredits';
 import { FollowUpModal } from './components/FollowUpModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
@@ -60,6 +61,12 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
+import {
+  resolveDeepDiveRequestKind,
+  resolveLoadingVariant,
+  type LoadingVariant,
+  type RequestKind,
+} from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -163,8 +170,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-type RequestKind = 'default' | 'deep_dive';
-type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -181,6 +186,8 @@ const App: React.FC = () => {
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
   const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
@@ -437,12 +444,23 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
-    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
+    options?: {
+      isFollowUp?: boolean;
+      isDeepDive?: boolean;
+      isFirstInteraction?: boolean;
+      requestKind?: RequestKind;
+      fixedLoadingLine?: string;
+    },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
-    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    const requestKind = options?.requestKind ?? (options?.isDeepDive ? 'deep_dive' : 'default');
+    const fixedLoadingLine = options?.fixedLoadingLine;
+    const resolvedLoadingVariant = resolveLoadingVariant({
+      requestKind,
+      isFollowUp: options?.isFollowUp,
+    });
     setLoadingVariant(resolvedLoadingVariant);
     setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
     setIsLoading(true);
@@ -487,21 +505,13 @@ const App: React.FC = () => {
 
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
-    const hasConsolidatedBotResponse = historyToPass.some(
-      message =>
-        message.sender === Sender.Bot &&
-        !message.isError &&
-        !message.isThinking &&
-        Boolean(message.text?.trim()),
-    );
-
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant: resolvedLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -572,28 +582,28 @@ const App: React.FC = () => {
           {
             name: 'Tech Stack',
             prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-            stage: 'Investigando tech stack...',
+            stage: 'Entendendo a operação e tecnologia...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
             prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-            stage: 'Investigando riscos & compliance...',
+            stage: 'Verificando sinais de risco e conformidade...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Estratégia & Expansão',
             prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-            stage: 'Investigando estratégia & expansão...',
+            stage: 'Analisando movimento e posicionamento de mercado...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'RH & Decisores',
             prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-            stage: 'Investigando RH & decisores...',
+            stage: 'Identificando estrutura, liderança e decisores...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
@@ -659,9 +669,9 @@ const App: React.FC = () => {
         }
 
         if (previousStageCompleted) {
-          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         let benchmarkCompleted = false;
@@ -687,9 +697,9 @@ const App: React.FC = () => {
         }
 
         if (benchmarkCompleted) {
-          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         if (optionalStepFailures.length > 0) {
@@ -948,6 +958,8 @@ const App: React.FC = () => {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
+      requestKind: options?.requestKind,
+      fixedLoadingLine: options?.fixedLoadingLine,
     });
   };
 
@@ -955,13 +967,28 @@ const App: React.FC = () => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
+    const hasCompletedBotResponse = Boolean(
+      currentSession?.messages?.some(
+        message =>
+          message.sender === Sender.Bot &&
+          !message.isError &&
+          !message.isThinking &&
+          Boolean(message.text?.trim()),
+      ),
+    );
+    const requestKind = resolveDeepDiveRequestKind(hasCompletedBotResponse);
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind: 'deep_dive',
-        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+        requestKind,
+        fixedLoadingLine:
+          requestKind === 'deep_dive'
+            ? topicLabel
+              ? `Deep Dive em andamento: ${topicLabel}`
+              : 'Deep Dive em andamento'
+            : undefined,
       },
     );
   };
@@ -1353,9 +1380,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <div className="flex-1 min-h-0">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1447,6 +1474,9 @@ const App: React.FC = () => {
               canAccessMiniCRM={canAccessMiniCRM}
             />
           )}
+        </main>
+        <div className="flex-none">
+          <FooterCredits />
         </div>
       </div>
 

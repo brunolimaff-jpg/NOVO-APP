@@ -115,7 +115,7 @@ describe('MessageRow', () => {
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('ghost-block')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
   });
 
   it('renderiza thinking state inline quando loadingVariant=inline', () => {
