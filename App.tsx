@@ -446,6 +446,13 @@ const App: React.FC = () => {
 
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
+    const hasConsolidatedBotResponse = historyToPass.some(
+      message =>
+        message.sender === Sender.Bot &&
+        !message.isError &&
+        !message.isThinking &&
+        Boolean(message.text?.trim()),
+    );
 
     const botMessagePlaceholder: Message = {
       id: botMessageId,
@@ -453,6 +460,7 @@ const App: React.FC = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
+      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
       isSourcesOpen: false,
     };
 

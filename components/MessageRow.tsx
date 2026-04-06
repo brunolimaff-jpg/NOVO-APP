@@ -123,6 +123,9 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
   const assistantLabel = '🦅 Scout 360';
+  const loadingVariant = msg.loadingVariant ?? 'inline';
+  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
+  const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
 
   let content: React.ReactNode;
 
@@ -140,7 +143,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     };
   }, [auditableSources, msg.isSourcesOpen]);
 
-  if (msg.isThinking) {
+  if (showHeroLoading) {
     content = (
       <div className="flex justify-start animate-fade-in">
         <div
@@ -162,6 +165,12 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             empresaAlvo={empresaAlvo}
           />
         </div>
+      </div>
+    );
+  } else if (showInlineLoading) {
+    content = (
+      <div className="flex justify-start animate-fade-in w-full max-w-3xl">
+        <GhostMessageBlock msg={msg} onRetry={onRetry} isLoading={isLoading} isDarkMode={isDarkMode} />
       </div>
     );
   } else if (msg.isError && msg.errorDetails) {
