@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockMermaidRender = vi.hoisted(() => vi.fn().mockResolvedValue({ svg: '<svg data-testid="mermaid-svg">test</svg>' }));
 const mockMermaidInitialize = vi.hoisted(() => vi.fn());
+const mockMermaidParse = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 
 vi.mock('mermaid', () => ({
   default: {
     initialize: mockMermaidInitialize,
+    parse: mockMermaidParse,
     render: mockMermaidRender,
   },
 }));
@@ -38,6 +40,7 @@ describe('MarkdownRenderer security regressions', () => {
   beforeEach(() => {
     mockMermaidRender.mockClear();
     mockMermaidInitialize.mockClear();
+    mockMermaidParse.mockClear();
   });
 
   it('normaliza Mermaid com classes inline ::: antes de renderizar', async () => {
@@ -67,5 +70,21 @@ describe('MarkdownRenderer security regressions', () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('degrada Mermaid quando a lib devolve um svg de erro sintático sem lançar', async () => {
+    mockMermaidRender.mockResolvedValueOnce({
+      svg: '<svg><text>Syntax error in text</text><text>mermaid version 10.9.5</text></svg>',
+    });
+
+    render(<MarkdownRenderer content={'```mermaid\ngraph TD\nA --> B\n```'} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText((_content, node) => node?.textContent?.includes('renderizar o diagrama') ?? false).length,
+      ).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByText(/graph TD/i)).toBeInTheDocument();
   });
 });

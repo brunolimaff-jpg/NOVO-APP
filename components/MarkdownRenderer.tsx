@@ -7,7 +7,12 @@ import rehypeRaw from 'rehype-raw';
 import { stripPortaMarkers } from '../utils/porta';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
-import { getDisplayableMermaidCode, normalizeMermaidBlocks, sanitizeMermaidCode } from '../utils/mermaid';
+import {
+  getDisplayableMermaidCode,
+  isMermaidRenderErrorOutput,
+  normalizeMermaidBlocks,
+  sanitizeMermaidCode,
+} from '../utils/mermaid';
 import {
   fixFakeLinks,
   rewriteMarkdownLinksToGoogle,
@@ -83,6 +88,10 @@ async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')
   return mermaid;
 }
 
+type MermaidWithParse = typeof import('mermaid')['default'] & {
+  parse?: (chart: string) => Promise<unknown> | unknown;
+};
+
 const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -110,8 +119,15 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
       }
 
       try {
-        const mermaid = await getMermaid(isDarkMode ?? false);
+        const mermaid = (await getMermaid(isDarkMode ?? false)) as MermaidWithParse;
+        if (typeof mermaid.parse === 'function') {
+          await mermaid.parse(sanitizedChart);
+        }
+
         const { svg: rendered } = await mermaid.render(idRef.current, sanitizedChart);
+        if (isMermaidRenderErrorOutput(rendered)) {
+          throw new Error('Mermaid retornou um SVG de erro sintático');
+        }
 
         if (!cancelled) {
           setSvg(rendered);

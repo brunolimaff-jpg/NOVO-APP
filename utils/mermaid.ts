@@ -1,5 +1,9 @@
 const MERMAID_START_PATTERN =
   /(graph\s+(?:TB|TD|LR|RL|BT)?|flowchart\s+(?:TB|TD|LR|RL|BT)?|sequenceDiagram|gantt|classDiagram|stateDiagram-v2?|erDiagram|journey|pie|quadrantChart|gitGraph)/i;
+const MERMAID_EDGE_PATTERN =
+  /(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~)/;
+const MERMAID_RENDER_ERROR_PATTERN =
+  /syntax error in text|parse error|error parsing|lexical error/i;
 
 export function normalizeInlineMermaidClasses(chart: string): string {
   const classLines: string[] = [];
@@ -27,6 +31,25 @@ function normalizeMermaidText(input: string): string {
     .replace(/<\!--[\s\S]*?-->/g, '')
     .replace(/[\u2013\u2014]/g, '-')
     .trim();
+}
+
+function splitCollapsedStatements(input: string): string {
+  return input.replace(
+    /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
+    '$1\n',
+  );
+}
+
+function materializeQuotedEdgeTargets(input: string): string {
+  let syntheticNodeIndex = 0;
+  return input.replace(
+    /^(\s*[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~)\s*)"([^"\n]+)"(\s*)$/gm,
+    (_full, prefix: string, label: string, suffix: string) => {
+      syntheticNodeIndex += 1;
+      const safeLabel = label.trim().replace(/"/g, "'");
+      return `${prefix}mermaid_note_${syntheticNodeIndex}["${safeLabel}"]${suffix}`;
+    },
+  );
 }
 
 function quoteLooseSubgraphLabels(input: string): string {
@@ -58,9 +81,12 @@ export function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
   let code = normalizeInlineMermaidClasses(normalizeMermaidText(input))
+    .replace(/[\t ]+$/gm, '')
     .replace(/^[^a-zA-Z]+/, '')
     .trim();
 
+  code = splitCollapsedStatements(code);
+  code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
   const match = code.match(MERMAID_START_PATTERN);
@@ -84,4 +110,10 @@ export function getDisplayableMermaidCode(input: string): string {
   const sanitized = sanitizeMermaidCode(input);
   if (sanitized) return sanitized;
   return normalizeInlineMermaidClasses(normalizeMermaidText(input));
+}
+
+export function isMermaidRenderErrorOutput(rendered: string): boolean {
+  if (!rendered) return false;
+  if (!MERMAID_RENDER_ERROR_PATTERN.test(rendered)) return false;
+  return !MERMAID_EDGE_PATTERN.test(rendered);
 }
