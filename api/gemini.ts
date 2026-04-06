@@ -34,16 +34,14 @@ export const maxDuration = 300;
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
 
-// Modelos prioritários conforme lista de disponibilidade 2025/2026
+// FORÇANDO O USO DO GEMINI-3.1-FLASH-LITE-PREVIEW COMO PRIMEIRO DA CASCATA
 const MODEL_CASCADING_ORDER = [
+  'gemini-3.1-flash-lite-preview',
   'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-1.5-flash'
 ];
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
@@ -111,14 +109,20 @@ async function executeGeminiAction(
   res: VercelResponse,
   modelOverride?: string
 ): Promise<VercelResponse> {
-  const selectedModel = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
+  // A API da Google requer que o nome do modelo não tenha prefixo 'models/' se você usa o SDK moderno corretamente, 
+  // mas vamos garantir a string limpa.
+  const selectedModel = (modelOverride || body.model || DEFAULT_GEMINI_MODEL).replace('models/', '');
   console.log(`[GeminiAPI] Executando ${body.action} com modelo: ${selectedModel}`);
   
   switch (body.action) {
     case 'health': {
       const model = ai.getGenerativeModel({ model: selectedModel });
-      const response = await model.generateContent('OK');
-      return res.status(200).json({ ok: true, text: response.response.text() });
+      const response = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: 'Responda apenas: OK' }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 10 }
+      });
+      const text = response.response.text() || '';
+      return res.status(200).json({ ok: /ok/i.test(text), text });
     }
 
     case 'generateContent': {
@@ -169,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const parsed = GeminiRequestSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Invalid request', details: parsed.error.format() });
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid request' });
 
     const body = parsed.data;
     const keys = getApiKeys();
@@ -183,7 +187,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } catch (error: unknown) {
           lastError = error;
           if (isQuotaExhausted(error) || isModelNotFound(error)) {
-            console.warn(`[Cascading] Falha no modelo ${modelCandidate}. Tentando próximo...`);
+            console.warn(`[Cascading] ${modelCandidate} falhou. Tentando próximo...`);
             continue;
           }
           throw error;
