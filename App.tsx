@@ -12,6 +12,7 @@ import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
+import FooterCredits from './components/FooterCredits';
 import { FollowUpModal } from './components/FollowUpModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
@@ -1353,9 +1354,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex min-h-screen w-full flex-col ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <div className="flex-1 min-h-0">
+        <main className="flex min-h-0 flex-grow flex-col overflow-hidden overscroll-none">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1447,7 +1448,8 @@ const App: React.FC = () => {
               canAccessMiniCRM={canAccessMiniCRM}
             />
           )}
-        </div>
+        </main>
+        <FooterCredits />
       </div>
 
       {selectedCRMCard && canAccessMiniCRM && (
