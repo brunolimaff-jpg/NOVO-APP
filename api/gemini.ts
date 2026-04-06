@@ -34,15 +34,13 @@ export const maxDuration = 300;
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
 
-// Modelos para fallback em cascata caso haja Rate Limit (429)
+// FORÇANDO 1.5 FLASH COMO ÚNICO E PRINCIPAL PARA TESTE DE ESTABILIDADE
 const MODEL_CASCADING_ORDER = [
-  'gemini-1.5-flash',       // Plano gratuito tem cota generosa
-  'gemini-1.5-pro',
-  'gemini-3.1-pro-preview', // Estourando 429
-  'gemini-3.1-flash-lite-preview'
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
 ];
 
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || MODEL_CASCADING_ORDER[0];
+const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
@@ -176,26 +174,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = parsed.data;
     const keys = getApiKeys();
     
-    // Tenta primeiro as chaves de API, depois tenta os modelos em cascata se der 429
     for (const key of keys) {
       const ai = new GoogleGenAI({ apiKey: key });
-      
       for (const modelCandidate of MODEL_CASCADING_ORDER) {
         try {
           return await executeGeminiAction(ai, body, res, modelCandidate);
         } catch (error: unknown) {
-          if (isQuotaExhausted(error)) {
-            console.warn(`[Cascading] Modelo ${modelCandidate} falhou cota. Tentando próximo...`);
-            continue;
-          }
+          if (isQuotaExhausted(error)) continue;
           throw error;
         }
       }
     }
-    
-    return res.status(429).json({ error: 'Todas as chaves e modelos atingiram o limite de cota.' });
+    return res.status(429).json({ error: 'Cota esgotada.' });
   } catch (error: unknown) {
-    console.error('Gemini API final error:', error);
-    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Gemini service unavailable' });
+    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Erro no serviço' });
   }
 }
