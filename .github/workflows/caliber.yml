@@ -1,0 +1,27 @@
+name: Caliber Score
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  caliber-score:
+    name: AI Config Quality Score
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Caliber Score
+        uses: caliber-ai-org/ai-setup@main
+        with:
+          agent: 'cursor'
+          comment: 'true'
+          fail-below: '60'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

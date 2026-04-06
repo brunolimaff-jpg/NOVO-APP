@@ -1,27 +1,17 @@
 {
-  "autoDreamEnabled": true,
-  "extraKnownMarketplaces": {
-    "claude-code-skills": {
-      "source": {
-        "source": "github",
-        "repo": "alirezarezvani/claude-skills",
-        "ref": "main",
-        "path": ".claude-plugin/marketplace.json"
-      },
-      "autoUpdate": true
-    }
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '🔒 Security scan: verifique secrets expostas antes de encerrar sessão'"
-          }
-        ]
-      }
-    ]
+  "agent": "claude",
+  "project": "senior-scout-360",
+  "description": "Copiloto de Inteligência Comercial para Agronegócio — Senior Sistemas",
+  "stack": ["react", "typescript", "tailwindcss", "vite", "gemini", "clerk", "vercel", "pinecone"],
+  "language": "pt-BR",
+  "rules": [
+    "always-read-repo-before-proposing",
+    "no-empty-catch",
+    "strong-typing",
+    "prompts-in-src-prompts"
+  ],
+  "caliber": {
+    "managed": true,
+    "version": "1"
   }
 }

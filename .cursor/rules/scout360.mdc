@@ -1,0 +1,38 @@
+---
+description: Regras do Senior Scout 360 para Cursor
+alwaysApply: true
+---
+
+# Senior Scout 360 — Regras Cursor
+
+## Antes de qualquer ação
+
+- Leia o arquivo atual no repo antes de propor mudanças
+- Nunca assuma conteúdo de arquivo sem verificar
+- Estrutura principal: `src/components/`, `src/hooks/`, `src/services/`, `api/`, `src/prompts/`, `src/contexts/`, `src/utils/`, `types.ts`, `constants.ts`
+
+## Stack obrigatória
+
+React 18 + TypeScript strict + TailwindCSS + Vite | Gemini streaming | Clerk.dev | Vercel serverless
+
+## Proibido
+
+- `catch` vazio
+- `any` sem justificativa
+- API keys no frontend
+- Prompt inline (fora de `src/prompts/`)
+- Tela estática enquanto IA processa
+- Concordância artificial — debata quando houver risco
+
+## Score PORTA
+
+Framework proprietário de qualificação: P (Porte) · O (Operação) · R (Retorno) · T (Tecnologia) · A (Adoção). Escala 0–100. Toda feature que toque em scoring deve validar as 5 dimensões com evidências reais.
+
+## Serverless
+
+Funções em `api/*.ts` rodam só na Vercel — não com `npm run dev`. Para testar localmente use `vercel dev`.
+
+## Issues conhecidos (não criar bugs novos)
+
+- `old.tsx` na raiz gera erros de TS — ignorar
+- ESLint usa `.eslintrc.cjs` — não migrar sem aprovação
