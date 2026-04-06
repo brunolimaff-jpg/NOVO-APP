@@ -121,6 +121,9 @@ export const FAKE_DOMAINS = [
   // Placeholders
   'example.com',
   'exemplo.com',
+  'confirmado',
+  'auditoria',
+  'fake-link.com',
 ];
 
 // === Funções de busca de URL real ===
