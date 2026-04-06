@@ -34,13 +34,16 @@ export const maxDuration = 300;
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
 
-// FORÇANDO 1.5 FLASH COMO ÚNICO E PRINCIPAL PARA TESTE DE ESTABILIDADE
+// Modelos prioritários conforme lista de disponibilidade 2025/2026
 const MODEL_CASCADING_ORDER = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
   'gemini-1.5-flash',
   'gemini-1.5-pro'
 ];
 
-const DEFAULT_GEMINI_MODEL = 'gemini-1.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
@@ -55,6 +58,11 @@ function isQuotaExhausted(error: unknown): boolean {
   return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
 }
 
+function isModelNotFound(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /models\/.*is not found|404|not found/i.test(msg);
+}
+
 function toNumberSafe(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
@@ -64,7 +72,10 @@ function normalizeHistory(
 ): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
   if (!input) return [];
   return input
-    .map((item) => ({ role: item.role, parts: [{ text: item.text }] }))
+    .map((item) => ({ 
+      role: item.role === 'model' ? 'model' : 'user' as any, 
+      parts: [{ text: item.text }] 
+    }))
     .filter((msg) => msg.parts[0].text.trim().length > 0);
 }
 
@@ -85,10 +96,10 @@ function extractGeminiHttpStatus(error: unknown): number {
   if (error instanceof Error) {
     const msg = error.message;
     if (/\"code\"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
+    if (/404|not found/i.test(msg)) return 404;
   }
   const err = error as Record<string, unknown>;
   if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
-  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
   return 500;
 }
 
@@ -100,62 +111,51 @@ async function executeGeminiAction(
   res: VercelResponse,
   modelOverride?: string
 ): Promise<VercelResponse> {
+  const selectedModel = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
+  console.log(`[GeminiAPI] Executando ${body.action} com modelo: ${selectedModel}`);
+  
   switch (body.action) {
     case 'health': {
-      const response = await ai.models.generateContent({
-        model: modelOverride || DEFAULT_GEMINI_MODEL,
-        contents: 'Responda apenas: OK',
-        config: { temperature: 0, maxOutputTokens: 10 }
-      });
-      const text = response.text || '';
-      return res.status(200).json({ ok: /ok/i.test(text), text });
+      const model = ai.getGenerativeModel({ model: selectedModel });
+      const response = await model.generateContent('OK');
+      return res.status(200).json({ ok: true, text: response.response.text() });
     }
 
     case 'generateContent': {
-      const model = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
-      const response = await ai.models.generateContent({
-        model,
+      const model = ai.getGenerativeModel({ model: selectedModel });
+      const response = await model.generateContent({
         contents: body.contents as any,
-        config: {
+        generationConfig: {
           temperature: toNumberSafe(body.config?.temperature, 0.2),
           maxOutputTokens: toNumberSafe(body.config?.maxOutputTokens, 65536),
         }
       });
-      return res.status(200).json({ text: response.text || '', candidates: response.candidates || [] });
+      return res.status(200).json({ text: response.response.text() });
     }
 
     case 'chatSendMessage': {
-      const model = modelOverride || body.model || DEFAULT_GEMINI_MODEL;
-      const runChat = async (withGrounding: boolean) => {
-        const chat = ai.chats.create({
-          model,
-          history: normalizeHistory(body.history),
-          config: {
-            systemInstruction: body.systemInstruction,
-            temperature: body.thinkingMode ? 0.1 : 0.15,
-            maxOutputTokens: 65536,
-            tools: withGrounding ? [{ googleSearch: {} }] : undefined
-          }
-        });
-        const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-        return withTimeout(chat.sendMessage({ message: body.message }), timeout, 'gemini-call');
-      };
+      const model = ai.getGenerativeModel({
+        model: selectedModel,
+        systemInstruction: body.systemInstruction,
+      });
 
-      let response;
-      let groundingActivated = body.useGrounding ?? true;
-      try {
-        response = await runChat(groundingActivated);
-      } catch (e) {
-        if (!groundingActivated) throw e;
-        groundingActivated = false;
-        response = await runChat(false);
-      }
+      const chat = model.startChat({
+        history: normalizeHistory(body.history),
+        generationConfig: {
+          temperature: body.thinkingMode ? 0.1 : 0.15,
+          maxOutputTokens: 65536,
+        },
+        tools: body.useGrounding ? [{ googleSearch: {} }] : undefined as any
+      });
 
-      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const timeout = body.useGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
+      const result = await withTimeout(chat.sendMessage(body.message), timeout, 'gemini-call');
+      
+      const groundingChunks = result.response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       return res.status(200).json({
-        text: response.text || '',
+        text: result.response.text(),
         groundingChunks,
-        groundingUsed: groundingActivated && groundingChunks.length > 0,
+        groundingUsed: (body.useGrounding ?? true) && groundingChunks.length > 0,
       });
     }
 
@@ -169,24 +169,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const parsed = GeminiRequestSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Invalid request' });
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid request', details: parsed.error.format() });
 
     const body = parsed.data;
     const keys = getApiKeys();
-    
+    let lastError: any = new Error('No models or keys available');
+
     for (const key of keys) {
-      const ai = new GoogleGenAI({ apiKey: key });
+      const ai = new GoogleGenAI(key);
       for (const modelCandidate of MODEL_CASCADING_ORDER) {
         try {
           return await executeGeminiAction(ai, body, res, modelCandidate);
         } catch (error: unknown) {
-          if (isQuotaExhausted(error)) continue;
+          lastError = error;
+          if (isQuotaExhausted(error) || isModelNotFound(error)) {
+            console.warn(`[Cascading] Falha no modelo ${modelCandidate}. Tentando próximo...`);
+            continue;
+          }
           throw error;
         }
       }
     }
-    return res.status(429).json({ error: 'Cota esgotada.' });
+    
+    const status = extractGeminiHttpStatus(lastError);
+    return res.status(status).json({ error: 'Falha na IA', detail: String(lastError) });
   } catch (error: unknown) {
-    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Erro no serviço' });
+    console.error('[GeminiProxy] Final error:', error);
+    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Erro no serviço', detail: String(error) });
   }
 }
