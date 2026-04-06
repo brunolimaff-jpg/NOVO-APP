@@ -55,7 +55,11 @@ import { normalizeAppError } from './utils/errorHelpers';
 import { downloadFile } from './utils/downloadHelpers';
 import { cleanTitle, sanitizeLoadingContextText } from './utils/textCleaners';
 import { fixFakeLinksHTML } from './utils/linkFixer';
-import { finalizeLoadingProgress, transitionLoadingProgress } from './utils/loadingStatus';
+import {
+  finalizeLoadingProgress,
+  startIncrementalLoadingProgress,
+  transitionLoadingProgress,
+} from './utils/loadingStatus';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -175,6 +179,7 @@ const App: React.FC = () => {
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
+  const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
   const [isSavingRemote, setIsSavingRemote] = useState(false);
@@ -234,8 +239,29 @@ const App: React.FC = () => {
   );
 
   const resetLoadingProgress = useCallback(
-    (stage: string = 'Realizando pesquisa...', totalStages?: number) => {
+    (
+      stage: string = 'Realizando pesquisa...',
+      totalStages?: number,
+      options?: { incremental?: boolean; keepHistory?: number },
+    ) => {
       setFailureCount(0);
+      const useIncremental = Boolean(options?.incremental);
+      if (useIncremental) {
+        const next = startIncrementalLoadingProgress(
+          loadingProgressRef.current.stage,
+          loadingProgressRef.current.completedStages,
+          {
+            stage,
+            totalStages,
+            maxHistory: options?.keepHistory ?? 4,
+          },
+        );
+        setLoadingIsIncremental(true);
+        commitLoadingProgress(next);
+        return;
+      }
+
+      setLoadingIsIncremental(false);
       commitLoadingProgress({ stage, completedStages: [], totalStages });
     },
     [commitLoadingProgress],
@@ -409,12 +435,22 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
+    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
     setIsLoading(true);
-    resetLoadingProgress();
+    const isFirstInteraction = Boolean(options?.isFirstInteraction);
+    const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
+    if (isFirstInteraction) {
+      resetLoadingProgress('Realizando pesquisa...', isShortRound ? 6 : undefined);
+    } else {
+      resetLoadingProgress('Aprofundando análise...', isShortRound ? 6 : 7, {
+        incremental: true,
+        keepHistory: 4,
+      });
+    }
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
     const safeVisibleText = visibleTextForUi || text;
@@ -550,7 +586,14 @@ const App: React.FC = () => {
           },
         ];
 
-        resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES);
+        if (isFirstInteraction) {
+          resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES, {
+            incremental: true,
+            keepHistory: 4,
+          });
+        }
 
         for (let i = 0; i < modules.length; i++) {
           if (signal.aborted) break;
@@ -886,7 +929,13 @@ const App: React.FC = () => {
       ),
     );
     setVisibleCount(prev => prev + 1);
-    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany);
+    const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
+    const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
+    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
+      isFollowUp: previousUserMessages > 0,
+      isDeepDive,
+      isFirstInteraction: previousUserMessages === 0,
+    });
   };
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
@@ -1437,6 +1486,7 @@ const App: React.FC = () => {
             completedStages: completedLoadingStatuses,
             failureCount: failureCount,
             totalStages: loadingTotalStages,
+            isIncremental: loadingIsIncremental,
           }}
           searchQuery={lastQuery}
           empresaAlvo={currentSession?.empresaAlvo}
