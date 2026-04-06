@@ -113,11 +113,6 @@ export const FAKE_DOMAINS = [
   'bard.google.com',
   'gemini.google.com',
   'g.co',
-  // Wikipedia (Gemini frequentemente alucina URLs que não existem)
-  'pt.wikipedia.org',
-  'en.wikipedia.org',
-  'es.wikipedia.org',
-  'wikipedia.org',
   // Placeholders
   'example.com',
   'exemplo.com',

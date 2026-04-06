@@ -19,7 +19,7 @@ const SOURCE_LINKS: Record<string, string> = {
 };
 
 const EXPECTED_STAGES: Record<string, number> = {
-  investigacao: 8,
+  investigacao: 7,
 };
 
 interface LoadingSmartProps {
@@ -520,9 +520,22 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         </div>
       </div>
 
-      {/* ── Progress bar ── */}
-      <div className="px-4 md:px-8 py-4">
-        <ProgressBar percent={percent} isDarkMode={isDarkMode} />
+      {/* ── Centralized Progress Control ── */}
+      <div className="flex flex-col items-center justify-center px-4 md:px-8 py-8 md:py-12">
+        <div className="flex flex-col items-center gap-4 mb-4">
+          <div className="flex items-center gap-3">
+             <StepSpinner isDarkMode={isDarkMode} />
+             <h2 className={`text-2xl md:text-3xl font-black tracking-tight text-center ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                {currentRich.label}
+             </h2>
+          </div>
+          <p className={`text-sm font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Etapa {completedCount + 1} de {expectedTotal} — Investigação Forense Scout360
+          </p>
+        </div>
+        <div className="w-full max-w-2xl">
+          <ProgressBar percent={percent} isDarkMode={isDarkMode} />
+        </div>
       </div>
 
       {/* ── Two-column: Steps + Radar ── */}
@@ -547,12 +560,12 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                 </div>
               ))}
 
-              {/* Current step */}
-              <div className="flex items-center gap-3">
-                <StepSpinner isDarkMode={isDarkMode} />
-                <span className={`text-sm font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+              {/* Real-time status was moved to the centralized top area, but we keep the list for full context */}
+              <div className="flex items-center gap-3 opacity-60">
+                <StepPending isDarkMode={isDarkMode} />
+                <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   <span className="mr-1.5">{currentRich.icon}</span>
-                  {currentRich.label}
+                  Próxima: {currentRich.label}
                 </span>
               </div>
 
