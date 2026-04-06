@@ -1,38 +1,41 @@
 ---
-description: Regras do Senior Scout 360 para Cursor
+description: Senior Scout 360 rules for Cursor
 alwaysApply: true
 ---
 
-# Senior Scout 360 — Regras Cursor
+# Senior Scout 360
 
-## Antes de qualquer ação
+## Read first
 
-- Leia o arquivo atual no repo antes de propor mudanças
-- Nunca assuma conteúdo de arquivo sem verificar
-- Estrutura principal: `src/components/`, `src/hooks/`, `src/services/`, `api/`, `src/prompts/`, `src/contexts/`, `src/utils/`, `types.ts`, `constants.ts`
+- Read the current file before proposing or applying changes.
+- Do not assume folder layout from older versions of the project.
+- Treat the repo root as the app root. Main folders are `components/`, `contexts/`, `hooks/`, `services/`, `prompts/`, `utils/`, `api/`, and `tests/`.
 
-## Stack obrigatória
+## Stack
 
-React 18 + TypeScript strict + TailwindCSS + Vite | Gemini streaming | Clerk.dev | Vercel serverless
+- React 19 + TypeScript + Vite
+- Tailwind CSS
+- Clerk for auth
+- Gemini for AI flows
+- Vercel serverless functions in `api/*.ts`
+- Vitest for tests
 
-## Proibido
+## Hard rules
 
-- `catch` vazio
-- `any` sem justificativa
-- API keys no frontend
-- Prompt inline (fora de `src/prompts/`)
-- Tela estática enquanto IA processa
-- Concordância artificial — debata quando houver risco
+- Keep prompts in `prompts/`, not inline in UI code.
+- Keep secrets and API keys out of the frontend.
+- Avoid empty `catch` blocks. Log, fallback, and show user-safe feedback.
+- Use strong typing. Do not introduce `any` without a short justification.
+- Preserve the loading UX for long-running AI flows.
 
-## Score PORTA
+## Domain notes
 
-Framework proprietário de qualificação: P (Porte) · O (Operação) · R (Retorno) · T (Tecnologia) · A (Adoção). Escala 0–100. Toda feature que toque em scoring deve validar as 5 dimensões com evidências reais.
+- PORTA is the core scoring framework: Porte, Operacao, Retorno, Tecnologia, Adocao.
+- Dossie means the investigative report for a target company.
+- Radar is proactive monitoring.
+- War Room and Deep Dive are advanced investigation modes.
 
-## Serverless
+## Validation
 
-Funções em `api/*.ts` rodam só na Vercel — não com `npm run dev`. Para testar localmente use `vercel dev`.
-
-## Issues conhecidos (não criar bugs novos)
-
-- `old.tsx` na raiz gera erros de TS — ignorar
-- ESLint usa `.eslintrc.cjs` — não migrar sem aprovação
+- Preferred checks: `npm run typecheck`, `npm run test`, and `npm run build` when relevant.
+- If a failure is clearly pre-existing, call it out explicitly instead of attributing it to the current diff.

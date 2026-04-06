@@ -23,7 +23,7 @@ describe('loadingStatus', () => {
   it('aceita frases antigas como alias e retorna o texto novo', () => {
     expect(normalizeLoadingStatus('Analisando complexidade do pedido...')).toBe('Avaliando profundidade da infraestrutura...');
     expect(normalizeLoadingStatus('Deep Research ativado — varredura web iniciada...')).toBe('Infiltrando em fontes externas e sinais digitais...');
-    expect(normalizeLoadingStatus('Mapeando benchmarks...')).toBe('Auditando referências e contrapartidas de mercado...');
+    expect(normalizeLoadingStatus('Mapeando benchmarks...')).toBe('Reunindo referências e sinais de mercado...');
     expect(normalizeLoadingStatus('Consultando bases de conhecimento...')).toBe('Consultando inteligência Senior...');
     expect(normalizeLoadingStatus('Gerando resposta...')).toBe('Materializando recomendações práticas...');
     expect(normalizeLoadingStatus('Gerando ganchos comerciais finais...')).toBe('Preparando ganchos para fechamento...');
