@@ -61,19 +61,19 @@ export function buildLoadingCuriositiesFallback(context: string): string[] {
   const safeCompany = sanitizeLoadingContext(context || '');
 
   const genericFallback = [
-    'Consolidando sinais públicos, contexto operacional e referências de mercado para montar uma resposta objetiva.',
-    'Cruzando evidências observáveis com benchmarks do setor antes de calibrar o Score PORTA.',
-    'Empresas com disciplina operacional transformam dados em vantagem competitiva mais rápido que concorrentes.',
-    'O Scout filtra ruído antes de sugerir táticas — qualidade dos dados define qualidade das recomendações.',
+    'O Scout está agora infiltrando-se em bases de dados públicas para desconstruir o perímetro da conta alvo.',
+    'Rastreando sinais de venda ocultos e detectando gatilhos de dor operacional em tempo real.',
+    'Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país.',
+    'Aguarde: Auditando referências de mercado e calibrando o Score PORTA contra o setor.',
   ];
 
   if (!safeCompany) return genericFallback;
 
   return [
-    `${safeCompany}: mapeando sinais operacionais, footprint de mercado e padrões de tomada de decisão.`,
-    `Cruzando dados públicos da ${safeCompany} com benchmarks do setor para calibrar o Score PORTA.`,
-    'Empresas que integram gestão agrícola, fiscal e de pessoas em um ERP reduzem retrabalho em até 30%.',
-    'O Scout prioriza evidências factuais antes de sugerir táticas — dados ruidosos geram recomendações erradas.',
+    `Rastreando a ${safeCompany}: Capturando sinais operacionais e pegada de mercado em múltiplas fontes.`,
+    `Desconstruindo a teia societária da ${safeCompany} para identificar os reais centros de poder.`,
+    `Inovação: A Senior lidera o mercado Agtech com soluções que integram do campo ao escritório.`,
+    `Auditando o perímetro fiscal da ${safeCompany} para detectar riscos e incentivos ocultos.`,
   ];
 }
 

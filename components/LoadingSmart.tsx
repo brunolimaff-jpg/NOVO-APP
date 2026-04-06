@@ -583,12 +583,12 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           <div className="flex items-start gap-3 mb-3">
             <span className="text-lg flex-shrink-0">💡</span>
             <div className={`transition-opacity duration-300 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
-              <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
+              <p className={`text-sm font-black uppercase tracking-widest mb-1 ${
                 isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
               }`}>
-                Curiosidade / Insight
+                Inteligência & Insight
               </p>
-              <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`text-base font-medium leading-relaxed ${isDarkMode ? 'text-slate-100' : 'text-slate-700'}`}>
                 {renderInsight(currentInsight)}
               </p>
             </div>

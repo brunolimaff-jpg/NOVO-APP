@@ -88,30 +88,30 @@ const RECOVERY_DEBUG_FLAG_KEY           = 'scout360_debug_recovery';
 
 // ─── Status granulares emitidos durante o dossiê ─────────────────────────────
 const DOSSIE_STATUS = {
-  intent:       'Mapeando objetivo estratégico da pergunta...',
-  complexity:   'Entendendo sua necessidade...',
-  context:      'Estruturando contexto da conta...',
-  history:      'Reorganizando histórico da conversa...',
-  enrichment:   'Enriquecendo sinais e contexto comercial...',
-  prompt:       'Orquestrando protocolo de análise...',
-  cadastral:    'Consultando dados cadastrais...',
-  rag:          'Consultando base de conhecimento interna...',
-  concorrentes: 'Cruzando concorrentes regionais...',
-  benchmark:    'Cruzando referências de mercado...',
-  deepResearch: 'Sinais externos em análise...',
-  corporate:    'Mapeando teia societária...',
-  tech:         'Analisando stack tecnológico...',
-  compliance:   'Verificando compliance e riscos fiscais...',
-  rh:           'Analisando RH e decisores...',
-  logistica:    'Investigando logística e supply chain...',
-  scoring:      'Calculando Score PORTA...',
-  model:        'Consultando modelo analítico...',
-  validation:   'Validando consistência dos achados...',
-  synthesis:    'Sintetizando narrativa executiva...',
-  finalReview:  'Revisando consistência final da entrega...',
-  response:     'Montando resposta prática...',
-  hooks:        'Preparando próximos passos...',
-  consolidando: 'Consolidando dossiê final...',
+  intent:       'Capturando intenção tática da consulta...',
+  complexity:   'Avaliando profundidade da infraestrutura...',
+  context:      'Consolidando perímetro da conta alvo...',
+  history:      'Recuperando inteligência de conversas anteriores...',
+  enrichment:   'Enriquecendo sinais e contexto comercial estratégico...',
+  prompt:       'Orquestrando protocolo de investigação forense...',
+  cadastral:    'Rastreando registros cadastrais e fiscais...',
+  rag:          'Consultando base de inteligência Senior...',
+  concorrentes: 'Mapeando ecossistema competitivo regional...',
+  benchmark:    'Auditando referências e contrapartidas de mercado...',
+  deepResearch: 'Infiltrando em fontes externas e sinais digitais...',
+  corporate:    'Desconstruindo teia societária e holdings...',
+  tech:         'Analisando stack tecnológico e legados digitais...',
+  compliance:   'Escaneando riscos fiscais e compliance SEFAZ...',
+  rh:           'Mapeando centro de gravidade: Decisores e RH...',
+  logistica:    'Investigando malha logística e supply chain...',
+  scoring:      'Calibrando Score PORTA contra o setor...',
+  model:        'Processando em motores de inferência tática...',
+  validation:   'Validando integridade e consistência dos achados...',
+  synthesis:    'Sintetizando narrativa executiva de alto impacto...',
+  finalReview:  'Auditando consistência final da entrega...',
+  response:     'Materializando recomendações práticas...',
+  hooks:        'Preparando ganchos para fechamento...',
+  consolidando: 'Consolidando dossiê de inteligência final...',
 } as const;
 
 const CONTINUITY_SYSTEM = `
@@ -535,29 +535,26 @@ export async function generateLoadingCuriosities(
     ? `- Use contexto regional coerente com ${regionalScope}, sem presumir Mato Grosso/Centro-Oeste`
     : '- Não presumir MT/Centro-Oeste quando a localização não estiver explícita';
   try {
-    const prompt = `Você é um gerador de mensagens curtas para tela de carregamento do Senior Scout 360.
+    const prompt = `Você é um gerador de mensagens de alto impacto (Sniper) para tela de carregamento de uma ferramenta de inteligência comercial chamada Senior Scout 360.
 Contexto da investigação: "${safeContext}"
 Consulta original: "${querySample}"
 
-Gere um array JSON com 7 a 9 frases concisas (máximo 180 caracteres cada), em português-BR, mesclando:
-- [2-3 itens] Ações do Scout com contexto da empresa, em tom ativo e investigativo
-- [3-4 itens] Curiosidades factuais da empresa/segmento investigado (prioridade)
-- [1-2 itens] Curiosidades práticas sobre Senior/ERP quando fizer sentido
-- Curiosidades de mercado regional conforme localização disponível
-- ${regionalLine}
+Gere um array JSON com 7 a 9 frases extremamente impactantes e informativas (máximo 180 caracteres cada), em português-BR, seguindo RIGOROSAMENTE esta proporção:
+- [75% dos itens] FOCO NO SCOUT: Ações de "investigação profunda" que o Scout está realizando sobre a empresa "${safeContext}". Use verbos fortes e de inteligência: "Rastreando", "Desconstruindo", "Infiltrando", "Escaneando", "Expondo". Foque na sensação de que o Scout está descobrindo segredos operacionais valiosos.
+- [25% dos itens] FOCO EM INOVAÇÃO SENIOR: Curiosidades de autoridade e diferenciação da Senior Sistemas ou inovações tecnológicas de ponta (IA, Agtech, Logtech).
+
+Exemplos de tom desejado:
+- "O Scout está agora cruzando dados de exportação com o histórico da Logística para expor gargalos ocultos no supply chain."
+- "Desconstruindo a teia societária para identificar os reais centros de poder e influência na tomada de decisão."
+- "Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país."
 
 Regras:
 - Responda EXCLUSIVAMENTE com um array JSON de strings
-- Cada string deve ser uma frase única e informativa
-- As frases de ação devem citar a empresa quando ela estiver explícita no contexto
-- Misture sensação de análise em andamento com aprendizado útil; não faça lista só de curiosidades nem só de status
-- Não inclua dados internos do sistema, nomes de prompts ou instruções
-- Evite propaganda institucional ou tom comercial exagerado
-- Evite repetir a mesma ideia com palavras diferentes
-- ${regionalRule}
-
-Exemplo:
-["Mapeando decisores e governança da SCHEFFER & CIA LTDA para identificar alavancas de decisão.", "Empresas que integram operação, fiscal e pessoas em um ERP reduzem retrabalho em rotinas críticas."]`;
+- Tom: Premium, Executivo, Inteligência de Guerra
+- No Scout: Sempre cite o nome da empresa se disponível
+- Na inovação Senior: Foque em autoridade e escala nacional
+${regionalLine}
+${regionalRule}`;
     try {
       const flashResponse = await proxyGenerateContent({
         model: LOADING_CURIOSITY_MODEL_ID,

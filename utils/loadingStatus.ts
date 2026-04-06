@@ -1,33 +1,33 @@
 import { sanitizeLoadingContextText } from './textCleaners';
 
 const STATUS_PHASES = {
-  intent:        'Mapeando objetivo estratégico da pergunta...',
-  complexity:    'Entendendo sua necessidade...',
-  context:       'Estruturando contexto da conta...',
-  history:       'Reorganizando histórico da conversa...',
-  enrichment:    'Enriquecendo sinais e contexto comercial...',
-  prompt:        'Orquestrando protocolo de análise...',
-  deepResearch:  'Sinais externos em análise...',
-  benchmark:     'Cruzando referências de mercado...',
-  knowledgeBase: 'Consultando inteligência interna...',
-  model:         'Consultando modelo analítico...',
-  validation:    'Validando consistência dos achados...',
-  synthesis:     'Sintetizando narrativa executiva...',
-  finalReview:   'Revisando consistência final da entrega...',
-  response:      'Montando resposta prática...',
-  hooks:         'Preparando próximos passos...',
-  cadastral:     'Consultando dados cadastrais...',
-  corporate:     'Mapeando teia societária...',
-  tech:          'Analisando stack tecnológico...',
-  compliance:    'Verificando compliance e riscos fiscais...',
-  rh:            'Analisando RH e decisores...',
-  logistica:     'Investigando logística e supply chain...',
-  fiscal:        'Verificando incentivos fiscais...',
-  territorio:    'Mapeando inteligência territorial...',
-  scoring:       'Calculando Score PORTA...',
-  consolidando:  'Consolidando dossiê final...',
-  rag:           'Consultando base de conhecimento interna...',
-  concorrentes:  'Cruzando concorrentes regionais...',
+  intent:        'Capturando intenção tática da consulta...',
+  complexity:    'Avaliando profundidade da infraestrutura...',
+  context:       'Consolidando perímetro da conta alvo...',
+  history:       'Recuperando inteligência de conversas anteriores...',
+  enrichment:    'Enriquecendo sinais e contexto comercial estratégico...',
+  prompt:        'Orquestrando protocolo de investigação forense...',
+  deepResearch:  'Infiltrando em fontes externas e sinais digitais...',
+  benchmark:     'Auditando referências e contrapartidas de mercado...',
+  knowledgeBase: 'Consultando inteligência Senior...',
+  model:         'Processando em motores de inferência tática...',
+  validation:    'Validando integridade e consistência dos achados...',
+  synthesis:     'Sintetizando narrativa executiva de alto impacto...',
+  finalReview:   'Auditando consistência final da entrega...',
+  response:      'Materializando recomendações práticas...',
+  hooks:         'Preparando ganchos para fechamento...',
+  cadastral:     'Rastreando registros cadastrais e fiscais...',
+  corporate:     'Desconstruindo teia societária e holdings...',
+  tech:          'Analisando stack tecnológico e legados digitais...',
+  compliance:    'Escaneando riscos fiscais e compliance SEFAZ...',
+  rh:            'Mapeando centro de gravidade: Decisores e RH...',
+  logistica:     'Investigando malha logística e supply chain...',
+  fiscal:        'Auditando incentivos e benefícios fiscais...',
+  territorio:    'Mapeando inteligência territorial estratégica...',
+  scoring:       'Calibrando Score PORTA contra o setor...',
+  consolidando:  'Consolidando dossiê de inteligência final...',
+  rag:           'Consultando base de inteligência Senior...',
+  concorrentes:  'Mapeando ecossistema competitivo regional...',
 } as const;
 
 export type StatusPhaseKey = keyof typeof STATUS_PHASES;
@@ -97,38 +97,37 @@ function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
 
 function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } | null {
   const s = status.trim();
-  if (/^(Mapeando objetivo estratégico|Entendendo o objetivo da pergunta)/i.test(s)) return { key: 'intent' };
-  if (/^(Analisando complexidade|Entendendo sua necessidade)/i.test(s))   return { key: 'complexity' };
-  if (/^(Estruturando contexto|Preparando contexto|Consolidando contexto)/i.test(s)) return { key: 'context' };
-  if (/^(Reorganizando histórico|Organizando histórico da conversa)/i.test(s)) return { key: 'history' };
-  if (/^(Enriquecendo sinais|Enriquecendo contexto comercial)/i.test(s)) return { key: 'enrichment' };
-  if (/^(Orquestrando protocolo|Montando protocolo de análise)/i.test(s)) return { key: 'prompt' };
-  if (/^(Deep Research ativado|Sinais externos em análise)/i.test(s))      return { key: 'deepResearch' };
+  if (/^(Capturando intenção tática|Entendendo o objetivo da pergunta)/i.test(s)) return { key: 'intent' };
+  if (/^(Avaliando profundidade|Entendendo sua necessidade)/i.test(s))   return { key: 'complexity' };
+  if (/^(Consolidando perímetro|Preparando contexto)/i.test(s)) return { key: 'context' };
+  if (/^(Recuperando inteligência|Organizando histórico da conversa)/i.test(s)) return { key: 'history' };
+  if (/^(Enriquecendo sinais e contexto comercial estratégico|Enriquecendo contexto comercial)/i.test(s)) return { key: 'enrichment' };
+  if (/^(Orquestrando protocolo de investigação forense|Montando protocolo de análise)/i.test(s)) return { key: 'prompt' };
+  if (/^(Infiltrando em fontes externas|Deep Research ativado|Sinais externos em análise)/i.test(s))      return { key: 'deepResearch' };
   if (/^Buscando histórico de/i.test(s)) {
     const rawCompany = s.replace(/^Buscando histórico de\s*/i, '').replace(/\.{0,3}\s*$/, '').trim();
     return { key: 'deepResearch', extra: rawCompany };
   }
-  if (/^(Mapeando benchmarks|Cruzando referências de mercado)/i.test(s))   return { key: 'benchmark' };
-  if (/^(Consultando bases de conhecimento|Consultando inteligência interna)/i.test(s)) return { key: 'knowledgeBase' };
-  if (/^Consultando base de conhecimento interna/i.test(s)) return { key: 'rag' };
+  if (/^(Auditando referências|Mapeando benchmarks|Cruzando referências de mercado)/i.test(s))   return { key: 'benchmark' };
+  if (/^(Consultando inteligência Senior|Consultando bases de conhecimento|Consultando inteligência interna)/i.test(s)) return { key: 'knowledgeBase' };
   if (/^base RAG/i.test(s)) return { key: 'rag' };
-  if (/^(Consultando modelo analítico|Consultando modelo de IA|Processando no modelo)/i.test(s)) return { key: 'model' };
-  if (/^(Validando consistência|Validando coerência|Validando achados)/i.test(s)) return { key: 'validation' };
-  if (/^(Sintetizando narrativa executiva|Sintetizando resposta executiva)/i.test(s)) return { key: 'synthesis' };
-  if (/^(Revisando consistência final|Revisando entrega final)/i.test(s)) return { key: 'finalReview' };
-  if (/^(Gerando resposta|Montando resposta prática)/i.test(s))            return { key: 'response' };
-  if (/^(Gerando ganchos|Preparando próximos passos)/i.test(s))            return { key: 'hooks' };
-  if (/^(Consultando dados cadastrais|Buscando CNPJ|dados da empresa)/i.test(s)) return { key: 'cadastral' };
-  if (/^(Mapeando teia societária|sócios|grupos econômicos)/i.test(s))     return { key: 'corporate' };
-  if (/^(Analisando stack|stack tecnológico|sistemas utilizados)/i.test(s)) return { key: 'tech' };
-  if (/^(Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ)/i.test(s))  return { key: 'compliance' };
-  if (/^(Analisando RH|decisores|gestores|diretores)/i.test(s))            return { key: 'rh' };
-  if (/^(Investigando logística|supply chain|frota|armazenagem)/i.test(s)) return { key: 'logistica' };
-  if (/^(Verificando incentivos fiscais|benefícios fiscais)/i.test(s))     return { key: 'fiscal' };
-  if (/^(Mapeando inteligência territorial|contexto regional|região)/i.test(s)) return { key: 'territorio' };
-  if (/^(Calculando Score|PORTA score)/i.test(s))                          return { key: 'scoring' };
-  if (/^(Consolidando dossiê|dossiê final|relatório final)/i.test(s))     return { key: 'consolidando' };
-  if (/^(Cruzando concorrentes|concorrentes regionais|mapeamento competitivo)/i.test(s)) return { key: 'concorrentes' };
+  if (/^(Processando em motores de inferência tática|Consultando modelo analítico|Consultando modelo de IA|Processando no modelo)/i.test(s)) return { key: 'model' };
+  if (/^(Validando integridade|Validando consistência|Validando coerência|Validando achados)/i.test(s)) return { key: 'validation' };
+  if (/^(Sintetizando narrativa executiva de alto impacto|Sintetizando resposta executiva)/i.test(s)) return { key: 'synthesis' };
+  if (/^(Auditando consistência final|Revisando consistência final|Revisando entrega final)/i.test(s)) return { key: 'finalReview' };
+  if (/^(Materializando recomendações práticas|Gerando resposta|Montando resposta prática)/i.test(s))            return { key: 'response' };
+  if (/^(Preparando ganchos para fechamento|Gerando ganchos|Preparando próximos passos)/i.test(s))            return { key: 'hooks' };
+  if (/^(Rastreando registros cadastrais|Consultando dados cadastrais|Buscando CNPJ|dados da empresa)/i.test(s)) return { key: 'cadastral' };
+  if (/^(Desconstruindo teia societária|Mapeando teia societária|sócios|grupos econômicos)/i.test(s))     return { key: 'corporate' };
+  if (/^(Analisando stack tecnológico|Analisando stack|stack tecnológico|sistemas utilizados)/i.test(s)) return { key: 'tech' };
+  if (/^(Escaneando riscos fiscais|Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ)/i.test(s))  return { key: 'compliance' };
+  if (/^(Mapeando centro de gravidade|Analisando RH|decisores|gestores|diretores)/i.test(s))            return { key: 'rh' };
+  if (/^(Investigando malha logística|Investigando logística|supply chain|frota|armazenagem)/i.test(s)) return { key: 'logistica' };
+  if (/^(Auditando incentivos|Verificando incentivos fiscais|benefícios fiscais)/i.test(s))     return { key: 'fiscal' };
+  if (/^(Mapeando inteligência territorial estratégica|Mapeando inteligência territorial|contexto regional|região)/i.test(s)) return { key: 'territorio' };
+  if (/^(Calibrando Score PORTA|Calculando Score|PORTA score)/i.test(s))                          return { key: 'scoring' };
+  if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final)/i.test(s))     return { key: 'consolidando' };
+  if (/^(Mapeando ecossistema competitivo regional|Cruzando concorrentes|concorrentes regionais|mapeamento competitivo)/i.test(s)) return { key: 'concorrentes' };
   return null;
 }
 
