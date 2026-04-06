@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { v4 as uuidv4 } from 'uuid';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
@@ -1547,6 +1548,7 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <Analytics />
     </>
   );
 };
