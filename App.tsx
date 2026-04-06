@@ -60,7 +60,12 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
-import { resolveLoadingVariant, type LoadingVariant, type RequestKind } from './utils/loadingVariant';
+import {
+  resolveLoadingVariant,
+  resolvePlaceholderLoadingVariant,
+  type LoadingVariant,
+  type RequestKind,
+} from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -514,8 +519,11 @@ const App: React.FC = () => {
         Boolean(message.text?.trim()),
     );
 
-    const placeholderLoadingVariant: LoadingVariant =
-      resolvedLoadingVariant === 'inline' || hasConsolidatedBotResponse ? 'inline' : 'hero';
+    const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+      hasConsolidatedBotResponse,
+    });
 
     const botMessagePlaceholder: Message = {
       id: botMessageId,
@@ -573,14 +581,10 @@ const App: React.FC = () => {
           waterfallClienteSeniorData,
         );
 
-        const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
-          updateSessionById(sessionId, s => ({
-            ...s,
-            messages: (s.messages || []).map(msg =>
-              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
-            )
-          }));
+        const appendWaterfallChunk = (chunk: string) => {
+          const normalizedChunk = chunk.trim();
+          if (!normalizedChunk) return;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
         };
 
         const modules = [
@@ -661,7 +665,7 @@ const App: React.FC = () => {
               { signal, timeoutMs: module.timeoutMs }
             );
 
-            updateBotText(moduleResult);
+            appendWaterfallChunk(moduleResult);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
@@ -692,7 +696,7 @@ const App: React.FC = () => {
             signal,
             timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
           });
-          if (benchmark) updateBotText(benchmark);
+          if (benchmark) appendWaterfallChunk(benchmark);
           benchmarkCompleted = true;
           setFailureCount(0);
         } catch (error) {
@@ -715,7 +719,7 @@ const App: React.FC = () => {
         }
 
         if (optionalStepFailures.length > 0) {
-          updateBotText(
+          appendWaterfallChunk(
             `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
           );
         } else {

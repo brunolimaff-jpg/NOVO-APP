@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw';
 import { stripPortaMarkers } from '../utils/porta';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
+import { getDisplayableMermaidCode, normalizeMermaidBlocks, sanitizeMermaidCode } from '../utils/mermaid';
 import {
   fixFakeLinks,
   rewriteMarkdownLinksToGoogle,
@@ -87,27 +88,40 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
   const [error, setError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const idRef = useRef<string>(`mermaid-${Math.random().toString(36).substring(2, 9)}`);
+  const sanitizedChart = useMemo(() => sanitizeMermaidCode(chart), [chart]);
+  const fallbackChart = useMemo(() => getDisplayableMermaidCode(chart), [chart]);
 
   useEffect(() => {
-    if (!chart?.trim()) return;
+    if (!chart?.trim()) {
+      setSvg('');
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
 
     const initMermaid = async () => {
-      try {
-        const clean = sanitizeMermaidCode(chart);
-        if (!clean) return;
+      if (!sanitizedChart) {
+        if (!cancelled) {
+          setSvg('');
+          setError('Bloco Mermaid invalido ou incompleto.');
+        }
+        return;
+      }
 
+      try {
         const mermaid = await getMermaid(isDarkMode ?? false);
-        const { svg: rendered } = await mermaid.render(idRef.current, clean);
+        const { svg: rendered } = await mermaid.render(idRef.current, sanitizedChart);
 
         if (!cancelled) {
           setSvg(rendered);
           setError(null);
+          setShowDetails(false);
         }
       } catch (err: unknown) {
         if (!cancelled) {
           const typedError = err as { str?: string; message?: string };
-          console.error('Erro Mermaid:', err);
+          setSvg('');
           setError(typedError?.str || typedError?.message || 'Falha ao renderizar diagrama');
         }
       }
@@ -117,7 +131,7 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
     return () => {
       cancelled = true;
     };
-  }, [chart, isDarkMode]);
+  }, [chart, isDarkMode, sanitizedChart]);
 
   if (error) {
     return (
@@ -134,6 +148,12 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
             {showDetails ? 'Ocultar' : 'Ver erro'}
           </button>
         </div>
+        <p className="mt-2 text-[11px] leading-snug">
+          O diagrama ficou disponivel em texto para o dossie continuar legivel.
+        </p>
+        <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-black/5 p-2 font-mono text-[10px] leading-snug whitespace-pre-wrap dark:bg-black/40">
+          {fallbackChart || chart.trim()}
+        </pre>
         {showDetails ? (
           <pre className="mt-2 max-h-40 overflow-auto rounded-md bg-black/5 p-2 text-[10px] leading-snug whitespace-pre-wrap dark:bg-black/40">
             {error}
@@ -160,63 +180,6 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
     </div>
   );
 };
-
-function sanitizeMermaidCode(input: string): string {
-  if (!input) return '';
-
-  let code = input
-    .replace(/<br\s*\/?>\s*/gi, '\n')
-    .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
-    .replace(/<\!--[\s\S]*?-->/g, '')
-    .replace(/[\u2013\u2014]/g, '-')
-    .replace(/^[^a-zA-Z]+/, '')
-    .trim();
-
-  const collectedClassLines: string[] = [];
-  const seenClassAssignments = new Set<string>();
-  code = code.replace(
-    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
-    (_full, nodeId: string, nodeShape: string, className: string) => {
-      const classLine = `class ${nodeId} ${className};`;
-      if (!seenClassAssignments.has(classLine)) {
-        seenClassAssignments.add(classLine);
-        collectedClassLines.push(classLine);
-      }
-      return `${nodeId}${nodeShape}`;
-    },
-  );
-
-  code = code.replace(
-    /^(\s*subgraph\s+)([^"'\n\[\]{]+?)(\s*)$/gm,
-    (full, prefix, label, suffix) => {
-      const trimmed = label.trim();
-      if (!trimmed || /[\s()\[\]\/\\%:]/.test(trimmed)) return full;
-      return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
-    },
-  );
-
-  const mermaidStart =
-    /(graph\s+(?:TB|TD|LR|RL|BT)?|flowchart\s+(?:TB|TD|LR|RL|BT)?|sequenceDiagram|gantt|classDiagram|stateDiagram-v2?|erDiagram|journey|pie|quadrantChart|gitGraph)/i;
-  const match = code.match(mermaidStart);
-  if (!match) return '';
-
-  code = code.slice(match.index ?? 0).trim();
-
-  const firstWord = code.split(/\s+/)[0].toLowerCase();
-  if (
-    !/^(graph|flowchart|sequencediagram|gantt|classdiagram|statediagram-v2?|erdiagram|journey|pie|quadrantchart|gitgraph)$/.test(
-      firstWord,
-    )
-  ) {
-    return '';
-  }
-
-  if (collectedClassLines.length > 0) {
-    code = `${code}\n${collectedClassLines.join('\n')}`;
-  }
-
-  return code;
-}
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
@@ -247,7 +210,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const processedContent = useMemo(() => {
     if (!content) return '';
 
-    let text = stripPortaMarkers(content);
+    let text = normalizeMermaidBlocks(stripPortaMarkers(content));
     const preservedMermaidBlocks: string[] = [];
 
     const preserveMermaid = (input: string): string =>
@@ -259,12 +222,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
     const restoreMermaid = (input: string): string =>
       input.replace(/@@__MERMAID_BLOCK_(\d+)__@@/g, (_match, index) => preservedMermaidBlocks[Number(index)] || '');
-
-    const fence = '`'.repeat(3);
-    text = text.replace(/\{"mermaid":"([\s\S]*?)"\}/g, (_match, raw: string) => {
-      const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-      return `\n${fence}mermaid\n${unescaped}\n${fence}\n`;
-    });
 
     text = preserveMermaid(text);
     text = fixFakeLinks(text);

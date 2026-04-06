@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockMermaidRender = vi.hoisted(() => vi.fn().mockResolvedValue({ svg: '<svg data-testid="mermaid-svg">test</svg>' }));
@@ -49,5 +49,23 @@ describe('MarkdownRenderer security regressions', () => {
     expect(lastCall?.[1]).toContain('graph LR');
     expect(lastCall?.[1]).toContain('class A core;');
     expect(lastCall?.[1]).not.toContain(':::core');
+  });
+
+  it('degrada Mermaid invalido para fallback visual sem poluir o console', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockMermaidRender.mockRejectedValueOnce(new Error('Parse error on line 2'));
+
+    render(<MarkdownRenderer content={'```mermaid\ngraph LR\nA --> B\n```'} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText((_content, node) => node?.textContent?.includes('renderizar o diagrama') ?? false).length,
+      ).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByText(/graph LR/i)).toBeInTheDocument();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
   });
 });
