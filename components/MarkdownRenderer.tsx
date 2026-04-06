@@ -39,6 +39,12 @@ interface MermaidProps {
   isDarkMode?: boolean;
 }
 
+function isMermaidCodeNode(node: React.ReactNode): boolean {
+  if (!React.isValidElement(node)) return false;
+  const props = (node as React.ReactElement<{ className?: string }>).props;
+  return /\blanguage-mermaid\b/.test(props.className || '');
+}
+
 function extractNodeText(node: React.ReactNode): string {
   if (node == null || typeof node === 'boolean') return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
@@ -263,6 +269,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   }, [content, citationMap]);
 
   const components: Record<string, React.FC<any>> = {
+    pre: ({ children }: { children: React.ReactNode }) => {
+      const childNodes = React.Children.toArray(children);
+      if (childNodes.some(isMermaidCodeNode)) {
+        return <div className="my-4">{children}</div>;
+      }
+
+      return (
+        <pre className="my-4 overflow-x-auto rounded-xl bg-slate-950 px-4 py-3 text-[0.78rem] leading-relaxed text-slate-100 dark:bg-slate-950/90">
+          {children}
+        </pre>
+      );
+    },
+
     code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode }) => {
       const langMatch = /language-(\w+)/.exec(className || '');
       const isMermaid = !inline && langMatch && langMatch[1] === 'mermaid';

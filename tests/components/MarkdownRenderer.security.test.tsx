@@ -43,8 +43,8 @@ describe('MarkdownRenderer security regressions', () => {
     mockMermaidParse.mockClear();
   });
 
-  it('normaliza Mermaid com classes inline ::: antes de renderizar', async () => {
-    render(<MarkdownRenderer content={'```mermaid\ngraph LR\nA[Campo/Plantio] :::core ==> B[Algodoeira]\n```'} />);
+  it('normalizes Mermaid with inline classes before rendering', async () => {
+    const { container } = render(<MarkdownRenderer content={'```mermaid\ngraph LR\nA[Campo/Plantio] :::core ==> B[Algodoeira]\n```'} />);
 
     await waitFor(() => expect(mockMermaidRender).toHaveBeenCalled());
     const lastCall = mockMermaidRender.mock.calls.at(-1);
@@ -52,13 +52,14 @@ describe('MarkdownRenderer security regressions', () => {
     expect(lastCall?.[1]).toContain('graph LR');
     expect(lastCall?.[1]).toContain('class A core;');
     expect(lastCall?.[1]).not.toContain(':::core');
+    expect(container.querySelector('pre .mermaid-chart')).toBeNull();
+    expect(container.querySelector('.mermaid-chart')).not.toBeNull();
   });
 
-  it('degrada Mermaid invalido para fallback visual sem poluir o console', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('degrades invalid Mermaid into visual fallback without console noise', async () => {
     mockMermaidRender.mockRejectedValueOnce(new Error('Parse error on line 2'));
-
-    render(<MarkdownRenderer content={'```mermaid\ngraph LR\nA --> B\n```'} />);
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = render(<MarkdownRenderer content={'```mermaid\ngraph LR\nA --> B\n```'} />);
 
     await waitFor(() => {
       expect(
@@ -67,17 +68,23 @@ describe('MarkdownRenderer security regressions', () => {
     });
 
     expect(screen.getByText(/graph LR/i)).toBeInTheDocument();
+    expect(container.querySelector('.mermaid-chart')).toBeNull();
+    expect(container.querySelector('pre .mermaid-chart')).toBeNull();
+    expect(
+      screen
+        .getAllByText((_content, node) => node?.textContent?.includes('renderizar o diagrama') ?? false)[0]
+        ?.closest('pre'),
+    ).toBeNull();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
   });
 
-  it('degrada Mermaid quando a lib devolve um svg de erro sintático sem lançar', async () => {
+  it('degrades Mermaid when the library returns a syntax-error svg without throwing', async () => {
     mockMermaidRender.mockResolvedValueOnce({
       svg: '<svg><text>Syntax error in text</text><text>mermaid version 10.9.5</text></svg>',
     });
-
-    render(<MarkdownRenderer content={'```mermaid\ngraph TD\nA --> B\n```'} />);
+    const { container } = render(<MarkdownRenderer content={'```mermaid\ngraph TD\nA --> B\n```'} />);
 
     await waitFor(() => {
       expect(
@@ -86,5 +93,12 @@ describe('MarkdownRenderer security regressions', () => {
     });
 
     expect(screen.getByText(/graph TD/i)).toBeInTheDocument();
+    expect(container.querySelector('.mermaid-chart')).toBeNull();
+    expect(container.querySelector('pre .mermaid-chart')).toBeNull();
+    expect(
+      screen
+        .getAllByText((_content, node) => node?.textContent?.includes('renderizar o diagrama') ?? false)[0]
+        ?.closest('pre'),
+    ).toBeNull();
   });
 });
