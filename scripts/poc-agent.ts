@@ -6,7 +6,7 @@ import { HumanMessage } from "@langchain/core/messages";
 // Lembre-se de ter o GEMINI_API_KEY configurado no seu .env
 const model = new ChatGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
-  model: "gemini-1.5-pro-latest", // Corrigido de modelName para model
+  model: "gemini-2.5-flash",
   maxOutputTokens: 2048,
   temperature: 0.7,
 });
