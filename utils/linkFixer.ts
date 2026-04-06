@@ -18,18 +18,24 @@ export function fixFakeLinks(markdownText: string): string {
   let clean = markdownText.replace(
     MARKDOWN_HTTP_LINK_REGEX,
     (match, linkText, url) => {
-      // Se for URL fake, tenta encontrar URL real
+      // Se for URL fake, tenta encontrar URL real ou lida com badges
       if (isFakeUrl(url)) {
+        // Se for um badge de status (CONFIRMADO/AUDITORIA), apenas mantém como negrito limpo
+        const isBadge = /confirmado|auditoria/i.test(linkText);
+        if (isBadge) {
+          return `**${linkText}**`;
+        }
+        
         const realUrl = findSeniorProductUrl(linkText);
         if (realUrl) {
           return `[${linkText}](${realUrl})`;
         }
-        // NÃO remove o link - mantém como negrito com indicação
-        // Isso preserva a informação para o usuário
+        
+        // NÃO remove o link - mantém como negrito com indicação para fontes não-badges
         return `**${linkText}** *[fonte não disponível]*`;
       }
       return match;
-    }
+    },
   );
 
   // 2. URLs soltas fake no texto → remover

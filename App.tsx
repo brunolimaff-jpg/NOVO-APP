@@ -9,6 +9,7 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useSessionManager } from './hooks/useSessionManager';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
+import LoadingSmart from './components/LoadingSmart';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
@@ -1352,12 +1353,6 @@ const App: React.FC = () => {
               canWarRoom={canWarRoom}
               onLogout={logout}
               lastUserQuery={lastQuery}
-              processing={{
-                stage: loadingStatus,
-                completedStages: completedLoadingStatuses,
-                failureCount: failureCount,
-                totalStages: loadingTotalStages,
-              }}
               onDeleteMessage={handleDeleteMessage}
               radar={{
                 alerts: radar.alerts,
@@ -1428,6 +1423,23 @@ const App: React.FC = () => {
           }
           onSchedule={handleScheduleFollowUp}
           onClose={() => setShowFollowUpModal(false)}
+        />
+      )}
+
+      {isLoading && (
+        <LoadingSmart
+          isLoading={isLoading}
+          mode={mode}
+          isDarkMode={isDarkMode}
+          onStop={handleStopGeneration}
+          processing={{
+            stage: loadingStatus,
+            completedStages: completedLoadingStatuses,
+            failureCount: failureCount,
+            totalStages: loadingTotalStages,
+          }}
+          searchQuery={lastQuery}
+          empresaAlvo={currentSession?.empresaAlvo}
         />
       )}
 
