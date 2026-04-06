@@ -94,14 +94,25 @@ describe('MessageRow', () => {
     expect(screen.getByText('Analisar Fazenda Boa Vista')).toBeInTheDocument();
   });
 
-  it('renderiza thinking state com LoadingSmart', () => {
+  it('renderiza loading hero com LoadingSmart', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      isThinking: true,
+      loadingVariant: 'hero',
+      text: '',
+    });
+    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+  });
+
+  it('usa loading inline como fallback seguro quando loadingVariant está ausente', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    expect(screen.getByTestId('ghost-block')).toBeInTheDocument();
   });
 
   it('renderiza mensagem de erro com ErrorMessageCard', () => {
