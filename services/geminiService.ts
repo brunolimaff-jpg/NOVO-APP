@@ -589,16 +589,16 @@ export async function generateContinuityQuestion(
     .join('\n');
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
-  const userPrompt   = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 3 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
+  const userPrompt   = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
   try {
     const response = await proxyGenerateContent({
       model:    ROUTER_MODEL_ID,
       contents: userPrompt,
-      config:   { temperature: 0.8, maxOutputTokens: 600, systemInstruction: systemPrompt },
+      config:   { temperature: 0.8, maxOutputTokens: 800, systemInstruction: systemPrompt },
     });
     const raw = (response.text || '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
   } catch {
     return [];
   }

@@ -344,27 +344,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [currentSession?.id, processingInfo]);
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── Ao concluir geração: volta suavemente para a mensagem do usuário ──────
-  useEffect(() => {
-    const wasLoading = prevIsLoadingRef.current;
-    prevIsLoadingRef.current = isLoading;
-
-    // Só age na transição loading true → false
-    if (!wasLoading || isLoading) return;
-
-    // Reseta flag de scroll manual para o próximo ciclo
-    userHasScrolledUpRef.current = false;
-
-    if (lastUserIndex == null || !virtuosoRef.current) return;
-
-    setTimeout(() => {
-      virtuosoRef.current?.scrollToIndex({
-        index: lastUserIndex,
-        behavior: 'smooth',
-        align: 'start',
-      });
-    }, 100);
-  }, [isLoading, lastUserIndex]);
+  // O auto-scroll forçado ao finalizar a geração foi removido para permitir leitura estável do topo.
+  // ─────────────────────────────────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────
 
   const hideSuggestionsForMessageId =
@@ -610,14 +591,20 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 }`} />
 
                 <div className="relative flex items-center justify-center">
-                  <svg className="w-5 h-5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    {/* Crossed Axes */}
-                    {/* Axe 1 */}
-                    <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="m14 12-8.5 8.5a2.12 2.12 0 1 1-3-3L11 9" />
-                    <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M15 13 9 7l4-4 6 6h3l-3 3z" />
-                    {/* Axe 2 (Mirrored) */}
-                    <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="m10 12 8.5 8.5a2.12 2.12 0 1 0 3-3L13 9" />
-                    <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M9 13 15 7l-4-4-6 6H2l3 3z" />
+                  <svg className="w-5 h-5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                    {/* Crossed Double Battle Axes (Machados de Lâmina Dupla) */}
+                    
+                    {/* Axe 1 (Red) */}
+                    <g transform="rotate(45, 12, 12)">
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 21V7" />
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
+                    </g>
+
+                    {/* Axe 2 (Rose) */}
+                    <g transform="rotate(-45, 12, 12)">
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 21V7" />
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
+                    </g>
                   </svg>
                 </div>
                 
@@ -719,7 +706,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
-              followOutput={isLoading && !userHasScrolledUpRef.current ? 'smooth' : false}
+              followOutput={false}
               increaseViewportBy={{ top: 400, bottom: 400 }}
               initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
               style={{ height: '100%' }}
