@@ -138,9 +138,9 @@ async function executeGeminiAction(
     }
 
     case 'chatSendMessage': {
+      // Usando new GoogleGenAI().getGenerativeModel()
       const model = ai.getGenerativeModel({
         model: selectedModel,
-        systemInstruction: body.systemInstruction,
       });
 
       const chat = model.startChat({
