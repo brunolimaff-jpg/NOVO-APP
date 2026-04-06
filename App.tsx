@@ -582,28 +582,28 @@ const App: React.FC = () => {
           {
             name: 'Tech Stack',
             prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-            stage: 'Investigando tech stack...',
+            stage: 'Entendendo a operação e tecnologia...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
             prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-            stage: 'Investigando riscos & compliance...',
+            stage: 'Verificando sinais de risco e conformidade...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Estratégia & Expansão',
             prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-            stage: 'Investigando estratégia & expansão...',
+            stage: 'Analisando movimento e posicionamento de mercado...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'RH & Decisores',
             prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-            stage: 'Investigando RH & decisores...',
+            stage: 'Identificando estrutura, liderança e decisores...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
@@ -669,9 +669,9 @@ const App: React.FC = () => {
         }
 
         if (previousStageCompleted) {
-          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         let benchmarkCompleted = false;
@@ -697,9 +697,9 @@ const App: React.FC = () => {
         }
 
         if (benchmarkCompleted) {
-          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         if (optionalStepFailures.length > 0) {

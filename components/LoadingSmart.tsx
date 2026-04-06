@@ -20,12 +20,12 @@ const SOURCE_LINKS: Record<string, string> = {
 
 const MODULAR_DOSSIER_STAGES = [
   'Mapeando inteligência operacional...',
-  'Investigando tech stack...',
-  'Investigando riscos & compliance...',
-  'Investigando estratégia & expansão...',
-  'Investigando RH & decisores...',
-  'Cruzando referências de mercado...',
-  'Finalizando dossiê modular...',
+  'Entendendo a operação e tecnologia...',
+  'Verificando sinais de risco e conformidade...',
+  'Analisando movimento e posicionamento de mercado...',
+  'Identificando estrutura, liderança e decisores...',
+  'Reunindo referências e sinais de mercado...',
+  'Consolidando a análise final...',
 ];
 
 const INVESTIGATION_TIMELINE_STAGES = [
@@ -35,9 +35,9 @@ const INVESTIGATION_TIMELINE_STAGES = [
   'Orquestrando protocolo de investigação forense...',
   'Consultando inteligência Senior...',
   'Infiltrando em fontes externas e sinais digitais...',
-  'Analisando stack tecnológico e legados digitais...',
-  'Escaneando riscos fiscais e compliance SEFAZ...',
-  'Mapeando centro de gravidade: Decisores e RH...',
+  'Entendendo a operação e tecnologia...',
+  'Verificando sinais de risco e conformidade...',
+  'Identificando estrutura, liderança e decisores...',
   'Calibrando Score PORTA contra o setor...',
   'Sintetizando narrativa executiva de alto impacto...',
   'Materializando recomendações práticas...',
@@ -160,13 +160,13 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
 
 function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boolean }) {
   const visualWidth = Math.max(percent, 3);
-  const label = percent < 5 ? 'Iniciando...' : `${percent}%`;
+  const label = percent < 5 ? 'Preparando análise...' : `${percent}%`;
   return (
     <div className={`rounded-xl px-4 py-3 ${
       isDarkMode ? 'bg-slate-800/80 border border-emerald-500/15' : 'bg-emerald-50 border border-emerald-200'
     }`}>
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Progresso</span>
+        <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Andamento</span>
         <span className={`text-sm font-bold tabular-nums transition-all duration-500 ${
           percent < 5 ? (isDarkMode ? 'text-slate-500' : 'text-slate-400') : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')
         }`}>{label}</span>
@@ -396,6 +396,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const completedCount = completedRich.length;
   const pendingInQueue = queueRef.current.length;
   const realTotalCompleted = (processing?.completedStages || []).length;
+  const realCompletedStageKeys = new Set((processing?.completedStages || []).map(getStageIdentity).filter(Boolean));
   const declaredTotalStages =
     typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
       ? processing.totalStages : null;
@@ -414,9 +415,36 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         : observedLabels;
   const plannedRich = plannedStageLabels.map(enrichStage);
   const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
-  const completedStageKeys = new Set(displayedCompleted.map(getStageIdentity).filter(Boolean));
+  const completedStageKeys = realCompletedStageKeys;
   const currentStageKey = getStageIdentity(displayedCurrent);
   const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
+  const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
+  const visiblePlannedIndices = new Set<number>();
+
+  plannedRich.forEach((step, index) => {
+    if (completedStageKeys.has(getStageIdentity(step.label))) {
+      visiblePlannedIndices.add(index);
+    }
+  });
+
+  if (currentPlannedIndex >= 0) {
+    visiblePlannedIndices.add(currentPlannedIndex);
+    const nextPlannedIndex = plannedRich.findIndex(
+      (step, index) =>
+        index > currentPlannedIndex &&
+        !completedStageKeys.has(getStageIdentity(step.label)),
+    );
+    if (nextPlannedIndex >= 0) {
+      visiblePlannedIndices.add(nextPlannedIndex);
+    }
+  } else {
+    const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
+    if (nextPendingIndex >= 0) {
+      visiblePlannedIndices.add(nextPendingIndex);
+    }
+  }
+
+  const visiblePlannedStages = plannedRich.filter((_, index) => visiblePlannedIndices.has(index));
   // Fallback dinâmico: sem hardcode por modo — autoajusta conforme etapas reais chegam
   const expectedTotal = declaredTotalStages
     ?? (plannedRich.length > 0 ? plannedRich.length : (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2)));
@@ -505,7 +533,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             ) : (
               <button onClick={() => setConfirmStop(true)}
                 className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold">
-                PARAR
+                Interromper
               </button>
             )
           )}
@@ -521,7 +549,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           }`}>{currentRich.label}</h2>
           <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
             isDarkMode ? 'text-slate-500' : 'text-slate-400'
-          }`}>Módulos reais da análise em execução</p>
+          }`}>Análise em execução</p>
         </div>
         <div className={`w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <ProgressBar percent={percent} isDarkMode={isDarkMode} />
@@ -536,10 +564,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           <div className="flex flex-col">
             <h2 className={`text-xs md:text-sm font-bold uppercase tracking-wider mb-3 ${
               isDarkMode ? 'text-slate-400' : 'text-slate-500'
-            }`}>Etapas da Investigação</h2>
+            }`}>Etapas da análise</h2>
 
             <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[35vh] md:max-h-[45vh] pr-2">
-              {plannedRich.map((step, i) => {
+              {visiblePlannedStages.map((step, i) => {
                 const stepKey = getStageIdentity(step.label);
                 const isCompleted = completedStageKeys.has(stepKey);
                 const isCurrent = !isCompleted && stepKey === currentStageKey;
@@ -560,7 +588,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                           ? (isDarkMode ? 'text-slate-200 font-medium' : 'text-slate-700 font-medium')
                           : (isDarkMode ? 'text-slate-500' : 'text-slate-500')
                     }`}>
-                      {step.icon && <span className="mr-1.5">{step.icon}</span>}
                       {step.label}
                     </span>
                     {isCompleted && stepTimestampsRef.current[step.label] !== undefined ? (
@@ -580,7 +607,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                   <span className={`text-sm flex-1 min-w-0 font-medium ${
                     isDarkMode ? 'text-slate-200' : 'text-slate-700'
                   }`}>
-                    {currentRich.icon && <span className="mr-1.5">{currentRich.icon}</span>}
                     {currentRich.label}
                   </span>
                 </div>
@@ -608,7 +634,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             <div className={`flex-1 min-w-0 transition-opacity duration-300 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
               <p className={`text-xs font-black uppercase tracking-widest mb-1 ${
                 isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-              }`}>Inteligência & Insight</p>
+              }`}>Contexto estratégico</p>
               <div className="max-h-[80px] md:max-h-[100px] overflow-y-auto">
                 <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-slate-100' : 'text-slate-700'}`}>
                   {renderInsight(currentInsight)}
