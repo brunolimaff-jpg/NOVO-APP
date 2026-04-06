@@ -23,9 +23,29 @@ vi.mock('react-virtuoso', () => {
 });
 
 vi.mock('../../components/MessageRow', () => ({
-  default: ({ index, data }: { index: number; data: { messages: Array<{ text: string }> } }) => (
-    <div data-testid={`message-row-${index}`}>{data.messages[index].text}</div>
-  ),
+  default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
+    const message = data.messages[index];
+
+    return (
+      <div data-testid={`message-row-${index}`}>
+        <span>{message.text}</span>
+        {message.isThinking && message.loadingVariant === 'inline' ? (
+          <span data-testid={`loading-inline-${index}`}>loading-inline</span>
+        ) : null}
+        {message.isThinking && message.loadingVariant !== 'inline' ? (
+          <span data-testid={`loading-smart-hero-${index}`}>loading-smart-hero</span>
+        ) : null}
+        {message.sender === 'bot' && !message.isThinking && !data.isLoading && data.onDeepDive ? (
+          <button
+            type="button"
+            onClick={() => data.onDeepDive?.('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH')}
+          >
+            deep-dive-row-{index}
+          </button>
+        ) : null}
+      </div>
+    );
+  },
 }));
 
 vi.mock('../../contexts/ModeContext', () => ({
@@ -193,6 +213,104 @@ describe('ChatInterface shell regression', () => {
     expect(screen.getByTestId('virtuoso')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
+  });
+
+
+  it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', () => {
+    const firstRoundMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    const secondRoundMessages: Message[] = [
+      ...firstRoundMessages,
+      buildMessage('m3', Sender.User, 'Quais riscos fiscais mais críticos?'),
+      {
+        ...buildMessage('m4', Sender.Bot, ''),
+        isThinking: true,
+        loadingVariant: 'inline',
+      },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(firstRoundMessages),
+          sessions: [buildSession(firstRoundMessages)],
+          messages: firstRoundMessages,
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(secondRoundMessages),
+          sessions: [buildSession(secondRoundMessages)],
+          messages: secondRoundMessages,
+          isLoading: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
+    expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
+  });
+
+  it('dispara Deep Dive e mantém loadingVariant inline na rodada seguinte', async () => {
+    const onDeepDive = vi.fn(async () => undefined);
+    const baseMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(baseMessages),
+          sessions: [buildSession(baseMessages)],
+          messages: baseMessages,
+          onDeepDive,
+          canDeepDive: true,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'deep-dive-row-1' }));
+
+    await waitFor(() => {
+      expect(onDeepDive).toHaveBeenCalledWith('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH');
+    });
+
+    const deepDiveThinkingMessages: Message[] = [
+      ...baseMessages,
+      buildMessage('m3', Sender.User, 'Dossiê completo: Tech Stack'),
+      {
+        ...buildMessage('m4', Sender.Bot, ''),
+        isThinking: true,
+        loadingVariant: 'inline',
+      },
+    ];
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(deepDiveThinkingMessages),
+          sessions: [buildSession(deepDiveThinkingMessages)],
+          messages: deepDiveThinkingMessages,
+          isLoading: true,
+          onDeepDive,
+          canDeepDive: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
+    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
+    expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
   });
 
   it('renderiza o status de processamento sem imprimir o objeto bruto', () => {

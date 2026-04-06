@@ -17,7 +17,7 @@ vi.mock('../../services/geminiService', () => ({
   ]),
 }));
 
-describe('LoadingSmart', () => {
+describe('LoadingSmart (variante hero)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
