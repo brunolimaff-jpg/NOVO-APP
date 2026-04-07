@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { motion } from 'framer-motion';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
@@ -166,10 +167,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const { mode, setMode } = useMode();
   const { user, userId, updateName, login, loading } = useAuth();
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
 
   // ── Scroll behavior refs ──────────────────────────────────────────────────
+  const userHasScrolledUpRef = useRef(false);
   const malformedProcessingSignatureRef = useRef<string | null>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -232,6 +236,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [showRetryToast]);
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
+  useEffect(() => {
+    const container = scrollContainerRef.current?.querySelector(
+      '[data-virtuoso-scroller]',
+    ) as HTMLElement | null;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      userHasScrolledUpRef.current = distanceFromBottom > 120;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
   const lastBotWithSuggestionsIndex = useMemo(
@@ -659,7 +678,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
           {showInitialHome ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               {!loading && !user ? (
@@ -680,28 +699,30 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               )}
             </div>
           ) : (
-            <div
-              data-testid="messages-scroller"
-              className="h-full min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar"
-            >
-              {hasMore ? (
-                <div className="flex justify-center py-3">
-                  <button
-                    type="button"
-                    onClick={onLoadMore}
-                    className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                  >
-                    Carregar mensagens anteriores
-                  </button>
-                </div>
-              ) : null}
-
-              {safeMessages.map((message, index) => (
-                <div key={message.id} data-message-row data-message-id={message.id}>
-                  {itemContent(index)}
-                </div>
-              ))}
-            </div>
+            <Virtuoso
+              ref={virtuosoRef}
+              data={safeMessages}
+              computeItemKey={(_, message) => message.id}
+              itemContent={itemContent}
+              followOutput={false}
+              increaseViewportBy={{ top: 400, bottom: 400 }}
+              initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
+              style={{ height: '100%' }}
+              components={{
+                Header: () =>
+                  hasMore ? (
+                    <div className="flex justify-center py-3">
+                      <button
+                        type="button"
+                        onClick={onLoadMore}
+                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+                      >
+                        Carregar mensagens anteriores
+                      </button>
+                    </div>
+                  ) : null,
+              }}
+            />
           )}
         </div>
 

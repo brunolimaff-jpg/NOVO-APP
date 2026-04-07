@@ -78,6 +78,7 @@ import {
 } from './utils/reportUtils';
 import { getFeatureAccessForUser } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import FooterCredits from './components/FooterCredits';
 
 // --- INJETADO ANALYTICS AQUI ---
 import { Analytics } from "@vercel/analytics/react";
@@ -1387,9 +1388,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1481,6 +1482,9 @@ const App: React.FC = () => {
               canAccessMiniCRM={canAccessMiniCRM}
             />
           )}
+        </main>
+        <div className="flex-none">
+          <FooterCredits />
         </div>
       </div>
 
