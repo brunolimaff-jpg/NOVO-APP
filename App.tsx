@@ -192,6 +192,9 @@ const App: React.FC = () => {
   const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -426,6 +429,9 @@ const App: React.FC = () => {
     }));
     setInvestigationLogged(false);
     resetLoadingProgress();
+    setRequestKind('default');
+    setLoadingVariant('hero');
+    setLoadingPinnedLabel(null);
     lastActionRef.current = null;
     setLastQuery('');
     setVisibleCount(PAGE_SIZE);
@@ -437,14 +443,24 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
-    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
+    options?: {
+      isFollowUp?: boolean;
+      isDeepDive?: boolean;
+      isFirstInteraction?: boolean;
+      requestKind?: RequestKind;
+      fixedLoadingLine?: string;
+    },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
-    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    const resolvedRequestKind = options?.requestKind ?? requestKind;
+    const fixedLoadingLine = options?.fixedLoadingLine ?? null;
+    const resolvedLoadingVariant: LoadingVariant =
+      resolvedRequestKind === 'deep_dive' ? 'inline' : 'hero';
+    setRequestKind(resolvedRequestKind);
     setLoadingVariant(resolvedLoadingVariant);
-    setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
+    setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -501,7 +517,8 @@ const App: React.FC = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant:
+        resolvedRequestKind === 'deep_dive' || hasConsolidatedBotResponse ? 'inline' : 'hero',
       isSourcesOpen: false,
     };
 
@@ -961,10 +978,17 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
     const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
     const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
+    const resolvedRequestKind = options?.requestKind ?? 'default';
+    const fixedLoadingLine =
+      resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+    setRequestKind(resolvedRequestKind);
+    setLoadingPinnedLabel(fixedLoadingLine);
     await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
+      requestKind: resolvedRequestKind,
+      fixedLoadingLine: fixedLoadingLine || undefined,
     });
   };
 
@@ -997,6 +1021,7 @@ const App: React.FC = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setLoadingPinnedLabel(null);
     }
   }, []);
 
