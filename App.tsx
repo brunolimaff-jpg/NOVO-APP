@@ -78,6 +78,12 @@ import {
 } from './utils/reportUtils';
 import { getFeatureAccessForUser } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import FooterCredits from './components/FooterCredits';
+
+// --- INJETADO ANALYTICS AQUI ---
+import { Analytics } from "@vercel/analytics/react";
+// --- INJETADO SPEED INSIGHTS AQUI ---
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const PAGE_SIZE = 20;
 type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
@@ -211,7 +217,7 @@ const App: React.FC = () => {
   const [followUpDias, setFollowUpDias] = useState(7);
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-
+  
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -517,17 +523,19 @@ const App: React.FC = () => {
         Boolean(message.text?.trim()),
     );
 
+    const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+      hasConsolidatedBotResponse,
+    });
+
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: resolvePlaceholderLoadingVariant({
-        requestKind: resolvedRequestKind,
-        isFollowUp: options?.isFollowUp,
-        hasConsolidatedBotResponse,
-      }),
+      loadingVariant: placeholderLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -577,14 +585,10 @@ const App: React.FC = () => {
           waterfallClienteSeniorData,
         );
 
-        const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
-          updateSessionById(sessionId, s => ({
-            ...s,
-            messages: (s.messages || []).map(msg =>
-              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
-            )
-          }));
+        const appendWaterfallChunk = (chunk: string) => {
+          const normalizedChunk = chunk.trim();
+          if (!normalizedChunk) return;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
         };
 
         const modules = [
@@ -665,7 +669,7 @@ const App: React.FC = () => {
               { signal, timeoutMs: module.timeoutMs }
             );
 
-            updateBotText(moduleResult);
+            appendWaterfallChunk(moduleResult);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
@@ -696,7 +700,7 @@ const App: React.FC = () => {
             signal,
             timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
           });
-          if (benchmark) updateBotText(benchmark);
+          if (benchmark) appendWaterfallChunk(benchmark);
           benchmarkCompleted = true;
           setFailureCount(0);
         } catch (error) {
@@ -719,7 +723,7 @@ const App: React.FC = () => {
         }
 
         if (optionalStepFailures.length > 0) {
-          updateBotText(
+          appendWaterfallChunk(
             `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
           );
         } else {
@@ -947,6 +951,12 @@ const App: React.FC = () => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
+    const resolvedRequestKind = options?.requestKind ?? 'default';
+    const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+
+    setRequestKind(resolvedRequestKind);
+    setLoadingPinnedLabel(fixedLoadingLine);
+
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
@@ -987,17 +997,12 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
     const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
     const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
-    const resolvedRequestKind = options?.requestKind ?? 'default';
-    const fixedLoadingLine =
-      resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
-    setRequestKind(resolvedRequestKind);
-    setLoadingPinnedLabel(fixedLoadingLine);
     await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
       requestKind: resolvedRequestKind,
-      fixedLoadingLine: fixedLoadingLine || undefined,
+      fixedLoadingLine: fixedLoadingLine ?? undefined,
     });
   };
 
@@ -1404,9 +1409,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <div className="flex-1 min-h-0">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1498,6 +1503,9 @@ const App: React.FC = () => {
               canAccessMiniCRM={canAccessMiniCRM}
             />
           )}
+        </main>
+        <div className="flex-none">
+          <FooterCredits />
         </div>
       </div>
 
@@ -1568,8 +1576,15 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
+      <Analytics />
+      {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}
+      <SpeedInsights />
     </>
   );
 };
 
 export default App;
+// Forcing deployment to resolve dossier rendering and test conflicts.
+// Force build 1775507790

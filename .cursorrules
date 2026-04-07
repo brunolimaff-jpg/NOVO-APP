@@ -1,0 +1,7 @@
+# Senior Scout 360
+
+- Repo root is the app root. Use `components/`, `contexts/`, `hooks/`, `services/`, `prompts/`, `utils/`, `api/`, and `tests/`.
+- Stack: React 19, TypeScript, Vite, Tailwind, Clerk, Gemini, Vercel serverless.
+- Keep prompts in `prompts/` and secrets out of frontend code.
+- Avoid empty catches and unjustified `any`.
+- Validate changes with `npm run typecheck`, `npm run test`, and `npm run build` when relevant.

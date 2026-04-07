@@ -8,20 +8,6 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
-vi.mock('react-virtuoso', () => {
-  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, _ref) => (
-    <div data-testid="virtuoso" style={style}>
-      {components?.Header ? <components.Header /> : null}
-      {data.map((item: any, index: number) => (
-        <div key={item?.id ?? index}>{itemContent(index, item)}</div>
-      ))}
-    </div>
-  ));
-  Virtuoso.displayName = 'VirtuosoMock';
-
-  return { Virtuoso };
-});
-
 vi.mock('../../components/MessageRow', () => ({
   default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];
@@ -210,9 +196,32 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('virtuoso')).toBeInTheDocument();
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
+  });
+
+  it('mantem o shell do chat ancorado em flex-1 min-h-0 sem depender de h-full', () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    const { container } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+        })}
+      />,
+    );
+
+    const shell = container.firstElementChild;
+    expect(shell).not.toBeNull();
+    expect(shell?.className).toContain('flex-1');
+    expect(shell?.className).toContain('min-h-0');
+    expect(shell?.className).not.toContain('h-full');
   });
 
 
@@ -367,6 +376,52 @@ describe('ChatInterface shell regression', () => {
           sessionId: 'session-1',
         }),
       );
+    });
+  });
+
+  it('nao faz auto-scroll quando o loading termina', async () => {
+    const loadingMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, ''),
+        isThinking: true,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const finalMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, '# Dossie final\n\nConclusao pronta'),
+        isThinking: false,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(loadingMessages),
+          sessions: [buildSession(loadingMessages)],
+          messages: loadingMessages,
+          isLoading: true,
+        })}
+      />,
+    );
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(finalMessages),
+          sessions: [buildSession(finalMessages)],
+          messages: finalMessages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     });
   });
 });

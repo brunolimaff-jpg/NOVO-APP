@@ -31,24 +31,26 @@ export const config = {
 };
 
 export const maxDuration = 300;
-// Timeout interno para chat normal (com grounding).
+
 const CHAT_TIMEOUT_MS = 55_000;
-// Investigações pesadas (mega-prompt / deep dive) desativam grounding e
-// precisam de mais tempo para o modelo processar prompts grandes.
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
   const fallback = process.env.GEMINI_API_KEY_FALLBACK;
-  const keys = [primary, fallback].filter((k): k is string => Boolean(k));
-  if (keys.length === 0) throw new Error('Missing required env var: GEMINI_API_KEY');
+  const keys = [primary, fallback].filter((key): key is string => Boolean(key));
+
+  if (keys.length === 0) {
+    throw new Error('Missing required env var: GEMINI_API_KEY');
+  }
+
   return keys;
 }
 
 function isQuotaExhausted(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
+  const message = error instanceof Error ? error.message : String(error);
+  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -59,6 +61,7 @@ function normalizeHistory(
   input: Array<{ role: 'user' | 'model'; text: string }> | undefined,
 ): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
   if (!input) return [];
+
   return input
     .map((item) => ({ role: item.role, parts: [{ text: item.text }] }))
     .filter((msg) => msg.parts[0].text.trim().length > 0);
@@ -79,9 +82,10 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 
 function extractGeminiHttpStatus(error: unknown): number {
   if (error instanceof Error) {
-    const msg = error.message;
-    if (/\"code\"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
+    const message = error.message;
+    if (/"code"\s*:\s*429/.test(message) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message)) return 429;
   }
+
   const err = error as Record<string, unknown>;
   if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
   if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
@@ -100,12 +104,11 @@ async function executeGeminiAction(
       const response = await ai.models.generateContent({
         model: DEFAULT_GEMINI_MODEL,
         contents: 'Responda apenas: OK',
-        config: { temperature: 0, maxOutputTokens: 10 }
+        config: { temperature: 0, maxOutputTokens: 10 },
       });
 
       const text = response.text || '';
-      const ok = /ok/i.test(text);
-      return res.status(200).json({ ok, text });
+      return res.status(200).json({ ok: /ok/i.test(text), text });
     }
 
     case 'generateContent': {
@@ -128,12 +131,12 @@ async function executeGeminiAction(
       const response = await ai.models.generateContent({
         model,
         contents,
-        config: genConfig
+        config: genConfig,
       });
 
       return res.status(200).json({
         text: response.text || '',
-        candidates: response.candidates || []
+        candidates: response.candidates || [],
       });
     }
 
@@ -151,12 +154,10 @@ async function executeGeminiAction(
           history,
           config: {
             systemInstruction,
-            // Thinking mode trades creativity for deterministic factual output.
             temperature: thinkingMode ? 0.1 : 0.15,
-            // Limite conservador para reduzir latência e risco de timeout.
             maxOutputTokens: 65536,
-            tools: withGrounding ? [{ googleSearch: {} }] : undefined
-          }
+            tools: withGrounding ? [{ googleSearch: {} }] : undefined,
+          },
         });
 
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
@@ -168,28 +169,23 @@ async function executeGeminiAction(
       };
 
       let response;
-      // groundingActivated rastreia se o grounding estava ativo na chamada que
-      // efetivamente retornou. Inicia com a intenção original e é atualizado para
-      // false caso o fallback silencioso seja acionado.
       let groundingActivated = useGrounding;
 
       try {
         response = await runChat(useGrounding);
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-        // Fallback: tenta sem grounding para evitar timeout total.
-        // Registra que o fallback foi acionado para notificar o cliente.
-        console.warn('[GeminiProxy] Grounding falhou, acionando fallback sem grounding:', primaryError instanceof Error ? primaryError.message : String(primaryError));
+
+        console.warn(
+          '[GeminiProxy] Grounding falhou, acionando fallback sem grounding:',
+          primaryError instanceof Error ? primaryError.message : String(primaryError),
+        );
         groundingActivated = false;
         response = await runChat(false);
       }
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
-      // groundingUsed = true somente quando o grounding estava ativo E retornou
-      // chunks concretos. Grounding ativo sem chunks (sem resultados relevantes)
-      // ainda conta como fallback para fins de aviso ao usuário.
-      const groundingUsed: boolean = groundingActivated && groundingChunks.length > 0;
+      const groundingUsed = groundingActivated && groundingChunks.length > 0;
 
       return res.status(200).json({
         text: response.text || '',
@@ -229,6 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           lastError = error;
           continue;
         }
+
         throw error;
       }
     }

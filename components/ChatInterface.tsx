@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { motion } from 'framer-motion';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
@@ -167,7 +167,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const { mode, setMode } = useMode();
   const { user, userId, updateName, login, loading } = useAuth();
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -175,7 +174,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   // ── Scroll behavior refs ──────────────────────────────────────────────────
   const userHasScrolledUpRef = useRef(false);
-  const prevIsLoadingRef = useRef(false);
   const malformedProcessingSignatureRef = useRef<string | null>(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -239,7 +237,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
   useEffect(() => {
-    // O Virtuoso renderiza o scroller como um filho direto do container
     const container = scrollContainerRef.current?.querySelector(
       '[data-virtuoso-scroller]',
     ) as HTMLElement | null;
@@ -248,7 +245,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     const handleScroll = () => {
       const distanceFromBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight;
-      // > 120px do fundo = usuário scrollou para cima intencionalmente
       userHasScrolledUpRef.current = distanceFromBottom > 120;
     };
 
@@ -482,7 +478,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     (index: number) => <MessageRow index={index} data={itemData} />,
     [itemData],
   );
-
   const handleOpenSettings = () => setShowSettings(true);
   const handleCloseSettings = () => setShowSettings(false);
   const handleOpenWarRoom = () => setShowWarRoom(true);
@@ -508,7 +503,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const radarUnread = radar?.unreadCount ?? 0;
 
   return (
-    <div className={`flex h-screen overflow-hidden ${theme.bg}`}>
+    <div className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <SessionsSidebar
         sessions={sessions}
@@ -532,7 +527,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       />
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>

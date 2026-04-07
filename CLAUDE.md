@@ -1,115 +1,47 @@
-# Senior Scout 360 — Guia de Contexto para Agentes de IA
+# Senior Scout 360 - AI Context Guide
 
-## O que é este projeto
+## What this project is
 
-**Senior Scout 360** é um copiloto de inteligência comercial (React 18 + TypeScript + Vite) para executivos de contas da Senior Sistemas no Agronegócio. Vendedor insere nome/CNPJ → IA enriquece via Gemini + Search Grounding (streaming) → Dossiês por área → Score PORTA (0–100) → Táticas de abordagem → CRM interno → Radar de monitoramento.
+Senior Scout 360 is a commercial intelligence app for account executives focused on agribusiness accounts. It combines AI-assisted investigation, scoring, dossier generation, Radar monitoring, and a lightweight CRM workflow.
 
-App em produção: https://scoutagro.vercel.app
+Production app: `https://scoutagro.vercel.app`
 
 ## Stack
 
-- **Frontend:** React 18 + TypeScript + TailwindCSS + Vite
-- **IA:** Google Gemini (streaming, Search Grounding)
-- **Auth:** Clerk.dev
-- **Deploy:** Vercel (serverless functions em `api/*.ts`)
-- **Testes:** Vitest (37 testes, todos passam)
-- **Banco/RAG:** Pinecone
+- React 19 + TypeScript + Vite
+- Tailwind CSS
+- Clerk
+- Google Gemini
+- Pinecone
+- Vercel serverless functions in `api/*.ts`
+- Vitest
 
-## Variáveis de ambiente obrigatórias
+## Repository structure
 
-| Variável | Serviço |
-|---|---|
-| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk (bloqueia UI sem isso) |
-| `GEMINI_API_KEY` | Google Gemini |
-| `PINECONE_API_KEY` | Pinecone RAG |
+- `App.tsx`: main app orchestration
+- `components/`: UI components
+- `contexts/`: React providers
+- `hooks/`: custom hooks
+- `services/`: domain and integration services
+- `prompts/`: AI prompt definitions
+- `utils/`: shared utilities
+- `api/`: serverless endpoints
+- `tests/`: automated tests
 
-## Comandos essenciais
+## Rules for agents
 
-```bash
-npm run dev          # dev server em http://localhost:3000
-npm run build        # build de produção
-npm run test         # vitest (37 testes)
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint
-npm run format       # prettier
-```
+1. Read the current file before proposing changes.
+2. Do not assume legacy paths such as `src/*`.
+3. Keep prompts in `prompts/`.
+4. Keep secrets and API keys out of frontend code.
+5. Avoid empty catches.
+6. Preserve user-visible loading states for AI operations.
+7. Run relevant validation when possible: `npm run typecheck`, `npm run test`, `npm run build`.
 
-## Estrutura de diretórios
+## Domain vocabulary
 
-```
-src/
-  components/     # componentes React
-  hooks/          # hooks customizados
-  services/       # chamadas externas
-  prompts/        # prompt chains Gemini (versionados aqui)
-  contexts/       # React contexts
-  utils/          # utilitários
-  types.ts        # tipos globais
-  constants.ts    # constantes
-api/              # Vercel serverless functions
-tests/            # Vitest
-```
-
-## Score PORTA — Framework proprietário
-
-O núcleo do produto. Qualificação preditiva 0–100 em 5 dimensões:
-
-| Dimensão | O que avalia |
-|---|---|
-| **P — Porte** | Tamanho real do grupo: hectares, cabeças, unidades industriais |
-| **O — Operação** | Complexidade operacional: integração vertical, diversificação |
-| **R — Retorno** | Pressão externa: compliance, financiamento rural, auditoria |
-| **T — Tecnologia** | Maturidade tech: legados, planilhas, silos de dados |
-| **A — Adoção** | Janela política: perfil decisor, histórico tech, urgência |
-
-**Faixas:**
-- 80–100 → Prioridade máxima (Field Sales imediato)
-- 65–79 → Pipeline ativo (urgência)
-- 50–64 → Ciclo longo (Inside Sales)
-- 35–49 → Monitorar
-- < 35 → Fora do ICP
-
-## Regras críticas para agentes
-
-1. **SEMPRE ler o código atual no repo antes de propor qualquer mudança** — nunca assuma conteúdo de arquivo
-2. Funções de IA/prompt ficam em `src/prompts/` — versionar com cuidado
-3. As serverless functions em `api/` NÃO rodam com `npm run dev` (só Vite local) — produção via Vercel
-4. `old.tsx` na raiz é backup minificado — ignorar erros de TypeScript vindos dele
-5. ESLint usa `.eslintrc.cjs` (legacy) — não migrar sem aprovação
-6. Clerk em modo dev exige e-mail real para sign-up — sem bypass de código
-7. ZERO `catch` vazio — sempre log + fallback + feedback visual
-8. Tipagem forte — `any` só com justificativa explícita
-
-## Vocabulário do domínio
-
-- **Dossiê** = relatório investigativo do prospect
-- **Score PORTA** = qualificação preditiva 0–100
-- **Radar** = monitoramento proativo de prospects salvos
-- **War Room** = análise 360 graus
-- **Deep Dive** = aprofundamento por área
-- **GATEC** = produto Senior de gestão agrícola
-- **HCM** = produto Senior de gestão de pessoas
-
-## Issues conhecidos (pré-existentes)
-
-- ESLint v10 + `.eslintrc.cjs` (flat config mismatch) — `npm run lint` falha
-- `old.tsx` gera milhares de erros no `typecheck` — avaliar separadamente
-- Clerk requer chave válida para renderizar UI
-
-<!-- caliber:managed:pre-commit -->
-## Antes de commitar
-
-Verifique se o hook do Caliber está instalado:
-```bash
-grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || echo "no-hook"
-```
-- **hook-active**: commit normalmente
-- **no-hook**: rode `caliber refresh` antes de commitar
-<!-- /caliber:managed:pre-commit -->
-
-<!-- caliber:managed:sync -->
-## Sync de contexto
-
-Este projeto usa [Caliber](https://github.com/caliber-ai-org/ai-setup) para manter configs de agentes sincronizados.
-Configs: `CLAUDE.md` · `.claude/` · `.cursor/rules/` · `.github/copilot-instructions.md`
-<!-- /caliber:managed:sync -->
+- Dossie: investigative report
+- PORTA: proprietary scoring framework
+- Radar: proactive monitoring
+- Deep Dive: focused follow-up analysis
+- War Room: extended competitive or strategic analysis

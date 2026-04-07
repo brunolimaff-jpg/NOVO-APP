@@ -1,43 +1,49 @@
-# Senior Scout 360 — GitHub Copilot Instructions
+# Senior Scout 360 - GitHub Copilot Instructions
 
-## Projeto
+## Project
 
-Copiloto de inteligência comercial para executivos de contas da Senior Sistemas no Agronegócio.
-App: https://scoutagro.vercel.app
+Senior Scout 360 is a commercial intelligence app for account executives selling into agribusiness. The production app is `https://scoutagro.vercel.app`.
 
 ## Stack
 
-React 18 · TypeScript · TailwindCSS · Vite · Google Gemini (streaming) · Clerk.dev · Vercel serverless · Pinecone
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- Clerk
+- Google Gemini
+- Vercel serverless functions in `api/*.ts`
+- Vitest
 
-## Convenções obrigatórias
+## Repository layout
 
-- Prompts Gemini → `src/prompts/` (nunca inline)
-- API keys → `api/` serverless (nunca no frontend)
-- ZERO catch vazio — sempre log + fallback + feedback visual
-- `any` só com comentário justificando
-- Loading granular — skeleton screens enquanto IA processa
-- Tipagem forte em todo TypeScript
+- `App.tsx` orchestrates the main app shell and session flow.
+- `components/` contains UI components.
+- `contexts/` contains React providers and shared state.
+- `hooks/` contains custom hooks.
+- `services/` contains integration and domain services.
+- `prompts/` contains reusable AI prompts.
+- `utils/` contains shared utilities.
+- `api/` contains Vercel serverless handlers.
+- `tests/` contains Vitest coverage.
 
-## Score PORTA — Framework proprietário
+## Required conventions
 
-Qualificação preditiva 0–100 em 5 dimensões:
-- **P** Porte (tamanho real do grupo econômico)
-- **O** Operação (complexidade operacional)
-- **R** Retorno (pressão externa: compliance, financiamento)
-- **T** Tecnologia (maturidade e dívida tech)
-- **A** Adoção (janela política e cultural)
+- Keep prompts in `prompts/`, not inline in components.
+- Keep API keys and secrets out of frontend code.
+- Do not add empty `catch` blocks.
+- Prefer strong typing and avoid `any` unless there is a documented reason.
+- Preserve explicit loading states for AI flows.
+- Check current file contents before proposing edits.
 
-Sugestões que toquem em scoring devem respeitar as 5 dimensões com evidências reais.
+## Domain notes
 
-## Vocabulário
+- PORTA is the proprietary 0-100 scoring model: Porte, Operacao, Retorno, Tecnologia, Adocao.
+- Dossie = investigative report for a target account.
+- Radar = proactive monitoring flow.
+- Deep Dive and War Room are advanced analysis modes.
 
-- Dossiê = relatório investigativo do prospect
-- Radar = monitoramento proativo
-- GATEC = produto Senior de gestão agrícola
-- HCM = produto Senior de gestão de pessoas
+## Validation
 
-## Issues pré-existentes (não reportar como bugs novos)
-
-- ESLint v10 + `.eslintrc.cjs` → `npm run lint` falha (pré-existente)
-- `old.tsx` na raiz → erros de TS (pré-existente, ignorar)
-- Clerk requer chave válida para renderizar UI
+- Preferred checks are `npm run typecheck`, `npm run test`, and `npm run build`.
+- If a failure is pre-existing, say so clearly instead of blaming the current diff.
