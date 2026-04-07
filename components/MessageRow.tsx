@@ -4,7 +4,6 @@ import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
-import LoadingSmart from './LoadingSmart';
 import InlineTypingResponse from './InlineTypingResponse';
 import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
@@ -101,11 +100,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     sessionId,
     userId,
     processing,
-    lastUserQuery,
-    onStop,
     onSendMessage,
     empresaAlvo,
-    loadingPinnedLabel,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;
@@ -147,31 +143,9 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   }, [auditableSources, msg.isSourcesOpen]);
 
   if (showHeroLoading) {
-    content = (
-      <div className="flex justify-start animate-fade-in">
-        <div
-          className={`rounded-2xl p-4 shadow-sm w-full ${
-            isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
-          } px-3 md:px-5 py-3 md:py-4`}
-        >
-          <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
-            <span>{assistantLabel}</span>
-            <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-          <LoadingSmart
-            isLoading={isLoading}
-            mode={mode}
-            isDarkMode={isDarkMode}
-            loadingVariant="inline"
-            fixedStatusLine={loadingPinnedLabel || undefined}
-            onStop={isLoading ? onStop : undefined}
-            processing={processing}
-            searchQuery={lastUserQuery}
-            empresaAlvo={empresaAlvo}
-          />
-        </div>
-      </div>
-    );
+    // Hero loading lives in App.tsx via the fullscreen LoadingSmart overlay.
+    // Rendering a second inline card here downgrades the premium experience.
+    return null;
   } else if (showInlineLoading) {
     content = (
       <div className="flex justify-start animate-fade-in">

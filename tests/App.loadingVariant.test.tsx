@@ -3,7 +3,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 
-const { deepDiveErrorRef, sendMessageToGeminiMock, setSessionsMock } = vi.hoisted(() => ({
+const {
+  deepDiveErrorRef,
+  sendMessageToGeminiMock,
+  generateDossierModuleMock,
+  setSessionsMock,
+} = vi.hoisted(() => ({
   deepDiveErrorRef: { current: null as unknown },
   sendMessageToGeminiMock: vi.fn(async () => ({
     text: 'Resposta consolidada',
@@ -12,14 +17,33 @@ const { deepDiveErrorRef, sendMessageToGeminiMock, setSessionsMock } = vi.hoiste
     scorePorta: null,
     ghostReason: null,
   })),
+  generateDossierModuleMock: vi.fn(),
   setSessionsMock: vi.fn(),
 }));
 
 vi.mock('../components/ChatInterface', () => ({
-  default: (props: { onDeepDive?: (display: string, hidden: string, forcedCompanyName?: string) => Promise<void>; loadingVariant?: string; loadingPinnedLabel?: string | null }) => (
+  default: (props: {
+    onDeepDive?: (display: string, hidden: string, forcedCompanyName?: string) => Promise<void>;
+    onSendMessage?: (text: string, displayText?: string, hintedCompanyOverride?: string | null) => Promise<void>;
+    loadingVariant?: string;
+    loadingPinnedLabel?: string | null;
+  }) => (
     <div data-testid="chat-interface">
       <span data-testid="chat-loading-variant">{props.loadingVariant ?? 'missing'}</span>
       <span data-testid="chat-pinned-label">{props.loadingPinnedLabel ?? 'none'}</span>
+      <button
+        type="button"
+        onClick={async () => {
+          deepDiveErrorRef.current = null;
+          try {
+            await props.onSendMessage?.('Investigar Acme Agro');
+          } catch (error) {
+            deepDiveErrorRef.current = error;
+          }
+        }}
+      >
+        trigger-default-send
+      </button>
       <button
         type="button"
         onClick={async () => {
@@ -175,7 +199,7 @@ vi.mock('../utils/featureAccess', () => ({
 vi.mock('../services/geminiService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
   generateContinuityQuestion: vi.fn(),
-  generateDossierModule: vi.fn(),
+  generateDossierModule: generateDossierModuleMock,
   getIsolatedBenchmark: vi.fn(),
 }));
 
@@ -192,14 +216,34 @@ describe('App loading variant regression', () => {
     expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
   });
 
+  it('mantém a primeira investigação em hero e mostra o LoadingSmart global', async () => {
+    sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-default-send' }));
+
+    await waitFor(() => {
+      expect(setSessionsMock).toHaveBeenCalled();
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    });
+
+    expect(deepDiveErrorRef.current).toBeNull();
+  });
+
   it('executa deep dive sem quebrar por requestKind ou fixedLoadingLine indefinidos', async () => {
+    generateDossierModuleMock.mockImplementationOnce(() => new Promise(() => {}));
+
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-deep-dive' }));
 
     await waitFor(() => {
       expect(setSessionsMock).toHaveBeenCalled();
-      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+      expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('Deep Dive em andamento: Tech Stack');
+      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
     });
 
     expect(deepDiveErrorRef.current).toBeNull();

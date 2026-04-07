@@ -260,7 +260,7 @@ describe('ChatInterface shell regression', () => {
     expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
   });
 
-  it('dispara Deep Dive e mantém loadingVariant inline na rodada seguinte', async () => {
+  it('dispara Deep Dive e mantém loadingVariant hero na rodada seguinte', async () => {
     const onDeepDive = vi.fn(async () => undefined);
     const baseMessages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
@@ -291,7 +291,7 @@ describe('ChatInterface shell regression', () => {
       {
         ...buildMessage('m4', Sender.Bot, ''),
         isThinking: true,
-        loadingVariant: 'inline',
+        loadingVariant: 'hero',
       },
     ];
 
@@ -308,9 +308,9 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
-    expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
+    expect(screen.getByText('loading-smart-hero')).toBeInTheDocument();
   });
 
   it('renderiza o status de processamento sem imprimir o objeto bruto', () => {

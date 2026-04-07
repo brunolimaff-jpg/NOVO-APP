@@ -60,6 +60,12 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
+import {
+  resolveLoadingVariant,
+  resolvePlaceholderLoadingVariant,
+  type LoadingVariant,
+  type RequestKind,
+} from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -163,8 +169,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-type RequestKind = 'default' | 'deep_dive';
-type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -456,8 +460,10 @@ const App: React.FC = () => {
 
     const resolvedRequestKind = options?.requestKind ?? requestKind;
     const fixedLoadingLine = options?.fixedLoadingLine ?? null;
-    const resolvedLoadingVariant: LoadingVariant =
-      resolvedRequestKind === 'deep_dive' ? 'inline' : 'hero';
+    const resolvedLoadingVariant = resolveLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+    });
     setRequestKind(resolvedRequestKind);
     setLoadingVariant(resolvedLoadingVariant);
     setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
@@ -517,8 +523,11 @@ const App: React.FC = () => {
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant:
-        resolvedRequestKind === 'deep_dive' || hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant: resolvePlaceholderLoadingVariant({
+        requestKind: resolvedRequestKind,
+        isFollowUp: options?.isFollowUp,
+        hasConsolidatedBotResponse,
+      }),
       isSourcesOpen: false,
     };
 
