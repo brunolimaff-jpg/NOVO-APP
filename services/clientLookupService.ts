@@ -3,6 +3,7 @@
 
 import { LOOKUP_URL } from "./apiConfig";
 import { CONCORRENTES } from "./competitors";
+import { MatchType } from "../types";
 import { scoutDiag } from "../utils/diagnosticLog";
 
 // Deriva termos-raiz a partir dos IDs dos concorrentes cadastrados (ex: 'totvs_protheus' → 'totvs')
@@ -16,8 +17,6 @@ const _concorrentesSet = new Set<string>([
   'erp', 'sapiens', 'hcm', 'gatec', 'gestão', 'gestao',
   'ronda', 'rubi', 'vetorh', 'erpx',
 ]);
-
-export type MatchType = 'exact' | 'partial' | 'broad';
 
 /**
  * Retorna true se a empresa for um concorrente cadastrado, a própria Senior,
@@ -136,13 +135,212 @@ const _lookupCache = new Map<string, LookupResponse>();
 // Expira após NOT_FOUND_TTL_MS para permitir nova tentativa quando o script já estiver aquecido
 const _notFoundCache = new Map<string, { data: LookupResponse; expiresAt: number }>();
 
-function normalizeCacheKey(name: string): string {
-  return name
-    .replace(/^(grupo|empresa|fazenda|usina|cia)\s+/i, '')
-    .replace(/\s+(ltda|s\/a|sa|eireli|me|epp)\.?$/i, '')
+const LOOKUP_MATCH_PRIORITY: Record<MatchType, number> = {
+  exact: 0,
+  partial: 1,
+  broad: 2,
+};
+
+function normalizeLookupBase(value: string): string {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripLookupNoise(name: string): string {
+  return (name || '')
+    .replace(/^(?:(?:grupo|empresa|fazenda|usina|cia)\s+)+/i, '')
+    .replace(/(?:\s+(?:ltda|s\/a|sa|eireli|me|epp)\.?)+$/i, '')
     .replace(/[.,;:!?]+$/, '')
-    .trim()
-    .toLowerCase();
+    .trim();
+}
+
+function normalizeLookupText(value: string): string {
+  return normalizeLookupBase(stripLookupNoise(value));
+}
+
+const GENERIC_PREFIX_NORMALIZED = new Set(
+  Array.from(_genericPrefixes)
+    .map(prefix => normalizeLookupBase(prefix))
+    .filter(Boolean),
+);
+
+const LOOKUP_TOKEN_STOPWORDS = new Set([
+  ...Array.from(GENERIC_PREFIX_NORMALIZED),
+  'a',
+  'da',
+  'das',
+  'de',
+  'do',
+  'dos',
+  'e',
+  'eireli',
+  'epp',
+  'ltda',
+  'me',
+  's',
+  'sa',
+]);
+
+function getRelevantLookupTokens(value: string): string[] {
+  const normalized = normalizeLookupText(value);
+  if (!normalized) return [];
+
+  return [...new Set(
+    normalized
+      .split(' ')
+      .map(token => token.trim())
+      .filter(token => token.length > 1 && !LOOKUP_TOKEN_STOPWORDS.has(token)),
+  )];
+}
+
+function isGenericLookupPrefixToken(value: string): boolean {
+  return GENERIC_PREFIX_NORMALIZED.has(normalizeLookupBase(value));
+}
+
+function normalizeCacheKey(name: string): string {
+  return normalizeLookupText(name);
+}
+
+interface LookupCandidateMetrics {
+  matchType: MatchType;
+  exactPhrase: boolean;
+  matchedAllTokens: boolean;
+  matchedTokenCount: number;
+  labelLengthDelta: number;
+  normalizedLabel: string;
+}
+
+interface RankedLookupResponse {
+  response: LookupResponse;
+  variant: string;
+  variantIndex: number;
+  isFullVariant: boolean;
+  topMetrics: LookupCandidateMetrics | null;
+}
+
+function compareLookupCandidateMetrics(a: LookupCandidateMetrics, b: LookupCandidateMetrics): number {
+  if (a.exactPhrase !== b.exactPhrase) return a.exactPhrase ? -1 : 1;
+  if (a.matchedAllTokens !== b.matchedAllTokens) return a.matchedAllTokens ? -1 : 1;
+
+  const priorityDiff = LOOKUP_MATCH_PRIORITY[a.matchType] - LOOKUP_MATCH_PRIORITY[b.matchType];
+  if (priorityDiff !== 0) return priorityDiff;
+
+  if (a.matchedTokenCount !== b.matchedTokenCount) return b.matchedTokenCount - a.matchedTokenCount;
+  if (a.labelLengthDelta !== b.labelLengthDelta) return a.labelLengthDelta - b.labelLengthDelta;
+
+  return a.normalizedLabel.localeCompare(b.normalizedLabel);
+}
+
+function getBestLookupCandidateMetrics(result: ClienteResult, fullQuery: string): LookupCandidateMetrics {
+  const queryNormalized = normalizeLookupText(fullQuery);
+  const queryTokens = getRelevantLookupTokens(fullQuery);
+  const labels = [result.grupo, ...(result.razoes_sociais || [])].filter(Boolean);
+  const partialTokenThreshold =
+    queryTokens.length <= 1 ? 1 : Math.min(queryTokens.length, Math.max(2, Math.ceil(queryTokens.length / 2)));
+
+  let bestMetrics: LookupCandidateMetrics | null = null;
+
+  for (const label of labels) {
+    const normalizedLabel = normalizeLookupText(label);
+    if (!normalizedLabel) continue;
+
+    const matchedTokenCount = queryTokens.filter(token => normalizedLabel.includes(token)).length;
+    const exactPhrase =
+      !!queryNormalized && (normalizedLabel === queryNormalized || normalizedLabel.includes(queryNormalized));
+    const matchedAllTokens = queryTokens.length > 0 && matchedTokenCount === queryTokens.length;
+
+    let matchType: MatchType = 'broad';
+    if (exactPhrase) {
+      matchType = 'exact';
+    } else if (matchedAllTokens || matchedTokenCount >= partialTokenThreshold) {
+      matchType = 'partial';
+    }
+
+    const candidateMetrics: LookupCandidateMetrics = {
+      matchType,
+      exactPhrase,
+      matchedAllTokens,
+      matchedTokenCount,
+      labelLengthDelta: Math.abs(normalizedLabel.length - queryNormalized.length),
+      normalizedLabel,
+    };
+
+    if (!bestMetrics || compareLookupCandidateMetrics(candidateMetrics, bestMetrics) < 0) {
+      bestMetrics = candidateMetrics;
+    }
+  }
+
+  return (
+    bestMetrics || {
+      matchType: 'broad',
+      exactPhrase: false,
+      matchedAllTokens: false,
+      matchedTokenCount: 0,
+      labelLengthDelta: Number.MAX_SAFE_INTEGER,
+      normalizedLabel: normalizeLookupText(result.grupo || ''),
+    }
+  );
+}
+
+function rankLookupResponse(response: LookupResponse, fullQuery: string, variant: string, variantIndex: number): RankedLookupResponse {
+  if (!response.encontrado || !response.results?.length) {
+    return {
+      response,
+      variant,
+      variantIndex,
+      isFullVariant: normalizeLookupText(variant) === normalizeLookupText(fullQuery),
+      topMetrics: null,
+    };
+  }
+
+  const rankedResults = response.results
+    .map(result => {
+      const metrics = getBestLookupCandidateMetrics(result, fullQuery);
+      return {
+        result: {
+          ...result,
+          matchType: metrics.matchType,
+        },
+        metrics,
+      };
+    })
+    .sort((a, b) => compareLookupCandidateMetrics(a.metrics, b.metrics));
+
+  return {
+    response: {
+      ...response,
+      results: rankedResults.map(entry => entry.result),
+    },
+    variant,
+    variantIndex,
+    isFullVariant: normalizeLookupText(variant) === normalizeLookupText(fullQuery),
+    topMetrics: rankedResults[0]?.metrics ?? null,
+  };
+}
+
+function compareRankedLookupResponses(a: RankedLookupResponse, b: RankedLookupResponse): number {
+  if (a.response.encontrado && !b.response.encontrado) return -1;
+  if (!a.response.encontrado && b.response.encontrado) return 1;
+
+  if (a.response.encontrado && b.response.encontrado) {
+    if (a.topMetrics && b.topMetrics) {
+      const metricsDiff = compareLookupCandidateMetrics(a.topMetrics, b.topMetrics);
+      if (metricsDiff !== 0) return metricsDiff;
+    }
+
+    if (a.isFullVariant !== b.isFullVariant) return a.isFullVariant ? -1 : 1;
+
+    const totalA = a.response.total ?? 0;
+    const totalB = b.response.total ?? 0;
+    if (totalA !== totalB) return totalA - totalB;
+  }
+
+  return a.variantIndex - b.variantIndex;
 }
 
 export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse> {
@@ -150,9 +348,7 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     console.log("[LOOKUP] === INÍCIO ===");
   }
 
-  const nomeLimpo = nomeEmpresa
-    .replace(/^(grupo|empresa|fazenda|usina|cia)\s+/i, '')
-    .replace(/\s+(ltda|s\/a|sa|eireli|me|epp)\.?$/i, '')
+  const nomeLimpo = stripLookupNoise(nomeEmpresa)
     .replace(/,\s*/g, ' ')   // vírgula vira espaço ("SENIOR, TOTVS" → "SENIOR TOTVS")
     .replace(/[.;:!?]+$/, '')
     .trim()
@@ -193,12 +389,12 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
       : null;
     
     // Se p1 for um prefixo genérico (ex: "FUNDACAO"), não usamos como variante de busca isolada
-    const isP1Generic = p1 && _genericPrefixes.has(p1.toLowerCase());
+    const isP1Generic = p1 ? isGenericLookupPrefixToken(p1) : false;
 
     const words = nomeLimpo.split(/\s+/).filter(w => w.length > 3);
     
     // Pick the longest word that is NOT a generic prefix
-    const nonGenericWords = words.filter(w => !_genericPrefixes.has(w.toLowerCase()));
+    const nonGenericWords = words.filter(w => !isGenericLookupPrefixToken(w));
     const strongest = nonGenericWords.length > 0
       ? [...nonGenericWords].sort((a, b) => b.length - a.length)[0]
       : null;
@@ -209,56 +405,32 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
 
     const settled = await Promise.allSettled(variants.map(v => fetchLookup(v)));
 
-    const fulfilled = settled.filter(
-      (r): r is PromiseFulfilledResult<LookupResponse> => r.status === 'fulfilled'
-    );
+    const rankedResponses = settled
+      .map((result, index) => {
+        if (result.status !== 'fulfilled') return null;
+        return rankLookupResponse(result.value, nomeLimpo, variants[index], index);
+      })
+      .filter((result): result is RankedLookupResponse => Boolean(result))
+      .sort(compareRankedLookupResponses);
 
     // Lógica de seleção aprimorada:
     // 1. Prioriza resultados encontrados.
     // 2. Entre os encontrados, prioriza aquele que contém o nomeLimpo original no grupo ou razoes_sociais.
     // 3. Se empatar, usa o total de resultados como desempate (mais específico geralmente tem menos resultados).
-    const best = fulfilled.sort((a, b) => {
-      if (a.value.encontrado && !b.value.encontrado) return -1;
-      if (!a.value.encontrado && b.value.encontrado) return 1;
-      
-      if (a.value.encontrado && b.value.encontrado) {
-        const queryNorm = nomeLimpo.toLowerCase();
-        
-        const scoreA = a.value.results.some(r => 
-          r.grupo.toLowerCase().includes(queryNorm) || 
-          r.razoes_sociais.some(rs => rs.toLowerCase().includes(queryNorm))
-        ) ? 100 : 0;
-
-        const scoreB = b.value.results.some(r => 
-          r.grupo.toLowerCase().includes(queryNorm) || 
-          r.razoes_sociais.some(rs => rs.toLowerCase().includes(queryNorm))
-        ) ? 100 : 0;
-
-        if (scoreA !== scoreB) return scoreB - scoreA;
-      }
-
-      return (b.value.total ?? 0) - (a.value.total ?? 0);
-    })[0];
 
     // Atribui matchType baseado na precisão
-    let data: LookupResponse = best?.value ?? {
-      ok: false,
-      query: nomeLimpo,
-      encontrado: false,
-      total: 0,
-      results: [],
-    };
-
-    if (data.encontrado && data.results.length > 0) {
-      const q = nomeLimpo.toLowerCase();
-      data.results = data.results.map(r => {
-        const fullMatch = r.grupo.toLowerCase().includes(q) || r.razoes_sociais.some(rs => rs.toLowerCase().includes(q));
-        return {
-          ...r,
-          matchType: fullMatch ? 'exact' : (data.query.length > 5 ? 'partial' : 'broad')
+    const data: LookupResponse = rankedResponses[0]?.response
+      ? {
+          ...rankedResponses[0].response,
+          query: nomeLimpo,
+        }
+      : {
+          ok: false,
+          query: nomeLimpo,
+          encontrado: false,
+          total: 0,
+          results: [],
         };
-      });
-    }
 
     if (shouldLogLookupDebug) {
       console.log("[LOOKUP] Resultado:", data.encontrado ? "ENCONTRADO ✅" : "NÃO ENCONTRADO", "| Total:", data.total);
@@ -329,13 +501,15 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
   }
 
   const r = lookup.results[0];
-  const isExact = r.matchType === 'exact';
+  const effectiveMatchType = r.matchType ?? getBestLookupCandidateMetrics(r, lookup.query).matchType;
+  const isExact = effectiveMatchType === 'exact';
 
   let md = `\n\n---\n## 🔍 BASE INTERNA SENIOR ${isExact ? '[🟢 CONFIRMADO — dados CRM interno Senior]' : '[🟡 POSSÍVEL MATCH — verificar precisão]'}\n`;
   if (!isExact) {
     md += `**Atenção:** Busca retornou dados de um grupo similar. Valide se "${r.grupo}" corresponde à "${lookup.query}".\n\n`;
   }
   md += `**Grupo Cliente:** ${r.grupo}\n`;
+  md += `**Status CRM:** ${isExact ? 'Confirmado' : 'Possivel match'}\n`;
   md += `**É cliente Senior:** ✅ SIM\n`;
   md += `**Total módulos contratados:** ${r.total_modulos}\n\n`;
 
@@ -364,6 +538,14 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
   }
 
   md += `\n**⚠️ INSTRUÇÃO:** Estes dados são 🟢 CONFIRMADO (CRM interno). Os GAPS DEVEM guiar a FASE 8.\n---\n`;
+  if (!isExact) {
+    md += `\n**INSTRUCAO:** Trate estes dados apenas como pista comercial. Nao use este bloco como confirmacao de cliente Senior sem validacao adicional.\n---\n`;
+  }
+  md = isExact
+    ? md
+    : md
+        .replace(/\n\*\*.*cliente Senior:.*\n/g, '\n')
+        .replace(/\n\*\*.*CRM interno\)\. Os GAPS DEVEM guiar a FASE 8\.\n---\n/g, '');
   return md;
 }
 

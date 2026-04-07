@@ -31,6 +31,7 @@ import { addInvestigation } from './investigationStore';
 import { CompetitorDetection, getContextoConcorrentesRegionais } from './competitorService';
 import { buscarContextoPinecone, buscarContextoDocsPinecone } from './ragService';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../utils/loadingCuriosities';
+import { extractClienteSeniorData } from '../utils/seniorEvidence';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 import { proxyChatSendMessage, proxyGenerateContent } from './geminiProxy';
 import { BACKEND_URL } from './apiConfig';
@@ -742,15 +743,8 @@ export async function sendMessageToGemini(
           });
         }
 
-        if (clienteData?.encontrado && clienteData.results?.length > 0) {
-          const r = clienteData.results[0];
-          clienteSeniorData = {
-            encontrado: true,
-            grupo: r.grupo,
-            totalModulos: r.total_modulos,
-            familias: r.familias_presentes,
-            modulosPorFamilia: r.modulos_por_familia
-          };
+        if (clienteData?.results && clienteData.results.length > 0) {
+          clienteSeniorData = extractClienteSeniorData(clienteData);
         }
 
         console.log('[LOOKUP 🔍] Resultado:', {

@@ -41,6 +41,7 @@ export interface AppError {
 export type PortaSegmento = 'PRD' | 'AGI' | 'COP';
 
 export type PortaFlag = 'TRAD' | 'LOCK' | 'NOFIT';
+export type MatchType = 'exact' | 'partial' | 'broad';
 
 export interface ScorePortaData {
   score: number; // 0-100, score final com penalizacoes
@@ -158,6 +159,7 @@ export interface Message {
 
 export interface ClienteSeniorData {
   encontrado: boolean;
+  matchType?: MatchType;
   grupo?: string;
   totalModulos?: number;
   familias?: string[];

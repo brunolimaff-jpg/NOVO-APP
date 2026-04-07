@@ -53,6 +53,12 @@ export const PORTA_FLAG_META: Record<
   },
 };
 
+export interface PortaScoreResolution {
+  score: ScorePortaData | null;
+  source: 'marker' | 'feeds' | 'none';
+  missingDimensions: PortaDimension[];
+}
+
 export function stripVisiblePortaFeedSections(content: string): string {
   if (!content) return '';
 
@@ -187,7 +193,15 @@ export function calculatePortaFlagMultiplier(flags: PortaFlag[]): number {
   return flags.reduce((acc, flag) => acc * PORTA_FLAG_PENALTIES[flag], 1);
 }
 
-export function buildPortaScoreFromFeeds(content: string): ScorePortaData | null {
+function buildPortaFeedSnapshot(content: string): {
+  p: number | null;
+  o: number | null;
+  r: number | null;
+  t: number | null;
+  a: number | null;
+  segmento: PortaSegmento;
+  flags: PortaFlag[];
+} {
   const normalizedContent = normalizePortaContent(content);
   const segmentoMatches = collectMatches(PORTA_SEGMENT_REGEX, normalizedContent);
   const segmento = (segmentoMatches[segmentoMatches.length - 1]?.[1] as PortaSegmento | undefined) || 'PRD';
@@ -236,9 +250,12 @@ export function buildPortaScoreFromFeeds(content: string): ScorePortaData | null
     a = a2FromRh;
   }
 
-  if ([p, o, r, t, a].some(value => value === null)) {
-    return null;
-  }
+  return { p, o, r, t, a, segmento, flags };
+}
+
+export function buildPortaScoreFromFeeds(content: string): ScorePortaData | null {
+  const { p, o, r, t, a, segmento, flags } = buildPortaFeedSnapshot(content);
+  if ([p, o, r, t, a].some(value => value === null)) return null;
 
   const scoreBruto = calculatePortaScoreBruto(p!, o!, r!, t!, a!, segmento);
   const score = Math.round(scoreBruto * calculatePortaFlagMultiplier(flags));
@@ -256,7 +273,7 @@ export function buildPortaScoreFromFeeds(content: string): ScorePortaData | null
   };
 }
 
-export function parsePortaMarkerV2(content: string): ScorePortaData | null {
+function parseExplicitPortaMarker(content: string): ScorePortaData | null {
   const normalizedContent = normalizePortaContent(content);
   const v2Match = normalizedContent.match(PORTA_MARKER_V2_REGEX);
 
@@ -334,5 +351,46 @@ export function parsePortaMarkerV2(content: string): ScorePortaData | null {
     };
   }
 
-  return buildPortaScoreFromFeeds(normalizedContent);
+  return null;
+}
+
+export function resolvePortaScore(content: string): PortaScoreResolution {
+  const markerScore = parseExplicitPortaMarker(content);
+  if (markerScore) {
+    return {
+      score: markerScore,
+      source: 'marker',
+      missingDimensions: [],
+    };
+  }
+
+  const { p, o, r, t, a } = buildPortaFeedSnapshot(content);
+  const missingDimensions = ([
+    ['P', p],
+    ['O', o],
+    ['R', r],
+    ['T', t],
+    ['A', a],
+  ] as const)
+    .filter(([, value]) => value === null)
+    .map(([dimension]) => dimension);
+
+  if (missingDimensions.length > 0) {
+    return {
+      score: null,
+      source: missingDimensions.length === 5 ? 'none' : 'feeds',
+      missingDimensions,
+    };
+  }
+
+  return {
+    score: buildPortaScoreFromFeeds(content),
+    source: 'feeds',
+    missingDimensions: [],
+  };
+}
+
+export function parsePortaMarkerV2(content: string): ScorePortaData | null {
+  const resolution = resolvePortaScore(content);
+  return resolution.score;
 }

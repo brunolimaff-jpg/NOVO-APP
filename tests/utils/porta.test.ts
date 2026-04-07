@@ -4,6 +4,7 @@ import {
   calculatePortaFlagMultiplier,
   calculatePortaScoreBruto,
   parsePortaMarkerV2,
+  resolvePortaScore,
   stripPortaMarkers,
 } from '../../utils/porta';
 
@@ -153,5 +154,51 @@ describe('PORTA helpers', () => {
   it('calculates weights and penalties consistently', () => {
     expect(calculatePortaScoreBruto(9, 9, 8, 6, 5, 'AGI')).toBe(76);
     expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.3);
+  });
+
+  it('resolves a waterfall score from feed markers when the explicit marker is absent', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_O:[8]:ELOS:[Plantio,Armazenagem,Beneficiamento,Exportacao,Logistica]]]
+[[PORTA_FEED_R:[7]:PRESSOES:[Licenca ambiental,GlobalGAP]]]
+[[PORTA_FEED_R:[6]:PRESSOES:[ICMS,IBS/CBS]]]
+[[PORTA_FEED_T:[8]:T1:[7]:T2:[8]:T3:[9]:STACK:[TOTVS]]]
+[[PORTA_FEED_P:[8]:HA:[30000]:CNPJS:[12]:FAT:[R$ 2 bi]]]
+[[PORTA_FEED_P_PROXY:FUNC:[2500]]]
+[[PORTA_FEED_R_TRAB:[5]:PASSIVOS:[Horas extras]]]
+[[PORTA_FEED_A2:[7]:TIMING:[NEUTRO]:FASE:[Planejamento]]]
+[[PORTA_FEED_A:[8]:A1:[8]:A2:[7]:GERACAO:[G2]]]
+[[PORTA_SEG:[AGI]]]
+[[PORTA_FLAG:TRAD:[NAO]:NATUREZA:[PRODUCAO]]]
+[[PORTA_FLAG:LOCK:[NAO]]]
+[[PORTA_FLAG:NOFIT:[NAO]]]
+    `);
+
+    expect(resolved.source).toBe('feeds');
+    expect(resolved.missingDimensions).toEqual([]);
+    expect(resolved.score).toEqual({
+      score: 76,
+      p: 8,
+      o: 8,
+      r: 6,
+      t: 8,
+      a: 8,
+      segmento: 'AGI',
+      flags: [],
+      scoreBruto: 76,
+    });
+  });
+
+  it('returns missing dimensions when the waterfall feed set is incomplete', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_O:[8]:ELOS:[Plantio,Armazenagem,Beneficiamento]]]
+[[PORTA_FEED_R:[6]:PRESSOES:[SEFAZ]]]
+[[PORTA_FEED_P:[7]:HA:[12000]:CNPJS:[4]:FAT:[R$ 300 mi]]]
+[[PORTA_FEED_A2:[7]:TIMING:[BOM]:FASE:[Entressafra]]]
+[[PORTA_SEG:[PRD]]]
+    `);
+
+    expect(resolved.score).toBeNull();
+    expect(resolved.source).toBe('feeds');
+    expect(resolved.missingDimensions).toEqual(['T']);
   });
 });

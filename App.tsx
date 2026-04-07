@@ -31,7 +31,7 @@ import {
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
-import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
+import { resolvePortaScore, stripPortaMarkers } from './utils/porta';
 import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
@@ -701,15 +701,32 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
+        const waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        const waterfallScorePorta = waterfallPortaResolution.score;
+        const waterfallMissingDimensions = waterfallPortaResolution.missingDimensions;
+        if (!waterfallScorePorta && waterfallMissingDimensions.length > 0) {
+          scoutDiag.warn('ModularDossier', 'score PORTA não consolidado no waterfall', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            source: waterfallPortaResolution.source,
+            missingDimensions: waterfallMissingDimensions,
+          });
+        }
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-        const waterfallNarrativeText = appendSeniorEvidenceNote(
+        const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
+        const waterfallOperationalNote =
+          !waterfallScorePorta && waterfallMissingDimensions.length > 0
+            ? `⚠️ Nota operacional: o Score PORTA não foi exibido nesta rodada porque faltaram evidências estruturadas para ${waterfallMissingDimensions.join(', ')}. Reexecute os módulos pendentes para consolidar a pontuação completa.`
+            : '';
+        const waterfallNarrativeText = waterfallOperationalNote
+          ? `${waterfallNarrativeBase}\n\n---\n\n${waterfallOperationalNote}`
+          : waterfallNarrativeBase;
         const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
-          waterfallNarrativeText,
+          waterfallNarrativeBase,
           normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
           waterfallClienteSeniorData,
         );
