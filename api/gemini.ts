@@ -34,7 +34,7 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.1-pro-preview';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
