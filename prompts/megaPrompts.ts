@@ -205,13 +205,14 @@ Regras de construção:
 8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
 9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
 10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
+11. CRÍTICO: Sempre adicione uma linha em branco ANTES do bloco de declarações class para evitar parse errors
 
-Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
-- classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
-- classDef satellite fill:#f0fdf4,stroke:#86efac,stroke-width:1px,color:#166534,rx:12px,ry:12px;
-- classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px,color:#991b1b,rx:12px,ry:12px;
-- classDef warning fill:#fffbeb,stroke:#fcd34d,stroke-width:1px,color:#92400e,rx:12px,ry:12px;
-- classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
+Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente, SEM rx/ry pois Mermaid v10 não suporta):
+- classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155;
+- classDef satellite fill:#f0fdf4,stroke:#86efac,stroke-width:1px,color:#166534;
+- classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px,color:#991b1b;
+- classDef warning fill:#fffbeb,stroke:#fcd34d,stroke-width:1px,color:#92400e;
+- classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b;
 
 Ao invés de azul ou verde genéricos, agora utilize as classes acima:
 - class A core; para sistemas centrais/principais

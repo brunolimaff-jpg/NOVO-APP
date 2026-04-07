@@ -50,6 +50,15 @@ function splitCollapsedStatements(input: string): string {
   );
 }
 
+function splitCollapsedClassDeclarations(input: string): string {
+  // Detecta declarações "class" que aparecem na mesma linha que outras declarações
+  // Exemplo: "G ==> L H class satellite;" → "G ==> L\nH class satellite;"
+  return input.replace(
+    /([^\n])\s+(class\s+[A-Za-z][\w-]*\s+[A-Za-z][\w-]*;)/g,
+    '$1\n$2',
+  );
+}
+
 function materializeQuotedEdgeTargets(input: string): string {
   let syntheticNodeIndex = 0;
   return input.replace(
@@ -98,6 +107,7 @@ export function sanitizeMermaidCode(input: string): string {
     .trim();
 
   code = splitCollapsedStatements(code);
+  code = splitCollapsedClassDeclarations(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
