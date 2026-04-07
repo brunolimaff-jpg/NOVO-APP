@@ -54,6 +54,10 @@ export function collectFullReport(messages: Message[]): { text: string; sections
 
 const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
 
+export function sanitizeMermaidLabel(label: string): string {
+  return `"${label.replace(/"/g, '\\"')}"`;
+}
+
 function normalizeInlineMermaidClasses(chart: string): string {
   const classLines: string[] = [];
   const seenClassAssignments = new Set<string>();
@@ -65,7 +69,12 @@ function normalizeInlineMermaidClasses(chart: string): string {
         seenClassAssignments.add(classLine);
         classLines.push(classLine);
       }
-      return `${nodeId}${nodeShape}`;
+      
+      const isBraced = nodeShape.startsWith('[') && nodeShape.endsWith(']');
+      const content = nodeShape.slice(1, -1);
+      const sanitized = isBraced ? `[${sanitizeMermaidLabel(content)}]` : nodeShape;
+      
+      return `${nodeId}${sanitized}`;
     }
   );
 
