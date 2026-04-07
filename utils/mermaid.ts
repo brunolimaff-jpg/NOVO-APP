@@ -5,6 +5,16 @@ const MERMAID_EDGE_PATTERN =
 const MERMAID_RENDER_ERROR_PATTERN =
   /syntax error in text|parse error|error parsing|lexical error/i;
 
+// Mermaid v10 does not support rx/ry (or other CSS geometry props) inside classDef.
+// Stripping them prevents a parse error that silently breaks diagram rendering.
+function removeUnsupportedClassDefProps(input: string): string {
+  return input.replace(
+    /^(\s*classDef\s+\w+\s+)([^\n;]+)/gm,
+    (_full, prefix: string, props: string) =>
+      prefix + props.replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, ''),
+  );
+}
+
 export function normalizeInlineMermaidClasses(chart: string): string {
   const classLines: string[] = [];
   const seenClassAssignments = new Set<string>();
@@ -80,7 +90,9 @@ export function normalizeMermaidBlocks(markdown: string): string {
 export function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
-  let code = normalizeInlineMermaidClasses(normalizeMermaidText(input))
+  let code = removeUnsupportedClassDefProps(
+    normalizeInlineMermaidClasses(normalizeMermaidText(input)),
+  )
     .replace(/[\t ]+$/gm, '')
     .replace(/^[^a-zA-Z]+/, '')
     .trim();
