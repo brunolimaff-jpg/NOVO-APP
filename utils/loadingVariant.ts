@@ -6,12 +6,26 @@ interface ResolveLoadingVariantOptions {
   isFollowUp?: boolean;
 }
 
+interface ResolvePlaceholderLoadingVariantOptions extends ResolveLoadingVariantOptions {
+  hasConsolidatedBotResponse: boolean;
+}
+
 export function resolveLoadingVariant({
   requestKind,
   isFollowUp = false,
 }: ResolveLoadingVariantOptions): LoadingVariant {
-  if (requestKind === 'deep_dive') return 'inline';
+  if (requestKind === 'deep_dive') return 'hero';
   return isFollowUp ? 'inline' : 'hero';
+}
+
+export function resolvePlaceholderLoadingVariant({
+  requestKind,
+  isFollowUp = false,
+  hasConsolidatedBotResponse,
+}: ResolvePlaceholderLoadingVariantOptions): LoadingVariant {
+  const resolvedVariant = resolveLoadingVariant({ requestKind, isFollowUp });
+  if (requestKind === 'deep_dive') return 'hero';
+  return resolvedVariant === 'inline' || hasConsolidatedBotResponse ? 'inline' : 'hero';
 }
 
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {

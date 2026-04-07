@@ -31,34 +31,26 @@ export const config = {
 };
 
 export const maxDuration = 300;
+
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-
-// FORÇANDO O USO DO GEMINI-3.1-FLASH-LITE-PREVIEW COMO PRIMEIRO DA CASCATA
-const MODEL_CASCADING_ORDER = [
-  'gemini-3.1-flash-lite-preview',
-  'gemini-2.5-flash',
-  'gemini-1.5-flash'
-];
-
-const DEFAULT_GEMINI_MODEL = 'gemini-3.1-flash-lite-preview';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
   const fallback = process.env.GEMINI_API_KEY_FALLBACK;
-  const keys = [primary, fallback].filter((k): k is string => Boolean(k));
-  if (keys.length === 0) throw new Error('Missing required env var: GEMINI_API_KEY');
+  const keys = [primary, fallback].filter((key): key is string => Boolean(key));
+
+  if (keys.length === 0) {
+    throw new Error('Missing required env var: GEMINI_API_KEY');
+  }
+
   return keys;
 }
 
 function isQuotaExhausted(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
-}
-
-function isModelNotFound(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
-  return /models\/.*is not found|404|not found/i.test(msg);
+  const message = error instanceof Error ? error.message : String(error);
+  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -69,11 +61,9 @@ function normalizeHistory(
   input: Array<{ role: 'user' | 'model'; text: string }> | undefined,
 ): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
   if (!input) return [];
+
   return input
-    .map((item) => ({ 
-      role: item.role === 'model' ? 'model' : 'user' as any, 
-      parts: [{ text: item.text }] 
-    }))
+    .map((item) => ({ role: item.role, parts: [{ text: item.text }] }))
     .filter((msg) => msg.parts[0].text.trim().length > 0);
 }
 
@@ -92,12 +82,13 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 
 function extractGeminiHttpStatus(error: unknown): number {
   if (error instanceof Error) {
-    const msg = error.message;
-    if (/\"code\"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
-    if (/404|not found/i.test(msg)) return 404;
+    const message = error.message;
+    if (/"code"\s*:\s*429/.test(message) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message)) return 429;
   }
+
   const err = error as Record<string, unknown>;
   if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
+  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
   return 500;
 }
 
@@ -107,59 +98,99 @@ async function executeGeminiAction(
   ai: GoogleGenAI,
   body: ParsedBody,
   res: VercelResponse,
-  modelOverride?: string
 ): Promise<VercelResponse> {
-  // A API da Google requer que o nome do modelo não tenha prefixo 'models/' se você usa o SDK moderno corretamente, 
-  // mas vamos garantir a string limpa.
-  const selectedModel = (modelOverride || body.model || DEFAULT_GEMINI_MODEL).replace('models/', '');
-  console.log(`[GeminiAPI] Executando ${body.action} com modelo: ${selectedModel}`);
-  
   switch (body.action) {
     case 'health': {
-      const model = ai.getGenerativeModel({ model: selectedModel });
-      const response = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: 'Responda apenas: OK' }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 10 }
+      const response = await ai.models.generateContent({
+        model: DEFAULT_GEMINI_MODEL,
+        contents: 'Responda apenas: OK',
+        config: { temperature: 0, maxOutputTokens: 10 },
       });
-      const text = response.response.text() || '';
+
+      const text = response.text || '';
       return res.status(200).json({ ok: /ok/i.test(text), text });
     }
 
     case 'generateContent': {
-      const model = ai.getGenerativeModel({ model: selectedModel });
-      const response = await model.generateContent({
-        contents: body.contents as any,
-        generationConfig: {
-          temperature: toNumberSafe(body.config?.temperature, 0.2),
-          maxOutputTokens: toNumberSafe(body.config?.maxOutputTokens, 65536),
-        }
+      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const contents = body.contents;
+      if (!contents) {
+        return res.status(400).json({ error: 'Missing contents' });
+      }
+
+      const configIn = (body.config ?? {}) as Record<string, unknown>;
+      const genConfig: Record<string, unknown> = {
+        temperature: toNumberSafe(configIn.temperature, 0.2),
+        maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
+      };
+
+      if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
+      if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
+      if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: genConfig,
       });
-      return res.status(200).json({ text: response.response.text() });
+
+      return res.status(200).json({
+        text: response.text || '',
+        candidates: response.candidates || [],
+      });
     }
 
     case 'chatSendMessage': {
-      // Usando new GoogleGenAI().getGenerativeModel()
-      const model = ai.getGenerativeModel({
-        model: selectedModel,
-      });
+      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const systemInstruction = body.systemInstruction ?? '';
+      const history = normalizeHistory(body.history);
+      const message = body.message;
+      const useGrounding = body.useGrounding ?? true;
+      const thinkingMode = body.thinkingMode ?? false;
 
-      const chat = model.startChat({
-        history: normalizeHistory(body.history),
-        generationConfig: {
-          temperature: body.thinkingMode ? 0.1 : 0.15,
-          maxOutputTokens: 65536,
-        },
-        tools: body.useGrounding ? [{ googleSearch: {} }] : undefined as any
-      });
+      const runChat = async (withGrounding: boolean) => {
+        const chat = ai.chats.create({
+          model,
+          history,
+          config: {
+            systemInstruction,
+            temperature: thinkingMode ? 0.1 : 0.15,
+            maxOutputTokens: 65536,
+            tools: withGrounding ? [{ googleSearch: {} }] : undefined,
+          },
+        });
 
-      const timeout = body.useGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-      const result = await withTimeout(chat.sendMessage(body.message), timeout, 'gemini-call');
-      
-      const groundingChunks = result.response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
+        return withTimeout(
+          chat.sendMessage({ message }),
+          timeout,
+          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
+        );
+      };
+
+      let response;
+      let groundingActivated = useGrounding;
+
+      try {
+        response = await runChat(useGrounding);
+      } catch (primaryError) {
+        if (!useGrounding) throw primaryError;
+
+        console.warn(
+          '[GeminiProxy] Grounding falhou, acionando fallback sem grounding:',
+          primaryError instanceof Error ? primaryError.message : String(primaryError),
+        );
+        groundingActivated = false;
+        response = await runChat(false);
+      }
+
+      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const groundingUsed = groundingActivated && groundingChunks.length > 0;
+
       return res.status(200).json({
-        text: result.response.text(),
+        text: response.text || '',
         groundingChunks,
-        groundingUsed: (body.useGrounding ?? true) && groundingChunks.length > 0,
+        groundingUsed,
       });
     }
 
@@ -169,36 +200,41 @@ async function executeGeminiAction(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
     const parsed = GeminiRequestSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'Invalid request' });
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+    }
 
     const body = parsed.data;
     const keys = getApiKeys();
-    let lastError: any = new Error('No models or keys available');
+    let lastError: unknown;
 
-    for (const key of keys) {
-      const ai = new GoogleGenAI(key);
-      for (const modelCandidate of MODEL_CASCADING_ORDER) {
-        try {
-          return await executeGeminiAction(ai, body, res, modelCandidate);
-        } catch (error: unknown) {
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: keys[i] });
+        return await executeGeminiAction(ai, body, res);
+      } catch (error: unknown) {
+        const hasNextKey = i < keys.length - 1;
+        if (isQuotaExhausted(error) && hasNextKey) {
+          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando chave de fallback...`);
           lastError = error;
-          if (isQuotaExhausted(error) || isModelNotFound(error)) {
-            console.warn(`[Cascading] ${modelCandidate} falhou. Tentando próximo...`);
-            continue;
-          }
-          throw error;
+          continue;
         }
+
+        throw error;
       }
     }
-    
-    const status = extractGeminiHttpStatus(lastError);
-    return res.status(status).json({ error: 'Falha na IA', detail: String(lastError) });
+
+    throw lastError;
   } catch (error: unknown) {
-    console.error('[GeminiProxy] Final error:', error);
-    return res.status(extractGeminiHttpStatus(error)).json({ error: 'Erro no serviço', detail: String(error) });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Gemini API proxy error:', message);
+    const httpStatus = extractGeminiHttpStatus(error);
+    return res.status(httpStatus).json({ error: 'Gemini proxy failed', detail: message });
   }
 }

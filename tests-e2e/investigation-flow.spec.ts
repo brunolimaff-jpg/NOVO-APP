@@ -17,11 +17,11 @@ test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
     // Para simplificar, vamos interagir diretamente com o input de chat.
 
     // 4. Localiza o input de chat e digita o comando inicial
-    const chatInput = page.locator('textarea[placeholder*="Digite o nome da empresa"]');
+    const chatInput = page.getByLabel('Campo de mensagem');
     await chatInput.fill('Quero investigar a empresa TOTVS');
 
     // 5. Clica no botão de enviar (ícone de avião de papel)
-    const sendButton = page.locator('button.bg-emerald-600');
+    const sendButton = page.getByLabel('Enviar mensagem');
     await sendButton.click();
 
     // 6. Verifica se o estado de carregamento hero (LoadingSmart) aparece
@@ -35,9 +35,8 @@ test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
     await expect(botResponse).toBeVisible({ timeout: 45000 });
 
     // 8. Verifica se a IA identificou a empresa e atualizou o título (opcional, mas bom)
-    const sessionTitle = page.locator('h1, h2, h3').filter({ hasText: /TOTVS/i }).first();
-    // Isso é uma asserção fraca (soft) para não quebrar o teste se a IA decidir responder de outra forma, 
+    // Isso é uma asserção fraca (soft) para não quebrar o teste se a IA decidir responder de outra forma,
     // mas o fluxo de texto deve ter retornado.
-    await expect(botResponse).toContainText(/[a-zA-Z]/); 
+    await expect(botResponse).toContainText(/[a-zA-Z]/);
   });
 });

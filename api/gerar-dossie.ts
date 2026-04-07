@@ -1,11 +1,3 @@
-// api/gerar-dossie.ts
-// Serverless function dedicada à geração de dossiês via Gemini.
-// Separa a responsabilidade de generateContent do endpoint genérico /api/gemini,
-// permitindo tuning independente de timeouts, logging e configurações por caso de uso.
-//
-// Chaves de API ficam exclusivamente no servidor — nunca expostas no bundle frontend.
-// Fallback automático para GEMINI_API_KEY_FALLBACK em caso de cota esgotada (429).
-
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
@@ -22,19 +14,23 @@ export const config = {
 
 export const maxDuration = 300;
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;
   const fallback = process.env.GEMINI_API_KEY_FALLBACK;
-  const keys = [primary, fallback].filter((k): k is string => Boolean(k));
-  if (keys.length === 0) throw new Error('Missing required env var: GEMINI_API_KEY');
+  const keys = [primary, fallback].filter((key): key is string => Boolean(key));
+
+  if (keys.length === 0) {
+    throw new Error('Missing required env var: GEMINI_API_KEY');
+  }
+
   return keys;
 }
 
 function isQuotaExhausted(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota/i.test(msg) || /\"code\"\s*:\s*429/.test(msg);
+  const message = error instanceof Error ? error.message : String(error);
+  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -43,9 +39,10 @@ function toNumberSafe(value: unknown, fallback: number): number {
 
 function extractHttpStatus(error: unknown): number {
   if (error instanceof Error) {
-    const msg = error.message;
-    if (/\"code\"\s*:\s*429/.test(msg) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(msg)) return 429;
+    const message = error.message;
+    if (/"code"\s*:\s*429/.test(message) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message)) return 429;
   }
+
   const err = error as Record<string, unknown>;
   if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
   if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
@@ -71,6 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     temperature: toNumberSafe(configIn.temperature, 0.2),
     maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
   };
+
   if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
   if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
   if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
@@ -86,6 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         contents,
         config: genConfig,
       });
+
       return res.status(200).json({
         text: response.text || '',
         candidates: response.candidates || [],
@@ -97,15 +96,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         lastError = error;
         continue;
       }
+
       lastError = error;
       break;
     }
   }
 
   const message = lastError instanceof Error ? lastError.message : 'Unknown error';
-  console.error('[GerarDossie] Falha total na geração do dossiê:', message);
+  console.error('[GerarDossie] Falha total na geracao do dossie:', message);
   return res.status(extractHttpStatus(lastError)).json({
-    error: 'Falha ao gerar dossiê. Tente novamente em instantes.',
+    error: 'Falha ao gerar dossie. Tente novamente em instantes.',
     detail: message,
   });
 }

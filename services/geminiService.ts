@@ -31,6 +31,7 @@ import { addInvestigation } from './investigationStore';
 import { CompetitorDetection, getContextoConcorrentesRegionais } from './competitorService';
 import { buscarContextoPinecone, buscarContextoDocsPinecone } from './ragService';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../utils/loadingCuriosities';
+import { extractClienteSeniorData } from '../utils/seniorEvidence';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 import { proxyChatSendMessage, proxyGenerateContent } from './geminiProxy';
 import { BACKEND_URL } from './apiConfig';
@@ -82,7 +83,7 @@ const ROUTER_MODEL_ID        = MODEL_IDS.router;
 const TACTICAL_MODEL_ID      = MODEL_IDS.tactical;
 const DEEP_CHAT_MODEL_ID     = MODEL_IDS.deepChat;
 const STABLE_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
-const LOADING_CURIOSITY_MODEL_ID = (import.meta.env.VITE_LOADING_CURIOSITIES_MODEL || 'gemini-3-flash-preview').trim();
+const LOADING_CURIOSITY_MODEL_ID = MODEL_IDS.router;
 const OPEN_QUESTION_RECOVERY_METRIC_KEY = 'scout360_open_question_recovery_count';
 const RECOVERY_DEBUG_FLAG_KEY           = 'scout360_debug_recovery';
 
@@ -742,15 +743,8 @@ export async function sendMessageToGemini(
           });
         }
 
-        if (clienteData?.encontrado && clienteData.results?.length > 0) {
-          const r = clienteData.results[0];
-          clienteSeniorData = {
-            encontrado: true,
-            grupo: r.grupo,
-            totalModulos: r.total_modulos,
-            familias: r.familias_presentes,
-            modulosPorFamilia: r.modulos_por_familia
-          };
+        if (clienteData?.results && clienteData.results.length > 0) {
+          clienteSeniorData = extractClienteSeniorData(clienteData);
         }
 
         console.log('[LOOKUP 🔍] Resultado:', {

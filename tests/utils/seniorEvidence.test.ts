@@ -33,10 +33,46 @@ describe('seniorEvidence', () => {
 
     expect(extractClienteSeniorData(lookup)).toEqual({
       encontrado: true,
+      matchType: 'exact',
       grupo: 'Grupo Scheffer',
       totalModulos: 2,
       familias: ['ERP', 'HCM'],
       modulosPorFamilia: { ERP: ['Financeiro'], HCM: ['Folha'] },
+    });
+  });
+
+  it('não confirma cliente quando o lookup é apenas parcial', () => {
+    const lookup: LookupResponse = {
+      ok: true,
+      query: 'Bom Futuro Agricola',
+      encontrado: true,
+      total: 83,
+      results: [
+        {
+          grupo: 'Bom Futuro Agricola Holding',
+          razoes_sociais: ['Bom Futuro Agricola Participações Ltda'],
+          linhas_produto: ['GRS'],
+          familias_presentes: ['Acesso'],
+          modulos_por_familia: { Acesso: ['Ronda'] },
+          gaps_crosssell: ['ERP'],
+          total_modulos: 1,
+          eh_cliente_senior: true,
+          tem_gatec: false,
+          tem_erp: false,
+          tem_hcm: false,
+          tem_logistica: false,
+          matchType: 'partial',
+        },
+      ],
+    };
+
+    expect(extractClienteSeniorData(lookup)).toEqual({
+      encontrado: false,
+      matchType: 'partial',
+      grupo: 'Bom Futuro Agricola Holding',
+      totalModulos: 1,
+      familias: ['Acesso'],
+      modulosPorFamilia: { Acesso: ['Ronda'] },
     });
   });
 

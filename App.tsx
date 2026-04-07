@@ -31,7 +31,7 @@ import {
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
-import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
+import { resolvePortaScore, stripPortaMarkers } from './utils/porta';
 import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
@@ -60,6 +60,12 @@ import {
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from './utils/loadingStatus';
+import {
+  resolveLoadingVariant,
+  resolvePlaceholderLoadingVariant,
+  type LoadingVariant,
+  type RequestKind,
+} from './utils/loadingVariant';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
@@ -72,6 +78,7 @@ import {
 } from './utils/reportUtils';
 import { getFeatureAccessForUser } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import FooterCredits from './components/FooterCredits';
 
 // --- INJETADO ANALYTICS AQUI ---
 import { Analytics } from "@vercel/analytics/react";
@@ -168,8 +175,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-type RequestKind = 'default' | 'deep_dive';
-type LoadingVariant = 'hero' | 'inline';
 
 const App: React.FC = () => {
   const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
@@ -197,6 +202,9 @@ const App: React.FC = () => {
   const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -210,10 +218,6 @@ const App: React.FC = () => {
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   
-  const [requestKind, setRequestKind] = useState<RequestKind>('default');
-  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
-  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
-
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -435,6 +439,9 @@ const App: React.FC = () => {
     }));
     setInvestigationLogged(false);
     resetLoadingProgress();
+    setRequestKind('default');
+    setLoadingVariant('hero');
+    setLoadingPinnedLabel(null);
     lastActionRef.current = null;
     setLastQuery('');
     setVisibleCount(PAGE_SIZE);
@@ -446,14 +453,26 @@ const App: React.FC = () => {
     explicitHistory?: Message[],
     visibleTextForUi?: string,
     hintedCompanyOverride?: string | null,
-    options?: { isFollowUp?: boolean; isDeepDive?: boolean; isFirstInteraction?: boolean },
+    options?: {
+      isFollowUp?: boolean;
+      isDeepDive?: boolean;
+      isFirstInteraction?: boolean;
+      requestKind?: RequestKind;
+      fixedLoadingLine?: string;
+    },
   ) => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
-    const resolvedLoadingVariant: LoadingVariant = requestKind === 'deep_dive' ? 'inline' : 'hero';
+    const resolvedRequestKind = options?.requestKind ?? requestKind;
+    const fixedLoadingLine = options?.fixedLoadingLine ?? null;
+    const resolvedLoadingVariant = resolveLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+    });
+    setRequestKind(resolvedRequestKind);
     setLoadingVariant(resolvedLoadingVariant);
-    setLoadingPinnedLabel(requestKind === 'deep_dive' ? loadingPinnedLabel || null : null);
+    setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -504,13 +523,19 @@ const App: React.FC = () => {
         Boolean(message.text?.trim()),
     );
 
+    const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+      hasConsolidatedBotResponse,
+    });
+
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: hasConsolidatedBotResponse ? 'inline' : 'hero',
+      loadingVariant: placeholderLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -560,14 +585,10 @@ const App: React.FC = () => {
           waterfallClienteSeniorData,
         );
 
-        const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
-          updateSessionById(sessionId, s => ({
-            ...s,
-            messages: (s.messages || []).map(msg =>
-              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
-            )
-          }));
+        const appendWaterfallChunk = (chunk: string) => {
+          const normalizedChunk = chunk.trim();
+          if (!normalizedChunk) return;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
         };
 
         const modules = [
@@ -648,7 +669,7 @@ const App: React.FC = () => {
               { signal, timeoutMs: module.timeoutMs }
             );
 
-            updateBotText(moduleResult);
+            appendWaterfallChunk(moduleResult);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
@@ -679,7 +700,7 @@ const App: React.FC = () => {
             signal,
             timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
           });
-          if (benchmark) updateBotText(benchmark);
+          if (benchmark) appendWaterfallChunk(benchmark);
           benchmarkCompleted = true;
           setFailureCount(0);
         } catch (error) {
@@ -702,7 +723,7 @@ const App: React.FC = () => {
         }
 
         if (optionalStepFailures.length > 0) {
-          updateBotText(
+          appendWaterfallChunk(
             `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
           );
         } else {
@@ -710,15 +731,32 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
+        const waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        const waterfallScorePorta = waterfallPortaResolution.score;
+        const waterfallMissingDimensions = waterfallPortaResolution.missingDimensions;
+        if (!waterfallScorePorta && waterfallMissingDimensions.length > 0) {
+          scoutDiag.warn('ModularDossier', 'score PORTA não consolidado no waterfall', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            source: waterfallPortaResolution.source,
+            missingDimensions: waterfallMissingDimensions,
+          });
+        }
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-        const waterfallNarrativeText = appendSeniorEvidenceNote(
+        const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
+        const waterfallOperationalNote =
+          !waterfallScorePorta && waterfallMissingDimensions.length > 0
+            ? `⚠️ Nota operacional: o Score PORTA não foi exibido nesta rodada porque faltaram evidências estruturadas para ${waterfallMissingDimensions.join(', ')}. Reexecute os módulos pendentes para consolidar a pontuação completa.`
+            : '';
+        const waterfallNarrativeText = waterfallOperationalNote
+          ? `${waterfallNarrativeBase}\n\n---\n\n${waterfallOperationalNote}`
+          : waterfallNarrativeBase;
         const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
-          waterfallNarrativeText,
+          waterfallNarrativeBase,
           normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
           waterfallClienteSeniorData,
         );
@@ -913,18 +951,12 @@ const App: React.FC = () => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
-    
-    // Process the options to set state
-    if (options?.requestKind) {
-      setRequestKind(options.requestKind);
-    } else {
-      setRequestKind('default');
-    }
-    
-    if (options?.fixedLoadingLine) {
-      setLoadingPinnedLabel(options.fixedLoadingLine);
-    }
-    
+    const resolvedRequestKind = options?.requestKind ?? 'default';
+    const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+
+    setRequestKind(resolvedRequestKind);
+    setLoadingPinnedLabel(fixedLoadingLine);
+
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
@@ -969,6 +1001,8 @@ const App: React.FC = () => {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
+      requestKind: resolvedRequestKind,
+      fixedLoadingLine: fixedLoadingLine ?? undefined,
     });
   };
 
@@ -1001,6 +1035,7 @@ const App: React.FC = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setLoadingPinnedLabel(null);
     }
   }, []);
 
@@ -1374,9 +1409,9 @@ const App: React.FC = () => {
       )}
 
       <div
-        className={`flex flex-col h-[100dvh] w-full overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
+        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
-        <div className="flex-1 min-h-0">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {activeView === 'admin' && isAdmin ? (
             <AdminDash
               sessions={sessions}
@@ -1468,6 +1503,9 @@ const App: React.FC = () => {
               canAccessMiniCRM={canAccessMiniCRM}
             />
           )}
+        </main>
+        <div className="flex-none">
+          <FooterCredits />
         </div>
       </div>
 

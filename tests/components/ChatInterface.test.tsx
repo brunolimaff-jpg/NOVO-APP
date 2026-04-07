@@ -8,20 +8,6 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
-vi.mock('react-virtuoso', () => {
-  const Virtuoso = React.forwardRef<HTMLDivElement, any>(({ data = [], itemContent, components, style }, _ref) => (
-    <div data-testid="virtuoso" style={style}>
-      {components?.Header ? <components.Header /> : null}
-      {data.map((item: any, index: number) => (
-        <div key={item?.id ?? index}>{itemContent(index, item)}</div>
-      ))}
-    </div>
-  ));
-  Virtuoso.displayName = 'VirtuosoMock';
-
-  return { Virtuoso };
-});
-
 vi.mock('../../components/MessageRow', () => ({
   default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];
@@ -210,7 +196,7 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('virtuoso')).toBeInTheDocument();
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
   });
@@ -283,7 +269,7 @@ describe('ChatInterface shell regression', () => {
     expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
   });
 
-  it('dispara Deep Dive e mantém loadingVariant inline na rodada seguinte', async () => {
+  it('dispara Deep Dive e mantém loadingVariant hero na rodada seguinte', async () => {
     const onDeepDive = vi.fn(async () => undefined);
     const baseMessages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
@@ -314,7 +300,7 @@ describe('ChatInterface shell regression', () => {
       {
         ...buildMessage('m4', Sender.Bot, ''),
         isThinking: true,
-        loadingVariant: 'inline',
+        loadingVariant: 'hero',
       },
     ];
 
@@ -331,9 +317,9 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
-    expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
+    expect(screen.getByText('loading-smart-hero')).toBeInTheDocument();
   });
 
   it('renderiza o status de processamento sem imprimir o objeto bruto', () => {
@@ -390,6 +376,52 @@ describe('ChatInterface shell regression', () => {
           sessionId: 'session-1',
         }),
       );
+    });
+  });
+
+  it('nao faz auto-scroll quando o loading termina', async () => {
+    const loadingMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, ''),
+        isThinking: true,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const finalMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      {
+        ...buildMessage('m2', Sender.Bot, '# Dossie final\n\nConclusao pronta'),
+        isThinking: false,
+        loadingVariant: 'hero',
+      },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(loadingMessages),
+          sessions: [buildSession(loadingMessages)],
+          messages: loadingMessages,
+          isLoading: true,
+        })}
+      />,
+    );
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(finalMessages),
+          sessions: [buildSession(finalMessages)],
+          messages: finalMessages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     });
   });
 });

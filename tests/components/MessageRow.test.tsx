@@ -97,25 +97,25 @@ describe('MessageRow', () => {
     expect(screen.getByText('Analisar Fazenda Boa Vista')).toBeInTheDocument();
   });
 
-  it('renderiza loading hero com LoadingSmart', () => {
+  it('delegates hero loading to the global App overlay', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       loadingVariant: 'hero',
       text: '',
     });
-    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    const { container } = render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(container.firstChild).toBeNull();
   });
 
-  it('usa loading inline como fallback seguro quando loadingVariant está ausente', () => {
+  it('uses hero as the safe fallback when loadingVariant is absent and lets App own the overlay', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       text: '',
     });
-    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    const { container } = render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(container.firstChild).toBeNull();
   });
 
   it('renderiza thinking state inline quando loadingVariant=inline', () => {

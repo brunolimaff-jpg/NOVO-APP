@@ -5,6 +5,7 @@ import ClienteSeniorScore from '../../components/ClienteSeniorScore';
 
 const mockData = {
   encontrado: true,
+  matchType: 'exact' as const,
   grupo: 'Grupo Modelo',
   familias: ['ERP', 'HCM'],
   totalModulos: 12,
@@ -24,6 +25,11 @@ describe('ClienteSeniorScore', () => {
 
   it('renderiza null quando data.encontrado é false', () => {
     const { container } = render(<ClienteSeniorScore data={{ ...mockData, encontrado: false }} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renderiza null quando o match não é exato', () => {
+    const { container } = render(<ClienteSeniorScore data={{ ...mockData, matchType: 'partial', encontrado: false }} />);
     expect(container.firstChild).toBeNull();
   });
 

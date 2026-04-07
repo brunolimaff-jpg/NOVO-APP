@@ -1,6 +1,13 @@
 import { Message, Sender, type ClienteSeniorData } from '../types';
 import { parseMarkdownSections } from './sectionParser';
 import { extractAllLinksFromMarkdown, SourceRef } from './textCleaners';
+import { normalizeMermaidBlocks as mermaidNormalize } from './mermaid';
+
+export { normalizeMermaidBlocks } from './mermaid';
+
+export function sanitizeMermaidLabel(label: string): string {
+  return `"${label.replace(/"/g, '\\"')}"`;
+}
 
 function normalizeSourceUrl(url: string): string {
   return url.trim().replace(/\/+$/, '');
@@ -53,47 +60,6 @@ export function collectFullReport(messages: Message[]): { text: string; sections
 }
 
 const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
-
-export function sanitizeMermaidLabel(label: string): string {
-  return `"${label.replace(/"/g, '\\"')}"`;
-}
-
-function normalizeInlineMermaidClasses(chart: string): string {
-  const classLines: string[] = [];
-  const seenClassAssignments = new Set<string>();
-  const normalized = chart.replace(
-    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
-    (_full, nodeId: string, nodeShape: string, className: string) => {
-      const classLine = `class ${nodeId} ${className};`;
-      if (!seenClassAssignments.has(classLine)) {
-        seenClassAssignments.add(classLine);
-        classLines.push(classLine);
-      }
-      
-      const isBraced = nodeShape.startsWith('[') && nodeShape.endsWith(']');
-      const content = nodeShape.slice(1, -1);
-      const sanitized = isBraced ? `[${sanitizeMermaidLabel(content)}]` : nodeShape;
-      
-      return `${nodeId}${sanitized}`;
-    }
-  );
-
-  if (classLines.length === 0) return normalized;
-  return `${normalized}\n${classLines.join('\n')}`;
-}
-
-export function normalizeMermaidBlocks(markdown: string): string {
-  if (!markdown) return '';
-  const fence = '`'.repeat(3);
-  return markdown
-    .replace(MERMAID_JSON_PATTERN, (_m, raw: string) => {
-      const unescaped = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-      return `\n${fence}mermaid\n${normalizeInlineMermaidClasses(unescaped)}\n${fence}\n`;
-    })
-    .replace(/```mermaid\s*([\s\S]*?)```/gi, (_m, raw: string) => {
-      return `${fence}mermaid\n${normalizeInlineMermaidClasses(raw.trim())}\n${fence}`;
-    });
-}
 
 function stripMarkdownFormatting(value: string): string {
   return value
@@ -267,7 +233,7 @@ function collectMetricValues(text: string, regex: RegExp): string[] {
 }
 
 export function generateExecutiveSummary(fullText: string, sections: string[], inconsistenciesSection: string): string {
-  const sourceText = normalizeMermaidBlocks(fullText);
+  const sourceText = mermaidNormalize(fullText);
   const mainSection = sections[0] || sourceText;
   const context = pickExecutiveContext(mainSection);
   const sectionCount = sections.length;
@@ -324,10 +290,10 @@ export function detectInconsistencies(sections: string[]): string {
   ];
 
   const mainSection = sections[0];
-  const mainSectionNormalized = normalizeMermaidBlocks(mainSection);
+  const mainSectionNormalized = mermaidNormalize(mainSection);
 
   for (let i = 1; i < sections.length; i++) {
-    const drilldown = normalizeMermaidBlocks(sections[i]);
+    const drilldown = mermaidNormalize(sections[i]);
     for (const { label, regex } of patterns) {
       const mainMatches = collectMetricValues(mainSectionNormalized, regex);
       const drillMatches = collectMetricValues(drilldown, regex);
