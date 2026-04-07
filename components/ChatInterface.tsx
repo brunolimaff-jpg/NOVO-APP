@@ -682,7 +682,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           ) : (
             <div
               data-testid="messages-scroller"
-              className="h-full min-h-0 overflow-y-auto custom-scrollbar"
+              className="h-full min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar"
             >
               {hasMore ? (
                 <div className="flex justify-center py-3">
