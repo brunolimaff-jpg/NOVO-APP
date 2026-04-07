@@ -31,7 +31,7 @@ import {
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
-import { parsePortaMarkerV2, stripPortaMarkers } from './utils/porta';
+import { resolvePortaScore, stripPortaMarkers } from './utils/porta';
 import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
@@ -202,6 +202,9 @@ const App: React.FC = () => {
   const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -215,10 +218,6 @@ const App: React.FC = () => {
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   
-  const [requestKind, setRequestKind] = useState<RequestKind>('default');
-  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
-  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
-
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -440,6 +439,9 @@ const App: React.FC = () => {
     }));
     setInvestigationLogged(false);
     resetLoadingProgress();
+    setRequestKind('default');
+    setLoadingVariant('hero');
+    setLoadingPinnedLabel(null);
     lastActionRef.current = null;
     setLastQuery('');
     setVisibleCount(PAGE_SIZE);
@@ -468,6 +470,7 @@ const App: React.FC = () => {
       requestKind: resolvedRequestKind,
       isFollowUp: options?.isFollowUp,
     });
+    setRequestKind(resolvedRequestKind);
     setLoadingVariant(resolvedLoadingVariant);
     setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
     setIsLoading(true);
@@ -728,15 +731,32 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = parsePortaMarkerV2(accumulatedText);
+        const waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        const waterfallScorePorta = waterfallPortaResolution.score;
+        const waterfallMissingDimensions = waterfallPortaResolution.missingDimensions;
+        if (!waterfallScorePorta && waterfallMissingDimensions.length > 0) {
+          scoutDiag.warn('ModularDossier', 'score PORTA não consolidado no waterfall', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            source: waterfallPortaResolution.source,
+            missingDimensions: waterfallMissingDimensions,
+          });
+        }
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-        const waterfallNarrativeText = appendSeniorEvidenceNote(
+        const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
+        const waterfallOperationalNote =
+          !waterfallScorePorta && waterfallMissingDimensions.length > 0
+            ? `⚠️ Nota operacional: o Score PORTA não foi exibido nesta rodada porque faltaram evidências estruturadas para ${waterfallMissingDimensions.join(', ')}. Reexecute os módulos pendentes para consolidar a pontuação completa.`
+            : '';
+        const waterfallNarrativeText = waterfallOperationalNote
+          ? `${waterfallNarrativeBase}\n\n---\n\n${waterfallOperationalNote}`
+          : waterfallNarrativeBase;
         const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
-          waterfallNarrativeText,
+          waterfallNarrativeBase,
           normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
           waterfallClienteSeniorData,
         );
@@ -1015,6 +1035,7 @@ const App: React.FC = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
+      setLoadingPinnedLabel(null);
     }
   }, []);
 

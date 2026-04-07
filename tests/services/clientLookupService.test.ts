@@ -87,6 +87,154 @@ describe('clientLookupService', () => {
 
       expect(result.encontrado).toBe(true);
     });
+
+    it('prioritizes the exact full-query match over broader variants', async () => {
+      const exactResponse = {
+        ok: true,
+        encontrado: true,
+        total: 1,
+        query: 'BOM FUTURO AGRICOLA',
+        results: [
+          {
+            grupo: 'BOM FUTURO AGRICOLA',
+            razoes_sociais: ['BOM FUTURO AGRICOLA LTDA'],
+            linhas_produto: ['GRS'],
+            familias_presentes: ['Acesso'],
+            modulos_por_familia: { Acesso: ['Ronda'] },
+            gaps_crosssell: ['ERP'],
+            total_modulos: 2,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: false,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
+      };
+      const broadBom = {
+        ok: true,
+        encontrado: true,
+        total: 44,
+        query: 'BOM',
+        results: [
+          {
+            grupo: 'BOM JESUS',
+            razoes_sociais: ['ASSOCIACAO SENHOR BOM JESUS'],
+            linhas_produto: ['ERP'],
+            familias_presentes: ['ERP'],
+            modulos_por_familia: { ERP: ['Financeiro'] },
+            gaps_crosssell: ['HCM'],
+            total_modulos: 10,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: true,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
+      };
+      const broadAgricola = {
+        ok: true,
+        encontrado: true,
+        total: 83,
+        query: 'AGRICOLA',
+        results: [
+          {
+            grupo: 'SLC AGRÍCOLA',
+            razoes_sociais: ['SLC AGRÍCOLA SA'],
+            linhas_produto: ['ERP'],
+            familias_presentes: ['ERP'],
+            modulos_por_familia: { ERP: ['Financeiro'] },
+            gaps_crosssell: ['HCM'],
+            total_modulos: 30,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: true,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+          {
+            grupo: 'BOM FUTURO AGRICOLA',
+            razoes_sociais: ['BOM FUTURO AGRICOLA LTDA'],
+            linhas_produto: ['GRS'],
+            familias_presentes: ['Acesso'],
+            modulos_por_familia: { Acesso: ['Ronda'] },
+            gaps_crosssell: ['ERP'],
+            total_modulos: 2,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: false,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
+      };
+
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(exactResponse) } as Response)
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(broadBom) } as Response)
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(broadAgricola) } as Response);
+
+      const { lookupCliente } = await import('../../services/clientLookupService');
+      const result = await lookupCliente('BOM FUTURO AGRICOLA');
+
+      expect(result.query).toBe('BOM FUTURO AGRICOLA');
+      expect(result.results[0].grupo).toBe('BOM FUTURO AGRICOLA');
+      expect(result.results[0].matchType).toBe('exact');
+    });
+
+    it('reorders a broad variant so the best candidate becomes results[0]', async () => {
+      const notFound = { ok: true, encontrado: false, total: 0, query: 'BOM FUTURO AGRICOLA', results: [] };
+      const broadBom = { ok: true, encontrado: false, total: 0, query: 'BOM', results: [] };
+      const broadAgricola = {
+        ok: true,
+        encontrado: true,
+        total: 83,
+        query: 'AGRICOLA',
+        results: [
+          {
+            grupo: 'SLC AGRÍCOLA',
+            razoes_sociais: ['SLC AGRÍCOLA SA'],
+            linhas_produto: ['ERP'],
+            familias_presentes: ['ERP'],
+            modulos_por_familia: { ERP: ['Financeiro'] },
+            gaps_crosssell: ['HCM'],
+            total_modulos: 30,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: true,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+          {
+            grupo: 'BOM FUTURO AGRICOLA',
+            razoes_sociais: ['BOM FUTURO AGRICOLA LTDA'],
+            linhas_produto: ['GRS'],
+            familias_presentes: ['Acesso'],
+            modulos_por_familia: { Acesso: ['Ronda'] },
+            gaps_crosssell: ['ERP'],
+            total_modulos: 2,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: false,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
+      };
+
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(notFound) } as Response)
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(broadBom) } as Response)
+        .mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify(broadAgricola) } as Response);
+
+      const { lookupCliente } = await import('../../services/clientLookupService');
+      const result = await lookupCliente('BOM FUTURO AGRICOLA');
+
+      expect(result.results[0].grupo).toBe('BOM FUTURO AGRICOLA');
+      expect(result.results[0].matchType).toBe('exact');
+      expect(result.results[1].grupo).toBe('SLC AGRÍCOLA');
+    });
   });
 
   // ─── lookupCliente - error handling ───────────────────────────────────────
@@ -164,6 +312,36 @@ describe('clientLookupService', () => {
       expect(result).toContain('8');
       expect(result).toContain('HCM');
       expect(result).toContain('CONFIRMADO');
+    });
+
+    it('signals possible match when the top candidate is not exact', async () => {
+      const { formatarParaPrompt } = await import('../../services/clientLookupService');
+      const result = formatarParaPrompt({
+        ok: true,
+        query: 'Bom Futuro Agricola',
+        encontrado: true,
+        total: 83,
+        results: [{
+          grupo: 'Bom Futuro Agricola Holding',
+          razoes_sociais: ['Bom Futuro Agricola Participacoes Ltda'],
+          linhas_produto: [],
+          familias_presentes: ['Acesso'],
+          modulos_por_familia: { Acesso: ['Ronda'] },
+          gaps_crosssell: ['ERP'],
+          total_modulos: 1,
+          eh_cliente_senior: true,
+          tem_gatec: false,
+          tem_erp: false,
+          tem_hcm: false,
+          tem_logistica: false,
+          matchType: 'partial',
+        }],
+      });
+
+      expect(result).toContain('POSS');
+      expect(result).toContain('Possivel match');
+      expect(result).toContain('pista comercial');
+      expect(result).not.toContain('Os GAPS DEVEM guiar a FASE 8');
     });
   });
 
