@@ -17,7 +17,7 @@ Em menos de 5 minutos, entrega um dossiê completo do prospect, qualifica a opor
 
 | Antes do Scout | Com o Scout |
 |---|---|
-| 2 a 4 horas de pesquisa antes de cada reunião | Dossiê completo em menos de 5 minutos |
+| 1 a 2 dias de pesquisa antes de cada reunião | Dossiê completo em menos de 5 minutos |
 | Qualificação baseada em intuição | Score PORTA 0–100 com base em evidências reais |
 | Análise genérica, igual para todos os prospects | Dossiê por área: Fiscal, TI, RH, Supply Chain |
 | Oportunidades esfriando sem acompanhamento | Radar de monitoramento contínuo dos prospects |
