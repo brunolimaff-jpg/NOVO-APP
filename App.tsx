@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
@@ -13,7 +12,6 @@ import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
-import FooterCredits from './components/FooterCredits';
 import { FollowUpModal } from './components/FollowUpModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
@@ -63,8 +61,8 @@ import {
   transitionLoadingProgress,
 } from './utils/loadingStatus';
 import {
-  resolveDeepDiveRequestKind,
   resolveLoadingVariant,
+  resolvePlaceholderLoadingVariant,
   type LoadingVariant,
   type RequestKind,
 } from './utils/loadingVariant';
@@ -80,6 +78,12 @@ import {
 } from './utils/reportUtils';
 import { getFeatureAccessForUser } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import FooterCredits from './components/FooterCredits';
+
+// --- INJETADO ANALYTICS AQUI ---
+import { Analytics } from "@vercel/analytics/react";
+// --- INJETADO SPEED INSIGHTS AQUI ---
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const PAGE_SIZE = 20;
 type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
@@ -187,8 +191,6 @@ const App: React.FC = () => {
   const [failureCount, setFailureCount] = useState(0);
   const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
-  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
-  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
   const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
@@ -212,6 +214,10 @@ const App: React.FC = () => {
   const [followUpDias, setFollowUpDias] = useState(7);
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
@@ -456,14 +462,14 @@ const App: React.FC = () => {
     const sessionId = explicitSessionId || currentSessionId;
     if (!sessionId) return;
 
-    const requestKind = options?.requestKind ?? (options?.isDeepDive ? 'deep_dive' : 'default');
-    const fixedLoadingLine = options?.fixedLoadingLine;
+    const resolvedRequestKind = options?.requestKind ?? requestKind;
+    const fixedLoadingLine = options?.fixedLoadingLine ?? null;
     const resolvedLoadingVariant = resolveLoadingVariant({
-      requestKind,
+      requestKind: resolvedRequestKind,
       isFollowUp: options?.isFollowUp,
     });
     setLoadingVariant(resolvedLoadingVariant);
-    setLoadingPinnedLabel(requestKind === 'deep_dive' ? fixedLoadingLine || null : null);
+    setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
     setIsLoading(true);
     const isFirstInteraction = Boolean(options?.isFirstInteraction);
     const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -506,13 +512,27 @@ const App: React.FC = () => {
 
     const botMessageId = uuidv4();
     activeGenerationRef.current[sessionId] = botMessageId;
+    const hasConsolidatedBotResponse = historyToPass.some(
+      message =>
+        message.sender === Sender.Bot &&
+        !message.isError &&
+        !message.isThinking &&
+        Boolean(message.text?.trim()),
+    );
+
+    const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
+      requestKind: resolvedRequestKind,
+      isFollowUp: options?.isFollowUp,
+      hasConsolidatedBotResponse,
+    });
+
     const botMessagePlaceholder: Message = {
       id: botMessageId,
       sender: Sender.Bot,
       text: '',
       timestamp: new Date(),
       isThinking: true,
-      loadingVariant: resolvedLoadingVariant,
+      loadingVariant: placeholderLoadingVariant,
       isSourcesOpen: false,
     };
 
@@ -562,14 +582,10 @@ const App: React.FC = () => {
           waterfallClienteSeniorData,
         );
 
-        const updateBotText = (chunk: string) => {
-          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + chunk;
-          updateSessionById(sessionId, s => ({
-            ...s,
-            messages: (s.messages || []).map(msg =>
-              msg.id === botMessageId ? { ...msg, text: accumulatedText, isThinking: false } : msg
-            )
-          }));
+        const appendWaterfallChunk = (chunk: string) => {
+          const normalizedChunk = chunk.trim();
+          if (!normalizedChunk) return;
+          accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
         };
 
         const modules = [
@@ -583,28 +599,28 @@ const App: React.FC = () => {
           {
             name: 'Tech Stack',
             prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-            stage: 'Entendendo a operação e tecnologia...',
+            stage: 'Investigando tech stack...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
             prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-            stage: 'Verificando sinais de risco e conformidade...',
+            stage: 'Investigando riscos & compliance...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Estratégia & Expansão',
             prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-            stage: 'Analisando movimento e posicionamento de mercado...',
+            stage: 'Investigando estratégia & expansão...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'RH & Decisores',
             prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-            stage: 'Identificando estrutura, liderança e decisores...',
+            stage: 'Investigando RH & decisores...',
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
@@ -650,7 +666,7 @@ const App: React.FC = () => {
               { signal, timeoutMs: module.timeoutMs }
             );
 
-            updateBotText(moduleResult);
+            appendWaterfallChunk(moduleResult);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
@@ -670,9 +686,9 @@ const App: React.FC = () => {
         }
 
         if (previousStageCompleted) {
-          advanceLoadingProgress('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Reunindo referências e sinais de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         let benchmarkCompleted = false;
@@ -681,7 +697,7 @@ const App: React.FC = () => {
             signal,
             timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
           });
-          if (benchmark) updateBotText(benchmark);
+          if (benchmark) appendWaterfallChunk(benchmark);
           benchmarkCompleted = true;
           setFailureCount(0);
         } catch (error) {
@@ -698,13 +714,13 @@ const App: React.FC = () => {
         }
 
         if (benchmarkCompleted) {
-          advanceLoadingProgress('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Consolidando a análise final...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         if (optionalStepFailures.length > 0) {
-          updateBotText(
+          appendWaterfallChunk(
             `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
           );
         } else {
@@ -915,6 +931,12 @@ const App: React.FC = () => {
     let sessionId = currentSessionId;
     let currentHistory: Message[] = [];
     let immediateCompany: string | null = null;
+    const resolvedRequestKind = options?.requestKind ?? 'default';
+    const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+
+    setRequestKind(resolvedRequestKind);
+    setLoadingPinnedLabel(fixedLoadingLine);
+
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
@@ -959,8 +981,8 @@ const App: React.FC = () => {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
-      requestKind: options?.requestKind,
-      fixedLoadingLine: options?.fixedLoadingLine,
+      requestKind: resolvedRequestKind,
+      fixedLoadingLine: fixedLoadingLine ?? undefined,
     });
   };
 
@@ -968,28 +990,13 @@ const App: React.FC = () => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
-    const hasCompletedBotResponse = Boolean(
-      currentSession?.messages?.some(
-        message =>
-          message.sender === Sender.Bot &&
-          !message.isError &&
-          !message.isThinking &&
-          Boolean(message.text?.trim()),
-      ),
-    );
-    const requestKind = resolveDeepDiveRequestKind(hasCompletedBotResponse);
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind,
-        fixedLoadingLine:
-          requestKind === 'deep_dive'
-            ? topicLabel
-              ? `Deep Dive em andamento: ${topicLabel}`
-              : 'Deep Dive em andamento'
-            : undefined,
+        requestKind: 'deep_dive',
+        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
       },
     );
   };
@@ -1548,9 +1555,15 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
+      <Analytics />
+      {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}
       <SpeedInsights />
     </>
   );
 };
 
 export default App;
+// Forcing deployment to resolve dossier rendering and test conflicts.
+// Force build 1775507790
