@@ -72,18 +72,20 @@ async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')
       theme: 'base',
       themeVariables: {
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        primaryColor: isDarkMode ? '#1e293b' : '#f1f5f9',
-        primaryTextColor: isDarkMode ? '#f8fafc' : '#334155',
-        primaryBorderColor: isDarkMode ? '#334155' : '#cbd5e1',
-        lineColor: isDarkMode ? '#475569' : '#94a3b8',
+        primaryColor: isDarkMode ? '#1e293b' : '#ffffff',
+        primaryTextColor: isDarkMode ? '#f8fafc' : '#0f172a',
+        primaryBorderColor: isDarkMode ? '#334155' : '#e2e8f0',
+        lineColor: isDarkMode ? '#64748b' : '#cbd5e1',
         secondaryColor: isDarkMode ? '#0f172a' : '#f8fafc',
         tertiaryColor: isDarkMode ? '#020617' : '#ffffff',
         mainBkg: 'transparent',
         nodeBorder: isDarkMode ? '#334155' : '#e2e8f0',
-        clusterBkg: isDarkMode ? '#0f172a' : '#f8fafc',
-        clusterBorder: isDarkMode ? '#334155' : '#cbd5e1',
-        defaultLinkColor: isDarkMode ? '#64748b' : '#94a3b8',
+        clusterBkg: isDarkMode ? '#0f172a' : '#f1f5f9',
+        clusterBorder: isDarkMode ? '#475569' : '#cbd5e1',
+        defaultLinkColor: isDarkMode ? '#94a3b8' : '#475569',
         textColor: isDarkMode ? '#f8fafc' : '#0f172a',
+        fontSize: '11px',
+        edgeLabelBackground: isDarkMode ? '#1e293b' : '#ffffff',
       },
       securityLevel: 'loose',
     });
@@ -188,11 +190,11 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
   if (!svg) return null;
 
   return (
-    <div className="my-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/50 shadow-sm backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/50">
-      <div className="flex items-center gap-2 border-b border-slate-200/60 bg-slate-100/40 px-4 py-2.5 dark:border-slate-800/60 dark:bg-slate-800/40">
-        <div className="flex h-2 w-2 items-center justify-center rounded-full bg-emerald-400" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-          Mapa Visual
+    <div className="my-8 overflow-hidden rounded-[2rem] border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/50 shadow-lg shadow-slate-200/20 backdrop-blur-md dark:border-slate-800/60 dark:from-slate-900/80 dark:to-slate-950/80 dark:shadow-black/20">
+      <div className="flex items-center gap-2 border-b border-slate-200/40 bg-slate-50/40 px-6 py-3.5 dark:border-slate-800/40 dark:bg-slate-900/40">
+        <div className="flex h-1.5 w-1.5 items-center justify-center rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+          Inteligência Estratégica
         </span>
       </div>
       <div

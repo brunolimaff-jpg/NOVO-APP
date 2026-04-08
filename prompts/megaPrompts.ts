@@ -206,18 +206,18 @@ Regras de construção:
 9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
 10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
 
-Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
-- classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
-- classDef satellite fill:#f0fdf4,stroke:#86efac,stroke-width:1px,color:#166534,rx:12px,ry:12px;
-- classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px,color:#991b1b,rx:12px,ry:12px;
-- classDef warning fill:#fffbeb,stroke:#fcd34d,stroke-width:1px,color:#92400e,rx:12px,ry:12px;
-- classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
+Sempre inclua as seguintes diretivas de classe (Design Spells / Ultra-Premium Strategic) no início do diagrama para garantir o visual correto:
+- classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+- classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+- classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+- classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
+- classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5,5,stroke-width:1px,color:#475569;
 
-Ao invés de azul ou verde genéricos, agora utilize as classes acima:
-- class A core; para sistemas centrais/principais
-- class B satellite; para periféricos benéficos
-- class C danger; para gargalos crônicos, perdas ou falta de sistemas cruciais
-- class D warning; para áreas de atrito manual
+Utilize as classes acima para diferenciar os status:
+- class A core; -> Sistemas centrais (ERP, CRM oficial)
+- class B satellite; -> Satélites que funcionam bem
+- class C danger; -> Gaps críticos, faltas de sistema ou perdas financeiras (Gárgalos de Caixa)
+- class D warning; -> Processos manuais, fricção ou Shadow IT perigoso
 </mermaid_construction_rules>
 
 <output_discipline>
@@ -1639,14 +1639,13 @@ Para cada elo, marque:
 
 \`\`\`mermaid
 graph LR
-    classDef backoffice fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef fisico fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef logistica fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
+    %% Palette Premium (repetir aqui para garantir):
+    %% classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    %% classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
 
     %% CONSTRUIR COM DADOS REAIS — omitir nós não confirmados
-    %% -.-> para gap/manual; ==> para fluxo confirmado
-    %% aplicar classes em linhas separadas no final: class A backoffice;
+    %% -.-> para gap/manual (aplicar class danger); ==> para fluxo confirmado (aplicar class core)
+    %% Sempre aplicar classes no final do bloco (Ex: class A core;)
 \`\`\`
 
 ---
@@ -1971,14 +1970,15 @@ Sistema legado paralelo não identificado nas fontes públicas.
 
 \`\`\`mermaid
 graph LR
-    classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef satellite fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef warning fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
+    %% Palette Premium (repetir aqui para garantir):
+    %% classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    %% classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+    %% classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+    %% classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
 
     %% CONSTRUIR COM DADOS REAIS — omitir sistemas não confirmados
-    %% -.-> integração manual / remendo
-    %% aplicar classes em linhas separadas no final: class ERP core;
+    %% -.-> integração manual / remendo (class warning ou danger)
+    %% Sempre aplicar classes no final do bloco (Ex: class A core;)
 \`\`\`
 
 ---
