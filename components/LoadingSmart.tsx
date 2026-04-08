@@ -5,6 +5,7 @@ import { generateLoadingCuriosities } from '../services/geminiService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
 import { toRichStatus, isPhaseTimelineStatus, statusKey, type RichLoadingStatus } from '../utils/loadingStatus';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
+import { MODULAR_DOSSIER_STAGES } from '../constants/loadingStages';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -18,15 +19,7 @@ const SOURCE_LINKS: Record<string, string> = {
   gatec:   'https://www.gatec.com.br/',
 };
 
-const MODULAR_DOSSIER_STAGES = [
-  'Mapeando inteligência operacional...',
-  'Entendendo a operação e tecnologia...',
-  'Verificando sinais de risco e conformidade...',
-  'Analisando movimento e posicionamento de mercado...',
-  'Identificando estrutura, liderança e decisores...',
-  'Reunindo referências e sinais de mercado...',
-  'Consolidando a análise final...',
-];
+// MODULAR_DOSSIER_STAGES removido daqui — importado de ../constants/loadingStages
 
 const INVESTIGATION_TIMELINE_STAGES = [
   'Consolidando perímetro da conta alvo...',
@@ -408,8 +401,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const matchesPlan = (candidate: string[]) =>
     candidate.some(stage => observedKeys.has(getStageIdentity(stage)));
   const plannedStageLabels =
-    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES)
-      ? MODULAR_DOSSIER_STAGES
+    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES as unknown as string[])
+      ? MODULAR_DOSSIER_STAGES as unknown as string[]
       : matchesPlan(INVESTIGATION_TIMELINE_STAGES)
         ? INVESTIGATION_TIMELINE_STAGES
         : observedLabels;
@@ -417,30 +410,39 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
   const completedStageKeys = realCompletedStageKeys;
   const currentStageKey = getStageIdentity(displayedCurrent);
-  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
   const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
+  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
   const visiblePlannedIndices = new Set<number>();
 
-  plannedRich.forEach((step, index) => {
-    if (completedStageKeys.has(getStageIdentity(step.label))) {
-      visiblePlannedIndices.add(index);
-    }
-  });
+  // Estratégia "Full Roadmap": Se um plano foi identificado, mostramos todas as etapas
+  // marcando retrocesso ou progresso conforme necessário.
+  const isUsingPlannedStages = plannedStageLabels === (MODULAR_DOSSIER_STAGES as unknown as string[]) || plannedStageLabels === INVESTIGATION_TIMELINE_STAGES;
 
-  if (currentPlannedIndex >= 0) {
-    visiblePlannedIndices.add(currentPlannedIndex);
-    const nextPlannedIndex = plannedRich.findIndex(
-      (step, index) =>
-        index > currentPlannedIndex &&
-        !completedStageKeys.has(getStageIdentity(step.label)),
-    );
-    if (nextPlannedIndex >= 0) {
-      visiblePlannedIndices.add(nextPlannedIndex);
-    }
+  if (isUsingPlannedStages) {
+    plannedRich.forEach((_, index) => visiblePlannedIndices.add(index));
   } else {
-    const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
-    if (nextPendingIndex >= 0) {
-      visiblePlannedIndices.add(nextPendingIndex);
+    // Fallback para quando não há plano fixo: comportamento incremental clássico
+    plannedRich.forEach((step, index) => {
+      if (completedStageKeys.has(getStageIdentity(step.label))) {
+        visiblePlannedIndices.add(index);
+      }
+    });
+
+    if (currentPlannedIndex >= 0) {
+      visiblePlannedIndices.add(currentPlannedIndex);
+      const nextPlannedIndex = plannedRich.findIndex(
+        (step, index) =>
+          index > currentPlannedIndex &&
+          !completedStageKeys.has(getStageIdentity(step.label)),
+      );
+      if (nextPlannedIndex >= 0) {
+        visiblePlannedIndices.add(nextPlannedIndex);
+      }
+    } else {
+      const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
+      if (nextPendingIndex >= 0) {
+        visiblePlannedIndices.add(nextPendingIndex);
+      }
     }
   }
 

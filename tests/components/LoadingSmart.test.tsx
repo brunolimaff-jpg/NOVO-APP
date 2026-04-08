@@ -108,7 +108,8 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.getByText('Entendendo a operação e tecnologia...')).toBeInTheDocument();
     expect(screen.getByText(/Análise em execução/i)).toBeInTheDocument();
     expect(screen.queryByText(/Etapa\s+\d+\s+de\s+\d+/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('Verificando sinais de risco e conformidade...')).not.toBeInTheDocument();
+    // No "Full Roadmap", todas as etapas do plano aparecem desde o início
+    expect(screen.getByText('Verificando sinais de risco e conformidade...')).toBeInTheDocument();
     expect(screen.queryByText(/📊/i)).not.toBeInTheDocument();
   });
 
@@ -139,7 +140,8 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.getByText('Mapeando inteligência operacional...')).toBeInTheDocument();
     expect(screen.getByText('Entendendo a operação e tecnologia...')).toBeInTheDocument();
     expect(screen.getAllByText('Verificando sinais de risco e conformidade...').length).toBeGreaterThan(0);
-    expect(screen.getByText('Analisando movimento e posicionamento de mercado...')).toBeInTheDocument();
-    expect(screen.queryByText('Identificando estrutura, liderança e decisores...')).not.toBeInTheDocument();
+    // Verificamos que o roadmap está completo com os novos labels mapeados
+    expect(screen.getByText('Mapeando inteligência territorial estratégica...')).toBeInTheDocument();
+    expect(screen.getByText('Identificando estrutura, liderança e decisores...')).toBeInTheDocument();
   });
 });
