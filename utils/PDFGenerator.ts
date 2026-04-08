@@ -7,6 +7,7 @@
  */
 
 import { jsPDF } from 'jspdf';
+import { sanitizeMermaidCode } from './mermaid';
 
 // ─── Paleta de cores Scout 360 ─────────────────────────────────────────────
 const C = {
@@ -261,34 +262,7 @@ export class PDFGenerator {
 
   // ─── Renderer principal de markdown ──────────────────────────────────────
 
-  private sanitizeMermaidCode(input: string): string {
-    if (!input) return '';
-    let code = input
-      .replace(new RegExp('<br\\s*/?>\\s*', 'gi'), '\n')
-      .replace(new RegExp('&lt;br\\s*/?&gt;\\s*', 'gi'), '\n')
-      .replace(new RegExp('<' + '!--[\\s\\S]*?--' + '>', 'g'), '')
-      .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
-      .replace(/[\u2600-\u27BF]/gu, '')
-      .replace(/[\u2013\u2014]/g, '-')
-      .replace(/^[^a-zA-Z0-9]+/, '')
-      .trim();
-
-    const mermaidStart =
-      /(graph\s+(?:TB|TD|LR|RL|BT)?|flowchart\s+(?:TB|TD|LR|RL|BT)?|sequenceDiagram|gantt|classDiagram|stateDiagram-v2?|erDiagram|journey|pie|quadrantChart|gitGraph)/i;
-    const match = code.match(mermaidStart);
-    if (!match) return '';
-
-    code = code.slice(match.index ?? 0).trim();
-    const firstWord = code.split(/\s+/)[0]?.toLowerCase() || '';
-    if (
-      !/^(graph|flowchart|sequencediagram|gantt|classdiagram|statediagram-v2?|erdiagram|journey|pie|quadrantchart|gitgraph)$/.test(
-        firstWord
-      )
-    ) {
-      return '';
-    }
-    return code;
-  }
+  // Sanitization delegated to shared utils/mermaid.ts — see sanitizeMermaidCode import
 
   private withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -363,7 +337,7 @@ export class PDFGenerator {
   }
 
   private async renderMermaidBlock(code: string) {
-    const cleanCode = this.sanitizeMermaidCode(code);
+    const cleanCode = sanitizeMermaidCode(code);
     if (!cleanCode) {
       this.renderCodeBlock(['[Bloco mermaid inválido: revise a sintaxe.]', code]);
       return;

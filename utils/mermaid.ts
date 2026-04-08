@@ -51,6 +51,8 @@ function normalizeMermaidText(input: string): string {
     .replace(/<br\s*\/?>\s*/gi, '\n')
     .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
     .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    .replace(/[\u2600-\u27BF]/gu, '')
     .replace(/[\u2013\u2014]/g, '-')
     .trim();
 }
@@ -94,6 +96,34 @@ function fixColonEdgeLabels(input: string): string {
       return `${source} -- ${trimmedLabel} --> ${target}`;
     },
   );
+}
+
+// Mermaid v10 jison grammar cannot parse bare (unquoted) text after edge arrows.
+// E.g. `B -.-> Consolidação Manual / Integração` triggers "got 'NODE_STRING'" because
+// the parser expects a node identifier but receives loose text with spaces/slashes.
+// Fix: detect bare text targets (not starting with " [ ( { |) and wrap them in a
+// synthetic node with a quoted label, similar to materializeQuotedEdgeTargets.
+function materializeBareEdgeTargets(input: string): string {
+  const EDGE_OPS = '-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~';
+  const EDGE_RE = new RegExp(
+    `^(\\s*[A-Za-z][\\w-]*\\s*(?:${EDGE_OPS})\\s+)` + // prefix: "  NodeId -.-> "
+    `([^"\\[({|\\n][^\\n;]*)` +                         // bare text (not starting with " [ ( { |)
+    `(\\s*)$`,                                           // trailing whitespace
+    'gm',
+  );
+
+  let idx = 0;
+  return input.replace(EDGE_RE, (_full, prefix: string, bareText: string, suffix: string) => {
+    const trimmed = bareText.trim();
+    // Already a valid node ID (single alphanumeric word) — leave as-is
+    if (/^[A-Za-z][\w-]*$/.test(trimmed)) return _full;
+    // Already has a shape suffix: NodeId[...] or NodeId(...) etc
+    if (/^[A-Za-z][\w-]*\s*[\[({]/.test(trimmed)) return _full;
+
+    idx += 1;
+    const safeLabel = trimmed.replace(/"/g, "'");
+    return `${prefix}mermaid_bare_${idx}["${safeLabel}"]${suffix}`;
+  });
 }
 
 function materializeQuotedEdgeTargets(input: string): string {
@@ -140,6 +170,36 @@ function quoteNodeLabels(input: string): string {
   );
 }
 
+// Same as quoteNodeLabels but for round-bracket () and curly-bracket {} node shapes.
+// E.g. `D(Integração / Manual)` — the `/` inside round brackets triggers a tokenizer error.
+function quoteRoundAndCurlyLabels(input: string): string {
+  // Round brackets: NodeId(label with special)
+  let result = input.replace(
+    /\b([A-Za-z][\w-]*)\((?!")([^)\n]+)\)/g,
+    (_full, nodeId: string, label: string) => {
+      if (/[/\\|{}]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `${nodeId}("${safeLabel}")`;
+      }
+      return _full;
+    },
+  );
+
+  // Curly brackets: NodeId{label with special}
+  result = result.replace(
+    /\b([A-Za-z][\w-]*)\{(?!")([^}\n]+)\}/g,
+    (_full, nodeId: string, label: string) => {
+      if (/[/\\|()]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `${nodeId}{"${safeLabel}"}`;
+      }
+      return _full;
+    },
+  );
+
+  return result;
+}
+
 // Pipe-style edge labels |label| that contain () are also problematic:
 // the ( inside a |...| context can still trigger PS token depending on lex state.
 // Fix: wrap the label in double-quotes: |"label with (parens)"|
@@ -183,7 +243,9 @@ export function sanitizeMermaidCode(input: string): string {
   code = splitCollapsedStatements(code);
   code = fixColonEdgeLabels(code);
   code = quoteNodeLabels(code);
+  code = quoteRoundAndCurlyLabels(code);
   code = quotePipeEdgeLabelSpecialChars(code);
+  code = materializeBareEdgeTargets(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
