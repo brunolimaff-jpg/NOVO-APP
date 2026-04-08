@@ -73,3 +73,38 @@ Confira se as variáveis de ambiente foram configuradas também no deploy (Verce
 2. Entender fluxo de chat em `App.tsx`.
 3. Ler `services/geminiService.ts` (motor da IA).
 4. Ler `docs/SEGURANCA-API.md` para evitar vazamento de chave.
+
+---
+
+## 6) Automação com Playwright MCP
+
+O projeto possui uma base inicial para automação de navegador assistida por IA.
+
+### Rodar smoke tests E2E
+
+```bash
+npm run test:e2e:smoke
+```
+
+### Abrir modo visual dos smoke tests
+
+```bash
+npm run test:e2e:smoke:ui
+```
+
+### Subir o servidor MCP do Playwright
+
+```bash
+npm run mcp:playwright
+```
+
+### Variante headless e isolada
+
+```bash
+npm run mcp:playwright:headless
+```
+
+Para configuração do cliente MCP, consulte:
+
+- `docs/MCP-PLAYWRIGHT-SETUP.md`
+- `docs/mcp/playwright.generic.example.json`

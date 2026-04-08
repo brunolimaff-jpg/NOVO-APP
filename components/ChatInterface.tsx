@@ -533,6 +533,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
           <div className="flex items-center gap-2 min-w-0">
             <button
+              data-testid="sidebar-toggle"
               ref={sidebarToggleRef}
               type="button"
               onClick={onToggleSidebar}
@@ -550,7 +551,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               )}
             </button>
 
-            <span className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
+            <span data-testid="chat-header-title" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
               {displayTitle}
             </span>
           </div>
@@ -571,6 +572,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             {/* War Room button */}
             {canWarRoom && (
               <motion.button
+                data-testid="chat-war-room-button"
                 whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
                 whileTap={{ scale: 0.9 }}
                 type="button"
@@ -617,6 +619,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             {/* Dashboard button */}
             {canAccessDashboard && (
               <button
+                data-testid="chat-dashboard-button"
                 type="button"
                 onClick={() => setShowDashboard(true)}
                 className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -633,6 +636,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             {/* Admin dashboard button */}
             {canAccessDashboard && onOpenAdminDash && (
               <button
+                data-testid="chat-admin-button"
                 type="button"
                 onClick={onOpenAdminDash}
                 className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -648,6 +652,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             {/* Theme toggle */}
             <button
+              data-testid="chat-theme-toggle"
               type="button"
               onClick={onToggleTheme}
               className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -678,7 +683,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
+        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef} data-testid="chat-messages-region">
           {showInitialHome ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               {!loading && !user ? (
@@ -731,7 +736,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
             {/* Processing indicator */}
             {isLoading && processing && processingInfo && (
-              <div className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}>
+              <div
+                data-testid="chat-processing-indicator"
+                className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}
+              >
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>{processingInfo.label}</span>
                 {processingInfo.detailText ? (
@@ -765,6 +773,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             <div className="p-3 flex items-end gap-2">
               {/* Investigation trigger */}
               <button
+                data-testid="chat-new-investigation-button"
                 type="button"
                 onClick={() => setShowDashboard(true)}
                 className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
@@ -777,6 +786,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               {/* Textarea */}
               <div className="flex-1 relative">
                 <textarea
+                  data-testid="chat-input"
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -792,6 +802,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               {/* Stop / Send button */}
               {isLoading ? (
                 <button
+                  data-testid="chat-stop-button"
                   type="button"
                   onClick={handleStopWithToast}
                   className="flex-none p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors"
@@ -804,6 +815,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 </button>
               ) : (
                 <button
+                  data-testid="chat-send-button"
                   type="button"
                   onClick={handleSend}
                   disabled={!input.trim()}
