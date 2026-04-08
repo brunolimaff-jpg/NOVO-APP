@@ -19,6 +19,6 @@ test.describe('Scout smoke - investigation shell', () => {
 
     await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 20000 });
     await expect(page.getByTestId('chat-header-title')).toBeVisible();
-    await expect(page.getByTestId('chat-messages-region')).toBeVisible();
+    await expect(page.getByTestId('messages-scroller')).toBeVisible();
   });
 });

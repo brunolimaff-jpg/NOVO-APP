@@ -83,6 +83,7 @@ O projeto possui uma base inicial para automação de navegador assistida por IA
 ### Rodar smoke tests E2E
 
 ```bash
+npx playwright install
 npm run test:e2e:smoke
 ```
 
@@ -108,3 +109,17 @@ Para configuração do cliente MCP, consulte:
 
 - `docs/MCP-PLAYWRIGHT-SETUP.md`
 - `docs/mcp/playwright.generic.example.json`
+
+---
+
+## 7) Pesquisa profunda com Fetch MCP
+
+O Scout agora suporta aprofundamento de evidências públicas via **Fetch MCP**. Enquanto a busca interna encontra links, o Fetch permite extrair o conteúdo detalhado de páginas estratégicas.
+
+### Arquivos de referência:
+
+- [`docs/MCP-FETCH-SETUP.md`](./MCP-FETCH-SETUP.md): Guia de instalação e configuração.
+- [`docs/mcp/fetch.generic.example.json`](./mcp/fetch.generic.example.json): Exemplo de JSON para seu cliente MCP.
+- [`docs/FETCH-RESEARCH-FLOW.md`](./FETCH-RESEARCH-FLOW.md): Protocolo de investigação para agentes.
+
+Use o Fetch para validar o **Score PORTA** com base em fatos reais extraídos de sites oficiais e relatórios públicos.

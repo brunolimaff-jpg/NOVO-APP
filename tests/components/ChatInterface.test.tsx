@@ -8,6 +8,18 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
+vi.mock('react-virtuoso', () => ({
+  Virtuoso: ({ data, itemContent, components }: any) => (
+    <div data-testid="virtuoso-mock">
+      {components?.Header?.()}
+      {data.map((item: any, index: number) => (
+        <div key={index}>{itemContent(index, item)}</div>
+      ))}
+      {components?.Footer?.()}
+    </div>
+  ),
+}));
+
 vi.mock('../../components/MessageRow', () => ({
   default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];

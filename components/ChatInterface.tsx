@@ -190,7 +190,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
-  const showInitialHome = !currentSession || safeMessages.length === 0;
+  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
 
   const handleDeleteWithUndo = (msgId: string) => {
     if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
@@ -503,7 +503,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const radarUnread = radar?.unreadCount ?? 0;
 
   return (
-    <div className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
+    <div data-testid="messages-scroller" className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <SessionsSidebar
         sessions={sessions}
@@ -527,7 +527,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       />
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main data-testid="chat-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
@@ -683,7 +683,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef} data-testid="chat-messages-region">
+        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
           {showInitialHome ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
               {!loading && !user ? (
@@ -711,7 +711,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               itemContent={itemContent}
               followOutput={false}
               increaseViewportBy={{ top: 400, bottom: 400 }}
-              initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
               style={{ height: '100%' }}
               components={{
                 Header: () =>
@@ -831,7 +830,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* ── Overlays ──────────────────────────────────────────────────────────── */}
 
