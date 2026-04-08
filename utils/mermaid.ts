@@ -56,10 +56,27 @@ function normalizeMermaidText(input: string): string {
 }
 
 function splitCollapsedStatements(input: string): string {
+  // Split ; before Mermaid control keywords (safe: only when keyword follows)
   let result = input.replace(/;(?!\n)\s*(?=classDef|class|style|click|subgraph)/gi, ';\n');
 
+  // Split when 2+ spaces precede an edge statement (existing rule)
   result = result.replace(
     /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
+    '$1\n',
+  );
+
+  // Split after ] (end of a node label) when a new edge-producing statement follows
+  // with 0-1 spaces and NO preceding newline. This handles collapsed AI output like:
+  //   A[label]B ==> C    or   A["label"]B-->C   or   A["label"]B ==> C
+  // The ] closes a node definition, so anything after it with 0-1 spaces is a new statement.
+  result = result.replace(
+    /(\])\s{0,1}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~|\[))/g,
+    '$1\n',
+  );
+
+  // Also split when two node definitions are immediately adjacent (NodeId[...]NodeId[)
+  result = result.replace(
+    /(\])\s{0,1}(?=[A-Za-z][\w-]*\[)/g,
     '$1\n',
   );
 
