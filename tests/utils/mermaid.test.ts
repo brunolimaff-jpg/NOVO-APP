@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { isMermaidRenderErrorOutput, sanitizeMermaidCode } from '../../utils/mermaid';
 
 describe('mermaid helpers', () => {
-  it('separa statements colapsados na mesma linha', () => {
+  it('separa statements colapsados na mesma linha e codifica labels com parênteses', () => {
     const result = sanitizeMermaidCode(
       'graph TD\nC ==> D[Armazenagem (Silos)]    D ==> E[Expedição]',
     );
 
-    expect(result).toContain('C ==> D[Armazenagem (Silos)]\nD ==> E[Expedição]');
+    // quoteNodeLabels wraps labels with () in double-quotes to avoid PS/PE token errors
+    expect(result).toContain('C ==> D["Armazenagem (Silos)"]');
+    expect(result).toContain('D ==> E[Expedição]');
   });
 
   it('materializa targets textuais em nós válidos', () => {

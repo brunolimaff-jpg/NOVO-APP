@@ -101,6 +101,43 @@ function quoteLooseSubgraphLabels(input: string): string {
   );
 }
 
+// Mermaid v10 jison grammar treats (, ), {, }, /, | as separate tokens (PS, PE, BRKT,
+// SUBROUTINEEND, PIPE) even inside unquoted square-bracket node labels.
+// When a node label contains these chars without enclosing double-quotes, the parser
+// raises a "got 'PS'" / "got 'BRKT'" unexpected-token error.
+// Fix: wrap such labels in double-quotes, which puts the lexer into a string context.
+function quoteNodeLabels(input: string): string {
+  // Matches: NodeId[label text] where label is NOT already double-quoted
+  // Special chars that must trigger quoting: ( ) { } / | \
+  // Already-quoted labels (NodeId["text"]) are skipped by the negative lookahead.
+  return input.replace(
+    /\b([A-Za-z][\w-]*)\[(?!")([^\]\n]+)\]/g,
+    (_full, nodeId: string, label: string) => {
+      if (/[(){}|/\\]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `${nodeId}["${safeLabel}"]`;
+      }
+      return _full;
+    },
+  );
+}
+
+// Pipe-style edge labels |label| that contain () are also problematic:
+// the ( inside a |...| context can still trigger PS token depending on lex state.
+// Fix: wrap the label in double-quotes: |"label with (parens)"|
+function quotePipeEdgeLabelSpecialChars(input: string): string {
+  return input.replace(
+    /\|([^|\n"]+)\|/g,
+    (_full, label: string) => {
+      if (/[(){}]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `|"${safeLabel}"|`;
+      }
+      return _full;
+    },
+  );
+}
+
 export function normalizeMermaidBlocks(markdown: string): string {
   if (!markdown) return '';
 
@@ -127,6 +164,8 @@ export function sanitizeMermaidCode(input: string): string {
 
   code = splitCollapsedStatements(code);
   code = fixColonEdgeLabels(code);
+  code = quoteNodeLabels(code);
+  code = quotePipeEdgeLabelSpecialChars(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
