@@ -9,7 +9,7 @@ const MERMAID_RENDER_ERROR_PATTERN =
 // Stripping them prevents a parse error that silently breaks diagram rendering.
 function removeUnsupportedClassDefProps(input: string): string {
   return input.replace(
-    /^(\s*classDef\s+\w+\s+)([^\n;]+)/gm,
+    /(\s*classDef\s+\w+\s+)([^\n;]+)/gi,
     (_full, prefix: string, props: string) =>
       prefix + props.replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, ''),
   );
@@ -44,10 +44,39 @@ function normalizeMermaidText(input: string): string {
 }
 
 function splitCollapsedStatements(input: string): string {
-  return input.replace(
+  let result = input.replace(/;(?!\n)\s*/g, ';\n');
+
+  const keywords = ['classDef', 'class', 'style', 'click', 'subgraph'];
+  keywords.forEach(kw => {
+    const re = new RegExp(`([^\\n])\\s+(?=${kw}\\b)`, 'g');
+    result = result.replace(re, '$1\n');
+  });
+
+  result = result.replace(
     /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
     '$1\n',
   );
+
+  return result;
+}
+
+function fixColonEdgeLabels(input: string): string {
+  let res = input.replace(
+    /([A-Za-z][\w-]*)\s*(-\.->)\s*([A-Za-z][\w-]*):\s*([^;\n]+)/g,
+    '$1 -. $4 .-> $3',
+  );
+
+  res = res.replace(
+    /([A-Za-z][\w-]*)\s*(-->)\s*([A-Za-z][\w-]*):\s*([^;\n]+)/g,
+    '$1 -- $4 --> $3',
+  );
+
+  res = res.replace(
+    /([A-Za-z][\w-]*)\s*(==>)\s*([A-Za-z][\w-]*):\s*([^;\n]+)/g,
+    '$1 == $4 ==> $3',
+  );
+
+  return res;
 }
 
 function materializeQuotedEdgeTargets(input: string): string {
@@ -98,8 +127,8 @@ export function sanitizeMermaidCode(input: string): string {
     .trim();
 
   code = splitCollapsedStatements(code);
+  code = fixColonEdgeLabels(code);
   code = materializeQuotedEdgeTargets(code);
-  code = quoteLooseSubgraphLabels(code);
 
   const match = code.match(MERMAID_START_PATTERN);
   if (!match) return '';
