@@ -63,6 +63,9 @@ Pipeline kanban que nasce da investigação — sem retrabalho de copiar e colar
 **Radar de monitoramento**
 Acompanha os prospects salvos e sinaliza quando há movimentação relevante: expansão, licitação, mudança societária, pressão regulatória.
 
+**Pesquisa Profunda (Fetch MCP)**
+Suporte a protocolos avançados de investigação factual, permitindo que agentes extraiam dados detalhados de sites oficiais e relatórios públicos para calibrar o Score PORTA.
+
 ---
 
 ## Score PORTA — a qualificação que faz sentido no Agro

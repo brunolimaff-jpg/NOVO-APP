@@ -15,6 +15,15 @@ export const config = {
 export const maxDuration = 60;
 
 /**
+ * CAMADA DE DESCOBERTA (Internal Search Layer)
+ * 
+ * Papel: Realizar buscas públicas rápidas e descoberta de URLs candidatas.
+ * Diferença vs Fetch MCP:
+ * - Esta API é usada internamente pelo Scout para busca inicial e snippets.
+ * - O Fetch MCP (externo) deve ser usado por agentes para aprofundamento factual densa de URLs específicas.
+ */
+
+/**
  * Valida se uma URL é pública e segura para evitar SSRF.
  */
 function isValidPublicUrl(urlString: string): boolean {
@@ -58,7 +67,7 @@ function extractCleanText(html: string): string {
     const tagsToRemove = ['script', 'style', 'iframe', 'nav', 'footer', 'header', 'noscript', 'head'];
     tagsToRemove.forEach(tag => {
         const elements = doc.querySelectorAll(tag);
-        elements.forEach(el => (el as any).remove());
+        elements.forEach(el => el.remove());
     });
 
     // Tenta focar no conteúdo principal se houver <main> ou <article>
@@ -96,10 +105,10 @@ async function performWebSearch(query: string): Promise<string | null> {
         // No DDG Lite, os resultados estão em tabelas
         const links = Array.from(doc.querySelectorAll('a.result-link'))
             .slice(0, 5) // Pega os top 5 resultados
-            .map((a: any) => {
+            .map((a) => {
                 const title = a.textContent?.trim() || 'Sem título';
                 const url = a.getAttribute('href') || '';
-                const snippet = a.closest('tr')?.nextElementSibling?.textContent?.trim() || '';
+                const snippet = (a as Element).closest('tr')?.nextElementSibling?.textContent?.trim() || '';
                 return `Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`;
             })
             .join('\n');
