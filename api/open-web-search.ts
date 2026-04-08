@@ -1,17 +1,115 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { JSDOM } from 'jsdom';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 const SearchRequestSchema = z.object({
     query: z.string().min(1),
-    url: z.string().url().optional(), // Para extração de URL específica
+    url: z.string().url().optional(),
 });
 
 export const config = {
     runtime: 'nodejs',
 };
 
-export const maxDuration = 60; // 60 segundos para Vercel Pro, 10s para Hobby
+export const maxDuration = 60;
+
+/**
+ * Valida se uma URL é pública e segura para evitar SSRF.
+ */
+function isValidPublicUrl(urlString: string): boolean {
+    try {
+        const url = new URL(urlString);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+
+        const hostname = url.hostname.toLowerCase();
+
+        // Bloqueia localhost e IPs de loopback
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') return false;
+
+        // Bloqueia redes privadas (RFC1918)
+        // 10.0.0.0/8
+        if (hostname.startsWith('10.')) return false;
+        // 172.16.0.0/12
+        if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
+        // 192.168.0.0/16
+        if (hostname.startsWith('192.168.')) return false;
+
+        // Bloqueia link-local e metadados de cloud (AWS, GCP, Azure, Vercel)
+        if (hostname.startsWith('169.254.')) return false;
+
+        // Bloqueia nomes de domínio que resolvem para interno (ex: .local, .internal)
+        if (hostname.endsWith('.local') || hostname.endsWith('.internal')) return false;
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Limpa o HTML usando JSDOM para extrair apenas texto relevante.
+ */
+function extractCleanText(html: string): string {
+    const dom = new JSDOM(html);
+    const doc = dom.window.document;
+
+    // Remove elementos ruidosos
+    const tagsToRemove = ['script', 'style', 'iframe', 'nav', 'footer', 'header', 'noscript', 'head'];
+    tagsToRemove.forEach(tag => {
+        const elements = doc.querySelectorAll(tag);
+        elements.forEach(el => (el as any).remove());
+    });
+
+    // Tenta focar no conteúdo principal se houver <main> ou <article>
+    const mainContent = doc.querySelector('main') || doc.querySelector('article') || doc.body;
+
+    // Limpa espaços em branco excessivos
+    const text = mainContent.textContent || '';
+    return text
+        .replace(/\s\s+/g, ' ')
+        .trim()
+        .slice(0, 10000); // Limite de 10k caracteres para o Gemini
+}
+
+/**
+ * Realiza uma busca real no DuckDuckGo (Lite) para evitar mocks.
+ */
+async function performWebSearch(query: string): Promise<string | null> {
+    scoutDiag.info('OpenWebSearch', `Buscando no DuckDuckGo: ${query}`);
+
+    try {
+        // Usamos a versão lite que é mais fácil de parsear e não exige JS
+        const searchUrl = `https://duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+        const response = await fetch(searchUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+
+        if (!response.ok) throw new Error(`DDG search failed: ${response.status}`);
+
+        const html = await response.text();
+        const dom = new JSDOM(html);
+        const doc = dom.window.document;
+
+        // No DDG Lite, os resultados estão em tabelas
+        const links = Array.from(doc.querySelectorAll('a.result-link'))
+            .slice(0, 5) // Pega os top 5 resultados
+            .map((a: any) => {
+                const title = a.textContent?.trim() || 'Sem título';
+                const url = a.getAttribute('href') || '';
+                const snippet = a.closest('tr')?.nextElementSibling?.textContent?.trim() || '';
+                return `Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`;
+            })
+            .join('\n');
+
+        return links || 'Nenhum resultado encontrado no DuckDuckGo.';
+    } catch (error) {
+        scoutDiag.error('OpenWebSearch', 'Erro na busca DDG', { error });
+        return null;
+    }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -26,63 +124,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { query, url } = parsed.data;
 
-        scoutDiag.info('OpenWebSearch', 'Iniciando busca/extração', { query, url });
+        scoutDiag.info('OpenWebSearch', 'Iniciando operação', { query, url });
 
-        let result: string | null = null;
+        let content: string | null = null;
 
         if (url) {
-            // Prioriza a extração de URL específica
-            try {
-                scoutDiag.info('OpenWebSearch', `Extraindo conteúdo de URL: ${url}`);
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch URL: ${response.status}`);
-                }
-                const html = await response.text();
-                // Usar uma biblioteca de parsing HTML (ex: JSDOM, cheerio) para extrair texto limpo
-                // Para simplificar no MVP, faremos uma extração básica de texto
-                result = extractTextFromHtml(html);
-                scoutDiag.info('OpenWebSearch', 'Extração de URL concluída');
-            } catch (urlError) {
-                scoutDiag.warn('OpenWebSearch', `Falha ao extrair URL ${url}: ${urlError}`);
-                // Fallback para busca se a extração da URL falhar
-                result = await performWebSearch(query);
+            if (!isValidPublicUrl(url)) {
+                scoutDiag.warn('OpenWebSearch', `URL bloqueada por segurança: ${url}`);
+                return res.status(403).json({ error: 'Forbidden: Restricted URL' });
             }
-        } else if (query) {
-            // Se não há URL específica, faz uma busca geral
-            result = await performWebSearch(query);
+
+            try {
+                scoutDiag.info('OpenWebSearch', `Extraindo: ${url}`);
+                const response = await fetch(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+                    signal: AbortSignal.timeout(10000) // Timeout de 10s para a extração
+                });
+
+                if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+
+                const html = await response.text();
+                content = extractCleanText(html);
+            } catch (err) {
+                scoutDiag.warn('OpenWebSearch', `Falha na URL ${url}, tentando busca...`);
+                content = await performWebSearch(query);
+            }
         } else {
-            return res.status(400).json({ error: 'Missing query or url' });
+            content = await performWebSearch(query);
         }
 
-        if (!result) {
-            scoutDiag.warn('OpenWebSearch', 'Nenhum resultado encontrado para a busca/extração.');
-            return res.status(200).json({ content: 'Nenhum resultado relevante encontrado nas fontes públicas.', source: 'OpenWebSearch' });
-        }
-
-        return res.status(200).json({ content: result, source: 'OpenWebSearch' });
+        return res.status(200).json({
+            content: content || 'Nenhum dado capturado.',
+            source: 'OpenWebSearch/DuckDuckGo'
+        });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        scoutDiag.error('OpenWebSearch', 'Falha na operação', { error: message });
-        return res.status(500).json({ error: 'Search/Extraction failed', detail: message });
+        scoutDiag.error('OpenWebSearch', 'Falha crítica', { error: message });
+        return res.status(500).json({ error: 'Internal Server Error', detail: message });
     }
-}
-
-// Função para simular a busca web (usaria algo como `serpapi` ou similar)
-// Para esta POC, vamos mockar um resultado simples
-async function performWebSearch(query: string): Promise<string | null> {
-    scoutDiag.info('OpenWebSearch', `Realizando busca web para: ${query}`);
-    // Aqui você integraria com uma API de busca gratuita ou um scraper leve.
-    // Ex: usar playwright-mcp ou pupeteer para visitar uma página de busca
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simula latência
-    return `Resultados para "${query}": Encontrei diversas notícias e artigos sobre ${query} em portais de agronegócio e sites de notícias gerais. Uma análise mais aprofundada pode revelar informações sobre a empresa.`;
-}
-
-// Função básica para extrair texto de HTML (para MVP)
-function extractTextFromHtml(html: string): string {
-    // Isso é MUITO simplificado. Em produção, você usaria uma lib como JSDOM.
-    // Apenas remove tags HTML e tenta pegar o texto.
-    const text = html.replace(/<[^>]*>/g, '');
-    return text.slice(0, 1500) + '... (conteúdo truncado para relevância)';
 }

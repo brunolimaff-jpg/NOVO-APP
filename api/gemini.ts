@@ -23,7 +23,7 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     message: z.string().min(1).max(200000),
     useGrounding: z.boolean().optional(),
     thinkingMode: z.boolean().optional(),
-    useOpenWebSearch: z.boolean().optional(), // Nova flag para a ferramenta OpenWebSearch
+    useOpenWebSearch: z.boolean().optional(),
   }),
 ]);
 
@@ -37,7 +37,6 @@ const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
 
-// Fallback manual para process.env caso o TypeScript/Vercel Runtime reclame em modo estrito
 const getEnvVar = (name: string): string | undefined => {
   try {
     const proc = (globalThis as any).process;
@@ -158,27 +157,19 @@ async function executeGeminiAction(
       const message = body.message;
       const useGrounding = body.useGrounding ?? true;
       const thinkingMode = body.thinkingMode ?? false;
-      const useOpenWebSearch = body.useOpenWebSearch ?? false; // Nova flag para a ferramenta OpenWebSearch
+      const useOpenWebSearch = body.useOpenWebSearch ?? false;
 
-      // Definição da ferramenta OpenWebSearch para o Gemini
       const openWebSearchTool = {
         functionDeclarations: [
           {
             name: "performWebSearch",
-            description: "Realiza uma busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos (sem API Key). Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise. Prioriza extrair conteúdo direto de uma URL se fornecida, caso contrário, realiza uma busca geral.",
+            description: "Realiza busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos. Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise.",
             parameters: {
               type: "OBJECT",
               properties: {
-                query: {
-                  type: "STRING",
-                  description: "Opcional. O termo de busca para a pesquisa na web."
-                },
-                url: {
-                  type: "STRING",
-                  description: "Opcional. A URL completa (incluindo https://) da página para extrair conteúdo diretamente."
-                }
+                query: { type: "STRING", description: "O termo de busca para a pesquisa na web." },
+                url: { type: "STRING", description: "A URL completa para extrair conteúdo diretamente." }
               },
-              // Não há \'required\' pois pode ser query OU url
             }
           }
         ]
@@ -187,7 +178,7 @@ async function executeGeminiAction(
       const runChat = async (withGrounding: boolean) => {
         const activeTools = [];
         if (withGrounding) activeTools.push({ googleSearch: {} });
-        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any); // Cast para ignorar tipo estrito do SDK
+        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any);
 
         const chat = ai.chats.create({
           model,
@@ -219,63 +210,58 @@ async function executeGeminiAction(
         response = chatData.response;
         chatSession = chatData.chat;
 
-        // Se o modelo decidiu chamar uma função, nós interceptamos e executamos localmente
-        if (response.functionCalls && response.functionCalls.length > 0) {
-          console.log("[Gemini] Function Call solicitada:", response.functionCalls[0].name);
+        // Loop para processar Function Calls (suporta múltiplas chamadas e encadeamento)
+        let maxIterations = 5;
+        while (response.functionCalls && response.functionCalls.length > 0 && maxIterations > 0) {
+          maxIterations--;
+          console.log(`[Gemini] Turno de Function Call (${response.functionCalls.length} chamadas)`);
+
+          const functionResponses = [];
 
           for (const call of response.functionCalls) {
-            if (call.name === "performWebSearch") { // Nome da função da ferramenta OpenWebSearch
+            if (call.name === "performWebSearch") {
               const args = call.args as { query?: string; url?: string };
-              console.log(`[OpenWebSearch] Executando busca/extração para: ${args.query || args.url}`);
-
               try {
-                // Chamada HTTP para nosso proxy local (Vercel Function)
                 const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
                 const toolResponse = await fetch(`${origin}/api/open-web-search`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(args)
                 });
-
                 const toolResult = await toolResponse.json();
 
-                // Retornar o resultado da função para o chat e prosseguir a geração
-                response = await chatSession.sendMessage({
-                  role: "function",
-                  parts: [{
-                    functionResponse: {
-                      name: call.name,
-                      response: { result: toolResult }
-                    }
-                  }]
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { result: toolResult }
+                  }
                 });
-
               } catch (toolError) {
-                console.error(`[OpenWebSearch] Falha ao executar tool:`, toolError);
-                // Retornamos um erro suave para o modelo não quebrar e continuar respondendo
-                response = await chatSession.sendMessage({
-                  role: "function",
-                  parts: [{
-                    functionResponse: {
-                      name: call.name,
-                      response: { error: "Failed to perform web search/extraction. Proceed with your existing knowledge." }
-                    }
-                  }]
+                console.error(`[OpenWebSearch] Falha:`, toolError);
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { error: "Failed to perform web search/extraction." }
+                  }
                 });
               }
             }
+          }
+
+          if (functionResponses.length > 0) {
+            // Envia TODAS as respostas de funções em uma única mensagem (Batching)
+            response = await chatSession.sendMessage(functionResponses);
+          } else {
+            break; // Nenhuma chamada reconhecida
           }
         }
 
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-
-        console.warn(
-          "[GeminiProxy] Grounding/Tool falhou, acionando fallback sem busca externa:",
-          primaryError instanceof Error ? primaryError.message : String(primaryError),
-        );
-        groundingActivated = false; // Desativa também para ferramenta
-        response = await runChat(false);
+        console.warn("[GeminiProxy] Falha no Grounding/Tool, acionando fallback:", primaryError);
+        groundingActivated = false;
+        const fallbackData = await runChat(false);
+        response = fallbackData.response;
       }
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
@@ -315,11 +301,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if (isQuotaExhausted(error) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando chave de fallback...`);
+          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando fallback...`);
           lastError = error;
           continue;
         }
-
         throw error;
       }
     }
