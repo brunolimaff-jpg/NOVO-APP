@@ -38,7 +38,11 @@ import {
   buildSeniorEvidenceContext,
   extractClienteSeniorData,
 } from './utils/seniorEvidence';
-import { 
+import {
+  MODULAR_DOSSIER_STAGES,
+} from './constants/loadingStages';
+
+import {
   SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
@@ -595,35 +599,35 @@ const App: React.FC = () => {
           {
             name: 'Raio-X Operacional',
             prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-            stage: 'Mapeando inteligência operacional...',
+            stage: MODULAR_DOSSIER_STAGES[0],
             optional: false,
             timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
           },
           {
             name: 'Tech Stack',
             prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-            stage: 'Investigando tech stack...',
+            stage: MODULAR_DOSSIER_STAGES[1],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
             prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-            stage: 'Investigando riscos & compliance...',
+            stage: MODULAR_DOSSIER_STAGES[2],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Estratégia & Expansão',
             prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-            stage: 'Investigando estratégia & expansão...',
+            stage: MODULAR_DOSSIER_STAGES[3],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'RH & Decisores',
             prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-            stage: 'Investigando RH & decisores...',
+            stage: MODULAR_DOSSIER_STAGES[4],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
@@ -689,9 +693,9 @@ const App: React.FC = () => {
         }
 
         if (previousStageCompleted) {
-          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         let benchmarkCompleted = false;
@@ -717,9 +721,9 @@ const App: React.FC = () => {
         }
 
         if (benchmarkCompleted) {
-          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         if (optionalStepFailures.length > 0) {

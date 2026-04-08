@@ -119,15 +119,16 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
   if (/^(Preparando ganchos para fechamento|Gerando ganchos|Preparando próximos passos)/i.test(s))            return { key: 'hooks' };
   if (/^(Rastreando registros cadastrais|Consultando dados cadastrais|Buscando CNPJ|dados da empresa)/i.test(s)) return { key: 'cadastral' };
   if (/^(Desconstruindo teia societária|Mapeando teia societária|sócios|grupos econômicos)/i.test(s))     return { key: 'corporate' };
-  if (/^(Analisando stack tecnológico|Analisando stack|stack tecnológico|sistemas utilizados)/i.test(s)) return { key: 'tech' };
-  if (/^(Escaneando riscos fiscais|Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ)/i.test(s))  return { key: 'compliance' };
+  if (/^(Analisando stack tecnológico|Analisando stack|stack tecnológico|sistemas utilizados|Investigando tech stack)/i.test(s)) return { key: 'tech' };
+  if (/^(Escaneando riscos fiscais|Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ|Investigando riscos & compliance)/i.test(s))  return { key: 'compliance' };
   if (/^(Mapeando centro de gravidade|Analisando RH|decisores|gestores|diretores)/i.test(s))            return { key: 'rh' };
   if (/^(Investigando malha logística|Investigando logística|supply chain|frota|armazenagem)/i.test(s)) return { key: 'logistica' };
   if (/^(Auditando incentivos|Verificando incentivos fiscais|benefícios fiscais)/i.test(s))     return { key: 'fiscal' };
-  if (/^(Mapeando inteligência territorial estratégica|Mapeando inteligência territorial|contexto regional|região)/i.test(s)) return { key: 'territorio' };
+  if (/^(Mapeando inteligência territorial estratégica|Mapeando inteligência territorial|contexto regional|região|Investigando estratégia & expansão)/i.test(s)) return { key: 'territorio' };
   if (/^(Calibrando Score PORTA|Calculando Score|PORTA score)/i.test(s))                          return { key: 'scoring' };
-  if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final)/i.test(s))     return { key: 'consolidando' };
+  if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final|Finalizando dossiê modular)/i.test(s))     return { key: 'consolidando' };
   if (/^(Mapeando ecossistema competitivo regional|Cruzando concorrentes|concorrentes regionais|mapeamento competitivo)/i.test(s)) return { key: 'concorrentes' };
+  if (/^Investigando RH & decisores/i.test(s)) return { key: 'rh' };
 
   // Bloqueio de vazamento de prompts e metadados internos
   if (/^[@\[{]|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
