@@ -19,7 +19,7 @@ export function normalizeInlineMermaidClasses(chart: string): string {
   const classLines: string[] = [];
   const seenClassAssignments = new Set<string>();
   const normalized = chart.replace(
-    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^\)\n]+\)|\{[^\}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
+    /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^)\n]+\)|\{[^}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
     (_full, nodeId: string, nodeShape: string, className: string) => {
       const classLine = `class ${nodeId} ${className};`;
       if (!seenClassAssignments.has(classLine)) {
@@ -38,7 +38,7 @@ function normalizeMermaidText(input: string): string {
   return input
     .replace(/<br\s*\/?>\s*/gi, '\n')
     .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
-    .replace(/<\!--[\s\S]*?-->/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/[\u2013\u2014]/g, '-')
     .trim();
 }
@@ -64,10 +64,10 @@ function materializeQuotedEdgeTargets(input: string): string {
 
 function quoteLooseSubgraphLabels(input: string): string {
   return input.replace(
-    /^(\s*subgraph\s+)([^"'\n\[\]{]+?)(\s*)$/gm,
+    /^(\s*subgraph\s+)([^"'\n[\]{]+?)(\s*)$/gm,
     (full, prefix, label, suffix) => {
       const trimmed = label.trim();
-      if (!trimmed || /[\s()\[\]\/\\%:]/.test(trimmed)) return full;
+      if (!trimmed || /[\s()[\]/\\%:]/.test(trimmed)) return full;
       return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
     },
   );
