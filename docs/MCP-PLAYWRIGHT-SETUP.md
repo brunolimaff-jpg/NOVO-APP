@@ -35,20 +35,35 @@ Exemplo mínimo para clientes MCP compatíveis:
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest"]
+      "args": ["@playwright/mcp@0.1.6"]
     }
   }
 }
 ```
 
-### Variante headless e isolada
+### Modo Debug (Headed)
+
+Use esta configuração se quiser ver o navegador em execução (útil para depuração visual):
 
 ```json
 {
   "mcpServers": {
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest", "--headless", "--isolated"]
+      "args": ["@playwright/mcp@0.1.6"]
+    }
+  }
+}
+```
+
+### Variante headless e isolada (Recomendado para Agentes)
+
+```json
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@0.1.6", "--headless", "--isolated"]
     }
   }
 }
@@ -173,6 +188,7 @@ Considere o setup correto quando for possível:
 
 - `package.json`
 - `playwright.config.ts`
+- `docs/mcp/playwright.generic.example.json`
 - `tests-e2e/`
 - `components/GreetingWelcomeScreen.tsx`
 - `components/EmptyStateHome.tsx`
