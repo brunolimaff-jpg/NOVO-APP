@@ -44,9 +44,25 @@ function normalizeMermaidText(input: string): string {
 }
 
 function splitCollapsedStatements(input: string): string {
-  return input.replace(
+  let result = input.replace(/;(?!\n)\s*(?=classDef|class|style|click|subgraph)/gi, ';\n');
+
+  result = result.replace(
     /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
     '$1\n',
+  );
+
+  return result;
+}
+
+function fixColonEdgeLabels(input: string): string {
+  return input.replace(
+    /([A-Za-z][\w-]*)\s*(-\.->|-->|==>)\s*([A-Za-z][\w-]*):\s*([^;\n]+)/g,
+    (full, source, edge, target, label) => {
+      const trimmedLabel = label.trim();
+      if (edge === '-.->') return `${source} -. ${trimmedLabel} .-> ${target}`;
+      if (edge === '==>') return `${source} == ${trimmedLabel} ==> ${target}`;
+      return `${source} -- ${trimmedLabel} --> ${target}`;
+    },
   );
 }
 
@@ -98,6 +114,7 @@ export function sanitizeMermaidCode(input: string): string {
     .trim();
 
   code = splitCollapsedStatements(code);
+  code = fixColonEdgeLabels(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
