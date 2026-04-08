@@ -70,13 +70,14 @@ function splitCollapsedStatements(input: string): string {
   //   A[label]B ==> C    or   A["label"]B-->C   or   A["label"]B ==> C
   // The ] closes a node definition, so anything after it with 0-1 spaces is a new statement.
   result = result.replace(
-    /(\])\s{0,1}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~|\[))/g,
+    /(\])[^\S\n]*(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~|\[))/g,
     '$1\n',
   );
 
-  // Also split when two node definitions are immediately adjacent (NodeId[...]NodeId[)
+  // Also split when two node definitions are immediately adjacent (NodeId[...]  NodeId[)
+  // regardless of how many spaces separate them on the same line
   result = result.replace(
-    /(\])\s{0,1}(?=[A-Za-z][\w-]*\[)/g,
+    /(\])[^\S\n]*(?=[A-Za-z][\w-]*\[)/g,
     '$1\n',
   );
 
