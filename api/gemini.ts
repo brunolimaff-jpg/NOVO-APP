@@ -159,17 +159,28 @@ async function executeGeminiAction(
       const thinkingMode = body.thinkingMode ?? false;
       const useOpenWebSearch = body.useOpenWebSearch ?? false;
 
-      const openWebSearchTool = {
+      const contentTools = {
         functionDeclarations: [
           {
             name: "performWebSearch",
-            description: "Realiza busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos. Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise.",
+            description: "Realiza busca na web para obter links e snippets iniciais sobre um tema.",
             parameters: {
               type: "OBJECT",
               properties: {
-                query: { type: "STRING", description: "O termo de busca para a pesquisa na web." },
-                url: { type: "STRING", description: "A URL completa para extrair conteúdo diretamente." }
+                query: { type: "STRING", description: "O termo de busca." }
               },
+              required: ["query"]
+            }
+          },
+          {
+            name: "extractDocumentContent",
+            description: "Extrai texto limpo de links web, arquivos PDF ou documentos Word (DOCX). Use quando tiver uma URL específica para analisar em profundidade.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                url: { type: "STRING", description: "A URL completa do documento ou página." }
+              },
+              required: ["url"]
             }
           }
         ]
@@ -178,7 +189,7 @@ async function executeGeminiAction(
       const runChat = async (withGrounding: boolean) => {
         const activeTools = [];
         if (withGrounding) activeTools.push({ googleSearch: {} });
-        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any);
+        if (useOpenWebSearch) activeTools.push(contentTools as any);
 
         const chat = ai.chats.create({
           model,
@@ -218,11 +229,12 @@ async function executeGeminiAction(
 
           const functionResponses = [];
 
+          const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
+
           for (const call of response.functionCalls) {
             if (call.name === "performWebSearch") {
-              const args = call.args as { query?: string; url?: string };
+              const args = call.args as { query?: string };
               try {
-                const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
                 const toolResponse = await fetch(`${origin}/api/open-web-search`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -241,7 +253,32 @@ async function executeGeminiAction(
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
-                    response: { error: "Failed to perform web search/extraction." }
+                    response: { error: "Failed to perform web search." }
+                  }
+                });
+              }
+            } else if (call.name === "extractDocumentContent") {
+              const args = call.args as { url: string };
+              try {
+                const toolResponse = await fetch(`${origin}/api/extract-content`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ url: args.url })
+                });
+                const toolResult = await toolResponse.json();
+
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { result: toolResult }
+                  }
+                });
+              } catch (toolError) {
+                console.error(`[ExtractContent] Falha:`, toolError);
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { error: "Failed to extract document content." }
                   }
                 });
               }

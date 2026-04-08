@@ -8,6 +8,9 @@
     },
     "api/radar-scan.ts": {
       "maxDuration": 120
+    },
+    "api/extract-content.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [

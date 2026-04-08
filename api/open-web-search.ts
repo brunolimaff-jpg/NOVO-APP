@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 const SearchRequestSchema = z.object({
@@ -57,28 +58,28 @@ function isValidPublicUrl(urlString: string): boolean {
 }
 
 /**
- * Limpa o HTML usando JSDOM para extrair apenas texto relevante.
+ * Limpa o HTML usando @mozilla/readability para extrair conteúdo relevante.
  */
 function extractCleanText(html: string): string {
     const dom = new JSDOM(html);
     const doc = dom.window.document;
 
-    // Remove elementos ruidosos
-    const tagsToRemove = ['script', 'style', 'iframe', 'nav', 'footer', 'header', 'noscript', 'head'];
-    tagsToRemove.forEach(tag => {
-        const elements = doc.querySelectorAll(tag);
-        elements.forEach(el => el.remove());
-    });
+    // Readability remove automaticamente headers, footers, navs, etc.
+    const reader = new Readability(doc);
+    const article = reader.parse();
 
-    // Tenta focar no conteúdo principal se houver <main> ou <article>
-    const mainContent = doc.querySelector('main') || doc.querySelector('article') || doc.body;
+    if (!article) {
+        // Fallback para textContent simples se Readability falhar
+        return (doc.body.textContent || '')
+            .replace(/\s\s+/g, ' ')
+            .trim()
+            .slice(0, 15000);
+    }
 
-    // Limpa espaços em branco excessivos
-    const text = mainContent.textContent || '';
-    return text
+    return (article.textContent || '')
         .replace(/\s\s+/g, ' ')
         .trim()
-        .slice(0, 10000); // Limite de 10k caracteres para o Gemini
+        .slice(0, 15000); // Aumentado de 10k para 15k
 }
 
 /**
@@ -105,10 +106,11 @@ async function performWebSearch(query: string): Promise<string | null> {
         // No DDG Lite, os resultados estão em tabelas
         const links = Array.from(doc.querySelectorAll('a.result-link'))
             .slice(0, 5) // Pega os top 5 resultados
-            .map((a) => {
+            .map((el) => {
+                const a = el as HTMLAnchorElement;
                 const title = a.textContent?.trim() || 'Sem título';
                 const url = a.getAttribute('href') || '';
-                const snippet = (a as Element).closest('tr')?.nextElementSibling?.textContent?.trim() || '';
+                const snippet = a.closest('tr')?.nextElementSibling?.textContent?.trim() || '';
                 return `Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`;
             })
             .join('\n');
