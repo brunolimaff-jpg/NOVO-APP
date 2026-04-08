@@ -23,6 +23,7 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     message: z.string().min(1).max(200000),
     useGrounding: z.boolean().optional(),
     thinkingMode: z.boolean().optional(),
+    useOpenWebSearch: z.boolean().optional(), // Nova flag para a ferramenta OpenWebSearch
   }),
 ]);
 
@@ -34,11 +35,21 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+
+// Fallback manual para process.env caso o TypeScript/Vercel Runtime reclame em modo estrito
+const getEnvVar = (name: string): string | undefined => {
+  try {
+    const proc = (globalThis as any).process;
+    return proc?.env?.[name];
+  } catch {
+    return undefined;
+  }
+};
 
 function getApiKeys(): string[] {
-  const primary = process.env.GEMINI_API_KEY;
-  const fallback = process.env.GEMINI_API_KEY_FALLBACK;
+  const primary = getEnvVar('GEMINI_API_KEY');
+  const fallback = getEnvVar('GEMINI_API_KEY_FALLBACK');
   const keys = [primary, fallback].filter((key): key is string => Boolean(key));
 
   if (keys.length === 0) {
@@ -147,8 +158,37 @@ async function executeGeminiAction(
       const message = body.message;
       const useGrounding = body.useGrounding ?? true;
       const thinkingMode = body.thinkingMode ?? false;
+      const useOpenWebSearch = body.useOpenWebSearch ?? false; // Nova flag para a ferramenta OpenWebSearch
+
+      // Definição da ferramenta OpenWebSearch para o Gemini
+      const openWebSearchTool = {
+        functionDeclarations: [
+          {
+            name: "performWebSearch",
+            description: "Realiza uma busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos (sem API Key). Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise. Prioriza extrair conteúdo direto de uma URL se fornecida, caso contrário, realiza uma busca geral.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: {
+                  type: "STRING",
+                  description: "Opcional. O termo de busca para a pesquisa na web."
+                },
+                url: {
+                  type: "STRING",
+                  description: "Opcional. A URL completa (incluindo https://) da página para extrair conteúdo diretamente."
+                }
+              },
+              // Não há \'required\' pois pode ser query OU url
+            }
+          }
+        ]
+      };
 
       const runChat = async (withGrounding: boolean) => {
+        const activeTools = [];
+        if (withGrounding) activeTools.push({ googleSearch: {} });
+        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any); // Cast para ignorar tipo estrito do SDK
+
         const chat = ai.chats.create({
           model,
           history,
@@ -156,31 +196,85 @@ async function executeGeminiAction(
             systemInstruction,
             temperature: thinkingMode ? 0.1 : 0.15,
             maxOutputTokens: 65536,
-            tools: withGrounding ? [{ googleSearch: {} }] : undefined,
+            tools: activeTools.length > 0 ? activeTools : undefined,
           },
         });
 
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-        return withTimeout(
+        const res = await withTimeout(
           chat.sendMessage({ message }),
           timeout,
-          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
+          withGrounding ? "chat-with-grounding" : "chat-no-grounding",
         );
+
+        return { chat, response: res };
       };
 
-      let response;
+      let response: any;
+      let chatSession: any;
       let groundingActivated = useGrounding;
 
       try {
-        response = await runChat(useGrounding);
+        const chatData = await runChat(useGrounding);
+        response = chatData.response;
+        chatSession = chatData.chat;
+
+        // Se o modelo decidiu chamar uma função, nós interceptamos e executamos localmente
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          console.log("[Gemini] Function Call solicitada:", response.functionCalls[0].name);
+
+          for (const call of response.functionCalls) {
+            if (call.name === "performWebSearch") { // Nome da função da ferramenta OpenWebSearch
+              const args = call.args as { query?: string; url?: string };
+              console.log(`[OpenWebSearch] Executando busca/extração para: ${args.query || args.url}`);
+
+              try {
+                // Chamada HTTP para nosso proxy local (Vercel Function)
+                const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
+                const toolResponse = await fetch(`${origin}/api/open-web-search`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(args)
+                });
+
+                const toolResult = await toolResponse.json();
+
+                // Retornar o resultado da função para o chat e prosseguir a geração
+                response = await chatSession.sendMessage({
+                  role: "function",
+                  parts: [{
+                    functionResponse: {
+                      name: call.name,
+                      response: { result: toolResult }
+                    }
+                  }]
+                });
+
+              } catch (toolError) {
+                console.error(`[OpenWebSearch] Falha ao executar tool:`, toolError);
+                // Retornamos um erro suave para o modelo não quebrar e continuar respondendo
+                response = await chatSession.sendMessage({
+                  role: "function",
+                  parts: [{
+                    functionResponse: {
+                      name: call.name,
+                      response: { error: "Failed to perform web search/extraction. Proceed with your existing knowledge." }
+                    }
+                  }]
+                });
+              }
+            }
+          }
+        }
+
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
 
         console.warn(
-          '[GeminiProxy] Grounding falhou, acionando fallback sem grounding:',
+          "[GeminiProxy] Grounding/Tool falhou, acionando fallback sem busca externa:",
           primaryError instanceof Error ? primaryError.message : String(primaryError),
         );
-        groundingActivated = false;
+        groundingActivated = false; // Desativa também para ferramenta
         response = await runChat(false);
       }
 

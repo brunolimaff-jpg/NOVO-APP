@@ -6,8 +6,8 @@
 const FALLBACK_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxvhFIWm6wOW0qDSrSB0lKA7UGkvxGltvZY9hghDpxv9r3diYcPoiPUq_n4WzJpkEY/exec';
 const FALLBACK_LOOKUP_URL = 'https://script.google.com/macros/s/AKfycbxscB2gSotAxrCdpRpyaqrPKlsPbRfe6fgjicbd69fG6sMM3vrbuGjDaRctWCTcE8d-/exec';
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || FALLBACK_BACKEND_URL;
-export const LOOKUP_URL = import.meta.env.VITE_LOOKUP_URL || FALLBACK_LOOKUP_URL;
+export const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || FALLBACK_BACKEND_URL;
+export const LOOKUP_URL = (import.meta as any).env?.VITE_LOOKUP_URL || FALLBACK_LOOKUP_URL;
 
 // === Mapeamento de produtos Senior → URLs reais ===
 export const SENIOR_PRODUCT_URLS: Record<string, string> = {
@@ -124,7 +124,7 @@ export const FAKE_DOMAINS = [
 // === Funções de busca de URL real ===
 export function findSeniorProductUrl(text: string): string | null {
   if (!text) return null;
-  
+
   const normalized = text
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -188,22 +188,25 @@ export function findSeniorProductUrl(text: string): string | null {
 }
 
 // Verifica se URL é de domínio falso gerado pelo Gemini
+export const OPEN_WEB_SEARCH_ENDPOINT = (import.meta as any).env?.VITE_OPEN_WEB_SEARCH_URL ||
+  "/api/open-web-search";
+
 export function isFakeUrl(url: string): boolean {
   if (!url) return true; // Empty URL is considered fake
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
-    
+
     // Verificação direta por domínio (exato ou subdomínio)
-    if (FAKE_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d))) return true;
-    
+    if (FAKE_DOMAINS.some(d => hostname === d || hostname.endsWith("." + d))) return true;
+
     // Google Search check - explicitly block search results as "fake" sources in this context
-    if (hostname.includes('google.com') && parsed.pathname.includes('/search')) return true;
-    
+    if (hostname.includes("google.com") && parsed.pathname.includes("/search")) return true;
+
     return false;
   } catch {
     // URL malformada, verificar string raw para catch-all
     const lower = url.toLowerCase();
-    return FAKE_DOMAINS.some(d => lower.includes(d)) || lower.includes('google.com/search');
+    return FAKE_DOMAINS.some(d => lower.includes(d)) || lower.includes("google.com/search");
   }
 }

@@ -53,6 +53,7 @@ export { parsePortaMarkerV2 } from '../utils/porta';
 export interface GeminiRequestOptions {
   useGrounding?: boolean;
   thinkingMode?: boolean;
+  useOpenWebSearch?: boolean;
   signal?: AbortSignal;
   onText?: (text: string) => void;
   onStatus?: (status: string) => void;
@@ -79,39 +80,39 @@ export interface SpotterExtractedData {
 
 import { MODEL_IDS } from '../config/models';
 
-const ROUTER_MODEL_ID        = MODEL_IDS.router;
-const TACTICAL_MODEL_ID      = MODEL_IDS.tactical;
-const DEEP_CHAT_MODEL_ID     = MODEL_IDS.deepChat;
+const ROUTER_MODEL_ID = MODEL_IDS.router;
+const TACTICAL_MODEL_ID = MODEL_IDS.tactical;
+const DEEP_CHAT_MODEL_ID = MODEL_IDS.deepChat;
 const STABLE_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
 const LOADING_CURIOSITY_MODEL_ID = MODEL_IDS.router;
 const OPEN_QUESTION_RECOVERY_METRIC_KEY = 'scout360_open_question_recovery_count';
-const RECOVERY_DEBUG_FLAG_KEY           = 'scout360_debug_recovery';
+const RECOVERY_DEBUG_FLAG_KEY = 'scout360_debug_recovery';
 
 // ─── Status granulares emitidos durante o dossiê ─────────────────────────────
 const DOSSIE_STATUS = {
-  intent:       'Capturando intenção tática da consulta...',
-  complexity:   'Avaliando profundidade da infraestrutura...',
-  context:      'Consolidando perímetro da conta alvo...',
-  history:      'Recuperando inteligência de conversas anteriores...',
-  enrichment:   'Enriquecendo sinais e contexto comercial estratégico...',
-  prompt:       'Orquestrando protocolo de investigação forense...',
-  cadastral:    'Rastreando registros cadastrais e fiscais...',
-  rag:          'Consultando base de inteligência Senior...',
+  intent: 'Capturando intenção tática da consulta...',
+  complexity: 'Avaliando profundidade da infraestrutura...',
+  context: 'Consolidando perímetro da conta alvo...',
+  history: 'Recuperando inteligência de conversas anteriores...',
+  enrichment: 'Enriquecendo sinais e contexto comercial estratégico...',
+  prompt: 'Orquestrando protocolo de investigação forense...',
+  cadastral: 'Rastreando registros cadastrais e fiscais...',
+  rag: 'Consultando base de inteligência Senior...',
   concorrentes: 'Mapeando ecossistema competitivo regional...',
-  benchmark:    'Auditando referências e contrapartidas de mercado...',
+  benchmark: 'Auditando referências e contrapartidas de mercado...',
   deepResearch: 'Infiltrando em fontes externas e sinais digitais...',
-  corporate:    'Desconstruindo teia societária e holdings...',
-  tech:         'Analisando stack tecnológico e legados digitais...',
-  compliance:   'Escaneando riscos fiscais e compliance SEFAZ...',
-  rh:           'Mapeando centro de gravidade: Decisores e RH...',
-  logistica:    'Investigando malha logística e supply chain...',
-  scoring:      'Calibrando Score PORTA contra o setor...',
-  model:        'Processando em motores de inferência tática...',
-  validation:   'Validando integridade e consistência dos achados...',
-  synthesis:    'Sintetizando narrativa executiva de alto impacto...',
-  finalReview:  'Auditando consistência final da entrega...',
-  response:     'Materializando recomendações práticas...',
-  hooks:        'Preparando ganchos para fechamento...',
+  corporate: 'Desconstruindo teia societária e holdings...',
+  tech: 'Analisando stack tecnológico e legados digitais...',
+  compliance: 'Escaneando riscos fiscais e compliance SEFAZ...',
+  rh: 'Mapeando centro de gravidade: Decisores e RH...',
+  logistica: 'Investigando malha logística e supply chain...',
+  scoring: 'Calibrando Score PORTA contra o setor...',
+  model: 'Processando em motores de inferência tática...',
+  validation: 'Validando integridade e consistência dos achados...',
+  synthesis: 'Sintetizando narrativa executiva de alto impacto...',
+  finalReview: 'Auditando consistência final da entrega...',
+  response: 'Materializando recomendações práticas...',
+  hooks: 'Preparando ganchos para fechamento...',
   consolidando: 'Consolidando dossiê de inteligência final...',
 } as const;
 
@@ -222,8 +223,8 @@ function normalizeGroundingSources(response: unknown): Array<{ title: string; ur
 
 interface ParsedPortaFeeds {
   adjustments: Omit<PortaFeedAdjustment, 'timestamp'>[];
-  flags:       Omit<PortaFlagFeed,        'timestamp'>[];
-  segments:    Omit<PortaSegmentFeed,     'timestamp'>[];
+  flags: Omit<PortaFlagFeed, 'timestamp'>[];
+  segments: Omit<PortaSegmentFeed, 'timestamp'>[];
 }
 
 type DeepDiveSource = (typeof DEEP_DIVE_SOURCES)[keyof typeof DEEP_DIVE_SOURCES] | 'UNKNOWN';
@@ -235,9 +236,9 @@ function normalizeFeedToken(raw: string | undefined): string {
 
 function parseFeedInt(raw: string | undefined): number | null {
   const cleaned = normalizeFeedToken(raw);
-  const match   = cleaned.match(/\d+/);
+  const match = cleaned.match(/\d+/);
   if (!match) return null;
-  const parsed  = Number.parseInt(match[0], 10);
+  const parsed = Number.parseInt(match[0], 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -251,9 +252,9 @@ function parseFeedPairs(raw: string | undefined): { subScores?: Record<string, n
   const pieces = extras.split(':').map(part => part.trim()).filter(Boolean);
   if (pieces.length < 2) return {};
   const subScores: Record<string, number> = {};
-  const metadata:  Record<string, string> = {};
+  const metadata: Record<string, string> = {};
   for (let i = 0; i < pieces.length - 1; i += 2) {
-    const key      = normalizeFeedToken(pieces[i]);
+    const key = normalizeFeedToken(pieces[i]);
     const valueRaw = normalizeFeedToken(pieces[i + 1]);
     const valueNum = parseFeedInt(valueRaw);
     if (!key) continue;
@@ -265,7 +266,7 @@ function parseFeedPairs(raw: string | undefined): { subScores?: Record<string, n
   }
   return {
     subScores: Object.keys(subScores).length > 0 ? subScores : undefined,
-    metadata:  Object.keys(metadata).length  > 0 ? metadata  : undefined,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   };
 }
 
@@ -279,59 +280,59 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
   const feedORRegex = /\[\[PORTA_FEED_([OR]):(?:\[)?(\d+)(?:\])?(?::([^:\]]+):(?:\[)?([^\]]+)(?:\])?)?]]/g;
   let match: RegExpExecArray | null;
   while ((match = feedORRegex.exec(content)) !== null) {
-    const dimension  = match[1] as 'O' | 'R';
-    const value      = clampFeedValue(Number.parseInt(match[2], 10));
-    const key        = normalizeFeedToken(match[3]);
-    const rawValue   = normalizeFeedToken(match[4]);
-    const metadata   = key && rawValue ? { [key]: rawValue } : undefined;
+    const dimension = match[1] as 'O' | 'R';
+    const value = clampFeedValue(Number.parseInt(match[2], 10));
+    const key = normalizeFeedToken(match[3]);
+    const rawValue = normalizeFeedToken(match[4]);
+    const metadata = key && rawValue ? { [key]: rawValue } : undefined;
     pushAdjustment({ source, dimension, suggestedValue: value, justification: `Deep dive ${source} sugere ${dimension}=${value}`, metadata });
   }
 
   const tFeedRegex = /\[\[PORTA_FEED_T:(?:\[)?(\d+)(?:\])?:T1:(?:\[)?(\d+)(?:\])?:T2:(?:\[)?(\d+)(?:\])?:T3:(?:\[)?(\d+)(?:\])?(?::STACK:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = tFeedRegex.exec(content)) !== null) {
     const tFinal = clampFeedValue(Number.parseInt(match[1], 10));
-    const t1     = clampFeedValue(Number.parseInt(match[2], 10));
-    const t2     = clampFeedValue(Number.parseInt(match[3], 10));
-    const t3     = clampFeedValue(Number.parseInt(match[4], 10));
-    const stack  = normalizeFeedToken(match[5]);
+    const t1 = clampFeedValue(Number.parseInt(match[2], 10));
+    const t2 = clampFeedValue(Number.parseInt(match[3], 10));
+    const t3 = clampFeedValue(Number.parseInt(match[4], 10));
+    const stack = normalizeFeedToken(match[5]);
     pushAdjustment({ source, dimension: 'T', suggestedValue: tFinal, justification: `Deep dive ${source}: T1(stack)=${t1}, T2(dor)=${t2}, T3(liberdade)=${t3}`, subScores: { T1: t1, T2: t2, T3: t3 }, metadata: stack ? { STACK: stack } : undefined });
   }
 
   const aFeedRegex = /\[\[PORTA_FEED_A:(?:\[)?(\d+)(?:\])?:A1:(?:\[)?(\d+)(?:\])?:A2:(?:\[)?(\d+)(?:\])?(?::GERACAO:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = aFeedRegex.exec(content)) !== null) {
-    const aFinal  = clampFeedValue(Number.parseInt(match[1], 10));
-    const a1      = clampFeedValue(Number.parseInt(match[2], 10));
-    const a2      = clampFeedValue(Number.parseInt(match[3], 10));
+    const aFinal = clampFeedValue(Number.parseInt(match[1], 10));
+    const a1 = clampFeedValue(Number.parseInt(match[2], 10));
+    const a2 = clampFeedValue(Number.parseInt(match[3], 10));
     const geracao = normalizeFeedToken(match[4]);
     pushAdjustment({ source, dimension: 'A', suggestedValue: aFinal, justification: `Deep dive ${source}: A1(cultural)=${a1}, A2(timing)=${a2}, Geração=${geracao || 'N/A'}`, subScores: { A1: a1, A2: a2 }, metadata: geracao ? { GERACAO: geracao } : undefined });
   }
 
   const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
   while ((match = pFeedRegex.exec(content)) !== null) {
-    const pFinal   = clampFeedValue(Number.parseInt(match[1], 10));
+    const pFinal = clampFeedValue(Number.parseInt(match[1], 10));
     const metadata: Record<string, string> = {};
-    const ha    = normalizeFeedToken(match[2]);
+    const ha = normalizeFeedToken(match[2]);
     const cnpjs = normalizeFeedToken(match[3]);
-    const fat   = normalizeFeedToken(match[4]);
-    if (ha)    metadata.HA    = ha;
+    const fat = normalizeFeedToken(match[4]);
+    if (ha) metadata.HA = ha;
     if (cnpjs) metadata.CNPJS = cnpjs;
-    if (fat)   metadata.FAT   = fat;
+    if (fat) metadata.FAT = fat;
     pushAdjustment({ source, dimension: 'P', suggestedValue: pFinal, justification: `Deep dive ${source} sugere P=${pFinal}`, metadata: Object.keys(metadata).length ? metadata : undefined });
   }
 
   const genericFeedRegex = /\[\[PORTA_FEED_([PORTA])(?:_[A-Z0-9]+)?:(?:\[)?(\d+)(?:\])?(?::([^\]]+))?]]/g;
   while ((match = genericFeedRegex.exec(content)) !== null) {
-    const dimension  = match[1] as 'P' | 'O' | 'R' | 'T' | 'A';
+    const dimension = match[1] as 'P' | 'O' | 'R' | 'T' | 'A';
     const hasSpecific = result.adjustments.some(a => a.dimension === dimension);
     if (hasSpecific) continue;
-    const suggestedValue       = clampFeedValue(Number.parseInt(match[2], 10));
+    const suggestedValue = clampFeedValue(Number.parseInt(match[2], 10));
     const { subScores, metadata } = parseFeedPairs(match[3]);
     pushAdjustment({ source, dimension, suggestedValue, justification: `Deep dive ${source} sugere ${dimension}=${suggestedValue}`, subScores, metadata });
   }
 
   const proxyRegex = /\[\[PORTA_FEED_P_PROXY:FUNC:(?:\[)?(\d+)(?:\])?]]/g;
   while ((match = proxyRegex.exec(content)) !== null) {
-    const value    = normalizeFeedToken(match[1]);
+    const value = normalizeFeedToken(match[1]);
     const existing = result.adjustments.find(a => a.dimension === 'P');
     if (existing) existing.metadata = { ...(existing.metadata || {}), FUNCIONARIOS: value };
   }
@@ -397,13 +398,13 @@ export function isMegaPromptRequest(userMessage: string, systemPrompt: string): 
 }
 
 function getDeepDiveSource(message: string): DeepDiveSource {
-  if (message.includes('INTELIGÊNCIA OPERACIONAL') || message.includes('Raio-X'))   return DEEP_DIVE_SOURCES.RAIO_X;
-  if (message.includes('ARQUITETURA DE TI') || message.includes('Tech Stack'))       return DEEP_DIVE_SOURCES.TECH;
-  if (message.includes('COMPLIANCE') || message.includes('RISCOS'))                  return DEEP_DIVE_SOURCES.COMPLIANCE;
-  if (message.includes('TEIA SOCIETÁRIA') || message.includes('M&A'))               return DEEP_DIVE_SOURCES.EXPANSAO;
-  if (message.includes('RH, SST') || message.includes('SINDICATOS'))                 return DEEP_DIVE_SOURCES.RH;
-  if (message.includes('CADEIA DE COMANDO') || message.includes('DECISORES'))        return DEEP_DIVE_SOURCES.DECISORES;
-  if (message.includes('ORÇAMENTO') || message.includes('JANELA DE COMPRA'))         return DEEP_DIVE_SOURCES.ORCAMENTO;
+  if (message.includes('INTELIGÊNCIA OPERACIONAL') || message.includes('Raio-X')) return DEEP_DIVE_SOURCES.RAIO_X;
+  if (message.includes('ARQUITETURA DE TI') || message.includes('Tech Stack')) return DEEP_DIVE_SOURCES.TECH;
+  if (message.includes('COMPLIANCE') || message.includes('RISCOS')) return DEEP_DIVE_SOURCES.COMPLIANCE;
+  if (message.includes('TEIA SOCIETÁRIA') || message.includes('M&A')) return DEEP_DIVE_SOURCES.EXPANSAO;
+  if (message.includes('RH, SST') || message.includes('SINDICATOS')) return DEEP_DIVE_SOURCES.RH;
+  if (message.includes('CADEIA DE COMANDO') || message.includes('DECISORES')) return DEEP_DIVE_SOURCES.DECISORES;
+  if (message.includes('ORÇAMENTO') || message.includes('JANELA DE COMPRA')) return DEEP_DIVE_SOURCES.ORCAMENTO;
   return 'UNKNOWN';
 }
 
@@ -517,7 +518,7 @@ export async function generateLoadingCuriosities(
   searchQuery: string,
 ): Promise<string[]> {
   const safeContext = sanitizeLoadingContextText(loadingContext || '');
-  const fallback    = buildLoadingCuriositiesFallback(safeContext);
+  const fallback = buildLoadingCuriositiesFallback(safeContext);
   const querySample = (searchQuery || '').slice(0, 240);
 
   const locationFromCadastro = querySample.match(/Cidade\s*=\s*([^;,\n]+)\s*;\s*UF\s*=\s*([A-Za-z]{2})/i);
@@ -590,12 +591,12 @@ export async function generateContinuityQuestion(
     .join('\n');
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
-  const userPrompt   = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
+  const userPrompt = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
   try {
     const response = await proxyGenerateContent({
-      model:    ROUTER_MODEL_ID,
+      model: ROUTER_MODEL_ID,
       contents: userPrompt,
-      config:   { temperature: 0.8, maxOutputTokens: 800, systemInstruction: systemPrompt },
+      config: { temperature: 0.8, maxOutputTokens: 800, systemInstruction: systemPrompt },
     });
     const raw = (response.text || '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
     const parsed = JSON.parse(raw);
@@ -629,17 +630,18 @@ export async function sendMessageToGemini(
   ghostReason?: string | null;
 }> {
   const {
-    useGrounding   = true,
-    thinkingMode   = false,
+    useGrounding = true,
+    thinkingMode = false,
+    useOpenWebSearch = false,
     signal,
     onText,
     onStatus,
     onScorePorta,
     onCompetitor,
     onRagFailed,
-    nomeVendedor   = 'Vendedor',
+    nomeVendedor = 'Vendedor',
     sessionId,
-    hintedCompany  = null,
+    hintedCompany = null,
   } = options;
 
   if (signal?.aborted) throw new Error('AbortError');
@@ -658,15 +660,15 @@ export async function sendMessageToGemini(
   emitDossieStatus(onStatus, 'enrichment');
 
   // ── Contexto RAG ────────────────────────────────────────────────────────
-  let ragContext      = '';
-  let ragDocsContext  = '';
+  let ragContext = '';
+  let ragDocsContext = '';
 
-  const portaSessionId          = sessionId || 'session-unknown';
-  const isMegaPromptMessage     = isMegaPromptRequest(userMessage, systemPrompt);
-  const isDeepDive             = isDeepDiveMessage(userMessage, isMegaPromptMessage);
-  const deepDiveSource         = isDeepDive ? getDeepDiveSource(userMessage) : 'UNKNOWN';
+  const portaSessionId = sessionId || 'session-unknown';
+  const isMegaPromptMessage = isMegaPromptRequest(userMessage, systemPrompt);
+  const isDeepDive = isDeepDiveMessage(userMessage, isMegaPromptMessage);
+  const deepDiveSource = isDeepDive ? getDeepDiveSource(userMessage) : 'UNKNOWN';
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
-  const hasActiveContextHint    = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
+  const hasActiveContextHint = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
   // ── CIRURGIA 2: Extração do nome diretamente do megaprompt na 1ª passada ──
   // Quando empresaAlvo ainda é null (sem hintedCompany), o nome real da empresa
@@ -785,7 +787,7 @@ export async function sendMessageToGemini(
         buscarContextoPinecone(userMessage, empresaAlvo || ''),
         buscarContextoDocsPinecone(userMessage),
       ]);
-      ragContext     = pinecone.context;
+      ragContext = pinecone.context;
       ragDocsContext = docs.context;
       if (pinecone.failed || docs.failed) onRagFailed?.();
     } catch (err: unknown) {
@@ -820,26 +822,26 @@ export async function sendMessageToGemini(
 
   // ── Sinaliza fases do deep dive ──────────────────────────────────────────
   if (isDeepDive) {
-    if (userMessage.includes('TEIA SOCIETÁRIA') || userMessage.includes('M&A'))       emitDossieStatus(onStatus, 'corporate');
-    if (userMessage.includes('ARQUITETURA DE TI') || userMessage.includes('Tech'))    emitDossieStatus(onStatus, 'tech');
-    if (userMessage.includes('COMPLIANCE') || userMessage.includes('RISCOS'))         emitDossieStatus(onStatus, 'compliance');
-    if (userMessage.includes('RH, SST') || userMessage.includes('DECISORES'))         emitDossieStatus(onStatus, 'rh');
-    if (userMessage.includes('LOGÍSTICA') || userMessage.includes('SUPPLY'))          emitDossieStatus(onStatus, 'logistica');
+    if (userMessage.includes('TEIA SOCIETÁRIA') || userMessage.includes('M&A')) emitDossieStatus(onStatus, 'corporate');
+    if (userMessage.includes('ARQUITETURA DE TI') || userMessage.includes('Tech')) emitDossieStatus(onStatus, 'tech');
+    if (userMessage.includes('COMPLIANCE') || userMessage.includes('RISCOS')) emitDossieStatus(onStatus, 'compliance');
+    if (userMessage.includes('RH, SST') || userMessage.includes('DECISORES')) emitDossieStatus(onStatus, 'rh');
+    if (userMessage.includes('LOGÍSTICA') || userMessage.includes('SUPPLY')) emitDossieStatus(onStatus, 'logistica');
   }
 
   // ── Monta contexto adicional ─────────────────────────────────────────────
-  const clienteFormatado    = clienteData    ? formatarParaPrompt(clienteData)              : '';
+  const clienteFormatado = clienteData ? formatarParaPrompt(clienteData) : '';
 
-  const comexFormatado      = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
-  const portaContext        = isMegaPromptMessage ? generatePortaContextForDeepDive(deepDiveSource || 'MEGA') : '';
+  const comexFormatado = comexData?.isExportador ? formatarComexParaPrompt(comexData) : '';
+  const portaContext = isMegaPromptMessage ? generatePortaContextForDeepDive(deepDiveSource || 'MEGA') : '';
 
   const extraContext = [
     clienteFormatado,
     comexFormatado,
-    ragContext     ? `\n[CONTEXTO RAG]\n${ragContext}`          : '',
-    ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}`         : '',
+    ragContext ? `\n[CONTEXTO RAG]\n${ragContext}` : '',
+    ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}` : '',
     concorrentesContext ? `\n[CONCORRENTES]\n${concorrentesContext}` : '',
-    portaContext   ? `\n[PORTA STATE]\n${portaContext}`         : '',
+    portaContext ? `\n[PORTA STATE]\n${portaContext}` : '',
   ].filter(Boolean).join('\n');
 
   const fullSystemPrompt = extraContext
@@ -914,12 +916,13 @@ export async function sendMessageToGemini(
   try {
     response = await withAutoRetry('Gemini:sendMessage', () =>
       proxyChatSendMessage({
-        model:             modelToUse,
+        model: modelToUse,
         systemInstruction: fullSystemPrompt,
         history,
-        message:           userMessage,
-        useGrounding:      shouldUseGrounding,
+        message: userMessage,
+        useGrounding: shouldUseGrounding,
         thinkingMode,
+        useOpenWebSearch,
       }, signal),
       { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: signal },
     );
@@ -935,11 +938,11 @@ export async function sendMessageToGemini(
     usedGroundingFallback = true;
     response = await withAutoRetry('Gemini:sendMessage:fallback-no-grounding', () =>
       proxyChatSendMessage({
-        model:             TACTICAL_MODEL_ID,
+        model: TACTICAL_MODEL_ID,
         systemInstruction: fullSystemPrompt,
         history,
-        message:           userMessage,
-        useGrounding:      false,
+        message: userMessage,
+        useGrounding: false,
         thinkingMode,
       }, signal),
       { maxRetries: 4, baseDelayMs: 2000, maxDelayMs: 20000, abortSignal: signal },
@@ -976,10 +979,10 @@ export async function sendMessageToGemini(
       setBaseScore(baseScore);
     }
 
-    const feeds  = parsePortaFeeds(response.text || '', source);
+    const feeds = parsePortaFeeds(response.text || '', source);
     for (const adj of feeds.adjustments) addFeedAdjustment(adj);
-    for (const flag of feeds.flags)      addFlagFeed(flag);
-    for (const seg of feeds.segments)    addSegmentFeed(seg);
+    for (const flag of feeds.flags) addFlagFeed(flag);
+    for (const seg of feeds.segments) addSegmentFeed(seg);
 
     const portaState = getPortaState();
     if (portaState?.consolidatedScore) {
@@ -1077,7 +1080,7 @@ export async function generateDossierModule(
     options.signal,
     options.timeoutMs,
   );
-  
+
   const finalText = response.text || '';
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
@@ -1114,7 +1117,7 @@ export async function getIsolatedBenchmark(
   if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';
 
   const benchmarkPrompt = formatarBenchmarkParaPrompt(benchmarkResult, empresaAlvo);
-  
+
   const response = await proxyGenerateContent({
     model: TACTICAL_MODEL_ID,
     contents: `Sua tarefa é formatar Referências de Mercado Estratégicas para a empresa: ${empresaAlvo}.
