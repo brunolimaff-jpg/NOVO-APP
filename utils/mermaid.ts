@@ -6,12 +6,24 @@ const MERMAID_RENDER_ERROR_PATTERN =
   /syntax error in text|parse error|error parsing|lexical error/i;
 
 // Mermaid v10 does not support rx/ry (or other CSS geometry props) inside classDef.
-// Stripping them prevents a parse error that silently breaks diagram rendering.
+// stroke-dasharray with space-separated values (e.g. "5 5") also causes a SPACE token
+// parse error in Mermaid's jison grammar — the space is tokenized as SPACE token between
+// two NODE_STRING tokens, producing an unexpected token error. We normalize to comma-separated.
 function removeUnsupportedClassDefProps(input: string): string {
   return input.replace(
     /^(\s*classDef\s+\w+\s+)([^\n;]+)/gm,
-    (_full, prefix: string, props: string) =>
-      prefix + props.replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, ''),
+    (_full, prefix: string, props: string) => {
+      const cleaned = props
+        // Remove rx/ry (unsupported geometry attributes)
+        .replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, '')
+        // Normalize stroke-dasharray: N N -> stroke-dasharray:N,N (space between
+        // number values is a SPACE token in the jison grammar and causes parse errors)
+        .replace(
+          /(stroke-dasharray:\s*)(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/gi,
+          '$1$2,$3',
+        );
+      return prefix + cleaned;
+    },
   );
 }
 
@@ -44,9 +56,43 @@ function normalizeMermaidText(input: string): string {
 }
 
 function splitCollapsedStatements(input: string): string {
-  return input.replace(
+  // Split ; before Mermaid control keywords (safe: only when keyword follows)
+  let result = input.replace(/;(?!\n)\s*(?=classDef|class|style|click|subgraph)/gi, ';\n');
+
+  // Split when 2+ spaces precede an edge statement (existing rule)
+  result = result.replace(
     /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
     '$1\n',
+  );
+
+  // Split after ] (end of a node label) when a new edge-producing statement follows
+  // with 0-1 spaces and NO preceding newline. This handles collapsed AI output like:
+  //   A[label]B ==> C    or   A["label"]B-->C   or   A["label"]B ==> C
+  // The ] closes a node definition, so anything after it with 0-1 spaces is a new statement.
+  result = result.replace(
+    /(\])[^\S\n]*(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~|\[))/g,
+    '$1\n',
+  );
+
+  // Also split when two node definitions are immediately adjacent (NodeId[...]  NodeId[)
+  // regardless of how many spaces separate them on the same line
+  result = result.replace(
+    /(\])[^\S\n]*(?=[A-Za-z][\w-]*\[)/g,
+    '$1\n',
+  );
+
+  return result;
+}
+
+function fixColonEdgeLabels(input: string): string {
+  return input.replace(
+    /([A-Za-z][\w-]*)\s*(-\.->|-->|==>)\s*([A-Za-z][\w-]*):\s*([^;\n]+)/g,
+    (full, source, edge, target, label) => {
+      const trimmedLabel = label.trim();
+      if (edge === '-.->') return `${source} -. ${trimmedLabel} .-> ${target}`;
+      if (edge === '==>') return `${source} == ${trimmedLabel} ==> ${target}`;
+      return `${source} -- ${trimmedLabel} --> ${target}`;
+    },
   );
 }
 
@@ -69,6 +115,43 @@ function quoteLooseSubgraphLabels(input: string): string {
       const trimmed = label.trim();
       if (!trimmed || /[\s()[\]/\\%:]/.test(trimmed)) return full;
       return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+    },
+  );
+}
+
+// Mermaid v10 jison grammar treats (, ), {, }, /, | as separate tokens (PS, PE, BRKT,
+// SUBROUTINEEND, PIPE) even inside unquoted square-bracket node labels.
+// When a node label contains these chars without enclosing double-quotes, the parser
+// raises a "got 'PS'" / "got 'BRKT'" unexpected-token error.
+// Fix: wrap such labels in double-quotes, which puts the lexer into a string context.
+function quoteNodeLabels(input: string): string {
+  // Matches: NodeId[label text] where label is NOT already double-quoted
+  // Special chars that must trigger quoting: ( ) { } / | \
+  // Already-quoted labels (NodeId["text"]) are skipped by the negative lookahead.
+  return input.replace(
+    /\b([A-Za-z][\w-]*)\[(?!")([^\]\n]+)\]/g,
+    (_full, nodeId: string, label: string) => {
+      if (/[(){}|/\\]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `${nodeId}["${safeLabel}"]`;
+      }
+      return _full;
+    },
+  );
+}
+
+// Pipe-style edge labels |label| that contain () are also problematic:
+// the ( inside a |...| context can still trigger PS token depending on lex state.
+// Fix: wrap the label in double-quotes: |"label with (parens)"|
+function quotePipeEdgeLabelSpecialChars(input: string): string {
+  return input.replace(
+    /\|([^|\n"]+)\|/g,
+    (_full, label: string) => {
+      if (/[(){}]/.test(label)) {
+        const safeLabel = label.trim().replace(/"/g, "'");
+        return `|"${safeLabel}"|`;
+      }
+      return _full;
     },
   );
 }
@@ -98,6 +181,9 @@ export function sanitizeMermaidCode(input: string): string {
     .trim();
 
   code = splitCollapsedStatements(code);
+  code = fixColonEdgeLabels(code);
+  code = quoteNodeLabels(code);
+  code = quotePipeEdgeLabelSpecialChars(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
 
