@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { performWebSearch, universalExtract } from '../utils/documentExtractor';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -229,23 +230,17 @@ async function executeGeminiAction(
 
           const functionResponses = [];
 
-          const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
-
           for (const call of response.functionCalls) {
             if (call.name === "performWebSearch") {
               const args = call.args as { query?: string };
               try {
-                const toolResponse = await fetch(`${origin}/api/open-web-search`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(args)
-                });
-                const toolResult = await toolResponse.json();
+                // Chamada direta ao utilitário (Bypass Vercel Auth 401)
+                const toolResult = await performWebSearch(args.query || "");
 
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
-                    response: { result: toolResult }
+                    response: { result: { content: toolResult, source: 'OpenWebSearch/DuckDuckGo' } }
                   }
                 });
               } catch (toolError) {
@@ -260,12 +255,10 @@ async function executeGeminiAction(
             } else if (call.name === "extractDocumentContent") {
               const args = call.args as { url: string };
               try {
-                const toolResponse = await fetch(`${origin}/api/extract-content`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ url: args.url })
-                });
-                const toolResult = await toolResponse.json();
+                // Chamada direta ao utilitário (Bypass Vercel Auth 401)
+                const toolResult = await universalExtract({ url: args.url });
+
+                if (toolResult.error) throw new Error(toolResult.error);
 
                 functionResponses.push({
                   functionResponse: {
