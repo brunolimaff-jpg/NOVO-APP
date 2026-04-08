@@ -202,9 +202,18 @@ Regras de construção:
 5. Conexões sólidas (==>): fluxo físico confirmado ou integração nativa
 6. Máximo 15 nós por diagrama para manter legibilidade
 7. Use labels curtos para evitar quebra visual
-8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
+8. SEMPRE envolver labels de nós em aspas duplas quando contiverem espaços, barras (/), parênteses, pipes (|) ou chaves: A["Gestão de Campo"], B("Entrada/Saída")
 9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
 10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
+11. NUNCA coloque texto solto após uma seta — sempre defina um nó destino com ID e label entre colchetes
+12. Para edge labels descritivos, use a sintaxe com pipe: A -.->|"Integração manual"| B
+
+ERROS PROIBIDOS (causam falha de parser Mermaid v10):
+- ERRADO: A -.-> Texto Solto Com Espaços        | CERTO: A -.-> Node1["Texto Solto Com Espaços"]
+- ERRADO: A[Label com (parênteses)]  sem aspas   | CERTO: A["Label com (parênteses)"]
+- ERRADO: A(Label com / barra)       sem aspas   | CERTO: A("Label com / barra")
+- ERRADO: A --> B: texto de label                 | CERTO: A -->|"texto de label"| B
+- ERRADO: A[Label]:::className                    | CERTO: A[Label] + class A className;
 
 Sempre inclua as seguintes diretivas de classe (Design Spells / Ultra-Premium Strategic) no início do diagrama para garantir o visual correto:
 - classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
