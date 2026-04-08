@@ -4,12 +4,18 @@ import { extractContentService } from '../services/extractContentService';
 // Mock global fetch
 global.fetch = vi.fn();
 
+// Mock idb-keyval
+const mockIdb: Record<string, any> = {};
+vi.mock('idb-keyval', () => ({
+    get: vi.fn(async (key) => mockIdb[key]),
+    set: vi.fn(async (key, val) => { mockIdb[key] = val; }),
+}));
+
 describe('ExtractContentService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Reset cache by accessing private member if needed, or just rely on clear mocks
-        // Since it's a singleton, we might need a way to clear it for clean tests
-        (extractContentService as any).cache.clear();
+        // Clear local mock IDB
+        Object.keys(mockIdb).forEach(k => delete mockIdb[k]);
     });
 
     it('deve chamar a API quando nao houver cache', async () => {

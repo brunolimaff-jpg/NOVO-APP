@@ -1,7 +1,9 @@
+import { get, set } from 'idb-keyval';
+
 /**
  * Servico de Extracao de Conteudo Universal
  * Suporta Web (HTML), PDF e DOCX (Word).
- * Possui cache em memoria com TTL de 24 horas.
+ * Possui cache persistente em IndexedDB com TTL de 7 dias.
  */
 
 interface ExtractResult {
@@ -11,26 +13,32 @@ interface ExtractResult {
     error?: string;
 }
 
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 horas
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 dias
+const DB_PREFIX = 'ext-cache-';
 
 class ExtractContentService {
-    private cache = new Map<string, { result: ExtractResult; timestamp: number }>();
-
     /**
-     * Extrai conteudo de uma URL ou conteudo em base64.
+     * Extrai conteudo de uma URL ou conteudo em base64 com cache persistente.
      */
     async extract(params: { url?: string; base64Content?: string; mimeType?: string }): Promise<ExtractResult> {
         const cacheKey = params.url || this.generateHash(params.base64Content || '');
+        const dbKey = `${DB_PREFIX}${cacheKey}`;
         
-        // Verifica cache
-        const cached = this.cache.get(cacheKey);
-        if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-            console.log(`[ExtractService] Cache hit: ${cacheKey}`);
-            return cached.result;
+        try {
+            // Verifica cache persistente (IndexedDB)
+            const cached = await get<{ result: ExtractResult; timestamp: number }>(dbKey);
+            
+            if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+                console.log(`[ExtractService] Cache hit (persisted): ${cacheKey}`);
+                return cached.result;
+            }
+        } catch (e) {
+            console.warn('[ExtractService] Erro ao ler cache IndexedDB:', e);
         }
 
         try {
             const response = await fetch('/api/extract-content', {
+                // ... same fetch logic
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params),
@@ -43,8 +51,12 @@ class ExtractContentService {
 
             const result: ExtractResult = await response.json();
             
-            // Salva no cache
-            this.cache.set(cacheKey, { result, timestamp: Date.now() });
+            // Salva no cache persistente
+            try {
+                await set(dbKey, { result, timestamp: Date.now() });
+            } catch (e) {
+                console.warn('[ExtractService] Erro ao salvar cache IndexedDB:', e);
+            }
             
             return result;
         } catch (error: any) {
