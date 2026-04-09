@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChatMode } from '../constants';
 import { usePWA } from '../hooks/usePWA';
+import { useToast } from '../hooks/useToast';
 import { version } from '../package.json';
 import type { ExportFormat, ReportType } from '../types';
+import { exportSessionsAsJSON, importSessionsFromJSON } from '../utils/sessionExport';
 const SystemHealthCheck = React.lazy(() => import('./SystemHealthCheck'));
 
 interface SettingsDrawerProps {
@@ -46,6 +48,16 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 }) => {
   const { canInstall, isInstalled, installApp } = usePWA();
   const [showHealthCheck, setShowHealthCheck] = useState(false);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Backup & Restauração states
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [lastExportDate, setLastExportDate] = useState<string | null>(null);
+  const [lastImportDate, setLastImportDate] = useState<string | null>(null);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [importSessionCount, setImportSessionCount] = useState(0);
 
   // Estado local para edição do nome — evita cursor pulando ao digitar
   const [localName, setLocalName] = useState(userName);
@@ -68,6 +80,83 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
   const runExport = (format: ExportFormat, reportType: ReportType = 'full') => {
     onExportConversation?.(format, reportType);
+  };
+
+  const handleExportSessions = async () => {
+    setIsExporting(true);
+    try {
+      await exportSessionsAsJSON();
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      setLastExportDate(dateStr);
+      toast.success('Histórico exportado com sucesso!');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao exportar histórico'
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const backup = await importSessionsFromJSON(file);
+      setImportSessionCount(backup.sessionCount);
+      setShowImportConfirm(true);
+
+      // Limpar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Erro ao ler arquivo'
+      );
+      setIsImporting(false);
+
+      // Limpar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleConfirmImport = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    setLastImportDate(dateStr);
+    setShowImportConfirm(false);
+    setIsImporting(false);
+    toast.success(`${importSessionCount} sessões restauradas com sucesso!`);
+  };
+
+  const handleCancelImport = () => {
+    setShowImportConfirm(false);
+    setIsImporting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   if (!isOpen) return null;
@@ -257,6 +346,102 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             </div>
           </section>
 
+          {/* ===== BACKUP & RESTAURAÇÃO ===== */}
+          <section>
+            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Backup & Restauração</h3>
+
+            <div className="space-y-4">
+              {/* Seção EXPORTAR */}
+              <div className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-blue-50 border-blue-200'}`}>
+                <div>
+                  <p className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                    <span>📥</span> Exportar Histórico
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Crie um backup de todas as suas sessões
+                  </p>
+                </div>
+                <button
+                  onClick={handleExportSessions}
+                  disabled={isExporting}
+                  className={`w-full px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                    isExporting
+                      ? isDarkMode
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      : isDarkMode
+                      ? 'bg-blue-700 text-white hover:bg-blue-600'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {isExporting ? (
+                    <>
+                      <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Exportando...
+                    </>
+                  ) : (
+                    <>📥 Exportar Histórico</>
+                  )}
+                </button>
+                {lastExportDate && (
+                  <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                    Última exportação: {lastExportDate}
+                  </p>
+                )}
+              </div>
+
+              {/* Seção IMPORTAR */}
+              <div className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-purple-50 border-purple-200'}`}>
+                <div>
+                  <p className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                    <span>📤</span> Restaurar Histórico
+                  </p>
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Carregue um arquivo de backup
+                  </p>
+                </div>
+                <button
+                  onClick={handleImportClick}
+                  disabled={isImporting}
+                  className={`w-full px-4 py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+                    isImporting
+                      ? isDarkMode
+                        ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      : isDarkMode
+                      ? 'bg-purple-700 text-white hover:bg-purple-600'
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                  }`}
+                >
+                  {isImporting ? (
+                    <>
+                      <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>📤 Importar Histórico</>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelected}
+                  className="hidden"
+                  aria-label="Selecionar arquivo de backup"
+                />
+                {lastImportDate && (
+                  <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                    Última importação: {lastImportDate}
+                  </p>
+                )}
+                <p className={`text-[10px] text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  💡 Não feche esta aba durante a importação
+                </p>
+              </div>
+            </div>
+          </section>
+
           {/* ===== AÇÕES ===== */}
           <section>
             <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ações</h3>
@@ -358,6 +543,85 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             onClose={() => setShowHealthCheck(false)}
           />
         </React.Suspense>
+      )}
+
+      {/* Modal de Confirmação de Importação */}
+      {showImportConfirm && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
+            onClick={handleCancelImport}
+          />
+          <div
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl shadow-2xl z-50 ${
+              isDarkMode
+                ? 'bg-gray-900 border border-gray-700'
+                : 'bg-white border border-gray-200'
+            }`}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className={`flex items-center gap-3 p-6 border-b ${
+                isDarkMode ? 'border-gray-700/50' : 'border-gray-200'
+              }`}
+            >
+              <span className="text-3xl">⚠️</span>
+              <div>
+                <h2
+                  className={`text-lg font-bold ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
+                  Restaurar Histórico?
+                </h2>
+              </div>
+            </div>
+
+            <div className={`p-6 space-y-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+              <p
+                className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                O arquivo contém <strong>{importSessionCount} sessões</strong>.
+              </p>
+              <p
+                className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+              >
+                Isso vai carregar as sessões para sua área de trabalho. Pode levar alguns segundos.
+              </p>
+            </div>
+
+            <div
+              className={`flex gap-3 p-6 border-t ${
+                isDarkMode
+                  ? 'border-gray-700/50 bg-gray-900/50'
+                  : 'border-gray-200 bg-gray-50/50'
+              }`}
+            >
+              <button
+                onClick={handleCancelImport}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all text-sm ${
+                  isDarkMode
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={handleConfirmImport}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all text-sm ${
+                  isDarkMode
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:shadow-lg'
+                    : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:shadow-lg'
+                }`}
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </>
   );

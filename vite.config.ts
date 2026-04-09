@@ -3,6 +3,38 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
+import { writeFileSync } from 'fs';
+import type { Plugin } from 'vite';
+
+// Plugin customizado para gerar version.json em build
+function generateVersionPlugin(): Plugin {
+  return {
+    name: 'generate-version',
+    apply: 'build',
+    writeBundle() {
+      // Ler versão do package.json
+      const packageJson = require('./package.json');
+      const version = packageJson.version || '0.0.0';
+
+      // Criar versão em formato legível (APP_VERSION)
+      const appVersion = `v${version}`;
+
+      const versionData = {
+        version: appVersion,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Escrever version.json no diretório dist
+      writeFileSync(
+        resolve(__dirname, 'dist/version.json'),
+        JSON.stringify(versionData, null, 2),
+        'utf-8'
+      );
+
+      console.log(`✅ version.json gerado: ${appVersion}`);
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
@@ -29,6 +61,7 @@ export default defineConfig(() => {
       },
     },
     plugins: [
+      generateVersionPlugin(),
       react({
         babel: {
           // FIX: React Compiler ativo APENAS em desenvolvimento.
