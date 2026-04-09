@@ -132,8 +132,9 @@ export function stripPortaMarkers(content: string): string {
 }
 
 function normalizePortaContent(content: string): string {
-  // Remove colchetes internos mesmo com espaços: :[8]:, : [8] :, :[ 8 ]: → :8:
-  return content.replace(/:\s*\[\s*([^[\u005C]]*)\s*\]\s*/g, (_, g1) => `:${g1.trim()}`);
+  // Normalize bracketed values while preserving surrounding whitespace/newlines.
+  // Example: :[8]:, : [8] :, :[ 8 ]: -> :8:
+  return content.replace(/:\s*\[\s*([^[\]]*)\s*\]/g, (_, g1) => `:${g1.trim()}`);
 }
 
 function clampPortaNote(value: number): number {
