@@ -89,3 +89,4 @@ tsconfig.tsbuildinfo
 # ── Project-specific (NOVO-APP) ────────────────────────────────────────────
 playwright-report/
 test-results/
+.tokenmiser/
