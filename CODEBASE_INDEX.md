@@ -1,5 +1,5 @@
 # Codebase Index
-> 2026-04-09 · 5257 files · ~13.0M tokens total
+> 2026-04-09 · 5260 files · ~13.0M tokens total
 >
 > **How to use:** Read this file first. Navigate to the exact file you need,
 > then read only that file. Do not read entire directories.
@@ -1370,6 +1370,7 @@
 - `SuspenseWithError.tsx`
 - `SystemHealthCheck.tsx`
 - `ToastContainer.tsx` — ToastContainer — exibe a fila de toasts no canto inferior direito.
+- `UpdateNotificationModal.tsx` — UpdateNotificationModal
 - `UserMenu.tsx` — UserMenuProps
 - `UserMenuClerkBridge.tsx` — UserMenuClerkBridgeProps
 - `WarRoom.tsx` — default:WarRoom
@@ -1398,9 +1399,10 @@
 - `useSessionStorage.ts` — useSessionStorage
 - `useTheme.ts` — useTheme
 - `useToast.ts` — useToast — sistema de notificações global leve (sem dependência externa). · useToast, ToastType, Toast
+- `useUpdateNotification.ts` — useUpdateNotification, UpdateAvailableEvent
 
 **prompts/**
-- `megaPrompts.ts` — @ts-nocheck · SHARED_FOUNDATION_BLOCK_V5, SHARED_ENTITY_RESOLUTION_BLOCK, SHARED_EVIDENCE_HIERARCHY_BLOCK, SHARED_ABSENCE_SEMANTICS_BLOCK, SHARED_RECENCY_POLICY_BLOCK, SHARED_CROSS_PROMPT_ARBITRATION_BLOCK, SHARED_BUSINESS_TRANSLATION_ENGINE_BLOCK, SHARED_ +2
+- `megaPrompts.ts` — @ts-nocheck · SHARED_FOUNDATION_BLOCK_V5, SHARED_ENTITY_RESOLUTION_BLOCK, SHARED_EVIDENCE_HIERARCHY_BLOCK, SHARED_ABSENCE_SEMANTICS_BLOCK, SHARED_RECENCY_POLICY_BLOCK, SHARED_CROSS_PROMPT_ARBITRATION_BLOCK, SHARED_BUSINESS_TRANSLATION_ENGINE_BLOCK, InvestigationPayload +1
 - `systemPrompts.ts` — prompts/systemPrompts.ts
 
 **public/**
@@ -1558,6 +1560,7 @@
 - `sectionParser.ts` — parseMarkdownSections, ParsedSection
 - `seniorEvidence.ts` — extractClienteSeniorData, buildSeniorEvidenceContext, appendSeniorEvidenceNote
 - `seniorLinks.ts` — ============================================================================ · buildSeniorOrGAtecSearchUrl, findSeniorProductUrl, fixGoogleSearchLinks, fixGoogleSearchLinksHTML, autoLinkSeniorTerms, SENIOR_PRODUCT_URLS, seniorOfficialLinks
+- `sessionExport.ts` — exportSessionsAsJSON, importSessionsFromJSON, isValidBackupFile, getSessionsSize, SessionBackup
 - `textCleaners.ts` — textCleaners.ts - Utilitários para limpeza e formatação de texto · stripMarkdown, cleanTitle, cleanSuggestionText, cleanStatusMarkers, looksLikeInternalPromptText, stripInternalMarkers, sanitizeLoadingContextText, extractSources +2
 - `timeGreeting.ts` — Retorna a saudação adequada ao horário atual do dispositivo. · getTimeGreeting
 
@@ -1611,4 +1614,4 @@
 - `README.md`
 
 ---
-*Index: ~18.9k tokens · Full codebase: ~13.0M tokens · Saves ~100%*
+*Index: ~19.0k tokens · Full codebase: ~13.0M tokens · Saves ~100%*
