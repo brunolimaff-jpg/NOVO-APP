@@ -20,6 +20,9 @@
     "typecheck": "tsc --noEmit",
     "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts"
   },
+  "engines": {
+    "node": ">=20.18.0"
+  },
   "dependencies": {
     "@clerk/react": "^6.1.2",
     "@google/genai": "^1.41.0",
@@ -30,6 +33,7 @@
     "@tanstack/react-query": "^5.90.21",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "cheerio": "^1.2.0",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.3.1",
     "framer-motion": "^12.34.2",
@@ -55,6 +59,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/cheerio": "^0.22.35",
     "@types/jsdom": "^28.0.1",
     "@types/mozilla__readability": "^0.4.2",
     "@types/node": "^22.14.0",

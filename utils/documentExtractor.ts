@@ -36,18 +36,20 @@ export function isValidPublicUrl(urlString: string): boolean {
 }
 
 /**
- * Extrai conteúdo limpo de HTML usando Readability.
+ * Extrai conteúdo limpo de HTML usando Cheerio (Leve e rápido para Serverless).
  */
 export async function extractHtml(html: string, limit = 15000): Promise<string> {
-    // Importação dinâmica para reduzir overhead de inicialização
-    const { JSDOM } = await import('jsdom');
-    const { Readability } = await import('@mozilla/readability');
+    const cheerio = await import('cheerio');
+    const $ = cheerio.load(html);
+    
+    // Remove elementos indesejados
+    $('script, style, nav, footer, iframe, noscript, .ads, #ads').remove();
+    
+    // Tenta focar no conteúdo principal (heurística simples)
+    const mainContent = $('article, main, .content, #content, .post, .article').first();
+    const text = mainContent.length ? mainContent.text() : $('body').text();
 
-    const dom = new JSDOM(html);
-    const doc = dom.window.document;
-    const reader = new Readability(doc);
-    const article = reader.parse();
-    return (article?.textContent || doc.body.textContent || '')
+    return text
         .replace(/\u0000/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
@@ -58,16 +60,17 @@ export async function extractHtml(html: string, limit = 15000): Promise<string> 
  * Extrai texto de buffer PDF.
  */
 export async function extractPdf(buffer: Buffer): Promise<string> {
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: buffer });
     try {
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: buffer });
         const parsed = await parser.getText();
         return (parsed.text || '')
             .replace(/\u0000/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-    } finally {
-        await parser.destroy();
+    } catch (e) {
+        scoutDiag.error('DocumentExtractor', 'Erro no PDFParse', e);
+        return '[Erro na extração de PDF]';
     }
 }
 
@@ -84,38 +87,35 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
  * Realiza busca no DuckDuckGo Lite.
  */
 export async function performWebSearch(query: string): Promise<string | null> {
-    // Reutiliza JSDOM com importação dinâmica
-    const { JSDOM } = await import('jsdom');
-    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo: ${query}`);
+    const cheerio = await import('cheerio');
+    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (Cheerio): ${query}`);
 
     try {
         const searchUrl = `https://duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
         const response = await fetch(searchUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' 
+            },
+            signal: AbortSignal.timeout(15000)
         });
 
-        if (!response.ok) throw new Error(`DDG search failed: ${response.status}`);
+        if (!response.ok) throw new Error(`Search failed: ${response.status}`);
 
         const html = await response.text();
-        const dom = new JSDOM(html);
-        const doc = dom.window.document;
+        const $ = cheerio.load(html);
+        const results: string[] = [];
 
-        const links = Array.from(doc.querySelectorAll('a.result-link'))
-            .slice(0, 5)
-            .map((el) => {
-                const a = el as HTMLAnchorElement;
-                const title = a.textContent?.trim() || 'Sem título';
-                const url = a.getAttribute('href') || '';
-                const snippet = a.closest('tr')?.nextElementSibling?.textContent?.trim() || '';
-                return `Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`;
-            })
-            .join('\n');
+        $('.result-link').each((i, el) => {
+            if (i >= 5) return;
+            const title = $(el).text().trim();
+            const url = $(el).attr('href') || '#';
+            const snippet = $(el).closest('tr').next().find('.result-snippet').text().trim();
+            results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+        });
 
-        return links || 'Nenhum resultado encontrado.';
+        return results.join('\n') || 'Nenhum resultado encontrado.';
     } catch (error) {
-        scoutDiag.error('DocumentExtractor', 'Erro na busca DDG', { error });
+        scoutDiag.error('DocumentExtractor', 'Erro na busca web', error);
         return null;
     }
 }
