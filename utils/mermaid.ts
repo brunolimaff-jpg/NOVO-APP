@@ -235,6 +235,21 @@ export function normalizeMermaidBlocks(markdown: string): string {
     });
 }
 
+function fixClassStatements(input: string): string {
+  // Fix class statements with invalid node IDs (starting with numbers or special chars)
+  // E.g., "class 1A danger;" -> "class _1A danger;"
+  return input.replace(
+    /^(\s*class\s+)([^;\s]+)((?:\s+[^;]+)?;?\s*)$/gm,
+    (full, prefix, nodeId, suffix) => {
+      // If nodeId starts with a digit or has invalid chars, prefix with underscore
+      if (/^[0-9]/.test(nodeId)) {
+        return `${prefix}_${nodeId}${suffix}`;
+      }
+      return full;
+    },
+  );
+}
+
 export function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
@@ -253,6 +268,7 @@ export function sanitizeMermaidCode(input: string): string {
   code = materializeBareEdgeTargets(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
+  code = fixClassStatements(code);
 
   const match = code.match(MERMAID_START_PATTERN);
   if (!match) return '';

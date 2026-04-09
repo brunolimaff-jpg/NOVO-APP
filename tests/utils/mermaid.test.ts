@@ -156,6 +156,22 @@ describe('pipeline de sanitização integrado', () => {
   });
 });
 
+describe('fixClassStatements', () => {
+  it('corrige class statements com IDs começando com números', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA --> B\nclass 1A danger;',
+    );
+    expect(result).toContain('class _1A danger;');
+  });
+
+  it('preserva class statements com IDs válidos', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA --> B\nclass A danger;',
+    );
+    expect(result).toContain('class A danger;');
+  });
+});
+
 describe('edge cases adversariais', () => {
   it('lida com aspas duplas em bare target (substitui por simples)', () => {
     const result = sanitizeMermaidCode(
