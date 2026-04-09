@@ -22,6 +22,7 @@ import {
   buildInvestigationHiddenPrompt,
   PROMPT_VERSION,
 } from '../prompts/megaPrompts';
+import { fetchCompanyByCnpj } from '../services/brasilApiService';
 
 import type { RadarAlert, RadarConfig } from '../types';
 const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
@@ -373,12 +374,29 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     async (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode, canWarRoom);
+
+      // Enriquecer payload com CNAE da Receita Federal (Tier A)
+      let segmentHint: string | undefined;
+      if (payload.cnpj) {
+        try {
+          const signal = AbortSignal.timeout(8000);
+          const companyData = await fetchCompanyByCnpj(payload.cnpj, signal);
+          if (companyData.cnaeDescricao) {
+            segmentHint = companyData.cnaeDescricao;
+          }
+        } catch (error) {
+          // Fallback silencioso — continua sem segmentHint
+          scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
+        }
+      }
+
       const hiddenPromptBase = buildInvestigationHiddenPrompt(
         {
           companyName: payload.companyName,
           cnpj: payload.cnpj || undefined,
           city: payload.city,
           state: payload.state,
+          segmentHint,
         },
         {
           includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
