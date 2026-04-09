@@ -194,6 +194,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
   const stepTimestampsRef = useRef<Record<string, number>>({});
+  const displayedStageKeysRef = useRef<Set<string>>(new Set());
+  const queuedStageKeysRef = useRef<Set<string>>(new Set());
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -248,19 +250,34 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setDisplayedCompleted([]);
       setDisplayedCurrent('Preparando análise...');
       queueRef.current = [];
+      displayedStageKeysRef.current = new Set();
+      queuedStageKeysRef.current = new Set();
       lastRevealTimeRef.current = 0;
       stepTimestampsRef.current = {};
-      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (revealTimerRef.current) {
+        clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
+      }
       return;
     }
     const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
     const realCurrent = processing?.stage || 'Preparando análise...';
-    const alreadyKnown = new Set([...displayedCompleted, ...queueRef.current]);
-    const newStages: string[] = [];
+    const newStages: Array<{ label: string; key: string }> = [];
     for (const stage of realCompleted) {
-      if (!alreadyKnown.has(stage)) newStages.push(stage);
+      const stageKey = statusKey(stage);
+      if (
+        !stageKey ||
+        displayedStageKeysRef.current.has(stageKey) ||
+        queuedStageKeysRef.current.has(stageKey)
+      ) {
+        continue;
+      }
+      newStages.push({ label: stage, key: stageKey });
     }
-    if (newStages.length > 0) queueRef.current = [...queueRef.current, ...newStages];
+    if (newStages.length > 0) {
+      queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];
+      newStages.forEach(stage => queuedStageKeysRef.current.add(stage.key));
+    }
     const getBackoffMessage = (count: number) => {
       if (count === 1) return 'Refinando sinais para alta precisão...';
       if (count === 2) return 'Ajustando filtros de profundidade executiva...';
@@ -276,9 +293,18 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       revealTimerRef.current = setTimeout(() => {
         const next = queueRef.current.shift();
         if (next) {
+          const nextKey = statusKey(next);
+          if (nextKey) {
+            queuedStageKeysRef.current.delete(nextKey);
+          }
           lastRevealTimeRef.current = Date.now();
-          stepTimestampsRef.current[next] = elapsedTime;
-          setDisplayedCompleted(prev => [...prev, next]);
+          setDisplayedCompleted(prev => {
+            if (!nextKey) return prev;
+            if (displayedStageKeysRef.current.has(nextKey)) return prev;
+            displayedStageKeysRef.current.add(nextKey);
+            stepTimestampsRef.current[next] = elapsedTime;
+            return [...prev, next];
+          });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
           else revealTimerRef.current = null;
         } else { revealTimerRef.current = null; }
@@ -287,29 +313,14 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, processing?.completedStages?.length, processing?.stage]);
+  }, [isLoading, processing?.completedStages, processing?.stage]);
 
-  // ── 1c. Drain queue ──
-  useEffect(() => {
-    if (!isLoading || queueRef.current.length === 0) return;
-    const drain = () => {
-      if (queueRef.current.length === 0) { revealTimerRef.current = null; return; }
-      const next = queueRef.current.shift();
-      if (next) {
-        lastRevealTimeRef.current = Date.now();
-        stepTimestampsRef.current[next] = elapsedTime;
-        setDisplayedCompleted(prev => [...prev, next]);
-      }
-      if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(drain, STEP_REVEAL_DELAY_MS);
-      else revealTimerRef.current = null;
-    };
-    if (!revealTimerRef.current) {
-      const initialDelay = Math.max(STEP_REVEAL_MIN_MS, STEP_REVEAL_DELAY_MS - (Date.now() - lastRevealTimeRef.current));
-      revealTimerRef.current = setTimeout(drain, initialDelay);
+  useEffect(() => () => {
+    if (revealTimerRef.current) {
+      clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
     }
-    return () => { if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; } };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, displayedCompleted.length]);
+  }, []);
 
   // ── 2. Curiosidades ──
   useEffect(() => {

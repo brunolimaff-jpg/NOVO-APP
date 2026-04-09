@@ -2,26 +2,15 @@ import { describe, it, expect, vi } from 'vitest';
 import handler from '../api/gemini';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Mock do GoogleGenAI
-vi.mock('@google/genai', () => ({
-  GoogleGenAI: vi.fn().mockImplementation(() => ({
-    chats: {
-      create: vi.fn().mockReturnValue({
-        sendMessage: vi.fn(),
-      }),
-    },
-  })),
-}));
-
-// Mock do fetch global para as chamadas internas de API
 global.fetch = vi.fn();
 
 describe('Gemini Function Calling Integration', () => {
-  it('deve rotear chamadas de extractDocumentContent para /api/extract-content', async () => {
+  it('deve executar extractDocumentContent internamente e reenviar o resultado ao Gemini', async () => {
     const mockRequest = {
       method: 'POST',
       body: {
         action: 'chatSendMessage',
+        model: 'gemini-1.5-flash',
         message: 'Analise este link: https://example.com/doc.pdf',
         useOpenWebSearch: true,
       },
@@ -32,53 +21,92 @@ describe('Gemini Function Calling Integration', () => {
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
 
-    // Mock do chatSession
-    const mockChat = {
-      sendMessage: vi.fn()
-        // Primeiro retorno: O modelo decide chamar a ferramenta
-        .mockResolvedValueOnce({
-          functionCalls: [{
-            name: 'extractDocumentContent',
-            args: { url: 'https://example.com/doc.pdf' }
-          }]
-        })
-        // Segundo retorno: O modelo recebe o texto e responde final
-        .mockResolvedValueOnce({
-          text: 'O documento fala sobre X.',
-          candidates: [{ content: { parts: [{ text: 'O documento fala sobre X.' }] } }]
-        }),
-    };
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
 
-    const { GoogleGenAI } = await import('@google/genai');
-    (GoogleGenAI as any).mockImplementationOnce(() => ({
-      chats: {
-        create: vi.fn().mockReturnValue(mockChat),
-      },
-    }));
+      if (url.includes('generativelanguage.googleapis.com')) {
+        const callsToGemini = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+          .filter(([calledUrl]) => String(calledUrl).includes('generativelanguage.googleapis.com')).length;
 
-    // Mock da API de extracao
-    (fetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({ text: 'Conteudo extraído do PDF mock', length: 30 }),
+        if (callsToGemini === 1) {
+          return {
+            ok: true,
+            json: async () => ({
+              candidates: [{
+                content: {
+                  parts: [{
+                    functionCall: {
+                      name: 'extractDocumentContent',
+                      args: { url: 'https://example.com/doc.pdf' },
+                    },
+                  }],
+                },
+              }],
+            }),
+          } as Response;
+        }
+
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{
+              content: { parts: [{ text: 'O documento fala sobre X.' }] },
+            }],
+          }),
+        } as Response;
+      }
+
+      if (url === 'https://example.com/doc.pdf') {
+        return {
+          ok: true,
+          headers: { get: () => 'text/html' },
+          text: async () => '<html><body>Conteudo extraído do PDF mock</body></html>',
+        } as unknown as Response;
+      }
+
+      throw new Error(`Unexpected fetch URL in test: ${url}`);
     });
 
-    // Executa o handler
     process.env.GEMINI_API_KEY = 'mock-key';
     await handler(mockRequest, mockResponse);
 
-    // Verifica se o fetch interno foi para a rota correta
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/extract-content'),
+    const endpointCalls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .filter(([url]) => String(url).includes('generativelanguage.googleapis.com'));
+    expect(endpointCalls.length).toBe(2);
+
+    const extractCall = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .find(([url]) => String(url) === 'https://example.com/doc.pdf');
+    expect(extractCall).toBeTruthy();
+    expect(extractCall?.[1]).toEqual(
       expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('https://example.com/doc.pdf')
-      })
+        headers: expect.objectContaining({
+          'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0',
+        }),
+      }),
     );
 
-    // Verifica se o chat recebeu a resposta da ferramenta
-    expect(mockChat.sendMessage).toHaveBeenCalledTimes(2);
-    const secondCall = mockChat.sendMessage.mock.calls[1][0];
-    expect(secondCall[0].functionResponse.name).toBe('extractDocumentContent');
-    expect(secondCall[0].functionResponse.response.result.text).toBe('Conteudo extraído do PDF mock');
+    const secondGeminiBodyRaw = endpointCalls[1]?.[1]?.body;
+    expect(typeof secondGeminiBodyRaw).toBe('string');
+    const secondGeminiBody = JSON.parse(String(secondGeminiBodyRaw));
+    const allParts = secondGeminiBody.contents.flatMap((item: { parts: unknown[] }) => item.parts);
+    expect(allParts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          functionResponse: expect.objectContaining({
+            name: 'extractDocumentContent',
+            response: expect.objectContaining({
+              result: expect.stringContaining('Conteudo extraído do PDF mock'),
+            }),
+          }),
+        }),
+      ]),
+    );
+
+    expect(mockResponse.status).toHaveBeenCalledWith(200);
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'O documento fala sobre X.',
+      }),
+    );
   });
 });
