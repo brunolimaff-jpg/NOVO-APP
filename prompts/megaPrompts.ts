@@ -1712,9 +1712,15 @@ graph LR
 - [1 linha sintetizando o que esta operação já domina em escala]
 - [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
 
+⚠️ OBRIGATÓRIO — EMITA ESTAS 3 LINHAS EXATAMENTE NESTE FORMATO, SEM ESPAÇOS EXTRAS, ANTES DE ENCERRAR O OUTPUT:
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
+
+Exemplo válido:
+[[PORTA_FEED_O:6:ELOS:Plantio,Armazenagem,Transporte]]
+[[PORTA_FEED_R:5:PRESSOES:Ambiental,Rastreabilidade]]
+[[PORTA_FLAG:NOFIT:NAO]]
 
 </output_format>
 
@@ -1727,6 +1733,8 @@ graph LR
 - NÃO confunda atividade do prospect com atividade de fornecedor/cliente
 - NÃO ative NOFIT para empresas que combinam pecuária com agrícola
 - NÃO renderize TRAD aqui como flag final — isso pertence ao módulo de Compliance
+- NÃO conclua o output sem emitir [[PORTA_FEED_O:NOTA:ELOS:LISTA]] — este marker é OBRIGATÓRIO e sem ele o Score PORTA falha completamente
+- NÃO emita [[PORTA_FEED_O:...]] com espaços dentro dos dois pontos (ex: ": [8]" é INVÁLIDO; use ":8")
 </constraints>
 `;
 
