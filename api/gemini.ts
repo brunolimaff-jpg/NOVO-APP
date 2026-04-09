@@ -350,8 +350,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     throw lastError;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Gemini API proxy error:', message);
+    const stack = error instanceof Error ? error.stack : '';
+    console.error('Gemini API proxy error:', message, stack);
+    
     const httpStatus = extractGeminiHttpStatus(error);
-    return res.status(httpStatus).json({ error: 'Gemini proxy failed', detail: message });
+    return res.status(httpStatus).json({ 
+      error: 'Gemini proxy failed', 
+      detail: message,
+      status: httpStatus
+    });
   }
 }

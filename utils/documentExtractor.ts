@@ -36,62 +36,92 @@ export function isValidPublicUrl(urlString: string): boolean {
 }
 
 /**
- * Extrai conteúdo limpo de HTML usando Regex (Versão Ultra-Light para debug).
+ * Extrai conteúdo limpo de HTML usando Cheerio (Leve e rápido para Serverless).
  */
-export async function extractHtml(html: string, limit = 20000): Promise<string> {
-    // Versão ultra-simples para evitar dependências pesadas no debug
-    const text = html
-        .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-        .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '')
-        .replace(/<[^>]+>/g, ' ')
+export async function extractHtml(html: string, limit = 15000): Promise<string> {
+    const cheerio = await import('cheerio');
+    const $ = cheerio.load(html);
+    
+    // Remove elementos indesejados
+    $('script, style, nav, footer, iframe, noscript, .ads, #ads').remove();
+    
+    // Tenta focar no conteúdo principal (heurística simples)
+    const mainContent = $('article, main, .content, #content, .post, .article').first();
+    const text = mainContent.length ? mainContent.text() : $('body').text();
+
+    return text
+        .replace(/\u0000/g, ' ')
         .replace(/\s+/g, ' ')
-        .trim();
-    return text.slice(0, limit);
+        .trim()
+        .slice(0, limit);
 }
 
 /**
- * Extrai texto de buffer PDF (Dummy p/ isolamento).
+ * Extrai texto de buffer PDF.
  */
 export async function extractPdf(buffer: Buffer): Promise<string> {
-    return "[Extração de PDF desativada temporariamente para debug]";
+    try {
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: buffer });
+        const parsed = await parser.getText();
+        return (parsed.text || '')
+            .replace(/\u0000/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    } catch (e) {
+        scoutDiag.error('DocumentExtractor', 'Erro no PDFParse', e);
+        return '[Erro na extração de PDF]';
+    }
 }
 
 /**
- * Extrai texto de buffer DOCX (Dummy p/ isolamento).
+ * Extrai texto de buffer DOCX.
  */
 export async function extractDocx(buffer: Buffer): Promise<string> {
-    return "[Extração de Word desativada temporariamente para debug]";
+    const mammoth = await import('mammoth');
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value || '';
 }
 
 /**
- * Realiza busca no DuckDuckGo Lite usando Pure Fetch e Regex.
- * ZERO dependências (No Cheerio, No JSDOM).
+ * Realiza busca no DuckDuckGo Lite.
  */
 export async function performWebSearch(query: string): Promise<string | null> {
-    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (Pure Fetch): ${query}`);
+    const cheerio = await import('cheerio');
+    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (Cheerio): ${query}`);
 
     try {
         const searchUrl = `https://duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
         const response = await fetch(searchUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' 
+            },
             signal: AbortSignal.timeout(15000)
         });
 
         if (!response.ok) throw new Error(`Search failed: ${response.status}`);
 
         const html = await response.text();
+        const $ = cheerio.load(html);
         const results: string[] = [];
 
-        // Regex para capturar links e títulos no DDG Lite
-        const linkRegex = /<a[^>]+class="result-link"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-        let match;
-        let count = 0;
-        while ((match = linkRegex.exec(html)) !== null && count < 5) {
-            const url = match[1];
-            const title = match[2].replace(/<[^>]+>/g, '').trim();
-            results.push(`Título: ${title}\nURL: ${url}\n---`);
-            count++;
+        // Log de memória em modo verbose
+        if (typeof process !== 'undefined' && process.memoryUsage) {
+            const memory = process.memoryUsage();
+            scoutDiag.info('DocumentExtractor', `Memória RAM: ${Math.round(memory.heapUsed / 1024 / 1024)}MB / ${Math.round(memory.rss / 1024 / 1024)}MB`);
         }
+
+        $('.result-link').each((i, el) => {
+            if (i >= 5) return;
+            const title = $(el).text().trim();
+            let url = $(el).attr('href') || '#';
+            
+            // Corrige URLs relativas do DDG Lite
+            if (url.startsWith('//')) url = 'https:' + url;
+            
+            const snippet = $(el).closest('tr').next().find('.result-snippet').text().trim();
+            results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+        });
 
         return results.join('\n') || 'Nenhum resultado encontrado.';
     } catch (error) {
