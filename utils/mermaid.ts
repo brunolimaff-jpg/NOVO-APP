@@ -143,8 +143,13 @@ function quoteLooseSubgraphLabels(input: string): string {
     /^(\s*subgraph\s+)([^"'\n[\]{]+?)(\s*)$/gm,
     (full, prefix, label, suffix) => {
       const trimmed = label.trim();
-      if (!trimmed || /[\s()[\]/\\%:]/.test(trimmed)) return full;
-      return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+      if (!trimmed) return full;
+      // If label contains special chars that require quoting, wrap in double-quotes
+      // Special chars: spaces, parentheses, brackets, slashes, backslashes, percent, colon
+      if (/[\s()[\]/\\%:]/.test(trimmed)) {
+        return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+      }
+      return full;
     },
   );
 }
