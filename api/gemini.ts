@@ -1,14 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
- * ARQUITETURA ULTIMATE SHIELD (V5) — Estabilidade de Produção Absoluta
+ * ARQUITETURA ULTIMATE SHIELD (V6) — Inteligência Pura e Blindagem de Contexto
  * 
- * 1. PURE FETCH: Eliminamos o SDK @google/genai para evitar erros de versão e tipagem.
- * 2. EMBEDDED LOGIC: Toda a extração e busca está neste arquivo para garantir 100% de bundling no Vercel.
- * 3. ZERO COLD START FAIL: Carregamento leve e execução direta via HTTPS.
+ * 1. PURE FETCH: Bypass SDK para controle total e leveza.
+ * 2. EMBEDDED LOGIC: Bundling garantido no Vercel.
+ * 3. CONTEXT WINDOWING: Limpeza de ruído técnico (histórico limitado).
+ * 4. MISSION PRIORITY: Foco absoluto no Score PORTA.
  */
-
-// --- UTILS EMBUTIDOS PARA GARANTIR BUNDLING ---
 
 async function performWebSearch(query: string): Promise<string | null> {
   try {
@@ -57,8 +56,6 @@ async function universalExtract(url: string): Promise<string> {
   } catch (e) { return "Erro na extração"; }
 }
 
-// --- HANDLER PRINCIPAL ---
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -75,14 +72,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${apiKey}`;
 
+    const priorityInstruction = `${systemInstruction || ''}\n\nURGENTE: Ignore metadiscussões sobre IA ou definições anteriores. Sua missão absoluta é gerar o dossiê de agronegócio e consolidar o Score PORTA para o CNPJ em análise. Não discuta o funcionamento interno do modelo.`;
+
     const generate = async (contents: any[]) => {
       const tools = [];
       if (useGrounding) tools.push({ google_search: {} });
       if (useOpenWebSearch) {
         tools.push({
           function_declarations: [
-            { name: "performWebSearch", description: "Busca na web", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-            { name: "extractDocumentContent", description: "Extrai texto de links", parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] } }
+            { name: "performWebSearch", description: "Busca na web para obter links estratégicos.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
+            { name: "extractDocumentContent", description: "Extrai texto filtrado de links, PDFs ou DOCX.", parameters: { type: "object", properties: { url: { type: "string" } }, required: ["url"] } }
           ]
         });
       }
@@ -92,24 +91,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents,
-          system_instruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+          system_instruction: { parts: [{ text: priorityInstruction }] },
           tools: tools.length > 0 ? tools : undefined,
-          generationConfig: { temperature: 0.15 }
+          generationConfig: { temperature: 0.1 }
         })
       });
       return await resp.json();
     };
 
-    // Formata histórico inicial
-    const initialContents = (history || []).map((h: any) => ({
+    // V6: Janela de contexto para limpar ruído de conversas técnicas
+    const initialContents = (history || []).slice(-10).map((h: any) => ({
       role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.text }]
+      parts: [{ text: h.text || '' }]
     }));
     initialContents.push({ role: 'user', parts: [{ text: message || '' }] });
 
     let response = await generate(initialContents);
     
-    // Loop de Function Calling manual (Shield robusto)
     for (let i = 0; i < 5; i++) {
       const candidate = response.candidates?.[0];
       const parts = candidate?.content?.parts || [];
@@ -137,13 +135,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const finalCandidate = response.candidates?.[0];
     return res.status(200).json({
-      text: finalCandidate?.content?.parts?.[0]?.text || '',
+      text: finalCandidate?.content?.parts?.find((p: any) => p.text)?.text || '',
       groundingUsed: !!finalCandidate?.groundingMetadata,
       groundingChunks: finalCandidate?.groundingMetadata?.groundingChunks || []
     });
 
   } catch (error: any) {
-    console.error('[UltimateShield] Fatal:', error.message);
+    console.error('[V6 SmartShield] Fatal:', error.message);
     return res.status(500).json({ error: 'Gemini proxy failed', detail: error.message });
   }
 }
