@@ -3,6 +3,8 @@ export interface BrasilApiCompanyData {
   companyName: string;
   city: string;
   state: string;
+  cnae?: string;
+  cnaeDescricao?: string;
 }
 
 export interface CityValidationResult {
@@ -95,6 +97,8 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
     nome_fantasia?: string;
     municipio?: string;
     uf?: string;
+    cnae_fiscal?: number | string;
+    cnae_fiscal_descricao?: string;
   }): BrasilApiCompanyData => {
     const companyName = (payload.nome_fantasia || payload.razao_social || '').trim();
     const city = (payload.municipio || '').trim();
@@ -109,6 +113,8 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
       companyName,
       city,
       state,
+      cnae: payload.cnae_fiscal ? String(payload.cnae_fiscal) : undefined,
+      cnaeDescricao: payload.cnae_fiscal_descricao || undefined,
     };
   };
 
@@ -119,6 +125,8 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
       nome_fantasia?: string;
       municipio?: string;
       uf?: string;
+      cnae_fiscal?: number | string;
+      cnae_fiscal_descricao?: string;
     }>(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 8000, signal);
     return parsePayload(brasilApiPayload);
   } catch {
