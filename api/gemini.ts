@@ -231,11 +231,15 @@ async function executeGeminiAction(
           const functionResponses = [];
 
           for (const call of response.functionCalls) {
+            const callId = `${call.name}-${Math.random().toString(36).slice(2, 7)}`;
+            console.log(`[Gemini] Iniciando ferramenta: ${callId}`);
+
             if (call.name === "performWebSearch") {
               const args = call.args as { query?: string };
               try {
-                // Chamada direta ao utilitário (Bypass Vercel Auth 401)
+                console.time(callId);
                 const toolResult = await performWebSearch(args.query || "");
+                console.timeEnd(callId);
 
                 functionResponses.push({
                   functionResponse: {
@@ -244,7 +248,7 @@ async function executeGeminiAction(
                   }
                 });
               } catch (toolError) {
-                console.error(`[OpenWebSearch] Falha:`, toolError);
+                console.error(`[OpenWebSearch] Falha em ${callId}:`, toolError);
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
@@ -255,8 +259,11 @@ async function executeGeminiAction(
             } else if (call.name === "extractDocumentContent") {
               const args = call.args as { url: string };
               try {
-                // Chamada direta ao utilitário (Bypass Vercel Auth 401)
+                console.time(callId);
+                console.log(`[Gemini] Extraindo URL: ${args.url}`);
                 const toolResult = await universalExtract({ url: args.url });
+                console.timeEnd(callId);
+                console.log(`[Gemini] Extração concluída (${toolResult.length} caracteres)`);
 
                 if (toolResult.error) throw new Error(toolResult.error);
 
@@ -267,7 +274,7 @@ async function executeGeminiAction(
                   }
                 });
               } catch (toolError) {
-                console.error(`[ExtractContent] Falha:`, toolError);
+                console.error(`[ExtractContent] Falha em ${callId}:`, toolError);
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
@@ -277,6 +284,7 @@ async function executeGeminiAction(
               }
             }
           }
+
 
           if (functionResponses.length > 0) {
             // Envia TODAS as respostas de funções em uma única mensagem (Batching)

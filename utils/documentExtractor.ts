@@ -1,7 +1,3 @@
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
-import { PDFParse } from 'pdf-parse';
-import mammoth from 'mammoth';
 import { scoutDiag } from './diagnosticLog';
 
 /**
@@ -9,6 +5,7 @@ import { scoutDiag } from './diagnosticLog';
  * 
  * Centraliza a lógica de busca web e extração de documentos para ser usada
  * tanto em rotas de API quanto diretamente no backend (bypassando HTTP 401).
+ * Usa Lazy Loading para dependências pesadas para evitar erros no Vercel.
  */
 
 export interface UniversalExtractResult {
@@ -42,6 +39,10 @@ export function isValidPublicUrl(urlString: string): boolean {
  * Extrai conteúdo limpo de HTML usando Readability.
  */
 export async function extractHtml(html: string, limit = 15000): Promise<string> {
+    // Importação dinâmica para reduzir overhead de inicialização
+    const { JSDOM } = await import('jsdom');
+    const { Readability } = await import('@mozilla/readability');
+
     const dom = new JSDOM(html);
     const doc = dom.window.document;
     const reader = new Readability(doc);
@@ -57,6 +58,7 @@ export async function extractHtml(html: string, limit = 15000): Promise<string> 
  * Extrai texto de buffer PDF.
  */
 export async function extractPdf(buffer: Buffer): Promise<string> {
+    const { PDFParse } = await import('pdf-parse');
     const parser = new PDFParse({ data: buffer });
     try {
         const parsed = await parser.getText();
@@ -73,6 +75,7 @@ export async function extractPdf(buffer: Buffer): Promise<string> {
  * Extrai texto de buffer DOCX.
  */
 export async function extractDocx(buffer: Buffer): Promise<string> {
+    const mammoth = await import('mammoth');
     const result = await mammoth.extractRawText({ buffer });
     return result.value || '';
 }
@@ -81,6 +84,8 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
  * Realiza busca no DuckDuckGo Lite.
  */
 export async function performWebSearch(query: string): Promise<string | null> {
+    // Reutiliza JSDOM com importação dinâmica
+    const { JSDOM } = await import('jsdom');
     scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo: ${query}`);
 
     try {
