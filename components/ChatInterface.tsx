@@ -102,6 +102,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const { user, userId, updateName, login, loading } = useAuth();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
@@ -119,6 +120,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
+  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -168,6 +170,32 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [showRetryToast]);
+
+  useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+
+    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
+
+    if (typeof ResizeObserver === 'undefined') {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    if (hasValidSize()) {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (hasValidSize()) {
+        setIsMessagesViewportReady(true);
+      }
+    });
+
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [showInitialHome]);
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
   useEffect(() => {
@@ -629,29 +657,36 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               )}
             </div>
           ) : (
-            <Virtuoso
-              ref={virtuosoRef}
-              data={safeMessages}
-              computeItemKey={(_, message) => message.id}
-              itemContent={itemContent}
-              followOutput={false}
-              increaseViewportBy={{ top: 400, bottom: 400 }}
-              style={{ height: '100%' }}
-              components={{
-                Header: () =>
-                  hasMore ? (
-                    <div className="flex justify-center py-3">
-                      <button
-                        type="button"
-                        onClick={onLoadMore}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                      >
-                        Carregar mensagens anteriores
-                      </button>
-                    </div>
-                  ) : null,
-              }}
-            />
+            <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
+              {isMessagesViewportReady ? (
+                <Virtuoso
+                  ref={virtuosoRef}
+                  data={safeMessages}
+                  computeItemKey={(_, message) => message.id}
+                  itemContent={itemContent}
+                  followOutput={false}
+                  increaseViewportBy={{ top: 400, bottom: 400 }}
+                  defaultItemHeight={96}
+                  style={{ height: '100%' }}
+                  components={{
+                    Header: () =>
+                      hasMore ? (
+                        <div className="flex justify-center py-3">
+                          <button
+                            type="button"
+                            onClick={onLoadMore}
+                            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+                          >
+                            Carregar mensagens anteriores
+                          </button>
+                        </div>
+                      ) : null,
+                  }}
+                />
+              ) : (
+                <div className="h-full w-full" data-testid="messages-viewport-placeholder" />
+              )}
+            </div>
           )}
         </div>
 

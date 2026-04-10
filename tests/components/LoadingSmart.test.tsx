@@ -189,4 +189,28 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.getAllByText(/14%/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/29%/i)).not.toBeInTheDocument();
   });
+
+  it('não duplica a etapa de compliance quando chegam labels equivalentes', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Verificando sinais de risco e conformidade...',
+          completedStages: ['Investigando riscos & compliance...'],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(screen.getAllByText('Verificando sinais de risco e conformidade...')).toHaveLength(2);
+  });
 });

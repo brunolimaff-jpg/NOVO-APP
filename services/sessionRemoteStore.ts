@@ -22,6 +22,39 @@ interface RemoteSessionRow {
   resumoDossie?: string;
 }
 
+function isLookupLikePayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  const candidate = payload as Record<string, unknown>;
+  return 'results' in candidate && 'encontrado' in candidate;
+}
+
+function parseListSessionsResponse(text: string): RemoteSessionRow[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("Invalid JSON response");
+  }
+
+  if (!data || typeof data !== 'object') {
+    throw new Error('Logical API error');
+  }
+
+  if (isLookupLikePayload(data)) {
+    throw new Error('Endpoint mismatch: backend respondeu payload de lookup');
+  }
+
+  const parsed = data as {
+    ok?: boolean;
+    message?: string;
+    sessions?: unknown;
+  };
+
+  if (!parsed.ok) throw new Error(parsed.message || "Logical API error");
+  if (!Array.isArray(parsed.sessions)) throw new Error('Invalid sessions payload');
+  return parsed.sessions as RemoteSessionRow[];
+}
+
 // Helper com timeout
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -42,26 +75,43 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
 
 export async function listRemoteSessions(): Promise<ChatSession[]> {
   const apiCall = async () => {
-    // FIX: Apps Script converte POST→GET no redirect 302, perdendo o body.
-    // Usando GET com querystring garante que o parâmetro chega após o redirect.
-    const url = `${SESSIONS_API_URL}?action=listSessions`;
-    const res = await fetchWithTimeout(url, {
-      method: "GET",
-      redirect: "follow",
-    });
-    
-    if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-    
-    const text = await res.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error("Invalid JSON response");
+    const attempts: Array<{ name: string; request: () => Promise<Response> }> = [
+      {
+        name: 'GET querystring',
+        request: () => fetchWithTimeout(`${SESSIONS_API_URL}?action=listSessions`, {
+          method: "GET",
+          redirect: "follow",
+        }),
+      },
+      {
+        name: 'POST body',
+        request: () => fetchWithTimeout(SESSIONS_API_URL, {
+          method: "POST",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "listSessions" }),
+        }),
+      },
+    ];
+
+    let lastError: unknown = null;
+
+    for (const attempt of attempts) {
+      try {
+        const res = await attempt.request();
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        const text = await res.text();
+        return parseListSessionsResponse(text);
+      } catch (error) {
+        lastError = error;
+        scoutDiag.warn("RemoteStore", "listRemoteSessions tentativa falhou", {
+          attempt: attempt.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
-    if (!data.ok) throw new Error(data.message || "Logical API error");
-    return data.sessions || [];
+    throw lastError instanceof Error ? lastError : new Error('Failed to list sessions');
   };
 
   try {

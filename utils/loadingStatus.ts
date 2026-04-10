@@ -81,6 +81,17 @@ const STATUS_ICON_MAP: Record<StatusPhaseKey, string> = {
   concorrentes: '🔍',
 };
 
+function normalizeStatusForCanonicalMatch(status: string): string {
+  return status
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s+$/, '');
+}
+
 function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
   const match = status.match(/^(?:Executando\s+)?Fase\s*(-?\d+)\s*:/i);
   if (!match) return null;
@@ -97,6 +108,15 @@ function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
 
 function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } | null {
   const s = status.trim();
+  const normalizedInput = normalizeStatusForCanonicalMatch(s).replace(/\.+$/, '').trim();
+
+  for (const [key, label] of Object.entries(STATUS_PHASES) as Array<[StatusPhaseKey, string]>) {
+    const normalizedLabel = normalizeStatusForCanonicalMatch(label).replace(/\.+$/, '').trim();
+    if (normalizedInput === normalizedLabel) {
+      return { key };
+    }
+  }
+
   if (/^(Capturando intenção tática|Entendendo o objetivo da pergunta|Mapeando objetivo estratégico)/i.test(s)) return { key: 'intent' };
   if (/^(Avaliando profundidade|Entendendo sua necessidade|Analisando complexidade)/i.test(s))   return { key: 'complexity' };
   if (/^(Consolidando perímetro|Preparando contexto)/i.test(s)) return { key: 'context' };
