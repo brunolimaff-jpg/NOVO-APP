@@ -183,9 +183,11 @@ export async function universalExtract(params: {
             }
         }
 
+        const processedText = text.replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit);
+
         return {
-            text: text.replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit),
-            length: text.length
+            text: processedText,
+            length: processedText.length
         };
 
     } catch (error: any) {

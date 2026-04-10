@@ -285,7 +285,14 @@ async function executeGeminiAction(
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(args)
                 });
-                const toolResult = await toolResponse.json();
+                const toolResult = await toolResponse.json().catch(() => null);
+                if (!toolResponse.ok) {
+                  const toolError =
+                    typeof toolResult?.error === 'string'
+                      ? toolResult.error
+                      : `Open Web Search HTTP ${toolResponse.status}`;
+                  throw new Error(toolError);
+                }
 
                 functionResponses.push({
                   functionResponse: {
@@ -295,10 +302,11 @@ async function executeGeminiAction(
                 });
               } catch (toolError) {
                 console.error(`[OpenWebSearch] Falha:`, toolError);
+                const message = toolError instanceof Error ? toolError.message : 'Failed to perform web search/extraction.';
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
-                    response: { error: "Failed to perform web search/extraction." }
+                    response: { error: message }
                   }
                 });
               }
