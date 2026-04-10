@@ -620,7 +620,8 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
 
     try {
-      const isMegaPrompt = text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO');
+      const isMegaPrompt = (text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO'))
+        && resolvedRequestKind !== 'deep_dive';
 
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---

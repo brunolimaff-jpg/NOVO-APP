@@ -757,7 +757,7 @@ export async function generateContinuityQuestion(
     const response = await proxyGenerateContent({
       model: ROUTER_MODEL_ID,
       contents: prompt,
-      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt },
+      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt, responseMimeType: 'application/json' },
     });
 
     const raw = (response.text || '').trim();
