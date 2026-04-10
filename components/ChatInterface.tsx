@@ -148,6 +148,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   exportStatus,
   exportError,
   pdfReportContent,
+  loadingVariant,
   onOpenFollowUpModal,
   onLogout,
   lastUserQuery,
@@ -194,6 +195,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
+  const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
   const handleDeleteWithUndo = (msgId: string) => {
     if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
@@ -749,6 +751,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 />
               )}
             </div>
+          ) : shouldSuspendVirtualizedList ? (
+            <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
           ) : (
             <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
               {isMessagesViewportReady ? (

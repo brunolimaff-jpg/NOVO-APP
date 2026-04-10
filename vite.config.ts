@@ -37,6 +37,8 @@ function generateVersionPlugin(): Plugin {
 }
 
 export default defineConfig(() => {
+  const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
+
   return {
     server: {
       port: 3000,
@@ -70,7 +72,7 @@ export default defineConfig(() => {
           plugins: process.env.NODE_ENV !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
-      VitePWA({
+      !isPreviewBuild && VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icons/icon-192.svg', 'icons/icon-512.svg'],
         manifest: {
@@ -139,7 +141,7 @@ export default defineConfig(() => {
           enabled: false,
         },
       }),
-    ],
+    ].filter(Boolean),
     resolve: {
       alias: {
         '@': resolve(__dirname, '.'),
