@@ -78,13 +78,14 @@ export interface SpotterExtractedData {
   summary?: string;
 }
 
-import { MODEL_IDS } from '../config/models';
-
-const ROUTER_MODEL_ID = MODEL_IDS.router;
-const TACTICAL_MODEL_ID = MODEL_IDS.tactical;
-const DEEP_CHAT_MODEL_ID = MODEL_IDS.deepChat;
-const STABLE_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
-const LOADING_CURIOSITY_MODEL_ID = MODEL_IDS.router;
+import {
+  DEEP_CHAT_MODEL_ID,
+  LOADING_CURIOSITY_MODEL_ID,
+  ROUTER_MODEL_ID,
+  selectMainChatModelId,
+  STABLE_RESEARCH_MODEL_ID,
+  TACTICAL_MODEL_ID,
+} from '../config/models';
 const OPEN_QUESTION_RECOVERY_METRIC_KEY = 'scout360_open_question_recovery_count';
 const RECOVERY_DEBUG_FLAG_KEY = 'scout360_debug_recovery';
 
@@ -1137,13 +1138,11 @@ export async function sendMessageToGemini(
   }
 
   // ── Seleciona modelo ─────────────────────────────────────────────────────
-  const modelToUse = isDeepDive
-    ? STABLE_RESEARCH_MODEL_ID
-    : isMegaPromptMessage
-      ? STABLE_RESEARCH_MODEL_ID
-      : shouldForceDirectAnswer
-        ? TACTICAL_MODEL_ID
-        : DEEP_CHAT_MODEL_ID;
+  const modelToUse = selectMainChatModelId({
+    isDeepDive,
+    isMegaPromptMessage,
+    shouldForceDirectAnswer,
+  });
   const shouldUseGrounding = useGrounding;
   promptBudget.modelToUse = modelToUse;
   promptBudget.shouldUseGrounding = shouldUseGrounding;
