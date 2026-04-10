@@ -78,6 +78,45 @@ function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
   );
 }
 
+function PortaFallbackBadge({
+  isDarkMode,
+  dimensions,
+}: {
+  isDarkMode: boolean;
+  dimensions?: string[];
+}) {
+  const dimensionLabel = Array.isArray(dimensions) && dimensions.length > 0
+    ? ` (${dimensions.join(', ')})`
+    : '';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-semibold mt-2 px-2 py-0.5 rounded-full select-none ${
+        isDarkMode
+          ? 'bg-red-900/35 text-red-300 border border-red-700/50'
+          : 'bg-red-50 text-red-700 border border-red-200'
+      }`}
+      title="Score PORTA consolidado com fallback técnico por ausência de markers completos."
+    >
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      Score PORTA com fallback técnico{dimensionLabel}
+    </span>
+  );
+}
+
 const MessageRow = memo(({ index, data }: MessageRowProps) => {
   if (!data) return null;
   const {
@@ -121,6 +160,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // groundingUsed === false (explicitamente): fallback silencioso acionado.
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
+  const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true;
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
   const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
@@ -240,6 +280,12 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
               />
               {showGroundingFallbackWarning && (
                 <GroundingFallbackBadge isDarkMode={isDarkMode} />
+              )}
+              {showPortaFallbackWarning && (
+                <PortaFallbackBadge
+                  isDarkMode={isDarkMode}
+                  dimensions={msg.portaFallbackDimensions}
+                />
               )}
               {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar

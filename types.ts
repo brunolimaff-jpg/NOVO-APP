@@ -156,6 +156,8 @@ export interface Message {
    * undefined = grounding não era aplicável nesta mensagem (thinking mode, megaprompt, deep dive).
    */
   groundingUsed?: boolean;
+  portaFallbackApplied?: boolean;
+  portaFallbackDimensions?: PortaDimension[];
 }
 
 export interface ClienteSeniorData {

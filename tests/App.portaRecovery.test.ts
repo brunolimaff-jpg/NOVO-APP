@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildPortaReconciliationPrompt, resolveModuleNamesForMissingDimensions } from '../App';
+import {
+  applyPortaTechnicalFallback,
+  buildPortaFallbackChunk,
+  buildPortaReconciliationPrompt,
+  resolveModuleNamesForMissingDimensions,
+} from '../App';
 
 describe('App PORTA recovery helpers', () => {
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
@@ -13,5 +18,43 @@ describe('App PORTA recovery helpers', () => {
     expect(prompt).toContain('[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]');
     expect(prompt).toContain('[[PORTA_FEED_R:6:PRESSOES:Sem_pressao_identificada]]');
     expect(prompt).not.toContain('[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]');
+  });
+
+  it('gera chunk de fallback apenas para dimensões faltantes', () => {
+    const chunk = buildPortaFallbackChunk(['O', 'T']);
+    expect(chunk).toContain('[[PORTA_FEED_O:6:ELOS:Plantio]]');
+    expect(chunk).toContain('[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]');
+    expect(chunk).not.toContain('[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]');
+  });
+
+  it('aplica fallback técnico quando ainda faltam dimensões e resolve score sem erro fatal', () => {
+    const base = `
+[[PORTA_FEED_P:7:HA:9000:CNPJS:3:FAT:R$ 250 mi]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+`;
+    const result = applyPortaTechnicalFallback(base);
+    expect(result.fallbackApplied).toBe(true);
+    expect(result.fallbackDimensions).toEqual(['O']);
+    expect(result.content).toContain('[[PORTA_FEED_O:6:ELOS:Plantio]]');
+    expect(result.resolution.score).not.toBeNull();
+    expect(result.resolution.missingDimensions).toEqual([]);
+  });
+
+  it('não aplica fallback quando o score já está consolidado', () => {
+    const complete = `
+[[PORTA_FEED_P:7:HA:9000:CNPJS:3:FAT:R$ 250 mi]]
+[[PORTA_FEED_O:6:ELOS:Plantio]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+`;
+    const result = applyPortaTechnicalFallback(complete);
+    expect(result.fallbackApplied).toBe(false);
+    expect(result.fallbackDimensions).toEqual([]);
+    expect(result.resolution.score).not.toBeNull();
   });
 });

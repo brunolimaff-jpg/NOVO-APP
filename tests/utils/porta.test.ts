@@ -201,4 +201,46 @@ describe('PORTA helpers', () => {
     expect(resolved.source).toBe('feeds');
     expect(resolved.missingDimensions).toEqual(['T']);
   });
+
+  it('aceita PORTA_FEED_O compacto sem bloco ELOS', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O:6]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
+  });
+
+  it('normaliza PORTA_FEED_O com espacos e não marca dimensão O como ausente', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O: 6 :ELOS: Plantio, Armazenagem ]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
+  });
+
+  it('aceita variação PRESSAO no feed R', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O:6:ELOS:Plantio]]
+[[PORTA_FEED_R:6:PRESSAO:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
+  });
 });
