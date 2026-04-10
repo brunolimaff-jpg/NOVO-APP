@@ -585,25 +585,228 @@ export async function generateContinuityQuestion(
   empresaAlvo: string | null,
   nomeVendedor: string,
 ): Promise<string[]> {
+  const CONTINUITY_TARGET = 4;
   const recentMessages = messages
     .slice(-6)
     .map(m => `${m.sender === Sender.User ? 'Vendedor' : 'Scout'}: ${m.text?.slice(0, 300) || ''}`)
     .join('\n');
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
-  const userPrompt = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
-  try {
+  const basePrompt = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
+
+  const normalizeQuestionCandidate = (raw: string): string => {
+    return (raw || '')
+      .replace(/[\r\n]+/g, ' ')
+      .replace(/^\s*[-*+•]\s+/, '')
+      .replace(/^\s*\d+\s*[).:-]\s*/, '')
+      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const isValidQuestionCandidate = (raw: string): boolean => {
+    const candidate = normalizeQuestionCandidate(raw);
+    if (candidate.length < 12 || candidate.length > 260) return false;
+    if (/^(responda|retorne|array json|json)/i.test(candidate)) return false;
+    if (/^\s*(?:\[|{)/.test(candidate)) return false;
+    return true;
+  };
+
+  const buildQuestionDedupeKey = (value: string): string => {
+    return normalizeQuestionCandidate(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  };
+
+  const mergeUniqueQuestions = (base: string[], incoming: string[]): string[] => {
+    const merged = [...base];
+    const seen = new Set(base.map(item => buildQuestionDedupeKey(item)).filter(Boolean));
+    for (const item of incoming) {
+      const candidate = normalizeQuestionCandidate(item);
+      const key = buildQuestionDedupeKey(candidate);
+      if (!candidate || !key || seen.has(key) || !isValidQuestionCandidate(candidate)) continue;
+      seen.add(key);
+      merged.push(candidate);
+    }
+    return merged;
+  };
+
+  const parseQuestionArray = (raw: string): string[] => {
+    if (!raw?.trim()) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => normalizeQuestionCandidate(item))
+        .filter(item => isValidQuestionCandidate(item));
+    } catch {
+      return [];
+    }
+  };
+
+  const extractBalancedJsonArrays = (raw: string): string[] => {
+    const arrays: string[] = [];
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < raw.length; i++) {
+      const char = raw[i];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (char === '\\') {
+          escaped = true;
+          continue;
+        }
+        if (char === '"') inString = false;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+        continue;
+      }
+      if (char === '[') {
+        if (depth === 0) start = i;
+        depth += 1;
+        continue;
+      }
+      if (char === ']') {
+        if (depth === 0) continue;
+        depth -= 1;
+        if (depth === 0 && start >= 0) {
+          arrays.push(raw.slice(start, i + 1));
+          start = -1;
+        }
+      }
+    }
+
+    return arrays;
+  };
+
+  const extractQuestionsFromFreeText = (raw: string): string[] => {
+    const lines = raw
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    const lineCandidates = lines
+      .filter(line => /^[-*+•]\s+/.test(line) || /^\d+\s*[).:-]\s+/.test(line) || line.includes('?'))
+      .map(line => normalizeQuestionCandidate(line))
+      .filter(line => isValidQuestionCandidate(line));
+
+    const sentenceCandidates = Array.from(
+      raw
+        .replace(/\s+/g, ' ')
+        .matchAll(/([A-ZÀ-Ú0-9][^?]{10,220}\?)/gi),
+    )
+      .map(match => normalizeQuestionCandidate(match[1]))
+      .filter(line => isValidQuestionCandidate(line));
+
+    return mergeUniqueQuestions(lineCandidates, sentenceCandidates);
+  };
+
+  const parseContinuityQuestions = (raw: string): { questions: string[]; stageHits: string[] } => {
+    const stageHits: string[] = [];
+    let questions: string[] = [];
+    const rawTrimmed = (raw || '').trim();
+    if (!rawTrimmed) return { questions: [], stageHits };
+
+    const fenced = rawTrimmed.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const direct = parseQuestionArray(fenced);
+    if (direct.length > 0) {
+      questions = mergeUniqueQuestions(questions, direct);
+      stageHits.push('direct_json');
+    }
+
+    if (questions.length < CONTINUITY_TARGET) {
+      const embeddedCandidates = extractBalancedJsonArrays(rawTrimmed);
+      const embeddedQuestions = embeddedCandidates.reduce<string[]>(
+        (acc, snippet) => mergeUniqueQuestions(acc, parseQuestionArray(snippet)),
+        [],
+      );
+      if (embeddedQuestions.length > 0) {
+        questions = mergeUniqueQuestions(questions, embeddedQuestions);
+        stageHits.push('embedded_json');
+      }
+    }
+
+    if (questions.length < CONTINUITY_TARGET) {
+      const freeTextQuestions = extractQuestionsFromFreeText(rawTrimmed);
+      if (freeTextQuestions.length > 0) {
+        questions = mergeUniqueQuestions(questions, freeTextQuestions);
+        stageHits.push('free_text');
+      }
+    }
+
+    return { questions, stageHits };
+  };
+
+  const runContinuityAttempt = async (
+    prompt: string,
+    attempt: 'primary' | 'retry',
+  ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
     const response = await proxyGenerateContent({
       model: ROUTER_MODEL_ID,
-      contents: userPrompt,
-      config: { temperature: 0.8, maxOutputTokens: 800, systemInstruction: systemPrompt },
+      contents: prompt,
+      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt },
     });
-    const raw = (response.text || '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
-  } catch {
+
+    const raw = (response.text || '').trim();
+    const parsed = parseContinuityQuestions(raw);
+    scoutDiag.info?.('ContinuityQuestion', 'parse de sugestões concluído', {
+      attempt,
+      company: empresaAlvo || null,
+      rawChars: raw.length,
+      questionCount: parsed.questions.length,
+      stageHits: parsed.stageHits,
+    });
+    return { ...parsed, raw };
+  };
+
+  let collectedQuestions: string[] = [];
+  try {
+    const primaryAttempt = await runContinuityAttempt(basePrompt, 'primary');
+    collectedQuestions = mergeUniqueQuestions(collectedQuestions, primaryAttempt.questions);
+
+    if (collectedQuestions.length < CONTINUITY_TARGET) {
+      scoutDiag.warn('ContinuityQuestion', 'sugestões insuficientes na primeira tentativa', {
+        company: empresaAlvo || null,
+        count: collectedQuestions.length,
+        stageHits: primaryAttempt.stageHits,
+        rawSnippet: primaryAttempt.raw.slice(0, 200),
+      });
+
+      const retryPrompt = `${basePrompt}\n\nIMPORTANTE: Sua resposta anterior foi inválida ou incompleta. Responda agora com EXATAMENTE 4 perguntas em formato de ARRAY JSON de strings, sem texto adicional.`;
+      const retryAttempt = await runContinuityAttempt(retryPrompt, 'retry');
+      collectedQuestions = mergeUniqueQuestions(collectedQuestions, retryAttempt.questions);
+
+      if (collectedQuestions.length < CONTINUITY_TARGET) {
+        scoutDiag.warn('ContinuityQuestion', 'ainda insuficiente após retry', {
+          company: empresaAlvo || null,
+          count: collectedQuestions.length,
+          stageHits: retryAttempt.stageHits,
+          rawSnippet: retryAttempt.raw.slice(0, 200),
+        });
+      }
+    }
+  } catch (error) {
+    scoutDiag.warn('ContinuityQuestion', 'falha ao gerar perguntas de continuidade', {
+      company: empresaAlvo || null,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return [];
   }
+
+  return collectedQuestions.slice(0, CONTINUITY_TARGET);
 }
 
 /**
@@ -733,7 +936,7 @@ export async function sendMessageToGemini(
         });
       } else if (results[0].status === 'fulfilled' && results[0].value) {
         clienteData = results[0].value;
-        // @ts-ignore
+        // @ts-expect-error lookupCliente retorna shape mais amplo em runtime
         if (clienteData?.nome && !empresaAlvo) empresaAlvo = clienteData.nome;
 
         if (clienteData?.error) {
@@ -1103,7 +1306,10 @@ export async function generateDossierModule(
     options.timeoutMs,
   );
 
-  const shieldedResult = applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo });
+  const shieldedResult = applyPromptLeakShield(response.text || '', {
+    companyHint: empresaAlvo,
+    preserveInternalMarkersWhenSafe: true,
+  });
   if (shieldedResult.blocked) {
     scoutDiag.warn('PromptLeakShield', 'módulo do dossiê bloqueado por possível vazamento de prompt', {
       moduleName,
