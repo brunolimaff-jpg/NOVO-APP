@@ -12,6 +12,88 @@ function safeCompanyName(name: string): string {
   return name.trim().slice(0, 200).replace(/"/g, "'");
 }
 
+function findFirstCompleteJsonChunk(raw: string): string | null {
+  if (!raw) return null;
+
+  const isOpening = (char: string) => char === '{' || char === '[';
+  const isClosing = (char: string) => char === '}' || char === ']';
+  const isMatchingPair = (open: string, close: string) =>
+    (open === '{' && close === '}') || (open === '[' && close === ']');
+
+  for (let start = 0; start < raw.length; start += 1) {
+    const initial = raw[start];
+    if (!isOpening(initial)) continue;
+
+    const stack: string[] = [initial];
+    let inString = false;
+    let escaping = false;
+
+    for (let i = start + 1; i < raw.length; i += 1) {
+      const ch = raw[i];
+
+      if (inString) {
+        if (escaping) {
+          escaping = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaping = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
+
+      if (isOpening(ch)) {
+        stack.push(ch);
+        continue;
+      }
+
+      if (isClosing(ch)) {
+        const lastOpen = stack[stack.length - 1];
+        if (!lastOpen || !isMatchingPair(lastOpen, ch)) {
+          break;
+        }
+
+        stack.pop();
+        if (stack.length === 0) {
+          return raw.slice(start, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseFirstJsonObject(raw: string): Record<string, unknown> | null {
+  const jsonChunk = findFirstCompleteJsonChunk(raw);
+  if (!jsonChunk) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(jsonChunk);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const firstItem = parsed[0];
+      if (firstItem && typeof firstItem === 'object' && !Array.isArray(firstItem)) {
+        return firstItem as Record<string, unknown>;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ===================================================================
 // TIPOS
 // ===================================================================
@@ -276,12 +358,9 @@ export async function pullCompetitorProfile(
     const prompt = buildProfilePrompt(concorrente);
     const raw = await callGeminiDeepSearch(prompt);
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const data = JSON.parse(jsonMatch[0]);
-        return { competitorId, nomeERP: concorrente.nome, ...data, raw };
-      } catch { /* JSON malformado */ }
+    const data = parseFirstJsonObject(raw);
+    if (data) {
+      return { competitorId, nomeERP: concorrente.nome, ...data, raw };
     }
 
     return { competitorId, nomeERP: concorrente.nome, raw };
@@ -307,22 +386,26 @@ export async function generatePricingIntel(
     const prompt = buildPricingPrompt(concorrente, porteEmpresa);
     const raw = await callGeminiDeepSearch(prompt);
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const data = JSON.parse(jsonMatch[0]);
-        return {
-          competitorId,
-          nomeERP: concorrente.nome,
-          faixaPrecoUsuario: data.faixaPrecoUsuario,
-          modeloLicenca: data.modeloLicenca,
-          custoImplantacaoEstimado: data.custoImplantacaoEstimado,
-          prazoImplantacaoMedio: data.prazoImplantacaoMedio,
-          fontes: data.fontes || [],
-          confianca: data.confianca || 'baixa',
-          raw,
-        };
-      } catch { /* fall through */ }
+    const data = parseFirstJsonObject(raw);
+    if (data) {
+      return {
+        competitorId,
+        nomeERP: concorrente.nome,
+        faixaPrecoUsuario: typeof data.faixaPrecoUsuario === 'string' ? data.faixaPrecoUsuario : undefined,
+        modeloLicenca: typeof data.modeloLicenca === 'string' ? data.modeloLicenca : undefined,
+        custoImplantacaoEstimado:
+          typeof data.custoImplantacaoEstimado === 'string' ? data.custoImplantacaoEstimado : undefined,
+        prazoImplantacaoMedio:
+          typeof data.prazoImplantacaoMedio === 'string' ? data.prazoImplantacaoMedio : undefined,
+        fontes: Array.isArray(data.fontes)
+          ? data.fontes.filter((value): value is string => typeof value === 'string')
+          : [],
+        confianca:
+          data.confianca === 'alta' || data.confianca === 'media' || data.confianca === 'baixa'
+            ? data.confianca
+            : 'baixa',
+        raw,
+      };
     }
 
     return { competitorId, nomeERP: concorrente.nome, fontes: [], confianca: 'baixa', raw };

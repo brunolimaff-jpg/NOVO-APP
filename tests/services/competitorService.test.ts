@@ -110,6 +110,21 @@ describe('pullCompetitorProfile', () => {
       expect(result.raw).toContain('Texto corrido');
     }
   });
+
+  it('extrai o primeiro JSON completo sem regex gulosa', async () => {
+    const mockGemini = vi.fn().mockResolvedValue(
+      `Trecho inicial [ 'a' ] e texto ]\n` +
+        `{"playStoreRating":4.1,"pontosFracos":["Lentidão"]}\n` +
+        `{"playStoreRating":1.1,"pontosFracos":["Ignorar"]}`,
+    );
+
+    const result = await pullCompetitorProfile('totvs', mockGemini);
+    if (result) {
+      expect(result.playStoreRating).toBe(4.1);
+      expect(result.pontosFracos).toContain('Lentidão');
+      expect(result.pontosFracos).not.toContain('Ignorar');
+    }
+  });
 });
 
 describe('generatePricingIntel', () => {
@@ -150,6 +165,20 @@ describe('generatePricingIntel', () => {
     const result = await generatePricingIntel('totvs', 'pequeno', mockGemini);
     if (result) {
       expect(result.confianca).toBe('baixa');
+    }
+  });
+
+  it('aceita array JSON e usa o primeiro objeto válido', async () => {
+    const mockGemini = vi.fn().mockResolvedValue(
+      `Resposta:\n` +
+        `[{"faixaPrecoUsuario":"R$ 900-1.500","modeloLicenca":"SaaS","confianca":"alta","fontes":["fonte-a"]}]`,
+    );
+    const result = await generatePricingIntel('totvs', 'medio', mockGemini);
+    if (result) {
+      expect(result.faixaPrecoUsuario).toBe('R$ 900-1.500');
+      expect(result.modeloLicenca).toBe('SaaS');
+      expect(result.confianca).toBe('alta');
+      expect(result.fontes).toEqual(['fonte-a']);
     }
   });
 });
