@@ -51,7 +51,7 @@ describe('selectMainChatModelId', () => {
 
 describe('MODEL_IDS', () => {
   it('keeps same model id across roles', () => {
-    expect(MODEL_IDS.router).toBe('gemini-2.5-flash');
+    expect(MODEL_IDS.router).toBe('gemini-3-flash-preview');
     expect(MODEL_IDS.tactical).toBe(MODEL_IDS.router);
     expect(MODEL_IDS.deepChat).toBe(MODEL_IDS.router);
     expect(MODEL_IDS.deepResearch).toBe(MODEL_IDS.router);

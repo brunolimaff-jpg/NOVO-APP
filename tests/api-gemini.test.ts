@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const sendMessageMock = vi.fn();
+const sendMessageMock = vi.hoisted(() => vi.fn());
+const createChatMock = vi.hoisted(() => vi.fn(() => ({
+  sendMessage: sendMessageMock,
+})));
+const generateContentMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@google/genai', () => ({
+  ThinkingLevel: {
+    LOW: 'LOW',
+    MEDIUM: 'MEDIUM',
+    HIGH: 'HIGH',
+  },
   GoogleGenAI: class {
     chats = {
-      create: vi.fn(() => ({
-        sendMessage: sendMessageMock,
-      })),
+      create: createChatMock,
     };
 
     models = {
-      generateContent: vi.fn(),
+      generateContent: generateContentMock,
     };
   },
 }));
@@ -20,6 +27,7 @@ vi.mock('@google/genai', () => ({
 describe('api/gemini handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     process.env.GEMINI_API_KEY = 'test-key';
   });
 
@@ -85,6 +93,102 @@ describe('api/gemini handler', () => {
           }),
         }),
       ]),
+    );
+  });
+
+  it('usa thinkingLevel=high por padrão quando nenhum campo de thinking é enviado', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      text: 'ok',
+      candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        message: 'analise a conta',
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createChatMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          thinkingConfig: { thinkingLevel: 'HIGH' },
+        }),
+      }),
+    );
+  });
+
+  it('prioriza thinkingLevel explícito sobre thinkingMode legado', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      text: 'ok',
+      candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        message: 'analise a conta',
+        thinkingLevel: 'medium',
+        thinkingMode: true,
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createChatMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          thinkingConfig: { thinkingLevel: 'MEDIUM' },
+        }),
+      }),
+    );
+  });
+
+  it('mapeia thinkingMode=false legado para thinkingLevel=low', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      text: 'ok',
+      candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        message: 'analise a conta',
+        thinkingMode: false,
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createChatMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          thinkingConfig: { thinkingLevel: 'LOW' },
+        }),
+      }),
     );
   });
 });
