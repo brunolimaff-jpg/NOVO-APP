@@ -148,6 +148,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   exportStatus,
   exportError,
   pdfReportContent,
+  loadingVariant,
   onOpenFollowUpModal,
   onLogout,
   lastUserQuery,
@@ -169,6 +170,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const { user, userId, updateName, login, loading } = useAuth();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
@@ -184,6 +186,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
+  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,6 +195,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
+  const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
   const handleDeleteWithUndo = (msgId: string) => {
     if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
@@ -316,6 +320,32 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         !Array.isArray(processing.completedStages),
     };
   }, [processing]);
+
+  useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+
+    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
+
+    if (typeof ResizeObserver === 'undefined') {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    if (hasValidSize()) {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (hasValidSize()) {
+        setIsMessagesViewportReady(true);
+      }
+    });
+
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [showInitialHome]);
 
   useEffect(() => {
     if (!processingInfo?.isMalformed) {
@@ -721,30 +751,39 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 />
               )}
             </div>
+          ) : shouldSuspendVirtualizedList ? (
+            <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
           ) : (
-            <Virtuoso
-              ref={virtuosoRef}
-              data={safeMessages}
-              computeItemKey={(_, message) => message.id}
-              itemContent={itemContent}
-              followOutput={false}
-              increaseViewportBy={{ top: 400, bottom: 400 }}
-              style={{ height: '100%' }}
-              components={{
-                Header: () =>
-                  hasMore ? (
-                    <div className="flex justify-center py-3">
-                      <button
-                        type="button"
-                        onClick={onLoadMore}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                      >
-                        Carregar mensagens anteriores
-                      </button>
-                    </div>
-                  ) : null,
-              }}
-            />
+            <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
+              {isMessagesViewportReady ? (
+                <Virtuoso
+                  ref={virtuosoRef}
+                  data={safeMessages}
+                  computeItemKey={(_, message) => message.id}
+                  itemContent={itemContent}
+                  followOutput={false}
+                  increaseViewportBy={{ top: 400, bottom: 400 }}
+                  defaultItemHeight={96}
+                  style={{ height: '100%' }}
+                  components={{
+                    Header: () =>
+                      hasMore ? (
+                        <div className="flex justify-center py-3">
+                          <button
+                            type="button"
+                            onClick={onLoadMore}
+                            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+                          >
+                            Carregar mensagens anteriores
+                          </button>
+                        </div>
+                      ) : null,
+                  }}
+                />
+              ) : (
+                <div className="h-full w-full" data-testid="messages-viewport-placeholder" />
+              )}
+            </div>
           )}
         </div>
 

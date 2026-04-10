@@ -186,7 +186,7 @@ describe('ChatInterface shell regression', () => {
     await waitFor(() => {
       expect(onDeepDive).toHaveBeenCalledWith(
         '🔍 Investigando Acme Agro...',
-        expect.stringContaining('Acme Agro'),
+        expect.stringContaining('Empresa=Acme Agro'),
         'Acme Agro',
       );
     });

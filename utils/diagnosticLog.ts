@@ -18,12 +18,16 @@ const PREFIX = '🦅 [Scout360]';
 
 function isVerboseEnabled(): boolean {
   try {
-    const env = import.meta.env as Record<string, string | boolean | undefined>;
-    return (
-      env?.DEV === true ||
-      env?.VITE_VERBOSE_LOGS === 'true' ||
-      env?.VITE_DEBUG_CONSOLE === 'true'
-    );
+    // No Vercel/Node usar process.env, no Vite/Browser usar import.meta.env
+    const isDev = typeof process !== 'undefined' && process.env ? 
+                  process.env.NODE_ENV === 'development' : 
+                  (import.meta as any).env?.DEV === true;
+
+    const verbose = typeof process !== 'undefined' && process.env ?
+                    process.env.VITE_VERBOSE_LOGS === 'true' || process.env.VITE_DEBUG_CONSOLE === 'true' :
+                    (import.meta as any).env?.VITE_VERBOSE_LOGS === 'true' || (import.meta as any).env?.VITE_DEBUG_CONSOLE === 'true';
+
+    return isDev || verbose;
   } catch {
     return false;
   }
