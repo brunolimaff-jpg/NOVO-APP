@@ -1,4 +1,4 @@
-const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_MODEL_ID = 'gemini-3-flash-preview';
 
 export const MODEL_IDS = {
   router: DEFAULT_GEMINI_MODEL_ID,

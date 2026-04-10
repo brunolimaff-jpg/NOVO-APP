@@ -342,6 +342,51 @@ describe('sendMessageToGemini — cenários de erro', () => {
       { role: 'user', text: 'Agora aprofunde em ERP' },
     ]);
   });
+
+  it('envia thinkingLevel=high por padrão quando não há configuração explícita', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'high',
+    });
+  });
+
+  it('mapeia thinkingMode=false legado para thinkingLevel=low', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      thinkingMode: false,
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'low',
+    });
+  });
+
+  it('prioriza thinkingLevel explícito sobre thinkingMode legado', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      thinkingLevel: 'medium',
+      thinkingMode: true,
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'medium',
+    });
+  });
 });
 
 describe('generateContinuityQuestion novelty mode', () => {

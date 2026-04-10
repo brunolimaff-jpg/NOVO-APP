@@ -52,7 +52,8 @@ export { parsePortaMarkerV2 } from '../utils/porta';
 
 export interface GeminiRequestOptions {
   useGrounding?: boolean;
-  thinkingMode?: boolean;
+  thinkingLevel?: 'low' | 'medium' | 'high';
+  thinkingMode?: boolean; // Deprecated: mantido para compatibilidade temporária
   useOpenWebSearch?: boolean;
   signal?: AbortSignal;
   onText?: (text: string) => void;
@@ -79,7 +80,6 @@ export interface SpotterExtractedData {
 }
 
 import {
-  DEEP_CHAT_MODEL_ID,
   LOADING_CURIOSITY_MODEL_ID,
   ROUTER_MODEL_ID,
   selectMainChatModelId,
@@ -886,7 +886,8 @@ export async function sendMessageToGemini(
 }> {
   const {
     useGrounding = true,
-    thinkingMode = false,
+    thinkingLevel,
+    thinkingMode,
     useOpenWebSearch = false,
     signal,
     onText,
@@ -898,6 +899,8 @@ export async function sendMessageToGemini(
     sessionId,
     hintedCompany = null,
   } = options;
+  const resolvedThinkingLevel = thinkingLevel
+    ?? (thinkingMode === true ? 'high' : thinkingMode === false ? 'low' : 'high');
 
   if (signal?.aborted) throw new Error('AbortError');
   emitDossieStatus(onStatus, 'intent');
@@ -1174,7 +1177,7 @@ export async function sendMessageToGemini(
         history,
         message: userMessage,
         useGrounding: shouldUseGrounding,
-        thinkingMode,
+        thinkingLevel: resolvedThinkingLevel,
         useOpenWebSearch,
       }, signal),
       { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: signal },
@@ -1196,7 +1199,7 @@ export async function sendMessageToGemini(
         history,
         message: userMessage,
         useGrounding: false,
-        thinkingMode,
+        thinkingLevel: resolvedThinkingLevel,
       }, signal),
       { maxRetries: 4, baseDelayMs: 2000, maxDelayMs: 20000, abortSignal: signal },
     );

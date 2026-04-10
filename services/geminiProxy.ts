@@ -20,7 +20,8 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   history: Array<{ role: "user" | "model"; text: string }>;
   message: string;
   useGrounding?: boolean;
-  thinkingMode?: boolean;
+  thinkingLevel?: 'low' | 'medium' | 'high';
+  thinkingMode?: boolean; // Deprecated: mantido para compatibilidade temporária
   useOpenWebSearch?: boolean; // Novo: para ativar a ferramenta open-web-search
 }
 

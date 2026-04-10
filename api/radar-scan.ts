@@ -9,7 +9,7 @@ import { z } from 'zod';
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 const FETCH_TIMEOUT_MS = 12_000;
 const GEMINI_TIMEOUT_MS = 25_000;
 
