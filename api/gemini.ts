@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { applyPromptLeakShield } from '../utils/textCleaners';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -266,9 +267,18 @@ async function executeGeminiAction(
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const groundingUsed = groundingActivated && groundingChunks.length > 0;
+      const leakShieldResult = applyPromptLeakShield(response.text || '');
+      if (leakShieldResult.blocked) {
+        console.warn('[PromptLeakShield][api/gemini] resposta bloqueada', {
+          action: body.action,
+          model,
+          fingerprint: leakShieldResult.fingerprint,
+          indicators: leakShieldResult.indicators,
+        });
+      }
 
       return res.status(200).json({
-        text: response.text || '',
+        text: leakShieldResult.text,
         groundingChunks,
         groundingUsed,
       });

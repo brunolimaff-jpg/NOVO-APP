@@ -253,12 +253,22 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       return;
     }
-    const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
-    const realCurrent = processing?.stage || 'Preparando análise...';
-    const alreadyKnown = new Set([...displayedCompleted, ...queueRef.current]);
+    const realCompleted = (processing?.completedStages || [])
+      .map(s => stripInternalMarkers(s).trim())
+      .filter(Boolean);
+    const realCurrent = stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
+    const knownStageKeys = new Set(
+      [...displayedCompleted, ...queueRef.current]
+        .map(stage => statusKey(stripInternalMarkers(stage).trim()))
+        .filter(Boolean),
+    );
     const newStages: string[] = [];
     for (const stage of realCompleted) {
-      if (!alreadyKnown.has(stage)) newStages.push(stage);
+      const canonicalKey = statusKey(stage);
+      if (!knownStageKeys.has(canonicalKey)) {
+        newStages.push(stage);
+        knownStageKeys.add(canonicalKey);
+      }
     }
     if (newStages.length > 0) queueRef.current = [...queueRef.current, ...newStages];
     const getBackoffMessage = (count: number) => {
@@ -268,7 +278,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       return null;
     };
     const backoffMsg = getBackoffMessage(processing?.failureCount || 0);
-    setDisplayedCurrent(backoffMsg || stripInternalMarkers(realCurrent));
+    setDisplayedCurrent(backoffMsg || realCurrent);
     const revealNext = () => {
       if (queueRef.current.length === 0) return;
       const now = Date.now();
