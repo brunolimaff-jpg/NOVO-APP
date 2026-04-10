@@ -548,7 +548,7 @@ const App: React.FC = () => {
     } else {
       resetLoadingProgress('Aprofundando análise...', isShortRound ? 6 : 7, {
         incremental: true,
-        keepHistory: 4,
+        keepHistory: resolvedRequestKind === 'deep_dive' ? 0 : 4,
       });
     }
     abortControllerRef.current = new AbortController();
@@ -1046,6 +1046,7 @@ const App: React.FC = () => {
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,
+                  isDeepDiveResult: resolvedRequestKind === 'deep_dive',
                   ...(ghostReason && { ghostDetails: ghostReason }),
                 }
               : msg,

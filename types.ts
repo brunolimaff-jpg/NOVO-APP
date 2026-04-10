@@ -130,6 +130,7 @@ export interface Message {
   timestamp: Date;
   isThinking?: boolean;
   loadingVariant?: 'hero' | 'inline';
+  isDeepDiveResult?: boolean;
   groundingSources?: Array<{
     title: string;
     url: string;

@@ -609,7 +609,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
               isDarkMode ? 'text-slate-400' : 'text-slate-500'
             }`}>Etapas da análise</h2>
 
-            <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[35vh] md:max-h-[45vh] pr-2">
+            <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[40vh] md:max-h-[50vh] lg:max-h-[55vh] pr-2">
               {visiblePlannedStages.map((step, i) => {
                 const stepKey = getStageIdentity(step.label);
                 const isCompleted = completedStageKeys.has(stepKey);

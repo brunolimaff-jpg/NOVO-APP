@@ -99,6 +99,7 @@ const buildDeepDiveHiddenPrompt = (basePrompt: string, topicLabel: string) =>
   ].join('\n\n');
 
 export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic }) => {
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
   const topics = useMemo<DeepDiveTopic[]>(
     () => [
       {
@@ -210,11 +211,20 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
             <button
               key={topic.id}
               type="button"
+              disabled={pendingId !== null}
               title={`${topic.subtitle}\n\nImpacto: ${topic.impact}`}
-              onClick={() =>
-                onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt)
-              }
-              className="group flex w-full flex-row items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/40 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800"
+              onClick={() => {
+                if (pendingId !== null) return;
+                setPendingId(topic.id);
+                void onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt);
+              }}
+              className={`group flex w-full flex-row items-center gap-2.5 rounded-xl border p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 ${
+                pendingId === topic.id
+                  ? 'border-emerald-300 bg-emerald-50 opacity-80 cursor-wait dark:border-emerald-700/50 dark:bg-slate-800'
+                  : pendingId !== null
+                    ? 'border-slate-200/80 bg-white opacity-40 cursor-not-allowed dark:border-slate-700/60 dark:bg-slate-900/40'
+                    : 'border-slate-200/80 bg-white hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-900/40 dark:hover:border-emerald-700/50 dark:hover:bg-slate-800'
+              }`}
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 text-sm shadow-inner ring-1 ring-slate-200/50 transition-all duration-300 group-hover:scale-110 group-hover:from-emerald-100 group-hover:to-emerald-50 group-hover:ring-emerald-200 dark:from-slate-800 dark:to-slate-800/80 dark:ring-slate-700 dark:group-hover:from-emerald-900/60 dark:group-hover:to-emerald-900/30 dark:group-hover:ring-emerald-800">
                 {topic.icon}

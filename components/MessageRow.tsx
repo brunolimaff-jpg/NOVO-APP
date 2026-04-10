@@ -241,7 +241,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
               {showGroundingFallbackWarning && (
                 <GroundingFallbackBadge isDarkMode={isDarkMode} />
               )}
-              {isLast && !isLoading && onDeepDive && <DeepDiveTopics onSelectTopic={onDeepDive} />}
+              {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar
                 content={msg.text}
                 sourcesCount={sourcesCount}
