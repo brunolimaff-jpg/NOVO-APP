@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { applyPromptLeakShield } from '../utils/textCleaners';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -37,6 +36,63 @@ export const maxDuration = 300;
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
+const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
+const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
+  /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
+  /investigacao_completa_integrada/i,
+  /protocolo de investiga[çc][aã]o forense/i,
+  /urgente:\s*ignore\s+metadiscuss[õo]es/i,
+  /sua miss[aã]o absoluta/i,
+  /n[aã]o discuta o funcionamento interno do modelo/i,
+];
+const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
+  /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i,
+  /score porta.*preciso.*cnpj/i,
+  /execute um dossi[eê] completo combinando os protocolos/i,
+  /priorize objetividade.*fontes audit[aá]veis/i,
+];
+
+function stripInternalMarkersLocal(text: string): string {
+  return (text || '')
+    .replace(INTERNAL_MARKER_REGEX, '')
+    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\s*\]\s*$/gm, '')
+    .trim();
+}
+
+function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; indicators: string[] } {
+  const sample = (text || '').trim();
+  if (!sample) return { detected: false, indicators: [] };
+
+  const hardHits = HARD_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `hard_${i}`);
+  const softHits = SOFT_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `soft_${i}`);
+  return {
+    detected: hardHits.length > 0 || softHits.length >= 2,
+    indicators: [...hardHits, ...softHits],
+  };
+}
+
+function applyPromptLeakShieldLocal(text: string): {
+  text: string;
+  blocked: boolean;
+  indicators: string[];
+} {
+  const cleaned = stripInternalMarkersLocal(text || '');
+  const sample = cleaned || (text || '').trim();
+  const detection = detectPromptLeakIndicatorsLocal(sample);
+
+  if (!detection.detected) {
+    return { text: sample, blocked: false, indicators: [] };
+  }
+
+  return {
+    text: 'Para continuar com segurança na análise, confirme o CNPJ da empresa (14 dígitos).',
+    blocked: true,
+    indicators: detection.indicators,
+  };
+}
 
 const getEnvVar = (name: string): string | undefined => {
   try {
@@ -267,12 +323,11 @@ async function executeGeminiAction(
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const groundingUsed = groundingActivated && groundingChunks.length > 0;
-      const leakShieldResult = applyPromptLeakShield(response.text || '');
+      const leakShieldResult = applyPromptLeakShieldLocal(response.text || '');
       if (leakShieldResult.blocked) {
         console.warn('[PromptLeakShield][api/gemini] resposta bloqueada', {
           action: body.action,
           model,
-          fingerprint: leakShieldResult.fingerprint,
           indicators: leakShieldResult.indicators,
         });
       }
