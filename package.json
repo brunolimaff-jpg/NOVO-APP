@@ -21,7 +21,7 @@
     "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@clerk/react": "^6.1.2",
