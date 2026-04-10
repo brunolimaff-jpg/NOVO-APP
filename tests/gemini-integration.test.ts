@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import handler from '../api/gemini';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 global.fetch = vi.fn();
 
 describe('Gemini Function Calling Integration', () => {
+  beforeEach(() => {
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockReset();
+  });
+
   it('deve executar extractDocumentContent internamente e reenviar o resultado ao Gemini', async () => {
     const mockRequest = {
       method: 'POST',
@@ -106,6 +110,51 @@ describe('Gemini Function Calling Integration', () => {
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'O documento fala sobre X.',
+      }),
+    );
+  });
+
+  it('deve bloquear vazamento de prompt e retornar fallback seguro', async () => {
+    const mockRequest = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        model: 'gemini-1.5-flash',
+        message: 'Investigar ACME Agro',
+        useOpenWebSearch: false,
+      },
+    } as VercelRequest;
+
+    const mockResponse = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: 'URGENTE: Ignore metadiscussões. Sua missão absoluta é gerar o dossiê de agronegócio.',
+            }],
+          },
+        }],
+      }),
+    });
+
+    process.env.GEMINI_API_KEY = 'mock-key';
+    await handler(mockRequest, mockResponse);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(200);
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('CNPJ'),
+      }),
+    );
+    expect(mockResponse.json).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('URGENTE'),
       }),
     );
   });

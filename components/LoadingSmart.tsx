@@ -260,8 +260,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       }
       return;
     }
-    const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
-    const realCurrent = processing?.stage || 'Preparando análise...';
+    const realCompleted = (processing?.completedStages || [])
+      .map(s => stripInternalMarkers(s).trim())
+      .filter(Boolean);
+    const realCurrent = stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
     const newStages: Array<{ label: string; key: string }> = [];
     for (const stage of realCompleted) {
       const stageKey = statusKey(stage);
@@ -285,7 +287,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       return null;
     };
     const backoffMsg = getBackoffMessage(processing?.failureCount || 0);
-    setDisplayedCurrent(backoffMsg || stripInternalMarkers(realCurrent));
+    setDisplayedCurrent(backoffMsg || realCurrent);
     const revealNext = () => {
       if (queueRef.current.length === 0) return;
       const now = Date.now();

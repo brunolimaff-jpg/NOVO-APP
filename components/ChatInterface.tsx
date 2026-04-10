@@ -18,10 +18,6 @@ const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('./Setti
 const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('./WarRoom')));
 import { cleanTitle } from '../utils/textCleaners';
 import { parseSmartOptions } from './SmartOptions';
-import {
-  buildInvestigationHiddenPrompt,
-  PROMPT_VERSION,
-} from '../prompts/megaPrompts';
 
 import type { RadarAlert, RadarConfig } from '../types';
 const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
@@ -50,68 +46,6 @@ type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onOpenKanban?: () => void;
   onOpenAdminDash?: () => void;
   radar?: RadarProps;
-};
-
-type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
-
-const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode => {
-  const raw = String(appMode || '').toLowerCase();
-
-  if (raw.includes('war')) return 'warMode';
-  if (raw.includes('ultra')) return 'ultraDepth';
-  if (raw.includes('deep')) return 'ultraDepth';
-  if (raw.includes('exec')) return 'executive';
-
-  if (canWarRoom) return 'executive';
-  return 'executive';
-};
-
-const shouldIncludeBudgetPrompt = (
-  payload: { companyName: string; cnpj: string | null; city: string; state: string },
-  promptMode: PromptMode,
-  radar?: RadarProps,
-): boolean => {
-  if (promptMode === 'warMode') return true;
-  if (promptMode === 'ultraDepth') return true;
-  if (payload.cnpj) return true;
-  if (radar?.metaInsight) return true;
-  if ((radar?.alerts?.length || 0) > 0) return true;
-  return false;
-};
-
-const buildRadarContextBlock = (radar?: RadarProps): string => {
-  if (!radar) return '';
-
-  const topAlerts = (radar.alerts || [])
-    .slice(0, 3)
-    .map((alert: any, index) => {
-      const title =
-        alert?.title ||
-        alert?.headline ||
-        alert?.label ||
-        alert?.companyName ||
-        `Alerta ${index + 1}`;
-      const detail =
-        alert?.summary ||
-        alert?.message ||
-        alert?.description ||
-        alert?.reason ||
-        'Sem detalhe adicional';
-      return `- ${title}: ${detail}`;
-    });
-
-  return [
-    '<radar_context>',
-    `RadarConfigured=${radar.config?.isConfigured ? 'SIM' : 'NAO'}`,
-    `RadarUnreadCount=${radar.unreadCount ?? 0}`,
-    `RadarIsScanning=${radar.isScanning ? 'SIM' : 'NAO'}`,
-    `RadarMetaInsight=${radar.metaInsight || 'N/D'}`,
-    `RadarLastWarning=${radar.lastWarning || 'N/D'}`,
-    `RadarLastError=${radar.lastError ? `${radar.lastError.code}: ${radar.lastError.message}` : 'N/D'}`,
-    topAlerts.length ? 'TopRadarAlerts:' : 'TopRadarAlerts: N/D',
-    ...(topAlerts.length ? topAlerts : []),
-    '</radar_context>',
-  ].join('\n');
 };
 
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
@@ -371,28 +305,19 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   // ── Lógica de investigação ────────────────────────────────────────────────
   const handleStartInvestigation = useCallback(
     async (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => {
-      const prompt = `🔍 Investigando ${payload.companyName}...`;
-      const promptMode = resolvePromptMode(mode, canWarRoom);
-      const hiddenPromptBase = buildInvestigationHiddenPrompt(
-        {
-          companyName: payload.companyName,
-          cnpj: payload.cnpj || undefined,
-          city: payload.city,
-          state: payload.state,
-        },
-        {
-          includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
-          mode: promptMode,
-          strictAudit: true,
-          enableDiscrepancyHunter: true,
-          enableCostOfDelay: true,
-          promptVersion: PROMPT_VERSION,
-        },
+      const prompt = [
+        `Investigar ${payload.companyName}.`,
+        `CNPJ: ${payload.cnpj || 'não informado'}.`,
+        `Localização: ${payload.city}/${payload.state}.`,
+        'Entregue diagnóstico executivo com riscos, oportunidades e próximos passos comerciais.',
+      ].join(' ');
+      await onSendMessage(
+        prompt,
+        `🔍 Investigando ${payload.companyName}...`,
+        payload.companyName,
       );
-      const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
-      await onDeepDive(prompt, hiddenPrompt, payload.companyName);
     },
-    [mode, canWarRoom, radar, onDeepDive],
+    [onSendMessage],
   );
 
   const handleCopyMarkdown = useCallback(() => {

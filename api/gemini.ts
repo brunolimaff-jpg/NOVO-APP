@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyPromptLeakShield } from '../utils/textCleaners';
 
 /**
  * ARQUITETURA ULTIMATE SHIELD (V6) — Inteligência Pura e Blindagem de Contexto
@@ -134,8 +135,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const finalCandidate = response.candidates?.[0];
+    const rawText = finalCandidate?.content?.parts?.find((p: any) => p.text)?.text || '';
+    const leakShieldResult = applyPromptLeakShield(rawText);
+    if (leakShieldResult.blocked) {
+      console.warn('[PromptLeakShield][api/gemini] resposta bloqueada', {
+        action: action || null,
+        model: model || 'gemini-1.5-flash',
+        fingerprint: leakShieldResult.fingerprint,
+        indicators: leakShieldResult.indicators,
+      });
+    }
     return res.status(200).json({
-      text: finalCandidate?.content?.parts?.find((p: any) => p.text)?.text || '',
+      text: leakShieldResult.text,
       groundingUsed: !!finalCandidate?.groundingMetadata,
       groundingChunks: finalCandidate?.groundingMetadata?.groundingChunks || []
     });

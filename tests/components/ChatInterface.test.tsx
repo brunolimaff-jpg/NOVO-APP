@@ -177,16 +177,16 @@ describe('ChatInterface shell regression', () => {
   });
 
   it('aciona a investigacao inicial a partir da home', async () => {
-    const onDeepDive = vi.fn(async () => undefined);
+    const onSendMessage = vi.fn();
 
-    render(<ChatInterface {...buildProps({ onDeepDive })} />);
+    render(<ChatInterface {...buildProps({ onSendMessage })} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'mock-start-investigation' }));
 
     await waitFor(() => {
-      expect(onDeepDive).toHaveBeenCalledWith(
+      expect(onSendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Investigar Acme Agro.'),
         '🔍 Investigando Acme Agro...',
-        expect.stringContaining('Acme Agro'),
         'Acme Agro',
       );
     });

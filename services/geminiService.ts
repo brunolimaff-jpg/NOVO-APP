@@ -32,7 +32,7 @@ import { CompetitorDetection, getContextoConcorrentesRegionais } from './competi
 import { buscarContextoPinecone, buscarContextoDocsPinecone } from './ragService';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../utils/loadingCuriosities';
 import { extractClienteSeniorData } from '../utils/seniorEvidence';
-import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
+import { applyPromptLeakShield, sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 import { proxyChatSendMessage, proxyGenerateContent } from './geminiProxy';
 import { BACKEND_URL } from './apiConfig';
 import {
@@ -950,6 +950,21 @@ export async function sendMessageToGemini(
   }
 
   finalText = sanitizeStreamText(response.text || '');
+  const leakShieldResult = applyPromptLeakShield(finalText, {
+    companyHint: empresaAlvo || hintedCompany || '',
+  });
+  if (leakShieldResult.blocked) {
+    scoutDiag.warn('PromptLeakShield', 'resposta bloqueada por possível vazamento de prompt', {
+      sessionId: sessionId ?? null,
+      resolvedCompany: empresaAlvo ?? hintedCompany ?? null,
+      fingerprint: leakShieldResult.fingerprint,
+      indicators: leakShieldResult.indicators,
+      modelToUse,
+      isMegaPromptMessage,
+      isDeepDive,
+    });
+    finalText = leakShieldResult.text;
+  }
   if (isMegaPromptMessage || isDeepDive) {
     scoutDiag.info?.('GeminiTiming', 'investigação concluída', {
       sessionId: sessionId ?? null,
@@ -1030,10 +1045,17 @@ export async function sendMessageToGemini(
     window?.localStorage?.setItem(OPEN_QUESTION_RECOVERY_METRIC_KEY, String(metric + 1));
   }
 
-  const sources = normalizeGroundingSources(response);
+  const sources = leakShieldResult.blocked ? [] : normalizeGroundingSources(response);
   const suggestions: string[] = [];
 
-  return { text: finalText, sources, suggestions, scorePorta, clienteSeniorData, ghostReason: null };
+  return {
+    text: finalText,
+    sources,
+    suggestions,
+    scorePorta: leakShieldResult.blocked ? null : scorePorta,
+    clienteSeniorData: leakShieldResult.blocked ? undefined : clienteSeniorData,
+    ghostReason: leakShieldResult.blocked ? 'prompt_leak_blocked' : null,
+  };
 }
 
 /**
@@ -1081,7 +1103,16 @@ export async function generateDossierModule(
     options.timeoutMs,
   );
 
-  const finalText = response.text || '';
+  const shieldedResult = applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo });
+  if (shieldedResult.blocked) {
+    scoutDiag.warn('PromptLeakShield', 'módulo do dossiê bloqueado por possível vazamento de prompt', {
+      moduleName,
+      empresaAlvo,
+      fingerprint: shieldedResult.fingerprint,
+      indicators: shieldedResult.indicators,
+    });
+  }
+  const finalText = shieldedResult.text;
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,
@@ -1128,5 +1159,5 @@ Diretriz: Crie um bloco de alto impacto para o final do dossiê, listando cases 
     config: { temperature: 0.1 }
   }, options.signal);
 
-  return response.text || '';
+  return applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo }).text;
 }

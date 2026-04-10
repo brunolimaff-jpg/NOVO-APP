@@ -21,11 +21,10 @@ export function resolveLoadingVariant({
 export function resolvePlaceholderLoadingVariant({
   requestKind,
   isFollowUp = false,
-  hasConsolidatedBotResponse,
+  hasConsolidatedBotResponse: _hasConsolidatedBotResponse,
 }: ResolvePlaceholderLoadingVariantOptions): LoadingVariant {
-  const resolvedVariant = resolveLoadingVariant({ requestKind, isFollowUp });
-  if (requestKind === 'deep_dive') return 'hero';
-  return resolvedVariant === 'inline' || hasConsolidatedBotResponse ? 'inline' : 'hero';
+  void _hasConsolidatedBotResponse;
+  return resolveLoadingVariant({ requestKind, isFollowUp });
 }
 
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {

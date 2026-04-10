@@ -202,7 +202,7 @@ export interface ChatInterfaceProps {
   messages: Message[];
   isLoading: boolean;
   hasMore: boolean;
-  onSendMessage: (text: string, displayText?: string) => void;
+  onSendMessage: (text: string, displayText?: string, hintedCompanyOverride?: string | null) => void;
   onFeedback: (messageId: string, feedback: Feedback) => void;
   onSendFeedback: (messageId: string, feedback: Feedback, comment: string, content: string) => void;
   onSectionFeedback: (messageId: string, sectionTitle: string, feedback: Feedback) => void;
