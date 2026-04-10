@@ -276,8 +276,17 @@ export function startIncrementalLoadingProgress(
 }
 
 export function statusKey(status: string): string {
+  const raw = (status || '').trim();
   const rich = toRichStatus(status);
-  if (!rich) return status;
+  if (!rich) {
+    if (!raw) return 'unknown';
+    return raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
   if (rich.category === 'fase' && rich.phaseNumber !== undefined) return `fase_${rich.phaseNumber}`;
   if (rich.category === 'deepResearch' && /^Buscando histórico de/i.test(rich.label)) return 'historico';
   if (rich.category === 'response') return 'resposta';
