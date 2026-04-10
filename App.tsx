@@ -44,7 +44,7 @@ import {
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
-import { resolvePortaScore, stripPortaMarkers } from './utils/porta';
+import { resolvePortaScore, stripPortaMarkers, type PortaScoreResolution } from './utils/porta';
 import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
@@ -187,6 +187,11 @@ function isAbortLikeError(error: unknown): boolean {
   return error.name === 'AbortError' || error.message?.includes('aborted');
 }
 
+function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): boolean {
+  const safeDisplay = (displayMessage || '').trim();
+  return /^Dossi[êe]\s+completo:\s*/i.test(safeDisplay);
+}
+
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
@@ -200,6 +205,13 @@ const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
   T: ['Tech Stack'],
   A: ['RH & Decisores'],
 };
+const PORTA_FALLBACK_MARKERS: Record<PortaDimension, string> = {
+  P: '[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]',
+  O: '[[PORTA_FEED_O:6:ELOS:Plantio]]',
+  R: '[[PORTA_FEED_R:6:PRESSOES:Sem_pressao_identificada]]',
+  T: '[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]',
+  A: '[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:NA]]',
+};
 
 export function resolveModuleNamesForMissingDimensions(missingDimensions: PortaDimension[]): string[] {
   return Array.from(
@@ -208,17 +220,9 @@ export function resolveModuleNamesForMissingDimensions(missingDimensions: PortaD
 }
 
 export function buildPortaReconciliationPrompt(missingDimensions: PortaDimension[]): string {
-  const templates: Record<PortaDimension, string> = {
-    P: '[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]',
-    O: '[[PORTA_FEED_O:6:ELOS:Plantio]]',
-    R: '[[PORTA_FEED_R:6:PRESSOES:Sem_pressao_identificada]]',
-    T: '[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]',
-    A: '[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:NA]]',
-  };
-
   const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
   const requiredTemplates = uniqueMissingDimensions
-    .map(dimension => `- ${dimension}: ${templates[dimension]}`)
+    .map(dimension => `- ${dimension}: ${PORTA_FALLBACK_MARKERS[dimension]}`)
     .join('\n');
 
   return `
@@ -238,6 +242,57 @@ REGRAS OBRIGATÓRIAS:
 FORMATOS POR DIMENSÃO:
 ${requiredTemplates}
 `.trim();
+}
+
+export interface PortaTechnicalFallbackResult {
+  content: string;
+  resolution: PortaScoreResolution;
+  fallbackApplied: boolean;
+  fallbackDimensions: PortaDimension[];
+}
+
+export function buildPortaFallbackChunk(missingDimensions: PortaDimension[]): string {
+  const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
+  if (uniqueMissingDimensions.length === 0) return '';
+  return uniqueMissingDimensions
+    .map(dimension => PORTA_FALLBACK_MARKERS[dimension])
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function applyPortaTechnicalFallback(
+  content: string,
+  currentResolution?: PortaScoreResolution,
+): PortaTechnicalFallbackResult {
+  const resolution = currentResolution ?? resolvePortaScore(content);
+  const fallbackDimensions = Array.from(new Set(resolution.missingDimensions));
+  if (resolution.score || fallbackDimensions.length === 0) {
+    return {
+      content,
+      resolution,
+      fallbackApplied: false,
+      fallbackDimensions: [],
+    };
+  }
+
+  const fallbackChunk = buildPortaFallbackChunk(fallbackDimensions);
+  if (!fallbackChunk) {
+    return {
+      content,
+      resolution,
+      fallbackApplied: false,
+      fallbackDimensions,
+    };
+  }
+
+  const nextContent = `${content.trim()}\n\n${fallbackChunk}`.trim();
+  const nextResolution = resolvePortaScore(nextContent);
+  return {
+    content: nextContent,
+    resolution: nextResolution,
+    fallbackApplied: true,
+    fallbackDimensions,
+  };
 }
 
 const App: React.FC = () => {
@@ -548,7 +603,7 @@ const App: React.FC = () => {
     } else {
       resetLoadingProgress('Aprofundando análise...', isShortRound ? 6 : 7, {
         incremental: true,
-        keepHistory: 4,
+        keepHistory: resolvedRequestKind === 'deep_dive' ? 0 : 4,
       });
     }
     abortControllerRef.current = new AbortController();
@@ -620,7 +675,9 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
 
     try {
-      const isMegaPrompt = text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO');
+      const upperText = text.toUpperCase();
+      const isMegaPrompt = (upperText.includes('DOSSIÊ COMPLETO') || upperText.includes('DOSSIE COMPLETO'))
+        && resolvedRequestKind !== 'deep_dive';
 
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---
@@ -802,6 +859,8 @@ const App: React.FC = () => {
         }
 
         // --- RECUPERAÇÃO DE PORTA (retry + reconciliador) ---
+        let portaFallbackApplied = false;
+        let portaFallbackDimensions: PortaDimension[] = [];
         let waterfallPortaResolution = resolvePortaScore(accumulatedText);
         if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.warn('ModularDossier', 'dimensões PORTA ausentes após 1ª passada', {
@@ -898,6 +957,23 @@ const App: React.FC = () => {
         }
 
         if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+          const portaFallbackResult = applyPortaTechnicalFallback(accumulatedText, waterfallPortaResolution);
+          if (portaFallbackResult.fallbackApplied) {
+            accumulatedText = portaFallbackResult.content;
+            waterfallPortaResolution = portaFallbackResult.resolution;
+            portaFallbackApplied = Boolean(waterfallPortaResolution.score);
+            portaFallbackDimensions = portaFallbackResult.fallbackDimensions;
+            scoutDiag.warn('ModularDossier', 'fallback técnico aplicado para dimensões PORTA ausentes', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              sourceBeforeFallback: 'feeds',
+              fallbackDimensions: portaFallbackDimensions,
+              resolvedAfterFallback: Boolean(waterfallPortaResolution.score),
+            });
+          }
+        }
+
+        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.error('ModularDossier', 'falha técnica na consolidação do score PORTA', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -977,6 +1053,8 @@ const App: React.FC = () => {
                     text: waterfallFinalText,
                     scorePorta: waterfallScorePorta || undefined,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    portaFallbackApplied: portaFallbackApplied ? true : undefined,
+                    portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                     suggestions: waterfallSuggestions,
                     isThinking: false,
                   }
@@ -1045,6 +1123,7 @@ const App: React.FC = () => {
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,
+                  isDeepDiveResult: resolvedRequestKind === 'deep_dive',
                   ...(ghostReason && { ghostDetails: ghostReason }),
                 }
               : msg,
@@ -1118,6 +1197,7 @@ const App: React.FC = () => {
     hintedCompanyOverride?: string | null,
     options?: { requestKind?: RequestKind; fixedLoadingLine?: string },
   ) => {
+    const resolvedDisplayText = displayText || text;
     let sessionId = currentSessionId;
     let currentHistory: Message[];
     let immediateCompany: string | null;
@@ -1130,7 +1210,7 @@ const App: React.FC = () => {
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(displayText || text));
+      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
       const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
       immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
@@ -1156,7 +1236,7 @@ const App: React.FC = () => {
     const userMessage: Message = {
       id: uuidv4(),
       sender: Sender.User,
-      text: displayText || text,
+      text: resolvedDisplayText,
       timestamp: new Date(),
     };
     setSessions(prev =>
@@ -1166,8 +1246,8 @@ const App: React.FC = () => {
     );
     setVisibleCount(prev => prev + 1);
     const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
-    const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
-    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
+    const isDeepDive = resolvedRequestKind === 'deep_dive';
+    await processMessage(text, sessionId, currentHistory, resolvedDisplayText, hintedCompanyOverride || immediateCompany, {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
@@ -1179,14 +1259,20 @@ const App: React.FC = () => {
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
+    const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind: 'deep_dive',
-        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+        requestKind: isTopicDeepDive ? 'deep_dive' : 'default',
+        fixedLoadingLine:
+          isTopicDeepDive && topicLabel
+            ? `Deep Dive em andamento: ${topicLabel}`
+            : isTopicDeepDive
+              ? 'Deep Dive em andamento'
+              : undefined,
       },
     );
   };
@@ -1244,6 +1330,12 @@ const App: React.FC = () => {
     const companyName =
       targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa não identificada';
     const nomeVendedor = typeof user?.displayName === 'string' ? user.displayName : 'Vendedor';
+    const oldSuggestions = Array.isArray(targetMessage.suggestions)
+      ? targetMessage.suggestions
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(Boolean)
+      : [];
 
     updateSessionById(sessionId, session => ({
       ...session,
@@ -1254,6 +1346,11 @@ const App: React.FC = () => {
         targetSession.messages,
         companyName,
         nomeVendedor,
+        {
+          mode: 'regenerate',
+          avoidSuggestions: oldSuggestions,
+          ensureFresh: true,
+        },
       );
       updateSessionById(sessionId, session => ({
         ...session,

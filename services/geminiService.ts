@@ -580,19 +580,55 @@ ${regionalRule}`;
   }
 }
 
+export interface ContinuityQuestionOptions {
+  mode?: 'default' | 'regenerate';
+  avoidSuggestions?: string[];
+  ensureFresh?: boolean;
+}
+
 export async function generateContinuityQuestion(
   messages: Message[],
   empresaAlvo: string | null,
   nomeVendedor: string,
+  options: ContinuityQuestionOptions = {},
 ): Promise<string[]> {
   const CONTINUITY_TARGET = 4;
+  const shouldPrioritizeNovelty =
+    options.mode === 'regenerate' ||
+    Boolean(options.ensureFresh) ||
+    (Array.isArray(options.avoidSuggestions) && options.avoidSuggestions.length > 0);
+  const modelRequestedCount = shouldPrioritizeNovelty ? 8 : CONTINUITY_TARGET;
+  const normalizedExcludedSuggestions = (options.avoidSuggestions || [])
+    .filter((item): item is string => typeof item === 'string')
+    .map(item => item.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 12);
   const recentMessages = messages
     .slice(-6)
     .map(m => `${m.sender === Sender.User ? 'Vendedor' : 'Scout'}: ${m.text?.slice(0, 300) || ''}`)
     .join('\n');
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
+  const noveltyConstraint =
+    shouldPrioritizeNovelty
+      ? 'MODO NOVIDADE: priorize perguntas realmente novas e com angulos diferentes das anteriores.'
+      : '';
+  const exclusionConstraint = normalizedExcludedSuggestions.length > 0
+    ? `PERGUNTAS BLOQUEADAS (NAO pode repetir):\n${normalizedExcludedSuggestions.map(item => `- ${item}`).join('\n')}`
+    : '';
   const basePrompt = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
+
+  const effectiveBasePrompt = [
+    contextNote,
+    `Historico recente:\n${recentMessages}`,
+    noveltyConstraint,
+    exclusionConstraint,
+    `Gere ${modelRequestedCount} perguntas de continuidade estrategica para o vendedor ${nomeVendedor} usar na proxima interacao.`,
+    `A resposta final deve conter no minimo ${CONTINUITY_TARGET} perguntas ineditas em relacao a lista bloqueada (quando houver).`,
+    'Responda como array JSON de strings, sem texto adicional.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 
   const normalizeQuestionCandidate = (raw: string): string => {
     return (raw || '')
@@ -620,6 +656,11 @@ export async function generateContinuityQuestion(
       .replace(/[^a-z0-9]+/g, ' ')
       .trim();
   };
+  const blockedQuestionKeys = new Set(
+    normalizedExcludedSuggestions
+      .map(item => buildQuestionDedupeKey(item))
+      .filter(Boolean),
+  );
 
   const mergeUniqueQuestions = (base: string[], incoming: string[]): string[] => {
     const merged = [...base];
@@ -627,7 +668,7 @@ export async function generateContinuityQuestion(
     for (const item of incoming) {
       const candidate = normalizeQuestionCandidate(item);
       const key = buildQuestionDedupeKey(candidate);
-      if (!candidate || !key || seen.has(key) || !isValidQuestionCandidate(candidate)) continue;
+      if (!candidate || !key || blockedQuestionKeys.has(key) || seen.has(key) || !isValidQuestionCandidate(candidate)) continue;
       seen.add(key);
       merged.push(candidate);
     }
@@ -752,12 +793,12 @@ export async function generateContinuityQuestion(
 
   const runContinuityAttempt = async (
     prompt: string,
-    attempt: 'primary' | 'retry',
+    attempt: 'primary' | 'retry' | 'novelty_retry',
   ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
     const response = await proxyGenerateContent({
       model: ROUTER_MODEL_ID,
       contents: prompt,
-      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt },
+      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt, responseMimeType: 'application/json' },
     });
 
     const raw = (response.text || '').trim();
@@ -768,13 +809,15 @@ export async function generateContinuityQuestion(
       rawChars: raw.length,
       questionCount: parsed.questions.length,
       stageHits: parsed.stageHits,
+      blockedCount: blockedQuestionKeys.size,
+      mode: options.mode || 'default',
     });
     return { ...parsed, raw };
   };
 
   let collectedQuestions: string[] = [];
   try {
-    const primaryAttempt = await runContinuityAttempt(basePrompt, 'primary');
+    const primaryAttempt = await runContinuityAttempt(effectiveBasePrompt, 'primary');
     collectedQuestions = mergeUniqueQuestions(collectedQuestions, primaryAttempt.questions);
 
     if (collectedQuestions.length < CONTINUITY_TARGET) {
@@ -786,7 +829,10 @@ export async function generateContinuityQuestion(
       });
 
       const retryPrompt = `${basePrompt}\n\nIMPORTANTE: Sua resposta anterior foi inválida ou incompleta. Responda agora com EXATAMENTE 4 perguntas em formato de ARRAY JSON de strings, sem texto adicional.`;
-      const retryAttempt = await runContinuityAttempt(retryPrompt, 'retry');
+      const effectiveRetryPrompt = shouldPrioritizeNovelty
+        ? `${effectiveBasePrompt}\n\nIMPORTANTE: sua resposta anterior veio incompleta. Refaca e entregue de 8 a 12 perguntas, garantindo pelo menos 4 perguntas realmente novas sem repetir a lista bloqueada.`
+        : retryPrompt;
+      const retryAttempt = await runContinuityAttempt(effectiveRetryPrompt, 'retry');
       collectedQuestions = mergeUniqueQuestions(collectedQuestions, retryAttempt.questions);
 
       if (collectedQuestions.length < CONTINUITY_TARGET) {
@@ -796,6 +842,11 @@ export async function generateContinuityQuestion(
           stageHits: retryAttempt.stageHits,
           rawSnippet: retryAttempt.raw.slice(0, 200),
         });
+      }
+      if (shouldPrioritizeNovelty && collectedQuestions.length < CONTINUITY_TARGET) {
+        const noveltyRetryPrompt = `${effectiveBasePrompt}\n\nULTIMA TENTATIVA: entregue somente perguntas novas, sem repetir nenhuma da lista bloqueada, em um ARRAY JSON.`;
+        const noveltyRetryAttempt = await runContinuityAttempt(noveltyRetryPrompt, 'novelty_retry');
+        collectedQuestions = mergeUniqueQuestions(collectedQuestions, noveltyRetryAttempt.questions);
       }
     }
   } catch (error) {

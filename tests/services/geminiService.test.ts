@@ -343,3 +343,76 @@ describe('sendMessageToGemini — cenários de erro', () => {
     ]);
   });
 });
+
+describe('generateContinuityQuestion novelty mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('evita repetir sugestoes atuais e busca ineditismo real', async () => {
+    const avoidSuggestions = [
+      'Qual processo critico fica sem visibilidade hoje?',
+      'Onde o ERP atual trava o fechamento mensal?',
+    ];
+
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual processo critico fica sem visibilidade hoje?',
+          'Onde o ERP atual trava o fechamento mensal?',
+          'Que indicador executivo permanece sem rastreabilidade entre filiais?',
+          'Qual risco operacional aumenta quando o time depende de planilhas paralelas?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual decisao comercial esta atrasando por falta de integracao fiscal?',
+          'Onde a equipe perde mais margem por retrabalho de dados?',
+        ]),
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno', {
+      mode: 'regenerate',
+      avoidSuggestions,
+      ensureFresh: true,
+    });
+
+    expect(result).toHaveLength(4);
+    expect(result.some(item => /processo critico/i.test(item))).toBe(false);
+    expect(result.some(item => /ERP atual trava/i.test(item))).toBe(false);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retorna o melhor conjunto valido quando nao encontra 4 ineditas', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual processo critico fica sem visibilidade hoje?',
+          'Onde o ERP atual trava o fechamento mensal?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Onde o ERP atual trava o fechamento mensal?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual decisao executiva ainda fica sem dado confiavel no fechamento?',
+        ]),
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno', {
+      mode: 'regenerate',
+      avoidSuggestions: [
+        'Qual processo critico fica sem visibilidade hoje?',
+        'Onde o ERP atual trava o fechamento mensal?',
+      ],
+      ensureFresh: true,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toContain('decisao executiva');
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
+  });
+});

@@ -176,6 +176,28 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('cliente-senior-score')).toBeInTheDocument();
   });
 
+  it('renderiza badge de fallback PORTA quando metadado indica fallback tecnico', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['O'],
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.getByText(/Score PORTA com fallback/i)).toBeInTheDocument();
+    expect(screen.getByText(/fallback/i)).toHaveTextContent('(O)');
+  });
+
+  it('nao renderiza badge de fallback PORTA no caminho normal', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: false,
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.queryByText(/Score PORTA com fallback/i)).not.toBeInTheDocument();
+  });
+
   it('renderiza DeepDiveTopics na última mensagem finalizada', () => {
     const msg = makeMessage({
       sender: Sender.Bot,

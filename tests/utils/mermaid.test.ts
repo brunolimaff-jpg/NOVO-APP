@@ -28,6 +28,16 @@ describe('mermaid helpers', () => {
   });
 });
 
+describe('inline class normalization', () => {
+  it('normaliza classe inline legada com :: para evitar parse error', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA["ALIMENTOS MASSON Ltda."]::companyA --> B["Dados"]',
+    );
+    expect(result).toContain('A["ALIMENTOS MASSON Ltda."] --> B["Dados"]');
+    expect(result).toContain('class A companyA;');
+  });
+});
+
 describe('materializeBareEdgeTargets', () => {
   it('converte texto bare após -.-> em nó sintético', () => {
     const result = sanitizeMermaidCode(
