@@ -196,6 +196,17 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const stepTimestampsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
+  const plannedOrderByKeyRef = useRef<Map<string, number>>(new Map());
+
+  if (plannedOrderByKeyRef.current.size === 0) {
+    const mergedPlan = [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES];
+    mergedPlan.forEach((stage, index) => {
+      const key = statusKey(stripInternalMarkers(stage).trim());
+      if (key && !plannedOrderByKeyRef.current.has(key)) {
+        plannedOrderByKeyRef.current.set(key, index);
+      }
+    });
+  }
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -277,6 +288,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       newStages.push({ label: stage, key: stageKey });
     }
     if (newStages.length > 0) {
+      newStages.sort((a, b) => {
+        const aIndex = plannedOrderByKeyRef.current.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = plannedOrderByKeyRef.current.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+      });
       queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];
       newStages.forEach(stage => queuedStageKeysRef.current.add(stage.key));
     }
@@ -421,7 +437,19 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         : observedLabels;
   const plannedRich = plannedStageLabels.map(enrichStage);
   const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
-  const completedStageKeys = realCompletedStageKeys;
+  const completedStageKeys = new Set<string>();
+
+  if (plannedRich.length > 0) {
+    for (const stage of plannedRich) {
+      const stepKey = getStageIdentity(stage.label);
+      if (!stepKey) continue;
+      if (!realCompletedStageKeys.has(stepKey)) break;
+      completedStageKeys.add(stepKey);
+    }
+  } else {
+    realCompletedStageKeys.forEach((key) => completedStageKeys.add(key));
+  }
+
   const currentStageKey = getStageIdentity(displayedCurrent);
   const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
   const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);

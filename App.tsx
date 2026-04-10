@@ -7,12 +7,14 @@ import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useSessionManager } from './hooks/useSessionManager';
+import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
 import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
+import { UpdateNotificationModal } from './components/UpdateNotificationModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
 import { AdminDash } from './components/AdminDash';
@@ -221,7 +223,10 @@ const App: React.FC = () => {
   const [followUpDias, setFollowUpDias] = useState(7);
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  
+
+  // Update notification state
+  const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
+
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -1555,6 +1560,17 @@ const App: React.FC = () => {
           }
           onSchedule={handleScheduleFollowUp}
           onClose={() => setShowFollowUpModal(false)}
+        />
+      )}
+
+      {updateAvailable && (
+        <UpdateNotificationModal
+          currentVersion={currentVersion}
+          newVersion={newVersion}
+          isDarkMode={isDarkMode}
+          onDismiss={dismissUpdate}
+          onUpdate={updateNow}
+          isOpen={updateAvailable}
         />
       )}
 

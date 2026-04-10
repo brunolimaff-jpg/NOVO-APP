@@ -18,6 +18,11 @@ const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('./Setti
 const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('./WarRoom')));
 import { cleanTitle } from '../utils/textCleaners';
 import { parseSmartOptions } from './SmartOptions';
+import {
+  buildInvestigationHiddenPrompt,
+  PROMPT_VERSION,
+} from '../prompts/megaPrompts';
+import { fetchCompanyByCnpj } from '../services/brasilApiService';
 
 import type { RadarAlert, RadarConfig } from '../types';
 const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
@@ -46,6 +51,68 @@ type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onOpenKanban?: () => void;
   onOpenAdminDash?: () => void;
   radar?: RadarProps;
+};
+
+type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
+
+const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode => {
+  const raw = String(appMode || '').toLowerCase();
+
+  if (raw.includes('war')) return 'warMode';
+  if (raw.includes('ultra')) return 'ultraDepth';
+  if (raw.includes('deep')) return 'ultraDepth';
+  if (raw.includes('exec')) return 'executive';
+
+  if (canWarRoom) return 'executive';
+  return 'executive';
+};
+
+const shouldIncludeBudgetPrompt = (
+  payload: { companyName: string; cnpj: string | null; city: string; state: string },
+  promptMode: PromptMode,
+  radar?: RadarProps,
+): boolean => {
+  if (promptMode === 'warMode') return true;
+  if (promptMode === 'ultraDepth') return true;
+  if (payload.cnpj) return true;
+  if (radar?.metaInsight) return true;
+  if ((radar?.alerts?.length || 0) > 0) return true;
+  return false;
+};
+
+const buildRadarContextBlock = (radar?: RadarProps): string => {
+  if (!radar) return '';
+
+  const topAlerts = (radar.alerts || [])
+    .slice(0, 3)
+    .map((alert: any, index) => {
+      const title =
+        alert?.title ||
+        alert?.headline ||
+        alert?.label ||
+        alert?.companyName ||
+        `Alerta ${index + 1}`;
+      const detail =
+        alert?.summary ||
+        alert?.message ||
+        alert?.description ||
+        alert?.reason ||
+        'Sem detalhe adicional';
+      return `- ${title}: ${detail}`;
+    });
+
+  return [
+    '<radar_context>',
+    `RadarConfigured=${radar.config?.isConfigured ? 'SIM' : 'NAO'}`,
+    `RadarUnreadCount=${radar.unreadCount ?? 0}`,
+    `RadarIsScanning=${radar.isScanning ? 'SIM' : 'NAO'}`,
+    `RadarMetaInsight=${radar.metaInsight || 'N/D'}`,
+    `RadarLastWarning=${radar.lastWarning || 'N/D'}`,
+    `RadarLastError=${radar.lastError ? `${radar.lastError.code}: ${radar.lastError.message}` : 'N/D'}`,
+    topAlerts.length ? 'TopRadarAlerts:' : 'TopRadarAlerts: N/D',
+    ...(topAlerts.length ? topAlerts : []),
+    '</radar_context>',
+  ].join('\n');
 };
 
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
@@ -118,9 +185,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
+  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
-  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -170,32 +237,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [showRetryToast]);
-
-  useEffect(() => {
-    const viewport = messagesViewportRef.current;
-    if (!viewport) return;
-
-    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
-
-    if (typeof ResizeObserver === 'undefined') {
-      setIsMessagesViewportReady(true);
-      return;
-    }
-
-    if (hasValidSize()) {
-      setIsMessagesViewportReady(true);
-      return;
-    }
-
-    const observer = new ResizeObserver(() => {
-      if (hasValidSize()) {
-        setIsMessagesViewportReady(true);
-      }
-    });
-
-    observer.observe(viewport);
-    return () => observer.disconnect();
-  }, [showInitialHome]);
 
   // ── Detecta scroll manual do usuário durante a geração ───────────────────
   useEffect(() => {
@@ -279,6 +320,32 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [processing]);
 
   useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+
+    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
+
+    if (typeof ResizeObserver === 'undefined') {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    if (hasValidSize()) {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      if (hasValidSize()) {
+        setIsMessagesViewportReady(true);
+      }
+    });
+
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [showInitialHome]);
+
+  useEffect(() => {
     if (!processingInfo?.isMalformed) {
       malformedProcessingSignatureRef.current = null;
       return;
@@ -333,19 +400,45 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   // ── Lógica de investigação ────────────────────────────────────────────────
   const handleStartInvestigation = useCallback(
     async (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => {
-      const prompt = [
-        `Investigar ${payload.companyName}.`,
-        `CNPJ: ${payload.cnpj || 'não informado'}.`,
-        `Localização: ${payload.city}/${payload.state}.`,
-        'Entregue diagnóstico executivo com riscos, oportunidades e próximos passos comerciais.',
-      ].join(' ');
-      await onSendMessage(
-        prompt,
-        `🔍 Investigando ${payload.companyName}...`,
-        payload.companyName,
+      const prompt = `🔍 Investigando ${payload.companyName}...`;
+      const promptMode = resolvePromptMode(mode, canWarRoom);
+
+      // Enriquecer payload com CNAE da Receita Federal (Tier A)
+      let segmentHint: string | undefined;
+      if (payload.cnpj) {
+        try {
+          const signal = AbortSignal.timeout(8000);
+          const companyData = await fetchCompanyByCnpj(payload.cnpj, signal);
+          if (companyData.cnaeDescricao) {
+            segmentHint = companyData.cnaeDescricao;
+          }
+        } catch (error) {
+          // Fallback silencioso — continua sem segmentHint
+          scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
+        }
+      }
+
+      const hiddenPromptBase = buildInvestigationHiddenPrompt(
+        {
+          companyName: payload.companyName,
+          cnpj: payload.cnpj || undefined,
+          city: payload.city,
+          state: payload.state,
+          segmentHint,
+        },
+        {
+          includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
+          mode: promptMode,
+          strictAudit: true,
+          enableDiscrepancyHunter: true,
+          enableCostOfDelay: true,
+          promptVersion: PROMPT_VERSION,
+        },
       );
+      const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
+      await onDeepDive(prompt, hiddenPrompt, payload.companyName);
     },
-    [onSendMessage],
+    [mode, canWarRoom, radar, onDeepDive],
   );
 
   const handleCopyMarkdown = useCallback(() => {

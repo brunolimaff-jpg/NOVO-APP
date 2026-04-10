@@ -2,7 +2,16 @@
   "agent": "claude",
   "project": "senior-scout-360",
   "description": "Copiloto de Inteligência Comercial para Agronegócio — Senior Sistemas",
-  "stack": ["react", "typescript", "tailwindcss", "vite", "gemini", "clerk", "vercel", "pinecone"],
+  "stack": [
+    "react",
+    "typescript",
+    "tailwindcss",
+    "vite",
+    "gemini",
+    "clerk",
+    "vercel",
+    "pinecone"
+  ],
   "language": "pt-BR",
   "rules": [
     "always-read-repo-before-proposing",
@@ -13,5 +22,29 @@
   "caliber": {
     "managed": true,
     "version": "1"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tokenmiser update --quiet 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tokenmiser hook-read 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
   }
 }

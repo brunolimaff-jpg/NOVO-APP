@@ -143,8 +143,13 @@ function quoteLooseSubgraphLabels(input: string): string {
     /^(\s*subgraph\s+)([^"'\n[\]{]+?)(\s*)$/gm,
     (full, prefix, label, suffix) => {
       const trimmed = label.trim();
-      if (!trimmed || /[\s()[\]/\\%:]/.test(trimmed)) return full;
-      return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+      if (!trimmed) return full;
+      // If label contains special chars that require quoting, wrap in double-quotes
+      // Special chars: spaces, parentheses, brackets, slashes, backslashes, percent, colon
+      if (/[\s()[\]/\\%:]/.test(trimmed)) {
+        return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+      }
+      return full;
     },
   );
 }
@@ -230,6 +235,21 @@ export function normalizeMermaidBlocks(markdown: string): string {
     });
 }
 
+function fixClassStatements(input: string): string {
+  // Fix class statements with invalid node IDs (starting with numbers or special chars)
+  // E.g., "class 1A danger;" -> "class _1A danger;"
+  return input.replace(
+    /^(\s*class\s+)([^;\s]+)((?:\s+[^;]+)?;?\s*)$/gm,
+    (full, prefix, nodeId, suffix) => {
+      // If nodeId starts with a digit or has invalid chars, prefix with underscore
+      if (/^[0-9]/.test(nodeId)) {
+        return `${prefix}_${nodeId}${suffix}`;
+      }
+      return full;
+    },
+  );
+}
+
 export function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
@@ -248,6 +268,7 @@ export function sanitizeMermaidCode(input: string): string {
   code = materializeBareEdgeTargets(code);
   code = materializeQuotedEdgeTargets(code);
   code = quoteLooseSubgraphLabels(code);
+  code = fixClassStatements(code);
 
   const match = code.match(MERMAID_START_PATTERN);
   if (!match) return '';

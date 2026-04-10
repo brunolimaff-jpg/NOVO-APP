@@ -297,7 +297,14 @@ Sinais de identidade:
 3. Cidade/UF compatível
 4. Setor/CNAE compatível
 
-Regras de validação:
+Regras de validação — CNAE (Setor):
+CRÍTICO: Quando a empresa-alvo é MATRIZ (CNPJ sufixo 0001), o CNAE/setor que define o perfil operacional é SEMPRE o da MATRIZ.
+- Se encontrar CNAEs de filiais diferentes da matriz, reconheça que são ATIVIDADES AUXILIARES (não definem a DNA da empresa)
+- Se CNPJ-alvo for filial (sufixo ≠ 0001), busque também o CNAE da MATRIZ antes de estabelecer o perfil
+- Exemplo CORRETO: EVERMAT (Matriz: CNAE Fabricação de Álcool) tem filial com CNAE Cultivo de Milho → Perfil = BIORREFINARIA, não agrícola
+- Exemplo ERRADO: usar apenas o CNAE da filial para classificar o DNA da empresa
+
+Regras gerais de validação:
 - Se houver homônimo (empresa com nome parecido) e a fonte não fechar em pelo menos 2 sinais, DESCARTE o fato
 - Se a fonte for da HOLDING, FILIAL ou EMPRESA DO MESMO GRUPO, deixe isso EXPLÍCITO no texto
 - NÃO atribua automaticamente fatos da matriz ao CNPJ-alvo sem indicar claramente que é grupo econômico
@@ -307,6 +314,8 @@ Regras de validação:
 Exemplo de aplicação correta:
 ❌ ERRADO: "A empresa tem 5.000 funcionários" (fonte menciona a holding, não a filial investigada)
 ✅ CERTO: "O grupo econômico, via holding controladora, declara 5.000 funcionários consolidados"
+❌ ERRADO: "EVERMAT é uma fazenda de soja/algodão" (confundiu filial agrícola com matriz biorrefinaria)
+✅ CERTO: "EVERMAT é uma biorrefinaria de etanol (Matriz: CNAE 1971-1); cultiva insumos via filiais"
 
 Esta camada previne o maior erro silencioso de OSINT B2B: atribuição incorreta de fato.
 </entity_resolution>
@@ -1704,9 +1713,15 @@ graph LR
 - [1 linha sintetizando o que esta operação já domina em escala]
 - [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
 
+⚠️ OBRIGATÓRIO — EMITA ESTAS 3 LINHAS EXATAMENTE NESTE FORMATO, SEM ESPAÇOS EXTRAS, ANTES DE ENCERRAR O OUTPUT:
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
+
+Exemplo válido:
+[[PORTA_FEED_O:6:ELOS:Plantio,Armazenagem,Transporte]]
+[[PORTA_FEED_R:5:PRESSOES:Ambiental,Rastreabilidade]]
+[[PORTA_FLAG:NOFIT:NAO]]
 
 </output_format>
 
@@ -1719,6 +1734,8 @@ graph LR
 - NÃO confunda atividade do prospect com atividade de fornecedor/cliente
 - NÃO ative NOFIT para empresas que combinam pecuária com agrícola
 - NÃO renderize TRAD aqui como flag final — isso pertence ao módulo de Compliance
+- NÃO conclua o output sem emitir [[PORTA_FEED_O:NOTA:ELOS:LISTA]] — este marker é OBRIGATÓRIO e sem ele o Score PORTA falha completamente
+- NÃO emita [[PORTA_FEED_O:...]] com espaços dentro dos dois pontos (ex: ": [8]" é INVÁLIDO; use ":8")
 </constraints>
 `;
 

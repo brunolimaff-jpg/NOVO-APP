@@ -133,6 +133,14 @@ describe('pipeline de sanitização integrado', () => {
     expect(result).toContain('subgraph "Área Fiscal"');
   });
 
+  it('quota subgraph labels contendo parênteses (fix parse error PS)', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nsubgraph Sistemas Senior (Existente)\nA --> B\nend',
+    );
+    // O label contém espaços e parênteses, deve ser quotado para evitar "got 'PS'" error
+    expect(result).toContain('subgraph "Sistemas Senior (Existente)"');
+  });
+
   it('normaliza stroke-dasharray com espaço para vírgula', () => {
     const result = sanitizeMermaidCode(
       'graph LR\nclassDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5\nA --> B',
@@ -145,6 +153,22 @@ describe('pipeline de sanitização integrado', () => {
       'graph LR\nA -->|integração (manual)| B',
     );
     expect(result).toContain('|"integração (manual)"|');
+  });
+});
+
+describe('fixClassStatements', () => {
+  it('corrige class statements com IDs começando com números', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA --> B\nclass 1A danger;',
+    );
+    expect(result).toContain('class _1A danger;');
+  });
+
+  it('preserva class statements com IDs válidos', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA --> B\nclass A danger;',
+    );
+    expect(result).toContain('class A danger;');
   });
 });
 
