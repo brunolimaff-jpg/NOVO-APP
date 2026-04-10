@@ -121,7 +121,7 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
   return (
     <div className="flex items-center justify-center">
       <div
-        className={`relative w-48 h-48 md:w-64 md:h-64 rounded-full ${bgOuter} overflow-hidden`}
+        className={`relative h-40 w-40 rounded-full sm:h-48 sm:w-48 md:h-56 md:w-56 lg:h-64 lg:w-64 ${bgOuter} overflow-hidden`}
         style={{ boxShadow: isDarkMode ? '0 0 40px rgba(52,211,153,0.08), inset 0 0 30px rgba(52,211,153,0.05)' : '0 0 30px rgba(5,150,105,0.06)' }}
       >
         {[0.33, 0.66, 1].map((scale, i) => (
@@ -533,16 +533,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   // ── Fullscreen overlay ──
   const overlay = (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col animate-overlay-enter ${
+      className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain animate-overlay-enter ${
         isDarkMode ? 'bg-slate-950/95 text-slate-100' : 'bg-white/95 text-slate-800'
       } ${isFadingOut && !isLoading ? 'opacity-0 transition-opacity duration-400' : ''}`}
       style={{ backdropFilter: 'blur(8px)' }}
     >
       {/* ── Header ── */}
-      <div className={`flex-shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b ${
+      <div className={`flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-3 md:py-4 border-b ${
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:gap-3">
           <div className={`w-3 h-3 flex-shrink-0 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
           <h1 className={`text-sm md:text-base font-bold tracking-tight truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>Senior Scout 360</h1>
           {companyFocus && (
@@ -556,7 +556,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-2">
+        <div className="ml-0 flex w-full flex-wrap items-center justify-end gap-2 md:ml-2 md:w-auto md:gap-3">
           <span className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg ${
             isDarkMode ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
           }`}>
@@ -564,7 +564,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           </span>
           {onStop && (
             confirmStop ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
                 <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Interromper?</span>
                 <button onClick={() => { setConfirmStop(false); onStop(); }}
                   className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-all text-xs font-bold">Sim</button>
@@ -584,10 +584,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Centralized Progress Control ── */}
-      <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-4 md:py-8">
+      <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-3 md:py-6">
         <div className={`flex flex-col items-center gap-2 mb-3 w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <StepSpinner isDarkMode={isDarkMode} />
-          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
+          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-base sm:text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
             isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
           }`}>{currentRich.label}</h2>
           <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
@@ -600,16 +600,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Two-column: Steps + Radar ── */}
-      <div className="flex-1 min-h-0 px-4 md:px-8 overflow-auto">
-        <div className={`grid grid-cols-1 ${isIncremental ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl' : 'max-w-5xl'} mx-auto h-full`}>
+      <div className="flex-1 px-4 pb-3 md:px-8 md:pb-4">
+        <div className={`mx-auto grid grid-cols-1 items-start gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl md:grid-cols-1' : 'max-w-5xl md:grid-cols-2'}`}>
 
           {/* Steps column */}
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col">
             <h2 className={`text-xs md:text-sm font-bold uppercase tracking-wider mb-3 ${
               isDarkMode ? 'text-slate-400' : 'text-slate-500'
             }`}>Etapas da análise</h2>
 
-            <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[40vh] md:max-h-[50vh] lg:max-h-[55vh] pr-2">
+            <div className="flex flex-col gap-2.5 pr-0 md:gap-3 md:pr-2">
               {visiblePlannedStages.map((step, i) => {
                 const stepKey = getStageIdentity(step.label);
                 const isCompleted = completedStageKeys.has(stepKey);
@@ -624,7 +624,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                     ) : (
                       <StepPending isDarkMode={isDarkMode} />
                     )}
-                    <span className={`text-sm flex-1 min-w-0 ${
+                    <span className={`text-sm flex-1 min-w-0 break-words ${
                       isCompleted
                         ? (isDarkMode ? 'text-slate-500' : 'text-slate-400')
                         : isCurrent
@@ -658,7 +658,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           </div>
 
           {!isIncremental && (
-            <div className="hidden md:flex items-center justify-center">
+            <div className="hidden lg:flex items-center justify-center">
               <RadarAnimation isDarkMode={isDarkMode} />
             </div>
           )}
@@ -666,10 +666,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Insight carousel ── */}
-      <div className={`flex-shrink-0 px-4 md:px-8 py-3 border-t ${
+      <div className={`flex-shrink-0 px-4 py-3 md:px-8 md:py-4 border-t ${
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
-        <div className={`rounded-xl px-4 md:px-5 py-3 max-w-3xl mx-auto ${
+        <div className={`mx-auto w-full max-w-3xl rounded-xl px-4 py-3 md:px-5 ${
           isDarkMode ? 'bg-slate-900/80 border border-emerald-500/15' : 'bg-emerald-50/50 border border-emerald-200'
         }`}>
           <div className="flex items-start gap-3 mb-2">
@@ -678,7 +678,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
               <p className={`text-xs font-black uppercase tracking-widest mb-1 ${
                 isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
               }`}>Contexto estratégico</p>
-              <div className="max-h-[80px] md:max-h-[100px] overflow-y-auto">
+              <div className="max-h-none">
                 <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-slate-100' : 'text-slate-700'}`}>
                   {renderInsight(currentInsight)}
                 </p>

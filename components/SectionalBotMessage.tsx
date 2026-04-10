@@ -131,7 +131,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(cleanText)) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-2">
         {showCopyButton && (
           <div className="relative h-0">
             <CopyButton text={cleanText} isDarkMode={isDarkMode} />
@@ -202,7 +202,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
       ))}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
-        <div className="pt-2 border-t border-dashed border-gray-500/20 mt-4">
+        <div className="mt-4 min-w-0 border-t border-dashed border-gray-500/20 pt-2">
           <SmartOptions
             options={processedOptions}
             onPreFillInput={onPreFillInput}

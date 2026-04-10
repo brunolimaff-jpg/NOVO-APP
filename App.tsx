@@ -187,6 +187,11 @@ function isAbortLikeError(error: unknown): boolean {
   return error.name === 'AbortError' || error.message?.includes('aborted');
 }
 
+function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): boolean {
+  const safeDisplay = (displayMessage || '').trim();
+  return /^Dossi[êe]\s+completo:\s*/i.test(safeDisplay);
+}
+
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
@@ -1120,6 +1125,7 @@ const App: React.FC = () => {
     hintedCompanyOverride?: string | null,
     options?: { requestKind?: RequestKind; fixedLoadingLine?: string },
   ) => {
+    const resolvedDisplayText = displayText || text;
     let sessionId = currentSessionId;
     let currentHistory: Message[];
     let immediateCompany: string | null;
@@ -1132,7 +1138,7 @@ const App: React.FC = () => {
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(displayText || text));
+      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
       const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
       immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
@@ -1158,7 +1164,7 @@ const App: React.FC = () => {
     const userMessage: Message = {
       id: uuidv4(),
       sender: Sender.User,
-      text: displayText || text,
+      text: resolvedDisplayText,
       timestamp: new Date(),
     };
     setSessions(prev =>
@@ -1168,8 +1174,8 @@ const App: React.FC = () => {
     );
     setVisibleCount(prev => prev + 1);
     const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
-    const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
-    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
+    const isDeepDive = resolvedRequestKind === 'deep_dive';
+    await processMessage(text, sessionId, currentHistory, resolvedDisplayText, hintedCompanyOverride || immediateCompany, {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
@@ -1181,14 +1187,20 @@ const App: React.FC = () => {
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
+    const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind: 'deep_dive',
-        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+        requestKind: isTopicDeepDive ? 'deep_dive' : 'default',
+        fixedLoadingLine:
+          isTopicDeepDive && topicLabel
+            ? `Deep Dive em andamento: ${topicLabel}`
+            : isTopicDeepDive
+              ? 'Deep Dive em andamento'
+              : undefined,
       },
     );
   };
@@ -1246,6 +1258,12 @@ const App: React.FC = () => {
     const companyName =
       targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa não identificada';
     const nomeVendedor = typeof user?.displayName === 'string' ? user.displayName : 'Vendedor';
+    const oldSuggestions = Array.isArray(targetMessage.suggestions)
+      ? targetMessage.suggestions
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(Boolean)
+      : [];
 
     updateSessionById(sessionId, session => ({
       ...session,
@@ -1256,6 +1274,11 @@ const App: React.FC = () => {
         targetSession.messages,
         companyName,
         nomeVendedor,
+        {
+          mode: 'regenerate',
+          avoidSuggestions: oldSuggestions,
+          ensureFresh: true,
+        },
       );
       updateSessionById(sessionId, session => ({
         ...session,
