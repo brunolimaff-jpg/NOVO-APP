@@ -322,30 +322,56 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [processing]);
 
   useEffect(() => {
+    if (showInitialHome || shouldSuspendVirtualizedList) {
+      setIsMessagesViewportReady(false);
+      return;
+    }
+
     const viewport = messagesViewportRef.current;
-    if (!viewport) return;
+    if (!viewport) {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    let observer: ResizeObserver | null = null;
+    let rafA: number | null = null;
+    let rafB: number | null = null;
 
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
-
-    if (typeof ResizeObserver === 'undefined') {
+    const markReady = () => {
+      if (cancelled) return;
       setIsMessagesViewportReady(true);
-      return;
-    }
+    };
+
+    setIsMessagesViewportReady(false);
 
     if (hasValidSize()) {
-      setIsMessagesViewportReady(true);
-      return;
+      markReady();
+    } else if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        if (hasValidSize()) {
+          markReady();
+        }
+      });
+      observer.observe(viewport);
     }
 
-    const observer = new ResizeObserver(() => {
-      if (hasValidSize()) {
-        setIsMessagesViewportReady(true);
-      }
+    // Fallback defensivo: em produção o ResizeObserver pode não disparar
+    // a tempo e deixar a área de mensagens em branco mesmo com conteúdo.
+    rafA = window.requestAnimationFrame(() => {
+      rafB = window.requestAnimationFrame(() => {
+        markReady();
+      });
     });
 
-    observer.observe(viewport);
-    return () => observer.disconnect();
-  }, [showInitialHome]);
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      if (rafA !== null) window.cancelAnimationFrame(rafA);
+      if (rafB !== null) window.cancelAnimationFrame(rafB);
+    };
+  }, [showInitialHome, shouldSuspendVirtualizedList, safeMessages.length]);
 
   useEffect(() => {
     if (!processingInfo?.isMalformed) {
