@@ -59,7 +59,13 @@ vi.mock('../../utils/retry', () => ({
   withAutoRetry: vi.fn(async (_name: string, action: () => Promise<unknown>) => action()),
 }));
 
-import { parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, sendMessageToGemini } from '../../services/geminiService';
+import {
+  parsePortaFeeds,
+  cleanPortaFeedMarkers,
+  parseMarkers,
+  sendMessageToGemini,
+  generateContinuityQuestion,
+} from '../../services/geminiService';
 
 describe('parsePortaFeeds', () => {
   it('retorna resultado vazio para texto sem marcadores', () => {
@@ -196,6 +202,61 @@ describe('parseMarkers', () => {
   it('retorna array de statuses vazio', () => {
     const result = parseMarkers('Qualquer texto');
     expect(result.statuses).toEqual([]);
+  });
+});
+
+describe('generateContinuityQuestion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('retorna 4 perguntas quando a resposta já vem como JSON válido', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: JSON.stringify([
+        'Quais gargalos fiscais hoje atrasam o fechamento mensal da operação?',
+        'Onde o ERP atual falha ao consolidar custos entre unidades e safra?',
+        'Qual risco de continuidade vocês enxergam se mantiverem o stack atual até a próxima colheita?',
+        'Que indicador executivo vocês mais precisam acompanhar em tempo real e ainda não conseguem?',
+      ]),
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expect(result).toHaveLength(4);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('extrai array JSON embutido em texto adicional', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expect(result).toHaveLength(4);
+    expect(result[0]).toContain('Qual dor operacional');
+  });
+
+  it('extrai perguntas de texto livre quando JSON não existe', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: `1. Qual processo hoje depende de planilha e gera perda de controle?\n2. Onde a operação sofre mais retrabalho por falta de integração?\n3. Que decisão executiva demora por ausência de dados confiáveis?\n4. Qual risco comercial cresce se nada mudar neste trimestre?`,
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expect(result).toHaveLength(4);
+    expect(result[2]).toContain('decisão executiva');
+  });
+
+  it('faz retry automático quando a primeira tentativa retorna menos de 4 perguntas', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: '["Qual processo crítico fica sem visibilidade hoje?"]',
+      })
+      .mockResolvedValueOnce({
+        text: '["Onde o ERP atual trava o fechamento?","Qual etapa sofre mais retrabalho manual?","Que risco aumenta sem integração de dados?"]',
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expect(result).toHaveLength(4);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
   });
 });
 

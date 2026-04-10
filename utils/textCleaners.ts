@@ -201,15 +201,16 @@ export function stripInternalMarkers(text: string): string {
 
 export function applyPromptLeakShield(
   text: string,
-  options: { companyHint?: string; fallbackText?: string } = {},
+  options: { companyHint?: string; fallbackText?: string; preserveInternalMarkersWhenSafe?: boolean } = {},
 ): PromptLeakShieldResult {
-  const cleaned = stripInternalMarkers(text || '');
-  const sample = cleaned || (text || '').trim();
+  const raw = (text || '').trim();
+  const cleaned = stripInternalMarkers(raw);
+  const sample = cleaned || raw;
   const detection = detectPromptLeakIndicators(sample);
 
   if (!detection.detected) {
     return {
-      text: sample,
+      text: options.preserveInternalMarkersWhenSafe ? raw : sample,
       blocked: false,
       detected: false,
       indicators: [],

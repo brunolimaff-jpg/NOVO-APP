@@ -50,4 +50,19 @@ describe('textCleaners security hardening', () => {
     expect(shielded.blocked).toBe(false);
     expect(shielded.text).toContain('Score PORTA parcial: 74');
   });
+
+  it('preserva markers internos quando solicitado no modo seguro interno', () => {
+    const raw = 'Conclusão.\n[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]';
+    const shielded = applyPromptLeakShield(raw, { preserveInternalMarkersWhenSafe: true });
+    expect(shielded.blocked).toBe(false);
+    expect(shielded.text).toContain('[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]');
+  });
+
+  it('continua removendo markers por padrão em texto não bloqueado', () => {
+    const raw = 'Conclusão.\n[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]';
+    const shielded = applyPromptLeakShield(raw);
+    expect(shielded.blocked).toBe(false);
+    expect(shielded.text).not.toContain('[[PORTA_FEED_O');
+    expect(shielded.text).toContain('Conclusão.');
+  });
 });
