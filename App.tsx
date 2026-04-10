@@ -1260,6 +1260,13 @@ const App: React.FC = () => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
+    if (isTopicDeepDive && !canDeepDive) {
+      scoutDiag.info?.('App', 'tentativa de Deep Dive bloqueada por feature flag', {
+        sessionId: currentSessionId,
+        displayMessage,
+      });
+      return;
+    }
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,

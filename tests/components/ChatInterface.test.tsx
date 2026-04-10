@@ -346,6 +346,28 @@ describe('ChatInterface shell regression', () => {
     });
   });
 
+  it('oculta CTA de Deep Dive quando canDeepDive=false', async () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          canDeepDive: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'deep-dive-row-1' })).not.toBeInTheDocument();
+    });
+  });
+
   it('renderiza o status de processamento sem imprimir o objeto bruto', () => {
     const messages = [buildMessage('m1', Sender.User, 'Investigar Acme Agro')];
 
