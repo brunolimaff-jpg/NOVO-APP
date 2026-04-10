@@ -1,4 +1,4 @@
-const DEFAULT_GEMINI_MODEL_ID = 'deep-research-pro-preview-12-2025';
+const DEFAULT_GEMINI_MODEL_ID = 'gemini-2.5-pro';
 
 export const MODEL_IDS = {
   router: DEFAULT_GEMINI_MODEL_ID,
