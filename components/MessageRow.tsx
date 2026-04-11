@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { Message, Sender, AppError, Feedback } from '../types';
+import { Message, Sender, AppError, Feedback, PortaDimension } from '../types';
 import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
@@ -36,6 +36,7 @@ export interface MessageRowData {
   onStop?: () => void;
   onSendMessage?: (text: string) => void;
   empresaAlvo?: string | null;
+  cnpj?: string | null;
   loadingPinnedLabel?: string | null;
 }
 
@@ -77,42 +78,96 @@ function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
   );
 }
 
-function PortaFallbackBadge({
+const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
+  P: ['Estratégia & Expansão'],
+  O: ['Raio-X Operacional'],
+  R: ['Riscos & Compliance'],
+  T: ['Tech Stack'],
+  A: ['RH & Decisores'],
+};
+
+function normalizePortaDimensions(dimensions?: string[]): PortaDimension[] {
+  if (!Array.isArray(dimensions) || dimensions.length === 0) return [];
+  const valid = new Set<PortaDimension>(['P', 'O', 'R', 'T', 'A']);
+  return Array.from(new Set(dimensions.filter((dimension): dimension is PortaDimension => valid.has(dimension as PortaDimension))));
+}
+
+function buildPortaRetryPrompt(dimensions: PortaDimension[], empresaAlvo?: string | null): string {
+  const dimensionLabel = dimensions.join(', ');
+  const modules = Array.from(
+    new Set(dimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
+  );
+  const moduleLabel = modules.join(', ');
+  const companyLabel = (empresaAlvo || '').trim() || 'a empresa investigada';
+
+  return [
+    `Reexecutar agora os módulos pendentes do Score PORTA para ${companyLabel}.`,
+    `Dimensões pendentes: ${dimensionLabel}.`,
+    `Módulos prioritários: ${moduleLabel}.`,
+    'Não conclua a rodada até consolidar o Score PORTA final com evidências estruturadas de P, O, R, T e A.',
+  ].join(' ');
+}
+
+function PortaFallbackAlert({
   isDarkMode,
   dimensions,
+  companyName,
+  hasConfirmedCnpj,
+  onRetry,
+  retryDisabled,
 }: {
   isDarkMode: boolean;
-  dimensions?: string[];
+  dimensions: PortaDimension[];
+  companyName?: string | null;
+  hasConfirmedCnpj: boolean;
+  onRetry: () => void;
+  retryDisabled: boolean;
 }) {
-  const dimensionLabel = Array.isArray(dimensions) && dimensions.length > 0
-    ? ` (${dimensions.join(', ')})`
-    : '';
+  const modules = Array.from(
+    new Set(dimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
+  );
+
+  const normalizedCompany = (companyName || '').trim() || 'a empresa investigada';
+
   return (
-    <span
-      className={`inline-flex items-center gap-1 text-[11px] font-semibold mt-2 px-2 py-0.5 rounded-full select-none ${
+    <div
+      className={`mt-1 mb-3 rounded-xl border px-3 py-2.5 ${
         isDarkMode
-          ? 'bg-red-900/35 text-red-300 border border-red-700/50'
-          : 'bg-red-50 text-red-700 border border-red-200'
+          ? 'bg-red-900/30 text-red-200 border-red-700/60'
+          : 'bg-red-50 text-red-800 border-red-200'
       }`}
-      title="Score PORTA consolidado com fallback técnico por ausência de markers completos."
+      role="alert"
+      data-testid="porta-fallback-alert"
     >
-      <svg
-        width="11"
-        height="11"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      Score PORTA com fallback técnico{dimensionLabel}
-    </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[12px] font-extrabold tracking-wide uppercase">
+            ⚠ Score PORTA parcial com fallback técnico
+          </p>
+          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-red-100/90' : 'text-red-700'}`}>
+            Pendências: <strong>{dimensions.join(', ')}</strong> · Módulos para recompor: <strong>{modules.join(', ')}</strong>
+          </p>
+          {!hasConfirmedCnpj && (
+            <p className={`text-[11px] mt-1.5 ${isDarkMode ? 'text-amber-200' : 'text-amber-800'}`}>
+              Para continuar com segurança na análise de <strong>{normalizedCompany}</strong>, confirme o CNPJ (14 dígitos).
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={retryDisabled}
+          className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
+            isDarkMode
+              ? 'bg-red-500/20 text-red-100 border border-red-400/40 hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed'
+              : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 disabled:opacity-60 disabled:cursor-not-allowed'
+          }`}
+          title="Reexecutar somente os módulos pendentes para consolidar o Score PORTA"
+        >
+          Tentar novamente pendências
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -140,6 +195,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     processing,
     onSendMessage,
     empresaAlvo,
+    cnpj,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;
@@ -158,11 +214,25 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   // groundingUsed === false (explicitamente): fallback silencioso acionado.
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
   const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
-  const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true;
+  const portaFallbackDimensions = normalizePortaDimensions(msg.portaFallbackDimensions);
+  const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true && portaFallbackDimensions.length > 0;
+  const hasConfirmedCnpj = typeof cnpj === 'string' && cnpj.replace(/\D/g, '').length === 14;
+  const portaRetryPrompt = useMemo(
+    () => (showPortaFallbackWarning ? buildPortaRetryPrompt(portaFallbackDimensions, empresaAlvo) : ''),
+    [empresaAlvo, portaFallbackDimensions, showPortaFallbackWarning],
+  );
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
   const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
+  const handlePortaRetry = () => {
+    if (!portaRetryPrompt) return;
+    if (onSendMessage) {
+      onSendMessage(portaRetryPrompt);
+      return;
+    }
+    setInput(portaRetryPrompt);
+  };
 
   let content: React.ReactNode;
 
@@ -254,6 +324,16 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
           </div>
           {isBot ? (
             <>
+              {showPortaFallbackWarning && (
+                <PortaFallbackAlert
+                  isDarkMode={isDarkMode}
+                  dimensions={portaFallbackDimensions}
+                  companyName={empresaAlvo}
+                  hasConfirmedCnpj={hasConfirmedCnpj}
+                  onRetry={handlePortaRetry}
+                  retryDisabled={isLoading}
+                />
+              )}
               {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
               {msg.clienteSeniorData?.encontrado && (
                 <ClienteSeniorScore data={msg.clienteSeniorData} isDarkMode={isDarkMode} />
@@ -278,12 +358,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
               />
               {showGroundingFallbackWarning && (
                 <GroundingFallbackBadge isDarkMode={isDarkMode} />
-              )}
-              {showPortaFallbackWarning && (
-                <PortaFallbackBadge
-                  isDarkMode={isDarkMode}
-                  dimensions={msg.portaFallbackDimensions}
-                />
               )}
               {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar

@@ -534,6 +534,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onStop: handleStopWithToast,
       onSendMessage,
       empresaAlvo: currentSession?.empresaAlvo || null,
+      cnpj: currentSession?.cnpj || null,
       loadingPinnedLabel,
     }),
     [
@@ -559,6 +560,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       lastUserQuery,
       handleStopWithToast,
       onSendMessage,
+      currentSession?.cnpj,
       loadingPinnedLabel,
     ],
   );

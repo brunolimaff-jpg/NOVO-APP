@@ -366,6 +366,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
                 <div>
                   <span className={`mb-1.5 block text-xs font-medium ${textMuted}`}>CNPJ (opcional)</span>
+                  <p
+                    className={`mb-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed ${
+                      isDarkMode
+                        ? 'border-amber-700/50 bg-amber-900/25 text-amber-200'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA.
+                  </p>
 
                   {cnpjLocked ? (
                     <div className="flex items-center gap-3">
