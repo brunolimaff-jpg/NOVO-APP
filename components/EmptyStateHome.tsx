@@ -515,21 +515,36 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
               </p>
             </div>
 
-            {/* Botão "Varrer agora" só aparece quando o Radar já está configurado */}
+            {/* Ações do Radar só aparecem quando já está configurado */}
             {radarConfigured && (
-              <button
-                type="button"
-                onClick={onForceScan ?? onOpenRadar}
-                disabled={radarIsScanning}
-                className={`shrink-0 flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-                }`}
-              >
-                <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
-                {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
-              </button>
+              <div className="shrink-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenRadar}
+                  disabled={!onOpenRadar}
+                  className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                  }`}
+                >
+                  Configurar Radar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onForceScan ?? onOpenRadar}
+                  disabled={radarIsScanning}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                  }`}
+                >
+                  <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
+                  {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
+                </button>
+              </div>
             )}
           </div>
 
