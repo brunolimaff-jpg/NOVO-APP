@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ScorePortaData } from '../types';
-import { getPortaCompatibility, PORTA_FLAG_META } from '../utils/porta';
+import { getPortaCompatibility, normalizePortaFlags, PORTA_FLAG_META } from '../utils/porta';
 
 interface ScorePortaProps extends ScorePortaData {
   isDarkMode?: boolean;
@@ -65,7 +65,7 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
   const subtleBg = isDarkMode ? '#0b1220' : '#f8fafc';
   const subtleBorder = isDarkMode ? 'rgba(148,163,184,0.12)' : '#e2e8f0';
 
-  const validFlags = (flags ?? []).filter(flag => flag in PORTA_FLAG_META);
+  const validFlags = normalizePortaFlags(flags ?? []).filter(flag => flag in PORTA_FLAG_META);
   const values: Record<string, number> = { p, o, r, t, a };
   const justificativasObj: Record<string, string> = { 
     p: scoreData.justificativas?.P || '',
