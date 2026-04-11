@@ -556,6 +556,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const handleCloseSettings = () => setShowSettings(false);
   const handleOpenWarRoom = () => setShowWarRoom(true);
   const handleCloseWarRoom = () => setShowWarRoom(false);
+  const closeSidebarOnMobile = useCallback(() => {
+    if (window.innerWidth < 768 && isSidebarOpen) {
+      onToggleSidebar();
+    }
+  }, [isSidebarOpen, onToggleSidebar]);
 
   // ── Paleta de cores por tema ──────────────────────────────────────────────
   const theme = {
@@ -584,12 +589,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         currentSessionId={currentSession?.id ?? null}
         onSelectSession={(id) => {
           onSelectSession(id);
-          if (window.innerWidth < 768) onToggleSidebar();
+          closeSidebarOnMobile();
         }}
         onNewSession={onNewSession}
         onDeleteSession={onDeleteSession}
         isOpen={isSidebarOpen}
-        onCloseMobile={onToggleSidebar}
+        onCloseMobile={closeSidebarOnMobile}
         isDarkMode={isDarkMode}
         onSaveToCRM={onSaveToCRM || (() => {})}
         onOpenKanban={onOpenKanban || (() => {})}
