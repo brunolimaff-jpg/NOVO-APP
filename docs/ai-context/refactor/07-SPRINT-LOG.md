@@ -22,7 +22,7 @@
 ## 2026-04-11 - Sprint 1 auth cleanup
 
 - Fase: execution
-- Sprint: 1 (`active`)
+- Sprint: 1 (`done`)
 - Objetivo: remover Clerk/auth sem alterar a ordem do roadmap e manter apenas perfil local obrigatorio do operador
 - Decisoes:
   - `OperatorContext` substitui `AuthContext`
@@ -43,8 +43,33 @@
   - `npm run build` verde
   - `npm run lint` vermelho por backlog antigo do repo (`37` erros, `217` warnings)
 - Riscos residuais:
-  - guardrail contra novos consumidores de `hooks/useChat.ts` ainda nao foi criado
   - warning de `SessionsSidebar.test.tsx` continua aberto
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto
 - Proximo passo:
-  - fechar o guardrail de `hooks/useChat.ts` e registrar as fronteiras congeladas da Sprint 1
+  - iniciar Sprint 2 com extracao interna da camada Gemini mantendo fachada estavel
+
+## 2026-04-11 - Sprint 2 extracao gemini
+
+- Fase: execution
+- Sprint: 2 (`done`)
+- Objetivo: decompor a orquestracao interna de IA sem quebrar a API publica de `services/geminiService.ts`
+- Decisoes:
+  - manter `services/geminiService.ts` como fachada de compatibilidade
+  - mover parser PORTA, sources, recovery, status e sanitizacao para `services/gemini/*`
+  - proteger `hooks/useChat.ts` com guardrail estrutural contra novos imports de producao
+  - manter validacao manual em Vercel como gate de runtime real
+- Mudancas concluidas:
+  - extracao do pipeline interno de investigacao/chat para modulos coesos em `services/gemini/`
+  - testes atualizados para o novo arranjo interno sem alterar contrato publico
+  - docs de arquitetura e handoff atualizadas para refletir fachada estavel + modulos internos
+  - PR `#209` mergeado em `main` (`ef30b5d3b932a9358b25ad5ec284dbb35f992109`)
+- Checks registrados:
+  - `npm run test` verde na rodada final da sprint
+  - `npm run typecheck` verde na rodada final da sprint
+  - `npm run build` verde na rodada final da sprint
+  - `npm run lint` segue vermelho por backlog historico do repo
+- Riscos residuais:
+  - backlog de lint continua fora do escopo da sprint
+  - hotspots `App.tsx` e `components/ChatInterface.tsx` ainda concentram fluxo de chat
+- Proximo passo:
+  - iniciar Sprint 3 (extrair chat de `App.tsx` para `features/chat/*`) sem alterar comportamento funcional

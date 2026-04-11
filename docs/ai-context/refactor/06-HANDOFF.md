@@ -2,10 +2,9 @@
 
 ## Current Phase
 
-Execucao. Sprint 1 esta ativa.
+Execucao. Sprint 2 foi concluida e mergeada.
 
-O cleanup de Clerk/auth foi concluido sem reordenar o programa:
-o app agora usa apenas um perfil local obrigatorio do operador.
+O programa segue na ordem do roadmap, com proximo passo em Sprint 3.
 
 ## What Was Finished
 
@@ -16,18 +15,21 @@ o app agora usa apenas um perfil local obrigatorio do operador.
 - Arquivos mortos removidos: `components/LoginPage.tsx`, `components/AuthModal.tsx`, `components/UserMenuClerkBridge.tsx`, `contexts/AuthContext.tsx`
 - Dependencia `@clerk/react` removida de `package.json` e `package-lock.json`
 - Testes atualizados para o novo perfil local, incluindo gate de nome do operador e acesso de dashboard sem papel admin
+- `services/geminiService.ts` preservado como fachada publica estavel
+- Orquestracao interna extraida para `services/gemini/` (porta, sources, recovery, status, sanitization e pipeline)
+- Guardrail estrutural de `hooks/useChat.ts` adicionado para bloquear novos imports de producao
+- Hotfixes aplicados no fluxo PORTA para reduzir fallback indevido e manter integridade contextual
 
 ## What Is In Progress
 
-- Sprint 1 ainda nao esta concluida
-- Falta fechar o guardrail que bloqueia novos consumidores de producao de `hooks/useChat.ts`
-- Falta registrar formalmente as fronteiras congeladas dos hotspots no pacote da sprint
+- Sprint 3 ainda nao iniciada em codigo
+- Preparacao para extracao do fluxo de chat de `App.tsx` com risco controlado
 
 ## Next Safe Step
 
-1. Adicionar um teste estrutural que falhe se algum arquivo de producao importar `hooks/useChat.ts`
-2. Congelar/documentar as fronteiras reais de `App.tsx`, `components/ChatInterface.tsx` e `services/geminiService.ts`
-3. Reexecutar a validacao da sprint e so entao avaliar marcar Sprint 1 como `done`
+1. Iniciar Sprint 3 extraindo responsabilidades de chat de `App.tsx` para `features/chat/*` em fatias pequenas
+2. Manter o contrato visual e funcional atual (score PORTA, fontes, perguntas de continuidade, sessao remota)
+3. Validar por fatia com testes e checkpoint manual em preview Vercel antes de seguir
 
 ## Files Most Relevant Now
 
@@ -36,9 +38,9 @@ o app agora usa apenas um perfil local obrigatorio do operador.
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/05-VALIDATION.md`
 - `App.tsx`
+- `features/chat/*` (novo destino da extracao)
 - `components/ChatInterface.tsx`
-- `contexts/OperatorContext.tsx`
-- `hooks/useChat.ts`
+- `services/geminiService.ts`
 
 ## Do Not Touch Yet
 
@@ -48,7 +50,7 @@ o app agora usa apenas um perfil local obrigatorio do operador.
 
 ## Validation Last Run
 
-- `npm run test`: green (`85` arquivos, `703` testes) em `2026-04-11`
+- `npm run test`: green em `2026-04-11` (ultima rodada valida registrada da sprint)
 - `npm run typecheck`: green em `2026-04-11`
 - `npm run build`: green em `2026-04-11`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
@@ -57,5 +59,5 @@ o app agora usa apenas um perfil local obrigatorio do operador.
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue exatamente no Sprint 1: implemente o guardrail de `hooks/useChat.ts`,
-valide novamente e atualize board/open-items/handoff/sprint-log sem replanejar.
+Continue exatamente no Sprint 3: extraia o fluxo de chat de `App.tsx` em fatias pequenas,
+sem mudar contrato publico, valide cada fatia e atualize board/open-items/handoff/sprint-log sem replanejar.
