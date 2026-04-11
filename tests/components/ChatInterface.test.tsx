@@ -7,6 +7,9 @@ import { Sender, type Message, type ChatSession } from '../../types';
 const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
+const { sessionsSidebarMock } = vi.hoisted(() => ({
+  sessionsSidebarMock: vi.fn(),
+}));
 
 vi.mock('react-virtuoso', () => ({
   Virtuoso: ({ data, itemContent, components }: any) => (
@@ -65,7 +68,16 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 vi.mock('../../components/SessionsSidebar', () => ({
-  default: () => <div data-testid="sessions-sidebar" />,
+  default: (props: any) => {
+    sessionsSidebarMock(props);
+    return (
+      <div data-testid="sessions-sidebar">
+        <button type="button" onClick={props.onCloseMobile}>
+          close-mobile
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../../components/UserMenu', () => ({
@@ -167,6 +179,7 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -236,6 +249,18 @@ describe('ChatInterface shell regression', () => {
     expect(shell?.className).toContain('flex-1');
     expect(shell?.className).toContain('min-h-0');
     expect(shell?.className).not.toContain('h-full');
+  });
+
+  it('nao reabre a sidebar em mobile quando recebe comando de fechar com estado fechado', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 390 });
+    const onToggleSidebar = vi.fn();
+
+    render(<ChatInterface {...buildProps({ isSidebarOpen: false, onToggleSidebar })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'close-mobile' }));
+
+    expect(onToggleSidebar).not.toHaveBeenCalled();
+    expect(sessionsSidebarMock).toHaveBeenCalled();
   });
 
 
