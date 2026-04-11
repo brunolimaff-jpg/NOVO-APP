@@ -8,8 +8,7 @@ description: >
   a premium, resilient, business-first product standard.
 category: product
 tags: [scoutagro, senior-scout, ux, scraping, reliability, pilot, solo-operator]
-recommended_skills:
-  [frontend-developer, debugging-tools, observability, playwright-testing, api-design]
+recommended_skills: [clean-code, codedocs, refactoring-patterns, clean-architecture, code-review-mastery]
 platforms:
   - claude-code
   - openai-codex
@@ -21,9 +20,9 @@ maintainers:
 # ScoutAgro Pilot OS
 
 This skill is the project-level router for Senior Scout 360. It exists to keep
-the agent aligned with the real operating model of the product: a premium
-commercial-intelligence app, run lean, by one operator, with strong UX,
-reliable scraping, and low tolerance for regressions.
+the agent aligned with the current operating model of the product: a premium
+commercial-intelligence app, run lean, with a deliberately small AI surface,
+low tolerance for regressions, and strong emphasis on maintainability.
 
 Use this skill as the default project layer when working in this repository.
 
@@ -42,51 +41,34 @@ Use this skill as the default project layer when working in this repository.
 Trigger this skill when the task involves any of the following:
 
 - UX/UI improvements, new screens, visual polish, flows, or conversion quality
-- Scraping, research, enrichment, source validation, or data freshness
-- Debugging runtime issues, failed user journeys, or production regressions
-- Hardening the product for pilot use: error prevention, fallback behavior,
-  resilience, observability, QA, or review
-- Prioritizing work for a solo founder/operator
+- Refactors that change project boundaries, file organization, or orchestration
+- Debugging runtime issues, failed user journeys, or regressions
+- Documentation and handoff work that must survive across AI sessions
+- Prioritizing work for a lean solo-operator workflow
 
 ## Routing Rules
 
-### 1. UX, interface quality, and perceived trust
+### 1. Refactoring and file separation
 
-When the task changes how the product looks, feels, or guides the seller:
+When the task changes structure, boundaries, or ownership:
 
-- Start with `ui-ux-pro-max` for interaction, hierarchy, layout, and visual
-  product decisions.
-- Use `ui-styling` when implementing concrete UI code, especially for Tailwind,
-  component styling, and polished execution.
-- Use `frontend-developer` for accessibility, structure, performance, and code
-  quality.
-- Use `vercel-react-best-practices` when the work touches React rendering,
-  bundle size, async flow, or perceived performance.
+- Start with `clean-architecture` for dependency direction and module cuts.
+- Use `refactoring-patterns` for safe structural transformations.
+- Use `clean-code` to keep the resulting implementation small and readable.
 
-### 2. Scraping, investigation, and commercial intelligence
+### 2. Review and risk control
 
-When the task involves sourcing or enriching prospect data:
+When the task affects important flows or introduces non-trivial diffs:
 
-- Start with `data-scraper-agent` for scraper design, extraction logic, and
-  operational robustness.
-- Use `deep-research` when the answer depends on broader source synthesis or
-  current web information.
-- Use `search-first` before building a custom integration or pipeline from
-  scratch.
-- Use `api-design` when scraped or enriched data needs stable internal
-  contracts.
+- Use `code-review-mastery` before treating the work as ready.
+- Use `clean-code` to reduce accidental complexity before review.
 
-### 3. Debugging, regressions, and error prevention
+### 3. Documentation and continuity
 
-When the product is broken, flaky, slow, or risky:
+When the task needs to survive across AI sessions:
 
-- Start with `debugging-tools` for systematic diagnosis.
-- Use `playwright-testing` or `browser-qa` for real flow validation in the UI.
-- Use `verification-loop` before closing substantial changes.
-- Use `tdd-workflow` when fixing bugs with a risk of regression.
-- Use `security-review` and `security-scan` when the work touches secrets,
-  uploads, external calls, auth, or user data.
-- Use `gh-pr-review` before or during important merge decisions.
+- Use `codedocs` for stable repo-facing documentation.
+- Keep decisions visible in repo-tracked docs instead of chat memory.
 
 ### 4. Solo-operator prioritization
 
@@ -127,7 +109,7 @@ above.
 
 - Prefer fewer systems with stronger defaults.
 - Prefer reusable patterns over ad hoc patches.
-- Prefer guardrails and observability over heroic manual operation.
+- Prefer clear guardrails over broad toolchains.
 
 ## Default Deliverable Shape
 
