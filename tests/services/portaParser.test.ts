@@ -22,17 +22,17 @@ describe('parseMarkers — PORTA', () => {
     const content = '[[PORTA:51:P7:O8:R6:T7:A7:PRD:TRAD]]';
     const result = parseMarkers(content);
     expect(result.scorePorta).not.toBeNull();
-    expect(result.scorePorta!.score).toBe(51);
+    expect(result.scorePorta!.score).toBe(43);
     expect(result.scorePorta!.segmento).toBe('PRD');
     expect(result.scorePorta!.flags).toEqual(['TRAD']);
   });
 
-  it('parses v2 marker with multiple flags', () => {
+  it('ignores legacy LOCK in v2 markers and recomputes the score', () => {
     const content = '[[PORTA:21:P6:O7:R5:T5:A6:PRD:TRAD,LOCK]]';
     const result = parseMarkers(content);
     expect(result.scorePorta).not.toBeNull();
-    expect(result.scorePorta!.score).toBe(21);
-    expect(result.scorePorta!.flags).toEqual(['TRAD', 'LOCK']);
+    expect(result.scorePorta!.score).toBe(35);
+    expect(result.scorePorta!.flags).toEqual(['TRAD']);
   });
 
   it('parses v2 marker with COP segment and NOFIT flag', () => {
@@ -47,7 +47,8 @@ describe('parseMarkers — PORTA', () => {
     const content = '[[PORTA:9:P6:O7:R5:T5:A6:PRD:TRAD,LOCK,NOFIT]]';
     const result = parseMarkers(content);
     expect(result.scorePorta).not.toBeNull();
-    expect(result.scorePorta!.flags).toEqual(['TRAD', 'LOCK', 'NOFIT']);
+    expect(result.scorePorta!.score).toBe(11);
+    expect(result.scorePorta!.flags).toEqual(['TRAD', 'NOFIT']);
   });
 
   it('calculates scoreBruto for PRD segment', () => {
@@ -91,7 +92,6 @@ Resumo executivo.
 [[PORTA_FEED_A:[8]:A1:[8]:A2:[7]:GERACAO:[G2]]]
 [[PORTA_SEG:[AGI]]]
 [[PORTA_FLAG:TRAD:[NAO]:NATUREZA:[PRODUCAO]]]
-[[PORTA_FLAG:LOCK:[NAO]]]
 [[PORTA_FLAG:NOFIT:[NAO]]]
 Fim do resumo.
     `;
@@ -132,15 +132,7 @@ Fim do resumo.
 
     expect(feeds.adjustments.some(a => a.dimension === 'T' && a.suggestedValue === 8)).toBe(true);
     expect(feeds.adjustments.some(a => a.dimension === 'A' && a.suggestedValue === 8)).toBe(true);
-    expect(feeds.flags).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          source: 'TECH_STACK',
-          flag: 'LOCK',
-          active: false,
-        }),
-      ]),
-    );
+    expect(feeds.flags).toEqual([]);
     expect(feeds.segments).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

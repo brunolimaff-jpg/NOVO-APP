@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useOperator } from '../contexts/OperatorContext';
 import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
@@ -150,7 +150,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   pdfReportContent,
   loadingVariant,
   onOpenFollowUpModal,
-  onLogout,
+  onClearOperator,
   lastUserQuery,
   processing,
   loadingPinnedLabel,
@@ -167,7 +167,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   canWarRoom = false,
 }) => {
   const { mode, setMode } = useMode();
-  const { user, userId, updateName, login, loading } = useAuth();
+  const {
+    name: operatorName,
+    operatorId,
+    setName,
+    loading: operatorLoading,
+  } = useOperator();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
@@ -194,6 +199,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const hasOperatorName = operatorName.trim().length > 0;
+  const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
   const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
@@ -497,7 +504,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onRetry();
   }, [onRetry]);
 
-  const displayName = user?.displayName?.trim() || 'Usuário';
+  const displayName = operatorName.trim() || 'Operador';
   const avatarUrl = null;
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
@@ -521,7 +528,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       hideSuggestionsForMessageId,
       setInput,
       sessionId: currentSession?.id,
-      userId,
+      userId: operatorId,
       processing,
       lastUserQuery,
       onStop: handleStopWithToast,
@@ -547,7 +554,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       hideSuggestionsForMessageId,
       currentSession?.id,
       currentSession?.empresaAlvo,
-      userId,
+      operatorId,
       processing,
       lastUserQuery,
       handleStopWithToast,
@@ -764,31 +771,31 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               displayName={displayName}
               avatarUrl={avatarUrl}
               onOpenSettings={handleOpenSettings}
-              onLogout={onLogout}
+              onClearOperator={onClearOperator}
             />
           </div>
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
-          {showInitialHome ? (
+          {showOperatorGate ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-              {!loading && !user ? (
-                <GreetingWelcomeScreen
-                  isDarkMode={isDarkMode}
-                  onConfirmName={(name) => login(name)}
-                />
-              ) : (
-                <EmptyStateHome
-                  mode={mode}
-                  isDarkMode={isDarkMode}
-                  onStartInvestigation={handleStartInvestigation}
-                  radarAlerts={radar?.alerts}
-                  radarIsScanning={radar?.isScanning}
-                  onForceScan={radar?.onForceScan}
-                  onOpenRadar={() => setShowRadarPanel(true)}
-                />
-              )}
+              <GreetingWelcomeScreen
+                isDarkMode={isDarkMode}
+                onConfirmName={setName}
+              />
+            </div>
+          ) : showInitialHome ? (
+            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
+              <EmptyStateHome
+                mode={mode}
+                isDarkMode={isDarkMode}
+                onStartInvestigation={handleStartInvestigation}
+                radarAlerts={radar?.alerts}
+                radarIsScanning={radar?.isScanning}
+                onForceScan={radar?.onForceScan}
+                onOpenRadar={() => setShowRadarPanel(true)}
+              />
             </div>
           ) : shouldSuspendVirtualizedList ? (
             <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
@@ -827,7 +834,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         </div>
 
         {/* ── Input area ──────────────────────────────────────────────────── */}
-        {!showInitialHome && (
+        {!showInitialHome && !showOperatorGate && (
           <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
             {/* Processing indicator */}
             {isLoading && processing && processingInfo && (
@@ -951,8 +958,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           <SuspenseWithError>
             <SettingsDrawer
               isOpen={showSettings}
-              userName={user?.displayName || ''}
-              onUpdateName={updateName}
+              operatorName={operatorName}
+              onUpdateOperatorName={setName}
               mode={mode}
               onSetMode={setMode}
               isDarkMode={isDarkMode}
@@ -962,7 +969,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               onExportConversation={onExportConversation}
               onCopyMarkdown={handleCopyMarkdown}
               onScheduleFollowUp={onOpenFollowUpModal}
-              onLogout={onLogout}
+              onClearOperator={onClearOperator}
               onClose={handleCloseSettings}
               exportStatus={exportStatus}
               exportError={exportError}

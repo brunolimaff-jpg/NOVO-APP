@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useOperator } from '../contexts/OperatorContext';
 import { getTimeGreeting } from '../utils/timeGreeting';
 import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
@@ -155,14 +155,13 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
 };
 
 const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode, radarAlerts, radarIsScanning, onForceScan, onOpenRadar }) => {
-  const { user } = useAuth();
-  const userName = user?.displayName;
+  const { name: operatorName } = useOperator();
 
   const timeGreeting = getTimeGreeting();
 
   const displayGreeting =
-    userName && userName !== 'Sair' && userName.trim().length > 0
-      ? `${timeGreeting}, ${userName}. Qual é o próximo alvo?`
+    operatorName && operatorName.trim().length > 0
+      ? `${timeGreeting}, ${operatorName}. Qual é o próximo alvo?`
       : `${timeGreeting}! Qual empresa vamos investigar agora?`;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];

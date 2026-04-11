@@ -22,6 +22,7 @@ const PORTA_FEED_R_TRAB_REGEX = /\[\[PORTA_FEED_R_TRAB:(\d+):PASSIVOS:([^\]]*)\]
 const PORTA_FEED_A2_REGEX = /\[\[PORTA_FEED_A2:(\d+):TIMING:([^:\]]*):FASE:([^\]]*)\]\]/g;
 const PORTA_FEED_A_REGEX = /\[\[PORTA_FEED_A:(\d+):A1:(\d+):A2:(\d+):GERACAO:([^\]]*)\]\]/g;
 const PORTA_FLAG_ORDER: PortaFlag[] = ['TRAD', 'LOCK', 'NOFIT'];
+const DEPRECATED_PORTA_FLAGS = new Set<PortaFlag>(['LOCK']);
 
 export const PORTA_SEGMENT_LABELS: Record<PortaSegmento, string> = {
   PRD: 'Produtor Rural',
@@ -52,6 +53,11 @@ export const PORTA_FLAG_META: Record<
     description: 'Core operacional fora do portfólio Senior/GAtec.',
   },
 };
+
+export function normalizePortaFlags(flags: PortaFlag[] = []): PortaFlag[] {
+  const uniqueFlags = new Set(flags);
+  return PORTA_FLAG_ORDER.filter(flag => uniqueFlags.has(flag) && !DEPRECATED_PORTA_FLAGS.has(flag));
+}
 
 export interface PortaScoreResolution {
   score: ScorePortaData | null;
@@ -203,7 +209,7 @@ export function calculatePortaScoreBruto(
 }
 
 export function calculatePortaFlagMultiplier(flags: PortaFlag[]): number {
-  return flags.reduce((acc, flag) => acc * PORTA_FLAG_PENALTIES[flag], 1);
+  return normalizePortaFlags(flags).reduce((acc, flag) => acc * PORTA_FLAG_PENALTIES[flag], 1);
 }
 
 function buildPortaFeedSnapshot(content: string): {
@@ -225,7 +231,7 @@ function buildPortaFeedSnapshot(content: string): {
     const isActive = match[2] === 'SIM';
     if (isActive) activeFlags.add(flag);
   }
-  const flags = PORTA_FLAG_ORDER.filter(flag => activeFlags.has(flag));
+  const flags = normalizePortaFlags(PORTA_FLAG_ORDER.filter(flag => activeFlags.has(flag)));
 
   const o = lastNumberMatch(PORTA_FEED_O_REGEX, normalizedContent);
   const t = lastNumberMatch(PORTA_FEED_T_REGEX, normalizedContent);
@@ -297,7 +303,10 @@ function parseExplicitPortaMarker(content: string): ScorePortaData | null {
     const t = Number.parseInt(v2Match[5], 10);
     const a = Number.parseInt(v2Match[6], 10);
     const segmento = v2Match[7] as PortaSegmento;
-    const flags = v2Match[8] === 'NONE' ? [] : (v2Match[8].split(',') as PortaFlag[]);
+    const flags = normalizePortaFlags(
+      v2Match[8] === 'NONE' ? [] : (v2Match[8].split(',') as PortaFlag[]),
+    );
+    const scoreBruto = calculatePortaScoreBruto(p, o, r, t, a, segmento);
 
     // Extrai as justificativas das notas usando regex para capturar as linhas de texto "Letra:" ou "**Letra:**"
     const justificativas: Record<PortaDimension, string> = {
@@ -336,7 +345,7 @@ function parseExplicitPortaMarker(content: string): ScorePortaData | null {
     const hasAnyJustificativa = Object.values(justificativas).some(value => value.trim().length > 0);
 
     return {
-      score: Number.parseInt(v2Match[1], 10),
+      score: Math.round(scoreBruto * calculatePortaFlagMultiplier(flags)),
       p,
       o,
       r,
@@ -344,7 +353,7 @@ function parseExplicitPortaMarker(content: string): ScorePortaData | null {
       a,
       segmento,
       flags,
-      scoreBruto: calculatePortaScoreBruto(p, o, r, t, a, segmento),
+      scoreBruto,
       ...(hasAnyJustificativa ? { justificativas } : {}),
     };
   }

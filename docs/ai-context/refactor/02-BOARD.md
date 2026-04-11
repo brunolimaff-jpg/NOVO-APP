@@ -7,42 +7,42 @@
 | Source of truth commit | `origin/main` -> `3c1412e3b19905abc843ceae36ba5399355f8d63` |
 | Working branch | `codex/centralize-ai-model-config` |
 | Last updated | `2026-04-11` |
-| Current phase | `pre-execution` |
-| Current sprint | `none` |
+| Current phase | `execution` |
+| Current sprint | `1` |
 | Overall status | `active` |
-| Current baseline | `test/typecheck/build green` |
+| Current baseline | `test/typecheck/build green; lint backlog pre-existing` |
 
 ## Current Focus
 
-- Bootstrapar a documentacao canonica do programa de refatoracao
-- Registrar baseline atual e warnings aceitos
-- Deixar proximo passo seguro claramente definido para qualquer IA
+- Sprint 1 esta ativa
+- Clerk/auth foi removido sem mudar o roadmap: agora existe apenas perfil local obrigatorio do operador
+- Ainda falta fechar o guardrail de `hooks/useChat.ts` e registrar as fronteiras congeladas dos hotspots
 
 ## Next Up
 
-1. Iniciar Sprint 1
-2. Congelar fronteiras de `App.tsx`, `services/geminiService.ts` e `hooks/useChat.ts`
-3. Garantir que nenhuma nova mudanca de produto aumente o acoplamento desses hotspots
+1. Adicionar guardrail estrutural que bloqueie novos consumidores de producao de `hooks/useChat.ts`
+2. Documentar explicitamente as fronteiras reais de `App.tsx`, `components/ChatInterface.tsx` e `services/geminiService.ts`
+3. Reexecutar a validacao da sprint apos o guardrail e fechar o checklist manual viavel
 
 ## Blocked
 
-- Nenhum bloqueio tecnico atual
+- Nenhum bloqueio tecnico de runtime atual
 
 ## Validation Pending
 
-- Nenhuma validacao de sprint pendente; baseline inicial ja registrado
+- `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`)
+- Checklist manual de Sprint 1 ainda nao foi fechado apos a troca completa de auth por perfil local
 
 ## Known Accepted Warnings
 
-- Testes de `useUpdateNotification` usam `fetch('/version.json')` e geram warning em ambiente de teste
-- Testes de `App` emitem warning de `act(...)`
-- Build emite warning de chunking envolvendo `utils/idbStorage.ts`
+- `tests/components/SessionsSidebar.test.tsx` ainda emite o warning `Functions are not valid as a React child`
+- Build ainda emite o warning de chunking envolvendo `utils/idbStorage.ts`
 
 ## Sprint Tracker
 
 | Sprint | Goal | Status | Exit Criteria | Rollback Point | Primary Files/Modules |
 |---|---|---|---|---|---|
-| 1 | Baseline e fronteiras | planned | Nenhum novo consumidor de legado; fronteiras documentadas | `origin/main@3c1412e` | `App.tsx`, `hooks/useChat.ts`, `HANDOFF_AI.md` |
+| 1 | Baseline e fronteiras | active | Clerk/auth removido, fronteiras documentadas, guardrail contra novos consumidores de legado, validacao da sprint registrada | `origin/main@3c1412e` | `App.tsx`, `components/ChatInterface.tsx`, `contexts/OperatorContext.tsx`, `hooks/useChat.ts`, `services/geminiService.ts` |
 | 2 | Quebrar Gemini | planned | `services/gemini/` criado com facade estavel | `start-of-sprint-2` | `services/geminiService.ts`, `services/gemini/*` |
 | 3 | Extrair chat do App | planned | `features/chat/` ativo; `App.tsx` reduzido | `start-of-sprint-3` | `App.tsx`, `features/chat/*` |
 | 4 | Extrair dossie do App | planned | `features/dossier/` ativo; waterfall fora do App | `start-of-sprint-4` | `App.tsx`, `features/dossier/*` |

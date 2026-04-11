@@ -158,11 +158,13 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
 
   const flagRegex = /\[\[PORTA_FLAG:(TRAD|LOCK|NOFIT):(?:\[)?(SIM|NAO|NÃO)(?:\])?(?::[^\]]+)?]]/g;
   while ((match = flagRegex.exec(content)) !== null) {
+    const flag = match[1] as PortaFlag;
+    if (flag === 'LOCK') continue;
     result.flags.push({
       source,
-      flag: match[1] as PortaFlag,
+      flag,
       active: match[2] === 'SIM',
-      justification: `Deep dive ${source} ${match[2] === 'SIM' ? 'ativou' : 'desativou'} flag ${match[1]}`,
+      justification: `Deep dive ${source} ${match[2] === 'SIM' ? 'ativou' : 'desativou'} flag ${flag}`,
     });
   }
 

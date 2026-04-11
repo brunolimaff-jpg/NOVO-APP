@@ -118,7 +118,7 @@
 
 ## api/ — Serverless Functions (Vercel)
 
-Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas do `useChat.ts` e encaminham ao Gemini com autenticação server-side.
+Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas da camada de services e encaminham ao Gemini com autenticação server-side.
 
 ---
 

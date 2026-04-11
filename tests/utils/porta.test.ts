@@ -13,7 +13,7 @@ describe('PORTA helpers', () => {
     const parsed = parsePortaMarkerV2('[[PORTA:51:P7:O8:R6:T7:A7:PRD:TRAD]]');
 
     expect(parsed).toEqual({
-      score: 51,
+      score: 43,
       p: 7,
       o: 8,
       r: 6,
@@ -94,7 +94,7 @@ describe('PORTA helpers', () => {
     });
   });
 
-  it('applies trading and lock penalties when feed flags are active', () => {
+  it('ignores legacy LOCK and keeps only active supported penalties', () => {
     const parsed = buildPortaScoreFromFeeds(`
 [[PORTA_FEED_O:[4]:ELOS:[Comercializacao]]]
 [[PORTA_FEED_R:[6]:PRESSOES:[SEFAZ]]]
@@ -111,14 +111,14 @@ describe('PORTA helpers', () => {
     `);
 
     expect(parsed).toEqual({
-      score: 12,
+      score: 24,
       p: 6,
       o: 4,
       r: 5,
       t: 3,
       a: 4,
       segmento: 'PRD',
-      flags: ['TRAD', 'LOCK'],
+      flags: ['TRAD'],
       scoreBruto: 40,
     });
   });
@@ -153,7 +153,7 @@ describe('PORTA helpers', () => {
 
   it('calculates weights and penalties consistently', () => {
     expect(calculatePortaScoreBruto(9, 9, 8, 6, 5, 'AGI')).toBe(76);
-    expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.3);
+    expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.6);
   });
 
   it('resolves a waterfall score from feed markers when the explicit marker is absent', () => {

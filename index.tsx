@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { AuthProvider } from './contexts/AuthContext';
+import { OperatorProvider } from './contexts/OperatorContext';
 import { ModeProvider } from './contexts/ModeContext';
 import { CRMProvider } from './contexts/CRMContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -109,13 +109,13 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+        <OperatorProvider>
           <ModeProvider>
             <CRMProvider>
               <App />
             </CRMProvider>
           </ModeProvider>
-        </AuthProvider>
+        </OperatorProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>,

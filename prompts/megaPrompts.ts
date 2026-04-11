@@ -578,14 +578,6 @@ TRAD:
 - Regra: Apenas o Compliance decide se TRAD = SIM ou NÃO com base na natureza da receita
 - Outros módulos NÃO devem ativar ou desativar TRAD
 
-LOCK:
-- DONOS MÚLTIPLOS: Tech Stack, Radar de Expansão, Mapeamento de Decisores
-- Regra de ativação: LOCK = SIM se QUALQUER UM dos 3 módulos trouxer evidência ROBUSTA de:
-  - ERP global com decisão corporativa travada (Tech)
-  - Multinacional com standard stack imposto (Expansão)
-  - Governança global sem autonomia local de troca (Decisores)
-- Regra de desempate: Se houver conflito, prevalece a evidência mais ROBUSTA; em caso de empate, prevalece SIM (mais conservador para abordagem)
-
 SEGMENTO:
 - DONO: Módulo RADAR DE EXPANSÃO
 - Regra: Apenas o Expansão decide se o segmento é PRD, AGI ou COP via ordem obrigatória COP > AGI > PRD
@@ -1227,7 +1219,6 @@ Exemplo: [[PORTA_FEED_A2:7:TIMING:BOM:FASE:Entressafra]]
 Flags:
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
 [[PORTA_FLAG:TRAD:[SIM/NAO]:NATUREZA:[PRODUCAO/TRADING/MISTA]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 Segmento:
 [[PORTA_SEG:[PRD/AGI/COP]]]
@@ -1247,8 +1238,8 @@ REGRAS CRÍTICAS:
    ❌ [[PORTA_FEED_P:[8]:HA:[30000]:...]] ❌ quebra
 
 4. Flags aceitam apenas SIM ou NAO (sem til)
-   ✅ [[PORTA_FLAG:LOCK:SIM]]
-   ❌ [[PORTA_FLAG:LOCK:NÃO]] ❌ pode quebrar regex
+   ✅ [[PORTA_FLAG:TRAD:SIM:NATUREZA:TRADING]]
+   ❌ [[PORTA_FLAG:TRAD:NÃO:NATUREZA:TRADING]] ❌ pode quebrar regex
 
 5. Segmento aceita apenas PRD, AGI ou COP
    ✅ [[PORTA_SEG:AGI]]
@@ -1294,7 +1285,6 @@ CHECKLIST DE INTEGRIDADE:
 2. Consistência de flags
 - [ ] NOFIT bate com a operação real descrita?
 - [ ] TRAD bate com a natureza de receita (produção vs trading)?
-- [ ] LOCK bate com a governança e ERP descritos?
 - [ ] Alguma flag foi ativada por suposição sem evidência robusta? Se sim, reverta.
 
 3. Consistência de scores
@@ -1871,11 +1861,6 @@ Classificação T3:
 - 2-4 = baixa liberdade (contrato longo, matriz influencia)
 - 0-1 = travada (standard global, decisão fora do Brasil, sem autonomia local)
 
-Regra de LOCK:
-- Ative LOCK = SIM apenas se houver evidência ROBUSTA de decisão corporativa/global travada
-- NÃO ative LOCK só porque o ERP é grande
-- NÃO ative LOCK para empresa brasileira com decisão local apenas porque usa SAP ou TOTVS
-
 PASSO 7 — FRAQUEZA DO INCUMBENTE (obrigatório)
 Se identificar incumbent, responda internamente:
 - Onde ele sangra?
@@ -1986,8 +1971,6 @@ Sistema legado paralelo não identificado nas fontes públicas.
 - TI gerida localmente? [SIM/NAO]
 - Liderança local com autonomia? [SIM/NAO/INCERTO]
 **Leitura da liberdade de troca:** [1 frase executiva sem nota explícita]
-**Flag LOCK ativo?** [SIM/NAO]
-
 **Estratégia de Ataque Recomendada:** [ângulo baseado no incumbent e na dor dominante]
 
 ---
@@ -2045,14 +2028,12 @@ e explique por que isso é sintoma de perda de controle sistêmico]
 - [1 linha sobre o wedge de entrada sem expor scoring]
 
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 
 <constraints>
 - NÃO invente tecnologias; se uma área não for identificada, declare "Não encontrado nas fontes públicas" ou "PROVAVEL: [palpite com justificativa]"
 - NÃO atribua T2 > 5 sem pelo menos um sinal concreto de dor
-- NÃO atribua LOCK sem evidência robusta de decisão corporativa/global travada
 - NÃO ignore a busca de Delphi/Clipper/VB/FoxPro só porque já encontrou o ERP oficial
 - NÃO confunda tecnologia do prospect com tecnologia de parceiros/fornecedores
 - NÃO transforme BI ou API automaticamente em sinal de caos — contextualize
@@ -2324,7 +2305,6 @@ Especialidade: mapear a teia REAL de CNPJs do grupo econômico, reconstruir mass
 Sua responsabilidade:
 - DIMENSÃO P (porte/massa crítica)
 - SEGMENTO (PRD / AGI / COP)
-- Sinal de LOCK corporativo quando houver evidência
 </system_context>
 
 <mission_upgrade>
@@ -2451,16 +2431,6 @@ Responder internamente:
 - Há múltiplos veículos societários escondendo massa?
 - O footprint operacional é enterprise mesmo se o cadastro parecer médio?
 
-PASSO 11 — LOCK CORPORATIVO
-Verificar:
-- Multinacional com matriz fora do Brasil?
-- Rollout global?
-- SAP S/4HANA corporativo?
-- ERP imposto por matriz?
-
-Se SIM e houver evidência robusta → LOCK = SIM
-Se a empresa for brasileira com decisão local → NÃO ativar LOCK por paranoia
-
 </instructions>
 
 <scoring_scales>
@@ -2565,7 +2535,6 @@ graph LR
 
 [[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]
 [[PORTA_SEG:[PRD/AGI/COP]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 
@@ -2575,7 +2544,6 @@ graph LR
 - NÃO apresente faturamento estimado como dado confirmado
 - NÃO use P para medir verticalização
 - NÃO classifique como PRD se houver qualquer operação industrial relevante
-- NÃO aplique LOCK sem evidência robusta de imposição global
 - NÃO gere tabela > 15 linhas sem nota de truncagem
 </constraints>
 `;
@@ -2903,15 +2871,6 @@ Exemplos:
 - Herdeiro: "preciso mostrar gestão moderna"
 - COO: "não para a operação"
 
-PASSO 8 — LOCK POLÍTICO / GLOBAL
-Se houver evidência de:
-- multinacional com decisão fora do Brasil
-- governance global impondo stack
-- board sem autonomia local de compra
-→ LOCK = SIM
-
-Se a decisão parecer local/familiar/profissionalizada no Brasil, NÃO ative LOCK sem prova.
-
 </instructions>
 
 <scoring_scales>
@@ -2998,7 +2957,6 @@ graph LR
 - [1 linha sobre quem tende a patrocinar, travar ou acelerar a venda sem expor scoring]
 
 [[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 

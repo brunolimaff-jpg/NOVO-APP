@@ -64,7 +64,7 @@ export const PORTA_WEIGHTS: Record<PortaSegmento, { p: number; o: number; r: num
 
 export const PORTA_FLAG_PENALTIES: Record<PortaFlag, number> = {
   TRAD: 0.6,
-  LOCK: 0.5,
+  LOCK: 1,
   NOFIT: 0.3,
 };
 
@@ -234,7 +234,7 @@ export interface ChatInterfaceProps {
   canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
   canWarRoom?: boolean;
-  onLogout: () => void;
+  onClearOperator: () => void;
   lastUserQuery?: string;
   processing?: {
     stage?: string;

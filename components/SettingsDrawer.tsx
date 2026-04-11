@@ -10,8 +10,8 @@ const SystemHealthCheck = React.lazy(() => import('./SystemHealthCheck'));
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  userName: string;
-  onUpdateName: (name: string) => void;
+  operatorName: string;
+  onUpdateOperatorName: (name: string) => void;
   mode: ChatMode;
   onSetMode: (mode: ChatMode) => void;
   isDarkMode: boolean;
@@ -21,7 +21,7 @@ interface SettingsDrawerProps {
   onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
   onCopyMarkdown: () => void;
   onScheduleFollowUp: () => void;
-  onLogout?: () => void;
+  onClearOperator?: () => void;
   exportStatus: 'idle' | 'loading' | 'success' | 'error';
   exportError?: string | null;
   canAccessDashboard?: boolean;
@@ -31,8 +31,8 @@ interface SettingsDrawerProps {
 const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   isOpen,
   onClose,
-  userName,
-  onUpdateName,
+  operatorName,
+  onUpdateOperatorName,
   isDarkMode,
   onToggleTheme,
   onOpenDashboard,
@@ -40,7 +40,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onExportConversation,
   onCopyMarkdown,
   onScheduleFollowUp,
-  onLogout,
+  onClearOperator,
   exportStatus,
   exportError,
   canAccessDashboard = true,
@@ -60,21 +60,21 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   const [importSessionCount, setImportSessionCount] = useState(0);
 
   // Estado local para edição do nome — evita cursor pulando ao digitar
-  const [localName, setLocalName] = useState(userName);
+  const [localName, setLocalName] = useState(operatorName);
 
-  // Sincroniza se o userName externo mudar (ex: logout/login)
+  // Sincroniza se o nome do operador mudar fora do drawer.
   useEffect(() => {
-    setLocalName(userName);
-  }, [userName]);
+    setLocalName(operatorName);
+  }, [operatorName]);
 
   // Confirma a alteração ao sair do campo ou pressionar Enter
   const commitName = () => {
     const trimmed = localName.trim();
-    if (trimmed && trimmed !== userName) {
-      onUpdateName(trimmed);
+    if (trimmed && trimmed !== operatorName) {
+      onUpdateOperatorName(trimmed);
     } else if (!trimmed) {
       // Não permite nome vazio — restaura o valor anterior
-      setLocalName(userName);
+      setLocalName(operatorName);
     }
   };
 
@@ -507,7 +507,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               <button
                 onClick={() => {
                   onClose();
-                  onLogout?.();
+                  onClearOperator?.();
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-red-500/40 ${
                   isDarkMode
@@ -517,8 +517,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               >
                 <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-red-800/60' : 'bg-red-200'}`}>🚪</span>
                 <div>
-                  <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-800'}`}>Sair da conta</p>
-                  <p className={`text-xs ${isDarkMode ? 'text-red-500' : 'text-red-600'}`}>Encerrar sessão atual</p>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-800'}`}>Trocar nome</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-red-500' : 'text-red-600'}`}>Limpar nome salvo e voltar para a tela inicial</p>
                 </div>
               </button>
             </div>

@@ -118,10 +118,10 @@ describe('parsePortaFeeds', () => {
     expect(aAdj?.subScores?.A1).toBe(9);
   });
 
-  it('parseia flag PORTA_FLAG:LOCK:SIM como ativa', () => {
+  it('ignora flag PORTA_FLAG:LOCK:SIM por ser legado descontinuado', () => {
     const text = '[[PORTA_FLAG:LOCK:SIM]]';
     const result = parsePortaFeeds(text, 'RISCOS');
-    expect(result.flags.some(f => f.flag === 'LOCK' && f.active === true)).toBe(true);
+    expect(result.flags).toHaveLength(0);
   });
 
   it('parseia flag PORTA_FLAG:TRAD:NAO como inativa', () => {

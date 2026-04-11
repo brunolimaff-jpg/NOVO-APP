@@ -44,7 +44,7 @@ describe('convertMarkdownToHTML', () => {
   it('converts PORTA score markers with segment and flags', () => {
     const result = convertMarkdownToHTML('[[PORTA:51:P7:O8:R6:T7:A7:PRD:TRAD]]', false);
     expect(result).toContain('porta-score');
-    expect(result).toContain('51');
+    expect(result).toContain('43');
     expect(result).toContain('Média Compatibilidade');
     expect(result).toContain('PRD');
     expect(result).toContain('TRAD');

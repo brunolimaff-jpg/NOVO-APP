@@ -11,9 +11,6 @@ import {
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from '../prompts/megaPrompts';
 
-const withFoundation = (prompt: string) =>
-  SHARED_FOUNDATION_BLOCK + '\n\n---\n\n' + prompt;
-
 interface DeepDiveTopicsProps {
   onSelectTopic: (displayMessage: string, hiddenPrompt: string) => void;
 }
@@ -142,7 +139,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         tooltip:
           'Identifica sponsor, dono do orçamento, veto, sabotador, shadow board, sucessão, trigger político e a narrativa certa para cada ator.',
         subtitle: 'Sponsor, veto, sabotador e janela política',
-        impact: 'Impacto brutal em A + LOCK',
+        impact: 'Impacto brutal em A',
         icon: '🎭',
         basePrompt: PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
       },

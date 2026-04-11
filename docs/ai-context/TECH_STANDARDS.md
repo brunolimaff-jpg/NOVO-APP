@@ -29,7 +29,7 @@
 
 ### State Management
 - **Estado local** (useState) para UI state do componente
-- **Context** para estado compartilhado entre árvores de componentes (auth, theme, toast)
+- **Context** para estado compartilhado entre árvores de componentes (operator, theme, toast)
 - **Hooks customizados** para lógica de negócio (useChat, useRadar, useSessionManager)
 - **localStorage** para persistência de sessões (via useSessionStorage com serialização tipada)
 - **NUNCA** estado global quando local é suficiente

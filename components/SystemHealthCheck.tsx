@@ -3,8 +3,7 @@ import { buscarContextoPinecone, buscarContextoDocsPinecone } from '../services/
 import { lookupCliente } from '../services/clientLookupService';
 import { BACKEND_URL } from '../services/apiConfig';
 import { proxyGeminiHealth } from '../services/geminiProxy';
-import { useAuth } from '../contexts/AuthContext';
-import { getFeatureAccessForUser } from '../utils/featureAccess';
+import { getFeatureAccess } from '../utils/featureAccess';
 
 interface TestResult {
   name: string;
@@ -19,8 +18,7 @@ interface SystemHealthCheckProps {
 }
 
 const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClose }) => {
-  const { user } = useAuth();
-  const canUseLookup = getFeatureAccessForUser(user).clientLookup;
+  const canUseLookup = getFeatureAccess().clientLookup;
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<TestResult[]>([]);
   const [overallStatus, setOverallStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');

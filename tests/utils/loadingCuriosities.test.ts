@@ -57,4 +57,31 @@ describe('loadingCuriosities', () => {
     expect(lines.some((line) => /consultando inteligência interna/i.test(line))).toBe(false);
     expect(lines.some((line) => /grupo scheffer reforça controle logístico/i.test(line))).toBe(true);
   });
+
+  it('descarta linhas que citam explicitamente outra empresa e preserva itens genéricos', () => {
+    const raw = JSON.stringify([
+      "Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor.",
+      'Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país.',
+    ]);
+
+    const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
+
+    expect(lines.some((line) => /hart/i.test(line))).toBe(false);
+    expect(lines.some((line) => /senior/i.test(line))).toBe(true);
+    expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
+  });
+
+  it('cai para fallback da empresa atual quando todas as curiosidades estruturadas estão contaminadas', () => {
+    const raw = JSON.stringify({
+      empresa: [
+        "Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor.",
+        "Auditando o perímetro fiscal da HART'S - ALIMENTOS NATURAIS LTDA para detectar riscos e incentivos ocultos.",
+      ],
+    });
+
+    const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
+
+    expect(lines.some((line) => /hart/i.test(line))).toBe(false);
+    expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
+  });
 });

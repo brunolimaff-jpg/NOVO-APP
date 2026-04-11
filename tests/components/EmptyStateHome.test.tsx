@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmptyStateHome from '../../components/EmptyStateHome';
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { displayName: 'Bruno' } }),
+vi.mock('../../contexts/OperatorContext', () => ({
+  useOperator: () => ({ name: 'Bruno', operatorId: 'op-1', loading: false, setName: vi.fn(), clearName: vi.fn() }),
 }));
 
 vi.mock('../../services/brasilApiService', () => ({
