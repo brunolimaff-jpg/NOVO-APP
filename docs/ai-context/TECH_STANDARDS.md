@@ -25,6 +25,7 @@
 - **Custom hooks retornam objeto nomeado**, não array (exceto padrões simples como useState)
 - **Vigiar stale closures**: toda referência a state dentro de useCallback/useEffect deve estar no array de dependências ou usar useRef
 - **Cleanup obrigatório** em useEffect que cria subscriptions, timers ou listeners
+- `hooks/useChat.ts` é legado: não adicionar novos imports de produção; a proteção arquitetural vive em `tests/architecture/useChatImportGuard.test.ts`
 
 ### State Management
 - **Estado local** (useState) para UI state do componente
@@ -122,7 +123,7 @@ Erro	Ação	Feedback UI
 Network Offline	Detectar via useOffline, bloquear envio	Banner "Sem conexão. Reconectando..."
 Timeout	AbortController com timeout de 30s	Toast "A IA demorou muito. Tente novamente."
 Payload null/undefined	Validação pré-envio, early return	Não chega na UI — prevenção
-Clerk auth expired	Detectar 401, redirect para login	Modal "Sua sessão expirou"
+Persistência remota indisponível	Log + fallback local + feedback claro	Toast "Não foi possível sincronizar agora. A sessão segue salva localmente."
 localStorage full	Try/catch no setItem, limpar sessões antigas	Toast "Armazenamento cheio"
 Gemini response malformed	Fallback para texto raw sem parsing	Exibir resposta sem formatação
 
@@ -198,3 +199,9 @@ Componente	<200 linhas	400 linhas	Decompor em sub-componentes
 Hook	<150 linhas	300 linhas	Extrair sub-hooks por responsabilidade
 Service	<100 linhas	200 linhas	Separar por domínio
 Arquivo de tipos	<100 linhas	200 linhas	Separar por feature
+
+## Regras Arquiteturais Atuais
+
+- `services/geminiService.ts` e uma fachada publica de compatibilidade. Novas responsabilidades internas da camada Gemini devem ser adicionadas em `services/gemini/`.
+- Contratos publicos existentes da fachada nao devem ser quebrados sem migracao explicita dos consumidores.
+- Validacao manual final deve acontecer em preview/producao na Vercel; `npm run dev` nao representa o runtime serverless real.
