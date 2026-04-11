@@ -5,11 +5,13 @@ import App from '../App';
 
 const {
   deepDiveErrorRef,
+  deepDiveAccessRef,
   sendMessageToGeminiMock,
   generateDossierModuleMock,
   setSessionsMock,
 } = vi.hoisted(() => ({
   deepDiveErrorRef: { current: null as unknown },
+  deepDiveAccessRef: { current: true },
   sendMessageToGeminiMock: vi.fn(async () => ({
     text: 'Resposta consolidada',
     sources: [],
@@ -204,7 +206,7 @@ vi.mock('../utils/featureAccess', () => ({
     dashboard: false,
     integrityCheck: false,
     clientLookup: false,
-    deepDive: true,
+    deepDive: deepDiveAccessRef.current,
     warRoom: false,
   }),
 }));
@@ -220,6 +222,7 @@ describe('App loading variant regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     deepDiveErrorRef.current = null;
+    deepDiveAccessRef.current = true;
   });
 
   it('renderiza o shell do chat sem ReferenceError de loadingVariant', () => {
@@ -278,6 +281,21 @@ describe('App loading variant regression', () => {
     });
 
     expect(generateDossierModuleMock).toHaveBeenCalled();
+    expect(deepDiveErrorRef.current).toBeNull();
+  });
+
+  it('bloqueia Deep Dive de tópico quando feature flag está desligada', async () => {
+    deepDiveAccessRef.current = false;
+    render(<App />);
+    setSessionsMock.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-deep-dive' }));
+
+    await waitFor(() => {
+      expect(setSessionsMock).not.toHaveBeenCalled();
+      expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('none');
+    });
+
     expect(deepDiveErrorRef.current).toBeNull();
   });
 });

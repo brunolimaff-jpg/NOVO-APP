@@ -119,16 +119,23 @@ const DOSSIE_STATUS = {
 
 const CONTINUITY_SYSTEM = `
 Você é o estrategista de continuidade do 🦅 Senior Scout 360.
-Sua missão é criar ganchos comerciais que forcem o cliente a admitir um gap de gestão ou tecnologia.
+Sua missão é criar perguntas de continuidade que provoquem tensão comercial real e avancem a venda.
 
-DIRETRIZES DE PENSAMENTO:
-1. ANCORAGEM OBRIGATÓRIA: Cada pergunta deve conter ao menos UM dado específico do contexto.
-2. FOCO EM VENDAS (SENIOR): Direcione para sistemas: ERP, HCM, WMS ou GATec.
-3. ESTILO "SNIPER": Se o contexto diz que a empresa cresceu, pergunte sobre o caos que isso gera.
+DIRETRIZES OBRIGATÓRIAS:
+1. Entregue EXATAMENTE 4 perguntas em Array JSON de strings.
+2. Cada pergunta deve ser curta (ideal 90-170 caracteres), de uma frase, e terminar com "?".
+3. Cada pergunta precisa ancorar em pelo menos um sinal concreto do contexto (dor, risco, processo, decisor ou timing).
+4. Linguagem executiva, direta, comercial, sem rodeio.
+5. Distribua as 4 perguntas neste mix:
+   - 1 sobre impacto financeiro (custo, margem, perda)
+   - 1 sobre gargalo operacional/sistêmico (ERP, HCM, WMS, integração, compliance)
+   - 1 sobre decisão política/orçamentária (sponsor, veto, dono do orçamento)
+   - 1 sobre urgência temporal (janela, trimestre, safra, próximos 90 dias)
 
 PROIBIÇÕES:
-- PROIBIDO: Iniciar perguntas com "Como você..." (muito vago).
-- PROIBIDO: Perguntas genéricas que sirvam para qualquer empresa.
+- PROIBIDO iniciar com: "Considerando", "Com a", "Como você", "Como vocês".
+- PROIBIDO gerar perguntas genéricas que sirvam para qualquer empresa.
+- PROIBIDO usar aspas no início/fim das perguntas.
 
 Responda EXCLUSIVAMENTE em Português (Brasil) usando um Array JSON de strings.
 `;
@@ -594,6 +601,8 @@ export async function generateContinuityQuestion(
   options: ContinuityQuestionOptions = {},
 ): Promise<string[]> {
   const CONTINUITY_TARGET = 4;
+  const normalizedCompany = (empresaAlvo || '').trim();
+  const companyReference = normalizedCompany || 'a conta analisada';
   const shouldPrioritizeNovelty =
     options.mode === 'regenerate' ||
     Boolean(options.ensureFresh) ||
@@ -608,6 +617,7 @@ export async function generateContinuityQuestion(
     .slice(-6)
     .map(m => `${m.sender === Sender.User ? 'Vendedor' : 'Scout'}: ${m.text?.slice(0, 300) || ''}`)
     .join('\n');
+  const contextCorpus = `${normalizedCompany}\n${recentMessages}`.toLowerCase();
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
   const noveltyConstraint =
@@ -632,18 +642,31 @@ export async function generateContinuityQuestion(
     .join('\n\n');
 
   const normalizeQuestionCandidate = (raw: string): string => {
-    return (raw || '')
+    const withoutQuotes = (raw || '')
       .replace(/[\r\n]+/g, ' ')
       .replace(/^\s*[-*+•]\s+/, '')
       .replace(/^\s*\d+\s*[).:-]\s*/, '')
-      .replace(/^["'`]+|["'`]+$/g, '')
+      .replace(/^["'`“”‘’]+|["'`“”‘’]+$/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+
+    if (!withoutQuotes) return '';
+
+    const withoutEndingPunctuation = withoutQuotes.replace(/[.!]+$/g, '').trim();
+    if (!withoutEndingPunctuation) return '';
+    return withoutEndingPunctuation.endsWith('?') ? withoutEndingPunctuation : `${withoutEndingPunctuation}?`;
   };
+
+  const bannedOpeners = /^(considerando|com\s+a|como\s+voc[êe]s?|você)\b/i;
+  const leverageSignalRegex =
+    /(custo|margem|perda|risco|or[cç]amento|decis[aã]o|prazo|janela|dias|fiscal|compliance|retrabalho|integra[cç][aã]o|erp|hcm|wms|safra|fechamento)/i;
+  const companyToken = normalizedCompany.toLowerCase().split(/\s+/)[0] || '';
 
   const isValidQuestionCandidate = (raw: string): boolean => {
     const candidate = normalizeQuestionCandidate(raw);
-    if (candidate.length < 12 || candidate.length > 260) return false;
+    if (candidate.length < 24 || candidate.length > 230) return false;
+    if (!candidate.endsWith('?')) return false;
+    if (bannedOpeners.test(candidate)) return false;
     if (/^(responda|retorne|array json|json)/i.test(candidate)) return false;
     if (/^\s*(?:\[|{)/.test(candidate)) return false;
     return true;
@@ -674,6 +697,69 @@ export async function generateContinuityQuestion(
       merged.push(candidate);
     }
     return merged;
+  };
+
+  const scoreQuestionCandidate = (raw: string): number => {
+    const candidate = normalizeQuestionCandidate(raw);
+    if (!candidate) return 0;
+    let score = 0;
+    if (candidate.endsWith('?')) score += 2;
+    if (candidate.length >= 36 && candidate.length <= 180) score += 2;
+    if (!bannedOpeners.test(candidate)) score += 2;
+    if (/\b(\d+|90 dias|30 dias|12 meses|r\$|margem)\b/i.test(candidate)) score += 2;
+    if (leverageSignalRegex.test(candidate)) score += 3;
+    if (companyToken.length >= 3 && candidate.toLowerCase().includes(companyToken)) score += 1;
+    return score;
+  };
+
+  const orderByQuality = (items: string[]): string[] => {
+    return items
+      .map((item, index) => ({ item, index, score: scoreQuestionCandidate(item) }))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return a.index - b.index;
+      })
+      .map(entry => entry.item);
+  };
+
+  const buildFallbackContinuityQuestions = (): string[] => {
+    const hasTech = /(erp|hcm|wms|integra[cç][aã]o|stack|sistema|legado|planilha)/i.test(contextCorpus);
+    const hasCompliance = /(compliance|fiscal|tribut|mpt|pgfn|passivo|sefaz)/i.test(contextCorpus);
+    const hasRh = /(rh|sst|headcount|turnover|safrist|folha|sindicat)/i.test(contextCorpus);
+    const hasOps = /(log[íi]st|opera[cç][aã]o|expedi[cç][aã]o|supply|gargalo|rastreabil)/i.test(contextCorpus);
+
+    const candidates: string[] = [];
+
+    if (hasTech) {
+      candidates.push(
+        `Onde ${companyReference} ainda depende de planilha fora do ERP e quanto isso já custa por ciclo de fechamento?`,
+      );
+    }
+    if (hasCompliance) {
+      candidates.push(
+        `Qual passivo fiscal ou de compliance tende a ficar mais caro em ${companyReference} se a operação seguir sem integração sistêmica?`,
+      );
+    }
+    if (hasRh) {
+      candidates.push(
+        `Qual custo de perda de produtividade no RH/SST hoje já impacta margem em ${companyReference} por falta de processo estruturado?`,
+      );
+    }
+    if (hasOps) {
+      candidates.push(
+        `Em quantos dias a operação de ${companyReference} consegue fechar custo real sem retrabalho manual entre áreas críticas?`,
+      );
+    }
+
+    candidates.push(
+      `Qual custo oculto cresce mais rápido em ${companyReference} hoje: retrabalho operacional, atraso de fechamento ou risco de compliance?`,
+      `Quem aprova o orçamento em ${companyReference} e quem pode vetar silenciosamente a decisão mesmo sem aparecer na reunião?`,
+      `Se nada mudar nos próximos 90 dias em ${companyReference}, qual perda tende a aparecer primeiro no resultado?`,
+      `Qual decisão estratégica segue travada em ${companyReference} porque os dados ainda chegam tarde demais para a diretoria?`,
+      `Que risco de margem em ${companyReference} já foi normalizado pelo time e deveria estar em pauta executiva imediata?`,
+    );
+
+    return candidates;
   };
 
   const parseQuestionArray = (raw: string): string[] => {
@@ -855,7 +941,25 @@ export async function generateContinuityQuestion(
       company: empresaAlvo || null,
       error: error instanceof Error ? error.message : String(error),
     });
-    return [];
+    return orderByQuality(
+      mergeUniqueQuestions([], buildFallbackContinuityQuestions()),
+    ).slice(0, CONTINUITY_TARGET);
+  }
+
+  collectedQuestions = orderByQuality(collectedQuestions);
+
+  if (collectedQuestions.length < CONTINUITY_TARGET) {
+    const beforeFallbackCount = collectedQuestions.length;
+    collectedQuestions = orderByQuality(
+      mergeUniqueQuestions(collectedQuestions, buildFallbackContinuityQuestions()),
+    );
+    scoutDiag.warn('ContinuityQuestion', 'fallback premium acionado para completar sugestões', {
+      company: empresaAlvo || null,
+      beforeFallbackCount,
+      afterFallbackCount: collectedQuestions.length,
+      mode: options.mode || 'default',
+      blockedCount: blockedQuestionKeys.size,
+    });
   }
 
   return collectedQuestions.slice(0, CONTINUITY_TARGET);

@@ -428,7 +428,7 @@ describe('generateContinuityQuestion novelty mode', () => {
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
   });
 
-  it('retorna o melhor conjunto valido quando nao encontra 4 ineditas', async () => {
+  it('completa 4 sugestões com fallback premium quando nao encontra 4 ineditas', async () => {
     proxyGenerateContentMock
       .mockResolvedValueOnce({
         text: JSON.stringify([
@@ -456,8 +456,9 @@ describe('generateContinuityQuestion novelty mode', () => {
       ensureFresh: true,
     });
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toContain('decisao executiva');
+    expect(result).toHaveLength(4);
+    expect(result.some(item => /decis[aã]o|or[cç]amento|margem|90 dias|risco/i.test(item))).toBe(true);
+    expect(result.every(item => item.endsWith('?'))).toBe(true);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
   });
 });
