@@ -83,7 +83,7 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
         {options.map((option, idx) => (
           <button
-            key={idx}
+            key={`${option.slice(0, 32)}-${idx}`}
             onClick={() => onPreFillInput(option)}
             className="text-xs text-left px-3 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm active:scale-[0.98] min-h-[44px] flex items-center"
           >

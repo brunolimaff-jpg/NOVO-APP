@@ -53,7 +53,8 @@ export async function shouldRecoverOpenQuestionByJudge(
       threshold: confidenceThreshold,
     });
     return parsed?.shouldRetry === true && confidence >= confidenceThreshold;
-  } catch {
+  } catch (err: unknown) {
+    console.warn('[Recovery] judge evaluation failed', err instanceof Error ? err.message : err);
     return false;
   }
 }

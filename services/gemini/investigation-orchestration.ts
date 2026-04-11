@@ -160,12 +160,9 @@ export async function sendMessageToGemini(
     onScorePorta,
     onCompetitor,
     onRagFailed,
-    nomeVendedor = 'Vendedor',
     sessionId,
     hintedCompany = null,
   } = options;
-
-  void nomeVendedor;
 
   if (signal?.aborted) throw new Error('AbortError');
   emitDossieStatus(onStatus, 'intent');
@@ -482,8 +479,10 @@ export async function sendMessageToGemini(
       if (competitorDetected) {
         onCompetitor({ encontrado: true, detected: true, names: ['Concorrente Detectado'] } as CompetitorDetection);
       }
-    } catch {
-      // silencioso
+    } catch (err: unknown) {
+      scoutDiag.warn('Competitor', 'falha na detecção de concorrentes', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

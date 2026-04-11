@@ -99,16 +99,21 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
 
   const handleCardClick = () => {
     if (alert.sourceUrl && alert.sourceUrl !== '#') {
-      window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
+      if (/^https?:\/\//i.test(alert.sourceUrl)) {
+        window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
+      }
     } else if (onOpenRadar) {
       onOpenRadar();
     }
   };
 
   return (
-    <div 
+    <div
       className={`flex flex-col rounded-xl border ${cardBg} overflow-hidden transition-all hover:shadow-lg cursor-pointer group`}
+      role="button"
+      tabIndex={0}
       onClick={handleCardClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(); } }}
     >
       <div className="flex items-start justify-between gap-2 p-4 pb-3">
         <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badge.cls}`}>
