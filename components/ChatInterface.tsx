@@ -673,17 +673,17 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 whileTap={{ scale: 0.9 }}
                 type="button"
                 onClick={handleOpenWarRoom}
-                className={`group relative p-2.5 rounded-xl transition-all shadow-md overflow-hidden ${
+                className={`group relative p-2.5 rounded-xl transition-all shadow-sm overflow-hidden ${
                   isDarkMode 
-                    ? 'bg-slate-900 border border-red-500/30' 
-                    : 'bg-white border border-red-200 shadow-red-200/50'
+                    ? 'bg-slate-900 border border-red-500/25 text-red-300'
+                    : 'bg-white border border-red-200 text-red-700'
                 }`}
                 title="War Room"
                 aria-label="Abrir War Room"
               >
                 {/* Background Glow */}
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
-                  isDarkMode ? 'from-red-600/20 to-rose-900/20' : 'from-red-50 to-rose-100'
+                  isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
                 }`} />
 
                 <div className="relative flex items-center justify-center">
@@ -697,21 +697,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    {/* Sword 1 */}
-                    <g transform="rotate(45, 12, 12)">
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 20V8" />
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M10.4 8L12 6l1.6 2" />
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M9.5 10h5" />
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M10.7 20h2.6" />
-                    </g>
+                    {/* Left sword */}
+                    <path d="M7 17L17 7" />
+                    <path d="M16 6h2v2" />
+                    <path d="M6.6 17.4l1.8-1.8" />
+                    <path d="M5.3 18.7l1.3-1.3" />
+                    <path d="M4.7 19.3l.8-.8" />
+                    <path d="M5.8 16.2l2 2" />
 
-                    {/* Sword 2 */}
-                    <g transform="rotate(-45, 12, 12)">
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 20V8" />
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M10.4 8L12 6l1.6 2" />
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M9.5 10h5" />
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M10.7 20h2.6" />
-                    </g>
+                    {/* Right sword */}
+                    <path d="M17 17L7 7" />
+                    <path d="M8 6H6v2" />
+                    <path d="M17.4 17.4l-1.8-1.8" />
+                    <path d="M18.7 18.7l-1.3-1.3" />
+                    <path d="M19.3 19.3l-.8-.8" />
+                    <path d="M18.2 16.2l-2 2" />
                   </svg>
                 </div>
               </motion.button>
