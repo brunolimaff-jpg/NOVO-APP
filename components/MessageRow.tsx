@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Message, Sender, AppError, Feedback, PortaDimension } from '../types';
 import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
@@ -115,6 +115,7 @@ function PortaFallbackAlert({
   hasConfirmedCnpj,
   onRetry,
   retryDisabled,
+  retryPending,
 }: {
   isDarkMode: boolean;
   dimensions: PortaDimension[];
@@ -122,6 +123,7 @@ function PortaFallbackAlert({
   hasConfirmedCnpj: boolean;
   onRetry: () => void;
   retryDisabled: boolean;
+  retryPending: boolean;
 }) {
   const modules = Array.from(
     new Set(dimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
@@ -164,9 +166,18 @@ function PortaFallbackAlert({
           }`}
           title="Reexecutar somente os módulos pendentes para consolidar o Score PORTA"
         >
-          Tentar novamente pendências
+          {retryPending ? 'Reexecutando pendências…' : 'Tentar novamente pendências'}
         </button>
       </div>
+      {retryPending && (
+        <p
+          role="status"
+          aria-live="polite"
+          className={`mt-2 text-[11px] font-semibold ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}
+        >
+          Reexecução iniciada. Consolidando evidências pendentes do Score PORTA…
+        </p>
+      )}
     </div>
   );
 }
@@ -210,6 +221,9 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     [msg.text, msg.groundingSources],
   );
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
+  const [portaRetryPending, setPortaRetryPending] = useState(false);
+  const portaRetrySawLoadingRef = useRef(false);
+  const portaRetryWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // groundingUsed === false (explicitamente): fallback silencioso acionado.
   // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
@@ -226,13 +240,49 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
   const handlePortaRetry = () => {
-    if (!portaRetryPrompt) return;
+    if (!portaRetryPrompt || portaRetryPending) return;
+    setPortaRetryPending(true);
+    portaRetrySawLoadingRef.current = false;
+    if (portaRetryWatchdogRef.current) clearTimeout(portaRetryWatchdogRef.current);
+    portaRetryWatchdogRef.current = setTimeout(() => {
+      if (!portaRetrySawLoadingRef.current) {
+        setPortaRetryPending(false);
+      }
+    }, 4500);
+
     if (onSendMessage) {
       onSendMessage(portaRetryPrompt);
       return;
     }
+    setPortaRetryPending(false);
     setInput(portaRetryPrompt);
   };
+
+  useEffect(() => {
+    if (!portaRetryPending) return;
+
+    if (isLoading) {
+      portaRetrySawLoadingRef.current = true;
+      if (portaRetryWatchdogRef.current) {
+        clearTimeout(portaRetryWatchdogRef.current);
+        portaRetryWatchdogRef.current = null;
+      }
+      return;
+    }
+
+    if (portaRetrySawLoadingRef.current) {
+      setPortaRetryPending(false);
+      portaRetrySawLoadingRef.current = false;
+    }
+  }, [isLoading, portaRetryPending]);
+
+  useEffect(() => {
+    return () => {
+      if (portaRetryWatchdogRef.current) {
+        clearTimeout(portaRetryWatchdogRef.current);
+      }
+    };
+  }, []);
 
   let content: React.ReactNode;
 
@@ -331,7 +381,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                   companyName={empresaAlvo}
                   hasConfirmedCnpj={hasConfirmedCnpj}
                   onRetry={handlePortaRetry}
-                  retryDisabled={isLoading}
+                  retryDisabled={isLoading || portaRetryPending}
+                  retryPending={portaRetryPending}
                 />
               )}
               {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}

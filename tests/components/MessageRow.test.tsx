@@ -241,6 +241,10 @@ describe('MessageRow', () => {
     expect(retryPrompt).toContain('Dimensões pendentes: O, T');
     expect(retryPrompt).toContain('Raio-X Operacional');
     expect(retryPrompt).toContain('Tech Stack');
+    expect(screen.getByRole('button', { name: /Reexecutando pendências/i })).toBeDisabled();
+    expect(
+      screen.getByText(/Reexecução iniciada\. Consolidando evidências pendentes do Score PORTA/i),
+    ).toBeInTheDocument();
   });
 
   it('oculta lembrete de confirmação de CNPJ quando já existe CNPJ válido', () => {
