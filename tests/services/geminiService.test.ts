@@ -66,6 +66,13 @@ import {
   sendMessageToGemini,
   generateContinuityQuestion,
 } from '../../services/geminiService';
+import { Sender } from '../../types';
+
+function expectStrongContinuitySet(result: string[]) {
+  expect(result).toHaveLength(4);
+  expect(result.every(item => item.endsWith('?'))).toBe(true);
+  expect(result.some(item => /margem|perda|risco|gargalo|trav|retrabalho|custo|press[aã]o|diretoria|integra[cç][aã]o/i.test(item))).toBe(true);
+}
 
 describe('parsePortaFeeds', () => {
   it('retorna resultado vazio para texto sem marcadores', () => {
@@ -215,34 +222,35 @@ describe('generateContinuityQuestion', () => {
       text: JSON.stringify([
         'Quais gargalos fiscais hoje atrasam o fechamento mensal da operação?',
         'Onde o ERP atual falha ao consolidar custos entre unidades e safra?',
-        'Qual risco de continuidade vocês enxergam se mantiverem o stack atual até a próxima colheita?',
-        'Que indicador executivo vocês mais precisam acompanhar em tempo real e ainda não conseguem?',
+        'Que indicador executivo segue sem dono claro quando o fechamento pressiona a diretoria?',
+        'Se nos próximos 90 dias a integração continuar falhando entre áreas, qual perda tende a aparecer primeiro?',
       ]),
     });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
-    expect(result).toHaveLength(4);
+    expectStrongContinuitySet(result);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(1);
   });
 
-  it('extrai array JSON embutido em texto adicional', async () => {
+  it('extrai array JSON embutido em texto adicional e permite citar a empresa quando fortalece a pergunta', async () => {
     proxyGenerateContentMock.mockResolvedValueOnce({
-      text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
+      text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque em Acme Agro perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
     });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
-    expect(result).toHaveLength(4);
-    expect(result[0]).toContain('Qual dor operacional');
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /Acme Agro/i.test(item))).toBe(true);
+    expect(result.some(item => item.includes('Qual dor operacional'))).toBe(true);
   });
 
-  it('extrai perguntas de texto livre quando JSON não existe', async () => {
+  it('extrai perguntas de texto livre preservando o tom sniper', async () => {
     proxyGenerateContentMock.mockResolvedValueOnce({
-      text: `1. Qual processo hoje depende de planilha e gera perda de controle?\n2. Onde a operação sofre mais retrabalho por falta de integração?\n3. Que decisão executiva demora por ausência de dados confiáveis?\n4. Qual risco comercial cresce se nada mudar neste trimestre?`,
+      text: `1. Qual processo hoje depende de planilha e gera perda de controle?\n2. Onde a operação sofre mais retrabalho por falta de integração?\n3. Que decisão executiva demora por ausência de dados confiáveis?\n4. Qual custo oculto já virou rotina e ainda não incomodou a diretoria?`,
     });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
-    expect(result).toHaveLength(4);
-    expect(result[2]).toContain('decisão executiva');
+    expectStrongContinuitySet(result);
+    expect(result.some(item => item.includes('decisão executiva'))).toBe(true);
   });
 
   it('faz retry automático quando a primeira tentativa retorna menos de 4 perguntas', async () => {
@@ -255,8 +263,34 @@ describe('generateContinuityQuestion', () => {
       });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
-    expect(result).toHaveLength(4);
+    expectStrongContinuitySet(result);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('usa fallback guiado pelos sinais do dossie e mantém pressão comercial sem depender de 90 dias', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: '["Mensagem inválida"]',
+      })
+      .mockResolvedValueOnce({
+        text: '["Pergunta repetida"]',
+      });
+
+    const result = await generateContinuityQuestion(
+      [
+        {
+          id: '1',
+          sender: Sender.Bot,
+          text: 'Há risco fiscal, retrabalho no fechamento, integração frágil entre ERP e planilhas e pressão de compliance.',
+          timestamp: new Date(),
+        },
+      ],
+      'Acme Agro',
+      'Bruno',
+    );
+
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /fiscal|compliance|integra[cç][aã]o|fechamento/i.test(item))).toBe(true);
   });
 });
 
@@ -413,6 +447,7 @@ describe('generateContinuityQuestion novelty mode', () => {
         text: JSON.stringify([
           'Qual decisao comercial esta atrasando por falta de integracao fiscal?',
           'Onde a equipe perde mais margem por retrabalho de dados?',
+          'Que ruptura operacional ja ficou cara demais para continuar sendo tratada como excecao?',
         ]),
       });
 
@@ -422,7 +457,7 @@ describe('generateContinuityQuestion novelty mode', () => {
       ensureFresh: true,
     });
 
-    expect(result).toHaveLength(4);
+    expectStrongContinuitySet(result);
     expect(result.some(item => /processo critico/i.test(item))).toBe(false);
     expect(result.some(item => /ERP atual trava/i.test(item))).toBe(false);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
@@ -456,9 +491,8 @@ describe('generateContinuityQuestion novelty mode', () => {
       ensureFresh: true,
     });
 
-    expect(result).toHaveLength(4);
-    expect(result.some(item => /decis[aã]o|or[cç]amento|margem|90 dias|risco/i.test(item))).toBe(true);
-    expect(result.every(item => item.endsWith('?'))).toBe(true);
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /decis[aã]o|or[cç]amento|margem|risco|custo/i.test(item))).toBe(true);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
   });
 });
