@@ -9,7 +9,7 @@ description: >
   or improving error handling. Covers Clean Code, SOLID, and test-driven development.
 category: engineering
 tags: [clean-code, refactoring, solid, code-review, tdd, best-practices]
-recommended_skills: [code-review-mastery, refactoring-patterns, test-strategy, clean-architecture]
+recommended_skills: [code-review-mastery, refactoring-patterns, clean-architecture]
 platforms:
   - claude-code
   - gemini-cli

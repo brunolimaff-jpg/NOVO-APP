@@ -10,7 +10,7 @@ description: >
   codebase documentation that serves AI agents, developers, and new team members.
 category: engineering
 tags: [documentation, codebase, onboarding, architecture, ai-agent, code-understanding]
-recommended_skills: [technical-writing, internal-docs, clean-code, developer-experience, open-source-management]
+recommended_skills: [clean-code]
 platforms:
   - claude-code
   - gemini-cli
