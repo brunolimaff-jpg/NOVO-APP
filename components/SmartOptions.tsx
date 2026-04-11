@@ -28,12 +28,11 @@ export function parseSmartOptions(text?: string): { cleanText: string; options: 
       const lines = suggestionsBlock.split('\n');
       const options = lines
         .map(line => line.trim())
-        .filter(line => /^[\*\-•\+]\s/.test(line) || /^\d+\./.test(line))
+        .filter(line => /^[*+\-•]\s/.test(line) || /^\d+\./.test(line))
         .map(line => {
             const clean = line
-                .replace(/^[\*\-•\+\d\.]+\s*/, '')
-                .replace(/^\"|\"$/g, '')
-                .replace(/^'|'$/g, '')
+                .replace(/^[*+•\d.-]+\s*/, '')
+                .replace(/^"|"$|^'|'$/g, '')
                 .replace(/\*+$/, '')
                 .trim();
             return cleanSuggestionText(clean);

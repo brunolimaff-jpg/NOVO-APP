@@ -303,7 +303,7 @@ export class PDFGenerator {
         image.src = url;
       }), 12000, 'Timeout ao carregar SVG do Mermaid para conversão PNG.');
 
-      const viewBoxMatch = svg.match(/viewBox="[\d.\-]+\s+[\d.\-]+\s+([\d.\-]+)\s+([\d.\-]+)"/i);
+      const viewBoxMatch = svg.match(/viewBox="[\d.-]+\s+[\d.-]+\s+([\d.-]+)\s+([\d.-]+)"/i);
       const vbWidth = viewBoxMatch?.[1] ? Number.parseFloat(viewBoxMatch[1]) : 0;
       const vbHeight = viewBoxMatch?.[2] ? Number.parseFloat(viewBoxMatch[2]) : 0;
 

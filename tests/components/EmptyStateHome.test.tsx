@@ -19,6 +19,20 @@ vi.mock('../../services/brasilApiService', () => ({
 }));
 
 describe('EmptyStateHome onboarding gate', () => {
+  it('mostra aviso sobre impacto de iniciar sem CNPJ no Score PORTA', () => {
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA\./i),
+    ).toBeInTheDocument();
+  });
+
   it('does not submit while required fields are missing', () => {
     const onStartInvestigation = vi.fn();
 

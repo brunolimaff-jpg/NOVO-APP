@@ -16,6 +16,10 @@ export interface UniversalExtractResult {
     error?: string;
 }
 
+function stripNullCharacters(input: string): string {
+    return input.split('\u0000').join(' ');
+}
+
 /**
  * Valida se uma URL é pública e segura para evitar SSRF.
  */
@@ -49,8 +53,7 @@ export async function extractHtml(html: string, limit = 15000): Promise<string> 
     const mainContent = $('article, main, .content, #content, .post, .article').first();
     const text = mainContent.length ? mainContent.text() : $('body').text();
 
-    return text
-        .replace(/\u0000/g, ' ')
+    return stripNullCharacters(text)
         .replace(/\s+/g, ' ')
         .trim()
         .slice(0, limit);
@@ -64,8 +67,7 @@ export async function extractPdf(buffer: Buffer): Promise<string> {
         const { PDFParse } = await import('pdf-parse');
         const parser = new PDFParse({ data: buffer });
         const parsed = await parser.getText();
-        return (parsed.text || '')
-            .replace(/\u0000/g, ' ')
+        return stripNullCharacters(parsed.text || '')
             .replace(/\s+/g, ' ')
             .trim();
     } catch (e) {
@@ -183,7 +185,7 @@ export async function universalExtract(params: {
             }
         }
 
-        const processedText = text.replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit);
+        const processedText = stripNullCharacters(text).replace(/\s+/g, ' ').trim().slice(0, limit);
 
         return {
             text: processedText,

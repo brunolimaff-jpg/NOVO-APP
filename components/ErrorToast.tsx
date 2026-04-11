@@ -11,7 +11,7 @@
  *  - Acessível: role="status", aria-live="polite"
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ElementType } from 'react';
 import type { ErrorContext } from '../utils/friendlyErrorMessage';
 import {
   getFriendlyErrorMessage,
@@ -84,7 +84,7 @@ function detectVariant(error: unknown): ToastVariant {
 
 const VARIANT_CONFIG: Record<
   ToastVariant,
-  { icon: React.ElementType; wrapperClass: string; iconClass: string }
+  { icon: ElementType; wrapperClass: string; iconClass: string }
 > = {
   network: {
     icon: WifiOff,

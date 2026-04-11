@@ -88,7 +88,7 @@ async function fetchWithTimeout(url: string, timeout: number = TIMEOUT_MS): Prom
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error(`Timeout após ${timeout / 1000}s`);
+      throw new Error(`Timeout após ${timeout / 1000}s`, { cause: err });
     }
     throw err;
   }

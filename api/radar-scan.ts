@@ -342,18 +342,12 @@ function parseAlerts(text: string, category: string, scannedAt: string, original
     const estadoRaw = getField('ESTADO');
 
     // Recuperar dados originais se o ID bater (garante URL íntegra)
-    let sourceUrl = '#';
-    let sourceName = 'Fonte';
-    
-    if (originalItems && !isNaN(idRef) && originalItems[idRef - 1]) {
-      const orig = originalItems[idRef - 1];
-      sourceUrl = orig.link;
-      sourceName = orig.sourceName;
-    } else {
-      // Fallback (se Gemini não retornar ID correto ou falhar)
-      sourceUrl = '#'; 
-      sourceName = 'Fonte';
-    }
+    const originalItem =
+      originalItems && !isNaN(idRef) && originalItems[idRef - 1]
+        ? originalItems[idRef - 1]
+        : null;
+    const sourceUrl = originalItem?.link || '#';
+    const sourceName = originalItem?.sourceName || 'Fonte';
 
     if (!title || title.length < 5) continue;
 

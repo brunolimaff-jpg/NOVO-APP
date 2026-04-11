@@ -19,7 +19,7 @@
 | `tsconfig.json` | TypeScript strict mode ativado | Estável |
 | `tailwind.config.js` | Tema customizado Senior (cores, fontes, breakpoints) | Estável |
 | `eslint.config.js` | Regras ESLint para React + TypeScript | Estável |
-| `.env.example` | Variáveis: GEMINI_API_KEY, VITE_ENABLE_DEEP_DIVE, VITE_* | Referência |
+| `.env.example` | Variáveis: GEMINI_API_KEY, VITE_BACKEND_URL, VITE_LOOKUP_URL, modelos `VITE_*` | Referência |
 | `index.css` | Reset CSS + variáveis de tema global | Estável |
 | `mobile-responsive.css` (~9KB) | Breakpoints e ajustes mobile separados | ⚠️ Débito — migrar para Tailwind nativo |
 | `metadata.json` | Metadados PWA: versão, nome, descrição | Estável |
@@ -29,9 +29,9 @@
 ## components/ — Camada de UI
 
 ### Operador & Sessão
-- `GreetingWelcomeScreen.tsx` — Gate inicial obrigatório para capturar o nome local do operador
-- `UserMenu.tsx` — Dropdown do operador: avatar/iniciais, settings e troca de nome
-- `WelcomeScreen.tsx` — Onboarding complementar de UX
+- `GreetingWelcomeScreen.tsx` — Gate inicial para nome local obrigatório do operador
+- `UserMenu.tsx` — Dropdown do operador: avatar, nome, settings e troca/limpeza de perfil local
+- `SettingsDrawer.tsx` — Preferências do operador e edicao do nome local
 
 ### Chat & Mensagens (Core do Produto)
 | Componente | Função | Tamanho |
@@ -93,8 +93,8 @@
 
 | Hook | Função | Criticidade |
 |------|--------|-------------|
-| `useChat.ts` (~26KB) | **HOOK MAIS CRÍTICO** — envio de mensagem, chamada Gemini com streaming (ReadableStream), gerenciamento de state, retry em 429, cancelamento de stream | MÁXIMA |
-| `useAppInitialization.ts` | Init do app: carrega sessões do localStorage, inicializa shell e detecta PWA | Alta |
+| `useChat.ts` (~26KB) | **LEGADO** — mantido por compatibilidade, sem consumidores de produção; protegido por teste estrutural contra novos imports | Baixa |
+| `useAppInitialization.ts` | Init do app: carrega sessões locais, hidrata preferências do operador e detecta PWA | Alta |
 | `useSessionManager.ts` | CRUD de sessões: criar, renomear, deletar, carregar | Alta |
 | `useSessionStorage.ts` | Abstração sobre localStorage com serialização/deserialização tipada | Média |
 | `useRadar.ts` (~9KB) | Lógica do Radar: polling de alertas, estado de empresas, notificações | Média |
@@ -106,9 +106,19 @@
 
 ---
 
+## services/ — Serviços de Domínio e Integração
+
+| Serviço | Função |
+|---------|--------|
+| `services/geminiService.ts` | Fachada pública estável da camada Gemini |
+| `services/gemini/` | Decomposição interna da orquestração Gemini: investigação, PORTA, fontes, sanitização, status e recovery |
+| `services/ragService.ts` | Chamada ao RAG interno e RAG de documentação |
+| `services/sessionRemoteStore.ts` | Persistência remota de sessões |
+| `services/feedbackRemoteStore.ts` | Persistência remota de feedback |
+
 ## api/ — Serverless Functions (Vercel)
 
-Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas do app e encaminham ao Gemini com credenciais server-side.
+Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas da camada de services e encaminham ao Gemini com autenticação server-side.
 
 ---
 
@@ -116,11 +126,11 @@ Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** 
 
 | Diretório | Função |
 |-----------|--------|
-| `contexts/` | React Contexts: `OperatorContext`, `CRMContext`, `ModeContext` para estado compartilhado |
-| `services/` | Wrappers das APIs externas: Gemini service, CNPJ lookup, client lookup |
+| `contexts/` | React Contexts: operador local, modo, CRM e estados compartilhados |
+| `services/` | Wrappers das APIs externas, fachada Gemini e integrações |
 | `utils/` | Funções utilitárias puras: formatação, parsing de markdown, sanitização |
 | `config/` | Configurações centralizadas de ambiente e feature flags |
-| `prompts/` | Prompts do Gemini versionados separados (complementa `constants.ts`) |
+| `prompts/` | Prompts do Gemini versionados separados |
 | `docs/` | Documentação técnica interna |
 | `tests/` | Testes unitários/integração com Vitest |
 | `scripts/` | Scripts de automação: build, deploy, geração de código |
@@ -146,11 +156,13 @@ Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** 
 ### P0 — Críticos
 - `App.tsx` (~45KB) — god component com roteamento, estado global e lógica misturados. Dissolução em andamento.
 - `constants.ts` (~52KB) — mistura prompts de IA + configurações de UI + constantes de negócio em um único arquivo.
+- `services/geminiService.ts` foi estabilizado como fachada; nova lógica interna deve entrar em `services/gemini/`, não de volta na fachada.
 
 ### P1 — Altos
 - CI sem `tsc --noEmit` como gate de merge (erros rastreados manualmente em .txt)
 - `CRMDetail.tsx` (~35KB) — componente monolítico
 - Arquivos legados na raiz: `old_appcore.tsx`, `old.tsx`, `build_err.txt`, `build_err_2.txt`, `ts_errors.txt`
+- `hooks/useChat.ts` permanece como legado; imports de produção novos são proibidos.
 
 ### P2 — Médios
 - `mobile-responsive.css` separado (deveria usar Tailwind nativo)

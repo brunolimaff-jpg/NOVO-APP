@@ -36,6 +36,7 @@ import {
   CRMStage,
   ClienteSeniorData,
   PortaDimension,
+  ScorePortaData,
 } from './types';
 import {
   sendMessageToGemini,
@@ -196,6 +197,19 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+const CONTINUITY_TARGET = 4;
+
+const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
+  score: 60,
+  p: 6,
+  o: 6,
+  r: 6,
+  t: 6,
+  a: 6,
+  segmento: 'PRD',
+  flags: [],
+  scoreBruto: 60,
+};
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
   P: ['Estratégia & Expansão'],
@@ -292,6 +306,66 @@ export function applyPortaTechnicalFallback(
     fallbackApplied: true,
     fallbackDimensions,
   };
+}
+
+export function ensureWaterfallScorePorta(
+  content: string,
+  currentResolution: PortaScoreResolution,
+): ScorePortaData {
+  if (currentResolution.score) return currentResolution.score;
+
+  const resolvedAgain = resolvePortaScore(content);
+  if (resolvedAgain.score) return resolvedAgain.score;
+
+  const technicalFallback = applyPortaTechnicalFallback(content, resolvedAgain);
+  if (technicalFallback.resolution.score) return technicalFallback.resolution.score;
+
+  return { ...HARD_WATERFALL_SCORE_FALLBACK };
+}
+
+export function shouldHoldWaterfallScoreForIntegrity(currentResolution: PortaScoreResolution): boolean {
+  return !currentResolution.score && currentResolution.missingDimensions.length === 5;
+}
+
+function normalizeContinuitySuggestion(raw: string): string {
+  const normalized = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  return normalized.endsWith('?') ? normalized : `${normalized}?`;
+}
+
+function buildContinuitySuggestionsFallback(companyName?: string | null): string[] {
+  const companyReference = (companyName || '').trim() || 'a operação';
+  return [
+    `Qual gargalo em ${companyReference} já está consumindo margem e segue tratado como rotina?`,
+    `Que decisão crítica em ${companyReference} continua travada por falta de dados confiáveis?`,
+    `Onde ${companyReference} ainda depende de planilhas e amplia risco operacional sem reação executiva?`,
+    `Se nada mudar em ${companyReference} nos próximos 90 dias, qual ruptura tende a aparecer primeiro?`,
+  ];
+}
+
+export function ensureContinuitySuggestions(
+  suggestions: string[] | null | undefined,
+  companyName?: string | null,
+): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+
+  const pushIfValid = (value: string) => {
+    const normalized = normalizeContinuitySuggestion(value);
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(normalized);
+  };
+
+  (Array.isArray(suggestions) ? suggestions : []).forEach(pushIfValid);
+
+  if (unique.length < CONTINUITY_TARGET) {
+    buildContinuitySuggestionsFallback(companyName).forEach(pushIfValid);
+  }
+
+  return unique.slice(0, CONTINUITY_TARGET);
 }
 
 const App: React.FC = () => {
@@ -610,6 +684,7 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
+    const sessionCnpjDigits = (sessionForHint?.cnpj || '').replace(/\D/g, '');
     const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
@@ -858,6 +933,7 @@ const App: React.FC = () => {
         // --- RECUPERAÇÃO DE PORTA (retry + reconciliador) ---
         let portaFallbackApplied = false;
         let portaFallbackDimensions: PortaDimension[] = [];
+        let portaIntegrityHold = false;
         let waterfallPortaResolution = resolvePortaScore(accumulatedText);
         if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.warn('ModularDossier', 'dimensões PORTA ausentes após 1ª passada', {
@@ -882,9 +958,14 @@ const App: React.FC = () => {
               missingDimensions: waterfallPortaResolution.missingDimensions,
             });
             try {
+              const retryContextHintBase = `Reexecução obrigatória para consolidar dimensões PORTA faltantes: ${waterfallPortaResolution.missingDimensions.join(', ')}.`;
+              const retryContextCnpjHint =
+                sessionCnpjDigits.length === 14
+                  ? ` Use obrigatoriamente o CNPJ ${sessionCnpjDigits} como chave de entidade desta conta.`
+                  : '';
               const retryResult = await runWaterfallModule(
                 module,
-                `Reexecução obrigatória para consolidar dimensões PORTA faltantes: ${waterfallPortaResolution.missingDimensions.join(', ')}.`,
+                `${retryContextHintBase}${retryContextCnpjHint}`,
                 MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
               );
               appendWaterfallChunk(retryResult);
@@ -953,12 +1034,21 @@ const App: React.FC = () => {
           waterfallPortaResolution = resolvePortaScore(accumulatedText);
         }
 
-        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+        if (shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution)) {
+          portaIntegrityHold = true;
+          portaFallbackApplied = true;
+          portaFallbackDimensions = Array.from(new Set(waterfallPortaResolution.missingDimensions));
+          scoutDiag.error('ModularDossier', 'integridade PORTA comprometida após retries e reconciliação', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+        } else if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           const portaFallbackResult = applyPortaTechnicalFallback(accumulatedText, waterfallPortaResolution);
           if (portaFallbackResult.fallbackApplied) {
             accumulatedText = portaFallbackResult.content;
             waterfallPortaResolution = portaFallbackResult.resolution;
-            portaFallbackApplied = Boolean(waterfallPortaResolution.score);
+            portaFallbackApplied = true;
             portaFallbackDimensions = portaFallbackResult.fallbackDimensions;
             scoutDiag.warn('ModularDossier', 'fallback técnico aplicado para dimensões PORTA ausentes', {
               sessionId,
@@ -970,7 +1060,7 @@ const App: React.FC = () => {
           }
         }
 
-        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+        if (!portaIntegrityHold && !waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.error('ModularDossier', 'falha técnica na consolidação do score PORTA', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -991,7 +1081,9 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = waterfallPortaResolution.score;
+        const waterfallScorePorta = portaIntegrityHold
+          ? null
+          : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
@@ -1036,6 +1128,10 @@ const App: React.FC = () => {
             error: error instanceof Error ? error.message : String(error),
           });
         }
+        waterfallSuggestions = ensureContinuitySuggestions(
+          waterfallSuggestions,
+          resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+        );
 
         updateSessionById(sessionId, s => {
           const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
@@ -1048,7 +1144,7 @@ const App: React.FC = () => {
                 ? {
                     ...msg,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta || undefined,
+                    scorePorta: waterfallScorePorta ?? undefined,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
                     portaFallbackApplied: portaFallbackApplied ? true : undefined,
                     portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
@@ -1094,6 +1190,8 @@ const App: React.FC = () => {
         canUseLookup,
       );
 
+      const safeSuggestions = ensureContinuitySuggestions(suggestions, normalizedCompany || hintedCompany || null);
+
       if (activeGenerationRef.current[sessionId] !== botMessageId) return;
 
       updateSessionById(sessionId, s => {
@@ -1116,7 +1214,7 @@ const App: React.FC = () => {
                   ...msg,
                   text: responseText,
                   groundingSources: sources as { title: string; url: string }[] | undefined,
-                  suggestions: (suggestions || []) as string[],
+                  suggestions: safeSuggestions,
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,

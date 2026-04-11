@@ -3,13 +3,33 @@ import {
   applyPortaTechnicalFallback,
   buildPortaFallbackChunk,
   buildPortaReconciliationPrompt,
+  ensureContinuitySuggestions,
+  ensureWaterfallScorePorta,
   resolveModuleNamesForMissingDimensions,
+  shouldHoldWaterfallScoreForIntegrity,
 } from '../App';
 
 describe('App PORTA recovery helpers', () => {
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
     const result = resolveModuleNamesForMissingDimensions(['O', 'T', 'O', 'A']);
     expect(result).toEqual(['Raio-X Operacional', 'Tech Stack', 'RH & Decisores']);
+  });
+
+  it('ativa guardrail de integridade quando todas as dimensões PORTA ficam ausentes', () => {
+    expect(
+      shouldHoldWaterfallScoreForIntegrity({
+        score: null,
+        source: 'none',
+        missingDimensions: ['P', 'O', 'R', 'T', 'A'],
+      }),
+    ).toBe(true);
+    expect(
+      shouldHoldWaterfallScoreForIntegrity({
+        score: null,
+        source: 'feeds',
+        missingDimensions: ['P', 'R'],
+      }),
+    ).toBe(false);
   });
 
   it('gera prompt de reconciliação apenas com templates das dimensões pendentes', () => {
@@ -56,5 +76,39 @@ describe('App PORTA recovery helpers', () => {
     expect(result.fallbackApplied).toBe(false);
     expect(result.fallbackDimensions).toEqual([]);
     expect(result.resolution.score).not.toBeNull();
+  });
+
+  it('garante score PORTA final mesmo quando a resolução recebida está vazia', () => {
+    const unresolved = `
+Texto consolidado sem marcador explícito.
+`;
+    const score = ensureWaterfallScorePorta(unresolved, {
+      score: null,
+      source: 'none',
+      missingDimensions: ['P', 'O', 'R', 'T', 'A'],
+    });
+
+    expect(score).toMatchObject({
+      p: 6,
+      o: 6,
+      r: 6,
+      t: 6,
+      a: 6,
+      segmento: 'PRD',
+      flags: [],
+      score: 60,
+      scoreBruto: 60,
+    });
+  });
+
+  it('preenche perguntas de acompanhamento quando a IA retorna lista vazia ou parcial', () => {
+    const ensuredEmpty = ensureContinuitySuggestions([], 'Scheffer');
+    expect(ensuredEmpty).toHaveLength(4);
+    expect(ensuredEmpty.every(item => item.endsWith('?'))).toBe(true);
+    expect(ensuredEmpty.some(item => /Scheffer/i.test(item))).toBe(true);
+
+    const ensuredPartial = ensureContinuitySuggestions(['Qual risco operacional já está escalando?'], 'Scheffer');
+    expect(ensuredPartial).toHaveLength(4);
+    expect(ensuredPartial[0]).toBe('Qual risco operacional já está escalando?');
   });
 });

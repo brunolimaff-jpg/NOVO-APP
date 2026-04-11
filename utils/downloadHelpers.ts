@@ -41,6 +41,8 @@ export const downloadFile = (filename: string, content: string | Blob, mimeType:
       return true;
     } catch (err) {
       console.error("Erro fatal no downloadFile:", err);
-      throw new Error("Falha ao iniciar o download do arquivo no navegador.");
+      throw new Error("Falha ao iniciar o download do arquivo no navegador.", {
+        cause: err,
+      });
     }
   };

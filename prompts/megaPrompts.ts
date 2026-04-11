@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/prompts/megaPrompts.ts
 // v5.0 — BIG UPDATE!
 // Estratégia: máxima profundidade de domínio + máxima precisão estrutural + máxima agressividade comercial controlada

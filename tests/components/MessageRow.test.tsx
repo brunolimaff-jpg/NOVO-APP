@@ -1,7 +1,7 @@
 // tests/components/MessageRow.test.tsx
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import MessageRow from '../../components/MessageRow';
 import type { Message } from '../../types';
 import { Sender } from '../../types';
@@ -176,26 +176,143 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('cliente-senior-score')).toBeInTheDocument();
   });
 
-  it('renderiza badge de fallback PORTA quando metadado indica fallback tecnico', () => {
+  it('renderiza alerta de fallback PORTA no topo quando metadado indica fallback tecnico', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      scorePorta: {
+        score: 64,
+        p: 6,
+        o: 5,
+        r: 6,
+        t: 7,
+        a: 6,
+        segmento: 'AGI',
+        flags: [],
+      },
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['O'],
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          empresaAlvo: 'SCHEFFER & CIA LTDA',
+          cnpj: null,
+        })}
+      />,
+    );
+    const alert = screen.getByTestId('porta-fallback-alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/fallback técnico/i);
+    expect(alert).toHaveTextContent(/Pendências:\s*O/i);
+    expect(alert).toHaveTextContent(
+      /Para continuar com segurança na análise de SCHEFFER & CIA LTDA, confirme o CNPJ \(14 dígitos\)\./i,
+    );
+    const score = screen.getByTestId('score-porta');
+    expect(
+      alert.compareDocumentPosition(score) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('dispara retry guiado das pendencias de PORTA ao clicar no botão do alerta', () => {
+    const onSendMessage = vi.fn();
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['O', 'T'],
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          onSendMessage,
+          empresaAlvo: 'SCHEFFER & CIA LTDA',
+          cnpj: null,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente pendências/i }));
+    expect(onSendMessage).toHaveBeenCalledTimes(1);
+    const retryPrompt = onSendMessage.mock.calls[0][0] as string;
+    expect(retryPrompt).toContain('SCHEFFER & CIA LTDA');
+    expect(retryPrompt).toContain('Dimensões pendentes: O, T');
+    expect(retryPrompt).toContain('Raio-X Operacional');
+    expect(retryPrompt).toContain('Tech Stack');
+    expect(screen.getByRole('button', { name: /Reexecutando pendências/i })).toBeDisabled();
+    expect(
+      screen.getByText(/Reexecução iniciada\. Consolidando evidências pendentes do Score PORTA/i),
+    ).toBeInTheDocument();
+  });
+
+  it('inclui CNPJ da sessão no prompt de retry para reforçar reconciliação de entidade', () => {
+    const onSendMessage = vi.fn();
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['P', 'O', 'R', 'T', 'A'],
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          onSendMessage,
+          empresaAlvo: 'SCHEFFER & CIA LTDA',
+          cnpj: '04.733.767/0001-80',
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente pendências/i }));
+    const retryPrompt = onSendMessage.mock.calls[0][0] as string;
+    expect(retryPrompt).toContain('CNPJ obrigatório de reconciliação: 04733767000180');
+  });
+
+  it('oculta lembrete de confirmação de CNPJ quando já existe CNPJ válido', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       text: '## Analise Completa\nConteudo aqui',
       portaFallbackApplied: true,
       portaFallbackDimensions: ['O'],
     });
-    render(<MessageRow index={0} data={makeData([msg])} />);
-    expect(screen.getByText(/Score PORTA com fallback/i)).toBeInTheDocument();
-    expect(screen.getByText(/fallback/i)).toHaveTextContent('(O)');
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          empresaAlvo: 'SCHEFFER & CIA LTDA',
+          cnpj: '04252011000110',
+        })}
+      />,
+    );
+    expect(
+      screen.queryByText(/Para continuar com segurança na análise de SCHEFFER & CIA LTDA/i),
+    ).not.toBeInTheDocument();
   });
 
-  it('nao renderiza badge de fallback PORTA no caminho normal', () => {
+  it('nao renderiza alerta de fallback PORTA no caminho normal', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       text: '## Analise Completa\nConteudo aqui',
       portaFallbackApplied: false,
     });
     render(<MessageRow index={0} data={makeData([msg])} />);
-    expect(screen.queryByText(/Score PORTA com fallback/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('porta-fallback-alert')).not.toBeInTheDocument();
+  });
+
+  it('exibe estado sem score quando fallback marca integridade comprometida', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['P', 'O', 'R', 'T', 'A'],
+      scorePorta: undefined,
+    });
+    render(<MessageRow index={0} data={makeData([msg], { empresaAlvo: 'SCHEFFER & CIA LTDA' })} />);
+    expect(screen.getByTestId('porta-fallback-alert')).toHaveTextContent(/Score PORTA indisponível nesta rodada/i);
+    expect(screen.queryByTestId('score-porta')).not.toBeInTheDocument();
   });
 
   it('renderiza DeepDiveTopics na última mensagem finalizada', () => {

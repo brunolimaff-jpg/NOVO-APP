@@ -129,7 +129,7 @@ function materializeBareEdgeTargets(input: string): string {
     // Already a valid node ID (single alphanumeric word) — leave as-is
     if (/^[A-Za-z][\w-]*$/.test(trimmed)) return _full;
     // Already has a shape suffix: NodeId[...] or NodeId(...) etc
-    if (/^[A-Za-z][\w-]*\s*[\[({]/.test(trimmed)) return _full;
+    if (/^[A-Za-z][\w-]*\s*(?:\[|\(|\{)/.test(trimmed)) return _full;
 
     idx += 1;
     const safeLabel = trimmed.replace(/"/g, "'");

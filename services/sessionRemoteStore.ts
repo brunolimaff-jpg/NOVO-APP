@@ -7,6 +7,7 @@ import { DEFAULT_MODE } from "../constants";
 
 const SESSIONS_API_URL = BACKEND_URL;
 const TIMEOUT_MS = 10000;
+type FetchOptions = Parameters<typeof fetch>[1];
 
 interface RemoteSessionRow {
   sessionId: string;
@@ -56,7 +57,7 @@ function parseListSessionsResponse(text: string): RemoteSessionRow[] {
 }
 
 // Helper com timeout
-async function fetchWithTimeout(url: string, options: RequestInit, timeout: number = TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(url: string, options: FetchOptions, timeout: number = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
