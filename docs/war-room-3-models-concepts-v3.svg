@@ -1,0 +1,101 @@
+<svg width="1500" height="700" viewBox="0 0 1500 700" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1500" height="700" fill="#F3F4F6"/>
+  <text x="750" y="56" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="34" font-weight="800" fill="#111827">War Room — 3 Conceitos (sem espadas/machados)</text>
+  <text x="750" y="92" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="500" fill="#475569">Foco: suporte técnico, diagnóstico, comando e precisão</text>
+
+  <!-- Card 1 -->
+  <g transform="translate(70,130)">
+    <rect x="0" y="0" width="430" height="520" rx="24" fill="#FFFFFF" stroke="#D1D5DB"/>
+    <text x="215" y="44" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0F172A">A · Escudo + Terminal</text>
+    <text x="215" y="74" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="15" fill="#64748B">Proteção técnica + resolução de incidentes</text>
+
+    <g transform="translate(215,292)">
+      <!-- shield -->
+      <path d="M0 -150 C55 -150 98 -128 122 -90 V4 C122 90 70 160 0 197 C-70 160 -122 90 -122 4 V-90 C-98 -128 -55 -150 0 -150Z" fill="#111827"/>
+      <path d="M0 -120 C40 -120 72 -104 90 -76 V6 C90 66 54 116 0 145 C-54 116 -90 66 -90 6 V-76 C-72 -104 -40 -120 0 -120Z" fill="#E5E7EB"/>
+
+      <!-- terminal glyph -->
+      <path d="M-48 -10 L-16 18 L-48 46" stroke="#111827" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <line x1="4" y1="46" x2="58" y2="46" stroke="#111827" stroke-width="16" stroke-linecap="round"/>
+      <rect x="-78" y="-40" width="156" height="120" rx="18" fill="none" stroke="#111827" stroke-width="10"/>
+    </g>
+  </g>
+
+  <!-- Card 2 -->
+  <g transform="translate(535,130)">
+    <rect x="0" y="0" width="430" height="520" rx="24" fill="#FFFFFF" stroke="#D1D5DB"/>
+    <text x="215" y="44" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0F172A">B · Chip + Alvo</text>
+    <text x="215" y="74" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="15" fill="#64748B">Diagnóstico de raiz + precisão técnica</text>
+
+    <g transform="translate(215,292)">
+      <!-- chip body -->
+      <rect x="-110" y="-110" width="220" height="220" rx="24" fill="#111827"/>
+      <!-- pins -->
+      <g fill="#111827">
+        <rect x="-132" y="-86" width="22" height="16" rx="4"/>
+        <rect x="-132" y="-36" width="22" height="16" rx="4"/>
+        <rect x="-132" y="14" width="22" height="16" rx="4"/>
+        <rect x="-132" y="64" width="22" height="16" rx="4"/>
+
+        <rect x="110" y="-86" width="22" height="16" rx="4"/>
+        <rect x="110" y="-36" width="22" height="16" rx="4"/>
+        <rect x="110" y="14" width="22" height="16" rx="4"/>
+        <rect x="110" y="64" width="22" height="16" rx="4"/>
+
+        <rect x="-86" y="-132" width="16" height="22" rx="4"/>
+        <rect x="-36" y="-132" width="16" height="22" rx="4"/>
+        <rect x="14" y="-132" width="16" height="22" rx="4"/>
+        <rect x="64" y="-132" width="16" height="22" rx="4"/>
+
+        <rect x="-86" y="110" width="16" height="22" rx="4"/>
+        <rect x="-36" y="110" width="16" height="22" rx="4"/>
+        <rect x="14" y="110" width="16" height="22" rx="4"/>
+        <rect x="64" y="110" width="16" height="22" rx="4"/>
+      </g>
+
+      <!-- target rings -->
+      <circle cx="0" cy="0" r="62" fill="#E5E7EB"/>
+      <circle cx="0" cy="0" r="44" fill="#111827"/>
+      <circle cx="0" cy="0" r="26" fill="#E5E7EB"/>
+      <circle cx="0" cy="0" r="10" fill="#111827"/>
+    </g>
+  </g>
+
+  <!-- Card 3 -->
+  <g transform="translate(1000,130)">
+    <rect x="0" y="0" width="430" height="520" rx="24" fill="#FFFFFF" stroke="#D1D5DB"/>
+    <text x="215" y="44" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="700" fill="#0F172A">C · Torre + Engrenagem</text>
+    <text x="215" y="74" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="15" fill="#64748B">Centro operacional + solução técnica</text>
+
+    <g transform="translate(215,300)">
+      <!-- tower -->
+      <rect x="-26" y="-132" width="52" height="186" rx="8" fill="#111827"/>
+      <polygon points="-42,-132 42,-132 0,-178" fill="#111827"/>
+      <rect x="-10" y="-98" width="20" height="20" rx="4" fill="#E5E7EB"/>
+      <rect x="-10" y="-58" width="20" height="20" rx="4" fill="#E5E7EB"/>
+      <rect x="-10" y="-18" width="20" height="20" rx="4" fill="#E5E7EB"/>
+
+      <!-- waves -->
+      <path d="M0 -170 C44 -170 66 -148 66 -120" stroke="#111827" stroke-width="12" fill="none" stroke-linecap="round"/>
+      <path d="M0 -170 C62 -170 96 -136 96 -92" stroke="#111827" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <path d="M0 -170 C-44 -170 -66 -148 -66 -120" stroke="#111827" stroke-width="12" fill="none" stroke-linecap="round"/>
+      <path d="M0 -170 C-62 -170 -96 -136 -96 -92" stroke="#111827" stroke-width="10" fill="none" stroke-linecap="round"/>
+
+      <!-- gear -->
+      <g transform="translate(0,112)">
+        <circle cx="0" cy="0" r="56" fill="#111827"/>
+        <circle cx="0" cy="0" r="28" fill="#E5E7EB"/>
+        <g fill="#111827">
+          <rect x="-8" y="-84" width="16" height="22" rx="3"/>
+          <rect x="-8" y="62" width="16" height="22" rx="3"/>
+          <rect x="62" y="-8" width="22" height="16" rx="3"/>
+          <rect x="-84" y="-8" width="22" height="16" rx="3"/>
+          <rect transform="rotate(45)" x="-8" y="-84" width="16" height="22" rx="3"/>
+          <rect transform="rotate(45)" x="-8" y="62" width="16" height="22" rx="3"/>
+          <rect transform="rotate(-45)" x="-8" y="-84" width="16" height="22" rx="3"/>
+          <rect transform="rotate(-45)" x="-8" y="62" width="16" height="22" rx="3"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

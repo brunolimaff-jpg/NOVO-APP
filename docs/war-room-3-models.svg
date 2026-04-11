@@ -1,0 +1,79 @@
+<svg width="1400" height="620" viewBox="0 0 1400 620" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1400" height="620" fill="#f5f5f5"/>
+  <text x="700" y="52" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="30" font-weight="800" fill="#111">War Room — 3 Modelos</text>
+
+  <!-- PANEL A -->
+  <g transform="translate(40,90)">
+    <rect x="0" y="0" width="420" height="490" rx="20" fill="#fff" stroke="#ddd"/>
+    <text x="210" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="#111">A · Clássico</text>
+
+    <!-- sword left -->
+    <g transform="translate(210,275) rotate(-45)">
+      <polygon points="-12,-205 12,-205 18,120 -18,120" fill="#111"/>
+      <polygon points="-12,-205 0,-242 12,-205" fill="#111"/>
+      <rect x="-38" y="110" width="76" height="12" rx="3" fill="#111"/>
+      <rect x="-6" y="120" width="12" height="70" rx="4" fill="#111"/>
+      <polygon points="-6,190 0,212 6,190" fill="#111"/>
+    </g>
+
+    <!-- sword right -->
+    <g transform="translate(210,275) rotate(45)">
+      <polygon points="-12,-205 12,-205 18,120 -18,120" fill="#111"/>
+      <polygon points="-12,-205 0,-242 12,-205" fill="#111"/>
+      <rect x="-38" y="110" width="76" height="12" rx="3" fill="#111"/>
+      <rect x="-6" y="120" width="12" height="70" rx="4" fill="#111"/>
+      <polygon points="-6,190 0,212 6,190" fill="#111"/>
+    </g>
+  </g>
+
+  <!-- PANEL B -->
+  <g transform="translate(490,90)">
+    <rect x="0" y="0" width="420" height="490" rx="20" fill="#fff" stroke="#ddd"/>
+    <text x="210" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="#111">B · Heráldico</text>
+
+    <!-- sword left -->
+    <g transform="translate(210,275) rotate(-45)">
+      <polygon points="-14,-210 14,-210 26,125 -26,125" fill="#111"/>
+      <polygon points="-14,-210 0,-252 14,-210" fill="#111"/>
+      <path d="M-58 118 Q-22 88 0 118 Q22 88 58 118 Q22 132 0 128 Q-22 132 -58 118Z" fill="#111"/>
+      <rect x="-8" y="126" width="16" height="70" rx="5" fill="#111"/>
+      <path d="M-8 196 Q0 214 8 196" fill="#111"/>
+    </g>
+
+    <!-- sword right -->
+    <g transform="translate(210,275) rotate(45)">
+      <polygon points="-14,-210 14,-210 26,125 -26,125" fill="#111"/>
+      <polygon points="-14,-210 0,-252 14,-210" fill="#111"/>
+      <path d="M-58 118 Q-22 88 0 118 Q22 88 58 118 Q22 132 0 128 Q-22 132 -58 118Z" fill="#111"/>
+      <rect x="-8" y="126" width="16" height="70" rx="5" fill="#111"/>
+      <path d="M-8 196 Q0 214 8 196" fill="#111"/>
+    </g>
+  </g>
+
+  <!-- PANEL C -->
+  <g transform="translate(940,90)">
+    <rect x="0" y="0" width="420" height="490" rx="20" fill="#fff" stroke="#ddd"/>
+    <text x="210" y="40" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" font-weight="700" fill="#111">C · Tático</text>
+
+    <!-- sword left -->
+    <g transform="translate(210,275) rotate(-45)">
+      <polygon points="-10,-198 10,-198 16,108 -16,108" fill="#111"/>
+      <polygon points="-10,-198 0,-234 10,-198" fill="#111"/>
+      <polygon points="-40,110 40,110 26,124 -26,124" fill="#111"/>
+      <rect x="-5" y="124" width="10" height="68" rx="2" fill="#111"/>
+      <polygon points="-5,192 0,206 5,192" fill="#111"/>
+    </g>
+
+    <!-- sword right -->
+    <g transform="translate(210,275) rotate(45)">
+      <polygon points="-10,-198 10,-198 16,108 -16,108" fill="#111"/>
+      <polygon points="-10,-198 0,-234 10,-198" fill="#111"/>
+      <polygon points="-40,110 40,110 26,124 -26,124" fill="#111"/>
+      <rect x="-5" y="124" width="10" height="68" rx="2" fill="#111"/>
+      <polygon points="-5,192 0,206 5,192" fill="#111"/>
+    </g>
+
+    <!-- subtle center mark -->
+    <circle cx="210" cy="275" r="8" fill="#111"/>
+  </g>
+</svg>

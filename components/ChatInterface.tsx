@@ -687,32 +687,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 }`} />
 
                 <div className="relative flex items-center justify-center">
-                  <svg
+                  <img
                     data-testid="chat-war-room-icon"
-                    className="w-5 h-5 flex-none"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.8}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    {/* Left sword */}
-                    <path d="M7 17L17 7" />
-                    <path d="M16 6h2v2" />
-                    <path d="M6.6 17.4l1.8-1.8" />
-                    <path d="M5.3 18.7l1.3-1.3" />
-                    <path d="M4.7 19.3l.8-.8" />
-                    <path d="M5.8 16.2l2 2" />
-
-                    {/* Right sword */}
-                    <path d="M17 17L7 7" />
-                    <path d="M8 6H6v2" />
-                    <path d="M17.4 17.4l-1.8-1.8" />
-                    <path d="M18.7 18.7l-1.3-1.3" />
-                    <path d="M19.3 19.3l-.8-.8" />
-                    <path d="M18.2 16.2l-2 2" />
-                  </svg>
+                    src="/war-room-icon-no-bg.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 flex-none object-contain"
+                  />
                 </div>
               </motion.button>
             )}
