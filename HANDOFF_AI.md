@@ -20,8 +20,10 @@ Para continuidade entre IAs, leia primeiro:
 - Projeto: **Senior Scout 360**
 - Objetivo: aplicacao web de inteligencia comercial para investigacao de empresas,
   dossies, Score PORTA, CRM e radar
-- Stack principal: React 19 + TypeScript + Vite + Tailwind + Clerk + Gemini +
-  Pinecone
+- Stack principal: React 19 + TypeScript + Vite + Tailwind + perfil local de
+  operador + Gemini + Pinecone
+- Autenticacao: nao ha login; o operador informa um nome local obrigatorio,
+  persistido no dispositivo
 - Integracao externa padrao para IA: `GitHub`
 
 ## Entrypoints e hotspots

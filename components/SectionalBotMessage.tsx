@@ -2,7 +2,6 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { parseMarkdownSections } from '../utils/sectionParser';
-import { useAuth } from '../contexts/AuthContext';
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
@@ -97,7 +96,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   auditableSources = []
 }) => {
   const content = message.text || "";
-  const { user } = useAuth();
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);

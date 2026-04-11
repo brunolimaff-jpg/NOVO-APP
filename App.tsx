@@ -11,14 +11,13 @@ import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
-import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
 import { UpdateNotificationModal } from './components/UpdateNotificationModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
 import { AdminDash } from './components/AdminDash';
-import { useAuth } from './contexts/AuthContext';
+import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
 import { loadWithChunkRetry } from './utils/chunkRetry';
@@ -93,7 +92,7 @@ import {
   generateExecutiveSummary,
   normalizeMermaidBlocks,
 } from './utils/reportUtils';
-import { getFeatureAccessForUser } from './utils/featureAccess';
+import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import FooterCredits from './components/FooterCredits';
 
@@ -296,7 +295,7 @@ export function applyPortaTechnicalFallback(
 }
 
 const App: React.FC = () => {
-  const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
+  const { name: operatorName, operatorId, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
@@ -463,23 +462,21 @@ const App: React.FC = () => {
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
   const allMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
-  const featureAccess = getFeatureAccessForUser(user);
+  const featureAccess = getFeatureAccess();
   const canAccessMiniCRM = featureAccess.miniCRM;
   const canAccessDashboard = featureAccess.dashboard;
   const canAccessIntegrityCheck = featureAccess.integrityCheck;
   const canUseLookup = featureAccess.clientLookup;
   const canDeepDive = featureAccess.deepDive;
   const canWarRoom = featureAccess.warRoom;
+  const resolvedOperatorName = operatorName.trim() || 'Vendedor';
 
   useEffect(() => {
     if (!canAccessMiniCRM && activeView === 'crm') {
       setActiveView('chat');
       setSelectedCRMCardId(null);
     }
-    if (!isAdmin && activeView === 'admin') {
-      setActiveView('chat');
-    }
-  }, [activeView, canAccessMiniCRM, isAdmin]);
+  }, [activeView, canAccessMiniCRM]);
 
   const updateSessionById = useCallback(
     (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
@@ -534,14 +531,14 @@ const App: React.FC = () => {
   });
 
   const handleSaveRemote = async () => {
-    if (!currentSession || !isAuthenticated) return;
+    if (!currentSession) return;
     setIsSavingRemote(true);
     setRemoteSaveStatus('idle');
     const snapshotSessionId = currentSession.id;
     const finalized: ChatSession = { ...currentSession, updatedAt: new Date().toISOString() };
     updateSessionById(snapshotSessionId, () => finalized);
     try {
-      await saveRemoteSession(finalized, userId, user?.displayName);
+      await saveRemoteSession(finalized, operatorId, resolvedOperatorName);
       setRemoteSaveStatus('success');
       setTimeout(() => setRemoteSaveStatus('idle'), 3000);
     } catch {
@@ -1030,7 +1027,7 @@ const App: React.FC = () => {
               },
             ],
             resolvedMegaCompany || null,
-            typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+            resolvedOperatorName,
           );
         } catch (error) {
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
@@ -1090,7 +1087,7 @@ const App: React.FC = () => {
           onRagFailed: () => {
             toast.warning('Busca de contexto indisponível — resposta pode ser menos precisa');
           },
-          nomeVendedor: typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+          nomeVendedor: resolvedOperatorName,
           sessionId,
           hintedCompany,
         },
@@ -1140,7 +1137,7 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             action: 'logInvestigation',
-            vendedor: user?.displayName || 'Anônimo',
+            vendedor: resolvedOperatorName,
             empresa: normalizedCompany || cleanTitle(extractCompanyName(safeVisibleText)),
             modo: mode || '',
             resumo: responseText.substring(0, 200),
@@ -1336,7 +1333,7 @@ const App: React.FC = () => {
     if (!targetMessage) return;
     const companyName =
       targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa não identificada';
-    const nomeVendedor = typeof user?.displayName === 'string' ? user.displayName : 'Vendedor';
+    const nomeVendedor = resolvedOperatorName;
     const oldSuggestions = Array.isArray(targetMessage.suggestions)
       ? targetMessage.suggestions
         .filter((item): item is string => typeof item === 'string')
@@ -1394,8 +1391,8 @@ const App: React.FC = () => {
         type: 'dislike',
         comment: `Automated Error Report: ${error.code}`,
         aiContent: errorPayload,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: operatorName || undefined,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -1430,8 +1427,8 @@ const App: React.FC = () => {
         type: feedback === 'up' ? 'like' : 'dislike',
         comment,
         aiContent: content,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: operatorName || undefined,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -1544,7 +1541,7 @@ const App: React.FC = () => {
           subject: emailSubject,
           body: htmlBody,
           empresa: cleanTitle(extractCompanyName(currentSession?.title)),
-          vendedor: user?.displayName || 'Vendedor',
+          vendedor: resolvedOperatorName,
         }),
       });
       const text = await response.text();
@@ -1654,8 +1651,6 @@ const App: React.FC = () => {
 
   return (
     <>
-      <AuthModal />
-
       {!isOnline && (
         <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-amber-950 text-xs font-semibold py-1.5 px-4 shadow-lg">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1686,7 +1681,7 @@ const App: React.FC = () => {
         className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {activeView === 'admin' && isAdmin ? (
+          {activeView === 'admin' ? (
             <AdminDash
               sessions={sessions}
               isDarkMode={isDarkMode}
@@ -1701,7 +1696,7 @@ const App: React.FC = () => {
               onDeleteSession={handleDeleteSession}
               onSaveToCRM={handleSaveToCRM}
               onOpenKanban={handleOpenKanbanSafe}
-              onOpenAdminDash={isAdmin ? () => setActiveView('admin') : undefined}
+              onOpenAdminDash={canAccessDashboard ? () => setActiveView('admin') : undefined}
               isSidebarOpen={isSidebarOpen}
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               messages={allMessages.slice(-visibleCount)}
@@ -1750,7 +1745,11 @@ const App: React.FC = () => {
               canAccessIntegrityCheck={canAccessIntegrityCheck}
               canDeepDive={canDeepDive}
               canWarRoom={canWarRoom}
-              onLogout={logout}
+              onClearOperator={() => {
+                clearName();
+                setActiveView('chat');
+                setSelectedCRMCardId(null);
+              }}
               lastUserQuery={lastQuery}
               onDeleteMessage={handleDeleteMessage}
               radar={{

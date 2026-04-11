@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import SectionalBotMessage from '../../components/SectionalBotMessage';
 import { Message, Sender } from '../../types';
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: null }),
-}));
-
 vi.mock('../../components/MarkdownRenderer', () => ({
   default: ({ content }: { content: string }) => <div>{content}</div>,
 }));

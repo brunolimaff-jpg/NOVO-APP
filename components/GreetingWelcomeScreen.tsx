@@ -67,7 +67,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
           Inteligência de campo para fechar negócios no Agro.
         </p>
         <p className={`mt-1 text-sm ${textSecondary}`}>
-          Me diz como te chamo e vamos à caça.
+          Me diz como te chamo e eu salvo isso só neste dispositivo.
         </p>
 
         {/* Card com formulário */}
@@ -121,7 +121,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
               disabled={touched && !isValid}
               className="mt-4 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Entrar em campo →
+              Continuar →
             </button>
           </form>
         </div>

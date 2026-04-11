@@ -10,7 +10,7 @@
 | Arquivo | Função | Status |
 |---------|--------|--------|
 | `index.html` | Entry point HTML do Vite | Estável |
-| `index.tsx` | Bootstrap React: ClerkProvider + ErrorBoundary + mount DOM | Estável |
+| `index.tsx` | Bootstrap React: OperatorProvider + ErrorBoundary + mount DOM | Estável |
 | `App.tsx` (~45KB) | **GOD COMPONENT** — roteamento, views, modais, estado global | ⚠️ Dissolução em andamento |
 | `types.ts` | Contratos TypeScript centrais: ChatSession, Message, DossieSection, RadarConfig, CRMLead | Estável |
 | `constants.ts` (~52KB) | **MAIOR ARQUIVO** — mega-prompts do Gemini por área + configs estáticas | ⚠️ Precisa ser quebrado por domínio |
@@ -19,21 +19,19 @@
 | `tsconfig.json` | TypeScript strict mode ativado | Estável |
 | `tailwind.config.js` | Tema customizado Senior (cores, fontes, breakpoints) | Estável |
 | `eslint.config.js` | Regras ESLint para React + TypeScript | Estável |
-| `.env.example` | Variáveis: GEMINI_API_KEY, CLERK_PUBLISHABLE_KEY, VITE_* | Referência |
+| `.env.example` | Variáveis: GEMINI_API_KEY, VITE_ENABLE_DEEP_DIVE, VITE_* | Referência |
 | `index.css` | Reset CSS + variáveis de tema global | Estável |
 | `mobile-responsive.css` (~9KB) | Breakpoints e ajustes mobile separados | ⚠️ Débito — migrar para Tailwind nativo |
 | `metadata.json` | Metadados PWA: versão, nome, descrição | Estável |
 
 ---
 
-## src/components/ — Camada de UI
+## components/ — Camada de UI
 
-### Auth & Sessão
-- `LoginPage.tsx` — Tela de login com integração Clerk, branding Senior
-- `AuthModal.tsx` — Modal de autenticação inline (stub leve, delega para Clerk)
-- `UserMenu.tsx` — Dropdown de usuário: avatar, nome, logout, settings
-- `UserMenuClerkBridge.tsx` — Adaptador entre UserMenu e hooks do Clerk (padrão Bridge)
-- `WelcomeScreen.tsx` — Onboarding para novos usuários autenticados
+### Operador & Sessão
+- `GreetingWelcomeScreen.tsx` — Gate inicial obrigatório para capturar o nome local do operador
+- `UserMenu.tsx` — Dropdown do operador: avatar/iniciais, settings e troca de nome
+- `WelcomeScreen.tsx` — Onboarding complementar de UX
 
 ### Chat & Mensagens (Core do Produto)
 | Componente | Função | Tamanho |
@@ -91,12 +89,12 @@
 
 ---
 
-## src/hooks/ — Lógica de Negócio
+## hooks/ — Lógica de Negócio
 
 | Hook | Função | Criticidade |
 |------|--------|-------------|
 | `useChat.ts` (~26KB) | **HOOK MAIS CRÍTICO** — envio de mensagem, chamada Gemini com streaming (ReadableStream), gerenciamento de state, retry em 429, cancelamento de stream | MÁXIMA |
-| `useAppInitialization.ts` | Init do app: carrega sessões do localStorage, configura Clerk, detecta PWA | Alta |
+| `useAppInitialization.ts` | Init do app: carrega sessões do localStorage, inicializa shell e detecta PWA | Alta |
 | `useSessionManager.ts` | CRUD de sessões: criar, renomear, deletar, carregar | Alta |
 | `useSessionStorage.ts` | Abstração sobre localStorage com serialização/deserialização tipada | Média |
 | `useRadar.ts` (~9KB) | Lógica do Radar: polling de alertas, estado de empresas, notificações | Média |
@@ -110,7 +108,7 @@
 
 ## api/ — Serverless Functions (Vercel)
 
-Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas do `useChat.ts` e encaminham ao Gemini com autenticação server-side.
+Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas do app e encaminham ao Gemini com credenciais server-side.
 
 ---
 
@@ -118,11 +116,11 @@ Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** 
 
 | Diretório | Função |
 |-----------|--------|
-| `src/contexts/` | React Contexts: AppContext, AuthContext para estado global |
-| `src/services/` | Wrappers das APIs externas: Gemini service, CNPJ lookup, client lookup |
-| `src/utils/` | Funções utilitárias puras: formatação, parsing de markdown, sanitização |
-| `src/config/` | Configurações centralizadas de ambiente e feature flags |
-| `src/prompts/` | Prompts do Gemini versionados separados (complementa constants.ts) |
+| `contexts/` | React Contexts: `OperatorContext`, `CRMContext`, `ModeContext` para estado compartilhado |
+| `services/` | Wrappers das APIs externas: Gemini service, CNPJ lookup, client lookup |
+| `utils/` | Funções utilitárias puras: formatação, parsing de markdown, sanitização |
+| `config/` | Configurações centralizadas de ambiente e feature flags |
+| `prompts/` | Prompts do Gemini versionados separados (complementa `constants.ts`) |
 | `docs/` | Documentação técnica interna |
 | `tests/` | Testes unitários/integração com Vitest |
 | `scripts/` | Scripts de automação: build, deploy, geração de código |

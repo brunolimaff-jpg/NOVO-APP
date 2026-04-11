@@ -234,7 +234,7 @@ export interface ChatInterfaceProps {
   canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
   canWarRoom?: boolean;
-  onLogout: () => void;
+  onClearOperator: () => void;
   lastUserQuery?: string;
   processing?: {
     stage?: string;
