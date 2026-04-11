@@ -23,6 +23,36 @@
     "managed": true,
     "version": "1"
   },
+  "skills": {
+    "auto-load": true,
+    "active": [
+      "prompt-engineer",
+      "prompt-engineering",
+      "prompt-engineering-patterns",
+      "gemini-api-dev",
+      "llm-app-patterns",
+      "llm-application-dev-prompt-optimize",
+      "react-best-practices",
+      "react-patterns",
+      "react-state-management",
+      "react-ui-patterns",
+      "typescript-expert",
+      "typescript-advanced-types",
+      "tailwind-design-system",
+      "cc-skill-frontend-patterns",
+      "cc-skill-coding-standards",
+      "cc-skill-security-review",
+      "cc-skill-backend-patterns",
+      "testing-patterns",
+      "test-driven-development",
+      "error-handling-patterns",
+      "security-audit",
+      "data-quality-frameworks",
+      "performance-profiling",
+      "architecture-patterns",
+      "api-design-principles"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

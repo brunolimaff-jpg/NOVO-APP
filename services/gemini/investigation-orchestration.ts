@@ -558,7 +558,10 @@ export async function generateDossierModule(
     options.timeoutMs,
   );
 
-  const shieldedResult = applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo });
+  const shieldedResult = applyPromptLeakShield(response.text || '', {
+    companyHint: empresaAlvo,
+    preserveInternalMarkersWhenSafe: true,
+  });
   if (shieldedResult.blocked) {
     scoutDiag.warn('PromptLeakShield', 'módulo do dossiê bloqueado por possível vazamento de prompt', {
       moduleName,

@@ -247,6 +247,30 @@ describe('MessageRow', () => {
     ).toBeInTheDocument();
   });
 
+  it('inclui CNPJ da sessão no prompt de retry para reforçar reconciliação de entidade', () => {
+    const onSendMessage = vi.fn();
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['P', 'O', 'R', 'T', 'A'],
+    });
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          onSendMessage,
+          empresaAlvo: 'SCHEFFER & CIA LTDA',
+          cnpj: '04.733.767/0001-80',
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente pendências/i }));
+    const retryPrompt = onSendMessage.mock.calls[0][0] as string;
+    expect(retryPrompt).toContain('CNPJ obrigatório de reconciliação: 04733767000180');
+  });
+
   it('oculta lembrete de confirmação de CNPJ quando já existe CNPJ válido', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
@@ -276,6 +300,19 @@ describe('MessageRow', () => {
     });
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.queryByTestId('porta-fallback-alert')).not.toBeInTheDocument();
+  });
+
+  it('exibe estado sem score quando fallback marca integridade comprometida', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+      portaFallbackApplied: true,
+      portaFallbackDimensions: ['P', 'O', 'R', 'T', 'A'],
+      scorePorta: undefined,
+    });
+    render(<MessageRow index={0} data={makeData([msg], { empresaAlvo: 'SCHEFFER & CIA LTDA' })} />);
+    expect(screen.getByTestId('porta-fallback-alert')).toHaveTextContent(/Score PORTA indisponível nesta rodada/i);
+    expect(screen.queryByTestId('score-porta')).not.toBeInTheDocument();
   });
 
   it('renderiza DeepDiveTopics na última mensagem finalizada', () => {

@@ -92,20 +92,28 @@ function normalizePortaDimensions(dimensions?: string[]): PortaDimension[] {
   return Array.from(new Set(dimensions.filter((dimension): dimension is PortaDimension => valid.has(dimension as PortaDimension))));
 }
 
-function buildPortaRetryPrompt(dimensions: PortaDimension[], empresaAlvo?: string | null): string {
+function buildPortaRetryPrompt(
+  dimensions: PortaDimension[],
+  empresaAlvo?: string | null,
+  cnpj?: string | null,
+): string {
   const dimensionLabel = dimensions.join(', ');
   const modules = Array.from(
     new Set(dimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
   );
   const moduleLabel = modules.join(', ');
   const companyLabel = (empresaAlvo || '').trim() || 'a empresa investigada';
+  const cnpjDigits = (cnpj || '').replace(/\D/g, '');
 
   return [
     `Reexecutar agora os módulos pendentes do Score PORTA para ${companyLabel}.`,
     `Dimensões pendentes: ${dimensionLabel}.`,
     `Módulos prioritários: ${moduleLabel}.`,
+    cnpjDigits.length === 14 ? `CNPJ obrigatório de reconciliação: ${cnpjDigits}.` : '',
     'Não conclua a rodada até consolidar o Score PORTA final com evidências estruturadas de P, O, R, T e A.',
-  ].join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 function PortaFallbackAlert({
@@ -113,6 +121,7 @@ function PortaFallbackAlert({
   dimensions,
   companyName,
   hasConfirmedCnpj,
+  hasScore,
   onRetry,
   retryDisabled,
   retryPending,
@@ -121,6 +130,7 @@ function PortaFallbackAlert({
   dimensions: PortaDimension[];
   companyName?: string | null;
   hasConfirmedCnpj: boolean;
+  hasScore: boolean;
   onRetry: () => void;
   retryDisabled: boolean;
   retryPending: boolean;
@@ -144,10 +154,19 @@ function PortaFallbackAlert({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[12px] font-extrabold tracking-wide uppercase">
-            ⚠ Score PORTA parcial com fallback técnico
+            {hasScore ? '⚠ Score PORTA parcial com fallback técnico' : '⚠ Score PORTA indisponível nesta rodada'}
           </p>
           <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-red-100/90' : 'text-red-700'}`}>
-            Pendências: <strong>{dimensions.join(', ')}</strong> · Módulos para recompor: <strong>{modules.join(', ')}</strong>
+            {hasScore ? (
+              <>
+                Pendências: <strong>{dimensions.join(', ')}</strong> · Módulos para recompor: <strong>{modules.join(', ')}</strong>
+              </>
+            ) : (
+              <>
+                Não foi possível consolidar evidências estruturadas de <strong>P, O, R, T, A</strong> nesta rodada. Reexecute os módulos
+                pendentes para gerar um score confiável.
+              </>
+            )}
           </p>
           {!hasConfirmedCnpj && (
             <p className={`text-[11px] mt-1.5 ${isDarkMode ? 'text-amber-200' : 'text-amber-800'}`}>
@@ -232,8 +251,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true && portaFallbackDimensions.length > 0;
   const hasConfirmedCnpj = typeof cnpj === 'string' && cnpj.replace(/\D/g, '').length === 14;
   const portaRetryPrompt = useMemo(
-    () => (showPortaFallbackWarning ? buildPortaRetryPrompt(portaFallbackDimensions, empresaAlvo) : ''),
-    [empresaAlvo, portaFallbackDimensions, showPortaFallbackWarning],
+    () => (showPortaFallbackWarning ? buildPortaRetryPrompt(portaFallbackDimensions, empresaAlvo, cnpj) : ''),
+    [cnpj, empresaAlvo, portaFallbackDimensions, showPortaFallbackWarning],
   );
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
@@ -380,6 +399,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                   dimensions={portaFallbackDimensions}
                   companyName={empresaAlvo}
                   hasConfirmedCnpj={hasConfirmedCnpj}
+                  hasScore={Boolean(displayScore)}
                   onRetry={handlePortaRetry}
                   retryDisabled={isLoading || portaRetryPending}
                   retryPending={portaRetryPending}

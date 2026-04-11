@@ -323,6 +323,10 @@ export function ensureWaterfallScorePorta(
   return { ...HARD_WATERFALL_SCORE_FALLBACK };
 }
 
+export function shouldHoldWaterfallScoreForIntegrity(currentResolution: PortaScoreResolution): boolean {
+  return !currentResolution.score && currentResolution.missingDimensions.length === 5;
+}
+
 function normalizeContinuitySuggestion(raw: string): string {
   const normalized = (raw || '').replace(/\s+/g, ' ').trim();
   if (!normalized) return '';
@@ -680,6 +684,7 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
+    const sessionCnpjDigits = (sessionForHint?.cnpj || '').replace(/\D/g, '');
     const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
@@ -928,6 +933,7 @@ const App: React.FC = () => {
         // --- RECUPERAÇÃO DE PORTA (retry + reconciliador) ---
         let portaFallbackApplied = false;
         let portaFallbackDimensions: PortaDimension[] = [];
+        let portaIntegrityHold = false;
         let waterfallPortaResolution = resolvePortaScore(accumulatedText);
         if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.warn('ModularDossier', 'dimensões PORTA ausentes após 1ª passada', {
@@ -952,9 +958,14 @@ const App: React.FC = () => {
               missingDimensions: waterfallPortaResolution.missingDimensions,
             });
             try {
+              const retryContextHintBase = `Reexecução obrigatória para consolidar dimensões PORTA faltantes: ${waterfallPortaResolution.missingDimensions.join(', ')}.`;
+              const retryContextCnpjHint =
+                sessionCnpjDigits.length === 14
+                  ? ` Use obrigatoriamente o CNPJ ${sessionCnpjDigits} como chave de entidade desta conta.`
+                  : '';
               const retryResult = await runWaterfallModule(
                 module,
-                `Reexecução obrigatória para consolidar dimensões PORTA faltantes: ${waterfallPortaResolution.missingDimensions.join(', ')}.`,
+                `${retryContextHintBase}${retryContextCnpjHint}`,
                 MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
               );
               appendWaterfallChunk(retryResult);
@@ -1023,12 +1034,21 @@ const App: React.FC = () => {
           waterfallPortaResolution = resolvePortaScore(accumulatedText);
         }
 
-        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+        if (shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution)) {
+          portaIntegrityHold = true;
+          portaFallbackApplied = true;
+          portaFallbackDimensions = Array.from(new Set(waterfallPortaResolution.missingDimensions));
+          scoutDiag.error('ModularDossier', 'integridade PORTA comprometida após retries e reconciliação', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+        } else if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           const portaFallbackResult = applyPortaTechnicalFallback(accumulatedText, waterfallPortaResolution);
           if (portaFallbackResult.fallbackApplied) {
             accumulatedText = portaFallbackResult.content;
             waterfallPortaResolution = portaFallbackResult.resolution;
-            portaFallbackApplied = Boolean(waterfallPortaResolution.score);
+            portaFallbackApplied = true;
             portaFallbackDimensions = portaFallbackResult.fallbackDimensions;
             scoutDiag.warn('ModularDossier', 'fallback técnico aplicado para dimensões PORTA ausentes', {
               sessionId,
@@ -1040,7 +1060,7 @@ const App: React.FC = () => {
           }
         }
 
-        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+        if (!portaIntegrityHold && !waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
           scoutDiag.error('ModularDossier', 'falha técnica na consolidação do score PORTA', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -1061,7 +1081,9 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
+        const waterfallScorePorta = portaIntegrityHold
+          ? null
+          : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
@@ -1116,13 +1138,13 @@ const App: React.FC = () => {
           return {
             ...s,
             empresaAlvo: finalCompany || s.empresaAlvo,
-            scoreOportunidade: waterfallScorePorta.score ?? s.scoreOportunidade,
+            scoreOportunidade: waterfallScorePorta?.score ?? s.scoreOportunidade,
             messages: s.messages.map(msg =>
               msg.id === botMessageId
                 ? {
                     ...msg,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta,
+                    scorePorta: waterfallScorePorta ?? undefined,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
                     portaFallbackApplied: portaFallbackApplied ? true : undefined,
                     portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
