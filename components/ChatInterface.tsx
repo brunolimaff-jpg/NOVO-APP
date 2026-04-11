@@ -687,28 +687,33 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 }`} />
 
                 <div className="relative flex items-center justify-center">
-                  <svg className="w-5 h-5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    {/* Crossed Double Battle Axes (Machados de Lâmina Dupla) */}
-                    
-                    {/* Axe 1 (Red) */}
+                  <svg
+                    data-testid="chat-war-room-icon"
+                    className="w-5 h-5 flex-none"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.8}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    {/* Sword 1 */}
                     <g transform="rotate(45, 12, 12)">
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 21V7" />
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 20V8" />
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M10.4 8L12 6l1.6 2" />
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M9.5 10h5" />
+                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M10.7 20h2.6" />
                     </g>
 
-                    {/* Axe 2 (Rose) */}
+                    {/* Sword 2 */}
                     <g transform="rotate(-45, 12, 12)">
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 21V7" />
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 20V8" />
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M10.4 8L12 6l1.6 2" />
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M9.5 10h5" />
+                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M10.7 20h2.6" />
                     </g>
                   </svg>
                 </div>
-                
-                {/* Status Dot for "Active/Dangerous" vibe */}
-                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                </span>
               </motion.button>
             )}
 

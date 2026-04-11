@@ -296,6 +296,15 @@ describe('ChatInterface shell regression', () => {
     expect(sessionsSidebarMock).toHaveBeenCalled();
   });
 
+  it('renderiza botao do War Room com icone de espadas cruzadas e sem badge de notificacao', () => {
+    render(<ChatInterface {...buildProps({ canWarRoom: true })} />);
+
+    const warRoomButton = screen.getByTestId('chat-war-room-button');
+    expect(warRoomButton).toBeInTheDocument();
+    expect(screen.getByTestId('chat-war-room-icon')).toBeInTheDocument();
+    expect(warRoomButton.querySelector('.animate-ping')).toBeNull();
+  });
+
 
   it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', async () => {
     const firstRoundMessages = [

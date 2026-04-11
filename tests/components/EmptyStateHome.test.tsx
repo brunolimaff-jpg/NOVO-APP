@@ -74,4 +74,39 @@ describe('EmptyStateHome onboarding gate', () => {
       });
     });
   });
+
+  it('shows Configurar Radar and Varrer agora together when radar is configured', () => {
+    const onOpenRadar = vi.fn();
+    const onForceScan = vi.fn();
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+        radarAlerts={[]}
+        radarIsScanning={false}
+        onOpenRadar={onOpenRadar}
+        onForceScan={onForceScan}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Configurar Radar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Varrer agora/i }));
+
+    expect(onOpenRadar).toHaveBeenCalledTimes(1);
+    expect(onForceScan).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the large "Configurar Radar agora" CTA when radar is not configured', () => {
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={true}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Configurar Radar agora/i })).toBeInTheDocument();
+  });
 });
