@@ -10,6 +10,17 @@ const { warnMock } = vi.hoisted(() => ({
 const { sessionsSidebarMock } = vi.hoisted(() => ({
   sessionsSidebarMock: vi.fn(),
 }));
+const { operatorStateRef } = vi.hoisted(() => ({
+  operatorStateRef: {
+    current: {
+      name: 'Bruno Lima',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    },
+  },
+}));
 
 vi.mock('react-virtuoso', () => ({
   Virtuoso: ({ data, itemContent, components }: any) => (
@@ -53,18 +64,8 @@ vi.mock('../../contexts/ModeContext', () => ({
   useMode: () => ({ mode: 'investigacao', setMode: vi.fn() }),
 }));
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'user-1',
-      displayName: 'Bruno Lima',
-      email: 'bruno@example.com',
-      isGuest: false,
-      isAdmin: false,
-    },
-    userId: 'user-1',
-    updateName: vi.fn(),
-  }),
+vi.mock('../../contexts/OperatorContext', () => ({
+  useOperator: () => operatorStateRef.current,
 }));
 
 vi.mock('../../components/SessionsSidebar', () => ({
@@ -99,6 +100,16 @@ vi.mock('../../components/EmptyStateHome', () => ({
         }
       >
         mock-start-investigation
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/GreetingWelcomeScreen', () => ({
+  default: ({ onConfirmName }: { onConfirmName: (name: string) => void }) => (
+    <div data-testid="greeting-screen">
+      <button type="button" onClick={() => onConfirmName('Bruno Lima')}>
+        confirm-name
       </button>
     </div>
   ),
@@ -171,7 +182,7 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
     pdfReportContent: null,
     onOpenEmailModal: vi.fn(),
     onOpenFollowUpModal: vi.fn(),
-    onLogout: vi.fn(),
+    onClearOperator: vi.fn(),
     ...overrides,
   };
 }
@@ -180,6 +191,13 @@ describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
+    operatorStateRef.current = {
+      name: 'Bruno Lima',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    };
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -187,6 +205,21 @@ describe('ChatInterface shell regression', () => {
 
     expect(screen.getByTestId('empty-state-home')).toBeInTheDocument();
     expect(screen.queryByLabelText('Campo de mensagem')).not.toBeInTheDocument();
+  });
+
+  it('bloqueia a home e mostra o gate de nome quando nao existe operador local', () => {
+    operatorStateRef.current = {
+      name: '',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    };
+
+    render(<ChatInterface {...buildProps()} />);
+
+    expect(screen.getByTestId('greeting-screen')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state-home')).not.toBeInTheDocument();
   });
 
   it('aciona a investigacao inicial a partir da home', async () => {

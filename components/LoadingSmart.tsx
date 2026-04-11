@@ -175,7 +175,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
 /* ── Main component ──────────────────────────────────────────────────── */
 
 const LoadingSmart: React.FC<LoadingSmartProps> = ({
-  isLoading, mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
+  isLoading, mode: _mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
 }) => {
   const [currentInsight, setCurrentInsight] = useState<string>(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
@@ -197,6 +197,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
   const plannedOrderByKeyRef = useRef<Map<string, number>>(new Map());
+  const insightRequestIdRef = useRef(0);
 
   if (plannedOrderByKeyRef.current.size === 0) {
     const mergedPlan = [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES];
@@ -231,9 +232,20 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const safeSearchQuery = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
   const loadingContext = (safeContext || safeSearchQuery).trim();
   const sanitizedQueryForCuriosities = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
+  const loadingContextKey = useMemo(
+    () => `${isLoading ? 'loading' : 'idle'}::${(empresaAlvo || '').trim()}::${(searchQuery || '').trim()}`,
+    [empresaAlvo, isLoading, searchQuery],
+  );
 
   const normalizeSourceLabel = useCallback((label: string): string =>
     label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(), []);
+
+  const clearInsightTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const renderInsight = useCallback((insight: string): React.ReactNode => {
     const sourceMatch = insight.match(/^(.*?)(?:\s+[—-]\s*Fonte:\s*)(.+)$/i);
@@ -330,7 +342,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     };
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, processing?.completedStages, processing?.stage]);
 
   useEffect(() => () => {
@@ -340,40 +351,70 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     }
   }, []);
 
-  // ── 2. Curiosidades ──
   useEffect(() => {
-    if (!isLoading) return;
+    insightRequestIdRef.current += 1;
+    clearInsightTimer();
     setActiveInsightIndex(0);
     curiositiesRef.current = [];
+
+    if (!isLoading) {
+      setCurrentInsight(
+        'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+      );
+      return;
+    }
+
     setCurrentInsight(
       companyFocus
         ? `Mapeando sinais operacionais e footprint de mercado da ${companyFocus} — isso leva alguns instantes.`
         : 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
     );
+  }, [clearInsightTimer, companyFocus, isLoading, loadingContextKey]);
+
+  // ── 2. Curiosidades ──
+  useEffect(() => {
+    if (!isLoading) return;
+    const requestId = insightRequestIdRef.current;
+    const applyCuriosities = (nextCuriosities: string[]) => {
+      if (requestId !== insightRequestIdRef.current) return;
+
+      curiositiesRef.current = nextCuriosities;
+      setCurrentInsight(
+        nextCuriosities[0] ||
+          buildFallbackCuriosities(loadingContext)[0] ||
+          'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+      );
+    };
+
     if (!loadingContext || loadingContext.length < 2) {
-      curiositiesRef.current = buildFallbackCuriosities('');
-      setCurrentInsight(curiositiesRef.current[0]);
+      applyCuriosities(buildFallbackCuriosities(''));
       return;
     }
+
+    let cancelled = false;
+
     generateLoadingCuriosities(loadingContext, sanitizedQueryForCuriosities)
       .then(facts => {
+        if (cancelled) return;
         if (facts && facts.length > 0) {
-          curiositiesRef.current = facts.map(f => stripInternalMarkers(f)).filter(Boolean);
-          setCurrentInsight(curiositiesRef.current[0] || buildFallbackCuriosities(loadingContext)[0]);
+          applyCuriosities(facts.map(f => stripInternalMarkers(f)).filter(Boolean));
         } else {
-          curiositiesRef.current = buildFallbackCuriosities(loadingContext);
-          setCurrentInsight(curiositiesRef.current[0]);
+          applyCuriosities(buildFallbackCuriosities(loadingContext));
         }
       })
       .catch(() => {
-        curiositiesRef.current = buildFallbackCuriosities(loadingContext);
-        setCurrentInsight(curiositiesRef.current[0]);
+        if (cancelled) return;
+        applyCuriosities(buildFallbackCuriosities(loadingContext));
       });
-  }, [isLoading, companyFocus, loadingContext, sanitizedQueryForCuriosities, buildFallbackCuriosities]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buildFallbackCuriosities, isLoading, loadingContext, sanitizedQueryForCuriosities]);
 
   // ── 3. Auto-cycle curiosities ──
   const goToInsight = useCallback((index: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    clearInsightTimer();
     setIsFadingOut(true);
     timerRef.current = setTimeout(() => {
       const total = curiositiesRef.current.length || 1;
@@ -383,7 +424,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setIsFadingOut(false);
       timerRef.current = setTimeout(() => goToInsight(safeIndex + 1), INSIGHT_CYCLE_MS);
     }, FADE_DURATION);
-  }, []);
+  }, [clearInsightTimer]);
 
   // ── 4. Visibility control ──
   useEffect(() => {
@@ -391,12 +432,14 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setIsVisible(true); setIsFadingOut(false); setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
     } else {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      clearInsightTimer();
       setIsFadingOut(true);
       setTimeout(() => setIsVisible(false), FADE_DURATION);
     }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [isLoading, goToInsight]);
+    return () => {
+      clearInsightTimer();
+    };
+  }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey]);
 
   if (!isVisible) return null;
 

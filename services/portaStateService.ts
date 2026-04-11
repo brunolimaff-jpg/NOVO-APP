@@ -10,6 +10,7 @@ import {
   PortaState,
   ScorePortaData,
 } from '../types';
+import { calculatePortaFlagMultiplier, calculatePortaScoreBruto, normalizePortaFlags } from '../utils/porta';
 
 let currentPortaState: PortaState | null = null;
 
@@ -38,7 +39,18 @@ export function resetPortaState(): void {
 
 export function setBaseScore(score: ScorePortaData): void {
   if (!currentPortaState) return;
-  currentPortaState.baseScore = score;
+  const normalizedFlags = normalizePortaFlags(score.flags || []);
+  const scoreBruto =
+    typeof score.scoreBruto === 'number'
+      ? score.scoreBruto
+      : calculatePortaScoreBruto(score.p, score.o, score.r, score.t, score.a, score.segmento);
+
+  currentPortaState.baseScore = {
+    ...score,
+    flags: normalizedFlags,
+    scoreBruto,
+    score: Math.round(scoreBruto * calculatePortaFlagMultiplier(normalizedFlags)),
+  };
   currentPortaState.baseScoreTimestamp = Date.now();
   consolidateScore();
 }
@@ -60,6 +72,7 @@ export function addFeedAdjustment(feed: Omit<PortaFeedAdjustment, 'timestamp'>):
 
 export function addFlagFeed(feed: Omit<PortaFlagFeed, 'timestamp'>): void {
   if (!currentPortaState) return;
+  if (!normalizePortaFlags([feed.flag]).length) return;
 
   currentPortaState.flagFeeds = currentPortaState.flagFeeds.filter(
     f => !(f.source === feed.source && f.flag === feed.flag),
@@ -136,12 +149,12 @@ function consolidateScore(): void {
     segmento = latestSegment.segmento;
   }
 
-  const activeFlags = new Set<PortaFlag>(base.flags || []);
+  const activeFlags = new Set<PortaFlag>(normalizePortaFlags(base.flags || []));
   for (const feed of currentPortaState.flagFeeds) {
     if (feed.active) activeFlags.add(feed.flag);
     else activeFlags.delete(feed.flag);
   }
-  const flags = Array.from(activeFlags) as PortaFlag[];
+  const flags = normalizePortaFlags(Array.from(activeFlags) as PortaFlag[]);
 
   const weights = PORTA_WEIGHTS[segmento];
   const scoreBruto = Math.round((p * weights.p + o * weights.o + r * weights.r + t * weights.t + a * weights.a) * 10);
@@ -220,4 +233,3 @@ ${
 SUA MISSÃO: Investigar profundamente SUA ÁREA. Se encontrar dados que justifiquem alterar alguma nota, use os markers [[PORTA_FEED_*]] no final. Se as notas atuais estiverem corretas para sua área, diga explicitamente "Notas atuais confirmadas, sem ajuste necessário."
 `;
 }
-

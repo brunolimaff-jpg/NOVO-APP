@@ -24,7 +24,7 @@ npm run lint
 
 - Vercel serverless handlers live in `api/*.ts`.
 - `npm run dev` starts the Vite frontend; it does not emulate all production serverless behavior.
-- Clerk requires valid configuration for full authenticated UI flows.
+- The app no longer uses Clerk; a local operator name is mandatory and stored on the device.
 - `GitHub` is the only standard external AI integration for this repo right now.
 - The approved repo-local skill allowlist lives in `docs/SKILLS-GOVERNANCE.md`.
 - Do not assume global `~/.codex/skills` content is available or required.

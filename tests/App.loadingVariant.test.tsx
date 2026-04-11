@@ -84,10 +84,6 @@ vi.mock('../components/ToastContainer', () => ({
   default: () => <div data-testid="toast-container" />,
 }));
 
-vi.mock('../components/AuthModal', () => ({
-  AuthModal: () => <div data-testid="auth-modal" />,
-}));
-
 vi.mock('../components/EmailModal', () => ({
   EmailModal: () => <div data-testid="email-modal" />,
 }));
@@ -112,13 +108,13 @@ vi.mock('../components/SuspenseWithError', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    userId: 'user-1',
-    user: { id: 'user-1', displayName: 'Bruno Lima', isAdmin: false },
-    logout: vi.fn(),
-    isAuthenticated: true,
-    isAdmin: false,
+vi.mock('../contexts/OperatorContext', () => ({
+  useOperator: () => ({
+    name: 'Bruno Lima',
+    operatorId: 'op-1',
+    loading: false,
+    setName: vi.fn(),
+    clearName: vi.fn(),
   }),
 }));
 
@@ -171,6 +167,16 @@ vi.mock('../hooks/useSessionStorage', () => ({
   }),
 }));
 
+vi.mock('../hooks/useUpdateNotification', () => ({
+  useUpdateNotification: () => ({
+    updateAvailable: false,
+    currentVersion: null,
+    newVersion: null,
+    dismissUpdate: vi.fn(),
+    updateNow: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useRadar', () => ({
   useRadar: () => ({
     alerts: [],
@@ -201,7 +207,7 @@ vi.mock('../hooks/useSessionManager', () => ({
 }));
 
 vi.mock('../utils/featureAccess', () => ({
-  getFeatureAccessForUser: () => ({
+  getFeatureAccess: () => ({
     miniCRM: false,
     dashboard: false,
     integrityCheck: false,

@@ -3,6 +3,10 @@ import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LoadingSmart from '../../components/LoadingSmart';
 
+const { generateLoadingCuriositiesMock } = vi.hoisted(() => ({
+  generateLoadingCuriositiesMock: vi.fn(),
+}));
+
 vi.mock('react-dom', () => ({
   default: {
     createPortal: (node: React.ReactNode) => node,
@@ -11,15 +15,27 @@ vi.mock('react-dom', () => ({
 }));
 
 vi.mock('../../services/geminiService', () => ({
-  generateLoadingCuriosities: vi.fn().mockResolvedValue([
-    'Insight 1',
-    'Insight 2',
-  ]),
+  generateLoadingCuriosities: generateLoadingCuriositiesMock,
 }));
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe('LoadingSmart (variante hero)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    generateLoadingCuriositiesMock.mockReset();
+    generateLoadingCuriositiesMock.mockResolvedValue([
+      'Insight 1',
+      'Insight 2',
+    ]);
   });
 
   afterEach(() => {
@@ -212,5 +228,119 @@ describe('LoadingSmart (variante hero)', () => {
     });
 
     expect(screen.getAllByText('Verificando sinais de risco e conformidade...')).toHaveLength(2);
+  });
+
+  it('reseta o insight imediatamente quando o contexto muda de empresa', async () => {
+    const firstRequest = createDeferred<string[]>();
+    generateLoadingCuriositiesMock.mockReturnValueOnce(firstRequest.promise);
+
+    const { rerender } = render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando inteligência operacional...',
+          completedStages: [],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Investigar HART'S - ALIMENTOS NATURAIS LTDA"
+        empresaAlvo="HART'S - ALIMENTOS NATURAIS LTDA"
+      />,
+    );
+
+    rerender(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando inteligência operacional...',
+          completedStages: [],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Investigar Grupo Scheffer"
+        empresaAlvo="Grupo Scheffer"
+      />,
+    );
+
+    expect(
+      screen.getByText(/Mapeando sinais operacionais e footprint de mercado da Grupo Scheffer/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      firstRequest.resolve(["Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor."]);
+      await Promise.resolve();
+    });
+  });
+
+  it('ignora curiosidades atrasadas de uma empresa anterior', async () => {
+    const firstRequest = createDeferred<string[]>();
+    const secondRequest = createDeferred<string[]>();
+
+    generateLoadingCuriositiesMock
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(secondRequest.promise);
+
+    const { rerender } = render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando inteligência operacional...',
+          completedStages: [],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Investigar HART'S - ALIMENTOS NATURAIS LTDA"
+        empresaAlvo="HART'S - ALIMENTOS NATURAIS LTDA"
+      />,
+    );
+
+    rerender(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando inteligência operacional...',
+          completedStages: [],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Investigar Grupo Scheffer"
+        empresaAlvo="Grupo Scheffer"
+      />,
+    );
+
+    await act(async () => {
+      secondRequest.resolve([
+        'Desconstruindo a teia societária do Grupo Scheffer para calibrar o Score PORTA contra o setor.',
+        'Rastreando o perímetro fiscal do Grupo Scheffer para identificar riscos ocultos.',
+      ]);
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByText(/Desconstruindo a teia societária do Grupo Scheffer/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      firstRequest.resolve([
+        "Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor.",
+        "Auditando o perímetro fiscal da HART'S - ALIMENTOS NATURAIS LTDA para detectar riscos e incentivos ocultos.",
+      ]);
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByText(/Desconstruindo a teia societária do Grupo Scheffer/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
   });
 });

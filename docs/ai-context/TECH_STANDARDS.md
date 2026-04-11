@@ -28,7 +28,7 @@
 
 ### State Management
 - **Estado local** (useState) para UI state do componente
-- **Context** para estado compartilhado entre árvores de componentes (auth, theme, toast)
+- **Context** para estado compartilhado entre árvores de componentes (operator, theme, toast)
 - **Hooks customizados** para lógica de negócio (useChat, useRadar, useSessionManager)
 - **localStorage** para persistência de sessões (via useSessionStorage com serialização tipada)
 - **NUNCA** estado global quando local é suficiente
@@ -122,7 +122,7 @@ Erro	Ação	Feedback UI
 Network Offline	Detectar via useOffline, bloquear envio	Banner "Sem conexão. Reconectando..."
 Timeout	AbortController com timeout de 30s	Toast "A IA demorou muito. Tente novamente."
 Payload null/undefined	Validação pré-envio, early return	Não chega na UI — prevenção
-Clerk auth expired	Detectar 401, redirect para login	Modal "Sua sessão expirou"
+Perfil local ausente	Bloquear envio e exibir `GreetingWelcomeScreen`	Tela pedindo nome do operador
 localStorage full	Try/catch no setItem, limpar sessões antigas	Toast "Armazenamento cheio"
 Gemini response malformed	Fallback para texto raw sem parsing	Exibir resposta sem formatação
 

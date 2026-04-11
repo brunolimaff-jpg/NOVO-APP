@@ -1,4 +1,7 @@
 const MAX_ITEMS = 8;
+const SAFE_GENERIC_BRANDS = new Set(['senior', 'sistemas', 'gatec', 'scout']);
+const COMPANY_MARKER_PATTERN = /\b(?:ltda|s\/a|sa|cia|cooperativa|fazenda|usina|holding|agropecuaria|agroindustrial|industria|alimentos)\b/i;
+const COMPANY_SPECIFIC_PATTERN = /\b(?:teia societ[aá]ria|per[ií]metro fiscal|pegada de mercado|footprint de mercado|rastreando a|auditando .* da|desconstruindo .* da)\b/i;
 
 function sanitizeLoadingContext(value: string): string {
   const text = value.replace(/\s+/g, ' ').trim();
@@ -11,7 +14,39 @@ function sanitizeLoadingContext(value: string): string {
   return text;
 }
 
-function toLines(value: unknown): string[] {
+function normalizeForComparison(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mentionsDifferentCompany(line: string, expectedCompany: string): boolean {
+  const normalizedLine = normalizeForComparison(line);
+  const normalizedCompany = normalizeForComparison(expectedCompany);
+
+  if (!normalizedLine || !normalizedCompany) return false;
+  if (normalizedLine.includes(normalizedCompany)) return false;
+
+  const companyTokens = normalizedCompany
+    .split(' ')
+    .filter(token => token.length > 2);
+
+  if (companyTokens.some(token => normalizedLine.includes(token))) return false;
+
+  const lineTokens = normalizedLine.split(' ').filter(Boolean);
+  const hasSafeGenericBrand = lineTokens.some(token => SAFE_GENERIC_BRANDS.has(token));
+  const looksCompanySpecific =
+    COMPANY_MARKER_PATTERN.test(normalizedLine) ||
+    COMPANY_SPECIFIC_PATTERN.test(normalizedLine);
+
+  return looksCompanySpecific && !hasSafeGenericBrand;
+}
+
+function toLines(value: unknown, expectedCompany = '', strictCompanyMatch = false): string[] {
   if (!Array.isArray(value)) return [];
 
   const sanitizeLine = (line: string): string => line.replace(/\s+/g, ' ').trim();
@@ -41,7 +76,15 @@ function toLines(value: unknown): string[] {
     .map((item) => (typeof item === 'string' ? sanitizeLine(item) : ''))
     .filter((item) => item.length > 10 && item.length <= 220)
     .filter((item) => !isStatusLikeLine(item))
-    .filter((item) => !isUnsafeLine(item));
+    .filter((item) => !isUnsafeLine(item))
+    .filter((item) => {
+      if (!expectedCompany) return true;
+      if (!mentionsDifferentCompany(item, expectedCompany)) {
+        if (!strictCompanyMatch) return true;
+        return normalizeForComparison(item).includes(normalizeForComparison(expectedCompany));
+      }
+      return false;
+    });
 }
 
 function interleaveGroups(groups: string[][], limit = MAX_ITEMS): string[] {
@@ -90,14 +133,14 @@ export function parseLoadingCuriosities(rawText: string, context: string): strin
     const parsed = JSON.parse(cleaned);
 
     if (Array.isArray(parsed)) {
-      const curated = toLines(parsed);
+      const curated = toLines(parsed, safeContext);
       return curated.length > 0 ? [...curated, ...fallback].slice(0, MAX_ITEMS) : fallback;
     }
 
     if (parsed && typeof parsed === 'object') {
-      const empresa = toLines((parsed as Record<string, unknown>).empresa);
-      const setor = toLines((parsed as Record<string, unknown>).setor);
-      const regional = toLines((parsed as Record<string, unknown>).regional);
+      const empresa = toLines((parsed as Record<string, unknown>).empresa, safeContext, true);
+      const setor = toLines((parsed as Record<string, unknown>).setor, safeContext);
+      const regional = toLines((parsed as Record<string, unknown>).regional, safeContext);
 
       const merged = interleaveGroups([empresa, setor, regional], MAX_ITEMS);
       return merged.length > 0 ? [...merged, ...fallback].slice(0, MAX_ITEMS) : fallback;

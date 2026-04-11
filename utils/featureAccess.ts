@@ -1,5 +1,3 @@
-import { AuthUser } from '../contexts/AuthContext';
-
 export interface UserFeatureAccess {
   miniCRM: boolean;
   dashboard: boolean;
@@ -10,7 +8,6 @@ export interface UserFeatureAccess {
 }
 
 const MVP_LOCK_RESTRICTED_FEATURES = false;
-const ADMIN_IDENTIFIER = 'admin';
 const DEEP_DIVE_ENV_FLAG = 'VITE_ENABLE_DEEP_DIVE';
 
 const FULL_ACCESS: UserFeatureAccess = {
@@ -48,56 +45,22 @@ function isDeepDiveEnabledByEnv(): boolean {
   return parseEnvBoolean(readEnvFlag(DEEP_DIVE_ENV_FLAG), false);
 }
 
-function normalizeValue(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
-}
-
-function extractIdentifiers(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): Set<string> {
-  const identifiers = new Set<string>();
-  if (!user) return identifiers;
-
-  const normalizedName = normalizeValue(user.displayName || '');
-  if (normalizedName) {
-    identifiers.add(normalizedName);
-    const firstName = normalizedName.split(/\s+/)[0];
-    if (firstName) identifiers.add(firstName);
-  }
-
-  const normalizedEmail = normalizeValue(user.email || '');
-  if (normalizedEmail) {
-    identifiers.add(normalizedEmail);
-    const emailPrefix = normalizedEmail.split('@')[0];
-    if (emailPrefix) identifiers.add(emailPrefix);
-  }
-
-  return identifiers;
-}
-
-export function isAdminUser(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): boolean {
-  if (!user) return false;
-  const identifiers = extractIdentifiers(user);
-  return identifiers.has(ADMIN_IDENTIFIER);
-}
-
-export function getFeatureAccessForUser(user: Pick<AuthUser, 'id' | 'displayName' | 'email'> | null): UserFeatureAccess {
+export function getFeatureAccess(): UserFeatureAccess {
   const deepDiveEnabled = isDeepDiveEnabledByEnv();
+
   if (!MVP_LOCK_RESTRICTED_FEATURES) {
     return {
       ...FULL_ACCESS,
       deepDive: deepDiveEnabled,
     };
   }
-  const hasRestrictedAccess = isAdminUser(user);
+
   return {
-    miniCRM: hasRestrictedAccess,
-    dashboard: hasRestrictedAccess,
-    integrityCheck: hasRestrictedAccess,
+    miniCRM: false,
+    dashboard: false,
+    integrityCheck: false,
     clientLookup: true,
-    deepDive: hasRestrictedAccess && deepDiveEnabled,
-    warRoom: hasRestrictedAccess,
+    deepDive: deepDiveEnabled,
+    warRoom: false,
   };
 }

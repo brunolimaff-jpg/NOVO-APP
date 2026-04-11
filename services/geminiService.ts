@@ -16,7 +16,7 @@ import {
 import { NOME_VENDEDOR_PLACEHOLDER } from '../constants';
 import { normalizeAppError } from '../utils/errorHelpers';
 import { withAutoRetry } from '../utils/retry';
-import { parsePortaMarkerV2, stripPortaMarkers } from '../utils/porta';
+import { normalizePortaFlags, parsePortaMarkerV2, stripPortaMarkers } from '../utils/porta';
 import {
   lookupCliente,
   formatarParaPrompt,
@@ -347,7 +347,9 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
 
   const flagRegex = /\[\[PORTA_FLAG:(TRAD|LOCK|NOFIT):(?:\[)?(SIM|NAO|NÃO)(?:\])?(?::[^\]]+)?]]/g;
   while ((match = flagRegex.exec(content)) !== null) {
-    result.flags.push({ source, flag: match[1] as PortaFlag, active: match[2] === 'SIM', justification: `Deep dive ${source} ${match[2] === 'SIM' ? 'ativou' : 'desativou'} flag ${match[1]}` });
+    const flag = match[1] as PortaFlag;
+    if (!normalizePortaFlags([flag]).length) continue;
+    result.flags.push({ source, flag, active: match[2] === 'SIM', justification: `Deep dive ${source} ${match[2] === 'SIM' ? 'ativou' : 'desativou'} flag ${flag}` });
   }
 
   const tradFlagRegex = /\[\[PORTA_FLAG:TRAD:(?:\[)?(SIM|NAO|NÃO)(?:\])?:NATUREZA:(?:\[)?(PRODUCAO|TRADING|MISTA)(?:\])?]]/g;

@@ -1331,7 +1331,6 @@
 
 **components/**
 - `AdminDash.tsx` — AdminDash
-- `AuthModal.tsx` — AuthModal
 - `ChatInterface.tsx` — RadarProps
 - `ClienteSeniorScore.tsx`
 - `ConfirmPopover.tsx` — ConfirmPopover — substitui window.confirm() por confirmação inline.
@@ -1355,7 +1354,6 @@
 - `InstallPrompt.tsx` — components/InstallPrompt.tsx · default:InstallPrompt
 - `InvestigationDashboard.tsx` — ScoreFilter, ClienteFilter, default:InvestigationDashboard
 - `LoadingSmart.tsx`
-- `LoginPage.tsx` — LoginPage
 - `MarkdownRenderer.tsx` — GroundingSource
 - `MessageActionsBar.tsx`
 - `MessageRow.tsx` — MessageRowData
@@ -1374,7 +1372,6 @@
 - `ToastContainer.tsx` — ToastContainer — exibe a fila de toasts no canto inferior direito.
 - `UpdateNotificationModal.tsx` — UpdateNotificationModal
 - `UserMenu.tsx` — UserMenuProps
-- `UserMenuClerkBridge.tsx` — UserMenuClerkBridgeProps
 - `WarRoom.tsx` — default:WarRoom
 - `WelcomeScreen.tsx`
 
@@ -1385,9 +1382,9 @@
 - `loadingStages.ts` — Centralização dos marcos (milestones) e etapas de carregamento · MODULAR_DOSSIER_STAGES, STAGE_DISPLAY_LABELS, ModularDossierStage
 
 **contexts/**
-- `AuthContext.tsx` — AuthProvider, useAuth, AuthUser
 - `CRMContext.tsx` — CRMProvider, useCRM
 - `ModeContext.tsx` — ModeProvider, useMode
+- `OperatorContext.tsx` — OperatorProvider, useOperator, OperatorProfile
 
 **hooks/**
 - `useAdminMetrics.ts` — useAdminMetrics, VendorMetric, AdminMetrics
@@ -1480,9 +1477,9 @@
 - `warRoomTargetExtract.test.ts` — Keep this extractor in sync with components/WarRoom.tsx.
 
 **tests\contexts/**
-- `AuthContext.test.tsx`
 - `CRMContext.test.tsx`
 - `ModeContext.test.tsx` — tests/contexts/ModeContext.test.tsx
+- `OperatorContext.test.tsx`
 
 **tests\hooks/**
 - `useAdminMetrics.test.ts`
@@ -1553,7 +1550,7 @@
 - `documentExtractor.ts` — isValidPublicUrl, extractHtml, extractPdf, extractDocx, performWebSearch, universalExtract, UniversalExtractResult
 - `downloadHelpers.ts` — Helper robusto para forçar o download de arquivos no navegador. · downloadFile
 - `errorHelpers.ts` — normalizeAppError, getFriendlyErrorMessage
-- `featureAccess.ts` — isAdminUser, getFeatureAccessForUser, UserFeatureAccess
+- `featureAccess.ts` — getFeatureAccess, UserFeatureAccess
 - `friendlyErrorMessage.ts` — QW-2 — Mensagens de erro amigáveis para o vendedor · getFriendlyErrorMessage, toastErrorMessage, ErrorContext
 - `idbStorage.ts` — idbStorage — wrapper seguro sobre localStorage para persistência PWA. · storageSet, storageGet, storageRemove
 - `linkFixer.ts` — linkFixer.ts - Intercepta e corrige links falsos gerados pelo Gemini · fixFakeLinks, fixFakeLinksHTML, cleanFakeSourcesBlock, extractValidLinks, extractAllSourceMentions, rewriteMarkdownLinksToGoogle, autoLinkSeniorTerms
