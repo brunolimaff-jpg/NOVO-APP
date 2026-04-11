@@ -61,6 +61,11 @@ describe('report export helpers', () => {
     const inconsistency = '## ⚠️ INCONSISTÊNCIAS DETECTADAS\n\n1. **Área/Hectares:** ... precisa validar ...';
     const summary = generateExecutiveSummary(fullText, sections, inconsistency);
     expect(summary).toContain('RESUMO EXECUTIVO');
+    expect(summary).toContain('Tese da Conta');
+    expect(summary).toContain('Por Que Agir Agora');
+    expect(summary).toContain('Risco de Inação');
+    expect(summary).toContain('Direção Recomendada');
+    expect(summary).toContain('Sinal de Confiança');
     expect(summary).toContain('Validação obrigatória');
     expect(summary).toContain('precisa validar');
     expect(summary).toContain('Diagramas mermaid');
@@ -84,11 +89,38 @@ describe('report export helpers', () => {
     );
 
     expect(intro).toContain('## 📌 Resumo Executivo');
-    expect(intro).toContain('## 🔭 Leitura do Caso');
+    expect(intro).toContain('**Tese da Conta:**');
+    expect(intro).toContain('**Por Que Agir Agora:**');
+    expect(intro).toContain('**Risco de Inação:**');
+    expect(intro).toContain('**Direção Recomendada:**');
+    expect(intro).toContain('**Sinal de Confiança:**');
     expect(intro).toContain('74 módulos confirmados');
     expect(intro).toContain('expansão de conta');
     expect(intro).not.toContain('Dimensão O');
     expect(intro).not.toContain('Nota O sugerida');
+  });
+
+  it('keeps a commercial thesis for new accounts with discrete confidence language', () => {
+    const intro = buildMainDossierExecutiveIntro(
+      [
+        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - EMPRESA X',
+        '',
+        '* **O Calcanhar de Aquiles:** a operação ainda depende de controles manuais entre campo e backoffice.',
+        '',
+        '# 🦅 DOSSIÊ SCOUT 360: COMPLIANCE E RISCO FISCAL - EMPRESA X',
+        '',
+        '* **Risco Fiscal:** há exposição crescente a exigências de governança e compliance.',
+        '',
+        'Não encontrado nas fontes públicas: organograma detalhado.',
+      ].join('\n'),
+      'Empresa X',
+      { encontrado: false, grupo: 'EMPRESA X' },
+    );
+
+    expect(intro).toContain('Empresa X apresenta uma tese comercial consistente');
+    expect(intro).toContain('abordagem executiva mais qualificada');
+    expect(intro).toContain('Confiança');
+    expect(intro).not.toContain('Dimensão');
   });
 
   it('includes grounding sources from bot messages in exported links', () => {

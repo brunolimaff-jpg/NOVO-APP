@@ -134,6 +134,123 @@ function extractStrategicGap(text: string): string | null {
   return null;
 }
 
+interface ExecutiveSummarySpine {
+  thesis: string;
+  urgency: string;
+  risk: string;
+  direction: string;
+  confidence: string;
+}
+
+function countPublicDataGaps(text: string): number {
+  const matches = text.match(/não encontrado(?: nas fontes públicas)?/gi);
+  return matches ? matches.length : 0;
+}
+
+function detectUrgencyNarrative(text: string, foundSeniorBase: boolean): string {
+  const normalized = stripMarkdownFormatting(text)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  const cues: Array<{ regex: RegExp; narrative: string }> = [
+    {
+      regex: /\b(expans|capex|investimento|planta|unidade|aquisicao|fusao)\b/,
+      narrative: 'há sinais de movimento estrutural ou expansão que sustentam uma abordagem agora, antes que a arquitetura atual se consolide ainda mais.',
+    },
+    {
+      regex: /\b(compliance|fiscal|auditoria|esocial|sst|regulator|multa|autu)\b/,
+      narrative: 'o material sugere pressão concreta de compliance e governança, o que reduz o espaço para uma conversa genérica ou tardia.',
+    },
+    {
+      regex: /\b(safra|plantio|colheita|orcamento|budget|janela)\b/,
+      narrative: 'o contexto operacional indica janela útil de decisão, o que favorece entrar com leitura executiva antes do próximo ciclo de priorização.',
+    },
+    {
+      regex: /\b(planilha|manual|shadow it|integracao manual|legado|wms|tms|fragmenta)\b/,
+      narrative: 'a fricção operacional já aparece de forma observável e tende a ganhar custo conforme a operação escala.',
+    },
+  ];
+
+  const matchedCue = cues.find(cue => cue.regex.test(normalized));
+  if (matchedCue) return matchedCue.narrative;
+
+  return foundSeniorBase
+    ? 'já existe contexto suficiente para reposicionar a conversa em expansão de cobertura e defesa de território, sem depender de um gatilho adicional.'
+    : 'já existe material suficiente para sustentar uma abordagem executiva orientada a dor observável, sem esperar uma deterioração mais explícita.';
+}
+
+function buildExecutiveSummarySpine(
+  text: string,
+  modules: Array<{ title: string; content: string }>,
+  options?: {
+    companyName?: string | null;
+    clienteSeniorData?: ClienteSeniorData;
+    inconsistencyDetected?: boolean;
+  },
+): ExecutiveSummarySpine {
+  const displayCompany =
+    stripMarkdownFormatting(options?.companyName || '') ||
+    stripMarkdownFormatting(options?.clienteSeniorData?.grupo || '') ||
+    'A conta analisada';
+  const totalModulos = options?.clienteSeniorData?.totalModulos;
+  const foundSeniorBase = Boolean(options?.clienteSeniorData?.encontrado);
+  const primaryGap =
+    extractStrategicGap(text) ||
+    extractExecutiveSignal(modules[0]?.content || '') ||
+    'uma fricção operacional relevante entre operação, arquitetura e governança';
+
+  const representativeSignals = modules
+    .slice(0, 3)
+    .map(section => {
+      const label = mapModuleTitleToLabel(section.title);
+      const signal = extractExecutiveSignal(section.content);
+      if (!signal) return null;
+      return { label, signal };
+    })
+    .filter((item): item is { label: string; signal: string } => Boolean(item));
+
+  const labelsSummary = representativeSignals
+    .slice(0, 2)
+    .map(item => item.label.toLowerCase())
+    .join(' e ');
+
+  const thesis = foundSeniorBase
+    ? `${displayCompany} já opera uma base relevante do ecossistema Senior${
+        totalModulos ? ` (${totalModulos} módulos confirmados)` : ''
+      }, e a principal alavanca comercial agora está em ${primaryGap}, com espaço real para expansão de conta guiada por ${labelsSummary || 'gaps adjacentes de cobertura e execução'}.`
+    : `${displayCompany} apresenta uma tese comercial consistente em ${primaryGap}, combinando sinais de ${labelsSummary || 'escala, operação e governança'} que justificam uma abordagem executiva mais qualificada.`;
+
+  const urgency = detectUrgencyNarrative(text, foundSeniorBase);
+
+  const risk = foundSeniorBase
+    ? 'Se a conta for tratada apenas como relacionamento instalado, soluções satélite podem continuar ocupando bordas críticas e enfraquecendo a expansão da Senior.'
+    : 'Se a abordagem entrar genérica, sem conectar dor observável e ganho executivo, a conta tende a postergar a conversa e diluir a urgência comercial.'
+    ;
+
+  const direction = foundSeniorBase
+    ? 'Reposicionar a próxima conversa como expansão orientada por cobertura, consolidação e redução de dependências laterais, em vez de apenas defesa relacional.'
+    : 'Conduzir a próxima abordagem pela dor executiva mais visível, ligando risco evitado, ganho operacional e momento de decisão, sem antecipar solução demais.'
+    ;
+
+  const publicDataGaps = countPublicDataGaps(text);
+  const confidence = options?.inconsistencyDetected
+    ? 'Confiança moderada: a tese comercial é consistente, mas há dados que ainda pedem validação antes de uso em proposta.'
+    : publicDataGaps >= 6
+      ? 'Confiança moderada: a leitura já orienta a abordagem, mas ainda depende de validação adicional em alguns pontos públicos.'
+      : representativeSignals.length >= 2
+        ? 'Confiança alta: a leitura se apoia em múltiplos sinais convergentes do dossiê e já sustenta priorização comercial.'
+        : 'Confiança moderada: há sinal suficiente para orientar a conversa, embora o quadro ainda não esteja totalmente denso.';
+
+  return {
+    thesis,
+    urgency,
+    risk,
+    direction,
+    confidence,
+  };
+}
+
 export function buildMainDossierExecutiveIntro(
   fullText: string,
   companyName?: string | null,
@@ -142,50 +259,20 @@ export function buildMainDossierExecutiveIntro(
   const sections = parseMarkdownSections(fullText);
   const modules = sections.filter(section => section.level === 1 && section.kind === 'module');
   if (modules.length === 0) return '';
-
-  const displayCompany =
-    stripMarkdownFormatting(companyName || '') ||
-    stripMarkdownFormatting(clienteSeniorData?.grupo || '') ||
-    'A conta analisada';
-  const totalModulos = clienteSeniorData?.totalModulos;
-  const primaryGap =
-    extractStrategicGap(fullText) ||
-    extractExecutiveSignal(modules[0]?.content || '') ||
-    'há sinais de fricção operacional e necessidade de maior integração entre operação e gestão';
-
-  const opening = clienteSeniorData?.encontrado
-    ? `${displayCompany} já opera uma base relevante do ecossistema Senior${
-        totalModulos ? ` (${totalModulos} módulos confirmados)` : ''
-      }, o que desloca a tese comercial para expansão de conta, consolidação e defesa do território já conquistado.`
-    : `${displayCompany} reúne sinais de escala e complexidade suficientes para uma abordagem executiva orientada a governança, eficiência operacional e captura de margem.`;
-
-  const approach = clienteSeniorData?.encontrado
-    ? 'A abordagem dominante deve fechar gaps periféricos, ampliar cobertura e impedir que soluções satélite avancem sobre uma conta que já tem core instalado.'
-    : 'A abordagem dominante deve conectar dor observável, ganho executivo e janela real de decisão, evitando narrativa genérica de prospecção.'
-    ;
-
-  const bullets = modules
-    .slice(0, 4)
-    .map(section => {
-      const label = mapModuleTitleToLabel(section.title);
-      const signal = extractExecutiveSignal(section.content);
-      if (!signal) return null;
-      return `- **${label}:** ${signal}.`;
-    })
-    .filter((line): line is string => Boolean(line));
-
-  if (bullets.length === 0) {
-    bullets.push('- **Leitura consolidada:** o dossiê organiza a conta por operação, arquitetura, compliance e capacidade de execução comercial.');
-  }
+  const spine = buildExecutiveSummarySpine(fullText, modules, {
+    companyName,
+    clienteSeniorData,
+    inconsistencyDetected: false,
+  });
 
   return [
     '## 📌 Resumo Executivo',
     '',
-    `${opening} A maior fissura observável hoje está em ${primaryGap}. ${approach}`,
-    '',
-    '## 🔭 Leitura do Caso',
-    '',
-    ...bullets,
+    `- **Tese da Conta:** ${spine.thesis}`,
+    `- **Por Que Agir Agora:** ${spine.urgency}`,
+    `- **Risco de Inação:** ${spine.risk}`,
+    `- **Direção Recomendada:** ${spine.direction}`,
+    `- **Sinal de Confiança:** ${spine.confidence}`,
     '',
   ].join('\n');
 }
@@ -234,6 +321,11 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
   const context = pickExecutiveContext(mainSection);
   const sectionCount = sections.length;
   const aprofundamentos = Math.max(0, sectionCount - 1);
+  const parsedSections = parseMarkdownSections(sourceText);
+  const modules = parsedSections.filter(section => section.level === 1 && section.kind === 'module');
+  const spine = buildExecutiveSummarySpine(sourceText, modules, {
+    inconsistencyDetected: Boolean(inconsistenciesSection),
+  });
 
   const metricPatterns = [
     { label: 'Faturamento/Receita', regex: /(?:faturamento|receita)[^:\n]*:?\s*(R?\$?\s*\d[\d.,]*(?:\s*(?:mil|mi|milhão|milhões|bi|bilhão|bilhões|tri|trilhão|trilhões))?)/gi },
@@ -262,6 +354,11 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
   return [
     '## 📌 RESUMO EXECUTIVO',
     '',
+    `- **Tese da Conta:** ${spine.thesis}`,
+    `- **Por Que Agir Agora:** ${spine.urgency}`,
+    `- **Risco de Inação:** ${spine.risk}`,
+    `- **Direção Recomendada:** ${spine.direction}`,
+    `- **Sinal de Confiança:** ${spine.confidence}`,
     `- **Escopo compilado:** ${sectionCount} seção(ões), com ${aprofundamentos} aprofundamento(s).`,
     `- **Síntese inicial:** ${context}`,
     mermaidBlocks > 0
