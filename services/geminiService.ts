@@ -127,14 +127,18 @@ DIRETRIZES OBRIGATÓRIAS:
 3. Cada pergunta precisa ancorar em pelo menos um sinal concreto do contexto (dor, risco, processo, decisor ou timing).
 4. Linguagem executiva, direta, comercial, sem rodeio.
 5. Distribua as 4 perguntas neste mix:
-   - 1 sobre impacto financeiro (custo, margem, perda)
-   - 1 sobre gargalo operacional/sistêmico (ERP, HCM, WMS, integração, compliance)
-   - 1 sobre decisão política/orçamentária (sponsor, veto, dono do orçamento)
-   - 1 sobre urgência temporal (janela, trimestre, safra, próximos 90 dias)
+   - 3 perguntas contextuais baseadas nos sinais mais fortes do dossiê
+   - 1 pergunta obrigatoriamente orientada aos próximos 90 dias
+6. As 3 perguntas contextuais NÃO devem seguir categorias fixas. Elas devem nascer do que o contexto sustenta melhor.
+7. Quando o contexto estiver incompleto, infira com controle a partir dos sinais mais fortes e do segmento, sem cair em generalidades.
+8. Evite sobreposição: as 3 perguntas contextuais devem explorar ângulos diferentes entre si.
 
 PROIBIÇÕES:
 - PROIBIDO iniciar com: "Considerando", "Com a", "Como você", "Como vocês".
 - PROIBIDO gerar perguntas genéricas que sirvam para qualquer empresa.
+- PROIBIDO usar templates prontos repetitivos.
+- PROIBIDO citar ou repetir o nome da empresa nas perguntas.
+- PROIBIDO devolver mais de 1 pergunta sobre próximos 90 dias.
 - PROIBIDO usar aspas no início/fim das perguntas.
 
 Responda EXCLUSIVAMENTE em Português (Brasil) usando um Array JSON de strings.
@@ -601,8 +605,8 @@ export async function generateContinuityQuestion(
   options: ContinuityQuestionOptions = {},
 ): Promise<string[]> {
   const CONTINUITY_TARGET = 4;
+  const CONTEXTUAL_TARGET = 3;
   const normalizedCompany = (empresaAlvo || '').trim();
-  const companyReference = normalizedCompany || 'a conta analisada';
   const shouldPrioritizeNovelty =
     options.mode === 'regenerate' ||
     Boolean(options.ensureFresh) ||
@@ -635,11 +639,122 @@ export async function generateContinuityQuestion(
     noveltyConstraint,
     exclusionConstraint,
     `Gere ${modelRequestedCount} perguntas de continuidade estrategica para o vendedor ${nomeVendedor} usar na proxima interacao.`,
+    'A composicao final precisa ter exatamente 3 perguntas contextuais guiadas pelos sinais mais fortes do dossie e 1 pergunta com horizonte explicito de proximos 90 dias.',
+    'Nao cite o nome da empresa nas perguntas. Use sujeito implicito, area, processo, operacao ou diretoria como referencia.',
     `A resposta final deve conter no minimo ${CONTINUITY_TARGET} perguntas ineditas em relacao a lista bloqueada (quando houver).`,
     'Responda como array JSON de strings, sem texto adicional.',
   ]
     .filter(Boolean)
     .join('\n\n');
+
+  const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const normalizedCompanyPattern = normalizedCompany ? escapeRegex(normalizedCompany) : '';
+  const companyMentionRegex = normalizedCompanyPattern
+    ? new RegExp(`\\b(?:na|no|em|de|da|do|para|pela|pelo)?\\s*${normalizedCompanyPattern}\\b`, 'gi')
+    : null;
+  const ninetyDayRegex = /\b(?:nos?\s+pr[oó]ximos?\s+)?90\s+dias\b/i;
+  const genericQuestionRegex =
+    /(maior\s+desafio|principal\s+dor|o\s+que\s+mais\s+preocupa|o\s+que\s+precisa\s+melhorar|como\s+est[aá]\s+a\s+opera[cç][aã]o)/i;
+  const themeCatalog = [
+    {
+      id: 'fiscal',
+      detect: /(compliance|fiscal|tribut|passivo|multa|sefaz|pgfn|autua[cç][aã]o|e-?social)/gi,
+      contextual: [
+        'Qual risco fiscal já aparece no fechamento e ainda segue tratado como exceção operacional?',
+        'Onde o time absorve compliance manualmente sem transformar isso em pauta executiva?',
+        'Que obrigação crítica continua dependendo de conferência paralela e já eleva exposição regulatória?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias o passivo fiscal seguir sendo tratado manualmente, onde a perda tende a aparecer primeiro?',
+        'Se nos próximos 90 dias o tema de compliance não entrar na agenda executiva, qual risco tende a sair do controle primeiro?',
+      ],
+    },
+    {
+      id: 'tech',
+      detect: /(erp|hcm|wms|integra[cç][aã]o|sistema|stack|legado|planilha|dados|fechamento|consolida[cç][aã]o)/gi,
+      contextual: [
+        'Onde a dependência de planilha ainda esconde custo real e atrasa decisão executiva?',
+        'Qual etapa sistêmica mais fragiliza o fechamento quando os dados chegam quebrados entre áreas?',
+        'Que gargalo de integração já virou rotina e está consumindo margem sem visibilidade da diretoria?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias a operação continuar sem integração crítica, qual ruptura de processo tende a aparecer primeiro?',
+        'Se nos próximos 90 dias o fluxo seguir preso em planilhas e legados, que decisão vai continuar chegando tarde demais?',
+      ],
+    },
+    {
+      id: 'rh',
+      detect: /(rh|sst|headcount|folha|turnover|turnover|absente[ií]smo|safrist|sindicat|seguran[cç]a|acidente)/gi,
+      contextual: [
+        'Qual perda de produtividade no RH ou SST já virou normal e ainda não entrou na conta da operação?',
+        'Onde a gestão de pessoas segue reagindo no escuro por falta de dado consolidado entre folha, ponto e segurança?',
+        'Que risco trabalhista ou de SST cresce sem dono claro quando a operação acelera?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias o RH continuar operando sem visibilidade integrada, onde a pressão tende a estourar primeiro?',
+        'Se nos próximos 90 dias nada mudar em SST e rotina de pessoal, qual custo oculto tende a ganhar escala?',
+      ],
+    },
+    {
+      id: 'ops',
+      detect: /(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o)/gi,
+      contextual: [
+        'Onde a operação perde previsibilidade hoje porque o dado crítico chega tarde ou desencontrado?',
+        'Qual gargalo operacional já foi normalizado e continua destruindo margem sem virar prioridade?',
+        'Que etapa de rastreabilidade ou logística ainda trava reação rápida quando a operação aperta?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias o gargalo operacional seguir invisível, qual impacto tende a aparecer primeiro no resultado?',
+        'Se nos próximos 90 dias a rastreabilidade continuar fragmentada, onde a operação tende a sentir mais pressão?',
+      ],
+    },
+    {
+      id: 'governance',
+      detect: /(diretoria|or[cç]amento|sponsor|decis[aã]o|comit[eê]|prioridade|conselho|investimento|budget|veto)/gi,
+      contextual: [
+        'Qual decisão estratégica continua travada porque ninguém consolidou um caso financeiro incontestável?',
+        'Onde o tema já é importante o bastante para a diretoria, mas ainda não ganhou dono político claro?',
+        'Que sinal de budget ou prioridade existe hoje, mas ainda não foi convertido em movimento executivo real?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias a pauta não ganhar patrocinador executivo, qual frente tende a continuar paralisada?',
+        'Se nos próximos 90 dias o orçamento continuar difuso, qual decisão crítica tende a ser empurrada de novo?',
+      ],
+    },
+    {
+      id: 'finance',
+      detect: /(margem|ebitda|custo|caixa|resultado|rentab|perda|despesa|roi|receita)/gi,
+      contextual: [
+        'Qual vazamento de margem já está visível hoje, mas ainda não recebeu resposta sistêmica?',
+        'Onde o custo oculto cresce sem aparecer com clareza no resultado consolidado?',
+        'Que perda financeira segue dispersa entre áreas e por isso nunca vira decisão prioritária?',
+      ],
+      ninetyDay: [
+        'Se nos próximos 90 dias o custo oculto continuar sem dono, onde a erosão de margem tende a aparecer primeiro?',
+        'Se nos próximos 90 dias o resultado seguir sem leitura consolidada, qual perda tende a ser aceita como normal?',
+      ],
+    },
+  ] as const;
+
+  const getThemeHits = (text: string, detect: RegExp): number => {
+    const flags = detect.flags.includes('g') ? detect.flags : `${detect.flags}g`;
+    const regex = new RegExp(detect.source, flags);
+    return Array.from(text.matchAll(regex)).length;
+  };
+
+  const activeThemes = themeCatalog
+    .map(theme => ({
+      ...theme,
+      hits: getThemeHits(contextCorpus, theme.detect),
+    }))
+    .sort((a, b) => b.hits - a.hits);
+
+  const getThemeIdsForCandidate = (candidate: string): string[] => {
+    const sample = candidate.toLowerCase();
+    return activeThemes
+      .filter(theme => theme.hits > 0 && new RegExp(theme.detect.source, theme.detect.flags).test(sample))
+      .map(theme => theme.id);
+  };
 
   const normalizeQuestionCandidate = (raw: string): string => {
     const withoutQuotes = (raw || '')
@@ -652,7 +767,15 @@ export async function generateContinuityQuestion(
 
     if (!withoutQuotes) return '';
 
-    const withoutEndingPunctuation = withoutQuotes.replace(/[.!]+$/g, '').trim();
+    const withoutCompany = companyMentionRegex
+      ? withoutQuotes.replace(companyMentionRegex, '').replace(/\s{2,}/g, ' ').trim()
+      : withoutQuotes;
+    const withoutDanglingSeparators = withoutCompany
+      .replace(/\s+,/g, ',')
+      .replace(/\(\s*\)/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const withoutEndingPunctuation = withoutDanglingSeparators.replace(/[.!]+$/g, '').trim();
     if (!withoutEndingPunctuation) return '';
     return withoutEndingPunctuation.endsWith('?') ? withoutEndingPunctuation : `${withoutEndingPunctuation}?`;
   };
@@ -660,7 +783,9 @@ export async function generateContinuityQuestion(
   const bannedOpeners = /^(considerando|com\s+a|como\s+voc[êe]s?|você)\b/i;
   const leverageSignalRegex =
     /(custo|margem|perda|risco|or[cç]amento|decis[aã]o|prazo|janela|dias|fiscal|compliance|retrabalho|integra[cç][aã]o|erp|hcm|wms|safra|fechamento)/i;
-  const companyToken = normalizedCompany.toLowerCase().split(/\s+/)[0] || '';
+  const companyMentionResidualRegex = normalizedCompanyPattern ? new RegExp(normalizedCompanyPattern, 'i') : null;
+
+  const isNinetyDayQuestion = (raw: string): boolean => ninetyDayRegex.test(normalizeQuestionCandidate(raw));
 
   const isValidQuestionCandidate = (raw: string): boolean => {
     const candidate = normalizeQuestionCandidate(raw);
@@ -669,6 +794,8 @@ export async function generateContinuityQuestion(
     if (bannedOpeners.test(candidate)) return false;
     if (/^(responda|retorne|array json|json)/i.test(candidate)) return false;
     if (/^\s*(?:\[|{)/.test(candidate)) return false;
+    if (genericQuestionRegex.test(candidate) && !leverageSignalRegex.test(candidate) && !isNinetyDayQuestion(candidate)) return false;
+    if (companyMentionResidualRegex?.test(candidate)) return false;
     return true;
   };
 
@@ -702,13 +829,16 @@ export async function generateContinuityQuestion(
   const scoreQuestionCandidate = (raw: string): number => {
     const candidate = normalizeQuestionCandidate(raw);
     if (!candidate) return 0;
+    const signalHits = getThemeIdsForCandidate(candidate).length;
+    const isNinetyDay = isNinetyDayQuestion(candidate);
     let score = 0;
     if (candidate.endsWith('?')) score += 2;
     if (candidate.length >= 36 && candidate.length <= 180) score += 2;
     if (!bannedOpeners.test(candidate)) score += 2;
     if (/\b(\d+|90 dias|30 dias|12 meses|r\$|margem)\b/i.test(candidate)) score += 2;
     if (leverageSignalRegex.test(candidate)) score += 3;
-    if (companyToken.length >= 3 && candidate.toLowerCase().includes(companyToken)) score += 1;
+    if (signalHits > 0) score += 2 + signalHits;
+    if (isNinetyDay) score += 4;
     return score;
   };
 
@@ -722,41 +852,30 @@ export async function generateContinuityQuestion(
       .map(entry => entry.item);
   };
 
-  const buildFallbackContinuityQuestions = (): string[] => {
-    const hasTech = /(erp|hcm|wms|integra[cç][aã]o|stack|sistema|legado|planilha)/i.test(contextCorpus);
-    const hasCompliance = /(compliance|fiscal|tribut|mpt|pgfn|passivo|sefaz)/i.test(contextCorpus);
-    const hasRh = /(rh|sst|headcount|turnover|safrist|folha|sindicat)/i.test(contextCorpus);
-    const hasOps = /(log[íi]st|opera[cç][aã]o|expedi[cç][aã]o|supply|gargalo|rastreabil)/i.test(contextCorpus);
+  const buildSemanticBucket = (raw: string): string => {
+    const candidate = normalizeQuestionCandidate(raw);
+    const matchedThemeIds = getThemeIdsForCandidate(candidate);
+    if (isNinetyDayQuestion(candidate)) {
+      return matchedThemeIds[0] ? `90d:${matchedThemeIds[0]}` : '90d:generic';
+    }
+    return matchedThemeIds[0] ? `ctx:${matchedThemeIds[0]}` : 'ctx:generic';
+  };
 
+  const buildFallbackContinuityQuestions = (): string[] => {
+    const rankedThemes = activeThemes.filter(theme => theme.hits > 0);
+    const fallbackThemes = (rankedThemes.length > 0 ? rankedThemes : activeThemes).slice(0, 4);
     const candidates: string[] = [];
 
-    if (hasTech) {
-      candidates.push(
-        `Onde ${companyReference} ainda depende de planilha fora do ERP e quanto isso já custa por ciclo de fechamento?`,
-      );
-    }
-    if (hasCompliance) {
-      candidates.push(
-        `Qual passivo fiscal ou de compliance tende a ficar mais caro em ${companyReference} se a operação seguir sem integração sistêmica?`,
-      );
-    }
-    if (hasRh) {
-      candidates.push(
-        `Qual custo de perda de produtividade no RH/SST hoje já impacta margem em ${companyReference} por falta de processo estruturado?`,
-      );
-    }
-    if (hasOps) {
-      candidates.push(
-        `Em quantos dias a operação de ${companyReference} consegue fechar custo real sem retrabalho manual entre áreas críticas?`,
-      );
-    }
+    fallbackThemes.forEach((theme, index) => {
+      candidates.push(theme.contextual[index % theme.contextual.length]);
+      candidates.push(theme.ninetyDay[index % theme.ninetyDay.length]);
+    });
 
     candidates.push(
-      `Qual custo oculto cresce mais rápido em ${companyReference} hoje: retrabalho operacional, atraso de fechamento ou risco de compliance?`,
-      `Quem aprova o orçamento em ${companyReference} e quem pode vetar silenciosamente a decisão mesmo sem aparecer na reunião?`,
-      `Se nada mudar nos próximos 90 dias em ${companyReference}, qual perda tende a aparecer primeiro no resultado?`,
-      `Qual decisão estratégica segue travada em ${companyReference} porque os dados ainda chegam tarde demais para a diretoria?`,
-      `Que risco de margem em ${companyReference} já foi normalizado pelo time e deveria estar em pauta executiva imediata?`,
+      'Qual gargalo já consome resultado hoje sem uma leitura única entre operação e diretoria?',
+      'Onde o custo oculto segue se espalhando porque o processo crítico ainda é gerido por exceção?',
+      'Que decisão executiva continua atrasando porque o problema ainda não ganhou visibilidade consolidada?',
+      'Se nos próximos 90 dias nada mudar no processo mais sensível, qual perda tende a aparecer primeiro no resultado?',
     );
 
     return candidates;
@@ -878,6 +997,78 @@ export async function generateContinuityQuestion(
     return { questions, stageHits };
   };
 
+  const finalizeQuestionMix = (items: string[]): string[] => {
+    const ordered = orderByQuality(items);
+    const contextual: string[] = [];
+    const temporal: string[] = [];
+    const semanticSeen = new Set<string>();
+
+    for (const item of ordered) {
+      const candidate = normalizeQuestionCandidate(item);
+      if (!candidate) continue;
+
+      const semanticBucket = buildSemanticBucket(candidate);
+      const isTemporal = isNinetyDayQuestion(candidate);
+
+      if (isTemporal) {
+        if (temporal.length === 0) {
+          temporal.push(candidate);
+        }
+        continue;
+      }
+
+      if (contextual.length >= CONTEXTUAL_TARGET) continue;
+      if (semanticSeen.has(semanticBucket)) continue;
+
+      semanticSeen.add(semanticBucket);
+      contextual.push(candidate);
+    }
+
+    if (contextual.length < CONTEXTUAL_TARGET) {
+      for (const item of ordered) {
+        const candidate = normalizeQuestionCandidate(item);
+        if (!candidate || isNinetyDayQuestion(candidate) || contextual.includes(candidate)) continue;
+        contextual.push(candidate);
+        if (contextual.length === CONTEXTUAL_TARGET) break;
+      }
+    }
+
+    if (temporal.length === 0) {
+      for (const item of buildFallbackContinuityQuestions()) {
+        const candidate = normalizeQuestionCandidate(item);
+        if (candidate && isNinetyDayQuestion(candidate)) {
+          temporal.push(candidate);
+          break;
+        }
+      }
+    }
+
+    if (contextual.length < CONTEXTUAL_TARGET || temporal.length === 0) {
+      const fallbackOrdered = orderByQuality(
+        mergeUniqueQuestions(orderByQuality([...contextual, ...temporal]), buildFallbackContinuityQuestions()),
+      );
+
+      for (const item of fallbackOrdered) {
+        const candidate = normalizeQuestionCandidate(item);
+        if (!candidate) continue;
+        if (isNinetyDayQuestion(candidate)) {
+          if (temporal.length === 0) temporal.push(candidate);
+          continue;
+        }
+        if (contextual.length < CONTEXTUAL_TARGET && !contextual.includes(candidate)) {
+          const semanticBucket = buildSemanticBucket(candidate);
+          if (!semanticSeen.has(semanticBucket) || contextual.length + 1 >= CONTEXTUAL_TARGET) {
+            semanticSeen.add(semanticBucket);
+            contextual.push(candidate);
+          }
+        }
+        if (contextual.length === CONTEXTUAL_TARGET && temporal.length === 1) break;
+      }
+    }
+
+    return [...contextual.slice(0, CONTEXTUAL_TARGET), ...temporal.slice(0, 1)];
+  };
+
   const runContinuityAttempt = async (
     prompt: string,
     attempt: 'primary' | 'retry' | 'novelty_retry',
@@ -941,28 +1132,31 @@ export async function generateContinuityQuestion(
       company: empresaAlvo || null,
       error: error instanceof Error ? error.message : String(error),
     });
-    return orderByQuality(
+    return finalizeQuestionMix(
       mergeUniqueQuestions([], buildFallbackContinuityQuestions()),
-    ).slice(0, CONTINUITY_TARGET);
+    );
   }
 
-  collectedQuestions = orderByQuality(collectedQuestions);
+  const finalizedBeforeFallback = finalizeQuestionMix(collectedQuestions);
+  if (finalizedBeforeFallback.length >= CONTINUITY_TARGET) {
+    return finalizedBeforeFallback;
+  }
 
-  if (collectedQuestions.length < CONTINUITY_TARGET) {
-    const beforeFallbackCount = collectedQuestions.length;
-    collectedQuestions = orderByQuality(
-      mergeUniqueQuestions(collectedQuestions, buildFallbackContinuityQuestions()),
-    );
+  const beforeFallbackCount = collectedQuestions.length;
+  collectedQuestions = mergeUniqueQuestions(collectedQuestions, buildFallbackContinuityQuestions());
+  const finalizedWithFallback = finalizeQuestionMix(collectedQuestions);
+
+  if (finalizedWithFallback.length < CONTINUITY_TARGET) {
     scoutDiag.warn('ContinuityQuestion', 'fallback premium acionado para completar sugestões', {
       company: empresaAlvo || null,
       beforeFallbackCount,
-      afterFallbackCount: collectedQuestions.length,
+      afterFallbackCount: finalizedWithFallback.length,
       mode: options.mode || 'default',
       blockedCount: blockedQuestionKeys.size,
     });
   }
 
-  return collectedQuestions.slice(0, CONTINUITY_TARGET);
+  return finalizedWithFallback;
 }
 
 /**
