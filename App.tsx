@@ -37,6 +37,7 @@ import {
   CRMStage,
   ClienteSeniorData,
   PortaDimension,
+  ScorePortaData,
 } from './types';
 import {
   sendMessageToGemini,
@@ -197,6 +198,19 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+const CONTINUITY_TARGET = 4;
+
+const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
+  score: 60,
+  p: 6,
+  o: 6,
+  r: 6,
+  t: 6,
+  a: 6,
+  segmento: 'PRD',
+  flags: [],
+  scoreBruto: 60,
+};
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
   P: ['Estratégia & Expansão'],
@@ -293,6 +307,62 @@ export function applyPortaTechnicalFallback(
     fallbackApplied: true,
     fallbackDimensions,
   };
+}
+
+export function ensureWaterfallScorePorta(
+  content: string,
+  currentResolution: PortaScoreResolution,
+): ScorePortaData {
+  if (currentResolution.score) return currentResolution.score;
+
+  const resolvedAgain = resolvePortaScore(content);
+  if (resolvedAgain.score) return resolvedAgain.score;
+
+  const technicalFallback = applyPortaTechnicalFallback(content, resolvedAgain);
+  if (technicalFallback.resolution.score) return technicalFallback.resolution.score;
+
+  return { ...HARD_WATERFALL_SCORE_FALLBACK };
+}
+
+function normalizeContinuitySuggestion(raw: string): string {
+  const normalized = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  return normalized.endsWith('?') ? normalized : `${normalized}?`;
+}
+
+function buildContinuitySuggestionsFallback(companyName?: string | null): string[] {
+  const companyReference = (companyName || '').trim() || 'a operação';
+  return [
+    `Qual gargalo em ${companyReference} já está consumindo margem e segue tratado como rotina?`,
+    `Que decisão crítica em ${companyReference} continua travada por falta de dados confiáveis?`,
+    `Onde ${companyReference} ainda depende de planilhas e amplia risco operacional sem reação executiva?`,
+    `Se nada mudar em ${companyReference} nos próximos 90 dias, qual ruptura tende a aparecer primeiro?`,
+  ];
+}
+
+export function ensureContinuitySuggestions(
+  suggestions: string[] | null | undefined,
+  companyName?: string | null,
+): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+
+  const pushIfValid = (value: string) => {
+    const normalized = normalizeContinuitySuggestion(value);
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(normalized);
+  };
+
+  (Array.isArray(suggestions) ? suggestions : []).forEach(pushIfValid);
+
+  if (unique.length < CONTINUITY_TARGET) {
+    buildContinuitySuggestionsFallback(companyName).forEach(pushIfValid);
+  }
+
+  return unique.slice(0, CONTINUITY_TARGET);
 }
 
 const App: React.FC = () => {
@@ -994,7 +1064,7 @@ const App: React.FC = () => {
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallScorePorta = waterfallPortaResolution.score;
+        const waterfallScorePorta = ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
@@ -1039,19 +1109,23 @@ const App: React.FC = () => {
             error: error instanceof Error ? error.message : String(error),
           });
         }
+        waterfallSuggestions = ensureContinuitySuggestions(
+          waterfallSuggestions,
+          resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+        );
 
         updateSessionById(sessionId, s => {
           const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
           return {
             ...s,
             empresaAlvo: finalCompany || s.empresaAlvo,
-            scoreOportunidade: waterfallScorePorta?.score ?? s.scoreOportunidade,
+            scoreOportunidade: waterfallScorePorta.score ?? s.scoreOportunidade,
             messages: s.messages.map(msg =>
               msg.id === botMessageId
                 ? {
                     ...msg,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta || undefined,
+                    scorePorta: waterfallScorePorta,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
                     portaFallbackApplied: portaFallbackApplied ? true : undefined,
                     portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
@@ -1097,6 +1171,8 @@ const App: React.FC = () => {
         canUseLookup,
       );
 
+      const safeSuggestions = ensureContinuitySuggestions(suggestions, normalizedCompany || hintedCompany || null);
+
       if (activeGenerationRef.current[sessionId] !== botMessageId) return;
 
       updateSessionById(sessionId, s => {
@@ -1119,7 +1195,7 @@ const App: React.FC = () => {
                   ...msg,
                   text: responseText,
                   groundingSources: sources as { title: string; url: string }[] | undefined,
-                  suggestions: (suggestions || []) as string[],
+                  suggestions: safeSuggestions,
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,

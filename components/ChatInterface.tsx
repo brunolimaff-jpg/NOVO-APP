@@ -337,6 +337,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     let observer: ResizeObserver | null = null;
     let rafA: number | null = null;
     let rafB: number | null = null;
+    let emergencyTimer: number | null = null;
 
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = () => {
@@ -345,6 +346,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     };
 
     setIsMessagesViewportReady(false);
+
+    // Fallback de última linha: garante que a lista não fica branca
+    // quando ResizeObserver e RAF não disparam (cenário já observado em produção).
+    emergencyTimer = window.setTimeout(() => {
+      markReady();
+    }, 180);
 
     if (hasValidSize()) {
       markReady();
@@ -370,6 +377,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       observer?.disconnect();
       if (rafA !== null) window.cancelAnimationFrame(rafA);
       if (rafB !== null) window.cancelAnimationFrame(rafB);
+      if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
   }, [showInitialHome, shouldSuspendVirtualizedList, safeMessages.length]);
 

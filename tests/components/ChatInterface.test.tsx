@@ -529,4 +529,41 @@ describe('ChatInterface shell regression', () => {
       globalThis.ResizeObserver = originalResizeObserver;
     }
   });
+
+  it('renderiza mensagens mesmo quando ResizeObserver e requestAnimationFrame falham juntos', async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const originalRaf = window.requestAnimationFrame;
+    class SilentResizeObserver {
+      observe() {}
+      disconnect() {}
+    }
+    try {
+      // @ts-expect-error test override
+      globalThis.ResizeObserver = SilentResizeObserver;
+      window.requestAnimationFrame = vi.fn(() => 1);
+
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'Resumo final disponível com score e sugestões'),
+      ];
+
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+        expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo final disponível com score e sugestões');
+      });
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+      window.requestAnimationFrame = originalRaf;
+    }
+  });
 });

@@ -11,7 +11,6 @@ import MessageActionsBar from './MessageActionsBar';
 import { DeepDiveTopics } from './DeepDiveTopics';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
-import { getPortaState } from '../services/portaStateService';
 
 export interface MessageRowData {
   messages: Message[];
@@ -149,8 +148,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
 
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
-  const consolidatedScore = getPortaState()?.consolidatedScore;
-  const displayScore = msg.scorePorta || (isBot ? consolidatedScore || undefined : undefined);
+  const displayScore = isBot ? msg.scorePorta : undefined;
   const auditableSources = useMemo<AuditableSource[]>(
     () => buildAuditableSources(msg.text || '', msg.groundingSources || []),
     [msg.text, msg.groundingSources],
