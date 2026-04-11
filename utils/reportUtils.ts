@@ -142,42 +142,198 @@ interface ExecutiveSummarySpine {
   confidence: string;
 }
 
+interface EvidenceCandidate {
+  moduleLabel: string;
+  text: string;
+  normalized: string;
+}
+
 function countPublicDataGaps(text: string): number {
   const matches = text.match(/não encontrado(?: nas fontes públicas)?/gi);
   return matches ? matches.length : 0;
 }
 
-function detectUrgencyNarrative(text: string, foundSeniorBase: boolean): string {
-  const normalized = stripMarkdownFormatting(text)
+function normalizeForMatch(text: string): string {
+  return stripMarkdownFormatting(text)
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
 
-  const cues: Array<{ regex: RegExp; narrative: string }> = [
+function formatCompanyDisplayName(value: string): string {
+  const cleaned = stripMarkdownFormatting(value);
+  if (!cleaned) return '';
+
+  const hasLowercase = /[a-zà-ÿ]/.test(cleaned);
+  const hasUppercase = /[A-ZÀ-Ý]/.test(cleaned);
+  const shouldNormalize = !hasLowercase || cleaned === cleaned.toLowerCase();
+  if (!shouldNormalize) return cleaned;
+
+  return cleaned
+    .split(/\s+/)
+    .map(word => {
+      const trimmed = word.trim();
+      if (!trimmed) return trimmed;
+      if (/^[A-Z0-9]{2,4}$/.test(trimmed)) return trimmed.toUpperCase();
+      const lower = trimmed.toLowerCase();
+      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+    })
+    .join(' ');
+}
+
+function looksLikeGenericExecutivePhrase(text: string): boolean {
+  const normalized = normalizeForMatch(text);
+  return [
+    'movimento estrutural',
+    'janela real de decisao',
+    'reposicionar a conversa',
+    'abordagem executiva orientada',
+    'narrativa generica de prospeccao',
+    'priorizacao comercial',
+  ].some(fragment => normalized.includes(fragment));
+}
+
+function cleanEvidenceSnippet(text: string): string {
+  return stripMarkdownFormatting(text)
+    .replace(/^[A-Za-zÀ-ÿ0-9\s()/.-]{3,40}:\s*/g, '')
+    .replace(/\s*\([^)]{0,100}\)/g, '')
+    .replace(/\bshadow IT\b/gi, 'dependências laterais')
+    .replace(/\besteira nativa da Senior\b/gi, 'core atual')
+    .replace(/\bCRM Senior\b/gi, 'core atual')
+    .replace(/\bWMS\/TMS\b/gi, 'camadas logísticas paralelas')
+    .replace(/\bbackoffice\b/gi, 'retaguarda')
+    .replace(/\s+/g, ' ')
+    .replace(/[.]+$/g, '')
+    .trim();
+}
+
+function summarizePainPoint(rawText: string): string {
+  const cleaned = cleanEvidenceSnippet(rawText);
+  const normalized = normalizeForMatch(cleaned);
+
+  if (/\b(logist|frete|patio|pátio|expedic|pluma|graos|grãos)\b/.test(normalized)) {
+    return 'uma borda logística crítica ainda fora do core operacional';
+  }
+  if (/\b(compliance|fiscal|auditoria|esocial|sst|multa|autu)\b/.test(normalized)) {
+    return 'uma frente de compliance com impacto operacional direto';
+  }
+  if (/\b(planilha|manual|integracao manual|camadas logisticas paralelas|dependencias laterais|legado|retaguarda)\b/.test(normalized)) {
+    return 'uma fricção operacional ainda sustentada por controles paralelos';
+  }
+  if (/\b(decisor|cadeia de comando|orcamento|orçamento|janela)\b/.test(normalized)) {
+    return 'uma frente decisória ainda aberta para captura comercial';
+  }
+
+  if (cleaned.length <= 110) return cleaned;
+  return cleaned.split(/,|;| — /)[0].trim();
+}
+
+function collectEvidenceCandidates(modules: Array<{ title: string; content: string }>): EvidenceCandidate[] {
+  const candidates: EvidenceCandidate[] = [];
+
+  modules.forEach(section => {
+    const moduleLabel = mapModuleTitleToLabel(section.title);
+    const lines = section.content.split('\n');
+
+    lines.forEach(line => {
+      const cleaned = cleanEvidenceSnippet(line);
+      if (!cleaned || cleaned.length < 26) return;
+      if (/^#{1,6}\s/.test(line) || /^```/.test(line) || /^\|/.test(line)) return;
+      if (looksLikeGenericExecutivePhrase(cleaned)) return;
+
+      const normalized = normalizeComparableValue(cleaned);
+      if (!normalized || candidates.some(candidate => candidate.normalized === normalized)) return;
+
+      candidates.push({ moduleLabel, text: cleaned, normalized });
+    });
+  });
+
+  return candidates;
+}
+
+function detectUrgencyNarrative(
+  candidates: EvidenceCandidate[],
+  primaryGap: string,
+  foundSeniorBase: boolean,
+): string {
+  const realTriggerRules: Array<{ regex: RegExp; build: (evidence: string) => string }> = [
     {
       regex: /\b(expans|capex|investimento|planta|unidade|aquisicao|fusao)\b/,
-      narrative: 'há sinais de movimento estrutural ou expansão que sustentam uma abordagem agora, antes que a arquitetura atual se consolide ainda mais.',
+      build: evidence => `A urgência vem de ${evidence}, um gatilho concreto para discutir controle antes que essa borda ganhe mais peso na operação.`,
     },
     {
-      regex: /\b(compliance|fiscal|auditoria|esocial|sst|regulator|multa|autu)\b/,
-      narrative: 'o material sugere pressão concreta de compliance e governança, o que reduz o espaço para uma conversa genérica ou tardia.',
+      regex: /\b(compliance|fiscal|auditoria|esocial|sst|multa|autu)\b/,
+      build: evidence => `A urgência vem de ${evidence}, um sinal de pressão regulatória que tende a encarecer rápido quando fica fora da conversa.`,
     },
     {
-      regex: /\b(safra|plantio|colheita|orcamento|budget|janela)\b/,
-      narrative: 'o contexto operacional indica janela útil de decisão, o que favorece entrar com leitura executiva antes do próximo ciclo de priorização.',
-    },
-    {
-      regex: /\b(planilha|manual|shadow it|integracao manual|legado|wms|tms|fragmenta)\b/,
-      narrative: 'a fricção operacional já aparece de forma observável e tende a ganhar custo conforme a operação escala.',
+      regex: /\b(safra|plantio|colheita|orcamento|orçamento|budget)\b/,
+      build: evidence => `A urgência vem de ${evidence}, o que abre uma janela prática para discutir padronização sem recorrer a senso artificial de urgência.`,
     },
   ];
 
-  const matchedCue = cues.find(cue => cue.regex.test(normalized));
-  if (matchedCue) return matchedCue.narrative;
+  for (const candidate of candidates) {
+    const normalized = normalizeForMatch(candidate.text);
+    const matchedRule = realTriggerRules.find(rule => rule.regex.test(normalized));
+    if (matchedRule) return matchedRule.build(summarizePainPoint(candidate.text));
+  }
+
+  const pressureCandidate = candidates.find(candidate =>
+    /\b(logist|frete|patio|pátio|manual|integracao manual|legado|shadow it|wms|tms|compliance|fiscal|auditoria|expedic)\b/.test(
+      normalizeForMatch(candidate.text),
+    ),
+  );
+
+  if (pressureCandidate) {
+    return `A prioridade aqui não depende de calendário: ${summarizePainPoint(pressureCandidate.text)}, e essa fricção tende a encarecer à medida que o volume cresce.`;
+  }
 
   return foundSeniorBase
-    ? 'já existe contexto suficiente para reposicionar a conversa em expansão de cobertura e defesa de território, sem depender de um gatilho adicional.'
-    : 'já existe material suficiente para sustentar uma abordagem executiva orientada a dor observável, sem esperar uma deterioração mais explícita.';
+    ? 'Não há gatilho temporal forte nas fontes; a prioridade vem do espaço real de expansão sobre uma borda que a Senior ainda não domina por completo.'
+    : `Não há gatilho temporal forte nas fontes; a prioridade vem de ${summarizePainPoint(primaryGap)}, sem inflar urgência.`;
+}
+
+function buildThesis(
+  displayCompany: string,
+  primaryGap: string,
+  foundSeniorBase: boolean,
+  totalModulos?: number,
+): string {
+  const moduleSuffix = totalModulos ? `, com ${totalModulos} módulos confirmados,` : '';
+  const gapSummary = summarizePainPoint(primaryGap);
+  return foundSeniorBase
+    ? `${displayCompany} já é uma conta instalada Senior${moduleSuffix} e a melhor expansão de conta hoje está em ${gapSummary}.`
+    : `${displayCompany} concentra uma dor executiva clara em ${gapSummary}, suficiente para abrir a conta por controle e eficiência.`;
+}
+
+function buildRiskStatement(primaryGap: string, foundSeniorBase: boolean): string {
+  const gapSummary = summarizePainPoint(primaryGap);
+  return foundSeniorBase
+    ? `Se ${gapSummary} seguir fora do core, a Senior deixa espaço para satélites exatamente na borda que deveria puxar a próxima expansão.`
+    : `Se ${gapSummary} entrar na conversa como tema secundário, a conta tende a seguir com remendos laterais e adiar uma discussão executiva de verdade.`;
+}
+
+function buildDirectionStatement(foundSeniorBase: boolean): string {
+  return foundSeniorBase
+    ? 'Entrar pela borda crítica já exposta e conduzir a conversa como expansão de controle, padronização e domínio operacional sobre um fluxo ainda fora do core.'
+    : 'Abrir a conta pela dor mais visível e sustentar a tese em controle, eficiência e redução de exposição antes de discutir desenho de solução.';
+}
+
+function buildConfidenceStatement(
+  representativeSignals: Array<{ label: string; signal: string }>,
+  publicDataGaps: number,
+  inconsistencyDetected: boolean,
+): string {
+  const uniqueLabels = new Set(representativeSignals.map(signal => signal.label));
+  if (inconsistencyDetected) {
+    return 'Confiança moderada: a tese aparece em mais de um módulo, mas o dossiê ainda traz pontos que exigem validação antes de avançar para proposta.';
+  }
+  if (uniqueLabels.size >= 2 && publicDataGaps === 0) {
+    return 'Confiança alta: a tese se repete em múltiplos módulos e não depende de um único indício do dossiê.';
+  }
+  if (publicDataGaps >= 6) {
+    return 'Confiança moderada: a direção comercial é válida, mas as fontes públicas ainda deixam áreas cegas relevantes.';
+  }
+  return 'Confiança moderada: a leitura tem fundamento, mas ainda se apoia em poucos sinais independentes.';
 }
 
 function buildExecutiveSummarySpine(
@@ -190,11 +346,12 @@ function buildExecutiveSummarySpine(
   },
 ): ExecutiveSummarySpine {
   const displayCompany =
-    stripMarkdownFormatting(options?.companyName || '') ||
-    stripMarkdownFormatting(options?.clienteSeniorData?.grupo || '') ||
+    formatCompanyDisplayName(options?.companyName || '') ||
+    formatCompanyDisplayName(options?.clienteSeniorData?.grupo || '') ||
     'A conta analisada';
   const totalModulos = options?.clienteSeniorData?.totalModulos;
   const foundSeniorBase = Boolean(options?.clienteSeniorData?.encontrado);
+  const evidenceCandidates = collectEvidenceCandidates(modules);
   const primaryGap =
     extractStrategicGap(text) ||
     extractExecutiveSignal(modules[0]?.content || '') ||
@@ -210,37 +367,16 @@ function buildExecutiveSummarySpine(
     })
     .filter((item): item is { label: string; signal: string } => Boolean(item));
 
-  const labelsSummary = representativeSignals
-    .slice(0, 2)
-    .map(item => item.label.toLowerCase())
-    .join(' e ');
-
-  const thesis = foundSeniorBase
-    ? `${displayCompany} já opera uma base relevante do ecossistema Senior${
-        totalModulos ? ` (${totalModulos} módulos confirmados)` : ''
-      }, e a principal alavanca comercial agora está em ${primaryGap}, com espaço real para expansão de conta guiada por ${labelsSummary || 'gaps adjacentes de cobertura e execução'}.`
-    : `${displayCompany} apresenta uma tese comercial consistente em ${primaryGap}, combinando sinais de ${labelsSummary || 'escala, operação e governança'} que justificam uma abordagem executiva mais qualificada.`;
-
-  const urgency = detectUrgencyNarrative(text, foundSeniorBase);
-
-  const risk = foundSeniorBase
-    ? 'Se a conta for tratada apenas como relacionamento instalado, soluções satélite podem continuar ocupando bordas críticas e enfraquecendo a expansão da Senior.'
-    : 'Se a abordagem entrar genérica, sem conectar dor observável e ganho executivo, a conta tende a postergar a conversa e diluir a urgência comercial.'
-    ;
-
-  const direction = foundSeniorBase
-    ? 'Reposicionar a próxima conversa como expansão orientada por cobertura, consolidação e redução de dependências laterais, em vez de apenas defesa relacional.'
-    : 'Conduzir a próxima abordagem pela dor executiva mais visível, ligando risco evitado, ganho operacional e momento de decisão, sem antecipar solução demais.'
-    ;
-
   const publicDataGaps = countPublicDataGaps(text);
-  const confidence = options?.inconsistencyDetected
-    ? 'Confiança moderada: a tese comercial é consistente, mas há dados que ainda pedem validação antes de uso em proposta.'
-    : publicDataGaps >= 6
-      ? 'Confiança moderada: a leitura já orienta a abordagem, mas ainda depende de validação adicional em alguns pontos públicos.'
-      : representativeSignals.length >= 2
-        ? 'Confiança alta: a leitura se apoia em múltiplos sinais convergentes do dossiê e já sustenta priorização comercial.'
-        : 'Confiança moderada: há sinal suficiente para orientar a conversa, embora o quadro ainda não esteja totalmente denso.';
+  const thesis = buildThesis(displayCompany, primaryGap, foundSeniorBase, totalModulos);
+  const urgency = detectUrgencyNarrative(evidenceCandidates, primaryGap, foundSeniorBase);
+  const risk = buildRiskStatement(primaryGap, foundSeniorBase);
+  const direction = buildDirectionStatement(foundSeniorBase);
+  const confidence = buildConfidenceStatement(
+    representativeSignals,
+    publicDataGaps,
+    Boolean(options?.inconsistencyDetected),
+  );
 
   return {
     thesis,
