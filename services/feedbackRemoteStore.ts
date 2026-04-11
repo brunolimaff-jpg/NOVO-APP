@@ -43,7 +43,7 @@ export async function sendFeedbackRemote(entry: RemoteFeedbackPayload) {
     try {
         data = JSON.parse(text);
     } catch (e) {
-        throw new Error("Invalid JSON response from server");
+        throw new Error("Invalid JSON response from server", { cause: e });
     }
 
     if (!data.ok) throw new Error("Feedback API Error");

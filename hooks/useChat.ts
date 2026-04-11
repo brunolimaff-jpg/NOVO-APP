@@ -230,6 +230,7 @@ export const useChat = () => {
           try {
             localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(trimmed));
           } catch {
+            // ignore secondary quota failure on fallback write
           }
           toast.error('Armazenamento local cheio. Sessões antigas foram removidas.');
         }
@@ -488,7 +489,7 @@ export const useChat = () => {
 
   const handleSendMessage = async (text: string, displayText?: string) => {
     let sessionId = currentSessionId;
-    let currentHistory: Message[] = [];
+    let currentHistory: Message[];
     if (!sessionId) {
       sessionId = uuidv4();
       const resolvedCompany = sanitizeSessionCompanyName(displayText || text, text);

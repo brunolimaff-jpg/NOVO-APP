@@ -330,7 +330,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     };
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, processing?.completedStages, processing?.stage]);
 
   useEffect(() => () => {

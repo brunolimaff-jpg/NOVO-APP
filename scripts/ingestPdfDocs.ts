@@ -81,7 +81,7 @@ async function listPdfsRecursive(rootDir: string): Promise<string[]> {
 }
 
 function normalizeText(input: string): string {
-  return input.replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim();
+  return input.split('\u0000').join(' ').replace(/\s+/g, ' ').trim();
 }
 
 async function extractPdfNative(buffer: Buffer): Promise<string> {

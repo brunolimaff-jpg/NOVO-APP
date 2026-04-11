@@ -109,7 +109,9 @@ async function callGeminiApi<TResponse>(
   } catch (error: unknown) {
     if (timedOut) {
       scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint });
-      throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`);
+      throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`, {
+        cause: error,
+      });
     }
     scoutDiag.error('GeminiProxy', 'falha de rede ou abort no fetch', {
       endpoint,

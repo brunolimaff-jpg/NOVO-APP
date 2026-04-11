@@ -151,7 +151,7 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
   if (/^Investigando RH & decisores/i.test(s)) return { key: 'rh' };
 
   // Bloqueio de vazamento de prompts e metadados internos
-  if (/^[@\[{]|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
+  if (/^(?:@|\[|\{)|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
   
   return null;
 }
@@ -191,7 +191,7 @@ function sanitizeStatusLabel(rawStatus?: string | null): string {
   if (normalized) return normalized.trim();
   
   // Se for lixo ou prompt (@, [, {) não vaza para a tela se não for reconhecido
-  if (!rawStatus || /^[@\[{]|INVESTIGACAO_COMPLETA|PROMPT_/i.test(rawStatus)) return '';
+  if (!rawStatus || /^(?:@|\[|\{)|INVESTIGACAO_COMPLETA|PROMPT_/i.test(rawStatus)) return '';
   
   // Permite strings dinâmicas curtas que não pareçam prompts
   if (rawStatus.length < 100 && !rawStatus.includes('\n')) return rawStatus.trim();

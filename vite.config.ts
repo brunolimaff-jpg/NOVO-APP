@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import type { Plugin } from 'vite';
 
 // Plugin customizado para gerar version.json em build
@@ -13,7 +13,9 @@ function generateVersionPlugin(): Plugin {
     apply: 'build',
     writeBundle() {
       // Ler versão do package.json
-      const packageJson = require('./package.json');
+      const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as {
+        version?: string;
+      };
       const version = packageJson.version || '0.0.0';
 
       // Criar versão em formato legível (APP_VERSION)

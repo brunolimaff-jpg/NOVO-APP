@@ -43,7 +43,8 @@ describe('fetchLinkStatuses', () => {
 
     await fetchLinkStatuses(['https://a.com', 'https://a.com', 'https://b.com']);
 
-    const body = JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string);
+    const requestInit = vi.mocked(fetch).mock.calls[0][1] as Parameters<typeof fetch>[1];
+    const body = JSON.parse(requestInit?.body as string);
     const unique = new Set(body.urls);
     expect(unique.size).toBe(body.urls.length);
   });

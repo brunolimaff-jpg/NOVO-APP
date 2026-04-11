@@ -54,7 +54,8 @@ export async function exportSessionsAsJSON(): Promise<void> {
     throw new Error(
       error instanceof Error
         ? error.message
-        : 'Erro ao exportar sessões'
+        : 'Erro ao exportar sessões',
+      { cause: error }
     );
   }
 }
@@ -168,7 +169,9 @@ async function saveSessionsToStorage(sessions: ChatSession[]): Promise<void> {
     localStorage.setItem('scout360_sessions_v1', JSON.stringify(sessions));
   } catch (error) {
     console.error('Erro ao salvar em localStorage:', error);
-    throw new Error('Armazenamento cheio ou indisponível');
+    throw new Error('Armazenamento cheio ou indisponível', {
+      cause: error,
+    });
   }
 }
 

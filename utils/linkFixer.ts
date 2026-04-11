@@ -172,8 +172,8 @@ export function extractAllSourceMentions(text: string): Array<{ title: string; u
   
   // 2. Menções de fontes no texto (ex: "segundo Valor Econômico", "conforme IBGE")
   const mentionPatterns = [
-    /(?:segundo|conforme|de acordo com|fonte:?)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:\s*[,.\[]|\s*$)/gi,
-    /(?:citado em|mencionado em|relatado por)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:\s*[,.\[]|\s*$)/gi,
+    /(?:segundo|conforme|de acordo com|fonte:?)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:(?:\s*[,.])|(?:\s*\[)|\s*$)/gi,
+    /(?:citado em|mencionado em|relatado por)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:(?:\s*[,.])|(?:\s*\[)|\s*$)/gi,
   ];
   
   for (const pattern of mentionPatterns) {
