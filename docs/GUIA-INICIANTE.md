@@ -1,125 +1,83 @@
-# Guia Iniciante (vibe coding) — 🦅 Senior Scout 360
+# Guia Iniciante — Senior Scout 360
 
-Se você está começando agora, este é o caminho mais simples para rodar e entender o projeto.
+Este é o caminho mais curto para rodar o projeto e entender como ele está organizado hoje.
 
-## 1) O que você precisa instalar
+## 1) Requisitos
 
 - Node.js 20+
 - npm 10+
 
-## 2) Rodar localmente (passo a passo)
-
-1. Abra a pasta do projeto.
-2. Instale dependências:
+## 2) Rodar localmente
 
 ```bash
 npm install
-```
-
-3. Copie o arquivo de ambiente:
-
-```bash
 cp .env.example .env
-```
-
-4. Preencha no `.env`:
-   - `VITE_CLERK_PUBLISHABLE_KEY`
-   - `GEMINI_API_KEY`
-   - `PINECONE_API_KEY`
-
-5. Inicie:
-
-```bash
 npm run dev
 ```
 
-6. Abra `http://localhost:3000`.
+Abra `http://localhost:3000`.
 
----
+Preencha no `.env` o que for necessário para o seu fluxo:
 
-## 3) Estrutura mental do projeto (simples)
+- `VITE_CLERK_PUBLISHABLE_KEY`
+- `GEMINI_API_KEY`
+- `PINECONE_API_KEY`
 
-- `App.tsx`: controla o fluxo principal do app.
-- `components/`: telas e componentes visuais.
-- `services/`: integrações com IA, RAG e backend.
-- `api/`: funções serverless (um "mini backend").
-- `contexts/`: estados globais (usuário, modo, CRM).
+## 3) Mapa mental rápido
 
----
+- `App.tsx`: orquestra o fluxo principal
+- `components/`: UI e composição de tela
+- `services/`: IA, integrações e regras de backend/frontend
+- `api/`: funções serverless
+- `contexts/`: estado global
+- `prompts/`: prompts e builders
 
-## 4) Erros comuns e solução rápida
-
-## "tsc not found"
-
-Rode:
+## 4) Comandos úteis
 
 ```bash
-npm install
+npm run test
+npm run typecheck
+npm run build
+npm run lint
 ```
 
-## "Missing GEMINI_API_KEY"
-
-Revise seu `.env` e confirme se a variável está preenchida.
-
-## "Não funciona em produção"
-
-Confira se as variáveis de ambiente foram configuradas também no deploy (Vercel/host).
-
----
-
-## 5) Próximos passos recomendados (sem complicar)
-
-1. Rodar o app local.
-2. Entender fluxo de chat em `App.tsx`.
-3. Ler `services/geminiService.ts` (motor da IA).
-4. Ler `docs/SEGURANCA-API.md` para evitar vazamento de chave.
-
----
-
-## 6) Automação com Playwright MCP
-
-O projeto possui uma base inicial para automação de navegador assistida por IA.
-
-### Rodar smoke tests E2E
+Smoke E2E local:
 
 ```bash
 npx playwright install
 npm run test:e2e:smoke
 ```
 
-### Abrir modo visual dos smoke tests
+## 5) Problemas comuns
 
-```bash
-npm run test:e2e:smoke:ui
-```
+### `tsc not found`
 
-### Subir o servidor MCP do Playwright
+Rode `npm install`.
 
-```bash
-npm run mcp:playwright
-```
+### `Missing GEMINI_API_KEY`
 
-### Variante headless e isolada
+Revise o `.env`.
 
-```bash
-npm run mcp:playwright:headless
-```
+### Funciona localmente e falha em produção
 
-Para configuração do cliente MCP, consulte:
+Confira variáveis de ambiente e comportamento das rotas serverless em `api/`.
 
-- `docs/MCP-PLAYWRIGHT-SETUP.md`
-- `docs/mcp/playwright.generic.example.json`
+## 6) Operação de IA no repo
 
----
+- A integração externa padrão é `GitHub`.
+- As skills válidas do repo são versionadas em `.agents/skills/`.
+- Não dependa do que existe em `~/.codex/skills`.
 
-## 7) Pesquisa profunda com Fetch MCP
+Fonte de verdade:
 
-O Scout agora suporta aprofundamento de evidências públicas via **Fetch MCP**. Enquanto a busca interna encontra links, o Fetch permite extrair o conteúdo detalhado de páginas estratégicas.
+- `AGENTS.md`
+- `docs/SKILLS-GOVERNANCE.md`
+- `HANDOFF_AI.md`
 
-### Arquivos de referência:
+## 7) Próximos passos
 
-- [`docs/MCP-FETCH-SETUP.md`](./MCP-FETCH-SETUP.md): Guia de instalação e configuração.
-- [`docs/mcp/fetch.generic.example.json`](./mcp/fetch.generic.example.json): Exemplo de JSON para seu cliente MCP.
-- [`docs/FETCH-RESEARCH-FLOW.md`](./FETCH-RESEARCH-FLOW.md): Protocolo de investigação para agentes.
-
-Use o Fetch para validar o **Score PORTA** com base em fatos reais extraídos de sites oficiais e relatórios públicos.
+1. Ler `AGENTS.md`
+2. Ler `docs/SKILLS-GOVERNANCE.md`
+3. Entender `App.tsx`
+4. Ler `services/geminiService.ts`
+5. Ler `docs/SEGURANCA-API.md`

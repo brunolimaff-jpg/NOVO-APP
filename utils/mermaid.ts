@@ -27,10 +27,21 @@ function removeUnsupportedClassDefProps(input: string): string {
   );
 }
 
+function normalizeLegacyInlineClassSyntax(input: string): string {
+  if (!input) return '';
+  // Legacy output sometimes emits `::className` instead of `:::className`.
+  // Mermaid parser fails on this (`got 'COLON'`), so we normalize defensively.
+  return input.replace(
+    /(\b[A-Za-z][\w-]*\s*(?:\[[^\]\n]+\]|\([^)\n]+\)|\{[^}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*::(?!:)\s*([A-Za-z][\w-]*)/g,
+    '$1:::$2',
+  );
+}
+
 export function normalizeInlineMermaidClasses(chart: string): string {
   const classLines: string[] = [];
   const seenClassAssignments = new Set<string>();
-  const normalized = chart.replace(
+  const normalizedLegacyInlineClass = normalizeLegacyInlineClassSyntax(chart);
+  const normalized = normalizedLegacyInlineClass.replace(
     /([A-Za-z][\w-]*)(\s*(?:\[[^\]\n]+\]|\([^)\n]+\)|\{[^}\n]+\}|>"[^"\n]+"|>"[^"\n]*"|"(?:[^"\n]+)"))\s*:::\s*([A-Za-z][\w-]*)/g,
     (_full, nodeId: string, nodeShape: string, className: string) => {
       const classLine = `class ${nodeId} ${className};`;

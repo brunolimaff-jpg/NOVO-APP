@@ -2,12 +2,10 @@
   "installCommand": "npm install",
   "functions": {
     "api/gemini.ts": {
-      "maxDuration": 300,
-      "memory": 2048
+      "maxDuration": 300
     },
     "api/gerar-dossie.ts": {
-      "maxDuration": 300,
-      "memory": 2048
+      "maxDuration": 300
     },
 
     "api/radar-scan.ts": {

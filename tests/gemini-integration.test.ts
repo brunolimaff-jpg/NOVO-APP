@@ -4,6 +4,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const sendMessageMock = vi.fn();
 
 vi.mock('@google/genai', () => ({
+  ThinkingLevel: {
+    LOW: 'LOW',
+    MEDIUM: 'MEDIUM',
+    HIGH: 'HIGH',
+  },
   GoogleGenAI: class {
     chats = {
       create: vi.fn(() => ({

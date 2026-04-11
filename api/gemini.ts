@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
@@ -6,6 +6,7 @@ const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
   text: z.string(),
 });
+const ThinkingLevelSchema = z.enum(['low', 'medium', 'high']);
 
 const GeminiRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('health') }),
@@ -22,6 +23,7 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     history: z.array(HistoryItemSchema).optional(),
     message: z.string().min(1).max(200000),
     useGrounding: z.boolean().optional(),
+    thinkingLevel: ThinkingLevelSchema.optional(),
     thinkingMode: z.boolean().optional(),
     useOpenWebSearch: z.boolean().optional(),
   }),
@@ -35,7 +37,7 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
@@ -160,6 +162,20 @@ function extractGeminiHttpStatus(error: unknown): number {
 }
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
+type ThinkingLevelInput = z.infer<typeof ThinkingLevelSchema>;
+
+function resolveThinkingLevel(thinkingLevel?: ThinkingLevelInput, thinkingMode?: boolean): ThinkingLevelInput {
+  if (thinkingLevel) return thinkingLevel;
+  if (thinkingMode === true) return 'high';
+  if (thinkingMode === false) return 'low';
+  return 'high';
+}
+
+function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkingLevel {
+  if (thinkingLevel === 'low') return GeminiSdkThinkingLevel.LOW;
+  if (thinkingLevel === 'medium') return GeminiSdkThinkingLevel.MEDIUM;
+  return GeminiSdkThinkingLevel.HIGH;
+}
 
 async function executeGeminiAction(
   ai: GoogleGenAI,
@@ -213,7 +229,8 @@ async function executeGeminiAction(
       const history = normalizeHistory(body.history);
       const message = body.message;
       const useGrounding = body.useGrounding ?? true;
-      const thinkingMode = body.thinkingMode ?? false;
+      const resolvedThinkingLevel = resolveThinkingLevel(body.thinkingLevel, body.thinkingMode);
+      const sdkThinkingLevel = toSdkThinkingLevel(resolvedThinkingLevel);
       const useOpenWebSearch = body.useOpenWebSearch ?? false;
 
       const openWebSearchTool = {
@@ -242,8 +259,11 @@ async function executeGeminiAction(
           history,
           config: {
             systemInstruction,
-            temperature: thinkingMode ? 0.1 : 0.15,
+            temperature: resolvedThinkingLevel === 'high' ? 0.1 : 0.15,
             maxOutputTokens: 65536,
+            thinkingConfig: {
+              thinkingLevel: sdkThinkingLevel,
+            },
             tools: activeTools.length > 0 ? activeTools : undefined,
           },
         });

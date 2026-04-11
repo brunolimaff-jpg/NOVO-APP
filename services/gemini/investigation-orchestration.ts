@@ -33,7 +33,7 @@ import {
   resetPortaState,
   setBaseScore,
 } from '../portaStateService';
-import { DEEP_CHAT_MODEL_ID, STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID } from './config';
+import { STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
 import type { GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
@@ -72,18 +72,6 @@ function buildExtraContext(params: {
     concorrentesContext ? `\n[CONCORRENTES]\n${concorrentesContext}` : '',
     portaContext ? `\n[PORTA STATE]\n${portaContext}` : '',
   ].filter(Boolean).join('\n');
-}
-
-function selectModelToUse(params: {
-  isDeepDive: boolean;
-  isMegaPromptMessage: boolean;
-  shouldForceDirectAnswer: boolean;
-}): string {
-  const { isDeepDive, isMegaPromptMessage, shouldForceDirectAnswer } = params;
-  if (isDeepDive) return STABLE_RESEARCH_MODEL_ID;
-  if (isMegaPromptMessage) return STABLE_RESEARCH_MODEL_ID;
-  if (shouldForceDirectAnswer) return TACTICAL_MODEL_ID;
-  return DEEP_CHAT_MODEL_ID;
 }
 
 function initializePortaState(params: {
@@ -152,7 +140,8 @@ export async function sendMessageToGemini(
 ): Promise<SendMessageToGeminiResult> {
   const {
     useGrounding = true,
-    thinkingMode = false,
+    thinkingLevel,
+    thinkingMode,
     useOpenWebSearch = false,
     signal,
     onText,
@@ -188,6 +177,8 @@ export async function sendMessageToGemini(
   const isDeepDive = isDeepDiveMessage(userMessage, isMegaPromptMessage);
   const deepDiveSource = isDeepDive ? getDeepDiveSource(userMessage) : 'UNKNOWN';
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
+  const resolvedThinkingLevel =
+    thinkingLevel ?? (thinkingMode === true ? 'high' : thinkingMode === false ? 'low' : 'high');
   const hasActiveContextHint = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
   if (!empresaAlvo && isMegaPromptMessage) {
@@ -359,7 +350,7 @@ export async function sendMessageToGemini(
     portaSessionId,
   });
 
-  const modelToUse = selectModelToUse({
+  const modelToUse = selectMainChatModelId({
     isDeepDive,
     isMegaPromptMessage,
     shouldForceDirectAnswer,
@@ -397,6 +388,7 @@ export async function sendMessageToGemini(
             history,
             message: userMessage,
             useGrounding: shouldUseGrounding,
+            thinkingLevel: resolvedThinkingLevel,
             thinkingMode,
             useOpenWebSearch,
           },
@@ -423,6 +415,7 @@ export async function sendMessageToGemini(
             history,
             message: userMessage,
             useGrounding: false,
+            thinkingLevel: resolvedThinkingLevel,
             thinkingMode,
           },
           signal,

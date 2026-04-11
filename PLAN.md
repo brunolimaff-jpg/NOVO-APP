@@ -1,3 +1,13 @@
+# Nota
+
+O roadmap canonico da refatoracao estrutural vive em:
+
+- `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- `docs/ai-context/refactor/02-BOARD.md`
+
+Este arquivo pode continuar sendo usado para planos pontuais de features, correcoes
+ou mudancas locais.
+
 # Plano: Simplificação da página inicial (EmptyStateHome)
 
 ## Diagnóstico

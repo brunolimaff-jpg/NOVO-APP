@@ -1,94 +1,77 @@
-# Handoff Tecnico - Carga Inicial para IA
+# Handoff Tecnico - Fonte Canonica
 
-Use este documento como contexto inicial para qualquer novo chat sobre este repositorio.
+Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando neste repositorio.
 
----
+## Ordem de leitura
 
-Voce esta atuando no projeto **Senior Scout 360**, em `/Users/brunolima/Documents/NOVO-APP`.
+Para continuidade entre IAs, leia primeiro:
 
-## 1) Objetivo do produto
-Aplicacao web de inteligencia comercial (PT-BR) para prospeccao e investigacao de empresas do agro, com:
-- chat com IA (Gemini),
-- RAG (Pinecone),
-- persistencia local/remota de sessoes,
-- exportacao de dossiers,
-- mini CRM.
+1. `AGENTS.md`
+2. `docs/SKILLS-GOVERNANCE.md`
+3. `docs/ai-context/refactor/00-README.md`
+4. `docs/ai-context/refactor/01-MASTER-PLAN.md`
+5. `docs/ai-context/refactor/02-BOARD.md`
+6. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+7. `docs/ai-context/refactor/06-HANDOFF.md`
 
-Nao ha mais autenticacao Clerk no produto. O operador informa apenas um nome local, persistido no dispositivo.
+## Contexto minimo estavel
 
-## 2) Stack principal
-- Frontend: React 19 + TypeScript + Vite + Tailwind
-- Testes: Vitest + Testing Library
-- IA: Gemini (`@google/genai`)
-- RAG: Pinecone
-- Persistencia local: IndexedDB (`idb-keyval`) + fallback localStorage
-- Persistencia remota / integracoes operacionais: Google Apps Script
-- Runtime de producao: Vercel (`api/*.ts` como serverless handlers)
+- Projeto: **Senior Scout 360**
+- Objetivo: aplicacao web de inteligencia comercial para investigacao de empresas, dossies, Score PORTA, CRM e radar
+- Stack principal: React 19 + TypeScript + Vite + Tailwind + Gemini + Pinecone
+- Auth atual: local-only, persistido no dispositivo via `contexts/AuthContext.tsx`
+- Integracao externa padrao para IA: `GitHub`
+- Runtime real de validacao manual: Vercel
 
-## 3) Arquitetura atual
-- `index.tsx`
-  - bootstrap React
-  - `ErrorBoundary`
-  - `OperatorProvider`, `ModeProvider`, `CRMProvider`
-- `App.tsx`
-  - orquestrador principal da experiencia
-  - sessoes, mensagens, loading, score, exportacao, sync local/remoto e troca de views
-- `components/ChatInterface.tsx`
-  - shell principal de UI do chat
-- `services/geminiService.ts`
-  - fachada publica estavel para a camada Gemini
-  - a implementacao interna foi decomposta em `services/gemini/`
-- `services/gemini/`
-  - `investigation-orchestration.ts`: pipeline principal
-  - `porta.ts`: parsing de markers PORTA
-  - `sources.ts`, `sanitization.ts`, `status.ts`, `recovery.ts`, `runtime.ts`, `auxiliary.ts`, `config.ts`, `contracts.ts`
-- `hooks/useChat.ts`
-  - legado
-  - nao deve ganhar novos consumidores de producao
+## Entrypoints e hotspots
 
-## 4) Fluxo de mensagem
-1. Usuario envia mensagem pela UI.
-2. `App.tsx` registra a mensagem e cria o placeholder da resposta.
-3. `services/geminiService.ts` delega para a orquestracao interna:
-   - guardrails e sanitizacao,
-   - lookup/benchmark,
-   - RAG interno e docs,
-   - chamada Gemini via proxy,
-   - parsing de status, PORTA e fontes.
-4. A resposta atualiza texto final, score, fontes e sugestoes.
-5. A sessao persiste localmente e pode ser sincronizada remotamente.
+- Bootstrap da app: `index.tsx`
+- Orquestrador principal: `App.tsx`
+- UI principal do chat: `components/ChatInterface.tsx`
+- Fachada publica da camada Gemini: `services/geminiService.ts`
+- Implementacao interna da camada Gemini: `services/gemini/`
+- Contratos centrais: `types.ts`
+- Prompts: `prompts/`
+- Serverless handlers: `api/*.ts`
 
-## 5) Servicos criticos
-- `services/geminiService.ts`: contrato publico da conversa
-- `services/gemini/*`: modulos internos da orquestracao Gemini
-- `services/ragService.ts`: chamadas para `/api/rag` e `/api/docs-rag`
-- `services/sessionRemoteStore.ts`: persistencia remota de sessoes
-- `services/feedbackRemoteStore.ts`: envio de feedback
-- `services/apiConfig.ts`: URLs e configuracoes de integracao
+## Fluxo operacional resumido
 
-## 6) Validacao correta
-- O ambiente real de verificacao manual e a Vercel, nao `npm run dev`.
-- Use testes locais para regressao automatizada (`npm run test`, `npm run typecheck`, `npm run build`).
-- Para checagem manual, prefira preview deployment ou producao na Vercel.
+1. O usuario interage pela UI de chat.
+2. `App.tsx` coordena sessao, loading, mensagens e acionamento dos fluxos.
+3. `services/geminiService.ts` expoe o contrato publico e delega para `services/gemini/`.
+4. Lookup, RAG, proxy Gemini, parsing PORTA e recovery ficam na camada de services.
+5. Sessao, feedback, exportacao e CRM passam por services e utils do repo.
 
-## 7) Limitacoes e dividas importantes
-- `App.tsx` continua grande e com alto acoplamento.
-- `hooks/useChat.ts` e legado e agora possui guardrail arquitetural.
-- Parte da documentacao historica ainda pode estar atrasada; sempre conferir o codigo antes de assumir comportamento.
-- Fluxos completos dependem de variaveis externas de Gemini, Pinecone e Apps Script.
+## Estado arquitetural atual
 
-## 8) Regras de trabalho
-- Fazer mudancas pequenas e seguras.
-- Ler o codigo real antes de editar.
-- Preservar contratos publicos sempre que a sprint pedir compatibilidade.
-- Separar claramente regressao nova de ruido legado.
-- Nao reverter alteracoes locais nao relacionadas.
+- `services/geminiService.ts` e fachada de compatibilidade.
+- A orquestracao interna foi decomposta em:
+  - `services/gemini/investigation-orchestration.ts`
+  - `services/gemini/porta.ts`
+  - `services/gemini/sources.ts`
+  - `services/gemini/sanitization.ts`
+  - `services/gemini/status.ts`
+  - `services/gemini/recovery.ts`
+  - `services/gemini/runtime.ts`
+  - `services/gemini/auxiliary.ts`
+  - `services/gemini/config.ts`
+  - `services/gemini/contracts.ts`
+- `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
+- O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
 
-## 9) Entregavel esperado
-Retornar sempre:
-1. diagnostico objetivo,
-2. implementacao executada,
-3. arquivos afetados,
-4. validacao executada,
-5. riscos residuais,
-6. proximo passo seguro.
+## Scripts principais
+
+- `npm run dev`
+- `npm run test`
+- `npm run typecheck`
+- `npm run build`
+- `npm run lint`
+
+## Regras de continuidade
+
+- Nao confie em contexto de chat antigo.
+- Nao confie em paths de maquina antigos ou em descricoes de working tree fora do repo.
+- O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
+- O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
+- Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
+- Validacao manual final deve acontecer em preview/producao na Vercel, nao em `npm run dev`.

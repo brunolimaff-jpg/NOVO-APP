@@ -34,7 +34,6 @@ judgment to write, review, and refactor code the way a disciplined craftsman wou
 
 - [code-review-mastery](https://absolutelyskilled.dev/skill/code-review-mastery)
 - [refactoring-patterns](https://absolutelyskilled.dev/skill/refactoring-patterns)
-- [test-strategy](https://absolutelyskilled.dev/skill/test-strategy)
 - [clean-architecture](https://absolutelyskilled.dev/skill/clean-architecture)
 
 ## Maintainers

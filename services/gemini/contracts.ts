@@ -3,6 +3,7 @@ import type { CompetitorDetection } from '../competitorService';
 
 export interface GeminiRequestOptions {
   useGrounding?: boolean;
+  thinkingLevel?: 'low' | 'medium' | 'high';
   thinkingMode?: boolean;
   useOpenWebSearch?: boolean;
   signal?: AbortSignal;

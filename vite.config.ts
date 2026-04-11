@@ -151,6 +151,7 @@ export default defineConfig(() => {
     build: {
       // FIX: modulePreload polyfill garante carregamento dos chunks na ordem correta
       modulePreload: { polyfill: true },
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         external: [],
         output: {

@@ -5,11 +5,13 @@ import App from '../App';
 
 const {
   deepDiveErrorRef,
+  deepDiveAccessRef,
   sendMessageToGeminiMock,
   generateDossierModuleMock,
   setSessionsMock,
 } = vi.hoisted(() => ({
   deepDiveErrorRef: { current: null as unknown },
+  deepDiveAccessRef: { current: true },
   sendMessageToGeminiMock: vi.fn(async () => ({
     text: 'Resposta consolidada',
     sources: [],
@@ -56,6 +58,19 @@ vi.mock('../components/ChatInterface', () => ({
         }}
       >
         trigger-deep-dive
+      </button>
+      <button
+        type="button"
+        onClick={async () => {
+          deepDiveErrorRef.current = null;
+          try {
+            await props.onDeepDive?.('Investigando Acme Agro', 'PROMPT_INICIAL', 'Acme Agro');
+          } catch (error) {
+            deepDiveErrorRef.current = error;
+          }
+        }}
+      >
+        trigger-initial-investigation
       </button>
     </div>
   ),
@@ -191,7 +206,7 @@ vi.mock('../utils/featureAccess', () => ({
     dashboard: false,
     integrityCheck: false,
     clientLookup: false,
-    deepDive: true,
+    deepDive: deepDiveAccessRef.current,
     warRoom: false,
   }),
 }));
@@ -207,6 +222,7 @@ describe('App loading variant regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     deepDiveErrorRef.current = null;
+    deepDiveAccessRef.current = true;
   });
 
   it('renderiza o shell do chat sem ReferenceError de loadingVariant', () => {
@@ -233,7 +249,7 @@ describe('App loading variant regression', () => {
   });
 
   it('executa deep dive sem quebrar por requestKind ou fixedLoadingLine indefinidos', async () => {
-    generateDossierModuleMock.mockImplementationOnce(() => new Promise(() => {}));
+    sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
 
     render(<App />);
 
@@ -244,6 +260,40 @@ describe('App loading variant regression', () => {
       expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
       expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('Deep Dive em andamento: Tech Stack');
       expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    });
+
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(deepDiveErrorRef.current).toBeNull();
+  });
+
+  it('mantem investigacao inicial via onDeepDive no fluxo padrao (sem label de deep dive)', async () => {
+    generateDossierModuleMock.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-initial-investigation' }));
+
+    await waitFor(() => {
+      expect(setSessionsMock).toHaveBeenCalled();
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+      expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('none');
+      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+    });
+
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    expect(deepDiveErrorRef.current).toBeNull();
+  });
+
+  it('bloqueia Deep Dive de tópico quando feature flag está desligada', async () => {
+    deepDiveAccessRef.current = false;
+    render(<App />);
+    setSessionsMock.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-deep-dive' }));
+
+    await waitFor(() => {
+      expect(setSessionsMock).not.toHaveBeenCalled();
+      expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('none');
     });
 
     expect(deepDiveErrorRef.current).toBeNull();

@@ -59,9 +59,9 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
   if (!options || options.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2 mt-4 animate-fade-in select-none">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1">
+    <div className="mt-4 flex w-full min-w-0 flex-col gap-2 animate-fade-in select-none">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1 text-[10px] font-bold uppercase tracking-wider opacity-50">
           💡 Sugestões
         </span>
         {onRegenerate && (
@@ -71,7 +71,7 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
               onRegenerate();
             }}
             disabled={isRegenerating}
-            className={`text-[10px] opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 ${isRegenerating ? 'animate-pulse cursor-not-allowed' : ''}`}
+            className={`flex shrink-0 items-center gap-1 text-[10px] opacity-50 transition-opacity hover:opacity-100 ${isRegenerating ? 'animate-pulse cursor-not-allowed' : ''}`}
             title="Gerar novas sugestões baseadas neste contexto"
           >
             {isRegenerating ? '↻ Gerando...' : '↻ Novas'}
@@ -80,14 +80,14 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
       </div>
       
       {/* Grid flexível: mobile 1 coluna, tablet 2, desktop 2-3 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
+      <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
         {options.map((option, idx) => (
           <button
             key={idx}
             onClick={() => onPreFillInput(option)}
-            className="text-xs text-left px-3 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all shadow-sm active:scale-[0.98] min-h-[44px] flex items-center"
+            className="flex min-h-[44px] w-full min-w-0 items-center rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-left text-xs text-emerald-700 shadow-sm transition-all active:scale-[0.98] hover:bg-emerald-100 dark:border-emerald-900/30 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
           >
-            <span className="line-clamp-2">{option}</span>
+            <span className="block w-full break-words line-clamp-2">{option}</span>
           </button>
         ))}
       </div>

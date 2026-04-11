@@ -14,7 +14,7 @@ export const config = {
 
 export const maxDuration = 300;
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 
 function getApiKeys(): string[] {
   const primary = process.env.GEMINI_API_KEY;

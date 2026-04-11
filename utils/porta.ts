@@ -13,8 +13,8 @@ export const PORTA_MARKER_V2_REGEX =
 export const PORTA_MARKER_V1_REGEX = /\[\[PORTA:(\d+):P(\d+):O(\d+):R(\d+):T(\d+):A(\d+)\]\]/;
 const PORTA_SEGMENT_REGEX = /\[\[PORTA_SEG:(PRD|AGI|COP)\]\]/g;
 const PORTA_FLAG_REGEX = /\[\[PORTA_FLAG:(TRAD|LOCK|NOFIT):(SIM|NAO|NÃO)(?::[^\]]+)?\]\]/g;
-const PORTA_FEED_O_REGEX = /\[\[PORTA_FEED_O:(\d+):ELOS:([^\]]*)\]\]/g;
-const PORTA_FEED_R_REGEX = /\[\[PORTA_FEED_R:(\d+):PRESSOES:([^\]]*)\]\]/g;
+const PORTA_FEED_O_REGEX = /\[\[PORTA_FEED_O:(\d+)(?::ELOS:([^\]]*))?\]\]/g;
+const PORTA_FEED_R_REGEX = /\[\[PORTA_FEED_R:(\d+):PRESS(?:OES|AO):([^\]]*)\]\]/g;
 const PORTA_FEED_T_REGEX = /\[\[PORTA_FEED_T:(\d+):T1:(\d+):T2:(\d+):T3:(\d+):STACK:([^\]]*)\]\]/g;
 const PORTA_FEED_P_REGEX = /\[\[PORTA_FEED_P:(\d+):HA:([^:\]]*):CNPJS:([^:\]]*):FAT:([^\]]*)\]\]/g;
 const PORTA_FEED_P_PROXY_REGEX = /\[\[PORTA_FEED_P_PROXY:FUNC:([^\]]*)\]\]/g;
@@ -132,9 +132,20 @@ export function stripPortaMarkers(content: string): string {
 }
 
 function normalizePortaContent(content: string): string {
+  // Normalize only PORTA markers to avoid altering free-form narrative text.
+  // Handles spacing noise from LLM outputs, e.g. [[PORTA_FEED_O: 6 ]], : [8], [ AGI ].
+  const normalizedMarkers = content.replace(PORTA_MARKER_ANY_REGEX, marker =>
+    marker
+      .replace(/\s*:\s*/g, ':')
+      .replace(/\[\s*/g, '[')
+      .replace(/\s*]/g, ']')
+      .replace(/\s+,/g, ',')
+      .replace(/,\s+/g, ','),
+  );
+
   // Normalize bracketed values while preserving surrounding whitespace/newlines.
   // Example: :[8]:, : [8] :, :[ 8 ]: -> :8:
-  return content.replace(/:\s*\[\s*([^[\]]*)\s*\]/g, (_, g1) => `:${g1.trim()}`);
+  return normalizedMarkers.replace(/:\[\s*([^[\]]*)\s*\]/g, (_, g1) => `:${g1.trim()}`);
 }
 
 function clampPortaNote(value: number): number {

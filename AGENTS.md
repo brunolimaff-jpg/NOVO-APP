@@ -26,7 +26,10 @@ npm run lint
 
 - Vercel serverless handlers live in `api/*.ts`.
 - Vercel is the real runtime environment for production validation; local `npm run dev` is only a frontend convenience and does not emulate all production serverless behavior.
-- The app no longer uses Clerk auth; operator identity is local-only and persisted on-device.
+- Auth in this repo is local-only via `contexts/AuthContext.tsx`; Clerk is not active in runtime.
+- `GitHub` is the only standard external AI integration for this repo right now.
+- The approved repo-local skill allowlist lives in `docs/SKILLS-GOVERNANCE.md`.
+- Do not assume global `~/.codex/skills` content is available or required.
 
 ## Working rules
 
