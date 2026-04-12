@@ -1,5 +1,5 @@
 # Codebase Index
-> 2026-04-10 · 5271 files · ~13.3M tokens total
+> 2026-04-12 · 5308 files · ~13.1M tokens total
 >
 > **How to use:** Read this file first. Navigate to the exact file you need,
 > then read only that file. Do not read entire directories.
@@ -7,7 +7,7 @@
 ## Source
 
 **(root)/**
-- `App.tsx` — resolveModuleNamesForMissingDimensions, buildPortaReconciliationPrompt
+- `App.tsx` — resolveModuleNamesForMissingDimensions, buildPortaReconciliationPrompt, buildPortaFallbackChunk, applyPortaTechnicalFallback, ensureWaterfallScorePorta, shouldHoldWaterfallScoreForIntegrity, ensureContinuitySuggestions, PortaTechnicalFallbackResult
 - `constants.ts` — APP_NAME, APP_VERSION, DEFAULT_MODE, NOME_VENDEDOR_PLACEHOLDER, MODE_LABELS, BASE_SYSTEM_PROMPT, ChatMode
 - `eslint.config.js`
 - `index.tsx`
@@ -19,16 +19,16 @@
 - `vite.config.ts`
 - `vitest.config.ts`
 
-**.agent\skills\algorithmic-art\templates/**
+**.agent/skills/algorithmic-art/templates/**
 - `generator_template.js` — ═══════════════════════════════════════════════════════════════════════════
 
-**.agent\skills\api-design-principles\assets/**
+**.agent/skills/api-design-principles/assets/**
 - `rest-api-template.py` — http_exception_handler, list_users, create_user, get_user, update_user, delete_user, UserStatus, UserBase +2
 
-**.agent\skills\api-patterns\scripts/**
+**.agent/skills/api-patterns/scripts/**
 - `api_validator.py` — find_api_files, check_openapi_spec, check_api_code, main
 
-**.agent\skills\app-store-optimization/**
+**.agent/skills/app-store-optimization/**
 - `ab_test_planner.py` — plan_ab_test, ABTestPlanner
 - `aso_scorer.py` — calculate_aso_score, ASOScorer
 - `competitor_analyzer.py` — analyze_competitor_set, CompetitorAnalyzer
@@ -38,60 +38,60 @@
 - `metadata_optimizer.py` — optimize_app_metadata, MetadataOptimizer
 - `review_analyzer.py` — analyze_reviews, ReviewAnalyzer
 
-**.agent\skills\audio-transcriber\scripts/**
+**.agent/skills/audio-transcriber/scripts/**
 - `transcribe.py` — detect_cli_tool, invoke_prompt_engineer, handle_prompt_workflow, process_with_llm, transcribe_audio, save_outputs, main
 
-**.agent\skills\bin/**
+**.agent/skills/bin/**
 - `install.js`
 
-**.agent\skills\claude-d3js-skill\assets/**
+**.agent/skills/claude-d3js-skill/assets/**
 - `chart-template.jsx` — default:App
 - `interactive-template.jsx` — default:App
 
-**.agent\skills\content-creator\scripts/**
+**.agent/skills/content-creator/scripts/**
 - `brand_voice_analyzer.py` — analyze_content, BrandVoiceAnalyzer
 - `seo_optimizer.py` — optimize_content, SEOOptimizer
 
-**.agent\skills\database-design\scripts/**
+**.agent/skills/database-design/scripts/**
 - `schema_validator.py` — find_schema_files, validate_prisma_schema, main
 
-**.agent\skills\docx-official\ooxml\scripts/**
+**.agent/skills/docx-official/ooxml/scripts/**
 - `pack.py` — main, pack_document, validate_document, condense_xml
 - `unpack.py`
 - `validate.py` — main
 
-**.agent\skills\docx-official\ooxml\scripts\validation/**
+**.agent/skills/docx-official/ooxml/scripts/validation/**
 - `__init__.py`
 - `base.py` — BaseSchemaValidator
 - `docx.py` — DOCXSchemaValidator
 - `pptx.py` — PPTXSchemaValidator
 - `redlining.py` — RedliningValidator
 
-**.agent\skills\docx-official\scripts/**
+**.agent/skills/docx-official/scripts/**
 - `__init__.py`
 - `document.py` — DocxXMLEditor, Document
 - `utilities.py` — XMLEditor
 
-**.agent\skills\dotnet-backend-patterns\assets/**
+**.agent/skills/dotnet-backend-patterns/assets/**
 - `repository-template.cs`
 - `service-template.cs`
 
-**.agent\skills\geo-fundamentals\scripts/**
+**.agent/skills/geo-fundamentals/scripts/**
 - `geo_checker.py` — is_page_file, find_web_pages, check_page, main
 
-**.agent\skills\go-rod-master\examples/**
+**.agent/skills/go-rod-master/examples/**
 - `basic_scrape.go`
 - `concurrent_pages.go`
 - `request_hijacking.go`
 - `stealth_page.go`
 
-**.agent\skills\i18n-localization\scripts/**
+**.agent/skills/i18n-localization/scripts/**
 - `i18n_checker.py` — find_locale_files, check_locale_completeness, flatten_keys, check_hardcoded_strings, main
 
-**.agent\skills\last30days\scripts/**
+**.agent/skills/last30days/scripts/**
 - `last30days.py` — load_fixture, run_research, main, output_result
 
-**.agent\skills\last30days\scripts\lib/**
+**.agent/skills/last30days/scripts/lib/**
 - `__init__.py`
 - `cache.py` — Caching utilities for last30days skill. · ensure_cache_dir, get_cache_key, get_cache_path, is_cache_valid, load_cache, get_cache_age_hours, load_cache_with_age, save_cache +2
 - `dates.py` — Date utilities for last30days skill. · get_date_range, parse_date, timestamp_to_date, get_date_confidence, days_ago, recency_score
@@ -109,7 +109,7 @@
 - `websearch.py` — WebSearch module for last30days skill. · extract_date_from_url, extract_date_from_snippet, extract_date_signals, extract_domain, is_excluded_domain, parse_websearch_results, normalize_websearch_items, dedupe_websearch
 - `xai_x.py` — xAI API client for X (Twitter) discovery. · search_x, parse_x_response
 
-**.agent\skills\last30days\tests/**
+**.agent/skills/last30days/tests/**
 - `__init__.py`
 - `test_cache.py` — Tests for cache module. · TestGetCacheKey, TestCachePath, TestCacheValidity, TestModelCache
 - `test_dates.py` — Tests for dates module. · TestGetDateRange, TestParseDate, TestTimestampToDate, TestGetDateConfidence, TestDaysAgo, TestRecencyScore
@@ -119,14 +119,14 @@
 - `test_render.py` — Tests for render module. · TestRenderCompact, TestRenderContextSnippet, TestRenderFullReport, TestGetContextPath
 - `test_score.py` — Tests for score module. · TestLog1pSafe, TestComputeRedditEngagementRaw, TestComputeXEngagementRaw, TestNormalizeTo100, TestScoreRedditItems, TestScoreXItems, TestSortItems
 
-**.agent\skills\lib/**
+**.agent/skills/lib/**
 - `skill-utils.js`
 
-**.agent\skills\lint-and-validate\scripts/**
+**.agent/skills/lint-and-validate/scripts/**
 - `lint_runner.py` — detect_project_type, run_linter, main
 - `type_coverage.py` — check_typescript_coverage, check_python_coverage, main
 
-**.agent\skills\loki-mode\benchmarks\results\2026-01-05-00-49-17\humaneval-solutions/**
+**.agent/skills/loki-mode/benchmarks/results/2026-01-05-00-49-17/humaneval-solutions/**
 - `0.py` — has_close_elements
 - `1.py` — separate_paren_groups
 - `10.py` — is_palindrome, make_palindrome
@@ -292,7 +292,7 @@
 - `98.py` — count_upper
 - `99.py` — closest_integer
 
-**.agent\skills\loki-mode\benchmarks\results\humaneval-loki-solutions/**
+**.agent/skills/loki-mode/benchmarks/results/humaneval-loki-solutions/**
 - `0.py` — has_close_elements
 - `1.py` — separate_paren_groups
 - `10.py` — is_palindrome, make_palindrome
@@ -458,53 +458,53 @@
 - `98.py` — count_upper
 - `99.py` — closest_integer
 
-**.agent\skills\loki-mode\examples\todo-app-generated\backend\src/**
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/**
 - `index.ts`
 
-**.agent\skills\loki-mode\examples\todo-app-generated\backend\src\db/**
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/db/**
 - `database.ts` — getDatabase, closeDatabase
 - `db.ts` — initDatabase
 - `index.ts`
 - `migrations.ts` — runMigrations, initializeDatabase
 
-**.agent\skills\loki-mode\examples\todo-app-generated\backend\src\routes/**
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/routes/**
 - `todos.ts`
 
-**.agent\skills\loki-mode\examples\todo-app-generated\backend\src\types/**
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/types/**
 - `index.ts` — Todo item types · Todo, ApiResponse, CreateTodoRequest, UpdateTodoRequest, DatabaseConfig
 
-**.agent\skills\loki-mode\examples\todo-app-generated\frontend/**
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/**
 - `vite.config.ts`
 
-**.agent\skills\loki-mode\examples\todo-app-generated\frontend\src/**
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/**
 - `App.tsx`
 - `main.tsx`
 - `vite-env.d.ts`
 
-**.agent\skills\loki-mode\examples\todo-app-generated\frontend\src\api/**
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/api/**
 - `todos.ts` — fetchTodos, createTodo, updateTodo, deleteTodo, Todo, CreateTodoRequest
 
-**.agent\skills\loki-mode\examples\todo-app-generated\frontend\src\components/**
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/components/**
 - `ConfirmDialog.tsx` — ConfirmDialog
 - `EmptyState.tsx` — EmptyState
 - `TodoForm.tsx` — TodoForm
 - `TodoItem.tsx` — TodoItem
 - `TodoList.tsx` — TodoList
 
-**.agent\skills\loki-mode\examples\todo-app-generated\frontend\src\hooks/**
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/hooks/**
 - `useTodos.ts` — useTodos
 
-**.agent\skills\loki-mode\scripts/**
+**.agent/skills/loki-mode/scripts/**
 - `take-screenshots.js`
 
-**.agent\skills\mcp-builder\scripts/**
+**.agent/skills/mcp-builder/scripts/**
 - `connections.py` — Lightweight connection handling for MCP servers. · create_connection, MCPConnection, MCPConnectionStdio, MCPConnectionSSE, MCPConnectionHTTP
 - `evaluation.py` — MCP Server Evaluation Harness · parse_evaluation_file, extract_xml_content, agent_loop, evaluate_single_task, run_evaluation, parse_headers, parse_env_vars, main
 
-**.agent\skills\mobile-design\scripts/**
+**.agent/skills/mobile-design/scripts/**
 - `mobile_audit.py` — MobileAuditor
 
-**.agent\skills\notebooklm\scripts/**
+**.agent/skills/notebooklm/scripts/**
 - `__init__.py` — ensure_venv_and_run
 - `ask_question.py` — ask_notebooklm, main
 - `auth_manager.py` — main, AuthManager
@@ -516,10 +516,10 @@
 - `run.py` — get_venv_python, ensure_venv, main
 - `setup_environment.py` — main, SkillEnvironment
 
-**.agent\skills\oss-hunter\bin/**
+**.agent/skills/oss-hunter/bin/**
 - `hunter.py` — run_gh_command, hunt
 
-**.agent\skills\pdf-official\scripts/**
+**.agent/skills/pdf-official/scripts/**
 - `check_bounding_boxes_test.py` — TestGetBoundingBoxMessages
 - `check_bounding_boxes.py` — get_bounding_box_messages, RectAndField
 - `check_fillable_fields.py`
@@ -529,54 +529,54 @@
 - `fill_fillable_fields.py` — fill_pdf_fields, validation_error_for_field_value, monkeypatch_pydpf_method
 - `fill_pdf_form_with_annotations.py` — transform_coordinates, fill_pdf_form
 
-**.agent\skills\performance-profiling\scripts/**
+**.agent/skills/performance-profiling/scripts/**
 - `lighthouse_audit.py` — run_lighthouse, get_summary
 
-**.agent\skills\playwright-skill/**
+**.agent/skills/playwright-skill/**
 - `run.js`
 
-**.agent\skills\playwright-skill\lib/**
+**.agent/skills/playwright-skill/lib/**
 - `helpers.js` — playwright-helpers.js
 
-**.agent\skills\pptx-official\ooxml\scripts/**
+**.agent/skills/pptx-official/ooxml/scripts/**
 - `pack.py` — main, pack_document, validate_document, condense_xml
 - `unpack.py`
 - `validate.py` — main
 
-**.agent\skills\pptx-official\ooxml\scripts\validation/**
+**.agent/skills/pptx-official/ooxml/scripts/validation/**
 - `__init__.py`
 - `base.py` — BaseSchemaValidator
 - `docx.py` — DOCXSchemaValidator
 - `pptx.py` — PPTXSchemaValidator
 - `redlining.py` — RedliningValidator
 
-**.agent\skills\pptx-official\scripts/**
+**.agent/skills/pptx-official/scripts/**
 - `html2pptx.js` — html2pptx - Convert HTML slide to pptxgenjs slide with positioned elements
 - `inventory.py` — main, is_valid_shape, collect_shapes_with_absolute_positions, sort_shapes_by_position, calculate_overlap, ShapeWithPosition, ParagraphData, ShapeData
 - `rearrange.py` — main, duplicate_slide, delete_slide, reorder_slides, rearrange_presentation
 - `replace.py` — clear_paragraph_bullets, apply_paragraph_properties, apply_font_properties, detect_frame_overflow, validate_replacements, check_duplicate_keys, apply_replacements, main
 - `thumbnail.py` — main, create_hidden_slide_placeholder, get_placeholder_regions, convert_to_images, create_grids, create_grid
 
-**.agent\skills\product-manager-toolkit\scripts/**
+**.agent/skills/product-manager-toolkit/scripts/**
 - `customer_interview_analyzer.py` — aggregate_interviews, format_single_interview, main, InterviewAnalyzer
 - `rice_prioritizer.py` — format_output, load_features_from_csv, create_sample_csv, main, RICECalculator
 
-**.agent\skills\prompt-engineering-patterns\scripts/**
+**.agent/skills/prompt-engineering-patterns/scripts/**
 - `optimize-prompt.py` — main, TestCase, PromptOptimizer
 
-**.agent\skills\radix-ui-design-system\examples/**
+**.agent/skills/radix-ui-design-system/examples/**
 - `dialog-example.tsx` — BasicDialog, ControlledDialog
 - `dropdown-example.tsx` — CompleteDropdown, ActionsMenu
 
-**.agent\skills\radix-ui-design-system\templates/**
+**.agent/skills/radix-ui-design-system/templates/**
 - `component-template.tsx` — Radix UI Component Template
 
-**.agent\skills\remotion-best-practices\rules\assets/**
+**.agent/skills/remotion-best-practices/rules/assets/**
 - `charts-bar-chart.tsx` — MyAnimation
 - `text-animations-typewriter.tsx` — MyAnimation
 - `text-animations-word-highlight.tsx` — MyAnimation
 
-**.agent\skills\scripts/**
+**.agent/skills/scripts/**
 - `auto_categorize_skills.py` — categorize_skill, auto_categorize, main
 - `build-catalog.js`
 - `fix_dangling_links.py` — fix_dangling_links
@@ -595,88 +595,88 @@
 - `validate_skills.py` — has_when_to_use_section, parse_frontmatter, validate_skills
 - `validate-skills.js` — Legacy / alternative validator. For CI and PR checks, use scripts/validate_skills.py.
 
-**.agent\skills\scripts\tests/**
+**.agent/skills/scripts/tests/**
 - `inspect_microsoft_repo.py` — extract_skill_name, inspect_repo
 - `test_comprehensive_coverage.py` — extract_skill_name, analyze_skill_locations
 - `test_validate_skills_headings.py`
 - `validate_skills_headings.test.js`
 
-**.agent\skills\senior-architect\scripts/**
+**.agent/skills/senior-architect/scripts/**
 - `architecture_diagram_generator.py` — main, ArchitectureDiagramGenerator
 - `dependency_analyzer.py` — main, DependencyAnalyzer
 - `project_architect.py` — main, ProjectArchitect
 
-**.agent\skills\senior-fullstack\scripts/**
+**.agent/skills/senior-fullstack/scripts/**
 - `code_quality_analyzer.py` — main, CodeQualityAnalyzer
 - `fullstack_scaffolder.py` — main, FullstackScaffolder
 - `project_scaffolder.py` — main, ProjectScaffolder
 
-**.agent\skills\seo-fundamentals\scripts/**
+**.agent/skills/seo-fundamentals/scripts/**
 - `seo_checker.py` — is_page_file, find_pages, check_page, main
 
-**.agent\skills\shopify-development\scripts/**
+**.agent/skills/shopify-development/scripts/**
 - `shopify_graphql.py` — extract_id, build_gid, main, GraphQLResponse, ShopifyGraphQL
 - `shopify_init.py` — main, EnvConfig, EnvLoader, ShopifyInitializer
 
-**.agent\skills\shopify-development\scripts\tests/**
+**.agent/skills/shopify-development/scripts/tests/**
 - `test_shopify_init.py` — TestEnvLoader, TestShopifyInitializer, TestMain, TestEnvConfig
 
-**.agent\skills\skill-creator\scripts/**
+**.agent/skills/skill-creator/scripts/**
 - `init_skill.py` — main, title_case_skill_name, init_skill
 - `package_skill.py` — package_skill, main
 - `quick_validate.py` — validate_skill
 
-**.agent\skills\slack-gif-creator\core/**
+**.agent/skills/slack-gif-creator/core/**
 - `easing.py` — linear, ease_in_quad, ease_out_quad, ease_in_out_quad, ease_in_cubic, ease_out_cubic, ease_in_out_cubic, ease_in_bounce +2
 - `frame_composer.py` — create_blank_frame, draw_circle, draw_text, create_gradient_background, draw_star
 - `gif_builder.py` — GIFBuilder
 - `validators.py` — validate_gif, is_slack_ready
 
-**.agent\skills\systematic-debugging/**
+**.agent/skills/systematic-debugging/**
 - `condition-based-waiting-example.ts` — Complete implementation of condition-based waiting utilities · waitForEvent, waitForEventCount, waitForEventMatch
 
-**.agent\skills\typescript-expert\references/**
+**.agent/skills/typescript-expert/references/**
 - `utility-types.ts` — TypeScript Utility Types Library · assertNever, exhaustiveCheck, ok, err, some, none, Brand, UserId +2
 
-**.agent\skills\typescript-expert\scripts/**
+**.agent/skills/typescript-expert/scripts/**
 - `ts_diagnostic.py` — run_cmd, check_versions, check_tsconfig, check_tooling, check_monorepo, check_type_errors, check_any_usage, check_type_assertions +2
 
-**.agent\skills\ui-ux-pro-max\scripts/**
+**.agent/skills/ui-ux-pro-max/scripts/**
 - `core.py` — detect_domain, search, search_stack, BM25
 - `design_system.py` — format_ascii_box, format_markdown, generate_design_system, DesignSystemGenerator
 - `search.py` — format_output
 
-**.agent\skills\unreal-engine-cpp-pro\examples/**
+**.agent/skills/unreal-engine-cpp-pro/examples/**
 - `ExampleActor.cpp`
 - `ExampleActor.h`
 
-**.agent\skills\voice-ai-engine-development\examples/**
+**.agent/skills/voice-ai-engine-development/examples/**
 - `complete_voice_engine.py` — conversation_endpoint, Transcription, AgentResponse, SynthesisResult, BaseWorker, DeepgramTranscriber, GeminiAgent, ElevenLabsSynthesizer +2
 - `gemini_agent_example.py` — example_usage, Message, GeneratedResponse, GeminiAgent
 - `interrupt_system_example.py` — example_interrupt_scenario, InterruptibleEvent, ConversationWithInterrupts, SynthesisWorkerWithInterrupts, TranscriptionWorkerWithInterrupts, MockTranscription, MockSynthesisResult
 
-**.agent\skills\voice-ai-engine-development\templates/**
+**.agent/skills/voice-ai-engine-development/templates/**
 - `base_worker_template.py` — example_usage, BaseWorker, ExampleWorker
 - `multi_provider_factory_template.py` — example_usage, TranscriberProvider, LLMProvider, TTSProvider, VoiceComponentFactory
 
-**.agent\skills\vulnerability-scanner\scripts/**
+**.agent/skills/vulnerability-scanner/scripts/**
 - `security_scan.py` — scan_dependencies, scan_secrets, scan_code_patterns, scan_configuration, run_full_scan, main
 
-**.agent\skills\web-app/**
+**.agent/skills/web-app/**
 - `eslint.config.js`
 - `postcss.config.js`
 - `vite.config.js` — https://vite.dev/config/
 
-**.agent\skills\web-app\public\skills\algorithmic-art\templates/**
+**.agent/skills/web-app/public/skills/algorithmic-art/templates/**
 - `generator_template.js` — ═══════════════════════════════════════════════════════════════════════════
 
-**.agent\skills\web-app\public\skills\api-design-principles\assets/**
+**.agent/skills/web-app/public/skills/api-design-principles/assets/**
 - `rest-api-template.py` — http_exception_handler, list_users, create_user, get_user, update_user, delete_user, UserStatus, UserBase +2
 
-**.agent\skills\web-app\public\skills\api-patterns\scripts/**
+**.agent/skills/web-app/public/skills/api-patterns/scripts/**
 - `api_validator.py` — find_api_files, check_openapi_spec, check_api_code, main
 
-**.agent\skills\web-app\public\skills\app-store-optimization/**
+**.agent/skills/web-app/public/skills/app-store-optimization/**
 - `ab_test_planner.py` — plan_ab_test, ABTestPlanner
 - `aso_scorer.py` — calculate_aso_score, ASOScorer
 - `competitor_analyzer.py` — analyze_competitor_set, CompetitorAnalyzer
@@ -686,57 +686,57 @@
 - `metadata_optimizer.py` — optimize_app_metadata, MetadataOptimizer
 - `review_analyzer.py` — analyze_reviews, ReviewAnalyzer
 
-**.agent\skills\web-app\public\skills\audio-transcriber\scripts/**
+**.agent/skills/web-app/public/skills/audio-transcriber/scripts/**
 - `transcribe.py` — detect_cli_tool, invoke_prompt_engineer, handle_prompt_workflow, process_with_llm, transcribe_audio, save_outputs, main
 
-**.agent\skills\web-app\public\skills\claude-d3js-skill\assets/**
+**.agent/skills/web-app/public/skills/claude-d3js-skill/assets/**
 - `chart-template.jsx` — default:App
 - `interactive-template.jsx` — default:App
 
-**.agent\skills\web-app\public\skills\content-creator\scripts/**
+**.agent/skills/web-app/public/skills/content-creator/scripts/**
 - `brand_voice_analyzer.py` — analyze_content, BrandVoiceAnalyzer
 - `seo_optimizer.py` — optimize_content, SEOOptimizer
 
-**.agent\skills\web-app\public\skills\database-design\scripts/**
+**.agent/skills/web-app/public/skills/database-design/scripts/**
 - `schema_validator.py` — find_schema_files, validate_prisma_schema, main
 
-**.agent\skills\web-app\public\skills\docx-official\ooxml\scripts/**
+**.agent/skills/web-app/public/skills/docx-official/ooxml/scripts/**
 - `pack.py` — main, pack_document, validate_document, condense_xml
 - `unpack.py`
 - `validate.py` — main
 
-**.agent\skills\web-app\public\skills\docx-official\ooxml\scripts\validation/**
+**.agent/skills/web-app/public/skills/docx-official/ooxml/scripts/validation/**
 - `__init__.py`
 - `base.py` — BaseSchemaValidator
 - `docx.py` — DOCXSchemaValidator
 - `pptx.py` — PPTXSchemaValidator
 - `redlining.py` — RedliningValidator
 
-**.agent\skills\web-app\public\skills\docx-official\scripts/**
+**.agent/skills/web-app/public/skills/docx-official/scripts/**
 - `__init__.py`
 - `document.py` — DocxXMLEditor, Document
 - `utilities.py` — XMLEditor
 
-**.agent\skills\web-app\public\skills\dotnet-backend-patterns\assets/**
+**.agent/skills/web-app/public/skills/dotnet-backend-patterns/assets/**
 - `repository-template.cs`
 - `service-template.cs`
 
-**.agent\skills\web-app\public\skills\geo-fundamentals\scripts/**
+**.agent/skills/web-app/public/skills/geo-fundamentals/scripts/**
 - `geo_checker.py` — is_page_file, find_web_pages, check_page, main
 
-**.agent\skills\web-app\public\skills\go-rod-master\examples/**
+**.agent/skills/web-app/public/skills/go-rod-master/examples/**
 - `basic_scrape.go`
 - `concurrent_pages.go`
 - `request_hijacking.go`
 - `stealth_page.go`
 
-**.agent\skills\web-app\public\skills\i18n-localization\scripts/**
+**.agent/skills/web-app/public/skills/i18n-localization/scripts/**
 - `i18n_checker.py` — find_locale_files, check_locale_completeness, flatten_keys, check_hardcoded_strings, main
 
-**.agent\skills\web-app\public\skills\last30days\scripts/**
+**.agent/skills/web-app/public/skills/last30days/scripts/**
 - `last30days.py` — load_fixture, run_research, main, output_result
 
-**.agent\skills\web-app\public\skills\last30days\scripts\lib/**
+**.agent/skills/web-app/public/skills/last30days/scripts/lib/**
 - `__init__.py`
 - `cache.py` — Caching utilities for last30days skill. · ensure_cache_dir, get_cache_key, get_cache_path, is_cache_valid, load_cache, get_cache_age_hours, load_cache_with_age, save_cache +2
 - `dates.py` — Date utilities for last30days skill. · get_date_range, parse_date, timestamp_to_date, get_date_confidence, days_ago, recency_score
@@ -754,7 +754,7 @@
 - `websearch.py` — WebSearch module for last30days skill. · extract_date_from_url, extract_date_from_snippet, extract_date_signals, extract_domain, is_excluded_domain, parse_websearch_results, normalize_websearch_items, dedupe_websearch
 - `xai_x.py` — xAI API client for X (Twitter) discovery. · search_x, parse_x_response
 
-**.agent\skills\web-app\public\skills\last30days\tests/**
+**.agent/skills/web-app/public/skills/last30days/tests/**
 - `__init__.py`
 - `test_cache.py` — Tests for cache module. · TestGetCacheKey, TestCachePath, TestCacheValidity, TestModelCache
 - `test_dates.py` — Tests for dates module. · TestGetDateRange, TestParseDate, TestTimestampToDate, TestGetDateConfidence, TestDaysAgo, TestRecencyScore
@@ -764,11 +764,11 @@
 - `test_render.py` — Tests for render module. · TestRenderCompact, TestRenderContextSnippet, TestRenderFullReport, TestGetContextPath
 - `test_score.py` — Tests for score module. · TestLog1pSafe, TestComputeRedditEngagementRaw, TestComputeXEngagementRaw, TestNormalizeTo100, TestScoreRedditItems, TestScoreXItems, TestSortItems
 
-**.agent\skills\web-app\public\skills\lint-and-validate\scripts/**
+**.agent/skills/web-app/public/skills/lint-and-validate/scripts/**
 - `lint_runner.py` — detect_project_type, run_linter, main
 - `type_coverage.py` — check_typescript_coverage, check_python_coverage, main
 
-**.agent\skills\web-app\public\skills\loki-mode\benchmarks\results\2026-01-05-00-49-17\humaneval-solutions/**
+**.agent/skills/web-app/public/skills/loki-mode/benchmarks/results/2026-01-05-00-49-17/humaneval-solutions/**
 - `0.py` — has_close_elements
 - `1.py` — separate_paren_groups
 - `10.py` — is_palindrome, make_palindrome
@@ -934,7 +934,7 @@
 - `98.py` — count_upper
 - `99.py` — closest_integer
 
-**.agent\skills\web-app\public\skills\loki-mode\benchmarks\results\humaneval-loki-solutions/**
+**.agent/skills/web-app/public/skills/loki-mode/benchmarks/results/humaneval-loki-solutions/**
 - `0.py` — has_close_elements
 - `1.py` — separate_paren_groups
 - `10.py` — is_palindrome, make_palindrome
@@ -1100,53 +1100,53 @@
 - `98.py` — count_upper
 - `99.py` — closest_integer
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\backend\src/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/**
 - `index.ts`
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\backend\src\db/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/db/**
 - `database.ts` — getDatabase, closeDatabase
 - `db.ts` — initDatabase
 - `index.ts`
 - `migrations.ts` — runMigrations, initializeDatabase
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\backend\src\routes/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/routes/**
 - `todos.ts`
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\backend\src\types/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/types/**
 - `index.ts` — Todo item types · Todo, ApiResponse, CreateTodoRequest, UpdateTodoRequest, DatabaseConfig
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\frontend/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/**
 - `vite.config.ts`
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\frontend\src/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/**
 - `App.tsx`
 - `main.tsx`
 - `vite-env.d.ts`
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\frontend\src\api/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/api/**
 - `todos.ts` — fetchTodos, createTodo, updateTodo, deleteTodo, Todo, CreateTodoRequest
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\frontend\src\components/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/components/**
 - `ConfirmDialog.tsx` — ConfirmDialog
 - `EmptyState.tsx` — EmptyState
 - `TodoForm.tsx` — TodoForm
 - `TodoItem.tsx` — TodoItem
 - `TodoList.tsx` — TodoList
 
-**.agent\skills\web-app\public\skills\loki-mode\examples\todo-app-generated\frontend\src\hooks/**
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/hooks/**
 - `useTodos.ts` — useTodos
 
-**.agent\skills\web-app\public\skills\loki-mode\scripts/**
+**.agent/skills/web-app/public/skills/loki-mode/scripts/**
 - `take-screenshots.js`
 
-**.agent\skills\web-app\public\skills\mcp-builder\scripts/**
+**.agent/skills/web-app/public/skills/mcp-builder/scripts/**
 - `connections.py` — Lightweight connection handling for MCP servers. · create_connection, MCPConnection, MCPConnectionStdio, MCPConnectionSSE, MCPConnectionHTTP
 - `evaluation.py` — MCP Server Evaluation Harness · parse_evaluation_file, extract_xml_content, agent_loop, evaluate_single_task, run_evaluation, parse_headers, parse_env_vars, main
 
-**.agent\skills\web-app\public\skills\mobile-design\scripts/**
+**.agent/skills/web-app/public/skills/mobile-design/scripts/**
 - `mobile_audit.py` — MobileAuditor
 
-**.agent\skills\web-app\public\skills\notebooklm\scripts/**
+**.agent/skills/web-app/public/skills/notebooklm/scripts/**
 - `__init__.py` — ensure_venv_and_run
 - `ask_question.py` — ask_notebooklm, main
 - `auth_manager.py` — main, AuthManager
@@ -1158,10 +1158,10 @@
 - `run.py` — get_venv_python, ensure_venv, main
 - `setup_environment.py` — main, SkillEnvironment
 
-**.agent\skills\web-app\public\skills\oss-hunter\bin/**
+**.agent/skills/web-app/public/skills/oss-hunter/bin/**
 - `hunter.py` — run_gh_command, hunt
 
-**.agent\skills\web-app\public\skills\pdf-official\scripts/**
+**.agent/skills/web-app/public/skills/pdf-official/scripts/**
 - `check_bounding_boxes_test.py` — TestGetBoundingBoxMessages
 - `check_bounding_boxes.py` — get_bounding_box_messages, RectAndField
 - `check_fillable_fields.py`
@@ -1171,150 +1171,150 @@
 - `fill_fillable_fields.py` — fill_pdf_fields, validation_error_for_field_value, monkeypatch_pydpf_method
 - `fill_pdf_form_with_annotations.py` — transform_coordinates, fill_pdf_form
 
-**.agent\skills\web-app\public\skills\performance-profiling\scripts/**
+**.agent/skills/web-app/public/skills/performance-profiling/scripts/**
 - `lighthouse_audit.py` — run_lighthouse, get_summary
 
-**.agent\skills\web-app\public\skills\playwright-skill/**
+**.agent/skills/web-app/public/skills/playwright-skill/**
 - `run.js`
 
-**.agent\skills\web-app\public\skills\playwright-skill\lib/**
+**.agent/skills/web-app/public/skills/playwright-skill/lib/**
 - `helpers.js` — playwright-helpers.js
 
-**.agent\skills\web-app\public\skills\pptx-official\ooxml\scripts/**
+**.agent/skills/web-app/public/skills/pptx-official/ooxml/scripts/**
 - `pack.py` — main, pack_document, validate_document, condense_xml
 - `unpack.py`
 - `validate.py` — main
 
-**.agent\skills\web-app\public\skills\pptx-official\ooxml\scripts\validation/**
+**.agent/skills/web-app/public/skills/pptx-official/ooxml/scripts/validation/**
 - `__init__.py`
 - `base.py` — BaseSchemaValidator
 - `docx.py` — DOCXSchemaValidator
 - `pptx.py` — PPTXSchemaValidator
 - `redlining.py` — RedliningValidator
 
-**.agent\skills\web-app\public\skills\pptx-official\scripts/**
+**.agent/skills/web-app/public/skills/pptx-official/scripts/**
 - `html2pptx.js` — html2pptx - Convert HTML slide to pptxgenjs slide with positioned elements
 - `inventory.py` — main, is_valid_shape, collect_shapes_with_absolute_positions, sort_shapes_by_position, calculate_overlap, ShapeWithPosition, ParagraphData, ShapeData
 - `rearrange.py` — main, duplicate_slide, delete_slide, reorder_slides, rearrange_presentation
 - `replace.py` — clear_paragraph_bullets, apply_paragraph_properties, apply_font_properties, detect_frame_overflow, validate_replacements, check_duplicate_keys, apply_replacements, main
 - `thumbnail.py` — main, create_hidden_slide_placeholder, get_placeholder_regions, convert_to_images, create_grids, create_grid
 
-**.agent\skills\web-app\public\skills\product-manager-toolkit\scripts/**
+**.agent/skills/web-app/public/skills/product-manager-toolkit/scripts/**
 - `customer_interview_analyzer.py` — aggregate_interviews, format_single_interview, main, InterviewAnalyzer
 - `rice_prioritizer.py` — format_output, load_features_from_csv, create_sample_csv, main, RICECalculator
 
-**.agent\skills\web-app\public\skills\prompt-engineering-patterns\scripts/**
+**.agent/skills/web-app/public/skills/prompt-engineering-patterns/scripts/**
 - `optimize-prompt.py` — main, TestCase, PromptOptimizer
 
-**.agent\skills\web-app\public\skills\radix-ui-design-system\examples/**
+**.agent/skills/web-app/public/skills/radix-ui-design-system/examples/**
 - `dialog-example.tsx` — BasicDialog, ControlledDialog
 - `dropdown-example.tsx` — CompleteDropdown, ActionsMenu
 
-**.agent\skills\web-app\public\skills\radix-ui-design-system\templates/**
+**.agent/skills/web-app/public/skills/radix-ui-design-system/templates/**
 - `component-template.tsx` — Radix UI Component Template
 
-**.agent\skills\web-app\public\skills\remotion-best-practices\rules\assets/**
+**.agent/skills/web-app/public/skills/remotion-best-practices/rules/assets/**
 - `charts-bar-chart.tsx` — MyAnimation
 - `text-animations-typewriter.tsx` — MyAnimation
 - `text-animations-word-highlight.tsx` — MyAnimation
 
-**.agent\skills\web-app\public\skills\senior-architect\scripts/**
+**.agent/skills/web-app/public/skills/senior-architect/scripts/**
 - `architecture_diagram_generator.py` — main, ArchitectureDiagramGenerator
 - `dependency_analyzer.py` — main, DependencyAnalyzer
 - `project_architect.py` — main, ProjectArchitect
 
-**.agent\skills\web-app\public\skills\senior-fullstack\scripts/**
+**.agent/skills/web-app/public/skills/senior-fullstack/scripts/**
 - `code_quality_analyzer.py` — main, CodeQualityAnalyzer
 - `fullstack_scaffolder.py` — main, FullstackScaffolder
 - `project_scaffolder.py` — main, ProjectScaffolder
 
-**.agent\skills\web-app\public\skills\seo-fundamentals\scripts/**
+**.agent/skills/web-app/public/skills/seo-fundamentals/scripts/**
 - `seo_checker.py` — is_page_file, find_pages, check_page, main
 
-**.agent\skills\web-app\public\skills\shopify-development\scripts/**
+**.agent/skills/web-app/public/skills/shopify-development/scripts/**
 - `shopify_graphql.py` — extract_id, build_gid, main, GraphQLResponse, ShopifyGraphQL
 - `shopify_init.py` — main, EnvConfig, EnvLoader, ShopifyInitializer
 
-**.agent\skills\web-app\public\skills\shopify-development\scripts\tests/**
+**.agent/skills/web-app/public/skills/shopify-development/scripts/tests/**
 - `test_shopify_init.py` — TestEnvLoader, TestShopifyInitializer, TestMain, TestEnvConfig
 
-**.agent\skills\web-app\public\skills\skill-creator\scripts/**
+**.agent/skills/web-app/public/skills/skill-creator/scripts/**
 - `init_skill.py` — main, title_case_skill_name, init_skill
 - `package_skill.py` — package_skill, main
 - `quick_validate.py` — validate_skill
 
-**.agent\skills\web-app\public\skills\slack-gif-creator\core/**
+**.agent/skills/web-app/public/skills/slack-gif-creator/core/**
 - `easing.py` — linear, ease_in_quad, ease_out_quad, ease_in_out_quad, ease_in_cubic, ease_out_cubic, ease_in_out_cubic, ease_in_bounce +2
 - `frame_composer.py` — create_blank_frame, draw_circle, draw_text, create_gradient_background, draw_star
 - `gif_builder.py` — GIFBuilder
 - `validators.py` — validate_gif, is_slack_ready
 
-**.agent\skills\web-app\public\skills\systematic-debugging/**
+**.agent/skills/web-app/public/skills/systematic-debugging/**
 - `condition-based-waiting-example.ts` — Complete implementation of condition-based waiting utilities · waitForEvent, waitForEventCount, waitForEventMatch
 
-**.agent\skills\web-app\public\skills\typescript-expert\references/**
+**.agent/skills/web-app/public/skills/typescript-expert/references/**
 - `utility-types.ts` — TypeScript Utility Types Library · assertNever, exhaustiveCheck, ok, err, some, none, Brand, UserId +2
 
-**.agent\skills\web-app\public\skills\typescript-expert\scripts/**
+**.agent/skills/web-app/public/skills/typescript-expert/scripts/**
 - `ts_diagnostic.py` — run_cmd, check_versions, check_tsconfig, check_tooling, check_monorepo, check_type_errors, check_any_usage, check_type_assertions +2
 
-**.agent\skills\web-app\public\skills\ui-ux-pro-max\scripts/**
+**.agent/skills/web-app/public/skills/ui-ux-pro-max/scripts/**
 - `core.py` — detect_domain, search, search_stack, BM25
 - `design_system.py` — format_ascii_box, format_markdown, generate_design_system, DesignSystemGenerator
 - `search.py` — format_output
 
-**.agent\skills\web-app\public\skills\unreal-engine-cpp-pro\examples/**
+**.agent/skills/web-app/public/skills/unreal-engine-cpp-pro/examples/**
 - `ExampleActor.cpp`
 - `ExampleActor.h`
 
-**.agent\skills\web-app\public\skills\voice-ai-engine-development\examples/**
+**.agent/skills/web-app/public/skills/voice-ai-engine-development/examples/**
 - `complete_voice_engine.py` — conversation_endpoint, Transcription, AgentResponse, SynthesisResult, BaseWorker, DeepgramTranscriber, GeminiAgent, ElevenLabsSynthesizer +2
 - `gemini_agent_example.py` — example_usage, Message, GeneratedResponse, GeminiAgent
 - `interrupt_system_example.py` — example_interrupt_scenario, InterruptibleEvent, ConversationWithInterrupts, SynthesisWorkerWithInterrupts, TranscriptionWorkerWithInterrupts, MockTranscription, MockSynthesisResult
 
-**.agent\skills\web-app\public\skills\voice-ai-engine-development\templates/**
+**.agent/skills/web-app/public/skills/voice-ai-engine-development/templates/**
 - `base_worker_template.py` — example_usage, BaseWorker, ExampleWorker
 - `multi_provider_factory_template.py` — example_usage, TranscriberProvider, LLMProvider, TTSProvider, VoiceComponentFactory
 
-**.agent\skills\web-app\public\skills\vulnerability-scanner\scripts/**
+**.agent/skills/web-app/public/skills/vulnerability-scanner/scripts/**
 - `security_scan.py` — scan_dependencies, scan_secrets, scan_code_patterns, scan_configuration, run_full_scan, main
 
-**.agent\skills\web-app\public\skills\webapp-testing\scripts/**
+**.agent/skills/web-app/public/skills/webapp-testing/scripts/**
 - `with_server.py` — is_server_ready, main
 
-**.agent\skills\web-app\public\skills\writing-skills/**
+**.agent/skills/web-app/public/skills/writing-skills/**
 - `render-graphs.js`
 
-**.agent\skills\web-app\public\skills\xlsx-official/**
+**.agent/skills/web-app/public/skills/xlsx-official/**
 - `recalc.py` — setup_libreoffice_macro, recalc, main
 
-**.agent\skills\web-app\public\skills\youtube-summarizer\scripts/**
+**.agent/skills/web-app/public/skills/youtube-summarizer/scripts/**
 - `extract-transcript.py` — extract_transcript, list_available_transcripts
 
-**.agent\skills\web-app\src/**
+**.agent/skills/web-app/src/**
 - `App.jsx`
 - `main.jsx`
 
-**.agent\skills\web-app\src\lib/**
+**.agent/skills/web-app/src/lib/**
 - `supabase.js` — supabase
 
-**.agent\skills\web-app\src\pages/**
+**.agent/skills/web-app/src/pages/**
 - `Home.jsx` — Home
 - `SkillDetail.jsx` — SkillDetail
 
-**.agent\skills\webapp-testing\scripts/**
+**.agent/skills/webapp-testing/scripts/**
 - `with_server.py` — is_server_ready, main
 
-**.agent\skills\writing-skills/**
+**.agent/skills/writing-skills/**
 - `render-graphs.js`
 
-**.agent\skills\xlsx-official/**
+**.agent/skills/xlsx-official/**
 - `recalc.py` — setup_libreoffice_macro, recalc, main
 
-**.agent\skills\youtube-summarizer\scripts/**
+**.agent/skills/youtube-summarizer/scripts/**
 - `extract-transcript.py` — extract_transcript, list_available_transcripts
 
-**.agents\skills\skill-audit\scripts/**
+**.agents/skills/archive/2026-04-curation/skill-audit/scripts/**
 - `audit.py` — parse_frontmatter, collect_text_files, scan_skill, scan_registry, main
 
 **api/**
@@ -1376,7 +1376,7 @@
 - `WelcomeScreen.tsx`
 
 **config/**
-- `models.ts` — MODEL_IDS
+- `models.ts` — selectMainChatModelId, MODEL_IDS, ROUTER_MODEL_ID, TACTICAL_MODEL_ID, DEEP_CHAT_MODEL_ID, STABLE_RESEARCH_MODEL_ID, LOADING_CURIOSITY_MODEL_ID, GeminiModelId +1
 
 **constants/**
 - `loadingStages.ts` — Centralização dos marcos (milestones) e etapas de carregamento · MODULAR_DOSSIER_STAGES, STAGE_DISPLAY_LABELS, ModularDossierStage
@@ -1400,11 +1400,8 @@
 - `useToast.ts` — useToast — sistema de notificações global leve (sem dependência externa). · useToast, ToastType, Toast
 - `useUpdateNotification.ts` — useUpdateNotification, UpdateAvailableEvent
 
-**mcp-server\src/**
-- `index.ts` — getCommitContext
-
 **prompts/**
-- `megaPrompts.ts` — @ts-nocheck · SHARED_FOUNDATION_BLOCK_V5, SHARED_ENTITY_RESOLUTION_BLOCK, SHARED_EVIDENCE_HIERARCHY_BLOCK, SHARED_ABSENCE_SEMANTICS_BLOCK, SHARED_RECENCY_POLICY_BLOCK, SHARED_CROSS_PROMPT_ARBITRATION_BLOCK, SHARED_BUSINESS_TRANSLATION_ENGINE_BLOCK, InvestigationPayload +1
+- `megaPrompts.ts` — src/prompts/megaPrompts.ts · SHARED_FOUNDATION_BLOCK_V5, SHARED_ENTITY_RESOLUTION_BLOCK, SHARED_EVIDENCE_HIERARCHY_BLOCK, SHARED_ABSENCE_SEMANTICS_BLOCK, SHARED_RECENCY_POLICY_BLOCK, SHARED_CROSS_PROMPT_ARBITRATION_BLOCK, SHARED_BUSINESS_TRANSLATION_ENGINE_BLOCK, InvestigationPayload +1
 - `systemPrompts.ts` — prompts/systemPrompts.ts
 
 **public/**
@@ -1429,7 +1426,7 @@
 - `feedbackRemoteStore.ts` — URL agora vem do apiConfig · sendFeedbackRemote, FeedbackType, RemoteFeedbackPayload
 - `feedbackService.ts` — recordFeedback, MessageFeedback
 - `geminiProxy.ts` — resolveGeminiApiEndpoint, proxyGenerateContent, proxyChatSendMessage, executeOpenWebSearchTool, proxyGeminiHealth, proxyGerarDossie, GeminiChatResponse
-- `geminiService.ts` — parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, isMegaPromptRequest, generateLoadingCuriosities, generateContinuityQuestion, GeminiRequestOptions, SpotterExtractedData +2
+- `geminiService.ts` — Public facade preserved for App.tsx, ChatInterface.tsx, LoadingSmart.tsx and tests.
 - `investigationStore.ts` — services/investigationStore.ts · addInvestigation, getInvestigations, subscribe, Investigation
 - `portaStateService.ts` — initPortaState, getPortaState, resetPortaState, setBaseScore, addFeedAdjustment, addFlagFeed, addSegmentFeed, generatePortaContextForDeepDive
 - `radarService.ts` — services/radarService.ts · buildCategoryPrompt, generateAlertId, fetchRadarAlerts, RadarScanError, RadarScanErrorCode, RadarPartialFailure, RadarCategoryStat, RadarScanResult
@@ -1437,6 +1434,18 @@
 - `revenueService.ts` — Revenue Intelligence Service · normalizarFamilia, inferirPorte, buildRevenueProfile, formatarMoeda, labelTipo
 - `sessionRemoteStore.ts` — listRemoteSessions, getRemoteSession, saveRemoteSession
 - `warRoomService.ts` — services/warRoomService.ts · queryWarRoom, WarRoomMode, WarRoomMessage, WarRoomResult, WarRoomQueryOptions
+
+**services/gemini/**
+- `auxiliary.ts` — generateLoadingCuriosities, generateContinuityQuestion, ContinuityQuestionOptions
+- `config.ts` — ROUTER_MODEL_ID, TACTICAL_MODEL_ID, DEEP_CHAT_MODEL_ID, STABLE_RESEARCH_MODEL_ID, LOADING_CURIOSITY_MODEL_ID, OPEN_QUESTION_RECOVERY_METRIC_KEY, RECOVERY_DEBUG_FLAG_KEY, selectMainChatModelId
+- `contracts.ts` — GeminiRequestOptions, SpotterExtractedData, SendMessageToGeminiResult
+- `investigation-orchestration.ts` — sendMessageToGemini, generateDossierModule, getIsolatedBenchmark
+- `porta.ts` — parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, ParsedPortaFeeds
+- `recovery.ts` — debugRecovery, looksLikeMissedOpenQuestionAnswer, shouldRecoverOpenQuestionByJudge, trackOpenQuestionRecoveryAttempt
+- `runtime.ts` — isMegaPromptRequest, isDeepDiveMessage, getDeepDiveSource, buildConversationHistory, buildTimeoutError, runWithStepTimeout, DeepDiveSource
+- `sanitization.ts` — sanitizeStreamText, sanitizeHistoryText, isValidEmpresaParaBenchmark
+- `sources.ts` — normalizeGroundingSources
+- `status.ts` — emitDossieStatus, DOSSIE_STATUS, DossieStatusKey
 
 **tests/**
 - `api-extract.test.ts`
@@ -1454,7 +1463,10 @@
 - `smoke.greeting.spec.ts`
 - `smoke.investigation-shell.spec.ts`
 
-**tests\components/**
+**tests/architecture/**
+- `useChatImportGuard.test.ts`
+
+**tests/components/**
 - `ChatInterface.test.tsx`
 - `ClienteSeniorScore.test.tsx`
 - `ConfirmPopover.test.tsx` — tests/components/ConfirmPopover.test.tsx
@@ -1462,6 +1474,7 @@
 - `ErrorBoundary.test.tsx` — tests/components/ErrorBoundary.test.tsx
 - `ErrorToast.test.tsx` — QW-2 — ErrorToast test suite
 - `FeatureGatingUI.test.tsx`
+- `FooterCredits.test.tsx`
 - `InlineTypingResponse.test.tsx`
 - `InvestigationDashboard.test.tsx`
 - `LoadingSmart.test.tsx`
@@ -1476,12 +1489,15 @@
 - `UxRegressionPhase5.test.tsx`
 - `warRoomTargetExtract.test.ts` — Keep this extractor in sync with components/WarRoom.tsx.
 
-**tests\contexts/**
+**tests/config/**
+- `models.test.ts`
+
+**tests/contexts/**
 - `CRMContext.test.tsx`
 - `ModeContext.test.tsx` — tests/contexts/ModeContext.test.tsx
 - `OperatorContext.test.tsx`
 
-**tests\hooks/**
+**tests/hooks/**
 - `useAdminMetrics.test.ts`
 - `useAppInitialization.test.ts`
 - `useChat.test.ts` — NOTA ARQUITETURAL (Carlos/Raquel):
@@ -1492,11 +1508,11 @@
 - `useTheme.test.ts`
 - `useToast.test.ts`
 
-**tests\prompts/**
+**tests/prompts/**
 - `constantsPromptRules.test.ts`
 - `megaPrompts.test.ts`
 
-**tests\services/**
+**tests/services/**
 - `brasilApiService.test.ts`
 - `clientLookupService.test.ts`
 - `competitorService.test.ts`
@@ -1504,6 +1520,7 @@
 - `geminiLookupGate.test.ts`
 - `geminiProxy.test.ts`
 - `geminiService.test.ts` — Testes para geminiService.ts
+- `investigation-orchestration.test.ts`
 - `portaParser.test.ts`
 - `portaStateService.test.ts`
 - `radarService.test.ts` — tests/services/radarService.test.ts
@@ -1513,7 +1530,7 @@
 - `warRoomCanary.test.ts`
 - `warRoomService.test.ts`
 
-**tests\utils/**
+**tests/utils/**
 - `auditableSources.test.ts`
 - `chunkRetry.test.ts` — tests/utils/chunkRetry.test.ts
 - `companyNameExtractor.test.ts`
@@ -1563,7 +1580,7 @@
 - `markdownToHtml.ts` — convertMarkdownToHTML, simpleMarkdownToHtml
 - `mermaid.ts` — normalizeInlineMermaidClasses, normalizeMermaidBlocks, sanitizeMermaidCode, getDisplayableMermaidCode, isMermaidRenderErrorOutput
 - `PDFGenerator.ts` — PDFGenerator — renderização programática com jsPDF (sem html2canvas) · PDFGenerator
-- `porta.ts` — stripVisiblePortaFeedSections, getPortaCompatibility, stripPortaMarkers, calculatePortaScoreBruto, calculatePortaFlagMultiplier, buildPortaScoreFromFeeds, resolvePortaScore, parsePortaMarkerV2 +2
+- `porta.ts` — normalizePortaFlags, stripVisiblePortaFeedSections, getPortaCompatibility, stripPortaMarkers, calculatePortaScoreBruto, calculatePortaFlagMultiplier, buildPortaScoreFromFeeds, resolvePortaScore +2
 - `react-dom-shim.d.ts`
 - `reportUtils.ts` — collectFullReport, buildMainDossierExecutiveIntro, generateExecutiveSummary, detectInconsistencies
 - `retry.ts` — withAutoRetry
@@ -1575,32 +1592,32 @@
 - `timeGreeting.ts` — Retorna a saudação adequada ao horário atual do dispositivo. · getTimeGreeting
 
 ## Config
-- `.agent\skills\package.json`
-- `.agent\skills\react-best-practices\metadata.json`
-- `.agent\skills\skills_index.json`
-- `.agent\skills\web-app\package.json`
-- `.agents\skills\api-design\evals.json`
-- `.agents\skills\clean-code\evals.json`
-- `.agents\skills\codedocs\evals.json`
-- `.agents\skills\debugging-tools\evals.json`
-- `.agents\skills\frontend-developer\evals.json`
-- `.agents\skills\observability\evals.json`
-- `.agents\skills\playwright-testing\evals.json`
-- `.agents\skills\skill-audit\evals.json`
-- `.agents\skills\super-brainstorm\evals.json`
-- `.agents\skills\superhuman\evals.json`
-- `.agents\skills\test-strategy\evals.json`
-- `.claude\settings.json`
-- `.github\workflows\caliber.yml`
-- `.github\workflows\ci.yml`
-- `.github\workflows\preview-smoke.yml`
-- `.idx\mcp.json`
+- `.agent/skills/data/bundles.json`
+- `.agent/skills/data/catalog.json`
+- `.agent/skills/data/package.json`
+- `.agent/skills/data/skills_index.json`
+- `.agent/skills/data/workflows.json`
+- `.agent/skills/docs/microsoft-skills-attribution.json`
+- `.agent/skills/package.json`
+- `.agent/skills/playwright-skill/package.json`
+- `.agent/skills/postgres-best-practices/metadata.json`
+- `.agent/skills/react-best-practices/metadata.json`
+- `.agent/skills/skills_index.json`
+- `.agent/skills/web-app/package.json`
+- `.agents/skills/clean-architecture/evals.json`
+- `.agents/skills/clean-code/evals.json`
+- `.agents/skills/code-review-mastery/evals.json`
+- `.agents/skills/codedocs/evals.json`
+- `.agents/skills/refactoring-patterns/evals.json`
+- `.claude/settings.json`
+- `.github/workflows/caliber.yml`
+- `.github/workflows/ci.yml`
+- `.github/workflows/preview-smoke.yml`
+- `.idx/mcp.json`
 - `.mcp.json`
-- `docs\mcp\fetch.generic.example.json`
-- `docs\mcp\playwright.generic.example.json`
 - `metadata.json`
 - `package.json`
-- `public\manifest.json`
+- `public/manifest.json`
 - `skills-lock.json`
 - `tsconfig.json`
 - `vercel_build_tag.json`
@@ -1612,16 +1629,16 @@
 - `CALIBER_LEARNINGS.md`
 - `CLAUDE.md`
 - `CODEBASE_INDEX.md`
-- `docs\GUIA-INICIANTE.md`
-- `docs\MCP-FETCH-SETUP.md`
-- `docs\MCP-PLAYWRIGHT-SETUP.md`
-- `docs\SEGURANCA-API.md`
-- `docs\skills-audit-validation.md`
-- `docs\skills-playbook.md`
-- `docs\testing-strategy.md`
+- `DEV_LOCAL_README.md`
+- `docs/CHECKLIST-PRODUCAO.md`
+- `docs/GUIA-INICIANTE.md`
+- `docs/SEGURANCA-API.md`
+- `docs/SKILLS-GOVERNANCE.md`
+- `docs/testing-strategy.md`
 - `HANDOFF_AI.md`
 - `PLAN.md`
 - `README.md`
+- `SKILLS_ACTIVE.md`
 
 ---
-*Index: ~19.1k tokens · Full codebase: ~13.3M tokens · Saves ~100%*
+*Index: ~19.5k tokens · Full codebase: ~13.1M tokens · Saves ~100%*
