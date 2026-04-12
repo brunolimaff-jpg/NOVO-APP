@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import Tooltip from './Tooltip';
 import { Feedback } from '../types';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 
@@ -227,22 +228,26 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             rows={2}
           />
           <div className="flex justify-end gap-2">
-            <button
-              onClick={cancelDislike}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                isDarkMode
-                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={submitDislike}
-              className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
-            >
-              Enviar Feedback
-            </button>
+            <Tooltip label="Cancelar envio de feedback" position="top">
+              <button
+                onClick={cancelDislike}
+                className={`px-3 py-1.5 rounded transition-colors ${
+                  isDarkMode
+                    ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Cancelar
+              </button>
+            </Tooltip>
+            <Tooltip label="Enviar avaliação negativa com comentário" position="top">
+              <button
+                onClick={submitDislike}
+                className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
+              >
+                Enviar Feedback
+              </button>
+            </Tooltip>
           </div>
         </div>
       )}
