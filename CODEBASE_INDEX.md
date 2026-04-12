@@ -1,5 +1,5 @@
 # Codebase Index
-> 2026-04-12 · 5308 files · ~13.1M tokens total
+> 2026-04-12 · 5309 files · ~13.1M tokens total
 >
 > **How to use:** Read this file first. Navigate to the exact file you need,
 > then read only that file. Do not read entire directories.
@@ -1370,6 +1370,7 @@
 - `SuspenseWithError.tsx`
 - `SystemHealthCheck.tsx`
 - `ToastContainer.tsx` — ToastContainer — exibe a fila de toasts no canto inferior direito.
+- `Tooltip.tsx` — default:Tooltip
 - `UpdateNotificationModal.tsx` — UpdateNotificationModal
 - `UserMenu.tsx` — UserMenuProps
 - `WarRoom.tsx` — default:WarRoom
@@ -1592,10 +1593,8 @@
 - `timeGreeting.ts` — Retorna a saudação adequada ao horário atual do dispositivo. · getTimeGreeting
 
 ## Config
-- `.agent/skills/data/bundles.json`
-- `.agent/skills/data/catalog.json`
-- `.agent/skills/data/package.json`
-- `.agent/skills/data/skills_index.json`
+- `.agent/skills/daily-news-report/cache.json`
+- `.agent/skills/daily-news-report/sources.json`
 - `.agent/skills/data/workflows.json`
 - `.agent/skills/docs/microsoft-skills-attribution.json`
 - `.agent/skills/package.json`
@@ -1615,6 +1614,8 @@
 - `.github/workflows/preview-smoke.yml`
 - `.idx/mcp.json`
 - `.mcp.json`
+- `docs/archive/environment-curation-2026-04/mcp/fetch.generic.example.json`
+- `docs/archive/environment-curation-2026-04/mcp/playwright.generic.example.json`
 - `metadata.json`
 - `package.json`
 - `public/manifest.json`
@@ -1641,4 +1642,4 @@
 - `SKILLS_ACTIVE.md`
 
 ---
-*Index: ~19.5k tokens · Full codebase: ~13.1M tokens · Saves ~100%*
+*Index: ~19.6k tokens · Full codebase: ~13.1M tokens · Saves ~100%*
