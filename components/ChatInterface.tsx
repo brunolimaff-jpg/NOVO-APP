@@ -28,6 +28,7 @@ import type { RadarAlert, RadarConfig } from '../types';
 const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
 const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('./RadarPanel')));
 const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('./RadarSettings')));
+import Tooltip from './Tooltip';
 
 export interface RadarProps {
   alerts: RadarAlert[];
@@ -628,24 +629,26 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
           <div className="flex items-center gap-2 min-w-0">
-            <button
-              data-testid="sidebar-toggle"
-              ref={sidebarToggleRef}
-              type="button"
-              onClick={onToggleSidebar}
-              className={`p-2 rounded-lg transition-colors flex-none ${theme.itemHover}`}
-              aria-label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'}
-            >
-              {isSidebarOpen ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
+            <Tooltip label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'} position="bottom">
+              <button
+                data-testid="sidebar-toggle"
+                ref={sidebarToggleRef}
+                type="button"
+                onClick={onToggleSidebar}
+                className={`p-2 rounded-lg transition-colors flex-none ${theme.itemHover}`}
+                aria-label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'}
+              >
+                {isSidebarOpen ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
+            </Tooltip>
 
             <span data-testid="chat-header-title" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
               {displayTitle}
@@ -667,6 +670,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             {/* War Room button */}
             {canWarRoom && (
+              <Tooltip label="War Room — análise intensiva" position="bottom">
               <motion.button
                 data-testid="chat-war-room-button"
                 whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
@@ -674,7 +678,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 type="button"
                 onClick={handleOpenWarRoom}
                 className={`group relative p-2.5 rounded-xl transition-all shadow-sm overflow-hidden ${
-                  isDarkMode 
+                  isDarkMode
                     ? 'bg-slate-900 border border-red-500/25 text-red-300'
                     : 'bg-white border border-red-200 text-red-700'
                 }`}
@@ -696,10 +700,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   />
                 </div>
               </motion.button>
+              </Tooltip>
             )}
 
             {/* Dashboard button */}
             {canAccessDashboard && (
+              <Tooltip label="Dossiê de investigação" position="bottom">
               <button
                 data-testid="chat-dashboard-button"
                 type="button"
@@ -713,10 +719,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </button>
+              </Tooltip>
             )}
 
             {/* Admin dashboard button */}
             {canAccessDashboard && onOpenAdminDash && (
+              <Tooltip label="Painel administrativo" position="bottom">
               <button
                 data-testid="chat-admin-button"
                 type="button"
@@ -730,9 +738,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
               </button>
+              </Tooltip>
             )}
 
             {/* Theme toggle */}
+            <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
             <button
               data-testid="chat-theme-toggle"
               type="button"
@@ -752,6 +762,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 </svg>
               )}
             </button>
+            </Tooltip>
 
             {/* User menu */}
             <UserMenu
@@ -862,16 +873,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             <div className="p-3 flex items-end gap-2">
               {/* Investigation trigger */}
-              <button
-                data-testid="chat-new-investigation-button"
-                type="button"
-                onClick={() => setShowDashboard(true)}
-                className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
-                title="Nova Investigação"
-                aria-label="Iniciar nova investigação"
-              >
-                🔍
-              </button>
+              <Tooltip label="Iniciar nova investigação" position="top">
+                <button
+                  data-testid="chat-new-investigation-button"
+                  type="button"
+                  onClick={() => setShowDashboard(true)}
+                  className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
+                  title="Nova Investigação"
+                  aria-label="Iniciar nova investigação"
+                >
+                  🔍
+                </button>
+              </Tooltip>
 
               {/* Textarea */}
               <div className="flex-1 relative">
@@ -891,6 +904,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
               {/* Stop / Send button */}
               {isLoading ? (
+                <Tooltip label="Parar geração" position="top">
                 <button
                   data-testid="chat-stop-button"
                   type="button"
@@ -903,7 +917,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     <rect x="6" y="6" width="12" height="12" rx="2" />
                   </svg>
                 </button>
+                </Tooltip>
               ) : (
+                <Tooltip label="Enviar mensagem" position="top">
                 <button
                   data-testid="chat-send-button"
                   type="button"
@@ -917,6 +933,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m-7 7l7-7 7 7" />
                   </svg>
                 </button>
+                </Tooltip>
               )}
             </div>
           </div>

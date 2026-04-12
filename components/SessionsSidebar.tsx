@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Tooltip from './Tooltip';
 import { ChatSession } from '../types';
 import { cleanTitle } from '../utils/textCleaners';
 import ConfirmPopover from './ConfirmPopover';
@@ -270,20 +271,22 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                           {/* Botões de ação (CRM e Delete) */}
                           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
                             {canAccessMiniCRM && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSaveToCRM(session.id);
-                                    if (window.innerWidth < 768) onCloseMobile();
-                                }}
-                                className={`
-                                  p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400 transition-all shadow-sm
-                                `}
-                                title="Enviar para CRM"
-                              >
-                                📋
-                              </button>
+                              <Tooltip label="Enviar para o CRM" position="top">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSaveToCRM(session.id);
+                                      if (window.innerWidth < 768) onCloseMobile();
+                                  }}
+                                  className={`
+                                    p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400 transition-all shadow-sm
+                                  `}
+                                  title="Enviar para CRM"
+                                >
+                                  📋
+                                </button>
+                              </Tooltip>
                             )}
 
                             <ConfirmPopover
@@ -291,14 +294,16 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                               onConfirm={() => onDeleteSession(session.id)}
                             >
                               {({ onClick }) => (
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); onClick(e); }}
-                                  className="p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 transition-all shadow-sm"
-                                  title="Excluir Investigação"
-                                >
-                                  🗑️
-                                </button>
+                                <Tooltip label="Excluir investigação" position="top">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onClick(e); }}
+                                    className="p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                                    title="Excluir Investigação"
+                                  >
+                                    🗑️
+                                  </button>
+                                </Tooltip>
                               )}
                             </ConfirmPopover>
                           </div>

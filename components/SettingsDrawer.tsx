@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Tooltip from './Tooltip';
 import { ChatMode } from '../constants';
 import { usePWA } from '../hooks/usePWA';
 import { useToast } from '../hooks/useToast';
@@ -185,16 +186,18 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           <h2 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             <span>⚙️</span> Configurações
           </h2>
-          <button
-            onClick={onClose}
-            className={`text-xl p-2 rounded-lg transition-colors ${
-              isDarkMode
-                ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-            }`}
-          >
-            ✕
-          </button>
+          <Tooltip label="Fechar configurações" position="left">
+            <button
+              onClick={onClose}
+              className={`text-xl p-2 rounded-lg transition-colors ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              ✕
+            </button>
+          </Tooltip>
         </div>
 
         <div className="p-5 space-y-8">
@@ -240,16 +243,18 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{isDarkMode ? 'Ativado' : 'Desativado'}</p>
                 </div>
               </div>
-              <button
-                onClick={onToggleTheme}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${
-                  isDarkMode ? 'bg-emerald-600' : 'bg-gray-600'
-                }`}
-              >
-                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${
-                  isDarkMode ? 'translate-x-6' : 'translate-x-0'
-                }`} />
-              </button>
+              <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="left">
+                <button
+                  onClick={onToggleTheme}
+                  className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${
+                    isDarkMode ? 'bg-emerald-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                    isDarkMode ? 'translate-x-6' : 'translate-x-0'
+                  }`} />
+                </button>
+              </Tooltip>
             </div>
           </section>
 
