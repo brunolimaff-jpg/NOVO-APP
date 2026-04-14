@@ -198,7 +198,7 @@ vi.mock('../hooks/useAppInitialization', () => ({
   useAppInitialization: vi.fn(),
 }));
 
-vi.mock('../hooks/useSessionManager', () => ({
+vi.mock('../features/chat/session-controller', () => ({
   useSessionManager: () => ({
     handleNewSession: vi.fn(),
     handleSelectSession: vi.fn(),
