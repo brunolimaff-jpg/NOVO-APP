@@ -9,6 +9,7 @@ import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
 import GreetingWelcomeScreen from './GreetingWelcomeScreen';
+import HelpCenterFloating from './HelpCenterFloating';
 import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
@@ -395,6 +396,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     [mode, canWarRoom, radar, onDeepDive],
   );
 
+  const handleAskHelpScout = useCallback(
+    (prompt: string, displayText: string) => {
+      onSendMessage(prompt, displayText);
+    },
+    [onSendMessage],
+  );
+
   const handleCopyMarkdown = useCallback(() => {
     const text = safeMessages
       .filter(m => !m.isError && !m.isThinking)
@@ -687,15 +695,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   onConfirmName={(name) => login(name)}
                 />
               ) : (
-                <EmptyStateHome
-                  mode={mode}
-                  isDarkMode={isDarkMode}
-                  onStartInvestigation={handleStartInvestigation}
-                  radarAlerts={radar?.alerts}
-                  radarIsScanning={radar?.isScanning}
-                  onForceScan={radar?.onForceScan}
-                  onOpenRadar={() => setShowRadarPanel(true)}
-                />
+                <>
+                  <EmptyStateHome
+                    mode={mode}
+                    isDarkMode={isDarkMode}
+                    onStartInvestigation={handleStartInvestigation}
+                    radarAlerts={radar?.alerts}
+                    radarIsScanning={radar?.isScanning}
+                    onForceScan={radar?.onForceScan}
+                    onOpenRadar={() => setShowRadarPanel(true)}
+                  />
+                  <HelpCenterFloating
+                    isDarkMode={isDarkMode}
+                    onAskScout={handleAskHelpScout}
+                  />
+                </>
               )}
             </div>
           ) : (

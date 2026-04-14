@@ -8,8 +8,38 @@ const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
 
+vi.mock('react-virtuoso', async () => {
+  const React = await import('react');
+
+  return {
+    Virtuoso: React.forwardRef(
+      (
+        {
+          data = [],
+          itemContent,
+          components,
+        }: {
+          data?: unknown[];
+          itemContent: (index: number, item: unknown) => React.ReactNode;
+          components?: { Header?: React.ComponentType };
+        },
+        ref: React.ForwardedRef<HTMLDivElement>,
+      ) => (
+        <div ref={ref} data-testid="messages-scroller" data-virtuoso-scroller="true">
+          {components?.Header ? <components.Header /> : null}
+          {data.map((item, index) => (
+            <div key={index} data-testid={`virtuoso-item-${index}`}>
+              {itemContent(index, item)}
+            </div>
+          ))}
+        </div>
+      ),
+    ),
+  };
+});
+
 vi.mock('../../components/MessageRow', () => ({
-  default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
+  default: ({ index, data }: { index: number; data: { messages: Message[]; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];
 
     return (
@@ -161,7 +191,42 @@ describe('ChatInterface shell regression', () => {
     render(<ChatInterface {...buildProps()} />);
 
     expect(screen.getByTestId('empty-state-home')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /abrir ajuda do scout/i })).toBeInTheDocument();
     expect(screen.queryByLabelText('Campo de mensagem')).not.toBeInTheDocument();
+  });
+
+  it('mostra a ajuda somente na home inicial', () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /abrir ajuda do scout/i })).not.toBeInTheDocument();
+  });
+
+  it('envia aprofundamento da ajuda com prompt oculto e texto visivel', async () => {
+    const onSendMessage = vi.fn();
+
+    render(<ChatInterface {...buildProps({ onSendMessage })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
+    fireEvent.click(screen.getByRole('button', { name: /quais sao as fases da investigacao/i }));
+    fireEvent.click(screen.getByRole('button', { name: /aprofundar no scout/i }));
+
+    expect(onSendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('<help_guide>'),
+      'Quero entender melhor: Quais sao as fases da investigacao?',
+    );
   });
 
   it('aciona a investigacao inicial a partir da home', async () => {
