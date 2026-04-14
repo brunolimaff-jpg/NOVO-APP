@@ -12,6 +12,16 @@ Senior Scout 360 is a React 19 + TypeScript + Vite web app for commercial intell
 - `services/geminiService.ts` is the stable public AI façade; internal orchestration modules live under `services/gemini/`.
 - `hooks/useChat.ts` is legacy and must not gain new production consumers.
 
+## Persistent memory protocol
+
+Repo-local memory is the canonical cross-session handoff for agents in this project.
+
+- At the start of every session, read `.agents/memory/activeContext.md` and `.agents/memory/progress.md` before diagnosing, planning, or editing.
+- Treat `.agents/memory/decisions.md` as durable project context for decisions that should survive beyond the current sprint.
+- Before planning implementation work, use the repo-local `plan-work` skill when available.
+- At task close, update memory with what changed, what validation ran, residual risks, and the immediate next step.
+- Do not treat `HANDOFF_AI.md` or root `PLAN.md` as canonical unless one of the memory files explicitly references them.
+
 ## Useful commands
 
 ```bash
