@@ -33,7 +33,7 @@
     "plan-work": {
       "source": "jMerta/codex-skills",
       "sourceType": "github",
-      "computedHash": "8ece83e2f3d8fd97ced2af89653932cc5e4d855a3325ec9c42d32d2c35cd2d59"
+      "computedHash": "77d9926f30f1a2ee59e13a601ada3010ab65e30be75b3c7c741a63c6c89d6c74"
     },
     "refactoring-patterns": {
       "source": "vendored-from-~/.codex/skills/refactoring-patterns",
