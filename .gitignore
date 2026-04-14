@@ -31,3 +31,6 @@ dist-ssr
 
 # Local presentation/export artifacts
 NOVO-APP/
+
+# TokenMiser cache
+.tokenmiser/

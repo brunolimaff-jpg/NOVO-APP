@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmptyStateHome from '../../components/EmptyStateHome';
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { displayName: 'Bruno' } }),
+vi.mock('../../contexts/OperatorContext', () => ({
+  useOperator: () => ({ name: 'Bruno', operatorId: 'op-1', loading: false, setName: vi.fn(), clearName: vi.fn() }),
 }));
 
 vi.mock('../../services/brasilApiService', () => ({
@@ -19,6 +19,20 @@ vi.mock('../../services/brasilApiService', () => ({
 }));
 
 describe('EmptyStateHome onboarding gate', () => {
+  it('mostra aviso sobre impacto de iniciar sem CNPJ no Score PORTA', () => {
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA\./i),
+    ).toBeInTheDocument();
+  });
+
   it('does not submit while required fields are missing', () => {
     const onStartInvestigation = vi.fn();
 
@@ -59,5 +73,40 @@ describe('EmptyStateHome onboarding gate', () => {
         state: 'MT',
       });
     });
+  });
+
+  it('shows Configurar Radar and Varrer agora together when radar is configured', () => {
+    const onOpenRadar = vi.fn();
+    const onForceScan = vi.fn();
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+        radarAlerts={[]}
+        radarIsScanning={false}
+        onOpenRadar={onOpenRadar}
+        onForceScan={onForceScan}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Configurar Radar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Varrer agora/i }));
+
+    expect(onOpenRadar).toHaveBeenCalledTimes(1);
+    expect(onForceScan).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the large "Configurar Radar agora" CTA when radar is not configured', () => {
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={true}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Configurar Radar agora/i })).toBeInTheDocument();
   });
 });

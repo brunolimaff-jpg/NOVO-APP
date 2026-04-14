@@ -31,11 +31,11 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RAIO_X_OPERACIONAL_ATAQUE).toContain('NÃO ative NOFIT para empresas que combinam pecuária com agrícola');
   });
 
-  it('includes T and LOCK markers in the tech stack prompt', () => {
+  it('keeps only T markers in the tech stack prompt', () => {
     expect(PROMPT_TECH_STACK_GOD_MODE_ATAQUE).toContain(
       '[[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]',
     );
-    expect(PROMPT_TECH_STACK_GOD_MODE_ATAQUE).toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
+    expect(PROMPT_TECH_STACK_GOD_MODE_ATAQUE).not.toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
   });
 
   it('flags Delphi and other legacy languages as strong tech debt signals', () => {
@@ -60,12 +60,12 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RISCOS_COMPLIANCE_GOD_MODE).toContain('CONTRAPESOS DE COMPLIANCE E GOVERNANÇA');
   });
 
-  it('includes P, segment and LOCK markers in the expansion prompt', () => {
+  it('includes P and segment markers in the expansion prompt', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain(
       '[[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]',
     );
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('[[PORTA_SEG:[PRD/AGI/COP]]]');
-    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
   });
 
   it('uses the stricter COP → AGI → PRD segment logic and diversified verticals', () => {
@@ -84,11 +84,11 @@ describe('PORTA mega prompts', () => {
     );
   });
 
-  it('includes A and LOCK markers in the decisor prompt', () => {
+  it('includes only A markers in the decisor prompt', () => {
     expect(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE).toContain(
       '[[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]',
     );
-    expect(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE).toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
+    expect(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE).not.toContain('[[PORTA_FLAG:LOCK:[SIM/NAO]]]');
   });
 
   it('keeps PORTA as an internal layer instead of visible scoring language in module outputs', () => {

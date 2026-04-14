@@ -29,8 +29,8 @@ export interface WarRoomQueryOptions {
 }
 
 // ─── CONFIG ───────────────────────────────────────
-import { MODEL_IDS } from '../config/models';
-const MODEL_ID = MODEL_IDS.deepResearch;
+import { STABLE_RESEARCH_MODEL_ID } from '../config/models';
+const MODEL_ID = STABLE_RESEARCH_MODEL_ID;
 const DEFAULT_COMPETITOR_TARGET = 'concorrente principal';
 const MODEL_TIMEOUT_MS = 90000;
 const MAX_HISTORY_TURNS = 8;

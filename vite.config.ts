@@ -3,8 +3,44 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
+import { readFileSync, writeFileSync } from 'fs';
+import type { Plugin } from 'vite';
+
+// Plugin customizado para gerar version.json em build
+function generateVersionPlugin(): Plugin {
+  return {
+    name: 'generate-version',
+    apply: 'build',
+    writeBundle() {
+      // Ler versão do package.json
+      const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as {
+        version?: string;
+      };
+      const version = packageJson.version || '0.0.0';
+
+      // Criar versão em formato legível (APP_VERSION)
+      const appVersion = `v${version}`;
+
+      const versionData = {
+        version: appVersion,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Escrever version.json no diretório dist
+      writeFileSync(
+        resolve(__dirname, 'dist/version.json'),
+        JSON.stringify(versionData, null, 2),
+        'utf-8'
+      );
+
+      console.log(`✅ version.json gerado: ${appVersion}`);
+    },
+  };
+}
 
 export default defineConfig(() => {
+  const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
+
   return {
     server: {
       port: 3000,
@@ -29,6 +65,7 @@ export default defineConfig(() => {
       },
     },
     plugins: [
+      generateVersionPlugin(),
       react({
         babel: {
           // FIX: React Compiler ativo APENAS em desenvolvimento.
@@ -37,7 +74,7 @@ export default defineConfig(() => {
           plugins: process.env.NODE_ENV !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
-      VitePWA({
+      !isPreviewBuild && VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icons/icon-192.svg', 'icons/icon-512.svg'],
         manifest: {
@@ -106,7 +143,7 @@ export default defineConfig(() => {
           enabled: false,
         },
       }),
-    ],
+    ].filter(Boolean),
     resolve: {
       alias: {
         '@': resolve(__dirname, '.'),
@@ -116,6 +153,7 @@ export default defineConfig(() => {
     build: {
       // FIX: modulePreload polyfill garante carregamento dos chunks na ordem correta
       modulePreload: { polyfill: true },
+      chunkSizeWarningLimit: 1500,
       rollupOptions: {
         external: [],
         output: {

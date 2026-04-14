@@ -122,6 +122,37 @@ describe('sessionRemoteStore', () => {
 
       expect(result[0].title).toBe('Sessão sem título');
     });
+
+    it('fallback para POST quando GET retorna payload inválido', async () => {
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () => JSON.stringify({ ok: true, encontrado: false, results: [] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () =>
+            JSON.stringify({
+              ok: true,
+              sessions: [
+                {
+                  sessionId: 'fallback-1',
+                  title: 'Sessão fallback',
+                  empresaAlvo: 'Acme',
+                  cnpj: '',
+                  createdAt: '2024-01-01T00:00:00Z',
+                  updatedAt: '2024-01-01T00:00:00Z',
+                },
+              ],
+            }),
+        } as Response);
+
+      const { listRemoteSessions } = await import('../../services/sessionRemoteStore');
+      const result = await listRemoteSessions();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('fallback-1');
+    });
   });
 
   // ─── getRemoteSession ──────────────────────────────────────────────────────

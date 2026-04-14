@@ -1,0 +1,57 @@
+<svg width="980" height="560" viewBox="0 0 980 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="980" height="560" fill="#0B1220"/>
+
+  <text x="490" y="58" text-anchor="middle" fill="#E2E8F0" font-family="Inter, system-ui, sans-serif" font-size="30" font-weight="800">
+    War Room — Modelo com Escudo
+  </text>
+
+  <g transform="translate(250,120)">
+    <rect x="0" y="0" width="480" height="360" rx="30" fill="#111827" stroke="#7F1D1D" stroke-opacity="0.42"/>
+    <rect x="14" y="14" width="452" height="332" rx="24" fill="url(#glow)" opacity="0.5"/>
+
+    <!-- Crossed swords (behind shield) -->
+    <g transform="translate(240,180)" stroke="#FCA5A5" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity="0.92">
+      <path d="M-112 112L112 -112"/>
+      <path d="M-127 127L-98 98"/>
+      <path d="M98 -98L127 -127"/>
+
+      <path d="M112 112L-112 -112"/>
+      <path d="M127 127L98 98"/>
+      <path d="M-98 -98L-127 -127"/>
+    </g>
+
+    <!-- Sword guards -->
+    <g transform="translate(240,180)" stroke="#FECACA" stroke-width="12" stroke-linecap="round">
+      <path d="M-78 38L-38 78"/>
+      <path d="M78 38L38 78"/>
+      <path d="M78 -38L38 -78"/>
+      <path d="M-78 -38L-38 -78"/>
+    </g>
+
+    <!-- Shield (front) -->
+    <g transform="translate(240,182)">
+      <path d="M0 -104C37 -104 72 -90 95 -66V6C95 74 52 126 0 148C-52 126 -95 74 -95 6V-66C-72 -90 -37 -104 0 -104Z"
+        fill="#0F172A" stroke="#F87171" stroke-width="10"/>
+
+      <path d="M0 -84C29 -84 56 -73 74 -55V3C74 55 42 96 0 116C-42 96 -74 55 -74 3V-55C-56 -73 -29 -84 0 -84Z"
+        fill="#111827" stroke="#FCA5A5" stroke-width="4" opacity="0.95"/>
+
+      <!-- Inner emblem: compact cross-swords -->
+      <g stroke="#FEE2E2" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M-24 30L24 -18"/>
+        <path d="M24 30L-24 -18"/>
+      </g>
+    </g>
+  </g>
+
+  <text x="490" y="525" text-anchor="middle" fill="#94A3B8" font-family="Inter, system-ui, sans-serif" font-size="18">
+    Modelo visual para validação antes de aplicar no ícone do botão
+  </text>
+
+  <defs>
+    <linearGradient id="glow" x1="14" y1="14" x2="466" y2="346" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#991B1B" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#991B1B" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+</svg>

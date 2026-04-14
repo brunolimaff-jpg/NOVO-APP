@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useOperator } from '../contexts/OperatorContext';
 import { getTimeGreeting } from '../utils/timeGreeting';
 import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
@@ -155,14 +155,13 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
 };
 
 const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode, radarAlerts, radarIsScanning, onForceScan, onOpenRadar }) => {
-  const { user } = useAuth();
-  const userName = user?.displayName;
+  const { name: operatorName } = useOperator();
 
   const timeGreeting = getTimeGreeting();
 
   const displayGreeting =
-    userName && userName !== 'Sair' && userName.trim().length > 0
-      ? `${timeGreeting}, ${userName}. Qual é o próximo alvo?`
+    operatorName && operatorName.trim().length > 0
+      ? `${timeGreeting}, ${operatorName}. Qual é o próximo alvo?`
       : `${timeGreeting}! Qual empresa vamos investigar agora?`;
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
@@ -353,6 +352,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                   </label>
                   <input
                     id="empty-company"
+                    data-testid="investigation-company-input"
                     value={companyName}
                     onChange={e => {
                       setCompanyName(e.target.value);
@@ -366,6 +366,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
                 <div>
                   <span className={`mb-1.5 block text-xs font-medium ${textMuted}`}>CNPJ (opcional)</span>
+                  <p
+                    className={`mb-2 rounded-md border px-2.5 py-2 text-[11px] leading-relaxed ${
+                      isDarkMode
+                        ? 'border-amber-700/50 bg-amber-900/25 text-amber-200'
+                        : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA.
+                  </p>
 
                   {cnpjLocked ? (
                     <div className="flex items-center gap-3">
@@ -403,6 +412,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <input
+                        data-testid="investigation-cnpj-input"
                         value={formatCnpj(cnpjInput)}
                         onChange={e => setCnpjInput(normalizeCnpj(e.target.value))}
                         onBlur={handleCnpjLookup}
@@ -411,6 +421,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                         className={`${inputClass} sm:flex-1`}
                       />
                       <button
+                        data-testid="investigation-cnpj-validate-button"
                         type="button"
                         onClick={handleCnpjLookup}
                         disabled={!canLookupCnpj}
@@ -439,6 +450,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     </label>
                     <input
                       id="empty-city"
+                      data-testid="investigation-city-input"
                       value={city}
                       onChange={e => {
                         setCity(e.target.value);
@@ -455,6 +467,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     </label>
                     <input
                       id="empty-uf"
+                      data-testid="investigation-uf-input"
                       value={state}
                       onChange={e => {
                         setState(e.target.value.toUpperCase().slice(0, 2));
@@ -476,6 +489,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                 {locationStatus && <p className={`text-[11px] ${textMuted}`}>{locationStatus}</p>}
 
                 <button
+                  data-testid="investigation-submit-button"
                   type="button"
                   onClick={handleSubmit}
                   className="w-full rounded-md bg-emerald-700 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus-visible:ring-offset-slate-950"
@@ -490,7 +504,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
         {/* ══════════════════════════════════════════════════════════════════
             RADAR SETORIAL — sempre visível, 4 estados distintos
             ══════════════════════════════════════════════════════════════════ */}
-        <section className="mt-12" aria-label="Radar Setorial">
+        <section className="mt-12" aria-label="Radar Setorial" data-testid="radar-home-section">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h2 className={`text-xl font-bold tracking-tight ${textPrimary}`}>Radar Setorial</h2>
@@ -501,21 +515,36 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
               </p>
             </div>
 
-            {/* Botão "Varrer agora" só aparece quando o Radar já está configurado */}
+            {/* Ações do Radar só aparecem quando já está configurado */}
             {radarConfigured && (
-              <button
-                type="button"
-                onClick={onForceScan ?? onOpenRadar}
-                disabled={radarIsScanning}
-                className={`shrink-0 flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-                }`}
-              >
-                <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
-                {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
-              </button>
+              <div className="shrink-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onOpenRadar}
+                  disabled={!onOpenRadar}
+                  className={`rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                  }`}
+                >
+                  Configurar Radar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onForceScan ?? onOpenRadar}
+                  disabled={radarIsScanning}
+                  className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
+                  }`}
+                >
+                  <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
+                  {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
+                </button>
+              </div>
             )}
           </div>
 

@@ -6,7 +6,7 @@ export interface UserMenuProps {
   /** Foto do perfil (ex.: Clerk). Fora do ClerkProvider, omitir e usar iniciais. */
   avatarUrl?: string | null;
   onOpenSettings: () => void;
-  onLogout: () => void;
+  onClearOperator: () => void;
 }
 
 function initialsFromName(name: string): string {
@@ -21,7 +21,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
   displayName,
   avatarUrl = null,
   onOpenSettings,
-  onLogout,
+  onClearOperator,
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -118,10 +118,10 @@ const UserMenu: React.FC<UserMenuProps> = ({
             className={`w-full px-3 py-2 text-left text-sm ${itemClass}`}
             onClick={() => {
               close();
-              void onLogout();
+              void onClearOperator();
             }}
           >
-            Sair
+            Trocar nome
           </button>
         </div>
       )}

@@ -64,7 +64,7 @@ export const PORTA_WEIGHTS: Record<PortaSegmento, { p: number; o: number; r: num
 
 export const PORTA_FLAG_PENALTIES: Record<PortaFlag, number> = {
   TRAD: 0.6,
-  LOCK: 0.5,
+  LOCK: 1,
   NOFIT: 0.3,
 };
 
@@ -130,6 +130,7 @@ export interface Message {
   timestamp: Date;
   isThinking?: boolean;
   loadingVariant?: 'hero' | 'inline';
+  isDeepDiveResult?: boolean;
   groundingSources?: Array<{
     title: string;
     url: string;
@@ -155,6 +156,8 @@ export interface Message {
    * undefined = grounding não era aplicável nesta mensagem (thinking mode, megaprompt, deep dive).
    */
   groundingUsed?: boolean;
+  portaFallbackApplied?: boolean;
+  portaFallbackDimensions?: PortaDimension[];
 }
 
 export interface ClienteSeniorData {
@@ -202,7 +205,7 @@ export interface ChatInterfaceProps {
   messages: Message[];
   isLoading: boolean;
   hasMore: boolean;
-  onSendMessage: (text: string, displayText?: string) => void;
+  onSendMessage: (text: string, displayText?: string, hintedCompanyOverride?: string | null) => void;
   onFeedback: (messageId: string, feedback: Feedback) => void;
   onSendFeedback: (messageId: string, feedback: Feedback, comment: string, content: string) => void;
   onSectionFeedback: (messageId: string, sectionTitle: string, feedback: Feedback) => void;
@@ -231,7 +234,7 @@ export interface ChatInterfaceProps {
   canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
   canWarRoom?: boolean;
-  onLogout: () => void;
+  onClearOperator: () => void;
   lastUserQuery?: string;
   processing?: {
     stage?: string;

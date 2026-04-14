@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import ScorePorta from '../../components/ScorePorta';
 
 describe('ScorePorta', () => {
-  it('renders PORTA header and active flags without summary blocks', () => {
+  it('renders supported flags and ignores deprecated LOCK', () => {
     render(
       <ScorePorta
         score={45}
@@ -13,7 +13,7 @@ describe('ScorePorta', () => {
         t={6}
         a={5}
         segmento="AGI"
-        flags={['LOCK']}
+        flags={['TRAD', 'LOCK']}
         scoreBruto={76}
         isDarkMode={false}
       />,
@@ -21,8 +21,9 @@ describe('ScorePorta', () => {
 
     expect(screen.getByText('PORTA')).toBeInTheDocument();
     expect(screen.getByText('AGI')).toBeInTheDocument();
-    expect(screen.getByText('🔒')).toBeInTheDocument();
-    expect(screen.getByText('LOCK')).toBeInTheDocument();
+    expect(screen.getByText('🚩')).toBeInTheDocument();
+    expect(screen.getByText('TRAD')).toBeInTheDocument();
+    expect(screen.queryByText('LOCK')).not.toBeInTheDocument();
     expect(screen.getByText('🟡 Média Compatibilidade')).toBeInTheDocument();
     expect(screen.queryByText(/Score final/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Segmento:/i)).not.toBeInTheDocument();

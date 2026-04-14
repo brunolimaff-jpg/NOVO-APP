@@ -42,6 +42,16 @@ vi.mock('../hooks/useSessionStorage', () => ({
   }),
 }));
 
+vi.mock('../hooks/useUpdateNotification', () => ({
+  useUpdateNotification: () => ({
+    updateAvailable: false,
+    currentVersion: null,
+    newVersion: null,
+    dismissUpdate: vi.fn(),
+    updateNow: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useRadar', () => ({
   useRadar: () => ({
     alerts: [],
@@ -71,19 +81,13 @@ vi.mock('../hooks/useSessionManager', () => ({
   }),
 }));
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    userId: 'user-1',
-    user: {
-      id: 'user-1',
-      displayName: 'Bruno',
-      email: 'bruno@example.com',
-      isGuest: false,
-      isAdmin: false,
-    },
-    logout: vi.fn(),
-    isAuthenticated: true,
-    isAdmin: false,
+vi.mock('../contexts/OperatorContext', () => ({
+  useOperator: () => ({
+    name: 'Bruno',
+    operatorId: 'op-1',
+    loading: false,
+    setName: vi.fn(),
+    clearName: vi.fn(),
   }),
 }));
 
@@ -107,15 +111,13 @@ vi.mock('../components/ToastContainer', () => ({
 }));
 
 vi.mock('../components/ChatInterface', () => ({
-  default: () => <div data-testid="chat-interface" />,
+  default: ({ canAccessDashboard }: { canAccessDashboard?: boolean }) => (
+    <div data-testid="chat-interface" data-can-access-dashboard={String(Boolean(canAccessDashboard))} />
+  ),
 }));
 
 vi.mock('../components/LoadingSmart', () => ({
   default: () => null,
-}));
-
-vi.mock('../components/AuthModal', () => ({
-  AuthModal: () => null,
 }));
 
 vi.mock('../components/EmailModal', () => ({
@@ -148,7 +150,7 @@ vi.mock('../components/SuspenseWithError', () => ({
 
 describe('App layout shell', () => {
   it('mantem o main flexivel e o footer fora do fluxo do chat', () => {
-    const { container } = render(<App />);
+    render(<App />);
 
     const chat = screen.getByTestId('chat-interface');
     const footer = screen.getByTestId('footer-credits');
@@ -163,5 +165,11 @@ describe('App layout shell', () => {
     expect(main?.className).toContain('min-h-0');
     expect(footer.parentElement?.className).toContain('flex-none');
     expect(footer).toBeInTheDocument();
+  });
+
+  it('libera dashboard sem depender de papel admin', () => {
+    render(<App />);
+
+    expect(screen.getByTestId('chat-interface')).toHaveAttribute('data-can-access-dashboard', 'true');
   });
 });

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import MessageRow, { MessageRowData } from './MessageRow';
 import { ChatInterfaceProps, Sender } from '../types';
 import { useMode } from '../contexts/ModeContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useOperator } from '../contexts/OperatorContext';
 import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
@@ -23,11 +23,13 @@ import {
   buildInvestigationHiddenPrompt,
   PROMPT_VERSION,
 } from '../prompts/megaPrompts';
+import { fetchCompanyByCnpj } from '../services/brasilApiService';
 
 import type { RadarAlert, RadarConfig } from '../types';
 const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
 const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('./RadarPanel')));
 const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('./RadarSettings')));
+import Tooltip from './Tooltip';
 
 export interface RadarProps {
   alerts: RadarAlert[];
@@ -148,8 +150,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   exportStatus,
   exportError,
   pdfReportContent,
+  loadingVariant,
   onOpenFollowUpModal,
-  onLogout,
+  onClearOperator,
   lastUserQuery,
   processing,
   loadingPinnedLabel,
@@ -166,9 +169,15 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   canWarRoom = false,
 }) => {
   const { mode, setMode } = useMode();
-  const { user, userId, updateName, login, loading } = useAuth();
+  const {
+    name: operatorName,
+    operatorId,
+    setName,
+    loading: operatorLoading,
+  } = useOperator();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
@@ -184,6 +193,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
+  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [showRetryToast, setShowRetryToast] = useState(false);
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -191,7 +201,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
-  const showInitialHome = !currentSession || safeMessages.length === 0;
+  const hasOperatorName = operatorName.trim().length > 0;
+  const showOperatorGate = !operatorLoading && !hasOperatorName;
+  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
+  const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
   const handleDeleteWithUndo = (msgId: string) => {
     if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
@@ -318,6 +331,66 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [processing]);
 
   useEffect(() => {
+    if (showInitialHome || shouldSuspendVirtualizedList) {
+      setIsMessagesViewportReady(false);
+      return;
+    }
+
+    const viewport = messagesViewportRef.current;
+    if (!viewport) {
+      setIsMessagesViewportReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    let observer: ResizeObserver | null = null;
+    let rafA: number | null = null;
+    let rafB: number | null = null;
+    let emergencyTimer: number | null = null;
+
+    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
+    const markReady = () => {
+      if (cancelled) return;
+      setIsMessagesViewportReady(true);
+    };
+
+    setIsMessagesViewportReady(false);
+
+    // Fallback de última linha: garante que a lista não fica branca
+    // quando ResizeObserver e RAF não disparam (cenário já observado em produção).
+    emergencyTimer = window.setTimeout(() => {
+      markReady();
+    }, 180);
+
+    if (hasValidSize()) {
+      markReady();
+    } else if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        if (hasValidSize()) {
+          markReady();
+        }
+      });
+      observer.observe(viewport);
+    }
+
+    // Fallback defensivo: em produção o ResizeObserver pode não disparar
+    // a tempo e deixar a área de mensagens em branco mesmo com conteúdo.
+    rafA = window.requestAnimationFrame(() => {
+      rafB = window.requestAnimationFrame(() => {
+        markReady();
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      if (rafA !== null) window.cancelAnimationFrame(rafA);
+      if (rafB !== null) window.cancelAnimationFrame(rafB);
+      if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
+    };
+  }, [showInitialHome, shouldSuspendVirtualizedList, safeMessages.length]);
+
+  useEffect(() => {
     if (!processingInfo?.isMalformed) {
       malformedProcessingSignatureRef.current = null;
       return;
@@ -374,12 +447,29 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     async (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode, canWarRoom);
+
+      // Enriquecer payload com CNAE da Receita Federal (Tier A)
+      let segmentHint: string | undefined;
+      if (payload.cnpj) {
+        try {
+          const signal = AbortSignal.timeout(8000);
+          const companyData = await fetchCompanyByCnpj(payload.cnpj, signal);
+          if (companyData.cnaeDescricao) {
+            segmentHint = companyData.cnaeDescricao;
+          }
+        } catch (error) {
+          // Fallback silencioso — continua sem segmentHint
+          scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
+        }
+      }
+
       const hiddenPromptBase = buildInvestigationHiddenPrompt(
         {
           companyName: payload.companyName,
           cnpj: payload.cnpj || undefined,
           city: payload.city,
           state: payload.state,
+          segmentHint,
         },
         {
           includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
@@ -394,13 +484,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       await onDeepDive(prompt, hiddenPrompt, payload.companyName);
     },
     [mode, canWarRoom, radar, onDeepDive],
-  );
-
-  const handleAskHelpScout = useCallback(
-    (prompt: string, displayText: string) => {
-      onSendMessage(prompt, displayText);
-    },
-    [onSendMessage],
   );
 
   const handleCopyMarkdown = useCallback(() => {
@@ -423,7 +506,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onRetry();
   }, [onRetry]);
 
-  const displayName = user?.displayName?.trim() || 'Usuário';
+  const displayName = operatorName.trim() || 'Operador';
   const avatarUrl = null;
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
@@ -447,12 +530,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       hideSuggestionsForMessageId,
       setInput,
       sessionId: currentSession?.id,
-      userId,
+      userId: operatorId,
       processing,
       lastUserQuery,
       onStop: handleStopWithToast,
       onSendMessage,
       empresaAlvo: currentSession?.empresaAlvo || null,
+      cnpj: currentSession?.cnpj || null,
       loadingPinnedLabel,
     }),
     [
@@ -473,11 +557,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       hideSuggestionsForMessageId,
       currentSession?.id,
       currentSession?.empresaAlvo,
-      userId,
+      operatorId,
       processing,
       lastUserQuery,
       handleStopWithToast,
       onSendMessage,
+      currentSession?.cnpj,
       loadingPinnedLabel,
     ],
   );
@@ -490,6 +575,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const handleCloseSettings = () => setShowSettings(false);
   const handleOpenWarRoom = () => setShowWarRoom(true);
   const handleCloseWarRoom = () => setShowWarRoom(false);
+  const closeSidebarOnMobile = useCallback(() => {
+    if (window.innerWidth < 768 && isSidebarOpen) {
+      onToggleSidebar();
+    }
+  }, [isSidebarOpen, onToggleSidebar]);
 
   // ── Paleta de cores por tema ──────────────────────────────────────────────
   const theme = {
@@ -511,19 +601,19 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const radarUnread = radar?.unreadCount ?? 0;
 
   return (
-    <div className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
+    <div data-testid="messages-scroller" className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
       {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
       <SessionsSidebar
         sessions={sessions}
         currentSessionId={currentSession?.id ?? null}
         onSelectSession={(id) => {
           onSelectSession(id);
-          if (window.innerWidth < 768) onToggleSidebar();
+          closeSidebarOnMobile();
         }}
         onNewSession={onNewSession}
         onDeleteSession={onDeleteSession}
         isOpen={isSidebarOpen}
-        onCloseMobile={onToggleSidebar}
+        onCloseMobile={closeSidebarOnMobile}
         isDarkMode={isDarkMode}
         onSaveToCRM={onSaveToCRM || (() => {})}
         onOpenKanban={onOpenKanban || (() => {})}
@@ -535,30 +625,33 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       />
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main data-testid="chat-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
           <div className="flex items-center gap-2 min-w-0">
-            <button
-              ref={sidebarToggleRef}
-              type="button"
-              onClick={onToggleSidebar}
-              className={`p-2 rounded-lg transition-colors flex-none ${theme.itemHover}`}
-              aria-label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'}
-            >
-              {isSidebarOpen ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
+            <Tooltip label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'} position="bottom">
+              <button
+                data-testid="sidebar-toggle"
+                ref={sidebarToggleRef}
+                type="button"
+                onClick={onToggleSidebar}
+                className={`p-2 rounded-lg transition-colors flex-none ${theme.itemHover}`}
+                aria-label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'}
+              >
+                {isSidebarOpen ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
+            </Tooltip>
 
-            <span className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
+            <span data-testid="chat-header-title" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
               {displayTitle}
             </span>
           </div>
@@ -578,53 +671,44 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             {/* War Room button */}
             {canWarRoom && (
+              <Tooltip label="War Room — análise intensiva" position="bottom">
               <motion.button
+                data-testid="chat-war-room-button"
                 whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
                 whileTap={{ scale: 0.9 }}
                 type="button"
                 onClick={handleOpenWarRoom}
-                className={`group relative p-2.5 rounded-xl transition-all shadow-md overflow-hidden ${
-                  isDarkMode 
-                    ? 'bg-slate-900 border border-red-500/30' 
-                    : 'bg-white border border-red-200 shadow-red-200/50'
+                className={`group relative p-2.5 rounded-xl transition-all shadow-sm overflow-hidden ${
+                  isDarkMode
+                    ? 'bg-slate-900 border border-red-500/25 text-red-300'
+                    : 'bg-white border border-red-200 text-red-700'
                 }`}
                 title="War Room"
                 aria-label="Abrir War Room"
               >
                 {/* Background Glow */}
                 <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
-                  isDarkMode ? 'from-red-600/20 to-rose-900/20' : 'from-red-50 to-rose-100'
+                  isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
                 }`} />
 
                 <div className="relative flex items-center justify-center">
-                  <svg className="w-5 h-5 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                    {/* Crossed Double Battle Axes (Machados de Lâmina Dupla) */}
-                    
-                    {/* Axe 1 (Red) */}
-                    <g transform="rotate(45, 12, 12)">
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 21V7" />
-                      <path className={isDarkMode ? 'text-red-500' : 'text-red-600'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
-                    </g>
-
-                    {/* Axe 2 (Rose) */}
-                    <g transform="rotate(-45, 12, 12)">
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 21V7" />
-                      <path className={isDarkMode ? 'text-rose-400' : 'text-rose-500'} d="M12 7c-3-2-5-1-5 2s2 4 5 2M12 7c3-2 5-1 5 2s-2 4-5 2" />
-                    </g>
-                  </svg>
+                  <img
+                    data-testid="chat-war-room-icon"
+                    src="/war-room-icon-no-bg.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 flex-none object-contain"
+                  />
                 </div>
-                
-                {/* Status Dot for "Active/Dangerous" vibe */}
-                <span className="absolute top-1.5 right-1.5 flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                </span>
               </motion.button>
+              </Tooltip>
             )}
 
             {/* Dashboard button */}
             {canAccessDashboard && (
+              <Tooltip label="Dossiê de investigação" position="bottom">
               <button
+                data-testid="chat-dashboard-button"
                 type="button"
                 onClick={() => setShowDashboard(true)}
                 className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -636,11 +720,14 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </button>
+              </Tooltip>
             )}
 
             {/* Admin dashboard button */}
             {canAccessDashboard && onOpenAdminDash && (
+              <Tooltip label="Painel administrativo" position="bottom">
               <button
+                data-testid="chat-admin-button"
                 type="button"
                 onClick={onOpenAdminDash}
                 className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -652,10 +739,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
               </button>
+              </Tooltip>
             )}
 
             {/* Theme toggle */}
+            <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
             <button
+              data-testid="chat-theme-toggle"
               type="button"
               onClick={onToggleTheme}
               className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
@@ -673,6 +763,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 </svg>
               )}
             </button>
+            </Tooltip>
 
             {/* User menu */}
             <UserMenu
@@ -680,72 +771,78 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               displayName={displayName}
               avatarUrl={avatarUrl}
               onOpenSettings={handleOpenSettings}
-              onLogout={onLogout}
+              onClearOperator={onClearOperator}
             />
           </div>
         </header>
 
         {/* ── Messages area ───────────────────────────────────────────────── */}
         <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
-          {showInitialHome ? (
+          {showOperatorGate ? (
             <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-              {!loading && !user ? (
-                <GreetingWelcomeScreen
-                  isDarkMode={isDarkMode}
-                  onConfirmName={(name) => login(name)}
+              <GreetingWelcomeScreen
+                isDarkMode={isDarkMode}
+                onConfirmName={setName}
+              />
+            </div>
+          ) : showInitialHome ? (
+            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
+              <EmptyStateHome
+                mode={mode}
+                isDarkMode={isDarkMode}
+                onStartInvestigation={handleStartInvestigation}
+                radarAlerts={radar?.alerts}
+                radarIsScanning={radar?.isScanning}
+                onForceScan={radar?.onForceScan}
+                onOpenRadar={() => setShowRadarPanel(true)}
+              />
+              <HelpCenterFloating isDarkMode={isDarkMode} />
+            </div>
+          ) : shouldSuspendVirtualizedList ? (
+            <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
+          ) : (
+            <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
+              {isMessagesViewportReady ? (
+                <Virtuoso
+                  ref={virtuosoRef}
+                  data={safeMessages}
+                  computeItemKey={(_, message) => message.id}
+                  itemContent={itemContent}
+                  followOutput={false}
+                  increaseViewportBy={{ top: 400, bottom: 400 }}
+                  defaultItemHeight={96}
+                  style={{ height: '100%' }}
+                  components={{
+                    Header: () =>
+                      hasMore ? (
+                        <div className="flex justify-center py-3">
+                          <button
+                            type="button"
+                            onClick={onLoadMore}
+                            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+                          >
+                            Carregar mensagens anteriores
+                          </button>
+                        </div>
+                      ) : null,
+                  }}
                 />
               ) : (
-                <>
-                  <EmptyStateHome
-                    mode={mode}
-                    isDarkMode={isDarkMode}
-                    onStartInvestigation={handleStartInvestigation}
-                    radarAlerts={radar?.alerts}
-                    radarIsScanning={radar?.isScanning}
-                    onForceScan={radar?.onForceScan}
-                    onOpenRadar={() => setShowRadarPanel(true)}
-                  />
-                  <HelpCenterFloating
-                    isDarkMode={isDarkMode}
-                    onAskScout={handleAskHelpScout}
-                  />
-                </>
+                <div className="h-full w-full" data-testid="messages-viewport-placeholder" />
               )}
             </div>
-          ) : (
-            <Virtuoso
-              ref={virtuosoRef}
-              data={safeMessages}
-              computeItemKey={(_, message) => message.id}
-              itemContent={itemContent}
-              followOutput={false}
-              increaseViewportBy={{ top: 400, bottom: 400 }}
-              initialTopMostItemIndex={Math.max(0, safeMessages.length - 1)}
-              style={{ height: '100%' }}
-              components={{
-                Header: () =>
-                  hasMore ? (
-                    <div className="flex justify-center py-3">
-                      <button
-                        type="button"
-                        onClick={onLoadMore}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                      >
-                        Carregar mensagens anteriores
-                      </button>
-                    </div>
-                  ) : null,
-              }}
-            />
           )}
         </div>
 
         {/* ── Input area ──────────────────────────────────────────────────── */}
-        {!showInitialHome && (
+        {!showInitialHome && !showOperatorGate && (
           <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
             {/* Processing indicator */}
             {isLoading && processing && processingInfo && (
-              <div className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}>
+              <div
+                data-testid="chat-processing-indicator"
+                className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}
+              >
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>{processingInfo.label}</span>
                 {processingInfo.detailText ? (
@@ -778,19 +875,23 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
             <div className="p-3 flex items-end gap-2">
               {/* Investigation trigger */}
-              <button
-                type="button"
-                onClick={() => setShowDashboard(true)}
-                className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
-                title="Nova Investigação"
-                aria-label="Iniciar nova investigação"
-              >
-                🔍
-              </button>
+              <Tooltip label="Iniciar nova investigação" position="top">
+                <button
+                  data-testid="chat-new-investigation-button"
+                  type="button"
+                  onClick={() => setShowDashboard(true)}
+                  className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
+                  title="Nova Investigação"
+                  aria-label="Iniciar nova investigação"
+                >
+                  🔍
+                </button>
+              </Tooltip>
 
               {/* Textarea */}
               <div className="flex-1 relative">
                 <textarea
+                  data-testid="chat-input"
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -805,7 +906,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
               {/* Stop / Send button */}
               {isLoading ? (
+                <Tooltip label="Parar geração" position="top">
                 <button
+                  data-testid="chat-stop-button"
                   type="button"
                   onClick={handleStopWithToast}
                   className="flex-none p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors"
@@ -816,8 +919,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     <rect x="6" y="6" width="12" height="12" rx="2" />
                   </svg>
                 </button>
+                </Tooltip>
               ) : (
+                <Tooltip label="Enviar mensagem" position="top">
                 <button
+                  data-testid="chat-send-button"
                   type="button"
                   onClick={handleSend}
                   disabled={!input.trim()}
@@ -829,11 +935,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m-7 7l7-7 7 7" />
                   </svg>
                 </button>
+                </Tooltip>
               )}
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* ── Overlays ──────────────────────────────────────────────────────────── */}
 
@@ -858,8 +965,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           <SuspenseWithError>
             <SettingsDrawer
               isOpen={showSettings}
-              userName={user?.displayName || ''}
-              onUpdateName={updateName}
+              operatorName={operatorName}
+              onUpdateOperatorName={setName}
               mode={mode}
               onSetMode={setMode}
               isDarkMode={isDarkMode}
@@ -869,7 +976,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
               onExportConversation={onExportConversation}
               onCopyMarkdown={handleCopyMarkdown}
               onScheduleFollowUp={onOpenFollowUpModal}
-              onLogout={onLogout}
+              onClearOperator={onClearOperator}
               onClose={handleCloseSettings}
               exportStatus={exportStatus}
               exportError={exportError}

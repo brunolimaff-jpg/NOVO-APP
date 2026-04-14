@@ -5,6 +5,7 @@ import { generateLoadingCuriosities } from '../services/geminiService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
 import { toRichStatus, isPhaseTimelineStatus, statusKey, type RichLoadingStatus } from '../utils/loadingStatus';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
+import { MODULAR_DOSSIER_STAGES } from '../constants/loadingStages';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -18,15 +19,7 @@ const SOURCE_LINKS: Record<string, string> = {
   gatec:   'https://www.gatec.com.br/',
 };
 
-const MODULAR_DOSSIER_STAGES = [
-  'Mapeando inteligência operacional...',
-  'Entendendo a operação e tecnologia...',
-  'Verificando sinais de risco e conformidade...',
-  'Analisando movimento e posicionamento de mercado...',
-  'Identificando estrutura, liderança e decisores...',
-  'Reunindo referências e sinais de mercado...',
-  'Consolidando a análise final...',
-];
+// MODULAR_DOSSIER_STAGES removido daqui — importado de ../constants/loadingStages
 
 const INVESTIGATION_TIMELINE_STAGES = [
   'Consolidando perímetro da conta alvo...',
@@ -128,7 +121,7 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
   return (
     <div className="flex items-center justify-center">
       <div
-        className={`relative w-48 h-48 md:w-64 md:h-64 rounded-full ${bgOuter} overflow-hidden`}
+        className={`relative h-40 w-40 rounded-full sm:h-48 sm:w-48 md:h-56 md:w-56 lg:h-64 lg:w-64 ${bgOuter} overflow-hidden`}
         style={{ boxShadow: isDarkMode ? '0 0 40px rgba(52,211,153,0.08), inset 0 0 30px rgba(52,211,153,0.05)' : '0 0 30px rgba(5,150,105,0.06)' }}
       >
         {[0.33, 0.66, 1].map((scale, i) => (
@@ -182,7 +175,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
 /* ── Main component ──────────────────────────────────────────────────── */
 
 const LoadingSmart: React.FC<LoadingSmartProps> = ({
-  isLoading, mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
+  isLoading, mode: _mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
 }) => {
   const [currentInsight, setCurrentInsight] = useState<string>(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
@@ -201,6 +194,20 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
   const stepTimestampsRef = useRef<Record<string, number>>({});
+  const displayedStageKeysRef = useRef<Set<string>>(new Set());
+  const queuedStageKeysRef = useRef<Set<string>>(new Set());
+  const plannedOrderByKeyRef = useRef<Map<string, number>>(new Map());
+  const insightRequestIdRef = useRef(0);
+
+  if (plannedOrderByKeyRef.current.size === 0) {
+    const mergedPlan = [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES];
+    mergedPlan.forEach((stage, index) => {
+      const key = statusKey(stripInternalMarkers(stage).trim());
+      if (key && !plannedOrderByKeyRef.current.has(key)) {
+        plannedOrderByKeyRef.current.set(key, index);
+      }
+    });
+  }
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -225,9 +232,20 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const safeSearchQuery = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
   const loadingContext = (safeContext || safeSearchQuery).trim();
   const sanitizedQueryForCuriosities = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
+  const loadingContextKey = useMemo(
+    () => `${isLoading ? 'loading' : 'idle'}::${(empresaAlvo || '').trim()}::${(searchQuery || '').trim()}`,
+    [empresaAlvo, isLoading, searchQuery],
+  );
 
   const normalizeSourceLabel = useCallback((label: string): string =>
     label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(), []);
+
+  const clearInsightTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const renderInsight = useCallback((insight: string): React.ReactNode => {
     const sourceMatch = insight.match(/^(.*?)(?:\s+[—-]\s*Fonte:\s*)(.+)$/i);
@@ -255,19 +273,41 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setDisplayedCompleted([]);
       setDisplayedCurrent('Preparando análise...');
       queueRef.current = [];
+      displayedStageKeysRef.current = new Set();
+      queuedStageKeysRef.current = new Set();
       lastRevealTimeRef.current = 0;
       stepTimestampsRef.current = {};
-      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (revealTimerRef.current) {
+        clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
+      }
       return;
     }
-    const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s)).filter(Boolean);
-    const realCurrent = processing?.stage || 'Preparando análise...';
-    const alreadyKnown = new Set([...displayedCompleted, ...queueRef.current]);
-    const newStages: string[] = [];
+    const realCompleted = (processing?.completedStages || [])
+      .map(s => stripInternalMarkers(s).trim())
+      .filter(Boolean);
+    const realCurrent = stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
+    const newStages: Array<{ label: string; key: string }> = [];
     for (const stage of realCompleted) {
-      if (!alreadyKnown.has(stage)) newStages.push(stage);
+      const stageKey = statusKey(stage);
+      if (
+        !stageKey ||
+        displayedStageKeysRef.current.has(stageKey) ||
+        queuedStageKeysRef.current.has(stageKey)
+      ) {
+        continue;
+      }
+      newStages.push({ label: stage, key: stageKey });
     }
-    if (newStages.length > 0) queueRef.current = [...queueRef.current, ...newStages];
+    if (newStages.length > 0) {
+      newStages.sort((a, b) => {
+        const aIndex = plannedOrderByKeyRef.current.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = plannedOrderByKeyRef.current.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+      });
+      queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];
+      newStages.forEach(stage => queuedStageKeysRef.current.add(stage.key));
+    }
     const getBackoffMessage = (count: number) => {
       if (count === 1) return 'Refinando sinais para alta precisão...';
       if (count === 2) return 'Ajustando filtros de profundidade executiva...';
@@ -275,7 +315,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       return null;
     };
     const backoffMsg = getBackoffMessage(processing?.failureCount || 0);
-    setDisplayedCurrent(backoffMsg || stripInternalMarkers(realCurrent));
+    setDisplayedCurrent(backoffMsg || realCurrent);
     const revealNext = () => {
       if (queueRef.current.length === 0) return;
       const now = Date.now();
@@ -283,9 +323,18 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       revealTimerRef.current = setTimeout(() => {
         const next = queueRef.current.shift();
         if (next) {
+          const nextKey = statusKey(next);
+          if (nextKey) {
+            queuedStageKeysRef.current.delete(nextKey);
+          }
           lastRevealTimeRef.current = Date.now();
-          stepTimestampsRef.current[next] = elapsedTime;
-          setDisplayedCompleted(prev => [...prev, next]);
+          setDisplayedCompleted(prev => {
+            if (!nextKey) return prev;
+            if (displayedStageKeysRef.current.has(nextKey)) return prev;
+            displayedStageKeysRef.current.add(nextKey);
+            stepTimestampsRef.current[next] = elapsedTime;
+            return [...prev, next];
+          });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
           else revealTimerRef.current = null;
         } else { revealTimerRef.current = null; }
@@ -293,65 +342,79 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     };
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, processing?.completedStages?.length, processing?.stage]);
+  }, [isLoading, processing?.completedStages, processing?.stage]);
 
-  // ── 1c. Drain queue ──
-  useEffect(() => {
-    if (!isLoading || queueRef.current.length === 0) return;
-    const drain = () => {
-      if (queueRef.current.length === 0) { revealTimerRef.current = null; return; }
-      const next = queueRef.current.shift();
-      if (next) {
-        lastRevealTimeRef.current = Date.now();
-        stepTimestampsRef.current[next] = elapsedTime;
-        setDisplayedCompleted(prev => [...prev, next]);
-      }
-      if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(drain, STEP_REVEAL_DELAY_MS);
-      else revealTimerRef.current = null;
-    };
-    if (!revealTimerRef.current) {
-      const initialDelay = Math.max(STEP_REVEAL_MIN_MS, STEP_REVEAL_DELAY_MS - (Date.now() - lastRevealTimeRef.current));
-      revealTimerRef.current = setTimeout(drain, initialDelay);
+  useEffect(() => () => {
+    if (revealTimerRef.current) {
+      clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
     }
-    return () => { if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; } };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, displayedCompleted.length]);
+  }, []);
 
-  // ── 2. Curiosidades ──
   useEffect(() => {
-    if (!isLoading) return;
+    insightRequestIdRef.current += 1;
+    clearInsightTimer();
     setActiveInsightIndex(0);
     curiositiesRef.current = [];
+
+    if (!isLoading) {
+      setCurrentInsight(
+        'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+      );
+      return;
+    }
+
     setCurrentInsight(
       companyFocus
         ? `Mapeando sinais operacionais e footprint de mercado da ${companyFocus} — isso leva alguns instantes.`
         : 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
     );
+  }, [clearInsightTimer, companyFocus, isLoading, loadingContextKey]);
+
+  // ── 2. Curiosidades ──
+  useEffect(() => {
+    if (!isLoading) return;
+    const requestId = insightRequestIdRef.current;
+    const applyCuriosities = (nextCuriosities: string[]) => {
+      if (requestId !== insightRequestIdRef.current) return;
+
+      curiositiesRef.current = nextCuriosities;
+      setCurrentInsight(
+        nextCuriosities[0] ||
+          buildFallbackCuriosities(loadingContext)[0] ||
+          'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+      );
+    };
+
     if (!loadingContext || loadingContext.length < 2) {
-      curiositiesRef.current = buildFallbackCuriosities('');
-      setCurrentInsight(curiositiesRef.current[0]);
+      applyCuriosities(buildFallbackCuriosities(''));
       return;
     }
+
+    let cancelled = false;
+
     generateLoadingCuriosities(loadingContext, sanitizedQueryForCuriosities)
       .then(facts => {
+        if (cancelled) return;
         if (facts && facts.length > 0) {
-          curiositiesRef.current = facts.map(f => stripInternalMarkers(f)).filter(Boolean);
-          setCurrentInsight(curiositiesRef.current[0] || buildFallbackCuriosities(loadingContext)[0]);
+          applyCuriosities(facts.map(f => stripInternalMarkers(f)).filter(Boolean));
         } else {
-          curiositiesRef.current = buildFallbackCuriosities(loadingContext);
-          setCurrentInsight(curiositiesRef.current[0]);
+          applyCuriosities(buildFallbackCuriosities(loadingContext));
         }
       })
       .catch(() => {
-        curiositiesRef.current = buildFallbackCuriosities(loadingContext);
-        setCurrentInsight(curiositiesRef.current[0]);
+        if (cancelled) return;
+        applyCuriosities(buildFallbackCuriosities(loadingContext));
       });
-  }, [isLoading, companyFocus, loadingContext, sanitizedQueryForCuriosities, buildFallbackCuriosities]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buildFallbackCuriosities, isLoading, loadingContext, sanitizedQueryForCuriosities]);
 
   // ── 3. Auto-cycle curiosities ──
   const goToInsight = useCallback((index: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    clearInsightTimer();
     setIsFadingOut(true);
     timerRef.current = setTimeout(() => {
       const total = curiositiesRef.current.length || 1;
@@ -361,7 +424,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setIsFadingOut(false);
       timerRef.current = setTimeout(() => goToInsight(safeIndex + 1), INSIGHT_CYCLE_MS);
     }, FADE_DURATION);
-  }, []);
+  }, [clearInsightTimer]);
 
   // ── 4. Visibility control ──
   useEffect(() => {
@@ -369,12 +432,14 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       setIsVisible(true); setIsFadingOut(false); setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
     } else {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      clearInsightTimer();
       setIsFadingOut(true);
       setTimeout(() => setIsVisible(false), FADE_DURATION);
     }
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [isLoading, goToInsight]);
+    return () => {
+      clearInsightTimer();
+    };
+  }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey]);
 
   if (!isVisible) return null;
 
@@ -408,39 +473,60 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const matchesPlan = (candidate: string[]) =>
     candidate.some(stage => observedKeys.has(getStageIdentity(stage)));
   const plannedStageLabels =
-    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES)
-      ? MODULAR_DOSSIER_STAGES
+    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES as unknown as string[])
+      ? MODULAR_DOSSIER_STAGES as unknown as string[]
       : matchesPlan(INVESTIGATION_TIMELINE_STAGES)
         ? INVESTIGATION_TIMELINE_STAGES
         : observedLabels;
   const plannedRich = plannedStageLabels.map(enrichStage);
   const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
-  const completedStageKeys = realCompletedStageKeys;
-  const currentStageKey = getStageIdentity(displayedCurrent);
-  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
-  const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
-  const visiblePlannedIndices = new Set<number>();
+  const completedStageKeys = new Set<string>();
 
-  plannedRich.forEach((step, index) => {
-    if (completedStageKeys.has(getStageIdentity(step.label))) {
-      visiblePlannedIndices.add(index);
-    }
-  });
-
-  if (currentPlannedIndex >= 0) {
-    visiblePlannedIndices.add(currentPlannedIndex);
-    const nextPlannedIndex = plannedRich.findIndex(
-      (step, index) =>
-        index > currentPlannedIndex &&
-        !completedStageKeys.has(getStageIdentity(step.label)),
-    );
-    if (nextPlannedIndex >= 0) {
-      visiblePlannedIndices.add(nextPlannedIndex);
+  if (plannedRich.length > 0) {
+    for (const stage of plannedRich) {
+      const stepKey = getStageIdentity(stage.label);
+      if (!stepKey) continue;
+      if (!realCompletedStageKeys.has(stepKey)) break;
+      completedStageKeys.add(stepKey);
     }
   } else {
-    const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
-    if (nextPendingIndex >= 0) {
-      visiblePlannedIndices.add(nextPendingIndex);
+    realCompletedStageKeys.forEach((key) => completedStageKeys.add(key));
+  }
+
+  const currentStageKey = getStageIdentity(displayedCurrent);
+  const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
+  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
+  const visiblePlannedIndices = new Set<number>();
+
+  // Estratégia "Full Roadmap": Se um plano foi identificado, mostramos todas as etapas
+  // marcando retrocesso ou progresso conforme necessário.
+  const isUsingPlannedStages = plannedStageLabels === (MODULAR_DOSSIER_STAGES as unknown as string[]) || plannedStageLabels === INVESTIGATION_TIMELINE_STAGES;
+
+  if (isUsingPlannedStages) {
+    plannedRich.forEach((_, index) => visiblePlannedIndices.add(index));
+  } else {
+    // Fallback para quando não há plano fixo: comportamento incremental clássico
+    plannedRich.forEach((step, index) => {
+      if (completedStageKeys.has(getStageIdentity(step.label))) {
+        visiblePlannedIndices.add(index);
+      }
+    });
+
+    if (currentPlannedIndex >= 0) {
+      visiblePlannedIndices.add(currentPlannedIndex);
+      const nextPlannedIndex = plannedRich.findIndex(
+        (step, index) =>
+          index > currentPlannedIndex &&
+          !completedStageKeys.has(getStageIdentity(step.label)),
+      );
+      if (nextPlannedIndex >= 0) {
+        visiblePlannedIndices.add(nextPlannedIndex);
+      }
+    } else {
+      const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
+      if (nextPendingIndex >= 0) {
+        visiblePlannedIndices.add(nextPendingIndex);
+      }
     }
   }
 
@@ -490,16 +576,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   // ── Fullscreen overlay ──
   const overlay = (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col animate-overlay-enter ${
+      className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain animate-overlay-enter ${
         isDarkMode ? 'bg-slate-950/95 text-slate-100' : 'bg-white/95 text-slate-800'
       } ${isFadingOut && !isLoading ? 'opacity-0 transition-opacity duration-400' : ''}`}
       style={{ backdropFilter: 'blur(8px)' }}
     >
       {/* ── Header ── */}
-      <div className={`flex-shrink-0 flex items-center justify-between px-4 md:px-8 py-3 md:py-4 border-b ${
+      <div className={`flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-3 md:py-4 border-b ${
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:gap-3">
           <div className={`w-3 h-3 flex-shrink-0 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
           <h1 className={`text-sm md:text-base font-bold tracking-tight truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>Senior Scout 360</h1>
           {companyFocus && (
@@ -513,7 +599,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-2">
+        <div className="ml-0 flex w-full flex-wrap items-center justify-end gap-2 md:ml-2 md:w-auto md:gap-3">
           <span className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg ${
             isDarkMode ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
           }`}>
@@ -521,7 +607,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           </span>
           {onStop && (
             confirmStop ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
                 <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Interromper?</span>
                 <button onClick={() => { setConfirmStop(false); onStop(); }}
                   className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-all text-xs font-bold">Sim</button>
@@ -541,10 +627,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Centralized Progress Control ── */}
-      <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-4 md:py-8">
+      <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-3 md:py-6">
         <div className={`flex flex-col items-center gap-2 mb-3 w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <StepSpinner isDarkMode={isDarkMode} />
-          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
+          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-base sm:text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
             isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
           }`}>{currentRich.label}</h2>
           <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
@@ -557,16 +643,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Two-column: Steps + Radar ── */}
-      <div className="flex-1 min-h-0 px-4 md:px-8 overflow-auto">
-        <div className={`grid grid-cols-1 ${isIncremental ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl' : 'max-w-5xl'} mx-auto h-full`}>
+      <div className="flex-1 px-4 pb-3 md:px-8 md:pb-4">
+        <div className={`mx-auto grid grid-cols-1 items-start gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl md:grid-cols-1' : 'max-w-5xl md:grid-cols-2'}`}>
 
           {/* Steps column */}
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col">
             <h2 className={`text-xs md:text-sm font-bold uppercase tracking-wider mb-3 ${
               isDarkMode ? 'text-slate-400' : 'text-slate-500'
             }`}>Etapas da análise</h2>
 
-            <div className="flex flex-col gap-2.5 md:gap-3 overflow-y-auto max-h-[35vh] md:max-h-[45vh] pr-2">
+            <div className="flex flex-col gap-2.5 pr-0 md:gap-3 md:pr-2">
               {visiblePlannedStages.map((step, i) => {
                 const stepKey = getStageIdentity(step.label);
                 const isCompleted = completedStageKeys.has(stepKey);
@@ -581,7 +667,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
                     ) : (
                       <StepPending isDarkMode={isDarkMode} />
                     )}
-                    <span className={`text-sm flex-1 min-w-0 ${
+                    <span className={`text-sm flex-1 min-w-0 break-words ${
                       isCompleted
                         ? (isDarkMode ? 'text-slate-500' : 'text-slate-400')
                         : isCurrent
@@ -615,7 +701,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
           </div>
 
           {!isIncremental && (
-            <div className="hidden md:flex items-center justify-center">
+            <div className="hidden lg:flex items-center justify-center">
               <RadarAnimation isDarkMode={isDarkMode} />
             </div>
           )}
@@ -623,10 +709,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       </div>
 
       {/* ── Insight carousel ── */}
-      <div className={`flex-shrink-0 px-4 md:px-8 py-3 border-t ${
+      <div className={`flex-shrink-0 px-4 py-3 md:px-8 md:py-4 border-t ${
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
-        <div className={`rounded-xl px-4 md:px-5 py-3 max-w-3xl mx-auto ${
+        <div className={`mx-auto w-full max-w-3xl rounded-xl px-4 py-3 md:px-5 ${
           isDarkMode ? 'bg-slate-900/80 border border-emerald-500/15' : 'bg-emerald-50/50 border border-emerald-200'
         }`}>
           <div className="flex items-start gap-3 mb-2">
@@ -635,7 +721,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
               <p className={`text-xs font-black uppercase tracking-widest mb-1 ${
                 isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
               }`}>Contexto estratégico</p>
-              <div className="max-h-[80px] md:max-h-[100px] overflow-y-auto">
+              <div className="max-h-none">
                 <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-slate-100' : 'text-slate-700'}`}>
                   {renderInsight(currentInsight)}
                 </p>

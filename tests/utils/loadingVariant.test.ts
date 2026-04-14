@@ -54,4 +54,14 @@ describe('loadingVariant flow rules', () => {
       }),
     ).toBe('inline');
   });
+
+  it('keeps placeholder aligned with hero for first investigation even if session has past bot answers', () => {
+    expect(
+      resolvePlaceholderLoadingVariant({
+        requestKind: 'default',
+        isFollowUp: false,
+        hasConsolidatedBotResponse: true,
+      }),
+    ).toBe('hero');
+  });
 });

@@ -39,7 +39,7 @@ const INDEX_OVERRIDE = process.argv[7];
 const NAMESPACE_OVERRIDE = process.argv[8];
 const NATIVE_MIN_CHARS = 350;
 const GEMINI_OCR_MAX_BYTES = 18 * 1024 * 1024;
-const GEMINI_OCR_MODEL = process.env.GEMINI_OCR_MODEL || 'gemini-2.5-flash';
+const GEMINI_OCR_MODEL = process.env.GEMINI_OCR_MODEL || 'gemini-3-flash-preview';
 
 if (!GEMINI_API_KEY || !PINECONE_API_KEY) {
   console.error('ERRO: faltam variaveis GEMINI_API_KEY e/ou PINECONE_DOCS_KEY/PINECONE_API_KEY.');
@@ -81,7 +81,7 @@ async function listPdfsRecursive(rootDir: string): Promise<string[]> {
 }
 
 function normalizeText(input: string): string {
-  return input.replace(/\u0000/g, ' ').replace(/\s+/g, ' ').trim();
+  return input.split('\u0000').join(' ').replace(/\s+/g, ' ').trim();
 }
 
 async function extractPdfNative(buffer: Buffer): Promise<string> {
@@ -276,4 +276,3 @@ run().catch((err) => {
   console.error('[ingestPdfDocs] Falha geral:', err?.message || err);
   process.exit(1);
 });
-

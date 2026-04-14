@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "/root/.local/bin/uvx",
+      "args": [
+        "mcp-server-fetch"
+      ]
+    }
+  }
+}

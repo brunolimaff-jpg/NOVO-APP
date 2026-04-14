@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Tooltip from './Tooltip';
 import type { RadarAlert, RadarCategory } from '../types';
 import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS, RADAR_CATEGORY_COLORS } from '../types';
 
@@ -95,23 +96,27 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button
-                onClick={onOpenSettings}
-                className={`p-1.5 rounded-lg text-sm transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-                title="Configurações do Radar"
-              >
-                ⚙️
-              </button>
-              <button
-                onClick={onClose}
-                className={`p-1.5 rounded-lg text-sm transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                ✕
-              </button>
+              <Tooltip label="Configurações do Radar" position="bottom">
+                <button
+                  onClick={onOpenSettings}
+                  className={`p-1.5 rounded-lg text-sm transition-colors ${
+                    isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                  title="Configurações do Radar"
+                >
+                  ⚙️
+                </button>
+              </Tooltip>
+              <Tooltip label="Fechar painel do Radar" position="bottom">
+                <button
+                  onClick={onClose}
+                  className={`p-1.5 rounded-lg text-sm transition-colors ${
+                    isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  ✕
+                </button>
+              </Tooltip>
             </div>
           </div>
 

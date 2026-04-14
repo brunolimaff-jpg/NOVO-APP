@@ -59,7 +59,20 @@ vi.mock('../../utils/retry', () => ({
   withAutoRetry: vi.fn(async (_name: string, action: () => Promise<unknown>) => action()),
 }));
 
-import { parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, sendMessageToGemini } from '../../services/geminiService';
+import {
+  parsePortaFeeds,
+  cleanPortaFeedMarkers,
+  parseMarkers,
+  sendMessageToGemini,
+  generateContinuityQuestion,
+} from '../../services/geminiService';
+import { Sender } from '../../types';
+
+function expectStrongContinuitySet(result: string[]) {
+  expect(result).toHaveLength(4);
+  expect(result.every(item => item.endsWith('?'))).toBe(true);
+  expect(result.some(item => /margem|perda|risco|gargalo|trav|retrabalho|custo|press[aã]o|diretoria|integra[cç][aã]o/i.test(item))).toBe(true);
+}
 
 describe('parsePortaFeeds', () => {
   it('retorna resultado vazio para texto sem marcadores', () => {
@@ -105,10 +118,10 @@ describe('parsePortaFeeds', () => {
     expect(aAdj?.subScores?.A1).toBe(9);
   });
 
-  it('parseia flag PORTA_FLAG:LOCK:SIM como ativa', () => {
+  it('ignora flag PORTA_FLAG:LOCK:SIM por ser legado descontinuado', () => {
     const text = '[[PORTA_FLAG:LOCK:SIM]]';
     const result = parsePortaFeeds(text, 'RISCOS');
-    expect(result.flags.some(f => f.flag === 'LOCK' && f.active === true)).toBe(true);
+    expect(result.flags).toHaveLength(0);
   });
 
   it('parseia flag PORTA_FLAG:TRAD:NAO como inativa', () => {
@@ -199,6 +212,88 @@ describe('parseMarkers', () => {
   });
 });
 
+describe('generateContinuityQuestion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('retorna 4 perguntas quando a resposta já vem como JSON válido', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: JSON.stringify([
+        'Quais gargalos fiscais hoje atrasam o fechamento mensal da operação?',
+        'Onde o ERP atual falha ao consolidar custos entre unidades e safra?',
+        'Que indicador executivo segue sem dono claro quando o fechamento pressiona a diretoria?',
+        'Se nos próximos 90 dias a integração continuar falhando entre áreas, qual perda tende a aparecer primeiro?',
+      ]),
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expectStrongContinuitySet(result);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('extrai array JSON embutido em texto adicional e permite citar a empresa quando fortalece a pergunta', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque em Acme Agro perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /Acme Agro/i.test(item))).toBe(true);
+    expect(result.some(item => item.includes('Qual dor operacional'))).toBe(true);
+  });
+
+  it('extrai perguntas de texto livre preservando o tom sniper', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: `1. Qual processo hoje depende de planilha e gera perda de controle?\n2. Onde a operação sofre mais retrabalho por falta de integração?\n3. Que decisão executiva demora por ausência de dados confiáveis?\n4. Qual custo oculto já virou rotina e ainda não incomodou a diretoria?`,
+    });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expectStrongContinuitySet(result);
+    expect(result.some(item => item.includes('decisão executiva'))).toBe(true);
+  });
+
+  it('faz retry automático quando a primeira tentativa retorna menos de 4 perguntas', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: '["Qual processo crítico fica sem visibilidade hoje?"]',
+      })
+      .mockResolvedValueOnce({
+        text: '["Onde o ERP atual trava o fechamento?","Qual etapa sofre mais retrabalho manual?","Que risco aumenta sem integração de dados?"]',
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
+    expectStrongContinuitySet(result);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('usa fallback guiado pelos sinais do dossie e mantém pressão comercial sem depender de 90 dias', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: '["Mensagem inválida"]',
+      })
+      .mockResolvedValueOnce({
+        text: '["Pergunta repetida"]',
+      });
+
+    const result = await generateContinuityQuestion(
+      [
+        {
+          id: '1',
+          sender: Sender.Bot,
+          text: 'Há risco fiscal, retrabalho no fechamento, integração frágil entre ERP e planilhas e pressão de compliance.',
+          timestamp: new Date(),
+        },
+      ],
+      'Acme Agro',
+      'Bruno',
+    );
+
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /fiscal|compliance|integra[cç][aã]o|fechamento/i.test(item))).toBe(true);
+  });
+});
+
 describe('sendMessageToGemini — cenários de erro', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -280,5 +375,124 @@ describe('sendMessageToGemini — cenários de erro', () => {
       { role: 'user', text: 'Investigue Acme Agro' },
       { role: 'user', text: 'Agora aprofunde em ERP' },
     ]);
+  });
+
+  it('envia thinkingLevel=high por padrão quando não há configuração explícita', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'high',
+    });
+  });
+
+  it('mapeia thinkingMode=false legado para thinkingLevel=low', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      thinkingMode: false,
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'low',
+    });
+  });
+
+  it('prioriza thinkingLevel explícito sobre thinkingMode legado', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
+
+    await sendMessageToGemini('Pergunta simples', [], 'system', {
+      thinkingLevel: 'medium',
+      thinkingMode: true,
+      onText: vi.fn(),
+      onStatus: vi.fn(),
+    });
+
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0]).toMatchObject({
+      thinkingLevel: 'medium',
+    });
+  });
+});
+
+describe('generateContinuityQuestion novelty mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('evita repetir sugestoes atuais e busca ineditismo real', async () => {
+    const avoidSuggestions = [
+      'Qual processo critico fica sem visibilidade hoje?',
+      'Onde o ERP atual trava o fechamento mensal?',
+    ];
+
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual processo critico fica sem visibilidade hoje?',
+          'Onde o ERP atual trava o fechamento mensal?',
+          'Que indicador executivo permanece sem rastreabilidade entre filiais?',
+          'Qual risco operacional aumenta quando o time depende de planilhas paralelas?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual decisao comercial esta atrasando por falta de integracao fiscal?',
+          'Onde a equipe perde mais margem por retrabalho de dados?',
+          'Que ruptura operacional ja ficou cara demais para continuar sendo tratada como excecao?',
+        ]),
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno', {
+      mode: 'regenerate',
+      avoidSuggestions,
+      ensureFresh: true,
+    });
+
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /processo critico/i.test(item))).toBe(false);
+    expect(result.some(item => /ERP atual trava/i.test(item))).toBe(false);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('completa 4 sugestões com fallback premium quando nao encontra 4 ineditas', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual processo critico fica sem visibilidade hoje?',
+          'Onde o ERP atual trava o fechamento mensal?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Onde o ERP atual trava o fechamento mensal?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual decisao executiva ainda fica sem dado confiavel no fechamento?',
+        ]),
+      });
+
+    const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno', {
+      mode: 'regenerate',
+      avoidSuggestions: [
+        'Qual processo critico fica sem visibilidade hoje?',
+        'Onde o ERP atual trava o fechamento mensal?',
+      ],
+      ensureFresh: true,
+    });
+
+    expectStrongContinuitySet(result);
+    expect(result.some(item => /decis[aã]o|or[cç]amento|margem|risco|custo/i.test(item))).toBe(true);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -16,10 +16,6 @@ vi.mock('mermaid', () => ({
   },
 }));
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: null }),
-}));
-
 vi.mock('../../components/SmartOptions', () => ({
   default: () => null,
   parseSmartOptions: (text?: string) => ({ cleanText: text || '', options: [] }),

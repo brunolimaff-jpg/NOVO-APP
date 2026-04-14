@@ -7,6 +7,20 @@ import { Sender, type Message, type ChatSession } from '../../types';
 const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
 }));
+const { sessionsSidebarMock } = vi.hoisted(() => ({
+  sessionsSidebarMock: vi.fn(),
+}));
+const { operatorStateRef } = vi.hoisted(() => ({
+  operatorStateRef: {
+    current: {
+      name: 'Bruno Lima',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    },
+  },
+}));
 
 vi.mock('react-virtuoso', async () => {
   const React = await import('react');
@@ -21,7 +35,10 @@ vi.mock('react-virtuoso', async () => {
         }: {
           data?: unknown[];
           itemContent: (index: number, item: unknown) => React.ReactNode;
-          components?: { Header?: React.ComponentType };
+          components?: {
+            Header?: React.ComponentType;
+            Footer?: React.ComponentType;
+          };
         },
         ref: React.ForwardedRef<HTMLDivElement>,
       ) => (
@@ -32,6 +49,7 @@ vi.mock('react-virtuoso', async () => {
               {itemContent(index, item)}
             </div>
           ))}
+          {components?.Footer ? <components.Footer /> : null}
         </div>
       ),
     ),
@@ -68,22 +86,21 @@ vi.mock('../../contexts/ModeContext', () => ({
   useMode: () => ({ mode: 'investigacao', setMode: vi.fn() }),
 }));
 
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({
-    user: {
-      id: 'user-1',
-      displayName: 'Bruno Lima',
-      email: 'bruno@example.com',
-      isGuest: false,
-      isAdmin: false,
-    },
-    userId: 'user-1',
-    updateName: vi.fn(),
-  }),
+vi.mock('../../contexts/OperatorContext', () => ({
+  useOperator: () => operatorStateRef.current,
 }));
 
 vi.mock('../../components/SessionsSidebar', () => ({
-  default: () => <div data-testid="sessions-sidebar" />,
+  default: (props: any) => {
+    sessionsSidebarMock(props);
+    return (
+      <div data-testid="sessions-sidebar">
+        <button type="button" onClick={props.onCloseMobile}>
+          close-mobile
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../../components/UserMenu', () => ({
@@ -105,6 +122,16 @@ vi.mock('../../components/EmptyStateHome', () => ({
         }
       >
         mock-start-investigation
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/GreetingWelcomeScreen', () => ({
+  default: ({ onConfirmName }: { onConfirmName: (name: string) => void }) => (
+    <div data-testid="greeting-screen">
+      <button type="button" onClick={() => onConfirmName('Bruno Lima')}>
+        confirm-name
       </button>
     </div>
   ),
@@ -177,7 +204,7 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
     pdfReportContent: null,
     onOpenEmailModal: vi.fn(),
     onOpenFollowUpModal: vi.fn(),
-    onLogout: vi.fn(),
+    onClearOperator: vi.fn(),
     ...overrides,
   };
 }
@@ -185,6 +212,14 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
+    operatorStateRef.current = {
+      name: 'Bruno Lima',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    };
   });
 
   it('mantem a home inicial sem footer de chat quando ainda nao existe sessao', () => {
@@ -214,19 +249,19 @@ describe('ChatInterface shell regression', () => {
     expect(screen.queryByRole('button', { name: /abrir ajuda do scout/i })).not.toBeInTheDocument();
   });
 
-  it('envia aprofundamento da ajuda com prompt oculto e texto visivel', async () => {
-    const onSendMessage = vi.fn();
+  it('bloqueia a home e mostra o gate de nome quando nao existe operador local', () => {
+    operatorStateRef.current = {
+      name: '',
+      operatorId: 'op-1',
+      loading: false,
+      setName: vi.fn(),
+      clearName: vi.fn(),
+    };
 
-    render(<ChatInterface {...buildProps({ onSendMessage })} />);
+    render(<ChatInterface {...buildProps()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
-    fireEvent.click(screen.getByRole('button', { name: /quais sao as fases da investigacao/i }));
-    fireEvent.click(screen.getByRole('button', { name: /aprofundar no scout/i }));
-
-    expect(onSendMessage).toHaveBeenCalledWith(
-      expect.stringContaining('<help_guide>'),
-      'Quero entender melhor: Quais sao as fases da investigacao?',
-    );
+    expect(screen.getByTestId('greeting-screen')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state-home')).not.toBeInTheDocument();
   });
 
   it('aciona a investigacao inicial a partir da home', async () => {
@@ -239,13 +274,13 @@ describe('ChatInterface shell regression', () => {
     await waitFor(() => {
       expect(onDeepDive).toHaveBeenCalledWith(
         '🔍 Investigando Acme Agro...',
-        expect.stringContaining('Acme Agro'),
+        expect.stringContaining('Empresa=Acme Agro'),
         'Acme Agro',
       );
     });
   });
 
-  it('renderiza mensagens no contrato esperado pelo MessageRow', () => {
+  it('renderiza mensagens no contrato esperado pelo MessageRow', async () => {
     const messages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
       buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
@@ -262,8 +297,10 @@ describe('ChatInterface shell regression', () => {
     );
 
     expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
-    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
-    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
+    await waitFor(() => {
+      expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+      expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial da investigacao');
+    });
   });
 
   it('mantem o shell do chat ancorado em flex-1 min-h-0 sem depender de h-full', () => {
@@ -289,8 +326,29 @@ describe('ChatInterface shell regression', () => {
     expect(shell?.className).not.toContain('h-full');
   });
 
+  it('nao reabre a sidebar em mobile quando recebe comando de fechar com estado fechado', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 390 });
+    const onToggleSidebar = vi.fn();
 
-  it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', () => {
+    render(<ChatInterface {...buildProps({ isSidebarOpen: false, onToggleSidebar })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'close-mobile' }));
+
+    expect(onToggleSidebar).not.toHaveBeenCalled();
+    expect(sessionsSidebarMock).toHaveBeenCalled();
+  });
+
+  it('renderiza botao do War Room com icone de espadas cruzadas e sem badge de notificacao', () => {
+    render(<ChatInterface {...buildProps({ canWarRoom: true })} />);
+
+    const warRoomButton = screen.getByTestId('chat-war-room-button');
+    expect(warRoomButton).toBeInTheDocument();
+    expect(screen.getByTestId('chat-war-room-icon')).toBeInTheDocument();
+    expect(warRoomButton.querySelector('.animate-ping')).toBeNull();
+  });
+
+
+  it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', async () => {
     const firstRoundMessages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
       buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
@@ -316,7 +374,9 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+    });
 
     rerender(
       <ChatInterface
@@ -329,9 +389,11 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
-    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
-    expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-inline-3')).toBeInTheDocument();
+      expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
+      expect(screen.queryByText('loading-smart-hero')).not.toBeInTheDocument();
+    });
   });
 
   it('dispara Deep Dive e mantém loadingVariant hero na rodada seguinte', async () => {
@@ -352,6 +414,10 @@ describe('ChatInterface shell regression', () => {
         })}
       />,
     );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'deep-dive-row-1' })).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'deep-dive-row-1' }));
 
@@ -382,9 +448,33 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
-    expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
-    expect(screen.getByText('loading-smart-hero')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+      expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
+      expect(screen.getByText('loading-smart-hero')).toBeInTheDocument();
+    });
+  });
+
+  it('oculta CTA de Deep Dive quando canDeepDive=false', async () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          canDeepDive: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'deep-dive-row-1' })).not.toBeInTheDocument();
+    });
   });
 
   it('renderiza o status de processamento sem imprimir o objeto bruto', () => {
@@ -488,5 +578,76 @@ describe('ChatInterface shell regression', () => {
     await waitFor(() => {
       expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     });
+  });
+
+  it('renderiza mensagens mesmo quando ResizeObserver nao sinaliza viewport pronta', async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    class SilentResizeObserver {
+      observe() {}
+      disconnect() {}
+    }
+    try {
+      // @ts-expect-error test override
+      globalThis.ResizeObserver = SilentResizeObserver;
+
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'Resumo final disponível'),
+      ];
+
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+        expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo final disponível');
+      });
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it('renderiza mensagens mesmo quando ResizeObserver e requestAnimationFrame falham juntos', async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const originalRaf = window.requestAnimationFrame;
+    class SilentResizeObserver {
+      observe() {}
+      disconnect() {}
+    }
+    try {
+      // @ts-expect-error test override
+      globalThis.ResizeObserver = SilentResizeObserver;
+      window.requestAnimationFrame = vi.fn(() => 1);
+
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'Resumo final disponível com score e sugestões'),
+      ];
+
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+          })}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+        expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo final disponível com score e sugestões');
+      });
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+      window.requestAnimationFrame = originalRaf;
+    }
   });
 });

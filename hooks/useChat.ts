@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useTransition } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuth } from '../contexts/AuthContext';
+import { useOperator } from '../contexts/OperatorContext';
 import { useMode } from '../contexts/ModeContext';
 import { Message, Sender, Feedback, ChatSession, AppError } from '../types';
 import { sendMessageToGemini, generateContinuityQuestion as generateNewSuggestions, resetPortaState as resetChatSession } from '../services/geminiService';
@@ -12,7 +12,8 @@ import { cleanTitle, sanitizeLoadingContextText, stripInternalMarkers } from '..
 import { normalizeAppError } from '../utils/errorHelpers';
 import { BACKEND_URL } from '../services/apiConfig';
 import { useToast } from './useToast';
-import { APP_NAME, MODE_LABELS, DEFAULT_MODE } from '../constants';
+import { APP_NAME, DEFAULT_MODE } from '../constants';
+
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v1';
 const THEME_KEY = 'scout360_theme';
 const PAGE_SIZE = 20;
@@ -56,11 +57,16 @@ function sanitizeSessionCompanyName(...candidates: Array<string | null | undefin
   return null;
 }
 
+/**
+ * @deprecated Hook legado mantido apenas por compatibilidade durante a refatoração.
+ * A orquestração ativa do chat permanece em App.tsx.
+ */
 export const useChat = () => {
-  const { userId, user, isAuthenticated } = useAuth();
+  const { operatorId, name: operatorName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { toast } = useToast();
   const [, startTransition] = useTransition();
+  const resolvedOperatorName = operatorName.trim() || 'Vendedor';
 
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -230,6 +236,7 @@ export const useChat = () => {
           try {
             localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(trimmed));
           } catch {
+            // ignore secondary quota failure on fallback write
           }
           toast.error('Armazenamento local cheio. Sessões antigas foram removidas.');
         }
@@ -279,7 +286,7 @@ export const useChat = () => {
   };
 
   const handleSaveRemote = async () => {
-    if (!currentSession || !isAuthenticated) return;
+    if (!currentSession) return;
     setIsSavingRemote(true);
     setRemoteSaveStatus('idle');
     const snapshotSessionId = currentSession.id;
@@ -289,7 +296,7 @@ export const useChat = () => {
     };
     updateSessionById(snapshotSessionId, () => finalized);
     try {
-      await saveRemoteSession(finalized, userId, user?.displayName);
+      await saveRemoteSession(finalized, operatorId, resolvedOperatorName);
       setRemoteSaveStatus('success');
       setTimeout(() => setRemoteSaveStatus('idle'), 3000);
     } catch {
@@ -397,7 +404,7 @@ export const useChat = () => {
             );
           }
         },
-        nomeVendedor: typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+        nomeVendedor: resolvedOperatorName,
         sessionId,
         hintedCompany,
       });
@@ -441,7 +448,7 @@ export const useChat = () => {
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             action: 'logInvestigation',
-            vendedor: user?.displayName || 'Anônimo',
+            vendedor: resolvedOperatorName,
             empresa: sanitizeSessionCompanyName(text, responseText, currentSession?.empresaAlvo) || cleanTitle(extractCompanyName(text)),
             modo: mode || '',
             resumo: responseText.substring(0, 200),
@@ -488,7 +495,7 @@ export const useChat = () => {
 
   const handleSendMessage = async (text: string, displayText?: string) => {
     let sessionId = currentSessionId;
-    let currentHistory: Message[] = [];
+    let currentHistory: Message[];
     if (!sessionId) {
       sessionId = uuidv4();
       const resolvedCompany = sanitizeSessionCompanyName(displayText || text, text);
@@ -641,7 +648,11 @@ export const useChat = () => {
       ),
     }));
     try {
-      const newSuggestions = await generateNewSuggestions(targetSession.messages, companyName, user?.displayName || 'Vendedor');
+      const newSuggestions = await generateNewSuggestions(
+        targetSession.messages,
+        companyName,
+        resolvedOperatorName,
+      );
       updateSessionById(sessionId, session => ({
         ...session,
         messages: session.messages.map(msg =>
@@ -688,8 +699,8 @@ export const useChat = () => {
         type: 'dislike',
         comment: `Automated Error Report: ${error.code}`,
         aiContent: errorPayload,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: resolvedOperatorName,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -729,8 +740,8 @@ export const useChat = () => {
         type: feedback === 'up' ? 'like' : 'dislike',
         comment,
         aiContent: content,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: resolvedOperatorName,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {

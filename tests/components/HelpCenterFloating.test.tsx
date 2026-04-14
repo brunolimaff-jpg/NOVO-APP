@@ -1,63 +1,47 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import HelpCenterFloating from '../../components/HelpCenterFloating';
 
 describe('HelpCenterFloating', () => {
-  it('abre e fecha o guia pelo botao e pelo Escape', () => {
-    render(<HelpCenterFloating isDarkMode={false} onAskScout={vi.fn()} />);
+  it('abre e fecha as perguntas frequentes pelo botão e pelo Escape', () => {
+    render(<HelpCenterFloating isDarkMode={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
-    expect(screen.getByRole('dialog', { name: /entenda o senior scout 360/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /perguntas frequentes/i })).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: /entenda o senior scout 360/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /perguntas frequentes/i })).not.toBeInTheDocument();
   });
 
-  it('responde pergunta pronta no painel sem enviar ao chat', () => {
-    const onAskScout = vi.fn();
-    render(<HelpCenterFloating isDarkMode={false} onAskScout={onAskScout} />);
+  it('mostra somente as 10 dúvidas frequentes clicáveis', () => {
+    render(<HelpCenterFloating isDarkMode={false} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
+    const dialog = screen.getByRole('dialog', { name: /perguntas frequentes/i });
+    const faqButtons = within(dialog).getAllByRole('button', { expanded: false });
+
+    expect(faqButtons).toHaveLength(10);
+    expect(within(dialog).queryByLabelText(/pergunte sobre o scout/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /aprofundar no scout/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/guia rapido/i)).not.toBeInTheDocument();
+  });
+
+  it('abre a resposta local ao clicar em uma dúvida', () => {
+    render(<HelpCenterFloating isDarkMode={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
     fireEvent.click(screen.getByRole('button', { name: /como funciona o score porta/i }));
 
-    expect(screen.getByText(/O PORTA prioriza contas por cinco dimensoes/i)).toBeInTheDocument();
-    expect(onAskScout).not.toHaveBeenCalled();
+    expect(screen.getByText(/O PORTA ajuda a priorizar contas por Porte/i)).toBeInTheDocument();
   });
 
-  it('filtra perguntas por busca local', () => {
-    render(<HelpCenterFloating isDarkMode={false} onAskScout={vi.fn()} />);
+  it('mantém as perguntas em português do Brasil', () => {
+    render(<HelpCenterFloating isDarkMode={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
-    fireEvent.change(screen.getByLabelText(/pergunte sobre o scout/i), { target: { value: 'Radar' } });
 
-    expect(screen.getByRole('button', { name: /o que o radar monitora/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /como funciona o score porta/i })).not.toBeInTheDocument();
-  });
-
-  it('bloqueia perguntas fora do escopo da ajuda', () => {
-    const onAskScout = vi.fn();
-    render(<HelpCenterFloating isDarkMode={false} onAskScout={onAskScout} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
-    fireEvent.change(screen.getByLabelText(/pergunte sobre o scout/i), { target: { value: 'investigue a SLC' } });
-    fireEvent.click(screen.getByRole('button', { name: /responder/i }));
-
-    expect(screen.getByText(/Esse painel e so para entender o Scout/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /aprofundar no scout/i })).not.toBeInTheDocument();
-    expect(onAskScout).not.toHaveBeenCalled();
-  });
-
-  it('envia aprofundamento ao Scout apenas para pergunta valida', () => {
-    const onAskScout = vi.fn();
-    render(<HelpCenterFloating isDarkMode={false} onAskScout={onAskScout} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
-    fireEvent.click(screen.getByRole('button', { name: /quais sao as fases da investigacao/i }));
-    fireEvent.click(screen.getByRole('button', { name: /aprofundar no scout/i }));
-
-    expect(onAskScout).toHaveBeenCalledWith(
-      expect.stringContaining('<help_guide>'),
-      'Quero entender melhor: Quais sao as fases da investigacao?',
-    );
+    expect(screen.getByRole('button', { name: /Quais são as fases da investigação/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Quais são os limites do Scout/i })).toBeInTheDocument();
+    expect(screen.queryByText(/\bFeatures\b/i)).not.toBeInTheDocument();
   });
 });

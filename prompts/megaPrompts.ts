@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/prompts/megaPrompts.ts
 // v5.0 — BIG UPDATE!
 // Estratégia: máxima profundidade de domínio + máxima precisão estrutural + máxima agressividade comercial controlada
@@ -114,12 +113,13 @@ Regra crítica:
 <research_breadth_protocol>
 Para dossiês executivos e investigações forenses, a CREDIBILIDADE depende do volume de evidências independentes.
 
-Diretrizes de amplitude:
+Diretrizes de amplitude e profundidade:
 1. BUSQUE ATIVAMENTE um mínimo de 8 a 12 fontes únicas e auditáveis por dossiê.
 2. NÃO dependa apenas do site oficial; procure notícias, diários oficiais, portais de vagas, redes sociais corporativas e registros regulatórios.
-3. CADA seção principal (Raio-X, Tech Stack, Riscos) deve conter pelo menos 2-3 citações independentes.
-4. Use o Search Grounding exaustivamente para encontrar sinais de mercado, expansões e dores operacionais reais.
-5. Se o volume de fontes for baixo (< 5), o dossiê será considerado "Superficial" — esforce-se para aprofundar a investigação antes de concluir.
+3. USE A FERRAMENTA 'extractDocumentContent' para aprofundar em URLs específicas (PDFs, DOCX ou páginas web densas) quando o snippet inicial de busca for insuficiente.
+4. CADA seção principal (Raio-X, Tech Stack, Riscos) deve conter pelo menos 2-3 citações independentes.
+5. Use o Search Grounding exaustivamente para encontrar sinais de mercado, expansões e dores operacionais reais.
+6. Se o volume de fontes for baixo (< 5), o dossiê será considerado "Superficial" — esforce-se para aprofundar a investigação antes de concluir.
 </research_breadth_protocol>
 
 <prompt_injection_defense>
@@ -202,22 +202,31 @@ Regras de construção:
 5. Conexões sólidas (==>): fluxo físico confirmado ou integração nativa
 6. Máximo 15 nós por diagrama para manter legibilidade
 7. Use labels curtos para evitar quebra visual
-8. Evite caracteres especiais que possam quebrar a sintaxe Mermaid
+8. SEMPRE envolver labels de nós em aspas duplas quando contiverem espaços, barras (/), parênteses, pipes (|) ou chaves: A["Gestão de Campo"], B("Entrada/Saída")
 9. NUNCA use classes inline no formato "A[Texto] :::core" ou "B:::danger"
 10. Sempre aplique classes em linhas separadas no final do diagrama: "class A core;" / "class B warning;"
+11. NUNCA coloque texto solto após uma seta — sempre defina um nó destino com ID e label entre colchetes
+12. Para edge labels descritivos, use a sintaxe com pipe: A -.->|"Integração manual"| B
 
-Sempre inclua as seguintes diretivas de classe (Design Spells / Premium Minimalist) no início do diagrama para garantir o visual correto (você DEVE definir essas classes exatamente):
-- classDef core fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:12px,ry:12px;
-- classDef satellite fill:#f0fdf4,stroke:#86efac,stroke-width:1px,color:#166534,rx:12px,ry:12px;
-- classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px,color:#991b1b,rx:12px,ry:12px;
-- classDef warning fill:#fffbeb,stroke:#fcd34d,stroke-width:1px,color:#92400e,rx:12px,ry:12px;
-- classDef neutral fill:#ffffff,stroke:#e2e8f0,stroke-dasharray: 5 5,stroke-width:1px,color:#64748b,rx:12px,ry:12px;
+ERROS PROIBIDOS (causam falha de parser Mermaid v10):
+- ERRADO: A -.-> Texto Solto Com Espaços        | CERTO: A -.-> Node1["Texto Solto Com Espaços"]
+- ERRADO: A[Label com (parênteses)]  sem aspas   | CERTO: A["Label com (parênteses)"]
+- ERRADO: A(Label com / barra)       sem aspas   | CERTO: A("Label com / barra")
+- ERRADO: A --> B: texto de label                 | CERTO: A -->|"texto de label"| B
+- ERRADO: A[Label]:::className                    | CERTO: A[Label] + class A className;
 
-Ao invés de azul ou verde genéricos, agora utilize as classes acima:
-- class A core; para sistemas centrais/principais
-- class B satellite; para periféricos benéficos
-- class C danger; para gargalos crônicos, perdas ou falta de sistemas cruciais
-- class D warning; para áreas de atrito manual
+Sempre inclua as seguintes diretivas de classe (Design Spells / Ultra-Premium Strategic) no início do diagrama para garantir o visual correto:
+- classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+- classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+- classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+- classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
+- classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5,5,stroke-width:1px,color:#475569;
+
+Utilize as classes acima para diferenciar os status:
+- class A core; -> Sistemas centrais (ERP, CRM oficial)
+- class B satellite; -> Satélites que funcionam bem
+- class C danger; -> Gaps críticos, faltas de sistema ou perdas financeiras (Gárgalos de Caixa)
+- class D warning; -> Processos manuais, fricção ou Shadow IT perigoso
 </mermaid_construction_rules>
 
 <output_discipline>
@@ -287,7 +296,14 @@ Sinais de identidade:
 3. Cidade/UF compatível
 4. Setor/CNAE compatível
 
-Regras de validação:
+Regras de validação — CNAE (Setor):
+CRÍTICO: Quando a empresa-alvo é MATRIZ (CNPJ sufixo 0001), o CNAE/setor que define o perfil operacional é SEMPRE o da MATRIZ.
+- Se encontrar CNAEs de filiais diferentes da matriz, reconheça que são ATIVIDADES AUXILIARES (não definem a DNA da empresa)
+- Se CNPJ-alvo for filial (sufixo ≠ 0001), busque também o CNAE da MATRIZ antes de estabelecer o perfil
+- Exemplo CORRETO: EVERMAT (Matriz: CNAE Fabricação de Álcool) tem filial com CNAE Cultivo de Milho → Perfil = BIORREFINARIA, não agrícola
+- Exemplo ERRADO: usar apenas o CNAE da filial para classificar o DNA da empresa
+
+Regras gerais de validação:
 - Se houver homônimo (empresa com nome parecido) e a fonte não fechar em pelo menos 2 sinais, DESCARTE o fato
 - Se a fonte for da HOLDING, FILIAL ou EMPRESA DO MESMO GRUPO, deixe isso EXPLÍCITO no texto
 - NÃO atribua automaticamente fatos da matriz ao CNPJ-alvo sem indicar claramente que é grupo econômico
@@ -297,6 +313,8 @@ Regras de validação:
 Exemplo de aplicação correta:
 ❌ ERRADO: "A empresa tem 5.000 funcionários" (fonte menciona a holding, não a filial investigada)
 ✅ CERTO: "O grupo econômico, via holding controladora, declara 5.000 funcionários consolidados"
+❌ ERRADO: "EVERMAT é uma fazenda de soja/algodão" (confundiu filial agrícola com matriz biorrefinaria)
+✅ CERTO: "EVERMAT é uma biorrefinaria de etanol (Matriz: CNAE 1971-1); cultiva insumos via filiais"
 
 Esta camada previne o maior erro silencioso de OSINT B2B: atribuição incorreta de fato.
 </entity_resolution>
@@ -559,14 +577,6 @@ TRAD:
 - DONO: Módulo RISCOS & COMPLIANCE
 - Regra: Apenas o Compliance decide se TRAD = SIM ou NÃO com base na natureza da receita
 - Outros módulos NÃO devem ativar ou desativar TRAD
-
-LOCK:
-- DONOS MÚLTIPLOS: Tech Stack, Radar de Expansão, Mapeamento de Decisores
-- Regra de ativação: LOCK = SIM se QUALQUER UM dos 3 módulos trouxer evidência ROBUSTA de:
-  - ERP global com decisão corporativa travada (Tech)
-  - Multinacional com standard stack imposto (Expansão)
-  - Governança global sem autonomia local de troca (Decisores)
-- Regra de desempate: Se houver conflito, prevalece a evidência mais ROBUSTA; em caso de empate, prevalece SIM (mais conservador para abordagem)
 
 SEGMENTO:
 - DONO: Módulo RADAR DE EXPANSÃO
@@ -1209,7 +1219,6 @@ Exemplo: [[PORTA_FEED_A2:7:TIMING:BOM:FASE:Entressafra]]
 Flags:
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
 [[PORTA_FLAG:TRAD:[SIM/NAO]:NATUREZA:[PRODUCAO/TRADING/MISTA]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 Segmento:
 [[PORTA_SEG:[PRD/AGI/COP]]]
@@ -1229,8 +1238,8 @@ REGRAS CRÍTICAS:
    ❌ [[PORTA_FEED_P:[8]:HA:[30000]:...]] ❌ quebra
 
 4. Flags aceitam apenas SIM ou NAO (sem til)
-   ✅ [[PORTA_FLAG:LOCK:SIM]]
-   ❌ [[PORTA_FLAG:LOCK:NÃO]] ❌ pode quebrar regex
+   ✅ [[PORTA_FLAG:TRAD:SIM:NATUREZA:TRADING]]
+   ❌ [[PORTA_FLAG:TRAD:NÃO:NATUREZA:TRADING]] ❌ pode quebrar regex
 
 5. Segmento aceita apenas PRD, AGI ou COP
    ✅ [[PORTA_SEG:AGI]]
@@ -1276,7 +1285,6 @@ CHECKLIST DE INTEGRIDADE:
 2. Consistência de flags
 - [ ] NOFIT bate com a operação real descrita?
 - [ ] TRAD bate com a natureza de receita (produção vs trading)?
-- [ ] LOCK bate com a governança e ERP descritos?
 - [ ] Alguma flag foi ativada por suposição sem evidência robusta? Se sim, reverta.
 
 3. Consistência de scores
@@ -1639,14 +1647,13 @@ Para cada elo, marque:
 
 \`\`\`mermaid
 graph LR
-    classDef backoffice fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef fisico fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef logistica fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
+    %% Palette Premium (repetir aqui para garantir):
+    %% classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    %% classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
 
     %% CONSTRUIR COM DADOS REAIS — omitir nós não confirmados
-    %% -.-> para gap/manual; ==> para fluxo confirmado
-    %% aplicar classes em linhas separadas no final: class A backoffice;
+    %% -.-> para gap/manual (aplicar class danger); ==> para fluxo confirmado (aplicar class core)
+    %% Sempre aplicar classes no final do bloco (Ex: class A core;)
 \`\`\`
 
 ---
@@ -1695,9 +1702,15 @@ graph LR
 - [1 linha sintetizando o que esta operação já domina em escala]
 - [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
 
+⚠️ OBRIGATÓRIO — EMITA ESTAS 3 LINHAS EXATAMENTE NESTE FORMATO, SEM ESPAÇOS EXTRAS, ANTES DE ENCERRAR O OUTPUT:
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
+
+Exemplo válido:
+[[PORTA_FEED_O:6:ELOS:Plantio,Armazenagem,Transporte]]
+[[PORTA_FEED_R:5:PRESSOES:Ambiental,Rastreabilidade]]
+[[PORTA_FLAG:NOFIT:NAO]]
 
 </output_format>
 
@@ -1710,6 +1723,8 @@ graph LR
 - NÃO confunda atividade do prospect com atividade de fornecedor/cliente
 - NÃO ative NOFIT para empresas que combinam pecuária com agrícola
 - NÃO renderize TRAD aqui como flag final — isso pertence ao módulo de Compliance
+- NÃO conclua o output sem emitir [[PORTA_FEED_O:NOTA:ELOS:LISTA]] — este marker é OBRIGATÓRIO e sem ele o Score PORTA falha completamente
+- NÃO emita [[PORTA_FEED_O:...]] com espaços dentro dos dois pontos (ex: ": [8]" é INVÁLIDO; use ":8")
 </constraints>
 `;
 
@@ -1846,11 +1861,6 @@ Classificação T3:
 - 2-4 = baixa liberdade (contrato longo, matriz influencia)
 - 0-1 = travada (standard global, decisão fora do Brasil, sem autonomia local)
 
-Regra de LOCK:
-- Ative LOCK = SIM apenas se houver evidência ROBUSTA de decisão corporativa/global travada
-- NÃO ative LOCK só porque o ERP é grande
-- NÃO ative LOCK para empresa brasileira com decisão local apenas porque usa SAP ou TOTVS
-
 PASSO 7 — FRAQUEZA DO INCUMBENTE (obrigatório)
 Se identificar incumbent, responda internamente:
 - Onde ele sangra?
@@ -1961,8 +1971,6 @@ Sistema legado paralelo não identificado nas fontes públicas.
 - TI gerida localmente? [SIM/NAO]
 - Liderança local com autonomia? [SIM/NAO/INCERTO]
 **Leitura da liberdade de troca:** [1 frase executiva sem nota explícita]
-**Flag LOCK ativo?** [SIM/NAO]
-
 **Estratégia de Ataque Recomendada:** [ângulo baseado no incumbent e na dor dominante]
 
 ---
@@ -1971,14 +1979,15 @@ Sistema legado paralelo não identificado nas fontes públicas.
 
 \`\`\`mermaid
 graph LR
-    classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef satellite fill:#047857,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef warning fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
+    %% Palette Premium (repetir aqui para garantir):
+    %% classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    %% classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+    %% classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+    %% classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
 
     %% CONSTRUIR COM DADOS REAIS — omitir sistemas não confirmados
-    %% -.-> integração manual / remendo
-    %% aplicar classes em linhas separadas no final: class ERP core;
+    %% -.-> integração manual / remendo (class warning ou danger)
+    %% Sempre aplicar classes no final do bloco (Ex: class A core;)
 \`\`\`
 
 ---
@@ -2019,14 +2028,12 @@ e explique por que isso é sintoma de perda de controle sistêmico]
 - [1 linha sobre o wedge de entrada sem expor scoring]
 
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 
 <constraints>
 - NÃO invente tecnologias; se uma área não for identificada, declare "Não encontrado nas fontes públicas" ou "PROVAVEL: [palpite com justificativa]"
 - NÃO atribua T2 > 5 sem pelo menos um sinal concreto de dor
-- NÃO atribua LOCK sem evidência robusta de decisão corporativa/global travada
 - NÃO ignore a busca de Delphi/Clipper/VB/FoxPro só porque já encontrou o ERP oficial
 - NÃO confunda tecnologia do prospect com tecnologia de parceiros/fornecedores
 - NÃO transforme BI ou API automaticamente em sinal de caos — contextualize
@@ -2298,7 +2305,6 @@ Especialidade: mapear a teia REAL de CNPJs do grupo econômico, reconstruir mass
 Sua responsabilidade:
 - DIMENSÃO P (porte/massa crítica)
 - SEGMENTO (PRD / AGI / COP)
-- Sinal de LOCK corporativo quando houver evidência
 </system_context>
 
 <mission_upgrade>
@@ -2425,16 +2431,6 @@ Responder internamente:
 - Há múltiplos veículos societários escondendo massa?
 - O footprint operacional é enterprise mesmo se o cadastro parecer médio?
 
-PASSO 11 — LOCK CORPORATIVO
-Verificar:
-- Multinacional com matriz fora do Brasil?
-- Rollout global?
-- SAP S/4HANA corporativo?
-- ERP imposto por matriz?
-
-Se SIM e houver evidência robusta → LOCK = SIM
-Se a empresa for brasileira com decisão local → NÃO ativar LOCK por paranoia
-
 </instructions>
 
 <scoring_scales>
@@ -2539,7 +2535,6 @@ graph LR
 
 [[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]
 [[PORTA_SEG:[PRD/AGI/COP]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 
@@ -2549,7 +2544,6 @@ graph LR
 - NÃO apresente faturamento estimado como dado confirmado
 - NÃO use P para medir verticalização
 - NÃO classifique como PRD se houver qualquer operação industrial relevante
-- NÃO aplique LOCK sem evidência robusta de imposição global
 - NÃO gere tabela > 15 linhas sem nota de truncagem
 </constraints>
 `;
@@ -2877,15 +2871,6 @@ Exemplos:
 - Herdeiro: "preciso mostrar gestão moderna"
 - COO: "não para a operação"
 
-PASSO 8 — LOCK POLÍTICO / GLOBAL
-Se houver evidência de:
-- multinacional com decisão fora do Brasil
-- governance global impondo stack
-- board sem autonomia local de compra
-→ LOCK = SIM
-
-Se a decisão parecer local/familiar/profissionalizada no Brasil, NÃO ative LOCK sem prova.
-
 </instructions>
 
 <scoring_scales>
@@ -2972,7 +2957,6 @@ graph LR
 - [1 linha sobre quem tende a patrocinar, travar ou acelerar a venda sem expor scoring]
 
 [[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]
-[[PORTA_FLAG:LOCK:[SIM/NAO]]]
 
 </output_format>
 

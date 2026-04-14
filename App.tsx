@@ -7,16 +7,17 @@ import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useSessionManager } from './hooks/useSessionManager';
+import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import LoadingSmart from './components/LoadingSmart';
-import { AuthModal } from './components/AuthModal';
 import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
+import { UpdateNotificationModal } from './components/UpdateNotificationModal';
 import InstallPrompt from './components/InstallPrompt';
 import { CRMView } from './components/CRMView';
 import { AdminDash } from './components/AdminDash';
-import { useAuth } from './contexts/AuthContext';
+import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
 import { useCRM } from './contexts/CRMContext';
 import { loadWithChunkRetry } from './utils/chunkRetry';
@@ -24,21 +25,37 @@ import SuspenseWithError from './components/SuspenseWithError';
 const CRMDetail = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
 );
-import { Message, Sender, Feedback, ChatSession, ExportFormat, ReportType, AppError, CRMStage, ClienteSeniorData } from './types';
+import {
+  Message,
+  Sender,
+  Feedback,
+  ChatSession,
+  ExportFormat,
+  ReportType,
+  AppError,
+  CRMStage,
+  ClienteSeniorData,
+  PortaDimension,
+  ScorePortaData,
+} from './types';
 import {
   sendMessageToGemini,
   generateContinuityQuestion,
   generateDossierModule,
   getIsolatedBenchmark,
 } from './services/geminiService';
-import { resolvePortaScore, stripPortaMarkers } from './utils/porta';
+import { resolvePortaScore, stripPortaMarkers, type PortaScoreResolution } from './utils/porta';
 import { formatarParaPrompt, lookupCliente } from './services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
   buildSeniorEvidenceContext,
   extractClienteSeniorData,
 } from './utils/seniorEvidence';
-import { 
+import {
+  MODULAR_DOSSIER_STAGES,
+} from './constants/loadingStages';
+
+import {
   SHARED_FOUNDATION_BLOCK,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
@@ -76,7 +93,7 @@ import {
   generateExecutiveSummary,
   normalizeMermaidBlocks,
 } from './utils/reportUtils';
-import { getFeatureAccessForUser } from './utils/featureAccess';
+import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import FooterCredits from './components/FooterCredits';
 
@@ -170,14 +187,189 @@ function isAbortLikeError(error: unknown): boolean {
   return error.name === 'AbortError' || error.message?.includes('aborted');
 }
 
+function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): boolean {
+  const safeDisplay = (displayMessage || '').trim();
+  return /^Dossi[êe]\s+completo:\s*/i.test(safeDisplay);
+}
+
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+const CONTINUITY_TARGET = 4;
+
+const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
+  score: 60,
+  p: 6,
+  o: 6,
+  r: 6,
+  t: 6,
+  a: 6,
+  segmento: 'PRD',
+  flags: [],
+  scoreBruto: 60,
+};
+
+const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
+  P: ['Estratégia & Expansão'],
+  O: ['Raio-X Operacional'],
+  R: ['Riscos & Compliance'],
+  T: ['Tech Stack'],
+  A: ['RH & Decisores'],
+};
+const PORTA_FALLBACK_MARKERS: Record<PortaDimension, string> = {
+  P: '[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]',
+  O: '[[PORTA_FEED_O:6:ELOS:Plantio]]',
+  R: '[[PORTA_FEED_R:6:PRESSOES:Sem_pressao_identificada]]',
+  T: '[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]',
+  A: '[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:NA]]',
+};
+
+export function resolveModuleNamesForMissingDimensions(missingDimensions: PortaDimension[]): string[] {
+  return Array.from(
+    new Set(missingDimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
+  );
+}
+
+export function buildPortaReconciliationPrompt(missingDimensions: PortaDimension[]): string {
+  const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
+  const requiredTemplates = uniqueMissingDimensions
+    .map(dimension => `- ${dimension}: ${PORTA_FALLBACK_MARKERS[dimension]}`)
+    .join('\n');
+
+  return `
+MISSÃO: Reconciliação final do Score PORTA.
+
+Você receberá o contexto consolidado da investigação já executada.
+Seu trabalho é emitir SOMENTE os markers PORTA faltantes para as dimensões abaixo.
+
+DIMENSÕES FALTANTES: ${uniqueMissingDimensions.join(', ')}
+
+REGRAS OBRIGATÓRIAS:
+1. Saída sem explicações e sem markdown: apenas linhas de markers.
+2. Use APENAS os formatos abaixo para cada dimensão solicitada.
+3. Todas as notas devem ser inteiras de 0 a 10.
+4. Não repita dimensões que não foram solicitadas.
+
+FORMATOS POR DIMENSÃO:
+${requiredTemplates}
+`.trim();
+}
+
+export interface PortaTechnicalFallbackResult {
+  content: string;
+  resolution: PortaScoreResolution;
+  fallbackApplied: boolean;
+  fallbackDimensions: PortaDimension[];
+}
+
+export function buildPortaFallbackChunk(missingDimensions: PortaDimension[]): string {
+  const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
+  if (uniqueMissingDimensions.length === 0) return '';
+  return uniqueMissingDimensions
+    .map(dimension => PORTA_FALLBACK_MARKERS[dimension])
+    .filter(Boolean)
+    .join('\n');
+}
+
+export function applyPortaTechnicalFallback(
+  content: string,
+  currentResolution?: PortaScoreResolution,
+): PortaTechnicalFallbackResult {
+  const resolution = currentResolution ?? resolvePortaScore(content);
+  const fallbackDimensions = Array.from(new Set(resolution.missingDimensions));
+  if (resolution.score || fallbackDimensions.length === 0) {
+    return {
+      content,
+      resolution,
+      fallbackApplied: false,
+      fallbackDimensions: [],
+    };
+  }
+
+  const fallbackChunk = buildPortaFallbackChunk(fallbackDimensions);
+  if (!fallbackChunk) {
+    return {
+      content,
+      resolution,
+      fallbackApplied: false,
+      fallbackDimensions,
+    };
+  }
+
+  const nextContent = `${content.trim()}\n\n${fallbackChunk}`.trim();
+  const nextResolution = resolvePortaScore(nextContent);
+  return {
+    content: nextContent,
+    resolution: nextResolution,
+    fallbackApplied: true,
+    fallbackDimensions,
+  };
+}
+
+export function ensureWaterfallScorePorta(
+  content: string,
+  currentResolution: PortaScoreResolution,
+): ScorePortaData {
+  if (currentResolution.score) return currentResolution.score;
+
+  const resolvedAgain = resolvePortaScore(content);
+  if (resolvedAgain.score) return resolvedAgain.score;
+
+  const technicalFallback = applyPortaTechnicalFallback(content, resolvedAgain);
+  if (technicalFallback.resolution.score) return technicalFallback.resolution.score;
+
+  return { ...HARD_WATERFALL_SCORE_FALLBACK };
+}
+
+export function shouldHoldWaterfallScoreForIntegrity(currentResolution: PortaScoreResolution): boolean {
+  return !currentResolution.score && currentResolution.missingDimensions.length === 5;
+}
+
+function normalizeContinuitySuggestion(raw: string): string {
+  const normalized = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  return normalized.endsWith('?') ? normalized : `${normalized}?`;
+}
+
+function buildContinuitySuggestionsFallback(companyName?: string | null): string[] {
+  const companyReference = (companyName || '').trim() || 'a operação';
+  return [
+    `Qual gargalo em ${companyReference} já está consumindo margem e segue tratado como rotina?`,
+    `Que decisão crítica em ${companyReference} continua travada por falta de dados confiáveis?`,
+    `Onde ${companyReference} ainda depende de planilhas e amplia risco operacional sem reação executiva?`,
+    `Se nada mudar em ${companyReference} nos próximos 90 dias, qual ruptura tende a aparecer primeiro?`,
+  ];
+}
+
+export function ensureContinuitySuggestions(
+  suggestions: string[] | null | undefined,
+  companyName?: string | null,
+): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+
+  const pushIfValid = (value: string) => {
+    const normalized = normalizeContinuitySuggestion(value);
+    if (!normalized) return;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    unique.push(normalized);
+  };
+
+  (Array.isArray(suggestions) ? suggestions : []).forEach(pushIfValid);
+
+  if (unique.length < CONTINUITY_TARGET) {
+    buildContinuitySuggestionsFallback(companyName).forEach(pushIfValid);
+  }
+
+  return unique.slice(0, CONTINUITY_TARGET);
+}
 
 const App: React.FC = () => {
-  const { userId, user, logout, isAuthenticated, isAdmin } = useAuth();
+  const { name: operatorName, operatorId, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
@@ -217,7 +409,10 @@ const App: React.FC = () => {
   const [followUpDias, setFollowUpDias] = useState(7);
   const [followUpNotas, setFollowUpNotas] = useState('');
   const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  
+
+  // Update notification state
+  const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
+
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
   const lastActionRef = useRef<LastAction | null>(null);
@@ -341,23 +536,21 @@ const App: React.FC = () => {
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
   const allMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
-  const featureAccess = getFeatureAccessForUser(user);
+  const featureAccess = getFeatureAccess();
   const canAccessMiniCRM = featureAccess.miniCRM;
   const canAccessDashboard = featureAccess.dashboard;
   const canAccessIntegrityCheck = featureAccess.integrityCheck;
   const canUseLookup = featureAccess.clientLookup;
   const canDeepDive = featureAccess.deepDive;
   const canWarRoom = featureAccess.warRoom;
+  const resolvedOperatorName = operatorName.trim() || 'Vendedor';
 
   useEffect(() => {
     if (!canAccessMiniCRM && activeView === 'crm') {
       setActiveView('chat');
       setSelectedCRMCardId(null);
     }
-    if (!isAdmin && activeView === 'admin') {
-      setActiveView('chat');
-    }
-  }, [activeView, canAccessMiniCRM, isAdmin]);
+  }, [activeView, canAccessMiniCRM]);
 
   const updateSessionById = useCallback(
     (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
@@ -412,14 +605,14 @@ const App: React.FC = () => {
   });
 
   const handleSaveRemote = async () => {
-    if (!currentSession || !isAuthenticated) return;
+    if (!currentSession) return;
     setIsSavingRemote(true);
     setRemoteSaveStatus('idle');
     const snapshotSessionId = currentSession.id;
     const finalized: ChatSession = { ...currentSession, updatedAt: new Date().toISOString() };
     updateSessionById(snapshotSessionId, () => finalized);
     try {
-      await saveRemoteSession(finalized, userId, user?.displayName);
+      await saveRemoteSession(finalized, operatorId, resolvedOperatorName);
       setRemoteSaveStatus('success');
       setTimeout(() => setRemoteSaveStatus('idle'), 3000);
     } catch {
@@ -481,7 +674,7 @@ const App: React.FC = () => {
     } else {
       resetLoadingProgress('Aprofundando análise...', isShortRound ? 6 : 7, {
         incremental: true,
-        keepHistory: 4,
+        keepHistory: resolvedRequestKind === 'deep_dive' ? 0 : 4,
       });
     }
     abortControllerRef.current = new AbortController();
@@ -491,6 +684,7 @@ const App: React.FC = () => {
 
     let historyToPass: Message[] = [];
     const sessionForHint = sessionsRef.current.find(s => s.id === sessionId);
+    const sessionCnpjDigits = (sessionForHint?.cnpj || '').replace(/\D/g, '');
     const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
     const normalizedCompany = pickCompanyLabel(
       hintedCompany,
@@ -553,13 +747,15 @@ const App: React.FC = () => {
     setVisibleCount(prev => prev + 1);
 
     try {
-      const isMegaPrompt = text.toUpperCase().includes('DOSSIÊ COMPLETO') || text.toUpperCase().includes('DOSSIE COMPLETO');
+      const upperText = text.toUpperCase();
+      const isMegaPrompt = (upperText.includes('DOSSIÊ COMPLETO') || upperText.includes('DOSSIE COMPLETO'))
+        && resolvedRequestKind !== 'deep_dive';
 
       if (isMegaPrompt) {
         // --- INÍCIO WATERFALL ORCHESTRATION ---
         let accumulatedText = '';
         let previousStageCompleted = false;
-        const optionalStepFailures: string[] = [];
+        const optionalStepFailures = new Set<string>();
         const dossierSeedContext = buildDossierSeedContext(text);
         const resolvedMegaCompany = normalizedCompany || hintedCompany || '';
         const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
@@ -595,39 +791,66 @@ const App: React.FC = () => {
           {
             name: 'Raio-X Operacional',
             prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-            stage: 'Mapeando inteligência operacional...',
+            stage: MODULAR_DOSSIER_STAGES[0],
             optional: false,
             timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
           },
           {
             name: 'Tech Stack',
             prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-            stage: 'Investigando tech stack...',
+            stage: MODULAR_DOSSIER_STAGES[1],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
             prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-            stage: 'Investigando riscos & compliance...',
+            stage: MODULAR_DOSSIER_STAGES[2],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Estratégia & Expansão',
             prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-            stage: 'Investigando estratégia & expansão...',
+            stage: MODULAR_DOSSIER_STAGES[3],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'RH & Decisores',
             prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-            stage: 'Investigando RH & decisores...',
+            stage: MODULAR_DOSSIER_STAGES[4],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
         ];
+
+        const modulesByName = new Map(modules.map(module => [module.name, module]));
+
+        const runWaterfallModule = async (
+          module: (typeof modules)[number],
+          contextHint: string = '',
+          timeoutMs: number = module.timeoutMs,
+        ): Promise<string> => {
+          return generateDossierModule(
+            module.name,
+            resolvedMegaCompany || 'Empresa',
+            SHARED_FOUNDATION_BLOCK,
+            module.prompt,
+            [
+              dossierSeedContext,
+              waterfallLookupContext,
+              seniorEvidenceContext,
+              contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
+              accumulatedText
+                ? `Contexto anterior consolidado:\n${accumulatedText.slice(-2500)}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+            { signal, timeoutMs },
+          );
+        };
 
         if (isFirstInteraction) {
           resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -651,25 +874,10 @@ const App: React.FC = () => {
           }
 
           try {
-            const moduleResult = await generateDossierModule(
-              module.name,
-              resolvedMegaCompany || "Empresa",
-              SHARED_FOUNDATION_BLOCK,
-              module.prompt,
-              [
-                dossierSeedContext,
-                waterfallLookupContext,
-                seniorEvidenceContext,
-                accumulatedText
-                  ? `Contexto anterior consolidado:\n${accumulatedText.slice(-2500)}`
-                  : '',
-              ]
-                .filter(Boolean)
-                .join('\n\n'),
-              { signal, timeoutMs: module.timeoutMs }
-            );
+            const moduleResult = await runWaterfallModule(module);
 
             appendWaterfallChunk(moduleResult);
+            optionalStepFailures.delete(module.name);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
@@ -677,7 +885,7 @@ const App: React.FC = () => {
             if (!module.optional) throw error;
 
             previousStageCompleted = false;
-            optionalStepFailures.push(module.name);
+            optionalStepFailures.add(module.name);
             setFailureCount(count => count + 1);
             scoutDiag.warn('ModularDossier', 'módulo opcional falhou e será ignorado', {
               sessionId,
@@ -689,9 +897,9 @@ const App: React.FC = () => {
         }
 
         if (previousStageCompleted) {
-          advanceLoadingProgress('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Cruzando referências de mercado...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
         let benchmarkCompleted = false;
@@ -707,7 +915,7 @@ const App: React.FC = () => {
           if (isAbortLikeError(error)) throw error;
 
           benchmarkCompleted = false;
-          optionalStepFailures.push('Benchmark de mercado');
+          optionalStepFailures.add('Benchmark de mercado');
           setFailureCount(count => count + 1);
           scoutDiag.warn('ModularDossier', 'benchmark isolado falhou e será ignorado', {
             sessionId,
@@ -717,52 +925,179 @@ const App: React.FC = () => {
         }
 
         if (benchmarkCompleted) {
-          advanceLoadingProgress('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
-          replaceLoadingProgressStage('Finalizando dossiê modular...', MODULAR_DOSSIER_TOTAL_STAGES);
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
-        if (optionalStepFailures.length > 0) {
+        // --- RECUPERAÇÃO DE PORTA (retry + reconciliador) ---
+        let portaFallbackApplied = false;
+        let portaFallbackDimensions: PortaDimension[] = [];
+        let portaIntegrityHold = false;
+        let waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+          scoutDiag.warn('ModularDossier', 'dimensões PORTA ausentes após 1ª passada', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            source: waterfallPortaResolution.source,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+
+          const retryModuleNames = resolveModuleNamesForMissingDimensions(
+            waterfallPortaResolution.missingDimensions,
+          );
+          for (const moduleName of retryModuleNames) {
+            if (signal.aborted) break;
+            const module = modulesByName.get(moduleName);
+            if (!module) continue;
+
+            scoutDiag.info?.('ModularDossier', 'retry de módulo para consolidar PORTA', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              moduleName,
+              missingDimensions: waterfallPortaResolution.missingDimensions,
+            });
+            try {
+              const retryContextHintBase = `Reexecução obrigatória para consolidar dimensões PORTA faltantes: ${waterfallPortaResolution.missingDimensions.join(', ')}.`;
+              const retryContextCnpjHint =
+                sessionCnpjDigits.length === 14
+                  ? ` Use obrigatoriamente o CNPJ ${sessionCnpjDigits} como chave de entidade desta conta.`
+                  : '';
+              const retryResult = await runWaterfallModule(
+                module,
+                `${retryContextHintBase}${retryContextCnpjHint}`,
+                MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+              );
+              appendWaterfallChunk(retryResult);
+              optionalStepFailures.delete(moduleName);
+              setFailureCount(0);
+              scoutDiag.info?.('ModularDossier', 'retry de módulo concluído', {
+                sessionId,
+                company: resolvedMegaCompany || null,
+                moduleName,
+              });
+            } catch (error) {
+              if (isAbortLikeError(error)) throw error;
+              optionalStepFailures.add(moduleName);
+              setFailureCount(count => count + 1);
+              scoutDiag.warn('ModularDossier', 'retry de módulo falhou', {
+                sessionId,
+                company: resolvedMegaCompany || null,
+                moduleName,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
+          waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        }
+
+        if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+          scoutDiag.warn('ModularDossier', 'acionando reconciliador de markers PORTA', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+
+          try {
+            const reconciliationChunk = await generateDossierModule(
+              'Reconciliação PORTA',
+              resolvedMegaCompany || 'Empresa',
+              SHARED_FOUNDATION_BLOCK,
+              buildPortaReconciliationPrompt(waterfallPortaResolution.missingDimensions),
+              [
+                dossierSeedContext,
+                waterfallLookupContext,
+                seniorEvidenceContext,
+                `Contexto consolidado da rodada:\n${accumulatedText.slice(-12000)}`,
+                `Dimensões pendentes para emissão de markers: ${waterfallPortaResolution.missingDimensions.join(', ')}`,
+              ]
+                .filter(Boolean)
+                .join('\n\n'),
+              { signal, timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS },
+            );
+            appendWaterfallChunk(reconciliationChunk);
+            scoutDiag.info?.('ModularDossier', 'reconciliador PORTA concluído', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              emittedChars: reconciliationChunk.length,
+            });
+          } catch (error) {
+            if (isAbortLikeError(error)) throw error;
+            scoutDiag.error('ModularDossier', 'reconciliador PORTA falhou', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+
+          waterfallPortaResolution = resolvePortaScore(accumulatedText);
+        }
+
+        if (shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution)) {
+          portaIntegrityHold = true;
+          portaFallbackApplied = true;
+          portaFallbackDimensions = Array.from(new Set(waterfallPortaResolution.missingDimensions));
+          scoutDiag.error('ModularDossier', 'integridade PORTA comprometida após retries e reconciliação', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+        } else if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+          const portaFallbackResult = applyPortaTechnicalFallback(accumulatedText, waterfallPortaResolution);
+          if (portaFallbackResult.fallbackApplied) {
+            accumulatedText = portaFallbackResult.content;
+            waterfallPortaResolution = portaFallbackResult.resolution;
+            portaFallbackApplied = true;
+            portaFallbackDimensions = portaFallbackResult.fallbackDimensions;
+            scoutDiag.warn('ModularDossier', 'fallback técnico aplicado para dimensões PORTA ausentes', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              sourceBeforeFallback: 'feeds',
+              fallbackDimensions: portaFallbackDimensions,
+              resolvedAfterFallback: Boolean(waterfallPortaResolution.score),
+            });
+          }
+        }
+
+        if (!portaIntegrityHold && !waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
+          scoutDiag.error('ModularDossier', 'falha técnica na consolidação do score PORTA', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            source: waterfallPortaResolution.source,
+            missingDimensions: waterfallPortaResolution.missingDimensions,
+          });
+          throw new Error(
+            `Falha técnica ao consolidar Score PORTA (dimensões ausentes: ${waterfallPortaResolution.missingDimensions.join(', ')})`,
+          );
+        }
+
+        if (optionalStepFailures.size > 0) {
           appendWaterfallChunk(
-            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${optionalStepFailures.join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
+            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
           );
         } else {
           setFailureCount(0);
         }
 
         // --- PÓS-PROCESSAMENTO DO WATERFALL ---
-        const waterfallPortaResolution = resolvePortaScore(accumulatedText);
-        const waterfallScorePorta = waterfallPortaResolution.score;
-        const waterfallMissingDimensions = waterfallPortaResolution.missingDimensions;
-        if (!waterfallScorePorta && waterfallMissingDimensions.length > 0) {
-          scoutDiag.warn('ModularDossier', 'score PORTA não consolidado no waterfall', {
-            sessionId,
-            company: resolvedMegaCompany || null,
-            source: waterfallPortaResolution.source,
-            missingDimensions: waterfallMissingDimensions,
-          });
-        }
+        const waterfallScorePorta = portaIntegrityHold
+          ? null
+          : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallNarrativeBase = appendSeniorEvidenceNote(
           waterfallCleanText,
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
-        const waterfallOperationalNote =
-          !waterfallScorePorta && waterfallMissingDimensions.length > 0
-            ? `⚠️ Nota operacional: o Score PORTA não foi exibido nesta rodada porque faltaram evidências estruturadas para ${waterfallMissingDimensions.join(', ')}. Reexecute os módulos pendentes para consolidar a pontuação completa.`
-            : '';
-        const waterfallNarrativeText = waterfallOperationalNote
-          ? `${waterfallNarrativeBase}\n\n---\n\n${waterfallOperationalNote}`
-          : waterfallNarrativeBase;
         const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
           waterfallNarrativeBase,
           normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
           waterfallClienteSeniorData,
         );
         const waterfallFinalText = waterfallExecutiveIntro
-          ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeText}`
-          : waterfallNarrativeText;
+          ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
+          : waterfallNarrativeBase;
 
         let waterfallSuggestions: string[] = [];
         try {
@@ -784,7 +1119,7 @@ const App: React.FC = () => {
               },
             ],
             resolvedMegaCompany || null,
-            typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+            resolvedOperatorName,
           );
         } catch (error) {
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
@@ -793,6 +1128,10 @@ const App: React.FC = () => {
             error: error instanceof Error ? error.message : String(error),
           });
         }
+        waterfallSuggestions = ensureContinuitySuggestions(
+          waterfallSuggestions,
+          resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+        );
 
         updateSessionById(sessionId, s => {
           const finalCompany = normalizedCompany || s.empresaAlvo || pickCompanyLabel(s.title);
@@ -805,8 +1144,10 @@ const App: React.FC = () => {
                 ? {
                     ...msg,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta || undefined,
+                    scorePorta: waterfallScorePorta ?? undefined,
                     clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    portaFallbackApplied: portaFallbackApplied ? true : undefined,
+                    portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                     suggestions: waterfallSuggestions,
                     isThinking: false,
                   }
@@ -842,12 +1183,14 @@ const App: React.FC = () => {
           onRagFailed: () => {
             toast.warning('Busca de contexto indisponível — resposta pode ser menos precisa');
           },
-          nomeVendedor: typeof user?.displayName === 'string' ? user.displayName : 'Vendedor',
+          nomeVendedor: resolvedOperatorName,
           sessionId,
           hintedCompany,
         },
         canUseLookup,
       );
+
+      const safeSuggestions = ensureContinuitySuggestions(suggestions, normalizedCompany || hintedCompany || null);
 
       if (activeGenerationRef.current[sessionId] !== botMessageId) return;
 
@@ -871,10 +1214,11 @@ const App: React.FC = () => {
                   ...msg,
                   text: responseText,
                   groundingSources: sources as { title: string; url: string }[] | undefined,
-                  suggestions: (suggestions || []) as string[],
+                  suggestions: safeSuggestions,
                   scorePorta: scorePorta || undefined,
                   clienteSeniorData: clienteSeniorData || undefined,
                   isThinking: false,
+                  isDeepDiveResult: resolvedRequestKind === 'deep_dive',
                   ...(ghostReason && { ghostDetails: ghostReason }),
                 }
               : msg,
@@ -891,7 +1235,7 @@ const App: React.FC = () => {
           headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({
             action: 'logInvestigation',
-            vendedor: user?.displayName || 'Anônimo',
+            vendedor: resolvedOperatorName,
             empresa: normalizedCompany || cleanTitle(extractCompanyName(safeVisibleText)),
             modo: mode || '',
             resumo: responseText.substring(0, 200),
@@ -948,9 +1292,10 @@ const App: React.FC = () => {
     hintedCompanyOverride?: string | null,
     options?: { requestKind?: RequestKind; fixedLoadingLine?: string },
   ) => {
+    const resolvedDisplayText = displayText || text;
     let sessionId = currentSessionId;
-    let currentHistory: Message[] = [];
-    let immediateCompany: string | null = null;
+    let currentHistory: Message[];
+    let immediateCompany: string | null;
     const resolvedRequestKind = options?.requestKind ?? 'default';
     const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
 
@@ -960,7 +1305,7 @@ const App: React.FC = () => {
     const hasExistingSession = sessionId ? sessions.some(s => s.id === sessionId) : false;
     if (!sessionId || !hasExistingSession) {
       sessionId = uuidv4();
-      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(displayText || text));
+      const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
       const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
       immediateCompany = immediateTitle || null;
       const newSession: ChatSession = {
@@ -986,7 +1331,7 @@ const App: React.FC = () => {
     const userMessage: Message = {
       id: uuidv4(),
       sender: Sender.User,
-      text: displayText || text,
+      text: resolvedDisplayText,
       timestamp: new Date(),
     };
     setSessions(prev =>
@@ -996,8 +1341,8 @@ const App: React.FC = () => {
     );
     setVisibleCount(prev => prev + 1);
     const previousUserMessages = currentHistory.filter(m => m.sender === Sender.User).length;
-    const isDeepDive = /dossi[êe]\s+completo\s+de\s+\[/i.test(text);
-    await processMessage(text, sessionId, currentHistory, displayText || text, hintedCompanyOverride || immediateCompany, {
+    const isDeepDive = resolvedRequestKind === 'deep_dive';
+    await processMessage(text, sessionId, currentHistory, resolvedDisplayText, hintedCompanyOverride || immediateCompany, {
       isFollowUp: previousUserMessages > 0,
       isDeepDive,
       isFirstInteraction: previousUserMessages === 0,
@@ -1009,14 +1354,27 @@ const App: React.FC = () => {
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
+    const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
+    if (isTopicDeepDive && !canDeepDive) {
+      scoutDiag.info?.('App', 'tentativa de Deep Dive bloqueada por feature flag', {
+        sessionId: currentSessionId,
+        displayMessage,
+      });
+      return;
+    }
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
-        requestKind: 'deep_dive',
-        fixedLoadingLine: topicLabel ? `Deep Dive em andamento: ${topicLabel}` : 'Deep Dive em andamento',
+        requestKind: isTopicDeepDive ? 'deep_dive' : 'default',
+        fixedLoadingLine:
+          isTopicDeepDive && topicLabel
+            ? `Deep Dive em andamento: ${topicLabel}`
+            : isTopicDeepDive
+              ? 'Deep Dive em andamento'
+              : undefined,
       },
     );
   };
@@ -1073,7 +1431,13 @@ const App: React.FC = () => {
     if (!targetMessage) return;
     const companyName =
       targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa não identificada';
-    const nomeVendedor = typeof user?.displayName === 'string' ? user.displayName : 'Vendedor';
+    const nomeVendedor = resolvedOperatorName;
+    const oldSuggestions = Array.isArray(targetMessage.suggestions)
+      ? targetMessage.suggestions
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(Boolean)
+      : [];
 
     updateSessionById(sessionId, session => ({
       ...session,
@@ -1084,6 +1448,11 @@ const App: React.FC = () => {
         targetSession.messages,
         companyName,
         nomeVendedor,
+        {
+          mode: 'regenerate',
+          avoidSuggestions: oldSuggestions,
+          ensureFresh: true,
+        },
       );
       updateSessionById(sessionId, session => ({
         ...session,
@@ -1120,8 +1489,8 @@ const App: React.FC = () => {
         type: 'dislike',
         comment: `Automated Error Report: ${error.code}`,
         aiContent: errorPayload,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: operatorName || undefined,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -1156,8 +1525,8 @@ const App: React.FC = () => {
         type: feedback === 'up' ? 'like' : 'dislike',
         comment,
         aiContent: content,
-        userId,
-        userName: user?.displayName,
+        userId: operatorId,
+        userName: operatorName || undefined,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -1270,7 +1639,7 @@ const App: React.FC = () => {
           subject: emailSubject,
           body: htmlBody,
           empresa: cleanTitle(extractCompanyName(currentSession?.title)),
-          vendedor: user?.displayName || 'Vendedor',
+          vendedor: resolvedOperatorName,
         }),
       });
       const text = await response.text();
@@ -1380,8 +1749,6 @@ const App: React.FC = () => {
 
   return (
     <>
-      <AuthModal />
-
       {!isOnline && (
         <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-amber-950 text-xs font-semibold py-1.5 px-4 shadow-lg">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1412,7 +1779,7 @@ const App: React.FC = () => {
         className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {activeView === 'admin' && isAdmin ? (
+          {activeView === 'admin' ? (
             <AdminDash
               sessions={sessions}
               isDarkMode={isDarkMode}
@@ -1427,7 +1794,7 @@ const App: React.FC = () => {
               onDeleteSession={handleDeleteSession}
               onSaveToCRM={handleSaveToCRM}
               onOpenKanban={handleOpenKanbanSafe}
-              onOpenAdminDash={isAdmin ? () => setActiveView('admin') : undefined}
+              onOpenAdminDash={canAccessDashboard ? () => setActiveView('admin') : undefined}
               isSidebarOpen={isSidebarOpen}
               onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
               messages={allMessages.slice(-visibleCount)}
@@ -1476,7 +1843,11 @@ const App: React.FC = () => {
               canAccessIntegrityCheck={canAccessIntegrityCheck}
               canDeepDive={canDeepDive}
               canWarRoom={canWarRoom}
-              onLogout={logout}
+              onClearOperator={() => {
+                clearName();
+                setActiveView('chat');
+                setSelectedCRMCardId(null);
+              }}
               lastUserQuery={lastQuery}
               onDeleteMessage={handleDeleteMessage}
               radar={{
@@ -1551,6 +1922,17 @@ const App: React.FC = () => {
           }
           onSchedule={handleScheduleFollowUp}
           onClose={() => setShowFollowUpModal(false)}
+        />
+      )}
+
+      {updateAvailable && (
+        <UpdateNotificationModal
+          currentVersion={currentVersion}
+          newVersion={newVersion}
+          isDarkMode={isDarkMode}
+          onDismiss={dismissUpdate}
+          onUpdate={updateNow}
+          isOpen={updateAvailable}
         />
       )}
 

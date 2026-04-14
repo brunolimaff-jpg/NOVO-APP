@@ -2,7 +2,6 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { parseMarkdownSections } from '../utils/sectionParser';
-import { useAuth } from '../contexts/AuthContext';
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
@@ -97,7 +96,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   auditableSources = []
 }) => {
   const content = message.text || "";
-  const { user } = useAuth();
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
@@ -131,7 +129,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(cleanText)) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-2">
         {showCopyButton && (
           <div className="relative h-0">
             <CopyButton text={cleanText} isDarkMode={isDarkMode} />
@@ -202,7 +200,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
       ))}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
-        <div className="pt-2 border-t border-dashed border-gray-500/20 mt-4">
+        <div className="mt-4 min-w-0 border-t border-dashed border-gray-500/20 pt-2">
           <SmartOptions
             options={processedOptions}
             onPreFillInput={onPreFillInput}

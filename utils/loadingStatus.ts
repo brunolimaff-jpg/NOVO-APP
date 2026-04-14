@@ -81,6 +81,17 @@ const STATUS_ICON_MAP: Record<StatusPhaseKey, string> = {
   concorrentes: '🔍',
 };
 
+function normalizeStatusForCanonicalMatch(status: string): string {
+  return status
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s+$/, '');
+}
+
 function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
   const match = status.match(/^(?:Executando\s+)?Fase\s*(-?\d+)\s*:/i);
   if (!match) return null;
@@ -97,6 +108,15 @@ function parseLivePhaseStatus(status: string): RichLoadingStatus | null {
 
 function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } | null {
   const s = status.trim();
+  const normalizedInput = normalizeStatusForCanonicalMatch(s).replace(/\.+$/, '').trim();
+
+  for (const [key, label] of Object.entries(STATUS_PHASES) as Array<[StatusPhaseKey, string]>) {
+    const normalizedLabel = normalizeStatusForCanonicalMatch(label).replace(/\.+$/, '').trim();
+    if (normalizedInput === normalizedLabel) {
+      return { key };
+    }
+  }
+
   if (/^(Capturando intenção tática|Entendendo o objetivo da pergunta|Mapeando objetivo estratégico)/i.test(s)) return { key: 'intent' };
   if (/^(Avaliando profundidade|Entendendo sua necessidade|Analisando complexidade)/i.test(s))   return { key: 'complexity' };
   if (/^(Consolidando perímetro|Preparando contexto)/i.test(s)) return { key: 'context' };
@@ -119,18 +139,19 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
   if (/^(Preparando ganchos para fechamento|Gerando ganchos|Preparando próximos passos)/i.test(s))            return { key: 'hooks' };
   if (/^(Rastreando registros cadastrais|Consultando dados cadastrais|Buscando CNPJ|dados da empresa)/i.test(s)) return { key: 'cadastral' };
   if (/^(Desconstruindo teia societária|Mapeando teia societária|sócios|grupos econômicos)/i.test(s))     return { key: 'corporate' };
-  if (/^(Analisando stack tecnológico|Analisando stack|stack tecnológico|sistemas utilizados)/i.test(s)) return { key: 'tech' };
-  if (/^(Escaneando riscos fiscais|Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ)/i.test(s))  return { key: 'compliance' };
+  if (/^(Analisando stack tecnológico|Analisando stack|stack tecnológico|sistemas utilizados|Investigando tech stack)/i.test(s)) return { key: 'tech' };
+  if (/^(Escaneando riscos fiscais|Verificando compliance|riscos fiscais|SINTEGRA|SEFAZ|Investigando riscos & compliance)/i.test(s))  return { key: 'compliance' };
   if (/^(Mapeando centro de gravidade|Analisando RH|decisores|gestores|diretores)/i.test(s))            return { key: 'rh' };
   if (/^(Investigando malha logística|Investigando logística|supply chain|frota|armazenagem)/i.test(s)) return { key: 'logistica' };
   if (/^(Auditando incentivos|Verificando incentivos fiscais|benefícios fiscais)/i.test(s))     return { key: 'fiscal' };
-  if (/^(Mapeando inteligência territorial estratégica|Mapeando inteligência territorial|contexto regional|região)/i.test(s)) return { key: 'territorio' };
+  if (/^(Mapeando inteligência territorial estratégica|Mapeando inteligência territorial|contexto regional|região|Investigando estratégia & expansão)/i.test(s)) return { key: 'territorio' };
   if (/^(Calibrando Score PORTA|Calculando Score|PORTA score)/i.test(s))                          return { key: 'scoring' };
-  if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final)/i.test(s))     return { key: 'consolidando' };
+  if (/^(Consolidando dossiê de inteligência final|Consolidando dossiê|dossiê final|relatório final|Finalizando dossiê modular)/i.test(s))     return { key: 'consolidando' };
   if (/^(Mapeando ecossistema competitivo regional|Cruzando concorrentes|concorrentes regionais|mapeamento competitivo)/i.test(s)) return { key: 'concorrentes' };
+  if (/^Investigando RH & decisores/i.test(s)) return { key: 'rh' };
 
   // Bloqueio de vazamento de prompts e metadados internos
-  if (/^[@\[{]|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
+  if (/^(?:@|\[|\{)|INVESTIGACAO_COMPLETA|MEGAPROMPT|PROMPT_LOGIC|SYSTEM_MESSAGE|PROTOCOL_/i.test(s)) return null;
   
   return null;
 }
@@ -170,7 +191,7 @@ function sanitizeStatusLabel(rawStatus?: string | null): string {
   if (normalized) return normalized.trim();
   
   // Se for lixo ou prompt (@, [, {) não vaza para a tela se não for reconhecido
-  if (!rawStatus || /^[@\[{]|INVESTIGACAO_COMPLETA|PROMPT_/i.test(rawStatus)) return '';
+  if (!rawStatus || /^(?:@|\[|\{)|INVESTIGACAO_COMPLETA|PROMPT_/i.test(rawStatus)) return '';
   
   // Permite strings dinâmicas curtas que não pareçam prompts
   if (rawStatus.length < 100 && !rawStatus.includes('\n')) return rawStatus.trim();
@@ -275,8 +296,17 @@ export function startIncrementalLoadingProgress(
 }
 
 export function statusKey(status: string): string {
+  const raw = (status || '').trim();
   const rich = toRichStatus(status);
-  if (!rich) return status;
+  if (!rich) {
+    if (!raw) return 'unknown';
+    return raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
   if (rich.category === 'fase' && rich.phaseNumber !== undefined) return `fase_${rich.phaseNumber}`;
   if (rich.category === 'deepResearch' && /^Buscando histórico de/i.test(rich.label)) return 'historico';
   if (rich.category === 'response') return 'resposta';

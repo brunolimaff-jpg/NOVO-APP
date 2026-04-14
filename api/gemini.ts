@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
@@ -6,6 +6,7 @@ const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
   text: z.string(),
 });
+const ThinkingLevelSchema = z.enum(['low', 'medium', 'high']);
 
 const GeminiRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('health') }),
@@ -22,7 +23,9 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     history: z.array(HistoryItemSchema).optional(),
     message: z.string().min(1).max(200000),
     useGrounding: z.boolean().optional(),
+    thinkingLevel: ThinkingLevelSchema.optional(),
     thinkingMode: z.boolean().optional(),
+    useOpenWebSearch: z.boolean().optional(),
   }),
 ]);
 
@@ -34,11 +37,77 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
+const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
+const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
+  /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
+  /investigacao_completa_integrada/i,
+  /protocolo de investiga[çc][aã]o forense/i,
+  /urgente:\s*ignore\s+metadiscuss[õo]es/i,
+  /sua miss[aã]o absoluta/i,
+  /n[aã]o discuta o funcionamento interno do modelo/i,
+];
+const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
+  /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i,
+  /score porta.*preciso.*cnpj/i,
+  /execute um dossi[eê] completo combinando os protocolos/i,
+  /priorize objetividade.*fontes audit[aá]veis/i,
+];
+
+function stripInternalMarkersLocal(text: string): string {
+  return (text || '')
+    .replace(INTERNAL_MARKER_REGEX, '')
+    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\s*\]\s*$/gm, '')
+    .trim();
+}
+
+function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; indicators: string[] } {
+  const sample = (text || '').trim();
+  if (!sample) return { detected: false, indicators: [] };
+
+  const hardHits = HARD_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `hard_${i}`);
+  const softHits = SOFT_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `soft_${i}`);
+  return {
+    detected: hardHits.length > 0 || softHits.length >= 2,
+    indicators: [...hardHits, ...softHits],
+  };
+}
+
+function applyPromptLeakShieldLocal(text: string): {
+  text: string;
+  blocked: boolean;
+  indicators: string[];
+} {
+  const cleaned = stripInternalMarkersLocal(text || '');
+  const sample = cleaned || (text || '').trim();
+  const detection = detectPromptLeakIndicatorsLocal(sample);
+
+  if (!detection.detected) {
+    return { text: sample, blocked: false, indicators: [] };
+  }
+
+  return {
+    text: 'Para continuar com segurança na análise, confirme o CNPJ da empresa (14 dígitos).',
+    blocked: true,
+    indicators: detection.indicators,
+  };
+}
+
+const getEnvVar = (name: string): string | undefined => {
+  try {
+    const proc = (globalThis as any).process;
+    return proc?.env?.[name];
+  } catch {
+    return undefined;
+  }
+};
 
 function getApiKeys(): string[] {
-  const primary = process.env.GEMINI_API_KEY;
-  const fallback = process.env.GEMINI_API_KEY_FALLBACK;
+  const primary = getEnvVar('GEMINI_API_KEY');
+  const fallback = getEnvVar('GEMINI_API_KEY_FALLBACK');
   const keys = [primary, fallback].filter((key): key is string => Boolean(key));
 
   if (keys.length === 0) {
@@ -93,6 +162,20 @@ function extractGeminiHttpStatus(error: unknown): number {
 }
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
+type ThinkingLevelInput = z.infer<typeof ThinkingLevelSchema>;
+
+function resolveThinkingLevel(thinkingLevel?: ThinkingLevelInput, thinkingMode?: boolean): ThinkingLevelInput {
+  if (thinkingLevel) return thinkingLevel;
+  if (thinkingMode === true) return 'high';
+  if (thinkingMode === false) return 'low';
+  return 'high';
+}
+
+function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkingLevel {
+  if (thinkingLevel === 'low') return GeminiSdkThinkingLevel.LOW;
+  if (thinkingLevel === 'medium') return GeminiSdkThinkingLevel.MEDIUM;
+  return GeminiSdkThinkingLevel.HIGH;
+}
 
 async function executeGeminiAction(
   ai: GoogleGenAI,
@@ -146,49 +229,139 @@ async function executeGeminiAction(
       const history = normalizeHistory(body.history);
       const message = body.message;
       const useGrounding = body.useGrounding ?? true;
-      const thinkingMode = body.thinkingMode ?? false;
+      const resolvedThinkingLevel = resolveThinkingLevel(body.thinkingLevel, body.thinkingMode);
+      const sdkThinkingLevel = toSdkThinkingLevel(resolvedThinkingLevel);
+      const useOpenWebSearch = body.useOpenWebSearch ?? false;
+
+      const openWebSearchTool = {
+        functionDeclarations: [
+          {
+            name: "performWebSearch",
+            description: "Realiza busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos. Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                query: { type: "STRING", description: "O termo de busca para a pesquisa na web." },
+                url: { type: "STRING", description: "A URL completa para extrair conteúdo diretamente." }
+              },
+            }
+          }
+        ]
+      };
 
       const runChat = async (withGrounding: boolean) => {
+        const activeTools = [];
+        if (withGrounding) activeTools.push({ googleSearch: {} });
+        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any);
+
         const chat = ai.chats.create({
           model,
           history,
           config: {
             systemInstruction,
-            temperature: thinkingMode ? 0.1 : 0.15,
+            temperature: resolvedThinkingLevel === 'high' ? 0.1 : 0.15,
             maxOutputTokens: 65536,
-            tools: withGrounding ? [{ googleSearch: {} }] : undefined,
+            thinkingConfig: {
+              thinkingLevel: sdkThinkingLevel,
+            },
+            tools: activeTools.length > 0 ? activeTools : undefined,
           },
         });
 
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
-        return withTimeout(
+        const res = await withTimeout(
           chat.sendMessage({ message }),
           timeout,
-          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
+          withGrounding ? "chat-with-grounding" : "chat-no-grounding",
         );
+
+        return { chat, response: res };
       };
 
-      let response;
+      let response: any;
+      let chatSession: any;
       let groundingActivated = useGrounding;
 
       try {
-        response = await runChat(useGrounding);
+        const chatData = await runChat(useGrounding);
+        response = chatData.response;
+        chatSession = chatData.chat;
+
+        // Loop para processar Function Calls (suporta múltiplas chamadas e encadeamento)
+        let maxIterations = 5;
+        while (response.functionCalls && response.functionCalls.length > 0 && maxIterations > 0) {
+          maxIterations--;
+          console.log(`[Gemini] Turno de Function Call (${response.functionCalls.length} chamadas)`);
+
+          const functionResponses = [];
+
+          for (const call of response.functionCalls) {
+            if (call.name === "performWebSearch") {
+              const args = call.args as { query?: string; url?: string };
+              try {
+                const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
+                const toolResponse = await fetch(`${origin}/api/open-web-search`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(args)
+                });
+                const toolResult = await toolResponse.json().catch(() => null);
+                if (!toolResponse.ok) {
+                  const toolError =
+                    typeof toolResult?.error === 'string'
+                      ? toolResult.error
+                      : `Open Web Search HTTP ${toolResponse.status}`;
+                  throw new Error(toolError);
+                }
+
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { result: toolResult }
+                  }
+                });
+              } catch (toolError) {
+                console.error(`[OpenWebSearch] Falha:`, toolError);
+                const message = toolError instanceof Error ? toolError.message : 'Failed to perform web search/extraction.';
+                functionResponses.push({
+                  functionResponse: {
+                    name: call.name,
+                    response: { error: message }
+                  }
+                });
+              }
+            }
+          }
+
+          if (functionResponses.length > 0) {
+            // Envia TODAS as respostas de funções em uma única mensagem (Batching)
+            response = await chatSession.sendMessage(functionResponses);
+          } else {
+            break; // Nenhuma chamada reconhecida
+          }
+        }
+
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-
-        console.warn(
-          '[GeminiProxy] Grounding falhou, acionando fallback sem grounding:',
-          primaryError instanceof Error ? primaryError.message : String(primaryError),
-        );
+        console.warn("[GeminiProxy] Falha no Grounding/Tool, acionando fallback:", primaryError);
         groundingActivated = false;
-        response = await runChat(false);
+        const fallbackData = await runChat(false);
+        response = fallbackData.response;
       }
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const groundingUsed = groundingActivated && groundingChunks.length > 0;
+      const leakShieldResult = applyPromptLeakShieldLocal(response.text || '');
+      if (leakShieldResult.blocked) {
+        console.warn('[PromptLeakShield][api/gemini] resposta bloqueada', {
+          action: body.action,
+          model,
+          indicators: leakShieldResult.indicators,
+        });
+      }
 
       return res.status(200).json({
-        text: response.text || '',
+        text: leakShieldResult.text,
         groundingChunks,
         groundingUsed,
       });
@@ -221,11 +394,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if (isQuotaExhausted(error) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando chave de fallback...`);
+          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando fallback...`);
           lastError = error;
           continue;
         }
-
         throw error;
       }
     }

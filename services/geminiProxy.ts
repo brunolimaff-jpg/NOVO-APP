@@ -14,13 +14,15 @@ interface GeminiGenerateRequest extends GeminiApiBaseRequest {
 }
 
 interface GeminiChatRequest extends GeminiApiBaseRequest {
-  action: 'chatSendMessage';
+  action: "chatSendMessage";
   model: string;
   systemInstruction: string;
-  history: Array<{ role: 'user' | 'model'; text: string }>;
+  history: Array<{ role: "user" | "model"; text: string }>;
   message: string;
   useGrounding?: boolean;
-  thinkingMode?: boolean;
+  thinkingLevel?: 'low' | 'medium' | 'high';
+  thinkingMode?: boolean; // Deprecated: mantido para compatibilidade temporária
+  useOpenWebSearch?: boolean; // Novo: para ativar a ferramenta open-web-search
 }
 
 interface GeminiHealthRequest extends GeminiApiBaseRequest {
@@ -107,7 +109,9 @@ async function callGeminiApi<TResponse>(
   } catch (error: unknown) {
     if (timedOut) {
       scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint });
-      throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`);
+      throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`, {
+        cause: error,
+      });
     }
     scoutDiag.error('GeminiProxy', 'falha de rede ou abort no fetch', {
       endpoint,
@@ -141,16 +145,29 @@ export async function proxyGenerateContent(
 }
 
 export async function proxyChatSendMessage(
-  params: Omit<GeminiChatRequest, 'action'>,
+  params: Omit<GeminiChatRequest, "action">,
   signal?: AbortSignal
 ): Promise<GeminiChatResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiChatResponse>(resolveGeminiApiEndpoint(), { action: 'chatSendMessage', ...params }, signal);
+  return callGeminiApi<GeminiChatResponse>(resolveGeminiApiEndpoint(), { action: "chatSendMessage", ...params }, signal);
+}
+
+export async function executeOpenWebSearchTool(query: string, url?: string): Promise<any> {
+  const endpoint = (import.meta as any).env?.VITE_OPEN_WEB_SEARCH_URL || "/api/open-web-search";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, url })
+  });
+  if (!response.ok) {
+    throw new Error(`OpenWebSearch failed: ${response.status}`);
+  }
+  return response.json();
 }
 
 export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: 'health' }, signal);
+  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: "health" }, signal);
 }
 
 /** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */

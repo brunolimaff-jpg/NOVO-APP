@@ -13,7 +13,7 @@ describe('PORTA helpers', () => {
     const parsed = parsePortaMarkerV2('[[PORTA:51:P7:O8:R6:T7:A7:PRD:TRAD]]');
 
     expect(parsed).toEqual({
-      score: 51,
+      score: 43,
       p: 7,
       o: 8,
       r: 6,
@@ -94,7 +94,7 @@ describe('PORTA helpers', () => {
     });
   });
 
-  it('applies trading and lock penalties when feed flags are active', () => {
+  it('ignores legacy LOCK and keeps only active supported penalties', () => {
     const parsed = buildPortaScoreFromFeeds(`
 [[PORTA_FEED_O:[4]:ELOS:[Comercializacao]]]
 [[PORTA_FEED_R:[6]:PRESSOES:[SEFAZ]]]
@@ -111,14 +111,14 @@ describe('PORTA helpers', () => {
     `);
 
     expect(parsed).toEqual({
-      score: 12,
+      score: 24,
       p: 6,
       o: 4,
       r: 5,
       t: 3,
       a: 4,
       segmento: 'PRD',
-      flags: ['TRAD', 'LOCK'],
+      flags: ['TRAD'],
       scoreBruto: 40,
     });
   });
@@ -153,7 +153,7 @@ describe('PORTA helpers', () => {
 
   it('calculates weights and penalties consistently', () => {
     expect(calculatePortaScoreBruto(9, 9, 8, 6, 5, 'AGI')).toBe(76);
-    expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.3);
+    expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.6);
   });
 
   it('resolves a waterfall score from feed markers when the explicit marker is absent', () => {
@@ -200,5 +200,47 @@ describe('PORTA helpers', () => {
     expect(resolved.score).toBeNull();
     expect(resolved.source).toBe('feeds');
     expect(resolved.missingDimensions).toEqual(['T']);
+  });
+
+  it('aceita PORTA_FEED_O compacto sem bloco ELOS', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O:6]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
+  });
+
+  it('normaliza PORTA_FEED_O com espacos e não marca dimensão O como ausente', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O: 6 :ELOS: Plantio, Armazenagem ]]
+[[PORTA_FEED_R:6:PRESSOES:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
+  });
+
+  it('aceita variação PRESSAO no feed R', () => {
+    const resolved = resolvePortaScore(`
+[[PORTA_FEED_P:7:HA:12000:CNPJS:4:FAT:R$ 300 mi]]
+[[PORTA_FEED_O:6:ELOS:Plantio]]
+[[PORTA_FEED_R:6:PRESSAO:SEFAZ]]
+[[PORTA_FEED_T:5:T1:5:T2:5:T3:5:STACK:SAP]]
+[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:G2]]
+[[PORTA_SEG:PRD]]
+    `);
+
+    expect(resolved.score).not.toBeNull();
+    expect(resolved.missingDimensions).toEqual([]);
   });
 });
