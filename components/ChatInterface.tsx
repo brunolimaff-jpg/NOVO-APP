@@ -9,6 +9,7 @@ import SessionsSidebar from './SessionsSidebar';
 import UserMenu from './UserMenu';
 import EmptyStateHome from './EmptyStateHome';
 import GreetingWelcomeScreen from './GreetingWelcomeScreen';
+import HelpCenterFloating from './HelpCenterFloating';
 import { APP_NAME } from '../constants';
 import SuspenseWithError from './SuspenseWithError';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
@@ -795,6 +796,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 onForceScan={radar?.onForceScan}
                 onOpenRadar={() => setShowRadarPanel(true)}
               />
+              <HelpCenterFloating isDarkMode={isDarkMode} />
             </div>
           ) : shouldSuspendVirtualizedList ? (
             <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />

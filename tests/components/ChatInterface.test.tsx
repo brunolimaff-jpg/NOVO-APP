@@ -22,20 +22,42 @@ const { operatorStateRef } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('react-virtuoso', () => ({
-  Virtuoso: ({ data, itemContent, components }: any) => (
-    <div data-testid="virtuoso-mock">
-      {components?.Header?.()}
-      {data.map((item: any, index: number) => (
-        <div key={index}>{itemContent(index, item)}</div>
-      ))}
-      {components?.Footer?.()}
-    </div>
-  ),
-}));
+vi.mock('react-virtuoso', async () => {
+  const React = await import('react');
+
+  return {
+    Virtuoso: React.forwardRef(
+      (
+        {
+          data = [],
+          itemContent,
+          components,
+        }: {
+          data?: unknown[];
+          itemContent: (index: number, item: unknown) => React.ReactNode;
+          components?: {
+            Header?: React.ComponentType;
+            Footer?: React.ComponentType;
+          };
+        },
+        ref: React.ForwardedRef<HTMLDivElement>,
+      ) => (
+        <div ref={ref} data-testid="messages-scroller" data-virtuoso-scroller="true">
+          {components?.Header ? <components.Header /> : null}
+          {data.map((item, index) => (
+            <div key={index} data-testid={`virtuoso-item-${index}`}>
+              {itemContent(index, item)}
+            </div>
+          ))}
+          {components?.Footer ? <components.Footer /> : null}
+        </div>
+      ),
+    ),
+  };
+});
 
 vi.mock('../../components/MessageRow', () => ({
-  default: ({ index, data }: { index: number; data: { messages: Array<any>; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
+  default: ({ index, data }: { index: number; data: { messages: Message[]; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
     const message = data.messages[index];
 
     return (
@@ -204,7 +226,27 @@ describe('ChatInterface shell regression', () => {
     render(<ChatInterface {...buildProps()} />);
 
     expect(screen.getByTestId('empty-state-home')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /abrir ajuda do scout/i })).toBeInTheDocument();
     expect(screen.queryByLabelText('Campo de mensagem')).not.toBeInTheDocument();
+  });
+
+  it('mostra a ajuda somente na home inicial', () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial da investigacao'),
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /abrir ajuda do scout/i })).not.toBeInTheDocument();
   });
 
   it('bloqueia a home e mostra o gate de nome quando nao existe operador local', () => {

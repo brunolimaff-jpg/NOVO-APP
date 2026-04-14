@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -6,7 +6,7 @@ type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
 interface TooltipProps {
   label: string;
   position?: TooltipPosition;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const positionClasses: Record<TooltipPosition, string> = {
