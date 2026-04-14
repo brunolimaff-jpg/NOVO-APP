@@ -2,25 +2,36 @@
 
 Last updated: 2026-04-14
 
-## Current sprint
+## Current operating context
 
-Repo-local agent memory and planning guardrails are being installed for Senior Scout 360.
+This repo now uses repo-local memory plus canonical handoff docs so future Codex sessions can resume on any machine.
+
+Read order for a new session:
+
+1. `AGENTS.md`
+2. `HANDOFF_AI.md`
+3. `.agents/memory/activeContext.md`
+4. `.agents/memory/progress.md`
+5. `.agents/memory/decisions.md`
+
+## Current refactor sprint
+
+The structural refactor program is active. The canonical live status is in:
+
+- `docs/ai-context/refactor/02-BOARD.md`
+- `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+- `docs/ai-context/refactor/06-HANDOFF.md`
+
+Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `features/chat/*` in small, validated slices.
 
 ## Current task
 
-Implement the "Repo-Local Memory + plan-work Skill Setup" plan:
+Finish and merge the repo-local agent memory and `plan-work` PR:
 
-- Install `plan-work` under `.agents/skills/`.
-- Create repo-local memory files under `.agents/memory/`.
-- Update root `AGENTS.md` so future sessions read memory first and use `plan-work` before implementation planning.
-
-## Active assumptions
-
-- Repo-local Markdown memory is preferred over a global ledger or MCP memory server.
-- `.agents/memory/` should be tracked with the repo unless the user later asks for private/local memory.
-- `plan-work` is the default planning skill for normal implementation work.
-- Existing `superhuman` remains available for larger multi-wave work.
+- Keep `.agents/memory/` tracked in the repo.
+- Keep `.agents/skills/plan-work/` tracked in the repo.
+- Keep `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md`, `skills-lock.json`, and `AGENTS.md` aligned.
 
 ## Immediate next step
 
-After this setup is committed or accepted, ask future agents "onde parei?" and verify they answer from `.agents/memory/activeContext.md` and `.agents/memory/progress.md`.
+After this PR lands, restart Codex on each machine so the repo-local `plan-work` skill is discovered, then start planning Sprint 3 using the refactor docs above.

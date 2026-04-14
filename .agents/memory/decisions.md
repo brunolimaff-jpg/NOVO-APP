@@ -14,8 +14,8 @@ Decision: install and prefer `plan-work` for implementation plans.
 
 Reason: it is lightweight, Codex-oriented, and forces repo research, option analysis, Q&A, and a concrete implementation plan before edits.
 
-## 2026-04-14 - `HANDOFF_AI.md` and `PLAN.md` are not canonical
+## 2026-04-14 - Handoff hierarchy
 
-Decision: future agents should not treat root `HANDOFF_AI.md` or `PLAN.md` as the primary sprint state unless `.agents/memory/` references them.
+Decision: `HANDOFF_AI.md` remains the canonical quick-entry handoff. `.agents/memory/*` is the short cross-session memory layer. The refactor program status remains canonical in `docs/ai-context/refactor/02-BOARD.md`, with risks in `03-OPEN-ITEMS.md` and next safe step in `06-HANDOFF.md`.
 
-Reason: those files may be stale or task-specific; `.agents/memory/activeContext.md` and `.agents/memory/progress.md` are now the intended cross-session source of truth.
+Reason: this avoids depending on chat memory while preserving the dedicated refactor board as the live source of truth.

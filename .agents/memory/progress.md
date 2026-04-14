@@ -4,15 +4,15 @@ Last updated: 2026-04-14
 
 ## Completed
 
-- Selected repo-local Markdown memory as the v1 persistent memory approach.
-- Selected `plan-work` as the default implementation planning skill.
 - Installed `plan-work` into `.agents/skills/plan-work/`.
-- Added initial memory files under `.agents/memory/`.
-- Updated root `AGENTS.md` with the persistent memory protocol.
+- Added repo-local memory files under `.agents/memory/`.
+- Updated `AGENTS.md` with the persistent memory protocol.
+- Rebased the work on top of the current `origin/main`.
+- Aligned memory with the canonical refactor docs on `origin/main`.
 
 ## In progress
 
-- None.
+- PR preparation for repo-local memory and `plan-work`.
 
 ## Blockers
 
@@ -20,13 +20,18 @@ Last updated: 2026-04-14
 
 ## Validation status
 
-- Confirmed `.agents/skills/plan-work/SKILL.md` exists.
-- Confirmed `.agents/skills/plan-work/references/plan-template.md` exists.
-- Confirmed `.agents/memory/activeContext.md`, `.agents/memory/progress.md`, and `.agents/memory/decisions.md` exist.
-- Confirmed `AGENTS.md` references the persistent memory protocol and `plan-work`.
-- `git status --short` shows intended changes plus unrelated pre-existing untracked `.tokenmiser/` and `mcp-server/`.
+- Passed: `npm run test` (89 files, 729 tests)
+- Passed: `npm run typecheck`
+- Passed: `npm run build`
+- Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
+
+## Important refs
+
+- Refactor status: `docs/ai-context/refactor/02-BOARD.md`
+- Open items and risk gates: `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+- Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 
 ## Next checkpoint
 
-- Restart Codex so newly installed skills can be picked up by future sessions.
-- In the next session, confirm the agent reads `.agents/memory/activeContext.md` and `.agents/memory/progress.md` before relying on older handoff files.
+- Open the PR and confirm only repo agent workflow files changed.
+- Do not include unrelated local artifacts such as `mcp-server/`.
