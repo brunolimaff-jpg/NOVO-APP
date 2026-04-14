@@ -20,7 +20,8 @@ export function useChatFeedbackActions({
 }: UseChatFeedbackActionsOptions) {
   const handleReportError = useCallback(
     async (messageId: string, error: AppError) => {
-      if (!currentSession) return;
+      const sessionId = currentSession?.id;
+      if (!sessionId) return;
 
       const errorPayload = JSON.stringify(
         { code: error.code, source: error.source, message: error.message, details: error.details },
@@ -31,7 +32,7 @@ export function useChatFeedbackActions({
       try {
         await sendFeedbackRemote({
           feedbackId: uuidv4(),
-          sessionId: currentSession.id,
+          sessionId,
           messageId,
           sectionKey: 'ERROR_REPORT',
           sectionTitle: 'System Error',
@@ -42,17 +43,15 @@ export function useChatFeedbackActions({
           userName: operatorName || undefined,
           timestamp: new Date().toISOString(),
         });
-      } catch (error) {
-        console.error('Failed to report error', error);
+      } catch (err) {
+        console.error('Failed to report error', err);
       }
     },
-    [currentSession, operatorId, operatorName],
+    [currentSession?.id, operatorId, operatorName],
   );
 
   const handleFeedback = useCallback(
     (messageId: string, feedback: Feedback) => {
-      if (!currentSession) return;
-
       updateCurrentSession(session => ({
         ...session,
         messages: (session.messages || []).map(message =>
@@ -62,15 +61,15 @@ export function useChatFeedbackActions({
         ),
       }));
     },
-    [currentSession, updateCurrentSession],
+    [updateCurrentSession],
   );
 
   const handleSendFeedback = useCallback(
     async (messageId: string, feedback: Feedback, comment: string, content: string) => {
-      if (!currentSession) return;
+      const sessionId = currentSession?.id;
+      if (!sessionId) return;
 
-      const snapshotSessionId = currentSession.id;
-      updateSessionById(snapshotSessionId, session => ({
+      updateSessionById(sessionId, session => ({
         ...session,
         messages: (session.messages || []).map(message =>
           message.id === messageId ? { ...message, feedback } : message,
@@ -80,7 +79,7 @@ export function useChatFeedbackActions({
       try {
         await sendFeedbackRemote({
           feedbackId: uuidv4(),
-          sessionId: snapshotSessionId,
+          sessionId,
           messageId,
           sectionKey: null,
           sectionTitle: null,
@@ -95,7 +94,7 @@ export function useChatFeedbackActions({
         console.error('Feedback error', error);
       }
     },
-    [currentSession, operatorId, operatorName, updateSessionById],
+    [currentSession?.id, operatorId, operatorName, updateSessionById],
   );
 
   const handleSectionFeedback = useCallback(
