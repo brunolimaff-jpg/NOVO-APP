@@ -5,6 +5,7 @@
     "clean-code",
     "code-review-mastery",
     "codedocs",
+    "plan-work",
     "refactoring-patterns",
     "scoutagro-pilot-os"
   ],
@@ -28,6 +29,11 @@
       "source": "AbsolutelySkilled/AbsolutelySkilled",
       "sourceType": "github",
       "computedHash": "a9585c146bc83ed77cb92a28a6a0bec98cf0974f23fee86980d5688966e72106"
+    },
+    "plan-work": {
+      "source": "jMerta/codex-skills",
+      "sourceType": "github",
+      "computedHash": "77d9926f30f1a2ee59e13a601ada3010ab65e30be75b3c7c741a63c6c89d6c74"
     },
     "refactoring-patterns": {
       "source": "vendored-from-~/.codex/skills/refactoring-patterns",

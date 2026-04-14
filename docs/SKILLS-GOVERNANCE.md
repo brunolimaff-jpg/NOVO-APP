@@ -19,6 +19,7 @@ Objetivo: manter o repo operável com um conjunto pequeno de capacidades version
 | `scoutagro-pilot-os` | local | keep | Contexto do produto e priorização do repo |
 | `clean-code` | local | keep | Qualidade e legibilidade recorrentes |
 | `codedocs` | local | keep | Continuidade entre IAs e documentação viva |
+| `plan-work` | local | keep | Planejamento de implantação antes de editar código |
 | `code-review-mastery` | vendorized | keep | Review local de diffs e checkpoints |
 | `refactoring-patterns` | vendorized | keep | Separação estrutural segura |
 | `clean-architecture` | vendorized | keep | Cortes arquiteturais e fronteiras |
@@ -30,6 +31,7 @@ Objetivo: manter o repo operável com um conjunto pequeno de capacidades version
 - `.agents/skills/scoutagro-pilot-os`
 - `.agents/skills/clean-code`
 - `.agents/skills/codedocs`
+- `.agents/skills/plan-work`
 
 ### `vendorized`
 

@@ -7,12 +7,15 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 Para continuidade entre IAs, leia primeiro:
 
 1. `AGENTS.md`
-2. `docs/SKILLS-GOVERNANCE.md`
-3. `docs/ai-context/refactor/00-README.md`
-4. `docs/ai-context/refactor/01-MASTER-PLAN.md`
-5. `docs/ai-context/refactor/02-BOARD.md`
-6. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
-7. `docs/ai-context/refactor/06-HANDOFF.md`
+2. `.agents/memory/activeContext.md`
+3. `.agents/memory/progress.md`
+4. `.agents/memory/decisions.md`
+5. `docs/SKILLS-GOVERNANCE.md`
+6. `docs/ai-context/refactor/00-README.md`
+7. `docs/ai-context/refactor/01-MASTER-PLAN.md`
+8. `docs/ai-context/refactor/02-BOARD.md`
+9. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+10. `docs/ai-context/refactor/06-HANDOFF.md`
 
 ## Contexto minimo estavel
 
@@ -71,7 +74,9 @@ Para continuidade entre IAs, leia primeiro:
 
 - Nao confie em contexto de chat antigo.
 - Nao confie em paths de maquina antigos ou em descricoes de working tree fora do repo.
+- A memoria repo-local em `.agents/memory/` registra o contexto curto entre sessoes e deve apontar para as fontes canonicas.
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
+- Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
 - Validacao manual final deve acontecer em preview/producao na Vercel, nao em `npm run dev`.
