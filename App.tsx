@@ -7,6 +7,7 @@ import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useSessionManager } from './hooks/useSessionManager';
+import { useChatLoadingProgress } from './features/chat/loading-progress';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
@@ -72,11 +73,6 @@ import { normalizeAppError } from './utils/errorHelpers';
 import { downloadFile } from './utils/downloadHelpers';
 import { cleanTitle, sanitizeLoadingContextText } from './utils/textCleaners';
 import { fixFakeLinksHTML } from './utils/linkFixer';
-import {
-  finalizeLoadingProgress,
-  startIncrementalLoadingProgress,
-  transitionLoadingProgress,
-} from './utils/loadingStatus';
 import {
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
@@ -378,12 +374,26 @@ const App: React.FC = () => {
 
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingStatus, setLoadingStatus] = useState<string>('Iniciando análise');
-  const [failureCount, setFailureCount] = useState(0);
-  const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
-  const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
-  const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
+  const {
+    isLoading,
+    setIsLoading,
+    loadingStatus,
+    failureCount,
+    setFailureCount,
+    completedLoadingStatuses,
+    loadingTotalStages,
+    loadingIsIncremental,
+    requestKind,
+    setRequestKind,
+    loadingVariant,
+    setLoadingVariant,
+    loadingPinnedLabel,
+    setLoadingPinnedLabel,
+    resetLoadingProgress,
+    advanceLoadingProgress,
+    replaceLoadingProgressStage,
+    completeLoadingProgress,
+  } = useChatLoadingProgress();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
   const [isSavingRemote, setIsSavingRemote] = useState(false);
@@ -394,10 +404,6 @@ const App: React.FC = () => {
   const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
-  const [requestKind, setRequestKind] = useState<RequestKind>('default');
-  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
-  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
-
   // Email modal state
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTo, setEmailTo] = useState('');
@@ -418,107 +424,6 @@ const App: React.FC = () => {
   const lastActionRef = useRef<LastAction | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeGenerationRef = useRef<Record<string, string>>({});
-  const loadingProgressRef = useRef<{ stage: string; completedStages: string[]; totalStages?: number }>({
-    stage: 'Iniciando análise',
-    completedStages: [],
-    totalStages: undefined,
-  });
-
-  const commitLoadingProgress = useCallback(
-    (nextState: { stage?: string; completedStages?: string[]; totalStages?: number }) => {
-      const updated = {
-        stage:
-          typeof nextState.stage === 'string'
-            ? nextState.stage
-            : loadingProgressRef.current.stage,
-        completedStages: Array.isArray(nextState.completedStages)
-          ? nextState.completedStages
-          : loadingProgressRef.current.completedStages,
-        totalStages:
-          Object.prototype.hasOwnProperty.call(nextState, 'totalStages')
-            ? nextState.totalStages
-            : loadingProgressRef.current.totalStages,
-      };
-
-      loadingProgressRef.current = updated;
-      setLoadingStatus(updated.stage);
-      setCompletedLoadingStatuses(updated.completedStages);
-      setLoadingTotalStages(updated.totalStages);
-    },
-    [],
-  );
-
-  const resetLoadingProgress = useCallback(
-    (
-      stage: string = 'Realizando pesquisa...',
-      totalStages?: number,
-      options?: { incremental?: boolean; keepHistory?: number },
-    ) => {
-      setFailureCount(0);
-      const useIncremental = Boolean(options?.incremental);
-      if (useIncremental) {
-        const next = startIncrementalLoadingProgress(
-          loadingProgressRef.current.stage,
-          loadingProgressRef.current.completedStages,
-          {
-            stage,
-            totalStages,
-            maxHistory: options?.keepHistory ?? 4,
-          },
-        );
-        setLoadingIsIncremental(true);
-        commitLoadingProgress(next);
-        return;
-      }
-
-      setLoadingIsIncremental(false);
-      commitLoadingProgress({ stage, completedStages: [], totalStages });
-    },
-    [commitLoadingProgress],
-  );
-
-  const advanceLoadingProgress = useCallback(
-    (nextStage: string, totalStages?: number) => {
-      const next = transitionLoadingProgress(
-        loadingProgressRef.current.stage,
-        nextStage,
-        loadingProgressRef.current.completedStages,
-      );
-      commitLoadingProgress({
-        ...next,
-        totalStages:
-          typeof totalStages === 'number'
-            ? totalStages
-            : loadingProgressRef.current.totalStages,
-      });
-    },
-    [commitLoadingProgress],
-  );
-
-  const replaceLoadingProgressStage = useCallback(
-    (stage: string, totalStages?: number) => {
-      commitLoadingProgress({
-        stage,
-        completedStages: loadingProgressRef.current.completedStages,
-        totalStages:
-          typeof totalStages === 'number'
-            ? totalStages
-            : loadingProgressRef.current.totalStages,
-      });
-    },
-    [commitLoadingProgress],
-  );
-
-  const completeLoadingProgress = useCallback(() => {
-    const next = finalizeLoadingProgress(
-      loadingProgressRef.current.stage,
-      loadingProgressRef.current.completedStages,
-    );
-    commitLoadingProgress({
-      ...next,
-      totalStages: loadingProgressRef.current.totalStages,
-    });
-  }, [commitLoadingProgress]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
