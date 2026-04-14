@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `602380d7cb0d9dc26ad472032fc94233d5983744` |
-| Working branch | `codex/sprint-3-app-import-session-controller` |
+| Source of truth commit | `origin/main` -> `958af340483f5d9a52fee4b9a44ec746324f4788` |
+| Working branch | `codex/sprint-3-session-remote-save` |
 | Last updated | `2026-04-14` |
 | Current phase | `execution` |
 | Current sprint | `3` |
@@ -18,13 +18,14 @@
 - A extracao interna da camada Gemini ficou ativa em `services/gemini/` com compatibilidade preservada
 - Sprint 3 corte 1 foi mergeado: progresso/loading do chat extraido para `features/chat/loading-progress.ts` via PR `#216`
 - Sprint 3 corte 2A foi mergeado: `useSessionManager` foi movido para `features/chat/session-controller.ts` via PR `#217`
-- Sprint 3 corte 2B esta em execucao: trocar o import do `App.tsx` para `features/chat/session-controller`
+- Sprint 3 corte 2B foi mergeado: `App.tsx` passou a importar `features/chat/session-controller` via PR `#218`
+- Sprint 3 corte 2C esta em execucao: extrair save remoto para `features/chat/session-controller`
 
 ## Next Up
 
-1. Abrir e revisar o PR do corte 2B da Sprint 3 (`codex/sprint-3-app-import-session-controller`)
-2. Depois do merge, seguir para o PR 2C: extrair save remoto para o mesmo modulo da feature
-3. Depois do pacote de sessao integrado, rodar checkpoint manual em preview Vercel
+1. Abrir e revisar o PR do corte 2C da Sprint 3 (`codex/sprint-3-session-remote-save`)
+2. Depois do merge, rodar checkpoint manual em preview Vercel para o pacote de sessao
+3. Em seguida, seguir para o proximo corte pequeno: feedback actions
 
 ## Blocked
 
@@ -33,7 +34,7 @@
 ## Validation Pending
 
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`)
-- Reexecutar checklist manual completo no preview Vercel apos o pacote de sessao ficar integrado (`2B` + `2C` sobre `2A` ja mergeado) para confirmar paridade visual/funcional
+- Reexecutar checklist manual completo no preview Vercel apos o pacote de sessao ficar integrado (`2A` + `2B` + `2C`) para confirmar paridade visual/funcional
 
 ## Known Accepted Warnings
 
