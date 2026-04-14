@@ -87,6 +87,16 @@ vi.mock('../features/chat/session-controller', () => ({
   }),
 }));
 
+vi.mock('../features/chat/feedback-actions', () => ({
+  useChatFeedbackActions: () => ({
+    handleReportError: vi.fn(),
+    handleFeedback: vi.fn(),
+    handleSendFeedback: vi.fn(),
+    handleSectionFeedback: vi.fn(),
+    handleToggleMessageSources: vi.fn(),
+  }),
+}));
+
 vi.mock('../contexts/OperatorContext', () => ({
   useOperator: () => ({
     name: 'Bruno',

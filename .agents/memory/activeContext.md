@@ -26,12 +26,12 @@ Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `
 
 ## Current task
 
-Sprint 3 / corte 2C is in progress on branch `codex/sprint-3-session-remote-save`.
+Sprint 3 / corte 3 is in progress on branch `codex/sprint-3-feedback-actions`.
 
-- Goal: move remote session save state/action into `features/chat/session-controller`.
-- Keep `ChatInterfaceProps` and the visible save contract unchanged.
+- Goal: move feedback handlers into `features/chat/feedback-actions`.
+- Keep `ChatInterfaceProps` and the remote feedback payload contract unchanged.
 - Do not touch the standard send-message flow in this PR.
 
 ## Immediate next step
 
-Finish PR 2C validation and open the PR for remote save extraction. After it lands, run the manual session-package validation and then continue Sprint 3 with feedback actions.
+Open and review the feedback-actions PR. After it lands, run a short manual feedback validation and then finish Sprint 3 with the last cut for the standard send/message orchestration flow.
