@@ -26,12 +26,12 @@ Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `
 
 ## Current task
 
-Sprint 3 / corte 1 is in progress on branch `codex/sprint-3-chat-loading`.
+Sprint 3 / corte 2A is in progress on branch `codex/sprint-3-session-controller-move`.
 
-- Goal: extract chat loading/progress state from `App.tsx` into `features/chat/loading-progress.ts`.
-- Keep `App.tsx` as orchestration facade for send/retry/dossier/PORTA during this cut.
-- Keep `components/ChatInterface.tsx` public props unchanged.
+- Goal: move the session lifecycle hook implementation into `features/chat/session-controller.ts`.
+- Keep `hooks/useSessionManager.ts` as a compatibility facade in this cut.
+- Do not change `App.tsx` imports yet and do not move remote save logic in this PR.
 
 ## Immediate next step
 
-Open/review the PR for the loading cut. After it lands, continue Sprint 3 with the next small slice: session/save remote into `features/chat/session-controller.ts`.
+Finish PR 2A validation and open the PR for the session controller move. After it lands, continue Sprint 3 with PR 2B: switch `App.tsx` to import from `features/chat/session-controller`.

@@ -98,3 +98,27 @@
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
   - revisar/mergear o PR de loading e seguir para o corte de sessao/save remoto em `features/chat/session-controller.ts`
+
+## 2026-04-14 - Sprint 3 corte 2A session controller move
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: mover a implementacao do ciclo de vida de sessao para `features/chat/session-controller.ts` sem alterar ainda os imports do `App.tsx` nem o save remoto
+- Decisoes:
+  - este corte fica limitado a uma movimentacao mecanica do hook de sessao
+  - `hooks/useSessionManager.ts` permanece como fachada temporaria para compatibilidade
+  - `App.tsx` continua intacto neste PR para reduzir risco e facilitar review
+- Mudancas concluidas:
+  - criado `features/chat/session-controller.ts` com a implementacao de `useSessionManager`
+  - `hooks/useSessionManager.ts` virou re-export tipado da feature
+  - cobertura movida para `tests/features/chat/session-controller.test.ts`
+- Checks registrados:
+  - `npm run test` verde (`90` arquivos, `734` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - este corte ainda nao prova a integracao via import direto do `App.tsx`
+  - save remoto continua em `App.tsx` ate o PR 2C
+  - checklist manual em preview Vercel continua pendente para o pacote integrado de sessao
+- Proximo passo:
+  - abrir/revisar o PR 2A e depois seguir para o PR 2B, trocando o import do `App.tsx` para `features/chat/session-controller`
