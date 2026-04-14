@@ -181,6 +181,50 @@ describe('useSessionManager session controller', () => {
     expect(options.setCurrentSessionId).toHaveBeenCalled();
   });
 
+  it('handleDeleteSession reseta a UI ao promover a próxima sessão', () => {
+    const options = makeOptions({
+      sessions: [makeSession('s1', 'Sessão Atual'), makeSession('s2', 'Próxima Sessão', true)],
+      currentSessionId: 's1',
+    });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    act(() => {
+      result.current.handleDeleteSession('s1');
+    });
+
+    expect(options.setCurrentSessionId).toHaveBeenCalledWith('s2');
+    expect(options.setRemoteSaveStatus).toHaveBeenCalledWith('idle');
+    expect(options.setExportStatus).toHaveBeenCalledWith('idle');
+    expect(options.setPdfReportContent).toHaveBeenCalledWith(null);
+    expect(options.setInvestigationLogged).toHaveBeenCalledWith(false);
+    expect(options.setLastQuery).toHaveBeenCalledWith('');
+    expect(options.resetLoadingProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleDeleteSession registra erro quando o lazy load da próxima sessão falha', async () => {
+    const error = new Error('remote failed');
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getRemoteSessionMock.mockRejectedValue(error);
+
+    const options = makeOptions({
+      sessions: [makeSession('s1', 'Sessão Atual'), makeSession('s2', 'Próxima Sessão')],
+      currentSessionId: 's1',
+    });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    act(() => {
+      result.current.handleDeleteSession('s1');
+    });
+
+    try {
+      await vi.waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Lazy load error during session deletion', error);
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it('handleDeleteSession aborta geração ao remover a sessão atual em loading', () => {
     const abort = vi.fn();
     const options = makeOptions({

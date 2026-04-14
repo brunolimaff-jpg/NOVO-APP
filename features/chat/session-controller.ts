@@ -120,12 +120,15 @@ export function useSessionManager({
         if (newSessions.length > 0) {
           const nextSession = newSessions[0];
           setCurrentSessionId(nextSession.id);
+          resetSessionUI();
           if (nextSession.messages.length === 0) {
             getRemoteSession(nextSession.id)
               .then(fullSession => {
                 if (fullSession) updateSessionById(nextSession.id, () => fullSession);
               })
-              .catch(() => {});
+              .catch(error => {
+                console.error('Lazy load error during session deletion', error);
+              });
           }
         } else {
           handleNewSession();
@@ -143,6 +146,7 @@ export function useSessionManager({
       setCurrentSessionId,
       updateSessionById,
       handleNewSession,
+      resetSessionUI,
     ],
   );
 
