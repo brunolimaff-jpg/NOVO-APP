@@ -8,6 +8,7 @@ import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useChatLoadingProgress } from './features/chat/loading-progress';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
+import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
@@ -29,7 +30,6 @@ const CRMDetail = React.lazy(() =>
 import {
   Message,
   Sender,
-  Feedback,
   ChatSession,
   ExportFormat,
   ReportType,
@@ -66,7 +66,6 @@ import {
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from './prompts/megaPrompts';
-import { sendFeedbackRemote } from './services/feedbackRemoteStore';
 import { APP_NAME, DEFAULT_MODE } from './constants';
 import { normalizeAppError } from './utils/errorHelpers';
 import { downloadFile } from './utils/downloadHelpers';
@@ -478,6 +477,19 @@ const App: React.FC = () => {
     currentSession,
     operatorId,
     operatorName: resolvedOperatorName,
+    updateSessionById,
+  });
+  const {
+    handleReportError,
+    handleFeedback,
+    handleSendFeedback,
+    handleSectionFeedback,
+    handleToggleMessageSources,
+  } = useChatFeedbackActions({
+    currentSession,
+    operatorId,
+    operatorName,
+    updateCurrentSession,
     updateSessionById,
   });
 
@@ -1361,92 +1373,6 @@ const App: React.FC = () => {
         ),
       }));
     }
-  };
-
-  const handleReportError = async (messageId: string, error: AppError) => {
-    if (!currentSession) return;
-    const errorPayload = JSON.stringify(
-      { code: error.code, source: error.source, message: error.message, details: error.details },
-      null,
-      2,
-    );
-    try {
-      await sendFeedbackRemote({
-        feedbackId: uuidv4(),
-        sessionId: currentSession.id,
-        messageId,
-        sectionKey: 'ERROR_REPORT',
-        sectionTitle: 'System Error',
-        type: 'dislike',
-        comment: `Automated Error Report: ${error.code}`,
-        aiContent: errorPayload,
-        userId: operatorId,
-        userName: operatorName || undefined,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('Failed to report error', e);
-    }
-  };
-
-  const handleFeedback = (messageId: string, feedback: Feedback) => {
-    if (!currentSession) return;
-    updateCurrentSession(session => ({
-      ...session,
-      messages: (session.messages || []).map(m =>
-        m.id === messageId ? { ...m, feedback: m.feedback === feedback ? undefined : feedback } : m,
-      ),
-    }));
-  };
-
-  const handleSendFeedback = async (messageId: string, feedback: Feedback, comment: string, content: string) => {
-    if (!currentSession) return;
-    const snapshotSessionId = currentSession.id;
-    updateSessionById(snapshotSessionId, session => ({
-      ...session,
-      messages: (session.messages || []).map(m => (m.id === messageId ? { ...m, feedback } : m)),
-    }));
-    try {
-      await sendFeedbackRemote({
-        feedbackId: uuidv4(),
-        sessionId: snapshotSessionId,
-        messageId,
-        sectionKey: null,
-        sectionTitle: null,
-        type: feedback === 'up' ? 'like' : 'dislike',
-        comment,
-        aiContent: content,
-        userId: operatorId,
-        userName: operatorName || undefined,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('Feedback error', e);
-    }
-  };
-
-  const handleSectionFeedback = (messageId: string, sectionTitle: string, feedback: Feedback) => {
-    updateCurrentSession(session => ({
-      ...session,
-      messages: (session.messages || []).map(msg => {
-        if (msg.id !== messageId) return msg;
-        const currentSections = msg.sectionFeedback || {};
-        const newVal = currentSections[sectionTitle] === feedback ? undefined : feedback;
-        const newSections = { ...currentSections };
-        if (newVal === undefined) delete newSections[sectionTitle];
-        else newSections[sectionTitle] = newVal;
-        return { ...msg, sectionFeedback: newSections };
-      }),
-    }));
-  };
-
-  const handleToggleMessageSources = (messageId: string) => {
-    updateCurrentSession(session => ({
-      ...session,
-      messages: (session.messages || []).map(msg =>
-        msg.id === messageId ? { ...msg, isSourcesOpen: !msg.isSourcesOpen } : msg,
-      ),
-    }));
   };
 
   async function handleExportPDF() {

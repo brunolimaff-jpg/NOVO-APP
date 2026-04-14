@@ -7,7 +7,8 @@ Execucao. Sprint 3 esta ativa.
 O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
 O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
 O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
-O corte atual em preparacao e `codex/sprint-3-session-remote-save`.
+O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#219`.
+O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
 
 ## What Was Finished
 
@@ -29,16 +30,16 @@ O corte atual em preparacao e `codex/sprint-3-session-remote-save`.
 
 ## What Is In Progress
 
-- PR do corte 2C da Sprint 3 em preparacao/review
-- `useSessionRemoteSave` foi adicionado a `features/chat/session-controller`
-- `App.tsx` agora consome o save remoto a partir da feature
-- o pacote de sessao fica completo apos este PR; checklist manual em preview Vercel continua pendente
+- PR do corte 3 da Sprint 3 em preparacao/review
+- `useChatFeedbackActions` foi adicionado a `features/chat/feedback-actions`
+- `App.tsx` agora consome os handlers de feedback a partir da feature
+- o pacote de sessao ja foi validado manualmente; agora o foco e feedback
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `codex/sprint-3-session-remote-save`
-2. Rodar checkpoint manual no preview Vercel: nova sessao, troca de sessao, delete, save remoto e recarga
-3. Depois seguir para o proximo corte pequeno: feedback actions
+1. Revisar e mergear o PR `codex/sprint-3-feedback-actions`
+2. Rodar checkpoint manual curto do feedback: like/dislike, comentario, section feedback, toggle de fontes e report de erro
+3. Depois seguir para o ultimo corte da Sprint 3: `features/chat/message-orchestrator.ts`
 
 ## Files Most Relevant Now
 
@@ -52,8 +53,10 @@ O corte atual em preparacao e `codex/sprint-3-session-remote-save`.
 - `services/geminiService.ts`
 - `features/chat/loading-progress.ts`
 - `features/chat/session-controller.ts`
+- `features/chat/feedback-actions.ts`
 - `tests/features/chat/loading-progress.test.tsx`
 - `tests/features/chat/session-controller.test.ts`
+- `tests/features/chat/feedback-actions.test.ts`
 
 ## Do Not Touch Yet
 
@@ -63,7 +66,7 @@ O corte atual em preparacao e `codex/sprint-3-session-remote-save`.
 
 ## Validation Last Run
 
-- `npm run test`: green em `2026-04-14` (`90` arquivos, `734` testes)
+- `npm run test`: green em `2026-04-14` (`91` arquivos, `745` testes)
 - `npm run typecheck`: green em `2026-04-14`
 - `npm run build`: green em `2026-04-14`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
@@ -75,6 +78,7 @@ Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Continue exatamente no Sprint 3. Se o PR `codex/sprint-3-session-controller-move` ja estiver mergeado,
 o PR `codex/sprint-3-app-import-session-controller` tambem ja estiver mergeado
-e o PR `codex/sprint-3-session-remote-save` tambem ja estiver mergeado, faca o proximo corte pequeno
-de feedback actions em `features/chat/*`, ainda sem mexer no fluxo de envio padrao.
+e o PR `codex/sprint-3-session-remote-save` tambem ja estiver mergeado
+e o PR `codex/sprint-3-feedback-actions` tambem ja estiver mergeado, faca o ultimo corte da Sprint 3
+em `features/chat/message-orchestrator.ts`, ainda sem mexer no waterfall de dossie.
 Valide com `npm run test`, `npm run typecheck` e `npm run build`.

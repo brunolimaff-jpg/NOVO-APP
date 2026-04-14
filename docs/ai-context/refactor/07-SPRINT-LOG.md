@@ -170,3 +170,28 @@
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
   - abrir/revisar o PR 2C, validar manualmente o pacote de sessao e depois seguir para feedback actions
+
+## 2026-04-14 - Sprint 3 corte 3 feedback actions
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: mover os handlers de feedback do `App.tsx` para `features/chat/feedback-actions.ts`
+- Decisoes:
+  - este corte fica limitado a feedback da mensagem, feedback por secao, report de erro e toggle de fontes
+  - o payload remoto de `sendFeedbackRemote` permanece com `userId: operatorId` e `userName`
+  - o fluxo de envio padrao continua no `App.tsx` e fica como ultimo corte da sprint
+- Mudancas concluidas:
+  - criado `features/chat/feedback-actions.ts` com `useChatFeedbackActions`
+  - `App.tsx` passou a consumir os handlers de feedback a partir da feature
+  - `tests/features/chat/feedback-actions.test.ts` cobre toggle local, envio remoto, section feedback, toggle de fontes e report de erro
+  - mocks de `App` foram ajustados para incluir `useChatFeedbackActions`
+- Checks registrados:
+  - testes focados de feedback actions, `App` e guardrail verdes
+  - `npm run test` verde (`91` arquivos, `745` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - ainda falta o ultimo corte da Sprint 3 para o envio padrao/message orchestration
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - abrir/revisar o PR do corte 3, validar manualmente o fluxo de feedback e depois concluir a sprint com `features/chat/message-orchestrator.ts`
