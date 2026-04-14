@@ -122,3 +122,26 @@
   - checklist manual em preview Vercel continua pendente para o pacote integrado de sessao
 - Proximo passo:
   - abrir/revisar o PR 2A e depois seguir para o PR 2B, trocando o import do `App.tsx` para `features/chat/session-controller`
+
+## 2026-04-14 - Sprint 3 corte 2B App import swap
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: trocar o consumo do `App.tsx` para importar `useSessionManager` diretamente de `features/chat/session-controller`
+- Decisoes:
+  - este corte fica limitado a mudar a borda de import do `App.tsx`
+  - os testes de `App` passam a mockar o modulo da feature, nao mais a fachada em `hooks/useSessionManager`
+  - save remoto continua em `App.tsx` e fica para o PR 2C
+- Mudancas concluidas:
+  - `App.tsx` passou a importar `useSessionManager` de `features/chat/session-controller`
+  - `tests/App.layout.test.tsx` e `tests/App.loadingVariant.test.tsx` foram ajustados para mockar a feature diretamente
+- Checks registrados:
+  - testes focados de `App`, session controller e guardrail verdes
+  - `npm run test` verde (`90` arquivos, `736` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - este corte ainda nao extrai save remoto nem reduz o estado remoto do `App.tsx`
+  - checklist manual em preview Vercel continua pendente para o pacote integrado de sessao
+- Proximo passo:
+  - abrir/revisar o PR 2B e seguir para o PR 2C, movendo save remoto para `features/chat/session-controller`

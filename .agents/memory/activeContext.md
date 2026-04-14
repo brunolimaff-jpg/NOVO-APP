@@ -26,12 +26,12 @@ Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `
 
 ## Current task
 
-Sprint 3 / corte 2A is in progress on branch `codex/sprint-3-session-controller-move`.
+Sprint 3 / corte 2B is in progress on branch `codex/sprint-3-app-import-session-controller`.
 
-- Goal: move the session lifecycle hook implementation into `features/chat/session-controller.ts`.
-- Keep `hooks/useSessionManager.ts` as a compatibility facade in this cut.
-- Do not change `App.tsx` imports yet and do not move remote save logic in this PR.
+- Goal: switch `App.tsx` to import `useSessionManager` from `features/chat/session-controller`.
+- Update App tests to mock the feature module directly.
+- Do not move remote save logic in this PR.
 
 ## Immediate next step
 
-Finish PR 2A validation and open the PR for the session controller move. After it lands, continue Sprint 3 with PR 2B: switch `App.tsx` to import from `features/chat/session-controller`.
+Finish PR 2B validation and open the PR for the App import swap. After it lands, continue Sprint 3 with PR 2C: move remote save into `features/chat/session-controller`.
