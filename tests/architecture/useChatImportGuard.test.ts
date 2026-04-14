@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CURRENT_DIR, '../..');
-const PRODUCTION_DIRS = ['components', 'contexts', 'hooks', 'services', 'utils', 'api'];
+const PRODUCTION_DIRS = ['components', 'contexts', 'features', 'hooks', 'services', 'utils', 'api'];
 const ALLOWED_FILES = new Set([
   path.join(REPO_ROOT, 'hooks/useChat.ts'),
 ]);

@@ -73,3 +73,28 @@
   - hotspots `App.tsx` e `components/ChatInterface.tsx` ainda concentram fluxo de chat
 - Proximo passo:
   - iniciar Sprint 3 (extrair chat de `App.tsx` para `features/chat/*`) sem alterar comportamento funcional
+
+## 2026-04-14 - Sprint 3 corte 1 loading
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: iniciar a extracao conservadora do fluxo de chat criando `features/chat/` sem tocar no dossie modular ou no contrato publico da UI
+- Decisoes:
+  - primeiro corte fica limitado ao estado/progresso de loading do chat
+  - `App.tsx` continua como fachada de orquestracao e ainda concentra envio, retry, dossie e PORTA
+  - `features/` entra no guardrail contra novos imports de `hooks/useChat.ts`
+- Mudancas concluidas:
+  - criado `features/chat/loading-progress.ts` com `useChatLoadingProgress`
+  - removido de `App.tsx` o estado local de loading/progresso e as transicoes correspondentes
+  - `tsconfig.json` passou a incluir `features/**/*`
+  - adicionados testes de caracterizacao para o hook de loading
+- Checks registrados:
+  - `npm run test` verde (`90` arquivos, `734` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - checklist manual em preview Vercel ainda pendente
+  - `App.tsx` continua hotspot ate os proximos cortes da Sprint 3 e Sprint 4
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - revisar/mergear o PR de loading e seguir para o corte de sessao/save remoto em `features/chat/session-controller.ts`

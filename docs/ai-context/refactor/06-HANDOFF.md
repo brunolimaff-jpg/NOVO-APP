@@ -2,9 +2,9 @@
 
 ## Current Phase
 
-Execucao. Sprint 2 foi concluida e mergeada.
+Execucao. Sprint 3 esta ativa.
 
-O programa segue na ordem do roadmap, com proximo passo em Sprint 3.
+O primeiro corte conservador da Sprint 3 foi preparado na branch `codex/sprint-3-chat-loading`.
 
 ## What Was Finished
 
@@ -19,17 +19,21 @@ O programa segue na ordem do roadmap, com proximo passo em Sprint 3.
 - Orquestracao interna extraida para `services/gemini/` (porta, sources, recovery, status, sanitization e pipeline)
 - Guardrail estrutural de `hooks/useChat.ts` adicionado para bloquear novos imports de producao
 - Hotfixes aplicados no fluxo PORTA para reduzir fallback indevido e manter integridade contextual
+- Sprint 3 / corte 1: progresso e estado de loading do chat extraidos para `features/chat/loading-progress.ts`
+- `App.tsx` passou a consumir `useChatLoadingProgress` sem alterar `ChatInterfaceProps`, waterfall de dossie ou contrato de IA
+- `features/**/*` foi incluido no `tsconfig.json`
+- Guardrail de `hooks/useChat.ts` agora cobre tambem `features/`
 
 ## What Is In Progress
 
-- Sprint 3 ainda nao iniciada em codigo
-- Preparacao para extracao do fluxo de chat de `App.tsx` com risco controlado
+- PR do corte de loading da Sprint 3 em preparacao/review
+- Checklist manual em preview Vercel ainda pendente antes de marcar a sprint como concluida
 
 ## Next Safe Step
 
-1. Iniciar Sprint 3 extraindo responsabilidades de chat de `App.tsx` para `features/chat/*` em fatias pequenas
-2. Manter o contrato visual e funcional atual (score PORTA, fontes, perguntas de continuidade, sessao remota)
-3. Validar por fatia com testes e checkpoint manual em preview Vercel antes de seguir
+1. Revisar e mergear o PR `codex/sprint-3-chat-loading`
+2. Rodar checkpoint manual no preview Vercel: nova sessao, primeira mensagem, follow-up, deep dive e dossie completo
+3. Depois do merge, seguir para o proximo corte pequeno: sessao/save remoto em `features/chat/session-controller.ts`
 
 ## Files Most Relevant Now
 
@@ -41,6 +45,8 @@ O programa segue na ordem do roadmap, com proximo passo em Sprint 3.
 - `features/chat/*` (novo destino da extracao)
 - `components/ChatInterface.tsx`
 - `services/geminiService.ts`
+- `features/chat/loading-progress.ts`
+- `tests/features/chat/loading-progress.test.tsx`
 
 ## Do Not Touch Yet
 
@@ -50,14 +56,16 @@ O programa segue na ordem do roadmap, com proximo passo em Sprint 3.
 
 ## Validation Last Run
 
-- `npm run test`: green em `2026-04-11` (ultima rodada valida registrada da sprint)
-- `npm run typecheck`: green em `2026-04-11`
-- `npm run build`: green em `2026-04-11`
+- `npm run test`: green em `2026-04-14` (`90` arquivos, `734` testes)
+- `npm run typecheck`: green em `2026-04-14`
+- `npm run build`: green em `2026-04-14`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
+- Warning aceito no build: chunking envolvendo `utils/idbStorage.ts`, ja registrado como OI-003
 
 ## Suggested Prompt For Next AI
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue exatamente no Sprint 3: extraia o fluxo de chat de `App.tsx` em fatias pequenas,
-sem mudar contrato publico, valide cada fatia e atualize board/open-items/handoff/sprint-log sem replanejar.
+Continue exatamente no Sprint 3. Se o PR de loading ja estiver mergeado, faca o proximo corte pequeno:
+sessao/save remoto para `features/chat/session-controller.ts`, sem mudar contrato publico, e valide com
+`npm run test`, `npm run typecheck` e `npm run build`.

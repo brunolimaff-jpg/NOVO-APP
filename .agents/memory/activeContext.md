@@ -26,12 +26,12 @@ Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `
 
 ## Current task
 
-Finish and merge the repo-local agent memory and `plan-work` PR:
+Sprint 3 / corte 1 is in progress on branch `codex/sprint-3-chat-loading`.
 
-- Keep `.agents/memory/` tracked in the repo.
-- Keep `.agents/skills/plan-work/` tracked in the repo.
-- Keep `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md`, `skills-lock.json`, and `AGENTS.md` aligned.
+- Goal: extract chat loading/progress state from `App.tsx` into `features/chat/loading-progress.ts`.
+- Keep `App.tsx` as orchestration facade for send/retry/dossier/PORTA during this cut.
+- Keep `components/ChatInterface.tsx` public props unchanged.
 
 ## Immediate next step
 
-After this PR lands, restart Codex on each machine so the repo-local `plan-work` skill is discovered, then start planning Sprint 3 using the refactor docs above.
+Open/review the PR for the loading cut. After it lands, continue Sprint 3 with the next small slice: session/save remote into `features/chat/session-controller.ts`.
