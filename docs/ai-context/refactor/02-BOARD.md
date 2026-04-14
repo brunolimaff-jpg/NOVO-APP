@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `510f91fa3653cbfa1552e7f3d4e3a43883a45e17` |
-| Working branch | `codex/sprint-3-chat-loading` |
+| Source of truth commit | `origin/main` -> `371c18185da86831731425a97aa6b882df2d5f40` |
+| Working branch | `codex/sprint-3-session-controller-move` |
 | Last updated | `2026-04-14` |
 | Current phase | `execution` |
 | Current sprint | `3` |
@@ -16,13 +16,14 @@
 
 - Sprint 2 foi concluida e mergeada sem quebrar a fachada publica de `services/geminiService.ts`
 - A extracao interna da camada Gemini ficou ativa em `services/gemini/` com compatibilidade preservada
-- Sprint 3 iniciou com o primeiro corte conservador: progresso/loading do chat extraido para `features/chat/loading-progress.ts`
+- Sprint 3 corte 1 foi mergeado: progresso/loading do chat extraido para `features/chat/loading-progress.ts` via PR `#216`
+- Sprint 3 corte 2A esta em execucao: mover `useSessionManager` para `features/chat/session-controller.ts` sem trocar o import do `App.tsx` ainda
 
 ## Next Up
 
-1. Abrir e revisar o PR do corte de loading da Sprint 3
-2. Depois do merge, seguir para o proximo corte pequeno: sessao/save remoto em `features/chat/session-controller.ts`
-3. Manter `App.tsx` como fachada de compatibilidade durante a extracao
+1. Abrir e revisar o PR do corte 2A da Sprint 3 (`codex/sprint-3-session-controller-move`)
+2. Depois do merge, seguir para o PR 2B: trocar o import de `App.tsx` para `features/chat/session-controller`
+3. Em seguida, fazer o PR 2C: extrair save remoto para o mesmo modulo da feature
 
 ## Blocked
 
@@ -31,7 +32,7 @@
 ## Validation Pending
 
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`)
-- Reexecutar checklist manual completo no preview Vercel do primeiro corte de Sprint 3 para confirmar paridade visual/funcional
+- Reexecutar checklist manual completo no preview Vercel apos o pacote de sessao ficar integrado (`2A` + `2B` + `2C`) para confirmar paridade visual/funcional
 
 ## Known Accepted Warnings
 

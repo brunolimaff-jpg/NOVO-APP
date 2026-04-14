@@ -4,7 +4,8 @@
 
 Execucao. Sprint 3 esta ativa.
 
-O primeiro corte conservador da Sprint 3 foi preparado na branch `codex/sprint-3-chat-loading`.
+O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
+O corte atual em preparacao e `codex/sprint-3-session-controller-move`.
 
 ## What Was Finished
 
@@ -26,14 +27,17 @@ O primeiro corte conservador da Sprint 3 foi preparado na branch `codex/sprint-3
 
 ## What Is In Progress
 
-- PR do corte de loading da Sprint 3 em preparacao/review
-- Checklist manual em preview Vercel ainda pendente antes de marcar a sprint como concluida
+- PR do corte 2A da Sprint 3 em preparacao/review
+- Implementacao de `features/chat/session-controller.ts` concluida; `hooks/useSessionManager.ts` agora e uma fachada temporaria
+- `App.tsx` ainda nao foi trocado para importar a feature e o save remoto ainda nao saiu do `App.tsx`
+- Checklist manual em preview Vercel segue pendente para depois do pacote de sessao integrado
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `codex/sprint-3-chat-loading`
-2. Rodar checkpoint manual no preview Vercel: nova sessao, primeira mensagem, follow-up, deep dive e dossie completo
-3. Depois do merge, seguir para o proximo corte pequeno: sessao/save remoto em `features/chat/session-controller.ts`
+1. Revisar e mergear o PR `codex/sprint-3-session-controller-move`
+2. Fazer o PR 2B: trocar o import de `App.tsx` para `features/chat/session-controller` e ajustar mocks relacionados
+3. Fazer o PR 2C: mover estado/acao de save remoto para `features/chat/session-controller`
+4. Depois do pacote de sessao integrado, rodar checkpoint manual no preview Vercel: nova sessao, troca de sessao, delete, save remoto e recarga
 
 ## Files Most Relevant Now
 
@@ -46,7 +50,9 @@ O primeiro corte conservador da Sprint 3 foi preparado na branch `codex/sprint-3
 - `components/ChatInterface.tsx`
 - `services/geminiService.ts`
 - `features/chat/loading-progress.ts`
+- `features/chat/session-controller.ts`
 - `tests/features/chat/loading-progress.test.tsx`
+- `tests/features/chat/session-controller.test.ts`
 
 ## Do Not Touch Yet
 
@@ -66,6 +72,6 @@ O primeiro corte conservador da Sprint 3 foi preparado na branch `codex/sprint-3
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue exatamente no Sprint 3. Se o PR de loading ja estiver mergeado, faca o proximo corte pequeno:
-sessao/save remoto para `features/chat/session-controller.ts`, sem mudar contrato publico, e valide com
-`npm run test`, `npm run typecheck` e `npm run build`.
+Continue exatamente no Sprint 3. Se o PR `codex/sprint-3-session-controller-move` ja estiver mergeado,
+faca o PR 2B trocando `App.tsx` para importar `features/chat/session-controller`, ainda sem mover save remoto.
+Valide com `npm run test`, `npm run typecheck` e `npm run build`.
