@@ -26,12 +26,12 @@ Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `
 
 ## Current task
 
-Sprint 3 / corte 2B is in progress on branch `codex/sprint-3-app-import-session-controller`.
+Sprint 3 / corte 2C is in progress on branch `codex/sprint-3-session-remote-save`.
 
-- Goal: switch `App.tsx` to import `useSessionManager` from `features/chat/session-controller`.
-- Update App tests to mock the feature module directly.
-- Do not move remote save logic in this PR.
+- Goal: move remote session save state/action into `features/chat/session-controller`.
+- Keep `ChatInterfaceProps` and the visible save contract unchanged.
+- Do not touch the standard send-message flow in this PR.
 
 ## Immediate next step
 
-Finish PR 2B validation and open the PR for the App import swap. After it lands, continue Sprint 3 with PR 2C: move remote save into `features/chat/session-controller`.
+Finish PR 2C validation and open the PR for remote save extraction. After it lands, run the manual session-package validation and then continue Sprint 3 with feedback actions.

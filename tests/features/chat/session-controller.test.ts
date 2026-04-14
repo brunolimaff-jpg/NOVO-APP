@@ -2,12 +2,14 @@ import { act, renderHook } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sender, type ChatSession } from '../../../types';
-import { useSessionManager } from '../../../features/chat/session-controller';
+import { useSessionManager, useSessionRemoteSave } from '../../../features/chat/session-controller';
 
 const getRemoteSessionMock = vi.hoisted(() => vi.fn());
+const saveRemoteSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../services/sessionRemoteStore', () => ({
   getRemoteSession: getRemoteSessionMock,
+  saveRemoteSession: saveRemoteSessionMock,
 }));
 
 function makeSession(id: string, title: string, hasMessages = false): ChatSession {
@@ -67,10 +69,25 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
   };
 }
 
+function makeRemoteSaveOptions(overrides: Partial<Parameters<typeof useSessionRemoteSave>[0]> = {}) {
+  return {
+    currentSession: {
+      ...makeSession('s1', 'SessÃ£o 1', true),
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    operatorId: 'op-1',
+    operatorName: 'Bruno Lima',
+    updateSessionById: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe('useSessionManager session controller', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getRemoteSessionMock.mockResolvedValue(null);
+    saveRemoteSessionMock.mockResolvedValue({ ok: true });
   });
 
   it('handleNewSession adiciona nova sessão ao início da lista', () => {
@@ -239,5 +256,87 @@ describe('useSessionManager session controller', () => {
 
     expect(abort).toHaveBeenCalled();
     expect(options.setIsLoading).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('useSessionRemoteSave', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    saveRemoteSessionMock.mockResolvedValue({ ok: true });
+  });
+
+  it('handleSaveRemote nÃ£o chama serviÃ§o quando nÃ£o hÃ¡ sessÃ£o atual', async () => {
+    const options = makeRemoteSaveOptions({ currentSession: null });
+    const { result } = renderHook(() => useSessionRemoteSave(options));
+
+    await act(async () => {
+      await result.current.handleSaveRemote();
+    });
+
+    expect(saveRemoteSessionMock).not.toHaveBeenCalled();
+    expect(result.current.isSavingRemote).toBe(false);
+    expect(result.current.remoteSaveStatus).toBe('idle');
+  });
+
+  it('handleSaveRemote atualiza o snapshot e salva com operatorId e operatorName', async () => {
+    vi.useFakeTimers();
+    try {
+      const options = makeRemoteSaveOptions();
+      const { result } = renderHook(() => useSessionRemoteSave(options));
+
+      await act(async () => {
+        await result.current.handleSaveRemote();
+      });
+
+      expect(options.updateSessionById).toHaveBeenCalledWith('s1', expect.any(Function));
+
+      const updatedSession = (options.updateSessionById as ReturnType<typeof vi.fn>).mock.calls[0][1](
+        options.currentSession as ChatSession,
+      );
+      expect(updatedSession).toMatchObject({
+        id: 's1',
+        title: 'SessÃ£o 1',
+      });
+      expect(updatedSession.updatedAt).not.toBe((options.currentSession as ChatSession).updatedAt);
+
+      expect(saveRemoteSessionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 's1',
+          title: 'SessÃ£o 1',
+        }),
+        'op-1',
+        'Bruno Lima',
+      );
+      expect(result.current.isSavingRemote).toBe(false);
+      expect(result.current.remoteSaveStatus).toBe('success');
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      expect(result.current.remoteSaveStatus).toBe('idle');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('handleSaveRemote marca erro quando o save remoto falha', async () => {
+    saveRemoteSessionMock.mockRejectedValue(new Error('Save failed'));
+    const options = makeRemoteSaveOptions();
+    const { result } = renderHook(() => useSessionRemoteSave(options));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await act(async () => {
+        await result.current.handleSaveRemote();
+      });
+
+      expect(saveRemoteSessionMock).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Remote session save failed', expect.any(Error));
+      expect(result.current.isSavingRemote).toBe(false);
+      expect(result.current.remoteSaveStatus).toBe('error');
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

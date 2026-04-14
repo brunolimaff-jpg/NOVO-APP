@@ -145,3 +145,28 @@
   - checklist manual em preview Vercel continua pendente para o pacote integrado de sessao
 - Proximo passo:
   - abrir/revisar o PR 2B e seguir para o PR 2C, movendo save remoto para `features/chat/session-controller`
+
+## 2026-04-14 - Sprint 3 corte 2C session remote save
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: mover o estado e a acao de save remoto de sessao para `features/chat/session-controller`
+- Decisoes:
+  - este corte fica limitado ao save remoto; o fluxo de mensagem permanece no `App.tsx`
+  - o modulo da feature passa a exportar `useSessionRemoteSave` alem de `useSessionManager`
+  - o contrato visual continua igual: `onSaveRemote`, `isSavingRemote` e `remoteSaveStatus`
+- Mudancas concluidas:
+  - criado `useSessionRemoteSave` em `features/chat/session-controller.ts`
+  - `App.tsx` passou a consumir o save remoto a partir da feature
+  - `tests/features/chat/session-controller.test.ts` ganhou cobertura para sucesso, erro e ausencia de sessao
+  - mocks de `App` foram ajustados para incluir `useSessionRemoteSave`
+- Checks registrados:
+  - testes focados de remote save, session controller, `App` e guardrail verdes
+  - `npm run test` verde (`90` arquivos, `739` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - checklist manual em preview Vercel ainda precisa validar o pacote completo de sessao
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - abrir/revisar o PR 2C, validar manualmente o pacote de sessao e depois seguir para feedback actions

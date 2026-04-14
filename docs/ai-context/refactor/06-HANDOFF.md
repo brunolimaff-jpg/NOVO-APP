@@ -6,7 +6,8 @@ Execucao. Sprint 3 esta ativa.
 
 O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
 O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
-O corte atual em preparacao e `codex/sprint-3-app-import-session-controller`.
+O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
+O corte atual em preparacao e `codex/sprint-3-session-remote-save`.
 
 ## What Was Finished
 
@@ -28,17 +29,16 @@ O corte atual em preparacao e `codex/sprint-3-app-import-session-controller`.
 
 ## What Is In Progress
 
-- PR do corte 2B da Sprint 3 em preparacao/review
-- `App.tsx` agora passa a importar `useSessionManager` de `features/chat/session-controller`
-- Testes de `App` foram ajustados para mockar a feature diretamente
-- save remoto ainda nao saiu do `App.tsx`
-- Checklist manual em preview Vercel segue pendente para depois do pacote de sessao integrado
+- PR do corte 2C da Sprint 3 em preparacao/review
+- `useSessionRemoteSave` foi adicionado a `features/chat/session-controller`
+- `App.tsx` agora consome o save remoto a partir da feature
+- o pacote de sessao fica completo apos este PR; checklist manual em preview Vercel continua pendente
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `codex/sprint-3-app-import-session-controller`
-2. Fazer o PR 2C: mover estado/acao de save remoto para `features/chat/session-controller`
-3. Depois do pacote de sessao integrado, rodar checkpoint manual no preview Vercel: nova sessao, troca de sessao, delete, save remoto e recarga
+1. Revisar e mergear o PR `codex/sprint-3-session-remote-save`
+2. Rodar checkpoint manual no preview Vercel: nova sessao, troca de sessao, delete, save remoto e recarga
+3. Depois seguir para o proximo corte pequeno: feedback actions
 
 ## Files Most Relevant Now
 
@@ -74,6 +74,7 @@ O corte atual em preparacao e `codex/sprint-3-app-import-session-controller`.
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Continue exatamente no Sprint 3. Se o PR `codex/sprint-3-session-controller-move` ja estiver mergeado,
-e o PR `codex/sprint-3-app-import-session-controller` tambem ja estiver mergeado, faca o PR 2C movendo
-o save remoto para `features/chat/session-controller`, ainda sem mexer no fluxo de envio padrao.
+o PR `codex/sprint-3-app-import-session-controller` tambem ja estiver mergeado
+e o PR `codex/sprint-3-session-remote-save` tambem ja estiver mergeado, faca o proximo corte pequeno
+de feedback actions em `features/chat/*`, ainda sem mexer no fluxo de envio padrao.
 Valide com `npm run test`, `npm run typecheck` e `npm run build`.

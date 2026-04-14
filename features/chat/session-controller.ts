@@ -1,10 +1,13 @@
-import { useCallback, type MutableRefObject } from 'react';
+import { useCallback, useState, type MutableRefObject } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { ChatSession } from '../../types';
-import { getRemoteSession } from '../../services/sessionRemoteStore';
+import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
 import { DEFAULT_MODE } from '../../constants';
 
 const PAGE_SIZE = 20;
+const REMOTE_SAVE_SUCCESS_RESET_MS = 3000;
+
+export type RemoteSaveStatus = 'idle' | 'success' | 'error';
 
 export interface UseSessionManagerOptions {
   sessions: ChatSession[];
@@ -16,7 +19,7 @@ export interface UseSessionManagerOptions {
   activeGenerationRef: MutableRefObject<Record<string, string>>;
   updateSessionById: (id: string, updater: (s: ChatSession) => ChatSession) => void;
   setVisibleCount: (count: number) => void;
-  setRemoteSaveStatus: (status: 'idle' | 'success' | 'error') => void;
+  setRemoteSaveStatus: (status: RemoteSaveStatus) => void;
   setExportStatus: (status: 'idle' | 'loading' | 'success' | 'error') => void;
   setPdfReportContent: (content: string | null) => void;
   setInvestigationLogged: (logged: boolean) => void;
@@ -24,6 +27,52 @@ export interface UseSessionManagerOptions {
   setLastQuery: (query: string) => void;
   resetLoadingProgress: (stage?: string) => void;
   setIsLoading: (loading: boolean) => void;
+}
+
+export interface UseSessionRemoteSaveOptions {
+  currentSession: ChatSession | null;
+  operatorId?: string;
+  operatorName?: string;
+  updateSessionById: (id: string, updater: (s: ChatSession) => ChatSession) => void;
+}
+
+export function useSessionRemoteSave({
+  currentSession,
+  operatorId,
+  operatorName,
+  updateSessionById,
+}: UseSessionRemoteSaveOptions) {
+  const [isSavingRemote, setIsSavingRemote] = useState(false);
+  const [remoteSaveStatus, setRemoteSaveStatus] = useState<RemoteSaveStatus>('idle');
+
+  const handleSaveRemote = useCallback(async () => {
+    if (!currentSession) return;
+
+    setIsSavingRemote(true);
+    setRemoteSaveStatus('idle');
+
+    const snapshotSessionId = currentSession.id;
+    const finalized: ChatSession = { ...currentSession, updatedAt: new Date().toISOString() };
+    updateSessionById(snapshotSessionId, () => finalized);
+
+    try {
+      await saveRemoteSession(finalized, operatorId, operatorName);
+      setRemoteSaveStatus('success');
+      setTimeout(() => setRemoteSaveStatus('idle'), REMOTE_SAVE_SUCCESS_RESET_MS);
+    } catch (error) {
+      console.error('Remote session save failed', error);
+      setRemoteSaveStatus('error');
+    } finally {
+      setIsSavingRemote(false);
+    }
+  }, [currentSession, operatorId, operatorName, updateSessionById]);
+
+  return {
+    isSavingRemote,
+    remoteSaveStatus,
+    setRemoteSaveStatus,
+    handleSaveRemote,
+  };
 }
 
 /**

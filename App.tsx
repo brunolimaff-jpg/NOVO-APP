@@ -7,7 +7,7 @@ import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useChatLoadingProgress } from './features/chat/loading-progress';
-import { useSessionManager } from './features/chat/session-controller';
+import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
@@ -66,7 +66,6 @@ import {
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
 } from './prompts/megaPrompts';
-import { getRemoteSession, saveRemoteSession } from './services/sessionRemoteStore';
 import { sendFeedbackRemote } from './services/feedbackRemoteStore';
 import { APP_NAME, DEFAULT_MODE } from './constants';
 import { normalizeAppError } from './utils/errorHelpers';
@@ -396,8 +395,6 @@ const App: React.FC = () => {
   } = useChatLoadingProgress();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
-  const [isSavingRemote, setIsSavingRemote] = useState(false);
-  const [remoteSaveStatus, setRemoteSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [exportError, setExportError] = useState<string | null>(null);
   const [pdfReportContent, setPdfReportContent] = useState<string | null>(null);
@@ -477,6 +474,13 @@ const App: React.FC = () => {
     [currentSessionId, setSessions],
   );
 
+  const { isSavingRemote, remoteSaveStatus, setRemoteSaveStatus, handleSaveRemote } = useSessionRemoteSave({
+    currentSession,
+    operatorId,
+    operatorName: resolvedOperatorName,
+    updateSessionById,
+  });
+
   useEffect(() => {
     document.title = APP_NAME;
   }, [mode]);
@@ -508,24 +512,6 @@ const App: React.FC = () => {
     setIsSidebarOpen,
     setIsInitialized,
   });
-
-  const handleSaveRemote = async () => {
-    if (!currentSession) return;
-    setIsSavingRemote(true);
-    setRemoteSaveStatus('idle');
-    const snapshotSessionId = currentSession.id;
-    const finalized: ChatSession = { ...currentSession, updatedAt: new Date().toISOString() };
-    updateSessionById(snapshotSessionId, () => finalized);
-    try {
-      await saveRemoteSession(finalized, operatorId, resolvedOperatorName);
-      setRemoteSaveStatus('success');
-      setTimeout(() => setRemoteSaveStatus('idle'), 3000);
-    } catch {
-      setRemoteSaveStatus('error');
-    } finally {
-      setIsSavingRemote(false);
-    }
-  };
 
   const handleClearChat = () => {
     updateCurrentSession(session => ({

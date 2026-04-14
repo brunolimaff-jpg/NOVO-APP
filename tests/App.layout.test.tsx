@@ -79,6 +79,12 @@ vi.mock('../features/chat/session-controller', () => ({
     handleSelectSession: vi.fn(),
     handleDeleteSession: vi.fn(),
   }),
+  useSessionRemoteSave: () => ({
+    isSavingRemote: false,
+    remoteSaveStatus: 'idle',
+    setRemoteSaveStatus: vi.fn(),
+    handleSaveRemote: vi.fn(),
+  }),
 }));
 
 vi.mock('../contexts/OperatorContext', () => ({
