@@ -4,8 +4,8 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `5d963f74dad84f49838790d56125e6db24269cae` |
-| Working branch | `codex/sprint-3-feedback-actions` |
+| Source of truth commit | `origin/main` -> `a4d41de1d02fe1af2adae202f5cb6b63f63c04ff` |
+| Working branch | `codex/sprint-3-message-orchestrator` |
 | Last updated | `2026-04-14` |
 | Current phase | `execution` |
 | Current sprint | `3` |
@@ -21,13 +21,16 @@
 - Sprint 3 corte 2B foi mergeado: `App.tsx` passou a importar `features/chat/session-controller` via PR `#218`
 - Sprint 3 corte 2C foi mergeado: save remoto extraido para `features/chat/session-controller` via PR `#219`
 - Pacote de sessao (`2A` + `2B` + `2C`) foi validado manualmente em 2026-04-14
-- Sprint 3 corte 3 esta em execucao: extrair feedback actions para `features/chat/feedback-actions.ts`
+- Sprint 3 corte 3 foi mergeado: feedback actions extraidas para `features/chat/feedback-actions.ts` via PR `#220`
+- Sprint 3 corte final esta em execucao: extrair o envio padrao para `features/chat/message-orchestrator.ts`
+- `features/chat/message-helpers.ts` concentra utilitarios de deteccao/continuidade compartilhados pelo novo orchestrator
+- `App.tsx` caiu para `1521` linhas no branch final da sprint (`-302` vs baseline da Sprint 3 em `1823`)
 
 ## Next Up
 
-1. Abrir e revisar o PR do corte 3 da Sprint 3 (`codex/sprint-3-feedback-actions`)
-2. Depois do merge, rodar checkpoint manual curto do fluxo de feedback
-3. Em seguida, seguir para o ultimo corte da Sprint 3: envio padrao/message orchestration
+1. Abrir e revisar o PR final da Sprint 3 (`codex/sprint-3-message-orchestrator`)
+2. Rodar validacao manual integrada: investigacao inicial, follow-up, retry, dossie completo, save remoto e feedback
+3. Depois do merge e da validacao manual, marcar Sprint 3 como `done` e preparar o handoff da Sprint 4
 
 ## Blocked
 
@@ -36,8 +39,8 @@
 ## Validation Pending
 
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`)
-- Reexecutar checklist manual curto do fluxo de feedback apos o merge do corte 3
-- Para fechar a Sprint 3, ainda falta extrair o fluxo de envio padrao para `features/chat/message-orchestrator.ts`
+- Rodar a validacao manual integrada do fechamento da Sprint 3 antes de marcar a sprint como concluida
+- `npm run lint` continua fora do gate por backlog anterior do repo
 
 ## Known Accepted Warnings
 

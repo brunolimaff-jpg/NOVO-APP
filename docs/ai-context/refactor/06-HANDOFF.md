@@ -8,7 +8,8 @@ O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`
 O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
 O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
 O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#219`.
-O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
+O quinto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#220`.
+O corte atual em preparacao e `codex/sprint-3-message-orchestrator`.
 
 ## What Was Finished
 
@@ -27,19 +28,29 @@ O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
 - `App.tsx` passou a consumir `useChatLoadingProgress` sem alterar `ChatInterfaceProps`, waterfall de dossie ou contrato de IA
 - `features/**/*` foi incluido no `tsconfig.json`
 - Guardrail de `hooks/useChat.ts` agora cobre tambem `features/`
+- Sprint 3 / corte 3: feedback actions extraidas para `features/chat/feedback-actions.ts`
+- Sprint 3 / corte final: criado `features/chat/message-helpers.ts` com utilitarios compartilhados de deteccao/continuidade
+- Sprint 3 / corte final: criado `features/chat/message-orchestrator.ts` com `useChatMessageOrchestrator`
+- `App.tsx` agora usa `useChatMessageOrchestrator` para envio padrao e retry, mantendo waterfall/dossie no componente
+- Cobertura adicionada em `tests/features/chat/message-orchestrator.test.ts`
+- `App.tsx` caiu para `1521` linhas no branch final da Sprint 3 (`-302` vs baseline `1823`)
 
 ## What Is In Progress
 
-- PR do corte 3 da Sprint 3 em preparacao/review
-- `useChatFeedbackActions` foi adicionado a `features/chat/feedback-actions`
-- `App.tsx` agora consome os handlers de feedback a partir da feature
-- o pacote de sessao ja foi validado manualmente; agora o foco e feedback
+- PR final da Sprint 3 em preparacao/review
+- a validacao automatizada do corte final esta verde; falta a validacao manual integrada para encerrar a sprint
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `codex/sprint-3-feedback-actions`
-2. Rodar checkpoint manual curto do feedback: like/dislike, comentario, section feedback, toggle de fontes e report de erro
-3. Depois seguir para o ultimo corte da Sprint 3: `features/chat/message-orchestrator.ts`
+1. Revisar e mergear o PR `codex/sprint-3-message-orchestrator`
+2. Rodar a validacao manual final da Sprint 3:
+   - investigacao inicial
+   - follow-up
+   - retry de envio
+   - dossie completo
+   - save remoto
+   - feedback
+3. Se a validacao manual passar, marcar Sprint 3 como `done` e planejar Sprint 4 (`features/dossier/*`)
 
 ## Files Most Relevant Now
 
@@ -54,9 +65,12 @@ O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
 - `features/chat/loading-progress.ts`
 - `features/chat/session-controller.ts`
 - `features/chat/feedback-actions.ts`
+- `features/chat/message-helpers.ts`
+- `features/chat/message-orchestrator.ts`
 - `tests/features/chat/loading-progress.test.tsx`
 - `tests/features/chat/session-controller.test.ts`
 - `tests/features/chat/feedback-actions.test.ts`
+- `tests/features/chat/message-orchestrator.test.ts`
 
 ## Do Not Touch Yet
 
@@ -66,7 +80,7 @@ O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
 
 ## Validation Last Run
 
-- `npm run test`: green em `2026-04-14` (`91` arquivos, `745` testes)
+- `npm run test`: green em `2026-04-14` (`92` arquivos, `754` testes)
 - `npm run typecheck`: green em `2026-04-14`
 - `npm run build`: green em `2026-04-14`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
@@ -76,9 +90,7 @@ O corte atual em preparacao e `codex/sprint-3-feedback-actions`.
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue exatamente no Sprint 3. Se o PR `codex/sprint-3-session-controller-move` ja estiver mergeado,
-o PR `codex/sprint-3-app-import-session-controller` tambem ja estiver mergeado
-e o PR `codex/sprint-3-session-remote-save` tambem ja estiver mergeado
-e o PR `codex/sprint-3-feedback-actions` tambem ja estiver mergeado, faca o ultimo corte da Sprint 3
-em `features/chat/message-orchestrator.ts`, ainda sem mexer no waterfall de dossie.
-Valide com `npm run test`, `npm run typecheck` e `npm run build`.
+Continue a partir do fechamento da Sprint 3. O branch atual e `codex/sprint-3-message-orchestrator`.
+Revise o diff final, preserve o waterfall de dossie em `App.tsx`, e conduza a validacao manual integrada da sprint.
+Se a validacao manual passar e o PR for mergeado, atualize o board para marcar Sprint 3 como `done`
+e inicie o planejamento da Sprint 4 (`features/dossier/*`).
