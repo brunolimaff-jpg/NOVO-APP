@@ -32,6 +32,8 @@ Sprint 3 / corte final remains on branch `codex/sprint-3-message-orchestrator` w
 - Keep the modular dossier waterfall, PORTA exported helpers, and Deep Dive wrapper in `App.tsx`.
 - Preserve `ChatInterfaceProps` and the public facade in `services/geminiService.ts`.
 - Review-fix patch applied: `App.tsx` was normalized back to canonical UTF-8 without BOM, duplicated message helpers were removed from `App.tsx`, and `message-orchestrator.ts` now uses normalized dossier detection plus `sessionsRef.current`.
+- A new offline dossier regression harness now exists for the canonical Scheffer case (`CNPJ 04.733.767/0001-80`) under `tests/fixtures/dossier/scheffer-04733767000180/`.
+- Practical command for daily use: `npm run test:dossier`.
 
 ## Immediate next step
 
@@ -45,3 +47,5 @@ Review and merge PR `#221`, then run the final integrated manual validation for:
 6. feedback
 
 If that passes after the review-fix patch, mark Sprint 3 as done and prepare Sprint 4 planning.
+
+If the user wants to evolve dossier validation after that, the next safe step is to add a second canonical dossier fixture rather than weakening this golden case.

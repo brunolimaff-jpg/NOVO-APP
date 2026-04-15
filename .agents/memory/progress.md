@@ -41,6 +41,16 @@ Last updated: 2026-04-14
   - normalized mega-prompt detection in `features/chat/message-orchestrator.ts`
   - switched `handleSendMessage` to `sessionsRef.current`
   - moved `tests/App.portaRecovery.test.ts` to import `ensureContinuitySuggestions` from `features/chat/message-helpers`
+- Added an automated dossier markdown golden test for the canonical Scheffer case (`CNPJ 04.733.767/0001-80`).
+- Added canonical dossier fixtures under `tests/fixtures/dossier/scheffer-04733767000180/`:
+  - `expected-dossier.md`
+  - `case.json`
+  - `lookup.json`
+  - `continuity-suggestions.json`
+  - `modules/*.md`
+- Added `tests/helpers/dossierGolden.ts` for BOM-safe fixture loading plus checklist-style dossier validation.
+- Added `tests/App.dossierGolden.test.tsx` to run the dossier waterfall through `App`, export markdown, and validate the result offline against the Scheffer fixture.
+- Added the quick regression command `npm run test:dossier`.
 
 ## In progress
 
@@ -59,7 +69,9 @@ Last updated: 2026-04-14
 - Passed: focused tests for feedback actions, App layout/loading regression, and useChat import guard.
 - Passed: focused tests for message orchestrator, App loading variant regression, App PORTA recovery, ChatInterface, and useChat import guard.
 - Passed: focused post-review-fix regression set for `message-orchestrator`, `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, and `useChatImportGuard`.
+- Passed: `npm run test:dossier`
 - Passed: `npm run test` (92 files, 754 tests)
+- Passed: `npm run test` (93 files, 755 tests)
 - Passed: `npm run typecheck`
 - Passed: `npm run build`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
@@ -81,3 +93,4 @@ Last updated: 2026-04-14
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Re-run the integrated manual validation for the end of Sprint 3 after the review-fix patch: initial investigation, follow-up, retry, full dossier, remote save, and feedback.
 - If that passes after merge, mark Sprint 3 as done and start Sprint 4 planning.
+- For dossier regression checks after merge, prefer `npm run test:dossier` before doing another manual export pass.
