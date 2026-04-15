@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `a4d41de1d02fe1af2adae202f5cb6b63f63c04ff` |
-| Working branch | `codex/sprint-3-message-orchestrator` |
-| Last updated | `2026-04-14` |
+| Source of truth commit | `origin/main` -> `3ebccf616472ec8618c49a09d8f442ed15bd4bc3` |
+| Working branch | `main` |
+| Last updated | `2026-04-15` |
 | Current phase | `execution` |
 | Current sprint | `3` |
 | Overall status | `active` |
-| Current baseline | `test/typecheck/build green em 2026-04-14; lint backlog pre-existing` |
+| Current baseline | `test/typecheck/build/test:dossier green em 2026-04-15; lint backlog pre-existing` |
 
 ## Current Focus
 
@@ -22,15 +22,18 @@
 - Sprint 3 corte 2C foi mergeado: save remoto extraido para `features/chat/session-controller` via PR `#219`
 - Pacote de sessao (`2A` + `2B` + `2C`) foi validado manualmente em 2026-04-14
 - Sprint 3 corte 3 foi mergeado: feedback actions extraidas para `features/chat/feedback-actions.ts` via PR `#220`
-- Sprint 3 corte final esta em execucao: extrair o envio padrao para `features/chat/message-orchestrator.ts`
-- `features/chat/message-helpers.ts` concentra utilitarios de deteccao/continuidade compartilhados pelo novo orchestrator
-- `App.tsx` caiu para `1521` linhas no branch final da sprint (`-302` vs baseline da Sprint 3 em `1823`)
+- Sprint 3 corte final foi mergeado: envio padrao extraido para `features/chat/message-orchestrator.ts` via PR `#221`
+- `features/chat/message-helpers.ts` concentra utilitarios de deteccao/continuidade compartilhados pelo orchestrator
+- PR `#222` foi mergeada: regression harness offline do dossie canonico Scheffer entrou em `main`
+- `npm run test:dossier` virou o fast-check recomendado para o fluxo canonico de dossie
+- `App.tsx` caiu para `1521` linhas no corte final da Sprint 3 (`-302` vs baseline `1823`)
+- Checkpoint manual de feedback foi reportado como validado em `2026-04-15`; ainda falta a rodada manual integrada para encerrar a sprint
 
 ## Next Up
 
-1. Abrir e revisar o PR final da Sprint 3 (`codex/sprint-3-message-orchestrator`)
-2. Rodar validacao manual integrada: investigacao inicial, follow-up, retry, dossie completo, save remoto e feedback
-3. Depois do merge e da validacao manual, marcar Sprint 3 como `done` e preparar o handoff da Sprint 4
+1. Rodar a validacao manual integrada do fechamento da Sprint 3 em runtime real
+2. Se a validacao passar, marcar Sprint 3 como `done` e sincronizar board/handoff/memory
+3. Em seguida, planejar Sprint 4 (`features/dossier/*`) sem reabrir o corte de chat
 
 ## Blocked
 
@@ -38,9 +41,9 @@
 
 ## Validation Pending
 
-- `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`)
 - Rodar a validacao manual integrada do fechamento da Sprint 3 antes de marcar a sprint como concluida
-- `npm run lint` continua fora do gate por backlog anterior do repo
+- O checkpoint manual de feedback foi reportado como concluido em `2026-04-15`, mas nao substitui a rodada integrada completa
+- `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings
 

@@ -22,23 +22,19 @@ The structural refactor program is active. The canonical live status is in:
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
 
-Sprint 3 chat extraction is now merged in `main` through PR `#221`.
+Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline dossier golden regression is merged through PR `#222`.
 
 ## Current task
 
-This branch is `codex/dossier-markdown-golden-test` with PR `#222` open.
+The repo is on the post-`#222` state in `main`.
 
-- Goal: add a deterministic offline regression harness for the canonical Scheffer dossier case (`CNPJ 04.733.767/0001-80`).
-- The canonical fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
+- Goal: close Sprint 3 operationally with the remaining integrated manual validation, then plan Sprint 4 (`features/dossier/*`).
+- The canonical dossier fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command is `npm run test:dossier`.
-- The test runs the dossier waterfall through `App`, exports markdown, and validates the result with a checklist-style golden helper instead of brittle full-text equality.
+- The user reported the feedback checkpoint as manually validated on `2026-04-15`, but Sprint 3 still needs the full integrated manual pass before it can move to `done`.
 
 ## Immediate next step
 
-Review and merge PR `#222`.
-
-After merge:
-
-1. use `npm run test:dossier` as the fast regression check for this canonical dossier flow
-2. only do manual dossier export validation when changing real dossier behavior
-3. if the user wants broader coverage, add a second canonical fixture instead of weakening this one
+1. run the integrated manual validation for Sprint 3 in runtime real
+2. if it passes, mark Sprint 3 as `done` in the canonical docs/memory
+3. then start Sprint 4 planning, keeping `npm run test:dossier` as the fast dossier regression check
