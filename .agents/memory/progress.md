@@ -11,7 +11,9 @@ Last updated: 2026-04-15
 - Merged Sprint 3 / corte 2C session remote save into `main` (`5d963f74dad84f49838790d56125e6db24269cae` via PR `#219`).
 - Merged Sprint 3 / corte 3 feedback actions into `main` (`a4d41de1d02fe1af2adae202f5cb6b63f63c04ff` via PR `#220`).
 - Merged Sprint 3 / corte final message orchestrator into `main` (`dadac29` via PR `#221`).
+- Merged dossier markdown golden regression into `main` (`3ebccf616472ec8618c49a09d8f442ed15bd4bc3` via PR `#222`).
 - Manual validation for the full session package (`2A` + `2B` + `2C`) completed on 2026-04-14.
+- User reported the feedback checkpoint as manually validated on 2026-04-15.
 - Added `features/chat/loading-progress.ts` with `useChatLoadingProgress`.
 - Added `features/chat/session-controller.ts` and moved the session lifecycle logic there.
 - Added `features/chat/feedback-actions.ts` and moved feedback handlers there.
@@ -37,7 +39,8 @@ Last updated: 2026-04-15
 
 ## In progress
 
-- PR `#222` review/merge for the dossier markdown golden regression branch (`codex/dossier-markdown-golden-test`).
+- Integrated manual validation for Sprint 3 closure in runtime real.
+- Sprint 4 planning stays queued until Sprint 3 can be marked `done`.
 
 ## Blockers
 
@@ -74,7 +77,8 @@ Last updated: 2026-04-15
 
 ## Next checkpoint
 
-- Review and merge PR `#222`.
+- Run the integrated manual validation for Sprint 3 before marking it `done`.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
+- After the manual pass, open Sprint 4 planning for `features/dossier/*`.

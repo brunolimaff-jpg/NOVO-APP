@@ -251,3 +251,25 @@
   - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com este corte
 - Proximo passo:
   - revisar/mergear a PR `#221`, rodar a validacao manual final da Sprint 3 e, se estiver tudo ok, marcar a sprint como concluida
+
+## 2026-04-15 - Pos-merge sync apos PRs `#221` e `#222`
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: sincronizar as fontes canonicas com o estado real de `main` sem marcar a Sprint 3 como `done` antes da validacao manual integrada
+- Decisoes:
+  - manter Sprint 3 como `active` mesmo com os PRs `#221` e `#222` mergeados, porque o checklist manual integrado ainda nao foi concluido
+  - adotar `npm run test:dossier` como fast-check do fluxo canonico de dossie
+  - registrar o checkpoint manual de feedback como reportado pelo usuario em `2026-04-15`, mas nao tratar isso como fechamento suficiente do sprint
+- Mudancas concluidas:
+  - `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` sincronizados com o estado pos-merge
+  - referencias a PR `#221` e PR `#222` atualizadas nas fontes canonicas
+  - proximo passo seguro alinhado para validacao manual integrada da Sprint 3 e planejamento da Sprint 4
+- Checks registrados:
+  - baseline automatizado continua verde em `main` (`npm run test:dossier`, `npm run test`, `npm run typecheck`, `npm run build`)
+- Riscos residuais:
+  - a Sprint 3 ainda nao pode ser marcada como `done` sem a rodada manual integrada em runtime real
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - backlog historico de `npm run lint` continua fora do gate
+- Proximo passo:
+  - rodar a validacao manual integrada da Sprint 3 e, se passar, marcar o sprint como concluido antes de abrir Sprint 4

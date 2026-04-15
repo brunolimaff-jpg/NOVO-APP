@@ -9,7 +9,9 @@ O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR 
 O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
 O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#219`.
 O quinto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#220`.
-O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
+O corte final da Sprint 3 tambem ja foi mergeado em `main` via PR `#221`.
+A PR `#222` tambem ja foi mergeada e adicionou o golden regression offline do dossie canonico.
+O sprint continua `active` apenas porque ainda falta a validacao manual integrada antes de marcar `done`.
 
 ## What Was Finished
 
@@ -34,24 +36,28 @@ O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
 - `App.tsx` agora usa `useChatMessageOrchestrator` para envio padrao e retry, mantendo waterfall/dossie no componente
 - Cobertura adicionada em `tests/features/chat/message-orchestrator.test.ts`
 - `App.tsx` caiu para `1521` linhas no branch final da Sprint 3 (`-302` vs baseline `1823`)
-- Patch de review aplicado na PR `#221`: `App.tsx` voltou para UTF-8 canônico sem BOM, helpers duplicados sairam do `App.tsx`, e o orchestrator passou a detectar o mega prompt via texto normalizado + `sessionsRef.current`
+- Patch de review aplicado na PR `#221`: `App.tsx` voltou para UTF-8 canonico sem BOM, helpers duplicados sairam do `App.tsx`, e o orchestrator passou a detectar o mega prompt via texto normalizado + `sessionsRef.current`
+- PR `#222` mergeada: `npm run test:dossier` agora executa uma regressao offline deterministica do caso Scheffer (`CNPJ 04.733.767/0001-80`)
+- Checkpoint manual de feedback foi reportado como validado em `2026-04-15`
 
 ## What Is In Progress
 
-- PR final da Sprint 3 em review final
-- a validacao automatizada do corte final e do patch de review esta verde; falta a validacao manual integrada para encerrar a sprint
+- fechamento operacional da Sprint 3
+- falta a validacao manual integrada em runtime real para poder marcar o sprint como `done`
+- o proximo planejamento tecnico continua sendo Sprint 4 (`features/dossier/*`), mas so depois do fechamento manual da Sprint 3
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `#221` (`codex/sprint-3-message-orchestrator`)
-2. Rodar a validacao manual final da Sprint 3 apos o patch de review:
+1. Rodar a validacao manual final da Sprint 3:
    - investigacao inicial
    - follow-up
    - retry de envio
    - dossie completo
    - save remoto
    - feedback
-3. Se a validacao manual passar, marcar Sprint 3 como `done` e planejar Sprint 4 (`features/dossier/*`)
+2. Se a validacao manual passar, marcar Sprint 3 como `done` e sincronizar `02-BOARD.md`, `.agents/memory/*` e este handoff
+3. Depois planejar Sprint 4 (`features/dossier/*`)
+4. Ao tocar comportamento real de dossie, usar `npm run test:dossier` antes de abrir nova rodada manual de export
 
 ## Files Most Relevant Now
 
@@ -68,6 +74,8 @@ O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
 - `features/chat/feedback-actions.ts`
 - `features/chat/message-helpers.ts`
 - `features/chat/message-orchestrator.ts`
+- `tests/App.dossierGolden.test.tsx`
+- `tests/helpers/dossierGolden.ts`
 - `tests/features/chat/loading-progress.test.tsx`
 - `tests/features/chat/session-controller.test.ts`
 - `tests/features/chat/feedback-actions.test.ts`
@@ -81,9 +89,10 @@ O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
 
 ## Validation Last Run
 
-- `npm run test`: green em `2026-04-14` (`92` arquivos, `754` testes)
-- `npm run typecheck`: green em `2026-04-14`
-- `npm run build`: green em `2026-04-14`
+- `npm run test:dossier`: green em `2026-04-15`
+- `npm run test`: green em `2026-04-15` (`93` arquivos, `755` testes)
+- `npm run typecheck`: green em `2026-04-15`
+- `npm run build`: green em `2026-04-15`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 - Warning aceito no build: chunking envolvendo `utils/idbStorage.ts`, ja registrado como OI-003
 
@@ -91,7 +100,7 @@ O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir do fechamento da Sprint 3. O branch atual e `codex/sprint-3-message-orchestrator`.
-Revise o diff final, preserve o waterfall de dossie em `App.tsx`, e conduza a validacao manual integrada da sprint.
-Se a validacao manual passar e o PR for mergeado, atualize o board para marcar Sprint 3 como `done`
+Continue a partir do fechamento da Sprint 3 em `main`.
+Use `npm run test:dossier` como fast-check do caso canonico de dossie e conduza a validacao manual integrada da sprint.
+Se a validacao manual passar, atualize o board para marcar Sprint 3 como `done`
 e inicie o planejamento da Sprint 4 (`features/dossier/*`).
