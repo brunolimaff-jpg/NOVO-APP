@@ -29,10 +29,11 @@ Para continuidade entre IAs, leia primeiro:
 ## Entrypoints e hotspots
 
 - Bootstrap da app: `index.tsx`
-- Orquestrador principal: `App.tsx`
+- Orquestrador principal: `App.tsx` (hotspot ativo — reducao progressiva em curso via Sprint 3/4)
 - UI principal do chat: `components/ChatInterface.tsx`
 - Fachada publica da camada Gemini: `services/geminiService.ts`
 - Implementacao interna da camada Gemini: `services/gemini/`
+- Features extraidas do App (novo destino): `features/chat/`
 - Contratos centrais: `types.ts`
 - Prompts: `prompts/`
 - Serverless handlers: `api/*.ts`
@@ -40,7 +41,7 @@ Para continuidade entre IAs, leia primeiro:
 ## Fluxo operacional resumido
 
 1. O usuario interage pela UI de chat.
-2. `App.tsx` coordena sessao, loading, mensagens e acionamento dos fluxos.
+2. `App.tsx` coordena sessao, loading, mensagens e acionamento dos fluxos — estado sendo extraido progressivamente para `features/chat/*`.
 3. `services/geminiService.ts` expoe o contrato publico e delega para `services/gemini/`.
 4. Lookup, RAG, proxy Gemini, parsing PORTA e recovery ficam na camada de services.
 5. Sessao, feedback, exportacao e CRM passam por services e utils do repo.
@@ -59,8 +60,21 @@ Para continuidade entre IAs, leia primeiro:
   - `services/gemini/auxiliary.ts`
   - `services/gemini/config.ts`
   - `services/gemini/contracts.ts`
+- `features/chat/` e o novo destino das responsabilidades extraidas de `App.tsx`:
+  - `features/chat/loading-progress.ts` — estado e progresso de loading (Sprint 3 / corte 1)
+  - `features/chat/session-controller.ts` — ciclo de vida de sessao e save remoto (Sprint 3 / cortes 2A-2C)
+  - `features/chat/feedback-actions.ts` — handlers de feedback, section feedback, toggle de fontes, report de erro (Sprint 3 / corte 3)
+  - `features/chat/message-orchestrator.ts` — orquestracao do envio padrao (Sprint 3 / ultimo corte, em andamento)
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
+
+## Programa de Refatoracao
+
+- Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
+- Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
+- Sprint 3 (active): extracao do fluxo de chat para `features/chat/` — ultimo corte (`message-orchestrator`) em andamento
+- Sprint 4 (planned): extracao do fluxo de dossie para `features/dossier/`
+- Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
 
