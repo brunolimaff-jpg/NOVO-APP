@@ -33,6 +33,7 @@ interface ResetLoadingProgressOptions {
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
+const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 
 export interface RunMegaPromptWaterfallArgs {
   sessionId: string;
@@ -186,7 +187,7 @@ export function useDossierWaterfallOrchestrator({
             seniorEvidenceContext,
             contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
             accumulatedTextSnapshot
-              ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-2500)}`
+              ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
               : '',
           ]
             .filter(Boolean)
