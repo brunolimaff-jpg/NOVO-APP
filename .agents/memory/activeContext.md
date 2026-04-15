@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ## Current operating context
 
@@ -22,26 +22,23 @@ The structural refactor program is active. The canonical live status is in:
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
 
-Current sprint from the board: Sprint 3, extract chat flow from `App.tsx` into `features/chat/*` in small, validated slices.
+Sprint 3 chat extraction is now merged in `main` through PR `#221`.
 
 ## Current task
 
-Sprint 3 / corte final remains on branch `codex/sprint-3-message-orchestrator` with PR `#221` open.
+This branch is `codex/dossier-markdown-golden-test` with PR `#222` open.
 
-- Goal: move the standard send-message orchestration into `features/chat/message-orchestrator.ts`.
-- Keep the modular dossier waterfall, PORTA exported helpers, and Deep Dive wrapper in `App.tsx`.
-- Preserve `ChatInterfaceProps` and the public facade in `services/geminiService.ts`.
-- Review-fix patch applied: `App.tsx` was normalized back to canonical UTF-8 without BOM, duplicated message helpers were removed from `App.tsx`, and `message-orchestrator.ts` now uses normalized dossier detection plus `sessionsRef.current`.
+- Goal: add a deterministic offline regression harness for the canonical Scheffer dossier case (`CNPJ 04.733.767/0001-80`).
+- The canonical fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
+- The practical day-to-day command is `npm run test:dossier`.
+- The test runs the dossier waterfall through `App`, exports markdown, and validates the result with a checklist-style golden helper instead of brittle full-text equality.
 
 ## Immediate next step
 
-Review and merge PR `#221`, then run the final integrated manual validation for:
+Review and merge PR `#222`.
 
-1. initial investigation
-2. follow-up
-3. retry
-4. full dossier
-5. remote save
-6. feedback
+After merge:
 
-If that passes after the review-fix patch, mark Sprint 3 as done and prepare Sprint 4 planning.
+1. use `npm run test:dossier` as the fast regression check for this canonical dossier flow
+2. only do manual dossier export validation when changing real dossier behavior
+3. if the user wants broader coverage, add a second canonical fixture instead of weakening this one
