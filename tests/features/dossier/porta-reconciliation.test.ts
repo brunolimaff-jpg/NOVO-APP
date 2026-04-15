@@ -6,10 +6,10 @@ import {
   ensureWaterfallScorePorta,
   resolveModuleNamesForMissingDimensions,
   shouldHoldWaterfallScoreForIntegrity,
-} from '../App';
-import { ensureContinuitySuggestions } from '../features/chat/message-helpers';
+} from '../../../features/dossier/porta-reconciliation';
+import { ensureContinuitySuggestions } from '../../../features/chat/message-helpers';
 
-describe('App PORTA recovery helpers', () => {
+describe('porta-reconciliation', () => {
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
     const result = resolveModuleNamesForMissingDimensions(['O', 'T', 'O', 'A']);
     expect(result).toEqual(['Raio-X Operacional', 'Tech Stack', 'RH & Decisores']);

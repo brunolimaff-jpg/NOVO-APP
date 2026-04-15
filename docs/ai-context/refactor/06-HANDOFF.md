@@ -16,6 +16,7 @@ Sprint 3 agora esta `done`.
 Sprint 4 foi aberta em ondas:
 - Onda 1: extracao de `features/dossier/*`
 - Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
+A Onda 1 foi implementada neste branch e esta pronta para PR/review.
 
 ## What Was Finished
 
@@ -45,21 +46,28 @@ Sprint 4 foi aberta em ondas:
 - Checkpoint manual de feedback foi reportado como validado em `2026-04-15`
 - Validacao manual integrada do fluxo completo da Sprint 3 foi concluida em `2026-04-15`
 - Board, handoff e memoria foram sincronizados para marcar Sprint 3 como `done` e Sprint 4 como `active`
+- Criado `features/dossier/waterfall-orchestrator.ts` como novo dono de `runMegaPromptWaterfall`
+- Criado `features/dossier/benchmark-stage.ts` para encapsular benchmark isolado, timeout e falha opcional
+- Criado `features/dossier/porta-reconciliation.ts` para retries por dimensao ausente, reconciliacao PORTA, fallback tecnico e integrity hold
+- `App.tsx` agora apenas instancia `useDossierWaterfallOrchestrator` e caiu para `815` linhas neste corte
+- `tests/App.portaRecovery.test.ts` foi substituido por `tests/features/dossier/porta-reconciliation.test.ts`
+- `tests/features/dossier/benchmark-stage.test.ts` cobre sucesso, falha nao-bloqueante e abort terminal do benchmark
+- Escopo manual desta onda foi explicitado para runtime real:
+  - gerar um `Dossie completo` e conferir score PORTA + secoes finais
+  - validar follow-up apos dossie completo
+  - validar retry/recuperacao sem perder a mensagem final
+  - validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
 
 ## What Is In Progress
 
-- Onda 1 da Sprint 4: extrair waterfall, benchmark, retries e reconciliacao PORTA para `features/dossier/*`
+- PR/review da Onda 1 da Sprint 4
 - Onda 2 da Sprint 4 permanece enfileirada: `stores/*` com `Context + Reducer` tipado e error boundaries por feature
 
 ## Next Safe Step
 
-1. Implementar a Onda 1 da Sprint 4 em branch e PR proprios:
-   - `features/dossier/porta-reconciliation.ts`
-   - `features/dossier/benchmark-stage.ts`
-   - `features/dossier/waterfall-orchestrator.ts`
-2. Validar a Onda 1 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
-3. Atualizar board/handoff/memory com o resultado da Onda 1 antes de abrir a Onda 2
-4. Depois atacar a Onda 2: `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`
+1. Abrir/revisar a PR da Onda 1 e acompanhar os checks automáticos
+2. Executar a rodada manual em runtime real usando o escopo descrito acima, se o preview exigir checkpoint adicional
+3. Depois atacar a Onda 2: `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`
 
 ## Files Most Relevant Now
 
@@ -78,12 +86,17 @@ Sprint 4 foi aberta em ondas:
 - `features/chat/feedback-actions.ts`
 - `features/chat/message-helpers.ts`
 - `features/chat/message-orchestrator.ts`
+- `features/dossier/waterfall-orchestrator.ts`
+- `features/dossier/benchmark-stage.ts`
+- `features/dossier/porta-reconciliation.ts`
 - `tests/App.dossierGolden.test.tsx`
 - `tests/helpers/dossierGolden.ts`
 - `tests/features/chat/loading-progress.test.tsx`
 - `tests/features/chat/session-controller.test.ts`
 - `tests/features/chat/feedback-actions.test.ts`
 - `tests/features/chat/message-orchestrator.test.ts`
+- `tests/features/dossier/benchmark-stage.test.ts`
+- `tests/features/dossier/porta-reconciliation.test.ts`
 
 ## Do Not Touch Yet
 
@@ -94,8 +107,9 @@ Sprint 4 foi aberta em ondas:
 ## Validation Last Run
 
 - validacao manual integrada da Sprint 3: green em `2026-04-15`
+- escopo manual da Onda 1 documentado para runtime real: dossie completo, follow-up, retry, exportacao, sugestoes e persistencia
 - `npm run test:dossier`: green em `2026-04-15`
-- `npm run test`: green em `2026-04-15` (`93` arquivos, `755` testes)
+- `npm run test`: green em `2026-04-15`
 - `npm run typecheck`: green em `2026-04-15`
 - `npm run build`: green em `2026-04-15`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
@@ -107,6 +121,5 @@ Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Continue a partir da Onda 1 da Sprint 4 em `main`.
 Use `npm run test:dossier` como fast-check do caso canonico de dossie.
-Extraia a logica de waterfall/benchmark/reconciliacao PORTA para `features/dossier/*`
-sem alterar `ChatInterfaceProps` nem a fachada publica de `services/geminiService.ts`.
-Depois registre a rodada nas fontes canonicas antes de abrir a Onda 2.
+Considere a Onda 1 implementada neste branch: `features/dossier/*` ja concentra waterfall, benchmark e reconciliacao PORTA.
+Revise/merge a PR correspondente e depois siga para a Onda 2 sem alterar `ChatInterfaceProps` nem a fachada publica de `services/geminiService.ts`.

@@ -299,3 +299,38 @@
   - backlog historico de `npm run lint` continua fora do gate
 - Proximo passo:
   - abrir a Onda 1 da Sprint 4 em branch/PR proprios, extrair `features/dossier/*` e validar com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+
+## 2026-04-15 - Sprint 4 Onda 1 dossier runtime extraction
+
+- Fase: execution
+- Sprint: 4 (`active`)
+- Objetivo: tirar o runtime de dossie/waterfall do `App.tsx` e mover a regra de negocio para `features/dossier/*` sem redesenhar o estado ainda
+- Decisoes:
+  - `features/dossier/waterfall-orchestrator.ts` passa a ser o novo dono de `runMegaPromptWaterfall`
+  - `features/dossier/benchmark-stage.ts` encapsula benchmark isolado, timeout e falha opcional, preservando abort como erro terminal
+  - `features/dossier/porta-reconciliation.ts` concentra retries por dimensao ausente, reconciliacao PORTA, fallback tecnico e integrity hold
+  - `App.tsx` fica apenas como wiring do runner de dossie nesta onda; `stores/*` e boundaries ficam para a Onda 2
+- Mudancas concluidas:
+  - criado `features/dossier/waterfall-orchestrator.ts`
+  - criado `features/dossier/benchmark-stage.ts`
+  - criado `features/dossier/porta-reconciliation.ts`
+  - `App.tsx` passou a instanciar `useDossierWaterfallOrchestrator` e caiu para `815` linhas
+  - `tests/App.portaRecovery.test.ts` foi migrado para `tests/features/dossier/porta-reconciliation.test.ts`
+  - criado `tests/features/dossier/benchmark-stage.test.ts`
+  - preservados `ChatInterfaceProps`, `services/geminiService.ts` e o contrato de `RunMegaPromptWaterfallArgs`
+- Validacoes manuais descritas para runtime real:
+  - gerar um `Dossie completo` de ponta a ponta e conferir score PORTA + secoes finais
+  - validar follow-up apos dossie completo
+  - validar retry/recuperacao sem perder a mensagem final
+  - validar exportacao, sugestoes de continuidade e persistencia remota sem regressao funcional
+- Checks registrados:
+  - `npm run test:dossier` verde
+  - `npm run test` verde
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - Onda 2 ainda precisa consolidar estado compartilhado em `stores/*`
+  - error boundaries por feature ainda nao existem
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - abrir/revisar a PR da Onda 1 e, depois do merge, seguir para a Onda 2 (`stores/*` + error boundaries)
