@@ -195,3 +195,59 @@
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
   - abrir/revisar o PR do corte 3, validar manualmente o fluxo de feedback e depois concluir a sprint com `features/chat/message-orchestrator.ts`
+
+## 2026-04-14 - Sprint 3 corte final message orchestrator
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: extrair o envio padrao do chat para `features/chat/message-orchestrator.ts` mantendo o waterfall/dossie no `App.tsx`
+- Decisoes:
+  - `features/chat/message-helpers.ts` concentra `pickCompanyLabel`, `isAbortLikeError` e a garantia de sugestoes de continuidade para reuso no corte final
+  - `App.tsx` continua dono do waterfall modular, do wrapper de Deep Dive e dos helpers exportados de PORTA
+  - o novo hook `useChatMessageOrchestrator` passa a ser dono do envio padrao, placeholder thinking, retry do ultimo envio, tratamento de abort/erro e log remoto de investigacao
+  - a deteccao de `Dossie completo` ficou tolerante a strings mojibake ja presentes no repo para preservar o comportamento atual
+- Mudancas concluidas:
+  - criado `features/chat/message-orchestrator.ts`
+  - criado `features/chat/message-helpers.ts`
+  - `App.tsx` passou a consumir `useChatMessageOrchestrator` e a delegar o branch padrao do envio
+  - `tests/features/chat/message-orchestrator.test.ts` cobre criacao de sessao, follow-up, placeholder, abort, erro, retry, delegacao ao waterfall, deep dive e log remoto
+  - `App.tsx` caiu para `1521` linhas (`-302` vs baseline da Sprint 3 em `1823`)
+- Checks registrados:
+  - regressions focados verdes: `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, `useChatImportGuard`
+  - `npm run test` verde (`92` arquivos, `754` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - falta a validacao manual integrada da sprint antes de marcar Sprint 3 como `done`
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com este corte
+- Proximo passo:
+  - abrir/revisar o PR final da Sprint 3, rodar a validacao manual integrada e, se estiver tudo ok, marcar a sprint como concluida
+
+## 2026-04-14 - Sprint 3 corte final review fix patch
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: fechar a review da PR `#221` sem reabrir o design do corte final
+- Decisoes:
+  - manter `features/chat/message-orchestrator.ts` como boundary do envio padrao
+  - remover helpers duplicados do `App.tsx` e consolidar `features/chat/message-helpers.ts` como dono unico dos utilitarios de parsing/abort/continuidade
+  - corrigir encoding real em `App.tsx` em vez de manter workarounds de mojibake
+  - trocar `sessions` por `sessionsRef.current` no orchestrator para reduzir churn do callback
+- Mudancas concluidas:
+  - `App.tsx` normalizado para UTF-8 canonico sem BOM
+  - regexes, prompts, labels e mensagens de erro restaurados para texto legivel/canonico
+  - `features/chat/message-orchestrator.ts` passou a detectar `Dossie completo` via texto normalizado
+  - `tests/App.portaRecovery.test.ts` passou a importar `ensureContinuitySuggestions` da feature helper
+- Checks registrados:
+  - regressions focados verdes: `tests/features/chat/message-orchestrator.test.ts`, `tests/App.loadingVariant.test.tsx`, `tests/App.portaRecovery.test.ts`, `tests/components/ChatInterface.test.tsx`, `tests/architecture/useChatImportGuard.test.ts`
+  - `npm run test` verde (`92` arquivos, `754` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - falta o merge da PR `#221`
+  - falta a validacao manual final da Sprint 3 apos o patch de review
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com este corte
+- Proximo passo:
+  - revisar/mergear a PR `#221`, rodar a validacao manual final da Sprint 3 e, se estiver tudo ok, marcar a sprint como concluida
