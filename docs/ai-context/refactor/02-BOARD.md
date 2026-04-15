@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `3ebccf616472ec8618c49a09d8f442ed15bd4bc3` |
-| Working branch | `main` |
+| Source of truth commit | `origin/main` -> `462913fdd0de182ebc206d704ac3f2e11bf68339` |
+| Working branch | `codex/sprint4-wave1-dossier-runtime` |
 | Last updated | `2026-04-15` |
 | Current phase | `execution` |
 | Current sprint | `4` |
 | Overall status | `active` |
-| Current baseline | `validacao manual integrada + test/typecheck/build/test:dossier green em 2026-04-15; lint backlog pre-existing` |
+| Current baseline | `Sprint 4 / Onda 1 implementada em branch; test:dossier/test/typecheck/build green em 2026-04-15; lint backlog pre-existing` |
 
 ## Current Focus
 
@@ -32,11 +32,23 @@
 - Sprint 4 foi aberta em duas ondas tecnicas:
   - Onda 1: extrair `features/dossier/*` sem reabrir o desenho de estado
   - Onda 2: introduzir `stores/*` com `Context + Reducer` tipado e error boundaries por feature
+- Onda 1 da Sprint 4 foi implementada em branch:
+  - `features/dossier/waterfall-orchestrator.ts` virou o novo dono de `runMegaPromptWaterfall`
+  - `features/dossier/benchmark-stage.ts` encapsula benchmark isolado, timeout e falha opcional
+  - `features/dossier/porta-reconciliation.ts` concentra retries de modulos, reconciliacao PORTA, fallback tecnico e integrity hold
+- `App.tsx` deixou de conter o runtime do waterfall e caiu para `815` linhas neste corte
+- `tests/App.portaRecovery.test.ts` foi migrado para `tests/features/dossier/porta-reconciliation.test.ts`
+- `tests/features/dossier/benchmark-stage.test.ts` entrou para cobrir sucesso, falha nao-bloqueante e abort terminal do benchmark
+- Escopo de validacao manual desta onda ficou explicitado para runtime real:
+  - gerar um `Dossie completo` do inicio ao fim e conferir score PORTA + secoes finais
+  - validar follow-up apos dossie completo
+  - validar retry do ramo de envio/recuperacao sem quebrar a mensagem final
+  - validar exportacao/continuity suggestions e persistencia remota sem regressao funcional
 
 ## Next Up
 
-1. Onda 1: extrair waterfall, benchmark, retries e reconciliacao PORTA para `features/dossier/*`
-2. Validar a Onda 1 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`, registrar tudo nas fontes canonicas e abrir PR proprio
+1. Abrir/revisar a PR da Onda 1, acompanhar checks e consolidar o merge
+2. Executar a validacao manual em runtime real usando o escopo descrito acima, se o preview exigir checkpoint adicional
 3. Onda 2: introduzir `stores/chatStore.ts`, `stores/dossierStore.ts`, `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`
 
 ## Blocked
@@ -46,7 +58,8 @@
 ## Validation Pending
 
 - Nenhuma pendencia para o fechamento da Sprint 3; a validacao manual integrada foi concluida em `2026-04-15`
-- Os proximos gates passam a ser por onda da Sprint 4: `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+- O gate automatizado da Onda 1 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+- Em runtime real, a rodada manual desta onda deve cobrir geracao de dossie, follow-up, retry, exportacao e persistencia sem regressao
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings
@@ -61,7 +74,7 @@
 | 1 | Baseline e fronteiras | done | Clerk/auth removido, fronteiras documentadas, guardrail contra novos consumidores de legado, validacao da sprint registrada | `origin/main@3c1412e` | `App.tsx`, `components/ChatInterface.tsx`, `contexts/OperatorContext.tsx`, `hooks/useChat.ts`, `services/geminiService.ts` |
 | 2 | Quebrar Gemini | done | `services/gemini/` criado com facade estavel | `origin/main@ef30b5d` | `services/geminiService.ts`, `services/gemini/*` |
 | 3 | Extrair chat do App | done | `features/chat/` ativo; `App.tsx` reduzido; validacao manual integrada concluida em `2026-04-15` | `origin/main@510f91fa3653cbfa1552e7f3d4e3a43883a45e17` | `App.tsx`, `features/chat/*` |
-| 4 | Extrair dossie do App | active | `features/dossier/` ativo; waterfall fora do App; depois `stores/*` e error boundaries entram na Onda 2 | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
+| 4 | Extrair dossie do App | active | Onda 1 implementa `features/dossier/`; Onda 2 consolida `stores/*` e error boundaries | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
 | 5 | Modularizar ChatInterface | planned | `components/chat/` ativo com facade em `ChatInterface.tsx` | `start-of-sprint-5` | `components/ChatInterface.tsx`, `components/chat/*` |
 | 6 | Dividir megaPrompts | planned | `prompts/mega/` criado; `@ts-nocheck` removido | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | planned | `hooks/useChat.ts` removido; `constants.ts` reduzido | `start-of-sprint-7` | `constants.ts`, `hooks/useChat.ts`, `services/apiConfig.ts` |

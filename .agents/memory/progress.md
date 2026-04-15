@@ -41,11 +41,19 @@ Last updated: 2026-04-15
 - Added `tests/helpers/dossierGolden.ts` for BOM-safe fixture loading plus checklist-style dossier validation.
 - Added `tests/App.dossierGolden.test.tsx` to run the dossier waterfall through `App`, export markdown, and validate the result offline against the Scheffer fixture.
 - Added the quick regression command `npm run test:dossier`.
+- Implemented Sprint 4 / Onda 1 dossier extraction:
+  - added `features/dossier/waterfall-orchestrator.ts`
+  - added `features/dossier/benchmark-stage.ts`
+  - added `features/dossier/porta-reconciliation.ts`
+  - updated `App.tsx` to wire dossier runtime through `useDossierWaterfallOrchestrator`
+  - migrated `tests/App.portaRecovery.test.ts` to `tests/features/dossier/porta-reconciliation.test.ts`
+  - added `tests/features/dossier/benchmark-stage.test.ts`
+- Documented the runtime manual scope for Onda 1: dossier completo, follow-up, retry, exportacao, continuity suggestions, and remote persistence.
 
 ## In progress
 
-- Sprint 4 / Onda 1: extract dossier waterfall logic from `App.tsx` into `features/dossier/*`.
-- Onda 2 remains queued behind Onda 1 validation and PR.
+- Sprint 4 / Onda 1: PR/review and merge.
+- Onda 2 remains queued behind Onda 1 merge.
 
 ## Blockers
 
@@ -62,8 +70,9 @@ Last updated: 2026-04-15
 - Passed: focused post-review-fix regression set for `message-orchestrator`, `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, and `useChatImportGuard`.
 - Passed: integrated manual validation for the full Sprint 3 flow in runtime real on 2026-04-15.
 - Passed: Onda 0 reran `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build` before opening Sprint 4 work.
+- Passed: focused dossier extraction regression set (`tests/features/dossier/benchmark-stage.test.ts`, `tests/features/dossier/porta-reconciliation.test.ts`, `tests/App.dossierGolden.test.tsx`, `tests/features/chat/message-orchestrator.test.ts`, `tests/App.loadingVariant.test.tsx`).
 - Passed: `npm run test:dossier`
-- Passed: `npm run test` (93 files, 755 tests)
+- Passed: `npm run test`
 - Passed: `npm run typecheck`
 - Passed: `npm run build`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
@@ -81,11 +90,14 @@ Last updated: 2026-04-15
 - Dossier golden fixture: `tests/fixtures/dossier/scheffer-04733767000180/expected-dossier.md`
 - Dossier golden helper: `tests/helpers/dossierGolden.ts`
 - Dossier golden test: `tests/App.dossierGolden.test.tsx`
+- Dossier benchmark stage: `features/dossier/benchmark-stage.ts`
+- Dossier PORTA reconciliation: `features/dossier/porta-reconciliation.ts`
+- Dossier waterfall orchestrator: `features/dossier/waterfall-orchestrator.ts`
 
 ## Next checkpoint
 
-- Start Sprint 4 / Onda 1 from the post-`#222` baseline and keep `ChatInterfaceProps` plus `services/geminiService.ts` stable.
+- Review and merge Sprint 4 / Onda 1, then start Onda 2 with `stores/*` + feature error boundaries while keeping `ChatInterfaceProps` plus `services/geminiService.ts` stable.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
-- After Onda 1, sync board/handoff/memory again before opening Onda 2.
+- After merge, sync board/handoff/memory again before opening Onda 2.

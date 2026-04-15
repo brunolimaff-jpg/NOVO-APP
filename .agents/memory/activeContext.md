@@ -28,9 +28,11 @@ Sprint 4 is now `active`.
 
 ## Current task
 
-The repo is on the post-`#222` state in `main`, with Sprint 3 closed and Sprint 4 open.
+The repo is on the post-`#226` state in `main`, with Sprint 3 closed and Sprint 4 open.
 
-- Goal: execute Sprint 4 in waves, starting with the dossier extraction into `features/dossier/*`.
+- Goal: finish Sprint 4 / Onda 1 by opening and reviewing the PR that extracts dossier runtime into `features/dossier/*`.
+- `features/dossier/waterfall-orchestrator.ts` now owns `runMegaPromptWaterfall`.
+- `features/dossier/benchmark-stage.ts` and `features/dossier/porta-reconciliation.ts` own benchmark and PORTA recovery logic.
 - The canonical dossier fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command is `npm run test:dossier`.
 - Sprint 4 uses `Context + Reducer` for `stores/*`; do not add `zustand`.
@@ -38,6 +40,6 @@ The repo is on the post-`#222` state in `main`, with Sprint 3 closed and Sprint 
 
 ## Immediate next step
 
-1. implement Sprint 4 / Onda 1 in branch and PR proprios
-2. move waterfall, benchmark, retries, and PORTA reconciliation out of `App.tsx` into `features/dossier/*`
-3. validate with `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build`
+1. open/review the Sprint 4 / Onda 1 PR and monitor CI/comments
+2. if runtime confirmation is needed, use the manual scope: dossier completo, follow-up, retry, exportacao, continuity suggestions, remote persistence
+3. after merge, start Sprint 4 / Onda 2 with `stores/*` plus feature error boundaries

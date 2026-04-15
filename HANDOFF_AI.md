@@ -29,7 +29,7 @@ Para continuidade entre IAs, leia primeiro:
 ## Entrypoints e hotspots
 
 - Bootstrap da app: `index.tsx`
-- Orquestrador principal: `App.tsx` (hotspot ativo - Sprint 3 concluida; Sprint 4 ataca dossie/waterfall em ondas)
+- Orquestrador principal: `App.tsx` (hotspot ainda ativo, mas Onda 1 da Sprint 4 removeu o runtime de dossie/waterfall para `features/dossier/*`)
 - UI principal do chat: `components/ChatInterface.tsx`
 - Fachada publica da camada Gemini: `services/geminiService.ts`
 - Implementacao interna da camada Gemini: `services/gemini/`
@@ -69,6 +69,10 @@ Para continuidade entre IAs, leia primeiro:
 - `features/dossier/` e o destino ativo da Sprint 4:
   - Onda 1: mover waterfall, benchmark, retries e reconciliacao PORTA
   - Onda 2: consolidar `stores/*` e error boundaries por feature
+  - Implementado neste branch:
+    - `features/dossier/waterfall-orchestrator.ts`
+    - `features/dossier/benchmark-stage.ts`
+    - `features/dossier/porta-reconciliation.ts`
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
@@ -78,7 +82,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
-- Sprint 4 (active): extracao do fluxo de dossie para `features/dossier/` em ondas
+- Sprint 4 (active): Onda 1 implementada em branch; proximo passo e consolidar merge e avancar para Onda 2 (`stores/*` + error boundaries)
 - Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
@@ -89,6 +93,13 @@ Para continuidade entre IAs, leia primeiro:
 - `npm run build`
 - `npm run lint`
 - `npm run test:dossier`
+
+## Validacao manual da Onda 1
+
+- Gerar um `Dossie completo` em runtime real e conferir score PORTA + secoes finais
+- Validar follow-up apos dossie completo
+- Validar retry/recuperacao sem perder a mensagem final
+- Validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
 
 ## Regras de continuidade
 
