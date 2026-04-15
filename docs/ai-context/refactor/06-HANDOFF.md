@@ -9,7 +9,7 @@ O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR 
 O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
 O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#219`.
 O quinto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#220`.
-O corte atual em preparacao e `codex/sprint-3-message-orchestrator`.
+O corte atual em review e `codex/sprint-3-message-orchestrator` (PR `#221`).
 
 ## What Was Finished
 
@@ -34,16 +34,17 @@ O corte atual em preparacao e `codex/sprint-3-message-orchestrator`.
 - `App.tsx` agora usa `useChatMessageOrchestrator` para envio padrao e retry, mantendo waterfall/dossie no componente
 - Cobertura adicionada em `tests/features/chat/message-orchestrator.test.ts`
 - `App.tsx` caiu para `1521` linhas no branch final da Sprint 3 (`-302` vs baseline `1823`)
+- Patch de review aplicado na PR `#221`: `App.tsx` voltou para UTF-8 canônico sem BOM, helpers duplicados sairam do `App.tsx`, e o orchestrator passou a detectar o mega prompt via texto normalizado + `sessionsRef.current`
 
 ## What Is In Progress
 
-- PR final da Sprint 3 em preparacao/review
-- a validacao automatizada do corte final esta verde; falta a validacao manual integrada para encerrar a sprint
+- PR final da Sprint 3 em review final
+- a validacao automatizada do corte final e do patch de review esta verde; falta a validacao manual integrada para encerrar a sprint
 
 ## Next Safe Step
 
-1. Revisar e mergear o PR `codex/sprint-3-message-orchestrator`
-2. Rodar a validacao manual final da Sprint 3:
+1. Revisar e mergear o PR `#221` (`codex/sprint-3-message-orchestrator`)
+2. Rodar a validacao manual final da Sprint 3 apos o patch de review:
    - investigacao inicial
    - follow-up
    - retry de envio

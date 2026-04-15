@@ -139,7 +139,6 @@ function makeHarness(overrides: {
 
   const buildOptions = (): Parameters<typeof useChatMessageOrchestrator>[0] => ({
     currentSessionId: state.currentSessionId,
-    sessions: state.sessions,
     setSessions,
     setCurrentSessionId,
     sessionsRef,

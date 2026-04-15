@@ -223,3 +223,31 @@
   - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com este corte
 - Proximo passo:
   - abrir/revisar o PR final da Sprint 3, rodar a validacao manual integrada e, se estiver tudo ok, marcar a sprint como concluida
+
+## 2026-04-14 - Sprint 3 corte final review fix patch
+
+- Fase: execution
+- Sprint: 3 (`active`)
+- Objetivo: fechar a review da PR `#221` sem reabrir o design do corte final
+- Decisoes:
+  - manter `features/chat/message-orchestrator.ts` como boundary do envio padrao
+  - remover helpers duplicados do `App.tsx` e consolidar `features/chat/message-helpers.ts` como dono unico dos utilitarios de parsing/abort/continuidade
+  - corrigir encoding real em `App.tsx` em vez de manter workarounds de mojibake
+  - trocar `sessions` por `sessionsRef.current` no orchestrator para reduzir churn do callback
+- Mudancas concluidas:
+  - `App.tsx` normalizado para UTF-8 canonico sem BOM
+  - regexes, prompts, labels e mensagens de erro restaurados para texto legivel/canonico
+  - `features/chat/message-orchestrator.ts` passou a detectar `Dossie completo` via texto normalizado
+  - `tests/App.portaRecovery.test.ts` passou a importar `ensureContinuitySuggestions` da feature helper
+- Checks registrados:
+  - regressions focados verdes: `tests/features/chat/message-orchestrator.test.ts`, `tests/App.loadingVariant.test.tsx`, `tests/App.portaRecovery.test.ts`, `tests/components/ChatInterface.test.tsx`, `tests/architecture/useChatImportGuard.test.ts`
+  - `npm run test` verde (`92` arquivos, `754` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - falta o merge da PR `#221`
+  - falta a validacao manual final da Sprint 3 apos o patch de review
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com este corte
+- Proximo passo:
+  - revisar/mergear a PR `#221`, rodar a validacao manual final da Sprint 3 e, se estiver tudo ok, marcar a sprint como concluida

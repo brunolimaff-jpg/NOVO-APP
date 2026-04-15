@@ -35,10 +35,16 @@ Last updated: 2026-04-14
 - Added `features/chat/message-orchestrator.ts` with `useChatMessageOrchestrator`.
 - Updated `App.tsx` to delegate the standard send flow and retry flow to the feature hook while keeping the dossier waterfall local.
 - Added `tests/features/chat/message-orchestrator.test.ts` covering new session bootstrap, follow-up, placeholder, abort, error, retry, waterfall delegation, deep dive path, and remote investigation logging.
+- Applied the PR `#221` review-fix patch:
+  - removed duplicated chat helper implementations from `App.tsx` in favor of `features/chat/message-helpers.ts`
+  - restored canonical UTF-8 strings/regexes in `App.tsx` and removed the BOM
+  - normalized mega-prompt detection in `features/chat/message-orchestrator.ts`
+  - switched `handleSendMessage` to `sessionsRef.current`
+  - moved `tests/App.portaRecovery.test.ts` to import `ensureContinuitySuggestions` from `features/chat/message-helpers`
 
 ## In progress
 
-- PR preparation for Sprint 3 / corte final message orchestrator (`codex/sprint-3-message-orchestrator`).
+- PR `#221` review/merge for Sprint 3 / corte final message orchestrator (`codex/sprint-3-message-orchestrator`).
 
 ## Blockers
 
@@ -52,6 +58,7 @@ Last updated: 2026-04-14
 - Passed: focused tests for remote save extraction, session controller, loading variant regression, layout, and useChat import guard.
 - Passed: focused tests for feedback actions, App layout/loading regression, and useChat import guard.
 - Passed: focused tests for message orchestrator, App loading variant regression, App PORTA recovery, ChatInterface, and useChat import guard.
+- Passed: focused post-review-fix regression set for `message-orchestrator`, `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, and `useChatImportGuard`.
 - Passed: `npm run test` (92 files, 754 tests)
 - Passed: `npm run typecheck`
 - Passed: `npm run build`
@@ -70,7 +77,7 @@ Last updated: 2026-04-14
 
 ## Next checkpoint
 
-- Open the PR for `codex/sprint-3-message-orchestrator`.
+- Review and merge PR `#221` for `codex/sprint-3-message-orchestrator`.
 - Do not include unrelated local artifacts such as `mcp-server/`.
-- Run the integrated manual validation for the end of Sprint 3: initial investigation, follow-up, retry, full dossier, remote save, and feedback.
+- Re-run the integrated manual validation for the end of Sprint 3 after the review-fix patch: initial investigation, follow-up, retry, full dossier, remote save, and feedback.
 - If that passes after merge, mark Sprint 3 as done and start Sprint 4 planning.

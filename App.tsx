@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
@@ -15,9 +15,9 @@ import {
   type RunMegaPromptWaterfallArgs,
 } from './features/chat/message-orchestrator';
 import {
-  ensureContinuitySuggestions as ensureContinuitySuggestionsFromHelper,
-  isAbortLikeError as isAbortLikeErrorFromHelper,
-  pickCompanyLabel as pickCompanyLabelFromHelper,
+  ensureContinuitySuggestions,
+  isAbortLikeError,
+  pickCompanyLabel,
 } from './features/chat/message-helpers';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
@@ -102,86 +102,20 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 const PAGE_SIZE = 20;
 type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
 
-function isGenericCompanyLabel(value: string | null | undefined): boolean {
-  const normalized = cleanTitle(value).trim();
-  if (!normalized) return true;
-  return /^(empresa|nova investiga[cÃ§][aÃ£]o|a empresa desta conversa|empresa n[aÃ£]o identificada|prospect|companhia|grupo)$/i.test(
-    normalized,
-  );
-}
-
-function pickCompanyLabel(...candidates: Array<string | null | undefined>): string {
-  for (const value of candidates) {
-    const raw = (value || '').trim();
-    if (!raw) continue;
-
-    const fromEmpresaField = raw.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-    if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) {
-      return cleanTitle(fromEmpresaField);
-    }
-
-    const fromDossieBracket = raw.match(/dossi[Ãªe]\s+completo\s+de\s*\[([^\]]+)\]/i)?.[1]?.trim();
-    if (fromDossieBracket && !isGenericCompanyLabel(fromDossieBracket)) {
-      return cleanTitle(fromDossieBracket);
-    }
-
-    const extracted = cleanTitle(extractCompanyName(raw));
-    if (
-      extracted &&
-      !isGenericCompanyLabel(extracted) &&
-      extracted.length <= 80 &&
-      !/investigacao_completa_integrada|protocolo de investiga|contexto cadastral obrigat/i.test(extracted)
-    ) {
-      return extracted;
-    }
-  }
-  return '';
-}
-
-function resolveHintedCompany(
-  sessionEmpresaAlvo: string | null | undefined,
-  safeVisibleText: string,
-): string | null {
-  if (sessionEmpresaAlvo && !isGenericCompanyLabel(sessionEmpresaAlvo)) return sessionEmpresaAlvo;
-
-  const extracted = cleanTitle(extractCompanyName(safeVisibleText));
-  if (extracted && !isGenericCompanyLabel(extracted)) return extracted;
-
-  const fromEmpresaField = safeVisibleText.match(/(?:^|\n)\s*-\s*Empresa:\s*([^\n\r]+)/i)?.[1]?.trim();
-  if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) return cleanTitle(fromEmpresaField);
-
-  const trimmed = safeVisibleText.trim();
-  if (
-    trimmed.length > 0 &&
-    trimmed.length <= 60 &&
-    !trimmed.includes('\n') &&
-    !isGenericCompanyLabel(trimmed)
-  ) {
-    return trimmed;
-  }
-
-  return null;
-}
-
 function buildDossierSeedContext(rawPrompt: string): string {
   if (!rawPrompt) return '';
 
   const sections = [
-    rawPrompt.match(/Contexto cadastral obrigatÃ³rio:[^\n]+/i)?.[0]?.trim(),
+    rawPrompt.match(/Contexto cadastral obrigatório:[^\n]+/i)?.[0]?.trim(),
     rawPrompt.match(/<radar_context>[\s\S]*?<\/radar_context>/i)?.[0]?.trim(),
   ].filter(Boolean);
 
   return sections.join('\n\n');
 }
 
-function isAbortLikeError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return error.name === 'AbortError' || error.message?.includes('aborted');
-}
-
 function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): boolean {
   const safeDisplay = (displayMessage || '').trim();
-  return /^Dossi(?:ê|e|Ãª)\s+completo:\s*/i.test(safeDisplay);
+  return /^Dossi[êe]\s+completo:\s*/i.test(safeDisplay);
 }
 
 const MAX_FAILURES_BEFORE_FEEDBACK = 2;
@@ -189,7 +123,6 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
-const CONTINUITY_TARGET = 4;
 
 const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
   score: 60,
@@ -204,7 +137,7 @@ const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
 };
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
-  P: ['EstratÃ©gia & ExpansÃ£o'],
+  P: ['Estratégia & Expansão'],
   O: ['Raio-X Operacional'],
   R: ['Riscos & Compliance'],
   T: ['Tech Stack'],
@@ -231,20 +164,20 @@ export function buildPortaReconciliationPrompt(missingDimensions: PortaDimension
     .join('\n');
 
   return `
-MISSÃƒO: ReconciliaÃ§Ã£o final do Score PORTA.
+MISSÃO: Reconciliação final do Score PORTA.
 
-VocÃª receberÃ¡ o contexto consolidado da investigaÃ§Ã£o jÃ¡ executada.
-Seu trabalho Ã© emitir SOMENTE os markers PORTA faltantes para as dimensÃµes abaixo.
+Você receberá o contexto consolidado da investigação já executada.
+Seu trabalho é emitir SOMENTE os markers PORTA faltantes para as dimensões abaixo.
 
 DIMENSÕES FALTANTES: ${uniqueMissingDimensions.join(', ')}
 
-REGRAS OBRIGATÃ“RIAS:
-1. SaÃ­da sem explicaÃ§Ãµes e sem markdown: apenas linhas de markers.
-2. Use APENAS os formatos abaixo para cada dimensÃ£o solicitada.
+REGRAS OBRIGATÓRIAS:
+1. Saída sem explicações e sem markdown: apenas linhas de markers.
+2. Use APENAS os formatos abaixo para cada dimensão solicitada.
 3. Todas as notas devem ser inteiras de 0 a 10.
-4. NÃ£o repita dimensÃµes que nÃ£o foram solicitadas.
+4. Não repita dimensões que não foram solicitadas.
 
-FORMATOS POR DIMENSÃƒO:
+FORMATOS POR DIMENSÃO:
 ${requiredTemplates}
 `.trim();
 }
@@ -317,47 +250,6 @@ export function ensureWaterfallScorePorta(
 
 export function shouldHoldWaterfallScoreForIntegrity(currentResolution: PortaScoreResolution): boolean {
   return !currentResolution.score && currentResolution.missingDimensions.length === 5;
-}
-
-function normalizeContinuitySuggestion(raw: string): string {
-  const normalized = (raw || '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  return normalized.endsWith('?') ? normalized : `${normalized}?`;
-}
-
-function buildContinuitySuggestionsFallback(companyName?: string | null): string[] {
-  const companyReference = (companyName || '').trim() || 'a operaÃ§Ã£o';
-  return [
-    `Qual gargalo em ${companyReference} jÃ¡ estÃ¡ consumindo margem e segue tratado como rotina?`,
-    `Que decisÃ£o crÃ­tica em ${companyReference} continua travada por falta de dados confiÃ¡veis?`,
-    `Onde ${companyReference} ainda depende de planilhas e amplia risco operacional sem reaÃ§Ã£o executiva?`,
-    `Se nada mudar em ${companyReference} nos prÃ³ximos 90 dias, qual ruptura tende a aparecer primeiro?`,
-  ];
-}
-
-export function ensureContinuitySuggestions(
-  suggestions: string[] | null | undefined,
-  companyName?: string | null,
-): string[] {
-  const unique: string[] = [];
-  const seen = new Set<string>();
-
-  const pushIfValid = (value: string) => {
-    const normalized = normalizeContinuitySuggestion(value);
-    if (!normalized) return;
-    const key = normalized.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    unique.push(normalized);
-  };
-
-  (Array.isArray(suggestions) ? suggestions : []).forEach(pushIfValid);
-
-  if (unique.length < CONTINUITY_TARGET) {
-    buildContinuitySuggestionsFallback(companyName).forEach(pushIfValid);
-  }
-
-  return unique.slice(0, CONTINUITY_TARGET);
 }
 
 const App: React.FC = () => {
@@ -527,7 +419,7 @@ const App: React.FC = () => {
     updateCurrentSession(session => ({
       ...session,
       messages: [],
-      title: 'Nova InvestigaÃ§Ã£o',
+      title: 'Nova Investigação',
       empresaAlvo: null,
       updatedAt: new Date().toISOString(),
     }));
@@ -682,7 +574,7 @@ const App: React.FC = () => {
           previousStageCompleted = true;
           setFailureCount(0);
         } catch (error) {
-          if (isAbortLikeErrorFromHelper(error)) throw error;
+          if (isAbortLikeError(error)) throw error;
           if (!module.optional) throw error;
 
           previousStageCompleted = false;
@@ -713,7 +605,7 @@ const App: React.FC = () => {
         benchmarkCompleted = true;
         setFailureCount(0);
       } catch (error) {
-        if (isAbortLikeErrorFromHelper(error)) throw error;
+        if (isAbortLikeError(error)) throw error;
 
         benchmarkCompleted = false;
         optionalStepFailures.add('Benchmark de mercado');
@@ -777,7 +669,7 @@ const App: React.FC = () => {
               moduleName,
             });
           } catch (error) {
-            if (isAbortLikeErrorFromHelper(error)) throw error;
+            if (isAbortLikeError(error)) throw error;
             optionalStepFailures.add(moduleName);
             setFailureCount(count => count + 1);
             scoutDiag.warn('ModularDossier', 'retry de módulo falhou', {
@@ -823,7 +715,7 @@ const App: React.FC = () => {
             emittedChars: reconciliationChunk.length,
           });
         } catch (error) {
-          if (isAbortLikeErrorFromHelper(error)) throw error;
+          if (isAbortLikeError(error)) throw error;
           scoutDiag.error('ModularDossier', 'reconciliador PORTA falhou', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -927,13 +819,13 @@ const App: React.FC = () => {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      waterfallSuggestions = ensureContinuitySuggestionsFromHelper(
+      waterfallSuggestions = ensureContinuitySuggestions(
         waterfallSuggestions,
         resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
       );
 
       updateSessionById(sessionId, session => {
-        const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabelFromHelper(session.title);
+        const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
         return {
           ...session,
           empresaAlvo: finalCompany || session.empresaAlvo,
@@ -971,7 +863,6 @@ const App: React.FC = () => {
 
   const { handleSendMessage, retryLastSendMessage } = useChatMessageOrchestrator({
     currentSessionId,
-    sessions,
     setSessions,
     setCurrentSessionId,
     sessionsRef,
@@ -1011,9 +902,9 @@ const App: React.FC = () => {
       });
       return;
     }
-    const topicLabel = displayMessage.replace(/^Dossi(?:ê|e|Ãª)\s+completo:\s*/i, '').trim();
+    const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
     await handleSendMessage(
-      `DossiÃª completo de [${empresaContext}]. Protocolo de investigaÃ§Ã£o forense especializada:\n\n${hiddenPrompt}`,
+      `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,
       {
@@ -1064,7 +955,7 @@ const App: React.FC = () => {
     const targetMessage = targetSession.messages.find(m => m.id === messageId);
     if (!targetMessage) return;
     const companyName =
-      targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa nÃ£o identificada';
+      targetSession.empresaAlvo || extractCompanyName(targetSession.title || '') || 'Empresa não identificada';
     const nomeVendedor = resolvedOperatorName;
     const oldSuggestions = Array.isArray(targetMessage.suggestions)
       ? targetMessage.suggestions
@@ -1096,7 +987,7 @@ const App: React.FC = () => {
       }));
     } catch (e: unknown) {
       console.warn('Suggestion regeneration failed', e);
-      toast.error(e instanceof Error ? e.message : 'Falha na conexÃ£o com a IA.');
+      toast.error(e instanceof Error ? e.message : 'Falha na conexão com a IA.');
       updateSessionById(sessionId, session => ({
         ...session,
         messages: (session.messages || []).map(msg =>
@@ -1110,7 +1001,7 @@ const App: React.FC = () => {
     try {
       const { text: fullText, sections, allLinks } = collectFullReport(allMessages);
       if (!fullText || fullText.length < 100) {
-        alert('Nenhum dossiÃª para exportar.');
+        alert('Nenhum dossiê para exportar.');
         return;
       }
       const inconsistenciesSection = detectInconsistencies(sections);
@@ -1121,7 +1012,7 @@ const App: React.FC = () => {
       const now = new Date();
       const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
       const horaStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const metaLine = `${dataStr} Ã s ${horaStr} Â· ${sections.length} seÃ§Ã£o${sections.length !== 1 ? 'Ãµes' : ''}`;
+      const metaLine = `${dataStr} às ${horaStr} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
       const { PDFGenerator } = await import('./utils/PDFGenerator');
       const pdf = new PDFGenerator();
       pdf.addHeader(empresa, metaLine);
@@ -1211,7 +1102,7 @@ const App: React.FC = () => {
       const message = err instanceof Error ? err.message : 'Erro desconhecido';
       scoutDiag.warn('Email', 'handleSendEmail falhou', { error: message });
       setEmailStatus('error');
-      toast.error('Falha ao enviar email. Verifique sua conexÃ£o.');
+      toast.error('Falha ao enviar email. Verifique sua conexão.');
     }
   }
 
@@ -1227,12 +1118,12 @@ const App: React.FC = () => {
       return;
     }
     setFollowUpStatus('error');
-    toast.error(result.error || 'NÃ£o foi possÃ­vel preparar o follow-up.');
+    toast.error(result.error || 'Não foi possível preparar o follow-up.');
   }
 
   const handleSaveToCRM = async (sessionId: string) => {
     if (!canAccessMiniCRM) {
-      toast.error('Mini CRM indisponÃ­vel no modo MVP.');
+      toast.error('Mini CRM indisponível no modo MVP.');
       return;
     }
     const session = sessions.find(s => s.id === sessionId);
@@ -1241,7 +1132,7 @@ const App: React.FC = () => {
     if (existingCard) {
       setSelectedCRMCardId(existingCard.id);
       setActiveView('crm');
-      toast.success('Empresa jÃ¡ existe no CRM.');
+      toast.success('Empresa já existe no CRM.');
       return;
     }
     const card = await createCardFromSession(session);
@@ -1273,7 +1164,7 @@ const App: React.FC = () => {
 
   const handleOpenKanbanSafe = () => {
     if (!canAccessMiniCRM) {
-      toast.error('Mini CRM indisponÃ­vel no modo MVP.');
+      toast.error('Mini CRM indisponível no modo MVP.');
       return;
     }
     setActiveView('crm');
@@ -1307,7 +1198,7 @@ const App: React.FC = () => {
               d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M8.464 8.464a5 5 0 000 7.072M5.636 5.636a9 9 0 000 12.728M12 12v.01"
             />
           </svg>
-          Sem conexÃ£o â€” algumas funÃ§Ãµes ficam indisponÃ­veis offline
+          Sem conexão — algumas funções ficam indisponíveis offline
         </div>
       )}
 
@@ -1319,7 +1210,7 @@ const App: React.FC = () => {
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          ConexÃ£o restabelecida âœ•
+          Conexão restabelecida ✕
         </div>
       )}
 
@@ -1372,9 +1263,9 @@ const App: React.FC = () => {
               loadingPinnedLabel={loadingPinnedLabel}
               onOpenEmailModal={() => {
                 setEmailSubject(
-                  'DossiÃª de InteligÃªncia â€” ' +
+                  'Dossiê de Inteligência — ' +
                     cleanTitle(extractCompanyName(currentSession?.title)) +
-                    ' â€” ðŸ¦… Senior Scout 360',
+                    ' — 🦅 Senior Scout 360',
                 );
                 setShowEmailModal(true);
                 setEmailStatus(null);
@@ -1466,7 +1357,7 @@ const App: React.FC = () => {
           companyName={
             cleanTitle(extractCompanyName(currentSession?.title)) ||
             currentSession?.empresaAlvo ||
-            'Conta em prospecÃ§Ã£o'
+            'Conta em prospecção'
           }
           onSchedule={handleScheduleFollowUp}
           onClose={() => setShowFollowUpModal(false)}

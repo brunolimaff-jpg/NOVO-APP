@@ -58,7 +58,6 @@ export interface RunMegaPromptWaterfallArgs {
 
 export interface UseChatMessageOrchestratorOptions {
   currentSessionId: string | null;
-  sessions: ChatSession[];
   setSessions: Dispatch<SetStateAction<ChatSession[]>>;
   setCurrentSessionId: Dispatch<SetStateAction<string | null>>;
   sessionsRef: MutableRefObject<ChatSession[]>;
@@ -93,7 +92,6 @@ export interface UseChatMessageOrchestratorOptions {
 
 export function useChatMessageOrchestrator({
   currentSessionId,
-  sessions,
   setSessions,
   setCurrentSessionId,
   sessionsRef,
@@ -229,15 +227,12 @@ export function useChatMessageOrchestrator({
       setVisibleCount(prev => prev + 1);
 
       try {
-        const upperText = text.toUpperCase();
+        const normalizedUpperText = text
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toUpperCase();
         const isMegaPrompt =
-          (
-            upperText.includes('DOSSIÊ COMPLETO') ||
-            upperText.includes('DOSSIE COMPLETO') ||
-            upperText.includes('DOSSIÃª COMPLETO') ||
-            upperText.includes('DOSSIÃŠ COMPLETO')
-          ) &&
-          resolvedRequestKind !== 'deep_dive';
+          normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
         if (isMegaPrompt) {
           await runMegaPromptWaterfall({
@@ -432,8 +427,8 @@ export function useChatMessageOrchestrator({
       setRequestKind(resolvedRequestKind);
       setLoadingPinnedLabel(fixedLoadingLine);
 
-      const hasExistingSession = sessionId ? sessions.some(session => session.id === sessionId) : false;
-      if (!sessionId || !hasExistingSession) {
+      const existingSession = sessionId ? sessionsRef.current.find(session => session.id === sessionId) : null;
+      if (!sessionId || !existingSession) {
         sessionId = uuidv4();
         const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
         const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
@@ -454,9 +449,8 @@ export function useChatMessageOrchestrator({
         setCurrentSessionId(sessionId);
         currentHistory = [];
       } else {
-        const session = sessions.find(item => item.id === sessionId);
-        currentHistory = session?.messages ? [...session.messages] : [];
-        immediateCompany = hintedCompanyOverride || session?.empresaAlvo || null;
+        currentHistory = existingSession.messages ? [...existingSession.messages] : [];
+        immediateCompany = hintedCompanyOverride || existingSession.empresaAlvo || null;
       }
 
       const userMessage: Message = {
@@ -499,7 +493,7 @@ export function useChatMessageOrchestrator({
     [
       currentSessionId,
       processMessage,
-      sessions,
+      sessionsRef,
       setCurrentSessionId,
       setLoadingPinnedLabel,
       setRequestKind,

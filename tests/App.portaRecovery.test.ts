@@ -3,11 +3,11 @@ import {
   applyPortaTechnicalFallback,
   buildPortaFallbackChunk,
   buildPortaReconciliationPrompt,
-  ensureContinuitySuggestions,
   ensureWaterfallScorePorta,
   resolveModuleNamesForMissingDimensions,
   shouldHoldWaterfallScoreForIntegrity,
 } from '../App';
+import { ensureContinuitySuggestions } from '../features/chat/message-helpers';
 
 describe('App PORTA recovery helpers', () => {
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
