@@ -1,15 +1,18 @@
-# Arquitetura Técnica — 🦅 Senior Scout 360
+# Arquitetura Tecnica — 🦅 Senior Scout 360
 
-Este documento detalha o desenho técnico da aplicação, os módulos principais e os fluxos de execução.
+Este documento detalha o desenho tecnico da aplicacao, os modulos principais e os fluxos de execucao.
+
+> **Ultima atualizacao:** 2026-04-14 — reflete o estado apos Sprints 1, 2 e 3 (ativo) do programa de refatoracao.
+> Para o estado vivo do programa, consulte `docs/ai-context/refactor/02-BOARD.md`.
 
 ## 1. Contexto
 
 O sistema combina:
 
 - **Interface conversacional** (React);
-- **Orquestração de IA** (Gemini + RAG);
-- **Persistência local/remota** (IDB/localStorage + Apps Script);
-- **Gestão de oportunidade** (mini CRM kanban).
+- **Orquestracao de IA** (Gemini + RAG);
+- **Persistencia local/remota** (IDB/localStorage + Apps Script);
+- **Gestao de oportunidade** (mini CRM kanban).
 
 ## 2. Blocos principais
 
@@ -18,22 +21,39 @@ O sistema combina:
 - **`index.tsx`**
   - Bootstrap do app e registro dos providers globais.
 - **`App.tsx`**
-  - Orquestração de estado da sessão, mensagens, exportação, e CRM.
+  - Orquestrador de estado em reducao progressiva. Responsabilidades sendo extraidas para `features/*`.
+- **`features/chat/`** *(novo — Sprint 3)*
+  - Modulos autonomos extraidos do `App.tsx`:
+    - `loading-progress.ts` — estado e progresso de loading do chat
+    - `session-controller.ts` — ciclo de vida de sessao e save remoto
+    - `feedback-actions.ts` — handlers de feedback, section feedback, toggle de fontes, report de erro
+    - `message-orchestrator.ts` — orquestracao do envio padrao *(em andamento)*
 - **`components/*`**
   - Camada de interface (chat, mensagens, barra lateral, modais, war room, CRM).
 - **`contexts/*`**
-  - Auth, modo operacional e dados de CRM.
+  - Perfil do operador (`OperatorContext`) e dados de CRM.
 - **`hooks/*`**
-  - Persistência local, tema, status online/offline, toast.
+  - Persistencia local, tema, status online/offline, toast, notificacao de atualizacao.
 
-### Serviços de domínio
+### Auth
 
-- **`services/geminiService.ts`**
-  - Motor principal de perguntas/respostas com IA.
+- **Local-only** via `contexts/OperatorContext.tsx`.
+- Nome do operador e obrigatorio, salvo localmente por dispositivo.
+- `operatorId` estavel por dispositivo para rastreabilidade remota.
+- `@clerk/react` foi removido no Sprint 1.
+
+### Servicos de dominio
+
+- **`services/geminiService.ts`** *(fachada publica estavel)*
+  - Motor principal de perguntas/respostas com IA. Delega para `services/gemini/`.
+- **`services/gemini/`** *(novo — Sprint 2)*
+  - Orquestracao interna decomposta:
+    - `investigation-orchestration.ts`, `porta.ts`, `sources.ts`, `sanitization.ts`
+    - `status.ts`, `recovery.ts`, `runtime.ts`, `auxiliary.ts`, `config.ts`, `contracts.ts`
 - **`services/ragService.ts`**
-  - Cliente para funções serverless de RAG.
+  - Cliente para funcoes serverless de RAG.
 - **`services/sessionRemoteStore.ts`**
-  - Operações de sessão remota (list/get/save).
+  - Operacoes de sessao remota (list/get/save).
 - **`services/feedbackRemoteStore.ts`**
   - Envio de feedback de respostas.
 - **`services/clientLookupService.ts`**
@@ -41,43 +61,42 @@ O sistema combina:
 
 ### APIs serverless (Vercel)
 
-- **`api/rag.ts`**
-  - Embedding + consulta vetorial para contexto interno.
-- **`api/docs-rag.ts`**
-  - Embedding + consulta vetorial para documentação técnica.
-- **`api/link-status.ts`**
-  - Validação de links exibidos como fonte.
+- **`api/rag.ts`** — Embedding + consulta vetorial para contexto interno.
+- **`api/docs-rag.ts`** — Embedding + consulta vetorial para documentacao tecnica.
+- **`api/link-status.ts`** — Validacao de links exibidos como fonte.
 
-## 3. Sequência do fluxo de mensagem
+## 3. Sequencia do fluxo de mensagem (estado atual)
 
 ```text
-Usuário envia pergunta
+Usuario envia pergunta
    ↓
 ChatInterface.onSendMessage
    ↓
 App.handleSendMessage
-   ↓
+   ↓ (delegando progressivamente para features/chat/message-orchestrator)
 App.processMessage
-   ├─ cria placeholder (isThinking)
-   ├─ cria AbortController
+   ├─ useChatLoadingProgress (features/chat/loading-progress.ts)
+   ├─ useSessionManager (features/chat/session-controller.ts)
+   ├─ useSessionRemoteSave (features/chat/session-controller.ts)
+   ├─ useChatFeedbackActions (features/chat/feedback-actions.ts)
    └─ chama sendMessageToGemini
           ↓
-      geminiService.sendMessageToGemini
+      geminiService.sendMessageToGemini (fachada)
        ├─ scanInput (promptGuard)
        ├─ analyzeUserIntent
        ├─ lookup + benchmark + concorrentes
        ├─ RAG interno + docs RAG
        ├─ chamada ao modelo (stream)
-       └─ parse de marcadores (STATUS/PORTA)
+       └─ parse de marcadores (STATUS/PORTA) [services/gemini/porta.ts]
           ↓
-App atualiza sessão/mensagem
+App atualiza sessao/mensagem
    ├─ texto final
    ├─ fontes
-   ├─ sugestões
+   ├─ sugestoes
    └─ metadados (score, ghost, etc.)
 ```
 
-## 4. Persistência
+## 4. Persistencia
 
 ### Local
 
@@ -87,7 +106,7 @@ App atualiza sessão/mensagem
 
 ### Remota
 
-- `sessionRemoteStore` envia payload para Apps Script com ações:
+- `sessionRemoteStore` envia payload para Apps Script com acoes:
   - `listSessions`
   - `getSession`
   - `saveSession`
@@ -96,20 +115,22 @@ App atualiza sessão/mensagem
 
 - `CRMContext` persiste cards em localStorage (`scout360_crm_cards_v1`) e em IDB por card.
 
-## 5. Segurança e resiliência implementadas
+## 5. Seguranca e resiliencia implementadas
 
 - **Prompt guard** com:
-  - sanitização de unicode;
+  - sanitizacao de unicode;
   - deny-list de jailbreak;
-  - rate-limit por sessão;
-  - canary token para detecção de vazamento;
-  - sanitização de conteúdo externo (RAG).
+  - rate-limit por sessao;
+  - canary token para deteccao de vazamento;
+  - sanitizacao de conteudo externo (RAG).
 
-- **Resiliência de rede**
+- **Resiliencia de rede**
   - retries exponenciais (`withAutoRetry`);
-  - timeouts explícitos;
+  - timeouts explicitos;
   - fallback silencioso quando RAG falha;
   - tratamento de abort/cancelamento.
+
+- **Chaves de IA:** gerenciadas via variaveis de ambiente Vercel. Nao expostas no frontend.
 
 ## 6. Contratos relevantes
 
@@ -130,19 +151,27 @@ Concentrados em `types.ts`:
 
 - `Message`, `ChatSession`, `CRMCard`, `ScorePortaData`, `AppError`.
 
-## 7. Gargalos e dívida técnica
+## 7. Debito tecnico ativo
 
-1. `App.tsx` concentra muitas responsabilidades.
-2. Prompts extensos em `constants.ts` aumentam custo de manutenção.
-3. Uso de chave de IA no frontend deve ser eliminado em produção.
-4. Endpoints de validação/consulta devem ser endurecidos com políticas de segurança.
+> Para o rastreamento vivo de debitos e riscos, consulte `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
-## 8. Estratégia de evolução sugerida
+| Item | Status | Previsto em |
+|---|---|---|
+| `App.tsx` concentra muitas responsabilidades | Em reducao — Sprint 3/4 ativo | Sprints 3-4 |
+| `constants.ts` monolitico (prompts + constantes de UI) | Abertura feita com `constants/loadingStages.ts` | Sprint 7 |
+| `npm run lint` vermelho por backlog historico | Aberto (OI-005) | Passada dedicada |
+| `prompts/megaPrompts.ts` com `@ts-nocheck` | Aberto | Sprint 6 |
+| `hooks/useChat.ts` legado sem remocao | Guardrail ativo, remocao pendente | Sprint 7 |
 
-- Separar `App.tsx` por bounded contexts:
-  - sessão/chat,
-  - exportações/compartilhamento,
-  - CRM.
-- Introduzir validação de payload com schema.
-- Migrar prompts para versão remota/configurável.
-- Consolidar observabilidade (tracing de latência por etapa do pipeline).
+## 8. Estrategia de evolucao (programa de refatoracao)
+
+Programa de 8 sprints em andamento. Ver `docs/ai-context/refactor/01-MASTER-PLAN.md` para sequencia completa.
+
+- Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
+- Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
+- Sprint 3 (active): extracao do fluxo de chat para `features/chat/`
+- Sprint 4 (planned): extracao do fluxo de dossie para `features/dossier/`
+- Sprint 5 (planned): modularizacao de `components/ChatInterface.tsx`
+- Sprint 6 (planned): divisao de `prompts/megaPrompts.ts`
+- Sprint 7 (planned): constantes e legado
+- Sprint 8 (planned): War Room e documentacao final
