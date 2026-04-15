@@ -2,7 +2,6 @@ name: Caliber Score
 
 on:
   pull_request:
-    branches: [main]
 
 jobs:
   caliber-score:

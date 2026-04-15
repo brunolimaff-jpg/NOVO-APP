@@ -2,13 +2,12 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
 jobs:
   typecheck:
-    name: Typecheck (non-blocking)
+    name: Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +16,20 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Run typecheck (informational)
+      - name: Run typecheck
         run: npm run typecheck
-        continue-on-error: true
+
+  dossier-golden:
+    name: Dossier Golden
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:dossier
 
   test:
     name: Tests
