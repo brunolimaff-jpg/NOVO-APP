@@ -29,7 +29,7 @@ Para continuidade entre IAs, leia primeiro:
 ## Entrypoints e hotspots
 
 - Bootstrap da app: `index.tsx`
-- Orquestrador principal: `App.tsx` (hotspot ativo - Sprint 3 de chat mergeada; Sprint 4 vai atacar dossie/waterfall)
+- Orquestrador principal: `App.tsx` (hotspot ativo - Sprint 3 concluida; Sprint 4 ataca dossie/waterfall em ondas)
 - UI principal do chat: `components/ChatInterface.tsx`
 - Fachada publica da camada Gemini: `services/geminiService.ts`
 - Implementacao interna da camada Gemini: `services/gemini/`
@@ -66,6 +66,9 @@ Para continuidade entre IAs, leia primeiro:
   - `features/chat/feedback-actions.ts` - handlers de feedback, section feedback, toggle de fontes, report de erro (Sprint 3 / corte 3)
   - `features/chat/message-orchestrator.ts` - orquestracao do envio padrao (Sprint 3 / ultimo corte, mergeado)
   - `features/chat/message-helpers.ts` - helpers compartilhados de hint de empresa, abort e sugestoes de continuidade
+- `features/dossier/` e o destino ativo da Sprint 4:
+  - Onda 1: mover waterfall, benchmark, retries e reconciliacao PORTA
+  - Onda 2: consolidar `stores/*` e error boundaries por feature
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
@@ -74,8 +77,8 @@ Para continuidade entre IAs, leia primeiro:
 
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
-- Sprint 3 (active): extracao do fluxo de chat para `features/chat/` mergeada; fechamento ainda depende da validacao manual integrada
-- Sprint 4 (planned): extracao do fluxo de dossie para `features/dossier/`
+- Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
+- Sprint 4 (active): extracao do fluxo de dossie para `features/dossier/` em ondas
 - Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais

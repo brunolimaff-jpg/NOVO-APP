@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Execucao. Sprint 3 esta ativa.
+Execucao. Sprint 4 esta ativa.
 
 O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
 O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
@@ -11,7 +11,11 @@ O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `
 O quinto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#220`.
 O corte final da Sprint 3 tambem ja foi mergeado em `main` via PR `#221`.
 A PR `#222` tambem ja foi mergeada e adicionou o golden regression offline do dossie canonico.
-O sprint continua `active` apenas porque ainda falta a validacao manual integrada antes de marcar `done`.
+A validacao manual integrada do fechamento da Sprint 3 foi concluida em runtime real em `2026-04-15`.
+Sprint 3 agora esta `done`.
+Sprint 4 foi aberta em ondas:
+- Onda 1: extracao de `features/dossier/*`
+- Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
 
 ## What Was Finished
 
@@ -39,33 +43,33 @@ O sprint continua `active` apenas porque ainda falta a validacao manual integrad
 - Patch de review aplicado na PR `#221`: `App.tsx` voltou para UTF-8 canonico sem BOM, helpers duplicados sairam do `App.tsx`, e o orchestrator passou a detectar o mega prompt via texto normalizado + `sessionsRef.current`
 - PR `#222` mergeada: `npm run test:dossier` agora executa uma regressao offline deterministica do caso Scheffer (`CNPJ 04.733.767/0001-80`)
 - Checkpoint manual de feedback foi reportado como validado em `2026-04-15`
+- Validacao manual integrada do fluxo completo da Sprint 3 foi concluida em `2026-04-15`
+- Board, handoff e memoria foram sincronizados para marcar Sprint 3 como `done` e Sprint 4 como `active`
 
 ## What Is In Progress
 
-- fechamento operacional da Sprint 3
-- falta a validacao manual integrada em runtime real para poder marcar o sprint como `done`
-- o proximo planejamento tecnico continua sendo Sprint 4 (`features/dossier/*`), mas so depois do fechamento manual da Sprint 3
+- Onda 1 da Sprint 4: extrair waterfall, benchmark, retries e reconciliacao PORTA para `features/dossier/*`
+- Onda 2 da Sprint 4 permanece enfileirada: `stores/*` com `Context + Reducer` tipado e error boundaries por feature
 
 ## Next Safe Step
 
-1. Rodar a validacao manual final da Sprint 3:
-   - investigacao inicial
-   - follow-up
-   - retry de envio
-   - dossie completo
-   - save remoto
-   - feedback
-2. Se a validacao manual passar, marcar Sprint 3 como `done` e sincronizar `02-BOARD.md`, `.agents/memory/*` e este handoff
-3. Depois planejar Sprint 4 (`features/dossier/*`)
-4. Ao tocar comportamento real de dossie, usar `npm run test:dossier` antes de abrir nova rodada manual de export
+1. Implementar a Onda 1 da Sprint 4 em branch e PR proprios:
+   - `features/dossier/porta-reconciliation.ts`
+   - `features/dossier/benchmark-stage.ts`
+   - `features/dossier/waterfall-orchestrator.ts`
+2. Validar a Onda 1 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+3. Atualizar board/handoff/memory com o resultado da Onda 1 antes de abrir a Onda 2
+4. Depois atacar a Onda 2: `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`
 
 ## Files Most Relevant Now
 
 - `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- `docs/ai-context/refactor/04-ARCHITECTURE-TARGET.md`
 - `docs/ai-context/refactor/02-BOARD.md`
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/05-VALIDATION.md`
 - `App.tsx`
+- `features/dossier/*` (novo destino da Sprint 4)
 - `features/chat/*` (novo destino da extracao)
 - `components/ChatInterface.tsx`
 - `services/geminiService.ts`
@@ -89,6 +93,7 @@ O sprint continua `active` apenas porque ainda falta a validacao manual integrad
 
 ## Validation Last Run
 
+- validacao manual integrada da Sprint 3: green em `2026-04-15`
 - `npm run test:dossier`: green em `2026-04-15`
 - `npm run test`: green em `2026-04-15` (`93` arquivos, `755` testes)
 - `npm run typecheck`: green em `2026-04-15`
@@ -99,8 +104,9 @@ O sprint continua `active` apenas porque ainda falta a validacao manual integrad
 ## Suggested Prompt For Next AI
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
-`02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir do fechamento da Sprint 3 em `main`.
-Use `npm run test:dossier` como fast-check do caso canonico de dossie e conduza a validacao manual integrada da sprint.
-Se a validacao manual passar, atualize o board para marcar Sprint 3 como `done`
-e inicie o planejamento da Sprint 4 (`features/dossier/*`).
+`02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
+Continue a partir da Onda 1 da Sprint 4 em `main`.
+Use `npm run test:dossier` como fast-check do caso canonico de dossie.
+Extraia a logica de waterfall/benchmark/reconciliacao PORTA para `features/dossier/*`
+sem alterar `ChatInterfaceProps` nem a fachada publica de `services/geminiService.ts`.
+Depois registre a rodada nas fontes canonicas antes de abrir a Onda 2.

@@ -14,6 +14,11 @@ Last updated: 2026-04-15
 - Merged dossier markdown golden regression into `main` (`3ebccf616472ec8618c49a09d8f442ed15bd4bc3` via PR `#222`).
 - Manual validation for the full session package (`2A` + `2B` + `2C`) completed on 2026-04-14.
 - User reported the feedback checkpoint as manually validated on 2026-04-15.
+- Integrated manual validation for the full Sprint 3 flow completed in runtime real on 2026-04-15.
+- Sprint 3 was marked `done` and Sprint 4 was opened as `active`.
+- Sprint 4 sequencing was locked as:
+  - Onda 1: `features/dossier/*`
+  - Onda 2: `stores/*` with `Context + Reducer` typed state plus feature error boundaries
 - Added `features/chat/loading-progress.ts` with `useChatLoadingProgress`.
 - Added `features/chat/session-controller.ts` and moved the session lifecycle logic there.
 - Added `features/chat/feedback-actions.ts` and moved feedback handlers there.
@@ -39,8 +44,8 @@ Last updated: 2026-04-15
 
 ## In progress
 
-- Integrated manual validation for Sprint 3 closure in runtime real.
-- Sprint 4 planning stays queued until Sprint 3 can be marked `done`.
+- Sprint 4 / Onda 1: extract dossier waterfall logic from `App.tsx` into `features/dossier/*`.
+- Onda 2 remains queued behind Onda 1 validation and PR.
 
 ## Blockers
 
@@ -55,6 +60,8 @@ Last updated: 2026-04-15
 - Passed: focused tests for feedback actions, App layout/loading regression, and useChat import guard.
 - Passed: focused tests for message orchestrator, App loading variant regression, App PORTA recovery, ChatInterface, and useChat import guard.
 - Passed: focused post-review-fix regression set for `message-orchestrator`, `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, and `useChatImportGuard`.
+- Passed: integrated manual validation for the full Sprint 3 flow in runtime real on 2026-04-15.
+- Passed: Onda 0 reran `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build` before opening Sprint 4 work.
 - Passed: `npm run test:dossier`
 - Passed: `npm run test` (93 files, 755 tests)
 - Passed: `npm run typecheck`
@@ -77,8 +84,8 @@ Last updated: 2026-04-15
 
 ## Next checkpoint
 
-- Run the integrated manual validation for Sprint 3 before marking it `done`.
+- Start Sprint 4 / Onda 1 from the post-`#222` baseline and keep `ChatInterfaceProps` plus `services/geminiService.ts` stable.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
-- After the manual pass, open Sprint 4 planning for `features/dossier/*`.
+- After Onda 1, sync board/handoff/memory again before opening Onda 2.
