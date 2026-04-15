@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ## Completed
 
@@ -10,31 +10,14 @@ Last updated: 2026-04-14
 - Merged Sprint 3 / corte 2B App import swap into `main` (`958af340483f5d9a52fee4b9a44ec746324f4788` via PR `#218`).
 - Merged Sprint 3 / corte 2C session remote save into `main` (`5d963f74dad84f49838790d56125e6db24269cae` via PR `#219`).
 - Merged Sprint 3 / corte 3 feedback actions into `main` (`a4d41de1d02fe1af2adae202f5cb6b63f63c04ff` via PR `#220`).
+- Merged Sprint 3 / corte final message orchestrator into `main` (`dadac29` via PR `#221`).
 - Manual validation for the full session package (`2A` + `2B` + `2C`) completed on 2026-04-14.
-- Created `features/chat/loading-progress.ts` with `useChatLoadingProgress`.
-- Updated `App.tsx` to consume the loading hook while preserving current UI props and behavior.
-- Added `features/**/*` to `tsconfig.json`.
-- Extended the `hooks/useChat.ts` import guardrail to cover `features/`.
-- Added `tests/features/chat/loading-progress.test.tsx`.
-- Moved the session lifecycle hook implementation to `features/chat/session-controller.ts`.
-- Replaced `hooks/useSessionManager.ts` with a temporary re-export facade.
-- Moved session lifecycle tests to `tests/features/chat/session-controller.test.ts`.
-- Started Sprint 3 / corte 2B from `origin/main@602380d`.
-- Updated `App.tsx` to import `useSessionManager` from `features/chat/session-controller`.
-- Updated `App` tests to mock `features/chat/session-controller` directly.
-- Started Sprint 3 / corte 2C from `origin/main@958af34`.
-- Added `useSessionRemoteSave` to `features/chat/session-controller`.
-- Updated `App.tsx` to consume remote save state/action from the feature module.
-- Added feature tests covering remote save success, no-session guard, and error path.
-- Started Sprint 3 / corte 3 from `origin/main@5d963f7`.
-- Added `features/chat/feedback-actions.ts` with `useChatFeedbackActions`.
-- Updated `App.tsx` to consume feedback handlers from the feature module.
-- Added feature tests covering feedback toggle, section feedback, source toggle, remote submit, and error reporting.
-- Started Sprint 3 / corte final from `origin/main@a4d41de`.
+- Added `features/chat/loading-progress.ts` with `useChatLoadingProgress`.
+- Added `features/chat/session-controller.ts` and moved the session lifecycle logic there.
+- Added `features/chat/feedback-actions.ts` and moved feedback handlers there.
 - Added `features/chat/message-helpers.ts` with shared helpers for company hinting, abort detection, and continuity suggestion fallback.
 - Added `features/chat/message-orchestrator.ts` with `useChatMessageOrchestrator`.
 - Updated `App.tsx` to delegate the standard send flow and retry flow to the feature hook while keeping the dossier waterfall local.
-- Added `tests/features/chat/message-orchestrator.test.ts` covering new session bootstrap, follow-up, placeholder, abort, error, retry, waterfall delegation, deep dive path, and remote investigation logging.
 - Applied the PR `#221` review-fix patch:
   - removed duplicated chat helper implementations from `App.tsx` in favor of `features/chat/message-helpers.ts`
   - restored canonical UTF-8 strings/regexes in `App.tsx` and removed the BOM
@@ -54,11 +37,11 @@ Last updated: 2026-04-14
 
 ## In progress
 
-- PR `#221` review/merge for Sprint 3 / corte final message orchestrator (`codex/sprint-3-message-orchestrator`).
+- PR `#222` review/merge for the dossier markdown golden regression branch (`codex/dossier-markdown-golden-test`).
 
 ## Blockers
 
-- None known. Sprint 3 is implemented; only the final integrated manual validation remains before closure.
+- None known.
 
 ## Validation status
 
@@ -70,7 +53,6 @@ Last updated: 2026-04-14
 - Passed: focused tests for message orchestrator, App loading variant regression, App PORTA recovery, ChatInterface, and useChat import guard.
 - Passed: focused post-review-fix regression set for `message-orchestrator`, `App.loadingVariant`, `App.portaRecovery`, `components/ChatInterface`, and `useChatImportGuard`.
 - Passed: `npm run test:dossier`
-- Passed: `npm run test` (92 files, 754 tests)
 - Passed: `npm run test` (93 files, 755 tests)
 - Passed: `npm run typecheck`
 - Passed: `npm run build`
@@ -86,11 +68,13 @@ Last updated: 2026-04-14
 - Feedback actions: `features/chat/feedback-actions.ts`
 - Message helpers: `features/chat/message-helpers.ts`
 - Message orchestrator: `features/chat/message-orchestrator.ts`
+- Dossier golden fixture: `tests/fixtures/dossier/scheffer-04733767000180/expected-dossier.md`
+- Dossier golden helper: `tests/helpers/dossierGolden.ts`
+- Dossier golden test: `tests/App.dossierGolden.test.tsx`
 
 ## Next checkpoint
 
-- Review and merge PR `#221` for `codex/sprint-3-message-orchestrator`.
+- Review and merge PR `#222`.
 - Do not include unrelated local artifacts such as `mcp-server/`.
-- Re-run the integrated manual validation for the end of Sprint 3 after the review-fix patch: initial investigation, follow-up, retry, full dossier, remote save, and feedback.
-- If that passes after merge, mark Sprint 3 as done and start Sprint 4 planning.
-- For dossier regression checks after merge, prefer `npm run test:dossier` before doing another manual export pass.
+- Prefer `npm run test:dossier` before doing another manual dossier export pass.
+- If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.

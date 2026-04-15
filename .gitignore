@@ -34,3 +34,12 @@ NOVO-APP/
 
 # TokenMiser cache
 .tokenmiser/
+
+# CI/CD artefatos gerados — nunca comitar
+playwright-report/
+test-results/
+.trigger-deploy
+vercel_build_tag.json
+
+# IDE local (Google Project IDX)
+.idx/
