@@ -299,3 +299,37 @@
   - backlog historico de `npm run lint` continua fora do gate
 - Proximo passo:
   - abrir a Onda 1 da Sprint 4 em branch/PR proprios, extrair `features/dossier/*` e validar com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+
+## 2026-04-15 - Sprint 4 Onda 1 dossier extraction
+
+- Fase: execution
+- Sprint: 4 (`active`)
+- Objetivo: tirar o runtime de dossie/waterfall do `App.tsx` e movelo para `features/dossier/*` sem reabrir o desenho de estado
+- Decisoes:
+  - a Onda 1 fica limitada a ownership da logica; estado reativo compartilhado continua no `App.tsx` ate a Onda 2
+  - `features/dossier/waterfall-orchestrator.ts` vira o boundary do runtime de dossie
+  - benchmark isolado e reconciliacao PORTA ganham modulos dedicados em `features/dossier/*`
+  - helpers compartilhados de continuidade/abort/company hint saem do ownership de chat e passam para `utils/conversationFlow.ts`
+- Mudancas concluidas:
+  - criado `features/dossier/waterfall-orchestrator.ts`
+  - criado `features/dossier/benchmark-stage.ts`
+  - criado `features/dossier/porta-reconciliation.ts`
+  - criado `utils/conversationFlow.ts`
+  - `features/chat/message-helpers.ts` virou fachada/re-export dos helpers compartilhados
+  - `features/chat/message-orchestrator.ts` passou a consumir o contrato de `RunMegaPromptWaterfallArgs` a partir de `features/dossier/waterfall-orchestrator.ts`
+  - `App.tsx` passou a conectar `useDossierWaterfallOrchestrator` ao `useChatMessageOrchestrator` e deixou de manter o runtime do waterfall local
+  - `App.tsx` caiu para `773` linhas (`-748` vs fim da Sprint 3)
+  - adicionado `tests/features/dossier/benchmark-stage.test.ts`
+  - `tests/App.portaRecovery.test.ts` passou a validar a reconciliacao a partir do novo modulo de dossie
+- Checks registrados:
+  - `npm run test:dossier` verde
+  - `npm run test` verde (`94` arquivos, `757` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+- Riscos residuais:
+  - a Onda 2 ainda precisa tirar o estado reativo compartilhado do `App.tsx`
+  - error boundaries por feature ainda nao entraram
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - warning conhecido de `SessionsSidebar.test.tsx` continua sem relacao com esta onda
+- Proximo passo:
+  - abrir/revisar a PR da Onda 1 e depois seguir para a Onda 2 com `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`

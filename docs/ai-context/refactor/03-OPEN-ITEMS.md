@@ -28,7 +28,7 @@
 
 | ID | Severidade | Status | Item | Impacto | Acao |
 |---|---|---|---|---|---|
-| OI-030 | medium | open | `App.tsx` e `geminiService.ts` continuam hotspots durante o Sprint 4 | Todo ajuste de produto tende a encostar neles | Mudancas de produto nesses arquivos devem ser minimas ate a Onda 2 fechar |
+| OI-030 | medium | open | `App.tsx` e `geminiService.ts` continuam hotspots durante o Sprint 4, mesmo apos a Onda 1 tirar o runtime de dossie do componente | Mudancas de produto ainda podem encostar nesses arquivos enquanto estado e boundaries nao saem do `App.tsx` | Mudancas de produto nesses arquivos devem ser minimas ate a Onda 2 fechar |
 | OI-031 | medium | open | `constants.ts` ja iniciou extracao com `constants/loadingStages.ts` | Boa base para Sprint 7 | Seguir extracoes por grupo; priorizar `market-intelligence.ts` antes de `app.ts` |
 | OI-032 | low | resolved | `HANDOFF_AI.md` antigo continha contexto de auth desatualizado | Pode confundir outras IAs | Handoff sincronizado com auth local-only e arquitetura Gemini extraida |
 
@@ -37,7 +37,7 @@
 | ID | Severidade | Status | Item | Impacto | Acao |
 |---|---|---|---|---|---|
 | OI-040 | high | resolved | `message-orchestrator` (ultimo corte Sprint 3) estava pendente | Risco de conflito de estado se nova feature abrisse sobre `App.tsx` antes deste corte fechar | Encerrado com a PR `#221` e com a validacao manual integrada da Sprint 3 em `2026-04-15` |
-| OI-041 | high | open | Ausencia de camada `stores/` forca `App.tsx` a segurar estado de sessao e score PORTA mesmo apos extracao das features | Features pos-Sprint 4 herdam estado por props em cascata | Fechar na Onda 2 do Sprint 4 com `stores/chatStore.ts` e `stores/dossierStore.ts` usando `Context + Reducer` tipado |
+| OI-041 | high | open | Ausencia de camada `stores/` ainda forca `App.tsx` a segurar estado reativo de sessao/loading/score PORTA apos a Onda 1 | Features pos-Onda-1 ainda recebem estado por props e setters em cascata | Fechar na Onda 2 do Sprint 4 com `stores/chatStore.ts` e `stores/dossierStore.ts` usando `Context + Reducer` tipado |
 | OI-042 | high | open | Ausencia de Error Boundaries por feature | Gemini 429/500/offline quebra tela silenciosamente sem fallback visual | Fechar na Onda 2 do Sprint 4 com `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx` |
 | OI-043 | medium | open | `constants.ts` mistura inteligencia de mercado (muda com frequencia) com constantes de UI (quase nunca mudam) | IA que edita dados de mercado pode causar efeito colateral em comportamento de loading | Sprint 7: extrair `market-intelligence.ts` ANTES de `app.ts` |
 | OI-044 | medium | open | Radar nao tem destino arquitetural definido; sem pre-esqueleto a feature nascera ad hoc dentro de `App.tsx` | Retrabalho de relocacao quando Radar for implementado | Criar `features/radar/` (stub com tipos e README) no Sprint 8 antes de qualquer implementacao |

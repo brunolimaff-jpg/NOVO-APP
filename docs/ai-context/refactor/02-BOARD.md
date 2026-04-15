@@ -10,7 +10,7 @@
 | Current phase | `execution` |
 | Current sprint | `4` |
 | Overall status | `active` |
-| Current baseline | `validacao manual integrada + test/typecheck/build/test:dossier green em 2026-04-15; lint backlog pre-existing` |
+| Current baseline | `Onda 1 da Sprint 4 validada com test:dossier/test/typecheck/build green em 2026-04-15; lint backlog pre-existing` |
 
 ## Current Focus
 
@@ -32,12 +32,17 @@
 - Sprint 4 foi aberta em duas ondas tecnicas:
   - Onda 1: extrair `features/dossier/*` sem reabrir o desenho de estado
   - Onda 2: introduzir `stores/*` com `Context + Reducer` tipado e error boundaries por feature
+- Onda 1 foi concluida: `features/dossier/waterfall-orchestrator.ts`, `features/dossier/benchmark-stage.ts` e `features/dossier/porta-reconciliation.ts` agora concentram o runtime de dossie
+- `utils/conversationFlow.ts` virou o dono dos helpers compartilhados de continuidade/abort/company hint, com `features/chat/message-helpers.ts` reduzido a fachada
+- `App.tsx` agora apenas conecta `useDossierWaterfallOrchestrator` ao `useChatMessageOrchestrator` para o fluxo de dossie
+- `App.tsx` caiu para `773` linhas apos a Onda 1 (`-748` vs fim da Sprint 3)
+- A Onda 1 foi validada em `2026-04-15` com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build` verdes (`94` arquivos, `757` testes)
 
 ## Next Up
 
-1. Onda 1: extrair waterfall, benchmark, retries e reconciliacao PORTA para `features/dossier/*`
-2. Validar a Onda 1 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`, registrar tudo nas fontes canonicas e abrir PR proprio
-3. Onda 2: introduzir `stores/chatStore.ts`, `stores/dossierStore.ts`, `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`
+1. Onda 2: introduzir `stores/chatStore.ts`, `stores/dossierStore.ts`, `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`
+2. Manter `ChatInterfaceProps`, `services/geminiService.ts` e payloads remotos estaveis enquanto o estado sai do `App.tsx`
+3. Validar a Onda 2 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`, registrando a rodada nas fontes canonicas antes do proximo PR
 
 ## Blocked
 
@@ -46,7 +51,8 @@
 ## Validation Pending
 
 - Nenhuma pendencia para o fechamento da Sprint 3; a validacao manual integrada foi concluida em `2026-04-15`
-- Os proximos gates passam a ser por onda da Sprint 4: `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+- A Onda 1 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build` verdes em `2026-04-15`
+- Os proximos gates passam a ser da Onda 2: `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings
@@ -61,7 +67,7 @@
 | 1 | Baseline e fronteiras | done | Clerk/auth removido, fronteiras documentadas, guardrail contra novos consumidores de legado, validacao da sprint registrada | `origin/main@3c1412e` | `App.tsx`, `components/ChatInterface.tsx`, `contexts/OperatorContext.tsx`, `hooks/useChat.ts`, `services/geminiService.ts` |
 | 2 | Quebrar Gemini | done | `services/gemini/` criado com facade estavel | `origin/main@ef30b5d` | `services/geminiService.ts`, `services/gemini/*` |
 | 3 | Extrair chat do App | done | `features/chat/` ativo; `App.tsx` reduzido; validacao manual integrada concluida em `2026-04-15` | `origin/main@510f91fa3653cbfa1552e7f3d4e3a43883a45e17` | `App.tsx`, `features/chat/*` |
-| 4 | Extrair dossie do App | active | `features/dossier/` ativo; waterfall fora do App; depois `stores/*` e error boundaries entram na Onda 2 | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
+| 4 | Extrair dossie do App | active | Onda 1 concluida com `features/dossier/*` ativo e runtime fora do `App.tsx`; Onda 2 fecha `stores/*` e error boundaries | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
 | 5 | Modularizar ChatInterface | planned | `components/chat/` ativo com facade em `ChatInterface.tsx` | `start-of-sprint-5` | `components/ChatInterface.tsx`, `components/chat/*` |
 | 6 | Dividir megaPrompts | planned | `prompts/mega/` criado; `@ts-nocheck` removido | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | planned | `hooks/useChat.ts` removido; `constants.ts` reduzido | `start-of-sprint-7` | `constants.ts`, `hooks/useChat.ts`, `services/apiConfig.ts` |

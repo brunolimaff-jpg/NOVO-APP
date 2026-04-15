@@ -1,0 +1,382 @@
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
+import {
+  PROMPT_RADAR_EXPANSAO_GOD_MODE,
+  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+  PROMPT_RH_SINDICATOS_GOD_MODE,
+  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+  SHARED_FOUNDATION_BLOCK,
+} from '../../prompts/megaPrompts';
+import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
+import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
+import { type ChatSession, type ClienteSeniorData, type Message, Sender } from '../../types';
+import { ensureContinuitySuggestions, isAbortLikeError, pickCompanyLabel } from '../../utils/conversationFlow';
+import { scoutDiag } from '../../utils/diagnosticLog';
+import { buildMainDossierExecutiveIntro } from '../../utils/reportUtils';
+import { appendSeniorEvidenceNote, buildSeniorEvidenceContext, extractClienteSeniorData } from '../../utils/seniorEvidence';
+import { stripPortaMarkers } from '../../utils/porta';
+import { runDossierBenchmarkStage } from './benchmark-stage';
+import {
+  ensureWaterfallScorePorta,
+  reconcileWaterfallPorta,
+  type DossierWaterfallModule,
+  type RunWaterfallModule,
+} from './porta-reconciliation';
+
+interface ResetLoadingProgressOptions {
+  incremental?: boolean;
+  keepHistory?: number;
+}
+
+const MODULAR_DOSSIER_TOTAL_STAGES = 7;
+const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
+const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
+
+export interface RunMegaPromptWaterfallArgs {
+  sessionId: string;
+  text: string;
+  safeVisibleText: string;
+  hintedCompany: string | null;
+  normalizedCompany: string;
+  historyToPass: Message[];
+  botMessageId: string;
+  signal: AbortSignal;
+  isFirstInteraction: boolean;
+  sessionCnpjDigits: string;
+}
+
+export interface UseDossierWaterfallOrchestratorOptions {
+  canUseLookup: boolean;
+  resolvedOperatorName: string;
+  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+  resetLoadingProgress: (
+    stage?: string,
+    totalStages?: number,
+    options?: ResetLoadingProgressOptions,
+  ) => void;
+  advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
+  replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
+  completeLoadingProgress: () => void;
+  setFailureCount: Dispatch<SetStateAction<number>>;
+}
+
+export function buildDossierSeedContext(rawPrompt: string): string {
+  if (!rawPrompt) return '';
+
+  const sections = [
+    rawPrompt.match(/Contexto cadastral obrigatório:[^\n]+/i)?.[0]?.trim(),
+    rawPrompt.match(/<radar_context>[\s\S]*?<\/radar_context>/i)?.[0]?.trim(),
+  ].filter(Boolean);
+
+  return sections.join('\n\n');
+}
+
+export function useDossierWaterfallOrchestrator({
+  canUseLookup,
+  resolvedOperatorName,
+  updateSessionById,
+  resetLoadingProgress,
+  advanceLoadingProgress,
+  replaceLoadingProgressStage,
+  completeLoadingProgress,
+  setFailureCount,
+}: UseDossierWaterfallOrchestratorOptions) {
+  const runMegaPromptWaterfall = useCallback(
+    async ({
+      sessionId,
+      text,
+      safeVisibleText,
+      hintedCompany,
+      normalizedCompany,
+      historyToPass,
+      botMessageId,
+      signal,
+      isFirstInteraction,
+      sessionCnpjDigits,
+    }: RunMegaPromptWaterfallArgs) => {
+      let accumulatedText = '';
+      let previousStageCompleted = false;
+      const optionalStepFailures = new Set<string>();
+      const dossierSeedContext = buildDossierSeedContext(text);
+      const resolvedMegaCompany = normalizedCompany || hintedCompany || '';
+      const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
+      let waterfallLookupContext = '';
+      let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+
+      if (lookupTarget) {
+        try {
+          const clienteData = await lookupCliente(lookupTarget);
+          waterfallLookupContext = formatarParaPrompt(clienteData);
+          waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestracao', {
+            sessionId,
+            company: lookupTarget,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      const seniorEvidenceContext = buildSeniorEvidenceContext(
+        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+        waterfallClienteSeniorData,
+      );
+
+      const appendWaterfallChunk = (chunk: string) => {
+        const normalizedChunk = chunk.trim();
+        if (!normalizedChunk) return;
+        accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
+      };
+
+      const modules: DossierWaterfallModule[] = [
+        {
+          name: 'Raio-X Operacional',
+          prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+          stage: MODULAR_DOSSIER_STAGES[0],
+          optional: false,
+          timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+        },
+        {
+          name: 'Tech Stack',
+          prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+          stage: MODULAR_DOSSIER_STAGES[1],
+          optional: true,
+          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+        },
+        {
+          name: 'Riscos & Compliance',
+          prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+          stage: MODULAR_DOSSIER_STAGES[2],
+          optional: true,
+          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+        },
+        {
+          name: 'Estratégia & Expansão',
+          prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
+          stage: MODULAR_DOSSIER_STAGES[3],
+          optional: true,
+          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+        },
+        {
+          name: 'RH & Decisores',
+          prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
+          stage: MODULAR_DOSSIER_STAGES[4],
+          optional: true,
+          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+        },
+      ];
+
+      const modulesByName = new Map(modules.map(module => [module.name, module]));
+      const runWaterfallModule: RunWaterfallModule = async (
+        module,
+        accumulatedTextSnapshot,
+        contextHint = '',
+        timeoutMs = module.timeoutMs,
+      ) =>
+        generateDossierModule(
+          module.name,
+          resolvedMegaCompany || 'Empresa',
+          SHARED_FOUNDATION_BLOCK,
+          module.prompt,
+          [
+            dossierSeedContext,
+            waterfallLookupContext,
+            seniorEvidenceContext,
+            contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
+            accumulatedTextSnapshot
+              ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-2500)}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+          { signal, timeoutMs },
+        );
+
+      if (isFirstInteraction) {
+        resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES);
+      } else {
+        resetLoadingProgress(modules[0].stage, MODULAR_DOSSIER_TOTAL_STAGES, {
+          incremental: true,
+          keepHistory: 4,
+        });
+      }
+
+      for (let index = 0; index < modules.length; index += 1) {
+        if (signal.aborted) break;
+
+        const module = modules[index];
+        if (index > 0) {
+          if (previousStageCompleted) {
+            advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
+          } else {
+            replaceLoadingProgressStage(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
+          }
+        }
+
+        try {
+          const moduleResult = await runWaterfallModule(module, accumulatedText);
+          appendWaterfallChunk(moduleResult);
+          optionalStepFailures.delete(module.name);
+          previousStageCompleted = true;
+          setFailureCount(0);
+        } catch (error) {
+          if (isAbortLikeError(error)) throw error;
+          if (!module.optional) throw error;
+
+          previousStageCompleted = false;
+          optionalStepFailures.add(module.name);
+          setFailureCount(count => count + 1);
+          scoutDiag.warn('ModularDossier', 'modulo opcional falhou e sera ignorado', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            moduleName: module.name,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      if (previousStageCompleted) {
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
+      } else {
+        replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
+      }
+
+      const benchmarkCompleted = await runDossierBenchmarkStage({
+        sessionId,
+        company: resolvedMegaCompany,
+        signal,
+        appendWaterfallChunk,
+        optionalStepFailures,
+        setFailureCount,
+      });
+
+      if (benchmarkCompleted) {
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
+      } else {
+        replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
+      }
+
+      const {
+        accumulatedText: reconciledText,
+        resolution: waterfallPortaResolution,
+        portaFallbackApplied,
+        portaFallbackDimensions,
+        portaIntegrityHold,
+      } = await reconcileWaterfallPorta({
+        sessionId,
+        signal,
+        resolvedMegaCompany,
+        sessionCnpjDigits,
+        dossierSeedContext,
+        waterfallLookupContext,
+        seniorEvidenceContext,
+        accumulatedText,
+        modulesByName,
+        runWaterfallModule,
+        optionalStepFailures,
+        setFailureCount,
+      });
+      accumulatedText = reconciledText;
+
+      if (optionalStepFailures.size > 0) {
+        appendWaterfallChunk(
+          `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
+        );
+      } else {
+        setFailureCount(0);
+      }
+
+      const waterfallScorePorta = portaIntegrityHold
+        ? null
+        : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
+      const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
+      const waterfallNarrativeBase = appendSeniorEvidenceNote(
+        waterfallCleanText,
+        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+        waterfallClienteSeniorData,
+      );
+      const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
+        waterfallNarrativeBase,
+        normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
+        waterfallClienteSeniorData,
+      );
+      const waterfallFinalText = waterfallExecutiveIntro
+        ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
+        : waterfallNarrativeBase;
+
+      let waterfallSuggestions: string[] = [];
+      try {
+        waterfallSuggestions = await generateContinuityQuestion(
+          [
+            ...historyToPass,
+            {
+              id: uuidv4(),
+              sender: Sender.User,
+              text: safeVisibleText,
+              timestamp: new Date(),
+            },
+            {
+              id: uuidv4(),
+              sender: Sender.Bot,
+              text: waterfallFinalText,
+              timestamp: new Date(),
+              clienteSeniorData: waterfallClienteSeniorData,
+            },
+          ],
+          resolvedMegaCompany || null,
+          resolvedOperatorName,
+        );
+      } catch (error) {
+        scoutDiag.warn('ModularDossier', 'falha ao gerar sugestoes finais do waterfall', {
+          sessionId,
+          company: resolvedMegaCompany || null,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      waterfallSuggestions = ensureContinuitySuggestions(
+        waterfallSuggestions,
+        resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+      );
+
+      updateSessionById(sessionId, session => {
+        const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
+        return {
+          ...session,
+          empresaAlvo: finalCompany || session.empresaAlvo,
+          scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
+          messages: session.messages.map(message =>
+            message.id === botMessageId
+              ? {
+                  ...message,
+                  text: waterfallFinalText,
+                  scorePorta: waterfallScorePorta ?? undefined,
+                  clienteSeniorData: waterfallClienteSeniorData || undefined,
+                  portaFallbackApplied: portaFallbackApplied ? true : undefined,
+                  portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
+                  suggestions: waterfallSuggestions,
+                  isThinking: false,
+                }
+              : message,
+          ),
+        };
+      });
+
+      completeLoadingProgress();
+    },
+    [
+      advanceLoadingProgress,
+      canUseLookup,
+      completeLoadingProgress,
+      replaceLoadingProgressStage,
+      resetLoadingProgress,
+      resolvedOperatorName,
+      setFailureCount,
+      updateSessionById,
+    ],
+  );
+
+  return { runMegaPromptWaterfall };
+}

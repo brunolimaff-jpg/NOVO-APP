@@ -21,6 +21,7 @@ import {
   pickCompanyLabel,
   resolveHintedCompany,
 } from './message-helpers';
+import type { RunMegaPromptWaterfallArgs } from '../dossier/waterfall-orchestrator';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -41,19 +42,6 @@ interface ProcessMessageOptions extends HandleSendMessageOptions {
   isFollowUp?: boolean;
   isDeepDive?: boolean;
   isFirstInteraction?: boolean;
-}
-
-export interface RunMegaPromptWaterfallArgs {
-  sessionId: string;
-  text: string;
-  safeVisibleText: string;
-  hintedCompany: string | null;
-  normalizedCompany: string;
-  historyToPass: Message[];
-  botMessageId: string;
-  signal: AbortSignal;
-  isFirstInteraction: boolean;
-  sessionCnpjDigits: string;
 }
 
 export interface UseChatMessageOrchestratorOptions {

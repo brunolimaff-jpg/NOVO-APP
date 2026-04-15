@@ -6,7 +6,7 @@ import {
   ensureWaterfallScorePorta,
   resolveModuleNamesForMissingDimensions,
   shouldHoldWaterfallScoreForIntegrity,
-} from '../App';
+} from '../features/dossier/porta-reconciliation';
 import { ensureContinuitySuggestions } from '../features/chat/message-helpers';
 
 describe('App PORTA recovery helpers', () => {

@@ -14,7 +14,7 @@ A PR `#222` tambem ja foi mergeada e adicionou o golden regression offline do do
 A validacao manual integrada do fechamento da Sprint 3 foi concluida em runtime real em `2026-04-15`.
 Sprint 3 agora esta `done`.
 Sprint 4 foi aberta em ondas:
-- Onda 1: extracao de `features/dossier/*`
+- Onda 1: extracao de `features/dossier/*` (`done`)
 - Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
 
 ## What Was Finished
@@ -45,21 +45,26 @@ Sprint 4 foi aberta em ondas:
 - Checkpoint manual de feedback foi reportado como validado em `2026-04-15`
 - Validacao manual integrada do fluxo completo da Sprint 3 foi concluida em `2026-04-15`
 - Board, handoff e memoria foram sincronizados para marcar Sprint 3 como `done` e Sprint 4 como `active`
+- Onda 1 da Sprint 4 concluida: criados `features/dossier/waterfall-orchestrator.ts`, `features/dossier/benchmark-stage.ts` e `features/dossier/porta-reconciliation.ts`
+- `App.tsx` agora conecta `useDossierWaterfallOrchestrator` ao `useChatMessageOrchestrator`, sem manter o runtime do waterfall local
+- `utils/conversationFlow.ts` passou a concentrar os helpers compartilhados de continuidade/abort/company hint
+- `features/chat/message-helpers.ts` virou uma fachada leve para os helpers compartilhados
+- `App.tsx` caiu para `773` linhas apos a extracao da Onda 1
 
 ## What Is In Progress
 
-- Onda 1 da Sprint 4: extrair waterfall, benchmark, retries e reconciliacao PORTA para `features/dossier/*`
-- Onda 2 da Sprint 4 permanece enfileirada: `stores/*` com `Context + Reducer` tipado e error boundaries por feature
+- Onda 2 da Sprint 4: `stores/*` com `Context + Reducer` tipado e error boundaries por feature
 
 ## Next Safe Step
 
-1. Implementar a Onda 1 da Sprint 4 em branch e PR proprios:
-   - `features/dossier/porta-reconciliation.ts`
-   - `features/dossier/benchmark-stage.ts`
-   - `features/dossier/waterfall-orchestrator.ts`
-2. Validar a Onda 1 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
-3. Atualizar board/handoff/memory com o resultado da Onda 1 antes de abrir a Onda 2
-4. Depois atacar a Onda 2: `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`
+1. Implementar a Onda 2 da Sprint 4:
+   - `stores/chatStore.ts`
+   - `stores/dossierStore.ts`
+   - `features/chat/ChatErrorBoundary.tsx`
+   - `features/dossier/DossierErrorBoundary.tsx`
+2. Manter `ChatInterfaceProps`, `services/geminiService.ts` e os payloads remotos estaveis enquanto o estado sai do `App.tsx`
+3. Validar a Onda 2 com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
+4. Atualizar board/handoff/memory com o resultado da Onda 2 antes do proximo corte
 
 ## Files Most Relevant Now
 
@@ -69,8 +74,11 @@ Sprint 4 foi aberta em ondas:
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/05-VALIDATION.md`
 - `App.tsx`
-- `features/dossier/*` (novo destino da Sprint 4)
+- `features/dossier/waterfall-orchestrator.ts`
+- `features/dossier/benchmark-stage.ts`
+- `features/dossier/porta-reconciliation.ts`
 - `features/chat/*` (novo destino da extracao)
+- `utils/conversationFlow.ts`
 - `components/ChatInterface.tsx`
 - `services/geminiService.ts`
 - `features/chat/loading-progress.ts`
@@ -79,6 +87,7 @@ Sprint 4 foi aberta em ondas:
 - `features/chat/message-helpers.ts`
 - `features/chat/message-orchestrator.ts`
 - `tests/App.dossierGolden.test.tsx`
+- `tests/features/dossier/benchmark-stage.test.ts`
 - `tests/helpers/dossierGolden.ts`
 - `tests/features/chat/loading-progress.test.tsx`
 - `tests/features/chat/session-controller.test.ts`
@@ -95,7 +104,7 @@ Sprint 4 foi aberta em ondas:
 
 - validacao manual integrada da Sprint 3: green em `2026-04-15`
 - `npm run test:dossier`: green em `2026-04-15`
-- `npm run test`: green em `2026-04-15` (`93` arquivos, `755` testes)
+- `npm run test`: green em `2026-04-15` (`94` arquivos, `757` testes)
 - `npm run typecheck`: green em `2026-04-15`
 - `npm run build`: green em `2026-04-15`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
@@ -105,8 +114,8 @@ Sprint 4 foi aberta em ondas:
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir da Onda 1 da Sprint 4 em `main`.
+Continue a partir da Onda 2 da Sprint 4 em `main`.
 Use `npm run test:dossier` como fast-check do caso canonico de dossie.
-Extraia a logica de waterfall/benchmark/reconciliacao PORTA para `features/dossier/*`
+Introduza `stores/*` com `Context + Reducer` tipado e error boundaries por feature
 sem alterar `ChatInterfaceProps` nem a fachada publica de `services/geminiService.ts`.
-Depois registre a rodada nas fontes canonicas antes de abrir a Onda 2.
+Depois registre a rodada nas fontes canonicas antes de abrir o proximo PR.

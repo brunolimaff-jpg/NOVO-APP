@@ -30,14 +30,15 @@ Sprint 4 is now `active`.
 
 The repo is on the post-`#222` state in `main`, with Sprint 3 closed and Sprint 4 open.
 
-- Goal: execute Sprint 4 in waves, starting with the dossier extraction into `features/dossier/*`.
+- Goal: execute Sprint 4 in waves; Onda 1 of the dossier extraction is now implemented and validated, and Onda 2 is next.
 - The canonical dossier fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command is `npm run test:dossier`.
 - Sprint 4 uses `Context + Reducer` for `stores/*`; do not add `zustand`.
 - Every wave must end with validation, docs/memory sync, and a dedicated PR.
+- Onda 1 moved the dossier runtime into `features/dossier/*` and reduced `App.tsx` to wiring for that boundary.
 
 ## Immediate next step
 
-1. implement Sprint 4 / Onda 1 in branch and PR proprios
-2. move waterfall, benchmark, retries, and PORTA reconciliation out of `App.tsx` into `features/dossier/*`
-3. validate with `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build`
+1. open/review/merge the Sprint 4 / Onda 1 PR
+2. implement Sprint 4 / Onda 2 with `stores/*` plus feature error boundaries
+3. validate Onda 2 with `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build`

@@ -25,3 +25,9 @@ Reason: this avoids depending on chat memory while preserving the dedicated refa
 Decision: Sprint 4 will introduce `stores/*` using `Context + Reducer` typed state instead of adding `zustand`.
 
 Reason: the repo does not currently depend on `zustand`, the Sprint 4 goal is structural extraction rather than state-library rollout, and `Context + Reducer` keeps the state boundary explicit without mixing a new dependency into the dossier refactor.
+
+## 2026-04-15 - Dossier runtime owns its own boundary
+
+Decision: the dossier waterfall runtime now lives under `features/dossier/*`, and chat/dossier shared helper functions live in `utils/conversationFlow.ts` rather than under a chat-owned module.
+
+Reason: Wave 1 needed to remove business logic ownership from `App.tsx` without coupling dossier code back to `features/chat/*`; moving shared parsing/continuity helpers to `utils/conversationFlow.ts` keeps the boundary explicit and avoids inverted feature dependencies.
