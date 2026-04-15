@@ -273,3 +273,29 @@
   - backlog historico de `npm run lint` continua fora do gate
 - Proximo passo:
   - rodar a validacao manual integrada da Sprint 3 e, se passar, marcar o sprint como concluido antes de abrir Sprint 4
+
+## 2026-04-15 - Fechamento da Sprint 3 e abertura da Sprint 4
+
+- Fase: execution
+- Sprint: 3 (`done`) -> 4 (`active`)
+- Objetivo: fechar operacionalmente a Sprint 3 apos a validacao manual integrada e abrir a Sprint 4 com sequenciamento em ondas
+- Decisoes:
+  - a validacao manual integrada da Sprint 3 foi aceita como concluida em runtime real em `2026-04-15`
+  - Sprint 4 passa a rodar em ondas curtas com PR e validacao proprios
+  - Onda 1 move a logica de dossie para `features/dossier/*` sem redesenhar o estado
+  - Onda 2 introduz `stores/*` com `Context + Reducer` tipado e error boundaries por feature
+- Mudancas concluidas:
+  - `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` sincronizados para refletir Sprint 3 `done`
+  - proximo passo seguro alinhado para a Onda 1 da Sprint 4
+- Checks registrados:
+  - validacao manual integrada da Sprint 3: green em `2026-04-15`
+  - `npm run test:dossier`: green em `2026-04-15`
+  - `npm run test`: green em `2026-04-15` (`93` arquivos, `755` testes)
+  - `npm run typecheck`: green em `2026-04-15`
+  - `npm run build`: green em `2026-04-15`
+- Riscos residuais:
+  - `App.tsx` e `services/geminiService.ts` continuam hotspots durante a Onda 1 da Sprint 4
+  - `stores/*` e error boundaries ainda nao entraram; seguem como risco aberto ate a Onda 2
+  - backlog historico de `npm run lint` continua fora do gate
+- Proximo passo:
+  - abrir a Onda 1 da Sprint 4 em branch/PR proprios, extrair `features/dossier/*` e validar com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`

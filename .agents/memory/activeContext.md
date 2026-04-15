@@ -23,18 +23,21 @@ The structural refactor program is active. The canonical live status is in:
 - `docs/ai-context/refactor/06-HANDOFF.md`
 
 Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline dossier golden regression is merged through PR `#222`.
+Sprint 3 is now `done` after the integrated manual validation completed on `2026-04-15`.
+Sprint 4 is now `active`.
 
 ## Current task
 
-The repo is on the post-`#222` state in `main`.
+The repo is on the post-`#222` state in `main`, with Sprint 3 closed and Sprint 4 open.
 
-- Goal: close Sprint 3 operationally with the remaining integrated manual validation, then plan Sprint 4 (`features/dossier/*`).
+- Goal: execute Sprint 4 in waves, starting with the dossier extraction into `features/dossier/*`.
 - The canonical dossier fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command is `npm run test:dossier`.
-- The user reported the feedback checkpoint as manually validated on `2026-04-15`, but Sprint 3 still needs the full integrated manual pass before it can move to `done`.
+- Sprint 4 uses `Context + Reducer` for `stores/*`; do not add `zustand`.
+- Every wave must end with validation, docs/memory sync, and a dedicated PR.
 
 ## Immediate next step
 
-1. run the integrated manual validation for Sprint 3 in runtime real
-2. if it passes, mark Sprint 3 as `done` in the canonical docs/memory
-3. then start Sprint 4 planning, keeping `npm run test:dossier` as the fast dossier regression check
+1. implement Sprint 4 / Onda 1 in branch and PR proprios
+2. move waterfall, benchmark, retries, and PORTA reconciliation out of `App.tsx` into `features/dossier/*`
+3. validate with `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build`
