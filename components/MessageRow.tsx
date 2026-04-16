@@ -9,6 +9,7 @@ import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
 import { DeepDiveTopics } from './DeepDiveTopics';
+import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
 
@@ -392,7 +393,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           {isBot ? (
-            <>
+            <DossierErrorBoundary isDarkMode={isDarkMode}>
+              <>
               {showPortaFallbackWarning && (
                 <PortaFallbackAlert
                   isDarkMode={isDarkMode}
@@ -516,7 +518,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                   </ol>
                 </div>
               )}
-            </>
+              </>
+            </DossierErrorBoundary>
           ) : (
             <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{msg.text}</div>
           )}

@@ -116,10 +116,21 @@ vi.mock('../contexts/OperatorContext', () => ({
     setName: vi.fn(),
     clearName: vi.fn(),
   }),
+  useMaybeOperator: () => ({
+    name: 'Bruno Lima',
+    operatorId: 'op-1',
+    loading: false,
+    setName: vi.fn(),
+    clearName: vi.fn(),
+  }),
 }));
 
 vi.mock('../contexts/ModeContext', () => ({
   useMode: () => ({
+    mode: 'investigacao',
+    systemInstruction: 'SYSTEM',
+  }),
+  useMaybeMode: () => ({
     mode: 'investigacao',
     systemInstruction: 'SYSTEM',
   }),

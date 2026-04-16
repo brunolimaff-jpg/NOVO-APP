@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `462913fdd0de182ebc206d704ac3f2e11bf68339` |
-| Working branch | `codex/sprint4-wave1-dossier-runtime` |
-| Last updated | `2026-04-15` |
-| Current phase | `execution` |
+| Source of truth commit | `origin/main` -> `7e110b91c7a2bd62a33158aab1f47035d9f2f97e` |
+| Working branch | `codex/sprint4-wave2-stores-boundaries` |
+| Last updated | `2026-04-16` |
+| Current phase | `review` |
 | Current sprint | `4` |
 | Overall status | `active` |
-| Current baseline | `Sprint 4 / Onda 1 implementada em branch; test:dossier/test/typecheck/build green em 2026-04-15; lint backlog pre-existing` |
+| Current baseline | `main` ainda esta no pos-`#227`; Onda 2 foi implementada no branch `codex/sprint4-wave2-stores-boundaries` com `test:dossier/test/typecheck/build` green em `2026-04-16`; lint backlog pre-existing |
 
 ## Current Focus
 
@@ -32,7 +32,7 @@
 - Sprint 4 foi aberta em duas ondas tecnicas:
   - Onda 1: extrair `features/dossier/*` sem reabrir o desenho de estado
   - Onda 2: introduzir `stores/*` com `Context + Reducer` tipado e error boundaries por feature
-- Onda 1 da Sprint 4 foi implementada em branch:
+- Onda 1 da Sprint 4 foi mergeada em `main` via PR `#227`:
   - `features/dossier/waterfall-orchestrator.ts` virou o novo dono de `runMegaPromptWaterfall`
   - `features/dossier/benchmark-stage.ts` encapsula benchmark isolado, timeout e falha opcional
   - `features/dossier/porta-reconciliation.ts` concentra retries de modulos, reconciliacao PORTA, fallback tecnico e integrity hold
@@ -44,12 +44,21 @@
   - validar follow-up apos dossie completo
   - validar retry do ramo de envio/recuperacao sem quebrar a mensagem final
   - validar exportacao/continuity suggestions e persistencia remota sem regressao funcional
+- Onda 2 foi implementada no branch atual:
+  - `stores/chatStore.tsx` concentra sessao, mensagens, loading e refs operacionais
+  - `stores/dossierStore.tsx` concentra export/save state
+  - `App.tsx` e `index.tsx` agora usam providers/hooks de store
+  - `features/chat/ChatErrorBoundary.tsx` protege o shell do chat
+  - `features/dossier/DossierErrorBoundary.tsx` protege renderizacao de dossie e overlay hero
+  - `components/ErrorBoundary.tsx` passou a compartilhar auditoria com `utils/errorBoundaryAudit.ts`
+  - `components/MessageRow.tsx` agora envolve o subtree de dossie com boundary local
+  - a suite ganhou cobertura para stores e boundaries
 
 ## Next Up
 
-1. Abrir/revisar a PR da Onda 1, acompanhar checks e consolidar o merge
-2. Executar a validacao manual em runtime real usando o escopo descrito acima, se o preview exigir checkpoint adicional
-3. Onda 2: introduzir `stores/chatStore.ts`, `stores/dossierStore.ts`, `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`
+1. Abrir/revisar a PR da Onda 2 (`codex/sprint4-wave2-stores-boundaries`)
+2. Rodar a validacao manual em preview/Vercel para boundaries, export/save remoto e fluxo hero
+3. Depois do merge, sincronizar `main`/docs novamente e preparar Sprint 5
 
 ## Blocked
 
@@ -59,7 +68,8 @@
 
 - Nenhuma pendencia para o fechamento da Sprint 3; a validacao manual integrada foi concluida em `2026-04-15`
 - O gate automatizado da Onda 1 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
-- Em runtime real, a rodada manual desta onda deve cobrir geracao de dossie, follow-up, retry, exportacao e persistencia sem regressao
+- O gate automatizado da Onda 2 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build` em `2026-04-16`
+- Em runtime real, a rodada manual desta onda deve cobrir geracao de dossie, follow-up, exportacao, persistencia remota e queda controlada nos boundaries sem derrubar o app inteiro
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings

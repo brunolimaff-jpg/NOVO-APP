@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 ## Current operating context
 
@@ -28,18 +28,20 @@ Sprint 4 is now `active`.
 
 ## Current task
 
-The repo is on the post-`#226` state in `main`, with Sprint 3 closed and Sprint 4 open.
+The repo is still on the post-`#227` baseline in `main`, but Sprint 4 / Onda 2 is now implemented on branch `codex/sprint4-wave2-stores-boundaries`.
 
-- Goal: finish Sprint 4 / Onda 1 by opening and reviewing the PR that extracts dossier runtime into `features/dossier/*`.
-- `features/dossier/waterfall-orchestrator.ts` now owns `runMegaPromptWaterfall`.
-- `features/dossier/benchmark-stage.ts` and `features/dossier/porta-reconciliation.ts` own benchmark and PORTA recovery logic.
-- The canonical dossier fixture lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
-- The practical day-to-day command is `npm run test:dossier`.
+- `stores/chatStore.tsx` now owns session/message/loading state plus operational refs.
+- `stores/dossierStore.tsx` now owns export/save status state.
+- `App.tsx` now consumes `useChatStore()` and `useDossierStore()` while keeping shell-only UI local.
+- `ChatErrorBoundary.tsx` and `DossierErrorBoundary.tsx` are wired in the real render path.
+- `components/ErrorBoundary.tsx` now shares audit/persistence helpers through `utils/errorBoundaryAudit.ts`.
+- The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
+- The practical day-to-day command remains `npm run test:dossier`.
 - Sprint 4 uses `Context + Reducer` for `stores/*`; do not add `zustand`.
-- Every wave must end with validation, docs/memory sync, and a dedicated PR.
+- Automated gates for Onda 2 passed on `2026-04-16`; the remaining step before merge is PR/manual runtime validation.
 
 ## Immediate next step
 
-1. open/review the Sprint 4 / Onda 1 PR and monitor CI/comments
-2. if runtime confirmation is needed, use the manual scope: dossier completo, follow-up, retry, exportacao, continuity suggestions, remote persistence
-3. after merge, start Sprint 4 / Onda 2 with `stores/*` plus feature error boundaries
+1. open/review the dedicated PR for `codex/sprint4-wave2-stores-boundaries`
+2. run the Onda 2 manual runtime pass in preview/Vercel, focusing on chat shell recovery, dossier rendering fallback, export/save remoto, and the hero loading overlay
+3. after merge, sync board/handoff/memory again and only then open Sprint 5 planning

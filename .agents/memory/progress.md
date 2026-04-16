@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 ## Completed
 
@@ -49,11 +49,22 @@ Last updated: 2026-04-15
   - migrated `tests/App.portaRecovery.test.ts` to `tests/features/dossier/porta-reconciliation.test.ts`
   - added `tests/features/dossier/benchmark-stage.test.ts`
 - Documented the runtime manual scope for Onda 1: dossier completo, follow-up, retry, exportacao, continuity suggestions, and remote persistence.
+- Merged Sprint 4 / Onda 1 dossier runtime extraction into `main` (`7e110b91c7a2bd62a33158aab1f47035d9f2f97e` via PR `#227`).
+- Synced the local baseline to the post-`#227` `main` state before opening Onda 2 work.
+- Implemented Sprint 4 / Onda 2 on `codex/sprint4-wave2-stores-boundaries`:
+  - added `stores/chatStore.tsx`
+  - added `stores/dossierStore.tsx`
+  - updated `index.tsx` and `App.tsx` to consume store providers/hooks
+  - added `features/chat/ChatErrorBoundary.tsx`
+  - added `features/dossier/DossierErrorBoundary.tsx`
+  - added `utils/errorBoundaryAudit.ts` and reused it from `components/ErrorBoundary.tsx`
+  - wired dossier fallback inside `components/MessageRow.tsx`
+  - added tests for stores and feature boundaries
+  - exposed `useMaybeOperator`, `useMaybeMode`, `useMaybeChatStore`, and `useMaybeDossierStore` to keep hooks testable without provider-only coupling
 
 ## In progress
 
-- Sprint 4 / Onda 1: PR/review and merge.
-- Onda 2 remains queued behind Onda 1 merge.
+- PR/review/manual runtime validation for Sprint 4 / Onda 2 on branch `codex/sprint4-wave2-stores-boundaries`.
 
 ## Blockers
 
@@ -71,10 +82,10 @@ Last updated: 2026-04-15
 - Passed: integrated manual validation for the full Sprint 3 flow in runtime real on 2026-04-15.
 - Passed: Onda 0 reran `npm run test:dossier`, `npm run test`, `npm run typecheck`, and `npm run build` before opening Sprint 4 work.
 - Passed: focused dossier extraction regression set (`tests/features/dossier/benchmark-stage.test.ts`, `tests/features/dossier/porta-reconciliation.test.ts`, `tests/App.dossierGolden.test.tsx`, `tests/features/chat/message-orchestrator.test.ts`, `tests/App.loadingVariant.test.tsx`).
-- Passed: `npm run test:dossier`
-- Passed: `npm run test`
-- Passed: `npm run typecheck`
-- Passed: `npm run build`
+- Passed: `npm run test:dossier` on `2026-04-16`
+- Passed: `npm run test` on `2026-04-16`
+- Passed: `npm run typecheck` on `2026-04-16`
+- Passed: `npm run build` on `2026-04-16`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
 ## Important refs
@@ -93,11 +104,16 @@ Last updated: 2026-04-15
 - Dossier benchmark stage: `features/dossier/benchmark-stage.ts`
 - Dossier PORTA reconciliation: `features/dossier/porta-reconciliation.ts`
 - Dossier waterfall orchestrator: `features/dossier/waterfall-orchestrator.ts`
+- Chat store: `stores/chatStore.tsx`
+- Dossier store: `stores/dossierStore.tsx`
+- Chat boundary: `features/chat/ChatErrorBoundary.tsx`
+- Dossier boundary: `features/dossier/DossierErrorBoundary.tsx`
+- Error audit helper: `utils/errorBoundaryAudit.ts`
 
 ## Next checkpoint
 
-- Review and merge Sprint 4 / Onda 1, then start Onda 2 with `stores/*` + feature error boundaries while keeping `ChatInterfaceProps` plus `services/geminiService.ts` stable.
+- Open/review the Sprint 4 / Onda 2 PR and run the manual preview/Vercel checklist before merge.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
-- After merge, sync board/handoff/memory again before opening Onda 2.
+- After Onda 2 lands in `main`, sync board/handoff/memory again before opening Sprint 5.
