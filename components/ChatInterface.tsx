@@ -1,59 +1,23 @@
-import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import { motion } from 'framer-motion';
-import MessageRow, { MessageRowData } from './MessageRow';
-import { ChatInterfaceProps, Sender } from '../types';
+import React, { useCallback, useMemo, useState } from 'react';
+import { APP_NAME } from '../constants';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
-import SessionsSidebar from './SessionsSidebar';
-import UserMenu from './UserMenu';
-import EmptyStateHome from './EmptyStateHome';
-import GreetingWelcomeScreen from './GreetingWelcomeScreen';
-import HelpCenterFloating from './HelpCenterFloating';
-import { APP_NAME } from '../constants';
-import SuspenseWithError from './SuspenseWithError';
-import { loadWithChunkRetry } from '../utils/chunkRetry';
-import { scoutDiag } from '../utils/diagnosticLog';
-const InvestigationDashboard = React.lazy(() => loadWithChunkRetry(() => import('./InvestigationDashboard')));
-const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('./SettingsDrawer')));
-const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('./WarRoom')));
-import { cleanTitle } from '../utils/textCleaners';
-import { parseSmartOptions } from './SmartOptions';
-import {
-  buildInvestigationHiddenPrompt,
-  PROMPT_VERSION,
-} from '../prompts/megaPrompts';
+import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
+import { Sender, type RadarAlert } from '../types';
+import { scoutDiag } from '../utils/diagnosticLog';
+import { cleanTitle } from '../utils/textCleaners';
+import ChatPanels from './chat/ChatPanels';
+import ChatShell from './chat/ChatShell';
+import Composer from './chat/Composer';
+import type {
+  ChatTheme,
+  ExtendedChatInterfaceProps,
+  StartInvestigationPayload,
+} from './chat/contracts';
+import MessageTimeline from './chat/MessageTimeline';
 
-import type { RadarAlert, RadarConfig } from '../types';
-const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('./RadarBell')));
-const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('./RadarPanel')));
-const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('./RadarSettings')));
-import Tooltip from './Tooltip';
-
-export interface RadarProps {
-  alerts: RadarAlert[];
-  metaInsight: string | null;
-  config: RadarConfig;
-  unreadCount: number;
-  isScanning: boolean;
-  lastScanAt: number | null;
-  lastError: { code: string; message: string; retryable: boolean } | null;
-  lastWarning: string | null;
-  onUpdateConfig: (partial: Partial<RadarConfig>) => void;
-  onMarkAsRead: (id: string) => void;
-  onMarkAllAsRead: () => void;
-  onDismiss: (id: string) => void;
-  onForceScan: () => void;
-}
-
-type ExtendedChatInterfaceProps = ChatInterfaceProps & {
-  onDeleteMessage?: (id: string) => void;
-  onSaveToCRM?: (sessionId: string) => void;
-  onOpenKanban?: () => void;
-  onOpenAdminDash?: () => void;
-  radar?: RadarProps;
-};
+export type { RadarProps } from './chat/contracts';
 
 type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
 
@@ -64,15 +28,14 @@ const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode =
   if (raw.includes('ultra')) return 'ultraDepth';
   if (raw.includes('deep')) return 'ultraDepth';
   if (raw.includes('exec')) return 'executive';
-
   if (canWarRoom) return 'executive';
   return 'executive';
 };
 
 const shouldIncludeBudgetPrompt = (
-  payload: { companyName: string; cnpj: string | null; city: string; state: string },
+  payload: StartInvestigationPayload,
   promptMode: PromptMode,
-  radar?: RadarProps,
+  radar?: ExtendedChatInterfaceProps['radar'],
 ): boolean => {
   if (promptMode === 'warMode') return true;
   if (promptMode === 'ultraDepth') return true;
@@ -82,24 +45,14 @@ const shouldIncludeBudgetPrompt = (
   return false;
 };
 
-const buildRadarContextBlock = (radar?: RadarProps): string => {
+const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
   if (!radar) return '';
 
   const topAlerts = (radar.alerts || [])
     .slice(0, 3)
-    .map((alert: any, index) => {
-      const title =
-        alert?.title ||
-        alert?.headline ||
-        alert?.label ||
-        alert?.companyName ||
-        `Alerta ${index + 1}`;
-      const detail =
-        alert?.summary ||
-        alert?.message ||
-        alert?.description ||
-        alert?.reason ||
-        'Sem detalhe adicional';
+    .map((alert: RadarAlert, index) => {
+      const title = alert.title?.trim() || `Alerta ${index + 1}`;
+      const detail = alert.summary?.trim() || 'Sem detalhe adicional';
       return `- ${title}: ${detail}`;
     });
 
@@ -150,23 +103,24 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   exportStatus,
   exportError,
   pdfReportContent,
-  loadingVariant,
+  onOpenEmailModal,
   onOpenFollowUpModal,
-  onClearOperator,
-  lastUserQuery,
-  processing,
-  loadingPinnedLabel,
-  onDeepDive,
-  onDeleteMessage,
-  onSaveToCRM,
-  onOpenKanban,
-  onOpenAdminDash,
-  radar,
   canAccessMiniCRM = true,
   canAccessDashboard = true,
   canAccessIntegrityCheck = true,
   canDeepDive = false,
   canWarRoom = false,
+  onClearOperator,
+  lastUserQuery,
+  processing,
+  loadingVariant,
+  loadingPinnedLabel,
+  onDeleteMessage,
+  onSaveToCRM,
+  onDeepDive,
+  onOpenKanban,
+  onOpenAdminDash,
+  radar,
 }) => {
   const { mode, setMode } = useMode();
   const {
@@ -176,279 +130,23 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     loading: operatorLoading,
   } = useOperator();
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const messagesViewportRef = useRef<HTMLDivElement>(null);
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
-
-  // ── Scroll behavior refs ──────────────────────────────────────────────────
-  const userHasScrolledUpRef = useRef(false);
-  const malformedProcessingSignatureRef = useRef<string | null>(null);
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const [input, setInput] = useState('');
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
-  const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
-  const [showRetryToast, setShowRetryToast] = useState(false);
-  const [sessionSearchTerm, setSessionSearchTerm] = useState('');
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
   const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
-  const handleDeleteWithUndo = (msgId: string) => {
-    if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
-    setPendingDeleteId(msgId);
-    pendingDeleteTimer.current = setTimeout(() => {
-      onDeleteMessage?.(msgId);
-      setPendingDeleteId(null);
-    }, 5000);
-  };
-
-  const handleUndoDelete = () => {
-    if (pendingDeleteTimer.current) clearTimeout(pendingDeleteTimer.current);
-    setPendingDeleteId(null);
-  };
-
-  useEffect(() => {
-    const handlePrefill = (e: Event) => {
-      const detail = (e as CustomEvent<{ text: string }>).detail;
-      if (detail?.text) {
-        setInput(detail.text);
-        setTimeout(() => textareaRef.current?.focus(), 100);
-      }
-    };
-    window.addEventListener('scout:prefill', handlePrefill);
-    return () => window.removeEventListener('scout:prefill', handlePrefill);
-  }, []);
-
-  useLayoutEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'inherit';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [input]);
-
-  useEffect(() => {
-    if (showRetryToast) {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = setTimeout(() => setShowRetryToast(false), 8000);
-    }
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, [showRetryToast]);
-
-  // ── Detecta scroll manual do usuário durante a geração ───────────────────
-  useEffect(() => {
-    const container = scrollContainerRef.current?.querySelector(
-      '[data-virtuoso-scroller]',
-    ) as HTMLElement | null;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const distanceFromBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight;
-      userHasScrolledUpRef.current = distanceFromBottom > 120;
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // ── Índices computados — DEVEM estar antes do useEffect que os consome ────
-  const lastBotWithSuggestionsIndex = useMemo(
-    () =>
-      [...safeMessages]
-        .map((m, i) => ({ m, i }))
-        .filter(
-          ({ m }) =>
-            m.sender === Sender.Bot &&
-            ((m.suggestions && m.suggestions.length > 0) || parseSmartOptions(m.text).options.length > 0),
-        )
-        .map(({ i }) => i)
-        .pop(),
-    [safeMessages],
-  );
-
-  const lastUserIndex = useMemo(
-    () =>
-      [...safeMessages]
-        .map((m, i) => ({ m, i }))
-        .filter(({ m }) => m.sender === Sender.User)
-        .map(({ i }) => i)
-        .pop(),
-    [safeMessages],
-  );
-
-  const processingInfo = useMemo(() => {
-    if (!processing) return null;
-
-    const stage = typeof processing.stage === 'string' ? processing.stage.trim() : '';
-    const completedStages = Array.isArray(processing.completedStages) ? processing.completedStages : [];
-    const failureCount =
-      typeof processing.failureCount === 'number' && Number.isFinite(processing.failureCount)
-        ? processing.failureCount
-        : 0;
-    const totalStages =
-      typeof processing.totalStages === 'number' && Number.isFinite(processing.totalStages)
-        ? processing.totalStages
-        : null;
-
-    const details: string[] = [];
-    if (completedStages.length > 0) {
-      details.push(
-        totalStages && totalStages > 0
-          ? `${completedStages.length}/${totalStages} etapas`
-          : `${completedStages.length} ${completedStages.length === 1 ? 'etapa' : 'etapas'}`,
-      );
-    }
-    if (failureCount > 0) {
-      details.push(`tentativa ${failureCount + 1}`);
-    }
-
-    return {
-      label: stage || 'Processando...',
-      detailText: details.join(' • '),
-      stageType: typeof processing.stage,
-      completedStagesIsArray: Array.isArray(processing.completedStages),
-      failureCountType: typeof processing.failureCount,
-      totalStagesType: typeof processing.totalStages,
-      isMalformed:
-        typeof processing.stage !== 'string' ||
-        !Array.isArray(processing.completedStages),
-    };
-  }, [processing]);
-
-  useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList) {
-      setIsMessagesViewportReady(false);
-      return;
-    }
-
-    const viewport = messagesViewportRef.current;
-    if (!viewport) {
-      setIsMessagesViewportReady(true);
-      return;
-    }
-
-    let cancelled = false;
-    let observer: ResizeObserver | null = null;
-    let rafA: number | null = null;
-    let rafB: number | null = null;
-    let emergencyTimer: number | null = null;
-
-    const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
-    const markReady = () => {
-      if (cancelled) return;
-      setIsMessagesViewportReady(true);
-    };
-
-    setIsMessagesViewportReady(false);
-
-    // Fallback de última linha: garante que a lista não fica branca
-    // quando ResizeObserver e RAF não disparam (cenário já observado em produção).
-    emergencyTimer = window.setTimeout(() => {
-      markReady();
-    }, 180);
-
-    if (hasValidSize()) {
-      markReady();
-    } else if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(() => {
-        if (hasValidSize()) {
-          markReady();
-        }
-      });
-      observer.observe(viewport);
-    }
-
-    // Fallback defensivo: em produção o ResizeObserver pode não disparar
-    // a tempo e deixar a área de mensagens em branco mesmo com conteúdo.
-    rafA = window.requestAnimationFrame(() => {
-      rafB = window.requestAnimationFrame(() => {
-        markReady();
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      observer?.disconnect();
-      if (rafA !== null) window.cancelAnimationFrame(rafA);
-      if (rafB !== null) window.cancelAnimationFrame(rafB);
-      if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
-    };
-  }, [showInitialHome, shouldSuspendVirtualizedList, safeMessages.length]);
-
-  useEffect(() => {
-    if (!processingInfo?.isMalformed) {
-      malformedProcessingSignatureRef.current = null;
-      return;
-    }
-
-    const logPayload = {
-      stageType: processingInfo.stageType,
-      completedStagesIsArray: processingInfo.completedStagesIsArray,
-      failureCountType: processingInfo.failureCountType,
-      totalStagesType: processingInfo.totalStagesType,
-      sessionId: currentSession?.id ?? null,
-    };
-    const signature = JSON.stringify(logPayload);
-    if (malformedProcessingSignatureRef.current === signature) return;
-
-    malformedProcessingSignatureRef.current = signature;
-    scoutDiag.warn(
-      'ChatInterface',
-      'processing payload malformado no indicador inferior',
-      logPayload,
-    );
-  }, [currentSession?.id, processingInfo]);
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // O auto-scroll forçado ao finalizar a geração foi removido para permitir leitura estável do topo.
-  // ─────────────────────────────────────────────────────────────────────────
-  // ─────────────────────────────────────────────────────────────────────────
-
-  const hideSuggestionsForMessageId =
-    isLoading &&
-    lastBotWithSuggestionsIndex !== undefined &&
-    lastUserIndex !== undefined &&
-    lastUserIndex > lastBotWithSuggestionsIndex
-      ? safeMessages[lastBotWithSuggestionsIndex]?.id ?? null
-      : null;
-
-  const handleSend = () => {
-    if (showInitialHome) return;
-    if (!input.trim() || isLoading) return;
-    onSendMessage(input);
-    setInput('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  // ── Lógica de investigação ────────────────────────────────────────────────
   const handleStartInvestigation = useCallback(
-    async (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => {
+    async (payload: StartInvestigationPayload) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode, canWarRoom);
 
-      // Enriquecer payload com CNAE da Receita Federal (Tier A)
       let segmentHint: string | undefined;
       if (payload.cnpj) {
         try {
@@ -458,7 +156,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             segmentHint = companyData.cnaeDescricao;
           }
         } catch (error) {
-          // Fallback silencioso — continua sem segmentHint
           scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
         }
       }
@@ -488,562 +185,160 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const handleCopyMarkdown = useCallback(() => {
     const text = safeMessages
-      .filter(m => !m.isError && !m.isThinking)
-      .map(m => `**${m.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${m.text}`)
+      .filter((message) => !message.isError && !message.isThinking)
+      .map((message) => `**${message.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${message.text}`)
       .join('\n\n---\n\n')
       .replace(/\[\[PORTA:[^\]]+\]\]/g, '');
 
     void navigator.clipboard.writeText(text);
   }, [safeMessages]);
 
-  const handleStopWithToast = useCallback(() => {
-    onStop?.();
-    setShowRetryToast(true);
-  }, [onStop]);
+  const handlePrefillComposer = useCallback((text: string) => {
+    window.dispatchEvent(new CustomEvent('scout:prefill', { detail: { text } }));
+  }, []);
 
-  const handleRetryNormal = useCallback(() => {
-    setShowRetryToast(false);
-    onRetry();
-  }, [onRetry]);
+  const theme = useMemo<ChatTheme>(
+    () => ({
+      bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
+      surface: isDarkMode ? 'bg-slate-900' : 'bg-white',
+      border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
+      textPrimary: isDarkMode ? 'text-slate-100' : 'text-slate-900',
+      textSecondary: isDarkMode ? 'text-slate-400' : 'text-slate-500',
+      inputBg: isDarkMode ? 'bg-slate-800' : 'bg-white',
+      inputBorder: isDarkMode ? 'border-slate-700' : 'border-slate-300',
+      itemHover: isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100',
+      itemActive: isDarkMode ? 'bg-slate-800' : 'bg-slate-100',
+      btnSecondary: isDarkMode
+        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200',
+    }),
+    [isDarkMode],
+  );
 
-  const displayName = operatorName.trim() || 'Operador';
-  const avatarUrl = null;
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
-
-  const itemData = useMemo<MessageRowData>(
-    () => ({
-      messages: safeMessages,
-      isLoading,
-      isDarkMode,
-      mode,
-      onRetry,
-      onDeleteMessage,
-      onReportError,
-      onFeedback,
-      onSendFeedback,
-      onToggleMessageSources,
-      onDeepDive: canDeepDive ? onDeepDive : undefined,
-      onRegenerateSuggestions,
-      handleDeleteWithUndo,
-      pendingDeleteId,
-      hideSuggestionsForMessageId,
-      setInput,
-      sessionId: currentSession?.id,
-      userId: operatorId,
-      processing,
-      lastUserQuery,
-      onStop: handleStopWithToast,
-      onSendMessage,
-      empresaAlvo: currentSession?.empresaAlvo || null,
-      cnpj: currentSession?.cnpj || null,
-      loadingPinnedLabel,
-    }),
-    [
-      safeMessages,
-      isLoading,
-      isDarkMode,
-      mode,
-      onRetry,
-      onDeleteMessage,
-      onReportError,
-      onFeedback,
-      onSendFeedback,
-      onToggleMessageSources,
-      canDeepDive,
-      onDeepDive,
-      onRegenerateSuggestions,
-      pendingDeleteId,
-      hideSuggestionsForMessageId,
-      currentSession?.id,
-      currentSession?.empresaAlvo,
-      operatorId,
-      processing,
-      lastUserQuery,
-      handleStopWithToast,
-      onSendMessage,
-      currentSession?.cnpj,
-      loadingPinnedLabel,
-    ],
-  );
-
-  const itemContent = useCallback(
-    (index: number) => <MessageRow index={index} data={itemData} />,
-    [itemData],
-  );
-  const handleOpenSettings = () => setShowSettings(true);
-  const handleCloseSettings = () => setShowSettings(false);
-  const handleOpenWarRoom = () => setShowWarRoom(true);
-  const handleCloseWarRoom = () => setShowWarRoom(false);
-  const closeSidebarOnMobile = useCallback(() => {
-    if (window.innerWidth < 768 && isSidebarOpen) {
-      onToggleSidebar();
-    }
-  }, [isSidebarOpen, onToggleSidebar]);
-
-  // ── Paleta de cores por tema ──────────────────────────────────────────────
-  const theme = {
-    bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
-    surface: isDarkMode ? 'bg-slate-900' : 'bg-white',
-    border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-    textPrimary: isDarkMode ? 'text-slate-100' : 'text-slate-900',
-    textSecondary: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-    inputBg: isDarkMode ? 'bg-slate-800' : 'bg-white',
-    inputBorder: isDarkMode ? 'border-slate-700' : 'border-slate-300',
-    itemHover: isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100',
-    itemActive: isDarkMode ? 'bg-slate-800' : 'bg-slate-100',
-    btnSecondary: isDarkMode
-      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200',
-  };
-
-  // Radar unread badge
-  const radarUnread = radar?.unreadCount ?? 0;
+  const displayName = operatorName.trim() || 'Operador';
 
   return (
-    <div data-testid="messages-scroller" className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <SessionsSidebar
-        sessions={sessions}
-        currentSessionId={currentSession?.id ?? null}
-        onSelectSession={(id) => {
-          onSelectSession(id);
-          closeSidebarOnMobile();
-        }}
-        onNewSession={onNewSession}
-        onDeleteSession={onDeleteSession}
-        isOpen={isSidebarOpen}
-        onCloseMobile={closeSidebarOnMobile}
-        isDarkMode={isDarkMode}
-        onSaveToCRM={onSaveToCRM || (() => {})}
-        onOpenKanban={onOpenKanban || (() => {})}
-        searchTerm={sessionSearchTerm}
-        onSearchChange={setSessionSearchTerm}
-        showSearchField
-        toggleButtonRef={sidebarToggleRef}
-        canAccessMiniCRM={canAccessMiniCRM}
-      />
-
-      {/* ── Main content ────────────────────────────────────────────────────── */}
-      <main data-testid="chat-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <Tooltip label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'} position="bottom">
-              <button
-                data-testid="sidebar-toggle"
-                ref={sidebarToggleRef}
-                type="button"
-                onClick={onToggleSidebar}
-                className={`p-2 rounded-lg transition-colors flex-none ${theme.itemHover}`}
-                aria-label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'}
-              >
-                {isSidebarOpen ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
-            </Tooltip>
-
-            <span data-testid="chat-header-title" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
-              {displayTitle}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 flex-none">
-            {/* Radar Bell */}
-            {radar && (
-              <React.Suspense fallback={null}>
-                <RadarBell
-                  unreadCount={radarUnread}
-                  isScanning={radar.isScanning}
-                  isDarkMode={isDarkMode}
-                  onClick={() => setShowRadarPanel(true)}
-                />
-              </React.Suspense>
-            )}
-
-            {/* War Room button */}
-            {canWarRoom && (
-              <Tooltip label="War Room — análise intensiva" position="bottom">
-              <motion.button
-                data-testid="chat-war-room-button"
-                whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
-                whileTap={{ scale: 0.9 }}
-                type="button"
-                onClick={handleOpenWarRoom}
-                className={`group relative p-2.5 rounded-xl transition-all shadow-sm overflow-hidden ${
-                  isDarkMode
-                    ? 'bg-slate-900 border border-red-500/25 text-red-300'
-                    : 'bg-white border border-red-200 text-red-700'
-                }`}
-                title="War Room"
-                aria-label="Abrir War Room"
-              >
-                {/* Background Glow */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
-                  isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
-                }`} />
-
-                <div className="relative flex items-center justify-center">
-                  <img
-                    data-testid="chat-war-room-icon"
-                    src="/war-room-icon-no-bg.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 flex-none object-contain"
-                  />
-                </div>
-              </motion.button>
-              </Tooltip>
-            )}
-
-            {/* Dashboard button */}
-            {canAccessDashboard && (
-              <Tooltip label="Dossiê de investigação" position="bottom">
-              <button
-                data-testid="chat-dashboard-button"
-                type="button"
-                onClick={() => setShowDashboard(true)}
-                className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
-                title="Dossiê de Investigação"
-                aria-label="Abrir dossiê de investigação"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </button>
-              </Tooltip>
-            )}
-
-            {/* Admin dashboard button */}
-            {canAccessDashboard && onOpenAdminDash && (
-              <Tooltip label="Painel administrativo" position="bottom">
-              <button
-                data-testid="chat-admin-button"
-                type="button"
-                onClick={onOpenAdminDash}
-                className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
-                title="Painel Administrativo"
-                aria-label="Abrir painel administrativo"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              </Tooltip>
-            )}
-
-            {/* Theme toggle */}
-            <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
-            <button
-              data-testid="chat-theme-toggle"
-              type="button"
-              onClick={onToggleTheme}
-              className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
-              aria-label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-            >
-              {isDarkMode ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
-            </Tooltip>
-
-            {/* User menu */}
-            <UserMenu
-              isDarkMode={isDarkMode}
-              displayName={displayName}
-              avatarUrl={avatarUrl}
-              onOpenSettings={handleOpenSettings}
-              onClearOperator={onClearOperator}
-            />
-          </div>
-        </header>
-
-        {/* ── Messages area ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-h-0 relative" ref={scrollContainerRef}>
-          {showOperatorGate ? (
-            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-              <GreetingWelcomeScreen
-                isDarkMode={isDarkMode}
-                onConfirmName={setName}
-              />
-            </div>
-          ) : showInitialHome ? (
-            <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-              <EmptyStateHome
-                mode={mode}
-                isDarkMode={isDarkMode}
-                onStartInvestigation={handleStartInvestigation}
-                radarAlerts={radar?.alerts}
-                radarIsScanning={radar?.isScanning}
-                onForceScan={radar?.onForceScan}
-                onOpenRadar={() => setShowRadarPanel(true)}
-              />
-              <HelpCenterFloating isDarkMode={isDarkMode} />
-            </div>
-          ) : shouldSuspendVirtualizedList ? (
-            <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
-          ) : (
-            <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
-              {isMessagesViewportReady ? (
-                <Virtuoso
-                  ref={virtuosoRef}
-                  data={safeMessages}
-                  computeItemKey={(_, message) => message.id}
-                  itemContent={itemContent}
-                  followOutput={false}
-                  increaseViewportBy={{ top: 400, bottom: 400 }}
-                  defaultItemHeight={96}
-                  style={{ height: '100%' }}
-                  components={{
-                    Header: () =>
-                      hasMore ? (
-                        <div className="flex justify-center py-3">
-                          <button
-                            type="button"
-                            onClick={onLoadMore}
-                            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-                          >
-                            Carregar mensagens anteriores
-                          </button>
-                        </div>
-                      ) : null,
-                  }}
-                />
-              ) : (
-                <div className="h-full w-full" data-testid="messages-viewport-placeholder" />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Input area ──────────────────────────────────────────────────── */}
-        {!showInitialHome && !showOperatorGate && (
-          <div className={`flex-none border-t ${theme.border} ${theme.surface}`}>
-            {/* Processing indicator */}
-            {isLoading && processing && processingInfo && (
-              <div
-                data-testid="chat-processing-indicator"
-                className={`px-4 pt-2 pb-1 text-xs ${theme.textSecondary} flex items-center gap-1.5 flex-wrap`}
-              >
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{processingInfo.label}</span>
-                {processingInfo.detailText ? (
-                  <span className="opacity-80">{processingInfo.detailText}</span>
-                ) : null}
-              </div>
-            )}
-
-            {/* Retry toast */}
-            {showRetryToast && (
-              <div className="mx-4 mt-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-center justify-between gap-2">
-                <span>⚠️ Geração interrompida. Você pode tentar novamente agora.</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleRetryNormal}
-                    className="rounded-md bg-amber-500/15 px-2 py-1 font-semibold hover:bg-amber-500/25"
-                  >
-                    Tentar de novo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRetryToast(false)}
-                    className="text-amber-600 dark:text-amber-400 hover:opacity-70 flex-none"
-                    aria-label="Fechar aviso"
-                  >✕</button>
-                </div>
-              </div>
-            )}
-
-            <div className="p-3 flex items-end gap-2">
-              {/* Investigation trigger */}
-              <Tooltip label="Iniciar nova investigação" position="top">
-                <button
-                  data-testid="chat-new-investigation-button"
-                  type="button"
-                  onClick={() => setShowDashboard(true)}
-                  className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
-                  title="Nova Investigação"
-                  aria-label="Iniciar nova investigação"
-                >
-                  🔍
-                </button>
-              </Tooltip>
-
-              {/* Textarea */}
-              <div className="flex-1 relative">
-                <textarea
-                  data-testid="chat-input"
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={isLoading ? 'Gerando resposta...' : 'Digite sua mensagem...'}
-                  disabled={isLoading}
-                  rows={1}
-                  className={`w-full resize-none rounded-xl px-3 py-2.5 text-sm border transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${theme.inputBg} ${theme.inputBorder} ${theme.textPrimary} disabled:opacity-50 max-h-40 overflow-y-auto`}
-                  aria-label="Campo de mensagem"
-                />
-              </div>
-
-              {/* Stop / Send button */}
-              {isLoading ? (
-                <Tooltip label="Parar geração" position="top">
-                <button
-                  data-testid="chat-stop-button"
-                  type="button"
-                  onClick={handleStopWithToast}
-                  className="flex-none p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors"
-                  aria-label="Parar geração"
-                  title="Parar"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                </button>
-                </Tooltip>
-              ) : (
-                <Tooltip label="Enviar mensagem" position="top">
-                <button
-                  data-testid="chat-send-button"
-                  type="button"
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="flex-none p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white transition-colors"
-                  aria-label="Enviar mensagem"
-                  title="Enviar"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m-7 7l7-7 7 7" />
-                  </svg>
-                </button>
-                </Tooltip>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ── Overlays ──────────────────────────────────────────────────────────── */}
-
-      {/* Investigation Dashboard */}
-      {showDashboard && (
-        <React.Suspense fallback={null}>
-          <SuspenseWithError>
-            <InvestigationDashboard
-              onSelectEmpresa={(empresa) => {
-                onSendMessage(`Investigar ${empresa}`);
-                setShowDashboard(false);
-              }}
-              onClose={() => setShowDashboard(false)}
-            />
-          </SuspenseWithError>
-        </React.Suspense>
-      )}
-
-      {/* Settings Drawer */}
-      {showSettings && (
-        <React.Suspense fallback={null}>
-          <SuspenseWithError>
-            <SettingsDrawer
-              isOpen={showSettings}
-              operatorName={operatorName}
-              onUpdateOperatorName={setName}
-              mode={mode}
-              onSetMode={setMode}
-              isDarkMode={isDarkMode}
-              onToggleTheme={onToggleTheme}
-              onOpenDashboard={() => canAccessDashboard && setShowDashboard(true)}
-              onExportPDF={onExportPDF}
-              onExportConversation={onExportConversation}
-              onCopyMarkdown={handleCopyMarkdown}
-              onScheduleFollowUp={onOpenFollowUpModal}
-              onClearOperator={onClearOperator}
-              onClose={handleCloseSettings}
-              exportStatus={exportStatus}
-              exportError={exportError}
-              canAccessDashboard={canAccessDashboard}
-              canAccessIntegrityCheck={canAccessIntegrityCheck}
-            />
-          </SuspenseWithError>
-        </React.Suspense>
-      )}
-
-      {/* War Room */}
-      {showWarRoom && canWarRoom && (
-        <React.Suspense fallback={null}>
-          <SuspenseWithError>
-            <WarRoom
-              isOpen={showWarRoom}
-              isDarkMode={isDarkMode}
-              onClose={handleCloseWarRoom}
-              defaultCompetitorTarget={null}
-            />
-          </SuspenseWithError>
-        </React.Suspense>
-      )}
-
-      {/* Radar Panel */}
-      {showRadarPanel && radar && (
-        <React.Suspense fallback={null}>
-          <SuspenseWithError>
-            <RadarPanel
-              isDarkMode={isDarkMode}
-              alerts={radar.alerts}
-              metaInsight={radar.metaInsight}
-              isScanning={radar.isScanning}
-              lastScanAt={radar.lastScanAt}
-              scanError={radar.lastError}
-              scanWarning={radar.lastWarning}
-              unreadCount={radar.unreadCount}
-              isConfigured={radar.config.isConfigured}
-              onMarkAsRead={radar.onMarkAsRead}
-              onMarkAllAsRead={radar.onMarkAllAsRead}
-              onDismiss={radar.onDismiss}
-              onForceScan={radar.onForceScan}
-              onOpenSettings={() => {
-                setShowRadarPanel(false);
-                setShowRadarSettings(true);
-              }}
-              onClose={() => setShowRadarPanel(false)}
-            />
-          </SuspenseWithError>
-        </React.Suspense>
-      )}
-
-      {/* Radar Settings */}
-      {showRadarSettings && radar && (
-        <React.Suspense fallback={null}>
-          <SuspenseWithError>
-            <RadarSettings
-              isDarkMode={isDarkMode}
-              config={radar.config}
-              onUpdateConfig={radar.onUpdateConfig}
-              lastScanAt={radar.lastScanAt}
-              onClose={() => setShowRadarSettings(false)}
-            />
-          </SuspenseWithError>
-        </React.Suspense>
-      )}
-    </div>
+    <ChatShell
+      sessions={sessions}
+      currentSessionId={currentSession?.id ?? null}
+      onSelectSession={onSelectSession}
+      onNewSession={onNewSession}
+      onDeleteSession={onDeleteSession}
+      isSidebarOpen={isSidebarOpen}
+      onToggleSidebar={onToggleSidebar}
+      isDarkMode={isDarkMode}
+      theme={theme}
+      onSaveToCRM={onSaveToCRM}
+      onOpenKanban={onOpenKanban}
+      canAccessMiniCRM={canAccessMiniCRM}
+      displayTitle={displayTitle}
+      radar={radar}
+      onOpenRadarPanel={() => setShowRadarPanel(true)}
+      canWarRoom={canWarRoom}
+      onOpenWarRoom={() => setShowWarRoom(true)}
+      canAccessDashboard={canAccessDashboard}
+      onOpenDashboard={() => setShowDashboard(true)}
+      onOpenAdminDash={onOpenAdminDash}
+      onToggleTheme={onToggleTheme}
+      displayName={displayName}
+      avatarUrl={null}
+      onOpenSettings={() => setShowSettings(true)}
+      onClearOperator={onClearOperator}
+      timeline={
+        <MessageTimeline
+          currentSession={currentSession}
+          messages={safeMessages}
+          isLoading={isLoading}
+          hasMore={hasMore}
+          isDarkMode={isDarkMode}
+          mode={mode}
+          showOperatorGate={showOperatorGate}
+          showInitialHome={showInitialHome}
+          shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+          onConfirmOperatorName={setName}
+          onStartInvestigation={handleStartInvestigation}
+          radar={radar}
+          onOpenRadarPanel={() => setShowRadarPanel(true)}
+          onLoadMore={onLoadMore}
+          onRetry={onRetry}
+          onDeleteMessage={onDeleteMessage}
+          onReportError={onReportError}
+          onFeedback={onFeedback}
+          onSendFeedback={onSendFeedback}
+          onToggleMessageSources={onToggleMessageSources}
+          onDeepDive={onDeepDive}
+          onRegenerateSuggestions={onRegenerateSuggestions}
+          onPrefillComposer={handlePrefillComposer}
+          operatorId={operatorId}
+          processing={processing}
+          lastUserQuery={lastUserQuery}
+          onStop={onStop}
+          onSendMessage={(text) => onSendMessage(text)}
+          loadingPinnedLabel={loadingPinnedLabel}
+          canDeepDive={canDeepDive}
+          theme={theme}
+        />
+      }
+      composer={
+        <Composer
+          isHidden={showInitialHome || showOperatorGate}
+          isLoading={isLoading}
+          processing={processing}
+          sessionId={currentSession?.id ?? null}
+          theme={theme}
+          onSendMessage={(text) => onSendMessage(text)}
+          onRetry={onRetry}
+          onStop={onStop}
+          onOpenDashboard={() => setShowDashboard(true)}
+        />
+      }
+      panels={
+        <ChatPanels
+          showDashboard={showDashboard}
+          onSelectEmpresa={(empresa) => {
+            onSendMessage(`Investigar ${empresa}`);
+            setShowDashboard(false);
+          }}
+          onCloseDashboard={() => setShowDashboard(false)}
+          showSettings={showSettings}
+          operatorName={operatorName}
+          onUpdateOperatorName={setName}
+          mode={mode}
+          onSetMode={setMode}
+          isDarkMode={isDarkMode}
+          onToggleTheme={onToggleTheme}
+          onOpenDashboard={() => {
+            if (canAccessDashboard) {
+              setShowDashboard(true);
+            }
+          }}
+          onExportPDF={onExportPDF}
+          onExportConversation={onExportConversation}
+          onCopyMarkdown={handleCopyMarkdown}
+          onScheduleFollowUp={onOpenFollowUpModal}
+          onClearOperator={onClearOperator}
+          exportStatus={exportStatus}
+          exportError={exportError}
+          canAccessDashboard={canAccessDashboard}
+          canAccessIntegrityCheck={canAccessIntegrityCheck}
+          onCloseSettings={() => setShowSettings(false)}
+          showWarRoom={showWarRoom}
+          canWarRoom={canWarRoom}
+          onCloseWarRoom={() => setShowWarRoom(false)}
+          showRadarPanel={showRadarPanel}
+          radar={radar}
+          onOpenRadarSettings={() => {
+            setShowRadarPanel(false);
+            setShowRadarSettings(true);
+          }}
+          onCloseRadarPanel={() => setShowRadarPanel(false)}
+          showRadarSettings={showRadarSettings}
+          onCloseRadarSettings={() => setShowRadarSettings(false)}
+        />
+      }
+    />
   );
 };
 

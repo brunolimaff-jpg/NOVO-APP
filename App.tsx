@@ -589,7 +589,7 @@ const App: React.FC = () => {
               onOpenKanban={handleOpenKanbanSafe}
               onOpenAdminDash={canAccessDashboard ? () => setActiveView('admin') : undefined}
               isSidebarOpen={isSidebarOpen}
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              onToggleSidebar={() => setIsSidebarOpen((previous) => !previous)}
               messages={allMessages.slice(-visibleCount)}
               isLoading={isLoading}
               hasMore={allMessages.length > visibleCount}

@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `7e110b91c7a2bd62a33158aab1f47035d9f2f97e` |
-| Working branch | `codex/sprint4-wave2-stores-boundaries` |
-| Last updated | `2026-04-16` |
-| Current phase | `review` |
-| Current sprint | `4` |
+| Source of truth commit | `origin/main` -> `16c8f2e001e92e4830415506d7406ca236ed91f8` |
+| Working branch | `codex/sprint5-chatinterface-modularization` |
+| Last updated | `2026-04-17` |
+| Current phase | `execution` |
+| Current sprint | `5` |
 | Overall status | `active` |
-| Current baseline | `main` ainda esta no pos-`#227`; Onda 2 foi implementada no branch `codex/sprint4-wave2-stores-boundaries` com `test:dossier/test/typecheck/build` green em `2026-04-16`; lint backlog pre-existing |
+| Current baseline | `main` ja inclui Sprint 4 completa via PR `#228`; Sprint 5 foi implementada no branch `codex/sprint5-chatinterface-modularization` com gates automatizados green em `2026-04-17`; lint backlog pre-existing |
 
 ## Current Focus
 
@@ -44,7 +44,7 @@
   - validar follow-up apos dossie completo
   - validar retry do ramo de envio/recuperacao sem quebrar a mensagem final
   - validar exportacao/continuity suggestions e persistencia remota sem regressao funcional
-- Onda 2 foi implementada no branch atual:
+- Onda 2 foi mergeada em `main` via PR `#228`:
   - `stores/chatStore.tsx` concentra sessao, mensagens, loading e refs operacionais
   - `stores/dossierStore.tsx` concentra export/save state
   - `App.tsx` e `index.tsx` agora usam providers/hooks de store
@@ -53,12 +53,25 @@
   - `components/ErrorBoundary.tsx` passou a compartilhar auditoria com `utils/errorBoundaryAudit.ts`
   - `components/MessageRow.tsx` agora envolve o subtree de dossie com boundary local
   - a suite ganhou cobertura para stores e boundaries
+- Sprint 5 foi aberta no branch atual:
+  - `components/ChatInterface.tsx` segue como facade publica estavel
+  - `components/chat/ChatShell.tsx` concentra sidebar, header e composicao de areas
+  - `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
+  - `components/chat/Composer.tsx` concentra input, prefill, processing indicator e retry toast
+  - `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
+  - `components/chat/contracts.ts` virou o contrato interno compartilhado dessa camada
+  - `ChatInterfaceProps` e a fachada publica de `services/geminiService.ts` foram preservados
+  - entraram testes focados para `Composer`, `MessageTimeline` e `ChatPanels`
+  - um patch de UX tambem reduziu o atraso perceptivel da sidebar:
+    - `components/SessionsSidebar.tsx` agora anima apenas `transform` em `200ms` no mobile
+    - a transicao de largura foi removida no desktop
+    - `App.tsx` passou a usar functional update no toggle de `isSidebarOpen`
 
 ## Next Up
 
-1. Abrir/revisar a PR da Onda 2 (`codex/sprint4-wave2-stores-boundaries`)
-2. Rodar a validacao manual em preview/Vercel para boundaries, export/save remoto e fluxo hero
-3. Depois do merge, sincronizar `main`/docs novamente e preparar Sprint 5
+1. Abrir/revisar a PR da Sprint 5 (`codex/sprint5-chatinterface-modularization`)
+2. Rodar a validacao manual em preview/Vercel para gate inicial, home, timeline ativa, header actions, responsividade de abrir/fechar da sidebar e composer send/stop/retry
+3. Depois do merge, sincronizar `main`/docs novamente e preparar Sprint 6
 
 ## Blocked
 
@@ -69,7 +82,18 @@
 - Nenhuma pendencia para o fechamento da Sprint 3; a validacao manual integrada foi concluida em `2026-04-15`
 - O gate automatizado da Onda 1 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
 - O gate automatizado da Onda 2 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build` em `2026-04-16`
-- Em runtime real, a rodada manual desta onda deve cobrir geracao de dossie, follow-up, exportacao, persistencia remota e queda controlada nos boundaries sem derrubar o app inteiro
+- A Sprint 5 fechou o gate automatizado com:
+  - `tests/components/ChatInterface.test.tsx`
+  - `tests/components/chat/Composer.test.tsx`
+  - `tests/components/chat/MessageTimeline.test.tsx`
+  - `tests/components/chat/ChatPanels.test.tsx`
+  - `npm run test`
+  - `npm run typecheck`
+  - `npm run build`
+- O patch de responsividade da sidebar fechou com:
+  - `tests/components/SessionsSidebar.test.tsx`
+  - `tests/components/ChatInterface.test.tsx`
+- Em runtime real, a rodada manual da Sprint 5 deve cobrir gate inicial, home, timeline, header actions e composer sem regressao visual/funcional
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings
@@ -84,8 +108,8 @@
 | 1 | Baseline e fronteiras | done | Clerk/auth removido, fronteiras documentadas, guardrail contra novos consumidores de legado, validacao da sprint registrada | `origin/main@3c1412e` | `App.tsx`, `components/ChatInterface.tsx`, `contexts/OperatorContext.tsx`, `hooks/useChat.ts`, `services/geminiService.ts` |
 | 2 | Quebrar Gemini | done | `services/gemini/` criado com facade estavel | `origin/main@ef30b5d` | `services/geminiService.ts`, `services/gemini/*` |
 | 3 | Extrair chat do App | done | `features/chat/` ativo; `App.tsx` reduzido; validacao manual integrada concluida em `2026-04-15` | `origin/main@510f91fa3653cbfa1552e7f3d4e3a43883a45e17` | `App.tsx`, `features/chat/*` |
-| 4 | Extrair dossie do App | active | Onda 1 implementa `features/dossier/`; Onda 2 consolida `stores/*` e error boundaries | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
-| 5 | Modularizar ChatInterface | planned | `components/chat/` ativo com facade em `ChatInterface.tsx` | `start-of-sprint-5` | `components/ChatInterface.tsx`, `components/chat/*` |
+| 4 | Extrair dossie do App | done | Onda 1 implementa `features/dossier/`; Onda 2 consolida `stores/*` e error boundaries | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
+| 5 | Modularizar ChatInterface | active | `components/chat/` ativo com facade estavel em `ChatInterface.tsx`; smoke manual pendente antes do merge | `origin/main@16c8f2e` | `components/ChatInterface.tsx`, `components/chat/*` |
 | 6 | Dividir megaPrompts | planned | `prompts/mega/` criado; `@ts-nocheck` removido | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | planned | `hooks/useChat.ts` removido; `constants.ts` reduzido | `start-of-sprint-7` | `constants.ts`, `hooks/useChat.ts`, `services/apiConfig.ts` |
 | 8 | War Room e docs finais | planned | `services/war-room/` ativo e docs consolidadas | `start-of-sprint-8` | `services/warRoomService.ts`, `docs/ai-context/*` |
