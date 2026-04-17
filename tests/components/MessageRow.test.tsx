@@ -7,6 +7,10 @@ import type { Message } from '../../types';
 import { Sender } from '../../types';
 import type { MessageRowData } from '../../components/MessageRow';
 
+const { sectionalBotShouldThrowRef } = vi.hoisted(() => ({
+  sectionalBotShouldThrowRef: { current: false },
+}));
+
 // Mock all heavy sub-components
 vi.mock('../../components/GhostMessageBlock', () => ({
   default: () => <div data-testid="ghost-block" />,
@@ -17,7 +21,13 @@ vi.mock('../../components/ErrorMessageCard', () => ({
   ),
 }));
 vi.mock('../../components/SectionalBotMessage', () => ({
-  default: ({ text }: { text: string }) => <div data-testid="sectional-bot">{text}</div>,
+  default: ({ text }: { text: string }) => {
+    if (sectionalBotShouldThrowRef.current) {
+      throw new Error('sectional render failed');
+    }
+
+    return <div data-testid="sectional-bot">{text}</div>;
+  },
 }));
 vi.mock('../../components/LoadingSmart', () => ({
   default: () => <div data-testid="loading-smart" />,
@@ -81,6 +91,7 @@ function makeData(messages: Message[], overrides: Partial<MessageRowData> = {}):
 describe('MessageRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sectionalBotShouldThrowRef.current = false;
   });
 
   it('retorna null quando index está fora dos limites', () => {
@@ -337,6 +348,20 @@ describe('MessageRow', () => {
     expect(() =>
       render(<MessageRow index={0} data={makeData([msg], { isDarkMode: true })} />),
     ).not.toThrow();
+  });
+
+  it('mantem fallback local quando a renderizacao do dossie explode', () => {
+    sectionalBotShouldThrowRef.current = true;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Analise Completa\nConteudo aqui',
+    });
+
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    expect(screen.getByTestId('dossier-error-boundary')).toBeInTheDocument();
+    expect(screen.getByText(/Nao foi possivel renderizar este bloco do dossier/i)).toBeInTheDocument();
   });
 
   it('mostra GhostMessageBlock para bot com ghostReason', () => {

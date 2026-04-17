@@ -11,6 +11,7 @@ import {
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
+import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
@@ -55,6 +56,14 @@ export interface UseDossierWaterfallOrchestratorOptions {
   setFailureCount: Dispatch<SetStateAction<number>>;
 }
 
+function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`${dependencyName} is required for dossier-waterfall`);
+  }
+
+  return value;
+}
+
 function buildDossierSeedContext(rawPrompt: string): string {
   if (!rawPrompt) return '';
 
@@ -66,16 +75,35 @@ function buildDossierSeedContext(rawPrompt: string): string {
   return sections.join('\n\n');
 }
 
-export function useDossierWaterfallOrchestrator({
-  canUseLookup,
-  resolvedOperatorName,
-  updateSessionById,
-  resetLoadingProgress,
-  advanceLoadingProgress,
-  replaceLoadingProgressStage,
-  completeLoadingProgress,
-  setFailureCount,
-}: UseDossierWaterfallOrchestratorOptions) {
+export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWaterfallOrchestratorOptions> = {}) {
+  const chatStore = useMaybeChatStore();
+  const canUseLookup = options.canUseLookup ?? false;
+  const resolvedOperatorName = requireDependency(options.resolvedOperatorName, 'resolvedOperatorName');
+  const updateSessionById = requireDependency(
+    options.updateSessionById ?? chatStore?.updateSessionById,
+    'updateSessionById',
+  );
+  const resetLoadingProgress = requireDependency(
+    options.resetLoadingProgress ?? chatStore?.resetLoadingProgress,
+    'resetLoadingProgress',
+  );
+  const advanceLoadingProgress = requireDependency(
+    options.advanceLoadingProgress ?? chatStore?.advanceLoadingProgress,
+    'advanceLoadingProgress',
+  );
+  const replaceLoadingProgressStage = requireDependency(
+    options.replaceLoadingProgressStage ?? chatStore?.replaceLoadingProgressStage,
+    'replaceLoadingProgressStage',
+  );
+  const completeLoadingProgress = requireDependency(
+    options.completeLoadingProgress ?? chatStore?.completeLoadingProgress,
+    'completeLoadingProgress',
+  );
+  const setFailureCount = requireDependency(
+    options.setFailureCount ?? chatStore?.setFailureCount,
+    'setFailureCount',
+  );
+
   const runMegaPromptWaterfall = useCallback(
     async ({
       sessionId,

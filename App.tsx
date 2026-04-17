@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
-import { useSessionStorage } from './hooks/useSessionStorage';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
-import { useChatLoadingProgress } from './features/chat/loading-progress';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
+import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
 import {
   useChatMessageOrchestrator,
-  type LastAction,
 } from './features/chat/message-orchestrator';
+import DossierErrorBoundary from './features/dossier/DossierErrorBoundary';
 import { useDossierWaterfallOrchestrator } from './features/dossier/waterfall-orchestrator';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
@@ -34,7 +33,6 @@ const CRMDetail = React.lazy(() =>
 import {
   Message,
   Sender,
-  ChatSession,
   ExportFormat,
   ReportType,
   AppError,
@@ -58,6 +56,12 @@ import {
 import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import FooterCredits from './components/FooterCredits';
+import {
+  useChatStore,
+} from './stores/chatStore';
+import {
+  useDossierStore,
+} from './stores/dossierStore';
 
 // --- INJETADO ANALYTICS AQUI ---
 import { Analytics } from "@vercel/analytics/react";
@@ -78,11 +82,28 @@ const App: React.FC = () => {
   const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { sessions, setSessions, sessionsRef, isInitialized, setIsInitialized, loadSessions } = useSessionStorage();
-
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const {
+    sessions,
+    setSessions,
+    sessionsRef,
+    isInitialized,
+    setIsInitialized,
+    loadSessions,
+    currentSessionId,
+    setCurrentSessionId,
+    currentSession,
+    allMessages,
+    visibleCount,
+    setVisibleCount,
+    lastQuery,
+    setLastQuery,
+    investigationLogged,
+    setInvestigationLogged,
+    updateSessionById,
+    updateCurrentSession,
+    lastActionRef,
+    abortControllerRef,
+    activeGenerationRef,
     isLoading,
     setIsLoading,
     loadingStatus,
@@ -101,13 +122,18 @@ const App: React.FC = () => {
     advanceLoadingProgress,
     replaceLoadingProgressStage,
     completeLoadingProgress,
-  } = useChatLoadingProgress();
+  } = useChatStore();
+  const {
+    exportStatus,
+    setExportStatus,
+    exportError,
+    setExportError,
+    pdfReportContent,
+    setPdfReportContent,
+    isSavingRemote,
+    remoteSaveStatus,
+  } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [lastQuery, setLastQuery] = useState<string>('');
-  const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [pdfReportContent, setPdfReportContent] = useState<string | null>(null);
-  const [investigationLogged, setInvestigationLogged] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
   // Email modal state
@@ -127,9 +153,6 @@ const App: React.FC = () => {
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
-  const lastActionRef = useRef<LastAction | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const activeGenerationRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -144,8 +167,6 @@ const App: React.FC = () => {
     }
   }, [showEmailModal, showFollowUpModal]);
 
-  const currentSession = sessions.find(s => s.id === currentSessionId) || null;
-  const allMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccess();
   const canAccessMiniCRM = featureAccess.miniCRM;
@@ -163,31 +184,9 @@ const App: React.FC = () => {
     }
   }, [activeView, canAccessMiniCRM]);
 
-  const updateSessionById = useCallback(
-    (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
-      setSessions(prev =>
-        prev.map(s => (s.id === sessionId ? { ...updater(s), updatedAt: new Date().toISOString() } : s)),
-      );
-    },
-    [setSessions],
-  );
-
-  const updateCurrentSession = useCallback(
-    (updater: (session: ChatSession) => ChatSession) => {
-      setSessions(prev => {
-        const target = prev.find(s => s.id === currentSessionId);
-        if (!target) return prev;
-        return prev.map(s => (s.id === currentSessionId ? { ...updater(s), updatedAt: new Date().toISOString() } : s));
-      });
-    },
-    [currentSessionId, setSessions],
-  );
-
-  const { isSavingRemote, remoteSaveStatus, setRemoteSaveStatus, handleSaveRemote } = useSessionRemoteSave({
-    currentSession,
+  const { handleSaveRemote } = useSessionRemoteSave({
     operatorId,
     operatorName: resolvedOperatorName,
-    updateSessionById,
   });
   const {
     handleReportError,
@@ -196,36 +195,15 @@ const App: React.FC = () => {
     handleSectionFeedback,
     handleToggleMessageSources,
   } = useChatFeedbackActions({
-    currentSession,
     operatorId,
     operatorName,
-    updateCurrentSession,
-    updateSessionById,
   });
 
   useEffect(() => {
     document.title = APP_NAME;
   }, [mode]);
 
-  const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager({
-    sessions,
-    setSessions,
-    currentSessionId,
-    setCurrentSessionId,
-    isLoading,
-    abortControllerRef,
-    activeGenerationRef,
-    updateSessionById,
-    setVisibleCount,
-    setRemoteSaveStatus,
-    setExportStatus,
-    setPdfReportContent,
-    setInvestigationLogged,
-    lastActionRef,
-    setLastQuery,
-    resetLoadingProgress,
-    setIsLoading,
-  });
+  const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
 
   useAppInitialization({
     loadSessions,
@@ -256,41 +234,13 @@ const App: React.FC = () => {
   const dossierWaterfall = useDossierWaterfallOrchestrator({
     canUseLookup,
     resolvedOperatorName,
-    updateSessionById,
-    resetLoadingProgress,
-    advanceLoadingProgress,
-    replaceLoadingProgressStage,
-    completeLoadingProgress,
-    setFailureCount,
   });
 
   const { handleSendMessage, retryLastSendMessage } = useChatMessageOrchestrator({
-    currentSessionId,
-    setSessions,
-    setCurrentSessionId,
-    sessionsRef,
-    lastActionRef,
-    abortControllerRef,
-    activeGenerationRef,
-    updateSessionById,
     systemInstruction,
-    mode,
     resolvedOperatorName,
     canUseLookup,
-    requestKind,
-    setRequestKind,
-    setIsLoading,
-    resetLoadingProgress,
-    advanceLoadingProgress,
-    completeLoadingProgress,
-    setFailureCount,
-    setLoadingVariant,
-    setLoadingPinnedLabel,
-    setVisibleCount,
-    setLastQuery,
     toast,
-    investigationLogged,
-    setInvestigationLogged,
     runMegaPromptWaterfall: dossierWaterfall.runMegaPromptWaterfall,
   });
 
@@ -628,7 +578,8 @@ const App: React.FC = () => {
               onClose={() => setActiveView('chat')}
             />
           ) : activeView === 'chat' || !canAccessMiniCRM ? (
-            <ChatInterface
+            <ChatErrorBoundary isDarkMode={isDarkMode}>
+              <ChatInterface
               currentSession={currentSession}
               sessions={sessions}
               onNewSession={handleNewSession}
@@ -707,7 +658,8 @@ const App: React.FC = () => {
                 onForceScan: radar.forceScan,
                 metaInsight: null,
               }}
-            />
+              />
+            </ChatErrorBoundary>
           ) : (
             <CRMView
               isDarkMode={isDarkMode}
@@ -779,23 +731,25 @@ const App: React.FC = () => {
       )}
 
       {isLoading && loadingVariant === 'hero' && (
-        <LoadingSmart
-          isLoading={isLoading}
-          mode={mode}
-          isDarkMode={isDarkMode}
-          loadingVariant={loadingVariant}
-          fixedStatusLine={loadingPinnedLabel || undefined}
-          onStop={handleStopGeneration}
-          processing={{
-            stage: loadingStatus,
-            completedStages: completedLoadingStatuses,
-            failureCount: failureCount,
-            totalStages: loadingTotalStages,
-            isIncremental: loadingIsIncremental,
-          }}
-          searchQuery={lastQuery}
-          empresaAlvo={currentSession?.empresaAlvo}
-        />
+        <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
+          <LoadingSmart
+            isLoading={isLoading}
+            mode={mode}
+            isDarkMode={isDarkMode}
+            loadingVariant={loadingVariant}
+            fixedStatusLine={loadingPinnedLabel || undefined}
+            onStop={handleStopGeneration}
+            processing={{
+              stage: loadingStatus,
+              completedStages: completedLoadingStatuses,
+              failureCount: failureCount,
+              totalStages: loadingTotalStages,
+              isIncremental: loadingIsIncremental,
+            }}
+            searchQuery={lastQuery}
+            empresaAlvo={currentSession?.empresaAlvo}
+          />
+        </DossierErrorBoundary>
       )}
 
       <InstallPrompt />

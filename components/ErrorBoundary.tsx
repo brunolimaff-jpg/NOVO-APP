@@ -1,4 +1,9 @@
 import React from 'react';
+import {
+  buildUiErrorReport,
+  generateUiErrorId,
+  persistUiErrorAudit,
+} from '../utils/errorBoundaryAudit';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -11,13 +16,6 @@ interface ErrorBoundaryProps {
   children: React.ReactNode;
 }
 
-function generateErrorId(message: string): string {
-  // Gera ID curto e rastreavel baseado no timestamp + primeiras letras do erro
-  const ts = Date.now().toString(36).toUpperCase();
-  const prefix = message.replace(/[^a-zA-Z$_]/g, '').slice(0, 6).toUpperCase();
-  return `ERR-${prefix}-${ts}`;
-}
-
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -28,40 +26,18 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return {
       hasError: true,
       error,
-      errorId: generateErrorId(error.message),
+      errorId: generateUiErrorId(error.message),
     };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    const errorId = generateErrorId(error.message);
+    const errorId = this.state.errorId || generateUiErrorId(error.message);
+    const componentStack = info.componentStack ?? '';
 
-    this.setState({ componentStack: info.componentStack ?? '' });
+    this.setState({ componentStack, errorId });
 
-    const fullReport = [
-      `[${errorId}] ${new Date().toISOString()}`,
-      `Mensagem: ${error.message}`,
-      `Stack JS:\n${error.stack ?? 'indisponivel'}`,
-      `Stack React:\n${info.componentStack ?? 'indisponivel'}`,
-    ].join('\n\n');
-
-    try {
-      const AUDIT_KEY = 'scout360_ui_errors_v1';
-      const raw = localStorage.getItem(AUDIT_KEY);
-      const entries: unknown[] = raw ? JSON.parse(raw) : [];
-      entries.push({
-        id: errorId,
-        ts: new Date().toISOString(),
-        level: 'error',
-        reason: error.message,
-        stack: error.stack ?? '',
-        componentStack: info.componentStack ?? '',
-      });
-      localStorage.setItem(AUDIT_KEY, JSON.stringify(entries.slice(-50)));
-    } catch (storageError) {
-      console.warn('[ErrorBoundary] localStorage indisponivel:', storageError);
-    }
-
-    console.error(fullReport);
+    persistUiErrorAudit(errorId, error, componentStack);
+    console.error(buildUiErrorReport(errorId, error, componentStack));
   }
 
   private handleRetry = () => {
@@ -71,12 +47,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   private handleCopyError = () => {
     const { error, componentStack, errorId } = this.state;
     if (!error) return;
-    const text = [
-      `ID: ${errorId}`,
-      `Mensagem: ${error.message}`,
-      `Stack JS:\n${error.stack ?? 'indisponivel'}`,
-      `Stack React:\n${componentStack || 'indisponivel'}`,
-    ].join('\n\n');
+    const text = buildUiErrorReport(errorId, error, componentStack);
     navigator.clipboard.writeText(text).catch(() => {
       console.warn('[ErrorBoundary] Clipboard indisponivel');
     });

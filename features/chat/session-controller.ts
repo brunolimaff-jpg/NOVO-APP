@@ -1,13 +1,22 @@
 import { useCallback, useState, type MutableRefObject } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatSession } from '../../types';
-import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
 import { DEFAULT_MODE } from '../../constants';
+import { useMaybeOperator } from '../../contexts/OperatorContext';
+import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
+import { useMaybeChatStore } from '../../stores/chatStore';
+import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
+import type { ChatSession } from '../../types';
 
 const PAGE_SIZE = 20;
 const REMOTE_SAVE_SUCCESS_RESET_MS = 3000;
 
-export type RemoteSaveStatus = 'idle' | 'success' | 'error';
+function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`${dependencyName} is required for session-controller`);
+  }
+
+  return value;
+}
 
 export interface UseSessionManagerOptions {
   sessions: ChatSession[];
@@ -17,8 +26,8 @@ export interface UseSessionManagerOptions {
   isLoading: boolean;
   abortControllerRef: MutableRefObject<AbortController | null>;
   activeGenerationRef: MutableRefObject<Record<string, string>>;
-  updateSessionById: (id: string, updater: (s: ChatSession) => ChatSession) => void;
-  setVisibleCount: (count: number) => void;
+  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+  setVisibleCount: (count: number | ((prev: number) => number)) => void;
   setRemoteSaveStatus: (status: RemoteSaveStatus) => void;
   setExportStatus: (status: 'idle' | 'loading' | 'success' | 'error') => void;
   setPdfReportContent: (content: string | null) => void;
@@ -30,23 +39,30 @@ export interface UseSessionManagerOptions {
 }
 
 export interface UseSessionRemoteSaveOptions {
-  currentSession: ChatSession | null;
+  currentSession?: ChatSession | null;
   operatorId?: string;
   operatorName?: string;
-  updateSessionById: (id: string, updater: (s: ChatSession) => ChatSession) => void;
+  updateSessionById?: (id: string, updater: (session: ChatSession) => ChatSession) => void;
 }
 
-export function useSessionRemoteSave({
-  currentSession,
-  operatorId,
-  operatorName,
-  updateSessionById,
-}: UseSessionRemoteSaveOptions) {
-  const [isSavingRemote, setIsSavingRemote] = useState(false);
-  const [remoteSaveStatus, setRemoteSaveStatus] = useState<RemoteSaveStatus>('idle');
+export function useSessionRemoteSave(options: UseSessionRemoteSaveOptions = {}) {
+  const chatStore = useMaybeChatStore();
+  const dossierStore = useMaybeDossierStore();
+  const operator = useMaybeOperator();
+  const [localIsSavingRemote, setLocalIsSavingRemote] = useState(false);
+  const [localRemoteSaveStatus, setLocalRemoteSaveStatus] = useState<RemoteSaveStatus>('idle');
+
+  const currentSession = options.currentSession ?? chatStore?.currentSession ?? null;
+  const operatorId = options.operatorId ?? operator?.operatorId;
+  const operatorName = options.operatorName ?? operator?.name;
+  const updateSessionById = options.updateSessionById ?? chatStore?.updateSessionById;
+  const isSavingRemote = dossierStore?.isSavingRemote ?? localIsSavingRemote;
+  const setIsSavingRemote = dossierStore?.setIsSavingRemote ?? setLocalIsSavingRemote;
+  const remoteSaveStatus = dossierStore?.remoteSaveStatus ?? localRemoteSaveStatus;
+  const setRemoteSaveStatus = dossierStore?.setRemoteSaveStatus ?? setLocalRemoteSaveStatus;
 
   const handleSaveRemote = useCallback(async () => {
-    if (!currentSession) return;
+    if (!currentSession || !updateSessionById) return;
 
     setIsSavingRemote(true);
     setRemoteSaveStatus('idle');
@@ -65,7 +81,7 @@ export function useSessionRemoteSave({
     } finally {
       setIsSavingRemote(false);
     }
-  }, [currentSession, operatorId, operatorName, updateSessionById]);
+  }, [currentSession, operatorId, operatorName, setIsSavingRemote, setRemoteSaveStatus, updateSessionById]);
 
   return {
     isSavingRemote,
@@ -79,25 +95,58 @@ export function useSessionRemoteSave({
  * Manages session lifecycle: create, select, delete.
  * Extracted from App.tsx to reduce its complexity.
  */
-export function useSessionManager({
-  sessions,
-  setSessions,
-  currentSessionId,
-  setCurrentSessionId,
-  isLoading,
-  abortControllerRef,
-  activeGenerationRef,
-  updateSessionById,
-  setVisibleCount,
-  setRemoteSaveStatus,
-  setExportStatus,
-  setPdfReportContent,
-  setInvestigationLogged,
-  lastActionRef,
-  setLastQuery,
-  resetLoadingProgress,
-  setIsLoading,
-}: UseSessionManagerOptions) {
+export function useSessionManager(options: Partial<UseSessionManagerOptions> = {}) {
+  const chatStore = useMaybeChatStore();
+  const dossierStore = useMaybeDossierStore();
+
+  const sessions = options.sessions ?? chatStore?.sessions ?? [];
+  const setSessions = requireDependency(options.setSessions ?? chatStore?.setSessions, 'setSessions');
+  const currentSessionId = options.currentSessionId ?? chatStore?.currentSessionId ?? null;
+  const setCurrentSessionId = requireDependency(
+    options.setCurrentSessionId ?? chatStore?.setCurrentSessionId,
+    'setCurrentSessionId',
+  );
+  const isLoading = options.isLoading ?? chatStore?.isLoading ?? false;
+  const abortControllerRef = requireDependency(
+    options.abortControllerRef ?? chatStore?.abortControllerRef,
+    'abortControllerRef',
+  );
+  const activeGenerationRef = requireDependency(
+    options.activeGenerationRef ?? chatStore?.activeGenerationRef,
+    'activeGenerationRef',
+  );
+  const updateSessionById = requireDependency(
+    options.updateSessionById ?? chatStore?.updateSessionById,
+    'updateSessionById',
+  );
+  const setVisibleCount = requireDependency(
+    options.setVisibleCount ?? chatStore?.setVisibleCount,
+    'setVisibleCount',
+  );
+  const setRemoteSaveStatus = requireDependency(
+    options.setRemoteSaveStatus ?? dossierStore?.setRemoteSaveStatus,
+    'setRemoteSaveStatus',
+  );
+  const setExportStatus = requireDependency(
+    options.setExportStatus ?? dossierStore?.setExportStatus,
+    'setExportStatus',
+  );
+  const setPdfReportContent = requireDependency(
+    options.setPdfReportContent ?? dossierStore?.setPdfReportContent,
+    'setPdfReportContent',
+  );
+  const setInvestigationLogged = requireDependency(
+    options.setInvestigationLogged ?? chatStore?.setInvestigationLogged,
+    'setInvestigationLogged',
+  );
+  const lastActionRef = requireDependency(options.lastActionRef ?? chatStore?.lastActionRef, 'lastActionRef');
+  const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
+  const resetLoadingProgress = requireDependency(
+    options.resetLoadingProgress ?? chatStore?.resetLoadingProgress,
+    'resetLoadingProgress',
+  );
+  const setIsLoading = requireDependency(options.setIsLoading ?? chatStore?.setIsLoading, 'setIsLoading');
+
   const resetSessionUI = useCallback(() => {
     setVisibleCount(PAGE_SIZE);
     setRemoteSaveStatus('idle');
@@ -106,23 +155,24 @@ export function useSessionManager({
     setInvestigationLogged(false);
     lastActionRef.current = null;
     setLastQuery('');
-    resetLoadingProgress('Iniciando análise');
+    resetLoadingProgress('Iniciando an\u00e1lise');
   }, [
-    setVisibleCount,
-    setRemoteSaveStatus,
-    setExportStatus,
-    setPdfReportContent,
-    setInvestigationLogged,
     lastActionRef,
-    setLastQuery,
     resetLoadingProgress,
+    setExportStatus,
+    setInvestigationLogged,
+    setLastQuery,
+    setPdfReportContent,
+    setRemoteSaveStatus,
+    setVisibleCount,
   ]);
 
   const handleNewSession = useCallback(() => {
     if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+
     const newSession: ChatSession = {
       id: uuidv4(),
-      title: 'Nova Investigação',
+      title: 'Nova Investiga\u00e7\u00e3o',
       empresaAlvo: null,
       cnpj: null,
       modoPrincipal: DEFAULT_MODE,
@@ -132,17 +182,20 @@ export function useSessionManager({
       updatedAt: new Date().toISOString(),
       messages: [],
     };
+
     setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
     setCurrentSessionId(newSession.id);
     resetSessionUI();
-  }, [isLoading, abortControllerRef, setSessions, setCurrentSessionId, resetSessionUI]);
+  }, [abortControllerRef, isLoading, resetSessionUI, setCurrentSessionId, setSessions]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+
       setCurrentSessionId(sessionId);
       resetSessionUI();
-      const targetSession = sessions.find(s => s.id === sessionId);
+      const targetSession = sessions.find(session => session.id === sessionId);
+
       if (targetSession && targetSession.messages.length === 0) {
         try {
           const fullSession = await getRemoteSession(sessionId);
@@ -152,7 +205,7 @@ export function useSessionManager({
         }
       }
     },
-    [isLoading, abortControllerRef, setCurrentSessionId, resetSessionUI, sessions, updateSessionById],
+    [abortControllerRef, isLoading, resetSessionUI, sessions, setCurrentSessionId, updateSessionById],
   );
 
   const handleDeleteSession = useCallback(
@@ -162,14 +215,17 @@ export function useSessionManager({
         abortControllerRef.current = null;
         setIsLoading(false);
       }
+
       delete activeGenerationRef.current[sessionId];
-      const newSessions = sessions.filter(s => s.id !== sessionId);
+      const newSessions = sessions.filter(session => session.id !== sessionId);
       setSessions(newSessions);
+
       if (currentSessionId === sessionId) {
         if (newSessions.length > 0) {
           const nextSession = newSessions[0];
           setCurrentSessionId(nextSession.id);
           resetSessionUI();
+
           if (nextSession.messages.length === 0) {
             getRemoteSession(nextSession.id)
               .then(fullSession => {
@@ -185,17 +241,17 @@ export function useSessionManager({
       }
     },
     [
-      currentSessionId,
-      isLoading,
       abortControllerRef,
-      setIsLoading,
       activeGenerationRef,
-      sessions,
-      setSessions,
-      setCurrentSessionId,
-      updateSessionById,
+      currentSessionId,
       handleNewSession,
+      isLoading,
       resetSessionUI,
+      sessions,
+      setCurrentSessionId,
+      setIsLoading,
+      setSessions,
+      updateSessionById,
     ],
   );
 

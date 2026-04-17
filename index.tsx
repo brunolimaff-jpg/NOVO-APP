@@ -7,6 +7,8 @@ import { ModeProvider } from './contexts/ModeContext';
 import { CRMProvider } from './contexts/CRMContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChatStoreProvider } from './stores/chatStore';
+import { DossierStoreProvider } from './stores/dossierStore';
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
@@ -109,13 +111,17 @@ root.render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <OperatorProvider>
-          <ModeProvider>
-            <CRMProvider>
-              <App />
-            </CRMProvider>
-          </ModeProvider>
-        </OperatorProvider>
+        <ChatStoreProvider>
+          <DossierStoreProvider>
+            <OperatorProvider>
+              <ModeProvider>
+                <CRMProvider>
+                  <App />
+                </CRMProvider>
+              </ModeProvider>
+            </OperatorProvider>
+          </DossierStoreProvider>
+        </ChatStoreProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>,

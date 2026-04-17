@@ -55,3 +55,5 @@ export const useMode = () => {
   }
   return context;
 };
+
+export const useMaybeMode = () => useContext(ModeContext);

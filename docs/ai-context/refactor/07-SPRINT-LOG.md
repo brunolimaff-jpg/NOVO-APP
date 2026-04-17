@@ -333,4 +333,55 @@
   - error boundaries por feature ainda nao existem
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
-  - abrir/revisar a PR da Onda 1 e, depois do merge, seguir para a Onda 2 (`stores/*` + error boundaries)
+  - mergear a Onda 1 em `main` e, depois, seguir para a Onda 2 (`stores/*` + error boundaries)
+
+## 2026-04-16 - Sync canonico apos merge da Onda 1
+
+- Fase: execution
+- Sprint: 4 (`active`)
+- Objetivo: sincronizar board/handoff/memory com o estado real de `main` apos o merge da Onda 1
+- Decisoes:
+  - tratar `7e110b91c7a2bd62a33158aab1f47035d9f2f97e` (`#227`) como novo baseline canonico do programa
+  - apontar a Onda 2 como proximo trabalho ativo em vez de manter referencias de PR/review da Onda 1
+  - manter o escopo manual da Onda 1 apenas como referencia de runtime, nao como item ainda pendente de merge
+- Mudancas concluidas:
+  - `.agents/memory/*`, `HANDOFF_AI.md`, `02-BOARD.md` e `06-HANDOFF.md` ajustados para o estado pos-`#227`
+  - branch de trabalho aberto para a Onda 2: `codex/sprint4-wave2-stores-boundaries`
+- Checks registrados:
+  - baseline local sincronizado com `main` antes da abertura da Onda 2
+- Riscos residuais:
+  - `stores/*` e error boundaries ainda nao entraram; `App.tsx` segue hotspot ate o fechamento da Onda 2
+  - backlog historico de `npm run lint` continua fora do gate
+- Proximo passo:
+  - implementar a Onda 2 com `stores/*` e boundaries de feature, depois validar e sincronizar novamente as fontes canonicas
+
+## 2026-04-16 - Sprint 4 Onda 2 stores and feature boundaries
+
+- Fase: review
+- Sprint: 4 (`active`)
+- Objetivo: tirar de `App.tsx` o estado compartilhado de sessao/loading/export, introduzir `stores/*` e adicionar boundaries locais para chat e dossie
+- Decisoes:
+  - `stores/chatStore.tsx` concentra sessao, mensagens, loading, `lastQuery`, `investigationLogged` e refs operacionais
+  - `stores/dossierStore.tsx` concentra `exportStatus`, `exportError`, `pdfReportContent`, `isSavingRemote` e `remoteSaveStatus`
+  - `App.tsx` passa a consumir `useChatStore()` e `useDossierStore()` sem alterar `ChatInterfaceProps`
+  - `features/chat/ChatErrorBoundary.tsx` protege o shell do chat
+  - `features/dossier/DossierErrorBoundary.tsx` protege o subtree de dossie e o overlay hero
+  - `components/ErrorBoundary.tsx` reutiliza `utils/errorBoundaryAudit.ts` para auditoria/persistencia compartilhadas
+- Mudancas concluidas:
+  - criados `stores/chatStore.tsx` e `stores/dossierStore.tsx`
+  - `index.tsx` e `App.tsx` atualizados para wiring de providers/stores
+  - `features/chat/session-controller.ts`, `features/chat/feedback-actions.ts`, `features/chat/message-orchestrator.ts` e `features/dossier/waterfall-orchestrator.ts` passaram a consumir stores/contexto opcional em vez de setter bags do `App`
+  - criados `features/chat/ChatErrorBoundary.tsx`, `features/dossier/DossierErrorBoundary.tsx` e `utils/errorBoundaryAudit.ts`
+  - `components/MessageRow.tsx` passou a envolver o subtree de dossie com boundary local
+  - adicionados testes de store e boundaries
+- Checks registrados:
+  - `npm run test:dossier` verde em `2026-04-16`
+  - `npm run test` verde em `2026-04-16`
+  - `npm run typecheck` verde em `2026-04-16`
+  - `npm run build` verde em `2026-04-16`
+- Riscos residuais:
+  - a Onda 2 ainda nao foi mergeada em `main`; falta PR/review e rodada manual em preview/Vercel
+  - `npm run lint` continua fora do gate por backlog historico
+  - build segue emitindo o warning de chunking envolvendo `utils/idbStorage.ts` (OI-003)
+- Proximo passo:
+  - abrir/revisar a PR da Onda 2, rodar a validacao manual em runtime real e, apos merge, sincronizar novamente as fontes canonicas antes da Sprint 5

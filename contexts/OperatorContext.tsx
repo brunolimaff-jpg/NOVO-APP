@@ -85,3 +85,5 @@ export const useOperator = (): OperatorContextType => {
   }
   return context;
 };
+
+export const useMaybeOperator = (): OperatorContextType | undefined => useContext(OperatorContext);

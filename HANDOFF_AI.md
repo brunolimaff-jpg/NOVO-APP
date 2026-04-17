@@ -29,7 +29,7 @@ Para continuidade entre IAs, leia primeiro:
 ## Entrypoints e hotspots
 
 - Bootstrap da app: `index.tsx`
-- Orquestrador principal: `App.tsx` (hotspot ainda ativo, mas Onda 1 da Sprint 4 removeu o runtime de dossie/waterfall para `features/dossier/*`)
+- Orquestrador principal: `App.tsx` (hotspot ainda ativo, mas Onda 2 da Sprint 4 tirou estado de sessao/loading/export para `stores/*` e adicionou boundaries por feature)
 - UI principal do chat: `components/ChatInterface.tsx`
 - Fachada publica da camada Gemini: `services/geminiService.ts`
 - Implementacao interna da camada Gemini: `services/gemini/`
@@ -41,7 +41,7 @@ Para continuidade entre IAs, leia primeiro:
 ## Fluxo operacional resumido
 
 1. O usuario interage pela UI de chat.
-2. `App.tsx` coordena sessao, loading, mensagens e acionamento dos fluxos - parte desse estado ja foi extraida para `features/chat/*`.
+2. `App.tsx` coordena o shell principal e o acionamento dos fluxos; sessao/loading/export agora vivem em `stores/*` e a logica especializada segue em `features/*`.
 3. `services/geminiService.ts` expoe o contrato publico e delega para `services/gemini/`.
 4. Lookup, RAG, proxy Gemini, parsing PORTA e recovery ficam na camada de services.
 5. Sessao, feedback, exportacao e CRM passam por services e utils do repo.
@@ -69,10 +69,18 @@ Para continuidade entre IAs, leia primeiro:
 - `features/dossier/` e o destino ativo da Sprint 4:
   - Onda 1: mover waterfall, benchmark, retries e reconciliacao PORTA
   - Onda 2: consolidar `stores/*` e error boundaries por feature
-  - Implementado neste branch:
+  - Onda 1 ja mergeada em `main` via PR `#227`:
     - `features/dossier/waterfall-orchestrator.ts`
     - `features/dossier/benchmark-stage.ts`
     - `features/dossier/porta-reconciliation.ts`
+- `stores/` entrou na Onda 2:
+  - `stores/chatStore.tsx`
+  - `stores/dossierStore.tsx`
+- Boundaries da Onda 2:
+  - `features/chat/ChatErrorBoundary.tsx`
+  - `features/dossier/DossierErrorBoundary.tsx`
+- Auditoria compartilhada de erro:
+  - `utils/errorBoundaryAudit.ts`
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
@@ -82,7 +90,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
-- Sprint 4 (active): Onda 1 implementada em branch; proximo passo e consolidar merge e avancar para Onda 2 (`stores/*` + error boundaries)
+- Sprint 4 (active): Onda 1 ja mergeada em `main`; Onda 2 ja foi implementada no branch `codex/sprint4-wave2-stores-boundaries`, recebeu o patch de review da PR `#228` em `2026-04-17` e aguarda validacao manual final para merge
 - Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
@@ -94,12 +102,13 @@ Para continuidade entre IAs, leia primeiro:
 - `npm run lint`
 - `npm run test:dossier`
 
-## Validacao manual da Onda 1
+## Validacao manual da Onda 2
 
 - Gerar um `Dossie completo` em runtime real e conferir score PORTA + secoes finais
 - Validar follow-up apos dossie completo
-- Validar retry/recuperacao sem perder a mensagem final
 - Validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
+- Forcar um crash controlado de subtree quando possivel e conferir fallback local do `ChatErrorBoundary` e do `DossierErrorBoundary`
+- Validar que o overlay hero (`LoadingSmart`) continua operando e que, se quebrar, cai no fallback local do dossie em vez de derrubar o app inteiro
 
 ## Regras de continuidade
 

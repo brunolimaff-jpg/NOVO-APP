@@ -16,7 +16,7 @@ Sprint 3 agora esta `done`.
 Sprint 4 foi aberta em ondas:
 - Onda 1: extracao de `features/dossier/*`
 - Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
-A Onda 1 foi implementada neste branch e esta pronta para PR/review.
+A Onda 1 foi mergeada em `main` via PR `#227`.
 
 ## What Was Finished
 
@@ -57,17 +57,23 @@ A Onda 1 foi implementada neste branch e esta pronta para PR/review.
   - validar follow-up apos dossie completo
   - validar retry/recuperacao sem perder a mensagem final
   - validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
+- Onda 2 foi entregue no branch `codex/sprint4-wave2-stores-boundaries`:
+  - `stores/chatStore.tsx` e `stores/dossierStore.tsx` entraram como camada compartilhada de estado
+  - `App.tsx` e `index.tsx` passaram a consumir os stores
+  - `features/chat/ChatErrorBoundary.tsx` e `features/dossier/DossierErrorBoundary.tsx` foram criados e ligados ao render real
+  - `components/ErrorBoundary.tsx` passou a reutilizar `utils/errorBoundaryAudit.ts`
+  - `components/MessageRow.tsx` recebeu boundary local para subtree de dossie
+  - testes novos cobrem stores e boundaries
 
 ## What Is In Progress
 
-- PR/review da Onda 1 da Sprint 4
-- Onda 2 da Sprint 4 permanece enfileirada: `stores/*` com `Context + Reducer` tipado e error boundaries por feature
+- PR/review/manual runtime validation da Onda 2 em `codex/sprint4-wave2-stores-boundaries`
 
 ## Next Safe Step
 
-1. Abrir/revisar a PR da Onda 1 e acompanhar os checks automáticos
-2. Executar a rodada manual em runtime real usando o escopo descrito acima, se o preview exigir checkpoint adicional
-3. Depois atacar a Onda 2: `stores/*` + `ChatErrorBoundary.tsx` + `DossierErrorBoundary.tsx`
+1. Abrir/revisar a PR da Onda 2 e preservar `ChatInterfaceProps` + `services/geminiService.ts` como contratos estaveis
+2. Rodar a rodada manual em preview/Vercel cobrindo fallback dos boundaries, exportacao e persistencia remota
+3. Depois do merge, sincronizar board/handoff/memory novamente antes de abrir Sprint 5
 
 ## Files Most Relevant Now
 
@@ -89,6 +95,11 @@ A Onda 1 foi implementada neste branch e esta pronta para PR/review.
 - `features/dossier/waterfall-orchestrator.ts`
 - `features/dossier/benchmark-stage.ts`
 - `features/dossier/porta-reconciliation.ts`
+- `stores/chatStore.tsx`
+- `stores/dossierStore.tsx`
+- `features/chat/ChatErrorBoundary.tsx`
+- `features/dossier/DossierErrorBoundary.tsx`
+- `utils/errorBoundaryAudit.ts`
 - `tests/App.dossierGolden.test.tsx`
 - `tests/helpers/dossierGolden.ts`
 - `tests/features/chat/loading-progress.test.tsx`
@@ -97,6 +108,10 @@ A Onda 1 foi implementada neste branch e esta pronta para PR/review.
 - `tests/features/chat/message-orchestrator.test.ts`
 - `tests/features/dossier/benchmark-stage.test.ts`
 - `tests/features/dossier/porta-reconciliation.test.ts`
+- `tests/stores/chatStore.test.tsx`
+- `tests/stores/dossierStore.test.tsx`
+- `tests/features/chat/ChatErrorBoundary.test.tsx`
+- `tests/features/dossier/DossierErrorBoundary.test.tsx`
 
 ## Do Not Touch Yet
 
@@ -107,11 +122,11 @@ A Onda 1 foi implementada neste branch e esta pronta para PR/review.
 ## Validation Last Run
 
 - validacao manual integrada da Sprint 3: green em `2026-04-15`
-- escopo manual da Onda 1 documentado para runtime real: dossie completo, follow-up, retry, exportacao, sugestoes e persistencia
-- `npm run test:dossier`: green em `2026-04-15`
-- `npm run test`: green em `2026-04-15`
-- `npm run typecheck`: green em `2026-04-15`
-- `npm run build`: green em `2026-04-15`
+- escopo manual da Onda 2 documentado para runtime real: dossie completo, follow-up, fallback local, exportacao e persistencia
+- `npm run test:dossier`: green em `2026-04-16`
+- `npm run test`: green em `2026-04-16`
+- `npm run typecheck`: green em `2026-04-16`
+- `npm run build`: green em `2026-04-16`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 - Warning aceito no build: chunking envolvendo `utils/idbStorage.ts`, ja registrado como OI-003
 
@@ -119,7 +134,7 @@ A Onda 1 foi implementada neste branch e esta pronta para PR/review.
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir da Onda 1 da Sprint 4 em `main`.
+Continue a partir da PR/manual validation da Onda 2 da Sprint 4.
 Use `npm run test:dossier` como fast-check do caso canonico de dossie.
-Considere a Onda 1 implementada neste branch: `features/dossier/*` ja concentra waterfall, benchmark e reconciliacao PORTA.
-Revise/merge a PR correspondente e depois siga para a Onda 2 sem alterar `ChatInterfaceProps` nem a fachada publica de `services/geminiService.ts`.
+Considere a Onda 1 ja mergeada em `main` e a Onda 2 pronta no branch `codex/sprint4-wave2-stores-boundaries`.
+Antes de abrir Sprint 5, confirme o merge da Onda 2 e sincronize novamente as fontes canonicas.

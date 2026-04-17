@@ -1,8 +1,10 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
+import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
+import { useMaybeChatStore } from '../../stores/chatStore';
 import { Sender, type ChatSession, type Message } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { normalizeAppError } from '../../utils/errorHelpers';
@@ -21,6 +23,7 @@ import {
   pickCompanyLabel,
   resolveHintedCompany,
 } from './message-helpers';
+import { useToast } from '../../hooks/useToast';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -90,35 +93,88 @@ export interface UseChatMessageOrchestratorOptions {
   runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<void>;
 }
 
-export function useChatMessageOrchestrator({
-  currentSessionId,
-  setSessions,
-  setCurrentSessionId,
-  sessionsRef,
-  lastActionRef,
-  abortControllerRef,
-  activeGenerationRef,
-  updateSessionById,
-  systemInstruction,
-  mode,
-  resolvedOperatorName,
-  canUseLookup,
-  requestKind,
-  setRequestKind,
-  setIsLoading,
-  resetLoadingProgress,
-  advanceLoadingProgress,
-  completeLoadingProgress,
-  setFailureCount,
-  setLoadingVariant,
-  setLoadingPinnedLabel,
-  setVisibleCount,
-  setLastQuery,
-  toast,
-  investigationLogged,
-  setInvestigationLogged,
-  runMegaPromptWaterfall,
-}: UseChatMessageOrchestratorOptions) {
+function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`${dependencyName} is required for message-orchestrator`);
+  }
+
+  return value;
+}
+
+export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrchestratorOptions> = {}) {
+  const chatStore = useMaybeChatStore();
+  const modeContext = useMaybeMode();
+  const { toast: fallbackToast } = useToast();
+  const currentSessionId = options.currentSessionId ?? chatStore?.currentSessionId ?? null;
+  const setSessions = requireDependency(options.setSessions ?? chatStore?.setSessions, 'setSessions');
+  const setCurrentSessionId = requireDependency(
+    options.setCurrentSessionId ?? chatStore?.setCurrentSessionId,
+    'setCurrentSessionId',
+  );
+  const sessionsRef = requireDependency(options.sessionsRef ?? chatStore?.sessionsRef, 'sessionsRef');
+  const lastActionRef = requireDependency(options.lastActionRef ?? chatStore?.lastActionRef, 'lastActionRef');
+  const abortControllerRef = requireDependency(
+    options.abortControllerRef ?? chatStore?.abortControllerRef,
+    'abortControllerRef',
+  );
+  const activeGenerationRef = requireDependency(
+    options.activeGenerationRef ?? chatStore?.activeGenerationRef,
+    'activeGenerationRef',
+  );
+  const updateSessionById = requireDependency(
+    options.updateSessionById ?? chatStore?.updateSessionById,
+    'updateSessionById',
+  );
+  const systemInstruction = options.systemInstruction ?? modeContext?.systemInstruction ?? '';
+  const mode = options.mode ?? modeContext?.mode ?? null;
+  const resolvedOperatorName = requireDependency(options.resolvedOperatorName, 'resolvedOperatorName');
+  const canUseLookup = options.canUseLookup ?? false;
+  const requestKind = options.requestKind ?? chatStore?.requestKind ?? 'default';
+  const setRequestKind = requireDependency(
+    options.setRequestKind ?? chatStore?.setRequestKind,
+    'setRequestKind',
+  );
+  const setIsLoading = requireDependency(options.setIsLoading ?? chatStore?.setIsLoading, 'setIsLoading');
+  const resetLoadingProgress = requireDependency(
+    options.resetLoadingProgress ?? chatStore?.resetLoadingProgress,
+    'resetLoadingProgress',
+  );
+  const advanceLoadingProgress = requireDependency(
+    options.advanceLoadingProgress ?? chatStore?.advanceLoadingProgress,
+    'advanceLoadingProgress',
+  );
+  const completeLoadingProgress = requireDependency(
+    options.completeLoadingProgress ?? chatStore?.completeLoadingProgress,
+    'completeLoadingProgress',
+  );
+  const setFailureCount = requireDependency(
+    options.setFailureCount ?? chatStore?.setFailureCount,
+    'setFailureCount',
+  );
+  const setLoadingVariant = requireDependency(
+    options.setLoadingVariant ?? chatStore?.setLoadingVariant,
+    'setLoadingVariant',
+  );
+  const setLoadingPinnedLabel = requireDependency(
+    options.setLoadingPinnedLabel ?? chatStore?.setLoadingPinnedLabel,
+    'setLoadingPinnedLabel',
+  );
+  const setVisibleCount = requireDependency(
+    options.setVisibleCount ?? chatStore?.setVisibleCount,
+    'setVisibleCount',
+  );
+  const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
+  const toast = options.toast ?? fallbackToast;
+  const investigationLogged = options.investigationLogged ?? chatStore?.investigationLogged ?? false;
+  const setInvestigationLogged = requireDependency(
+    options.setInvestigationLogged ?? chatStore?.setInvestigationLogged,
+    'setInvestigationLogged',
+  );
+  const runMegaPromptWaterfall = requireDependency(
+    options.runMegaPromptWaterfall,
+    'runMegaPromptWaterfall',
+  );
+
   const processMessage = useCallback(
     async (
       text: string,

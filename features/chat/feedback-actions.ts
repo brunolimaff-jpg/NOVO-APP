@@ -1,23 +1,42 @@
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { AppError, ChatSession, Feedback } from '../../types';
+import { useMaybeOperator } from '../../contexts/OperatorContext';
 import { sendFeedbackRemote } from '../../services/feedbackRemoteStore';
+import { useMaybeChatStore } from '../../stores/chatStore';
+import type { AppError, ChatSession, Feedback } from '../../types';
 
-export interface UseChatFeedbackActionsOptions {
-  currentSession: ChatSession | null;
-  operatorId: string;
-  operatorName?: string;
-  updateCurrentSession: (updater: (session: ChatSession) => ChatSession) => void;
-  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
+  if (value === null || value === undefined) {
+    throw new Error(`${dependencyName} is required for feedback-actions`);
+  }
+
+  return value;
 }
 
-export function useChatFeedbackActions({
-  currentSession,
-  operatorId,
-  operatorName,
-  updateCurrentSession,
-  updateSessionById,
-}: UseChatFeedbackActionsOptions) {
+export interface UseChatFeedbackActionsOptions {
+  currentSession?: ChatSession | null;
+  operatorId?: string;
+  operatorName?: string;
+  updateCurrentSession?: (updater: (session: ChatSession) => ChatSession) => void;
+  updateSessionById?: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+}
+
+export function useChatFeedbackActions(options: UseChatFeedbackActionsOptions = {}) {
+  const chatStore = useMaybeChatStore();
+  const operator = useMaybeOperator();
+
+  const currentSession = options.currentSession ?? chatStore?.currentSession ?? null;
+  const operatorId = options.operatorId ?? operator?.operatorId ?? '';
+  const operatorName = options.operatorName ?? operator?.name;
+  const updateCurrentSession = requireDependency(
+    options.updateCurrentSession ?? chatStore?.updateCurrentSession,
+    'updateCurrentSession',
+  );
+  const updateSessionById = requireDependency(
+    options.updateSessionById ?? chatStore?.updateSessionById,
+    'updateSessionById',
+  );
+
   const handleReportError = useCallback(
     async (messageId: string, error: AppError) => {
       const sessionId = currentSession?.id;
@@ -105,12 +124,13 @@ export function useChatFeedbackActions({
           if (message.id !== messageId) return message;
 
           const currentSections = message.sectionFeedback || {};
-          const newVal = currentSections[sectionTitle] === feedback ? undefined : feedback;
-          const newSections = { ...currentSections };
-          if (newVal === undefined) delete newSections[sectionTitle];
-          else newSections[sectionTitle] = newVal;
+          const nextFeedback = currentSections[sectionTitle] === feedback ? undefined : feedback;
+          const nextSections = { ...currentSections };
 
-          return { ...message, sectionFeedback: newSections };
+          if (nextFeedback === undefined) delete nextSections[sectionTitle];
+          else nextSections[sectionTitle] = nextFeedback;
+
+          return { ...message, sectionFeedback: nextSections };
         }),
       }));
     },
