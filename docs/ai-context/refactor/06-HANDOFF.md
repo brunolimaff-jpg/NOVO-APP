@@ -76,6 +76,10 @@ A Onda 2 foi mergeada em `main` via PR `#228`.
   - `ChatInterfaceProps` foi preservado
   - `services/geminiService.ts` permaneceu intocado
   - testes focados novos cobrem `Composer`, `MessageTimeline` e `ChatPanels`
+  - um follow-up de UX reduziu o atraso da sidebar ao abrir/fechar:
+    - `components/SessionsSidebar.tsx` agora usa `transition-transform duration-200` no mobile
+    - o desktop deixou de animar largura da sidebar
+    - `App.tsx` usa functional update no toggle de `isSidebarOpen`
 
 ## What Is In Progress
 
@@ -84,7 +88,7 @@ A Onda 2 foi mergeada em `main` via PR `#228`.
 ## Next Safe Step
 
 1. Abrir/revisar a PR da Sprint 5 e manter o escopo estrutural, sem reabrir contrato publico
-2. Rodar a rodada manual em preview/Vercel cobrindo gate inicial, home, timeline ativa, header actions e composer send/stop/retry
+2. Rodar a rodada manual em preview/Vercel cobrindo gate inicial, home, timeline ativa, header actions, responsividade da sidebar e composer send/stop/retry
 3. Depois do merge, sincronizar board/handoff/memory novamente antes de abrir Sprint 6
 
 ## Files Most Relevant Now
@@ -147,6 +151,7 @@ A Onda 2 foi mergeada em `main` via PR `#228`.
 - `tests/components/chat/Composer.test.tsx`: green em `2026-04-17`
 - `tests/components/chat/MessageTimeline.test.tsx`: green em `2026-04-17`
 - `tests/components/chat/ChatPanels.test.tsx`: green em `2026-04-17`
+- `tests/components/SessionsSidebar.test.tsx`: green em `2026-04-17`
 - `npm run test:dossier`: green em `2026-04-16`
 - `npm run test`: green em `2026-04-16`
 - `npm run typecheck`: green em `2026-04-16`

@@ -142,7 +142,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-black/50 z-20 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/50 z-20 md:hidden transition-opacity duration-200 ease-out motion-reduce:transition-none ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onCloseMobile}
         aria-hidden="true"
       />
@@ -156,10 +156,10 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
         className={`
         fixed inset-y-0 left-0 z-30 h-full border-r flex flex-col
         ${theme.bg}
-        transition-all duration-300 ease-in-out
-        w-72
+        w-72 will-change-transform
+        transition-transform duration-200 ease-out motion-reduce:transition-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:static md:translate-x-0
+        md:static md:translate-x-0 md:transition-none md:will-change-auto
         ${isOpen ? 'md:w-72' : 'md:w-0 md:border-none md:overflow-hidden'}
       `}
       >

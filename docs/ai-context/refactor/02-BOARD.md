@@ -62,11 +62,15 @@
   - `components/chat/contracts.ts` virou o contrato interno compartilhado dessa camada
   - `ChatInterfaceProps` e a fachada publica de `services/geminiService.ts` foram preservados
   - entraram testes focados para `Composer`, `MessageTimeline` e `ChatPanels`
+  - um patch de UX tambem reduziu o atraso perceptivel da sidebar:
+    - `components/SessionsSidebar.tsx` agora anima apenas `transform` em `200ms` no mobile
+    - a transicao de largura foi removida no desktop
+    - `App.tsx` passou a usar functional update no toggle de `isSidebarOpen`
 
 ## Next Up
 
 1. Abrir/revisar a PR da Sprint 5 (`codex/sprint5-chatinterface-modularization`)
-2. Rodar a validacao manual em preview/Vercel para gate inicial, home, timeline ativa, header actions e composer send/stop/retry
+2. Rodar a validacao manual em preview/Vercel para gate inicial, home, timeline ativa, header actions, responsividade de abrir/fechar da sidebar e composer send/stop/retry
 3. Depois do merge, sincronizar `main`/docs novamente e preparar Sprint 6
 
 ## Blocked
@@ -86,6 +90,9 @@
   - `npm run test`
   - `npm run typecheck`
   - `npm run build`
+- O patch de responsividade da sidebar fechou com:
+  - `tests/components/SessionsSidebar.test.tsx`
+  - `tests/components/ChatInterface.test.tsx`
 - Em runtime real, a rodada manual da Sprint 5 deve cobrir gate inicial, home, timeline, header actions e composer sem regressao visual/funcional
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 

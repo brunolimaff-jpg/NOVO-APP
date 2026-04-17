@@ -43,10 +43,11 @@ Sprint 5 is now `active`.
 - Sprint 5 is structural only; do not use it to widen `ChatInterfaceProps` or move domain rules into `components/chat/*`.
 - Automated validation for Sprint 5 passed on `2026-04-17`: focused `ChatInterface`/`components/chat/*`, `npm run test`, `npm run typecheck`, and `npm run build`.
 - The first PR review patch for Sprint 5 also landed on `2026-04-17`: `ChatInterface.tsx` now uses `Sender.User` in the markdown copy path and `RadarAlert` in the radar context formatter.
+- A Sprint 5 PR also received a sidebar responsiveness patch on `2026-04-17`: `SessionsSidebar.tsx` now animates only `transform` at `200ms` on mobile, disables the width transition on desktop, and `App.tsx` now toggles `isSidebarOpen` via functional state update.
 - The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
 
 ## Immediate next step
 
 1. open the Sprint 5 PR from `codex/sprint5-chatinterface-modularization`
-2. run the manual smoke pass in preview/Vercel for operator gate, initial home, active-session timeline, header actions, and composer send/stop/retry
+2. run the manual smoke pass in preview/Vercel for operator gate, initial home, active-session timeline, header actions, sidebar open/close responsiveness, and composer send/stop/retry
 3. if the smoke pass stays green, merge Sprint 5 and sync board/handoff/memory again before opening Sprint 6 planning

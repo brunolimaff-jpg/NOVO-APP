@@ -78,6 +78,10 @@ Last updated: 2026-04-17
 - Applied the first Sprint 5 PR review patch on `2026-04-17`:
   - replaced the hardcoded `'user'` sender comparison in `components/ChatInterface.tsx` with `Sender.User`
   - tightened `buildRadarContextBlock` to use `RadarAlert` instead of a broad `Record<string, string | undefined>` cast
+- Applied a Sprint 5 UX follow-up patch on `2026-04-17`:
+  - reduced sidebar overlay/panel transitions in `components/SessionsSidebar.tsx` from the broad `transition-all duration-300` path to a lighter `transition-transform duration-200` mobile-only path
+  - disabled the desktop transition for sidebar width changes
+  - switched `App.tsx` sidebar toggling to a functional state update to avoid stale-toggle jitter
 
 ## In progress
 
@@ -111,6 +115,7 @@ Last updated: 2026-04-17
 - Passed: focused Sprint 5 suite for `tests/components/ChatInterface.test.tsx`, `tests/components/chat/Composer.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, and `tests/components/chat/ChatPanels.test.tsx` on `2026-04-17`
 - Passed: Sprint 5 full gate rerun with `npm run test`, `npm run typecheck`, and `npm run build` on `2026-04-17`
 - Passed: Sprint 5 review-fix validation with `npm run typecheck` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`
+- Passed: Sprint 5 sidebar UX patch validation with `tests/components/SessionsSidebar.test.tsx` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
 ## Important refs
