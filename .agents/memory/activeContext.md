@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ## Current operating context
 
@@ -38,10 +38,12 @@ The repo is still on the post-`#227` baseline in `main`, but Sprint 4 / Onda 2 i
 - The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command remains `npm run test:dossier`.
 - Sprint 4 uses `Context + Reducer` for `stores/*`; do not add `zustand`.
-- Automated gates for Onda 2 passed on `2026-04-16`; the remaining step before merge is PR/manual runtime validation.
+- Automated gates for Onda 2 passed on `2026-04-16`, and the PR review-fix patch landed on `2026-04-17`.
+- The `session-controller` mojibake was corrected and `App.tsx` no longer self-wraps `ChatStoreProvider`/`DossierStoreProvider`; the affected `App` tests now provide the stores explicitly.
+- Full validation was rerun on `2026-04-17`: focused `App` + `session-controller`, `npm run typecheck`, `npm run test`, and `npm run build`.
 
 ## Immediate next step
 
-1. open/review the dedicated PR for `codex/sprint4-wave2-stores-boundaries`
-2. run the Onda 2 manual runtime pass in preview/Vercel, focusing on chat shell recovery, dossier rendering fallback, export/save remoto, and the hero loading overlay
+1. rerun the Onda 2 manual runtime pass in preview/Vercel on top of the review-fix patch, focusing on chat shell recovery, dossier rendering fallback, export/save remoto, and the hero loading overlay
+2. merge the dedicated PR for `codex/sprint4-wave2-stores-boundaries` if the manual pass stays green
 3. after merge, sync board/handoff/memory again and only then open Sprint 5 planning

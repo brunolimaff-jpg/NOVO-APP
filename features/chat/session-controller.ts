@@ -155,7 +155,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setInvestigationLogged(false);
     lastActionRef.current = null;
     setLastQuery('');
-    resetLoadingProgress('Iniciando análise');
+    resetLoadingProgress('Iniciando an\u00e1lise');
   }, [
     lastActionRef,
     resetLoadingProgress,
@@ -172,7 +172,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
     const newSession: ChatSession = {
       id: uuidv4(),
-      title: 'Nova InvestigaÃ§Ã£o',
+      title: 'Nova Investiga\u00e7\u00e3o',
       empresaAlvo: null,
       cnpj: null,
       modoPrincipal: DEFAULT_MODE,

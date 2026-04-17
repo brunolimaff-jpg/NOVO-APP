@@ -57,14 +57,10 @@ import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import FooterCredits from './components/FooterCredits';
 import {
-  ChatStoreProvider,
   useChatStore,
-  useMaybeChatStore,
 } from './stores/chatStore';
 import {
-  DossierStoreProvider,
   useDossierStore,
-  useMaybeDossierStore,
 } from './stores/dossierStore';
 
 // --- INJETADO ANALYTICS AQUI ---
@@ -80,7 +76,7 @@ function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): bool
   return /^Dossi[êe]\s+completo:\s*/i.test(safeDisplay);
 }
 
-const AppShell: React.FC = () => {
+const App: React.FC = () => {
   const { name: operatorName, operatorId, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { cards, createCardFromSession, moveCardToStage } = useCRM();
@@ -765,23 +761,6 @@ const AppShell: React.FC = () => {
       <SpeedInsights />
     </>
   );
-};
-
-const App: React.FC = () => {
-  const hasChatStore = Boolean(useMaybeChatStore());
-  const hasDossierStore = Boolean(useMaybeDossierStore());
-
-  if (!hasChatStore || !hasDossierStore) {
-    return (
-      <ChatStoreProvider>
-        <DossierStoreProvider>
-          <AppShell />
-        </DossierStoreProvider>
-      </ChatStoreProvider>
-    );
-  }
-
-  return <AppShell />;
 };
 
 export default App;

@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import { ChatStoreProvider } from '../stores/chatStore';
+import { DossierStoreProvider } from '../stores/dossierStore';
 
 const {
   deepDiveErrorRef,
@@ -233,6 +235,16 @@ vi.mock('../features/chat/feedback-actions', () => ({
   }),
 }));
 
+function renderApp() {
+  return render(
+    <ChatStoreProvider>
+      <DossierStoreProvider>
+        <App />
+      </DossierStoreProvider>
+    </ChatStoreProvider>,
+  );
+}
+
 vi.mock('../utils/featureAccess', () => ({
   getFeatureAccess: () => ({
     miniCRM: false,
@@ -259,7 +271,7 @@ describe('App loading variant regression', () => {
   });
 
   it('renderiza o shell do chat sem ReferenceError de loadingVariant', () => {
-    render(<App />);
+    renderApp();
 
     expect(screen.getByTestId('chat-interface')).toBeInTheDocument();
     expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
@@ -268,7 +280,7 @@ describe('App loading variant regression', () => {
   it('mantém a primeira investigação em hero e mostra o LoadingSmart global', async () => {
     sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
 
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-default-send' }));
 
@@ -284,7 +296,7 @@ describe('App loading variant regression', () => {
   it('executa deep dive sem quebrar por requestKind ou fixedLoadingLine indefinidos', async () => {
     sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
 
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-deep-dive' }));
 
@@ -302,7 +314,7 @@ describe('App loading variant regression', () => {
   it('mantem investigacao inicial via onDeepDive no fluxo padrao (sem label de deep dive)', async () => {
     generateDossierModuleMock.mockImplementationOnce(() => new Promise(() => {}));
 
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-initial-investigation' }));
 
@@ -319,7 +331,7 @@ describe('App loading variant regression', () => {
 
   it('bloqueia Deep Dive de tópico quando feature flag está desligada', async () => {
     deepDiveAccessRef.current = false;
-    render(<App />);
+    renderApp();
     setSessionsMock.mockClear();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-deep-dive' }));

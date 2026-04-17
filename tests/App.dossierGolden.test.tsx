@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+import { ChatStoreProvider } from '../stores/chatStore';
+import { DossierStoreProvider } from '../stores/dossierStore';
 import type { ChatSession } from '../types';
 import {
   loadJsonFixture,
@@ -262,6 +264,16 @@ vi.mock('../services/geminiService', () => ({
   getIsolatedBenchmark: getIsolatedBenchmarkMock,
 }));
 
+function renderApp() {
+  return render(
+    <ChatStoreProvider>
+      <DossierStoreProvider>
+        <App />
+      </DossierStoreProvider>
+    </ChatStoreProvider>,
+  );
+}
+
 function readFixture(relativePath: string): string {
   return readFileSync(resolve(fixtureRoot, relativePath), 'utf8');
 }
@@ -303,7 +315,7 @@ describe('App dossier markdown golden flow', () => {
     const dossierCase = loadJsonFixture<DossierGoldenCase>(resolve(fixtureRoot, 'case.json'));
     const expectedMarkdown = readFixture('expected-dossier.md');
 
-    render(<App />);
+    renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-dossier' }));
 

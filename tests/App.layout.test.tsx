@@ -2,6 +2,8 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
+import { ChatStoreProvider } from '../stores/chatStore';
+import { DossierStoreProvider } from '../stores/dossierStore';
 
 vi.mock('../hooks/useOffline', () => ({
   useOffline: () => ({
@@ -175,9 +177,19 @@ vi.mock('../components/SuspenseWithError', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+function renderApp() {
+  return render(
+    <ChatStoreProvider>
+      <DossierStoreProvider>
+        <App />
+      </DossierStoreProvider>
+    </ChatStoreProvider>,
+  );
+}
+
 describe('App layout shell', () => {
   it('mantem o main flexivel e o footer fora do fluxo do chat', () => {
-    render(<App />);
+    renderApp();
 
     const chat = screen.getByTestId('chat-interface');
     const footer = screen.getByTestId('footer-credits');
@@ -195,7 +207,7 @@ describe('App layout shell', () => {
   });
 
   it('libera dashboard sem depender de papel admin', () => {
-    render(<App />);
+    renderApp();
 
     expect(screen.getByTestId('chat-interface')).toHaveAttribute('data-can-access-dashboard', 'true');
   });

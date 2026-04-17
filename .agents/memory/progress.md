@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ## Completed
 
@@ -61,6 +61,10 @@ Last updated: 2026-04-16
   - wired dossier fallback inside `components/MessageRow.tsx`
   - added tests for stores and feature boundaries
   - exposed `useMaybeOperator`, `useMaybeMode`, `useMaybeChatStore`, and `useMaybeDossierStore` to keep hooks testable without provider-only coupling
+- Applied the PR `#228` review-fix patch on `2026-04-17`:
+  - corrected the user-facing session bootstrap strings in `features/chat/session-controller.ts`
+  - removed the redundant store self-wrap fallback from `App.tsx`
+  - updated `tests/App.layout.test.tsx`, `tests/App.loadingVariant.test.tsx`, and `tests/App.dossierGolden.test.tsx` to mount `App` with explicit store providers
 
 ## In progress
 
@@ -86,6 +90,11 @@ Last updated: 2026-04-16
 - Passed: `npm run test` on `2026-04-16`
 - Passed: `npm run typecheck` on `2026-04-16`
 - Passed: `npm run build` on `2026-04-16`
+- Passed: focused rerun for `tests/App.layout.test.tsx`, `tests/App.loadingVariant.test.tsx`, `tests/App.dossierGolden.test.tsx` on `2026-04-17`
+- Passed: focused rerun for `tests/features/chat/session-controller.test.ts` on `2026-04-17`
+- Passed: `npm run typecheck` on `2026-04-17`
+- Passed: `npm run test` on `2026-04-17`
+- Passed: `npm run build` on `2026-04-17`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
 ## Important refs
@@ -112,7 +121,7 @@ Last updated: 2026-04-16
 
 ## Next checkpoint
 
-- Open/review the Sprint 4 / Onda 2 PR and run the manual preview/Vercel checklist before merge.
+- Rerun the Sprint 4 / Onda 2 manual preview/Vercel checklist on top of the PR `#228` review-fix patch before merge.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.

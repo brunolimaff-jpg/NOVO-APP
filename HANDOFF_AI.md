@@ -90,7 +90,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
-- Sprint 4 (active): Onda 1 ja mergeada em `main`; Onda 2 ja foi implementada no branch `codex/sprint4-wave2-stores-boundaries` e aguarda PR/validacao manual para merge
+- Sprint 4 (active): Onda 1 ja mergeada em `main`; Onda 2 ja foi implementada no branch `codex/sprint4-wave2-stores-boundaries`, recebeu o patch de review da PR `#228` em `2026-04-17` e aguarda validacao manual final para merge
 - Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
