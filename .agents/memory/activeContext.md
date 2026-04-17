@@ -42,6 +42,7 @@ Sprint 5 is now `active`.
 - The practical day-to-day command remains `npm run test:dossier`.
 - Sprint 5 is structural only; do not use it to widen `ChatInterfaceProps` or move domain rules into `components/chat/*`.
 - Automated validation for Sprint 5 passed on `2026-04-17`: focused `ChatInterface`/`components/chat/*`, `npm run test`, `npm run typecheck`, and `npm run build`.
+- The first PR review patch for Sprint 5 also landed on `2026-04-17`: `ChatInterface.tsx` now uses `Sender.User` in the markdown copy path and `RadarAlert` in the radar context formatter.
 - The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
 
 ## Immediate next step

@@ -4,6 +4,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
 import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
+import { Sender, type RadarAlert } from '../types';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { cleanTitle } from '../utils/textCleaners';
 import ChatPanels from './chat/ChatPanels';
@@ -49,20 +50,9 @@ const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): st
 
   const topAlerts = (radar.alerts || [])
     .slice(0, 3)
-    .map((alert: unknown, index) => {
-      const typedAlert = alert as Record<string, string | undefined>;
-      const title =
-        typedAlert.title ||
-        typedAlert.headline ||
-        typedAlert.label ||
-        typedAlert.companyName ||
-        `Alerta ${index + 1}`;
-      const detail =
-        typedAlert.summary ||
-        typedAlert.message ||
-        typedAlert.description ||
-        typedAlert.reason ||
-        'Sem detalhe adicional';
+    .map((alert: RadarAlert, index) => {
+      const title = alert.title?.trim() || `Alerta ${index + 1}`;
+      const detail = alert.summary?.trim() || 'Sem detalhe adicional';
       return `- ${title}: ${detail}`;
     });
 
@@ -196,7 +186,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const handleCopyMarkdown = useCallback(() => {
     const text = safeMessages
       .filter((message) => !message.isError && !message.isThinking)
-      .map((message) => `**${message.sender === 'user' ? 'Você' : 'Scout 360'}:**\n${message.text}`)
+      .map((message) => `**${message.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${message.text}`)
       .join('\n\n---\n\n')
       .replace(/\[\[PORTA:[^\]]+\]\]/g, '');
 
