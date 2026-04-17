@@ -51,3 +51,12 @@ Sprint 5 is now `active`.
 1. open the Sprint 5 PR from `codex/sprint5-chatinterface-modularization`
 2. run the manual smoke pass in preview/Vercel for operator gate, initial home, active-session timeline, header actions, sidebar open/close responsiveness, and composer send/stop/retry
 3. if the smoke pass stays green, merge Sprint 5 and sync board/handoff/memory again before opening Sprint 6 planning
+
+## Additional documentation context
+
+- Added canonical War Room hardening documentation on `2026-04-17`:
+  - `docs/PR_WAR_ROOM_HARDENING.md`
+  - `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
+  - `docs/ai-context/ROADMAP_WAR_ROOM.md`
+- `docs/ai-context/ARCHITECTURE_MAP.md` now records War Room hallucination hardening as resolved and tracks `Concorrentes` / domain-restricted search as follow-up items.
+- The intended PR narrative is **War Room hardening**, not Mermaid. If a branch still carries Mermaid commits, keep that mismatch explicit and correct it before opening the PR.
