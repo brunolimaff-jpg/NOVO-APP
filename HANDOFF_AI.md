@@ -29,8 +29,9 @@ Para continuidade entre IAs, leia primeiro:
 ## Entrypoints e hotspots
 
 - Bootstrap da app: `index.tsx`
-- Orquestrador principal: `App.tsx` (hotspot ainda ativo, mas Onda 2 da Sprint 4 tirou estado de sessao/loading/export para `stores/*` e adicionou boundaries por feature)
-- UI principal do chat: `components/ChatInterface.tsx`
+- Orquestrador principal: `App.tsx` (hotspot ainda ativo, mas a Sprint 4 tirou estado de sessao/loading/export para `stores/*` e a Sprint 5 moveu o shell visual do chat para `components/chat/*`)
+- UI principal do chat: `components/ChatInterface.tsx` (fachada publica estavel)
+- Componentes internos do chat: `components/chat/*`
 - Fachada publica da camada Gemini: `services/geminiService.ts`
 - Implementacao interna da camada Gemini: `services/gemini/`
 - Features extraidas do App (novo destino): `features/chat/`
@@ -66,10 +67,10 @@ Para continuidade entre IAs, leia primeiro:
   - `features/chat/feedback-actions.ts` - handlers de feedback, section feedback, toggle de fontes, report de erro (Sprint 3 / corte 3)
   - `features/chat/message-orchestrator.ts` - orquestracao do envio padrao (Sprint 3 / ultimo corte, mergeado)
   - `features/chat/message-helpers.ts` - helpers compartilhados de hint de empresa, abort e sugestoes de continuidade
-- `features/dossier/` e o destino ativo da Sprint 4:
-  - Onda 1: mover waterfall, benchmark, retries e reconciliacao PORTA
-  - Onda 2: consolidar `stores/*` e error boundaries por feature
-  - Onda 1 ja mergeada em `main` via PR `#227`:
+- `features/dossier/` foi o destino da Sprint 4:
+  - Onda 1 moveu waterfall, benchmark, retries e reconciliacao PORTA
+  - Onda 2 consolidou `stores/*` e error boundaries por feature
+  - Onda 1 mergeada em `main` via PR `#227`:
     - `features/dossier/waterfall-orchestrator.ts`
     - `features/dossier/benchmark-stage.ts`
     - `features/dossier/porta-reconciliation.ts`
@@ -81,6 +82,12 @@ Para continuidade entre IAs, leia primeiro:
   - `features/dossier/DossierErrorBoundary.tsx`
 - Auditoria compartilhada de erro:
   - `utils/errorBoundaryAudit.ts`
+- `components/chat/` e o destino ativo da Sprint 5:
+  - `components/chat/contracts.ts`
+  - `components/chat/ChatShell.tsx`
+  - `components/chat/MessageTimeline.tsx`
+  - `components/chat/Composer.tsx`
+  - `components/chat/ChatPanels.tsx`
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
@@ -90,8 +97,9 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
-- Sprint 4 (active): Onda 1 ja mergeada em `main`; Onda 2 ja foi implementada no branch `codex/sprint4-wave2-stores-boundaries`, recebeu o patch de review da PR `#228` em `2026-04-17` e aguarda validacao manual final para merge
-- Sprints 5-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
+- Sprint 5 (active): `components/ChatInterface.tsx` foi modularizado em `components/chat/*` no branch `codex/sprint5-chatinterface-modularization` com gates automatizados green em `2026-04-17`
+- Sprints 6-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
 
@@ -102,13 +110,13 @@ Para continuidade entre IAs, leia primeiro:
 - `npm run lint`
 - `npm run test:dossier`
 
-## Validacao manual da Onda 2
+## Validacao manual da Sprint 5
 
-- Gerar um `Dossie completo` em runtime real e conferir score PORTA + secoes finais
-- Validar follow-up apos dossie completo
-- Validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
-- Forcar um crash controlado de subtree quando possivel e conferir fallback local do `ChatErrorBoundary` e do `DossierErrorBoundary`
-- Validar que o overlay hero (`LoadingSmart`) continua operando e que, se quebrar, cai no fallback local do dossie em vez de derrubar o app inteiro
+- Confirmar o gate inicial do operador quando nao existe nome local
+- Validar a home inicial e o disparo de nova investigacao
+- Validar timeline com sessao ativa, incluindo loading hero/inline e fallback visual
+- Validar header actions abrindo dashboard, settings, radar e war room
+- Validar composer com send, stop e retry sem regressao funcional
 
 ## Regras de continuidade
 

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Execucao. Sprint 4 esta ativa.
+Execucao. Sprint 5 esta ativa.
 
 O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
 O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
@@ -17,6 +17,7 @@ Sprint 4 foi aberta em ondas:
 - Onda 1: extracao de `features/dossier/*`
 - Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
 A Onda 1 foi mergeada em `main` via PR `#227`.
+A Onda 2 foi mergeada em `main` via PR `#228`.
 
 ## What Was Finished
 
@@ -64,16 +65,27 @@ A Onda 1 foi mergeada em `main` via PR `#227`.
   - `components/ErrorBoundary.tsx` passou a reutilizar `utils/errorBoundaryAudit.ts`
   - `components/MessageRow.tsx` recebeu boundary local para subtree de dossie
   - testes novos cobrem stores e boundaries
+- Sprint 4 foi encerrada como `done` apos o merge da PR `#228` em `2026-04-17`
+- Sprint 5 foi implementada no branch `codex/sprint5-chatinterface-modularization`:
+  - `components/ChatInterface.tsx` segue como facade publica estavel
+  - `components/chat/contracts.ts` concentra os contratos internos da camada
+  - `components/chat/ChatShell.tsx` concentra sidebar/header/composicao
+  - `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
+  - `components/chat/Composer.tsx` concentra input, prefill, processamento e retry toast
+  - `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
+  - `ChatInterfaceProps` foi preservado
+  - `services/geminiService.ts` permaneceu intocado
+  - testes focados novos cobrem `Composer`, `MessageTimeline` e `ChatPanels`
 
 ## What Is In Progress
 
-- PR/review/manual runtime validation da Onda 2 em `codex/sprint4-wave2-stores-boundaries`
+- PR/review/manual smoke validation da Sprint 5 em `codex/sprint5-chatinterface-modularization`
 
 ## Next Safe Step
 
-1. Abrir/revisar a PR da Onda 2 e preservar `ChatInterfaceProps` + `services/geminiService.ts` como contratos estaveis
-2. Rodar a rodada manual em preview/Vercel cobrindo fallback dos boundaries, exportacao e persistencia remota
-3. Depois do merge, sincronizar board/handoff/memory novamente antes de abrir Sprint 5
+1. Abrir/revisar a PR da Sprint 5 e manter o escopo estrutural, sem reabrir contrato publico
+2. Rodar a rodada manual em preview/Vercel cobrindo gate inicial, home, timeline ativa, header actions e composer send/stop/retry
+3. Depois do merge, sincronizar board/handoff/memory novamente antes de abrir Sprint 6
 
 ## Files Most Relevant Now
 
@@ -100,6 +112,11 @@ A Onda 1 foi mergeada em `main` via PR `#227`.
 - `features/chat/ChatErrorBoundary.tsx`
 - `features/dossier/DossierErrorBoundary.tsx`
 - `utils/errorBoundaryAudit.ts`
+- `components/chat/contracts.ts`
+- `components/chat/ChatShell.tsx`
+- `components/chat/MessageTimeline.tsx`
+- `components/chat/Composer.tsx`
+- `components/chat/ChatPanels.tsx`
 - `tests/App.dossierGolden.test.tsx`
 - `tests/helpers/dossierGolden.ts`
 - `tests/features/chat/loading-progress.test.tsx`
@@ -112,6 +129,9 @@ A Onda 1 foi mergeada em `main` via PR `#227`.
 - `tests/stores/dossierStore.test.tsx`
 - `tests/features/chat/ChatErrorBoundary.test.tsx`
 - `tests/features/dossier/DossierErrorBoundary.test.tsx`
+- `tests/components/chat/Composer.test.tsx`
+- `tests/components/chat/MessageTimeline.test.tsx`
+- `tests/components/chat/ChatPanels.test.tsx`
 
 ## Do Not Touch Yet
 
@@ -122,11 +142,18 @@ A Onda 1 foi mergeada em `main` via PR `#227`.
 ## Validation Last Run
 
 - validacao manual integrada da Sprint 3: green em `2026-04-15`
-- escopo manual da Onda 2 documentado para runtime real: dossie completo, follow-up, fallback local, exportacao e persistencia
+- Sprint 4 / Onda 2 mergeada em `main` via PR `#228`
+- `tests/components/ChatInterface.test.tsx`: green em `2026-04-17`
+- `tests/components/chat/Composer.test.tsx`: green em `2026-04-17`
+- `tests/components/chat/MessageTimeline.test.tsx`: green em `2026-04-17`
+- `tests/components/chat/ChatPanels.test.tsx`: green em `2026-04-17`
 - `npm run test:dossier`: green em `2026-04-16`
 - `npm run test`: green em `2026-04-16`
 - `npm run typecheck`: green em `2026-04-16`
 - `npm run build`: green em `2026-04-16`
+- `npm run test`: green novamente em `2026-04-17`
+- `npm run typecheck`: green novamente em `2026-04-17`
+- `npm run build`: green novamente em `2026-04-17`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 - Warning aceito no build: chunking envolvendo `utils/idbStorage.ts`, ja registrado como OI-003
 
@@ -134,7 +161,7 @@ A Onda 1 foi mergeada em `main` via PR `#227`.
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir da PR/manual validation da Onda 2 da Sprint 4.
+Continue a partir da PR/manual smoke da Sprint 5.
 Use `npm run test:dossier` como fast-check do caso canonico de dossie.
-Considere a Onda 1 ja mergeada em `main` e a Onda 2 pronta no branch `codex/sprint4-wave2-stores-boundaries`.
-Antes de abrir Sprint 5, confirme o merge da Onda 2 e sincronize novamente as fontes canonicas.
+Considere a Sprint 4 ja mergeada em `main` e a Sprint 5 implementada no branch `codex/sprint5-chatinterface-modularization`.
+Antes de abrir Sprint 6, confirme o merge da Sprint 5 e sincronize novamente as fontes canonicas.

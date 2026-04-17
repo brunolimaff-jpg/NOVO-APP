@@ -65,10 +65,20 @@ Last updated: 2026-04-17
   - corrected the user-facing session bootstrap strings in `features/chat/session-controller.ts`
   - removed the redundant store self-wrap fallback from `App.tsx`
   - updated `tests/App.layout.test.tsx`, `tests/App.loadingVariant.test.tsx`, and `tests/App.dossierGolden.test.tsx` to mount `App` with explicit store providers
+- Merged Sprint 4 / Onda 2 stores and feature boundaries into `main` (`16c8f2e001e92e4830415506d7406ca236ed91f8` via PR `#228`).
+- Opened Sprint 5 on `codex/sprint5-chatinterface-modularization` and modularized `components/ChatInterface.tsx` into `components/chat/*` while keeping the facade stable:
+  - added `components/chat/contracts.ts`
+  - added `components/chat/ChatShell.tsx`
+  - added `components/chat/MessageTimeline.tsx`
+  - added `components/chat/Composer.tsx`
+  - added `components/chat/ChatPanels.tsx`
+  - kept `components/ChatInterface.tsx` as the public entrypoint and `RadarProps` re-export surface
+  - preserved `ChatInterfaceProps` and left `services/geminiService.ts` untouched
+  - added focused tests for `Composer`, `MessageTimeline`, and `ChatPanels`
 
 ## In progress
 
-- PR/review/manual runtime validation for Sprint 4 / Onda 2 on branch `codex/sprint4-wave2-stores-boundaries`.
+- PR/review/manual smoke validation for Sprint 5 on branch `codex/sprint5-chatinterface-modularization`.
 
 ## Blockers
 
@@ -95,6 +105,8 @@ Last updated: 2026-04-17
 - Passed: `npm run typecheck` on `2026-04-17`
 - Passed: `npm run test` on `2026-04-17`
 - Passed: `npm run build` on `2026-04-17`
+- Passed: focused Sprint 5 suite for `tests/components/ChatInterface.test.tsx`, `tests/components/chat/Composer.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, and `tests/components/chat/ChatPanels.test.tsx` on `2026-04-17`
+- Passed: Sprint 5 full gate rerun with `npm run test`, `npm run typecheck`, and `npm run build` on `2026-04-17`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
 ## Important refs
@@ -118,11 +130,22 @@ Last updated: 2026-04-17
 - Chat boundary: `features/chat/ChatErrorBoundary.tsx`
 - Dossier boundary: `features/dossier/DossierErrorBoundary.tsx`
 - Error audit helper: `utils/errorBoundaryAudit.ts`
+- Chat facade: `components/ChatInterface.tsx`
+- Chat shell: `components/chat/ChatShell.tsx`
+- Message timeline: `components/chat/MessageTimeline.tsx`
+- Composer: `components/chat/Composer.tsx`
+- Chat panels: `components/chat/ChatPanels.tsx`
+- Chat component contracts: `components/chat/contracts.ts`
+- Chat facade regression suite: `tests/components/ChatInterface.test.tsx`
+- Composer focused tests: `tests/components/chat/Composer.test.tsx`
+- Message timeline focused tests: `tests/components/chat/MessageTimeline.test.tsx`
+- Chat panels focused tests: `tests/components/chat/ChatPanels.test.tsx`
 
 ## Next checkpoint
 
-- Rerun the Sprint 4 / Onda 2 manual preview/Vercel checklist on top of the PR `#228` review-fix patch before merge.
+- Open the Sprint 5 PR from `codex/sprint5-chatinterface-modularization` and keep the scope structural-only.
+- Run the Sprint 5 manual smoke checklist in preview/Vercel: operator gate, initial home, active-session timeline, header actions, and composer send/stop/retry.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
-- After Onda 2 lands in `main`, sync board/handoff/memory again before opening Sprint 5.
+- After Sprint 5 lands in `main`, sync board/handoff/memory again before opening Sprint 6.
