@@ -157,17 +157,20 @@ Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** 
 - `App.tsx` (~45KB) — god component com roteamento, estado global e lógica misturados. Dissolução em andamento.
 - `constants.ts` (~52KB) — mistura prompts de IA + configurações de UI + constantes de negócio em um único arquivo.
 - `services/geminiService.ts` foi estabilizado como fachada; nova lógica interna deve entrar em `services/gemini/`, não de volta na fachada.
+- ~~War Room alucina sem ancoragem~~ ✅ **Resolvido (2026-04-17)** — o modo técnico agora depende de Pinecone, allowlist de domínio e recusa segura. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
 
 ### P1 — Altos
 - CI sem `tsc --noEmit` como gate de merge (erros rastreados manualmente em .txt)
 - `CRMDetail.tsx` (~35KB) — componente monolítico
 - Arquivos legados na raiz: `old_appcore.tsx`, `old.tsx`, `build_err.txt`, `build_err_2.txt`, `ts_errors.txt`
 - `hooks/useChat.ts` permanece como legado; imports de produção novos são proibidos.
+- **Modo Concorrentes (War Room)** — placeholder visível, ainda não ativado. Depende de indexação e curadoria de domínios oficiais. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
 
 ### P2 — Médios
 - `mobile-responsive.css` separado (deveria usar Tailwind nativo)
 - Scripts `fix*.cjs` e `extract*.cjs` na raiz (devem ir para scripts/ ou .gitignore)
 - `WarRoom.tsx` (~28KB) e `LoadingSmart.tsx` (~27KB) — candidatos a decomposição
+- **Busca custom por domínio oficial (War Room)** — substitui grounding aberto por tool controlada da aplicação. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
 
 ### Regra geral
 Componentes acima de 15KB são candidatos obrigatórios à análise de decomposição.

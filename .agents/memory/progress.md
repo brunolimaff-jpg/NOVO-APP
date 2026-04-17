@@ -82,6 +82,11 @@ Last updated: 2026-04-17
   - reduced sidebar overlay/panel transitions in `components/SessionsSidebar.tsx` from the broad `transition-all duration-300` path to a lighter `transition-transform duration-200` mobile-only path
   - disabled the desktop transition for sidebar width changes
   - switched `App.tsx` sidebar toggling to a functional state update to avoid stale-toggle jitter
+- Added War Room PR documentation artifacts on `2026-04-17`:
+  - `docs/PR_WAR_ROOM_HARDENING.md`
+  - `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
+  - `docs/ai-context/ROADMAP_WAR_ROOM.md`
+  - updated `docs/ai-context/ARCHITECTURE_MAP.md` to mark hallucination hardening as resolved and track follow-up roadmap items
 
 ## In progress
 
@@ -117,6 +122,7 @@ Last updated: 2026-04-17
 - Passed: Sprint 5 review-fix validation with `npm run typecheck` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`
 - Passed: Sprint 5 sidebar UX patch validation with `tests/components/SessionsSidebar.test.tsx` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
+- Not run for the documentation-only War Room PR artifacts: `npm run typecheck`, `npm run build`.
 
 ## Important refs
 
@@ -158,3 +164,4 @@ Last updated: 2026-04-17
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.
 - After Sprint 5 lands in `main`, sync board/handoff/memory again before opening Sprint 6.
+- Reuse `docs/PR_WAR_ROOM_HARDENING.md` and `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md` if the War Room hardening branch is prepared for opening, and keep Mermaid out of that PR narrative.
