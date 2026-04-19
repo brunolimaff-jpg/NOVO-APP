@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "0.1.0",
+  "name": "Scout Prospect - Dossie Inicial",
+  "behavior": "create",
+  "noteContentFormat": "## Resumo\n- Contexto:\n- Tese comercial:\n\n## Sinais PORTA\n- Poder:\n- Oportunidade:\n- Risco:\n- Timing:\n- Aderencia:\n\n## Evidencias\n- Fonte principal: {{url}}\n- Fato-chave 1:\n- Fato-chave 2:\n\n## Proxima acao\n- Acao sugerida:\n- Responsavel:\n- Prazo:\n\n## Conteudo capturado\n{{content}}",
+  "properties": [
+    {
+      "name": "title",
+      "value": "{{title}}",
+      "type": "text"
+    },
+    {
+      "name": "source_url",
+      "value": "{{url}}",
+      "type": "text"
+    },
+    {
+      "name": "source_domain",
+      "value": "{{domain}}",
+      "type": "text"
+    },
+    {
+      "name": "captured_at",
+      "value": "{{date}}",
+      "type": "datetime"
+    },
+    {
+      "name": "prospect",
+      "value": "PREENCHER_EMPRESA",
+      "type": "text"
+    },
+    {
+      "name": "status",
+      "value": "prospect",
+      "type": "text"
+    },
+    {
+      "name": "owner",
+      "value": "PREENCHER_OWNER",
+      "type": "text"
+    },
+    {
+      "name": "sensitivity",
+      "value": "public",
+      "type": "text"
+    }
+  ],
+  "triggers": [],
+  "noteNameFormat": "{{date|date:\"YYYY-MM-DD\"}}_PREENCHER_EMPRESA_{{domain|safe_name}}",
+  "path": "Prospects/"
+}

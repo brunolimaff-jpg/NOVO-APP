@@ -7,6 +7,7 @@ Objetivo: manter o repo operável com um conjunto pequeno de capacidades version
 ## Política atual
 
 - Integração externa padrão: `GitHub`
+- Ferramenta operacional oficial (não integração de IA): `Obsidian Web Clipper`
 - MCPs extras no repo: nenhum
 - Skills globais em `~/.codex/skills`: não são pré-requisito operacional
 - Skills válidas para uso padrão: apenas a allowlist abaixo
@@ -16,6 +17,7 @@ Objetivo: manter o repo operável com um conjunto pequeno de capacidades version
 | Item | Tipo | Status | Motivo |
 |---|---|---|---|
 | `GitHub` | plugin | keep | Integração externa principal |
+| `Obsidian Web Clipper` | operational-tool | keep | Captura operacional de inteligência comercial (sem alterar superfície de IA/MCP) |
 | `scoutagro-pilot-os` | local | keep | Contexto do produto e priorização do repo |
 | `clean-code` | local | keep | Qualidade e legibilidade recorrentes |
 | `codedocs` | local | keep | Continuidade entre IAs e documentação viva |
@@ -64,6 +66,8 @@ Todo o restante de `~/.codex/skills` fica fora do contrato deste repo. Pode exis
 
 - Antes de usar uma skill, confirme se ela está na allowlist deste documento.
 - Antes de citar uma integração externa, confirme se ela é `GitHub` ou se foi oficialmente adicionada aqui.
+- Para captura operacional com Obsidian, siga exclusivamente `docs/obsidian/clipper/`.
+- O Clipper é ferramenta operacional, não integração externa de IA.
 - Não documente fluxos que dependam de skills globais não versionadas no repo.
 - Não reintroduza MCPs locais sem atualizar este documento, `README.md`, `AGENTS.md`, `CLAUDE.md` e `skills-lock.json`.
 
@@ -72,6 +76,7 @@ Todo o restante de `~/.codex/skills` fica fora do contrato deste repo. Pode exis
 - `.agents/skills/` contém apenas a allowlist ativa e a pasta `archive/`
 - `skills-lock.json` reflete apenas as skills locais aprovadas
 - `.mcp.json` não declara servidores extras
+- `docs/obsidian/clipper/` define templates, checklist e fluxo oficial de captura
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 
 ## Short roadmap
@@ -82,3 +87,4 @@ No curto prazo, este setup cobre o necessário para:
 - revisar diffs locais antes de PR
 - documentar decisões de arquitetura e handoff
 - operar o repo com `GitHub` como integração principal
+- operar o fluxo de clipping comercial no Obsidian com padrão único de captura e triagem

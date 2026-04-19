@@ -33,6 +33,7 @@ npm run lint
 This repo intentionally uses a minimal AI setup:
 
 - `GitHub` is the primary external integration.
+- `Obsidian Web Clipper` is an approved operational capture tool (not an AI integration) for prospect research workflows.
 - Repo-local skills are curated and versioned under `.agents/skills/`.
 - Global `~/.codex/skills` content must not be required to operate the repo.
 - No extra MCP servers are configured as part of the standard project setup.
@@ -46,6 +47,7 @@ The canonical skill policy lives in [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-
 | [`AGENTS.md`](./AGENTS.md) | Primary repo instructions |
 | [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md) | Fast onboarding |
 | [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md) | Allowed skills and environment policy |
+| [`docs/obsidian/clipper/README.md`](./docs/obsidian/clipper/README.md) | Obsidian Web Clipper operational standard |
 | [`HANDOFF_AI.md`](./HANDOFF_AI.md) | Stable entrypoint for AI handoff |
 | [`ARQUITETURA.md`](./ARQUITETURA.md) | Technical architecture |
 | [`docs/ai-context/refactor/00-README.md`](./docs/ai-context/refactor/00-README.md) | Refactor program context |

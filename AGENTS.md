@@ -39,6 +39,7 @@ npm run lint
 - Vercel is the real runtime environment for production validation; local `npm run dev` is only a frontend convenience and does not emulate all production serverless behavior.
 - Auth in this repo is local-only via `contexts/OperatorContext.tsx`; Clerk is not active in runtime.
 - `GitHub` is the only standard external AI integration for this repo right now.
+- `Obsidian Web Clipper` is the official operational capture workflow for prospect clipping (Phase 1 baseline: Chromium desktop). Follow `docs/obsidian/clipper/`.
 - The approved repo-local skill allowlist lives in `docs/SKILLS-GOVERNANCE.md`.
 - Do not assume global `~/.codex/skills` content is available or required.
 

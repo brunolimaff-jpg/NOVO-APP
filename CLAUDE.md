@@ -24,6 +24,12 @@ Before substantial work, read in this order:
 
 - `GitHub` plugin only
 
+### Operational tools (non-AI integrations)
+
+- `Obsidian Web Clipper` is approved for capture and triage workflows.
+- Scope of the current standard: Phase 1 on Chromium desktop (Chrome/Edge/Brave).
+- Operational contract and templates: `docs/obsidian/clipper/`.
+
 ### Repo-local skills allowlist
 
 - `scoutagro-pilot-os`
@@ -66,5 +72,6 @@ npm run lint
 ## Notes
 
 - No extra MCP servers are configured in this repo today.
+- `Obsidian Web Clipper` does not change the MCP policy and does not require `.mcp.json` changes in this phase.
 - Playwright may still be used as a local test dependency, but not as an operational MCP standard.
 - If the environment model changes, update `docs/SKILLS-GOVERNANCE.md` first, then align docs and lockfiles.
