@@ -66,6 +66,7 @@ const DEFAULT_SUGGESTIONS = [
   'Que camada operacional segue invisível?',
   'Qual risco amadurece nos próximos 90 dias?',
 ];
+const FIXED_TEST_TIMESTAMP = '2026-04-19T12:00:00.000Z';
 
 function applyStateUpdate<T>(current: T, next: StateUpdater<T>): T {
   return typeof next === 'function' ? (next as (prev: T) => T)(current) : next;
@@ -82,7 +83,7 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
     id: 'message-1',
     sender: Sender.Bot,
     text: 'Resumo consolidado',
-    timestamp: new Date('2026-04-19T12:00:00.000Z'),
+    timestamp: new Date(FIXED_TEST_TIMESTAMP),
     ...overrides,
   };
 }
@@ -96,8 +97,8 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     modoPrincipal: 'investigacao',
     scoreOportunidade: null,
     resumoDossie: null,
-    createdAt: '2026-04-19T12:00:00.000Z',
-    updatedAt: '2026-04-19T12:00:00.000Z',
+    createdAt: FIXED_TEST_TIMESTAMP,
+    updatedAt: FIXED_TEST_TIMESTAMP,
     messages: [],
     ...overrides,
   };
@@ -200,7 +201,7 @@ function makeHarness(overrides: {
 
   const updateSessionById = vi.fn((sessionId: string, updater: (session: ChatSession) => ChatSession) => {
     state.sessions = state.sessions.map(session =>
-      session.id === sessionId ? { ...updater(session), updatedAt: new Date().toISOString() } : session,
+      session.id === sessionId ? { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP } : session,
     );
   });
 

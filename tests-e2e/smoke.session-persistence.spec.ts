@@ -10,12 +10,25 @@ const DETERMINISTIC_CHAT_REPLY = 'Resposta determinística de teste';
 const KEYVAL_DB_NAME = 'keyval-store';
 const KEYVAL_STORE_NAME = 'keyval';
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v2';
+const EXPECTED_SESSION_TITLE = 'Fazenda Modelo';
 
 interface GeminiRequestBody {
   action?: string;
   config?: {
     responseMimeType?: string;
   };
+}
+
+interface PersistedSessionSnapshot {
+  title: string | null;
+  messages: string[];
+}
+
+interface PersistedSessionState {
+  hasSession: boolean;
+  title: string | null;
+  hasUserMsg: boolean;
+  hasBotReply: boolean;
 }
 
 async function stubGeminiApi(route: Route) {
@@ -184,15 +197,19 @@ async function readPersistedSessionCount(page: Page): Promise<number> {
   return snapshot.length;
 }
 
-async function readPersistedSessionsSnapshot(page: Page): Promise<Array<{ title: string | null; messages: string[] }>> {
+async function readPersistedSessionsSnapshot(page: Page): Promise<PersistedSessionSnapshot[]> {
   return page.evaluate(
     ({ databaseName, storeName, storageKey }) =>
-      new Promise<Array<{ title: string | null; messages: string[] }>>((resolve) => {
+      new Promise<PersistedSessionSnapshot[]>((resolve) => {
         const request = indexedDB.open(databaseName);
 
         request.onerror = () => resolve([]);
         request.onsuccess = () => {
           const database = request.result;
+          const finish = (result: PersistedSessionSnapshot[]) => {
+            database.close();
+            resolve(result);
+          };
           let transaction: IDBTransaction;
           let store: IDBObjectStore;
 
@@ -200,21 +217,21 @@ async function readPersistedSessionsSnapshot(page: Page): Promise<Array<{ title:
             transaction = database.transaction(storeName, 'readonly');
             store = transaction.objectStore(storeName);
           } catch {
-            resolve([]);
+            finish([]);
             return;
           }
 
           const getRequest = store.get(storageKey);
 
-          getRequest.onerror = () => resolve([]);
+          getRequest.onerror = () => finish([]);
           getRequest.onsuccess = () => {
             const value = getRequest.result;
             if (!Array.isArray(value)) {
-              resolve([]);
+              finish([]);
               return;
             }
 
-            resolve(
+            finish(
               value.map((session: { title?: string | null; messages?: Array<{ text?: string | null }> }) => ({
                 title: session.title || null,
                 messages: Array.isArray(session.messages)
@@ -235,6 +252,29 @@ async function readPersistedSessionsSnapshot(page: Page): Promise<Array<{ title:
   );
 }
 
+async function readPersistedSessionState(page: Page): Promise<PersistedSessionState> {
+  const sessions = await readPersistedSessionsSnapshot(page);
+  const messages = sessions[0]?.messages || [];
+
+  return {
+    hasSession: sessions.length > 0,
+    title: sessions[0]?.title ?? null,
+    hasUserMsg: messages.some(message => message.includes('Qual frente exige atenção imediata?')),
+    hasBotReply: messages.some(message => message.includes(DETERMINISTIC_CHAT_REPLY)),
+  };
+}
+
+async function expectPersistedFollowUp(page: Page) {
+  await expect
+    .poll(async () => readPersistedSessionState(page), { timeout: 15000 })
+    .toEqual({
+      hasSession: true,
+      title: EXPECTED_SESSION_TITLE,
+      hasUserMsg: true,
+      hasBotReply: true,
+    });
+}
+
 test.describe('Scout smoke - session persistence', () => {
   test('deve salvar a sessão local e restaurar o histórico após reload', async ({ page }) => {
     await installNetworkStubs(page);
@@ -251,36 +291,14 @@ test.describe('Scout smoke - session persistence', () => {
     await expect
       .poll(async () => readPersistedSessionCount(page), { timeout: 15000 })
       .toBeGreaterThan(0);
-    await expect
-      .poll(async () => {
-        const sessions = await readPersistedSessionsSnapshot(page);
-        return JSON.stringify(sessions[0] || null);
-      }, { timeout: 15000 })
-      .toContain('Qual frente exige atenção imediata?');
-    await expect
-      .poll(async () => {
-        const sessions = await readPersistedSessionsSnapshot(page);
-        return JSON.stringify(sessions[0] || null);
-      }, { timeout: 15000 })
-      .toContain(DETERMINISTIC_CHAT_REPLY);
+    await expectPersistedFollowUp(page);
 
     await page.reload();
 
     await expect(page.getByTestId('greeting-card')).not.toBeVisible({ timeout: 10000 });
     await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 20000 });
-    await expect(page.getByTestId('chat-header-title')).toContainText('Fazenda Modelo');
+    await expect(page.getByTestId('chat-header-title')).toContainText(EXPECTED_SESSION_TITLE);
     await expect(page.getByText('Fluxo determinístico do dossiê').first()).toBeVisible({ timeout: 15000 });
-    await expect
-      .poll(async () => {
-        const sessions = await readPersistedSessionsSnapshot(page);
-        return JSON.stringify(sessions[0] || null);
-      }, { timeout: 15000 })
-      .toContain('Qual frente exige atenção imediata?');
-    await expect
-      .poll(async () => {
-        const sessions = await readPersistedSessionsSnapshot(page);
-        return JSON.stringify(sessions[0] || null);
-      }, { timeout: 15000 })
-      .toContain(DETERMINISTIC_CHAT_REPLY);
+    await expectPersistedFollowUp(page);
   });
 });
