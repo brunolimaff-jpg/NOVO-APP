@@ -16,6 +16,7 @@ Para continuidade entre IAs, leia primeiro:
 8. `docs/ai-context/refactor/02-BOARD.md`
 9. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 10. `docs/ai-context/refactor/06-HANDOFF.md`
+11. `docs/obsidian/00-MASTER.md` para navegacao visual de arquitetura + roadmap (camada de grafo, nao fonte canonica)
 
 ## Contexto minimo estavel
 
@@ -25,6 +26,7 @@ Para continuidade entre IAs, leia primeiro:
 - Auth atual: local-only, persistido no dispositivo via `contexts/OperatorContext.tsx`
 - Integracao externa padrao para IA: `GitHub`
 - Runtime real de validacao manual: Vercel
+- Camada visual versionada para arquitetura/roadmap: `docs/obsidian/00-MASTER.md`
 
 ## Entrypoints e hotspots
 
@@ -125,6 +127,7 @@ Para continuidade entre IAs, leia primeiro:
 - A memoria repo-local em `.agents/memory/` registra o contexto curto entre sessoes e deve apontar para as fontes canonicas.
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
+- `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
 - Validacao manual final deve acontecer em preview/producao na Vercel, nao em `npm run dev`.

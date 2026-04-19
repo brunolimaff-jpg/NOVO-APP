@@ -43,3 +43,9 @@ vercel_build_tag.json
 
 # IDE local (Google Project IDX)
 .idx/
+
+# Shared Obsidian repo graph
+.obsidian/*
+!.obsidian/core-plugins.json
+!.obsidian/graph.json
+*.canvas

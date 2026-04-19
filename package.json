@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "docs:obsidian:check": "node scripts/obsidian/check.mjs",
     "test": "vitest run",
     "test:dossier": "vitest run tests/App.dossierGolden.test.tsx",
     "test:watch": "vitest",

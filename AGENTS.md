@@ -19,6 +19,7 @@ Repo-local memory is the canonical cross-session handoff for agents in this proj
 - At the start of every session, read `.agents/memory/activeContext.md` and `.agents/memory/progress.md` before diagnosing, planning, or editing.
 - Treat `.agents/memory/decisions.md` as durable project context for decisions that should survive beyond the current sprint.
 - Use `HANDOFF_AI.md` as the canonical quick-entry handoff, then follow any source-of-truth docs it references.
+- Use `docs/obsidian/00-MASTER.md` as the visual navigation layer for architecture + roadmap after reading the canonical handoff sources above. Do not treat it as a higher-priority source than `HANDOFF_AI.md`, `.agents/memory/*`, or `docs/ai-context/refactor/*`.
 - Before planning implementation work, use the repo-local `plan-work` skill when available.
 - At task close, update memory with what changed, what validation ran, residual risks, and the immediate next step.
 - Do not treat root `PLAN.md` as canonical unless one of the memory files or handoff docs explicitly references it.

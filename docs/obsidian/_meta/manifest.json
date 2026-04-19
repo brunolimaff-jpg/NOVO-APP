@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "root": "docs/obsidian",
+  "master_note": "docs/obsidian/00-MASTER.md",
+  "required_frontmatter": [
+    "type",
+    "area",
+    "status",
+    "source_of_truth",
+    "last_reviewed",
+    "tags"
+  ],
+  "required_notes": [
+    {
+      "path": "docs/obsidian/00-MASTER.md",
+      "required_links": [
+        "[[OBSIDIAN-README]]",
+        "[[META-Contract]]",
+        "[[DECISIONS-Index]]",
+        "[[ARCH-App-Orchestration]]",
+        "[[ARCH-Chat-Experience]]",
+        "[[ARCH-Services-Gemini]]",
+        "[[ARCH-Serverless-RAG]]",
+        "[[ARCH-State-Storage]]",
+        "[[ARCH-Tests-Quality]]",
+        "[[ROADMAP-Overview]]",
+        "[[ROADMAP-Sprint-Atual]]",
+        "[[ROADMAP-Refactor-Track]]",
+        "[[ROADMAP-Proximos-Blocos]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/OBSIDIAN-README.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[META-Contract]]",
+        "[[ROADMAP-Overview]]",
+        "[[DECISIONS-Index]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/_meta/META-Contract.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[OBSIDIAN-README]]",
+        "[[DECISIONS-Index]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-App-Orchestration.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-Chat-Experience]]",
+        "[[ARCH-State-Storage]]",
+        "[[ROADMAP-Sprint-Atual]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-Chat-Experience.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-App-Orchestration]]",
+        "[[ARCH-Services-Gemini]]",
+        "[[ROADMAP-Refactor-Track]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-Services-Gemini.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-Serverless-RAG]]",
+        "[[ARCH-State-Storage]]",
+        "[[ROADMAP-Proximos-Blocos]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-Serverless-RAG.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-Services-Gemini]]",
+        "[[ARCH-Tests-Quality]]",
+        "[[ROADMAP-Proximos-Blocos]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-State-Storage.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-App-Orchestration]]",
+        "[[ARCH-Services-Gemini]]",
+        "[[ROADMAP-Sprint-Atual]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/architecture/ARCH-Tests-Quality.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-Chat-Experience]]",
+        "[[ARCH-Serverless-RAG]]",
+        "[[ROADMAP-Overview]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/roadmap/ROADMAP-Overview.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ROADMAP-Sprint-Atual]]",
+        "[[ROADMAP-Refactor-Track]]",
+        "[[ROADMAP-Proximos-Blocos]]",
+        "[[DECISIONS-Index]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/roadmap/ROADMAP-Sprint-Atual.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ROADMAP-Overview]]",
+        "[[ARCH-App-Orchestration]]",
+        "[[ARCH-State-Storage]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/roadmap/ROADMAP-Refactor-Track.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ROADMAP-Overview]]",
+        "[[ARCH-Chat-Experience]]",
+        "[[ARCH-Services-Gemini]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/roadmap/ROADMAP-Proximos-Blocos.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ROADMAP-Overview]]",
+        "[[ARCH-Services-Gemini]]",
+        "[[ARCH-Serverless-RAG]]"
+      ]
+    },
+    {
+      "path": "docs/obsidian/decisions/DECISIONS-Index.md",
+      "required_links": [
+        "[[00-MASTER]]",
+        "[[ARCH-State-Storage]]",
+        "[[ROADMAP-Refactor-Track]]",
+        "[[ROADMAP-Overview]]"
+      ]
+    }
+  ]
+}
