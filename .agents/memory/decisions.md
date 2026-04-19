@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-04-15
+Last updated: 2026-04-19
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -25,3 +25,9 @@ Reason: this avoids depending on chat memory while preserving the dedicated refa
 Decision: Sprint 4 will introduce `stores/*` using `Context + Reducer` typed state instead of adding `zustand`.
 
 Reason: the repo does not currently depend on `zustand`, the Sprint 4 goal is structural extraction rather than state-library rollout, and `Context + Reducer` keeps the state boundary explicit without mixing a new dependency into the dossier refactor.
+
+## 2026-04-19 - Obsidian repo graph as versioned navigation layer
+
+Decision: add `docs/obsidian/` as a versioned Obsidian graph layer for architecture + roadmap, with `docs/obsidian/00-MASTER.md` as the entrypoint and `scripts/obsidian/check.mjs` as the local contract check.
+
+Reason: this gives AI-led workflows and human reviewers a durable visual map of the repo while keeping canonical live status in `HANDOFF_AI.md`, `.agents/memory/*`, and `docs/ai-context/refactor/*` instead of duplicating authority into the graph layer.

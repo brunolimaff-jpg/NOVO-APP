@@ -39,6 +39,14 @@ This repo intentionally uses a minimal AI setup:
 
 The canonical skill policy lives in [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md).
 
+## Obsidian repo graph
+
+The repo now includes a versioned Obsidian documentation layer under [`docs/obsidian/`](./docs/obsidian/).
+
+- Start from [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md) for the architecture + roadmap graph entrypoint.
+- Treat it as a navigation layer. The canonical live status still lives in `HANDOFF_AI.md`, `.agents/memory/*`, and `docs/ai-context/refactor/*`.
+- Validate the graph contract with `npm run docs:obsidian:check`.
+
 ## Core docs
 
 | Document | Purpose |
@@ -46,6 +54,8 @@ The canonical skill policy lives in [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-
 | [`AGENTS.md`](./AGENTS.md) | Primary repo instructions |
 | [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md) | Fast onboarding |
 | [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md) | Allowed skills and environment policy |
+| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md) | Obsidian graph entrypoint for architecture + roadmap |
+| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md) | Vault usage and maintenance contract |
 | [`HANDOFF_AI.md`](./HANDOFF_AI.md) | Stable entrypoint for AI handoff |
 | [`ARQUITETURA.md`](./ARQUITETURA.md) | Technical architecture |
 | [`docs/ai-context/refactor/00-README.md`](./docs/ai-context/refactor/00-README.md) | Refactor program context |

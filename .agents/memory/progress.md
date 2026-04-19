@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-17
+Last updated: 2026-04-19
 
 ## Completed
 
@@ -87,6 +87,16 @@ Last updated: 2026-04-17
   - `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
   - `docs/ai-context/ROADMAP_WAR_ROOM.md`
   - updated `docs/ai-context/ARCHITECTURE_MAP.md` to mark hallucination hardening as resolved and track follow-up roadmap items
+- Added a versioned Obsidian repo graph layer on `2026-04-19`:
+  - added `docs/obsidian/00-MASTER.md` as the graph entrypoint
+  - added `docs/obsidian/OBSIDIAN-README.md` and `docs/obsidian/_meta/META-Contract.md`
+  - added architecture notes for app, chat, services/Gemini, serverless/RAG, state/storage, and tests
+  - added roadmap notes for overview, current sprint, refactor track, and next blocks
+  - added `docs/obsidian/decisions/DECISIONS-Index.md`
+  - added `docs/obsidian/_meta/manifest.json` plus `scripts/obsidian/check.mjs`
+  - updated `README.md`, `AGENTS.md`, `CLAUDE.md`, `HANDOFF_AI.md`, and `docs/SKILLS-GOVERNANCE.md` to point to the new master note
+  - added shared Obsidian config in `.obsidian/core-plugins.json` and `.obsidian/graph.json`
+  - updated `.gitignore` to keep local Obsidian workspace/canvas artifacts out of git
 
 ## In progress
 
@@ -123,6 +133,8 @@ Last updated: 2026-04-17
 - Passed: Sprint 5 sidebar UX patch validation with `tests/components/SessionsSidebar.test.tsx` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - Not run for the documentation-only War Room PR artifacts: `npm run typecheck`, `npm run build`.
+- Passed: `npm run docs:obsidian:check` on `2026-04-19`
+- Passed: `npm run typecheck` on `2026-04-19`
 
 ## Important refs
 
@@ -155,11 +167,15 @@ Last updated: 2026-04-17
 - Composer focused tests: `tests/components/chat/Composer.test.tsx`
 - Message timeline focused tests: `tests/components/chat/MessageTimeline.test.tsx`
 - Chat panels focused tests: `tests/components/chat/ChatPanels.test.tsx`
+- Obsidian graph entrypoint: `docs/obsidian/00-MASTER.md`
+- Obsidian graph manifest: `docs/obsidian/_meta/manifest.json`
+- Obsidian checker: `scripts/obsidian/check.mjs`
 
 ## Next checkpoint
 
 - Open the Sprint 5 PR from `codex/sprint5-chatinterface-modularization` and keep the scope structural-only.
 - Run the Sprint 5 manual smoke checklist in preview/Vercel: operator gate, initial home, active-session timeline, header actions, and composer send/stop/retry.
+- Open the repo once as an Obsidian vault and visually confirm the graph around `docs/obsidian/00-MASTER.md`.
 - Do not include unrelated local artifacts such as `mcp-server/`.
 - Prefer `npm run test:dossier` before doing another manual dossier export pass.
 - If broader dossier regression coverage is needed later, add a second canonical fixture instead of relaxing the Scheffer golden case.

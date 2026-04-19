@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-17
+Last updated: 2026-04-19
 
 ## Current operating context
 
@@ -13,6 +13,7 @@ Read order for a new session:
 3. `.agents/memory/activeContext.md`
 4. `.agents/memory/progress.md`
 5. `.agents/memory/decisions.md`
+6. `docs/obsidian/00-MASTER.md` for visual navigation of architecture + roadmap after the canonical sources above
 
 ## Current refactor sprint
 
@@ -60,3 +61,9 @@ Sprint 5 is now `active`.
   - `docs/ai-context/ROADMAP_WAR_ROOM.md`
 - `docs/ai-context/ARCHITECTURE_MAP.md` now records War Room hallucination hardening as resolved and tracks `Concorrentes` / domain-restricted search as follow-up items.
 - The intended PR narrative is **War Room hardening**, not Mermaid. If a branch still carries Mermaid commits, keep that mismatch explicit and correct it before opening the PR.
+- Added a versioned Obsidian repo graph layer on `2026-04-19`:
+  - `docs/obsidian/00-MASTER.md`
+  - `docs/obsidian/OBSIDIAN-README.md`
+  - `docs/obsidian/_meta/manifest.json`
+  - `scripts/obsidian/check.mjs`
+- The Obsidian layer is navigation-only. Canonical live status remains `HANDOFF_AI.md`, `.agents/memory/*`, and `docs/ai-context/refactor/*`.

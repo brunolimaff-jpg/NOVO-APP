@@ -10,6 +10,7 @@ Objetivo: manter o repo operável com um conjunto pequeno de capacidades version
 - MCPs extras no repo: nenhum
 - Skills globais em `~/.codex/skills`: não são pré-requisito operacional
 - Skills válidas para uso padrão: apenas a allowlist abaixo
+- `docs/obsidian/` é uma camada documental versionada do repo para navegação em grafo, não uma integração externa nem um MCP extra
 
 ## Allowlist oficial
 
@@ -73,6 +74,7 @@ Todo o restante de `~/.codex/skills` fica fora do contrato deste repo. Pode exis
 - `skills-lock.json` reflete apenas as skills locais aprovadas
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
+- `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
 
 ## Short roadmap
 

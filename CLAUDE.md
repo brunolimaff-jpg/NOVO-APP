@@ -17,6 +17,7 @@ Before substantial work, read in this order:
 2. `docs/SKILLS-GOVERNANCE.md`
 3. `HANDOFF_AI.md`
 4. `docs/ai-context/refactor/00-README.md` when the task touches the refactor roadmap
+5. `docs/obsidian/00-MASTER.md` when the task touches architecture or roadmap navigation; treat it as a graph/index layer, not as the canonical live status
 
 ## Approved AI Surface
 
@@ -68,3 +69,4 @@ npm run lint
 - No extra MCP servers are configured in this repo today.
 - Playwright may still be used as a local test dependency, but not as an operational MCP standard.
 - If the environment model changes, update `docs/SKILLS-GOVERNANCE.md` first, then align docs and lockfiles.
+- If architecture or roadmap notes change, update `docs/obsidian/00-MASTER.md` and keep the linked Obsidian notes aligned with the canonical handoff/memory docs.
