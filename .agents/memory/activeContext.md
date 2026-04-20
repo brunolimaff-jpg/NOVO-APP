@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-19
+Last updated: 2026-04-20
 
 ## Current operating context
 
@@ -17,20 +17,21 @@ Read order for a new session:
 
 ## Current refactor sprint
 
-The structural refactor program is active. The canonical live status is in:
+The structural refactor program remains active. The canonical live status is in:
 
 - `docs/ai-context/refactor/02-BOARD.md`
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
 
 Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline dossier golden regression is merged through PR `#222`.
-Sprint 3 is now `done` after the integrated manual validation completed on `2026-04-15`.
-Sprint 4 is now `done` after PR `#228` landed in `main` on `2026-04-17`.
-Sprint 5 is now `active`.
+Sprint 3 is `done` after the integrated manual validation completed on `2026-04-15`.
+Sprint 4 is `done` after PR `#228` landed in `main` on `2026-04-17`.
+Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted em `2026-04-20` based on user confirmation plus ongoing usage without complaints.
+Sprint 6 is now the next official step.
 
 ## Current task
 
-`origin/main` is now on the post-`#228` baseline (`16c8f2e001e92e4830415506d7406ca236ed91f8`), and Sprint 5 is implemented locally on branch `codex/sprint5-chatinterface-modularization`.
+`origin/main` is now on the post-`#234` baseline (`c2b51444d6f7a42476b07677303cf61a6cdc098e`), and Sprint 5 already lives in `main`.
 
 - `components/ChatInterface.tsx` is now a thinner orchestration facade; `ChatInterfaceProps` stayed unchanged.
 - `components/chat/ChatShell.tsx` owns the layout shell, sidebar/header composition, and panel mounting slots.
@@ -39,19 +40,16 @@ Sprint 5 is now `active`.
 - `components/chat/ChatPanels.tsx` centralizes the lazy overlays for dashboard, settings, war room, and radar.
 - `components/chat/contracts.ts` holds the internal chat-slice contracts, including the `RadarProps` re-export path preserved by the facade.
 - `services/geminiService.ts` stayed untouched as the stable public AI facade.
+- `prompts/megaPrompts.ts` remains a single file with prompt/encoding debt; Sprint 6 must split it into `prompts/mega/*` without breaking markers `[[PORTA_*]]` or public builders.
 - The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command remains `npm run test:dossier`.
-- Sprint 5 is structural only; do not use it to widen `ChatInterfaceProps` or move domain rules into `components/chat/*`.
-- Automated validation for Sprint 5 passed on `2026-04-17`: focused `ChatInterface`/`components/chat/*`, `npm run test`, `npm run typecheck`, and `npm run build`.
-- The first PR review patch for Sprint 5 also landed on `2026-04-17`: `ChatInterface.tsx` now uses `Sender.User` in the markdown copy path and `RadarAlert` in the radar context formatter.
-- A Sprint 5 PR also received a sidebar responsiveness patch on `2026-04-17`: `SessionsSidebar.tsx` now animates only `transform` at `200ms` on mobile, disables the width transition on desktop, and `App.tsx` now toggles `isSidebarOpen` via functional state update.
 - The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
 
 ## Immediate next step
 
-1. open the Sprint 5 PR from `codex/sprint5-chatinterface-modularization`
-2. run the manual smoke pass in preview/Vercel for operator gate, initial home, active-session timeline, header actions, sidebar open/close responsiveness, and composer send/stop/retry
-3. if the smoke pass stays green, merge Sprint 5 and sync board/handoff/memory again before opening Sprint 6 planning
+1. open the Sprint 6 branch from current `main`
+2. split `prompts/megaPrompts.ts` into `prompts/mega/*` while preserving markers `[[PORTA_*]]`, public builders, and removing `@ts-nocheck`
+3. run the automated gate/contract checks for Sprint 6 and sync board/handoff/memory again once the sprint advances
 
 ## Additional documentation context
 
@@ -60,7 +58,6 @@ Sprint 5 is now `active`.
   - `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
   - `docs/ai-context/ROADMAP_WAR_ROOM.md`
 - `docs/ai-context/ARCHITECTURE_MAP.md` now records War Room hallucination hardening as resolved and tracks `Concorrentes` / domain-restricted search as follow-up items.
-- The intended PR narrative is **War Room hardening**, not Mermaid. If a branch still carries Mermaid commits, keep that mismatch explicit and correct it before opening the PR.
 - Added a versioned Obsidian repo graph layer on `2026-04-19`:
   - `docs/obsidian/00-MASTER.md`
   - `docs/obsidian/OBSIDIAN-README.md`
