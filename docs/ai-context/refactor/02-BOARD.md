@@ -4,56 +4,21 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `16c8f2e001e92e4830415506d7406ca236ed91f8` |
-| Working branch | `codex/sprint5-chatinterface-modularization` |
-| Last updated | `2026-04-17` |
-| Current phase | `execution` |
-| Current sprint | `5` |
+| Source of truth commit | `origin/main` -> `c2b51444d6f7a42476b07677303cf61a6cdc098e` |
+| Working branch | `main` (branch da Sprint 6 ainda nao aberta) |
+| Last updated | `2026-04-20` |
+| Current phase | `planning` |
+| Current sprint | `6` |
 | Overall status | `active` |
-| Current baseline | `main` ja inclui Sprint 4 completa via PR `#228`; Sprint 5 foi implementada no branch `codex/sprint5-chatinterface-modularization` com gates automatizados green em `2026-04-17`; lint backlog pre-existing |
+| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, e a camada versionada de Obsidian via PR `#234`; a validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes; Sprint 6 e o proximo foco oficial |
 
 ## Current Focus
 
 - Sprint 2 foi concluida e mergeada sem quebrar a fachada publica de `services/geminiService.ts`
 - A extracao interna da camada Gemini ficou ativa em `services/gemini/` com compatibilidade preservada
-- Sprint 3 corte 1 foi mergeado: progresso/loading do chat extraido para `features/chat/loading-progress.ts` via PR `#216`
-- Sprint 3 corte 2A foi mergeado: `useSessionManager` foi movido para `features/chat/session-controller.ts` via PR `#217`
-- Sprint 3 corte 2B foi mergeado: `App.tsx` passou a importar `features/chat/session-controller` via PR `#218`
-- Sprint 3 corte 2C foi mergeado: save remoto extraido para `features/chat/session-controller` via PR `#219`
-- Pacote de sessao (`2A` + `2B` + `2C`) foi validado manualmente em 2026-04-14
-- Sprint 3 corte 3 foi mergeado: feedback actions extraidas para `features/chat/feedback-actions.ts` via PR `#220`
-- Sprint 3 corte final foi mergeado: envio padrao extraido para `features/chat/message-orchestrator.ts` via PR `#221`
-- `features/chat/message-helpers.ts` concentra utilitarios de deteccao/continuidade compartilhados pelo orchestrator
-- PR `#222` foi mergeada: regression harness offline do dossie canonico Scheffer entrou em `main`
-- `npm run test:dossier` virou o fast-check recomendado para o fluxo canonico de dossie
-- `App.tsx` caiu para `1521` linhas no corte final da Sprint 3 (`-302` vs baseline `1823`)
-- A validacao manual integrada da Sprint 3 foi concluida em runtime real em `2026-04-15`
-- Sprint 3 foi encerrada como `done` com board/handoff/memory sincronizados
-- Sprint 4 foi aberta em duas ondas tecnicas:
-  - Onda 1: extrair `features/dossier/*` sem reabrir o desenho de estado
-  - Onda 2: introduzir `stores/*` com `Context + Reducer` tipado e error boundaries por feature
-- Onda 1 da Sprint 4 foi mergeada em `main` via PR `#227`:
-  - `features/dossier/waterfall-orchestrator.ts` virou o novo dono de `runMegaPromptWaterfall`
-  - `features/dossier/benchmark-stage.ts` encapsula benchmark isolado, timeout e falha opcional
-  - `features/dossier/porta-reconciliation.ts` concentra retries de modulos, reconciliacao PORTA, fallback tecnico e integrity hold
-- `App.tsx` deixou de conter o runtime do waterfall e caiu para `815` linhas neste corte
-- `tests/App.portaRecovery.test.ts` foi migrado para `tests/features/dossier/porta-reconciliation.test.ts`
-- `tests/features/dossier/benchmark-stage.test.ts` entrou para cobrir sucesso, falha nao-bloqueante e abort terminal do benchmark
-- Escopo de validacao manual desta onda ficou explicitado para runtime real:
-  - gerar um `Dossie completo` do inicio ao fim e conferir score PORTA + secoes finais
-  - validar follow-up apos dossie completo
-  - validar retry do ramo de envio/recuperacao sem quebrar a mensagem final
-  - validar exportacao/continuity suggestions e persistencia remota sem regressao funcional
-- Onda 2 foi mergeada em `main` via PR `#228`:
-  - `stores/chatStore.tsx` concentra sessao, mensagens, loading e refs operacionais
-  - `stores/dossierStore.tsx` concentra export/save state
-  - `App.tsx` e `index.tsx` agora usam providers/hooks de store
-  - `features/chat/ChatErrorBoundary.tsx` protege o shell do chat
-  - `features/dossier/DossierErrorBoundary.tsx` protege renderizacao de dossie e overlay hero
-  - `components/ErrorBoundary.tsx` passou a compartilhar auditoria com `utils/errorBoundaryAudit.ts`
-  - `components/MessageRow.tsx` agora envolve o subtree de dossie com boundary local
-  - a suite ganhou cobertura para stores e boundaries
-- Sprint 5 foi aberta no branch atual:
+- Sprint 3 foi concluida e mergeada em `main` atraves das PRs `#216`-`#221`, com a regressao offline do dossie canonico entrando via PR `#222`
+- Sprint 4 foi concluida e mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2)
+- Sprint 5 foi concluida em `main` via PR `#229`:
   - `components/ChatInterface.tsx` segue como facade publica estavel
   - `components/chat/ChatShell.tsx` concentra sidebar, header e composicao de areas
   - `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
@@ -61,17 +26,21 @@
   - `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
   - `components/chat/contracts.ts` virou o contrato interno compartilhado dessa camada
   - `ChatInterfaceProps` e a fachada publica de `services/geminiService.ts` foram preservados
-  - entraram testes focados para `Composer`, `MessageTimeline` e `ChatPanels`
-  - um patch de UX tambem reduziu o atraso perceptivel da sidebar:
-    - `components/SessionsSidebar.tsx` agora anima apenas `transform` em `200ms` no mobile
-    - a transicao de largura foi removida no desktop
-    - `App.tsx` passou a usar functional update no toggle de `isSidebarOpen`
+  - a validacao manual foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes
+- O follow-up de UX da Sprint 5 tambem ja esta em `main`:
+  - `components/SessionsSidebar.tsx` anima apenas `transform` em `200ms` no mobile
+  - a transicao de largura foi removida no desktop
+  - `App.tsx` passou a usar functional update no toggle de `isSidebarOpen`
+- Sprint 6 agora e o proximo foco oficial:
+  - dividir `prompts/megaPrompts.ts` em `prompts/mega/*`
+  - remover `@ts-nocheck`
+  - preservar markers `[[PORTA_*]]` e builders publicos
 
 ## Next Up
 
-1. Abrir/revisar a PR da Sprint 5 (`codex/sprint5-chatinterface-modularization`)
-2. Rodar a validacao manual em preview/Vercel para gate inicial, home, timeline ativa, header actions, responsividade de abrir/fechar da sidebar e composer send/stop/retry
-3. Depois do merge, sincronizar `main`/docs novamente e preparar Sprint 6
+1. Abrir a Sprint 6 a partir do `main`, em branch propria, mantendo o escopo dedicado a `prompts/megaPrompts.ts`
+2. Dividir `prompts/megaPrompts.ts` em `prompts/mega/*`, remover `@ts-nocheck` e preservar markers `[[PORTA_*]]` e builders publicos
+3. Rodar o gate automatizado/contratos da Sprint 6 e, depois, sincronizar `main`/docs novamente com o estado real da sprint
 
 ## Blocked
 
@@ -79,10 +48,8 @@
 
 ## Validation Pending
 
-- Nenhuma pendencia para o fechamento da Sprint 3; a validacao manual integrada foi concluida em `2026-04-15`
-- O gate automatizado da Onda 1 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build`
-- O gate automatizado da Onda 2 fechou com `npm run test:dossier`, `npm run test`, `npm run typecheck` e `npm run build` em `2026-04-16`
-- A Sprint 5 fechou o gate automatizado com:
+- Nenhuma pendencia residual para o fechamento da Sprint 5; a validacao manual foi aceita em `2026-04-20` com base na confirmacao do operador e no uso real sem reclamacoes
+- O gate automatizado da Sprint 5 fechou com:
   - `tests/components/ChatInterface.test.tsx`
   - `tests/components/chat/Composer.test.tsx`
   - `tests/components/chat/MessageTimeline.test.tsx`
@@ -93,7 +60,6 @@
 - O patch de responsividade da sidebar fechou com:
   - `tests/components/SessionsSidebar.test.tsx`
   - `tests/components/ChatInterface.test.tsx`
-- Em runtime real, a rodada manual da Sprint 5 deve cobrir gate inicial, home, timeline, header actions e composer sem regressao visual/funcional
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings
@@ -109,7 +75,7 @@
 | 2 | Quebrar Gemini | done | `services/gemini/` criado com facade estavel | `origin/main@ef30b5d` | `services/geminiService.ts`, `services/gemini/*` |
 | 3 | Extrair chat do App | done | `features/chat/` ativo; `App.tsx` reduzido; validacao manual integrada concluida em `2026-04-15` | `origin/main@510f91fa3653cbfa1552e7f3d4e3a43883a45e17` | `App.tsx`, `features/chat/*` |
 | 4 | Extrair dossie do App | done | Onda 1 implementa `features/dossier/`; Onda 2 consolida `stores/*` e error boundaries | `start-of-sprint-4` | `App.tsx`, `features/dossier/*`, `stores/*` |
-| 5 | Modularizar ChatInterface | active | `components/chat/` ativo com facade estavel em `ChatInterface.tsx`; smoke manual pendente antes do merge | `origin/main@16c8f2e` | `components/ChatInterface.tsx`, `components/chat/*` |
-| 6 | Dividir megaPrompts | planned | `prompts/mega/` criado; `@ts-nocheck` removido | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
+| 5 | Modularizar ChatInterface | done | `components/chat/` ativo com facade estavel em `ChatInterface.tsx`; PR `#229` mergeada e validacao manual aceita em `2026-04-20` | `origin/main@16c8f2e` | `components/ChatInterface.tsx`, `components/chat/*` |
+| 6 | Dividir megaPrompts | planned | `prompts/mega/` criado; `@ts-nocheck` removido; markers `[[PORTA_*]]` preservados | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | planned | `hooks/useChat.ts` removido; `constants.ts` reduzido | `start-of-sprint-7` | `constants.ts`, `hooks/useChat.ts`, `services/apiConfig.ts` |
 | 8 | War Room e docs finais | planned | `services/war-room/` ativo e docs consolidadas | `start-of-sprint-8` | `services/warRoomService.ts`, `docs/ai-context/*` |
