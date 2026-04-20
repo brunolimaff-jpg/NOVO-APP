@@ -28,7 +28,7 @@
 
 | ID | Severidade | Status | Item | Impacto | Acao |
 |---|---|---|---|---|---|
-| OI-030 | medium | open | `App.tsx` e `geminiService.ts` continuam hotspots durante o Sprint 4 | Todo ajuste de produto tende a encostar neles | Mudancas de produto nesses arquivos devem ser minimas ate a Onda 2 fechar |
+| OI-030 | medium | open | `App.tsx` e `geminiService.ts` continuam hotspots apos o fechamento da Sprint 5 | Ajustes de produto ainda tendem a encostar neles | Manter mudancas de produto minimas nesses arquivos enquanto a Sprint 6 modulariza `prompts/megaPrompts.ts` |
 | OI-031 | medium | open | `constants.ts` ja iniciou extracao com `constants/loadingStages.ts` | Boa base para Sprint 7 | Seguir extracoes por grupo; priorizar `market-intelligence.ts` antes de `app.ts` |
 | OI-032 | low | resolved | `HANDOFF_AI.md` antigo continha contexto de auth desatualizado | Pode confundir outras IAs | Handoff sincronizado com auth local-only e arquitetura Gemini extraida |
 
@@ -37,9 +37,9 @@
 | ID | Severidade | Status | Item | Impacto | Acao |
 |---|---|---|---|---|---|
 | OI-040 | high | resolved | `message-orchestrator` (ultimo corte Sprint 3) estava pendente | Risco de conflito de estado se nova feature abrisse sobre `App.tsx` antes deste corte fechar | Encerrado com a PR `#221` e com a validacao manual integrada da Sprint 3 em `2026-04-15` |
-| OI-041 | high | open | Ausencia de camada `stores/` forca `App.tsx` a segurar estado de sessao e score PORTA mesmo apos extracao das features | Features pos-Sprint 4 herdam estado por props em cascata | Fechar na Onda 2 do Sprint 4 com `stores/chatStore.ts` e `stores/dossierStore.ts` usando `Context + Reducer` tipado |
-| OI-042 | high | open | Ausencia de Error Boundaries por feature | Gemini 429/500/offline quebra tela silenciosamente sem fallback visual | Fechar na Onda 2 do Sprint 4 com `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx` |
+| OI-041 | high | resolved | Ausencia de camada `stores/` forcava `App.tsx` a segurar estado de sessao e score PORTA mesmo apos extracao das features | Features pos-Sprint 4 herdavam estado por props em cascata | Resolvido pela Onda 2 da Sprint 4 com `stores/chatStore.tsx` e `stores/dossierStore.tsx`, mergeada via PR `#228` |
+| OI-042 | high | resolved | Ausencia de Error Boundaries por feature | Gemini 429/500/offline quebrava tela silenciosamente sem fallback visual | Resolvido pela Onda 2 da Sprint 4 com `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`, mergeada via PR `#228` |
 | OI-043 | medium | open | `constants.ts` mistura inteligencia de mercado (muda com frequencia) com constantes de UI (quase nunca mudam) | IA que edita dados de mercado pode causar efeito colateral em comportamento de loading | Sprint 7: extrair `market-intelligence.ts` ANTES de `app.ts` |
 | OI-044 | medium | open | Radar nao tem destino arquitetural definido; sem pre-esqueleto a feature nascera ad hoc dentro de `App.tsx` | Retrabalho de relocacao quando Radar for implementado | Criar `features/radar/` (stub com tipos e README) no Sprint 8 antes de qualquer implementacao |
-| OI-045 | medium | open | `mobile-responsive.css` existe fora de `index.css` como arquivo separado | Classes mobile ficarao orfas ou duplicadas quando `components/chat/*` for extraido no Sprint 5 | Consolidar CSS mobile junto ou antes do Sprint 5 |
+| OI-045 | medium | open | `mobile-responsive.css` continua separado de `index.css` apos o fechamento da Sprint 5 | Pode gerar drift ou duplicacao de estilos mobile em futuras extracoes do chat | Tratar em passada dedicada de higiene visual, fora da Sprint 6 de prompts |
 | OI-046 | medium | resolved | Responsabilidade do retry no `message-orchestrator` precisava ficar explicita | Retry podia ficar no componente pai ou no service, criando dois caminhos ativos | Consolidado na PR `#221`: retry de envio vive em `features/chat/message-orchestrator.ts`, nao no componente |
