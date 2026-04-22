@@ -35,9 +35,9 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Next Safe Step
 
-1. Abrir a PR da Sprint 6 a partir de `codex/sprint6-mega-prompts-modularization`
+1. Revisar e mergear a PR `#236` da Sprint 6
 2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais; nao fazer cleanup cego de encoding sem defeito concreto
-3. Sincronizar `board`/`handoff`/`memory` novamente quando a PR avancar para merge
+3. Sincronizar `board`/`handoff`/`memory` novamente quando a PR `#236` avancar para merge
 
 ## Files Most Relevant Now
 

@@ -72,10 +72,10 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Open the Sprint 6 PR from `codex/sprint6-mega-prompts-modularization`; the branch scope is considered complete for this wave.
+- Sprint 6 PR `#236` is open from `codex/sprint6-mega-prompts-modularization`.
 - Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts; the `@ts-nocheck` item is already moot on the current baseline.
 - Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
 - Prefer `npm run test:dossier` plus the dossier consumer suite as fast-checks when touching prompt composition.
 - Avoid blind encoding cleanup unless a concrete runtime defect or failing contract test justifies it.
 - Deep Dive does not need a dedicated manual spot-check while it remains hidden in the current product surface.
-- Sync the canonical docs/memory again when opening or merging the Sprint 6 PR.
+- Sync the canonical docs/memory again when PR `#236` moves to merge.

@@ -28,9 +28,9 @@
 
 ## Next Up
 
-1. Abrir a PR da Sprint 6 a partir de `codex/sprint6-mega-prompts-modularization`
+1. Revisar e mergear a PR `#236` da Sprint 6
 2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais; nao fazer cleanup cego de encoding sem defeito concreto
-3. Sincronizar `main`/docs novamente com o estado real da sprint quando a PR avancar para merge
+3. Sincronizar `main`/docs novamente com o estado real da sprint quando a PR `#236` avancar para merge
 
 ## Blocked
 
