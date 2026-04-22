@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-20
+Last updated: 2026-04-22
 
 ## Current operating context
 
@@ -27,11 +27,11 @@ Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline 
 Sprint 3 is `done` after the integrated manual validation completed on `2026-04-15`.
 Sprint 4 is `done` after PR `#228` landed in `main` on `2026-04-17`.
 Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted on `2026-04-20` based on user confirmation plus ongoing usage without complaints.
-Sprint 6 is now the next official step.
+Sprint 6 is now `done`, and Sprint 7 is the next official step.
 
 ## Current task
 
-`origin/main` is now on the post-`#234` baseline (`c2b51444d6f7a42476b07677303cf61a6cdc098e`), and Sprint 5 already lives in `main`.
+`main` now includes the Sprint 6 merge commit from PR `#236` (`d514733f7ababa0a9dab4c4a26f133d39bc6e342`), and Sprint 7 is the next planned refactor step.
 
 - `components/ChatInterface.tsx` is now a thinner orchestration facade; `ChatInterfaceProps` stayed unchanged.
 - `components/chat/ChatShell.tsx` owns the layout shell, sidebar/header composition, and panel mounting slots.
@@ -40,16 +40,31 @@ Sprint 6 is now the next official step.
 - `components/chat/ChatPanels.tsx` centralizes the lazy overlays for dashboard, settings, war room, and radar.
 - `components/chat/contracts.ts` holds the internal chat-slice contracts, including the `RadarProps` re-export path preserved by the facade.
 - `services/geminiService.ts` stayed untouched as the stable public AI facade.
-- `prompts/megaPrompts.ts` remains a single file with prompt/encoding debt; Sprint 6 must split it into `prompts/mega/*` without breaking markers `[[PORTA_*]]` or public builders.
+- `prompts/megaPrompts.ts` is now a thin facade that re-exports the Sprint 6 internals under `prompts/mega/*`.
+- `prompts/mega/contracts.ts` now holds the public prompt-builder types.
+- `prompts/mega/foundation.ts` now owns the shared governance/foundation blocks and the investigation orchestrator constants.
+- `prompts/mega/specialist-prompts.ts` now owns the specialist deep-dive prompt constants.
+- `prompts/mega/builders.ts` now owns `SHARED_FOUNDATION_BLOCK`, `INVESTIGATION_MODE_BLOCKS`, both builders, `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, and the compatibility default export.
+- The old Sprint 6 plan item about removing `@ts-nocheck` is stale on the current baseline; the pragma was already absent from `prompts/megaPrompts.ts` when the sprint started.
+- `mcp-server/` is deferred local-only work and must stay out of Sprint 6-8 scope unless the user reprioritizes it after the refactor track.
 - The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command remains `npm run test:dossier`.
 - The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
+- Sprint 6 validation closed green on `2026-04-22` for:
+  - `npm run typecheck`
+  - `vitest run tests/prompts/megaPrompts.test.ts`
+  - `vitest run tests/features/dossier/waterfall-orchestrator.test.ts`
+  - `npm run test:dossier`
+  - `npm run build`
+  - facade contract coverage now explicitly locking `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export in `tests/prompts/megaPrompts.test.ts`
+  - `npm run test:e2e:smoke`
+  - no dedicated manual Deep Dive spot-check, because the flow is currently hidden in the active product surface
 
 ## Immediate next step
 
-1. open the Sprint 6 branch from current `main`
-2. split `prompts/megaPrompts.ts` into `prompts/mega/*` while preserving markers `[[PORTA_*]]`, public builders, and removing `@ts-nocheck`
-3. run the automated gate/contract checks for Sprint 6 and sync board/handoff/memory again once the sprint advances
+1. Open Sprint 7 from `main`, prioritizing the extraction of `market-intelligence.ts` from `constants.ts`
+2. Validate affected imports and consumers, then remove `hooks/useChat.ts` without breaking `tests/architecture/useChatImportGuard.test.ts`
+3. Apply light hardening in `services/apiConfig.ts`, keep `types.ts` centralized unless there is a clear ROI trigger, and keep `mcp-server/` deferred until after Sprints 6-8
 
 ## Additional documentation context
 

@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-20
+Last updated: 2026-04-22
 
 ## Completed
 
@@ -21,10 +21,12 @@ Last updated: 2026-04-20
 - Added additional waterfall/persistence regression coverage in `main` via PR `#233`.
 - Added the versioned Obsidian repo graph layer in `main` via PR `#234`.
 - Synced `BOARD` / `HANDOFF` / `HANDOFF_AI` / repo-local memory to close Sprint 5 and point the next official step to Sprint 6.
+- Merged Sprint 6 mega prompts modularization into `main` via PR `#236` on `2026-04-22`, preserving the public prompt facade and prompt contracts.
 
 ## In progress
 
-- Sprint 6 planning/opening for `prompts/megaPrompts.ts` modularization; no implementation branch has been opened yet.
+- Sprint 7 planning/opening for `constants.ts` hygiene, `hooks/useChat.ts` removal, and light `services/apiConfig.ts` hardening.
+- `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
 
@@ -39,6 +41,14 @@ Last updated: 2026-04-20
 - Passed: `npm run docs:obsidian:check` on `2026-04-19`.
 - Passed: `npm run typecheck` on `2026-04-19`.
 - Accepted: Sprint 5 manual validation in runtime real was treated as complete on `2026-04-20` based on operator confirmation and continued usage without complaints.
+- Passed: Sprint 6 prompt facade extraction with `npm run typecheck` on `2026-04-22`.
+- Passed: Sprint 6 prompt contract suite `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
+- Passed: Sprint 6 facade contract coverage now explicitly locks `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export alignment in `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
+- Passed: Sprint 6 dossier consumer suite `tests/features/dossier/waterfall-orchestrator.test.ts` on `2026-04-22`.
+- Passed: Sprint 6 dossier fast-check `npm run test:dossier` on `2026-04-22`.
+- Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
+- Passed: Sprint 6 Playwright smoke suite `npm run test:e2e:smoke` on `2026-04-22` after hardening `tests-e2e/smoke.chat-shell.spec.ts`.
+- Accepted: no separate Sprint 6 manual Deep Dive validation was required because the user confirmed the Deep Dive flow is currently hidden behind the active product surface.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
 
@@ -48,7 +58,8 @@ Last updated: 2026-04-20
 - Open items and risk gates: `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 - Canonical quick-entry handoff: `HANDOFF_AI.md`
-- Prompt monolith to break in Sprint 6: `prompts/megaPrompts.ts`
+- New internal prompt modules: `prompts/mega/*`
+- Next Sprint 7 hotspot: `constants.ts`
 - Auxiliary prompt file: `prompts/systemPrompts.ts`
 - Chat facade: `components/ChatInterface.tsx`
 - Chat shell: `components/chat/ChatShell.tsx`
@@ -61,8 +72,9 @@ Last updated: 2026-04-20
 
 ## Next checkpoint
 
-- Open the Sprint 6 branch from `main` with scope limited to `prompts/megaPrompts.ts` modularization.
-- Preserve markers `[[PORTA_*]]`, public builders, and remove `@ts-nocheck` without widening the sprint scope.
-- Do not include unrelated local artifacts such as `mcp-server/`.
-- Prefer `npm run test:dossier` as a fast-check if the Sprint 6 prompt work touches dossier behavior.
-- Sync the canonical docs/memory again once Sprint 6 moves from planning to implementation.
+- Open Sprint 7 from `main`, starting with high-ROI extraction from `constants.ts` into `market-intelligence.ts`.
+- Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts already stabilized by Sprint 6.
+- Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
+- Remove `hooks/useChat.ts` only after validating import consumers and preserving the existing guardrail.
+- Prefer `npm run test:dossier` if Sprint 7 hygiene touches dossier-adjacent behavior indirectly.
+- Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 7.
