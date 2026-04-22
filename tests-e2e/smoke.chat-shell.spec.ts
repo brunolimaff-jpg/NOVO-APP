@@ -10,7 +10,7 @@ test.describe('Scout smoke - chat shell', () => {
 
     await expect(page.getByTestId('investigation-company-input')).toBeVisible();
     await page.getByTestId('investigation-company-input').fill('Fazenda Modelo');
-    await page.getByTestId('investigation-city-input').fill('Cuiaba');
+    await page.getByTestId('investigation-city-input').fill('Cuiab\u00E1');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
 
@@ -36,7 +36,9 @@ test.describe('Scout smoke - chat shell', () => {
 
     await page
       .getByTestId('chat-input')
-      .fill('Quais sao os principais riscos fiscais dessa operacao?', { timeout: 40_000 });
+      .fill('Quais s\u00E3o os principais riscos fiscais dessa opera\u00E7\u00E3o?', {
+        timeout: 40_000,
+      });
     await page.getByTestId('chat-send-button').click();
 
     await expect(
