@@ -48,6 +48,7 @@ Last updated: 2026-04-22
 - Passed: Sprint 6 dossier fast-check `npm run test:dossier` on `2026-04-22`.
 - Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
 - Passed: Sprint 6 Playwright smoke suite `npm run test:e2e:smoke` on `2026-04-22` after hardening `tests-e2e/smoke.chat-shell.spec.ts`.
+- Accepted: no separate Sprint 6 manual Deep Dive validation is required before the PR because the user confirmed the Deep Dive flow is currently hidden behind the active product surface.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
 
@@ -71,9 +72,10 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Open or prepare the Sprint 6 PR from `codex/sprint6-mega-prompts-modularization` once the current branch scope is considered complete.
+- Open the Sprint 6 PR from `codex/sprint6-mega-prompts-modularization`; the branch scope is considered complete for this wave.
 - Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts; the `@ts-nocheck` item is already moot on the current baseline.
 - Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
 - Prefer `npm run test:dossier` plus the dossier consumer suite as fast-checks when touching prompt composition.
 - Avoid blind encoding cleanup unless a concrete runtime defect or failing contract test justifies it.
-- Sync the canonical docs/memory again once Sprint 6 is ready for PR.
+- Deep Dive does not need a dedicated manual spot-check while it remains hidden in the current product surface.
+- Sync the canonical docs/memory again when opening or merging the Sprint 6 PR.

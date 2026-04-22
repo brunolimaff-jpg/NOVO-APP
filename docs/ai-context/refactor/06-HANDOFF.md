@@ -35,9 +35,9 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Next Safe Step
 
-1. Continuar a limpeza interna da Sprint 6 dentro de `prompts/mega/*`, mantendo `prompts/megaPrompts.ts` como facade publica estavel
-2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais enquanto decide se algum cleanup extra de encoding cabe sem risco nesta sprint
-3. Sincronizar `board`/`handoff`/`memory` novamente e abrir a PR da Sprint 6 quando o escopo estabilizar
+1. Abrir a PR da Sprint 6 a partir de `codex/sprint6-mega-prompts-modularization`
+2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais; nao fazer cleanup cego de encoding sem defeito concreto
+3. Sincronizar `board`/`handoff`/`memory` novamente quando a PR avancar para merge
 
 ## Files Most Relevant Now
 
@@ -77,6 +77,7 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `npm run test:dossier`: green em `2026-04-22`
 - `npm run build`: green em `2026-04-22`
 - `npm run test:e2e:smoke`: green em `2026-04-22` apos endurecer `tests-e2e/smoke.chat-shell.spec.ts`
+- Deep Dive nao exige validacao manual dedicada para esta PR, porque o usuario confirmou que o fluxo esta atualmente oculto na superficie ativa do produto
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 
 ## Suggested Prompt For Next AI

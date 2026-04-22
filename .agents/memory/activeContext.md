@@ -60,7 +60,7 @@ Sprint 6 is now the next official step.
 
 ## Immediate next step
 
-1. treat the current Sprint 6 branch as PR-ready once the user is satisfied with the branch scope and manual spot-check level
+1. treat the current Sprint 6 branch as PR-ready; the user confirmed the Deep Dive flow is currently hidden, so there is no separate manual Deep Dive spot-check to require before the PR
 2. preserve markers `[[PORTA_*]]`, public builders, and current prompt text contracts; do not do blind encoding cleanup without a concrete defect
 3. sync board/handoff/memory to the implementation state when opening or merging the Sprint 6 PR, and keep `mcp-server/` deferred until after Sprints 6-8
 

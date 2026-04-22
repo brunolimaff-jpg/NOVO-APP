@@ -28,9 +28,9 @@
 
 ## Next Up
 
-1. Continuar a limpeza interna da Sprint 6 dentro de `prompts/mega/*`, mantendo `prompts/megaPrompts.ts` como facade publica estavel
-2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais enquanto decide se algum cleanup extra de encoding cabe sem risco nesta sprint
-3. Sincronizar `main`/docs novamente com o estado real da sprint e abrir a PR quando o escopo estabilizar
+1. Abrir a PR da Sprint 6 a partir de `codex/sprint6-mega-prompts-modularization`
+2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais; nao fazer cleanup cego de encoding sem defeito concreto
+3. Sincronizar `main`/docs novamente com o estado real da sprint quando a PR avancar para merge
 
 ## Blocked
 
@@ -45,6 +45,7 @@
   - `tests/features/dossier/waterfall-orchestrator.test.ts`
   - `npm run test:dossier`
   - `npm run build`
+- Nao ha validacao manual dedicada de Deep Dive pendente para a PR da Sprint 6; o usuario confirmou que o fluxo de Deep Dive esta atualmente oculto na superficie ativa do produto
 - `npm run lint` continua vermelho por backlog anterior do repo (`37` erros, `217` warnings em `2026-04-11`) e segue fora do gate
 
 ## Known Accepted Warnings

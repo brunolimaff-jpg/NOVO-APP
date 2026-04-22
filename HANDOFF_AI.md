@@ -122,11 +122,11 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Continuar a Sprint 6 na branch `codex/sprint6-mega-prompts-modularization`
+- Abrir a PR da Sprint 6 a partir de `codex/sprint6-mega-prompts-modularization`
 - Manter `prompts/megaPrompts.ts` como facade publica estavel enquanto o trabalho interno segue em `prompts/mega/*`
 - Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais
-- Rodar o gate automatizado/contratos da Sprint 6 conforme o escopo interno estabilizar
-- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` antes da PR
+- Considerar que nao ha validacao manual dedicada de Deep Dive para esta PR, porque o fluxo esta atualmente oculto na superficie ativa do produto
+- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` quando a PR avancar para merge
 
 ## Regras de continuidade
 
