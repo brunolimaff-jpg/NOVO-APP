@@ -27,11 +27,11 @@ Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline 
 Sprint 3 is `done` after the integrated manual validation completed on `2026-04-15`.
 Sprint 4 is `done` after PR `#228` landed in `main` on `2026-04-17`.
 Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted on `2026-04-20` based on user confirmation plus ongoing usage without complaints.
-Sprint 6 is now the next official step.
+Sprint 6 is now `done`, and Sprint 7 is the next official step.
 
 ## Current task
 
-`origin/main` is now on the post-`#235` baseline (`478419c8f3d3028088a553da5ed53d6be5e2a2b5`), and Sprint 6 is active locally on branch `codex/sprint6-mega-prompts-modularization`.
+`main` now includes the Sprint 6 merge commit from PR `#236` (`d514733f7ababa0a9dab4c4a26f133d39bc6e342`), and Sprint 7 is the next planned refactor step.
 
 - `components/ChatInterface.tsx` is now a thinner orchestration facade; `ChatInterfaceProps` stayed unchanged.
 - `components/chat/ChatShell.tsx` owns the layout shell, sidebar/header composition, and panel mounting slots.
@@ -50,19 +50,21 @@ Sprint 6 is now the next official step.
 - The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
 - The practical day-to-day command remains `npm run test:dossier`.
 - The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
-- Sprint 6 validation already green on `2026-04-22` for:
+- Sprint 6 validation closed green on `2026-04-22` for:
   - `npm run typecheck`
   - `vitest run tests/prompts/megaPrompts.test.ts`
   - `vitest run tests/features/dossier/waterfall-orchestrator.test.ts`
   - `npm run test:dossier`
   - `npm run build`
   - facade contract coverage now explicitly locking `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export in `tests/prompts/megaPrompts.test.ts`
+  - `npm run test:e2e:smoke`
+  - no dedicated manual Deep Dive spot-check, because the flow is currently hidden in the active product surface
 
 ## Immediate next step
 
-1. Sprint 6 PR `#236` is now open from `codex/sprint6-mega-prompts-modularization`; the user confirmed the Deep Dive flow is currently hidden, so there is no separate manual Deep Dive spot-check to require for this PR
-2. preserve markers `[[PORTA_*]]`, public builders, and current prompt text contracts; do not do blind encoding cleanup without a concrete defect
-3. sync board/handoff/memory again when PR `#236` advances to merge, and keep `mcp-server/` deferred until after Sprints 6-8
+1. Open Sprint 7 from `main`, prioritizing the extraction of `market-intelligence.ts` from `constants.ts`
+2. Validate affected imports and consumers, then remove `hooks/useChat.ts` without breaking `tests/architecture/useChatImportGuard.test.ts`
+3. Apply light hardening in `services/apiConfig.ts`, keep `types.ts` centralized unless there is a clear ROI trigger, and keep `mcp-server/` deferred until after Sprints 6-8
 
 ## Additional documentation context
 

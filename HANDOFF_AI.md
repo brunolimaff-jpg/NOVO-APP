@@ -39,7 +39,7 @@ Para continuidade entre IAs, leia primeiro:
 - Features extraidas do App (novo destino): `features/chat/`
 - Contratos centrais: `types.ts`
 - Prompts principais: `prompts/megaPrompts.ts` e `prompts/systemPrompts.ts`
-- Hotspot da proxima sprint: `prompts/megaPrompts.ts`
+- Hotspot da proxima sprint: `constants.ts`
 - Serverless handlers: `api/*.ts`
 
 ## Fluxo operacional resumido
@@ -107,7 +107,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/`, concluida e validada em `2026-04-15`
 - Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
-- Sprint 6 (active): `prompts/megaPrompts.ts` ja virou facade para `prompts/mega/*`; preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais enquanto o cleanup interno continua
+- Sprint 6 (done): `prompts/megaPrompts.ts` virou facade para `prompts/mega/*`, mergeado via PR `#236` em `2026-04-22`
 - Sprints 7-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
@@ -122,11 +122,11 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Revisar e mergear a PR `#236` da Sprint 6
-- Manter `prompts/megaPrompts.ts` como facade publica estavel enquanto o trabalho interno segue em `prompts/mega/*`
-- Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais
-- Considerar que nao ha validacao manual dedicada de Deep Dive para esta PR, porque o fluxo esta atualmente oculto na superficie ativa do produto
-- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` quando a PR `#236` avancar para merge
+- Abrir a Sprint 7 a partir do `main` pos-`#236`
+- Extrair primeiro `market-intelligence.ts` de `constants.ts`
+- Depois validar imports/consumidores, remover `hooks/useChat.ts` sem quebrar o guardrail e fazer hardening leve em `services/apiConfig.ts`
+- Considerar que o Deep Dive nao exigiu validacao manual dedicada no fechamento da Sprint 6, porque o fluxo continua oculto na superficie ativa do produto
+- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` no fechamento da Sprint 7, nao no comeco
 
 ## Regras de continuidade
 
@@ -136,7 +136,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
-- Considere a Sprint 5 encerrada; o proximo passo oficial e a Sprint 6.
+- Considere a Sprint 6 encerrada; o proximo passo oficial e a Sprint 7.
 - Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
