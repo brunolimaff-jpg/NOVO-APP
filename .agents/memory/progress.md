@@ -26,7 +26,7 @@ Last updated: 2026-04-22
 
 ## In progress
 
-- Sprint 7 review/PR and manual Vercel validation.
+- Sprint 7 manual Vercel validation.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -44,6 +44,7 @@ Last updated: 2026-04-22
 - Passed: `npm run build` on `2026-04-22`, with the accepted `utils/idbStorage.ts` chunking warning still present.
 - Passed: `npm run lint` on `2026-04-22` with `0` errors and `182` warnings; warning cleanup remains backlog and includes deferred untracked `mcp-server/`.
 - Passed: `npm run docs:obsidian:check` on `2026-04-22` after making the checker tolerate CRLF frontmatter on Windows.
+- Addressed: Gemini PR review feedback by replacing dynamic `import.meta.env[key]` with static Vite env references and removing `mcp-server/src/index.ts` from the PR diff.
 - Pending: manual Vercel validation for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
 
 ### Sprint 6 (closed 2026-04-22)

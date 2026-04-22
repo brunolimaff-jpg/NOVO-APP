@@ -42,9 +42,10 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `hooks/useChat.ts` foi removido
 - `tests/architecture/useChatImportGuard.test.ts` agora bloqueia imports e valida que o arquivo legado nao existe
 - `tests/hooks/useChat.test.ts` foi substituido por `tests/utils/sessionTitleHeuristics.test.ts`
-- `services/apiConfig.ts` usa helper tipado para env fallback e preserva seus exports publicos
+- `services/apiConfig.ts` usa helper tipado com referencias estaticas `import.meta.env.VITE_*` para env fallback e preserva seus exports publicos
 - `SENIOR_PRODUCT_URLS` e `findSeniorProductUrl` agora sao reexportados de `utils/seniorLinks.ts`
 - `types.ts`, `services/geminiService.ts` e `mcp-server/` ficaram fora do escopo
+- Feedback do Gemini na PR foi enderecado: env Vite estatico e `mcp-server/src/index.ts` fora do diff
 
 ## Next Safe Step
 

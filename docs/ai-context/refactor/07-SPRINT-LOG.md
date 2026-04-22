@@ -455,7 +455,8 @@
   - removidos `hooks/useChat.ts` e `tests/hooks/useChat.test.ts`
   - criado `tests/utils/sessionTitleHeuristics.test.ts`
   - atualizado `tests/architecture/useChatImportGuard.test.ts`
-  - `services/apiConfig.ts` passou a usar env fallback tipado e a reexportar links Senior de `utils/seniorLinks.ts`
+  - `services/apiConfig.ts` passou a usar env fallback tipado com referencias estaticas `import.meta.env.VITE_*` e a reexportar links Senior de `utils/seniorLinks.ts`
+  - feedback do Gemini enderecado: `mcp-server/src/index.ts` removido do diff da PR
 - Checks registrados:
   - focused Sprint 7 suite verde em `2026-04-22`
   - `npm run test:dossier` verde em `2026-04-22`

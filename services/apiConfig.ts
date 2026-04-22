@@ -9,7 +9,12 @@ const FALLBACK_OPEN_WEB_SEARCH_ENDPOINT = '/api/open-web-search';
 type ScoutApiEnvKey = 'VITE_BACKEND_URL' | 'VITE_LOOKUP_URL' | 'VITE_OPEN_WEB_SEARCH_URL';
 
 function getEnvValue(key: ScoutApiEnvKey): string | undefined {
-  const value = import.meta.env[key];
+  const envMap: Record<ScoutApiEnvKey, string | undefined> = {
+    VITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
+    VITE_LOOKUP_URL: import.meta.env.VITE_LOOKUP_URL,
+    VITE_OPEN_WEB_SEARCH_URL: import.meta.env.VITE_OPEN_WEB_SEARCH_URL,
+  };
+  const value = envMap[key];
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 

@@ -92,7 +92,7 @@ Para continuidade entre IAs, leia primeiro:
 - `hooks/useChat.ts` foi removido na Sprint 7.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts` e bloqueia novos imports alem de validar que o arquivo legado nao existe.
 - `constants.ts` permanece como facade publica para constantes/prompts principais; os blocos de portais, rede de parceiros, budget, concorrentes e portfolio Senior agora vivem em `constants/market-intelligence.ts`.
-- `services/apiConfig.ts` preserva os exports publicos, usa helper tipado para env fallback e reexporta o mapa Senior a partir de `utils/seniorLinks.ts`.
+- `services/apiConfig.ts` preserva os exports publicos, usa helper tipado com referencias estaticas `import.meta.env.VITE_*` para env fallback e reexporta o mapa Senior a partir de `utils/seniorLinks.ts`.
 - `prompts/megaPrompts.ts` agora e uma facade publica fina para `prompts/mega/*`.
 - A estrutura interna da Sprint 6 agora vive em:
   - `prompts/mega/contracts.ts`

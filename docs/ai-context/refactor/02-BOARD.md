@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `main` -> `d514733f7ababa0a9dab4c4a26f133d39bc6e342` |
+| Source of truth commit | `main` -> `288cfb4610884a3198e6a441bd3f776e53dcafcd` |
 | Working branch | `codex/sprint7-constants-legacy-hygiene` |
 | Last updated | `2026-04-22` |
 | Current phase | `validation` |
 | Current sprint | `7` |
 | Overall status | `active` |
-| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, a camada versionada de Obsidian via PR `#234`, o fechamento documental da Sprint 5 via PR `#235` e a Sprint 6 mergeada via PR `#236`; Sprint 7 esta implementada localmente e ainda nao mergeada |
+| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, a camada versionada de Obsidian via PR `#234`, o fechamento documental da Sprint 5 via PR `#235`, a Sprint 6 mergeada via PR `#236` e o closeout documental via PR `#238`; Sprint 7 esta implementada localmente e ainda nao mergeada |
 
 ## Current Focus
 
@@ -30,7 +30,8 @@
   - `hooks/useChat.ts` foi removido
   - `tests/architecture/useChatImportGuard.test.ts` agora bloqueia imports e valida que o arquivo legado nao existe
   - `tests/hooks/useChat.test.ts` foi substituido por `tests/utils/sessionTitleHeuristics.test.ts`
-  - `services/apiConfig.ts` usa env fallback tipado e reexporta o mapa Senior de `utils/seniorLinks.ts`
+  - `services/apiConfig.ts` usa env fallback tipado com referencias estaticas `import.meta.env.VITE_*` e reexporta o mapa Senior de `utils/seniorLinks.ts`
+  - feedback do Gemini na PR foi enderecado: env Vite estatico e `mcp-server/src/index.ts` removido do diff
   - `types.ts` permaneceu centralizado
 - `mcp-server/` fica explicitamente fora da trilha de refactor ate o fim das Sprints 6-8
 
