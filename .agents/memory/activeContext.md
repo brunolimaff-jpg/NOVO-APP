@@ -26,7 +26,7 @@ The structural refactor program remains active. The canonical live status is in:
 Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline dossier golden regression is merged through PR `#222`.
 Sprint 3 is `done` after the integrated manual validation completed on `2026-04-15`.
 Sprint 4 is `done` after PR `#228` landed in `main` on `2026-04-17`.
-Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted em `2026-04-20` based on user confirmation plus ongoing usage without complaints.
+Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted on `2026-04-20` based on user confirmation plus ongoing usage without complaints.
 Sprint 6 is now the next official step.
 
 ## Current task
