@@ -30,7 +30,7 @@
   - `operatorId` permanece estavel por dispositivo para preservar rastreabilidade remota
   - dashboard, miniCRM, integrity check e war room nao dependem mais de papel admin
   - payload remoto manteve `userId` e `userName` por compatibilidade
-- Mudancas concluÇðdas:
+- Mudancas concluídas:
   - `index.tsx` migrado para `OperatorProvider`
   - `App.tsx`, `ChatInterface.tsx` e dependencias de UI migradas para `useOperator`
   - `utils/featureAccess.ts` simplificado para flags de ambiente
