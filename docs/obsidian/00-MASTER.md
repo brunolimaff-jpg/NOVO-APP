@@ -7,7 +7,7 @@ source_of_truth:
   - .agents/memory/activeContext.md
   - .agents/memory/progress.md
   - docs/ai-context/refactor/02-BOARD.md
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - repo-graph
@@ -56,10 +56,10 @@ Use este material para navegar por arquitetura e roadmap. O status vivo continua
 ## Leitura rapida do estado atual
 
 - O programa de refatoracao segue ativo.
-- A Sprint 5 esta implementada no branch de trabalho e ainda depende de PR + smoke manual.
+- A Sprint 7 esta implementada localmente em `codex/sprint7-constants-legacy-hygiene` e ainda depende de PR + validacao manual em Vercel.
 - `services/geminiService.ts` continua como fachada publica estavel.
-- `components/chat/*` e o destino atual da modularizacao do shell do chat.
-- O proximo bloco tecnico grande segue em `prompts/megaPrompts.ts` e legado/consolidacao de constantes.
+- `constants.ts` agora e facade publica, com inteligencia de mercado em `constants/market-intelligence.ts`.
+- `hooks/useChat.ts` foi removido e segue bloqueado pelo guardrail de arquitetura.
 
 ## Regras desta camada
 

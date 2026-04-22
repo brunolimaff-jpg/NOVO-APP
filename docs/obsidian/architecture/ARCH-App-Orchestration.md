@@ -7,7 +7,7 @@ source_of_truth:
   - index.tsx
   - ARQUITETURA.md
   - docs/ai-context/ARCHITECTURE_MAP.md
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - architecture
@@ -40,7 +40,7 @@ Back to [[00-MASTER]].
 
 ## Pressao de roadmap
 
-- a Sprint atual continua reduzindo o peso do shell principal em torno de `components/chat/*`
+- a Sprint 7 preservou `App.tsx` fora do escopo e concentrou a higiene em constantes/legado
 - os proximos blocos ainda dependem de manter `App.tsx` como fachada estavel enquanto o legado e dissolvido
 
 ## Fontes canonicas

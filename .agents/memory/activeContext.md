@@ -27,44 +27,31 @@ Sprint 3 chat extraction is merged in `main` through PR `#221`, and the offline 
 Sprint 3 is `done` after the integrated manual validation completed on `2026-04-15`.
 Sprint 4 is `done` after PR `#228` landed in `main` on `2026-04-17`.
 Sprint 5 is now `done` after PR `#229` landed in `main` on `2026-04-17`, with manual validation accepted on `2026-04-20` based on user confirmation plus ongoing usage without complaints.
-Sprint 6 is now `done`, and Sprint 7 is the next official step.
+Sprint 6 is now `done`. Sprint 7 is implemented locally on `codex/sprint7-constants-legacy-hygiene` and is pending PR/review plus manual Vercel validation before it can be marked `done`.
 
 ## Current task
 
-`main` now includes the Sprint 6 merge commit from PR `#236` (`d514733f7ababa0a9dab4c4a26f133d39bc6e342`), and Sprint 7 is the next planned refactor step.
+`main` includes the Sprint 6 merge commit from PR `#236` (`d514733f7ababa0a9dab4c4a26f133d39bc6e342`). Sprint 7 was opened from that baseline on branch `codex/sprint7-constants-legacy-hygiene`.
 
-- `components/ChatInterface.tsx` is now a thinner orchestration facade; `ChatInterfaceProps` stayed unchanged.
-- `components/chat/ChatShell.tsx` owns the layout shell, sidebar/header composition, and panel mounting slots.
-- `components/chat/MessageTimeline.tsx` owns the operator gate, initial home, virtualized list, viewport fallback, and `MessageRow` wiring.
-- `components/chat/Composer.tsx` owns textarea state, prefill listener, processing indicator, and retry/stop footer behavior.
-- `components/chat/ChatPanels.tsx` centralizes the lazy overlays for dashboard, settings, war room, and radar.
-- `components/chat/contracts.ts` holds the internal chat-slice contracts, including the `RadarProps` re-export path preserved by the facade.
-- `services/geminiService.ts` stayed untouched as the stable public AI facade.
-- `prompts/megaPrompts.ts` is now a thin facade that re-exports the Sprint 6 internals under `prompts/mega/*`.
-- `prompts/mega/contracts.ts` now holds the public prompt-builder types.
-- `prompts/mega/foundation.ts` now owns the shared governance/foundation blocks and the investigation orchestrator constants.
-- `prompts/mega/specialist-prompts.ts` now owns the specialist deep-dive prompt constants.
-- `prompts/mega/builders.ts` now owns `SHARED_FOUNDATION_BLOCK`, `INVESTIGATION_MODE_BLOCKS`, both builders, `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, and the compatibility default export.
-- The old Sprint 6 plan item about removing `@ts-nocheck` is stale on the current baseline; the pragma was already absent from `prompts/megaPrompts.ts` when the sprint started.
-- `mcp-server/` is deferred local-only work and must stay out of Sprint 6-8 scope unless the user reprioritizes it after the refactor track.
-- The canonical dossier fixture still lives under `tests/fixtures/dossier/scheffer-04733767000180/`.
-- The practical day-to-day command remains `npm run test:dossier`.
-- The accepted build warning about `utils/idbStorage.ts` chunking remains unchanged from the previous baseline.
-- Sprint 6 validation closed green on `2026-04-22` for:
-  - `npm run typecheck`
-  - `vitest run tests/prompts/megaPrompts.test.ts`
-  - `vitest run tests/features/dossier/waterfall-orchestrator.test.ts`
-  - `npm run test:dossier`
-  - `npm run build`
-  - facade contract coverage now explicitly locking `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export in `tests/prompts/megaPrompts.test.ts`
-  - `npm run test:e2e:smoke`
-  - no dedicated manual Deep Dive spot-check, because the flow is currently hidden in the active product surface
+- `constants.ts` is now a public facade for `APP_NAME`, `APP_VERSION`, `ChatMode`, `DEFAULT_MODE`, `MODE_LABELS`, `BASE_SYSTEM_PROMPT` and `OPERACAO_PROMPT`.
+- `constants/market-intelligence.ts` now owns the moved market-intelligence blocks: portais, rede de parceiros, budget, concorrentes and portfolio Senior.
+- `hooks/useChat.ts` was removed.
+- `tests/architecture/useChatImportGuard.test.ts` now blocks imports and asserts the removed legacy hook file stays absent.
+- `tests/hooks/useChat.test.ts` was replaced by `tests/utils/sessionTitleHeuristics.test.ts`, covering the utility heuristics it actually exercised.
+- `services/apiConfig.ts` now uses a typed env fallback helper instead of `import.meta as any`.
+- `services/apiConfig.ts` preserves its public exports and reexports `SENIOR_PRODUCT_URLS` / `findSeniorProductUrl` from `utils/seniorLinks.ts`.
+- `utils/seniorLinks.ts` is now the source for the Senior product URL map, with aliases adjusted to preserve the old `apiConfig` compatibility surface.
+- `mcp-server/` remains untracked/deferred and must stay out of the Sprint 7 PR unless the user reprioritizes it.
+- Sprint 7 automated validation is green for focused suites, `npm run test:dossier`, `npm run test`, `npm run typecheck`, `npm run build`, `npm run lint` and `npm run docs:obsidian:check`.
+- `npm run lint` exits 0 on the current branch but still reports warning backlog (`182` warnings), including warnings under the deferred untracked `mcp-server/`.
+- Manual Vercel validation has not been run yet.
 
 ## Immediate next step
 
-1. Open Sprint 7 from `main`, prioritizing the extraction of `market-intelligence.ts` from `constants.ts`
-2. Validate affected imports and consumers, then remove `hooks/useChat.ts` without breaking `tests/architecture/useChatImportGuard.test.ts`
-3. Apply light hardening in `services/apiConfig.ts`, keep `types.ts` centralized unless there is a clear ROI trigger, and keep `mcp-server/` deferred until after Sprints 6-8
+1. Review the Sprint 7 diff on `codex/sprint7-constants-legacy-hygiene`
+2. Open the Sprint 7 PR without staging or including `mcp-server/`
+3. Run/record manual Vercel validation: nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM
+4. Mark Sprint 7 `done` only after PR merge and manual validation are accepted
 
 ## Additional documentation context
 

@@ -22,10 +22,11 @@ Last updated: 2026-04-22
 - Added the versioned Obsidian repo graph layer in `main` via PR `#234`.
 - Synced `BOARD` / `HANDOFF` / `HANDOFF_AI` / repo-local memory to close Sprint 5 and point the next official step to Sprint 6.
 - Merged Sprint 6 mega prompts modularization into `main` via PR `#236` on `2026-04-22`, preserving the public prompt facade and prompt contracts.
+- Implemented Sprint 7 locally on `codex/sprint7-constants-legacy-hygiene`: extracted `constants/market-intelligence.ts`, removed `hooks/useChat.ts`, replaced the stale hook test, updated the architecture guardrail, and hardened `services/apiConfig.ts`.
 
 ## In progress
 
-- Sprint 7 planning/opening for `constants.ts` hygiene, `hooks/useChat.ts` removal, and light `services/apiConfig.ts` hardening.
+- Sprint 7 review/PR and manual Vercel validation.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -33,6 +34,17 @@ Last updated: 2026-04-22
 - None known.
 
 ## Validation history
+
+### Sprint 7 (implemented locally 2026-04-22)
+
+- Passed: focused Sprint 7 suite with `npx vitest run tests/prompts/constantsPromptRules.test.ts tests/utils/constants.test.ts tests/utils/seniorLinks.test.ts tests/utils/linkFixer.test.ts tests/architecture/useChatImportGuard.test.ts tests/utils/sessionTitleHeuristics.test.ts` on `2026-04-22`.
+- Passed: dossier fast-check `npm run test:dossier` on `2026-04-22`.
+- Passed: full unit/integration suite `npm run test` on `2026-04-22` (`102` files, `785` tests).
+- Passed: `npm run typecheck` on `2026-04-22`.
+- Passed: `npm run build` on `2026-04-22`, with the accepted `utils/idbStorage.ts` chunking warning still present.
+- Passed: `npm run lint` on `2026-04-22` with `0` errors and `182` warnings; warning cleanup remains backlog and includes deferred untracked `mcp-server/`.
+- Passed: `npm run docs:obsidian:check` on `2026-04-22` after making the checker tolerate CRLF frontmatter on Windows.
+- Pending: manual Vercel validation for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
 
 ### Sprint 6 (closed 2026-04-22)
 
@@ -55,7 +67,7 @@ Last updated: 2026-04-22
 - Passed: `npm run typecheck` on `2026-04-19`.
 - Accepted: Sprint 5 manual validation in runtime real was treated as complete on `2026-04-20` based on operator confirmation and continued usage without complaints.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
-- `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
+- Historical lint backlog changed on the Sprint 7 branch: `npm run lint` now exits 0 locally, but still reports warning backlog (`182` warnings on `2026-04-22`).
 
 ## Important refs
 
@@ -64,7 +76,12 @@ Last updated: 2026-04-22
 - Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 - Canonical quick-entry handoff: `HANDOFF_AI.md`
 - New internal prompt modules: `prompts/mega/*`
-- Next Sprint 7 hotspot: `constants.ts`
+- Sprint 7 branch: `codex/sprint7-constants-legacy-hygiene`
+- Constants facade: `constants.ts`
+- Market intelligence constants: `constants/market-intelligence.ts`
+- Legacy chat hook guardrail: `tests/architecture/useChatImportGuard.test.ts`
+- Session title heuristics coverage: `tests/utils/sessionTitleHeuristics.test.ts`
+- API config facade: `services/apiConfig.ts`
 - Auxiliary prompt file: `prompts/systemPrompts.ts`
 - Chat facade: `components/ChatInterface.tsx`
 - Chat shell: `components/chat/ChatShell.tsx`
@@ -77,9 +94,8 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Open Sprint 7 from `main`, starting with high-ROI extraction from `constants.ts` into `market-intelligence.ts`.
+- Review/open PR for Sprint 7 from `codex/sprint7-constants-legacy-hygiene`.
 - Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts already stabilized by Sprint 6.
 - Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
-- Remove `hooks/useChat.ts` only after validating import consumers and preserving the existing guardrail.
-- Prefer `npm run test:dossier` if Sprint 7 hygiene touches dossier-adjacent behavior indirectly.
+- Run the manual Vercel validation checklist before marking Sprint 7 `done`.
 - Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 7.

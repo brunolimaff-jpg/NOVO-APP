@@ -7,7 +7,7 @@ source_of_truth:
   - stores/dossierStore.tsx
   - hooks/useSessionStorage.ts
   - services/sessionRemoteStore.ts
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - architecture
@@ -39,7 +39,8 @@ Esta area junta estado de sessao/loading/export, persistencia local e sincroniza
 
 ## Pressao de roadmap
 
-- a Sprint 5 depende desta camada permanecer estavel para o shell novo
+- a Sprint 5 manteve esta camada estavel para o shell novo
+- a Sprint 7 substituiu o teste stale do hook legado por cobertura direta das heuristicas de titulo/empresa
 - futuras limpezas de legado ainda passam por storage e titulos de sessao
 
 ## Fontes canonicas
