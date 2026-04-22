@@ -46,6 +46,7 @@ Last updated: 2026-04-22
 - Passed: Sprint 6 dossier consumer suite `tests/features/dossier/waterfall-orchestrator.test.ts` on `2026-04-22`.
 - Passed: Sprint 6 dossier fast-check `npm run test:dossier` on `2026-04-22`.
 - Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
+- Passed: Sprint 6 Playwright smoke suite `npm run test:e2e:smoke` on `2026-04-22` after hardening `tests-e2e/smoke.chat-shell.spec.ts`.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
 

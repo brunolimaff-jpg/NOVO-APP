@@ -76,6 +76,7 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `tests/features/dossier/waterfall-orchestrator.test.ts`: green em `2026-04-22`
 - `npm run test:dossier`: green em `2026-04-22`
 - `npm run build`: green em `2026-04-22`
+- `npm run test:e2e:smoke`: green em `2026-04-22` apos endurecer `tests-e2e/smoke.chat-shell.spec.ts`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 
 ## Suggested Prompt For Next AI
