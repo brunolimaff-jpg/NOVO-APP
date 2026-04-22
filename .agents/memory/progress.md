@@ -21,11 +21,11 @@ Last updated: 2026-04-22
 - Added additional waterfall/persistence regression coverage in `main` via PR `#233`.
 - Added the versioned Obsidian repo graph layer in `main` via PR `#234`.
 - Synced `BOARD` / `HANDOFF` / `HANDOFF_AI` / repo-local memory to close Sprint 5 and point the next official step to Sprint 6.
+- Merged Sprint 6 mega prompts modularization into `main` via PR `#236` on `2026-04-22`, preserving the public prompt facade and prompt contracts.
 
 ## In progress
 
-- Sprint 6 is active on `codex/sprint6-mega-prompts-modularization`.
-- Onda 1 is implemented: `prompts/megaPrompts.ts` became a facade and the prompt monolith was split into `prompts/mega/contracts.ts`, `prompts/mega/foundation.ts`, `prompts/mega/specialist-prompts.ts`, and `prompts/mega/builders.ts`.
+- Sprint 7 planning/opening for `constants.ts` hygiene, `hooks/useChat.ts` removal, and light `services/apiConfig.ts` hardening.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -48,7 +48,7 @@ Last updated: 2026-04-22
 - Passed: Sprint 6 dossier fast-check `npm run test:dossier` on `2026-04-22`.
 - Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
 - Passed: Sprint 6 Playwright smoke suite `npm run test:e2e:smoke` on `2026-04-22` after hardening `tests-e2e/smoke.chat-shell.spec.ts`.
-- Accepted: no separate Sprint 6 manual Deep Dive validation is required before the PR because the user confirmed the Deep Dive flow is currently hidden behind the active product surface.
+- Accepted: no separate Sprint 6 manual Deep Dive validation was required because the user confirmed the Deep Dive flow is currently hidden behind the active product surface.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
 
@@ -58,8 +58,8 @@ Last updated: 2026-04-22
 - Open items and risk gates: `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 - Canonical quick-entry handoff: `HANDOFF_AI.md`
-- Prompt monolith to break in Sprint 6: `prompts/megaPrompts.ts`
 - New internal prompt modules: `prompts/mega/*`
+- Next Sprint 7 hotspot: `constants.ts`
 - Auxiliary prompt file: `prompts/systemPrompts.ts`
 - Chat facade: `components/ChatInterface.tsx`
 - Chat shell: `components/chat/ChatShell.tsx`
@@ -72,10 +72,9 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Sprint 6 PR `#236` is open from `codex/sprint6-mega-prompts-modularization`.
-- Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts; the `@ts-nocheck` item is already moot on the current baseline.
+- Open Sprint 7 from `main`, starting with high-ROI extraction from `constants.ts` into `market-intelligence.ts`.
+- Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts already stabilized by Sprint 6.
 - Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
-- Prefer `npm run test:dossier` plus the dossier consumer suite as fast-checks when touching prompt composition.
-- Avoid blind encoding cleanup unless a concrete runtime defect or failing contract test justifies it.
-- Deep Dive does not need a dedicated manual spot-check while it remains hidden in the current product surface.
-- Sync the canonical docs/memory again when PR `#236` moves to merge.
+- Remove `hooks/useChat.ts` only after validating import consumers and preserving the existing guardrail.
+- Prefer `npm run test:dossier` if Sprint 7 hygiene touches dossier-adjacent behavior indirectly.
+- Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 7.

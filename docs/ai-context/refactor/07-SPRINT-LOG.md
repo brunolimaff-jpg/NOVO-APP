@@ -409,3 +409,31 @@
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
   - abrir a Sprint 6 em branch propria a partir do `main`, modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`, preservar markers `[[PORTA_*]]` e remover `@ts-nocheck`
+
+## 2026-04-22 - Fechamento da Sprint 6 e apontamento da Sprint 7
+
+- Fase: execution
+- Sprint: 6 (`done`) -> 7 (`planned`)
+- Objetivo: reconciliar as fontes canonicas com o estado real de `main` apos o merge da PR `#236` e mover o proximo passo oficial para a Sprint 7
+- Decisoes:
+  - tratar a Sprint 6 como encerrada apos o merge da PR `#236` em `main`
+  - aceitar o gate tecnico ja registrado na PR `#236` como suficiente para o fechamento, sem rerodar checks so para a reconciliacao documental
+  - registrar que Deep Dive nao exigiu validacao manual dedicada neste ciclo, porque o fluxo esta atualmente oculto na superficie ativa do produto
+  - manter `mcp-server/` fora do escopo ate depois das Sprints 6-8
+- Mudancas concluidas:
+  - `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` sincronizados para refletir Sprint 6 `done`
+  - proximo passo seguro alinhado para a abertura da Sprint 7 a partir do `main`
+- Checks registrados:
+  - PR `#236` mergeada em `main`
+  - `npm run typecheck`: green em `2026-04-22`
+  - `tests/prompts/megaPrompts.test.ts`: green em `2026-04-22`
+  - `tests/features/dossier/waterfall-orchestrator.test.ts`: green em `2026-04-22`
+  - `npm run test:dossier`: green em `2026-04-22`
+  - `npm run build`: green em `2026-04-22`
+  - `npm run test:e2e:smoke`: green em `2026-04-22`
+- Riscos residuais:
+  - `npm run lint` continua fora do gate por backlog historico
+  - warnings aceitos em `03-OPEN-ITEMS.md` seguem abertos
+  - `mcp-server/` continua local-only e fora do programa atual
+- Proximo passo:
+  - abrir a Sprint 7 a partir do `main`, priorizando a extracao de `market-intelligence.ts` de `constants.ts`, depois validar imports/consumidores, remover `hooks/useChat.ts` e fazer hardening leve em `services/apiConfig.ts`
