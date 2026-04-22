@@ -60,7 +60,19 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - Nao remover facades futuras no mesmo sprint em que os submodulos nascerem
 - Nao puxar `mcp-server/` para dentro das Sprints 6-8
 
-## Validation Last Run
+## Historico de Validacao
+
+### Sprint 6 (concluida em 2026-04-22)
+
+- `npm run typecheck`: green em `2026-04-22`
+- `tests/prompts/megaPrompts.test.ts`: green em `2026-04-22`
+- `tests/features/dossier/waterfall-orchestrator.test.ts`: green em `2026-04-22`
+- `npm run test:dossier`: green em `2026-04-22`
+- `npm run build`: green em `2026-04-22`
+- `npm run test:e2e:smoke`: green em `2026-04-22` apos endurecer `tests-e2e/smoke.chat-shell.spec.ts`
+- Deep Dive nao exigiu validacao manual dedicada para o fechamento da Sprint 6, porque o usuario confirmou que o fluxo esta atualmente oculto na superficie ativa do produto
+
+### Sprint 5 e anteriores
 
 - validacao manual da Sprint 5 aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes
 - `tests/components/ChatInterface.test.tsx`: green em `2026-04-17`
@@ -73,13 +85,6 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `npm run build`: green em `2026-04-17`
 - `npm run docs:obsidian:check`: green em `2026-04-19`
 - `npm run typecheck`: green em `2026-04-19`
-- `npm run typecheck`: green em `2026-04-22`
-- `tests/prompts/megaPrompts.test.ts`: green em `2026-04-22`
-- `tests/features/dossier/waterfall-orchestrator.test.ts`: green em `2026-04-22`
-- `npm run test:dossier`: green em `2026-04-22`
-- `npm run build`: green em `2026-04-22`
-- `npm run test:e2e:smoke`: green em `2026-04-22` apos endurecer `tests-e2e/smoke.chat-shell.spec.ts`
-- Deep Dive nao exigiu validacao manual dedicada para o fechamento da Sprint 6, porque o usuario confirmou que o fluxo esta atualmente oculto na superficie ativa do produto
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 
 ## Suggested Prompt For Next AI

@@ -12,7 +12,7 @@ test.describe('Scout smoke - investigation shell', () => {
     await completeGreeting(page);
 
     await page.getByTestId('investigation-company-input').fill('Fazenda Modelo');
-    await page.getByTestId('investigation-city-input').fill('Cuiabá');
+    await page.getByTestId('investigation-city-input').fill('Cuiab\u00E1');
     await page.getByTestId('investigation-uf-input').fill('MT');
 
     await page.getByTestId('investigation-submit-button').click();

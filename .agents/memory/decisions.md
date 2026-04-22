@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-04-19
+Last updated: 2026-04-22
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -31,3 +31,9 @@ Reason: the repo does not currently depend on `zustand`, the Sprint 4 goal is st
 Decision: add `docs/obsidian/` as a versioned Obsidian graph layer for architecture + roadmap, with `docs/obsidian/00-MASTER.md` as the entrypoint and `scripts/obsidian/check.mjs` as the local contract check.
 
 Reason: this gives AI-led workflows and human reviewers a durable visual map of the repo while keeping canonical live status in `HANDOFF_AI.md`, `.agents/memory/*`, and `docs/ai-context/refactor/*` instead of duplicating authority into the graph layer.
+
+## 2026-04-22 - Defer `mcp-server/` until after the sprint program
+
+Decision: keep `mcp-server/` explicitly out of scope for Sprints 6-8, and do not surface it as a blocker, review target, or PR scope item during the remaining refactor track unless the user reprioritizes it.
+
+Reason: the current priority is to finish the planned structural refactor first; `mcp-server/` is not shipping now and should not contaminate the active sprint branches.

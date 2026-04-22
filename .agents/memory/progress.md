@@ -32,15 +32,10 @@ Last updated: 2026-04-22
 
 - None known.
 
-## Validation status
+## Validation history
 
-- Passed: Sprint 5 focused suite for `tests/components/ChatInterface.test.tsx`, `tests/components/chat/Composer.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, and `tests/components/chat/ChatPanels.test.tsx` on `2026-04-17`.
-- Passed: Sprint 5 full gate rerun with `npm run test`, `npm run typecheck`, and `npm run build` on `2026-04-17`.
-- Passed: Sprint 5 review-fix validation with `npm run typecheck` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`.
-- Passed: Sprint 5 sidebar UX patch validation with `tests/components/SessionsSidebar.test.tsx` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`.
-- Passed: `npm run docs:obsidian:check` on `2026-04-19`.
-- Passed: `npm run typecheck` on `2026-04-19`.
-- Accepted: Sprint 5 manual validation in runtime real was treated as complete on `2026-04-20` based on operator confirmation and continued usage without complaints.
+### Sprint 6 (closed 2026-04-22)
+
 - Passed: Sprint 6 prompt facade extraction with `npm run typecheck` on `2026-04-22`.
 - Passed: Sprint 6 prompt contract suite `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
 - Passed: Sprint 6 facade contract coverage now explicitly locks `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export alignment in `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
@@ -49,6 +44,16 @@ Last updated: 2026-04-22
 - Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
 - Passed: Sprint 6 Playwright smoke suite `npm run test:e2e:smoke` on `2026-04-22` after hardening `tests-e2e/smoke.chat-shell.spec.ts`.
 - Accepted: no separate Sprint 6 manual Deep Dive validation was required because the user confirmed the Deep Dive flow is currently hidden behind the active product surface.
+
+### Sprint 5 and earlier
+
+- Passed: Sprint 5 focused suite for `tests/components/ChatInterface.test.tsx`, `tests/components/chat/Composer.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, and `tests/components/chat/ChatPanels.test.tsx` on `2026-04-17`.
+- Passed: Sprint 5 full gate rerun with `npm run test`, `npm run typecheck`, and `npm run build` on `2026-04-17`.
+- Passed: Sprint 5 review-fix validation with `npm run typecheck` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`.
+- Passed: Sprint 5 sidebar UX patch validation with `tests/components/SessionsSidebar.test.tsx` and `tests/components/ChatInterface.test.tsx` on `2026-04-17`.
+- Passed: `npm run docs:obsidian:check` on `2026-04-19`.
+- Passed: `npm run typecheck` on `2026-04-19`.
+- Accepted: Sprint 5 manual validation in runtime real was treated as complete on `2026-04-20` based on operator confirmation and continued usage without complaints.
 - Accepted warning: build chunking warning involving `utils/idbStorage.ts`, already tracked as OI-003 in `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 - `npm run lint` remains red from the historical repo backlog (`37` errors, `217` warnings in `2026-04-11`).
 
