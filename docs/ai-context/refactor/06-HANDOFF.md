@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Planejamento. Sprint 5 esta `done`. Sprint 6 e o proximo foco oficial.
+Implementacao. Sprint 5 esta `done`. Sprint 6 esta ativa.
 
 Sprint 3 foi mergeada em `main` via PRs `#216`-`#221`, com o golden regression offline do dossie entrando pela PR `#222`.
 Sprint 4 foi mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2).
@@ -27,14 +27,17 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## What Is In Progress
 
-- Preparacao da Sprint 6 para modularizar `prompts/megaPrompts.ts` sem quebrar markers `[[PORTA_*]]` nem builders publicos
-- Nenhuma branch de implementacao da Sprint 6 foi aberta ainda
+- Sprint 6 aberta em `codex/sprint6-mega-prompts-modularization`
+- `prompts/megaPrompts.ts` virou facade publica fina para `prompts/mega/*`
+- `prompts/mega/contracts.ts`, `prompts/mega/foundation.ts`, `prompts/mega/specialist-prompts.ts` e `prompts/mega/builders.ts` ja existem
+- O item de remover `@ts-nocheck` estava stale no baseline atual
+- `mcp-server/` foi explicitamente adiado para depois das Sprints 6-8
 
 ## Next Safe Step
 
-1. Abrir a Sprint 6 em branch propria a partir do `main`
-2. Dividir `prompts/megaPrompts.ts` em `prompts/mega/*`, remover `@ts-nocheck` e preservar markers `[[PORTA_*]]` e builders publicos
-3. Rodar o gate automatizado/contratos da Sprint 6 e, depois, sincronizar `board`/`handoff`/`memory` novamente
+1. Revisar e mergear a PR `#236` da Sprint 6
+2. Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais; nao fazer cleanup cego de encoding sem defeito concreto
+3. Sincronizar `board`/`handoff`/`memory` novamente quando a PR `#236` avancar para merge
 
 ## Files Most Relevant Now
 
@@ -53,6 +56,7 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - Nao quebrar `services/apiConfig.ts` por dominio
 - Nao dividir `types.ts` sem gatilho real
 - Nao remover facades futuras no mesmo sprint em que os submodulos nascerem
+- Nao puxar `mcp-server/` para dentro das Sprints 6-8
 
 ## Validation Last Run
 
@@ -67,6 +71,13 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `npm run build`: green em `2026-04-17`
 - `npm run docs:obsidian:check`: green em `2026-04-19`
 - `npm run typecheck`: green em `2026-04-19`
+- `npm run typecheck`: green em `2026-04-22`
+- `tests/prompts/megaPrompts.test.ts`: green em `2026-04-22`
+- `tests/features/dossier/waterfall-orchestrator.test.ts`: green em `2026-04-22`
+- `npm run test:dossier`: green em `2026-04-22`
+- `npm run build`: green em `2026-04-22`
+- `npm run test:e2e:smoke`: green em `2026-04-22` apos endurecer `tests-e2e/smoke.chat-shell.spec.ts`
+- Deep Dive nao exige validacao manual dedicada para esta PR, porque o usuario confirmou que o fluxo esta atualmente oculto na superficie ativa do produto
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
 
 ## Suggested Prompt For Next AI
@@ -74,5 +85,5 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Considere a Sprint 5 encerrada via PR `#229`, com validacao manual aceita em `2026-04-20`.
-Continue a partir da abertura/implementacao da Sprint 6, focada em modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`.
-Preserve markers `[[PORTA_*]]`, builders publicos e use `npm run test:dossier` como fast-check quando tocar o fluxo de dossie.
+Continue a partir da implementacao ja aberta da Sprint 6 em `codex/sprint6-mega-prompts-modularization`, focada em manter `prompts/megaPrompts.ts` como facade enquanto o trabalho interno segue em `prompts/mega/*`.
+Preserve markers `[[PORTA_*]]`, builders publicos, contratos textuais e use `npm run test:dossier` e `tests/features/dossier/waterfall-orchestrator.test.ts` como fast-checks do fluxo de dossie.

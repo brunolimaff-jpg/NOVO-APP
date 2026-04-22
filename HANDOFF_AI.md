@@ -90,7 +90,14 @@ Para continuidade entre IAs, leia primeiro:
   - `components/chat/ChatPanels.tsx`
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
-- `prompts/megaPrompts.ts` continua como arquivo unico; a Sprint 6 deve quebrar esse arquivo em `prompts/mega/*` sem alterar markers `[[PORTA_*]]` nem builders publicos.
+- `prompts/megaPrompts.ts` agora e uma facade publica fina para `prompts/mega/*`.
+- A estrutura interna da Sprint 6 agora vive em:
+  - `prompts/mega/contracts.ts`
+  - `prompts/mega/foundation.ts`
+  - `prompts/mega/specialist-prompts.ts`
+  - `prompts/mega/builders.ts`
+- O item historico de remover `@ts-nocheck` estava stale no baseline atual; o pragma nao existia mais no arquivo quando a Sprint 6 comecou.
+- `mcp-server/` fica explicitamente adiado para depois das Sprints 6-8 e nao entra no escopo da trilha de refactor.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
 
 ## Programa de Refatoracao
@@ -100,7 +107,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 3 (done): extracao do fluxo de chat para `features/chat/`, concluida e validada em `2026-04-15`
 - Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
-- Sprint 6 (planned / next): dividir `prompts/megaPrompts.ts` em `prompts/mega/*`, remover `@ts-nocheck`, preservar markers `[[PORTA_*]]` e builders publicos
+- Sprint 6 (active): `prompts/megaPrompts.ts` ja virou facade para `prompts/mega/*`; preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais enquanto o cleanup interno continua
 - Sprints 7-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
@@ -115,11 +122,11 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Abrir a Sprint 6 em branch propria a partir do `main`
-- Modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`
-- Remover `@ts-nocheck` sem quebrar markers `[[PORTA_*]]` nem builders publicos
-- Rodar o gate automatizado/contratos da Sprint 6
-- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` quando a Sprint 6 avancar
+- Revisar e mergear a PR `#236` da Sprint 6
+- Manter `prompts/megaPrompts.ts` como facade publica estavel enquanto o trabalho interno segue em `prompts/mega/*`
+- Preservar markers `[[PORTA_*]]`, builders publicos e contratos textuais
+- Considerar que nao ha validacao manual dedicada de Deep Dive para esta PR, porque o fluxo esta atualmente oculto na superficie ativa do produto
+- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` quando a PR `#236` avancar para merge
 
 ## Regras de continuidade
 
@@ -130,6 +137,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
 - Considere a Sprint 5 encerrada; o proximo passo oficial e a Sprint 6.
+- Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
 - Validacao manual final deve acontecer em preview/producao na Vercel, nao em `npm run dev`.
