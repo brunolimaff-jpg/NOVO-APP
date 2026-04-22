@@ -2,171 +2,77 @@
 
 ## Current Phase
 
-Execucao. Sprint 5 esta ativa.
+Planejamento. Sprint 5 esta `done`. Sprint 6 e o proximo foco oficial.
 
-O primeiro corte conservador da Sprint 3 ja foi mergeado em `main` via PR `#216`.
-O segundo corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#217`.
-O terceiro corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#218`.
-O quarto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#219`.
-O quinto corte conservador da Sprint 3 tambem ja foi mergeado em `main` via PR `#220`.
-O corte final da Sprint 3 tambem ja foi mergeado em `main` via PR `#221`.
-A PR `#222` tambem ja foi mergeada e adicionou o golden regression offline do dossie canonico.
-A validacao manual integrada do fechamento da Sprint 3 foi concluida em runtime real em `2026-04-15`.
-Sprint 3 agora esta `done`.
-Sprint 4 foi aberta em ondas:
-- Onda 1: extracao de `features/dossier/*`
-- Onda 2: `stores/*` com `Context + Reducer` tipado + error boundaries por feature
-A Onda 1 foi mergeada em `main` via PR `#227`.
-A Onda 2 foi mergeada em `main` via PR `#228`.
+Sprint 3 foi mergeada em `main` via PRs `#216`-`#221`, com o golden regression offline do dossie entrando pela PR `#222`.
+Sprint 4 foi mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2).
+Sprint 5 foi mergeada em `main` via PR `#229` em `2026-04-17`.
+A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes.
 
 ## What Was Finished
 
-- `contexts/OperatorContext.tsx` criado com `name`, `operatorId`, `loading`, `setName` e `clearName`
-- `index.tsx` passou a usar `OperatorProvider`
-- `App.tsx`, `components/ChatInterface.tsx`, `components/EmptyStateHome.tsx`, `components/SystemHealthCheck.tsx`, `components/SectionalBotMessage.tsx` e `hooks/useChat.ts` deixaram de depender de auth/admin
-- `utils/featureAccess.ts` passou a depender so de flags de ambiente; dashboard/miniCRM/integrity/war room nao dependem mais de admin
-- Arquivos mortos removidos: `components/LoginPage.tsx`, `components/AuthModal.tsx`, `components/UserMenuClerkBridge.tsx`, `contexts/AuthContext.tsx`
-- Dependencia `@clerk/react` removida de `package.json` e `package-lock.json`
-- Testes atualizados para o novo perfil local, incluindo gate de nome do operador e acesso de dashboard sem papel admin
-- `services/geminiService.ts` preservado como fachada publica estavel
-- Orquestracao interna extraida para `services/gemini/` (porta, sources, recovery, status, sanitization e pipeline)
-- Guardrail estrutural de `hooks/useChat.ts` adicionado para bloquear novos imports de producao
-- Hotfixes aplicados no fluxo PORTA para reduzir fallback indevido e manter integridade contextual
-- Sprint 3 / corte 1: progresso e estado de loading do chat extraidos para `features/chat/loading-progress.ts`
-- `App.tsx` passou a consumir `useChatLoadingProgress` sem alterar `ChatInterfaceProps`, waterfall de dossie ou contrato de IA
-- `features/**/*` foi incluido no `tsconfig.json`
-- Guardrail de `hooks/useChat.ts` agora cobre tambem `features/`
-- Sprint 3 / corte 3: feedback actions extraidas para `features/chat/feedback-actions.ts`
-- Sprint 3 / corte final: criado `features/chat/message-helpers.ts` com utilitarios compartilhados de deteccao/continuidade
-- Sprint 3 / corte final: criado `features/chat/message-orchestrator.ts` com `useChatMessageOrchestrator`
-- `App.tsx` agora usa `useChatMessageOrchestrator` para envio padrao e retry, mantendo waterfall/dossie no componente
-- Cobertura adicionada em `tests/features/chat/message-orchestrator.test.ts`
-- `App.tsx` caiu para `1521` linhas no branch final da Sprint 3 (`-302` vs baseline `1823`)
-- Patch de review aplicado na PR `#221`: `App.tsx` voltou para UTF-8 canonico sem BOM, helpers duplicados sairam do `App.tsx`, e o orchestrator passou a detectar o mega prompt via texto normalizado + `sessionsRef.current`
-- PR `#222` mergeada: `npm run test:dossier` agora executa uma regressao offline deterministica do caso Scheffer (`CNPJ 04.733.767/0001-80`)
-- Checkpoint manual de feedback foi reportado como validado em `2026-04-15`
-- Validacao manual integrada do fluxo completo da Sprint 3 foi concluida em `2026-04-15`
-- Board, handoff e memoria foram sincronizados para marcar Sprint 3 como `done` e Sprint 4 como `active`
-- Criado `features/dossier/waterfall-orchestrator.ts` como novo dono de `runMegaPromptWaterfall`
-- Criado `features/dossier/benchmark-stage.ts` para encapsular benchmark isolado, timeout e falha opcional
-- Criado `features/dossier/porta-reconciliation.ts` para retries por dimensao ausente, reconciliacao PORTA, fallback tecnico e integrity hold
-- `App.tsx` agora apenas instancia `useDossierWaterfallOrchestrator` e caiu para `815` linhas neste corte
-- `tests/App.portaRecovery.test.ts` foi substituido por `tests/features/dossier/porta-reconciliation.test.ts`
-- `tests/features/dossier/benchmark-stage.test.ts` cobre sucesso, falha nao-bloqueante e abort terminal do benchmark
-- Escopo manual desta onda foi explicitado para runtime real:
-  - gerar um `Dossie completo` e conferir score PORTA + secoes finais
-  - validar follow-up apos dossie completo
-  - validar retry/recuperacao sem perder a mensagem final
-  - validar exportacao, sugestoes de continuidade e persistencia remota sem regressao
-- Onda 2 foi entregue no branch `codex/sprint4-wave2-stores-boundaries`:
-  - `stores/chatStore.tsx` e `stores/dossierStore.tsx` entraram como camada compartilhada de estado
-  - `App.tsx` e `index.tsx` passaram a consumir os stores
-  - `features/chat/ChatErrorBoundary.tsx` e `features/dossier/DossierErrorBoundary.tsx` foram criados e ligados ao render real
-  - `components/ErrorBoundary.tsx` passou a reutilizar `utils/errorBoundaryAudit.ts`
-  - `components/MessageRow.tsx` recebeu boundary local para subtree de dossie
-  - testes novos cobrem stores e boundaries
-- Sprint 4 foi encerrada como `done` apos o merge da PR `#228` em `2026-04-17`
-- Sprint 5 foi implementada no branch `codex/sprint5-chatinterface-modularization`:
-  - `components/ChatInterface.tsx` segue como facade publica estavel
-  - `components/chat/contracts.ts` concentra os contratos internos da camada
-  - `components/chat/ChatShell.tsx` concentra sidebar/header/composicao
-  - `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
-  - `components/chat/Composer.tsx` concentra input, prefill, processamento e retry toast
-  - `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
-  - `ChatInterfaceProps` foi preservado
-  - `services/geminiService.ts` permaneceu intocado
-  - testes focados novos cobrem `Composer`, `MessageTimeline` e `ChatPanels`
-  - um follow-up de UX reduziu o atraso da sidebar ao abrir/fechar:
-    - `components/SessionsSidebar.tsx` agora usa `transition-transform duration-200` no mobile
-    - o desktop deixou de animar largura da sidebar
-    - `App.tsx` usa functional update no toggle de `isSidebarOpen`
+- `components/ChatInterface.tsx` segue como facade publica estavel
+- `components/chat/contracts.ts` concentra os contratos internos da camada
+- `components/chat/ChatShell.tsx` concentra sidebar/header/composicao
+- `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
+- `components/chat/Composer.tsx` concentra input, prefill, processamento e retry toast
+- `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
+- `ChatInterfaceProps` foi preservado
+- `services/geminiService.ts` permaneceu intocado
+- o follow-up de UX da sidebar tambem ja esta em `main`:
+  - `components/SessionsSidebar.tsx` usa `transition-transform duration-200` no mobile
+  - o desktop deixou de animar largura da sidebar
+  - `App.tsx` usa functional update no toggle de `isSidebarOpen`
+- `docs/obsidian/00-MASTER.md` entrou em `main` via PR `#234` como camada visual de navegacao, sem substituir as fontes canonicas
 
 ## What Is In Progress
 
-- PR/review/manual smoke validation da Sprint 5 em `codex/sprint5-chatinterface-modularization`
+- Preparacao da Sprint 6 para modularizar `prompts/megaPrompts.ts` sem quebrar markers `[[PORTA_*]]` nem builders publicos
+- Nenhuma branch de implementacao da Sprint 6 foi aberta ainda
 
 ## Next Safe Step
 
-1. Abrir/revisar a PR da Sprint 5 e manter o escopo estrutural, sem reabrir contrato publico
-2. Rodar a rodada manual em preview/Vercel cobrindo gate inicial, home, timeline ativa, header actions, responsividade da sidebar e composer send/stop/retry
-3. Depois do merge, sincronizar board/handoff/memory novamente antes de abrir Sprint 6
+1. Abrir a Sprint 6 em branch propria a partir do `main`
+2. Dividir `prompts/megaPrompts.ts` em `prompts/mega/*`, remover `@ts-nocheck` e preservar markers `[[PORTA_*]]` e builders publicos
+3. Rodar o gate automatizado/contratos da Sprint 6 e, depois, sincronizar `board`/`handoff`/`memory` novamente
 
 ## Files Most Relevant Now
 
 - `docs/ai-context/refactor/01-MASTER-PLAN.md`
-- `docs/ai-context/refactor/04-ARCHITECTURE-TARGET.md`
 - `docs/ai-context/refactor/02-BOARD.md`
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/05-VALIDATION.md`
-- `App.tsx`
-- `features/dossier/*` (novo destino da Sprint 4)
-- `features/chat/*` (novo destino da extracao)
-- `components/ChatInterface.tsx`
-- `services/geminiService.ts`
-- `features/chat/loading-progress.ts`
-- `features/chat/session-controller.ts`
-- `features/chat/feedback-actions.ts`
-- `features/chat/message-helpers.ts`
-- `features/chat/message-orchestrator.ts`
-- `features/dossier/waterfall-orchestrator.ts`
-- `features/dossier/benchmark-stage.ts`
-- `features/dossier/porta-reconciliation.ts`
-- `stores/chatStore.tsx`
-- `stores/dossierStore.tsx`
-- `features/chat/ChatErrorBoundary.tsx`
-- `features/dossier/DossierErrorBoundary.tsx`
-- `utils/errorBoundaryAudit.ts`
-- `components/chat/contracts.ts`
-- `components/chat/ChatShell.tsx`
-- `components/chat/MessageTimeline.tsx`
-- `components/chat/Composer.tsx`
-- `components/chat/ChatPanels.tsx`
-- `tests/App.dossierGolden.test.tsx`
-- `tests/helpers/dossierGolden.ts`
-- `tests/features/chat/loading-progress.test.tsx`
-- `tests/features/chat/session-controller.test.ts`
-- `tests/features/chat/feedback-actions.test.ts`
-- `tests/features/chat/message-orchestrator.test.ts`
-- `tests/features/dossier/benchmark-stage.test.ts`
-- `tests/features/dossier/porta-reconciliation.test.ts`
-- `tests/stores/chatStore.test.tsx`
-- `tests/stores/dossierStore.test.tsx`
-- `tests/features/chat/ChatErrorBoundary.test.tsx`
-- `tests/features/dossier/DossierErrorBoundary.test.tsx`
-- `tests/components/chat/Composer.test.tsx`
-- `tests/components/chat/MessageTimeline.test.tsx`
-- `tests/components/chat/ChatPanels.test.tsx`
+- `docs/ai-context/refactor/06-HANDOFF.md`
+- `prompts/megaPrompts.ts`
+- `prompts/systemPrompts.ts`
+- `HANDOFF_AI.md`
 
 ## Do Not Touch Yet
 
+- Nao quebrar markers `[[PORTA_*]]` ou builders publicos ao modularizar prompts
 - Nao quebrar `services/apiConfig.ts` por dominio
 - Nao dividir `types.ts` sem gatilho real
 - Nao remover facades futuras no mesmo sprint em que os submodulos nascerem
 
 ## Validation Last Run
 
-- validacao manual integrada da Sprint 3: green em `2026-04-15`
-- Sprint 4 / Onda 2 mergeada em `main` via PR `#228`
+- validacao manual da Sprint 5 aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes
 - `tests/components/ChatInterface.test.tsx`: green em `2026-04-17`
 - `tests/components/chat/Composer.test.tsx`: green em `2026-04-17`
 - `tests/components/chat/MessageTimeline.test.tsx`: green em `2026-04-17`
 - `tests/components/chat/ChatPanels.test.tsx`: green em `2026-04-17`
 - `tests/components/SessionsSidebar.test.tsx`: green em `2026-04-17`
-- `npm run test:dossier`: green em `2026-04-16`
-- `npm run test`: green em `2026-04-16`
-- `npm run typecheck`: green em `2026-04-16`
-- `npm run build`: green em `2026-04-16`
-- `npm run test`: green novamente em `2026-04-17`
-- `npm run typecheck`: green novamente em `2026-04-17`
-- `npm run build`: green novamente em `2026-04-17`
+- `npm run test`: green em `2026-04-17`
+- `npm run typecheck`: green em `2026-04-17`
+- `npm run build`: green em `2026-04-17`
+- `npm run docs:obsidian:check`: green em `2026-04-19`
+- `npm run typecheck`: green em `2026-04-19`
 - `npm run lint`: red em `2026-04-11` por backlog historico do repo (`37` erros, `217` warnings)
-- Warning aceito no build: chunking envolvendo `utils/idbStorage.ts`, ja registrado como OI-003
 
 ## Suggested Prompt For Next AI
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
-`02-BOARD.md`, `03-OPEN-ITEMS.md`, `04-ARCHITECTURE-TARGET.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Continue a partir da PR/manual smoke da Sprint 5.
-Use `npm run test:dossier` como fast-check do caso canonico de dossie.
-Considere a Sprint 4 ja mergeada em `main` e a Sprint 5 implementada no branch `codex/sprint5-chatinterface-modularization`.
-Antes de abrir Sprint 6, confirme o merge da Sprint 5 e sincronize novamente as fontes canonicas.
+`02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
+Considere a Sprint 5 encerrada via PR `#229`, com validacao manual aceita em `2026-04-20`.
+Continue a partir da abertura/implementacao da Sprint 6, focada em modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`.
+Preserve markers `[[PORTA_*]]`, builders publicos e use `npm run test:dossier` como fast-check quando tocar o fluxo de dossie.

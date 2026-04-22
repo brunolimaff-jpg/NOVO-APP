@@ -385,3 +385,27 @@
   - build segue emitindo o warning de chunking envolvendo `utils/idbStorage.ts` (OI-003)
 - Proximo passo:
   - abrir/revisar a PR da Onda 2, rodar a validacao manual em runtime real e, apos merge, sincronizar novamente as fontes canonicas antes da Sprint 5
+
+## 2026-04-20 - Fechamento da Sprint 5 e apontamento da Sprint 6
+
+- Fase: planning
+- Sprint: 5 (`done`) -> 6 (`planned`)
+- Objetivo: reconciliar as fontes canonicas com o estado real de `main` apos a PR `#229` e mover o proximo passo oficial para a Sprint 6
+- Decisoes:
+  - aceitar a confirmacao do operador e o uso continuo sem reclamacoes como evidencia suficiente de validacao manual da Sprint 5
+  - tratar a Sprint 5 como encerrada em `main` apos o merge da PR `#229`
+  - apontar a Sprint 6 como proximo foco oficial, sem marcar a sprint como iniciada antes da abertura de branch propria
+- Mudancas concluidas:
+  - `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` sincronizados para refletir Sprint 5 `done`
+  - itens stale de `03-OPEN-ITEMS.md` atualizados para o estado pos-Sprint 4 / pos-Sprint 5
+  - proximo passo seguro alinhado para a abertura da Sprint 6 em `prompts/megaPrompts.ts`
+- Checks registrados:
+  - nenhuma rodada automatizada nova foi necessaria para esta reconciliacao documental
+  - Sprint 5 ja tinha gate automatizado green em `2026-04-17` com `npm run test`, `npm run typecheck` e `npm run build`
+  - validacao manual da Sprint 5 aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes
+- Riscos residuais:
+  - `prompts/megaPrompts.ts` segue monolitico e com debt de tipagem/encoding ate a Sprint 6
+  - `npm run lint` continua fora do gate por backlog historico
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - abrir a Sprint 6 em branch propria a partir do `main`, modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`, preservar markers `[[PORTA_*]]` e remover `@ts-nocheck`

@@ -38,7 +38,8 @@ Para continuidade entre IAs, leia primeiro:
 - Implementacao interna da camada Gemini: `services/gemini/`
 - Features extraidas do App (novo destino): `features/chat/`
 - Contratos centrais: `types.ts`
-- Prompts: `prompts/`
+- Prompts principais: `prompts/megaPrompts.ts` e `prompts/systemPrompts.ts`
+- Hotspot da proxima sprint: `prompts/megaPrompts.ts`
 - Serverless handlers: `api/*.ts`
 
 ## Fluxo operacional resumido
@@ -63,20 +64,17 @@ Para continuidade entre IAs, leia primeiro:
   - `services/gemini/auxiliary.ts`
   - `services/gemini/config.ts`
   - `services/gemini/contracts.ts`
-- `features/chat/` e o novo destino das responsabilidades extraidas de `App.tsx`:
-  - `features/chat/loading-progress.ts` - estado e progresso de loading (Sprint 3 / corte 1)
-  - `features/chat/session-controller.ts` - ciclo de vida de sessao e save remoto (Sprint 3 / cortes 2A-2C)
-  - `features/chat/feedback-actions.ts` - handlers de feedback, section feedback, toggle de fontes, report de erro (Sprint 3 / corte 3)
-  - `features/chat/message-orchestrator.ts` - orquestracao do envio padrao (Sprint 3 / ultimo corte, mergeado)
-  - `features/chat/message-helpers.ts` - helpers compartilhados de hint de empresa, abort e sugestoes de continuidade
+- `features/chat/` e o destino das responsabilidades extraidas de `App.tsx`:
+  - `features/chat/loading-progress.ts`
+  - `features/chat/session-controller.ts`
+  - `features/chat/feedback-actions.ts`
+  - `features/chat/message-orchestrator.ts`
+  - `features/chat/message-helpers.ts`
 - `features/dossier/` foi o destino da Sprint 4:
-  - Onda 1 moveu waterfall, benchmark, retries e reconciliacao PORTA
-  - Onda 2 consolidou `stores/*` e error boundaries por feature
-  - Onda 1 mergeada em `main` via PR `#227`:
-    - `features/dossier/waterfall-orchestrator.ts`
-    - `features/dossier/benchmark-stage.ts`
-    - `features/dossier/porta-reconciliation.ts`
-- `stores/` entrou na Onda 2:
+  - `features/dossier/waterfall-orchestrator.ts`
+  - `features/dossier/benchmark-stage.ts`
+  - `features/dossier/porta-reconciliation.ts`
+- `stores/` entrou na Onda 2 da Sprint 4:
   - `stores/chatStore.tsx`
   - `stores/dossierStore.tsx`
 - Boundaries da Onda 2:
@@ -84,7 +82,7 @@ Para continuidade entre IAs, leia primeiro:
   - `features/dossier/DossierErrorBoundary.tsx`
 - Auditoria compartilhada de erro:
   - `utils/errorBoundaryAudit.ts`
-- `components/chat/` e o destino ativo da Sprint 5:
+- `components/chat/` foi o destino da Sprint 5 e ja esta em `main`:
   - `components/chat/contracts.ts`
   - `components/chat/ChatShell.tsx`
   - `components/chat/MessageTimeline.tsx`
@@ -92,16 +90,18 @@ Para continuidade entre IAs, leia primeiro:
   - `components/chat/ChatPanels.tsx`
 - `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
 - O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
+- `prompts/megaPrompts.ts` continua como arquivo unico; a Sprint 6 deve quebrar esse arquivo em `prompts/mega/*` sem alterar markers `[[PORTA_*]]` nem builders publicos.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
 
 ## Programa de Refatoracao
 
 - Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
 - Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
-- Sprint 3 (done): extracao do fluxo de chat para `features/chat/` concluida; validacao manual integrada fechada em `2026-04-15`
+- Sprint 3 (done): extracao do fluxo de chat para `features/chat/`, concluida e validada em `2026-04-15`
 - Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
-- Sprint 5 (active): `components/ChatInterface.tsx` foi modularizado em `components/chat/*` no branch `codex/sprint5-chatinterface-modularization` com gates automatizados green em `2026-04-17`
-- Sprints 6-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
+- Sprint 6 (planned / next): dividir `prompts/megaPrompts.ts` em `prompts/mega/*`, remover `@ts-nocheck`, preservar markers `[[PORTA_*]]` e builders publicos
+- Sprints 7-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
 
@@ -111,14 +111,15 @@ Para continuidade entre IAs, leia primeiro:
 - `npm run build`
 - `npm run lint`
 - `npm run test:dossier`
+- `npm run docs:obsidian:check`
 
-## Validacao manual da Sprint 5
+## Proximo foco imediato
 
-- Confirmar o gate inicial do operador quando nao existe nome local
-- Validar a home inicial e o disparo de nova investigacao
-- Validar timeline com sessao ativa, incluindo loading hero/inline e fallback visual
-- Validar header actions abrindo dashboard, settings, radar e war room
-- Validar composer com send, stop e retry sem regressao funcional
+- Abrir a Sprint 6 em branch propria a partir do `main`
+- Modularizar `prompts/megaPrompts.ts` em `prompts/mega/*`
+- Remover `@ts-nocheck` sem quebrar markers `[[PORTA_*]]` nem builders publicos
+- Rodar o gate automatizado/contratos da Sprint 6
+- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` quando a Sprint 6 avancar
 
 ## Regras de continuidade
 
@@ -128,6 +129,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
+- Considere a Sprint 5 encerrada; o proximo passo oficial e a Sprint 6.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
 - Validacao manual final deve acontecer em preview/producao na Vercel, nao em `npm run dev`.
