@@ -56,12 +56,13 @@ Sprint 6 is now the next official step.
   - `vitest run tests/features/dossier/waterfall-orchestrator.test.ts`
   - `npm run test:dossier`
   - `npm run build`
+  - facade contract coverage now explicitly locking `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export in `tests/prompts/megaPrompts.test.ts`
 
 ## Immediate next step
 
-1. continue Sprint 6 cleanup inside `prompts/mega/*` while keeping `prompts/megaPrompts.ts` as the stable public facade
-2. preserve markers `[[PORTA_*]]`, public builders, and current prompt text contracts while deciding whether any additional encoding cleanup is safe enough for this sprint
-3. sync board/handoff/memory to the implementation state and keep `mcp-server/` deferred until after Sprints 6-8
+1. treat the current Sprint 6 branch as PR-ready once the user is satisfied with the branch scope and manual spot-check level
+2. preserve markers `[[PORTA_*]]`, public builders, and current prompt text contracts; do not do blind encoding cleanup without a concrete defect
+3. sync board/handoff/memory to the implementation state when opening or merging the Sprint 6 PR, and keep `mcp-server/` deferred until after Sprints 6-8
 
 ## Additional documentation context
 

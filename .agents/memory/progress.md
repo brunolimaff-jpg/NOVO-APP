@@ -43,6 +43,7 @@ Last updated: 2026-04-22
 - Accepted: Sprint 5 manual validation in runtime real was treated as complete on `2026-04-20` based on operator confirmation and continued usage without complaints.
 - Passed: Sprint 6 prompt facade extraction with `npm run typecheck` on `2026-04-22`.
 - Passed: Sprint 6 prompt contract suite `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
+- Passed: Sprint 6 facade contract coverage now explicitly locks `PROMPT_VERSION`, `ALL_SPECIALIST_PROMPTS`, `buildLegacyCompatibleHiddenPrompt`, and the default export alignment in `tests/prompts/megaPrompts.test.ts` on `2026-04-22`.
 - Passed: Sprint 6 dossier consumer suite `tests/features/dossier/waterfall-orchestrator.test.ts` on `2026-04-22`.
 - Passed: Sprint 6 dossier fast-check `npm run test:dossier` on `2026-04-22`.
 - Passed: Sprint 6 production build `npm run build` on `2026-04-22`.
@@ -70,8 +71,9 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Continue Sprint 6 inside `prompts/mega/*` without widening the public API or touching unrelated app layers.
+- Open or prepare the Sprint 6 PR from `codex/sprint6-mega-prompts-modularization` once the current branch scope is considered complete.
 - Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts; the `@ts-nocheck` item is already moot on the current baseline.
 - Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
 - Prefer `npm run test:dossier` plus the dossier consumer suite as fast-checks when touching prompt composition.
+- Avoid blind encoding cleanup unless a concrete runtime defect or failing contract test justifies it.
 - Sync the canonical docs/memory again once Sprint 6 is ready for PR.
