@@ -10,7 +10,7 @@
 | Current phase | `planning` |
 | Current sprint | `6` |
 | Overall status | `active` |
-| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, e a camada versionada de Obsidian via PR `#234`; a validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes; Sprint 6 e o proximo foco oficial |
+| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, e a camada versionada de Obsidian via PR `#234`; a validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes; Sprint 6 é o proximo foco oficial |
 
 ## Current Focus
 
