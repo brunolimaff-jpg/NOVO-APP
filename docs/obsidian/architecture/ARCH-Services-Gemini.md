@@ -7,7 +7,7 @@ source_of_truth:
   - services/gemini/
   - services/ragService.ts
   - services/clientLookupService.ts
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - architecture
@@ -40,7 +40,8 @@ Esta area segura o contrato publico de IA e a orquestracao interna de investigac
 
 ## Pressao de roadmap
 
-- Sprint 6 continua dependendo de quebrar `prompts/megaPrompts.ts`
+- Sprint 6 quebrou `prompts/megaPrompts.ts` em facade + `prompts/mega/*`
+- Sprint 7 preservou `services/geminiService.ts` fora do escopo
 - Sprint 8 e follow-ups do War Room ainda pressionam esta camada
 - a fachada publica nao deve voltar a concentrar logica nova
 

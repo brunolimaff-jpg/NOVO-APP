@@ -39,7 +39,8 @@ Para continuidade entre IAs, leia primeiro:
 - Features extraidas do App (novo destino): `features/chat/`
 - Contratos centrais: `types.ts`
 - Prompts principais: `prompts/megaPrompts.ts` e `prompts/systemPrompts.ts`
-- Hotspot da proxima sprint: `constants.ts`
+- Fachada publica de constantes: `constants.ts`
+- Blocos internos de inteligencia de mercado: `constants/market-intelligence.ts`
 - Serverless handlers: `api/*.ts`
 
 ## Fluxo operacional resumido
@@ -88,8 +89,10 @@ Para continuidade entre IAs, leia primeiro:
   - `components/chat/MessageTimeline.tsx`
   - `components/chat/Composer.tsx`
   - `components/chat/ChatPanels.tsx`
-- `hooks/useChat.ts` e legado e nao deve ganhar novos imports de producao.
-- O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts`.
+- `hooks/useChat.ts` foi removido na Sprint 7.
+- O guardrail de arquitetura esta em `tests/architecture/useChatImportGuard.test.ts` e bloqueia novos imports alem de validar que o arquivo legado nao existe.
+- `constants.ts` permanece como facade publica para constantes/prompts principais; os blocos de portais, rede de parceiros, budget, concorrentes e portfolio Senior agora vivem em `constants/market-intelligence.ts`.
+- `services/apiConfig.ts` preserva os exports publicos, usa helper tipado com referencias estaticas `import.meta.env.VITE_*` para env fallback e reexporta o mapa Senior a partir de `utils/seniorLinks.ts`.
 - `prompts/megaPrompts.ts` agora e uma facade publica fina para `prompts/mega/*`.
 - A estrutura interna da Sprint 6 agora vive em:
   - `prompts/mega/contracts.ts`
@@ -108,7 +111,8 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
 - Sprint 6 (done): `prompts/megaPrompts.ts` virou facade para `prompts/mega/*`, mergeado via PR `#236` em `2026-04-22`
-- Sprints 7-8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- Sprint 7 (validation): constantes/legado/higiene implementados localmente em `codex/sprint7-constants-legacy-hygiene`; gates automatizados verdes; validacao manual em Vercel e PR ainda pendentes
+- Sprint 8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
 
@@ -122,11 +126,10 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Abrir a Sprint 7 a partir do `main` pos-`#236`
-- Extrair primeiro `market-intelligence.ts` de `constants.ts`
-- Depois validar imports/consumidores, remover `hooks/useChat.ts` sem quebrar o guardrail e fazer hardening leve em `services/apiConfig.ts`
-- Considerar que o Deep Dive nao exigiu validacao manual dedicada no fechamento da Sprint 6, porque o fluxo continua oculto na superficie ativa do produto
-- Sincronizar novamente `HANDOFF_AI.md`, `.agents/memory/*` e `docs/ai-context/refactor/*` no fechamento da Sprint 7, nao no comeco
+- Revisar a branch `codex/sprint7-constants-legacy-hygiene` e abrir PR da Sprint 7
+- Rodar a validacao manual final em Vercel: nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export e CRM
+- Fechar Sprint 7 somente apos review/merge e validacao manual aceita
+- Manter `mcp-server/` fora do escopo e sem stage
 
 ## Regras de continuidade
 
@@ -136,7 +139,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
-- Considere a Sprint 6 encerrada; o proximo passo oficial e a Sprint 7.
+- Considere a Sprint 6 encerrada e a Sprint 7 implementada localmente, pendente de validacao manual/PR.
 - Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.

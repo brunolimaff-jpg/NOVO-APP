@@ -9,6 +9,7 @@ export const SENIOR_PRODUCT_URLS: Record<string, string> = {
   'modelagem e execução de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'modelagem e execucao de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'gestão de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
+  'workflow': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'ged': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'ecm': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'ecm/ged': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
@@ -36,6 +37,7 @@ export const SENIOR_PRODUCT_URLS: Record<string, string> = {
   'gestão contábil': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'senior capital': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
   'tesouraria': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
+  'gestão de tesouraria avançada': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
 
   // === HCM / GESTÃO DE PESSOAS ===
   'hcm': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm',
@@ -109,6 +111,7 @@ export function findSeniorProductUrl(text: string): string | null {
   const normalized = text
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos para busca
+    .replace(/[()]/g, '')
     .trim();
 
   // Busca exata primeiro
@@ -153,6 +156,9 @@ export function findSeniorProductUrl(text: string): string | null {
     ['terceiro', 'https://www.senior.com.br/solucoes/gestao-de-terceiros'],
     ['despesa', 'https://www.senior.com.br/solucoes/gestao-de-despesas'],
     ['comercial', 'https://www.senior.com.br/solucoes/gestao-comercial'],
+    ['workflow', 'https://www.senior.com.br/solucoes/performance-corporativa/bpm'],
+    ['flow', 'https://www.senior.com.br/solucoes/performance-corporativa/bpm'],
+    ['ronda', 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm/controle-de-acesso'],
   ];
 
   for (const [keyword, url] of keywords) {

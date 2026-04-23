@@ -9,13 +9,13 @@ function fail(message) {
 }
 
 function parseFrontmatter(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (!match) {
     return null;
   }
 
   const keys = [];
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const keyMatch = line.match(/^([a-z_]+):/);
     if (keyMatch) {
       keys.push(keyMatch[1]);

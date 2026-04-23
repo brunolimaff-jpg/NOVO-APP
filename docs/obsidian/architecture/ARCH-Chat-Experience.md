@@ -8,7 +8,7 @@ source_of_truth:
   - components/chat/MessageTimeline.tsx
   - components/chat/Composer.tsx
   - components/chat/ChatPanels.tsx
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - architecture
@@ -40,9 +40,9 @@ Esta area concentra a experiencia central do produto: gate inicial, home, timeli
 
 ## Pressao de roadmap
 
-- a Sprint 5 modulariza esta camada sem quebrar `ChatInterfaceProps`
-- o legado `hooks/useChat.ts` continua proibido para novos consumidores
-- a trilha futura passa por prompts/constantes e depois War Room
+- a Sprint 5 modularizou esta camada sem quebrar `ChatInterfaceProps`
+- o legado `hooks/useChat.ts` foi removido na Sprint 7 e continua bloqueado pelo guardrail
+- a trilha futura passa por validacao manual da Sprint 7 e depois War Room
 
 ## Fontes canonicas
 

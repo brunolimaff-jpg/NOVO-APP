@@ -437,3 +437,37 @@
   - `mcp-server/` continua local-only e fora do programa atual
 - Proximo passo:
   - abrir a Sprint 7 a partir do `main`, priorizando a extracao de `market-intelligence.ts` de `constants.ts`, depois validar imports/consumidores, remover `hooks/useChat.ts` e fazer hardening leve em `services/apiConfig.ts`
+
+## 2026-04-22 - Sprint 7 constantes, legado e higiene
+
+- Fase: validation
+- Sprint: 7 (`validation`)
+- Objetivo: reduzir o hotspot `constants.ts`, remover o legado morto `hooks/useChat.ts` e endurecer `services/apiConfig.ts` sem mudar comportamento do produto
+- Decisoes:
+  - manter `constants.ts` como facade publica de constantes/prompts principais
+  - mover apenas os blocos internos de inteligencia de mercado para `constants/market-intelligence.ts`
+  - remover `hooks/useChat.ts` e transformar o guardrail em bloqueio de import + ausencia do arquivo
+  - consolidar `SENIOR_PRODUCT_URLS` e `findSeniorProductUrl` em `utils/seniorLinks.ts`, reexportando por `services/apiConfig.ts` para compatibilidade
+  - manter `types.ts`, `services/geminiService.ts` e `mcp-server/` fora do escopo
+- Mudancas concluidas:
+  - criado `constants/market-intelligence.ts`
+  - `constants.ts` preserva `APP_NAME`, `APP_VERSION`, `ChatMode`, `DEFAULT_MODE`, `MODE_LABELS`, `BASE_SYSTEM_PROMPT` e `OPERACAO_PROMPT`
+  - removidos `hooks/useChat.ts` e `tests/hooks/useChat.test.ts`
+  - criado `tests/utils/sessionTitleHeuristics.test.ts`
+  - atualizado `tests/architecture/useChatImportGuard.test.ts`
+  - `services/apiConfig.ts` passou a usar env fallback tipado com referencias estaticas `import.meta.env.VITE_*` e a reexportar links Senior de `utils/seniorLinks.ts`
+  - feedback do Gemini enderecado: `mcp-server/src/index.ts` removido do diff da PR
+- Checks registrados:
+  - focused Sprint 7 suite verde em `2026-04-22`
+  - `npm run test:dossier` verde em `2026-04-22`
+  - `npm run test` verde em `2026-04-22` (`102` arquivos, `785` testes)
+  - `npm run typecheck` verde em `2026-04-22`
+  - `npm run build` verde em `2026-04-22`
+  - `npm run lint` verde em `2026-04-22` com `0` erros e `182` warnings
+  - `npm run docs:obsidian:check` verde em `2026-04-22`
+- Riscos residuais:
+  - validacao manual final em Vercel ainda pendente
+  - `npm run lint` ainda tem backlog de warnings, incluindo ruido do `mcp-server/` diferido
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+- Proximo passo:
+  - revisar/abrir PR da Sprint 7 sem incluir `mcp-server/`, rodar validacao manual em Vercel e marcar Sprint 7 como `done` somente apos merge + aceite manual

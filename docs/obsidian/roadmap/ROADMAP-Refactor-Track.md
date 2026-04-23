@@ -6,7 +6,7 @@ source_of_truth:
   - docs/ai-context/refactor/01-MASTER-PLAN.md
   - docs/ai-context/refactor/02-BOARD.md
   - docs/ai-context/refactor/07-SPRINT-LOG.md
-last_reviewed: 2026-04-19
+last_reviewed: 2026-04-22
 tags:
   - obsidian
   - roadmap
@@ -26,7 +26,7 @@ Back to [[00-MASTER]].
 4. Sprint 4 - extracao do dossie + stores e boundaries
 5. Sprint 5 - modularizacao do shell `components/chat/*`
 6. Sprint 6 - divisao de `prompts/megaPrompts.ts`
-7. Sprint 7 - constantes e remocao de legado
+7. Sprint 7 - constantes e remocao de legado (`validation`)
 8. Sprint 8 - War Room e documentacao final
 
 ## Areas puxadas por essa trilha
