@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Execucao. Sprint 6 esta `done`. Sprint 7 foi encerrada via PR `#239` mergeada em `2026-04-23`, com closeout em `main` via PR `#240` no mesmo dia. Sprint 8 esta implementada localmente e aguarda apenas validacao manual/PR.
+Execucao. Sprint 6 esta `done`. Sprint 7 foi encerrada via PR `#239` mergeada em `2026-04-23`, com closeout em `main` via PR `#240` no mesmo dia. Sprint 8 esta implementada e validada manualmente na branch de trabalho, com PR `#241` ainda aberta em draft.
 
 Sprint 3 foi mergeada em `main` via PRs `#216`-`#221`, com o golden regression offline do dossie entrando pela PR `#222`.
 Sprint 4 foi mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2).
@@ -43,8 +43,8 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Next Safe Step
 
-1. Rodar a validacao manual da Sprint 8 em preview/Vercel para War Room e Radar
-2. Abrir/revisar a PR da Sprint 8 com `services/warRoomService.ts` como facade publica
+1. Concluir a rodada final de review da PR `#241` e tirar a PR de draft quando apropriado
+2. Mergear a Sprint 8 com `services/warRoomService.ts` como facade publica preservada
 3. Manter o runtime atual do Radar fora da nova boundary ate a proxima fatia funcional
 
 ## Files Most Relevant Now
@@ -77,14 +77,14 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Historico de Validacao
 
-### Sprint 8 (implementada localmente em 2026-04-23)
+### Sprint 8 (validada em 2026-04-23; PR `#241` aberta em draft)
 
 - focused Sprint 8 suite: green em `2026-04-23`
 - `npm run test`: green em `2026-04-23` (`102` arquivos, `785` testes)
 - `npm run typecheck`: green em `2026-04-23`
 - `npm run build`: green em `2026-04-23`, com warning aceito de chunking em `utils/idbStorage.ts`
 - `npm run lint`: green em `2026-04-23` com `0` erros e `180` warnings
-- validacao manual em Vercel: pendente
+- validacao manual em Vercel: aceita em `2026-04-23`
 
 ### Sprint 7 (concluida em 2026-04-23)
 
@@ -128,5 +128,5 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Considere a Sprint 7 encerrada via PRs `#239` e `#240`.
-Considere a Sprint 8 implementada localmente em `codex/sprint7-closeout-sprint8-open`, com `services/war-room/` ativo, facade publica preservada e `features/radar/` criado como stub.
-Valide manualmente em preview/Vercel os fluxos de War Room e Radar antes de abrir/mergear a PR.
+Considere a Sprint 8 implementada e validada localmente em `codex/sprint8-war-room-radar-boundary`, com `services/war-room/` ativo, facade publica preservada, `features/radar/` criado como stub e PR `#241` ainda aberta em draft.
+O proximo passo seguro e concluir o review final e mergear a PR sem expandir o escopo da sprint.

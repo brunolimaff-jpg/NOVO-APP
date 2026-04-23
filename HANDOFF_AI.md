@@ -127,7 +127,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
 - Sprint 6 (done): `prompts/megaPrompts.ts` virou facade para `prompts/mega/*`, mergeado via PR `#236` em `2026-04-22`
 - Sprint 7 (done): constantes/legado/higiene mergeados via PR `#239` em `2026-04-23`, com validacao manual aceita em `2026-04-23`
-- Sprint 8 (in progress on `codex/sprint7-closeout-sprint8-open`): `services/war-room/` ativo, fachada publica preservada, parser do War Room deduplicado e `features/radar/` criado como stub arquitetural; validacao manual e PR ainda pendentes
+- Sprint 8 (validated on `codex/sprint8-war-room-radar-boundary`): `services/war-room/` ativo, fachada publica preservada, parser do War Room deduplicado e `features/radar/` criado como stub arquitetural; validacao manual aceita em `2026-04-23` e PR `#241` aberta como draft
 
 ## Scripts principais
 
@@ -142,8 +142,8 @@ Para continuidade entre IAs, leia primeiro:
 ## Proximo foco imediato
 
 - `origin/main` ja inclui o closeout da Sprint 7 via PR `#240`
-- Rodar a validacao manual da Sprint 8 em preview/producao da Vercel para War Room e Radar
-- Abrir a PR da Sprint 8 com `services/warRoomService.ts` como fachada e `services/war-room/` como implementacao interna
+- Sprint 8 esta na branch `codex/sprint8-war-room-radar-boundary` com PR `#241` aberta em draft
+- Validacao manual da Sprint 8 foi aceita em preview/producao da Vercel em `2026-04-23`
 - Manter `mcp-server/` fora do escopo e sem stage
 
 ## Regras de continuidade
@@ -155,7 +155,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
 - Considere a Sprint 7 encerrada via PRs `#239` e `#240`.
-- Considere a Sprint 8 implementada localmente em `codex/sprint7-closeout-sprint8-open`.
+- Considere a Sprint 8 implementada e validada localmente em `codex/sprint8-war-room-radar-boundary`, com PR `#241` ainda aberta em draft.
 - Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.

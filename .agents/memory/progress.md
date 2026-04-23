@@ -26,11 +26,13 @@ Last updated: 2026-04-23
 - Merged Sprint 7 constants/legacy/hygiene into `main` via PR `#239` on `2026-04-23`.
 - Merged the Sprint 7 closeout docs into `main` via PR `#240` on `2026-04-23`.
 - Accepted Sprint 7 manual validation on `2026-04-23` based on operator confirmation in runtime real.
-- Implemented Sprint 8 locally on `codex/sprint7-closeout-sprint8-open`: created `services/war-room/*`, preserved the `services/warRoomService.ts` facade, deduplicated the War Room parser usage in `components/WarRoom.tsx`, updated the target extraction test to import the shared helper, and created the `features/radar/` boundary stub.
+- Implemented Sprint 8 locally on `codex/sprint8-war-room-radar-boundary`: created `services/war-room/*`, preserved the `services/warRoomService.ts` facade, deduplicated the War Room parser usage in `components/WarRoom.tsx`, updated the target extraction test to import the shared helper, and created the `features/radar/` boundary stub.
+- Opened draft PR `#241` for Sprint 8, addressed the actionable review threads, and kept the branch merge-ready while preserving `mcp-server/` out of scope.
+- Accepted Sprint 8 manual validation on `2026-04-23` based on operator confirmation in runtime real.
 
 ## In progress
 
-- Sprint 8 manual preview/Vercel validation and PR packaging.
+- Sprint 8 PR review/merge follow-through.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -52,14 +54,16 @@ Last updated: 2026-04-23
 - Merged: PR `#239` on `2026-04-23`.
 - Accepted: manual Vercel validation on `2026-04-23` for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
 
-### Sprint 8 (implemented locally on 2026-04-23)
+### Sprint 8 (validated on 2026-04-23; PR `#241` open in draft)
 
 - Passed: focused Sprint 8 suites with `npx vitest run tests/services/warRoomService.test.ts tests/services/warRoomCanary.test.ts tests/components/warRoomTargetExtract.test.ts tests/components/chat/ChatPanels.test.tsx tests/hooks/useRadar.test.ts tests/services/radarService.test.ts` on `2026-04-23`.
 - Passed: `npm run typecheck` on `2026-04-23`.
 - Passed: `npm run build` on `2026-04-23`, with the accepted `utils/idbStorage.ts` chunking warning still present.
 - Passed: `npm run lint` on `2026-04-23` with `0` errors and `180` warnings; warning cleanup remains backlog and includes deferred/untracked `mcp-server/`.
 - Passed: full unit/integration suite `npm run test` on `2026-04-23` (`102` files, `785` tests).
-- Pending: manual preview/Vercel validation for War Room technical question, benchmark inference, stop/cancel flow, blocked messages, source rendering, and Radar panel/settings opening.
+- Passed: manual preview/Vercel validation accepted on `2026-04-23` for War Room technical question, benchmark inference, stop/cancel flow, blocked messages, source rendering, and Radar panel/settings opening.
+- Passed: focused post-review rerun `npx vitest run tests/services/warRoomService.test.ts tests/services/warRoomCanary.test.ts tests/components/warRoomTargetExtract.test.ts` on `2026-04-23`.
+- Passed: post-review `npm run typecheck` on `2026-04-23`.
 
 ### Sprint 6 (closed 2026-04-22)
 
@@ -108,7 +112,6 @@ Last updated: 2026-04-23
 
 ## Next checkpoint
 
-- Run manual preview/Vercel validation for the War Room and Radar flows touched by Sprint 8.
-- Prepare the Sprint 8 PR with the `services/warRoomService.ts` facade preserved and `features/radar/` kept as a stub boundary only.
+- Complete the final PR pass on Sprint 8 and merge PR `#241`.
 - Keep `types.ts` centralized unless a clear ROI trigger appears after Sprint 8.
 - Do not include `mcp-server/` in Sprint 8 work unless the user reprioritizes it after the refactor track.

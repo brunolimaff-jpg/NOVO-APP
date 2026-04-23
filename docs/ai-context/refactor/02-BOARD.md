@@ -5,7 +5,7 @@
 | Campo | Valor |
 |---|---|
 | Source of truth commit | `origin/main` -> `caa141246623fe97807b85b2bffa131418eb7c54` |
-| Working branch | `codex/sprint7-closeout-sprint8-open` |
+| Working branch | `codex/sprint8-war-room-radar-boundary` |
 | Last updated | `2026-04-23` |
 | Current phase | `execution` |
 | Current sprint | `8` |
@@ -34,20 +34,21 @@
   - feedback do Gemini na PR foi enderecado: env Vite estatico e `mcp-server/src/index.ts` removido do diff
   - validacao manual em runtime real foi aceita em `2026-04-23`
   - `types.ts` permaneceu centralizado
-- Sprint 8 esta implementada localmente em `codex/sprint7-closeout-sprint8-open`:
+- Sprint 8 esta implementada localmente em `codex/sprint8-war-room-radar-boundary`:
   - `services/war-room/` agora concentra `contracts.ts`, `config.ts`, `history.ts`, `intent.ts`, `retrieval.ts`, `prompting.ts`, `sources.ts` e `query.ts`
   - `services/warRoomService.ts` virou a facade publica fina e preserva `WarRoomMode`, `WarRoomMessage`, `WarRoomResult`, `WarRoomQueryOptions` e `queryWarRoom`
   - `components/WarRoom.tsx` deixou de carregar regex/regras locais e passou a consumir o parser compartilhado de `services/war-room/intent.ts`
   - `tests/components/warRoomTargetExtract.test.ts` agora testa o helper importado
   - `features/radar/` nasceu como stub arquitetural oficial com `README.md`, `types.ts` e `index.ts`
   - `types.ts` permaneceu centralizado; `features/radar/types.ts` apenas reexporta os contratos
-- Sprint 8 ainda nao foi mergeada nem validada manualmente em preview/Vercel
+- Sprint 8 foi validada manualmente em preview/Vercel em `2026-04-23`
+- PR `#241` esta aberta em draft e ainda nao foi mergeada em `main`
 - `mcp-server/` fica explicitamente fora da trilha de refactor ate o fim das Sprints 6-8
 
 ## Next Up
 
-1. Rodar a validacao manual da Sprint 8 em preview/Vercel para os fluxos de War Room e Radar tocados pela sprint
-2. Abrir/revisar a PR da Sprint 8 com a facade de `services/warRoomService.ts` preservada
+1. Concluir a rodada final de review da PR `#241` e tirar a PR de draft quando apropriado
+2. Mergear a Sprint 8 preservando a facade de `services/warRoomService.ts` e o stub de `features/radar/`
 3. Manter `App.tsx` e o runtime atual do Radar estaveis ate a proxima fatia funcional
 
 ## Blocked
@@ -73,7 +74,13 @@
   - `npm run typecheck`
   - `npm run build`
   - `npm run lint`
-- Sprint 8 ainda precisa de validacao manual em preview/Vercel antes de merge
+- Sprint 8 com validacao manual aceita em `2026-04-23`:
+  - pergunta tecnica do War Room
+  - inferencia de benchmark/concorrente
+  - stop/cancel
+  - bloqueio de mensagens nao permitidas
+  - renderizacao de fontes
+  - abertura de `RadarPanel` e `RadarSettings`
 
 ## Known Accepted Warnings
 
@@ -92,4 +99,4 @@
 | 5 | Modularizar ChatInterface | done | `components/chat/` ativo com facade estavel em `ChatInterface.tsx`; PR `#229` mergeada e validacao manual aceita em `2026-04-20` | `origin/main@16c8f2e` | `components/ChatInterface.tsx`, `components/chat/*` |
 | 6 | Dividir megaPrompts | done | `prompts/mega/` criado; facade estavel preservada; markers `[[PORTA_*]]` preservados; PR `#236` mergeada | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | done | `hooks/useChat.ts` removido; `constants.ts` reduzido; guardrail atualizado; `apiConfig` endurecido; PR `#239` mergeada; validacao manual aceita em `2026-04-23` | `start-of-sprint-7` | `constants.ts`, `constants/market-intelligence.ts`, `services/apiConfig.ts`, `utils/seniorLinks.ts`, `tests/architecture/useChatImportGuard.test.ts` |
-| 8 | War Room e docs finais | active | `services/war-room/` ativo, facade publica preservada, parser compartilhado, stub `features/radar/`, gates automaticos green e validacao manual aceita | `start-of-sprint-8` | `services/warRoomService.ts`, `services/war-room/*`, `features/radar/*`, `docs/ai-context/*` |
+| 8 | War Room e docs finais | active | `services/war-room/` ativo, facade publica preservada, parser compartilhado, stub `features/radar/`, gates automaticos green, validacao manual aceita e PR `#241` pronta para merge review | `start-of-sprint-8` | `services/warRoomService.ts`, `services/war-room/*`, `features/radar/*`, `docs/ai-context/*` |
