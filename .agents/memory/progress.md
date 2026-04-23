@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Completed
 
@@ -23,10 +23,12 @@ Last updated: 2026-04-22
 - Synced `BOARD` / `HANDOFF` / `HANDOFF_AI` / repo-local memory to close Sprint 5 and point the next official step to Sprint 6.
 - Merged Sprint 6 mega prompts modularization into `main` via PR `#236` on `2026-04-22`, preserving the public prompt facade and prompt contracts.
 - Implemented Sprint 7 locally on `codex/sprint7-constants-legacy-hygiene`: extracted `constants/market-intelligence.ts`, removed `hooks/useChat.ts`, replaced the stale hook test, updated the architecture guardrail, and hardened `services/apiConfig.ts`.
+- Merged Sprint 7 constants/legacy/hygiene into `main` via PR `#239` on `2026-04-23`.
+- Accepted Sprint 7 manual validation on `2026-04-23` based on operator confirmation in runtime real.
 
 ## In progress
 
-- Sprint 7 manual Vercel validation.
+- Sprint 8 planning/opening for War Room modularization and final refactor closeout.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -35,7 +37,7 @@ Last updated: 2026-04-22
 
 ## Validation history
 
-### Sprint 7 (implemented locally 2026-04-22)
+### Sprint 7 (closed 2026-04-23)
 
 - Passed: focused Sprint 7 suite with `npx vitest run tests/prompts/constantsPromptRules.test.ts tests/utils/constants.test.ts tests/utils/seniorLinks.test.ts tests/utils/linkFixer.test.ts tests/architecture/useChatImportGuard.test.ts tests/utils/sessionTitleHeuristics.test.ts` on `2026-04-22`.
 - Passed: dossier fast-check `npm run test:dossier` on `2026-04-22`.
@@ -45,7 +47,8 @@ Last updated: 2026-04-22
 - Passed: `npm run lint` on `2026-04-22` with `0` errors and `182` warnings; warning cleanup remains backlog and includes deferred untracked `mcp-server/`.
 - Passed: `npm run docs:obsidian:check` on `2026-04-22` after making the checker tolerate CRLF frontmatter on Windows.
 - Addressed: Gemini PR review feedback by replacing dynamic `import.meta.env[key]` with static Vite env references and removing `mcp-server/src/index.ts` from the PR diff.
-- Pending: manual Vercel validation for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
+- Merged: PR `#239` on `2026-04-23`.
+- Accepted: manual Vercel validation on `2026-04-23` for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
 
 ### Sprint 6 (closed 2026-04-22)
 
@@ -77,12 +80,9 @@ Last updated: 2026-04-22
 - Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 - Canonical quick-entry handoff: `HANDOFF_AI.md`
 - New internal prompt modules: `prompts/mega/*`
-- Sprint 7 branch: `codex/sprint7-constants-legacy-hygiene`
-- Constants facade: `constants.ts`
-- Market intelligence constants: `constants/market-intelligence.ts`
-- Legacy chat hook guardrail: `tests/architecture/useChatImportGuard.test.ts`
-- Session title heuristics coverage: `tests/utils/sessionTitleHeuristics.test.ts`
-- API config facade: `services/apiConfig.ts`
+- Next Sprint 8 hotspot: `services/warRoomService.ts`
+- War Room roadmap: `docs/ai-context/ROADMAP_WAR_ROOM.md`
+- War Room executive summary: `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
 - Auxiliary prompt file: `prompts/systemPrompts.ts`
 - Chat facade: `components/ChatInterface.tsx`
 - Chat shell: `components/chat/ChatShell.tsx`
@@ -95,8 +95,7 @@ Last updated: 2026-04-22
 
 ## Next checkpoint
 
-- Review/open PR for Sprint 7 from `codex/sprint7-constants-legacy-hygiene`.
-- Preserve markers `[[PORTA_*]]`, public builders, and existing prompt contracts already stabilized by Sprint 6.
-- Do not include `mcp-server/` in Sprint 6-8 work unless the user reprioritizes it after the refactor track.
-- Run the manual Vercel validation checklist before marking Sprint 7 `done`.
-- Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 7.
+- Open Sprint 8 from `main`, targeting `services/war-room/` and `services/warRoomService.ts`.
+- Preserve the public facade of `services/warRoomService.ts` while moving internals into the new module boundary.
+- Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 8.
+- Do not include `mcp-server/` in Sprint 8 work unless the user reprioritizes it after the refactor track.

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Validacao. Sprint 6 esta `done`. Sprint 7 esta implementada localmente em `codex/sprint7-constants-legacy-hygiene` e ainda depende de PR/review e validacao manual em Vercel antes de virar `done`.
+Planejamento. Sprint 6 esta `done`. Sprint 7 foi encerrada via PR `#239` mergeada em `2026-04-23`, com validacao manual aceita em `2026-04-23`. Sprint 8 e o proximo foco oficial.
 
 Sprint 3 foi mergeada em `main` via PRs `#216`-`#221`, com o golden regression offline do dossie entrando pela PR `#222`.
 Sprint 4 foi mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2).
@@ -46,12 +46,14 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `SENIOR_PRODUCT_URLS` e `findSeniorProductUrl` agora sao reexportados de `utils/seniorLinks.ts`
 - `types.ts`, `services/geminiService.ts` e `mcp-server/` ficaram fora do escopo
 - Feedback do Gemini na PR foi enderecado: env Vite estatico e `mcp-server/src/index.ts` fora do diff
+- PR `#239` foi mergeada em `main` em `2026-04-23`
+- Validacao manual final foi aceita em `2026-04-23`
 
 ## Next Safe Step
 
-1. Revisar o diff local da Sprint 7 e abrir PR sem incluir `mcp-server/`
-2. Rodar validacao manual final em Vercel: nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export e CRM
-3. Apos review/merge e validacao manual aceita, marcar Sprint 7 como `done` e apontar Sprint 8
+1. Abrir a Sprint 8 a partir do `main` pos-`#239`
+2. Criar `services/war-room/` e modularizar `services/warRoomService.ts` com compatibilidade preservada
+3. Consolidar a documentacao final e a arquitetura do War Room sem puxar `mcp-server/`
 
 ## Files Most Relevant Now
 
@@ -60,12 +62,10 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/05-VALIDATION.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
-- `constants.ts`
-- `constants/market-intelligence.ts`
-- `services/apiConfig.ts`
-- `utils/seniorLinks.ts`
-- `tests/architecture/useChatImportGuard.test.ts`
-- `tests/utils/sessionTitleHeuristics.test.ts`
+- `services/warRoomService.ts`
+- `docs/ai-context/ROADMAP_WAR_ROOM.md`
+- `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
+- `docs/ai-context/ARCHITECTURE_MAP.md`
 - `HANDOFF_AI.md`
 
 ## Do Not Touch Yet
@@ -79,7 +79,7 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Historico de Validacao
 
-### Sprint 7 (implementada localmente em 2026-04-22)
+### Sprint 7 (concluida em 2026-04-23)
 
 - focused Sprint 7 suite: green em `2026-04-22`
 - `npm run test:dossier`: green em `2026-04-22`
@@ -88,7 +88,8 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `npm run build`: green em `2026-04-22`, com warning aceito de chunking em `utils/idbStorage.ts`
 - `npm run lint`: green em `2026-04-22` com `0` erros e `182` warnings
 - `npm run docs:obsidian:check`: green em `2026-04-22`
-- validacao manual em Vercel: pendente
+- PR `#239`: mergeada em `2026-04-23`
+- validacao manual em Vercel: aceita em `2026-04-23`
 
 ### Sprint 6 (concluida em 2026-04-22)
 
@@ -121,5 +122,5 @@ Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
 Considere a Sprint 5 encerrada via PR `#229`, com validacao manual aceita em `2026-04-20`.
 Considere a Sprint 6 encerrada via PR `#236`.
-Considere a Sprint 7 implementada localmente em `codex/sprint7-constants-legacy-hygiene`, com gates automatizados verdes e validacao manual em Vercel ainda pendente.
-Revise o diff, abra PR sem incluir `mcp-server/`, rode a validacao manual final em Vercel e so entao marque Sprint 7 como `done`.
+Considere a Sprint 7 encerrada via PR `#239`, com validacao manual aceita em `2026-04-23`.
+Abra a Sprint 8 a partir do `main`, criando `services/war-room/`, modularizando `services/warRoomService.ts` e consolidando a documentacao final sem puxar `mcp-server/`.

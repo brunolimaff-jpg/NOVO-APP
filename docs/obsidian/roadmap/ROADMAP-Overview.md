@@ -6,7 +6,7 @@ source_of_truth:
   - HANDOFF_AI.md
   - .agents/memory/activeContext.md
   - docs/ai-context/refactor/02-BOARD.md
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-23
 tags:
   - obsidian
   - roadmap
@@ -20,8 +20,9 @@ Back to [[00-MASTER]].
 ## Estado atual
 
 - programa de refatoracao em execucao
-- Sprint 7 implementada localmente e pendente de PR + validacao manual em Vercel
-- `npm run lint` passa no branch Sprint 7, mas ainda tem backlog de warnings
+- Sprint 7 encerrada via PR `#239`, com validacao manual aceita em `2026-04-23`
+- Sprint 8 e o proximo passo oficial
+- `npm run lint` passa em `main` pos-`#239`, mas ainda tem backlog de warnings
 
 ## Pilares do roadmap
 

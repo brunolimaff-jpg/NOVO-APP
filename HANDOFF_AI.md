@@ -41,6 +41,7 @@ Para continuidade entre IAs, leia primeiro:
 - Prompts principais: `prompts/megaPrompts.ts` e `prompts/systemPrompts.ts`
 - Fachada publica de constantes: `constants.ts`
 - Blocos internos de inteligencia de mercado: `constants/market-intelligence.ts`
+- Proximo hotspot: `services/warRoomService.ts`
 - Serverless handlers: `api/*.ts`
 
 ## Fluxo operacional resumido
@@ -111,8 +112,8 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 4 (done): Onda 1 mergeada via PR `#227`; Onda 2 mergeada via PR `#228` em `2026-04-17`
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
 - Sprint 6 (done): `prompts/megaPrompts.ts` virou facade para `prompts/mega/*`, mergeado via PR `#236` em `2026-04-22`
-- Sprint 7 (validation): constantes/legado/higiene implementados localmente em `codex/sprint7-constants-legacy-hygiene`; gates automatizados verdes; validacao manual em Vercel e PR ainda pendentes
-- Sprint 8: ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- Sprint 7 (done): constantes/legado/higiene mergeados via PR `#239` em `2026-04-23`, com validacao manual aceita em `2026-04-23`
+- Sprint 8 (planned): ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
 
 ## Scripts principais
 
@@ -126,9 +127,9 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Revisar a branch `codex/sprint7-constants-legacy-hygiene` e abrir PR da Sprint 7
-- Rodar a validacao manual final em Vercel: nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export e CRM
-- Fechar Sprint 7 somente apos review/merge e validacao manual aceita
+- Abrir a Sprint 8 a partir do `main` pos-`#239`
+- Criar `services/war-room/` e modularizar `services/warRoomService.ts` com compatibilidade preservada
+- Atualizar a documentacao final e consolidar a arquitetura do War Room durante a Sprint 8
 - Manter `mcp-server/` fora do escopo e sem stage
 
 ## Regras de continuidade
@@ -139,7 +140,7 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
-- Considere a Sprint 6 encerrada e a Sprint 7 implementada localmente, pendente de validacao manual/PR.
+- Considere a Sprint 7 encerrada e a Sprint 8 como o proximo passo oficial.
 - Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
