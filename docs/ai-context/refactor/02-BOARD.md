@@ -4,13 +4,13 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `main` -> `e9ca55088d2ede31be101d1f37e1f2729788c16d` |
-| Working branch | `main` |
+| Source of truth commit | `origin/main` -> `caa141246623fe97807b85b2bffa131418eb7c54` |
+| Working branch | `codex/sprint7-closeout-sprint8-open` |
 | Last updated | `2026-04-23` |
-| Current phase | `planning` |
+| Current phase | `execution` |
 | Current sprint | `8` |
 | Overall status | `active` |
-| Current baseline | `main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, a camada versionada de Obsidian via PR `#234`, o fechamento documental da Sprint 5 via PR `#235`, a Sprint 6 mergeada via PR `#236`, o closeout documental via PR `#238` e a Sprint 7 mergeada via PR `#239` |
+| Current baseline | `origin/main` ja inclui Sprint 5 mergeada via PR `#229`, os docs do War Room via PR `#230`, o pacote adicional de regressao via PR `#233`, a camada versionada de Obsidian via PR `#234`, o fechamento documental da Sprint 5 via PR `#235`, a Sprint 6 mergeada via PR `#236`, o closeout documental via PR `#238`, a Sprint 7 mergeada via PR `#239` e o closeout da Sprint 7 via PR `#240` |
 
 ## Current Focus
 
@@ -34,17 +34,21 @@
   - feedback do Gemini na PR foi enderecado: env Vite estatico e `mcp-server/src/index.ts` removido do diff
   - validacao manual em runtime real foi aceita em `2026-04-23`
   - `types.ts` permaneceu centralizado
-- Sprint 8 agora e o proximo foco oficial:
-  - criar `services/war-room/`
-  - modularizar `services/warRoomService.ts` com facade publica preservada
-  - consolidar a documentacao final e a arquitetura do War Room
+- Sprint 8 esta implementada localmente em `codex/sprint7-closeout-sprint8-open`:
+  - `services/war-room/` agora concentra `contracts.ts`, `config.ts`, `history.ts`, `intent.ts`, `retrieval.ts`, `prompting.ts`, `sources.ts` e `query.ts`
+  - `services/warRoomService.ts` virou a facade publica fina e preserva `WarRoomMode`, `WarRoomMessage`, `WarRoomResult`, `WarRoomQueryOptions` e `queryWarRoom`
+  - `components/WarRoom.tsx` deixou de carregar regex/regras locais e passou a consumir o parser compartilhado de `services/war-room/intent.ts`
+  - `tests/components/warRoomTargetExtract.test.ts` agora testa o helper importado
+  - `features/radar/` nasceu como stub arquitetural oficial com `README.md`, `types.ts` e `index.ts`
+  - `types.ts` permaneceu centralizado; `features/radar/types.ts` apenas reexporta os contratos
+- Sprint 8 ainda nao foi mergeada nem validada manualmente em preview/Vercel
 - `mcp-server/` fica explicitamente fora da trilha de refactor ate o fim das Sprints 6-8
 
 ## Next Up
 
-1. Abrir a Sprint 8 a partir do `main` pos-`#239`
-2. Criar `services/war-room/` e mover as responsabilidades internas de `services/warRoomService.ts` mantendo a facade publica
-3. Consolidar a documentacao final da trilha e manter OI-044 em vista se Radar voltar a encostar em `App.tsx`
+1. Rodar a validacao manual da Sprint 8 em preview/Vercel para os fluxos de War Room e Radar tocados pela sprint
+2. Abrir/revisar a PR da Sprint 8 com a facade de `services/warRoomService.ts` preservada
+3. Manter `App.tsx` e o runtime atual do Radar estaveis ate a proxima fatia funcional
 
 ## Blocked
 
@@ -63,13 +67,19 @@
 - Sprint 7 fechada sem pendencias de validacao:
   - PR `#239` mergeada em `main` em `2026-04-23`
   - validacao manual aceita em `2026-04-23`
-- Nenhuma validacao ativa pendente ate a abertura da Sprint 8
+- Sprint 8 com validacao automatica concluida em `2026-04-23`:
+  - focused suites de War Room e Radar
+  - `npm run test`
+  - `npm run typecheck`
+  - `npm run build`
+  - `npm run lint`
+- Sprint 8 ainda precisa de validacao manual em preview/Vercel antes de merge
 
 ## Known Accepted Warnings
 
 - `tests/components/SessionsSidebar.test.tsx` ainda emite o warning `Functions are not valid as a React child`
 - Build ainda emite o warning de chunking envolvendo `utils/idbStorage.ts`
-- `npm run lint` agora passa em `main` pos-`#239`, mas ainda emite backlog de warnings; parte do ruido vem do `mcp-server/` diferido e nao deve entrar na trilha
+- `npm run lint` agora passa no baseline pos-`#240`, mas ainda emite backlog de warnings (`180` warnings em `2026-04-23`); parte do ruido vem do `mcp-server/` diferido e nao deve entrar na trilha
 
 ## Sprint Tracker
 
@@ -82,4 +92,4 @@
 | 5 | Modularizar ChatInterface | done | `components/chat/` ativo com facade estavel em `ChatInterface.tsx`; PR `#229` mergeada e validacao manual aceita em `2026-04-20` | `origin/main@16c8f2e` | `components/ChatInterface.tsx`, `components/chat/*` |
 | 6 | Dividir megaPrompts | done | `prompts/mega/` criado; facade estavel preservada; markers `[[PORTA_*]]` preservados; PR `#236` mergeada | `start-of-sprint-6` | `prompts/megaPrompts.ts`, `prompts/mega/*` |
 | 7 | Constantes e legado | done | `hooks/useChat.ts` removido; `constants.ts` reduzido; guardrail atualizado; `apiConfig` endurecido; PR `#239` mergeada; validacao manual aceita em `2026-04-23` | `start-of-sprint-7` | `constants.ts`, `constants/market-intelligence.ts`, `services/apiConfig.ts`, `utils/seniorLinks.ts`, `tests/architecture/useChatImportGuard.test.ts` |
-| 8 | War Room e docs finais | planned | `services/war-room/` ativo e docs consolidadas | `start-of-sprint-8` | `services/warRoomService.ts`, `docs/ai-context/*` |
+| 8 | War Room e docs finais | active | `services/war-room/` ativo, facade publica preservada, parser compartilhado, stub `features/radar/`, gates automaticos green e validacao manual aceita | `start-of-sprint-8` | `services/warRoomService.ts`, `services/war-room/*`, `features/radar/*`, `docs/ai-context/*` |

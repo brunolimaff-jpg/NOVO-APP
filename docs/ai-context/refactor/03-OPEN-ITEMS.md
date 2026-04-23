@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|
 | OI-003 | low | open | warning de build sobre `utils/idbStorage.ts` | Ruido de bundling | Revisar import dinamico/estatico quando tocar `sessionExport` |
 | OI-004 | medium | open | `tests/components/SessionsSidebar.test.tsx` emite `Functions are not valid as a React child` | Ruido no baseline de testes | Ajustar o mock render-prop de `ConfirmPopover` no teste |
-| OI-005 | medium | open | `npm run lint` passa em `main` pos-PR `#239`, mas ainda reporta backlog de warnings (`182` warnings em `2026-04-22`) | `lint` voltou a ser executavel como baseline, mas o ruido ainda reduz sinal de review | Tratar warning cleanup em passada dedicada; nao misturar com hotspots nem com `mcp-server/` diferido |
+| OI-005 | medium | open | `npm run lint` passa no baseline pos-PR `#240`, mas ainda reporta backlog de warnings (`180` warnings em `2026-04-23`) | `lint` voltou a ser executavel como baseline, mas o ruido ainda reduz sinal de review | Tratar warning cleanup em passada dedicada; nao misturar com hotspots nem com `mcp-server/` diferido |
 
 ## Deferred Decisions
 
@@ -40,6 +40,6 @@
 | OI-041 | high | resolved | Ausencia de camada `stores/` forcava `App.tsx` a segurar estado de sessao e score PORTA mesmo apos extracao das features | Features pos-Sprint 4 herdavam estado por props em cascata | Resolvido pela Onda 2 da Sprint 4 com `stores/chatStore.tsx` e `stores/dossierStore.tsx`, mergeada via PR `#228` |
 | OI-042 | high | resolved | Ausencia de Error Boundaries por feature | Gemini 429/500/offline quebrava tela silenciosamente sem fallback visual | Resolvido pela Onda 2 da Sprint 4 com `ChatErrorBoundary.tsx` e `DossierErrorBoundary.tsx`, mergeada via PR `#228` |
 | OI-043 | medium | resolved | `constants.ts` misturava inteligencia de mercado (muda com frequencia) com constantes de UI (quase nunca mudam) | IA que edita dados de mercado podia causar efeito colateral em comportamento de loading | Resolvido na Sprint 7 com `constants/market-intelligence.ts`; `constants.ts` permaneceu facade publica |
-| OI-044 | medium | open | Radar nao tem destino arquitetural definido; sem pre-esqueleto a feature nascera ad hoc dentro de `App.tsx` | Retrabalho de relocacao quando Radar for implementado | Criar `features/radar/` (stub com tipos e README) no Sprint 8 antes de qualquer implementacao |
+| OI-044 | medium | resolved | Radar nao tinha destino arquitetural definido; sem pre-esqueleto a feature nasceria ad hoc dentro de `App.tsx` | Retrabalho de relocacao quando Radar fosse implementado | Resolvido localmente na Sprint 8 com `features/radar/README.md`, `features/radar/types.ts` e `features/radar/index.ts`; o runtime atual continua fora da boundary ate uma fatia funcional propria |
 | OI-045 | medium | open | `mobile-responsive.css` continua separado de `index.css` apos o fechamento da Sprint 5 | Pode gerar drift ou duplicacao de estilos mobile em futuras extracoes do chat | Tratar em passada dedicada de higiene visual, fora da Sprint 6 de prompts |
 | OI-046 | medium | resolved | Responsabilidade do retry no `message-orchestrator` precisava ficar explicita | Retry podia ficar no componente pai ou no service, criando dois caminhos ativos | Consolidado na PR `#221`: retry de envio vive em `features/chat/message-orchestrator.ts`, nao no componente |

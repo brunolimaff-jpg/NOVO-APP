@@ -24,11 +24,13 @@ Last updated: 2026-04-23
 - Merged Sprint 6 mega prompts modularization into `main` via PR `#236` on `2026-04-22`, preserving the public prompt facade and prompt contracts.
 - Implemented Sprint 7 locally on `codex/sprint7-constants-legacy-hygiene`: extracted `constants/market-intelligence.ts`, removed `hooks/useChat.ts`, replaced the stale hook test, updated the architecture guardrail, and hardened `services/apiConfig.ts`.
 - Merged Sprint 7 constants/legacy/hygiene into `main` via PR `#239` on `2026-04-23`.
+- Merged the Sprint 7 closeout docs into `main` via PR `#240` on `2026-04-23`.
 - Accepted Sprint 7 manual validation on `2026-04-23` based on operator confirmation in runtime real.
+- Implemented Sprint 8 locally on `codex/sprint7-closeout-sprint8-open`: created `services/war-room/*`, preserved the `services/warRoomService.ts` facade, deduplicated the War Room parser usage in `components/WarRoom.tsx`, updated the target extraction test to import the shared helper, and created the `features/radar/` boundary stub.
 
 ## In progress
 
-- Sprint 8 planning/opening for War Room modularization and final refactor closeout.
+- Sprint 8 manual preview/Vercel validation and PR packaging.
 - `mcp-server/` is explicitly deferred until after Sprints 6-8 and is outside the current sprint scope.
 
 ## Blockers
@@ -49,6 +51,15 @@ Last updated: 2026-04-23
 - Addressed: Gemini PR review feedback by replacing dynamic `import.meta.env[key]` with static Vite env references and removing `mcp-server/src/index.ts` from the PR diff.
 - Merged: PR `#239` on `2026-04-23`.
 - Accepted: manual Vercel validation on `2026-04-23` for nova sessao, primeira mensagem, follow-up, dossie completo, save/reload/export and CRM.
+
+### Sprint 8 (implemented locally on 2026-04-23)
+
+- Passed: focused Sprint 8 suites with `npx vitest run tests/services/warRoomService.test.ts tests/services/warRoomCanary.test.ts tests/components/warRoomTargetExtract.test.ts tests/components/chat/ChatPanels.test.tsx tests/hooks/useRadar.test.ts tests/services/radarService.test.ts` on `2026-04-23`.
+- Passed: `npm run typecheck` on `2026-04-23`.
+- Passed: `npm run build` on `2026-04-23`, with the accepted `utils/idbStorage.ts` chunking warning still present.
+- Passed: `npm run lint` on `2026-04-23` with `0` errors and `180` warnings; warning cleanup remains backlog and includes deferred/untracked `mcp-server/`.
+- Passed: full unit/integration suite `npm run test` on `2026-04-23` (`102` files, `785` tests).
+- Pending: manual preview/Vercel validation for War Room technical question, benchmark inference, stop/cancel flow, blocked messages, source rendering, and Radar panel/settings opening.
 
 ### Sprint 6 (closed 2026-04-22)
 
@@ -80,7 +91,9 @@ Last updated: 2026-04-23
 - Next safe step: `docs/ai-context/refactor/06-HANDOFF.md`
 - Canonical quick-entry handoff: `HANDOFF_AI.md`
 - New internal prompt modules: `prompts/mega/*`
-- Next Sprint 8 hotspot: `services/warRoomService.ts`
+- War Room facade: `services/warRoomService.ts`
+- Active Sprint 8 modules: `services/war-room/*`
+- Radar boundary stub: `features/radar/*`
 - War Room roadmap: `docs/ai-context/ROADMAP_WAR_ROOM.md`
 - War Room executive summary: `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
 - Auxiliary prompt file: `prompts/systemPrompts.ts`
@@ -95,7 +108,7 @@ Last updated: 2026-04-23
 
 ## Next checkpoint
 
-- Open Sprint 8 from `main`, targeting `services/war-room/` and `services/warRoomService.ts`.
-- Preserve the public facade of `services/warRoomService.ts` while moving internals into the new module boundary.
-- Keep `types.ts` centralized unless a clear ROI trigger appears during Sprint 8.
+- Run manual preview/Vercel validation for the War Room and Radar flows touched by Sprint 8.
+- Prepare the Sprint 8 PR with the `services/warRoomService.ts` facade preserved and `features/radar/` kept as a stub boundary only.
+- Keep `types.ts` centralized unless a clear ROI trigger appears after Sprint 8.
 - Do not include `mcp-server/` in Sprint 8 work unless the user reprioritizes it after the refactor track.

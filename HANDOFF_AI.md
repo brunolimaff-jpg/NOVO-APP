@@ -41,7 +41,9 @@ Para continuidade entre IAs, leia primeiro:
 - Prompts principais: `prompts/megaPrompts.ts` e `prompts/systemPrompts.ts`
 - Fachada publica de constantes: `constants.ts`
 - Blocos internos de inteligencia de mercado: `constants/market-intelligence.ts`
-- Proximo hotspot: `services/warRoomService.ts`
+- Fachada publica do War Room: `services/warRoomService.ts`
+- Implementacao interna do War Room: `services/war-room/`
+- Boundary explicita do Radar: `features/radar/`
 - Serverless handlers: `api/*.ts`
 
 ## Fluxo operacional resumido
@@ -103,6 +105,18 @@ Para continuidade entre IAs, leia primeiro:
 - O item historico de remover `@ts-nocheck` estava stale no baseline atual; o pragma nao existia mais no arquivo quando a Sprint 6 comecou.
 - `mcp-server/` fica explicitamente adiado para depois das Sprints 6-8 e nao entra no escopo da trilha de refactor.
 - `npm run test:dossier` roda a regressao offline do caso canonico Scheffer e deve ser o fast-check quando houver mudanca real em dossie.
+- A implementacao local da Sprint 8 agora vive em:
+  - `services/war-room/contracts.ts`
+  - `services/war-room/config.ts`
+  - `services/war-room/history.ts`
+  - `services/war-room/intent.ts`
+  - `services/war-room/retrieval.ts`
+  - `services/war-room/prompting.ts`
+  - `services/war-room/sources.ts`
+  - `services/war-room/query.ts`
+- `services/warRoomService.ts` permanece como fachada publica estavel para componentes e testes.
+- `components/WarRoom.tsx` agora consome o parser compartilhado a partir de `services/war-room/intent.ts`.
+- `features/radar/README.md`, `features/radar/types.ts` e `features/radar/index.ts` marcam o destino arquitetural oficial do Radar sem mover o runtime ainda.
 
 ## Programa de Refatoracao
 
@@ -113,7 +127,7 @@ Para continuidade entre IAs, leia primeiro:
 - Sprint 5 (done): `components/ChatInterface.tsx` foi modularizado em `components/chat/*`, mergeado via PR `#229` em `2026-04-17`, com validacao manual aceita em `2026-04-20`
 - Sprint 6 (done): `prompts/megaPrompts.ts` virou facade para `prompts/mega/*`, mergeado via PR `#236` em `2026-04-22`
 - Sprint 7 (done): constantes/legado/higiene mergeados via PR `#239` em `2026-04-23`, com validacao manual aceita em `2026-04-23`
-- Sprint 8 (planned): ver `docs/ai-context/refactor/01-MASTER-PLAN.md`
+- Sprint 8 (in progress on `codex/sprint7-closeout-sprint8-open`): `services/war-room/` ativo, fachada publica preservada, parser do War Room deduplicado e `features/radar/` criado como stub arquitetural; validacao manual e PR ainda pendentes
 
 ## Scripts principais
 
@@ -127,9 +141,9 @@ Para continuidade entre IAs, leia primeiro:
 
 ## Proximo foco imediato
 
-- Abrir a Sprint 8 a partir do `main` pos-`#239`
-- Criar `services/war-room/` e modularizar `services/warRoomService.ts` com compatibilidade preservada
-- Atualizar a documentacao final e consolidar a arquitetura do War Room durante a Sprint 8
+- `origin/main` ja inclui o closeout da Sprint 7 via PR `#240`
+- Rodar a validacao manual da Sprint 8 em preview/producao da Vercel para War Room e Radar
+- Abrir a PR da Sprint 8 com `services/warRoomService.ts` como fachada e `services/war-room/` como implementacao interna
 - Manter `mcp-server/` fora do escopo e sem stage
 
 ## Regras de continuidade
@@ -140,7 +154,8 @@ Para continuidade entre IAs, leia primeiro:
 - O estado atual do programa de refatoracao vive em `docs/ai-context/refactor/02-BOARD.md`.
 - O estado atual do ambiente de skills e integracoes vive em `docs/SKILLS-GOVERNANCE.md`.
 - `docs/obsidian/00-MASTER.md` organiza a navegacao por grafo no Obsidian, mas nao substitui handoff/memory/board como fonte de verdade.
-- Considere a Sprint 7 encerrada e a Sprint 8 como o proximo passo oficial.
+- Considere a Sprint 7 encerrada via PRs `#239` e `#240`.
+- Considere a Sprint 8 implementada localmente em `codex/sprint7-closeout-sprint8-open`.
 - Considere `mcp-server/` trabalho adiado para depois das Sprints 6-8, salvo repriorizacao explicita do usuario.
 - Nao assuma skills globais em `~/.codex/skills`; use apenas a allowlist do repo.
 - Antes de planejar implantacoes, use a skill repo-local `plan-work` quando disponivel.
