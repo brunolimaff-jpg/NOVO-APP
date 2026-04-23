@@ -146,10 +146,7 @@ export function normalizeTarget(target: string, message: string): string {
   const cleanTarget = (target || '').trim();
   if (cleanTarget) return cleanTarget;
 
-  const inferred =
-    message.match(GENERIC_TARGET_RE)?.[1]
-      ?.trim()
-      .replace(/[.,;:!?]+$/, '') || '';
+  const inferred = extractCompetitorFromMessage(message);
 
   return inferred || DEFAULT_COMPETITOR_TARGET;
 }

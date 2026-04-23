@@ -25,6 +25,8 @@ const docsInflight = new Map<string, Promise<string>>();
 const globalCache = new Map<string, DocsCacheEntry>();
 const globalInflight = new Map<string, Promise<string>>();
 
+type SettledStringResult = PromiseSettledResult<string>;
+
 function normalizeRagResponse(result: RagResponseLike): RagResult {
   if (typeof result === 'string') {
     return { context: result, failed: false };
@@ -212,6 +214,17 @@ export function prioritizeBlocksByKeywords(context: string, keywords: string[]):
   return trimText(scored.map((item) => item.block).join('\n\n---\n\n'), MAX_DOCS_CHARS);
 }
 
+function pickFulfilledValues(results: SettledStringResult[], onRejected: (reason: unknown) => void): string[] {
+  return results.flatMap((result) => {
+    if (result.status === 'fulfilled') {
+      return result.value ? [result.value] : [];
+    }
+
+    onRejected(result.reason);
+    return [];
+  });
+}
+
 export async function loadWarRoomDocsContext(
   mode: WarRoomMode,
   message: string,
@@ -258,12 +271,22 @@ export async function loadWarRoomDocsContext(
         ? [DEFAULT_DOCS_NAMESPACE, COMPETITOR_DOCS_NAMESPACE]
         : [DEFAULT_DOCS_NAMESPACE];
 
-    const [docsContexts, globalContexts] = await Promise.all([
-      Promise.all(
+    const [docsContextsSettled, globalContextsSettled] = await Promise.all([
+      Promise.allSettled(
         queries.flatMap((query) => docsNamespaces.map((namespace) => getDocsContextCached(query, namespace))),
       ),
-      Promise.all(queries.map((query) => getGlobalContextCached(query))),
+      Promise.allSettled(queries.map((query) => getGlobalContextCached(query))),
     ]);
+
+    let hadRagFailure = false;
+    const reportSettledFailure = (reason: unknown) => {
+      hadRagFailure = true;
+      const details = reason instanceof Error ? reason.message : String(reason);
+      console.warn('[WarRoom][Pinecone] Falha parcial no bloco RAG:', details);
+    };
+
+    const docsContexts = pickFulfilledValues(docsContextsSettled, reportSettledFailure);
+    const globalContexts = pickFulfilledValues(globalContextsSettled, reportSettledFailure);
 
     docsContext = mergeDocContexts([...docsContexts, ...globalContexts]);
 
@@ -319,6 +342,9 @@ export async function loadWarRoomDocsContext(
     if (!docsContext) {
       docsUnavailable = true;
       onStatus?.('⚠️ Pinecone indisponível — usando conhecimento complementar.');
+    } else if (hadRagFailure) {
+      docsUnavailable = true;
+      onStatus?.('⚠️ Pinecone respondeu parcialmente — continuando com contexto parcial.');
     }
   } catch (error: unknown) {
     docsUnavailable = true;

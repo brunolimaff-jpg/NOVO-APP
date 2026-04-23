@@ -20,7 +20,7 @@ export function buildHistorySnippet(history: WarRoomMessage[]): string {
     const prefix = msg.role === 'user' ? '**Usuário:** ' : '**Assistente:** ';
     const text = trimText(msg.text, 1200);
     const block = `${prefix}${text}\n\n`;
-    if (block.length > budget) continue;
+    if (block.length > budget) break;
     chunks.unshift(block);
     budget -= block.length;
   }

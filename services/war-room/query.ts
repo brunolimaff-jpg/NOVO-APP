@@ -31,12 +31,23 @@ function runWithTimeoutAndSignal<T>(
       return;
     }
 
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    };
+
     const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       reject(new Error(`Timeout after ${timeoutMs}ms`));
     }, timeoutMs);
 
     const onAbort = () => {
-      clearTimeout(timer);
+      if (settled) return;
+      settled = true;
+      cleanup();
       reject(makeAbortError());
     };
 
@@ -44,13 +55,15 @@ function runWithTimeoutAndSignal<T>(
 
     task()
       .then((value) => {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
+        if (settled) return;
+        settled = true;
+        cleanup();
         resolve(value);
       })
       .catch((error) => {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
+        if (settled) return;
+        settled = true;
+        cleanup();
         reject(error);
       });
   });
