@@ -466,8 +466,34 @@
   - `npm run lint` verde em `2026-04-22` com `0` erros e `182` warnings
   - `npm run docs:obsidian:check` verde em `2026-04-22`
 - Riscos residuais:
-  - validacao manual final em Vercel ainda pendente
+  - no fechamento tecnico de `2026-04-22`, a validacao manual final em Vercel ainda nao havia sido registrada; o aceite entrou em `2026-04-23` no bloco abaixo
   - `npm run lint` ainda tem backlog de warnings, incluindo ruido do `mcp-server/` diferido
   - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
 - Proximo passo:
-  - revisar/abrir PR da Sprint 7 sem incluir `mcp-server/`, rodar validacao manual em Vercel e marcar Sprint 7 como `done` somente apos merge + aceite manual
+  - historico do dia `2026-04-22`: seguir para merge da PR da Sprint 7 sem incluir `mcp-server/`, registrar a validacao manual em Vercel e so entao marcar a Sprint 7 como `done`
+
+## 2026-04-23 - Fechamento da Sprint 7 e apontamento da Sprint 8
+
+- Fase: planning
+- Sprint: 7 (`done`) -> 8 (`planned`)
+- Objetivo: reconciliar as fontes canonicas com o estado real de `main` apos o merge da PR `#239` e mover o proximo passo oficial para a Sprint 8
+- Decisoes:
+  - tratar a Sprint 7 como encerrada apos o merge da PR `#239` em `main`
+  - aceitar a confirmacao do operador como validacao manual final da Sprint 7 em `2026-04-23`
+  - manter warnings residuais `OI-003`, `OI-004` e `OI-005` abertos, sem misturar cleanup transversal neste closeout
+  - manter `mcp-server/` explicitamente fora do escopo
+- Mudancas concluidas:
+  - `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` sincronizados para refletir Sprint 7 `done`
+  - camada `docs/obsidian/` sincronizada para apontar Sprint 8 como proximo passo oficial
+  - rastreabilidade da PR `#239` atualizada para registrar a validacao manual aceita
+- Checks registrados:
+  - PR `#239` mergeada em `main` em `2026-04-23`
+  - validacao manual da Sprint 7 aceita em `2026-04-23`
+  - `npm run docs:obsidian:check`: green em `2026-04-23`
+- Riscos residuais:
+  - warning de chunking envolvendo `utils/idbStorage.ts` continua aberto como OI-003
+  - warning de `SessionsSidebar.test.tsx` continua aberto como OI-004
+  - `npm run lint` continua com backlog de warnings como OI-005
+  - `mcp-server/` continua local-only e fora do programa atual
+- Proximo passo:
+  - abrir a Sprint 8 a partir do `main`, modularizando `services/warRoomService.ts` em `services/war-room/` e consolidando a documentacao final

@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|
 | OI-003 | low | open | warning de build sobre `utils/idbStorage.ts` | Ruido de bundling | Revisar import dinamico/estatico quando tocar `sessionExport` |
 | OI-004 | medium | open | `tests/components/SessionsSidebar.test.tsx` emite `Functions are not valid as a React child` | Ruido no baseline de testes | Ajustar o mock render-prop de `ConfirmPopover` no teste |
-| OI-005 | medium | open | `npm run lint` passa no branch Sprint 7, mas ainda reporta backlog de warnings (`182` warnings em `2026-04-22`) | `lint` voltou a ser executavel como baseline, mas o ruido ainda reduz sinal de review | Tratar warning cleanup em passada dedicada; nao misturar com hotspots nem com `mcp-server/` diferido |
+| OI-005 | medium | open | `npm run lint` passa em `main` pos-PR `#239`, mas ainda reporta backlog de warnings (`182` warnings em `2026-04-22`) | `lint` voltou a ser executavel como baseline, mas o ruido ainda reduz sinal de review | Tratar warning cleanup em passada dedicada; nao misturar com hotspots nem com `mcp-server/` diferido |
 
 ## Deferred Decisions
 

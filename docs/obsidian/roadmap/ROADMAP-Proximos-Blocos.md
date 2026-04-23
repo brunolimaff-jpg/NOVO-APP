@@ -6,7 +6,7 @@ source_of_truth:
   - docs/ai-context/refactor/01-MASTER-PLAN.md
   - docs/ai-context/ROADMAP_WAR_ROOM.md
   - docs/ai-context/ARCHITECTURE_MAP.md
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-23
 tags:
   - obsidian
   - roadmap
@@ -19,7 +19,6 @@ Back to [[00-MASTER]].
 
 ## Proximo horizonte tecnico
 
-- Sprint 7: revisar PR e validar manualmente em Vercel
 - Sprint 8: consolidar War Room e documentacao final
 - Pos-trilha: tratar backlog de warnings de lint em passada dedicada
 

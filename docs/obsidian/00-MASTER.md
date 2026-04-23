@@ -7,7 +7,7 @@ source_of_truth:
   - .agents/memory/activeContext.md
   - .agents/memory/progress.md
   - docs/ai-context/refactor/02-BOARD.md
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-23
 tags:
   - obsidian
   - repo-graph
@@ -56,10 +56,11 @@ Use este material para navegar por arquitetura e roadmap. O status vivo continua
 ## Leitura rapida do estado atual
 
 - O programa de refatoracao segue ativo.
-- A Sprint 7 esta implementada localmente em `codex/sprint7-constants-legacy-hygiene` e ainda depende de PR + validacao manual em Vercel.
+- A Sprint 7 foi encerrada via PR `#239`, com validacao manual aceita em `2026-04-23`.
+- A Sprint 8 agora e o proximo passo oficial da trilha.
 - `services/geminiService.ts` continua como fachada publica estavel.
 - `constants.ts` agora e facade publica, com inteligencia de mercado em `constants/market-intelligence.ts`.
-- `hooks/useChat.ts` foi removido e segue bloqueado pelo guardrail de arquitetura.
+- `services/warRoomService.ts` e o proximo hotspot tecnico grande da trilha.
 
 ## Regras desta camada
 
