@@ -9,10 +9,11 @@ de chat.
 Leia nesta ordem:
 
 1. [`01-MASTER-PLAN.md`](./01-MASTER-PLAN.md)
-2. [`02-BOARD.md`](./02-BOARD.md)
-3. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
-4. [`05-VALIDATION.md`](./05-VALIDATION.md)
-5. [`06-HANDOFF.md`](./06-HANDOFF.md)
+2. [`08-PHASE2-MAINTAINABILITY-PLAN.md`](./08-PHASE2-MAINTAINABILITY-PLAN.md)
+3. [`02-BOARD.md`](./02-BOARD.md)
+4. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
+5. [`05-VALIDATION.md`](./05-VALIDATION.md)
+6. [`06-HANDOFF.md`](./06-HANDOFF.md)
 
 Consulte estes arquivos quando necessario:
 

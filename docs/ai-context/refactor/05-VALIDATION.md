@@ -7,9 +7,6 @@ Se qualquer um destes comandos falhar, o sprint nao avanca:
 - `npm run test`
 - `npm run typecheck`
 - `npm run build`
-
-A partir do Sprint 7, adicionar:
-
 - `npm run lint`
 
 ## Checklist Automatizado por Sprint
@@ -17,8 +14,9 @@ A partir do Sprint 7, adicionar:
 1. Rodar `npm run test`
 2. Rodar `npm run typecheck`
 3. Rodar `npm run build`
-4. Registrar resultado no `02-BOARD.md`
-5. Se houver warning novo, abrir item em `03-OPEN-ITEMS.md`
+4. Rodar `npm run lint`
+5. Registrar resultado no `02-BOARD.md`
+6. Se houver warning novo, abrir item em `03-OPEN-ITEMS.md`
 
 ## Checklist Manual por Sprint
 
@@ -33,6 +31,8 @@ A partir do Sprint 7, adicionar:
 9. Exportar conversa ou dossie
 10. Abrir CRM
 11. Confirmar Score PORTA quando aplicavel
+12. Validar War Room (pergunta tecnica + benchmark + cancelamento + fontes)
+13. Validar abertura de Radar Panel e Radar Settings
 
 ## Definition of Done por Sprint
 

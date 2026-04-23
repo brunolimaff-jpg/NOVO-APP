@@ -549,3 +549,43 @@
   - o runtime do Radar segue fora de `features/radar/` por decisao de escopo
 - Proximo passo:
   - concluir o review final da PR `#241`, tirar de draft quando apropriado e mergear sem ampliar a sprint
+
+## 2026-04-23 - Fechamento efetivo da Sprint 8 em `main`
+
+- Fase: closeout
+- Sprint: 8 (`done`)
+- Objetivo: reconciliar as fontes canonicas apos o merge da PR `#241` e fechar a Fase 1 (Sprints 1-8)
+- Decisoes:
+  - tratar a Sprint 8 como `done` em `main` apos o merge de `#241`
+  - manter `features/radar/*` como boundary oficial, sem mover runtime nesta etapa
+  - abrir a fase seguinte como trilha dedicada de manutenibilidade (Sprints 9-12)
+- Mudancas concluidas:
+  - baseline do board atualizada para `origin/main@ccd2001518367961637b1a9488c2319aa83d0a21`
+  - handoff e open-items movidos para contexto pos-Sprint 8
+  - backlog de hotspots organizado para a nova fase
+- Checks registrados:
+  - Sprint 8 ja estava com gates tecnicos e validacao manual aceitos antes do merge
+- Riscos residuais:
+  - warnings operacionais OI-003, OI-004 e OI-005 seguem abertos
+- Proximo passo:
+  - abrir Sprint 9 com foco em desacoplamento do app shell
+
+## 2026-04-23 - Kickoff documental da Fase 2 (Manutenibilidade)
+
+- Fase: planning
+- Sprint: 9 (`planned`)
+- Objetivo: criar o documento inicial da nova trilha e sincronizar o pacote canonico de refactor
+- Decisoes:
+  - novo plano base fica em `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
+  - APIs publicas permanecem congeladas durante as Sprints 9-12
+  - `mcp-server/` continua fora do escopo da trilha
+- Mudancas concluidas:
+  - criado `08-PHASE2-MAINTAINABILITY-PLAN.md`
+  - atualizados `00-README.md`, `01-MASTER-PLAN.md`, `02-BOARD.md`, `03-OPEN-ITEMS.md` e `06-HANDOFF.md`
+  - trilha refletida em handoff/memory/roadmap para continuidade entre sessoes
+- Checks registrados:
+  - censo de hotspots e dominios confirmado (`components 51`, `features 13`, `hooks 11`, `services 35`, `stores 2`, `utils 32`, `tests 114`)
+- Riscos residuais:
+  - execucao da Sprint 9 ainda nao iniciada
+- Proximo passo:
+  - abrir o trabalho de implementacao da Sprint 9 com escopo fechado e gates completos

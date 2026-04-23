@@ -1,179 +1,136 @@
-# Mapa Arquitetural — Senior Scout 360
+# Mapa Arquitetural - Senior Scout 360
 
-> **Repositório**: https://github.com/brunolimaff-jpg/NOVO-APP
-> **IMPORTANTE**: Este documento é uma referência. Sempre leia os arquivos reais do repositório antes de propor mudanças — o código evolui a cada sprint.
+> Repositorio: [brunolimaff-jpg/NOVO-APP](https://github.com/brunolimaff-jpg/NOVO-APP)
+> Ultima revisao: 2026-04-23
+> Este mapa e auxiliar. Para status vivo da trilha, use `docs/ai-context/refactor/02-BOARD.md`.
+> Plano da fase atual de manutenibilidade: `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
 
----
+## Arquivos raiz
 
-## Arquivos Raiz — Config & Infraestrutura
+| Arquivo | Funcao | Status |
+|---|---|---|
+| `index.tsx` | bootstrap React com providers globais | estavel |
+| `App.tsx` | hotspot principal de orquestracao e wiring global | em reducao controlada |
+| `types.ts` | contratos centrais do produto, incluindo Radar | estavel |
+| `constants.ts` | fachada publica de constantes/prompts principais | estavel |
+| `vite.config.ts` | configuracao de build e aliases | estavel |
+| `vercel.json` | runtime SPA + funcoes serverless | estavel |
+| `eslint.config.js` | baseline de lint | estavel |
+| `mobile-responsive.css` | regras mobile legadas fora de `index.css` | debito aberto |
 
-| Arquivo | Função | Status |
-|---------|--------|--------|
-| `index.html` | Entry point HTML do Vite | Estável |
-| `index.tsx` | Bootstrap React: OperatorProvider + ErrorBoundary + mount DOM | Estável |
-| `App.tsx` (~45KB) | **GOD COMPONENT** — roteamento, views, modais, estado global | ⚠️ Dissolução em andamento |
-| `types.ts` | Contratos TypeScript centrais: ChatSession, Message, DossieSection, RadarConfig, CRMLead | Estável |
-| `constants.ts` (~52KB) | **MAIOR ARQUIVO** — mega-prompts do Gemini por área + configs estáticas | ⚠️ Precisa ser quebrado por domínio |
-| `vite.config.ts` | Configuração Vite: aliases de path, PWA plugin, proxy para API | Estável |
-| `vercel.json` | Rewrite rules para SPA + rota /api/* para serverless functions | Estável |
-| `tsconfig.json` | TypeScript strict mode ativado | Estável |
-| `tailwind.config.js` | Tema customizado Senior (cores, fontes, breakpoints) | Estável |
-| `eslint.config.js` | Regras ESLint para React + TypeScript | Estável |
-| `.env.example` | Variáveis: GEMINI_API_KEY, VITE_BACKEND_URL, VITE_LOOKUP_URL, modelos `VITE_*` | Referência |
-| `index.css` | Reset CSS + variáveis de tema global | Estável |
-| `mobile-responsive.css` (~9KB) | Breakpoints e ajustes mobile separados | ⚠️ Débito — migrar para Tailwind nativo |
-| `metadata.json` | Metadados PWA: versão, nome, descrição | Estável |
+## Componentes e features de UI
 
----
+### Chat
 
-## components/ — Camada de UI
+- `components/ChatInterface.tsx`
+  - fachada publica estavel da experiencia de chat
+- `components/chat/`
+  - `ChatShell.tsx`
+  - `MessageTimeline.tsx`
+  - `Composer.tsx`
+  - `ChatPanels.tsx`
 
-### Operador & Sessão
-- `GreetingWelcomeScreen.tsx` — Gate inicial para nome local obrigatório do operador
-- `UserMenu.tsx` — Dropdown do operador: avatar, nome, settings e troca/limpeza de perfil local
-- `SettingsDrawer.tsx` — Preferências do operador e edicao do nome local
+### Dossie
 
-### Chat & Mensagens (Core do Produto)
-| Componente | Função | Tamanho |
-|------------|--------|---------|
-| `ChatInterface.tsx` | Hub central: input do usuário, lista de mensagens, triggers para dossiê | ~27KB |
-| `MessageRow.tsx` | Renderiza mensagem individual (user/bot) com suporte a streaming | Médio |
-| `MessageActionsBar.tsx` | Ações por mensagem: copiar, exportar, follow-up, criar lead CRM | Médio |
-| `MarkdownRenderer.tsx` | Renderiza markdown rico das respostas do Gemini | ~15KB |
-| `SectionalBotMessage.tsx` | Mensagens bot com seções colapsáveis por área (Fiscal/TI/RH/Supply) | Médio |
-| `GhostMessageBlock.tsx` | Skeleton/placeholder animado durante streaming (pending state) | Pequeno |
-| `SmartOptions.tsx` | Sugestões de perguntas inteligentes pós-dossiê | Pequeno |
+- `features/dossier/`
+  - `waterfall-orchestrator.ts`
+  - `benchmark-stage.ts`
+  - `porta-reconciliation.ts`
+- `components/InvestigationDashboard.tsx`
+- `components/ScorePorta.tsx`
 
-### Dossiê & Inteligência
-- `InvestigationDashboard.tsx` — Dashboard principal: agrega seções por área investigativa
-- `DeepDiveTopics.tsx` — Tópicos para aprofundamento por área (links rápidos)
-- `RevenueIntelligence.tsx` (~14KB) — Painel: estimativas de faturamento, sazonalidade, potencial de venda
-- `ScorePorta.tsx` — Score PORTA: qualificação preditiva do prospect
-- `ClienteSeniorScore.tsx` — Score de fit com portfólio Senior (ERP, GATEC, HCM)
+### War Room
 
-### Radar (Monitoramento Proativo)
-- `RadarPanel.tsx` (~17KB) — Lista de empresas monitoradas, status, alertas pendentes
-- `RadarBell.tsx` — Ícone de sino com badge de notificações
-- `RadarSettings.tsx` (~11KB) — Configurações: frequência, tópicos de interesse, empresas
-- `features/radar/` — Boundary arquitetural inicial para concentrar a próxima extração do Radar sem empurrar mais responsabilidade para `App.tsx`
+- `components/WarRoom.tsx`
+  - UI do modo tatico
+  - desde a Sprint 8 usa parser compartilhado de `services/war-room/intent.ts`
+- `services/warRoomService.ts`
+  - fachada publica estavel
+- `services/war-room/`
+  - `contracts.ts`
+  - `config.ts`
+  - `history.ts`
+  - `intent.ts`
+  - `retrieval.ts`
+  - `prompting.ts`
+  - `sources.ts`
+  - `query.ts`
 
-### CRM Interno
-- `CRMPipeline.tsx` (~11KB) — Kanban: Prospecção → Qualificação → Proposta → Fechado
-- `CRMDetail.tsx` (~35KB) — **MAIOR COMPONENTE** — detalhe completo de um lead com dossiê linkado
+### Radar
 
-### UX / Navegação / Sistema
-| Componente | Função | Tamanho |
-|------------|--------|---------|
-| `SessionsSidebar.tsx` | Sidebar de histórico de sessões, busca, agrupamento por data | ~14KB |
-| `HeaderSessionSearch.tsx` | Busca no header para filtrar sessões | Pequeno |
-| `SettingsDrawer.tsx` | Drawer de configurações: modelo AI, idioma, preferências | ~13KB |
-| `ModeToggle.tsx` | Toggle entre modos (Copiloto / War Room) | Pequeno |
-| `WarRoom.tsx` | Modo "sala de guerra": visão 360° com múltiplas abas | ~28KB |
-| `EmptyStateHome.tsx` | Estado inicial sem sessão ativa | ~13KB |
-| `LoadingSmart.tsx` | Loading sofisticado: mensagens dinâmicas, animações por fase | ~27KB |
-| `ModeAwareLoading.tsx` | Adapter de loading por modo atual | Pequeno |
-| `StatusIndicator.tsx` | Status da conexão Gemini: online/offline/rate limit | Pequeno |
+- `components/RadarPanel.tsx`
+- `components/RadarSettings.tsx`
+- `components/RadarBell.tsx`
+- `hooks/useRadar.ts`
+- `services/radarService.ts`
+- `features/radar/`
+  - boundary arquitetural inicial criado na Sprint 8
+  - `README.md`, `types.ts`, `index.ts`
 
-### Modais & Ações
-- `FollowUpModal.tsx` (~8.5KB) — Planejar follow-up: data, canal, contexto sugerido pela IA
-- `EmailModal.tsx` — Gerar e-mail personalizado de prospecção baseado no dossiê
-- `ConfirmPopover.tsx` — Popover genérico de confirmação
-- `FeedbackSection.tsx` — Feedback do vendedor sobre qualidade do dossiê
+## Hooks
 
-### Error Handling & PWA
-- `ErrorBoundary.tsx` — Class component que captura erros de renderização
-- `ErrorMessageCard.tsx` — Card de erro inline (429, timeout, etc.)
-- `SuspenseWithError.tsx` — Wrapper React.Suspense + ErrorBoundary
-- `SystemHealthCheck.tsx` (~15KB) — Diagnóstico completo de saúde do sistema
-- `InstallPrompt.tsx` — Banner de instalação PWA
-- `ToastContainer.tsx` — Container global de notificações toast
+| Hook | Funcao | Status |
+|---|---|---|
+| `useAppInitialization.ts` | bootstrap local da aplicacao | ativo |
+| `useSessionManager.ts` | CRUD de sessoes | ativo |
+| `useSessionStorage.ts` | persistencia local de sessoes | ativo |
+| `useRadar.ts` | polling, estado e integracao do Radar | ativo |
+| `useOffline.ts` | conectividade | ativo |
+| `useToast.ts` | notificacoes | ativo |
+| `useTheme.ts` | preferencia visual | ativo |
 
----
+Observacao:
 
-## hooks/ — Lógica de Negócio
+- `hooks/useChat.ts` foi removido na Sprint 7
+- o guardrail de reintroducao vive em `tests/architecture/useChatImportGuard.test.ts`
 
-| Hook | Função | Criticidade |
-|------|--------|-------------|
-| `useChat.ts` (~26KB) | **LEGADO** — mantido por compatibilidade, sem consumidores de produção; protegido por teste estrutural contra novos imports | Baixa |
-| `useAppInitialization.ts` | Init do app: carrega sessões locais, hidrata preferências do operador e detecta PWA | Alta |
-| `useSessionManager.ts` | CRUD de sessões: criar, renomear, deletar, carregar | Alta |
-| `useSessionStorage.ts` | Abstração sobre localStorage com serialização/deserialização tipada | Média |
-| `useRadar.ts` (~9KB) | Lógica do Radar: polling de alertas, estado de empresas, notificações | Média |
-| `usePWA.ts` | Detecta se está rodando como PWA, captura beforeinstallprompt | Baixa |
-| `useOffline.ts` | Monitora navigator.onLine, emite estado de conectividade | Média |
-| `useTheme.ts` | Dark/light mode via localStorage + classe CSS | Baixa |
-| `useToast.ts` | API de toast: showToast(message, type) com auto-dismiss | Baixa |
-| `useClickBypass.ts` | Evita propagação de cliques em overlays/modais | Baixa |
+## Camada de services
 
----
+| Modulo | Papel |
+|---|---|
+| `services/geminiService.ts` | fachada publica da camada Gemini |
+| `services/gemini/` | implementacao interna de investigacao, PORTA, fontes, recovery e runtime |
+| `services/warRoomService.ts` | fachada publica do War Room |
+| `services/war-room/` | implementacao interna modular do War Room |
+| `services/ragService.ts` | RAG interno e documental |
+| `services/radarService.ts` | runtime atual do Radar |
+| `services/sessionRemoteStore.ts` | sync remoto de sessoes |
+| `services/feedbackRemoteStore.ts` | sync remoto de feedback |
+| `services/apiConfig.ts` | env/config tipado e links Senior reexportados |
 
-## services/ — Serviços de Domínio e Integração
+## Estado e boundaries
 
-| Serviço | Função |
-|---------|--------|
-| `services/geminiService.ts` | Fachada pública estável da camada Gemini |
-| `services/gemini/` | Decomposição interna da orquestração Gemini: investigação, PORTA, fontes, sanitização, status e recovery |
-| `services/warRoomService.ts` | Fachada pública estável do War Room |
-| `services/war-room/` | Decomposição interna do War Room: contratos, intent, retrieval, prompting, fontes e query |
-| `services/ragService.ts` | Chamada ao RAG interno e RAG de documentação |
-| `services/sessionRemoteStore.ts` | Persistência remota de sessões |
-| `services/feedbackRemoteStore.ts` | Persistência remota de feedback |
+- `stores/chatStore.tsx`
+  - mensagens, loading, `lastQuery`, refs e sessao corrente
+- `stores/dossierStore.tsx`
+  - exportacao, save remoto e payload de dossie
+- `features/chat/ChatErrorBoundary.tsx`
+- `features/dossier/DossierErrorBoundary.tsx`
+- `utils/errorBoundaryAudit.ts`
 
-## api/ — Serverless Functions (Vercel)
+## APIs serverless
 
-Proxy seguro entre frontend e APIs externas. A `GEMINI_API_KEY` fica **APENAS** no servidor. Recebem chamadas da camada de services e encaminham ao Gemini com autenticação server-side.
+- `api/gemini.ts`
+- `api/rag.ts`
+- `api/docs-rag.ts`
+- `api/link-status.ts`
+- `api/open-web-search.ts`
+- `api/radar-scan.ts`
 
----
+Todas rodam em Vercel; validacao manual final deve acontecer em preview/producao, nao em `npm run dev`.
 
-## Diretórios de Suporte
+## Debitos e hotspots
 
-| Diretório | Função |
-|-----------|--------|
-| `contexts/` | React Contexts: operador local, modo, CRM e estados compartilhados |
-| `services/` | Wrappers das APIs externas, fachada Gemini e integrações |
-| `utils/` | Funções utilitárias puras: formatação, parsing de markdown, sanitização |
-| `config/` | Configurações centralizadas de ambiente e feature flags |
-| `prompts/` | Prompts do Gemini versionados separados |
-| `docs/` | Documentação técnica interna |
-| `tests/` | Testes unitários/integração com Vitest |
-| `scripts/` | Scripts de automação: build, deploy, geração de código |
-| `public/` | Assets estáticos: ícones PWA, favicon, manifest.json |
+- `App.tsx` ainda concentra parte do wiring global
+- `mobile-responsive.css` segue fora da consolidacao principal de estilos
+- `CRMDetail.tsx`, `WarRoom.tsx` e `LoadingSmart.tsx` continuam candidatos a decomposicao
+- lint segue com backlog de warnings
+- runtime do Radar ainda nao foi migrado para dentro de `features/radar/`
 
----
+## Regras vigentes
 
-## Documentação Interna
-
-| Arquivo | Conteúdo |
-|---------|----------|
-| `README.md` | Setup local, variáveis de ambiente, visão geral |
-| `ARQUITETURA.md` | Diagrama de arquitetura, decisões técnicas, roadmap |
-| `CLAUDE.md` | Instruções para AI agents + Board Room de desenvolvimento |
-| `AGENTS.md` | Configuração dos agentes AI: regras, escopo de atuação |
-| `HANDOFF_AI.md` | Handoff para troca de contexto entre sessões de AI coding |
-| `PLAN.md` | Plano de execução do sprint atual |
-
----
-
-## Débitos Técnicos Mapeados
-
-### P0 — Críticos
-- `App.tsx` (~45KB) — god component com roteamento, estado global e lógica misturados. Dissolução em andamento.
-- `constants.ts` (~52KB) — mistura prompts de IA + configurações de UI + constantes de negócio em um único arquivo.
-- `services/geminiService.ts` foi estabilizado como fachada; nova lógica interna deve entrar em `services/gemini/`, não de volta na fachada.
-- ~~War Room alucina sem ancoragem~~ ✅ **Resolvido (2026-04-17)** — o modo técnico agora depende de Pinecone, allowlist de domínio e recusa segura. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
-
-### P1 — Altos
-- CI sem `tsc --noEmit` como gate de merge (erros rastreados manualmente em .txt)
-- `CRMDetail.tsx` (~35KB) — componente monolítico
-- Arquivos legados na raiz: `old_appcore.tsx`, `old.tsx`, `build_err.txt`, `build_err_2.txt`, `ts_errors.txt`
-- `hooks/useChat.ts` permanece como legado; imports de produção novos são proibidos.
-- **Modo Concorrentes (War Room)** — placeholder visível, ainda não ativado. Depende de indexação e curadoria de domínios oficiais. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
-
-### P2 — Médios
-- `mobile-responsive.css` separado (deveria usar Tailwind nativo)
-- Scripts `fix*.cjs` e `extract*.cjs` na raiz (devem ir para scripts/ ou .gitignore)
-- `WarRoom.tsx` (~28KB) e `LoadingSmart.tsx` (~27KB) — candidatos a decomposição
-- **Busca custom por domínio oficial (War Room)** — substitui grounding aberto por tool controlada da aplicação. Ver `docs/ai-context/ROADMAP_WAR_ROOM.md`.
-
-### Regra geral
-Componentes acima de 15KB são candidatos obrigatórios à análise de decomposição.
+- novas responsabilidades Gemini entram em `services/gemini/`
+- novas responsabilidades War Room entram em `services/war-room/`
+- nao quebrar fachadas publicas em sprint estrutural
+- `types.ts` continua centralizado ate ROI claro para divisao
+- `mcp-server/` segue fora da trilha de refactor atual

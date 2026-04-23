@@ -1,177 +1,197 @@
-# Arquitetura Tecnica — 🦅 Senior Scout 360
+# Arquitetura Tecnica - Senior Scout 360
 
-Este documento detalha o desenho tecnico da aplicacao, os modulos principais e os fluxos de execucao.
+Este documento resume o desenho tecnico atual da aplicacao e o estado arquitetural depois da Sprint 8 do programa de refatoracao.
+O backlog estrutural da fase seguinte esta em `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
 
-> **Ultima atualizacao:** 2026-04-14 — reflete o estado apos Sprints 1, 2 e 3 (ativo) do programa de refatoracao.
-> Para o estado vivo do programa, consulte `docs/ai-context/refactor/02-BOARD.md`.
+> Ultima atualizacao: 2026-04-23
+> Fonte de verdade para status vivo da trilha: `docs/ai-context/refactor/02-BOARD.md`
 
 ## 1. Contexto
 
 O sistema combina:
 
-- **Interface conversacional** (React);
-- **Orquestracao de IA** (Gemini + RAG);
-- **Persistencia local/remota** (IDB/localStorage + Apps Script);
-- **Gestao de oportunidade** (mini CRM kanban).
+- interface conversacional em React 19 + TypeScript + Vite
+- orquestracao de IA com Gemini + RAG interno/documental
+- persistencia local/remota com IndexedDB, localStorage e Apps Script
+- CRM interno, Score PORTA, War Room e Radar
 
 ## 2. Blocos principais
 
-### Frontend (SPA)
+### Frontend SPA
 
-- **`index.tsx`**
-  - Bootstrap do app e registro dos providers globais.
-- **`App.tsx`**
-  - Orquestrador de estado em reducao progressiva. Responsabilidades sendo extraidas para `features/*`.
-- **`features/chat/`** *(novo — Sprint 3)*
-  - Modulos autonomos extraidos do `App.tsx`:
-    - `loading-progress.ts` — estado e progresso de loading do chat
-    - `session-controller.ts` — ciclo de vida de sessao e save remoto
-    - `feedback-actions.ts` — handlers de feedback, section feedback, toggle de fontes, report de erro
-    - `message-orchestrator.ts` — orquestracao do envio padrao *(em andamento)*
-- **`components/*`**
-  - Camada de interface (chat, mensagens, barra lateral, modais, war room, CRM).
-- **`contexts/*`**
-  - Perfil do operador (`OperatorContext`) e dados de CRM.
-- **`hooks/*`**
-  - Persistencia local, tema, status online/offline, toast, notificacao de atualizacao.
+- `index.tsx`
+  - bootstrap do app e registro de providers globais
+- `App.tsx`
+  - orquestrador principal ainda ativo, mas reduzido pelas Sprints 3 a 8
+- `features/chat/`
+  - destino dos fluxos extraidos do chat
+  - `loading-progress.ts`
+  - `session-controller.ts`
+  - `feedback-actions.ts`
+  - `message-orchestrator.ts`
+- `features/dossier/`
+  - destino do runtime do dossie/waterfall
+  - `waterfall-orchestrator.ts`
+  - `benchmark-stage.ts`
+  - `porta-reconciliation.ts`
+- `components/chat/`
+  - shell visual modular do chat
+- `features/radar/`
+  - boundary arquitetural oficial do Radar, criado na Sprint 8 como stub
 
-### Auth
+### Estado compartilhado
 
-- **Local-only** via `contexts/OperatorContext.tsx`.
-- Nome do operador e obrigatorio, salvo localmente por dispositivo.
-- `operatorId` estavel por dispositivo para rastreabilidade remota.
-- `@clerk/react` foi removido no Sprint 1.
+- `stores/chatStore.tsx`
+  - sessao, mensagens, loading e refs operacionais do chat
+- `stores/dossierStore.tsx`
+  - exportacao, save remoto e payload derivado de dossie
+- `contexts/OperatorContext.tsx`
+  - perfil local-only do operador
+- `contexts/CRMContext.tsx`
+  - estado do pipeline interno
 
 ### Servicos de dominio
 
-- **`services/geminiService.ts`** *(fachada publica estavel)*
-  - Motor principal de perguntas/respostas com IA. Delega para `services/gemini/`.
-- **`services/gemini/`** *(novo — Sprint 2)*
-  - Orquestracao interna decomposta:
-    - `investigation-orchestration.ts`, `porta.ts`, `sources.ts`, `sanitization.ts`
-    - `status.ts`, `recovery.ts`, `runtime.ts`, `auxiliary.ts`, `config.ts`, `contracts.ts`
-- **`services/ragService.ts`**
-  - Cliente para funcoes serverless de RAG.
-- **`services/sessionRemoteStore.ts`**
-  - Operacoes de sessao remota (list/get/save).
-- **`services/feedbackRemoteStore.ts`**
-  - Envio de feedback de respostas.
-- **`services/clientLookupService.ts`**
-  - Lookup e benchmark de clientes.
+- `services/geminiService.ts`
+  - fachada publica estavel da camada Gemini
+- `services/gemini/`
+  - implementacao interna modular da orquestracao de investigacao
+- `services/warRoomService.ts`
+  - fachada publica estavel do War Room
+- `services/war-room/`
+  - implementacao interna modular do War Room
+  - `contracts.ts`, `config.ts`, `history.ts`, `intent.ts`, `retrieval.ts`, `prompting.ts`, `sources.ts`, `query.ts`
+- `services/ragService.ts`
+  - cliente para RAG interno e documental
+- `services/radarService.ts`
+  - runtime atual do Radar
+- `services/sessionRemoteStore.ts`
+  - persistencia remota de sessoes
+- `services/feedbackRemoteStore.ts`
+  - persistencia remota de feedback
 
 ### APIs serverless (Vercel)
 
-- **`api/rag.ts`** — Embedding + consulta vetorial para contexto interno.
-- **`api/docs-rag.ts`** — Embedding + consulta vetorial para documentacao tecnica.
-- **`api/link-status.ts`** — Validacao de links exibidos como fonte.
+- `api/gemini.ts`
+  - proxy seguro da camada Gemini
+- `api/rag.ts`
+  - consulta vetorial do contexto interno
+- `api/docs-rag.ts`
+  - consulta vetorial da documentacao tecnica
+- `api/link-status.ts`
+  - validacao de links exibidos como fonte
+- `api/radar-scan.ts`
+  - suporte ao fluxo de Radar
+- `api/open-web-search.ts`
+  - busca aberta controlada
 
-## 3. Sequencia do fluxo de mensagem (estado atual)
+## 3. Fluxo principal de mensagem
 
 ```text
 Usuario envia pergunta
-   ↓
-ChatInterface.onSendMessage
-   ↓
-App.handleSendMessage
-   ↓ (delegando progressivamente para features/chat/message-orchestrator)
-App.processMessage
-   ├─ useChatLoadingProgress (features/chat/loading-progress.ts)
-   ├─ useSessionManager (features/chat/session-controller.ts)
-   ├─ useSessionRemoteSave (features/chat/session-controller.ts)
-   ├─ useChatFeedbackActions (features/chat/feedback-actions.ts)
-   └─ chama sendMessageToGemini
-          ↓
-      geminiService.sendMessageToGemini (fachada)
-       ├─ scanInput (promptGuard)
-       ├─ analyzeUserIntent
-       ├─ lookup + benchmark + concorrentes
-       ├─ RAG interno + docs RAG
-       ├─ chamada ao modelo (stream)
-       └─ parse de marcadores (STATUS/PORTA) [services/gemini/porta.ts]
-          ↓
-App atualiza sessao/mensagem
-   ├─ texto final
-   ├─ fontes
-   ├─ sugestoes
-   └─ metadados (score, ghost, etc.)
+  -> ChatInterface / ChatShell
+  -> App.tsx delega para features/chat/message-orchestrator
+  -> message-orchestrator resolve sessao, placeholder, abort/retry e roteamento
+  -> services/geminiService.ts (fachada publica)
+  -> services/gemini/* executa lookup, RAG, chamada ao modelo, parsing e recovery
+  -> stores/contextos atualizam timeline, fontes, score, sugestoes e persistencia
 ```
 
-## 4. Persistencia
+## 4. Fluxo War Room
+
+```text
+Usuario abre War Room
+  -> components/WarRoom.tsx
+  -> parser compartilhado em services/war-room/intent.ts
+  -> services/warRoomService.ts (fachada)
+  -> services/war-room/query.ts orquestra retrieval, prompting, modelo e pos-processamento
+  -> UI renderiza resposta, fontes e estados de bloqueio/cancelamento
+```
+
+Pontos importantes:
+
+- a API publica de `services/warRoomService.ts` foi preservada na Sprint 8
+- o parser duplicado saiu da UI e foi consolidado em `services/war-room/intent.ts`
+- o fallback degradado e as heuristicas atuais de benchmark/concorrente foram mantidos
+
+## 5. Persistencia
 
 ### Local
 
-- Hook `useSessionStorage`:
-  - prioridade para IndexedDB (`scout360_sessions_v2`);
-  - fallback para localStorage legado (`scout360_sessions_v1`).
+- `useSessionStorage`
+  - prioriza IndexedDB (`scout360_sessions_v2`)
+  - fallback para localStorage legado (`scout360_sessions_v1`)
 
 ### Remota
 
-- `sessionRemoteStore` envia payload para Apps Script com acoes:
+- `sessionRemoteStore`
   - `listSessions`
   - `getSession`
   - `saveSession`
 
 ### CRM
 
-- `CRMContext` persiste cards em localStorage (`scout360_crm_cards_v1`) e em IDB por card.
+- `CRMContext`
+  - persiste cards em localStorage e IndexedDB
 
-## 5. Seguranca e resiliencia implementadas
+## 6. Seguranca e resiliencia
 
-- **Prompt guard** com:
-  - sanitizacao de unicode;
-  - deny-list de jailbreak;
-  - rate-limit por sessao;
-  - canary token para deteccao de vazamento;
-  - sanitizacao de conteudo externo (RAG).
+- prompt guard com sanitizacao, deny-list, canary e controle de vazamento
+- retries exponenciais via `withAutoRetry`
+- timeouts explicitos e tratamento de `AbortSignal`
+- fallback quando RAG falha
+- chaves de IA protegidas em variaveis de ambiente da Vercel
 
-- **Resiliencia de rede**
-  - retries exponenciais (`withAutoRetry`);
-  - timeouts explicitos;
-  - fallback silencioso quando RAG falha;
-  - tratamento de abort/cancelamento.
+## 7. Contratos relevantes
 
-- **Chaves de IA:** gerenciadas via variaveis de ambiente Vercel. Nao expostas no frontend.
+### Tipos centrais
 
-## 6. Contratos relevantes
+Continuam centralizados em `types.ts`, incluindo:
 
-### Resposta principal de IA (resumo)
+- `Message`
+- `ChatSession`
+- `CRMCard`
+- `ScorePortaData`
+- `RadarConfig`
+- `RadarAlert`
+- `RadarCategory`
 
-Campos consumidos no app:
+### Fachadas publicas estabilizadas
 
-- `text`: texto final
-- `sources`: array de `{ title, url }`
-- `suggestions`: perguntas de continuidade
-- `scorePorta`: score estruturado (quando existir)
-- `statuses`: status de progresso
-- `ghostReason`: motivo de resposta fantasma (ex.: timeout)
+- `services/geminiService.ts`
+- `services/warRoomService.ts`
+- `components/ChatInterface.tsx`
+- `constants.ts`
+- `prompts/megaPrompts.ts`
 
-### Tipos base
+## 8. Debito tecnico ativo
 
-Concentrados em `types.ts`:
+> Para o rastreamento vivo de riscos e warnings, consulte `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
-- `Message`, `ChatSession`, `CRMCard`, `ScorePortaData`, `AppError`.
-
-## 7. Debito tecnico ativo
-
-> Para o rastreamento vivo de debitos e riscos, consulte `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
-
-| Item | Status | Previsto em |
+| Item | Status | Observacao |
 |---|---|---|
-| `App.tsx` concentra muitas responsabilidades | Em reducao — Sprint 3/4 ativo | Sprints 3-4 |
-| `constants.ts` monolitico (prompts + constantes de UI) | Abertura feita com `constants/loadingStages.ts` | Sprint 7 |
-| `npm run lint` vermelho por backlog historico | Aberto (OI-005) | Passada dedicada |
-| `prompts/megaPrompts.ts` com `@ts-nocheck` | Aberto | Sprint 6 |
-| `hooks/useChat.ts` legado sem remocao | Guardrail ativo, remocao pendente | Sprint 7 |
+| `App.tsx` ainda e hotspot | aberto | reduzir novos acoplamentos fora da trilha |
+| `mobile-responsive.css` separado de `index.css` | aberto | segue como OI-045 |
+| backlog de warnings do `npm run lint` | aberto | baseline atual: `180` warnings |
+| warning de chunking em `utils/idbStorage.ts` | aceito | segue como OI-003 |
+| runtime real do Radar ainda fora de `features/radar/` | aberto | stub arquitetural criado; migracao fica para fatia propria |
 
-## 8. Estrategia de evolucao (programa de refatoracao)
+## 9. Programa de refatoracao
 
-Programa de 8 sprints em andamento. Ver `docs/ai-context/refactor/01-MASTER-PLAN.md` para sequencia completa.
+- Sprint 1: done - auth local-only com `OperatorContext`
+- Sprint 2: done - quebra interna de `services/geminiService.ts`
+- Sprint 3: done - extracao do fluxo de chat para `features/chat/`
+- Sprint 4: done - extracao do dossie, `stores/*` e boundaries
+- Sprint 5: done - modularizacao de `components/chat/*`
+- Sprint 6: done - divisao de `prompts/megaPrompts.ts`
+- Sprint 7: done - constantes, links Senior e remocao de legado
+- Sprint 8: implementada, validada e documentada; aguardando merge da PR `#241`
 
-- Sprint 1 (done): remocao de Clerk/auth, migracao para `OperatorContext`
-- Sprint 2 (done): extracao interna da camada Gemini para `services/gemini/`
-- Sprint 3 (active): extracao do fluxo de chat para `features/chat/`
-- Sprint 4 (planned): extracao do fluxo de dossie para `features/dossier/`
-- Sprint 5 (planned): modularizacao de `components/ChatInterface.tsx`
-- Sprint 6 (planned): divisao de `prompts/megaPrompts.ts`
-- Sprint 7 (planned): constantes e legado
-- Sprint 8 (planned): War Room e documentacao final
+## 10. Regras arquiteturais vigentes
+
+- nao quebrar fachadas publicas em sprint estrutural
+- novas responsabilidades Gemini entram em `services/gemini/`, nao na fachada
+- novas responsabilidades War Room entram em `services/war-room/`, nao na fachada
+- `types.ts` continua centralizado ate haver ROI claro para divisao
+- `hooks/useChat.ts` foi removido e nao deve ser recriado
+- validacao manual final acontece em preview/producao da Vercel, nao em `npm run dev`
