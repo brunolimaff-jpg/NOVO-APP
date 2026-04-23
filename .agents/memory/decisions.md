@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -43,3 +43,15 @@ Reason: the current priority is to finish the planned structural refactor first;
 Decision: `utils/seniorLinks.ts` is the source of truth for `SENIOR_PRODUCT_URLS` and `findSeniorProductUrl`; `services/apiConfig.ts` only reexports them for backward compatibility.
 
 Reason: product URL matching is link-fixing utility behavior, not API endpoint configuration. Keeping one map removes duplication while preserving the public `services/apiConfig.ts` contract.
+
+## 2026-04-23 - Start Phase 2 maintainability track
+
+Decision: close Fase 1 (Sprints 1-8) after merge of PR `#241` and open a new documentary baseline for Sprints 9-12 in `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
+
+Reason: the original refactor program reached its planned structural boundaries; next work needs a new hotspot-driven track focused on maintainability without breaking stable public facades.
+
+## 2026-04-23 - Freeze public facades for Sprints 9-12
+
+Decision: keep `services/geminiService.ts`, `services/warRoomService.ts`, `components/ChatInterface.tsx`, `constants.ts`, `prompts/megaPrompts.ts`, and `types.ts` as stable public contracts throughout Fase 2.
+
+Reason: limiting API churn reduces integration risk and allows incremental refactors focused on internal coupling and code ownership boundaries.
