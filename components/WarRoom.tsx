@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { WarRoomMode, queryWarRoom } from '../services/warRoomService';
+import { extractCompetitorFromMessage, isBlockedIntent, resolveWarRoomIntent } from '../services/war-room/intent';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
 
@@ -50,70 +51,6 @@ const UNIFIED_SUGGESTIONS = [
   'Compare Senior x TOTVS para folha + agronegócio.',
   'Quais integrações da Senior reduzem retrabalho com ERP?',
 ];
-
-const BENCHMARK_INTENT_PATTERNS = [
-  /\bbenchmark\b/i,
-  /\bcompar(a|ar|e|ativo)\b/i,
-  /\bversus\b/i,
-  /\bvs\b/i,
-  /\bcontra\b/i,
-  /\bconcorr[eê]n/i,
-  /\bdiferen[cç]a\b/i,
-];
-
-const BLOCKED_INTENT_PATTERNS = [
-  /\bkill[-\s]?script\b/i,
-  /\ban[aá]lise de obje[cç][oõ]es\b/i,
-  /\bquebrar obje[cç][aã]o\b/i,
-];
-
-const isBlockedIntent = (text: string): boolean =>
-  BLOCKED_INTENT_PATTERNS.some((pattern) => pattern.test(text));
-
-const resolveWarRoomIntent = (text: string): UnifiedRoute =>
-  BENCHMARK_INTENT_PATTERNS.some((pattern) => pattern.test(text)) ? 'benchmark' : 'tech';
-
-const CLEAN_TARGET_RE = /^[\s"'"'`(,-]+|[\s"'"'`).,;:!?-]+$/g;
-
-const normalizeCompetitorTarget = (value: string): string =>
-  value
-    .replace(/^\s*(?:a|o|as|os)\s+/i, '')
-    .replace(CLEAN_TARGET_RE, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-const isSeniorAlias = (value: string): boolean =>
-  /\b(senior|senior sistemas)\b/i.test(value);
-
-const extractCompetitorFromMessage = (message: string): string => {
-  const text = message.trim();
-
-  // 1) "compare X com Y" (ou "comparar X com Y")
-  const compareWith = text.match(/\bcompar(?:e|ar)?\s+(.{2,80}?)\s+\bcom\b\s+(.{2,80}?)(?:$|[?.!,;])/i);
-  if (compareWith) {
-    const left = normalizeCompetitorTarget(compareWith[1]);
-    const right = normalizeCompetitorTarget(compareWith[2]);
-    if (isSeniorAlias(left) && !isSeniorAlias(right)) return right;
-    if (isSeniorAlias(right) && !isSeniorAlias(left)) return left;
-    if (!isSeniorAlias(right)) return right;
-  }
-
-  // 2) "senior vs X" / "senior versus X" / "senior contra X"
-  const seniorFirst = text.match(/\bsenior(?:\s+sistemas)?\s+(?:vs|versus|contra)\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 ._/-]{1,60})/i);
-  if (seniorFirst) {
-    return normalizeCompetitorTarget(seniorFirst[1]);
-  }
-
-  // 3) "X vs senior" / "X contra senior"
-  const seniorSecond = text.match(/([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 ._/-]{1,60})\s+(?:vs|versus|contra)\s+senior(?:\s+sistemas)?\b/i);
-  if (seniorSecond) {
-    return normalizeCompetitorTarget(seniorSecond[1]);
-  }
-
-  // 4) fallback: vs/contra como palavra isolada (evita capturar "totvs")
-  const generic = text.match(/\b(?:vs|versus|contra)\b\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 ._/-]{1,60})/i);
-  return normalizeCompetitorTarget(generic?.[1] || '');
-};
 
 export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitorTarget }: WarRoomProps) {
   const dk = isDarkMode;

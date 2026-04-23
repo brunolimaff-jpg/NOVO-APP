@@ -497,3 +497,55 @@
   - `mcp-server/` continua local-only e fora do programa atual
 - Proximo passo:
   - abrir a Sprint 8 a partir do `main`, modularizando `services/warRoomService.ts` em `services/war-room/` e consolidando a documentacao final
+
+## 2026-04-23 - Sprint 8 War Room modularization + Radar stub
+
+- Fase: execution
+- Sprint: 8 (`active`)
+- Objetivo: decompor internamente `services/warRoomService.ts` sem quebrar a facade publica, remover parser duplicado do `components/WarRoom.tsx` e criar o boundary inicial de `features/radar/`
+- Decisoes:
+  - `services/warRoomService.ts` permanece como facade publica estavel
+  - a nova implementacao interna do War Room fica concentrada em `services/war-room/*`
+  - o parser compartilhado vive em `services/war-room/intent.ts` e pode ser consumido por `components/WarRoom.tsx` e pelos testes
+  - `types.ts` continua como fonte de verdade do Radar; `features/radar/types.ts` apenas reexporta contratos
+  - `mcp-server/` continua fora do escopo da sprint
+- Mudancas concluidas:
+  - criado `services/war-room/contracts.ts`, `config.ts`, `history.ts`, `intent.ts`, `retrieval.ts`, `prompting.ts`, `sources.ts` e `query.ts`
+  - `services/warRoomService.ts` virou facade fina com reexports do contrato publico e de `queryWarRoom`
+  - `components/WarRoom.tsx` deixou de manter regex/regras locais para alvo/intencao
+  - `tests/components/warRoomTargetExtract.test.ts` passou a importar o helper compartilhado
+  - criado `features/radar/README.md`, `features/radar/types.ts` e `features/radar/index.ts`
+- Checks registrados:
+  - focused suites de War Room + Radar verdes em `2026-04-23`
+  - `npm run test` verde (`102` arquivos, `785` testes)
+  - `npm run typecheck` verde
+  - `npm run build` verde
+  - `npm run lint` verde com `0` erros e `180` warnings
+- Riscos residuais:
+  - PR `#241` ainda esta aberta em draft e nao foi mergeada em `main`
+  - o runtime real do Radar ainda nao foi movido para dentro de `features/radar/`
+- Proximo passo:
+  - concluir o review final da PR `#241` e mergear a Sprint 8 sem ampliar o escopo
+
+## 2026-04-23 - Fechamento documental da Sprint 8
+
+- Fase: execution
+- Sprint: 8 (`active`, validada e documentada; aguardando merge)
+- Objetivo: reconciliar as fontes canonicas com o estado real da branch apos a validacao manual aceita e o enderecamento do review da PR `#241`
+- Decisoes:
+  - registrar a validacao manual da Sprint 8 como aceita em `2026-04-23`
+  - manter a Sprint 8 como `active` no board ate o merge da PR `#241`, em vez de marcar `done` antecipadamente
+  - tratar `features/radar/` como boundary oficial resolvendo o OI-044 sem mover o runtime do Radar nesta sprint
+- Mudancas concluidas:
+  - `.agents/memory/*`, `HANDOFF_AI.md`, `02-BOARD.md`, `03-OPEN-ITEMS.md` e `06-HANDOFF.md` sincronizados com a branch `codex/sprint8-war-room-radar-boundary`
+  - referencias stale da branch antiga removidas da memoria/handoff
+  - PR `#241` registrada como aberta em draft, mergeable e com validacao manual ja aceita
+- Checks registrados:
+  - validacao manual da Sprint 8 aceita em `2026-04-23`
+  - focused post-review rerun verde com `tests/services/warRoomService.test.ts`, `tests/services/warRoomCanary.test.ts` e `tests/components/warRoomTargetExtract.test.ts`
+  - `npm run typecheck` verde apos os fixes de review em `2026-04-23`
+- Riscos residuais:
+  - a Sprint 8 ainda depende do merge da PR `#241` para fechar em `main`
+  - o runtime do Radar segue fora de `features/radar/` por decisao de escopo
+- Proximo passo:
+  - concluir o review final da PR `#241`, tirar de draft quando apropriado e mergear sem ampliar a sprint

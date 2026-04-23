@@ -55,6 +55,7 @@
 - `RadarPanel.tsx` (~17KB) — Lista de empresas monitoradas, status, alertas pendentes
 - `RadarBell.tsx` — Ícone de sino com badge de notificações
 - `RadarSettings.tsx` (~11KB) — Configurações: frequência, tópicos de interesse, empresas
+- `features/radar/` — Boundary arquitetural inicial para concentrar a próxima extração do Radar sem empurrar mais responsabilidade para `App.tsx`
 
 ### CRM Interno
 - `CRMPipeline.tsx` (~11KB) — Kanban: Prospecção → Qualificação → Proposta → Fechado
@@ -112,6 +113,8 @@
 |---------|--------|
 | `services/geminiService.ts` | Fachada pública estável da camada Gemini |
 | `services/gemini/` | Decomposição interna da orquestração Gemini: investigação, PORTA, fontes, sanitização, status e recovery |
+| `services/warRoomService.ts` | Fachada pública estável do War Room |
+| `services/war-room/` | Decomposição interna do War Room: contratos, intent, retrieval, prompting, fontes e query |
 | `services/ragService.ts` | Chamada ao RAG interno e RAG de documentação |
 | `services/sessionRemoteStore.ts` | Persistência remota de sessões |
 | `services/feedbackRemoteStore.ts` | Persistência remota de feedback |

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-Planejamento. Sprint 6 esta `done`. Sprint 7 foi encerrada via PR `#239` mergeada em `2026-04-23`, com validacao manual aceita em `2026-04-23`. Sprint 8 e o proximo foco oficial.
+Execucao. Sprint 6 esta `done`. Sprint 7 foi encerrada via PR `#239` mergeada em `2026-04-23`, com closeout em `main` via PR `#240` no mesmo dia. Sprint 8 esta implementada e validada manualmente na branch de trabalho, com PR `#241` ainda aberta em draft.
 
 Sprint 3 foi mergeada em `main` via PRs `#216`-`#221`, com o golden regression offline do dossie entrando pela PR `#222`.
 Sprint 4 foi mergeada em `main` via PR `#227` (Onda 1) e PR `#228` (Onda 2).
@@ -10,30 +10,22 @@ Sprint 5 foi mergeada em `main` via PR `#229` em `2026-04-17`.
 A Sprint 6 foi mergeada em `main` via PR `#236` em `2026-04-22`.
 A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmacao do operador e no uso continuo sem reclamacoes.
 
-## Sprint 6 Closeout
+## Sprint 8 Working State
 
-- `components/ChatInterface.tsx` segue como facade publica estavel
-- `components/chat/contracts.ts` concentra os contratos internos da camada
-- `components/chat/ChatShell.tsx` concentra sidebar/header/composicao
-- `components/chat/MessageTimeline.tsx` concentra gate, home, timeline virtualizada e wiring de `MessageRow`
-- `components/chat/Composer.tsx` concentra input, prefill, processamento e retry toast
-- `components/chat/ChatPanels.tsx` concentra os overlays lazy do chat
-- `ChatInterfaceProps` foi preservado
-- `services/geminiService.ts` permaneceu intocado
-- o follow-up de UX da sidebar tambem ja esta em `main`:
-  - `components/SessionsSidebar.tsx` usa `transition-transform duration-200` no mobile
-  - o desktop deixou de animar largura da sidebar
-  - `App.tsx` usa functional update no toggle de `isSidebarOpen`
-- `docs/obsidian/00-MASTER.md` entrou em `main` via PR `#234` como camada visual de navegacao, sem substituir as fontes canonicas
+- `services/warRoomService.ts` segue como facade publica estavel
+- `services/war-room/contracts.ts`, `config.ts`, `history.ts`, `intent.ts`, `retrieval.ts`, `prompting.ts`, `sources.ts` e `query.ts` agora concentram a implementacao do War Room
+- `components/WarRoom.tsx` deixou de carregar parser local e importa `extractCompetitorFromMessage`, `isBlockedIntent` e `resolveWarRoomIntent` de `services/war-room/intent.ts`
+- `tests/components/warRoomTargetExtract.test.ts` passou a testar o helper compartilhado, em vez de manter uma copia da regex
+- `features/radar/README.md`, `features/radar/types.ts` e `features/radar/index.ts` formalizam o boundary do Radar sem mover `hooks/useRadar.ts`, `services/radarService.ts` ou os componentes Radar ainda
+- `types.ts` continua como fonte de verdade dos contratos Radar
 
 ## What Was Finished
 
-- `prompts/megaPrompts.ts` virou facade publica fina para `prompts/mega/*`
-- `prompts/mega/contracts.ts`, `prompts/mega/foundation.ts`, `prompts/mega/specialist-prompts.ts` e `prompts/mega/builders.ts` ja existem
-- O item de remover `@ts-nocheck` estava stale no baseline atual
-- a PR `#236` foi mergeada com gate tecnico green
-- o Deep Dive nao exigiu validacao manual dedicada porque o fluxo esta atualmente oculto na superficie ativa do produto
-- `mcp-server/` foi explicitamente adiado para depois das Sprints 6-8
+- `origin/main` ja inclui o fechamento documental da Sprint 7 via PR `#240`
+- A implementacao local da Sprint 8 concluiu a modularizacao do War Room com facade preservada
+- O parser de intencao/alvo duplicado foi removido de `components/WarRoom.tsx`
+- O stub arquitetural de `features/radar/` foi criado e fecha o OI-044
+- `mcp-server/` continuou fora do escopo
 
 ## Sprint 7 Implementation
 
@@ -51,9 +43,9 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 ## Next Safe Step
 
-1. Abrir a Sprint 8 a partir do `main` pos-`#239`
-2. Criar `services/war-room/` e modularizar `services/warRoomService.ts` com compatibilidade preservada
-3. Consolidar a documentacao final e a arquitetura do War Room sem puxar `mcp-server/`
+1. Concluir a rodada final de review da PR `#241` e tirar a PR de draft quando apropriado
+2. Mergear a Sprint 8 com `services/warRoomService.ts` como facade publica preservada
+3. Manter o runtime atual do Radar fora da nova boundary ate a proxima fatia funcional
 
 ## Files Most Relevant Now
 
@@ -63,6 +55,12 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - `docs/ai-context/refactor/05-VALIDATION.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
 - `services/warRoomService.ts`
+- `services/war-room/contracts.ts`
+- `services/war-room/intent.ts`
+- `services/war-room/query.ts`
+- `services/war-room/retrieval.ts`
+- `features/radar/README.md`
+- `features/radar/types.ts`
 - `docs/ai-context/ROADMAP_WAR_ROOM.md`
 - `docs/ai-context/WAR_ROOM_EXECUTIVE_SUMMARY.md`
 - `docs/ai-context/ARCHITECTURE_MAP.md`
@@ -78,6 +76,15 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 - Nao puxar `mcp-server/` para dentro das Sprints 6-8
 
 ## Historico de Validacao
+
+### Sprint 8 (validada em 2026-04-23; PR `#241` aberta em draft)
+
+- focused Sprint 8 suite: green em `2026-04-23`
+- `npm run test`: green em `2026-04-23` (`102` arquivos, `785` testes)
+- `npm run typecheck`: green em `2026-04-23`
+- `npm run build`: green em `2026-04-23`, com warning aceito de chunking em `utils/idbStorage.ts`
+- `npm run lint`: green em `2026-04-23` com `0` erros e `180` warnings
+- validacao manual em Vercel: aceita em `2026-04-23`
 
 ### Sprint 7 (concluida em 2026-04-23)
 
@@ -120,7 +127,6 @@ A validacao manual da Sprint 5 foi aceita em `2026-04-20` com base na confirmaca
 
 Leia `docs/ai-context/refactor/00-README.md`, depois `01-MASTER-PLAN.md`,
 `02-BOARD.md`, `03-OPEN-ITEMS.md`, `05-VALIDATION.md` e `06-HANDOFF.md`.
-Considere a Sprint 5 encerrada via PR `#229`, com validacao manual aceita em `2026-04-20`.
-Considere a Sprint 6 encerrada via PR `#236`.
-Considere a Sprint 7 encerrada via PR `#239`, com validacao manual aceita em `2026-04-23`.
-Abra a Sprint 8 a partir do `main`, criando `services/war-room/`, modularizando `services/warRoomService.ts` e consolidando a documentacao final sem puxar `mcp-server/`.
+Considere a Sprint 7 encerrada via PRs `#239` e `#240`.
+Considere a Sprint 8 implementada e validada localmente em `codex/sprint8-war-room-radar-boundary`, com `services/war-room/` ativo, facade publica preservada, `features/radar/` criado como stub e PR `#241` ainda aberta em draft.
+O proximo passo seguro e concluir o review final e mergear a PR sem expandir o escopo da sprint.
