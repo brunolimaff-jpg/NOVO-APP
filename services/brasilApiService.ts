@@ -91,68 +91,28 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
     throw new Error('CNPJ inválido');
   }
 
-  const parsePayload = (payload: {
-    cnpj?: string;
-    razao_social?: string;
-    nome_fantasia?: string;
-    municipio?: string;
-    uf?: string;
-    cnae_fiscal?: number | string;
-    cnae_fiscal_descricao?: string;
-  }): BrasilApiCompanyData => {
-    const companyName = (payload.nome_fantasia || payload.razao_social || '').trim();
-    const city = (payload.municipio || '').trim();
-    const state = (payload.uf || '').trim().toUpperCase();
+  const data = await fetchJsonWithTimeout<{
+    cnpj: string;
+    companyName: string;
+    city: string;
+    state: string;
+    cnae?: string;
+    cnaeDescricao?: string;
+    error?: string;
+  }>(`/api/cnpj?cnpj=${cnpj}`, 30000, signal);
 
-    if (!companyName || !city || !state) {
-      throw new Error('Dados incompletos');
-    }
-
-    return {
-      cnpj: payload.cnpj ? normalizeCnpj(payload.cnpj) : cnpj,
-      companyName,
-      city,
-      state,
-      cnae: payload.cnae_fiscal ? String(payload.cnae_fiscal) : undefined,
-      cnaeDescricao: payload.cnae_fiscal_descricao || undefined,
-    };
-  };
-
-  try {
-    const brasilApiPayload = await fetchJsonWithTimeout<{
-      cnpj?: string;
-      razao_social?: string;
-      nome_fantasia?: string;
-      municipio?: string;
-      uf?: string;
-      cnae_fiscal?: number | string;
-      cnae_fiscal_descricao?: string;
-    }>(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 8000, signal);
-    return parsePayload(brasilApiPayload);
-  } catch {
-    // Fallback: ReceitaWS
-    const receitaPayload = await fetchJsonWithTimeout<{
-      cnpj?: string;
-      nome?: string;
-      fantasia?: string;
-      municipio?: string;
-      uf?: string;
-      status?: string;
-      message?: string;
-    }>(`https://www.receitaws.com.br/v1/cnpj/${cnpj}`, 10000, signal);
-
-    if (receitaPayload.status && receitaPayload.status.toUpperCase() === 'ERROR') {
-      throw new Error(receitaPayload.message || 'Falha no fallback ReceitaWS');
-    }
-
-    return parsePayload({
-      cnpj: receitaPayload.cnpj,
-      razao_social: receitaPayload.nome,
-      nome_fantasia: receitaPayload.fantasia,
-      municipio: receitaPayload.municipio,
-      uf: receitaPayload.uf,
-    });
+  if (data.error) {
+    throw new Error(data.error);
   }
+
+  return {
+    cnpj: data.cnpj,
+    companyName: data.companyName,
+    city: data.city,
+    state: data.state,
+    cnae: data.cnae,
+    cnaeDescricao: data.cnaeDescricao,
+  };
 }
 
 export async function validateCityInState(cityValue: string, ufValue: string, signal?: AbortSignal): Promise<CityValidationResult> {

@@ -49,15 +49,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // para fins de MVP baseada no CNPJ (assim o mesmo CNPJ sempre dá o mesmo resultado).
 
   try {
-    // Busca na Brasil API primeiro para ver o CNAE e validar o CNPJ
-    const brasilApiResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-    
-    if (!brasilApiResponse.ok) {
-      // Retornar falso amigável se CNPJ for inválido/não encontrado
+    // Usa o proxy interno para aproveitar a cadeia de fallback e o cache
+    const cnpjProxyUrl = `${req.headers['x-forwarded-proto'] ?? 'https'}://${req.headers['host']}/api/cnpj?cnpj=${cleanCnpj}`;
+    const cnpjResponse = await fetch(cnpjProxyUrl);
+
+    if (!cnpjResponse.ok) {
       return res.status(200).json({ isExportador: false, message: 'CNPJ não encontrado na base da Receita Federal' });
     }
 
-    const empresaInfo = await brasilApiResponse.json();
+    const empresaInfo = await cnpjResponse.json();
+    // Normaliza campos para compatibilidade com a lógica abaixo
+    empresaInfo.cnae_fiscal_descricao = empresaInfo.cnaeDescricao;
     
     // Regra determinística mockada baseada nos primeiros digitos do CNPJ
     // Para testar o feature com CNPJs reais de agro
