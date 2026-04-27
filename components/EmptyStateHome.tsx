@@ -210,7 +210,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   const handleCnpjLookup = async () => {
     if (!canLookupCnpj) return;
     setIsFetchingCnpj(true);
-    setCnpjStatus('Consultando CNPJ na BrasilAPI...');
+    setCnpjStatus('Buscando dados da empresa...');
     try {
       const data = await fetchCompanyByCnpj(cnpjDigits);
       setLastLookupCnpj(data.cnpj);
@@ -231,10 +231,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
         filledByCnpj.current.state = true;
       }
 
-      setCnpjStatus('CNPJ validado e dados preenchidos.');
+      setCnpjStatus('✓ Dados preenchidos automaticamente via Receita Federal.');
       setCnpjLocked(true);
-    } catch {
-      setCnpjStatus('Não foi possível preencher via CNPJ. Complete manualmente.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('404') || msg.toLowerCase().includes('não encontrado')) {
+        setCnpjStatus('CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.');
+      } else {
+        setCnpjStatus('Serviço de consulta indisponível no momento. Preencha os campos manualmente.');
+      }
       setCnpjLocked(false);
     } finally {
       setIsFetchingCnpj(false);
@@ -438,8 +443,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     </div>
                   )}
 
+                  {!cnpjLocked && !cnpjStatus && (
+                    <p className={`mt-1.5 text-[11px] ${textMuted}`}>
+                      Digite o CNPJ e clique em Validar — nome, cidade e UF serão preenchidos automaticamente.
+                    </p>
+                  )}
                   {cnpjStatus && !cnpjLocked && (
-                    <p className={`mt-1.5 text-[11px] ${textMuted}`}>{cnpjStatus}</p>
+                    <p className={`mt-1.5 text-[11px] ${cnpjStatus.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : cnpjStatus.includes('não encontrado') || cnpjStatus.includes('indisponível') ? 'text-amber-600 dark:text-amber-400' : textMuted}`}>
+                      {cnpjStatus}
+                    </p>
                   )}
                 </div>
 
