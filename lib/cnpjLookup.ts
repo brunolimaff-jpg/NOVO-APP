@@ -82,7 +82,7 @@ async function fromCnpjWs(cnpj: string): Promise<CnpjResult> {
   const p = await res.json();
   const est = p.estabelecimento ?? {};
   const companyName = (est.nome_fantasia || p.razao_social || '').trim();
-  const city = (est.municipio?.nome || '').trim();
+  const city = (est.cidade?.nome || '').trim();
   const state = (est.estado?.sigla || '').trim().toUpperCase();
   if (!companyName || !city || !state) throw new CnpjSourceError('CNPJ.ws: dados incompletos', false);
   return {
@@ -90,8 +90,8 @@ async function fromCnpjWs(cnpj: string): Promise<CnpjResult> {
     companyName,
     city,
     state,
-    cnae: est.cnae_fiscal?.subclasse || undefined,
-    cnaeDescricao: est.cnae_fiscal?.descricao || undefined,
+    cnae: est.atividade_principal?.subclasse || undefined,
+    cnaeDescricao: est.atividade_principal?.descricao || undefined,
   };
 }
 
