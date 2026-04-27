@@ -123,9 +123,9 @@ export async function lookupCnpj(cnpjValue: string): Promise<CnpjResult> {
   if (cached) return cached;
 
   const sources = [
-    { name: 'BrasilAPI',    fn: () => fromBrasilApi(cnpj) },
     { name: 'CNPJ.ws',      fn: () => fromCnpjWs(cnpj) },
     { name: 'MinhaReceita', fn: () => fromMinhaReceita(cnpj) },
+    { name: 'BrasilAPI',    fn: () => fromBrasilApi(cnpj) },
   ];
 
   const errors: Array<{ notFound: boolean; msg: string }> = [];
