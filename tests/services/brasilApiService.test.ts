@@ -23,31 +23,39 @@ describe('brasilApiService helpers', () => {
     expect(isValidCnpj('04252011000111')).toBe(false);
   });
 
-  it('falls back to ReceitaWS when BrasilAPI fails', async () => {
+  it('returns company data from the /api/cnpj proxy', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({}),
-      } as Response)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          cnpj: '04.252.011/0001-10',
-          nome: 'Empresa Exemplo SA',
-          fantasia: 'Empresa Exemplo',
-          municipio: 'Cuiabá',
-          uf: 'MT',
+          cnpj: '04252011000110',
+          companyName: 'Empresa Exemplo',
+          city: 'Cuiabá',
+          state: 'MT',
         }),
       } as Response);
 
     const result = await fetchCompanyByCnpj('04.252.011/0001-10');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/cnpj?cnpj=04252011000110'),
+      expect.anything(),
+    );
     expect(result.companyName).toBe('Empresa Exemplo');
     expect(result.city).toBe('Cuiabá');
     expect(result.state).toBe('MT');
+  });
+
+  it('throws when proxy returns error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'Serviço indisponível' }),
+    } as Response);
+
+    await expect(fetchCompanyByCnpj('04.252.011/0001-10')).rejects.toThrow();
   });
 
   it('validates city and uf via IBGE', async () => {
