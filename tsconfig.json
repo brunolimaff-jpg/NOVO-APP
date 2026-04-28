@@ -42,6 +42,7 @@
     "contexts/**/*",
     "features/**/*",
     "config/**/*",
+    "lib/**/*",
     "prompts/**/*",
     "utils/**/*",
     "api/**/*",

@@ -1,3 +1,8 @@
+import { normalizeCnpj, formatCnpj, isValidCnpj } from '../utils/cnpj';
+import { scoutDiag } from '../utils/diagnosticLog';
+
+export { normalizeCnpj, formatCnpj, isValidCnpj };
+
 export interface BrasilApiCompanyData {
   cnpj: string;
   companyName: string;
@@ -13,14 +18,12 @@ export interface CityValidationResult {
   isValid: boolean;
 }
 
-function onlyDigits(value: string): string {
-  return (value || '').replace(/\D/g, '');
-}
+const LOCAL_DEV_CNPJ_API_ENDPOINT = ((import.meta.env.VITE_CNPJ_PROXY_URL as string | undefined) || '').replace(/\/$/, '');
 
 function normalizeText(value: string): string {
   return (value || '')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
 }
@@ -41,10 +44,38 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number, signal?: 
 
   try {
     const response = await fetch(url, { method: 'GET', signal: finalController.signal });
+    const contentType = response.headers.get('content-type') || '';
+    const rawBody = await response.text();
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      let errorMessage = rawBody.trim();
+      if (contentType.includes('application/json')) {
+        try {
+          const payload = JSON.parse(rawBody) as { error?: string; detail?: string; message?: string };
+          errorMessage = payload.error || payload.detail || payload.message || rawBody.trim();
+        } catch {
+          // usa o corpo bruto como fallback
+        }
+      }
+
+      throw new Error(`HTTP ${response.status}${errorMessage ? `: ${errorMessage}` : ''}`);
     }
-    return (await response.json()) as T;
+
+    try {
+      return JSON.parse(rawBody) as T;
+    } catch {
+      const isHtmlDocument = contentType.includes('text/html') || /^\s*<!doctype html/i.test(rawBody);
+      const isLocalDevHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+      if (isHtmlDocument && isLocalDevHost && url.includes('/api/cnpj')) {
+        throw new Error('Local dev sem proxy para /api/cnpj. Rode via vercel dev ou configure VITE_CNPJ_PROXY_URL.');
+      }
+
+      const preview = rawBody.slice(0, 140).replace(/\s+/g, ' ').trim();
+      throw new Error(
+        `Invalid JSON response from ${url} (content-type: ${contentType || 'unknown'})${preview ? `: ${preview}` : ''}`,
+      );
+    }
   } finally {
     clearTimeout(timeoutId);
     timeoutController.signal.removeEventListener('abort', onAbort);
@@ -54,35 +85,12 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number, signal?: 
   }
 }
 
-export function normalizeCnpj(value: string): string {
-  return onlyDigits(value).slice(0, 14);
-}
-
-export function formatCnpj(value: string): string {
-  const digits = normalizeCnpj(value);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
-  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
-  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
-}
-
-export function isValidCnpj(value: string): boolean {
-  const cnpj = normalizeCnpj(value);
-  if (cnpj.length !== 14) return false;
-  if (/^(\d)\1+$/.test(cnpj)) return false;
-
-  const calcDigit = (base: string, factors: number[]): number => {
-    const total = base
-      .split('')
-      .reduce((sum, char, idx) => sum + Number(char) * factors[idx], 0);
-    const remainder = total % 11;
-    return remainder < 2 ? 0 : 11 - remainder;
-  };
-
-  const d1 = calcDigit(cnpj.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  const d2 = calcDigit(cnpj.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  return cnpj.endsWith(`${d1}${d2}`);
+export function resolveCnpjApiEndpoint(
+  hostname: string = typeof window !== 'undefined' ? window.location.hostname : '',
+  isDev: boolean = import.meta.env.DEV,
+): string {
+  const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
+  return isDev && isLocalDevHost && LOCAL_DEV_CNPJ_API_ENDPOINT ? LOCAL_DEV_CNPJ_API_ENDPOINT : '/api/cnpj';
 }
 
 export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal): Promise<BrasilApiCompanyData> {
@@ -91,67 +99,53 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
     throw new Error('CNPJ inválido');
   }
 
-  const parsePayload = (payload: {
-    cnpj?: string;
-    razao_social?: string;
-    nome_fantasia?: string;
-    municipio?: string;
-    uf?: string;
-    cnae_fiscal?: number | string;
-    cnae_fiscal_descricao?: string;
-  }): BrasilApiCompanyData => {
-    const companyName = (payload.nome_fantasia || payload.razao_social || '').trim();
-    const city = (payload.municipio || '').trim();
-    const state = (payload.uf || '').trim().toUpperCase();
-
-    if (!companyName || !city || !state) {
-      throw new Error('Dados incompletos');
-    }
-
-    return {
-      cnpj: payload.cnpj ? normalizeCnpj(payload.cnpj) : cnpj,
-      companyName,
-      city,
-      state,
-      cnae: payload.cnae_fiscal ? String(payload.cnae_fiscal) : undefined,
-      cnaeDescricao: payload.cnae_fiscal_descricao || undefined,
-    };
-  };
+  const endpoint = `${resolveCnpjApiEndpoint()}?cnpj=${cnpj}`;
+  const timer = scoutDiag.startTimer('CnpjLookup', `fetchCompanyByCnpj:${cnpj}`);
+  scoutDiag.info('CnpjLookup', 'iniciando lookup de CNPJ', {
+    cnpj,
+    endpoint,
+    hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+    isDev: import.meta.env.DEV,
+  });
 
   try {
-    const brasilApiPayload = await fetchJsonWithTimeout<{
-      cnpj?: string;
-      razao_social?: string;
-      nome_fantasia?: string;
-      municipio?: string;
-      uf?: string;
-      cnae_fiscal?: number | string;
-      cnae_fiscal_descricao?: string;
-    }>(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 8000, signal);
-    return parsePayload(brasilApiPayload);
-  } catch {
-    // Fallback: ReceitaWS
-    const receitaPayload = await fetchJsonWithTimeout<{
-      cnpj?: string;
-      nome?: string;
-      fantasia?: string;
-      municipio?: string;
-      uf?: string;
-      status?: string;
-      message?: string;
-    }>(`https://www.receitaws.com.br/v1/cnpj/${cnpj}`, 10000, signal);
+    const data = await fetchJsonWithTimeout<{
+      cnpj: string;
+      companyName: string;
+      city: string;
+      state: string;
+      cnae?: string;
+      cnaeDescricao?: string;
+      error?: string;
+    }>(endpoint, 30000, signal);
 
-    if (receitaPayload.status && receitaPayload.status.toUpperCase() === 'ERROR') {
-      throw new Error(receitaPayload.message || 'Falha no fallback ReceitaWS');
+    if (data.error) {
+      throw new Error(data.error);
     }
 
-    return parsePayload({
-      cnpj: receitaPayload.cnpj,
-      razao_social: receitaPayload.nome,
-      nome_fantasia: receitaPayload.fantasia,
-      municipio: receitaPayload.municipio,
-      uf: receitaPayload.uf,
+    timer.end({
+      endpoint,
+      city: data.city,
+      state: data.state,
+      cnae: data.cnae,
     });
+
+    return {
+      cnpj: data.cnpj,
+      companyName: data.companyName,
+      city: data.city,
+      state: data.state,
+      cnae: data.cnae,
+      cnaeDescricao: data.cnaeDescricao,
+    };
+  } catch (error) {
+    timer.fail(error);
+    scoutDiag.error('CnpjLookup', 'falha no lookup de CNPJ', {
+      cnpj,
+      endpoint,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
 }
 
@@ -182,5 +176,5 @@ export async function validateCityInState(cityValue: string, ufValue: string, si
       normalizedState,
       isValid: true,
     };
-  };
+  }
 }

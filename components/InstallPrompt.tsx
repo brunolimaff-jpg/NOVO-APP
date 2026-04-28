@@ -1,41 +1,10 @@
-// components/InstallPrompt.tsx
-// Prompt nativo para instalar PWA
-
-import React, { useState, useEffect } from 'react';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import React from 'react';
+import { usePWA } from '../hooks/usePWA';
 
 export default function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
+  const { showInstallPrompt, installApp, dismissInstallPrompt } = usePWA();
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowPrompt(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === 'accepted') {
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-    }
-  };
-
-  if (!showPrompt) return null;
+  if (!showInstallPrompt) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50 animate-slide-up">
@@ -47,13 +16,15 @@ export default function InstallPrompt() {
             <p className="text-xs opacity-90 mb-3">Acesso rápido direto da tela inicial</p>
             <div className="flex gap-2">
               <button
-                onClick={handleInstall}
+                onClick={() => {
+                  void installApp();
+                }}
                 className="flex-1 bg-white text-red-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
               >
                 Instalar
               </button>
               <button
-                onClick={() => setShowPrompt(false)}
+                onClick={dismissInstallPrompt}
                 className="px-4 py-2 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
               >
                 Agora não

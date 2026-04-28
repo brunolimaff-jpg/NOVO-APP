@@ -1,4 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
+import { normalizeCnpj, isValidCnpj } from '../utils/cnpj.js';
 
 // Exemplo de faixas de valor segundo MDIC/Serpro
 type ExportBand = 
@@ -30,34 +32,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const { cnpj } = req.query;
+  const raw = typeof req.query.cnpj === 'string' ? req.query.cnpj : '';
+  const cleanCnpj = normalizeCnpj(raw);
 
-  if (!cnpj || typeof cnpj !== 'string') {
-    return res.status(400).json({ error: 'CNPJ is required' });
+  if (!isValidCnpj(cleanCnpj)) {
+    return res.status(400).json({ error: 'CNPJ inválido.' });
   }
-
-  const cleanCnpj = cnpj.replace(/\D/g, '');
-
-  if (cleanCnpj.length !== 14) {
-    return res.status(400).json({ error: 'Invalid CNPJ length' });
-  }
-
-  // TODO: Em um cenário real, isso faria um lookup num arquivo CSV/JSON cacheado
-  // do MDIC (ex: empresas_exportadoras_2024.json) ou em um banco de dados
-  // mantido por você. Como a Brasil API e a ReceitaWS não retornam dados 
-  // diretos de Comex Stat, vamos criar uma lógica simulada determinística
-  // para fins de MVP baseada no CNPJ (assim o mesmo CNPJ sempre dá o mesmo resultado).
 
   try {
-    // Busca na Brasil API primeiro para ver o CNAE e validar o CNPJ
-    const brasilApiResponse = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
-    
-    if (!brasilApiResponse.ok) {
-      // Retornar falso amigável se CNPJ for inválido/não encontrado
-      return res.status(200).json({ isExportador: false, message: 'CNPJ não encontrado na base da Receita Federal' });
+    let empresaInfo: { cnaeDescricao?: string };
+    try {
+      empresaInfo = await lookupCnpj(cleanCnpj);
+    } catch (err) {
+      if (err instanceof CnpjNotFoundError) {
+        return res.status(200).json({ isExportador: false, message: 'CNPJ não encontrado na base da Receita Federal' });
+      }
+      throw err;
     }
-
-    const empresaInfo = await brasilApiResponse.json();
     
     // Regra determinística mockada baseada nos primeiros digitos do CNPJ
     // Para testar o feature com CNPJs reais de agro
@@ -79,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const bandIndex = sumCnpj % 4; // Deterministico
       
       // Gera produtos NCM fictícios baseados no CNAE principal
-      const cnaePrincipal = empresaInfo.cnae_fiscal_descricao?.toLowerCase() || '';
+      const cnaePrincipal = empresaInfo.cnaeDescricao?.toLowerCase() || '';
       let produtos = ['Grãos', 'Commodities Agrícolas'];
       
       if (cnaePrincipal.includes('algodão')) produtos = ['Algodão em pluma'];

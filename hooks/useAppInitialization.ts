@@ -50,6 +50,7 @@ export function useAppInitialization({
       listRemoteSessions()
         .then(remoteList => {
           if (cancelled) return;
+          if (remoteList.length === 0) return;
           setSessions(current => {
             const sessionMap = new Map<string, ChatSession>();
             current.forEach(s => sessionMap.set(s.id, s));
