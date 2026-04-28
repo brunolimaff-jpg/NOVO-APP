@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const scoutDiagMock = vi.hoisted(() => ({
+  error: vi.fn(),
+  warn: vi.fn(),
+}));
+
 // Mock do módulo retry para que os testes não dependam de timers reais
 vi.mock('../../utils/retry', () => ({
   withAutoRetry: vi.fn((_key: string, fn: () => Promise<unknown>) => fn()),
@@ -13,6 +18,10 @@ vi.mock('../../services/apiConfig', () => ({
 // Mock stripInternalMarkers — não relevante para testes de rede
 vi.mock('../../utils/textCleaners', () => ({
   stripInternalMarkers: (text: string) => text,
+}));
+
+vi.mock('../../utils/diagnosticLog', () => ({
+  scoutDiag: scoutDiagMock,
 }));
 
 describe('sessionRemoteStore', () => {
@@ -50,6 +59,32 @@ describe('sessionRemoteStore', () => {
       expect(result[0].title).toBe('Sessão Scheffer');
       expect(result[0].scoreOportunidade).toBe(82);
       expect(result[0].messages).toEqual([]);
+    });
+
+    it('accepts current success envelope when sessions payload is valid', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            success: true,
+            sessions: [
+              {
+                sessionId: 'modern-1',
+                title: 'Sessão moderna',
+                empresaAlvo: 'Empresa Atual',
+                cnpj: '12345678000195',
+                createdAt: '2024-01-01T00:00:00Z',
+                updatedAt: '2024-01-02T00:00:00Z',
+              },
+            ],
+          }),
+      } as Response);
+
+      const { listRemoteSessions } = await import('../../services/sessionRemoteStore');
+      const result = await listRemoteSessions();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('modern-1');
     });
 
     it('returns empty array on HTTP error (silent failure)', async () => {
@@ -153,6 +188,32 @@ describe('sessionRemoteStore', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('fallback-1');
     });
+
+    it('loga um único aviso quando o endpoint rejeita o contrato de sessões', async () => {
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () => JSON.stringify({ success: true, message: 'Use POST para ações' }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          text: async () => JSON.stringify({ success: false, error: 'Ação desconhecida: listSessions' }),
+        } as Response);
+
+      const { listRemoteSessions } = await import('../../services/sessionRemoteStore');
+      const result = await listRemoteSessions();
+
+      expect(result).toEqual([]);
+      expect(scoutDiagMock.warn).toHaveBeenCalledTimes(1);
+      expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+        'RemoteStore',
+        expect.stringContaining('indisponível'),
+        expect.objectContaining({
+          action: 'listSessions',
+          reason: expect.stringContaining('Ação desconhecida'),
+        }),
+      );
+    });
   });
 
   // ─── getRemoteSession ──────────────────────────────────────────────────────
@@ -189,6 +250,30 @@ describe('sessionRemoteStore', () => {
       expect(result!.id).toBe('sess-1');
       expect(result!.messages).toHaveLength(2);
       expect(result!.messages[0].timestamp).toBeInstanceOf(Date);
+    });
+
+    it('accepts current success envelope for getSession', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            success: true,
+            session: {
+              sessionId: 'sess-modern',
+              title: 'Investigação moderna',
+              empresaAlvo: 'Empresa Atual',
+              cnpj: '99887766000155',
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-02T00:00:00Z',
+              messagesJson: '[]',
+            },
+          }),
+      } as Response);
+
+      const { getRemoteSession } = await import('../../services/sessionRemoteStore');
+      const result = await getRemoteSession('sess-modern');
+
+      expect(result?.id).toBe('sess-modern');
     });
 
     it('returns null when session not found (ok:false)', async () => {
@@ -277,6 +362,16 @@ describe('sessionRemoteStore', () => {
       await expect(saveRemoteSession(mockSession, 'user-1', 'João')).resolves.not.toThrow();
     });
 
+    it('accepts current success envelope on save', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ success: true }),
+      } as Response);
+
+      const { saveRemoteSession } = await import('../../services/sessionRemoteStore');
+      await expect(saveRemoteSession(mockSession)).resolves.not.toThrow();
+    });
+
     it('throws when API responds with ok:false', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true,
@@ -285,6 +380,16 @@ describe('sessionRemoteStore', () => {
 
       const { saveRemoteSession } = await import('../../services/sessionRemoteStore');
       await expect(saveRemoteSession(mockSession)).rejects.toThrow('Save failed');
+    });
+
+    it('repassa o erro atual do backend quando success=false usa campo error', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        text: async () => JSON.stringify({ success: false, error: 'Ação desconhecida: saveSession' }),
+      } as Response);
+
+      const { saveRemoteSession } = await import('../../services/sessionRemoteStore');
+      await expect(saveRemoteSession(mockSession)).rejects.toThrow('Ação desconhecida: saveSession');
     });
 
     it('sends correct action and session payload', async () => {

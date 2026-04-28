@@ -81,4 +81,25 @@ describe('useAppInitialization', () => {
     expect(options.setSessions).toHaveBeenCalledWith(expect.any(Function));
     expect(options.setIsInitialized).toHaveBeenCalledWith(true);
   });
+
+  it('nao faz merge remoto quando a lista remota vem vazia', async () => {
+    const localSessions = [buildSession('s1')];
+    const options = buildOptions({
+      loadSessions: vi.fn().mockResolvedValue(localSessions),
+    });
+
+    listRemoteSessionsMock.mockResolvedValueOnce([]);
+
+    renderHook(() => useAppInitialization(options));
+
+    await waitFor(() => {
+      expect(options.setIsInitialized).toHaveBeenCalledWith(true);
+    });
+
+    await waitFor(() => {
+      expect(listRemoteSessionsMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(options.setSessions).toHaveBeenCalledTimes(1);
+  });
 });
