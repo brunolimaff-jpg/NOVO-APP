@@ -1,4 +1,4 @@
-import { normalizeCnpj } from '../utils/cnpj';
+import { normalizeCnpj } from '../utils/cnpj.js';
 
 export interface CnpjResult {
   cnpj: string;

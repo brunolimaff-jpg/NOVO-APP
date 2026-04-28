@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup';
-import { isValidCnpj, normalizeCnpj } from '../utils/cnpj';
+import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
+import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 
 export const config = { runtime: 'nodejs' };
 

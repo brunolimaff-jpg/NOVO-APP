@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup';
-import { normalizeCnpj, isValidCnpj } from '../utils/cnpj';
+import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
+import { normalizeCnpj, isValidCnpj } from '../utils/cnpj.js';
 
 // Exemplo de faixas de valor segundo MDIC/Serpro
 type ExportBand = 
