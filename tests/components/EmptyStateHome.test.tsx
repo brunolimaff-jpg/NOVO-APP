@@ -2,23 +2,37 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmptyStateHome from '../../components/EmptyStateHome';
 
-vi.mock('../../contexts/OperatorContext', () => ({
-  useOperator: () => ({ name: 'Bruno', operatorId: 'op-1', loading: false, setName: vi.fn(), clearName: vi.fn() }),
-}));
-
-vi.mock('../../services/brasilApiService', () => ({
-  fetchCompanyByCnpj: vi.fn(),
-  formatCnpj: (value: string) => value,
-  isValidCnpj: () => false,
-  normalizeCnpj: (value: string) => value.replace(/\D/g, '').slice(0, 14),
-  validateCityInState: vi.fn(async (city: string, state: string) => ({
+const { fetchCompanyByCnpjMock, validateCityInStateMock } = vi.hoisted(() => ({
+  fetchCompanyByCnpjMock: vi.fn(),
+  validateCityInStateMock: vi.fn(async (city: string, state: string) => ({
     normalizedCity: city,
     normalizedState: state,
     isValid: true,
   })),
 }));
 
+vi.mock('../../contexts/OperatorContext', () => ({
+  useOperator: () => ({ name: 'Bruno', operatorId: 'op-1', loading: false, setName: vi.fn(), clearName: vi.fn() }),
+}));
+
+vi.mock('../../services/brasilApiService', () => ({
+  fetchCompanyByCnpj: fetchCompanyByCnpjMock,
+  formatCnpj: (value: string) => value,
+  isValidCnpj: (value: string) => value.replace(/\D/g, '').length === 14,
+  normalizeCnpj: (value: string) => value.replace(/\D/g, '').slice(0, 14),
+  validateCityInState: validateCityInStateMock,
+}));
+
 describe('EmptyStateHome onboarding gate', () => {
+  it.beforeEach(() => {
+    vi.clearAllMocks();
+    validateCityInStateMock.mockImplementation(async (city: string, state: string) => ({
+      normalizedCity: city,
+      normalizedState: state,
+      isValid: true,
+    }));
+  });
+
   it('mostra aviso sobre impacto de iniciar sem CNPJ no Score PORTA', () => {
     render(
       <EmptyStateHome
@@ -108,5 +122,90 @@ describe('EmptyStateHome onboarding gate', () => {
     );
 
     expect(screen.getByRole('button', { name: /Configurar Radar agora/i })).toBeInTheDocument();
+  });
+
+  it('preenche nome, cidade e uf e trava o cnpj quando a consulta funciona', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04252011000110',
+      companyName: 'A Predial Materiais Para Construcao',
+      city: 'Vilhena',
+      state: 'RO',
+    });
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
+    fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
+
+    await waitFor(() => {
+      expect(fetchCompanyByCnpjMock).toHaveBeenCalledWith('04252011000110');
+      expect(screen.getByTestId('investigation-company-input')).toHaveValue('A Predial Materiais Para Construcao');
+      expect(screen.getByLabelText(/Cidade/i)).toHaveValue('Vilhena');
+      expect(screen.getByLabelText(/^UF/i)).toHaveValue('RO');
+      expect(screen.getByRole('button', { name: /Alterar/i })).toBeInTheDocument();
+    });
+  });
+
+  it('mostra mensagem especifica para 404 de cnpj nao encontrado', async () => {
+    fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('HTTP 404'));
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
+    fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/CNPJ não encontrado na Receita Federal/i)).toBeInTheDocument();
+    });
+  });
+
+  it('mostra mensagem de indisponibilidade quando o proxy falha', async () => {
+    fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('HTTP 503'));
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
+    fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Serviço de consulta indisponível no momento/i)).toBeInTheDocument();
+    });
+  });
+
+  it('mostra orientacao de proxy no localhost quando o browser recebe o app html', async () => {
+    fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('Local dev sem proxy para /api/cnpj. Rode via vercel dev ou configure VITE_CNPJ_PROXY_URL.'));
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
+    fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ambiente local sem proxy para consulta de CNPJ/i)).toBeInTheDocument();
+    });
   });
 });

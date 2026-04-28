@@ -237,6 +237,8 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('404') || msg.toLowerCase().includes('não encontrado')) {
         setCnpjStatus('CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.');
+      } else if (msg.includes('Local dev sem proxy')) {
+        setCnpjStatus('Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.');
       } else {
         setCnpjStatus('Serviço de consulta indisponível no momento. Preencha os campos manualmente.');
       }

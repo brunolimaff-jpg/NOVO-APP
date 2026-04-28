@@ -4,6 +4,7 @@ import {
   formatCnpj,
   isValidCnpj,
   normalizeCnpj,
+  resolveCnpjApiEndpoint,
   validateCityInState,
 } from '../../services/brasilApiService';
 
@@ -23,13 +24,20 @@ describe('brasilApiService helpers', () => {
     expect(isValidCnpj('04252011000111')).toBe(false);
   });
 
+  it('uses the deployed proxy endpoint in localhost dev', () => {
+    expect(resolveCnpjApiEndpoint('localhost', true)).toBe('/api/cnpj');
+    expect(resolveCnpjApiEndpoint('127.0.0.1', true)).toBe('/api/cnpj');
+    expect(resolveCnpjApiEndpoint('scoutagro.vercel.app', false)).toBe('/api/cnpj');
+  });
+
   it('returns company data from the /api/cnpj proxy', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({
+        headers: new Headers({ 'content-type': 'application/json' }),
+        text: async () => JSON.stringify({
           cnpj: '04252011000110',
           companyName: 'Empresa Exemplo',
           city: 'Cuiabá',
@@ -40,7 +48,7 @@ describe('brasilApiService helpers', () => {
     const result = await fetchCompanyByCnpj('04.252.011/0001-10');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/cnpj?cnpj=04252011000110'),
+      expect.stringContaining('api/cnpj?cnpj=04252011000110'),
       expect.anything(),
     );
     expect(result.companyName).toBe('Empresa Exemplo');
@@ -52,7 +60,8 @@ describe('brasilApiService helpers', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: false,
       status: 503,
-      json: async () => ({ error: 'Serviço indisponível' }),
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({ error: 'Serviço indisponível' }),
     } as Response);
 
     await expect(fetchCompanyByCnpj('04.252.011/0001-10')).rejects.toThrow();
@@ -62,11 +71,23 @@ describe('brasilApiService helpers', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [{ nome: 'Cuiabá' }, { nome: 'Várzea Grande' }],
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify([{ nome: 'Cuiabá' }, { nome: 'Várzea Grande' }]),
     } as Response);
 
     const result = await validateCityInState('Cuiaba', 'MT');
     expect(result.isValid).toBe(true);
     expect(result.normalizedCity).toBe('Cuiabá');
+  });
+
+  it('surfaces a clear local-dev error when /api/cnpj returns app html', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      text: async () => '<!DOCTYPE html><html><body>app shell</body></html>',
+    } as Response);
+
+    await expect(fetchCompanyByCnpj('04.252.011/0001-10')).rejects.toThrow(/Local dev sem proxy para \/api\/cnpj/i);
   });
 });

@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-23
+Last updated: 2026-04-28
 
 ## Completed
 
@@ -12,15 +12,32 @@ Last updated: 2026-04-23
   - criado `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
   - sincronizados `00-README.md`, `01-MASTER-PLAN.md`, `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `07-SPRINT-LOG.md`
   - sincronizados `HANDOFF_AI.md`, `.agents/memory/*` e roadmap Obsidian
+- PR `#243` (`fix/cnpj-proxy-fallback`) validada localmente em `2026-04-28`:
+  - checkout sincronizado para `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
+  - `vercel dev` ligado ao projeto `scoutagro`
+  - `GET /api/cnpj?cnpj=04252011000110` retornou `200`
+  - `GET /api/cnpj?cnpj=11111111111111` retornou `400`
+  - `GET /api/comex?cnpj=04252011000110` retornou `200`
+  - `npm exec vitest run tests/services/brasilApiService.test.ts` green
+  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green
+- PR `#243` recebeu uma segunda rodada de diagnostico em `2026-04-28`:
+  - logs estruturados adicionados ao cliente (`services/brasilApiService.ts`) e ao handler (`api/cnpj.ts`)
+  - erros HTTP agora preservam `error/detail` do serverless no cliente
+  - o caso `localhost` sem proxy agora gera orientacao explicita em UI e teste dedicado
+  - `npm exec vitest run tests/services/brasilApiService.test.ts tests/components/EmptyStateHome.test.tsx` green (`16` testes)
+  - `npm run typecheck` green
+- Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
 
 ## In progress
 
 - Publicacao do PR de documentacao da Fase 2.
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
+- Confirmacao final do bug de browser da PR `#243` em preview/Vercel com os novos logs ja publicados na branch.
 
 ## Blockers
 
 - Nenhum bloqueio tecnico imediato.
+- Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
 
 ## Validation history
 
@@ -50,3 +67,4 @@ Last updated: 2026-04-23
 ## Next checkpoint
 
 - Abrir Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
+- Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.

@@ -33,19 +33,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const raw = typeof req.query.cnpj === 'string' ? req.query.cnpj : '';
   const cnpj = normalizeCnpj(raw);
+  const origin = req.headers.origin ?? '';
+  const host = req.headers.host ?? '';
+
+  console.info('[api/cnpj] request:start', {
+    cnpj,
+    origin,
+    host,
+    userAgent: req.headers['user-agent'] ?? '',
+  });
 
   if (!isValidCnpj(cnpj)) {
+    console.warn('[api/cnpj] request:invalid-cnpj', { cnpj, origin, host });
     return res.status(400).json({ error: 'CNPJ inválido — verifique os dígitos informados.' });
   }
 
   try {
     const data = await lookupCnpj(cnpj);
+    console.info('[api/cnpj] request:success', {
+      cnpj,
+      sourceResult: {
+        city: data.city,
+        state: data.state,
+        cnae: data.cnae,
+      },
+    });
     return res.status(200).json(data);
   } catch (err) {
     if (err instanceof CnpjNotFoundError) {
+      console.warn('[api/cnpj] request:not-found', {
+        cnpj,
+        origin,
+        host,
+        message: err.message,
+      });
       return res.status(404).json({ error: err.message });
     }
     const msg = err instanceof Error ? err.message : String(err);
+    console.error('[api/cnpj] request:error', {
+      cnpj,
+      origin,
+      host,
+      message: msg,
+    });
     return res.status(503).json({
       error: 'Serviço de consulta de CNPJ temporariamente indisponível. Tente novamente em instantes.',
       detail: msg,

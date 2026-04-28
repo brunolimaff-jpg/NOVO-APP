@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-04-23
+Last updated: 2026-04-28
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -55,3 +55,15 @@ Reason: the original refactor program reached its planned structural boundaries;
 Decision: keep `services/geminiService.ts`, `services/warRoomService.ts`, `components/ChatInterface.tsx`, `constants.ts`, `prompts/megaPrompts.ts`, and `types.ts` as stable public contracts throughout Fase 2.
 
 Reason: limiting API churn reduces integration risk and allows incremental refactors focused on internal coupling and code ownership boundaries.
+
+## 2026-04-28 - `api/cnpj.ts` must be validated in serverless runtime
+
+Decision: validate the CNPJ proxy flow with `vercel dev` or a deployed serverless environment, not with plain `vite`.
+
+Reason: in this repo the frontend dev server does not proxy `/api/cnpj`, so `npm run dev` can return the app HTML for that path and create a false "consulta indisponivel" diagnosis unrelated to the proxy handler itself.
+
+## 2026-04-28 - Localhost CNPJ flow should fail loudly, not generically
+
+Decision: when `localhost` receives the app HTML instead of JSON for `/api/cnpj`, surface an explicit local-proxy guidance message in logs and UI instead of treating it as generic service downtime.
+
+Reason: the recurring symptom was a misleading "Serviço de consulta indisponível" message. Distinguishing "missing local proxy/runtime" from true provider failure reduces wasted debugging on preview/Vercel and external APIs.
