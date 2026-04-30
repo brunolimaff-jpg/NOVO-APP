@@ -26,13 +26,28 @@
 
 ## Fase 2 - Hotspots Prioritarios
 
+> Números atualizados em 2026-04-30 (HEAD `49068ff`, branch `codex/piccini-dossier-pdf`).
+
 | ID | Severidade | Status | Hotspot | Sinal | Acao da fase |
 |---|---|---|---|---|---|
-| OI-050 | high | open | `App.tsx` | `724` linhas, `44` imports | Sprint 9: desacoplar app shell e reduzir wiring |
-| OI-051 | high | open | `components/CRMDetail.tsx` | `664` linhas + `card: any` | Sprint 11: tipagem forte + extracao de componentes |
-| OI-052 | high | open | `components/LoadingSmart.tsx` | `704` linhas | Sprint 11: separar timeline/modelo/render |
-| OI-053 | medium | open | `components/WarRoom.tsx` | `513` linhas | Sprint 11: reduzir complexidade local de UI |
-| OI-054 | high | open | Radar runtime fora do boundary | `hooks/useRadar.ts` (`248`) + `services/radarService.ts` (`200`) | Sprint 10: completar boundary `features/radar/*` |
+| OI-050 | high | open | `App.tsx` | `772` linhas, `46` imports, 16+ hooks de estado | Sprint 9: extrair wiring de modais + lógica de export |
+| OI-051 | high | open | `components/CRMDetail.tsx` | `717` linhas + `card: any` + **sem testes** | Sprint 11: Onda 0 (testes) + tipagem forte + extração |
+| OI-052 | high | open | `components/LoadingSmart.tsx` | `766` linhas | Sprint 11: separar timeline/modelo/render |
+| OI-053 | medium | open | `components/WarRoom.tsx` | `552` linhas + **sem testes** | Sprint 11: Onda 0 (testes) + redução de UI |
+| OI-054 | high | open | Radar runtime fora do boundary | `hooks/useRadar.ts` (`291`) + `services/radarService.ts` (`234`) + 29 refs diretas | Sprint 10: completar boundary `features/radar/*` |
+
+## Fase 2 - Novos Riscos Identificados (auditoria 2026-04-30)
+
+| ID | Severidade | Status | Item | Evidência | Sprint |
+|---|---|---|---|---|---|
+| OI-055 | high | open | `VITE_PINECONE_API_KEY` em `index.tsx` expõe chave no bundle Vite | `index.tsx:17` — lookup via `import.meta.env` | Sprint 9 |
+| OI-056 | high | open | Boundary leak: `features/dossier` importa internos de `features/chat` | 4 imports em `waterfall-orchestrator`, `porta-reconciliation`, `benchmark-stage` | Sprint 9 |
+| OI-057 | medium | open | OI-003 (idbStorage chunking) tem risco de PWA — mudança de chunk invalida SW em produção | `vite.config.ts`: `skipWaiting: true`, `cleanupOutdatedCaches: true` | Sprint 12 (protocolo de deploy) |
+| OI-058 | medium | open | `madge` e `ts-prune` não instalados — circulares nunca medidos | `package.json` sem essas devDeps | Sprint 9 (instalar + baseline) |
+| OI-059 | medium | open | Cobertura de testes concentrada nas áreas estabilizadas (Fase 1); alvos de Sprint 11 praticamente sem cobertura | `find tests -name "CRMDetail*" -o -name "WarRoom*"` retorna vazio | Sprint 11 (Onda 0 obrigatória) |
+| OI-060 | low | open | Branches paralelas ativas durante ~9 semanas de Fase 2 sem política de integração | 5 branches ativas além da principal | Política documentada em `PLANO_COMPLETO_SPRINTS.md` |
+| OI-061 | low | open | Feature flags planejadas sem definição de modelo runtime/override/TTL | Sprint 9 propõe `utils/featureFlags.ts` mas modelo não está especificado | Sprint 9 (modelagem antes de criar módulo) |
+| OI-062 | medium | open | Golden tests de prompts precisam ser criados *antes* da Sprint 13 (migração de strings → `.md`) | Testes em `tests/prompts/` existem mas não têm baseline de output do LLM | Sprint 12 (Onda 4) |
 
 ## Historico de Itens Resolvidos (trilha S1-S8)
 

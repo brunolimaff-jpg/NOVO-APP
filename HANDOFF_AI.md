@@ -27,27 +27,41 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural (baseline atual)
 
+> Atualizado em 2026-04-30 — HEAD `49068ff` na branch `codex/piccini-dossier-pdf`.
+
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
 - `features/chat/*` e `features/dossier/*` concentram os fluxos extraidos de `App.tsx`.
+- **Leak ativo:** `features/dossier/*` importa internos de `features/chat/*` (4 imports em `waterfall-orchestrator`, `porta-reconciliation`, `benchmark-stage`) — resolver em Sprint 9.
 - `features/radar/*` existe como boundary oficial (stub); runtime atual ainda passa por `hooks/useRadar.ts` e `services/radarService.ts`.
 - `types.ts` permanece centralizado.
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
+- **Risco latente:** `VITE_PINECONE_API_KEY` referenciado em `index.tsx` — pode vazar no bundle Vite se preenchido em `.env` — resolver em Sprint 9.
 
 ## Programa de refatoracao
 
-- Fase 1 (Sprints 1-8): concluida em `main`.
-- Fechamento da Sprint 8: PR `#241` mergeada em `origin/main` (`ccd2001518367961637b1a9488c2319aa83d0a21`).
-- Fase 2 (Sprints 9-12): aberta como trilha de manutenibilidade em
-  `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
+- Fase 1 (Sprints 1–8): concluída em `main` (PR #241, `ccd2001`).
+- Fase 2 (Sprints 9–12): em andamento.
+  - Plano estratégico: `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
+  - Especificação detalhada (com auditoria e correções): `docs/ai-context/refactor/PLANO_COMPLETO_SPRINTS.md`
+  - Riscos e hotspots: `docs/ai-context/refactor/03-OPEN-ITEMS.md` (OI-050 a OI-062)
 
 ## Hotspots atuais da Fase 2
 
-- `App.tsx` (`724` linhas, `44` imports)
-- `components/CRMDetail.tsx` (`664`)
-- `components/LoadingSmart.tsx` (`704`)
-- `components/WarRoom.tsx` (`513`)
-- Radar runtime fora de `features/radar/*` (`hooks/useRadar.ts` + `services/radarService.ts`)
+| Arquivo | Linhas (atual) | Sprint alvo |
+|---|---|---|
+| `App.tsx` | 772, 46 imports | Sprint 9 |
+| `components/CRMDetail.tsx` | 717 + `card: any` + sem testes | Sprint 11 |
+| `components/LoadingSmart.tsx` | 766 | Sprint 11 |
+| `components/WarRoom.tsx` | 552 + sem testes | Sprint 11 |
+| `hooks/useRadar.ts` + `services/radarService.ts` | 291 + 234 (fora do boundary) | Sprint 10 |
+
+## Governance de Handoff
+
+Ao encerrar cada sprint, atualizar este arquivo com:
+- Estado arquitetural atualizado (números corretos de hotspots).
+- Decisões pendentes ou débito intencional aceito.
+- Próximo passo seguro para a sprint seguinte.
 
 ## Regras de continuidade
 
