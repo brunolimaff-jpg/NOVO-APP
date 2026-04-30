@@ -58,6 +58,26 @@ function isHiddenSupportHeading(node: React.ReactNode): boolean {
   return /BLOCO DE FEEDS PORTA/i.test(text);
 }
 
+function isCitationOnlyLabel(value: string): boolean {
+  return /^\[?\d+(?:\.\d+)?\]?$/.test((value || '').trim());
+}
+
+function normalizeCitationArtifacts(input: string): string {
+  if (!input) return '';
+  return input
+    // Remove numeric plain reference artifacts that often follow generated
+    // source links in tables, e.g. `[1.4](url) [4]`.
+    .replace(
+      /(\[\d+(?:\.\d+)?\]\(https?:\/\/(?:[^\s()]+|\([^\s()]*\))+\))(?:\s+\[\d+(?:\.\d+)?\])+/gi,
+      '$1',
+    )
+    // Collapse repeated numeric markdown citations that point to the same URL.
+    .replace(
+      /(\[\d+(?:\.\d+)?\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\))(?:\s+\[\d+(?:\.\d+)?\]\(\2\))+/gi,
+      '$1',
+    );
+}
+
 let mermaidSingleton: typeof import('mermaid')['default'] | null = null;
 let mermaidTheme: string | null = null;
 
@@ -248,6 +268,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       input.replace(/@@__MERMAID_BLOCK_(\d+)__@@/g, (_match, index) => preservedMermaidBlocks[Number(index)] || '');
 
     text = preserveMermaid(text);
+    text = normalizeCitationArtifacts(text);
     text = fixFakeLinks(text);
     text = rewriteMarkdownLinksToGoogle(text);
     text = autoLinkSeniorTerms(text);
@@ -329,6 +350,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       const cleanText = textContent.trim();
       const isBadgeMatch = textContent.match(/^(🟢|🟡|🟠|🔴)/);
       const citationIndex = citationMap.get(normalizeSourceUrl(href));
+      const isCitationLabel = isCitationOnlyLabel(cleanText);
       const isDomainLike = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(cleanText);
       const isLongLinkLabel = cleanText.length > 36 || /https?:\/\//i.test(cleanText);
 
@@ -367,6 +389,23 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
+      if (citationIndex && isCitationLabel) {
+        return (
+          <sup className="ml-0.5">
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:hover:text-blue-300"
+              title={href}
+              {...props}
+            >
+              [{citationIndex}]
+            </a>
+          </sup>
+        );
+      }
+
       if (!citationIndex && isDomainLike) {
         const displayDomain = cleanText.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
         return (
@@ -376,7 +415,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         );
       }
 
-      const isAlreadyCitation = typeof children === 'string' && /^\[\d+\]$/.test(children.trim());
+      const isAlreadyCitation = isCitationOnlyLabel(textContent);
 
       return (
         <span className="inline-flex items-baseline">

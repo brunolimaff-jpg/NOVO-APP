@@ -250,6 +250,7 @@ export interface SourceRef {
   id: string;
   title: string;
   url: string;
+  verification?: 'grounding' | 'fallback';
 }
 
 export type AuditableSourceType = 'inline_citation' | 'grounding_consulted' | 'inferred_without_url';
@@ -407,7 +408,7 @@ function pushUniqueContext(target: string[], context: string): void {
  */
 export function buildAuditableSources(
   text: string,
-  groundingSources: Array<{ title: string; url: string }> = []
+  groundingSources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }> = []
 ): AuditableSource[] {
   const items: AuditableSource[] = [];
   const byUrl = new Map<string, AuditableSource>();
@@ -484,6 +485,9 @@ export function buildAuditableSources(
   for (const g of groundingSources || []) {
     const title = (g?.title || '').trim();
     const url = (g?.url || '').trim();
+    const sourceContext = g?.verification === 'fallback'
+      ? 'Fonte consultada pelo fallback web.'
+      : 'Fonte consultada pelo mecanismo de grounding.';
     if (!url) continue;
     const normalizedUrl = normalizeSourceUrl(url);
     const displayUrl = normalizedUrl || url;
@@ -496,7 +500,7 @@ export function buildAuditableSources(
         title: title || displayUrl,
         url: displayUrl,
         sourceTypes: ['grounding_consulted'],
-        contexts: ['Fonte consultada pelo mecanismo de grounding.'],
+        contexts: [sourceContext],
         requiresManualValidation: false,
       };
       byUrl.set(normalizedUrl, source);
@@ -508,7 +512,7 @@ export function buildAuditableSources(
       source.sourceTypes.push('grounding_consulted');
     }
     if (!source.title && title) source.title = title;
-    pushUniqueContext(source.contexts, 'Fonte consultada pelo mecanismo de grounding.');
+    pushUniqueContext(source.contexts, sourceContext);
   }
 
   const inferredRegex = /\*\*([^*]+)\*\*\s*\*\[\s*fonte não disponível\s*\]\*/gi;

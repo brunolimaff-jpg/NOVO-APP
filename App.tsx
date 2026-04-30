@@ -47,12 +47,14 @@ import { fixFakeLinksHTML } from './utils/linkFixer';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
+import { sanitizeSensitivePersonalData } from './utils/privacy';
 import {
   collectFullReport,
   detectInconsistencies,
   generateExecutiveSummary,
   normalizeMermaidBlocks,
 } from './utils/reportUtils';
+import { openPrintReportWindow } from './utils/printExport';
 import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import FooterCredits from './components/FooterCredits';
@@ -129,7 +131,6 @@ const App: React.FC = () => {
     exportError,
     setExportError,
     pdfReportContent,
-    setPdfReportContent,
     isSavingRemote,
     remoteSaveStatus,
   } = useDossierStore();
@@ -360,19 +361,21 @@ const App: React.FC = () => {
       const inconsistenciesSection = detectInconsistencies(sections);
       const normalizedFullText = normalizeMermaidBlocks(fullText);
       const executiveSummary = generateExecutiveSummary(normalizedFullText, sections, inconsistenciesSection);
-      const finalText = `${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`;
+      const finalText = sanitizeSensitivePersonalData(`${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`);
       const empresa = cleanTitle(extractCompanyName(currentSession?.title));
       const now = new Date();
       const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
       const horaStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const metaLine = `${dataStr} às ${horaStr} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
-      const { PDFGenerator } = await import('./utils/PDFGenerator');
-      const pdf = new PDFGenerator();
-      pdf.addHeader(empresa, metaLine);
-      await pdf.renderMarkdown(finalText);
-      pdf.addSources(allLinks.map(l => ({ text: l.title || l.url, url: l.url })));
-      const safeTitle = empresa.replace(/[^a-z0-9]/gi, '_').substring(0, 50);
-      pdf.save(`SeniorScout_${safeTitle}_${now.toISOString().slice(0, 10)}.pdf`);
+      const opened = openPrintReportWindow({
+        title: empresa,
+        subtitle: metaLine,
+        content: finalText,
+        sources: allLinks.map(l => ({ title: l.title || l.url, url: l.url })),
+      });
+      if (!opened) {
+        toast.error('Não foi possível abrir a visualização de impressão. Verifique se o navegador bloqueou a nova janela.');
+      }
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
       toast.error('Erro ao gerar PDF. Tente novamente.');
@@ -388,10 +391,11 @@ const App: React.FC = () => {
       const inconsistenciesSection = detectInconsistencies(sections);
       const normalizedText = normalizeMermaidBlocks(fullText);
       const executiveSummary = generateExecutiveSummary(normalizedText, sections, inconsistenciesSection);
-      const contentMarkdown =
+      const contentMarkdown = sanitizeSensitivePersonalData(
         reportType === 'executive'
           ? executiveSummary
-          : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`;
+          : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`,
+      );
       const safeTitle = cleanTitle(currentSession.title).replace(/[^a-z0-9]/gi, '_').substring(0, 50);
       const dateStr = new Date().toISOString().slice(0, 10);
       const reportSuffix = reportType === 'executive' ? 'EXEC' : reportType === 'tech' ? 'FICHA' : 'DOSSIE';
@@ -766,4 +770,3 @@ const App: React.FC = () => {
 export default App;
 // Forcing deployment to resolve dossier rendering and test conflicts.
 // Force build 1775507790
-

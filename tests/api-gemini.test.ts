@@ -191,4 +191,41 @@ describe('api/gemini handler', () => {
       }),
     );
   });
+
+  it('repassa tools no generateContent para permitir grounding por módulo', async () => {
+    generateContentMock.mockResolvedValueOnce({
+      text: 'ok',
+      candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-test',
+        contents: 'pesquise',
+        config: {
+          tools: [{ googleSearch: {} }],
+          systemInstruction: 'use fontes',
+        },
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(generateContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          tools: [{ googleSearch: {} }],
+          systemInstruction: 'use fontes',
+        }),
+      }),
+    );
+  });
 });

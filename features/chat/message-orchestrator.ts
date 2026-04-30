@@ -313,6 +313,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           scorePorta,
           clienteSeniorData,
           ghostReason,
+          webVerificationStatus,
         } = await sendMessageToGemini(
           text,
           historyToPass,
@@ -361,6 +362,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
                     ...message,
                     text: responseText,
                     groundingSources: sources as { title: string; url: string }[] | undefined,
+                    webVerificationStatus,
+                    groundingUsed: webVerificationStatus && webVerificationStatus !== 'not_applicable'
+                      ? webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified'
+                      : undefined,
                     suggestions: safeSuggestions,
                     scorePorta: scorePorta || undefined,
                     clienteSeniorData: clienteSeniorData || undefined,

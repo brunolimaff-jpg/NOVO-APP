@@ -1,5 +1,7 @@
-export function normalizeGroundingSources(response: unknown): Array<{ title: string; url: string }> {
-  const out: Array<{ title: string; url: string }> = [];
+import type { VerifiedSource } from '../../utils/webVerification';
+
+export function normalizeGroundingSources(response: unknown): VerifiedSource[] {
+  const out: VerifiedSource[] = [];
   const seen = new Set<string>();
 
   const pushIfValid = (title: unknown, url: unknown) => {
@@ -10,12 +12,18 @@ export function normalizeGroundingSources(response: unknown): Array<{ title: str
     out.push({
       title: (typeof title === 'string' && title.trim()) || normalizedUrl,
       url: normalizedUrl,
+      verification: 'grounding',
     });
   };
 
   const r = (response || {}) as {
     sources?: unknown[];
     groundingChunks?: unknown[];
+    candidates?: Array<{
+      groundingMetadata?: {
+        groundingChunks?: unknown[];
+      };
+    }>;
   };
 
   if (Array.isArray(r.sources)) {
@@ -37,6 +45,25 @@ export function normalizeGroundingSources(response: unknown): Array<{ title: str
       pushIfValid(c.web?.title, c.web?.uri || c.web?.url);
       pushIfValid(c.retrievedContext?.title, c.retrievedContext?.uri || c.retrievedContext?.url);
       pushIfValid(c.title, c.uri || c.url);
+    }
+  }
+
+  if (Array.isArray(r.candidates)) {
+    for (const candidate of r.candidates) {
+      const chunks = candidate?.groundingMetadata?.groundingChunks;
+      if (!Array.isArray(chunks)) continue;
+      for (const chunk of chunks) {
+        const c = chunk as {
+          web?: { title?: unknown; uri?: unknown; url?: unknown };
+          retrievedContext?: { title?: unknown; uri?: unknown; url?: unknown };
+          title?: unknown;
+          uri?: unknown;
+          url?: unknown;
+        };
+        pushIfValid(c.web?.title, c.web?.uri || c.web?.url);
+        pushIfValid(c.retrievedContext?.title, c.retrievedContext?.uri || c.retrievedContext?.url);
+        pushIfValid(c.title, c.uri || c.url);
+      }
     }
   }
 

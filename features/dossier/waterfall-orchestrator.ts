@@ -12,11 +12,18 @@ import {
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import { type ChatSession, type ClienteSeniorData, Sender } from '../../types';
+import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
+import { sanitizeSensitivePersonalData } from '../../utils/privacy';
 import { buildMainDossierExecutiveIntro } from '../../utils/reportUtils';
-import { appendSeniorEvidenceNote, buildSeniorEvidenceContext, extractClienteSeniorData } from '../../utils/seniorEvidence';
+import {
+  appendSeniorEvidenceNote,
+  buildSeniorEvidenceContext,
+  enforceSeniorEvidenceConstraints,
+  extractClienteSeniorData,
+} from '../../utils/seniorEvidence';
+import { extractPromotableInlineSources, type VerifiedSource } from '../../utils/webVerification';
 import {
   ensureContinuitySuggestions,
   isAbortLikeError,
@@ -40,6 +47,7 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
+const MAX_INLINE_SOURCES_TO_VALIDATE = 10;
 
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
@@ -73,6 +81,31 @@ function buildDossierSeedContext(rawPrompt: string): string {
   ].filter(Boolean);
 
   return sections.join('\n\n');
+}
+
+async function validateInlineSourcesForPromotion(
+  text: string,
+  existingSources: VerifiedSource[],
+): Promise<VerifiedSource[]> {
+  const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
+  if (candidates.length === 0 || typeof fetch !== 'function') return [];
+
+  try {
+    const response = await fetch('/api/link-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: candidates.map(source => source.url) }),
+    });
+    if (!response.ok) return [];
+
+    const data = await response.json() as {
+      results?: Record<string, { status?: string }>;
+    };
+    const results = data?.results || {};
+    return candidates.filter(source => results[source.url]?.status === 'valid');
+  } catch {
+    return [];
+  }
 }
 
 export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWaterfallOrchestratorOptions> = {}) {
@@ -125,6 +158,26 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
       let waterfallLookupContext = '';
       let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+      const waterfallGroundingSources: VerifiedSource[] = [];
+      const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
+
+      const appendGroundingSources = (sources: VerifiedSource[]) => {
+        for (const source of sources) {
+          const normalizedUrl = source.url?.trim().replace(/\/+$/, '');
+          if (!normalizedUrl) continue;
+          if (!waterfallGroundingSources.some(item => item.url.trim().replace(/\/+$/, '') === normalizedUrl)) {
+            waterfallGroundingSources.push({
+              title: source.title || source.url,
+              url: normalizedUrl,
+              verification: source.verification || 'grounding',
+            });
+          }
+        }
+      };
+
+      const rememberVerificationStatus = (status: WebVerificationStatus, moduleName: string) => {
+        waterfallVerificationStatuses.set(moduleName, status);
+      };
 
       if (lookupTarget) {
         try {
@@ -212,7 +265,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ]
             .filter(Boolean)
             .join('\n\n'),
-          { signal, timeoutMs },
+          {
+            signal,
+            timeoutMs,
+            useGrounding: true,
+            onGroundingSources: appendGroundingSources,
+            onVerificationStatus: rememberVerificationStatus,
+          },
         );
 
       if (isFirstInteraction) {
@@ -313,8 +372,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ? null
         : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
       const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-      const waterfallNarrativeBase = appendSeniorEvidenceNote(
+      const waterfallConstrainedText = sanitizeSensitivePersonalData(enforceSeniorEvidenceConstraints(
         waterfallCleanText,
+        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+        waterfallClienteSeniorData,
+      ));
+      const waterfallNarrativeBase = appendSeniorEvidenceNote(
+        waterfallConstrainedText,
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
@@ -326,6 +390,22 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallFinalText = waterfallExecutiveIntro
         ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
         : waterfallNarrativeBase;
+      const promotedInlineSources = await validateInlineSourcesForPromotion(
+        waterfallFinalText,
+        waterfallGroundingSources,
+      );
+      appendGroundingSources(promotedInlineSources);
+      const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
+        status => status === 'fallback_verified',
+      ) || waterfallGroundingSources.some(source => source.verification === 'fallback');
+      const hasUnverified = Array.from(waterfallVerificationStatuses.values()).some(status => status === 'unverified');
+      const webVerificationStatus: WebVerificationStatus = waterfallGroundingSources.length > 0
+        ? hasFallbackVerified
+          ? 'fallback_verified'
+          : 'verified'
+        : hasUnverified
+          ? 'unverified'
+          : 'not_applicable';
 
       let waterfallSuggestions: string[] = [];
       try {
@@ -375,6 +455,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   text: waterfallFinalText,
                   scorePorta: waterfallScorePorta ?? undefined,
                   clienteSeniorData: waterfallClienteSeniorData || undefined,
+                  groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                  webVerificationStatus,
+                  groundingUsed: webVerificationStatus === 'not_applicable'
+                    ? undefined
+                    : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
                   portaFallbackApplied: portaFallbackApplied ? true : undefined,
                   portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                   suggestions: waterfallSuggestions,

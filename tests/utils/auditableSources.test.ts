@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildAuditableSources } from '../../utils/textCleaners';
+import { extractPromotableInlineSources } from '../../utils/webVerification';
 
 describe('buildAuditableSources', () => {
   it('deduplicates same URL between inline and grounding', () => {
@@ -30,5 +31,22 @@ describe('buildAuditableSources', () => {
 
     expect(canonical).toHaveLength(1);
     expect(canonical[0].citationIndex).toBe(1);
+  });
+});
+
+describe('extractPromotableInlineSources', () => {
+  it('promove links públicos reais e ignora domínios fake', () => {
+    const sources = extractPromotableInlineSources(
+      'Veja [BNDES](https://www.bndes.gov.br/noticia?utm_source=google) e [Fake](https://example.com/fake).',
+      [],
+    );
+
+    expect(sources).toEqual([
+      {
+        title: 'BNDES',
+        url: 'https://www.bndes.gov.br/noticia',
+        verification: 'fallback',
+      },
+    ]);
   });
 });

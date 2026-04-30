@@ -171,6 +171,22 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
   });
 
+  it('não renderiza badge visual de verificação web no chat', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+      webVerificationStatus: 'fallback_verified',
+      groundingUsed: true,
+      groundingSources: [{ title: 'Fonte', url: 'https://example.org/fonte', verification: 'fallback' }],
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    expect(screen.queryByText(/Verificado via fallback web/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Verificado na web/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Resposta sem verificacao web/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-actions-bar')).toBeInTheDocument();
+  });
+
   it('renderiza badge Cliente Senior quando dados estiverem presentes', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
