@@ -143,6 +143,43 @@ function hasConfirmedHcm(clienteSeniorData?: ClienteSeniorData): boolean {
   return Boolean(clienteSeniorData?.temHcm ?? hasFamily(clienteSeniorData?.familias, 'HCM'));
 }
 
+const SENIOR_ERP_MENTION_PATTERN = /\b(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)\b/i;
+const SENIOR_ERP_ASSERTION_PATTERN =
+  /\b(?:confirmad[ao]s?|implantad[ao]s?|contratad[ao]s?|core|backoffice|existente|atual|possui|tem|cliente|m[oó]dulos?|usa|utiliza|roda|opera|adotad[ao]s?|presen[çc]a)\b/i;
+const SENIOR_ERP_NEGATION_PATTERN =
+  /\b(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)\b.{0,80}\b(?:n[aã]o\s+confirmad[ao]|ausente|gap|hip[oó]tese|validar|n[aã]o\s+contratad[ao])\b|\b(?:n[aã]o\s+(?:confirma|confirmad[ao]|possui|tem|usa|utiliza)|sem|ausente)\b.{0,80}\b(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)\b/i;
+
+const SENIOR_ERP_RISKY_PHRASE_PATTERNS: RegExp[] = [
+  /\b(?:possui|tem|usa|utiliza|roda|opera|adota)\s+(?:o\s+|a\s+)?(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)(?:\s*\([^)]*\))?/gi,
+  /\b(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)(?:\s*\([^)]*\))?\s*:?\s*(?:confirmad[ao]s?|implantad[ao]s?|contratad[ao]s?|core|backoffice|existente|atual)(?:\s+(?:como\s+)?(?:core|backoffice|principal|atual|existente))*/gi,
+  /\b(?:confirmad[ao]s?|implantad[ao]s?|contratad[ao]s?)\s+(?:como\s+)?(?:o\s+|a\s+)?(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)(?:\s*\([^)]*\))?/gi,
+  /\b(?:m[oó]dulos?\s+de|presen[çc]a\s+de)\s+(?:ERP\s+Senior|Senior\s+ERP|ERP\s+Sapiens|Sapiens\s+ERP)(?:\s*\([^)]*\))?/gi,
+];
+
+function hasRiskySeniorErpAssertion(line: string): boolean {
+  if (!SENIOR_ERP_MENTION_PATTERN.test(line)) return false;
+  if (SENIOR_ERP_NEGATION_PATTERN.test(line)) return false;
+  return SENIOR_ERP_ASSERTION_PATTERN.test(line);
+}
+
+function neutralizeSeniorErpAssertion(line: string): string {
+  let nextLine = line;
+  let replaced = false;
+
+  for (const pattern of SENIOR_ERP_RISKY_PHRASE_PATTERNS) {
+    nextLine = nextLine.replace(pattern, () => {
+      replaced = true;
+      return 'ERP Senior não confirmado no CRM interno';
+    });
+  }
+
+  if (replaced) {
+    return nextLine;
+  }
+
+  return `${line} — ERP Senior não confirmado no CRM interno; tratar como gap de cross-sell ou hipótese a validar.`;
+}
+
 export function enforceSeniorEvidenceConstraints(
   text: string,
   companyName: string,
@@ -156,8 +193,6 @@ export function enforceSeniorEvidenceConstraints(
   if (erpConfirmed || !hcmConfirmed) return trimmed;
 
   let changed = false;
-  const riskyErpAssertion =
-    /\b(?:ERP\s+Senior|Senior\s+ERP)\b.*\b(?:confirmad[ao]|implantad[ao]|contratad[ao]|core|backoffice|existente|atual|possui|cliente|m[oó]dulos?)\b/i;
 
   const constrained = trimmed
     .split('\n')
@@ -167,10 +202,9 @@ export function enforceSeniorEvidenceConstraints(
         return 'HCM';
       });
 
-      if (riskyErpAssertion.test(nextLine)) {
+      if (hasRiskySeniorErpAssertion(nextLine)) {
         changed = true;
-        const prefix = nextLine.match(/^(\s*[-*]\s*)/)?.[1] || '';
-        nextLine = `${prefix}**ERP Senior:** não confirmado no CRM interno; tratar como gap de cross-sell ou hipótese a validar.`;
+        nextLine = neutralizeSeniorErpAssertion(nextLine);
       }
 
       return nextLine;

@@ -31,6 +31,41 @@ describe('printExport', () => {
     expect(html).toContain('href="https://example.com/noticia?empresa=piccini&amp;fonte=bndes"');
   });
 
+  it('preserva links markdown com parênteses na URL', () => {
+    const html = renderMarkdownForPrint(
+      '[Verbete](https://pt.wikipedia.org/wiki/Lucas_do_Rio_Verde_(Mato_Grosso))',
+    );
+
+    expect(html).toContain('href="https://pt.wikipedia.org/wiki/Lucas_do_Rio_Verde_(Mato_Grosso)"');
+    expect(html).not.toContain('(Mato_Grosso))</p>');
+  });
+
+  it('renderiza tabelas GFM sem barras laterais', () => {
+    const html = renderMarkdownForPrint(`
+Elo | Status | Evidência
+--- | --- | ---
+Plantio próprio | Sim | 90k ha
+Armazenagem própria | Sim | Kepler Weber
+`);
+
+    expect(html).toContain('<table>');
+    expect(html).toContain('<th>Elo</th>');
+    expect(html).toContain('<td>Plantio próprio</td>');
+    expect(html).toContain('<td>Kepler Weber</td>');
+  });
+
+  it('mantém Mermaid legível quando a CDN falhar', () => {
+    const html = buildPrintReportHtml({
+      title: 'Grupo Piccini',
+      content: '```mermaid\ngraph LR\nA["Fiscal/Planilha" -.-> B["Armazenagem (Kepler Weber)"]\n```',
+    });
+
+    expect(html).toContain('class="mermaid"');
+    expect(html).toContain('window.__scoutMermaidFallback');
+    expect(html).toContain('data-render-status');
+    expect(html).toContain('A[&quot;Fiscal/Planilha&quot;] -.-&gt; B[&quot;Armazenagem (Kepler Weber)&quot;]');
+  });
+
   it('gera documento HTML de impressão com CSS e fontes', () => {
     const html = buildPrintReportHtml({
       title: 'Grupo Piccini',

@@ -168,7 +168,29 @@ describe('seniorEvidence', () => {
 
     expect(result).not.toContain('ERP Senior (Backoffice)');
     expect(result).not.toContain('HCM/ERP');
-    expect(result).toContain('ERP Senior:** não confirmado no CRM interno');
+    expect(result).toContain('ERP Senior não confirmado no CRM interno');
     expect(result).toContain('confirma Grupo Piccini como cliente Senior em HCM');
+  });
+
+  it('detecta ERP Senior em qualquer ordem e preserva outras evidências da linha', () => {
+    const result = enforceSeniorEvidenceConstraints(
+      'O cliente possui ERP Senior e utiliza SAP para logística.\nConfirmado ERP Senior na matriz.',
+      'Grupo Piccini',
+      {
+        encontrado: true,
+        grupo: 'Grupo Piccini',
+        totalModulos: 31,
+        familias: ['HCM'],
+        familiasAusentes: ['ERP'],
+        modulosPorFamilia: { HCM: ['Folha'] },
+        temErp: false,
+        temHcm: true,
+      },
+    );
+
+    expect(result).not.toContain('possui ERP Senior');
+    expect(result).not.toContain('Confirmado ERP Senior');
+    expect(result).toContain('ERP Senior não confirmado no CRM interno e utiliza SAP para logística');
+    expect(result).toContain('ERP Senior não confirmado no CRM interno na matriz');
   });
 });

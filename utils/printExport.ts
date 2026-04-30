@@ -1,5 +1,5 @@
 import { APP_NAME } from '../constants';
-import { normalizeMermaidBlocks } from './mermaid';
+import { getDisplayableMermaidCode, normalizeMermaidBlocks } from './mermaid';
 import { stripPortaMarkers } from './porta';
 import { sanitizeSensitivePersonalData } from './privacy';
 
@@ -44,7 +44,7 @@ function renderInlineMarkdown(value: string): string {
     .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_match, label, url) => {
+    .replace(/\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g, (_match, label, url) => {
       const safeUrl = sanitizeUrl(decodeEscapedMarkdownUrl(url));
       return safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noreferrer">${label}</a>` : label;
     });
@@ -64,12 +64,17 @@ function isTableSeparator(row: string): boolean {
   return cells.length > 1 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
 }
 
+function isTableDataRow(row: string): boolean {
+  const cells = splitTableRow(row);
+  return row.includes('|') && cells.length > 1 && !isTableSeparator(row);
+}
+
 function renderTable(lines: string[], startIndex: number): { html: string; nextIndex: number } {
   const header = splitTableRow(lines[startIndex]);
   let index = startIndex + 2;
   const rows: string[][] = [];
 
-  while (index < lines.length && /^\s*\|.*\|\s*$/.test(lines[index])) {
+  while (index < lines.length && isTableDataRow(lines[index] || '')) {
     rows.push(splitTableRow(lines[index]));
     index += 1;
   }
@@ -115,7 +120,8 @@ export function renderMarkdownForPrint(markdown: string): string {
       }
       const code = codeLines.join('\n').trim();
       if (lang === 'mermaid' || lang === 'mmd') {
-        blocks.push(`<div class="diagram-title">Diagrama Mermaid</div><pre class="mermaid">${escapeHtml(code)}</pre>`);
+        const displayableCode = getDisplayableMermaidCode(code);
+        blocks.push(`<div class="diagram-title">Diagrama Mermaid</div><pre class="mermaid">${escapeHtml(displayableCode)}</pre>`);
       } else {
         blocks.push(`<pre><code>${escapeHtml(code)}</code></pre>`);
       }
@@ -127,7 +133,7 @@ export function renderMarkdownForPrint(markdown: string): string {
       continue;
     }
 
-    if (trimmed.startsWith('|') && lines[i + 1] && isTableSeparator(lines[i + 1])) {
+    if (isTableDataRow(trimmed) && lines[i + 1] && isTableSeparator(lines[i + 1])) {
       flushList();
       const table = renderTable(lines, i);
       blocks.push(table.html);
@@ -223,6 +229,7 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
     tr { page-break-inside: avoid; }
     .subtitle { color: #64748b; margin: 0; }
     .diagram-title { color: #047857; font-weight: 800; margin: 12px 0 6px; }
+    .mermaid-fallback { border-color: #a7f3d0; background: #f0fdf4; color: #064e3b; }
     .sources { margin-top: 32px; border-top: 2px solid #a7f3d0; padding-top: 14px; page-break-before: auto; }
     .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 10px; text-align: center; }
     .actions { position: sticky; top: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
@@ -249,8 +256,34 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
     ${sourceRows ? `<section class="sources"><h2>Fontes e Referências</h2><ul>${sourceRows}</ul></section>` : ''}
     <footer class="footer">Gerado por ${escapeHtml(appName)} - ${new Date().toLocaleDateString('pt-BR')}</footer>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script>if (window.mermaid) window.mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });</script>
+  <script>
+    (function () {
+      function showMermaidFallback() {
+        document.querySelectorAll('pre.mermaid').forEach(function (node) {
+          node.classList.add('mermaid-fallback');
+          node.setAttribute('data-render-status', 'fallback');
+        });
+      }
+
+      window.__scoutRenderMermaid = function () {
+        if (!window.mermaid) {
+          showMermaidFallback();
+          return;
+        }
+        try {
+          window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+          Promise.resolve(window.mermaid.run({ querySelector: 'pre.mermaid' })).catch(showMermaidFallback);
+        } catch (_error) {
+          showMermaidFallback();
+        }
+      };
+      window.__scoutMermaidFallback = showMermaidFallback;
+      window.setTimeout(function () {
+        if (!window.mermaid) showMermaidFallback();
+      }, 2500);
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" async onload="window.__scoutRenderMermaid && window.__scoutRenderMermaid()" onerror="window.__scoutMermaidFallback && window.__scoutMermaidFallback()"></script>
 </body>
 </html>`;
 }
