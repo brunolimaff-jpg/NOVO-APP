@@ -17,6 +17,14 @@ export interface GeminiRequestOptions {
   hintedCompany?: string | null;
 }
 
+export interface DossierModuleOptions {
+  signal?: AbortSignal;
+  onText?: (text: string) => void;
+  timeoutMs?: number;
+  useGrounding?: boolean;
+  onGroundingSources?: (sources: Array<{ title: string; url: string }>, moduleName: string) => void;
+}
+
 export interface SpotterExtractedData {
   companyName?: string;
   contactName?: string;

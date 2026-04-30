@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 ## Current operating context
 
@@ -30,33 +30,16 @@ Fase 2 (manutenibilidade) foi aberta de forma documental:
 
 ## Current task context
 
-Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
+Correcao do dossie modular para o caso Grupo Piccini:
 
-- checkout local sincronizado com a cabeca da PR no GitHub:
-  - branch: `fix/cnpj-proxy-fallback`
-  - head: `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
-- `origin/main` estava em `d2649a67cb79f4a57d46b8db3e48744d8d3147dd` no momento da investigacao
-- escopo mantido so na PR `#243`, sem expandir para `components/CRMDetail.tsx`
-- validacao local correta do proxy CNPJ aconteceu em `vercel dev`, ligado ao projeto `scoutagro`
-- resultados confirmados em `2026-04-28`:
-  - `GET /api/cnpj?cnpj=04252011000110` -> `200` com `companyName`, `city`, `state`, `cnae` e `cnaeDescricao`
-  - `GET /api/cnpj?cnpj=11111111111111` -> `400` com erro de CNPJ invalido
-  - `GET /api/comex?cnpj=04252011000110` -> `200`
-  - `npm exec vitest run tests/services/brasilApiService.test.ts` -> green
-  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` -> green
-- segunda rodada em `2026-04-28` adicionou instrumentacao para debug do preview:
-  - `services/brasilApiService.ts` agora preserva `error/detail` de respostas HTTP nao-OK
-  - o cliente loga endpoint resolvido, sucesso e falha via `scoutDiag`
-  - `api/cnpj.ts` agora loga request start/success/not-found/error no runtime serverless
-  - `components/EmptyStateHome.tsx` mostra orientacao explicita para `localhost` sem proxy em vez de mascarar como indisponibilidade generica
-- observacao importante:
-  - `npm run dev` / `vite` puro nao valida `api/cnpj.ts` neste repo; `/api/cnpj` cai no HTML da app sem proxy dedicado
-  - para esse caso, o cliente agora mostra: `Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.`
-- risco residual fora de escopo desta passada:
-  - `components/CRMDetail.tsx` continua chamando `https://brasilapi.com.br/api/cnpj/v1/*` diretamente
+- O fluxo modular de dossie agora passa `googleSearch` por modulo quando `useGrounding: true`.
+- As fontes retornadas por cada modulo sao agregadas em `groundingSources` na mensagem final do waterfall.
+- Evidencia Senior foi blindada para HCM-only: quando o CRM confirma HCM mas nao confirma ERP, o texto deve tratar ERP como gap/hipotese e nao como cliente ERP Senior.
+- Exportacao PDF deixou de usar PDF programatico quebrado e passou a abrir uma visualizacao HTML de impressao/salvar PDF.
+- A visualizacao HTML de impressao sanitiza emojis/simbolos, renderiza headings, listas, links, tabelas e blocos Mermaid, e aplica CSS de impressao para margens, quebras e tabelas legiveis.
 
 ## Immediate next step
 
-1. Reproduzir o bug no browser somente em runtime serverless (`vercel dev` ou deploy), nao em `vite` puro.
-2. No preview da PR, abrir o console do browser e conferir os logs `🦅 [Scout360][CnpjLookup]` junto com os logs de `api/cnpj.ts` na Vercel.
-3. Avaliar em outra passada se o fix do proxy deve ser expandido para `components/CRMDetail.tsx`.
+1. Validar manualmente a exportacao HTML no navegador usando um dossie real do Grupo Piccini.
+2. Conferir que o dossie gerado cita Grupo Piccini, RRP Energia, Tapurah, BNDES, usina de etanol de milho e capacidade industrial quando as fontes publicas forem encontradas.
+3. Conferir que CRM HCM-only nao gera frase de ERP Senior confirmado/core.

@@ -308,6 +308,14 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(lookupClienteMock).toHaveBeenCalledWith('Acme Agro');
     expect(formatarParaPromptMock).toHaveBeenCalledTimes(1);
     expect(generateDossierModuleMock).toHaveBeenCalledTimes(5);
+    expect(generateDossierModuleMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ useGrounding: true }),
+    );
     expect(runDossierBenchmarkStageMock).toHaveBeenCalledTimes(1);
     expect(ensureWaterfallScorePortaMock).toHaveBeenCalledWith(
       expect.stringContaining('[[PORTA:74'),
@@ -335,6 +343,53 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.text).toContain('Raio-X Operacional consolidado');
     expect(finalBotMessage.text).toContain('Benchmark consolidado');
     expect(finalBotMessage.text).not.toContain('[[PORTA');
+  });
+
+  it('agrega fontes de grounding retornadas pelos módulos', async () => {
+    const score = makeScorePorta(74);
+    generateDossierModuleMock.mockImplementation(
+      async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
+        onGroundingSources?: (sources: Array<{ title: string; url: string }>, moduleName: string) => void;
+      }) => {
+        options?.onGroundingSources?.(
+          [
+            { title: `${moduleName} fonte`, url: 'https://example.com/fonte/' },
+            { title: 'BNDES', url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi/' },
+          ],
+          moduleName,
+        );
+        return `${moduleName} consolidado`;
+      },
+    );
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: [
+        'Raio-X Operacional consolidado',
+        '---',
+        '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
+      ].join('\n\n'),
+      resolution: makeResolution(score),
+      portaFallbackApplied: false,
+      portaFallbackDimensions: [],
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    const finalBotMessage = getBotMessage(harness);
+
+    expect(finalBotMessage.groundingUsed).toBe(true);
+    expect(finalBotMessage.groundingSources).toEqual([
+      { title: 'Raio-X Operacional fonte', url: 'https://example.com/fonte' },
+      {
+        title: 'BNDES',
+        url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi',
+      },
+    ]);
   });
 
   it('ignora falha em módulo opcional e anexa nota operacional no dossiê final', async () => {

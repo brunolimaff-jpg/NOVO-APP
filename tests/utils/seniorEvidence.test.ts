@@ -3,6 +3,7 @@ import type { LookupResponse } from '../../services/clientLookupService';
 import {
   appendSeniorEvidenceNote,
   buildSeniorEvidenceContext,
+  enforceSeniorEvidenceConstraints,
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
 
@@ -37,7 +38,12 @@ describe('seniorEvidence', () => {
       grupo: 'Grupo Scheffer',
       totalModulos: 2,
       familias: ['ERP', 'HCM'],
+      familiasAusentes: ['GATec', 'Logística'],
       modulosPorFamilia: { ERP: ['Financeiro'], HCM: ['Folha'] },
+      temErp: true,
+      temHcm: true,
+      temGatec: false,
+      temLogistica: false,
     });
   });
 
@@ -72,7 +78,12 @@ describe('seniorEvidence', () => {
       grupo: 'Bom Futuro Agricola Holding',
       totalModulos: 1,
       familias: ['Acesso'],
+      familiasAusentes: ['ERP', 'HCM', 'GATec', 'Logística'],
       modulosPorFamilia: { Acesso: ['Ronda'] },
+      temErp: false,
+      temHcm: false,
+      temGatec: false,
+      temLogistica: false,
     });
   });
 
@@ -87,6 +98,25 @@ describe('seniorEvidence', () => {
 
     expect(context).toContain('Grupo Scheffer é cliente Senior confirmado');
     expect(context).toContain('Não trate TOTVS ou SAP como ERP core principal');
+  });
+
+  it('bloqueia ERP como core quando o CRM confirma apenas HCM', () => {
+    const context = buildSeniorEvidenceContext('Grupo Piccini', {
+      encontrado: true,
+      grupo: 'Grupo Piccini',
+      totalModulos: 31,
+      familias: ['HCM', 'Acesso'],
+      familiasAusentes: ['ERP', 'GATec', 'Logística'],
+      modulosPorFamilia: { HCM: ['Folha', 'Ponto'], Acesso: ['Ronda'] },
+      temErp: false,
+      temHcm: true,
+      temGatec: false,
+      temLogistica: false,
+    });
+
+    expect(context).toContain('ERP Senior NÃO confirmado');
+    expect(context).toContain('É proibido afirmar ERP Senior como core');
+    expect(context).toContain('HCM Senior confirmado');
   });
 
   it('anexa nota de consistencia quando texto cita TOTVS ou SAP', () => {
@@ -118,5 +148,27 @@ describe('seniorEvidence', () => {
         modulosPorFamilia: {},
       }),
     ).toBe(text);
+  });
+
+  it('corrige afirmações de ERP Senior core quando a base confirma apenas HCM', () => {
+    const result = enforceSeniorEvidenceConstraints(
+      'ERP Senior (Backoffice): confirmado como core atual.\nHCM/ERP já implantado.',
+      'Grupo Piccini',
+      {
+        encontrado: true,
+        grupo: 'Grupo Piccini',
+        totalModulos: 31,
+        familias: ['HCM'],
+        familiasAusentes: ['ERP'],
+        modulosPorFamilia: { HCM: ['Folha'] },
+        temErp: false,
+        temHcm: true,
+      },
+    );
+
+    expect(result).not.toContain('ERP Senior (Backoffice)');
+    expect(result).not.toContain('HCM/ERP');
+    expect(result).toContain('ERP Senior:** não confirmado no CRM interno');
+    expect(result).toContain('confirma Grupo Piccini como cliente Senior em HCM');
   });
 });

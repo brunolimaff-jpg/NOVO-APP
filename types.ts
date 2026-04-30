@@ -166,7 +166,12 @@ export interface ClienteSeniorData {
   grupo?: string;
   totalModulos?: number;
   familias?: string[];
+  familiasAusentes?: string[];
   modulosPorFamilia?: Record<string, string[]>;
+  temErp?: boolean;
+  temHcm?: boolean;
+  temGatec?: boolean;
+  temLogistica?: boolean;
 }
 
 export interface ChatSession {

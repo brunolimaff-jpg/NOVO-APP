@@ -6,6 +6,25 @@ const COMPETITOR_PATTERNS: Array<{ label: string; regex: RegExp }> = [
   { label: 'SAP', regex: /\b(?:sap|s\/4hana|business one|businessone)\b/i },
 ];
 
+const CORE_FAMILIES = ['ERP', 'HCM', 'GATec', 'Logística'];
+
+function normalizeFamily(value: string): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function hasFamily(families: string[] | undefined, target: string): boolean {
+  const normalizedTarget = normalizeFamily(target);
+  return (families || []).some(family => normalizeFamily(family) === normalizedTarget);
+}
+
+function resolveAbsentFamilies(families: string[] | undefined): string[] {
+  return CORE_FAMILIES.filter(family => !hasFamily(families, family));
+}
+
 export function extractClienteSeniorData(lookup?: LookupResponse | null): ClienteSeniorData | undefined {
   if (!lookup?.encontrado || !lookup.results?.length) return undefined;
 
@@ -17,7 +36,12 @@ export function extractClienteSeniorData(lookup?: LookupResponse | null): Client
     grupo: primary.grupo,
     totalModulos: primary.total_modulos,
     familias: primary.familias_presentes,
+    familiasAusentes: resolveAbsentFamilies(primary.familias_presentes),
     modulosPorFamilia: primary.modulos_por_familia,
+    temErp: Boolean(primary.tem_erp ?? hasFamily(primary.familias_presentes, 'ERP')),
+    temHcm: Boolean(primary.tem_hcm ?? hasFamily(primary.familias_presentes, 'HCM')),
+    temGatec: Boolean(primary.tem_gatec ?? hasFamily(primary.familias_presentes, 'GATec')),
+    temLogistica: Boolean(primary.tem_logistica ?? hasFamily(primary.familias_presentes, 'Logística')),
   };
 }
 
@@ -60,15 +84,24 @@ export function buildSeniorEvidenceContext(companyName: string, clienteSeniorDat
 
   const companyLabel = companyName?.trim() || clienteSeniorData.grupo || 'empresa analisada';
   const families = clienteSeniorData.familias?.filter(Boolean).join(', ') || 'Famílias não detalhadas';
+  const absentFamilies =
+    clienteSeniorData.familiasAusentes?.filter(Boolean).join(', ') ||
+    resolveAbsentFamilies(clienteSeniorData.familias).join(', ');
   const totalModulos = clienteSeniorData.totalModulos ?? 'não informado';
+  const erpConfirmed = clienteSeniorData.temErp ?? hasFamily(clienteSeniorData.familias, 'ERP');
+  const hcmConfirmed = clienteSeniorData.temHcm ?? hasFamily(clienteSeniorData.familias, 'HCM');
 
   return `
 [EVIDÊNCIA CRM INTERNO SENIOR — PRIORIDADE MÁXIMA]
 - ${companyLabel} é cliente Senior confirmado no CRM interno.
 - Total de módulos contratados: ${totalModulos}.
 - Famílias confirmadas: ${families}.
+- Famílias NÃO confirmadas no CRM: ${absentFamilies || 'nenhuma família crítica ausente informada'}.
 
 [REGRAS OBRIGATÓRIAS DE NARRATIVA]
+- ${erpConfirmed ? 'ERP Senior confirmado no CRM interno.' : 'ERP Senior NÃO confirmado no CRM interno. É proibido afirmar ERP Senior como core, backoffice implantado ou solução contratada desta conta.'}
+- ${hcmConfirmed ? 'HCM Senior confirmado no CRM interno.' : 'HCM Senior NÃO confirmado no CRM interno.'}
+- Se ERP não estiver confirmado, trate ERP como GAP de cross-sell ou hipótese pública explicitamente marcada, nunca como cliente ERP.
 - Não trate TOTVS ou SAP como ERP core principal sem prova mais forte que o CRM interno.
 - Se houver sinais públicos de TOTVS ou SAP, trate como legado, satélite ou convivência.
 - Direcione a tese comercial para expansão, cross-sell, consolidação, integração ou governança.
@@ -100,4 +133,58 @@ export function appendSeniorEvidenceNote(
 ---
 ## 🔒 Nota de consistência comercial
 A base interna Senior confirma ${companyLabel} como cliente Senior com ${totalModulos} módulos contratados. Menções a ${uniqueMentions} neste dossiê devem ser lidas como legado, satélite ou convivência, não como ERP core principal sem evidência superior ao CRM interno.`;
+}
+
+function hasConfirmedErp(clienteSeniorData?: ClienteSeniorData): boolean {
+  return Boolean(clienteSeniorData?.temErp ?? hasFamily(clienteSeniorData?.familias, 'ERP'));
+}
+
+function hasConfirmedHcm(clienteSeniorData?: ClienteSeniorData): boolean {
+  return Boolean(clienteSeniorData?.temHcm ?? hasFamily(clienteSeniorData?.familias, 'HCM'));
+}
+
+export function enforceSeniorEvidenceConstraints(
+  text: string,
+  companyName: string,
+  clienteSeniorData?: ClienteSeniorData,
+): string {
+  const trimmed = text.trim();
+  if (!trimmed || !clienteSeniorData?.encontrado) return trimmed;
+
+  const erpConfirmed = hasConfirmedErp(clienteSeniorData);
+  const hcmConfirmed = hasConfirmedHcm(clienteSeniorData);
+  if (erpConfirmed || !hcmConfirmed) return trimmed;
+
+  let changed = false;
+  const riskyErpAssertion =
+    /\b(?:ERP\s+Senior|Senior\s+ERP)\b.*\b(?:confirmad[ao]|implantad[ao]|contratad[ao]|core|backoffice|existente|atual|possui|cliente|m[oó]dulos?)\b/i;
+
+  const constrained = trimmed
+    .split('\n')
+    .map(line => {
+      let nextLine = line.replace(/\bHCM\s*\/\s*ERP\b/gi, () => {
+        changed = true;
+        return 'HCM';
+      });
+
+      if (riskyErpAssertion.test(nextLine)) {
+        changed = true;
+        const prefix = nextLine.match(/^(\s*[-*]\s*)/)?.[1] || '';
+        nextLine = `${prefix}**ERP Senior:** não confirmado no CRM interno; tratar como gap de cross-sell ou hipótese a validar.`;
+      }
+
+      return nextLine;
+    })
+    .join('\n');
+
+  if (!changed || /##\s*🔒\s*Nota de consist[eê]ncia comercial/i.test(constrained)) {
+    return constrained;
+  }
+
+  const companyLabel = companyName?.trim() || clienteSeniorData.grupo || 'A empresa analisada';
+  return `${constrained}
+
+---
+## 🔒 Nota de consistência comercial
+A base interna Senior confirma ${companyLabel} como cliente Senior em HCM, mas não confirma ERP Senior contratado. Qualquer tese de ERP deve ser tratada como gap de cross-sell ou hipótese a validar, não como core instalado.`;
 }

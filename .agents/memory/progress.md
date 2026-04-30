@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 ## Completed
 
@@ -27,12 +27,18 @@ Last updated: 2026-04-28
   - `npm exec vitest run tests/services/brasilApiService.test.ts tests/components/EmptyStateHome.test.tsx` green (`16` testes)
   - `npm run typecheck` green
 - Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
+- Correcao do dossie Piccini implementada em `2026-04-30`:
+  - `generateDossierModule` aceita `useGrounding` e repassa `googleSearch` para o proxy Gemini.
+  - waterfall do dossie agrega fontes por modulo em `groundingSources`.
+  - evidencia Senior HCM-only bloqueia afirmacoes de ERP Senior confirmado/core.
+  - exportacao PDF agora abre HTML de impressao com markdown, tabelas, Mermaid, fontes e CSS de print.
 
 ## In progress
 
 - Publicacao do PR de documentacao da Fase 2.
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
 - Confirmacao final do bug de browser da PR `#243` em preview/Vercel com os novos logs ja publicados na branch.
+- Validacao manual da exportacao HTML do dossie Piccini em navegador real.
 
 ## Blockers
 
@@ -55,6 +61,15 @@ Last updated: 2026-04-28
 - OI-003: chunk warning em `utils/idbStorage.ts`
 - OI-004: warning `SessionsSidebar` em teste
 - OI-005: backlog de lint warnings
+- `npm run lint` global pode varrer artefatos gerados em `.vercel/output` e minificados, causando erros fora do codigo alterado; preferir lint direcionado ate ajustar o escopo do ESLint.
+
+### Dossie Piccini / PDF (2026-04-30)
+
+- `npm exec vitest run tests/utils/seniorEvidence.test.ts tests/utils/printExport.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/api-gemini.test.ts tests/services/investigation-orchestration.test.ts tests/services/geminiLookupGate.test.ts tests/utils/reportUtils.test.ts`: green (`38` testes)
+- `npm run typecheck`: green
+- `npx eslint App.tsx components/MessageActionsBar.tsx features/dossier/waterfall-orchestrator.ts services/gemini/contracts.ts services/gemini/investigation-orchestration.ts types.ts utils/seniorEvidence.ts utils/printExport.ts tests/api-gemini.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/utils/seniorEvidence.test.ts tests/utils/printExport.test.ts`: green, com `12` warnings antigos em `App.tsx`
+- `npm run build`: green, mantendo warning conhecido em `utils/idbStorage.ts`
+- Validacao Playwright do HTML de impressao com amostra Piccini: tabela renderizada, titulo quebra linha, sem overflow horizontal e sem emoji no texto impresso.
 
 ## Important refs
 
