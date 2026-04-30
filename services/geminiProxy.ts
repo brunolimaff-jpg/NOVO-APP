@@ -156,6 +156,8 @@ export async function proxyChatSendMessage(
 export interface OpenWebSearchResponse {
   content?: string;
   source?: string;
+  sources?: Array<{ title?: string; url?: string; snippet?: string; provider?: string }>;
+  degraded?: boolean;
   error?: string;
   detail?: string;
 }

@@ -79,6 +79,26 @@ function extractSourcesFromOpenWebSearchContent(content: string): VerifiedSource
   return out;
 }
 
+function normalizeOpenWebSearchSources(sources: unknown): VerifiedSource[] {
+  if (!Array.isArray(sources)) return [];
+  const out: VerifiedSource[] = [];
+  const seen = new Set<string>();
+
+  for (const item of sources) {
+    const source = item as { title?: unknown; url?: unknown };
+    const url = typeof source.url === 'string' ? source.url.trim().replace(/\/+$/, '') : '';
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    out.push({
+      title: (typeof source.title === 'string' && source.title.trim()) || url,
+      url,
+      verification: 'fallback',
+    });
+  }
+
+  return out;
+}
+
 function buildDossierFallbackQueries(moduleName: string, empresaAlvo: string, extraContext: string): string[] {
   const company = empresaAlvo.trim();
   if (!company) return [];
@@ -126,13 +146,26 @@ async function runDossierWebFallback(
     try {
       const result = await executeOpenWebSearchTool(query);
       const content = typeof result?.content === 'string' ? result.content : '';
-      for (const source of extractSourcesFromOpenWebSearchContent(content)) {
+      const resultSources = [
+        ...normalizeOpenWebSearchSources(result?.sources),
+        ...extractSourcesFromOpenWebSearchContent(content),
+      ];
+      for (const source of resultSources) {
         const normalized = source.url.trim().replace(/\/+$/, '');
         if (!normalized || seen.has(normalized)) continue;
         seen.add(normalized);
         sources.push({ ...source, url: normalized });
       }
       if (sources.length >= 5) break;
+      if (result?.degraded) {
+        scoutDiag.warn('DossierModule', 'fallback open-web-search degradado; interrompendo novas tentativas do módulo', {
+          moduleName,
+          empresaAlvo,
+          query,
+          detail: result.detail,
+        });
+        break;
+      }
     } catch (error) {
       scoutDiag.warn('DossierModule', 'fallback open-web-search falhou', {
         moduleName,
@@ -144,15 +177,6 @@ async function runDossierWebFallback(
   }
 
   return sources;
-}
-
-function buildUnverifiedModuleBlock(moduleName: string, empresaAlvo: string): string {
-  return [
-    `### ${moduleName}`,
-    '',
-    `> Módulo retido: a verificação web obrigatória para ${empresaAlvo || 'a empresa analisada'} não retornou fontes públicas confiáveis no grounding nem no fallback.`,
-    '> Para evitar tese comercial sem lastro, este bloco deve ser reexecutado antes de usar gatilhos, riscos ou recomendações assertivas.',
-  ].join('\n');
 }
 
 function buildExtraContext(params: {
@@ -709,7 +733,6 @@ export async function generateDossierModule(
       verificationStatus = 'fallback_verified';
     } else {
       verificationStatus = 'unverified';
-      finalText = buildUnverifiedModuleBlock(moduleName, empresaAlvo);
     }
   }
 

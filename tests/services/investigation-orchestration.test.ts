@@ -86,7 +86,7 @@ describe('investigation-orchestration', () => {
     expect(onVerificationStatus).toHaveBeenCalledWith('fallback_verified', 'Riscos & Compliance');
   });
 
-  it('retém módulo quando grounding e fallback não retornam fontes', async () => {
+  it('preserva módulo como não verificado quando grounding e fallback não retornam fontes', async () => {
     const onVerificationStatus = vi.fn();
 
     const result = await generateDossierModule(
@@ -98,8 +98,8 @@ describe('investigation-orchestration', () => {
       { useGrounding: true, onVerificationStatus },
     );
 
-    expect(result).toContain('Módulo retido');
-    expect(result).not.toContain('Conclusão parcial');
+    expect(result).toContain('Conclusão parcial');
+    expect(result).not.toContain('Módulo retido');
     expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Tech Stack');
   });
 });
