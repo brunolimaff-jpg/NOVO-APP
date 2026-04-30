@@ -6,7 +6,7 @@ import {
 } from '../../types';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { parsePortaMarkerV2 } from '../../utils/porta';
-import { extractClienteSeniorData } from '../../utils/seniorEvidence';
+import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
 import { applyPromptLeakShield } from '../../utils/textCleaners';
 import { withAutoRetry } from '../../utils/retry';
 import { proxyChatSendMessage, proxyGenerateContent } from '../geminiProxy';
@@ -34,7 +34,7 @@ import {
   setBaseScore,
 } from '../portaStateService';
 import { STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
-import type { GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
+import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
 import { getDeepDiveSource, isDeepDiveMessage, isMegaPromptRequest, runWithStepTimeout, buildConversationHistory, type DeepDiveSource } from './runtime';
@@ -425,6 +425,11 @@ export async function sendMessageToGemini(
   }
 
   finalText = sanitizeStreamText(response.text || '');
+  finalText = enforceSeniorEvidenceConstraints(
+    finalText,
+    empresaAlvo || hintedCompany || '',
+    clienteSeniorData,
+  );
   const leakShieldResult = applyPromptLeakShield(finalText, {
     companyHint: empresaAlvo || hintedCompany || '',
   });
@@ -521,7 +526,7 @@ export async function generateDossierModule(
   foundationBlock: string,
   specialistPrompt: string,
   extraContext: string = '',
-  options: { signal?: AbortSignal; onText?: (text: string) => void; timeoutMs?: number } = {},
+  options: DossierModuleOptions = {},
 ): Promise<string> {
   const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${extraContext}`;
   const promptChars = finalPrompt.length;
@@ -550,7 +555,12 @@ export async function generateDossierModule(
         {
           model: STABLE_RESEARCH_MODEL_ID,
           contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
-          config: { systemInstruction: finalPrompt, temperature: 0.2, maxOutputTokens: 8192 },
+          config: {
+            systemInstruction: finalPrompt,
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+            tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
+          },
         },
         stepSignal,
       ),
@@ -571,11 +581,21 @@ export async function generateDossierModule(
     });
   }
   const finalText = shieldedResult.text;
+  const groundingSources = normalizeGroundingSources(response);
+  if (groundingSources.length > 0) {
+    options.onGroundingSources?.(groundingSources, moduleName);
+  } else if (options.useGrounding) {
+    scoutDiag.warn('DossierModule', 'grounding habilitado sem fontes retornadas', {
+      moduleName,
+      empresaAlvo,
+    });
+  }
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,
     durationMs: Date.now() - startedAt,
     responseChars: finalText.length,
+    groundingSources: groundingSources.length,
   });
   if (options.onText && finalText) options.onText(finalText);
   return finalText;

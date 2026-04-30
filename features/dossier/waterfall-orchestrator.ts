@@ -16,7 +16,12 @@ import { type ChatSession, type ClienteSeniorData, Sender } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
 import { buildMainDossierExecutiveIntro } from '../../utils/reportUtils';
-import { appendSeniorEvidenceNote, buildSeniorEvidenceContext, extractClienteSeniorData } from '../../utils/seniorEvidence';
+import {
+  appendSeniorEvidenceNote,
+  buildSeniorEvidenceContext,
+  enforceSeniorEvidenceConstraints,
+  extractClienteSeniorData,
+} from '../../utils/seniorEvidence';
 import {
   ensureContinuitySuggestions,
   isAbortLikeError,
@@ -125,6 +130,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
       let waterfallLookupContext = '';
       let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+      const waterfallGroundingSources: Array<{ title: string; url: string }> = [];
+
+      const appendGroundingSources = (sources: Array<{ title: string; url: string }>) => {
+        for (const source of sources) {
+          const normalizedUrl = source.url?.trim().replace(/\/+$/, '');
+          if (!normalizedUrl) continue;
+          if (!waterfallGroundingSources.some(item => item.url.trim().replace(/\/+$/, '') === normalizedUrl)) {
+            waterfallGroundingSources.push({ title: source.title || source.url, url: normalizedUrl });
+          }
+        }
+      };
 
       if (lookupTarget) {
         try {
@@ -212,7 +228,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ]
             .filter(Boolean)
             .join('\n\n'),
-          { signal, timeoutMs },
+          {
+            signal,
+            timeoutMs,
+            useGrounding: true,
+            onGroundingSources: appendGroundingSources,
+          },
         );
 
       if (isFirstInteraction) {
@@ -313,8 +334,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ? null
         : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
       const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-      const waterfallNarrativeBase = appendSeniorEvidenceNote(
+      const waterfallConstrainedText = enforceSeniorEvidenceConstraints(
         waterfallCleanText,
+        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+        waterfallClienteSeniorData,
+      );
+      const waterfallNarrativeBase = appendSeniorEvidenceNote(
+        waterfallConstrainedText,
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
@@ -375,6 +401,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   text: waterfallFinalText,
                   scorePorta: waterfallScorePorta ?? undefined,
                   clienteSeniorData: waterfallClienteSeniorData || undefined,
+                  groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                  groundingUsed: waterfallGroundingSources.length > 0,
                   portaFallbackApplied: portaFallbackApplied ? true : undefined,
                   portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                   suggestions: waterfallSuggestions,

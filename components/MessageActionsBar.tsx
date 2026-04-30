@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Tooltip from './Tooltip';
 import { Feedback } from '../types';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
+import { openPrintReportWindow } from '../utils/printExport';
 
 interface MessageActionsBarProps {
   content: string;
@@ -65,7 +66,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   };
 
   // ============================================================
-  // EXPORTAR PDF — renderização programática via jsPDF
+  // EXPORTAR PDF — visualização HTML própria para impressão/salvar como PDF
   // ============================================================
   const handleDownload = async () => {
     try {
@@ -78,13 +79,12 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       const title = titleMatch ? titleMatch[1].trim() : 'Análise Scout 360';
       const normalizedContent = normalizeMermaidBlocks(content);
 
-      const { PDFGenerator } = await import('../utils/PDFGenerator');
-      const pdf = new PDFGenerator();
-      pdf.addHeader(title, `${dateStr} às ${timeStr}`);
-      await pdf.renderMarkdown(normalizedContent);
-
-      const filename = `scout360_${now.toISOString().slice(0, 10)}_${now.getTime()}.pdf`;
-      pdf.save(filename);
+      const opened = openPrintReportWindow({
+        title,
+        subtitle: `${dateStr} às ${timeStr}`,
+        content: normalizedContent,
+      });
+      if (!opened) throw new Error('Popup bloqueado ao abrir exportação em PDF.');
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
       alert('Erro ao gerar PDF. Tente novamente.');
