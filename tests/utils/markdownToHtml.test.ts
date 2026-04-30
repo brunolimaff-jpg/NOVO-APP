@@ -23,6 +23,12 @@ describe('convertMarkdownToHTML', () => {
     expect(result).toContain('Senior');
   });
 
+  it('mascara CPF completo no HTML exportado', () => {
+    const result = convertMarkdownToHTML('CPF 123.456.789-10', false);
+    expect(result).not.toContain('123.456.789-10');
+    expect(result).toContain('CPF xxx.xxx.789-xx');
+  });
+
   it('preserves full link with parentheses in URL', () => {
     const url = 'https://example.com/docs/api(v2)/guia?ref=abc(def)';
     const result = convertMarkdownToHTML(`[Documentacao](${url})`, false);

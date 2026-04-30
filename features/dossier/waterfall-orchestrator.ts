@@ -12,9 +12,10 @@ import {
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import { type ChatSession, type ClienteSeniorData, Sender } from '../../types';
+import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
+import { sanitizeSensitivePersonalData } from '../../utils/privacy';
 import { buildMainDossierExecutiveIntro } from '../../utils/reportUtils';
 import {
   appendSeniorEvidenceNote,
@@ -22,6 +23,7 @@ import {
   enforceSeniorEvidenceConstraints,
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
+import type { VerifiedSource } from '../../utils/webVerification';
 import {
   ensureContinuitySuggestions,
   isAbortLikeError,
@@ -130,16 +132,25 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
       let waterfallLookupContext = '';
       let waterfallClienteSeniorData: ClienteSeniorData | undefined;
-      const waterfallGroundingSources: Array<{ title: string; url: string }> = [];
+      const waterfallGroundingSources: VerifiedSource[] = [];
+      const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
 
-      const appendGroundingSources = (sources: Array<{ title: string; url: string }>) => {
+      const appendGroundingSources = (sources: VerifiedSource[]) => {
         for (const source of sources) {
           const normalizedUrl = source.url?.trim().replace(/\/+$/, '');
           if (!normalizedUrl) continue;
           if (!waterfallGroundingSources.some(item => item.url.trim().replace(/\/+$/, '') === normalizedUrl)) {
-            waterfallGroundingSources.push({ title: source.title || source.url, url: normalizedUrl });
+            waterfallGroundingSources.push({
+              title: source.title || source.url,
+              url: normalizedUrl,
+              verification: source.verification || 'grounding',
+            });
           }
         }
+      };
+
+      const rememberVerificationStatus = (status: WebVerificationStatus, moduleName: string) => {
+        waterfallVerificationStatuses.set(moduleName, status);
       };
 
       if (lookupTarget) {
@@ -233,6 +244,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             timeoutMs,
             useGrounding: true,
             onGroundingSources: appendGroundingSources,
+            onVerificationStatus: rememberVerificationStatus,
           },
         );
 
@@ -334,11 +346,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ? null
         : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
       const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-      const waterfallConstrainedText = enforceSeniorEvidenceConstraints(
+      const waterfallConstrainedText = sanitizeSensitivePersonalData(enforceSeniorEvidenceConstraints(
         waterfallCleanText,
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
-      );
+      ));
       const waterfallNarrativeBase = appendSeniorEvidenceNote(
         waterfallConstrainedText,
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
@@ -352,6 +364,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallFinalText = waterfallExecutiveIntro
         ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
         : waterfallNarrativeBase;
+      const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
+        status => status === 'fallback_verified',
+      );
+      const hasUnverified = Array.from(waterfallVerificationStatuses.values()).some(status => status === 'unverified');
+      const webVerificationStatus: WebVerificationStatus = waterfallGroundingSources.length > 0
+        ? hasFallbackVerified
+          ? 'fallback_verified'
+          : 'verified'
+        : hasUnverified
+          ? 'unverified'
+          : 'not_applicable';
 
       let waterfallSuggestions: string[] = [];
       try {
@@ -402,7 +425,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   scorePorta: waterfallScorePorta ?? undefined,
                   clienteSeniorData: waterfallClienteSeniorData || undefined,
                   groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
-                  groundingUsed: waterfallGroundingSources.length > 0,
+                  webVerificationStatus,
+                  groundingUsed: webVerificationStatus === 'not_applicable'
+                    ? undefined
+                    : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
                   portaFallbackApplied: portaFallbackApplied ? true : undefined,
                   portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                   suggestions: waterfallSuggestions,

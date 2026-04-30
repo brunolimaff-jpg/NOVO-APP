@@ -4,10 +4,12 @@ import Tooltip from './Tooltip';
 import { Feedback } from '../types';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 import { openPrintReportWindow } from '../utils/printExport';
+import { sanitizeSensitivePersonalData } from '../utils/privacy';
 
 interface MessageActionsBarProps {
   content: string;
-  sourcesCount: number;
+  verifiedSourcesCount: number;
+  citedLinksCount: number;
   currentFeedback?: Feedback;
   onFeedback: (type: Feedback) => void;
   onSubmitFeedback: (type: Feedback, comment: string, content: string) => void;
@@ -21,7 +23,8 @@ interface MessageActionsBarProps {
 // ============================================================
 const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   content,
-  sourcesCount,
+  verifiedSourcesCount,
+  citedLinksCount,
   currentFeedback,
   onFeedback,
   onSubmitFeedback,
@@ -38,17 +41,24 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const hoverColor = isDarkMode ? 'hover:text-slate-200' : 'hover:text-slate-800';
   const activeBg = isDarkMode ? 'bg-slate-700/50' : 'bg-slate-200';
   const borderColor = isDarkMode ? 'border-slate-700/50' : 'border-slate-200';
+  const totalSourcesCount = verifiedSourcesCount + citedLinksCount;
+  const sourcesLabel = verifiedSourcesCount > 0
+    ? `Fontes (${verifiedSourcesCount})`
+    : citedLinksCount > 0
+      ? `Links (${citedLinksCount})`
+      : 'Fontes';
 
   const handleCopy = async () => {
+    const safeContent = sanitizeSensitivePersonalData(content);
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(safeContent);
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 3000);
     } catch (err) {
       console.warn('Clipboard API failed, trying fallback...', err);
       try {
         const textArea = document.createElement('textarea');
-        textArea.value = content;
+        textArea.value = safeContent;
         textArea.style.cssText = 'position:fixed;left:-9999px;top:0;';
         document.body.appendChild(textArea);
         textArea.focus();
@@ -77,7 +87,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       // Extrai título da primeira linha de heading do conteúdo
       const titleMatch = content.match(/^#+ (.+)/m);
       const title = titleMatch ? titleMatch[1].trim() : 'Análise Scout 360';
-      const normalizedContent = normalizeMermaidBlocks(content);
+      const normalizedContent = normalizeMermaidBlocks(sanitizeSensitivePersonalData(content));
 
       const opened = openPrintReportWindow({
         title,
@@ -94,7 +104,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: content });
+        await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: sanitizeSensitivePersonalData(content) });
       } catch {
         handleCopy();
       }
@@ -158,18 +168,16 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
           <button
             onClick={onToggleSources}
-            disabled={sourcesCount === 0}
+            disabled={totalSourcesCount === 0}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${
-              sourcesCount === 0
+              totalSourcesCount === 0
                 ? 'opacity-50 cursor-not-allowed'
                 : `${hoverColor} hover:${activeBg}`
             } ${isSourcesVisible ? `${activeBg} text-emerald-500` : ''}`}
-            title={sourcesCount > 0 ? 'Ver fontes utilizadas' : 'Nenhuma fonte citada'}
+            title={verifiedSourcesCount > 0 ? 'Ver fontes verificadas' : citedLinksCount > 0 ? 'Ver links citados no texto' : 'Nenhuma fonte citada'}
           >
             <span>📚</span>
-            <span className="hidden sm:inline">
-              Fontes {sourcesCount > 0 && `(${sourcesCount})`}
-            </span>
+            <span className="hidden sm:inline">{sourcesLabel}</span>
           </button>
         </div>
 

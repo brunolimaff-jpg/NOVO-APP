@@ -9,6 +9,8 @@ export type ExportFormat = 'md' | 'pdf' | 'doc';
 
 export type ReportType = 'executive' | 'full' | 'tech';
 
+export type WebVerificationStatus = 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
+
 export type ErrorCode =
   | 'NETWORK'
   | 'TIMEOUT'
@@ -134,6 +136,7 @@ export interface Message {
   groundingSources?: Array<{
     title: string;
     url: string;
+    verification?: 'grounding' | 'fallback';
   }>;
   feedback?: Feedback;
   sectionFeedback?: Record<string, Feedback>;
@@ -156,6 +159,7 @@ export interface Message {
    * undefined = grounding não era aplicável nesta mensagem (thinking mode, megaprompt, deep dive).
    */
   groundingUsed?: boolean;
+  webVerificationStatus?: WebVerificationStatus;
   portaFallbackApplied?: boolean;
   portaFallbackDimensions?: PortaDimension[];
 }

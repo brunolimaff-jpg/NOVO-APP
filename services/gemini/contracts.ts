@@ -1,5 +1,6 @@
-import type { ClienteSeniorData, ScorePortaData } from '../../types';
+import type { ClienteSeniorData, ScorePortaData, WebVerificationStatus } from '../../types';
 import type { CompetitorDetection } from '../competitorService';
+import type { VerifiedSource } from '../../utils/webVerification';
 
 export interface GeminiRequestOptions {
   useGrounding?: boolean;
@@ -22,7 +23,8 @@ export interface DossierModuleOptions {
   onText?: (text: string) => void;
   timeoutMs?: number;
   useGrounding?: boolean;
-  onGroundingSources?: (sources: Array<{ title: string; url: string }>, moduleName: string) => void;
+  onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
+  onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
 }
 
 export interface SpotterExtractedData {
@@ -41,6 +43,7 @@ export interface SpotterExtractedData {
 export interface SendMessageToGeminiResult {
   text: string;
   sources?: Array<{ title: string; url: string }>;
+  webVerificationStatus?: WebVerificationStatus;
   suggestions?: string[];
   scorePorta?: ScorePortaData | null;
   clienteSeniorData?: ClienteSeniorData;

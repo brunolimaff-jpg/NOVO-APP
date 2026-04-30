@@ -9,11 +9,13 @@ import {
   PORTA_SEGMENT_LABELS,
   stripPortaMarkers,
 } from './porta';
+import { sanitizeSensitivePersonalData } from './privacy';
 
 export function convertMarkdownToHTML(md: string, includeSources: boolean = true): string {
-  const allLinks = extractValidLinks(md);
+  const safeMarkdown = sanitizeSensitivePersonalData(md);
+  const allLinks = extractValidLinks(safeMarkdown);
   const markdownHttpLinkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g;
-  const porta = parsePortaMarkerV2(md);
+  const porta = parsePortaMarkerV2(safeMarkdown);
   const portaHtml = porta
     ? (() => {
         const compatibility = getPortaCompatibility(porta.score);
@@ -42,7 +44,7 @@ export function convertMarkdownToHTML(md: string, includeSources: boolean = true
           </div>`;
       })()
     : '';
-  let html = stripPortaMarkers(md)
+  let html = stripPortaMarkers(safeMarkdown)
     .replace(/^>\s*(.*$)/gm, '<blockquote>$1</blockquote>')
     .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
     .replace(/^### (.*$)/gm, '<h3>$1</h3>')
@@ -81,12 +83,13 @@ export function convertMarkdownToHTML(md: string, includeSources: boolean = true
 }
 
 export function simpleMarkdownToHtml(md: string, title: string): string {
-  const htmlBody = fixFakeLinksHTML(convertMarkdownToHTML(md, true));
+  const safeTitle = sanitizeSensitivePersonalData(title);
+  const htmlBody = fixFakeLinksHTML(convertMarkdownToHTML(sanitizeSensitivePersonalData(md), true));
   return `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
     <head>
       <meta charset="utf-8">
-      <title>${title}</title>
+      <title>${safeTitle}</title>
       <style>
         body { font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.5; color: #333; }
         h1, h2, h3, h4 { color: #059669; font-family: Arial, sans-serif; }
@@ -98,7 +101,7 @@ export function simpleMarkdownToHtml(md: string, title: string): string {
       </style>
     </head>
     <body>
-      <h1 style="font-size: 24px; border-bottom: 2px solid #059669; padding-bottom: 10px;">${title}</h1>
+      <h1 style="font-size: 24px; border-bottom: 2px solid #059669; padding-bottom: 10px;">${safeTitle}</h1>
       ${htmlBody}
       <br>
       <p style="font-size: 10px; color: #666; text-align: center; border-top: 1px solid #ccc; padding-top: 10px;">Gerado por ${APP_NAME} - Inteligência Comercial</p>

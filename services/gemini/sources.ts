@@ -1,5 +1,7 @@
-export function normalizeGroundingSources(response: unknown): Array<{ title: string; url: string }> {
-  const out: Array<{ title: string; url: string }> = [];
+import type { VerifiedSource } from '../../utils/webVerification';
+
+export function normalizeGroundingSources(response: unknown): VerifiedSource[] {
+  const out: VerifiedSource[] = [];
   const seen = new Set<string>();
 
   const pushIfValid = (title: unknown, url: unknown) => {
@@ -10,6 +12,7 @@ export function normalizeGroundingSources(response: unknown): Array<{ title: str
     out.push({
       title: (typeof title === 'string' && title.trim()) || normalizedUrl,
       url: normalizedUrl,
+      verification: 'grounding',
     });
   };
 

@@ -47,6 +47,7 @@ import { fixFakeLinksHTML } from './utils/linkFixer';
 import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
+import { sanitizeSensitivePersonalData } from './utils/privacy';
 import {
   collectFullReport,
   detectInconsistencies,
@@ -360,7 +361,7 @@ const App: React.FC = () => {
       const inconsistenciesSection = detectInconsistencies(sections);
       const normalizedFullText = normalizeMermaidBlocks(fullText);
       const executiveSummary = generateExecutiveSummary(normalizedFullText, sections, inconsistenciesSection);
-      const finalText = `${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`;
+      const finalText = sanitizeSensitivePersonalData(`${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`);
       const empresa = cleanTitle(extractCompanyName(currentSession?.title));
       const now = new Date();
       const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -390,10 +391,11 @@ const App: React.FC = () => {
       const inconsistenciesSection = detectInconsistencies(sections);
       const normalizedText = normalizeMermaidBlocks(fullText);
       const executiveSummary = generateExecutiveSummary(normalizedText, sections, inconsistenciesSection);
-      const contentMarkdown =
+      const contentMarkdown = sanitizeSensitivePersonalData(
         reportType === 'executive'
           ? executiveSummary
-          : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`;
+          : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`,
+      );
       const safeTitle = cleanTitle(currentSession.title).replace(/[^a-z0-9]/gi, '_').substring(0, 50);
       const dateStr = new Date().toISOString().slice(0, 10);
       const reportSuffix = reportType === 'executive' ? 'EXEC' : reportType === 'tech' ? 'FICHA' : 'DOSSIE';

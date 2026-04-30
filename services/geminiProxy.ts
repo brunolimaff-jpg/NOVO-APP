@@ -45,6 +45,7 @@ export interface GeminiChatResponse {
    * com versoes antigas — tratar como undefined, nao como false).
    */
   groundingUsed?: boolean;
+  webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
 }
 
 interface GeminiHealthResponse {
@@ -152,8 +153,15 @@ export async function proxyChatSendMessage(
   return callGeminiApi<GeminiChatResponse>(resolveGeminiApiEndpoint(), { action: "chatSendMessage", ...params }, signal);
 }
 
-export async function executeOpenWebSearchTool(query: string, url?: string): Promise<any> {
-  const endpoint = (import.meta as any).env?.VITE_OPEN_WEB_SEARCH_URL || "/api/open-web-search";
+export interface OpenWebSearchResponse {
+  content?: string;
+  source?: string;
+  error?: string;
+  detail?: string;
+}
+
+export async function executeOpenWebSearchTool(query: string, url?: string): Promise<OpenWebSearchResponse> {
+  const endpoint = import.meta.env.VITE_OPEN_WEB_SEARCH_URL || "/api/open-web-search";
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -1,6 +1,7 @@
 import { APP_NAME } from '../constants';
 import { normalizeMermaidBlocks } from './mermaid';
 import { stripPortaMarkers } from './porta';
+import { sanitizeSensitivePersonalData } from './privacy';
 
 export interface PrintReportOptions {
   title: string;
@@ -21,7 +22,7 @@ function escapeHtml(value: string): string {
 }
 
 function sanitizeVisibleText(value: string): string {
-  return value.replace(EMOJI_AND_SYMBOLS_REGEX, '').replace(/\s+/g, ' ').trim();
+  return sanitizeSensitivePersonalData(value).replace(EMOJI_AND_SYMBOLS_REGEX, '').replace(/\s+/g, ' ').trim();
 }
 
 function sanitizeUrl(value: string): string {
@@ -85,7 +86,7 @@ function renderTable(lines: string[], startIndex: number): { html: string; nextI
 }
 
 export function renderMarkdownForPrint(markdown: string): string {
-  const normalized = normalizeMermaidBlocks(stripPortaMarkers(markdown || ''));
+  const normalized = sanitizeSensitivePersonalData(normalizeMermaidBlocks(stripPortaMarkers(markdown || '')));
   const lines = normalized.split('\n');
   const blocks: string[] = [];
   let listItems: string[] = [];

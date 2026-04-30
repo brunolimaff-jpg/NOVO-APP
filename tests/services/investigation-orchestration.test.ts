@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { proxyGenerateContentMock, applyPromptLeakShieldMock } = vi.hoisted(() => ({
+const { proxyGenerateContentMock, executeOpenWebSearchToolMock, applyPromptLeakShieldMock } = vi.hoisted(() => ({
   proxyGenerateContentMock: vi.fn(),
+  executeOpenWebSearchToolMock: vi.fn(),
   applyPromptLeakShieldMock: vi.fn(),
 }));
 
 vi.mock('../../services/geminiProxy', () => ({
   proxyGenerateContent: proxyGenerateContentMock,
   proxyChatSendMessage: vi.fn(),
+  executeOpenWebSearchTool: executeOpenWebSearchToolMock,
 }));
 
 vi.mock('../../utils/textCleaners', async () => {
@@ -26,6 +28,7 @@ describe('investigation-orchestration', () => {
     proxyGenerateContentMock.mockResolvedValue({
       text: 'Conclusão parcial.\n[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]',
     });
+    executeOpenWebSearchToolMock.mockResolvedValue({ content: 'Nenhum resultado encontrado.' });
     applyPromptLeakShieldMock.mockImplementation((text: string) => ({
       text,
       blocked: false,
@@ -51,5 +54,52 @@ describe('investigation-orchestration', () => {
       preserveInternalMarkersWhenSafe: true,
     });
     expect(result).toContain('[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]');
+  });
+
+  it('aciona fallback web quando grounding nao retorna fontes', async () => {
+    executeOpenWebSearchToolMock.mockResolvedValueOnce({
+      content: [
+        'Título: Fonte pública',
+        'URL: https://example.com/piccini',
+        'Resumo: Grupo Piccini produtor rural',
+        '---',
+      ].join('\n'),
+    });
+    const onGroundingSources = vi.fn();
+    const onVerificationStatus = vi.fn();
+
+    const result = await generateDossierModule(
+      'Riscos & Compliance',
+      'Grupo Piccini',
+      'foundation block',
+      'specialist block',
+      'Sócio: João Piccini',
+      { useGrounding: true, onGroundingSources, onVerificationStatus },
+    );
+
+    expect(result).toContain('Conclusão parcial');
+    expect(executeOpenWebSearchToolMock).toHaveBeenCalled();
+    expect(onGroundingSources).toHaveBeenCalledWith(
+      [expect.objectContaining({ url: 'https://example.com/piccini', verification: 'fallback' })],
+      'Riscos & Compliance',
+    );
+    expect(onVerificationStatus).toHaveBeenCalledWith('fallback_verified', 'Riscos & Compliance');
+  });
+
+  it('retém módulo quando grounding e fallback não retornam fontes', async () => {
+    const onVerificationStatus = vi.fn();
+
+    const result = await generateDossierModule(
+      'Tech Stack',
+      'Grupo Piccini',
+      'foundation block',
+      'specialist block',
+      '',
+      { useGrounding: true, onVerificationStatus },
+    );
+
+    expect(result).toContain('Módulo retido');
+    expect(result).not.toContain('Conclusão parcial');
+    expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Tech Stack');
   });
 });

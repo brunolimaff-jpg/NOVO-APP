@@ -349,7 +349,8 @@ describe('useDossierWaterfallOrchestrator', () => {
     const score = makeScorePorta(74);
     generateDossierModuleMock.mockImplementation(
       async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
-        onGroundingSources?: (sources: Array<{ title: string; url: string }>, moduleName: string) => void;
+        onGroundingSources?: (sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>, moduleName: string) => void;
+        onVerificationStatus?: (status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable', moduleName: string) => void;
       }) => {
         options?.onGroundingSources?.(
           [
@@ -358,6 +359,7 @@ describe('useDossierWaterfallOrchestrator', () => {
           ],
           moduleName,
         );
+        options?.onVerificationStatus?.('verified', moduleName);
         return `${moduleName} consolidado`;
       },
     );
@@ -383,13 +385,50 @@ describe('useDossierWaterfallOrchestrator', () => {
     const finalBotMessage = getBotMessage(harness);
 
     expect(finalBotMessage.groundingUsed).toBe(true);
+    expect(finalBotMessage.webVerificationStatus).toBe('verified');
     expect(finalBotMessage.groundingSources).toEqual([
-      { title: 'Raio-X Operacional fonte', url: 'https://example.com/fonte' },
+      { title: 'Raio-X Operacional fonte', url: 'https://example.com/fonte', verification: 'grounding' },
       {
         title: 'BNDES',
         url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi',
+        verification: 'grounding',
       },
     ]);
+  });
+
+  it('marca dossiê como fallback_verified quando módulo usa fallback web', async () => {
+    const score = makeScorePorta(74);
+    generateDossierModuleMock.mockImplementation(
+      async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
+        onGroundingSources?: (sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>, moduleName: string) => void;
+        onVerificationStatus?: (status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable', moduleName: string) => void;
+      }) => {
+        options?.onGroundingSources?.(
+          [{ title: 'Fallback público', url: 'https://example.com/fallback', verification: 'fallback' }],
+          moduleName,
+        );
+        options?.onVerificationStatus?.('fallback_verified', moduleName);
+        return `${moduleName} consolidado`;
+      },
+    );
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: 'Raio-X Operacional consolidado\n\n[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
+      resolution: makeResolution(score),
+      portaFallbackApplied: false,
+      portaFallbackDimensions: [],
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    const finalBotMessage = getBotMessage(harness);
+    expect(finalBotMessage.webVerificationStatus).toBe('fallback_verified');
+    expect(finalBotMessage.groundingSources?.[0]).toMatchObject({ verification: 'fallback' });
   });
 
   it('ignora falha em módulo opcional e anexa nota operacional no dossiê final', async () => {

@@ -51,4 +51,14 @@ describe('printExport', () => {
     expect(html).toContain('https://agenciadenoticias.bndes.gov.br/');
     expect(html).not.toContain('🦅');
   });
+
+  it('não exporta CPF completo no HTML impresso', () => {
+    const html = buildPrintReportHtml({
+      title: 'Grupo Piccini',
+      content: 'Sócio produtor rural CPF 123.456.789-10.',
+    });
+
+    expect(html).not.toContain('123.456.789-10');
+    expect(html).toContain('CPF xxx.xxx.789-xx');
+  });
 });

@@ -12,6 +12,7 @@ import { DeepDiveTopics } from './DeepDiveTopics';
 import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
+import { getVerificationLabel, normalizeVerificationStatus } from '../utils/webVerification';
 
 export interface MessageRowData {
   messages: Message[];
@@ -46,18 +47,35 @@ interface MessageRowProps {
   data: MessageRowData;
 }
 
-// Exibe aviso discreto quando o grounding falhou silenciosamente.
-// Regra: so aparece quando groundingUsed === false (explicitamente false,
-// nao undefined). undefined = grounding nao era aplicavel nesta mensagem.
-function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
+function WebVerificationBadge({
+  status,
+  isDarkMode,
+}: {
+  status: ReturnType<typeof normalizeVerificationStatus>;
+  isDarkMode: boolean;
+}) {
+  if (status === 'not_applicable') return null;
+
+  const isUnverified = status === 'unverified';
+  const label = getVerificationLabel(status);
+  const title = isUnverified
+    ? 'A busca web obrigatória não retornou fonte verificável. Valide informações críticas antes de usar comercialmente.'
+    : status === 'fallback_verified'
+      ? 'O grounding primário não retornou fontes, mas o fallback web encontrou fontes públicas verificáveis.'
+      : 'A resposta possui fontes consultadas pelo mecanismo de busca/grounding.';
+
   return (
     <span
       className={`inline-flex items-center gap-1 text-[11px] font-medium mt-2 px-2 py-0.5 rounded-full select-none ${
-        isDarkMode
-          ? 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
-          : 'bg-amber-50 text-amber-700 border border-amber-200'
+        isUnverified
+          ? isDarkMode
+            ? 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
+            : 'bg-amber-50 text-amber-700 border border-amber-200'
+          : isDarkMode
+            ? 'bg-emerald-900/30 text-emerald-300 border border-emerald-800/40'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
       }`}
-      title="O grounding (busca web) falhou nesta resposta. O conteudo foi gerado sem verificacao de fontes externas — valide informacoes criticas."
+      title={title}
     >
       <svg
         width="11"
@@ -74,7 +92,7 @@ function GroundingFallbackBadge({ isDarkMode }: { isDarkMode: boolean }) {
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
-      Resposta sem verificacao web
+      {label}
     </span>
   );
 }
@@ -240,14 +258,24 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     () => buildAuditableSources(msg.text || '', msg.groundingSources || []),
     [msg.text, msg.groundingSources],
   );
+  const verifiedSources = useMemo(
+    () => auditableSources.filter(source => source.sourceTypes.includes('grounding_consulted')),
+    [auditableSources],
+  );
+  const citedSources = useMemo(
+    () => auditableSources.filter(source => !source.sourceTypes.includes('grounding_consulted')),
+    [auditableSources],
+  );
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
   const [portaRetryPending, setPortaRetryPending] = useState(false);
   const portaRetrySawLoadingRef = useRef(false);
   const portaRetryWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // groundingUsed === false (explicitamente): fallback silencioso acionado.
-  // undefined: grounding nao era aplicavel (thinking mode, deep dive, etc.) -> sem badge.
-  const showGroundingFallbackWarning = isBot && msg.groundingUsed === false;
+  const webVerificationStatus = normalizeVerificationStatus(msg.webVerificationStatus, msg.groundingUsed);
+  const showWebVerificationBadge =
+    isBot &&
+    webVerificationStatus !== 'not_applicable' &&
+    !(webVerificationStatus === 'unverified' && verifiedSources.length > 0);
   const portaFallbackDimensions = normalizePortaDimensions(msg.portaFallbackDimensions);
   const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true && portaFallbackDimensions.length > 0;
   const hasConfirmedCnpj = typeof cnpj === 'string' && cnpj.replace(/\D/g, '').length === 14;
@@ -358,7 +386,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
       </div>
     );
   } else {
-    const sourcesCount = auditableSources.length;
+    const sourcesCount = verifiedSources.length + citedSources.length;
 
     content = (
       <div
@@ -429,13 +457,14 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 onRegenerateSuggestions={onRegenerateSuggestions}
                 hideSuggestions={msg.id === hideSuggestionsForMessageId}
               />
-              {showGroundingFallbackWarning && (
-                <GroundingFallbackBadge isDarkMode={isDarkMode} />
+              {showWebVerificationBadge && (
+                <WebVerificationBadge status={webVerificationStatus} isDarkMode={isDarkMode} />
               )}
               {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar
                 content={msg.text}
-                sourcesCount={sourcesCount}
+                verifiedSourcesCount={verifiedSources.length}
+                citedLinksCount={citedSources.length}
                 currentFeedback={msg.feedback}
                 onFeedback={fb => onFeedback(msg.id, fb)}
                 onSubmitFeedback={(fb, comment, content) => onSendFeedback(msg.id, fb, comment, content)}
@@ -443,15 +472,20 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 isSourcesVisible={!!msg.isSourcesOpen}
                 isDarkMode={isDarkMode}
               />
-              {msg.isSourcesOpen && auditableSources.length > 0 && (
+              {msg.isSourcesOpen && sourcesCount > 0 && (
                 <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <p
-                    className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-                  >
-                    \uD83D\uDCDA Fontes
-                  </p>
-                  <ol className="space-y-2 list-decimal pl-4">
-                    {(auditableSources || []).map((s, i) => {
+                  {[
+                    { label: 'Fontes verificadas', items: verifiedSources },
+                    { label: 'Links citados no texto', items: citedSources },
+                  ].filter(group => group.items.length > 0).map(group => (
+                    <div key={group.label} className="mb-3 last:mb-0">
+                      <p
+                        className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                      >
+                        {group.label}
+                      </p>
+                      <ol className="space-y-2 list-decimal pl-4">
+                        {group.items.map((s, i) => {
                       const status = s.url ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)] : undefined;
                       const statusLabel = !s.url
                         ? 'ANÁLISE INFERIDA'
@@ -514,8 +548,10 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                           </p>
                         </li>
                       );
-                    })}
-                  </ol>
+                        })}
+                      </ol>
+                    </div>
+                  ))}
                 </div>
               )}
               </>
