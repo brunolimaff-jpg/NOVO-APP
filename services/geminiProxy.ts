@@ -157,6 +157,12 @@ export interface OpenWebSearchResponse {
   content?: string;
   source?: string;
   sources?: Array<{ title?: string; url?: string; snippet?: string; provider?: string }>;
+  providerStatus?: Array<{
+    provider: 'brave' | 'duckduckgo';
+    ok: boolean;
+    reason?: 'missing_key' | 'unauthorized' | 'quota_exhausted' | 'rate_limited' | 'timeout' | 'server_error' | 'empty_result' | 'unknown';
+    statusCode?: number;
+  }>;
   degraded?: boolean;
   error?: string;
   detail?: string;

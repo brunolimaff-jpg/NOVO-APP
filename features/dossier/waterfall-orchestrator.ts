@@ -23,7 +23,7 @@ import {
   enforceSeniorEvidenceConstraints,
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
-import type { VerifiedSource } from '../../utils/webVerification';
+import { extractPromotableInlineSources, type VerifiedSource } from '../../utils/webVerification';
 import {
   ensureContinuitySuggestions,
   isAbortLikeError,
@@ -47,6 +47,7 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
+const MAX_INLINE_SOURCES_TO_VALIDATE = 10;
 
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
@@ -80,6 +81,31 @@ function buildDossierSeedContext(rawPrompt: string): string {
   ].filter(Boolean);
 
   return sections.join('\n\n');
+}
+
+async function validateInlineSourcesForPromotion(
+  text: string,
+  existingSources: VerifiedSource[],
+): Promise<VerifiedSource[]> {
+  const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
+  if (candidates.length === 0 || typeof fetch !== 'function') return [];
+
+  try {
+    const response = await fetch('/api/link-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: candidates.map(source => source.url) }),
+    });
+    if (!response.ok) return [];
+
+    const data = await response.json() as {
+      results?: Record<string, { status?: string }>;
+    };
+    const results = data?.results || {};
+    return candidates.filter(source => results[source.url]?.status === 'valid');
+  } catch {
+    return [];
+  }
 }
 
 export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWaterfallOrchestratorOptions> = {}) {
@@ -364,9 +390,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallFinalText = waterfallExecutiveIntro
         ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
         : waterfallNarrativeBase;
+      const promotedInlineSources = await validateInlineSourcesForPromotion(
+        waterfallFinalText,
+        waterfallGroundingSources,
+      );
+      appendGroundingSources(promotedInlineSources);
       const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
         status => status === 'fallback_verified',
-      );
+      ) || waterfallGroundingSources.some(source => source.verification === 'fallback');
       const hasUnverified = Array.from(waterfallVerificationStatuses.values()).some(status => status === 'unverified');
       const webVerificationStatus: WebVerificationStatus = waterfallGroundingSources.length > 0
         ? hasFallbackVerified

@@ -128,6 +128,14 @@ describe('pipeline de sanitização integrado', () => {
     expect(result).toContain('mermaid_bare_1["Integração Manual / Parcial"]');
   });
 
+  it('fecha label quotado antes da aresta quando a IA omite colchete', () => {
+    const result = sanitizeMermaidCode(
+      'graph LR\nA["Fiscal/Planilha" -.-> B["Armazenagem (Kepler Weber)"]',
+    );
+
+    expect(result).toContain('A["Fiscal/Planilha"] -.-> B["Armazenagem (Kepler Weber)"]');
+  });
+
   it('strip emojis do código mermaid', () => {
     const result = sanitizeMermaidCode(
       'graph LR\n🏭 A --> B',

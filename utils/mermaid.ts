@@ -109,6 +109,16 @@ function fixColonEdgeLabels(input: string): string {
   );
 }
 
+function closeUnclosedQuotedLabelsBeforeEdges(input: string): string {
+  return input.replace(
+    /\b([A-Za-z][\w-]*\["[^"\n]+")(?=\s+(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
+    (match: string) => {
+      if (match.endsWith('"]')) return match;
+      return `${match}]`;
+    },
+  );
+}
+
 // Mermaid v10 jison grammar cannot parse bare (unquoted) text after edge arrows.
 // E.g. `B -.-> Consolidação Manual / Integração` triggers "got 'NODE_STRING'" because
 // the parser expects a node identifier but receives loose text with spaces/slashes.
@@ -272,6 +282,7 @@ export function sanitizeMermaidCode(input: string): string {
     .trim();
 
   code = splitCollapsedStatements(code);
+  code = closeUnclosedQuotedLabelsBeforeEdges(code);
   code = fixColonEdgeLabels(code);
   code = quoteNodeLabels(code);
   code = quoteRoundAndCurlyLabels(code);

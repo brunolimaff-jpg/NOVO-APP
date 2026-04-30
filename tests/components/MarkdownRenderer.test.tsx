@@ -33,6 +33,22 @@ describe('MarkdownRenderer', () => {
     expect(container.textContent).toContain('[2]');
   });
 
+  it('renderiza citação numérica como superscript sem duplicar link em tabela', () => {
+    const content = '| Evidência |\n| --- |\n| 90k ha [1.4](https://www.bndes.gov.br/noticia) [4] |';
+    const auditableSources = buildAuditableSources(content, [
+      { title: 'BNDES', url: 'https://www.bndes.gov.br/noticia', verification: 'grounding' },
+    ]);
+    const { container } = render(
+      <MarkdownRenderer content={content} allowRawHtml={false} auditableSources={auditableSources} />
+    );
+
+    expect(container.textContent).toContain('90k ha');
+    expect(container.textContent).toContain('[1]');
+    expect(container.textContent).not.toContain('[1.4]');
+    expect(container.textContent).not.toContain('[4]');
+    expect(container.querySelectorAll('a[href="https://www.bndes.gov.br/noticia"]')).toHaveLength(1);
+  });
+
   it('oculta o bloco visual de BLOCO DE FEEDS PORTA inteiro como proteção de render', () => {
     render(
       <MarkdownRenderer
