@@ -12,7 +12,6 @@ import { DeepDiveTopics } from './DeepDiveTopics';
 import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
-import { getVerificationLabel, normalizeVerificationStatus } from '../utils/webVerification';
 
 export interface MessageRowData {
   messages: Message[];
@@ -45,56 +44,6 @@ export interface MessageRowData {
 interface MessageRowProps {
   index: number;
   data: MessageRowData;
-}
-
-function WebVerificationBadge({
-  status,
-  isDarkMode,
-}: {
-  status: ReturnType<typeof normalizeVerificationStatus>;
-  isDarkMode: boolean;
-}) {
-  if (status === 'not_applicable') return null;
-
-  const isUnverified = status === 'unverified';
-  const label = getVerificationLabel(status);
-  const title = isUnverified
-    ? 'A busca web obrigatória não retornou fonte verificável. Valide informações críticas antes de usar comercialmente.'
-    : status === 'fallback_verified'
-      ? 'O grounding primário não retornou fontes, mas o fallback web encontrou fontes públicas verificáveis.'
-      : 'A resposta possui fontes consultadas pelo mecanismo de busca/grounding.';
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-[11px] font-medium mt-2 px-2 py-0.5 rounded-full select-none ${
-        isUnverified
-          ? isDarkMode
-            ? 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
-            : 'bg-amber-50 text-amber-700 border border-amber-200'
-          : isDarkMode
-            ? 'bg-emerald-900/30 text-emerald-300 border border-emerald-800/40'
-            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-      }`}
-      title={title}
-    >
-      <svg
-        width="11"
-        height="11"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      {label}
-    </span>
-  );
 }
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
@@ -271,11 +220,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   const portaRetrySawLoadingRef = useRef(false);
   const portaRetryWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const webVerificationStatus = normalizeVerificationStatus(msg.webVerificationStatus, msg.groundingUsed);
-  const showWebVerificationBadge =
-    isBot &&
-    webVerificationStatus !== 'not_applicable' &&
-    !(webVerificationStatus === 'unverified' && verifiedSources.length > 0);
   const portaFallbackDimensions = normalizePortaDimensions(msg.portaFallbackDimensions);
   const showPortaFallbackWarning = isBot && msg.portaFallbackApplied === true && portaFallbackDimensions.length > 0;
   const hasConfirmedCnpj = typeof cnpj === 'string' && cnpj.replace(/\D/g, '').length === 14;
@@ -457,9 +401,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 onRegenerateSuggestions={onRegenerateSuggestions}
                 hideSuggestions={msg.id === hideSuggestionsForMessageId}
               />
-              {showWebVerificationBadge && (
-                <WebVerificationBadge status={webVerificationStatus} isDarkMode={isDarkMode} />
-              )}
               {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar
                 content={msg.text}
