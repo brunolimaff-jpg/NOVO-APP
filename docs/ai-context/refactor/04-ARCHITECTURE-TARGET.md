@@ -74,12 +74,21 @@ constants/
 
 - `App.tsx` pode depender de `features/*` e `stores/*`, nunca de detalhes internos em cascata.
 - `features/chat/*` pode depender de `services/geminiService.ts` e de `stores/chatStore.ts`; nao de submodulos internos no primeiro sprint de extracao.
-- `features/dossier/*` pode depender de `services/geminiService.ts`, `utils/porta.ts` e `stores/dossierStore.ts`.
+- `features/dossier/*` pode depender de `services/geminiService.ts`, `utils/porta.ts` e `stores/dossierStore.ts`. **Nao pode importar internos de `features/chat/*`** — utilitarios compartilhados devem estar em `utils/` ou `features/_shared/`.
 - `components/chat/*` pode depender de `types.ts`, hooks e componentes pequenos; nao deve chamar services diretamente.
 - `prompts/mega/*` nao deve depender de componentes.
 - `services/war-room/*` nao deve depender de UI.
 - `stores/*` nao deve depender de componentes nem de features — apenas de types e utils.
-- `features/radar/*` nao deve implementar logica de negocio ate ser formalmente iniciada no roadmap; o pre-esqueleto existe apenas como contrato de tipos.
+- `features/radar/*` concentrara toda a logica de negocio do Radar apos Sprint 10. O stub atual (apenas `index.ts` + `types.ts`) sera substituido pelo runtime completo movido de `hooks/useRadar.ts` e `services/radarService.ts`.
+
+## Estado Atual vs Alvo (2026-04-30)
+
+| Regra | Estado Atual | Sprint de Resolucao |
+|---|---|---|
+| `features/dossier/*` nao importa de `features/chat/*` | **Violado** (4 imports) | Sprint 9 |
+| `features/radar/*` contem runtime completo | **Violado** (apenas stub) | Sprint 10 |
+| `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco latente** (`index.tsx:17`) | Sprint 9 |
+| Componentes < 500 linhas | **Violado** (CRMDetail 717, LoadingSmart 766, WarRoom 552) | Sprint 11 |
 
 ## Regras de Organizacao
 
