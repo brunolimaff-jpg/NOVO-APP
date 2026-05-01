@@ -11,10 +11,11 @@ Leia nesta ordem:
 1. [`01-MASTER-PLAN.md`](./01-MASTER-PLAN.md)
 2. [`08-PHASE2-MAINTAINABILITY-PLAN.md`](./08-PHASE2-MAINTAINABILITY-PLAN.md)
 3. [`PLANO_COMPLETO_SPRINTS.md`](./PLANO_COMPLETO_SPRINTS.md) ← especificação detalhada de Sprint 9–12 (com auditoria e correções)
-4. [`02-BOARD.md`](./02-BOARD.md)
-5. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
-6. [`05-VALIDATION.md`](./05-VALIDATION.md)
-7. [`06-HANDOFF.md`](./06-HANDOFF.md)
+4. [`sprints/00-INDEX.md`](./sprints/00-INDEX.md) ← specs executáveis das próximas sprints (PR/onda/arquivo)
+5. [`02-BOARD.md`](./02-BOARD.md)
+6. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
+7. [`05-VALIDATION.md`](./05-VALIDATION.md)
+8. [`06-HANDOFF.md`](./06-HANDOFF.md)
 
 Consulte estes arquivos quando necessario:
 
