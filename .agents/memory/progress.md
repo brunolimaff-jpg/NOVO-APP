@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-04-28
+Last updated: 2026-05-05
 
 ## Completed
 
@@ -29,6 +29,8 @@ Last updated: 2026-04-28
 - Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
 
 ## In progress
+
+- Diagnóstico UX de erro do chat mobile para falha 403 em proxy Gemini (checkpoint da Vercel) concluído com hardening de mensagem.
 
 - Publicacao do PR de documentacao da Fase 2.
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
@@ -68,3 +70,10 @@ Last updated: 2026-04-28
 
 - Abrir Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
 - Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.
+
+
+## Incremental update (2026-05-05)
+
+- `services/geminiProxy.ts`: adicionada `sanitizeProxyErrorBody` para reduzir payload de erro e detectar HTML/Checkpoint em 403.
+- Resultado esperado: o usuário não recebe blob HTML gigante na UI, apenas erro curto e rastreável.
+- Validação: `npm run typecheck` green.
