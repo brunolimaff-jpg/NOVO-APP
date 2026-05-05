@@ -27,11 +27,13 @@ Last updated: 2026-05-05
   - `npm exec vitest run tests/services/brasilApiService.test.ts tests/components/EmptyStateHome.test.tsx` green (`16` testes)
   - `npm run typecheck` green
 - Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
+- Skills operacionais locais removidas de `.agents/skills/` e migradas para `~/.agents/skills/` em `2026-05-05`.
+- `.agents/skills/archive/` preservado no repo como camada de licoes aprendidas e referencia historica.
+- `AGENTS.md`, `CLAUDE.md`, `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md` e `skills-lock.json` alinhados para o novo modelo sem skills locais ativas e sem integracao externa obrigatoria.
 
 ## In progress
 
 - Diagnóstico UX de erro do chat mobile para falha 403 em proxy Gemini (checkpoint da Vercel) concluído com hardening de mensagem.
-
 - Publicacao do PR de documentacao da Fase 2.
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
 - Confirmacao final do bug de browser da PR `#243` em preview/Vercel com os novos logs ja publicados na branch.
@@ -40,6 +42,7 @@ Last updated: 2026-05-05
 
 - Nenhum bloqueio tecnico imediato.
 - Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
+- Risco residual de governanca: documentos historicos em `docs/archive/environment-curation-2026-04/` continuam citando o modelo antigo de skills locais por valor historico.
 
 ## Validation history
 
@@ -70,7 +73,7 @@ Last updated: 2026-05-05
 
 - Abrir Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
 - Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.
-
+- Se desejado, fazer uma segunda passada para limpar referencias historicas antigas em `docs/archive/environment-curation-2026-04/` sem perder o contexto de licoes aprendidas.
 
 ## Incremental update (2026-05-05)
 

@@ -1,49 +1,5 @@
 {
   "version": 1,
-  "allowlist": [
-    "clean-architecture",
-    "clean-code",
-    "code-review-mastery",
-    "codedocs",
-    "plan-work",
-    "refactoring-patterns",
-    "scoutagro-pilot-os"
-  ],
-  "skills": {
-    "clean-architecture": {
-      "source": "vendored-from-~/.codex/skills/clean-architecture",
-      "sourceType": "vendored",
-      "computedHash": "f3e2850f049efd9954b2f5ecbd61ec0db787cc104cc11c8e28fe970f1acd198a"
-    },
-    "clean-code": {
-      "source": "AbsolutelySkilled/AbsolutelySkilled",
-      "sourceType": "github",
-      "computedHash": "213a42e592fa6b2ca5b43785e0fa1e4409b35997092a660d6d07d90e717de5ab"
-    },
-    "code-review-mastery": {
-      "source": "vendored-from-~/.codex/skills/code-review-mastery",
-      "sourceType": "vendored",
-      "computedHash": "9a7b8677b57b650e9955cd538794e0d9e14d74cb84939ce9e5e6512753860dcb"
-    },
-    "codedocs": {
-      "source": "AbsolutelySkilled/AbsolutelySkilled",
-      "sourceType": "github",
-      "computedHash": "a9585c146bc83ed77cb92a28a6a0bec98cf0974f23fee86980d5688966e72106"
-    },
-    "plan-work": {
-      "source": "jMerta/codex-skills",
-      "sourceType": "github",
-      "computedHash": "77d9926f30f1a2ee59e13a601ada3010ab65e30be75b3c7c741a63c6c89d6c74"
-    },
-    "refactoring-patterns": {
-      "source": "vendored-from-~/.codex/skills/refactoring-patterns",
-      "sourceType": "vendored",
-      "computedHash": "00e13ba73169b3ed648f3ae93753ee66fa579e683397ee219c551134cfba27bf"
-    },
-    "scoutagro-pilot-os": {
-      "source": "repo-local",
-      "sourceType": "local",
-      "computedHash": "a41b6b540675b892f015934fc1ae5ad8290995e247bebad7eb4f8ba8c52560a0"
-    }
-  }
+  "allowlist": [],
+  "skills": {}
 }

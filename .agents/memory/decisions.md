@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-04-28
+Last updated: 2026-05-05
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -67,3 +67,9 @@ Reason: in this repo the frontend dev server does not proxy `/api/cnpj`, so `npm
 Decision: when `localhost` receives the app HTML instead of JSON for `/api/cnpj`, surface an explicit local-proxy guidance message in logs and UI instead of treating it as generic service downtime.
 
 Reason: the recurring symptom was a misleading "Serviço de consulta indisponível" message. Distinguishing "missing local proxy/runtime" from true provider failure reduces wasted debugging on preview/Vercel and external APIs.
+
+## 2026-05-05 - Repo sem skills locais ativas
+
+Decision: remover as skills operacionais versionadas em `.agents/skills/` do repo e mantê-las apenas no ambiente global do usuário em `~/.agents/skills/`, preservando apenas `.agents/skills/archive/` como referência histórica.
+
+Reason: separar o ambiente operacional do conteúdo versionado reduz acoplamento com o repositório, tira essas skills do escopo do GitHub e preserva as lições aprendidas já documentadas.

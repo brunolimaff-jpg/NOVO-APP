@@ -68,22 +68,6 @@ function resolveEndpoint(path: string): string {
   return isLocalDev ? `${LOCAL_DEV_BASE_URL}${path}` : path;
 }
 
-
-function sanitizeProxyErrorBody(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return 'unknown error';
-
-  if (/vercel security checkpoint/i.test(trimmed)) {
-    return 'blocked by Vercel Security Checkpoint (HTTP 403)';
-  }
-
-  if (/<!doctype html/i.test(trimmed) || /<html[\s>]/i.test(trimmed)) {
-    return 'unexpected HTML response from proxy';
-  }
-
-  return trimmed.length > 280 ? `${trimmed.slice(0, 280)}…` : trimmed;
-}
-
 export function resolveGeminiApiEndpoint(
   hostname: string = typeof window !== 'undefined' ? window.location.hostname : '',
   isDev: boolean = import.meta.env.DEV,
@@ -142,13 +126,12 @@ async function callGeminiApi<TResponse>(
 
   if (!response.ok) {
     const text = await response.text();
-    const normalizedError = sanitizeProxyErrorBody(text);
     scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
       status: response.status,
       endpoint,
-      bodyPreview: normalizedError.slice(0, 200),
+      bodyPreview: (text || '').slice(0, 200),
     });
-    throw new Error(`Gemini proxy failed (${response.status}): ${normalizedError}`);
+    throw new Error(`Gemini proxy failed (${response.status}): ${text || 'unknown error'}`);
   }
 
   return response.json() as Promise<TResponse>;

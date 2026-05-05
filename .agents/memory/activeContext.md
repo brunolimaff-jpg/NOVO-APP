@@ -61,9 +61,11 @@ Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
 2. No preview da PR, abrir o console do browser e conferir os logs `🦅 [Scout360][CnpjLookup]` junto com os logs de `api/cnpj.ts` na Vercel.
 3. Avaliar em outra passada se o fix do proxy deve ser expandido para `components/CRMDetail.tsx`.
 
-
 ## Session note (2026-05-05)
 
 - Ajustado `services/geminiProxy.ts` para sanitizar erros HTTP não-OK e evitar dump de HTML inteiro (ex.: Vercel Security Checkpoint 403).
 - Mensagem agora normaliza para texto curto e acionável (`blocked by Vercel Security Checkpoint (HTTP 403)` / `unexpected HTML response from proxy`).
 - Validação executada: `npm run typecheck` (green).
+- Skills operacionais locais foram removidas de `.agents/skills/` e copiadas para o ambiente global do usuário em `~/.agents/skills/`.
+- Materiais históricos e lições aprendidas em `.agents/skills/archive/` foram preservados no repo.
+- Arquivos de handoff e versionamento foram mantidos e atualizados para refletir que não há skills locais ativas nem integração externa obrigatória.

@@ -2,47 +2,29 @@
 
 Este documento é a fonte de verdade do ambiente de IA deste repositório.
 
-Objetivo: manter o repo operável com um conjunto pequeno de capacidades versionadas, sem depender do conteúdo do ambiente global do usuário.
+Objetivo: manter o repo operável sem depender de skills versionadas dentro do repositório ou de integrações externas obrigatórias.
 
 ## Política atual
 
-- Integração externa padrão: `GitHub`
+- Integração externa padrão: nenhuma obrigatória
 - MCPs extras no repo: nenhum
-- Skills globais em `~/.codex/skills`: não são pré-requisito operacional
-- Skills válidas para uso padrão: apenas a allowlist abaixo
+- Skills globais do usuário não são pré-requisito operacional
+- Skills válidas para uso padrão: nenhuma é exigida pelo repo
 - `docs/obsidian/` é uma camada documental versionada do repo para navegação em grafo, não uma integração externa nem um MCP extra
 
 ## Allowlist oficial
 
-| Item | Tipo | Status | Motivo |
-|---|---|---|---|
-| `GitHub` | plugin | keep | Integração externa principal |
-| `scoutagro-pilot-os` | local | keep | Contexto do produto e priorização do repo |
-| `clean-code` | local | keep | Qualidade e legibilidade recorrentes |
-| `codedocs` | local | keep | Continuidade entre IAs e documentação viva |
-| `plan-work` | local | keep | Planejamento de implantação antes de editar código |
-| `code-review-mastery` | vendorized | keep | Review local de diffs e checkpoints |
-| `refactoring-patterns` | vendorized | keep | Separação estrutural segura |
-| `clean-architecture` | vendorized | keep | Cortes arquiteturais e fronteiras |
+Nenhuma skill local ativa e nenhuma integração externa são obrigatórias neste repo.
 
 ## Classificação operacional
 
-### `keep`
+### `active`
 
-- `.agents/skills/scoutagro-pilot-os`
-- `.agents/skills/clean-code`
-- `.agents/skills/codedocs`
-- `.agents/skills/plan-work`
-
-### `vendorized`
-
-- `.agents/skills/code-review-mastery`
-- `.agents/skills/refactoring-patterns`
-- `.agents/skills/clean-architecture`
+- Nenhuma skill operacional fica versionada em `.agents/skills/`
 
 ### `archived`
 
-Foram removidos do fluxo padrão e arquivados em `.agents/skills/archive/2026-04-curation/`:
+Continuam versionados em `.agents/skills/archive/2026-04-curation/` como lições aprendidas e material de referência:
 
 - `api-design`
 - `debugging-tools`
@@ -59,19 +41,19 @@ Também foram arquivados os documentos legados de MCP/skills que descreviam um s
 
 ### `global-only`
 
-Todo o restante de `~/.codex/skills` fica fora do contrato deste repo. Pode existir na máquina do usuário, mas não deve ser assumido por docs, handoffs ou automações do projeto.
+Skills globais podem existir na máquina do usuário e podem ser usadas por conveniência, mas não devem ser assumidas por docs, handoffs ou automações do projeto.
 
 ## Regras de uso
 
-- Antes de usar uma skill, confirme se ela está na allowlist deste documento.
-- Antes de citar uma integração externa, confirme se ela é `GitHub` ou se foi oficialmente adicionada aqui.
-- Não documente fluxos que dependam de skills globais não versionadas no repo.
+- Antes de usar uma skill, confirme se ela é realmente necessária para a tarefa.
+- Antes de citar uma integração externa, confirme se ela é opcional ou foi oficialmente adicionada aqui.
+- Não documente fluxos que dependam de skills globais específicas não versionadas no repo.
 - Não reintroduza MCPs locais sem atualizar este documento, `README.md`, `AGENTS.md`, `CLAUDE.md` e `skills-lock.json`.
 
 ## Estado esperado do repo
 
-- `.agents/skills/` contém apenas a allowlist ativa e a pasta `archive/`
-- `skills-lock.json` reflete apenas as skills locais aprovadas
+- `.agents/skills/` contém apenas materiais históricos e de referência
+- `skills-lock.json` reflete ausência de skills locais ativas
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
@@ -81,6 +63,5 @@ Todo o restante de `~/.codex/skills` fica fora do contrato deste repo. Pode exis
 No curto prazo, este setup cobre o necessário para:
 
 - planejar e executar a refatoração estrutural
-- revisar diffs locais antes de PR
 - documentar decisões de arquitetura e handoff
-- operar o repo com `GitHub` como integração principal
+- preservar lições aprendidas sem acoplar o repo a skills locais
