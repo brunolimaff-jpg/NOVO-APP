@@ -5,9 +5,9 @@
 This file defines the minimal AI operating model for this repository.
 
 The repo should reflect the real workflow in use today:
-- `GitHub` is the primary external integration.
-- Repo-local skills are intentionally curated and versioned.
-- Global `~/.codex/skills` content must not be assumed.
+- No external AI integration is a repo requirement.
+- Active skills are no longer versioned inside this repository.
+- Global skill content may be used, but must not be assumed.
 
 ## Read Order
 
@@ -23,18 +23,13 @@ Before substantial work, read in this order:
 
 ### External integration
 
-- `GitHub` plugin only
+- None required by default
 
-### Repo-local skills allowlist
+### Repo skills
 
-- `scoutagro-pilot-os`
-- `clean-code`
-- `codedocs`
-- `code-review-mastery`
-- `refactoring-patterns`
-- `clean-architecture`
-
-Do not assume any other local skill is active unless it is explicitly restored from archive.
+- No active repo-local skills are versioned in this repository.
+- Historical materials under `.agents/skills/archive/` stay versioned as reference.
+- If a global skill is used, treat it as environment-specific rather than repo-required.
 
 ## Current repo conventions
 

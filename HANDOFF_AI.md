@@ -23,7 +23,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Stack: React 19 + TypeScript + Vite + Tailwind + Gemini + Pinecone
 - Auth: local-only via `contexts/OperatorContext.tsx`
 - Runtime real para validacao manual: Vercel
-- Integracao externa padrao de IA: `GitHub`
+- Integracao externa padrao de IA: nenhuma obrigatoria no repo
 
 ## Estado arquitetural (baseline atual)
 

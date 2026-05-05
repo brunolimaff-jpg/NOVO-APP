@@ -20,7 +20,7 @@ Repo-local memory is the canonical cross-session handoff for agents in this proj
 - Treat `.agents/memory/decisions.md` as durable project context for decisions that should survive beyond the current sprint.
 - Use `HANDOFF_AI.md` as the canonical quick-entry handoff, then follow any source-of-truth docs it references.
 - Use `docs/obsidian/00-MASTER.md` as the visual navigation layer for architecture + roadmap after reading the canonical handoff sources above. Do not treat it as a higher-priority source than `HANDOFF_AI.md`, `.agents/memory/*`, or `docs/ai-context/refactor/*`.
-- Before planning implementation work, use the repo-local `plan-work` skill when available.
+- Before planning implementation work, use `plan-work` when available in the global environment.
 - At task close, update memory with what changed, what validation ran, residual risks, and the immediate next step.
 - Do not treat root `PLAN.md` as canonical unless one of the memory files or handoff docs explicitly references it.
 
@@ -39,9 +39,9 @@ npm run lint
 - Vercel serverless handlers live in `api/*.ts`.
 - Vercel is the real runtime environment for production validation; local `npm run dev` is only a frontend convenience and does not emulate all production serverless behavior.
 - Auth in this repo is local-only via `contexts/OperatorContext.tsx`; Clerk is not active in runtime.
-- `GitHub` is the only standard external AI integration for this repo right now.
-- The approved repo-local skill allowlist lives in `docs/SKILLS-GOVERNANCE.md`.
-- Do not assume global `~/.codex/skills` content is available or required.
+- No standard external AI integration is required for this repo.
+- Skill governance for this repo lives in `docs/SKILLS-GOVERNANCE.md`.
+- Do not assume any specific global skill set is available or required.
 
 ## Working rules
 
