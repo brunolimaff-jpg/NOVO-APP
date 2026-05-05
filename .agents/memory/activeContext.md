@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-04-28
+Last updated: 2026-05-05
 
 ## Current operating context
 
@@ -60,3 +60,10 @@ Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
 1. Reproduzir o bug no browser somente em runtime serverless (`vercel dev` ou deploy), nao em `vite` puro.
 2. No preview da PR, abrir o console do browser e conferir os logs `🦅 [Scout360][CnpjLookup]` junto com os logs de `api/cnpj.ts` na Vercel.
 3. Avaliar em outra passada se o fix do proxy deve ser expandido para `components/CRMDetail.tsx`.
+
+
+## Session note (2026-05-05)
+
+- Ajustado `services/geminiProxy.ts` para sanitizar erros HTTP não-OK e evitar dump de HTML inteiro (ex.: Vercel Security Checkpoint 403).
+- Mensagem agora normaliza para texto curto e acionável (`blocked by Vercel Security Checkpoint (HTTP 403)` / `unexpected HTML response from proxy`).
+- Validação executada: `npm run typecheck` (green).
