@@ -2,9 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { universalExtract } from '../utils/documentExtractor';
-import type { UniversalExtractResult } from '../utils/documentExtractor';
-import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from '../services/gemini/rag-shared';
+import { universalExtract } from './_shared/document-extractor';
+import type { UniversalExtractResult } from './_shared/document-extractor';
+import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from './_shared/rag-helpers';
 
 const DocsRagRequestSchema = z.object({
   query: z.string().min(1).max(10000),

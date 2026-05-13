@@ -1,8 +1,8 @@
 import { Chat, GenerateContentResponse, GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
-import { MODEL_IDS } from '../config/models';
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe, DEFAULT_GEMINI_MODEL } from './_shared/gemini-helpers';
+
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -39,7 +39,7 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = MODEL_IDS.router;
+
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [

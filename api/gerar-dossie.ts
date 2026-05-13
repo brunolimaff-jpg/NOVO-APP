@@ -1,8 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
-import { MODEL_IDS } from '../config/models';
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe, DEFAULT_GEMINI_MODEL } from './_shared/gemini-helpers';
+
 
 const DossieRequestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
@@ -16,7 +16,7 @@ export const config = {
 
 export const maxDuration = 300;
 
-const DEFAULT_MODEL = MODEL_IDS.router;
+const DEFAULT_MODEL = DEFAULT_GEMINI_MODEL;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from '../services/gemini/rag-shared';
+import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from './_shared/rag-helpers';
 
 const RagRequestSchema = z.object({
   query: z.string().min(1).max(10000),

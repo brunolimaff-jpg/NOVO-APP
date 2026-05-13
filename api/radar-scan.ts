@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { MODEL_IDS } from '../config/models';
+import { DEFAULT_GEMINI_MODEL } from './_shared/gemini-helpers';
 
 // ===================================================================
 // CONFIGURAÇÃO
@@ -10,7 +10,7 @@ import { MODEL_IDS } from '../config/models';
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
-const DEFAULT_MODEL = MODEL_IDS.router;
+const DEFAULT_MODEL = DEFAULT_GEMINI_MODEL;
 
 // ===================================================================
 // TIPOS

@@ -49,3 +49,4 @@ vercel_build_tag.json
 !.obsidian/core-plugins.json
 !.obsidian/graph.json
 *.canvas
+.vercel

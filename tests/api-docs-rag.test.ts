@@ -24,7 +24,7 @@ vi.mock('@pinecone-database/pinecone', () => ({
   },
 }));
 
-vi.mock('../utils/documentExtractor', () => ({
+vi.mock('../api/_shared/document-extractor', () => ({
   universalExtract: vi.fn(),
 }));
 
@@ -142,7 +142,7 @@ describe('api/docs-rag handler', () => {
       ],
     });
 
-    const { universalExtract } = await import('../utils/documentExtractor');
+    const { universalExtract } = await import('../api/_shared/document-extractor');
     (universalExtract as any).mockResolvedValueOnce({
       text: 'Conteúdo real da página do GATEC extraído via Cheerio.',
       length: 52,
@@ -177,7 +177,7 @@ describe('api/docs-rag handler', () => {
       ],
     });
 
-    const { universalExtract } = await import('../utils/documentExtractor');
+    const { universalExtract } = await import('../api/_shared/document-extractor');
     (universalExtract as any).mockResolvedValueOnce({
       text: '',
       length: 0,
