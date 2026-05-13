@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
+import { MODEL_IDS } from '../config/models';
 
 const DossieRequestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
@@ -14,11 +16,11 @@ export const config = {
 
 export const maxDuration = 300;
 
-import { MODEL_IDS } from '../config/models';
 const DEFAULT_MODEL = MODEL_IDS.router;
 
-import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
-
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const parsed = DossieRequestSchema.safeParse(req.body);
