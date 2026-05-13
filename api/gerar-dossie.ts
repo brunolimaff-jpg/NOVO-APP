@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe, DEFAULT_GEMINI_MODEL } from './_shared/gemini-helpers';
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe, DEFAULT_GEMINI_MODEL } from './_shared/gemini-helpers.js';
 
 
 const DossieRequestSchema = z.object({
