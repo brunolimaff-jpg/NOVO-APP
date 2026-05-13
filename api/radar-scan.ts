@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { MODEL_IDS } from '../config/models';
 
 // ===================================================================
 // CONFIGURAÇÃO
@@ -9,7 +10,6 @@ import { z } from 'zod';
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
-import { MODEL_IDS } from '../config/models';
 const DEFAULT_MODEL = MODEL_IDS.router;
 
 // ===================================================================
