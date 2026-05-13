@@ -1,4 +1,4 @@
-import { scoutDiag } from './diagnostic-log';
+import { scoutDiag } from './diagnostic-log.js';
 
 /**
  * Utilitário Unificado de Extração e Busca
@@ -61,18 +61,19 @@ export async function extractHtml(html: string, limit = 15000): Promise<string> 
 
 /**
  * Extrai texto de buffer PDF.
+ * Retorna mensagem de erro explícita (nunca falha silenciosamente).
  */
 export async function extractPdf(buffer: Buffer): Promise<string> {
     try {
-        const { PDFParse } = await import('pdf-parse');
-        const parser = new PDFParse({ data: buffer });
-        const parsed = await parser.getText();
+        const pdfParse = (await import('pdf-parse')).default;
+        const parsed = await pdfParse(buffer);
         return stripNullCharacters(parsed.text || '')
             .replace(/\s+/g, ' ')
             .trim();
-    } catch (e) {
-        scoutDiag.error('DocumentExtractor', 'Erro no PDFParse', e);
-        return '[Erro na extração de PDF]';
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'Erro desconhecido na extração de PDF';
+        scoutDiag.error('DocumentExtractor', `Falha ao extrair PDF: ${message}`);
+        return `[Erro na extração de PDF: ${message}]`;
     }
 }
 
@@ -126,8 +127,8 @@ export async function performWebSearch(query: string): Promise<string | null> {
         });
 
         return results.join('\n') || 'Nenhum resultado encontrado.';
-    } catch (error) {
-        scoutDiag.error('DocumentExtractor', 'Erro na busca web', error);
+    } catch (error: unknown) {
+        scoutDiag.error('DocumentExtractor', 'Erro na busca web', { error: error instanceof Error ? error.message : String(error) });
         return null;
     }
 }
@@ -192,8 +193,9 @@ export async function universalExtract(params: {
             length: processedText.length
         };
 
-    } catch (error: any) {
-        scoutDiag.error('DocumentExtractor', 'Falha na extração universal', { error: error.message });
-        return { text: '', length: 0, error: error.message };
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido na extração';
+        scoutDiag.error('DocumentExtractor', 'Falha na extração universal', { error: message });
+        return { text: '', length: 0, error: message };
     }
 }

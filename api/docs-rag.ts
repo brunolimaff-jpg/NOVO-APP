@@ -2,9 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { universalExtract } from './_shared/document-extractor';
-import type { UniversalExtractResult } from './_shared/document-extractor';
-import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from './_shared/rag-helpers';
+import { universalExtract } from './_shared/document-extractor.js';
+import type { UniversalExtractResult } from './_shared/document-extractor.js';
+import { resolveOptionalNamespace, resolvePineconeIndexName } from './_shared/rag-helpers.js';
 
 const DocsRagRequestSchema = z.object({
   query: z.string().min(1).max(10000),
@@ -36,11 +36,6 @@ function getRequiredEnv(name: string): string {
     return value;
 }
 
-
-
-
-
-
 async function extractWithTimeout(url: string, timeoutMs: number): Promise<UniversalExtractResult> {
   try {
     const result = await Promise.race([
@@ -66,6 +61,9 @@ function enrichMatchWithExtraction(
   if (extracted?.text && extracted.text.trim().length > 0) {
     const truncated = extracted.text.slice(0, 8000);
     return `### ${categoria}: ${titulo}\n[FONTE VERIFICADA] ${truncated}\n(Fonte: ${url})`;
+  }
+  if (extracted?.error) {
+    return `### ${categoria}: ${titulo}\n[EXTRAÇÃO FALHOU: ${extracted.error} — conteúdo não disponível para esta fonte]\n(Fonte: ${url})`;
   }
   if (!texto.trim() && url) {
     return `### ${categoria}: ${titulo}\n[CONTEÚDO NÃO EXTRAÍDO — apenas URL disponível]\n(Fonte: ${url})`;
@@ -161,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         extractedCount++;
                     } else {
                         extractionFailures++;
+                        console.warn(`[Docs RAG] Extração falhou para "${titulo}" (${url}): ${extracted.error ?? 'sem conteúdo'}`);
                     }
                 } catch {
                     extractionFailures++;
