@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-05
+Last updated: 2026-05-13
 
 ## Current operating context
 
@@ -17,55 +17,21 @@ Read order:
 
 ## Current refactor phase
 
-Fase 1 (Sprints 1-8) esta concluida em `main`.
-
-- Sprint 8 mergeada via PR `#241` (`ccd2001518367961637b1a9488c2319aa83d0a21`)
-- `services/war-room/*` ativo com fachada publica preservada em `services/warRoomService.ts`
-- `features/radar/*` oficializado como boundary inicial (stub)
-
-Fase 2 (manutenibilidade) foi aberta de forma documental:
-
-- `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
-- Sprint 9-12 definidas como trilha curta de reducao de acoplamento
+Fase 1 (Sprints 1-8) concluida em `main`. Fase 2 documental aberta.
 
 ## Current task context
 
-Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
+**Onda 1 — Críticos de IA concluída (2026-05-13):**
 
-- checkout local sincronizado com a cabeca da PR no GitHub:
-  - branch: `fix/cnpj-proxy-fallback`
-  - head: `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
-- `origin/main` estava em `d2649a67cb79f4a57d46b8db3e48744d8d3147dd` no momento da investigacao
-- escopo mantido so na PR `#243`, sem expandir para `components/CRMDetail.tsx`
-- validacao local correta do proxy CNPJ aconteceu em `vercel dev`, ligado ao projeto `scoutagro`
-- resultados confirmados em `2026-04-28`:
-  - `GET /api/cnpj?cnpj=04252011000110` -> `200` com `companyName`, `city`, `state`, `cnae` e `cnaeDescricao`
-  - `GET /api/cnpj?cnpj=11111111111111` -> `400` com erro de CNPJ invalido
-  - `GET /api/comex?cnpj=04252011000110` -> `200`
-  - `npm exec vitest run tests/services/brasilApiService.test.ts` -> green
-  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` -> green
-- segunda rodada em `2026-04-28` adicionou instrumentacao para debug do preview:
-  - `services/brasilApiService.ts` agora preserva `error/detail` de respostas HTTP nao-OK
-  - o cliente loga endpoint resolvido, sucesso e falha via `scoutDiag`
-  - `api/cnpj.ts` agora loga request start/success/not-found/error no runtime serverless
-  - `components/EmptyStateHome.tsx` mostra orientacao explicita para `localhost` sem proxy em vez de mascarar como indisponibilidade generica
-- observacao importante:
-  - `npm run dev` / `vite` puro nao valida `api/cnpj.ts` neste repo; `/api/cnpj` cai no HTML da app sem proxy dedicado
-  - para esse caso, o cliente agora mostra: `Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.`
-- risco residual fora de escopo desta passada:
-  - `components/CRMDetail.tsx` continua chamando `https://brasilapi.com.br/api/cnpj/v1/*` diretamente
+- `api/docs-rag.ts`: score mínimo 0.35 → 0.60, extração web via `universalExtract` quando metadata vazio, sinal `[SEM DOCUMENTAÇÃO ENCONTRADA]`, tag `[FONTE VERIFICADA]` no texto extraído, stats de extração no response.
+- `api/rag.ts`: score mínimo 0.35 → 0.55, sinal `[SEM DADOS DE PROPOSTAS ENCONTRADOS]`.
+- `services/gemini/investigation-orchestration.ts`: `buildExtraContext` exportada, guard anti-alucinação quando docs-rag retorna vazio (`[AVISO DE SEGURANÇA]` + `⚠️ [DOCS RAG]`).
+- Testes criados: `tests/api-docs-rag.test.ts` (6 casos), `tests/api-rag.test.ts` (4 casos), `tests/services/investigation-anti-hallucination.test.ts` (5 casos).
+- Bateria completa: **851/851 testes passando**, zero regressões.
+
+**Roadmap das próximas ondas:** `.agents/memory/roadmap.md`
 
 ## Immediate next step
 
-1. Reproduzir o bug no browser somente em runtime serverless (`vercel dev` ou deploy), nao em `vite` puro.
-2. No preview da PR, abrir o console do browser e conferir os logs `🦅 [Scout360][CnpjLookup]` junto com os logs de `api/cnpj.ts` na Vercel.
-3. Avaliar em outra passada se o fix do proxy deve ser expandido para `components/CRMDetail.tsx`.
-
-## Session note (2026-05-05)
-
-- Ajustado `services/geminiProxy.ts` para sanitizar erros HTTP não-OK e evitar dump de HTML inteiro (ex.: Vercel Security Checkpoint 403).
-- Mensagem agora normaliza para texto curto e acionável (`blocked by Vercel Security Checkpoint (HTTP 403)` / `unexpected HTML response from proxy`).
-- Validação executada: `npm run typecheck` (green).
-- Skills operacionais locais foram removidas de `.agents/skills/` e copiadas para o ambiente global do usuário em `~/.agents/skills/`.
-- Materiais históricos e lições aprendidas em `.agents/skills/archive/` foram preservados no repo.
-- Arquivos de handoff e versionamento foram mantidos e atualizados para refletir que não há skills locais ativas nem integração externa obrigatória.
+1. Deploy da Onda 1 para Vercel e validação em produção.
+2. Iniciar Onda 2.1 — extrair `services/gemini/shared.ts` com utilitários duplicados.

@@ -1,15 +1,6 @@
-import React, { useMemo } from 'react';
-import {
-  SHARED_FOUNDATION_BLOCK,
-  PROMPT_VERSION,
-  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-  PROMPT_RADAR_EXPANSAO_GOD_MODE,
-  PROMPT_RH_SINDICATOS_GOD_MODE,
-  PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
-  PROMPT_ORCAMENTO_JANELA_GOD_MODE,
-} from '../prompts/megaPrompts';
+import React, { useEffect, useState } from 'react';
+import { loadFoundationBlocks, loadSpecialistPrompts } from '../prompts/megaPrompts';
+import type { LoadedPromptBlocks, LoadedSpecialistPrompts } from '../prompts/megaPrompts';
 
 interface DeepDiveTopicsProps {
   onSelectTopic: (displayMessage: string, hiddenPrompt: string) => void;
@@ -84,101 +75,132 @@ Se houver espaço para gerar valor, procure:
 </deep_dive_runtime>
 `;
 
-const buildDeepDiveHiddenPrompt = (basePrompt: string, topicLabel: string) =>
-  [
+const PROMPT_VERSION = '4.7';
+
+function buildPrompts(blocks: LoadedPromptBlocks, sp: LoadedSpecialistPrompts): DeepDiveTopic[] {
+  return [
+    {
+      id: 'raio-x',
+      label: 'Raio-X Operacional',
+      shortLabel: 'Operacional',
+      tooltip:
+        'Reconstrói a topologia da operação: elos da cadeia, ativos físicos, gargalos de pátio, rastreabilidade, infraestrutura crítica e onde a operação sangra caixa por falta de sistema.',
+      subtitle: 'Cadeia de valor, ativos, gargalos e perda de caixa operacional',
+      impact: 'Impacto alto em O + R',
+      icon: '🚜',
+      basePrompt: sp.PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+    },
+    {
+      id: 'tech-stack',
+      label: 'Tech Stack & ERP',
+      shortLabel: 'Tech Stack',
+      tooltip:
+        'Descobre o ERP core, satélites, sistemas paralelos, shadow IT, linguagens legadas, custo oculto de sustentação e vulnerabilidade do incumbente.',
+      subtitle: 'ERP, legado, integração, shadow IT e wedge contra incumbente',
+      impact: 'Impacto brutal em T',
+      icon: '💻',
+      basePrompt: sp.PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+    },
+    {
+      id: 'radar',
+      label: 'Teia Societária (M&A)',
+      shortLabel: 'Teia Societária',
+      tooltip:
+        'Vasculha grupo econômico real, holdings, filiais, SPEs, fazendas, massa operacional escondida, capacidade estática e faturamento consolidado estimado.',
+      subtitle: 'Grupo real, massa escondida e tese enterprise',
+      impact: 'Impacto brutal em P + SEG',
+      icon: '🕸️',
+      basePrompt: sp.PROMPT_RADAR_EXPANSAO_GOD_MODE,
+    },
+    {
+      id: 'mapeamento-decisores',
+      label: 'Mapa de Decisores',
+      shortLabel: 'Decisores',
+      tooltip:
+        'Identifica sponsor, dono do orçamento, veto, sabotador, shadow board, sucessão, trigger político e a narrativa certa para cada ator.',
+      subtitle: 'Sponsor, veto, sabotador e janela política',
+      impact: 'Impacto brutal em A',
+      icon: '🎭',
+      basePrompt: sp.PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+    },
+    {
+      id: 'orcamento-janela',
+      label: 'Orçamento & Janela',
+      shortLabel: 'Orçamento',
+      tooltip:
+        'Decodifica budget plausível, owner financeiro, captação, crédito rural, ciclo orçamentário, custo da demora e momento real de compra.',
+      subtitle: 'Comprabilidade, budget, owner financeiro e timing',
+      impact: 'Impacto em R + A2',
+      icon: '💵',
+      basePrompt: sp.PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+    },
+    {
+      id: 'compliance',
+      label: 'Riscos & Compliance',
+      shortLabel: 'Compliance',
+      tooltip:
+        'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.',
+      subtitle: 'Passivo fiscal, regulatório, trabalhista e pressão externa real',
+      impact: 'Impacto alto em R + TRAD',
+      icon: '🚨',
+      basePrompt: sp.PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+    },
+    {
+      id: 'rh-sindicatos',
+      label: 'RH, SST & Cultura Operacional',
+      shortLabel: 'RH & SST',
+      tooltip:
+        'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.',
+      subtitle: 'Força de trabalho real, SST e timing operacional',
+      impact: 'Impacto em P proxy + R + A2',
+      icon: '👥',
+      basePrompt: sp.PROMPT_RH_SINDICATOS_GOD_MODE,
+    },
+  ];
+}
+
+function buildHiddenPrompt(
+  blocks: LoadedPromptBlocks,
+  basePrompt: string,
+  topicLabel: string,
+): string {
+  return [
     `DEEP_DIVE_SINGLE_MODULE_EXECUTION (PromptVersion=${PROMPT_VERSION})`,
     `Tópico selecionado: ${topicLabel}`,
     'Executar investigação profunda APENAS do módulo abaixo.',
     'Usar o contexto já existente da conversa como pano de fundo, sem recontar o dossiê completo.',
-    SHARED_FOUNDATION_BLOCK,
+    blocks.SHARED_FOUNDATION_BLOCK,
     DEEP_DIVE_RUNTIME_BLOCK,
     basePrompt,
   ].join('\n\n');
+}
 
 export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic }) => {
-  const [pendingId, setPendingId] = React.useState<string | null>(null);
-  const topics = useMemo<DeepDiveTopic[]>(
-    () => [
-      {
-        id: 'raio-x',
-        label: 'Raio-X Operacional',
-        shortLabel: 'Operacional',
-        tooltip:
-          'Reconstrói a topologia da operação: elos da cadeia, ativos físicos, gargalos de pátio, rastreabilidade, infraestrutura crítica e onde a operação sangra caixa por falta de sistema.',
-        subtitle: 'Cadeia de valor, ativos, gargalos e perda de caixa operacional',
-        impact: 'Impacto alto em O + R',
-        icon: '🚜',
-        basePrompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-      },
-      {
-        id: 'tech-stack',
-        label: 'Tech Stack & ERP',
-        shortLabel: 'Tech Stack',
-        tooltip:
-          'Descobre o ERP core, satélites, sistemas paralelos, shadow IT, linguagens legadas, custo oculto de sustentação e vulnerabilidade do incumbente.',
-        subtitle: 'ERP, legado, integração, shadow IT e wedge contra incumbente',
-        impact: 'Impacto brutal em T',
-        icon: '💻',
-        basePrompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-      },
-      {
-        id: 'radar',
-        label: 'Teia Societária (M&A)',
-        shortLabel: 'Teia Societária',
-        tooltip:
-          'Vasculha grupo econômico real, holdings, filiais, SPEs, fazendas, massa operacional escondida, capacidade estática e faturamento consolidado estimado.',
-        subtitle: 'Grupo real, massa escondida e tese enterprise',
-        impact: 'Impacto brutal em P + SEG',
-        icon: '🕸️',
-        basePrompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
-      },
-      {
-        id: 'mapeamento-decisores',
-        label: 'Mapa de Decisores',
-        shortLabel: 'Decisores',
-        tooltip:
-          'Identifica sponsor, dono do orçamento, veto, sabotador, shadow board, sucessão, trigger político e a narrativa certa para cada ator.',
-        subtitle: 'Sponsor, veto, sabotador e janela política',
-        impact: 'Impacto brutal em A',
-        icon: '🎭',
-        basePrompt: PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
-      },
-      {
-        id: 'orcamento-janela',
-        label: 'Orçamento & Janela',
-        shortLabel: 'Orçamento',
-        tooltip:
-          'Decodifica budget plausível, owner financeiro, captação, crédito rural, ciclo orçamentário, custo da demora e momento real de compra.',
-        subtitle: 'Comprabilidade, budget, owner financeiro e timing',
-        impact: 'Impacto em R + A2',
-        icon: '💵',
-        basePrompt: PROMPT_ORCAMENTO_JANELA_GOD_MODE,
-      },
-      {
-        id: 'compliance',
-        label: 'Riscos & Compliance',
-        shortLabel: 'Compliance',
-        tooltip:
-          'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.',
-        subtitle: 'Passivo fiscal, regulatório, trabalhista e pressão externa real',
-        impact: 'Impacto alto em R + TRAD',
-        icon: '🚨',
-        basePrompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-      },
-      {
-        id: 'rh-sindicatos',
-        label: 'RH, SST & Cultura Operacional',
-        shortLabel: 'RH & SST',
-        tooltip:
-          'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.',
-        subtitle: 'Força de trabalho real, SST e timing operacional',
-        impact: 'Impacto em P proxy + R + A2',
-        icon: '👥',
-        basePrompt: PROMPT_RH_SINDICATOS_GOD_MODE,
-      },
-    ],
-    [],
-  );
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [topics, setTopics] = useState<DeepDiveTopic[]>([]);
+  const [blocks, setBlocks] = useState<LoadedPromptBlocks | null>(null);
+
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [loadedBlocks, loadedSpecialist] = await Promise.all([
+          loadFoundationBlocks(),
+          loadSpecialistPrompts(),
+        ]);
+        if (cancelled) return;
+        setBlocks(loadedBlocks);
+        setTopics(buildPrompts(loadedBlocks, loadedSpecialist));
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Falha ao carregar prompts de Deep Dive.');
+        console.error('[DeepDiveTopics] Prompt loading failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="my-6">
@@ -200,20 +222,25 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         </p>
       </div>
 
+      {loadError && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+          ⚠️ Deep Dives temporariamente indisponíveis. Recarregue a página ou tente novamente.
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         {topics.map(topic => {
-          const hiddenPrompt = buildDeepDiveHiddenPrompt(topic.basePrompt, topic.label);
+          const hiddenPrompt = blocks ? buildHiddenPrompt(blocks, topic.basePrompt, topic.label) : '';
 
           return (
             <button
               key={topic.id}
               type="button"
-              disabled={pendingId !== null}
+              disabled={pendingId !== null || !blocks}
               title={`${topic.subtitle}\n\nImpacto: ${topic.impact}`}
               onClick={() => {
-                if (pendingId !== null) return;
+                if (pendingId !== null || !blocks) return;
                 setPendingId(topic.id);
-                void onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt);
+                void onSelectTopic(`Dossiê completo: ${topic.label}`, hiddenPrompt || `Deep Dive: ${topic.label}`);
               }}
               className={`group flex w-full flex-row items-center gap-2.5 rounded-xl border p-2.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all duration-300 ${
                 pendingId === topic.id

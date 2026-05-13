@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { APP_NAME } from '../constants';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
-import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { Sender, type RadarAlert } from '../types';
 import { scoutDiag } from '../utils/diagnosticLog';
@@ -159,6 +158,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
         }
       }
+
+      const { loadBuilders } = await import('../prompts/megaPrompts');
+      const { buildInvestigationHiddenPrompt, PROMPT_VERSION } = await loadBuilders();
 
       const hiddenPromptBase = buildInvestigationHiddenPrompt(
         {

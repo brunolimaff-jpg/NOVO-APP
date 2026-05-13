@@ -1,14 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
-import {
-  PROMPT_RADAR_EXPANSAO_GOD_MODE,
-  PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  PROMPT_RH_SINDICATOS_GOD_MODE,
-  PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-  PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-  SHARED_FOUNDATION_BLOCK,
-} from '../../prompts/megaPrompts';
+import type { LoadedPromptBlocks, LoadedSpecialistPrompts } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { useMaybeChatStore } from '../../stores/chatStore';
@@ -204,44 +197,49 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
       };
 
+      const { loadSpecialistPrompts } = await import('../../prompts/megaPrompts');
+      const sp = await loadSpecialistPrompts();
+
       const modules: DossierWaterfallModule[] = [
         {
           name: 'Raio-X Operacional',
-          prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+          prompt: sp.PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
           stage: MODULAR_DOSSIER_STAGES[0],
           optional: false,
           timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
         },
         {
           name: 'Tech Stack',
-          prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+          prompt: sp.PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
           stage: MODULAR_DOSSIER_STAGES[1],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
         {
           name: 'Riscos & Compliance',
-          prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+          prompt: sp.PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[2],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
         {
           name: 'Estratégia & Expansão',
-          prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
+          prompt: sp.PROMPT_RADAR_EXPANSAO_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[3],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
         {
           name: 'RH & Decisores',
-          prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
+          prompt: sp.PROMPT_RH_SINDICATOS_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[4],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
       ];
 
+      const { loadFoundationBlocks } = await import('../../prompts/megaPrompts');
+      const loadedBlocks = await loadFoundationBlocks();
       const modulesByName = new Map(modules.map(module => [module.name, module]));
       const runWaterfallModule: RunWaterfallModule = async (
         module,
@@ -252,7 +250,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         generateDossierModule(
           module.name,
           resolvedMegaCompany || 'Empresa',
-          SHARED_FOUNDATION_BLOCK,
+          loadedBlocks.SHARED_FOUNDATION_BLOCK,
           module.prompt,
           [
             dossierSeedContext,

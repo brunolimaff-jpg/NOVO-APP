@@ -179,7 +179,7 @@ async function runDossierWebFallback(
   return sources;
 }
 
-function buildExtraContext(params: {
+export function buildExtraContext(params: {
   clienteData: LookupResponse | null;
   comexData: unknown;
   ragContext: string;
@@ -193,16 +193,30 @@ function buildExtraContext(params: {
     ? formatarComexParaPrompt(comexData as never)
     : '';
 
+  const isEmptyDocsRag = !ragDocsContext || ragDocsContext.includes('SEM DOCUMENTAÇÃO ENCONTRADA');
+  const isEmptyRag = !ragContext || ragContext.includes('SEM DADOS DE PROPOSTAS ENCONTRADOS');
+
+  const antiHallucinationGuard = isEmptyDocsRag
+    ? '\n[AVISO DE SEGURANÇA] Use APENAS informações de [FONTE VERIFICADA] ou Search Grounding. NÃO complete com conhecimento próprio sobre produtos Senior Sistemas. Se não houver dados verificados, informe explicitamente ao usuário.\n'
+    : '';
+
+  const docsLine = ragDocsContext
+    ? (isEmptyDocsRag ? `\n⚠️ [DOCS RAG]\n${ragDocsContext}` : `\n[DOCS RAG]\n${ragDocsContext}`)
+    : '';
+  const ragLine = ragContext
+    ? (isEmptyRag ? `\n⚠️ [CONTEXTO RAG]\n${ragContext}` : `\n[CONTEXTO RAG]\n${ragContext}`)
+    : '';
+
   return [
+    antiHallucinationGuard,
     clienteFormatado,
     comexFormatado,
-    ragContext ? `\n[CONTEXTO RAG]\n${ragContext}` : '',
-    ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}` : '',
+    ragLine,
+    docsLine,
     concorrentesContext ? `\n[CONCORRENTES]\n${concorrentesContext}` : '',
     portaContext ? `\n[PORTA STATE]\n${portaContext}` : '',
   ].filter(Boolean).join('\n');
 }
-
 function initializePortaState(params: {
   isMegaPromptMessage: boolean;
   isDeepDive: boolean;

@@ -14,44 +14,11 @@ export const config = {
 
 export const maxDuration = 300;
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+import { MODEL_IDS } from '../config/models';
+const DEFAULT_MODEL = MODEL_IDS.router;
 
-function getApiKeys(): string[] {
-  const primary = process.env.GEMINI_API_KEY;
-  const fallback = process.env.GEMINI_API_KEY_FALLBACK;
-  const keys = [primary, fallback].filter((key): key is string => Boolean(key));
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
 
-  if (keys.length === 0) {
-    throw new Error('Missing required env var: GEMINI_API_KEY');
-  }
-
-  return keys;
-}
-
-function isQuotaExhausted(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
-}
-
-function toNumberSafe(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
-function extractHttpStatus(error: unknown): number {
-  if (error instanceof Error) {
-    const message = error.message;
-    if (/"code"\s*:\s*429/.test(message) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message)) return 429;
-  }
-
-  const err = error as Record<string, unknown>;
-  if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
-  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
-  return 500;
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const parsed = DossieRequestSchema.safeParse(req.body);

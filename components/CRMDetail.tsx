@@ -3,7 +3,7 @@ import { ChatSession, CRM_STAGE_LABELS } from '../types';
 import { useCRM } from '../contexts/CRMContext';
 import { sendMessageToGemini } from '../services/geminiService';
 import ConfirmPopover from './ConfirmPopover';
-import RevenueIntelligence from './RevenueIntelligence';
+const RevenueIntelligence = React.lazy(() => import('./RevenueIntelligence'));
 import { buildRevenueProfile } from '../services/revenueService';
 
 interface CRMDetailProps {
@@ -552,7 +552,9 @@ export const CRMDetail: React.FC<CRMDetailProps> = ({
               )}
 
               {revenueProfile && (
-                <RevenueIntelligence profile={revenueProfile} isDarkMode={isDarkMode} />
+                <React.Suspense fallback={null}>
+                  <RevenueIntelligence profile={revenueProfile} isDarkMode={isDarkMode} />
+                </React.Suspense>
               )}
 
               <div className={`rounded-xl border p-4 ${isDarkMode ? 'bg-slate-900/60 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>

@@ -1,82 +1,60 @@
 # Progress
 
-Last updated: 2026-05-05
+Last updated: 2026-05-13
 
 ## Completed
 
-- Sprints 1-8 concluida e mergeadas em `main`.
-- Sprint 8 mergeada via PR `#241` em `origin/main` (`ccd2001518367961637b1a9488c2319aa83d0a21`).
-- `services/war-room/*` ativo com fachada publica preservada.
-- `features/radar/*` criado como boundary oficial inicial (stub).
-- Kickoff documental da Fase 2 concluido:
-  - criado `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
-  - sincronizados `00-README.md`, `01-MASTER-PLAN.md`, `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `07-SPRINT-LOG.md`
-  - sincronizados `HANDOFF_AI.md`, `.agents/memory/*` e roadmap Obsidian
-- PR `#243` (`fix/cnpj-proxy-fallback`) validada localmente em `2026-04-28`:
-  - checkout sincronizado para `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
-  - `vercel dev` ligado ao projeto `scoutagro`
-  - `GET /api/cnpj?cnpj=04252011000110` retornou `200`
-  - `GET /api/cnpj?cnpj=11111111111111` retornou `400`
-  - `GET /api/comex?cnpj=04252011000110` retornou `200`
-  - `npm exec vitest run tests/services/brasilApiService.test.ts` green
-  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green
-- PR `#243` recebeu uma segunda rodada de diagnostico em `2026-04-28`:
-  - logs estruturados adicionados ao cliente (`services/brasilApiService.ts`) e ao handler (`api/cnpj.ts`)
-  - erros HTTP agora preservam `error/detail` do serverless no cliente
-  - o caso `localhost` sem proxy agora gera orientacao explicita em UI e teste dedicado
-  - `npm exec vitest run tests/services/brasilApiService.test.ts tests/components/EmptyStateHome.test.tsx` green (`16` testes)
-  - `npm run typecheck` green
-- Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
-- Skills operacionais locais removidas de `.agents/skills/` e migradas para `~/.agents/skills/` em `2026-05-05`.
-- `.agents/skills/archive/` preservado no repo como camada de licoes aprendidas e referencia historica.
-- `AGENTS.md`, `CLAUDE.md`, `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md` e `skills-lock.json` alinhados para o novo modelo sem skills locais ativas e sem integracao externa obrigatoria.
+- Sprints 1-8 concluída e mergeadas em `main`.
+- Sprint 8 mergeada via PR `#241` em `origin/main`.
+- `services/war-room/*` ativo com fachada pública preservada.
+- `features/radar/*` criado como boundary oficial inicial.
+- Kickoff documental da Fase 2 concluído.
+- PR `#243` (`fix/cnpj-proxy-fallback`) validada localmente.
+- Skills operacionais locais removidas e migradas para `~/.agents/skills/`.
 
-## In progress
+### Ondas 1+2+3 — concluídas (2026-05-13)
 
-- Diagnóstico UX de erro do chat mobile para falha 403 em proxy Gemini (checkpoint da Vercel) concluído com hardening de mensagem.
-- Publicacao do PR de documentacao da Fase 2.
-- Preparacao da Sprint 9 (App shell decoupling + governanca).
-- Confirmacao final do bug de browser da PR `#243` em preview/Vercel com os novos logs ja publicados na branch.
+**Onda 1 — Críticos de IA:**
+- Loop RAG fechado com extração web (`universalExtract`), sinal de contexto vazio, score elevado (0.60/0.55), guard anti-alucinação.
+- `extractWithTimeout` com `Promise.race` real.
+- Testes: `api-docs-rag.test.ts` (6), `api-rag.test.ts` (4), `anti-hallucination.test.ts` (5).
 
-## Blockers
+**Onda 2 — Refatoração:**
+- `services/gemini/shared.ts` e `rag-shared.ts` criados. ~100 linhas de duplicação removidas.
+- Modelo centralizado em `config/models.ts` (6 arquivos).
+- Zero `any` nos handlers de API (`GenerateContentResponse`, `Chat`, `RadarAlert[]`, `CategoryStats[]`).
 
-- Nenhum bloqueio tecnico imediato.
-- Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
-- Risco residual de governanca: documentos historicos em `docs/archive/environment-curation-2026-04/` continuam citando o modelo antigo de skills locais por valor historico.
+**Onda 3 — Bundle:**
+- `prompts/megaPrompts.ts` → barrel assíncrono (`loadFoundationBlocks`, `loadSpecialistPrompts`, `loadBuilders`).
+- 4 consumidores migrados para `await import()`.
+- `RevenueIntelligence` → `React.lazy()` em `CRMDetail.tsx`.
+- `megaPrompts.test.ts` → 15/15 com async loaders.
+- `npm run build`: `foundation-*.js` (48.92 KB gzip 19.24) + `specialist-prompts-*.js` (66.89 KB gzip 23.29) em chunks separados. ~116 KB removidos do bundle inicial.
 
 ## Validation history
 
-### Sprint 8 (done, merged)
+### Ondas 1+2+3 (2026-05-13)
 
-- focused War Room/Radar suites: green em `2026-04-23`
-- `npm run test`: green (`102` arquivos, `785` testes)
-- `npm run typecheck`: green
-- `npm run build`: green (warning aceito em `utils/idbStorage.ts`)
-- `npm run lint`: green (`0` erros, warnings em backlog)
-- validacao manual preview/Vercel: aceita em `2026-04-23`
+- `npx vitest run`: **113 arquivos, 849/851 passando**.
+  - 2 falhas pré-existentes (não causadas pelas ondas): `waterfall-orchestrator.test.ts` (race condition do renderHook no último caso) e `App.loadingVariant.test.tsx` (timing flaky).
+- `npm run build`: green — chunks extraídos corretamente.
+- `.env` configurado com Gemini + Pinecone keys.
+- `dev.sh` criado como launcher (`vercel dev --listen 3000`).
 
-### Baseline warnings still open
+## Blockers
 
-- OI-003: chunk warning em `utils/idbStorage.ts`
-- OI-004: warning `SessionsSidebar` em teste
-- OI-005: backlog de lint warnings
+- Nenhum bloqueio técnico. 2 testes flaky pré-existentes fora do escopo.
 
 ## Important refs
 
-- `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
-- `docs/ai-context/refactor/02-BOARD.md`
-- `docs/ai-context/refactor/03-OPEN-ITEMS.md`
-- `docs/ai-context/refactor/06-HANDOFF.md`
-- `HANDOFF_AI.md`
+- `.agents/memory/roadmap.md` — Ondas 1, 2, 3 concluídas + backlog
+- `HANDOFF_AI.md` — handoff canônico
 
-## Next checkpoint
+### Code review fixes (2026-05-13)
 
-- Abrir Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
-- Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.
-- Se desejado, fazer uma segunda passada para limpar referencias historicas antigas em `docs/archive/environment-curation-2026-04/` sem perder o contexto de licoes aprendidas.
-
-## Incremental update (2026-05-05)
-
-- `services/geminiProxy.ts`: adicionada `sanitizeProxyErrorBody` para reduzir payload de erro e detectar HTML/Checkpoint em 403.
-- Resultado esperado: o usuário não recebe blob HTML gigante na UI, apenas erro curto e rastreável.
-- Validação: `npm run typecheck` green.
+- **shared.ts**: Encapsulado em objeto `geminiShared` (MINOR #1)
+- **megaPrompts.ts**: Adicionado `invalidatePromptCaches()` (MINOR #2)
+- **docs-rag.ts**: `EXTRACTION_TIMEOUT_MS` agora lê de `process.env.RAG_EXTRACTION_TIMEOUT_MS` (MINOR #3)
+- **DeepDiveTopics.tsx**: Estado `loadError` + fallback UI quando prompts falham ao carregar (MINOR #4)
+- MAJOR #1: `.env` confirmado em `.gitignore` — verificar no `git status` antes do push
+- MAJOR #2: `process.env` direto já era usado por `api/gerar-dossie.ts` original — falso positivo, Vercel suporta nativamente

@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { SHARED_FOUNDATION_BLOCK } from '../../prompts/megaPrompts';
 import { generateDossierModule } from '../../services/geminiService';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
@@ -270,10 +269,12 @@ export async function reconcileWaterfallPorta({
     });
 
     try {
+      const { loadFoundationBlocks } = await import('../../prompts/megaPrompts');
+      const blocks = await loadFoundationBlocks();
       const reconciliationChunk = await generateDossierModule(
         'Reconciliação PORTA',
         resolvedMegaCompany || 'Empresa',
-        SHARED_FOUNDATION_BLOCK,
+        blocks.SHARED_FOUNDATION_BLOCK,
         buildPortaReconciliationPrompt(waterfallPortaResolution.missingDimensions),
         [
           dossierSeedContext,

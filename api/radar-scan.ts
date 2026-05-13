@@ -9,7 +9,36 @@ import { z } from 'zod';
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 120;
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+import { MODEL_IDS } from '../config/models';
+const DEFAULT_MODEL = MODEL_IDS.router;
+
+// ===================================================================
+// TIPOS
+// ===================================================================
+
+interface RadarAlert {
+  id: string;
+  title: string;
+  summary: string;
+  sourceUrl: string;
+  sourceName: string;
+  category: string;
+  relevance: string;
+  impacto: string;
+  estagio: string;
+  publishedAt: string;
+  scannedAt: string;
+  estado?: string;
+  read: boolean;
+}
+
+interface CategoryStats {
+  category: string;
+  sourceItems: number;
+  generatedAlerts: number;
+  ok: boolean;
+}
+
 const FETCH_TIMEOUT_MS = 12_000;
 const GEMINI_TIMEOUT_MS = 25_000;
 
@@ -316,10 +345,10 @@ function parseDate(dateStr: string): string {
   }
 }
 
-function parseAlerts(text: string, category: string, scannedAt: string, originalItems?: RSSItem[]): any[] {
+function parseAlerts(text: string, category: string, scannedAt: string, originalItems?: RSSItem[]): RadarAlert[] {
   if (text.includes('NENHUM_RESULTADO')) return [];
 
-  const alerts: any[] = [];
+  const alerts: RadarAlert[] = [];
   const blocks = text.split('---ALERTA---');
 
   for (let i = 1; i < blocks.length; i++) {
@@ -424,9 +453,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     );
 
-    const rawAlerts: any[] = [];
+    const rawAlerts: RadarAlert[] = [];
     const partialFailures: Array<{ category: string; reason: string }> = [];
-    const categoryStats: Array<{ category: string; sourceItems: number; generatedAlerts: number; ok: boolean }> = [];
+    const categoryStats: CategoryStats[] = [];
     results.forEach((result, i) => {
       if (result.status === 'fulfilled') {
         rawAlerts.push(...result.value.alerts);

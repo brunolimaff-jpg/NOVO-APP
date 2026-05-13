@@ -1,6 +1,7 @@
-import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
+import { Chat, GenerateContentResponse, GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { extractHttpStatus, getApiKeys, isQuotaExhausted, toNumberSafe } from '../services/gemini/shared';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -37,7 +38,8 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+import { MODEL_IDS } from '../config/models';
+const DEFAULT_GEMINI_MODEL = MODEL_IDS.router;
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
@@ -105,27 +107,6 @@ const getEnvVar = (name: string): string | undefined => {
   }
 };
 
-function getApiKeys(): string[] {
-  const primary = getEnvVar('GEMINI_API_KEY');
-  const fallback = getEnvVar('GEMINI_API_KEY_FALLBACK');
-  const keys = [primary, fallback].filter((key): key is string => Boolean(key));
-
-  if (keys.length === 0) {
-    throw new Error('Missing required env var: GEMINI_API_KEY');
-  }
-
-  return keys;
-}
-
-function isQuotaExhausted(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
-}
-
-function toNumberSafe(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-}
-
 function normalizeHistory(
   input: Array<{ role: 'user' | 'model'; text: string }> | undefined,
 ): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
@@ -147,18 +128,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
   }
-}
-
-function extractGeminiHttpStatus(error: unknown): number {
-  if (error instanceof Error) {
-    const message = error.message;
-    if (/"code"\s*:\s*429/.test(message) || /RESOURCE_EXHAUSTED|rate.?limit|quota/i.test(message)) return 429;
-  }
-
-  const err = error as Record<string, unknown>;
-  if (typeof err.status === 'number' && err.status >= 400 && err.status < 600) return err.status;
-  if (typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 600) return err.statusCode;
-  return 500;
 }
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
@@ -278,8 +247,8 @@ async function executeGeminiAction(
         return { chat, response: res };
       };
 
-      let response: any;
-      let chatSession: any;
+      let response: GenerateContentResponse;
+      let chatSession: Chat;
       let groundingActivated = useGrounding;
 
       try {
@@ -287,7 +256,6 @@ async function executeGeminiAction(
         response = chatData.response;
         chatSession = chatData.chat;
 
-        // Loop para processar Function Calls (suporta múltiplas chamadas e encadeamento)
         let maxIterations = 5;
         while (response.functionCalls && response.functionCalls.length > 0 && maxIterations > 0) {
           maxIterations--;
@@ -334,10 +302,9 @@ async function executeGeminiAction(
           }
 
           if (functionResponses.length > 0) {
-            // Envia TODAS as respostas de funções em uma única mensagem (Batching)
             response = await chatSession.sendMessage(functionResponses);
           } else {
-            break; // Nenhuma chamada reconhecida
+            break;
           }
         }
 
@@ -406,7 +373,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Gemini API proxy error:', message);
-    const httpStatus = extractGeminiHttpStatus(error);
+    const httpStatus = extractHttpStatus(error);
     return res.status(httpStatus).json({ error: 'Gemini proxy failed', detail: message });
   }
 }

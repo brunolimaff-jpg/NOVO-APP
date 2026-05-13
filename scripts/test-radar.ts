@@ -1,8 +1,9 @@
+import { MODEL_IDS } from '../config/models';
 import { GoogleGenAI } from '@google/genai';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL || MODEL_IDS.router;
 const CONCORRENTES_NOMES = [
   'SAP', 'TOTVS', 'Protheus', 'Sankhya', 'SIAGRI', 'CHB Sistemas',
   'Benner', 'LG Sistemas', 'Viasoft', 'Korp', 'Unisystem',

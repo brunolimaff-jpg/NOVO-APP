@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from '../services/gemini/rag-shared';
 
 const RagRequestSchema = z.object({
   query: z.string().min(1).max(10000),
@@ -12,9 +13,11 @@ export const config = {
 };
 export const maxDuration = 60;
 
+const RAG_SCORE_MIN = 0.55;
+
 const DEFAULT_PINECONE_INDEX = 'scout-arsenal';
-const PINECONE_INDEX_SECRET_PREFIX_RE = /^pcsk_/i;
-const PINECONE_INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
+
+const NO_RAG_SIGNAL = '[SEM DADOS DE PROPOSTAS ENCONTRADOS — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -22,24 +25,10 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
-function normalizeEnvValue(value?: string | null): string | undefined {
-  const normalized = value?.trim();
-  return normalized ? normalized : undefined;
-}
 
-function resolvePineconeIndexName(candidate?: string | null): string {
-  const normalized = normalizeEnvValue(candidate);
 
-  if (!normalized) return DEFAULT_PINECONE_INDEX;
-  if (PINECONE_INDEX_SECRET_PREFIX_RE.test(normalized)) return DEFAULT_PINECONE_INDEX;
-  if (!PINECONE_INDEX_NAME_RE.test(normalized)) return DEFAULT_PINECONE_INDEX;
 
-  return normalized;
-}
 
-function resolveOptionalNamespace(candidate?: string | null): string | undefined {
-  return normalizeEnvValue(candidate);
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -62,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const rawIndexName = process.env.PINECONE_INDEX || process.env.PINECONE_DOCS_INDEX;
-    const pineconeIndexName = resolvePineconeIndexName(rawIndexName);
+    const pineconeIndexName = resolvePineconeIndexName(rawIndexName, DEFAULT_PINECONE_INDEX);
     if (rawIndexName?.trim() && rawIndexName.trim() !== pineconeIndexName) {
       console.warn(
         `[RAG] Invalid Pinecone index env "${rawIndexName}" detected. Falling back to "${pineconeIndexName}".`,
@@ -91,8 +80,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       includeMetadata: true
     });
 
-    const context = results.matches
-      .filter(m => (m.score ?? 0) > 0.35)
+    if (!results.matches || results.matches.length === 0) {
+      return res.status(200).json({ context: NO_RAG_SIGNAL });
+    }
+
+    const filtered = results.matches.filter(m => (m.score ?? 0) > RAG_SCORE_MIN);
+
+    if (filtered.length === 0) {
+      return res.status(200).json({ context: NO_RAG_SIGNAL });
+    }
+
+    const context = filtered
       .map(m => `[Proposta: ${m.metadata?.source}]\n${m.metadata?.text}`)
       .join('\n\n---\n\n');
 

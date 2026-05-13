@@ -2,6 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { universalExtract } from '../utils/documentExtractor';
+import type { UniversalExtractResult } from '../utils/documentExtractor';
+import { normalizeEnvValue, resolveOptionalNamespace, resolvePineconeIndexName } from '../services/gemini/rag-shared';
 
 const DocsRagRequestSchema = z.object({
   query: z.string().min(1).max(10000),
@@ -13,15 +16,19 @@ export const config = {
 };
 export const maxDuration = 60;
 
+const DOCS_RAG_SCORE_MIN = 0.60;
+// Timeout de extração web (ms). Sobrescrevível via env para tuning em produção.
+const EXTRACTION_TIMEOUT_MS = Number(process.env.RAG_EXTRACTION_TIMEOUT_MS) || 5_000;
+
 const DEFAULT_PINECONE_INDEX = 'scout-arsenal';
 const DEFAULT_PINECONE_DOCS_NAMESPACE = 'senior-erp-docs';
 const COMPETITOR_DOCS_NAMESPACE = 'competitor-pdfs';
-const PINECONE_INDEX_SECRET_PREFIX_RE = /^pcsk_/i;
-const PINECONE_INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
 const ALLOWED_DOCS_NAMESPACES = new Set<string>([
     DEFAULT_PINECONE_DOCS_NAMESPACE,
     COMPETITOR_DOCS_NAMESPACE,
 ]);
+
+const NO_DOCS_SIGNAL = '[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
 
 function getRequiredEnv(name: string): string {
     const value = process.env[name];
@@ -29,23 +36,41 @@ function getRequiredEnv(name: string): string {
     return value;
 }
 
-function normalizeEnvValue(value?: string | null): string | undefined {
-    const normalized = value?.trim();
-    return normalized ? normalized : undefined;
+
+
+
+
+
+async function extractWithTimeout(url: string, timeoutMs: number): Promise<UniversalExtractResult> {
+  try {
+    const result = await Promise.race([
+      universalExtract({ url }),
+      new Promise<UniversalExtractResult>((_, reject) =>
+        setTimeout(() => reject(new Error(`Extraction timed out after ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ]);
+    return result;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Extraction failed';
+    return { text: '', length: 0, error: message };
+  }
 }
 
-function resolvePineconeIndexName(candidate?: string | null): string {
-    const normalized = normalizeEnvValue(candidate);
-
-    if (!normalized) return DEFAULT_PINECONE_INDEX;
-    if (PINECONE_INDEX_SECRET_PREFIX_RE.test(normalized)) return DEFAULT_PINECONE_INDEX;
-    if (!PINECONE_INDEX_NAME_RE.test(normalized)) return DEFAULT_PINECONE_INDEX;
-
-    return normalized;
-}
-
-function resolveOptionalNamespace(candidate?: string | null, fallback?: string): string | undefined {
-    return normalizeEnvValue(candidate) ?? fallback;
+function enrichMatchWithExtraction(
+  titulo: string,
+  categoria: string,
+  url: string,
+  texto: string,
+  extracted?: UniversalExtractResult,
+): string {
+  if (extracted?.text && extracted.text.trim().length > 0) {
+    const truncated = extracted.text.slice(0, 8000);
+    return `### ${categoria}: ${titulo}\n[FONTE VERIFICADA] ${truncated}\n(Fonte: ${url})`;
+  }
+  if (!texto.trim() && url) {
+    return `### ${categoria}: ${titulo}\n[CONTEÚDO NÃO EXTRAÍDO — apenas URL disponível]\n(Fonte: ${url})`;
+  }
+  return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -65,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const pineconeKey = process.env.PINECONE_DOCS_KEY || getRequiredEnv('PINECONE_API_KEY');
         const rawIndexName = process.env.PINECONE_DOCS_INDEX || process.env.PINECONE_INDEX;
-        const pineconeIndexName = resolvePineconeIndexName(rawIndexName);
+        const pineconeIndexName = resolvePineconeIndexName(rawIndexName, DEFAULT_PINECONE_INDEX);
         if (rawIndexName?.trim() && rawIndexName.trim() !== pineconeIndexName) {
             console.warn(
                 `[Docs RAG] Invalid Pinecone index env "${rawIndexName}" detected. Falling back to "${pineconeIndexName}".`,
@@ -106,21 +131,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!results.matches || results.matches.length === 0) {
-            return res.status(200).json({ context: '' });
+            return res.status(200).json({ context: NO_DOCS_SIGNAL });
         }
 
-        const context = results.matches
-            .filter(m => (m.score ?? 0) > 0.35)
-            .map(m => {
-                const titulo = m.metadata?.titulo || 'Documento';
-                const categoria = m.metadata?.categoria || 'Geral';
-                const url = m.metadata?.url || '';
-                const texto = m.metadata?.text || m.metadata?.content || '';
-                return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
-            })
-            .join('\n\n---\n\n');
+        const filtered = results.matches.filter(m => (m.score ?? 0) > DOCS_RAG_SCORE_MIN);
 
-        return res.status(200).json({ context, matches: results.matches.map(m => m.metadata) });
+        if (filtered.length === 0) {
+            return res.status(200).json({
+                context: NO_DOCS_SIGNAL,
+                matches: results.matches.map(m => m.metadata),
+            });
+        }
+
+        let extractedCount = 0;
+        let extractionFailures = 0;
+        const contextParts: string[] = [];
+
+        for (const m of filtered) {
+            const titulo = m.metadata?.titulo || 'Documento';
+            const categoria = m.metadata?.categoria || 'Geral';
+            const url = m.metadata?.url || '';
+            const texto = m.metadata?.text || m.metadata?.content || '';
+
+            let extracted: UniversalExtractResult | undefined;
+            if (!texto.trim() && url) {
+                try {
+                    extracted = await extractWithTimeout(url, EXTRACTION_TIMEOUT_MS);
+                    if (extracted.text && extracted.text.trim().length > 0) {
+                        extractedCount++;
+                    } else {
+                        extractionFailures++;
+                    }
+                } catch {
+                    extractionFailures++;
+                }
+            }
+
+            contextParts.push(enrichMatchWithExtraction(titulo, categoria, url, texto, extracted));
+        }
+
+        const context = contextParts.join('\n\n---\n\n');
+
+        const extractionStats = extractedCount + extractionFailures > 0
+            ? { totalFiltered: filtered.length, extractionsAttempted: extractedCount + extractionFailures, extractionsSucceeded: extractedCount, extractionsFailed: extractionFailures }
+            : undefined;
+
+        return res.status(200).json({
+            context,
+            matches: results.matches.map(m => m.metadata),
+            ...(extractionStats ? { extractionStats } : {}),
+        });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';

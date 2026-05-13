@@ -1,3 +1,4 @@
+import { MODEL_IDS } from '../config/models';
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ Entregue um "Resumo Comercial Direto":
 
 Seja objetivo, profissional e foque em valor comercial.`;
 
-    const chat = ai.chats.create({ model: 'gemini-3-flash-preview', config: { temperature: 0.2 } });
+    const chat = ai.chats.create({ model: MODEL_IDS.router, config: { temperature: 0.2 } });
     const response = await chat.sendMessage({ message: prompt });
 
     return res.status(200).json({ summary: response.text });
