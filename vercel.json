@@ -1,1 +1,27 @@
-ewogICJpbnN0YWxsQ29tbWFuZCI6ICJucG0gaW5zdGFsbCIsCiAgImZ1bmN0aW9ucyI6IHsKICAgICJhcGkvZ2VtaW5pLnRzIjogewogICAgICAibWF4RHVyYXRpb24iOiAzMDAsCiAgICAgICJpbmNsdWRlRmlsZXMiOiAiYXBpL19zaGFyZWQvKioiCiAgICB9LAogICAgImFwaS9nZXJhci1kb3NzaWUudHMiOiB7CiAgICAgICJtYXhEdXJhdGlvbiI6IDMwMCwKICAgICAgImluY2x1ZGVGaWxlcyI6ICJhcGkvX3NoYXJlZC8qKiIKICAgIH0sCiAgICAiYXBpL3JhZGFyLXNjYW4udHMiOiB7CiAgICAgICJtYXhEdXJhdGlvbiI6IDEyMCwKICAgICAgImluY2x1ZGVGaWxlcyI6ICJhcGkvX3NoYXJlZC8qKiIKICAgIH0sCiAgICAiYXBpL2V4dHJhY3QtY29udGVudC50cyI6IHsKICAgICAgIm1heER1cmF0aW9uIjogNjAsCiAgICAgICJpbmNsdWRlRmlsZXMiOiAiYXBpL19zaGFyZWQvKioiCiAgICB9LAogICAgImFwaS9kb2NzLXJhZy50cyI6IHsKICAgICAgImluY2x1ZGVGaWxlcyI6ICJhcGkvX3NoYXJlZC8qKiIKICAgIH0sCiAgICAiYXBpL3JhZy50cyI6IHsKICAgICAgImluY2x1ZGVGaWxlcyI6ICJhcGkvX3NoYXJlZC8qKiIKICAgIH0KICB9LAogICJyZXdyaXRlcyI6IFsKICAgIHsKICAgICAgInNvdXJjZSI6ICIvYXBpLyguKikiLAogICAgICAiZGVzdGluYXRpb24iOiAiL2FwaS8kMSIKICAgIH0sCiAgICB7CiAgICAgICJzb3VyY2UiOiAiLygoPyFhcGkvfC4qXFxcXC4uKikuKikiLAogICAgICAiZGVzdGluYXRpb24iOiAiL2luZGV4Lmh0bWwiCiAgICB9CiAgXQp9
+{
+  "installCommand": "npm install",
+  "functions": {
+    "api/gemini.ts": {
+      "maxDuration": 300
+    },
+    "api/gerar-dossie.ts": {
+      "maxDuration": 300
+    },
+    "api/radar-scan.ts": {
+      "maxDuration": 120
+    },
+    "api/extract-content.ts": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
