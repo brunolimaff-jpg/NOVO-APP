@@ -78,7 +78,7 @@ describe('buildExtraContext anti-hallucination guard', () => {
     const { buildExtraContext } = await import('../../services/gemini/investigation-orchestration');
 
     const result = buildExtraContext({
-      clienteData: { encontrado: true, ok: true, query: 'Test Ltda', results: [] },
+      clienteData: { encontrado: true, ok: true, query: 'Test Ltda', results: [], total: 0 } as any,
       comexData: null,
       ragContext: '[Proposta: p1.pdf]\nTexto da proposta',
       ragDocsContext: '### ERP: Módulo Fiscal\nTexto real',

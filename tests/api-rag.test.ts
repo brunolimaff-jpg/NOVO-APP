@@ -38,7 +38,7 @@ describe('api/rag handler', () => {
   } as VercelRequest);
 
   const response = () => {
-    const res: any = {};
+    const res = {} as any;
     res.status = (code: number) => {
       res._status = code;
       return { json: (data: any) => { res._data = data; return res; } };
@@ -49,8 +49,8 @@ describe('api/rag handler', () => {
   it('deve retornar 405 para GET', async () => {
     const { default: handler } = await import('../api/rag');
     const req = { method: 'GET' } as VercelRequest;
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
     expect(res._status).toBe(405);
   });
 
@@ -62,8 +62,8 @@ describe('api/rag handler', () => {
 
     const { default: handler } = await import('../api/rag');
     const req = post({ query: 'ERP agro proposta comercial' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('SEM DADOS DE PROPOSTAS ENCONTRADOS');
@@ -82,8 +82,8 @@ describe('api/rag handler', () => {
 
     const { default: handler } = await import('../api/rag');
     const req = post({ query: 'ERP agro proposta comercial' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('SEM DADOS DE PROPOSTAS ENCONTRADOS');
@@ -102,8 +102,8 @@ describe('api/rag handler', () => {
 
     const { default: handler } = await import('../api/rag');
     const req = post({ query: 'ERP agro proposta comercial' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('proposta-boa.pdf');

@@ -41,7 +41,7 @@ describe('api/docs-rag handler', () => {
   } as VercelRequest);
 
   const response = () => {
-    const res: any = {};
+    const res = {} as any;
     res.status = (code: number) => {
       res._status = code;
       return { json: (data: any) => { res._data = data; return res; } };
@@ -52,8 +52,8 @@ describe('api/docs-rag handler', () => {
   it('deve retornar 405 para GET', async () => {
     const { default: handler } = await import('../api/docs-rag');
     const req = { method: 'GET' } as VercelRequest;
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
     expect(res._status).toBe(405);
   });
 
@@ -65,8 +65,8 @@ describe('api/docs-rag handler', () => {
 
     const { default: handler } = await import('../api/docs-rag');
     const req = post({ query: 'ERP Senior módulo fiscal' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('SEM DOCUMENTAÇÃO ENCONTRADA');
@@ -85,8 +85,8 @@ describe('api/docs-rag handler', () => {
 
     const { default: handler } = await import('../api/docs-rag');
     const req = post({ query: 'ERP Senior módulo fiscal' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('SEM DOCUMENTAÇÃO ENCONTRADA');
@@ -114,8 +114,8 @@ describe('api/docs-rag handler', () => {
 
     const { default: handler } = await import('../api/docs-rag');
     const req = post({ query: 'ERP Senior módulo fiscal' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('Módulo Fiscal');
@@ -150,8 +150,8 @@ describe('api/docs-rag handler', () => {
 
     const { default: handler } = await import('../api/docs-rag');
     const req = post({ query: 'GATEC módulo agro' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('[FONTE VERIFICADA]');
@@ -186,8 +186,8 @@ describe('api/docs-rag handler', () => {
 
     const { default: handler } = await import('../api/docs-rag');
     const req = post({ query: 'sistema offline' });
-    const res = response();
-    await handler(req, res);
+    const res: any = response();
+    await handler(req, res as any);
 
     expect(res._status).toBe(200);
     expect(res._data.context).toContain('CONTEÚDO NÃO EXTRAÍDO');

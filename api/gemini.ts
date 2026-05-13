@@ -302,7 +302,7 @@ async function executeGeminiAction(
           }
 
           if (functionResponses.length > 0) {
-            response = await chatSession.sendMessage(functionResponses);
+            response = await chatSession.sendMessage(functionResponses as any);
           } else {
             break;
           }

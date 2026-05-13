@@ -148,10 +148,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const contextParts: string[] = [];
 
         for (const m of filtered) {
-            const titulo = m.metadata?.titulo || 'Documento';
-            const categoria = m.metadata?.categoria || 'Geral';
-            const url = m.metadata?.url || '';
-            const texto = m.metadata?.text || m.metadata?.content || '';
+            const titulo = String(m.metadata?.titulo ?? 'Documento');
+            const categoria = String(m.metadata?.categoria ?? 'Geral');
+            const url = String(m.metadata?.url ?? '');
+            const texto = String(m.metadata?.text || m.metadata?.content || '');
 
             let extracted: UniversalExtractResult | undefined;
             if (!texto.trim() && url) {
