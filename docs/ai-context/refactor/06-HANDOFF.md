@@ -42,7 +42,12 @@ Sprint 10 combina:
 
 ## Next Safe Step
 
-Abrir PR da Sprint 10 e validar preview.
+PR `#257` da Sprint 10 está aberta, com checks remotos verdes e preview Vercel pronto.
+
+- PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>
+- Preview: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>
+
+Finalizar Sprint 10 com validação manual do preview e merge da PR `#257`.
 
 Validação manual mínima no preview:
 
@@ -69,4 +74,4 @@ Leia `HANDOFF_AI.md`, `.agents/memory/activeContext.md`,
 Considere a PR `#254` mergeada em `main` no commit `922a403`.
 Considere a PR `#255` mergeada em `main` no commit `0550454`.
 Considere a PR `#256` mergeada em `main` no commit `66591f1`.
-Continue a Sprint 10 com foco exclusivo em Radar boundary runtime.
+Continue a Sprint 10 validando a PR `#257` no preview Vercel; após validação manual, mergear.

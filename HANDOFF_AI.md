@@ -69,6 +69,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 - Branch: `codex/sprint-10-radar-boundary`
 - Base: `origin/main@66591f1`
+- PR: `#257` — <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>
+- Preview Vercel: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>
 - Plano: `docs/ai-context/refactor/11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`
 - Escopo:
   - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
@@ -85,6 +87,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run build` green com warnings aceitos OI-003/OI-057;
   - `npm run lint` green com `0` erros e `147` warnings conhecidos;
   - `npm run analyze:circular` green, sem ciclos.
+- Checks remotos:
+  - AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel e Vercel Preview Comments verdes.
+  - `mergeStateStatus: CLEAN`.
 - Fora de escopo:
   - mover componentes visuais `Radar*`;
   - deletar facades de compatibilidade;
@@ -136,8 +141,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Abrir PR de `codex/sprint-10-radar-boundary`.
-2. Validar preview Vercel: configurar Radar, forçar varredura, abrir painel/configurações, marcar alerta como lido e confirmar que Chat/Home seguem recebendo contexto do Radar.
+1. Validar preview Vercel: configurar Radar, forçar varredura, abrir painel/configurações, marcar alerta como lido e confirmar que Chat/Home seguem recebendo contexto do Radar.
+2. Depois da validação manual, mergear PR `#257`.
 
 ## Regras de continuidade
 

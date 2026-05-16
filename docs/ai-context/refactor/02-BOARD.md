@@ -7,9 +7,9 @@
 | Source of truth commit | `origin/main` -> `66591f16f5463e7ab40bb718ec886a88f52eae40` |
 | Working branch | `codex/sprint-10-radar-boundary` |
 | Last updated | `2026-05-16` |
-| Current phase | `ready_for_pr` |
+| Current phase | `preview_validation` |
 | Current sprint | `Sprint 10` |
-| Overall status | `ready_for_review` |
+| Overall status | `pr_open_checks_green` |
 | Current baseline | PR `#256` mergeada em `main`; merge `66591f1` |
 
 ## Current Focus
@@ -21,9 +21,9 @@
 
 ## Next Up
 
-1. Abrir PR da branch `codex/sprint-10-radar-boundary`.
-2. Acompanhar checks remotos.
-3. Validar preview Vercel com checklist manual do Radar.
+1. Validar preview Vercel com checklist manual do Radar.
+2. Após validação manual, mergear PR `#257`.
+3. Abrir Sprint 11 somente depois do merge.
 
 ## Blocked
 
@@ -47,6 +47,8 @@
   - `npm run build` green
   - `npm run lint` green com `0` erros e `147` warnings conhecidos
 - Sprint 10:
+  - PR `#257` aberta: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>
+  - Preview Vercel ready: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>
   - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`40` testes)
   - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes)
   - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes)
@@ -56,6 +58,7 @@
   - `npm run build` green (warnings aceitos OI-003/OI-057)
   - `npm run lint` green com `0` erros e `147` warnings conhecidos
   - `npm run analyze:circular` green, sem ciclos
+  - checks remotos green: AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel, Vercel Preview Comments
 
 ## Known Accepted Warnings
 
@@ -79,6 +82,6 @@
 | 9 | App shell decoupling + governanca | done | PR `#254` mergeada em `main` (`922a403`) | `pre-sprint-9` | `App.tsx`, `features/chat/*`, `features/dossier/*` |
 | Onda 0+1 | Cleanup base + primeira correção técnica | done | PR `#255` mergeada em `main` (`0550454`) | `origin/main@922a403` | docs/memory, `features/dossier/*`, logs cliente |
 | OI-066 | Delete icon Unicode hotfix | done | PR `#256` mergeada em `main` (`66591f1`) | `origin/main@0550454` | `components/MessageRow.tsx` |
-| 10 | Radar boundary completion | ready_for_review | runtime de Radar no boundary `features/radar/*` com facades compatíveis | `origin/main@66591f1` | `features/radar/*`, `hooks/useRadar.ts`, `services/radarService.ts` |
+| 10 | Radar boundary completion | preview_validation | PR `#257` aberta com checks remotos verdes; validação manual pendente | `origin/main@66591f1` | `features/radar/*`, `hooks/useRadar.ts`, `services/radarService.ts` |
 | 11 | Componentes grandes + tipagem forte | planned | reducao de complexidade em `CRMDetail`, `LoadingSmart`, `WarRoom` | `start-of-sprint-11` | `components/CRMDetail.tsx`, `components/LoadingSmart.tsx`, `components/WarRoom.tsx` |
 | 12 | Hardening final | planned | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |

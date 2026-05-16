@@ -8,6 +8,8 @@ Sprint 10 move o runtime do Radar para `features/radar/*` sem alterar comportame
 
 - Base limpa: `origin/main@66591f1`, após merge da PR `#256`.
 - Branch: `codex/sprint-10-radar-boundary`.
+- PR: `#257` — <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>.
+- Preview Vercel: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>.
 - Workspace principal original continua com mudanças não commitadas em `refactor/code-quality`; Sprint 10 roda em worktree limpa.
 - `types.ts` permanece fonte central dos contratos Radar.
 
@@ -72,6 +74,7 @@ npm run analyze:circular
 - `npm run build` green, com warnings aceitos OI-003/OI-057.
 - `npm run lint` green com `0` erros e `147` warnings conhecidos.
 - `npm run analyze:circular` green, sem ciclos.
+- Checks remotos da PR `#257` green: AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel e Vercel Preview Comments.
 
 ## Validação manual mínima
 

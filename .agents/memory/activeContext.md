@@ -29,6 +29,9 @@ Fase 2 (manutenibilidade) está em andamento.
 
 Branch ativa desta entrega: `codex/sprint-10-radar-boundary`, derivada de `origin/main@66591f1`.
 
+PR ativa: `#257` — <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>.
+Preview Vercel: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>.
+
 Esta Sprint 10 existe para fechar o runtime do Radar dentro do boundary `features/radar/*`:
 
 - `features/radar/useRadar.ts` passa a ser dono do hook de estado/persistência/scan.
@@ -52,7 +55,6 @@ Essas mudanças foram preservadas fora do fluxo desta branch; a Sprint 10 també
 
 ## Immediate next step
 
-1. Concluir docs/memória da Sprint 10.
-2. Rodar testes focados e gates completos.
-3. Abrir PR da branch `codex/sprint-10-radar-boundary`.
-4. Validar preview Vercel com checklist manual do Radar.
+1. Validar preview Vercel da PR `#257` com checklist manual do Radar.
+2. Após validação manual, mergear PR `#257`.
+3. Iniciar Sprint 11 somente depois do merge.

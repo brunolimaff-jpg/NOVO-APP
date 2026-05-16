@@ -36,6 +36,8 @@ Last updated: 2026-05-16
 ## In progress
 
 - Sprint 10 Radar boundary na branch `codex/sprint-10-radar-boundary`.
+- PR aberta: `#257` (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>).
+- Preview Vercel ready: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>.
 - Objetivo:
   - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
   - preservar compatibilidade pública via `hooks/useRadar.ts` e `services/radarService.ts`;
@@ -95,6 +97,7 @@ Last updated: 2026-05-16
 - `npm run build` green (warnings aceitos OI-003/OI-057)
 - `npm run lint` green com `0` erros e `147` warnings conhecidos
 - `npm run analyze:circular` green, sem ciclos
+- Checks remotos da PR `#257` green: AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel, Vercel Preview Comments
 
 ## Important refs
 
@@ -106,5 +109,6 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Abrir PR e validar preview Vercel com checklist manual do Radar.
+- Validar preview Vercel da PR `#257` com checklist manual do Radar.
+- Após validação manual, mergear PR `#257`.
 - Após merge da Sprint 10, iniciar Sprint 11 com testes de caracterização antes de mexer em `CRMDetail`, `LoadingSmart` e `WarRoom`.
