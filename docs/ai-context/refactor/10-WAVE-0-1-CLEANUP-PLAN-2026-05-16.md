@@ -21,6 +21,7 @@ Entrega curta entre Sprint 9 e Sprint 10 para alinhar a fonte de verdade pós-PR
 | PORTA parcial sem score | Bug funcional provável | Corrigir agora |
 | Logs cliente com payload sensível | Risco real em serviços cliente | Migrar agora com truncamento |
 | `/api/open-web-search` 500 no preview | Crash serverless confirmado em Vercel | Corrigir na PR `#255` antes de merge |
+| Botão excluir mensagem com escape Unicode cru | Bug visual confirmado no preview (`\uD83D\uDDD1\uFE0F`) | Registrar como OI-066; corrigir em follow-up curto |
 | Radar runtime fora do boundary | Dívida arquitetural real | Sprint 10 |
 | `CRMDetail`, `LoadingSmart`, `WarRoom` grandes | Dívida real | Sprint 11 com testes primeiro |
 | PWA/chunking/lint warnings | Hardening | Sprint 12 |
@@ -93,7 +94,8 @@ Smoke Vercel protegido com bypass de automação:
 Quando esta Onda 0+1 estiver mergeada:
 
 1. Sincronizar `main`.
-2. Criar branch limpa para Sprint 10.
-3. Mover runtime do Radar para `features/radar/*`.
-4. Manter reexports temporários para compatibilidade.
-5. Só depois iniciar Sprint 11 com testes de caracterização para componentes grandes.
+2. Corrigir OI-066 se ainda aparecer no preview: trocar escape Unicode cru por ícone real/`lucide` no botão de excluir mensagem.
+3. Criar branch limpa para Sprint 10.
+4. Mover runtime do Radar para `features/radar/*`.
+5. Manter reexports temporários para compatibilidade.
+6. Só depois iniciar Sprint 11 com testes de caracterização para componentes grandes.

@@ -34,6 +34,8 @@ Last updated: 2026-05-16
   - `/api/open-web-search` retornava `500` no preview por crash serverless antes do handler (`ERR_MODULE_NOT_FOUND` em import ESM sem `.js`);
   - corrigidos imports serverless em `api/open-web-search.ts`, `api/extract-content.ts` e `utils/documentExtractor.ts`;
   - contrato de `/api/open-web-search` ajustado para aceitar `{ url }` sem `query`.
+- Novo item registrado:
+  - OI-066: botão de excluir mensagem renderiza escape Unicode cru `\uD83D\uDDD1\uFE0F` em vermelho no preview; corrigir em follow-up curto.
 - Review comments da PR `#255`:
   - Gemini Code Assist apontou `catch (...: any)` em `clientLookupService` e `extractContentService`;
   - ambos foram corrigidos para `unknown`, respondidos na PR e marcados como resolvidos.
@@ -83,4 +85,5 @@ Last updated: 2026-05-16
 ## Next checkpoint
 
 - Validar PR `#255` no Chrome e mergear se não houver novo `500` em `/api/open-web-search`.
+- Após merge, corrigir OI-066 se o escape Unicode cru do botão excluir mensagem ainda aparecer.
 - Após merge da Onda 0+1, iniciar Sprint 10: Radar boundary completion.

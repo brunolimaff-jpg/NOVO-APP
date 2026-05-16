@@ -53,6 +53,7 @@
 | OI-063 | high | in_progress | PORTA partial integrity hold | Falha parcial de dimensões não deve bloquear `ensureWaterfallScorePorta` como se todas as dimensões estivessem ausentes | validar Onda 0+1 e fechar após PR |
 | OI-064 | medium | in_progress | Logs cliente sensíveis | `clientLookupService`, `extractContentService`, `feedbackService` e `App.tsx` ainda tinham `console.*` com potencial de expor query/URL/feedback | validar migração para `scoutDiag` e payload truncado |
 | OI-065 | medium | in_progress | Docs/memória pós-PR `#254` stale | Canônicos ainda diziam que Sprint 9 estava em review/aguardando merge | fechar com sync documental da Onda 0 |
+| OI-066 | medium | open | Botão excluir mensagem renderiza escape Unicode cru | Preview mostrou `\uD83D\uDDD1\uFE0F` em vermelho no lugar do ícone de lixeira, com tooltip "Excluir esta mensagem" | corrigir renderização do ícone/label do botão e cobrir com teste visual/DOM focado |
 
 ## Historico de Itens Resolvidos (trilha S1-S8)
 

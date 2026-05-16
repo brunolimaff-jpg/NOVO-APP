@@ -79,6 +79,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - smoke `{ url: "https://example.com/" }` confirmou `200` e `source: OpenWebSearch/URL`;
   - smoke `{}` confirmou `400` esperado;
   - logs Vercel `500` dos 15 minutos posteriores ao fix não retornaram ocorrências.
+- Novo item aberto:
+  - OI-066: botão de excluir mensagem renderiza escape Unicode cru `\uD83D\uDDD1\uFE0F` em vermelho no preview em vez do ícone de lixeira; corrigir renderização do ícone/label em follow-up curto.
 - Fora de escopo:
   - Radar boundary;
   - `CRMDetail`, `LoadingSmart`, `WarRoom`;
@@ -98,7 +100,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 1. Revalidar o preview da PR `#255` no Chrome, conferindo que não há mais `Failed to load resource: /api/open-web-search 500`.
 2. Mergear a PR `#255` se a validação manual permanecer verde.
-3. Após merge, abrir Sprint 10 a partir de `main` atualizado.
+3. Corrigir OI-066 se o escape Unicode cru do botão excluir mensagem ainda aparecer.
+4. Após merge, abrir Sprint 10 a partir de `main` atualizado.
 
 ## Regras de continuidade
 
