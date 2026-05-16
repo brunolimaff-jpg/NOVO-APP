@@ -50,10 +50,10 @@
 
 | ID | Severidade | Status | Item | Contexto | Próxima ação |
 |---|---|---|---|---|---|
-| OI-063 | high | in_progress | PORTA partial integrity hold | Falha parcial de dimensões não deve bloquear `ensureWaterfallScorePorta` como se todas as dimensões estivessem ausentes | validar Onda 0+1 e fechar após PR |
-| OI-064 | medium | in_progress | Logs cliente sensíveis | `clientLookupService`, `extractContentService`, `feedbackService` e `App.tsx` ainda tinham `console.*` com potencial de expor query/URL/feedback | validar migração para `scoutDiag` e payload truncado |
-| OI-065 | medium | in_progress | Docs/memória pós-PR `#254` stale | Canônicos ainda diziam que Sprint 9 estava em review/aguardando merge | fechar com sync documental da Onda 0 |
-| OI-066 | medium | open | Botão excluir mensagem renderiza escape Unicode cru | Preview mostrou `\uD83D\uDDD1\uFE0F` em vermelho no lugar do ícone de lixeira, com tooltip "Excluir esta mensagem" | corrigir renderização do ícone/label do botão e cobrir com teste visual/DOM focado |
+| OI-063 | high | resolved | PORTA partial integrity hold | Falha parcial de dimensões não deve bloquear `ensureWaterfallScorePorta` como se todas as dimensões estivessem ausentes | resolvido na PR `#255` |
+| OI-064 | medium | resolved | Logs cliente sensíveis | `clientLookupService`, `extractContentService`, `feedbackService` e `App.tsx` ainda tinham `console.*` com potencial de expor query/URL/feedback | resolvido na PR `#255` com `scoutDiag` e payload truncado |
+| OI-065 | medium | resolved | Docs/memória pós-PR `#254` stale | Canônicos ainda diziam que Sprint 9 estava em review/aguardando merge | resolvido na PR `#255` |
+| OI-066 | medium | resolved | Botão excluir mensagem renderiza escape Unicode cru | Preview mostrou `\uD83D\uDDD1\uFE0F` em vermelho no lugar do ícone de lixeira, com tooltip "Excluir esta mensagem" | corrigido em `components/MessageRow.tsx` com entidade renderizável, `aria-label` e teste focado |
 
 ## Historico de Itens Resolvidos (trilha S1-S8)
 

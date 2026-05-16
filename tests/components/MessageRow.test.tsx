@@ -108,6 +108,27 @@ describe('MessageRow', () => {
     expect(screen.getByText('Analisar Fazenda Boa Vista')).toBeInTheDocument();
   });
 
+  it('renderiza botão de excluir com ícone, sem escape Unicode cru', () => {
+    const msg = makeMessage({ text: 'Mensagem descartável', sender: Sender.User });
+    const handleDeleteWithUndo = vi.fn();
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          onDeleteMessage: vi.fn(),
+          handleDeleteWithUndo,
+        })}
+      />,
+    );
+
+    const deleteButton = screen.getByRole('button', { name: 'Excluir esta mensagem' });
+    expect(deleteButton).toHaveTextContent('🗑️');
+    expect(deleteButton).not.toHaveTextContent('\\\\uD83D');
+
+    fireEvent.click(deleteButton);
+    expect(handleDeleteWithUndo).toHaveBeenCalledWith('msg-1');
+  });
+
   it('delegates hero loading to the global App overlay', () => {
     const msg = makeMessage({
       sender: Sender.Bot,

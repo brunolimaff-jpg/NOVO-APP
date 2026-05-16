@@ -61,11 +61,29 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `components/WarRoom.tsx` | 552 + sem testes dedicados | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Onda 0+1
+## Entrega em curso: OI-066
+
+- Branch: `codex/fix-delete-icon-unicode`
+- Base: `origin/main@0550454`
+- PR anterior: `#255`, merge commit `0550454`
+- Plano: `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
+- Escopo:
+  - corrigir botão de excluir mensagem que renderizava `\uD83D\uDDD1\uFE0F` como texto cru em vermelho;
+  - manter ação `handleDeleteWithUndo`;
+  - garantir acessibilidade com `aria-label`;
+  - adicionar teste focado em `tests/components/MessageRow.test.tsx`.
+- Validação local:
+  - `npm exec vitest run tests/components/MessageRow.test.tsx tests/components/chat/MessageTimeline.test.tsx` green (`18` testes);
+  - `npm run typecheck` green;
+  - `npm run build` green;
+  - `npm run lint` green com `0` erros e warnings conhecidos;
+  - `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests` sem ocorrências.
+
+## Entrega anterior: Onda 0+1
 
 - Branch: `refactor/wave-0-1-cleanup`
 - Base: `origin/main@922a403`
-- PR: `#255`
+- PR: `#255`, merge commit `0550454`
 - Plano: `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
 - Escopo:
   - sincronizar docs/memória pós-PR `#254`;
@@ -79,8 +97,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - smoke `{ url: "https://example.com/" }` confirmou `200` e `source: OpenWebSearch/URL`;
   - smoke `{}` confirmou `400` esperado;
   - logs Vercel `500` dos 15 minutos posteriores ao fix não retornaram ocorrências.
-- Novo item aberto:
-  - OI-066: botão de excluir mensagem renderiza escape Unicode cru `\uD83D\uDDD1\uFE0F` em vermelho no preview em vez do ícone de lixeira; corrigir renderização do ícone/label em follow-up curto.
+- OI-066 foi extraído para hotfix curto em `codex/fix-delete-icon-unicode`.
 - Fora de escopo:
   - Radar boundary;
   - `CRMDetail`, `LoadingSmart`, `WarRoom`;
@@ -98,10 +115,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Revalidar o preview da PR `#255` no Chrome, conferindo que não há mais `Failed to load resource: /api/open-web-search 500`.
-2. Mergear a PR `#255` se a validação manual permanecer verde.
-3. Corrigir OI-066 se o escape Unicode cru do botão excluir mensagem ainda aparecer.
-4. Após merge, abrir Sprint 10 a partir de `main` atualizado.
+1. Abrir PR do OI-066 e validar no preview que o botão de excluir mensagem mostra ícone de lixeira, não `\uD83D\uDDD1\uFE0F`.
+2. Após merge do OI-066, abrir Sprint 10 a partir de `main` atualizado.
 
 ## Regras de continuidade
 
