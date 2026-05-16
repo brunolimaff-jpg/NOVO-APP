@@ -59,7 +59,10 @@ export function useEmailModal({
   useEffect(() => clearCloseTimer, [clearCloseTimer]);
 
   const handleSend = useCallback(async () => {
-    if (!EMAIL_REGEX.test(emailTo.trim())) return;
+    if (!EMAIL_REGEX.test(emailTo.trim())) {
+      toast.error('Por favor, insira um e-mail válido.');
+      return;
+    }
     setEmailStatus('sending');
 
     try {
@@ -82,6 +85,7 @@ export function useEmailModal({
       }
 
       setEmailStatus('error');
+      toast.error('Falha ao enviar email. Verifique sua conexão ou o conteúdo do dossiê.');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido';
       scoutDiag.warn('Email', 'handleSendEmail falhou', { error: message });

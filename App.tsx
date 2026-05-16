@@ -320,8 +320,8 @@ const App: React.FC = () => {
         toast.error('Não foi possível abrir a visualização de impressão. Verifique se o navegador bloqueou a nova janela.');
       }
     } catch (e) {
-      console.error('Erro ao gerar PDF:', e);
-      toast.error('Erro ao gerar PDF. Tente novamente.');
+      const msg = e instanceof Error ? e.message : 'Erro ao gerar PDF. Tente novamente.';
+      toast.error(msg);
     }
   }
 
