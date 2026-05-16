@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-05-05
+Last updated: 2026-05-16
 
 ## Completed
 
@@ -30,19 +30,25 @@ Last updated: 2026-05-05
 - Skills operacionais locais removidas de `.agents/skills/` e migradas para `~/.agents/skills/` em `2026-05-05`.
 - `.agents/skills/archive/` preservado no repo como camada de licoes aprendidas e referencia historica.
 - `AGENTS.md`, `CLAUDE.md`, `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md` e `skills-lock.json` alinhados para o novo modelo sem skills locais ativas e sem integracao externa obrigatoria.
+- PR antiga `#252` (`codex/waves-1-2-3`) foi fechada sem merge em `2026-05-16`.
+- Branch `codex/docs-rag-anti-hallucination` implementou uma PR pequena de anti-alucinacao do Docs RAG:
+  - `api/docs-rag.ts` elevou score minimo para `0.60`
+  - contextos vazios/fracos agora retornam sinal explicito de ausencia de documentacao
+  - matches sem texto indexado nao sao promovidos a evidencia textual
+  - `tests/api-docs-rag.test.ts` adiciona cobertura dedicada do endpoint
+  - `utils/webVerification.ts` recebeu limpeza minima de lint preexistente para gate verde
 
 ## In progress
 
-- Diagnóstico UX de erro do chat mobile para falha 403 em proxy Gemini (checkpoint da Vercel) concluído com hardening de mensagem.
-- Publicacao do PR de documentacao da Fase 2.
+- Publicacao da PR `codex/docs-rag-anti-hallucination`.
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
-- Confirmacao final do bug de browser da PR `#243` em preview/Vercel com os novos logs ja publicados na branch.
 
 ## Blockers
 
 - Nenhum bloqueio tecnico imediato.
 - Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
 - Risco residual de governanca: documentos historicos em `docs/archive/environment-curation-2026-04/` continuam citando o modelo antigo de skills locais por valor historico.
+- Risco residual fora do escopo da PR Docs RAG: ainda nao ha extractor server-side seguro de URL/PDF; qualquer implementacao futura precisa tratar SSRF antes de buscar URLs remotas.
 
 ## Validation history
 
@@ -80,3 +86,15 @@ Last updated: 2026-05-05
 - `services/geminiProxy.ts`: adicionada `sanitizeProxyErrorBody` para reduzir payload de erro e detectar HTML/Checkpoint em 403.
 - Resultado esperado: o usuário não recebe blob HTML gigante na UI, apenas erro curto e rastreável.
 - Validação: `npm run typecheck` green.
+
+## Incremental update (2026-05-16)
+
+- `api/docs-rag.ts`: adicionados `DOCS_RAG_SCORE_MIN = 0.60` e sinal explicito `SEM DOCUMENTAÇÃO ENCONTRADA`.
+- `tests/api-docs-rag.test.ts`: 8 testes novos cobrindo metodo, validacao, score minimo, contexto textual, URL-only e namespace invalido.
+- `utils/webVerification.ts`: removida atribuicao inutil que fazia `npm run lint` falhar no baseline.
+- Validacao:
+  - `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts` green (`12` testes)
+  - `npm run typecheck` green
+  - `npm run test` green (`111` arquivos, `844` testes)
+  - `npm run build` green (warning aceito de chunking em `utils/idbStorage.ts`)
+  - `npm run lint` green com warnings conhecidos (`0` erros)

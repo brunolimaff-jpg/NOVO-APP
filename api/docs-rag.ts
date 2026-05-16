@@ -16,6 +16,8 @@ export const maxDuration = 60;
 const DEFAULT_PINECONE_INDEX = 'scout-arsenal';
 const DEFAULT_PINECONE_DOCS_NAMESPACE = 'senior-erp-docs';
 const COMPETITOR_DOCS_NAMESPACE = 'competitor-pdfs';
+const DOCS_RAG_SCORE_MIN = 0.60;
+const NO_DOCS_SIGNAL = '[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
 const PINECONE_INDEX_SECRET_PREFIX_RE = /^pcsk_/i;
 const PINECONE_INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
 const ALLOWED_DOCS_NAMESPACES = new Set<string>([
@@ -46,6 +48,25 @@ function resolvePineconeIndexName(candidate?: string | null): string {
 
 function resolveOptionalNamespace(candidate?: string | null, fallback?: string): string | undefined {
     return normalizeEnvValue(candidate) ?? fallback;
+}
+
+function formatTextBackedMatch(metadata: Record<string, unknown>): string | null {
+    const texto = String(metadata.text || metadata.content || '').trim();
+    if (!texto) return null;
+
+    const titulo = metadata.titulo || 'Documento';
+    const categoria = metadata.categoria || 'Geral';
+    const url = metadata.url || '';
+    return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
+}
+
+function formatUrlOnlyMatch(metadata: Record<string, unknown>): string | null {
+    const url = String(metadata.url || '').trim();
+    if (!url) return null;
+
+    const titulo = metadata.titulo || 'Documento';
+    const categoria = metadata.categoria || 'Geral';
+    return `### ${categoria}: ${titulo}\n[CONTEÚDO NÃO INDEXADO — não use esta fonte como evidência textual]\n(Fonte: ${url})`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -84,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const queryVector = embeddingResponse.embeddings?.[0]?.values;
 
         if (!queryVector || queryVector.length === 0) {
-            return res.status(200).json({ context: '' });
+            return res.status(200).json({ context: NO_DOCS_SIGNAL });
         }
 
         const configuredNamespace = resolveOptionalNamespace(
@@ -106,21 +127,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!results.matches || results.matches.length === 0) {
-            return res.status(200).json({ context: '' });
+            return res.status(200).json({ context: NO_DOCS_SIGNAL });
         }
 
-        const context = results.matches
-            .filter(m => (m.score ?? 0) > 0.35)
-            .map(m => {
-                const titulo = m.metadata?.titulo || 'Documento';
-                const categoria = m.metadata?.categoria || 'Geral';
-                const url = m.metadata?.url || '';
-                const texto = m.metadata?.text || m.metadata?.content || '';
-                return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
-            })
-            .join('\n\n---\n\n');
+        const filtered = results.matches.filter(m => (m.score ?? 0) >= DOCS_RAG_SCORE_MIN);
+        const matches = results.matches.map(m => m.metadata);
+        if (filtered.length === 0) {
+            return res.status(200).json({ context: NO_DOCS_SIGNAL, matches });
+        }
 
-        return res.status(200).json({ context, matches: results.matches.map(m => m.metadata) });
+        const textBackedParts: string[] = [];
+        const urlOnlyParts: string[] = [];
+
+        for (const match of filtered) {
+            const metadata = (match.metadata || {}) as Record<string, unknown>;
+            const textBackedPart = formatTextBackedMatch(metadata);
+            if (textBackedPart) {
+                textBackedParts.push(textBackedPart);
+                continue;
+            }
+
+            const urlOnlyPart = formatUrlOnlyMatch(metadata);
+            if (urlOnlyPart) urlOnlyParts.push(urlOnlyPart);
+        }
+
+        if (textBackedParts.length === 0) {
+            return res.status(200).json({ context: NO_DOCS_SIGNAL, matches });
+        }
+
+        const context = [...textBackedParts, ...urlOnlyParts].join('\n\n---\n\n');
+
+        return res.status(200).json({ context, matches });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
