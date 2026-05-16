@@ -54,7 +54,16 @@ Last updated: 2026-05-16
 
 ## In progress
 
-- Abrir/revisar PR da Sprint 9 (`refactor/sprint-9`).
+- PR `#254` da Sprint 9 aberta e aguardando review/merge (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/254>).
+- Commit `d88311a` na branch `refactor/sprint-9`.
+- Review por agente especializado identificou e corrigiu 2 P1 + 4 P2 antes do commit:
+  - P1: dependência circular `chatStore ↔ message-orchestrator` resolvida
+  - P1: error handling com timeout 30s em `sendDossierEmail`
+  - P2: validação email com regex
+  - P2: null checks em `openDossierPrintReport`
+  - P2: `scoutDiag` em vez de `console.warn` em `useUpdateNotification`
+  - P2: validação de mensagens antes de processar em `sendDossierEmail`
+- 4 P3 registrados como backlog (dead code, edge cases em testes, feature flags validation, FollowUpModal type location).
 
 ## Blockers
 
@@ -100,9 +109,9 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Abrir PR da Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
-- Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.
-- Se desejado, fazer uma segunda passada para limpar referencias historicas antigas em `docs/archive/environment-curation-2026-04/` sem perder o contexto de licoes aprendidas.
+- Aguardar merge da PR `#254` (Sprint 9).
+- Após merge: sincronizar `main` e iniciar Sprint 10 (radar/feature boundary).
+- 4 P3 pendentes de backlog: dead code em exportService, edge cases em useEmailModal tests, feature flags runtime validation, FollowUpScheduleResult type location.
 
 ## Incremental update (2026-05-05)
 

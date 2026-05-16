@@ -338,8 +338,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const {
         accumulatedText: reconciledText,
         resolution: waterfallPortaResolution,
-        portaFallbackApplied,
-        portaFallbackDimensions,
         portaIntegrityHold,
       } = await reconcileWaterfallPorta({
         sessionId,
@@ -457,8 +455,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   groundingUsed: webVerificationStatus === 'not_applicable'
                     ? undefined
                     : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                  portaFallbackApplied: portaFallbackApplied ? true : undefined,
-                  portaFallbackDimensions: portaFallbackApplied ? portaFallbackDimensions : undefined,
                   suggestions: waterfallSuggestions,
                   isThinking: false,
                 }

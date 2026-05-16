@@ -160,8 +160,6 @@ export interface Message {
    */
   groundingUsed?: boolean;
   webVerificationStatus?: WebVerificationStatus;
-  portaFallbackApplied?: boolean;
-  portaFallbackDimensions?: PortaDimension[];
 }
 
 export interface ClienteSeniorData {

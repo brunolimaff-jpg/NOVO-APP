@@ -276,8 +276,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: 'Raio-X Operacional consolidado\n\n---\n\n[[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]',
       resolution: makeResolution(defaultScore),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(defaultScore);
@@ -294,8 +292,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:74:P7:O7:R6:T8:A6:PRD:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: true,
-      portaFallbackDimensions: ['T'],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -336,8 +332,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalSession.scoreOportunidade).toBe(74);
     expect(finalBotMessage.isThinking).toBe(false);
     expect(finalBotMessage.scorePorta).toEqual(score);
-    expect(finalBotMessage.portaFallbackApplied).toBe(true);
-    expect(finalBotMessage.portaFallbackDimensions).toEqual(['T']);
     expect(finalBotMessage.clienteSeniorData).toMatchObject({
       encontrado: true,
       grupo: 'Grupo Acme',
@@ -374,8 +368,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -418,8 +410,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: 'Raio-X Operacional consolidado\n\n[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -449,8 +439,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -494,8 +482,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:68:P6:O7:R6:T5:A6:PRD:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -536,8 +522,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:65:P6:O7:R6:T6:A5:PRD:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
@@ -561,8 +545,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: 'Texto consolidado sem score validado',
       resolution: makeResolution(null, ['P', 'O', 'R', 'T', 'A']),
-      portaFallbackApplied: true,
-      portaFallbackDimensions: ['P', 'O', 'R', 'T', 'A'],
       portaIntegrityHold: true,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(makeScorePorta(90));
@@ -579,8 +561,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(ensureWaterfallScorePortaMock).not.toHaveBeenCalled();
     expect(finalSession.scoreOportunidade).toBe(41);
     expect(finalBotMessage.scorePorta).toBeUndefined();
-    expect(finalBotMessage.portaFallbackApplied).toBe(true);
-    expect(finalBotMessage.portaFallbackDimensions).toEqual(['P', 'O', 'R', 'T', 'A']);
     expect(harness.completeLoadingProgress).toHaveBeenCalledTimes(1);
   });
 
@@ -612,8 +592,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         '[[PORTA:70:P7:O7:R5:T7:A6:PRD:NONE]]',
       ].join('\n\n'),
       resolution: makeResolution(score),
-      portaFallbackApplied: false,
-      portaFallbackDimensions: [],
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);

@@ -27,14 +27,16 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural (baseline atual)
 
-> Atualizado em 2026-05-16 — branch local `refactor/sprint-9` a partir de `origin/main` `df1ca1e`.
+> Atualizado em 2026-05-16 — PR `#254` aberto a partir de `origin/main` `df1ca1e`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
+- `services/exportService.ts` criado na Sprint 9 com export/email logic extraida de App.tsx.
 - `features/chat/*` e `features/dossier/*` concentram os fluxos extraidos de `App.tsx`.
 - Leak `features/dossier/*` → `features/chat/*` removido na Sprint 9; helpers compartilhados vivem em `utils/*`.
+- Dependência circular `chatStore ↔ message-orchestrator` resolvida: `LastAction` movido para `types.ts`.
 - `features/radar/*` existe como boundary oficial (stub); runtime atual ainda passa por `hooks/useRadar.ts` e `services/radarService.ts`.
-- `types.ts` permanece centralizado.
+- `types.ts` permanece centralizado (agora inclui `LastAction`).
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
 - `VITE_PINECONE_*` no frontend e risco aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
 - Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
@@ -60,7 +62,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 ## Entrega em curso (2026-05-16)
 
 - Branch: `refactor/sprint-9`
-- Escopo: App shell decoupling + governanca.
+- PR: `#254` (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/254>)
+- Commit: `d88311a`
+- Escopo: App shell decoupling + governanca + fixes de review.
 - Mudancas:
   - `madge`/`ts-prune` adicionados com baseline de 1 ciclo
   - OI-055 reclassificado como risco aceito
@@ -68,6 +72,11 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `utils/featureFlags.ts` criado e documentado em `ARQUITETURA.md`
   - wiring de EmailModal/FollowUpModal extraido para hooks
   - export/email movido para `services/exportService.ts`
+  - **Fix P1**: dependência circular `chatStore ↔ message-orchestrator` resolvida (`LastAction` → `types.ts`)
+  - **Fix P1**: error handling com timeout 30s em `sendDossierEmail`
+  - **Fix P2**: validação de email com regex em `useEmailModal`
+  - **Fix P2**: null checks em `openDossierPrintReport`
+  - **Fix P2**: `useUpdateNotification` usa `scoutDiag` em vez de `console.warn`
 - Validacao local:
   - `npm run test` green (`114` arquivos, `854` testes)
   - `npm run typecheck` green
@@ -78,6 +87,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Playwright em `http://127.0.0.1:3000/`
   - tela inicial carregou, operador `Bruno QA` foi salvo, home principal abriu
   - sem `console.error` e sem `pageerror`
+- Review por agente especializado: 0 P0, 2 P1 (corrigidos), 4 P2 (corrigidos), 4 P3 (backlog)
 
 ## Riscos residuais imediatos
 
