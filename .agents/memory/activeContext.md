@@ -30,30 +30,31 @@ Fase 2 (manutenibilidade) foi aberta de forma documental:
 
 ## Current task context
 
-Branch local atual: `codex/docs-rag-anti-hallucination`, criada a partir de `origin/main` (`b2c67db`).
+Branch local atual: `refactor/sprint-9`, criada a partir de `origin/main` (`df1ca1e`) apos merge da PR `#253`.
 
-PR aberta: `#253` - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
+Tag de rollback: `pre-sprint-9`.
 
 Escopo desta passada:
 
-- PR pequena de anti-alucinacao para `api/docs-rag.ts`.
-- Sem extractor server-side de URL/PDF.
-- Sem lazy-loading de prompts.
-- Sem refactor amplo de fachadas publicas.
-- Ajuste minimo adicional em `utils/webVerification.ts` para remover um erro de lint preexistente (`no-useless-assignment`) e permitir gate verde.
+- Implementar Sprint 9: App shell decoupling + governanca.
+- Tratar Pinecone via `VITE_*` como risco aceito por app interno/fechado.
+- Preservar fachadas publicas congeladas.
+- Nao incluir `mcp-server/`.
 
 Estado implementado:
 
-- `api/docs-rag.ts` agora usa corte `0.60` para Docs RAG.
-- Quando nao ha matches fortes/textuais, retorna sinal explicito:
-  `[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]`
-- Matches fortes sem `metadata.text`/`metadata.content` nao viram evidencia textual.
-- `tests/api-docs-rag.test.ts` cobre GET, body invalido, matches vazios, score baixo, match textual, match URL-only, mix textual+URL-only e namespace invalido.
+- `App.tsx` reduzido para `622` linhas.
+- Wiring de EmailModal/FollowUpModal extraido para `hooks/useEmailModal.ts` e `hooks/useFollowUpModal.ts`.
+- Lógica de export/email movida para `services/exportService.ts`.
+- Leak `features/dossier` → `features/chat` removido via helpers compartilhados em `utils/*`.
+- `madge` e `ts-prune` adicionados; baseline atual: 1 ciclo (`stores/chatStore.tsx` > `features/chat/message-orchestrator.ts`).
+- `utils/featureFlags.ts` criado com modelo `VITE_FF_*`, fallback e `removeBy`.
 
 ## Immediate next step
 
-1. Revisar/mergear PR `#253` depois de conferir que os checks continuam verdes.
-2. Depois do merge, seguir para a proxima PR pequena: remover `VITE_PINECONE_API_KEY` do frontend ou modelar extractor seguro com protecao SSRF.
+1. Abrir PR da branch `refactor/sprint-9`.
+2. Mergear apos review se CI remoto repetir o verde local.
+3. Depois do merge, abrir Sprint 10 (Radar boundary completion).
 
 ## Session note (2026-05-05)
 

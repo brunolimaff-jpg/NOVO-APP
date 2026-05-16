@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-05
+Last updated: 2026-05-16
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -73,3 +73,9 @@ Reason: the recurring symptom was a misleading "Serviço de consulta indisponív
 Decision: remover as skills operacionais versionadas em `.agents/skills/` do repo e mantê-las apenas no ambiente global do usuário em `~/.agents/skills/`, preservando apenas `.agents/skills/archive/` como referência histórica.
 
 Reason: separar o ambiente operacional do conteúdo versionado reduz acoplamento com o repositório, tira essas skills do escopo do GitHub e preserva as lições aprendidas já documentadas.
+
+## 2026-05-16 - Pinecone frontend env aceito para app interno
+
+Decision: manter `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` no frontend durante a Sprint 9.
+
+Reason: o owner confirmou que o app é interno/fechado e aceitou o risco operacional. OI-055 passa a ser risco aceito e deve ser reavaliado se o app virar externo.

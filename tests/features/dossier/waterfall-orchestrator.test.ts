@@ -1,7 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MODULAR_DOSSIER_STAGES } from '../../../constants/loadingStages';
-import type { RunMegaPromptWaterfallArgs } from '../../../features/chat/message-orchestrator';
 import { useDossierWaterfallOrchestrator } from '../../../features/dossier/waterfall-orchestrator';
 import type { LookupResponse } from '../../../services/clientLookupService';
 import {
@@ -9,6 +8,7 @@ import {
   type ChatSession,
   type Message,
   type PortaDimension,
+  type RunMegaPromptWaterfallArgs,
   type ScorePortaData,
 } from '../../../types';
 import type { PortaScoreResolution } from '../../../utils/porta';

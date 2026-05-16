@@ -4,7 +4,7 @@ import { generateDossierModule } from '../../services/geminiService';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';
-import { isAbortLikeError } from '../chat/message-helpers';
+import { isAbortLikeError } from '../../utils/abortHelpers';
 
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS = 12000;

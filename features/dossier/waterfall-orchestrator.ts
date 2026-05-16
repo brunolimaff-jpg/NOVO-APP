@@ -24,12 +24,9 @@ import {
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
 import { extractPromotableInlineSources, type VerifiedSource } from '../../utils/webVerification';
-import {
-  ensureContinuitySuggestions,
-  isAbortLikeError,
-  pickCompanyLabel,
-} from '../chat/message-helpers';
-import type { RunMegaPromptWaterfallArgs } from '../chat/message-orchestrator';
+import type { RunMegaPromptWaterfallArgs } from '../../types';
+import { isAbortLikeError } from '../../utils/abortHelpers';
+import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
 import {
   ensureWaterfallScorePorta,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 interface VersionInfo {
   version: string;
@@ -85,7 +86,10 @@ export function useUpdateNotification() {
         headers: { 'pragma': 'no-cache' }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch version');
+      if (!response.ok) return;
+
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) return;
 
       const versionData: VersionInfo = await response.json();
       const storedVersion = localStorage.getItem(STORAGE_KEY_CURRENT_VERSION) || versionData.version;
@@ -112,7 +116,9 @@ export function useUpdateNotification() {
       // Armazenar timestamp do check
       localStorage.setItem(STORAGE_KEY_LAST_CHECK, Date.now().toString());
     } catch (error) {
-      console.error('Erro ao verificar atualizações:', error);
+      scoutDiag.warn('UpdateCheck', 'Falha ao verificar atualizações', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       // Continuar silenciosamente se falhar
     } finally {
       setIsChecking(false);

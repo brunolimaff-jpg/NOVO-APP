@@ -37,17 +37,24 @@ Last updated: 2026-05-16
   - matches sem texto indexado nao sao promovidos a evidencia textual
   - `tests/api-docs-rag.test.ts` adiciona cobertura dedicada do endpoint
   - `utils/webVerification.ts` recebeu limpeza minima de lint preexistente para gate verde
-- PR `#253` aberta em `2026-05-16`:
+- PR `#253` mergeada em `2026-05-16`:
   - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
-  - commit `df2f232`
+  - merge commit `df1ca1e`
   - checks remotos verdes e `mergeStateStatus: CLEAN`
   - comentarios de validacao local/remota adicionados na PR
   - validacao manual Chrome/Vercel preview com CNPJ `04.733.767/0001-80` completou dossie de `SCHEFFER & CIA LTDA`
+- Sprint 9 implementada na branch `refactor/sprint-9`:
+  - `App.tsx` reduzido para `622` linhas
+  - wiring de EmailModal/FollowUpModal extraido para hooks
+  - export/email movido para `services/exportService.ts`
+  - leak `features/dossier` → `features/chat` removido
+  - `madge`/`ts-prune` adicionados e baseline de 1 ciclo registrado
+  - `utils/featureFlags.ts` criado com testes
+  - Pinecone via `VITE_*` documentado como risco aceito
 
 ## In progress
 
-- Revisao/merge da PR `#253` (`codex/docs-rag-anti-hallucination`).
-- Preparacao da Sprint 9 (App shell decoupling + governanca).
+- Abrir/revisar PR da Sprint 9 (`refactor/sprint-9`).
 
 ## Blockers
 
@@ -55,6 +62,7 @@ Last updated: 2026-05-16
 - Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
 - Risco residual de governanca: documentos historicos em `docs/archive/environment-curation-2026-04/` continuam citando o modelo antigo de skills locais por valor historico.
 - Risco residual fora do escopo da PR Docs RAG: ainda nao ha extractor server-side seguro de URL/PDF; qualquer implementacao futura precisa tratar SSRF antes de buscar URLs remotas.
+- OI-055: Pinecone via `VITE_*` aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
 
 ## Validation history
 
@@ -73,6 +81,15 @@ Last updated: 2026-05-16
 - OI-004: warning `SessionsSidebar` em teste
 - OI-005: backlog de lint warnings
 
+### Sprint 9 (branch pronta para PR)
+
+- `npm run test`: green (`114` arquivos, `854` testes)
+- `npm run typecheck`: green
+- `npm run build`: green (warning aceito de chunking em `utils/idbStorage.ts`)
+- `npm run lint`: green com warnings conhecidos (`0` erros, `160` warnings)
+- `npm run analyze:circular`: 1 ciclo existente (`stores/chatStore.tsx` > `features/chat/message-orchestrator.ts`)
+- Playwright local em `http://127.0.0.1:3000/`: tela inicial e home principal carregaram sem `console.error`/`pageerror`
+
 ## Important refs
 
 - `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
@@ -83,7 +100,7 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Abrir Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
+- Abrir PR da Sprint 9 mantendo APIs publicas congeladas e sem incluir `mcp-server/`.
 - Se o bug de CNPJ persistir apos o push desta rodada, coletar no preview a linha `🦅 [Scout360][CnpjLookup]` no console do browser e o par `request:start/request:error` de `api/cnpj.ts` na Vercel antes de mexer nos provedores.
 - Se desejado, fazer uma segunda passada para limpar referencias historicas antigas em `docs/archive/environment-curation-2026-04/` sem perder o contexto de licoes aprendidas.
 

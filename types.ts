@@ -193,6 +193,24 @@ export interface ChatSession {
   companyContext?: string;
 }
 
+export interface LastAction {
+  type: 'sendMessage' | 'regenerateSuggestions';
+  payload: { text?: string; displayText?: string; messageId?: string };
+}
+
+export interface RunMegaPromptWaterfallArgs {
+  sessionId: string;
+  text: string;
+  safeVisibleText: string;
+  hintedCompany: string | null;
+  normalizedCompany: string;
+  historyToPass: Message[];
+  botMessageId: string;
+  signal: AbortSignal;
+  isFirstInteraction: boolean;
+  sessionCnpjDigits: string;
+}
+
 export interface ChatState {
   messages: Message[];
   isLoading: boolean;

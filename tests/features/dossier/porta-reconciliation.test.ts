@@ -7,7 +7,7 @@ import {
   resolveModuleNamesForMissingDimensions,
   shouldHoldWaterfallScoreForIntegrity,
 } from '../../../features/dossier/porta-reconciliation';
-import { ensureContinuitySuggestions } from '../../../features/chat/message-helpers';
+import { ensureContinuitySuggestions } from '../../../utils/messageHelpers';
 
 describe('porta-reconciliation', () => {
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
