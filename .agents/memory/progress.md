@@ -4,133 +4,86 @@ Last updated: 2026-05-16
 
 ## Completed
 
-- Sprints 1-8 concluida e mergeadas em `main`.
-- Sprint 8 mergeada via PR `#241` em `origin/main` (`ccd2001518367961637b1a9488c2319aa83d0a21`).
-- `services/war-room/*` ativo com fachada publica preservada.
-- `features/radar/*` criado como boundary oficial inicial (stub).
-- Kickoff documental da Fase 2 concluido:
-  - criado `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
-  - sincronizados `00-README.md`, `01-MASTER-PLAN.md`, `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `07-SPRINT-LOG.md`
-  - sincronizados `HANDOFF_AI.md`, `.agents/memory/*` e roadmap Obsidian
-- PR `#243` (`fix/cnpj-proxy-fallback`) validada localmente em `2026-04-28`:
-  - checkout sincronizado para `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
-  - `vercel dev` ligado ao projeto `scoutagro`
-  - `GET /api/cnpj?cnpj=04252011000110` retornou `200`
-  - `GET /api/cnpj?cnpj=11111111111111` retornou `400`
-  - `GET /api/comex?cnpj=04252011000110` retornou `200`
-  - `npm exec vitest run tests/services/brasilApiService.test.ts` green
-  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green
-- PR `#243` recebeu uma segunda rodada de diagnostico em `2026-04-28`:
-  - logs estruturados adicionados ao cliente (`services/brasilApiService.ts`) e ao handler (`api/cnpj.ts`)
-  - erros HTTP agora preservam `error/detail` do serverless no cliente
-  - o caso `localhost` sem proxy agora gera orientacao explicita em UI e teste dedicado
-  - `npm exec vitest run tests/services/brasilApiService.test.ts tests/components/EmptyStateHome.test.tsx` green (`16` testes)
-  - `npm run typecheck` green
-- Confirmado que `vite` puro nao e ambiente valido para diagnosticar `api/cnpj.ts` neste repo, porque `/api/cnpj` nao tem proxy de desenvolvimento e pode responder com o HTML da app.
-- Skills operacionais locais removidas de `.agents/skills/` e migradas para `~/.agents/skills/` em `2026-05-05`.
-- `.agents/skills/archive/` preservado no repo como camada de licoes aprendidas e referencia historica.
-- `AGENTS.md`, `CLAUDE.md`, `HANDOFF_AI.md`, `docs/SKILLS-GOVERNANCE.md` e `skills-lock.json` alinhados para o novo modelo sem skills locais ativas e sem integracao externa obrigatoria.
-- PR antiga `#252` (`codex/waves-1-2-3`) foi fechada sem merge em `2026-05-16`.
-- Branch `codex/docs-rag-anti-hallucination` implementou uma PR pequena de anti-alucinacao do Docs RAG:
-  - `api/docs-rag.ts` elevou score minimo para `0.60`
-  - contextos vazios/fracos agora retornam sinal explicito de ausencia de documentacao
-  - matches sem texto indexado nao sao promovidos a evidencia textual
-  - `tests/api-docs-rag.test.ts` adiciona cobertura dedicada do endpoint
-  - `utils/webVerification.ts` recebeu limpeza minima de lint preexistente para gate verde
-- PR `#253` mergeada em `2026-05-16`:
-  - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
+- Sprints 1-8 concluídas e mergeadas em `main`.
+- Sprint 8 mergeada via PR `#241`.
+- PR `#253` Docs RAG anti-alucinação mergeada em `2026-05-16`:
   - merge commit `df1ca1e`
-  - checks remotos verdes e `mergeStateStatus: CLEAN`
-  - comentarios de validacao local/remota adicionados na PR
-  - validacao manual Chrome/Vercel preview com CNPJ `04.733.767/0001-80` completou dossie de `SCHEFFER & CIA LTDA`
-- Sprint 9 implementada na branch `refactor/sprint-9`:
+  - validação local/remota documentada
+  - validação manual em Vercel preview com CNPJ `04.733.767/0001-80`
+- Sprint 9 mergeada via PR `#254` em `2026-05-16`:
+  - head da branch: `19485dc`
+  - merge commit: `922a403`
   - `App.tsx` reduzido para `622` linhas
-  - wiring de EmailModal/FollowUpModal extraido para hooks
+  - wiring de EmailModal/FollowUpModal extraído para hooks
   - export/email movido para `services/exportService.ts`
-  - leak `features/dossier` → `features/chat` removido
-  - `madge`/`ts-prune` adicionados e baseline de 1 ciclo registrado
-  - `utils/featureFlags.ts` criado com testes
-  - Pinecone via `VITE_*` documentado como risco aceito
+  - leak `features/dossier` -> `features/chat` removido
+  - dependência circular `chatStore` -> `message-orchestrator` resolvida
+  - `madge`/`ts-prune` adicionados
+  - `utils/featureFlags.ts` criado
+  - OI-055 Pinecone via `VITE_*` registrado como risco aceito
 
 ## In progress
 
-- PR `#254` da Sprint 9 aberta e aguardando review/merge (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/254>).
-- Commit `d88311a` na branch `refactor/sprint-9`.
-- Review por agente especializado identificou e corrigiu 2 P1 + 4 P2 antes do commit:
-  - P1: dependência circular `chatStore ↔ message-orchestrator` resolvida
-  - P1: error handling com timeout 30s em `sendDossierEmail`
-  - P2: validação email com regex
-  - P2: null checks em `openDossierPrintReport`
-  - P2: `scoutDiag` em vez de `console.warn` em `useUpdateNotification`
-  - P2: validação de mensagens antes de processar em `sendDossierEmail`
-- 4 P3 registrados como backlog (dead code, edge cases em testes, feature flags validation, FollowUpModal type location).
+- Onda 0+1 na branch `refactor/wave-0-1-cleanup`, PR `#255`, pronta para validação final/merge.
+- Objetivo:
+  - sincronizar docs/memória pós-PR `#254`;
+  - criar plano de continuação da Onda 0+1;
+  - corrigir `portaIntegrityHold` para não bloquear score com falha parcial;
+  - migrar logs cliente sensíveis para `scoutDiag`.
+- Ajuste pós-validação manual:
+  - `/api/open-web-search` retornava `500` no preview por crash serverless antes do handler (`ERR_MODULE_NOT_FOUND` em import ESM sem `.js`);
+  - corrigidos imports serverless em `api/open-web-search.ts`, `api/extract-content.ts` e `utils/documentExtractor.ts`;
+  - contrato de `/api/open-web-search` ajustado para aceitar `{ url }` sem `query`.
+- Novo item registrado:
+  - OI-066: botão de excluir mensagem renderiza escape Unicode cru `\uD83D\uDDD1\uFE0F` em vermelho no preview; corrigir em follow-up curto.
+- Review comments da PR `#255`:
+  - Gemini Code Assist apontou `catch (...: any)` em `clientLookupService` e `extractContentService`;
+  - ambos foram corrigidos para `unknown`, respondidos na PR e marcados como resolvidos.
 
 ## Blockers
 
-- Nenhum bloqueio tecnico imediato.
-- Risco residual conhecido fora do escopo da PR `#243`: `components/CRMDetail.tsx` ainda depende de chamada direta para `BrasilAPI`.
-- Risco residual de governanca: documentos historicos em `docs/archive/environment-curation-2026-04/` continuam citando o modelo antigo de skills locais por valor historico.
-- Risco residual fora do escopo da PR Docs RAG: ainda nao ha extractor server-side seguro de URL/PDF; qualquer implementacao futura precisa tratar SSRF antes de buscar URLs remotas.
-- OI-055: Pinecone via `VITE_*` aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
+- Nenhum bloqueio técnico imediato.
+- O workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; a Onda 0+1 roda em worktree limpa para não misturar isso.
 
 ## Validation history
 
-### Sprint 8 (done, merged)
-
-- focused War Room/Radar suites: green em `2026-04-23`
-- `npm run test`: green (`102` arquivos, `785` testes)
-- `npm run typecheck`: green
-- `npm run build`: green (warning aceito em `utils/idbStorage.ts`)
-- `npm run lint`: green (`0` erros, warnings em backlog)
-- validacao manual preview/Vercel: aceita em `2026-04-23`
-
-### Baseline warnings still open
-
-- OI-003: chunk warning em `utils/idbStorage.ts`
-- OI-004: warning `SessionsSidebar` em teste
-- OI-005: backlog de lint warnings
-
-### Sprint 9 (branch pronta para PR)
+### Sprint 9 (done, merged)
 
 - `npm run test`: green (`114` arquivos, `854` testes)
 - `npm run typecheck`: green
 - `npm run build`: green (warning aceito de chunking em `utils/idbStorage.ts`)
 - `npm run lint`: green com warnings conhecidos (`0` erros, `160` warnings)
-- `npm run analyze:circular`: 1 ciclo existente (`stores/chatStore.tsx` > `features/chat/message-orchestrator.ts`)
+- `npm run analyze:circular`: 1 ciclo existente antes do fix, depois resolvido no review da PR
 - Playwright local em `http://127.0.0.1:3000/`: tela inicial e home principal carregaram sem `console.error`/`pageerror`
+
+### Onda 0+1
+
+- `npm exec vitest run tests/features/dossier/porta-reconciliation.test.ts tests/features/dossier/waterfall-orchestrator.test.ts` green (`15` testes)
+- `npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts` green (`20` testes)
+- `npm exec vitest run tests/api-open-web-search.test.ts tests/services/investigation-orchestration.test.ts tests/services/geminiProxy.test.ts tests/extraction.test.ts` green (`16` testes)
+- `npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts tests/api-open-web-search.test.ts` green (`27` testes) após resolver os review comments
+- `npm run typecheck` green
+- `npm run test` green (`114` arquivos, `846` testes)
+- `npm run build` green (warnings aceitos OI-003/OI-057)
+- `npm run lint` green com `0` erros e `150` warnings conhecidos
+- `npm run analyze:circular` green, sem ciclos
+- `vercel build --yes` green para confirmar empacotamento serverless.
+- Smoke Vercel protegido com bypass de automação:
+  - `POST /api/open-web-search` com query real: `200`, `OpenWebSearch/Brave`, `degraded: false`, `5` fontes;
+  - `POST /api/open-web-search` com apenas `url`: `200`, `OpenWebSearch/URL`;
+  - `POST /api/open-web-search` com `{}`: `400`, esperado;
+  - `vercel logs --status-code 500 --since 15m`: sem ocorrências após o fix.
 
 ## Important refs
 
-- `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
+- `HANDOFF_AI.md`
 - `docs/ai-context/refactor/02-BOARD.md`
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
-- `HANDOFF_AI.md`
+- `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
 
 ## Next checkpoint
 
-- Aguardar merge da PR `#254` (Sprint 9).
-- Após merge: sincronizar `main` e iniciar Sprint 10 (radar/feature boundary).
-- 4 P3 pendentes de backlog: dead code em exportService, edge cases em useEmailModal tests, feature flags runtime validation, FollowUpScheduleResult type location.
-
-## Incremental update (2026-05-05)
-
-- `services/geminiProxy.ts`: adicionada `sanitizeProxyErrorBody` para reduzir payload de erro e detectar HTML/Checkpoint em 403.
-- Resultado esperado: o usuário não recebe blob HTML gigante na UI, apenas erro curto e rastreável.
-- Validação: `npm run typecheck` green.
-
-## Incremental update (2026-05-16)
-
-- `api/docs-rag.ts`: adicionados `DOCS_RAG_SCORE_MIN = 0.60` e sinal explicito `SEM DOCUMENTAÇÃO ENCONTRADA`.
-- `tests/api-docs-rag.test.ts`: 8 testes novos cobrindo metodo, validacao, score minimo, contexto textual, URL-only e namespace invalido.
-- `utils/webVerification.ts`: removida atribuicao inutil que fazia `npm run lint` falhar no baseline.
-- Validacao:
-  - `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts` green (`12` testes)
-  - `npm run typecheck` green
-  - `npm run test` green (`111` arquivos, `844` testes)
-  - `npm run build` green (warning aceito de chunking em `utils/idbStorage.ts`)
-  - `npm run lint` green com warnings conhecidos (`0` erros)
-- Validacao manual Vercel preview:
-  - Preview autenticada abriu no Chrome.
-  - CNPJ `04.733.767/0001-80` validou e autopreencheu `SCHEFFER & CIA LTDA`, `Sapezal`, `MT`.
-  - Investigacao real completou em preview com score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
+- Validar PR `#255` no Chrome e mergear se não houver novo `500` em `/api/open-web-search`.
+- Após merge, corrigir OI-066 se o escape Unicode cru do botão excluir mensagem ainda aparecer.
+- Após merge da Onda 0+1, iniciar Sprint 10: Radar boundary completion.

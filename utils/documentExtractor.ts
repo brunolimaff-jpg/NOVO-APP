@@ -1,4 +1,4 @@
-import { scoutDiag } from './diagnosticLog';
+import { scoutDiag } from './diagnosticLog.js';
 
 /**
  * Utilitário Unificado de Extração e Busca

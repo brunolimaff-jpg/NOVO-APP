@@ -5,6 +5,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        url: 'http://localhost:3000/',
+      },
+    },
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     // FIX: resolve conflitos de ESM entre dependências do jsdom

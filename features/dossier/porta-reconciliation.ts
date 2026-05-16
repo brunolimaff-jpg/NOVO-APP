@@ -236,12 +236,14 @@ export async function reconcileWaterfallPorta({
   }
 
   if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
-    portaIntegrityHold = true;
-    scoutDiag.error('ModularDossier', 'integridade PORTA comprometida — dimensões ausentes após retries e reconciliação', {
-      sessionId,
-      company: resolvedMegaCompany || null,
-      missingDimensions: waterfallPortaResolution.missingDimensions,
-    });
+    portaIntegrityHold = shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution);
+    if (portaIntegrityHold) {
+      scoutDiag.error('ModularDossier', 'integridade PORTA comprometida — dimensões ausentes após retries e reconciliação', {
+        sessionId,
+        company: resolvedMegaCompany || null,
+        missingDimensions: waterfallPortaResolution.missingDimensions,
+      });
+    }
   }
 
   if (!portaIntegrityHold && !waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {

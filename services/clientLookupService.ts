@@ -47,6 +47,19 @@ const NOT_FOUND_TTL_MS = 30_000;
 // Delay de retry quando JSON.parse falha (sinal de cold start retornando HTML)
 const COLD_START_RETRY_DELAY_MS = 1500;
 
+function describeLookupEndpoint(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return 'lookup-endpoint';
+  }
+}
+
+function truncateForDiag(value: string, maxLength = 80): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
 export interface ClienteResult {
   grupo: string;
   razoes_sociais: string[];
@@ -101,24 +114,32 @@ async function fetchWithRetry(url: string, retries: number = MAX_RETRIES): Promi
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       if (shouldLogLookupDebug) {
-        console.log(`[LOOKUP] Tentativa ${attempt}/${retries}: ${url.substring(0, 80)}...`);
+        scoutDiag.debug('Lookup', 'tentativa de consulta', {
+          attempt,
+          retries,
+          endpoint: describeLookupEndpoint(url),
+        });
       }
       const response = await fetchWithTimeout(url);
       if (shouldLogLookupDebug) {
-        console.log(`[LOOKUP] Sucesso na tentativa ${attempt}`);
+        scoutDiag.debug('Lookup', 'consulta concluída', { attempt });
       }
       return response;
-    } catch (err: any) {
-      lastError = err;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
       if (shouldLogLookupDebug) {
-        console.warn(`[LOOKUP] Tentativa ${attempt} falhou:`, err.message);
+        scoutDiag.warn('Lookup', 'tentativa de consulta falhou', {
+          attempt,
+          retries,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
 
       if (attempt < retries) {
         // Backoff exponencial: 1s, 2s, 4s
         const wait = 1000 * Math.pow(2, attempt - 1);
         if (shouldLogLookupDebug) {
-          console.log(`[LOOKUP] Aguardando ${wait / 1000}s antes de tentar novamente...`);
+          scoutDiag.debug('Lookup', 'aguardando retry', { attempt, waitMs: wait });
         }
         await new Promise(resolve => setTimeout(resolve, wait));
       }
@@ -345,7 +366,7 @@ function compareRankedLookupResponses(a: RankedLookupResponse, b: RankedLookupRe
 
 export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse> {
   if (shouldLogLookupDebug) {
-    console.log("[LOOKUP] === INÍCIO ===");
+    scoutDiag.debug('Lookup', 'início da consulta de cliente');
   }
 
   const nomeLimpo = stripLookupNoise(nomeEmpresa)
@@ -359,7 +380,9 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   // Cache permanente (encontrado=true) — retorna imediatamente
   if (_lookupCache.has(cacheKey)) {
     if (shouldLogLookupDebug) {
-      console.log("[LOOKUP] Cache hit (permanente):", cacheKey);
+      scoutDiag.debug('Lookup', 'cache hit permanente', {
+        cacheKey: truncateForDiag(cacheKey),
+      });
     }
     return _lookupCache.get(cacheKey)!;
   }
@@ -369,18 +392,24 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   if (notFoundEntry) {
     if (Date.now() < notFoundEntry.expiresAt) {
       if (shouldLogLookupDebug) {
-        console.log("[LOOKUP] Cache hit (not-found TTL):", cacheKey);
+        scoutDiag.debug('Lookup', 'cache hit not-found TTL', {
+          cacheKey: truncateForDiag(cacheKey),
+        });
       }
       return notFoundEntry.data;
     }
     _notFoundCache.delete(cacheKey);
     if (shouldLogLookupDebug) {
-      console.log("[LOOKUP] Cache not-found expirado, refazendo chamada:", cacheKey);
+      scoutDiag.debug('Lookup', 'cache not-found expirado', {
+        cacheKey: truncateForDiag(cacheKey),
+      });
     }
   }
 
   if (shouldLogLookupDebug) {
-    console.log("[LOOKUP] Query:", nomeLimpo);
+    scoutDiag.debug('Lookup', 'query normalizada', {
+      query: truncateForDiag(nomeLimpo, 120),
+    });
   }
 
   try {
@@ -433,7 +462,10 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
         };
 
     if (shouldLogLookupDebug) {
-      console.log("[LOOKUP] Resultado:", data.encontrado ? "ENCONTRADO ✅" : "NÃO ENCONTRADO", "| Total:", data.total);
+      scoutDiag.debug('Lookup', 'resultado da consulta', {
+        found: data.encontrado,
+        total: data.total,
+      });
     }
 
     if (data.encontrado) {
@@ -447,9 +479,6 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
 
     return data;
   } catch (err: any) {
-    if (shouldLogLookupDebug) {
-      console.error("[LOOKUP] ERRO:", err.message);
-    }
     scoutDiag.error("Lookup", "exceção em lookupCliente", {
       query: nomeEmpresa.slice(0, 120),
       error: String(err?.message || err),
@@ -473,7 +502,9 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
 
     const text = await resp.text();
     if (shouldLogLookupDebug) {
-      console.log("[LOOKUP] Response:", text.substring(0, 100));
+      scoutDiag.debug('Lookup', 'preview de resposta', {
+        preview: text.slice(0, 100),
+      });
     }
 
     try {

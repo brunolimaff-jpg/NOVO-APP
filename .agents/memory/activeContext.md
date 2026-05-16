@@ -13,66 +13,44 @@ Read order:
 3. `.agents/memory/activeContext.md`
 4. `.agents/memory/progress.md`
 5. `.agents/memory/decisions.md`
-6. `docs/obsidian/00-MASTER.md` for visual navigation only
+6. `docs/ai-context/refactor/02-BOARD.md`
+7. `docs/obsidian/00-MASTER.md` for visual navigation only
 
 ## Current refactor phase
 
-Fase 1 (Sprints 1-8) esta concluida em `main`.
+Fase 2 (manutenibilidade) está em andamento.
 
-- Sprint 8 mergeada via PR `#241` (`ccd2001518367961637b1a9488c2319aa83d0a21`)
-- `services/war-room/*` ativo com fachada publica preservada em `services/warRoomService.ts`
-- `features/radar/*` oficializado como boundary inicial (stub)
-
-Fase 2 (manutenibilidade) foi aberta de forma documental:
-
-- `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
-- Sprint 9-12 definidas como trilha curta de reducao de acoplamento
+- Fase 1 (Sprints 1-8) concluída em `main`.
+- Sprint 9 concluída e mergeada via PR `#254`.
+- `origin/main` pós-Sprint 9: `922a40316c08e78dab9a978e6fa1172c75198cdd`.
+- Próxima sprint canônica após esta ponte curta: Sprint 10, Radar boundary completion.
 
 ## Current task context
 
-Branch local atual: `refactor/sprint-9`, criada a partir de `origin/main` (`df1ca1e`) apos merge da PR `#253`.
+Branch ativa desta entrega: `refactor/wave-0-1-cleanup`, derivada de `origin/main@922a403`.
 
-Tag de rollback: `pre-sprint-9`.
+Esta Onda 0+1 existe para limpar a base antes da Sprint 10:
 
-Escopo desta passada:
+- Sincronizar docs/memória que ainda diziam que a PR `#254` estava aberta.
+- Registrar um plano de continuação detalhado para agentes futuros.
+- Corrigir o bug provável de PORTA que podia tratar falha parcial como integridade irrecuperável.
+- Migrar logs cliente de maior risco para `scoutDiag`, sem sweep global.
 
-- Implementar Sprint 9: App shell decoupling + governanca.
-- Tratar Pinecone via `VITE_*` como risco aceito por app interno/fechado.
-- Preservar fachadas publicas congeladas.
-- Nao incluir `mcp-server/`.
+## Workspace note
 
-Estado implementado:
+O workspace principal original estava em `refactor/code-quality` com mudanças não commitadas em:
 
-- `App.tsx` reduzido para `622` linhas.
-- Wiring de EmailModal/FollowUpModal extraido para `hooks/useEmailModal.ts` e `hooks/useFollowUpModal.ts`.
-- Lógica de export/email movida para `services/exportService.ts`.
-- Leak `features/dossier` → `features/chat` removido via helpers compartilhados em `utils/*`.
-- `madge` e `ts-prune` adicionados; baseline atual: 1 ciclo (`stores/chatStore.tsx` > `features/chat/message-orchestrator.ts`).
-- `utils/featureFlags.ts` criado com modelo `VITE_FF_*`, fallback e `removeBy`.
+- `AGENTS.md`
+- `CODEBASE_INDEX.md`
+- `docs/ai-context/refactor/00-README.md`
+- `.agents/memory/last-session-context.md`
+- `docs/ai-context/refactor/09-CODEBASE-EXPLORATION-2026-05-16.md`
+
+Essas mudanças foram preservadas fora do fluxo desta branch; a implementação da Onda 0+1 foi feita em worktree limpa para não misturar escopos.
 
 ## Immediate next step
 
-1. Abrir PR da branch `refactor/sprint-9`.
-2. Mergear apos review se CI remoto repetir o verde local.
-3. Depois do merge, abrir Sprint 10 (Radar boundary completion).
-
-## Session note (2026-05-05)
-
-- Ajustado `services/geminiProxy.ts` para sanitizar erros HTTP não-OK e evitar dump de HTML inteiro (ex.: Vercel Security Checkpoint 403).
-- Mensagem agora normaliza para texto curto e acionável (`blocked by Vercel Security Checkpoint (HTTP 403)` / `unexpected HTML response from proxy`).
-- Validação executada: `npm run typecheck` (green).
-- Skills operacionais locais foram removidas de `.agents/skills/` e copiadas para o ambiente global do usuário em `~/.agents/skills/`.
-- Materiais históricos e lições aprendidas em `.agents/skills/archive/` foram preservados no repo.
-- Arquivos de handoff e versionamento foram mantidos e atualizados para refletir que não há skills locais ativas nem integração externa obrigatória.
-
-## Session note (2026-05-16)
-
-- PR antiga `#252` foi descartada sem merge.
-- Reimplementada somente a parte segura de anti-alucinacao do Docs RAG.
-- Validacao local executada: `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run lint`.
-- `npm run lint` passa com warnings conhecidos, sem erros.
-- PR `#253` aberta, commit `df2f232`, CI remoto verde e `mergeStateStatus: CLEAN`.
-- Validacao manual no Chrome autenticado/Vercel preview:
-  - Preview: `https://scoutagro-git-codex-docs-rag-a3d156-brunolimaff-3629s-projects.vercel.app`
-  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
-  - Fluxo real de dossie completou; gerou score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
+1. Concluir as edições da Onda 0+1.
+2. Rodar testes focados e gates completos.
+3. Abrir PR da branch `refactor/wave-0-1-cleanup`.
+4. Após merge, iniciar Sprint 10 em branch limpa a partir de `main`.

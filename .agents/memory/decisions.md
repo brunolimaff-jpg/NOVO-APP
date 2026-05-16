@@ -91,3 +91,9 @@ Reason: `chatStore` importa `LastAction` de `message-orchestrator`, e `message-o
 Decision: toda PR da Sprint 9+ deve passar por review com agente `reviewer` antes do commit final.
 
 Reason: a review encontrou 2 P1 e 4 P2 que teriam ido para a PR sem detecção. O custo de rodar o reviewer é baixo comparado ao risco de merge com issues de segurança ou arquiteturais.
+
+## 2026-05-16 - Onda 0+1 antes da Sprint 10
+
+Decision: executar uma ponte curta `refactor/wave-0-1-cleanup` antes de abrir a Sprint 10.
+
+Reason: a PR `#254` já estava mergeada em `main`, mas os docs/memórias ainda tratavam Sprint 9 como aberta. A mesma investigação encontrou dois ajustes pequenos e seguros para fazer antes do Radar: corrigir o hold parcial de PORTA e trocar logs cliente sensíveis por `scoutDiag`. Escopos maiores (`Radar`, componentes grandes, PWA, performance) ficam fora desta onda para preservar revisão pequena.
