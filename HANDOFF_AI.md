@@ -27,7 +27,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural (baseline atual)
 
-> Atualizado em 2026-04-30 — HEAD `49068ff` na branch `codex/piccini-dossier-pdf`.
+> Atualizado em 2026-05-16 — branch local `codex/docs-rag-anti-hallucination` a partir de `origin/main` `b2c67db`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -37,6 +37,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - `types.ts` permanece centralizado.
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
 - **Risco latente:** `VITE_PINECONE_API_KEY` referenciado em `index.tsx` — pode vazar no bundle Vite se preenchido em `.env` — resolver em Sprint 9.
+- Docs RAG anti-alucinacao em PR pequena: `api/docs-rag.ts` agora sinaliza ausencia de documentacao forte/textual em vez de devolver contexto vazio ou URL-only como evidencia.
+- PR aberta: `#253` <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>, commit `df2f232`, checks remotos verdes e `mergeStateStatus: CLEAN`.
 
 ## Programa de refatoracao
 
@@ -55,6 +57,32 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `components/LoadingSmart.tsx` | 766 | Sprint 11 |
 | `components/WarRoom.tsx` | 552 + sem testes | Sprint 11 |
 | `hooks/useRadar.ts` + `services/radarService.ts` | 291 + 234 (fora do boundary) | Sprint 10 |
+
+## Entrega em curso (2026-05-16)
+
+- Branch: `codex/docs-rag-anti-hallucination`
+- Escopo: anti-alucinacao do `api/docs-rag.ts` sem extractor de URL/PDF e sem lazy-loading de prompts.
+- Mudancas:
+  - score minimo Docs RAG `0.60`
+  - sinal explicito `SEM DOCUMENTAÇÃO ENCONTRADA`
+  - matches sem texto indexado nao sao promovidos a evidencia textual
+  - cobertura nova em `tests/api-docs-rag.test.ts`
+  - limpeza minima de lint em `utils/webVerification.ts`
+- Validacao local:
+  - `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts`
+  - `npm run typecheck`
+  - `npm run test`
+  - `npm run build`
+  - `npm run lint`
+- Validacao manual em Vercel preview autenticada pelo Chrome:
+  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
+  - Dossie real completou com score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
+
+## Riscos residuais imediatos
+
+- Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
+- `VITE_PINECONE_API_KEY` em `index.tsx` segue pendente.
+- Warnings de lint e build seguem como backlog aceito, embora `npm run lint` agora saia com `0` erros.
 
 ## Governance de Handoff
 

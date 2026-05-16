@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-05
+Last updated: 2026-05-16
 
 ## Current operating context
 
@@ -30,36 +30,30 @@ Fase 2 (manutenibilidade) foi aberta de forma documental:
 
 ## Current task context
 
-Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
+Branch local atual: `codex/docs-rag-anti-hallucination`, criada a partir de `origin/main` (`b2c67db`).
 
-- checkout local sincronizado com a cabeca da PR no GitHub:
-  - branch: `fix/cnpj-proxy-fallback`
-  - head: `f059ff28e284accb0c2ca68c834b4992f9cfdcdd`
-- `origin/main` estava em `d2649a67cb79f4a57d46b8db3e48744d8d3147dd` no momento da investigacao
-- escopo mantido so na PR `#243`, sem expandir para `components/CRMDetail.tsx`
-- validacao local correta do proxy CNPJ aconteceu em `vercel dev`, ligado ao projeto `scoutagro`
-- resultados confirmados em `2026-04-28`:
-  - `GET /api/cnpj?cnpj=04252011000110` -> `200` com `companyName`, `city`, `state`, `cnae` e `cnaeDescricao`
-  - `GET /api/cnpj?cnpj=11111111111111` -> `400` com erro de CNPJ invalido
-  - `GET /api/comex?cnpj=04252011000110` -> `200`
-  - `npm exec vitest run tests/services/brasilApiService.test.ts` -> green
-  - `npm exec vitest run tests/components/EmptyStateHome.test.tsx` -> green
-- segunda rodada em `2026-04-28` adicionou instrumentacao para debug do preview:
-  - `services/brasilApiService.ts` agora preserva `error/detail` de respostas HTTP nao-OK
-  - o cliente loga endpoint resolvido, sucesso e falha via `scoutDiag`
-  - `api/cnpj.ts` agora loga request start/success/not-found/error no runtime serverless
-  - `components/EmptyStateHome.tsx` mostra orientacao explicita para `localhost` sem proxy em vez de mascarar como indisponibilidade generica
-- observacao importante:
-  - `npm run dev` / `vite` puro nao valida `api/cnpj.ts` neste repo; `/api/cnpj` cai no HTML da app sem proxy dedicado
-  - para esse caso, o cliente agora mostra: `Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.`
-- risco residual fora de escopo desta passada:
-  - `components/CRMDetail.tsx` continua chamando `https://brasilapi.com.br/api/cnpj/v1/*` diretamente
+PR aberta: `#253` - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
+
+Escopo desta passada:
+
+- PR pequena de anti-alucinacao para `api/docs-rag.ts`.
+- Sem extractor server-side de URL/PDF.
+- Sem lazy-loading de prompts.
+- Sem refactor amplo de fachadas publicas.
+- Ajuste minimo adicional em `utils/webVerification.ts` para remover um erro de lint preexistente (`no-useless-assignment`) e permitir gate verde.
+
+Estado implementado:
+
+- `api/docs-rag.ts` agora usa corte `0.60` para Docs RAG.
+- Quando nao ha matches fortes/textuais, retorna sinal explicito:
+  `[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]`
+- Matches fortes sem `metadata.text`/`metadata.content` nao viram evidencia textual.
+- `tests/api-docs-rag.test.ts` cobre GET, body invalido, matches vazios, score baixo, match textual, match URL-only, mix textual+URL-only e namespace invalido.
 
 ## Immediate next step
 
-1. Reproduzir o bug no browser somente em runtime serverless (`vercel dev` ou deploy), nao em `vite` puro.
-2. No preview da PR, abrir o console do browser e conferir os logs `🦅 [Scout360][CnpjLookup]` junto com os logs de `api/cnpj.ts` na Vercel.
-3. Avaliar em outra passada se o fix do proxy deve ser expandido para `components/CRMDetail.tsx`.
+1. Revisar/mergear PR `#253` depois de conferir que os checks continuam verdes.
+2. Depois do merge, seguir para a proxima PR pequena: remover `VITE_PINECONE_API_KEY` do frontend ou modelar extractor seguro com protecao SSRF.
 
 ## Session note (2026-05-05)
 
@@ -69,3 +63,15 @@ Validacao local e alinhamento da PR `#243` (`fix/cnpj-proxy-fallback`):
 - Skills operacionais locais foram removidas de `.agents/skills/` e copiadas para o ambiente global do usuário em `~/.agents/skills/`.
 - Materiais históricos e lições aprendidas em `.agents/skills/archive/` foram preservados no repo.
 - Arquivos de handoff e versionamento foram mantidos e atualizados para refletir que não há skills locais ativas nem integração externa obrigatória.
+
+## Session note (2026-05-16)
+
+- PR antiga `#252` foi descartada sem merge.
+- Reimplementada somente a parte segura de anti-alucinacao do Docs RAG.
+- Validacao local executada: `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run lint`.
+- `npm run lint` passa com warnings conhecidos, sem erros.
+- PR `#253` aberta, commit `df2f232`, CI remoto verde e `mergeStateStatus: CLEAN`.
+- Validacao manual no Chrome autenticado/Vercel preview:
+  - Preview: `https://scoutagro-git-codex-docs-rag-a3d156-brunolimaff-3629s-projects.vercel.app`
+  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
+  - Fluxo real de dossie completou; gerou score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.

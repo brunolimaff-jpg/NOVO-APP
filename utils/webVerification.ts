@@ -90,7 +90,7 @@ export function extractPromotableInlineSources(
   }
 
   while ((match = RAW_URL_REGEX.exec(text || '')) !== null) {
-    let title = '';
+    let title: string;
     try {
       title = new URL(match[0]).hostname.replace(/^www\./i, '');
     } catch {
