@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { scoutDiag } from '../utils/diagnosticLog';
-import { universalExtract } from '../utils/documentExtractor';
+import { scoutDiag } from '../utils/diagnosticLog.js';
+import { universalExtract } from '../utils/documentExtractor.js';
 
 const ExtractRequestSchema = z.object({
     url: z.string().url().optional(),
@@ -47,4 +47,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'Erro interno na extração', details: error.message });
     }
 }
-

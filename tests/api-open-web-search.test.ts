@@ -111,6 +111,49 @@ describe('api/open-web-search', () => {
     });
   });
 
+  it('aceita URL sem query e extrai HTML diretamente', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      text: async () => '<html><body><main>Conteudo publico da pagina</main></body></html>',
+    } as Response);
+
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: { url: 'https://example.com/page' },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      content: 'Conteudo publico da pagina',
+      source: 'OpenWebSearch/URL',
+      degraded: false,
+      sources: [
+        expect.objectContaining({
+          title: 'https://example.com/page',
+          url: 'https://example.com/page',
+          provider: 'url',
+        }),
+      ],
+    });
+  });
+
+  it('rejeita request sem query e sem url', async () => {
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {},
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(performWebSearchMock).not.toHaveBeenCalled();
+  });
+
   it('classifica Brave 401/403 como unauthorized sem travar o dossiê', async () => {
     process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
     vi.mocked(fetch).mockResolvedValueOnce({

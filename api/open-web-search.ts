@@ -1,11 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { scoutDiag } from '../utils/diagnosticLog';
-import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor';
+import { scoutDiag } from '../utils/diagnosticLog.js';
+import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor.js';
 
 const SearchRequestSchema = z.object({
-    query: z.string().min(1),
+    query: z.string().min(1).optional(),
     url: z.string().url().optional(),
+}).refine(data => Boolean(data.query || data.url), {
+    message: 'Deve fornecer query ou url',
 });
 
 export const config = {
@@ -230,8 +232,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const { query, url } = parsed.data;
+        const searchQuery = query || url || '';
 
-        scoutDiag.info('OpenWebSearch', 'Iniciando operação', { query, url });
+        scoutDiag.info('OpenWebSearch', 'Iniciando operação', { query: searchQuery, url });
 
         let content = '';
         let sources: OpenWebSearchSource[] = [];
@@ -263,7 +266,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
                 scoutDiag.warn('OpenWebSearch', `Falha na URL ${url}, tentando busca...`, { error: message });
-                const searchResult = await performResilientSearch(query);
+                const searchResult = await performResilientSearch(searchQuery);
                 content = searchResult.content;
                 sources = searchResult.sources;
                 source = searchResult.source;
@@ -272,7 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 providerStatus = searchResult.providerStatus;
             }
         } else {
-            const searchResult = await performResilientSearch(query);
+            const searchResult = await performResilientSearch(searchQuery);
             content = searchResult.content;
             sources = searchResult.sources;
             source = searchResult.source;
