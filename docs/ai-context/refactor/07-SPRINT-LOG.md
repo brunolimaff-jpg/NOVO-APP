@@ -667,3 +667,40 @@
   - `npm run build`: green
   - `npm run lint`: green com `0` erros e `147` warnings conhecidos
   - `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests`: sem ocorrências
+
+## 2026-05-16 - Sprint 10 Radar boundary runtime
+
+- Fase: execution
+- Branch: `codex/sprint-10-radar-boundary`
+- Base: `origin/main@66591f1`
+- Objetivo: mover o runtime do Radar para `features/radar/*` preservando compatibilidade publica.
+- Decisões:
+  - manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade nesta PR
+  - fazer `App.tsx` consumir o hook pelo barrel `features/radar`
+  - preservar `types.ts` como fonte central de contratos e constantes Radar
+  - deixar componentes visuais `Radar*` fora desta fatia
+- Mudanças concluídas:
+  - `hooks/useRadar.ts` movido para `features/radar/useRadar.ts`
+  - `services/radarService.ts` movido para `features/radar/service.ts`
+  - facades antigas recriadas com reexports tipados
+  - `features/radar/index.ts` exporta hook, service, tipos e constantes
+  - testes de App passaram a mockar `features/radar`
+  - criado `tests/architecture/radarBoundaryImportGuard.test.ts`
+  - review comments do Gemini Code Assist resolvidos: manual `forceScan` não depende de `config.enabled` e falhas de scan usam `scoutDiag.error`
+- PR:
+  - `#257` aberta em 2026-05-16
+  - preview Vercel ready em `https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app`
+  - `mergeStateStatus: CLEAN`
+- Checks registrados até agora:
+  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx`: green (`40` testes)
+  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts`: green (`35` testes)
+  - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx`: green (`11` testes)
+  - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx`: green (`7` testes)
+  - `npm run typecheck`: green
+  - `npm run test`: green (`115` arquivos, `851` testes)
+  - `npm run build`: green com warnings aceitos de chunking
+  - `npm run lint`: green com `0` erros e `147` warnings conhecidos
+  - `npm run analyze:circular`: green, sem ciclos
+  - checks remotos da PR `#257`: green para AI Config, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel e Vercel Preview Comments
+- Próximo passo:
+  - validar preview manualmente e mergear PR `#257`

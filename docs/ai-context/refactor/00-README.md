@@ -13,10 +13,11 @@ Leia nesta ordem:
 3. [`PLANO_COMPLETO_SPRINTS.md`](./PLANO_COMPLETO_SPRINTS.md) ← especificação detalhada de Sprint 9–12 (com auditoria e correções)
 4. [`sprints/00-INDEX.md`](./sprints/00-INDEX.md) ← specs executáveis das próximas sprints (PR/onda/arquivo)
 5. [`02-BOARD.md`](./02-BOARD.md)
-6. [`10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`](./10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md) ← plano ativo de cleanup pós-Sprint 9
-7. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
-8. [`05-VALIDATION.md`](./05-VALIDATION.md)
-9. [`06-HANDOFF.md`](./06-HANDOFF.md)
+6. [`11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`](./11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md) ← plano ativo de Sprint 10
+7. [`10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`](./10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md) ← cleanup pós-Sprint 9 concluído
+8. [`03-OPEN-ITEMS.md`](./03-OPEN-ITEMS.md)
+9. [`05-VALIDATION.md`](./05-VALIDATION.md)
+10. [`06-HANDOFF.md`](./06-HANDOFF.md)
 
 Consulte estes arquivos quando necessario:
 
