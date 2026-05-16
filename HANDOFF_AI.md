@@ -38,6 +38,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
 - **Risco latente:** `VITE_PINECONE_API_KEY` referenciado em `index.tsx` — pode vazar no bundle Vite se preenchido em `.env` — resolver em Sprint 9.
 - Docs RAG anti-alucinacao em PR pequena: `api/docs-rag.ts` agora sinaliza ausencia de documentacao forte/textual em vez de devolver contexto vazio ou URL-only como evidencia.
+- PR aberta: `#253` <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>, commit `df2f232`, checks remotos verdes e `mergeStateStatus: CLEAN`.
 
 ## Programa de refatoracao
 
@@ -73,6 +74,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run test`
   - `npm run build`
   - `npm run lint`
+- Validacao manual em Vercel preview autenticada pelo Chrome:
+  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
+  - Dossie real completou com score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
 
 ## Riscos residuais imediatos
 

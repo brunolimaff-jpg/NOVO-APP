@@ -32,6 +32,8 @@ Fase 2 (manutenibilidade) foi aberta de forma documental:
 
 Branch local atual: `codex/docs-rag-anti-hallucination`, criada a partir de `origin/main` (`b2c67db`).
 
+PR aberta: `#253` - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
+
 Escopo desta passada:
 
 - PR pequena de anti-alucinacao para `api/docs-rag.ts`.
@@ -50,9 +52,8 @@ Estado implementado:
 
 ## Immediate next step
 
-1. Abrir PR da branch `codex/docs-rag-anti-hallucination`.
-2. Validar no preview/Vercel um fluxo real de dossie com Docs RAG ausente e com Docs RAG textual.
-3. Depois do merge, seguir para a proxima PR pequena: remover `VITE_PINECONE_API_KEY` do frontend ou modelar extractor seguro com protecao SSRF.
+1. Revisar/mergear PR `#253` depois de conferir que os checks continuam verdes.
+2. Depois do merge, seguir para a proxima PR pequena: remover `VITE_PINECONE_API_KEY` do frontend ou modelar extractor seguro com protecao SSRF.
 
 ## Session note (2026-05-05)
 
@@ -69,3 +70,8 @@ Estado implementado:
 - Reimplementada somente a parte segura de anti-alucinacao do Docs RAG.
 - Validacao local executada: `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run lint`.
 - `npm run lint` passa com warnings conhecidos, sem erros.
+- PR `#253` aberta, commit `df2f232`, CI remoto verde e `mergeStateStatus: CLEAN`.
+- Validacao manual no Chrome autenticado/Vercel preview:
+  - Preview: `https://scoutagro-git-codex-docs-rag-a3d156-brunolimaff-3629s-projects.vercel.app`
+  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
+  - Fluxo real de dossie completou; gerou score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.

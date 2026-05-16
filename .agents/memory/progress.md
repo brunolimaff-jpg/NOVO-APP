@@ -37,10 +37,16 @@ Last updated: 2026-05-16
   - matches sem texto indexado nao sao promovidos a evidencia textual
   - `tests/api-docs-rag.test.ts` adiciona cobertura dedicada do endpoint
   - `utils/webVerification.ts` recebeu limpeza minima de lint preexistente para gate verde
+- PR `#253` aberta em `2026-05-16`:
+  - <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>
+  - commit `df2f232`
+  - checks remotos verdes e `mergeStateStatus: CLEAN`
+  - comentarios de validacao local/remota adicionados na PR
+  - validacao manual Chrome/Vercel preview com CNPJ `04.733.767/0001-80` completou dossie de `SCHEFFER & CIA LTDA`
 
 ## In progress
 
-- Publicacao da PR `codex/docs-rag-anti-hallucination`.
+- Revisao/merge da PR `#253` (`codex/docs-rag-anti-hallucination`).
 - Preparacao da Sprint 9 (App shell decoupling + governanca).
 
 ## Blockers
@@ -98,3 +104,7 @@ Last updated: 2026-05-16
   - `npm run test` green (`111` arquivos, `844` testes)
   - `npm run build` green (warning aceito de chunking em `utils/idbStorage.ts`)
   - `npm run lint` green com warnings conhecidos (`0` erros)
+- Validacao manual Vercel preview:
+  - Preview autenticada abriu no Chrome.
+  - CNPJ `04.733.767/0001-80` validou e autopreencheu `SCHEFFER & CIA LTDA`, `Sapezal`, `MT`.
+  - Investigacao real completou em preview com score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
