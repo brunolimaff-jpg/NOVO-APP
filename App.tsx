@@ -302,7 +302,11 @@ const App: React.FC = () => {
         ),
       }));
     } catch (e: unknown) {
-      console.warn('Suggestion regeneration failed', e);
+      scoutDiag.warn('App', 'falha ao regenerar sugestões', {
+        sessionId,
+        messageId,
+        error: e instanceof Error ? e.message : String(e),
+      });
       toast.error(e instanceof Error ? e.message : 'Falha na conexão com a IA.');
       updateSessionById(sessionId, session => ({
         ...session,

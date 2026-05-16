@@ -46,6 +46,14 @@
 | OI-060 | low | open | Branches paralelas ativas durante ~9 semanas de Fase 2 sem política de integração | 5 branches ativas além da principal | Política documentada em `PLANO_COMPLETO_SPRINTS.md` |
 | OI-062 | medium | open | Golden tests de prompts precisam ser criados *antes* da Sprint 13 (migração de strings → `.md`) | Testes em `tests/prompts/` existem mas não têm baseline de output do LLM | Sprint 12 (Onda 4) |
 
+## Onda 0+1 - Cleanup pós-Sprint 9
+
+| ID | Severidade | Status | Item | Contexto | Próxima ação |
+|---|---|---|---|---|---|
+| OI-063 | high | in_progress | PORTA partial integrity hold | Falha parcial de dimensões não deve bloquear `ensureWaterfallScorePorta` como se todas as dimensões estivessem ausentes | validar Onda 0+1 e fechar após PR |
+| OI-064 | medium | in_progress | Logs cliente sensíveis | `clientLookupService`, `extractContentService`, `feedbackService` e `App.tsx` ainda tinham `console.*` com potencial de expor query/URL/feedback | validar migração para `scoutDiag` e payload truncado |
+| OI-065 | medium | in_progress | Docs/memória pós-PR `#254` stale | Canônicos ainda diziam que Sprint 9 estava em review/aguardando merge | fechar com sync documental da Onda 0 |
+
 ## Historico de Itens Resolvidos (trilha S1-S8)
 
 | ID | Severidade | Status | Item | Fechamento |

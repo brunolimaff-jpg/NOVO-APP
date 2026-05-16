@@ -589,3 +589,33 @@
   - execucao da Sprint 9 ainda nao iniciada
 - Proximo passo:
   - abrir o trabalho de implementacao da Sprint 9 com escopo fechado e gates completos
+
+## 2026-05-16 - Onda 0+1 cleanup pós-Sprint 9
+
+- Fase: cleanup
+- Branch: `refactor/wave-0-1-cleanup`
+- Base: `origin/main@922a403`
+- Objetivo: reconciliar o estado pós-merge da PR `#254` e aplicar uma correção técnica pequena antes da Sprint 10.
+- Contexto confirmado:
+  - PR `#254` mergeada em `main` em 2026-05-16
+  - head da branch: `19485dc`
+  - merge commit: `922a403`
+  - docs/memória ainda tratavam Sprint 9 como review/aguardando merge
+- Decisões:
+  - executar Onda 0 e Onda 1 juntas
+  - usar worktree limpa para não misturar mudanças locais de `refactor/code-quality`
+  - manter Radar boundary, componentes grandes, PWA e performance fora desta PR
+- Escopo técnico:
+  - corrigir `portaIntegrityHold` para não tratar falha parcial como hold de integridade
+  - migrar logs cliente sensíveis para `scoutDiag`
+- Próximo passo:
+  - abrir PR da Onda 0+1
+  - depois do merge, iniciar Sprint 10
+- Checks registrados:
+  - testes focados de PORTA: green (`15` testes)
+  - testes focados de logs/extraction: green (`20` testes)
+  - `npm run typecheck`: green
+  - `npm run test`: green (`114` arquivos, `846` testes)
+  - `npm run build`: green, com warnings aceitos de chunking
+  - `npm run lint`: green com `0` erros e `150` warnings conhecidos
+  - `npm run analyze:circular`: green, sem ciclos

@@ -1,7 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const generateDossierModuleMock = vi.hoisted(() => vi.fn());
+const scoutDiagMock = vi.hoisted(() => ({
+  warn: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+}));
+
+vi.mock('../../../services/geminiService', () => ({
+  generateDossierModule: generateDossierModuleMock,
+}));
+
+vi.mock('../../../utils/diagnosticLog', () => ({
+  scoutDiag: scoutDiagMock,
+}));
+
 import {
   buildPortaReconciliationPrompt,
   ensureWaterfallScorePorta,
+  reconcileWaterfallPorta,
   resolveModuleNamesForMissingDimensions,
   shouldHoldWaterfallScoreForIntegrity,
 } from '../../../features/dossier/porta-reconciliation';
@@ -47,6 +64,27 @@ Texto consolidado sem marcador explícito.
       source: 'none',
       missingDimensions: ['P', 'O', 'R', 'T', 'A'],
     })).toThrow('Score PORTA não pôde ser consolidado após todas as tentativas.');
+  });
+
+  it('não transforma falha parcial de PORTA em hold de integridade', async () => {
+    generateDossierModuleMock.mockResolvedValue('');
+
+    await expect(
+      reconcileWaterfallPorta({
+        sessionId: 'session-1',
+        signal: new AbortController().signal,
+        resolvedMegaCompany: 'Scheffer',
+        sessionCnpjDigits: '04733767000180',
+        dossierSeedContext: '',
+        waterfallLookupContext: '',
+        seniorEvidenceContext: '',
+        accumulatedText: 'Texto com [[PORTA_FEED_P:7:HA:1:CNPJS:1:FAT:NA]] parcial.',
+        modulesByName: new Map(),
+        runWaterfallModule: vi.fn(),
+        optionalStepFailures: new Set(),
+        setFailureCount: vi.fn(),
+      }),
+    ).rejects.toThrow('Falha técnica ao consolidar Score PORTA');
   });
 
   it('preenche perguntas de acompanhamento quando a IA retorna lista vazia ou parcial', () => {

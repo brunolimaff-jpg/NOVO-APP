@@ -1,4 +1,5 @@
 import { Feedback } from '../types';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 export interface MessageFeedback {
   messageId: string;
@@ -14,7 +15,7 @@ const feedbackBuffer: MessageFeedback[] = [];
 
 /**
  * Registra o feedback do usuário.
- * No futuro, substituir o console.log por um fetch() para o Google Apps Script.
+ * No futuro, substituir o buffer local por um fetch() para o Google Apps Script.
  */
 export function recordFeedback(entry: MessageFeedback) {
   feedbackBuffer.push(entry);
@@ -23,5 +24,12 @@ export function recordFeedback(entry: MessageFeedback) {
   // const GOOGLE_SCRIPT_URL = "SEU_ENDPOINT_AQUI";
   // fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify(entry) ... })
   
-  console.log("📝 Feedback Registrado (Ready for Sheets):", entry);
+  scoutDiag.info('Feedback', 'feedback registrado no buffer local', {
+    messageId: entry.messageId,
+    feedbackType: entry.feedbackType,
+    section: entry.section,
+    timestamp: entry.timestamp,
+    questionChars: entry.questionSnapshot.length,
+    responseChars: entry.botResponseSnapshot?.length ?? 0,
+  });
 }

@@ -85,9 +85,9 @@ constants/
 
 | Regra | Estado Atual | Sprint de Resolucao |
 |---|---|---|
-| `features/dossier/*` nao importa de `features/chat/*` | **Violado** (4 imports) | Sprint 9 |
+| `features/dossier/*` nao importa de `features/chat/*` | **Resolvido** (Sprint 9 / PR `#254`) | done |
 | `features/radar/*` contem runtime completo | **Violado** (apenas stub) | Sprint 10 |
-| `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco latente** (`index.tsx:17`) | Sprint 9 |
+| `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco aceito** para app interno/fechado (OI-055) | reavaliar se app virar externo |
 | Componentes < 500 linhas | **Violado** (CRMDetail 717, LoadingSmart 766, WarRoom 552) | Sprint 11 |
 
 ## Regras de Organizacao

@@ -6,7 +6,7 @@ Este diretório contém a especificação **executável** das Sprints 9–12, no
 
 | Sprint | Branch | Duração | PRs estimadas | Spec | Status |
 |---|---|---|---|---|---|
-| 9 | `refactor/sprint-9` | 2 sem | 4 | [`SPRINT-9-EXECUTION.md`](./SPRINT-9-EXECUTION.md) | planned |
+| 9 | `refactor/sprint-9` | 2 sem | 4 | [`SPRINT-9-EXECUTION.md`](./SPRINT-9-EXECUTION.md) | done |
 | 10 | `refactor/sprint-10` | 2 sem | 3 | [`SPRINT-10-EXECUTION.md`](./SPRINT-10-EXECUTION.md) | planned |
 | 11 | `refactor/sprint-11` | 3 sem | 5 | [`SPRINT-11-EXECUTION.md`](./SPRINT-11-EXECUTION.md) | planned |
 | 12 | `refactor/sprint-12` | 2 sem | — | (a destrinchar após Sprint 11) | planned |
