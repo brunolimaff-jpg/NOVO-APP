@@ -32,22 +32,25 @@ Last updated: 2026-05-16
   - merge commit `66591f1`
   - `components/MessageRow.tsx` deixou de renderizar `\uD83D\uDDD1\uFE0F` como texto cru
   - ícone de excluir preserva `aria-label` e teste focado
+- Sprint 10 mergeada via PR `#257` em `2026-05-16`:
+  - merge commit `fbf5536`
+  - runtime do Radar movido para `features/radar/useRadar.ts` e `features/radar/service.ts`
+  - facades `hooks/useRadar.ts` e `services/radarService.ts` preservadas para compatibilidade
+  - guardrail `tests/architecture/radarBoundaryImportGuard.test.ts` ativo
+  - checks remotos verdes antes do merge
 
 ## In progress
 
-- Sprint 10 Radar boundary na branch `codex/sprint-10-radar-boundary`.
-- PR aberta: `#257` (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>).
-- Preview Vercel ready: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>.
+- Sprint 11 Onda 0 na branch `codex/sprint-11-onda-0-tests`.
 - Objetivo:
-  - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
-  - preservar compatibilidade pública via `hooks/useRadar.ts` e `services/radarService.ts`;
-  - fazer novos imports de produção usarem `features/radar`;
-  - adicionar guardrail arquitetural para impedir regressão de imports legados.
+  - criar testes de caracterização antes de refatorar `CRMDetail` e `WarRoom`;
+  - habilitar provider de cobertura local com `@vitest/coverage-v8`;
+  - manter produção intocada nesta onda.
 
 ## Blockers
 
 - Nenhum bloqueio técnico imediato.
-- O workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; a Onda 0+1 roda em worktree limpa para não misturar isso.
+- O workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; a Sprint 11 Onda 0 roda em worktree limpa para não misturar isso.
 
 ## Validation history
 
@@ -100,6 +103,18 @@ Last updated: 2026-05-16
 - `npm run analyze:circular` green, sem ciclos
 - Checks remotos da PR `#257` green: AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel, Vercel Preview Comments
 
+### Sprint 11 Onda 0
+
+- Baseline inicial `npm run test` green (`115` arquivos, `851` testes) em `origin/main@fbf5536`.
+- `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes).
+- `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green:
+  - `CRMDetail.tsx`: `92.35%` linhas
+  - `WarRoom.tsx`: `74.21%` linhas
+- `npm run typecheck` green.
+- `npm run test` green (`117` arquivos, `869` testes).
+- `npm run build` green (warnings aceitos OI-003/OI-057).
+- `npm run lint` green com `0` erros e `147` warnings conhecidos.
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -110,6 +125,5 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Validar preview Vercel da PR `#257` com checklist manual do Radar.
-- Após validação manual, mergear PR `#257`.
-- Após merge da Sprint 10, iniciar Sprint 11 com testes de caracterização antes de mexer em `CRMDetail`, `LoadingSmart` e `WarRoom`.
+- Abrir PR da Sprint 11 Onda 0.
+- Após merge da Onda 0, iniciar Onda 1 em `CRMDetail` sem reduzir cobertura abaixo do baseline criado.

@@ -29,7 +29,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-16 — `origin/main` no commit `66591f1` apos merge da PR `#256`.
+> Atualizado em 2026-05-16 — `origin/main` no commit `fbf5536` apos merge da PR `#257`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -52,51 +52,52 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Sprint 9: concluída e mergeada via PR `#254`.
   - Onda 0+1: concluída e mergeada via PR `#255`.
   - OI-066: concluído e mergeado via PR `#256`.
-  - Sprint 10: em andamento, Radar boundary completion.
+  - Sprint 10: concluída e mergeada via PR `#257`.
+  - Sprint 11: em andamento, Onda 0 de testes de caracterização.
 
 ## Hotspots atuais da Fase 2
 
 | Arquivo | Linhas/estado | Sprint alvo |
 |---|---|---|
 | `App.tsx` | 622 | Sprint 9 concluída |
-| `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 em andamento |
-| `components/CRMDetail.tsx` | 717 + `card: any` + sem testes dedicados | Sprint 11 |
+| `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 concluída |
+| `components/CRMDetail.tsx` | 717 + `card: any`; teste de caracterização criado na Onda 0 | Sprint 11 |
 | `components/LoadingSmart.tsx` | 766 | Sprint 11 |
-| `components/WarRoom.tsx` | 552 + sem testes dedicados | Sprint 11 |
+| `components/WarRoom.tsx` | 552; teste de caracterização criado na Onda 0 | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Sprint 10 Radar boundary
+## Entrega em curso: Sprint 11 Onda 0
 
-- Branch: `codex/sprint-10-radar-boundary`
-- Base: `origin/main@66591f1`
-- PR: `#257` — <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>
-- Preview Vercel: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>
-- Plano: `docs/ai-context/refactor/11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`
+- Branch: `codex/sprint-11-onda-0-tests`
+- Base: `origin/main@fbf5536`
+- Worktree: `~/.config/superpowers/worktrees/NOVO-APP/codex-sprint-11-onda-0-tests`
 - Escopo:
-  - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
-  - manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade;
-  - fazer `App.tsx` importar `useRadar` pelo barrel `features/radar`;
-  - exportar hook, service, tipos e constantes estaveis por `features/radar/index.ts`;
-  - adicionar guardrail contra novos imports de producao pelos caminhos legados.
-- Review:
-  - comentarios do Gemini Code Assist resolvidos: `forceScan` agora funciona com auto-scan desligado e falhas de scan usam `scoutDiag.error`.
+  - adicionar `tests/components/CRMDetail.test.tsx`;
+  - adicionar `tests/components/WarRoom.test.tsx`;
+  - adicionar `@vitest/coverage-v8` como devDependency para o gate `vitest --coverage`;
+  - não alterar componentes de produção nesta onda.
 - Validação local:
-  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`35` testes);
-  - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes);
-  - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes);
+  - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
+  - `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
+  - `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`CRMDetail.tsx` `92.35%` linhas; `WarRoom.tsx` `74.21%` linhas);
   - `npm run typecheck` green;
-  - `npm run test` green (`115` arquivos, `851` testes);
+  - `npm run test` green (`117` arquivos, `869` testes);
   - `npm run build` green com warnings aceitos OI-003/OI-057;
   - `npm run lint` green com `0` erros e `147` warnings conhecidos;
-  - `npm run analyze:circular` green, sem ciclos.
-- Checks remotos:
-  - AI Config Quality Score, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel e Vercel Preview Comments verdes.
-  - `mergeStateStatus: CLEAN`.
 - Fora de escopo:
-  - mover componentes visuais `Radar*`;
-  - deletar facades de compatibilidade;
-  - redesign funcional do Radar;
+  - refatorar `CRMDetail`, `LoadingSmart` ou `WarRoom`;
+  - remover `card: any`;
   - limpar warnings globais de lint.
+
+## Entrega anterior: Sprint 10 Radar boundary
+
+- Branch: `codex/sprint-10-radar-boundary`
+- PR: `#257`, merge commit `fbf5536`
+- Resultado:
+  - runtime do Radar movido para `features/radar/useRadar.ts` e `features/radar/service.ts`;
+  - `hooks/useRadar.ts` e `services/radarService.ts` preservados como facades de compatibilidade;
+  - `App.tsx` passou a importar `useRadar` pelo barrel `features/radar`;
+  - `tests/architecture/radarBoundaryImportGuard.test.ts` bloqueia novos imports de produção pelos caminhos legados.
 
 ## Entrega anterior: OI-066
 
@@ -143,8 +144,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Validar preview Vercel: configurar Radar, forçar varredura, abrir painel/configurações, marcar alerta como lido e confirmar que Chat/Home seguem recebendo contexto do Radar.
-2. Depois da validação manual, mergear PR `#257`.
+1. Abrir PR da branch `codex/sprint-11-onda-0-tests`.
+2. Após merge da Onda 0, iniciar Sprint 11 Onda 1 em `CRMDetail` usando os testes novos como rede de segurança.
 
 ## Regras de continuidade
 
