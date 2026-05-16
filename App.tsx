@@ -4,6 +4,8 @@ import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
 import { useRadar } from './hooks/useRadar';
 import { useAppInitialization } from './hooks/useAppInitialization';
+import { useEmailModal } from './hooks/useEmailModal';
+import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
@@ -31,32 +33,18 @@ const CRMDetail = React.lazy(() =>
   loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
 );
 import {
-  Message,
-  Sender,
   ExportFormat,
   ReportType,
-  AppError,
   CRMStage,
 } from './types';
 import { generateContinuityQuestion } from './services/geminiService';
 
-import { APP_NAME, DEFAULT_MODE } from './constants';
-import { downloadFile } from './utils/downloadHelpers';
+import { APP_NAME } from './constants';
 import { cleanTitle } from './utils/textCleaners';
-import { fixFakeLinksHTML } from './utils/linkFixer';
-import { BACKEND_URL } from './services/apiConfig';
 import { extractCompanyName } from './utils/companyNameExtractor';
-import { convertMarkdownToHTML, simpleMarkdownToHtml } from './utils/markdownToHtml';
-import { sanitizeSensitivePersonalData } from './utils/privacy';
-import {
-  collectFullReport,
-  detectInconsistencies,
-  generateExecutiveSummary,
-  normalizeMermaidBlocks,
-} from './utils/reportUtils';
-import { openPrintReportWindow } from './utils/printExport';
 import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import { downloadConversationExport, openDossierPrintReport } from './services/exportService';
 import FooterCredits from './components/FooterCredits';
 import {
   useChatStore,
@@ -71,7 +59,6 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const PAGE_SIZE = 20;
-type FollowUpScheduleResult = { ok: boolean; method?: 'outlook' | 'ics'; error?: string };
 
 function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): boolean {
   const safeDisplay = (displayMessage || '').trim();
@@ -87,7 +74,6 @@ const App: React.FC = () => {
   const {
     sessions,
     setSessions,
-    sessionsRef,
     isInitialized,
     setIsInitialized,
     loadSessions,
@@ -99,31 +85,24 @@ const App: React.FC = () => {
     setVisibleCount,
     lastQuery,
     setLastQuery,
-    investigationLogged,
     setInvestigationLogged,
     updateSessionById,
     updateCurrentSession,
     lastActionRef,
     abortControllerRef,
-    activeGenerationRef,
     isLoading,
     setIsLoading,
     loadingStatus,
     failureCount,
-    setFailureCount,
     completedLoadingStatuses,
     loadingTotalStages,
     loadingIsIncremental,
-    requestKind,
     setRequestKind,
     loadingVariant,
     setLoadingVariant,
     loadingPinnedLabel,
     setLoadingPinnedLabel,
     resetLoadingProgress,
-    advanceLoadingProgress,
-    replaceLoadingProgressStage,
-    completeLoadingProgress,
   } = useChatStore();
   const {
     exportStatus,
@@ -137,36 +116,12 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
   const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
-  // Email modal state
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailTo, setEmailTo] = useState('');
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailStatus, setEmailStatus] = useState<'sending' | 'sent' | 'error' | null>(null);
-
-  // Follow-up modal state
-  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
-  const [followUpDias, setFollowUpDias] = useState(7);
-  const [followUpNotas, setFollowUpNotas] = useState('');
-  const [followUpStatus, setFollowUpStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showEmailModal) setShowEmailModal(false);
-        if (showFollowUpModal) setShowFollowUpModal(false);
-      }
-    };
-    if (showEmailModal || showFollowUpModal) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [showEmailModal, showFollowUpModal]);
 
   const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccess();
@@ -177,6 +132,13 @@ const App: React.FC = () => {
   const canDeepDive = featureAccess.deepDive;
   const canWarRoom = featureAccess.warRoom;
   const resolvedOperatorName = operatorName.trim() || 'Vendedor';
+  const emailModal = useEmailModal({
+    messages: allMessages,
+    sessionTitle: currentSession?.title,
+    operatorName: resolvedOperatorName,
+    toast,
+  });
+  const followUpModal = useFollowUpModal({ toast });
 
   useEffect(() => {
     if (!canAccessMiniCRM && activeView === 'crm') {
@@ -353,32 +315,13 @@ const App: React.FC = () => {
 
   async function handleExportPDF() {
     try {
-      const { text: fullText, sections, allLinks } = collectFullReport(allMessages);
-      if (!fullText || fullText.length < 100) {
-        alert('Nenhum dossiê para exportar.');
-        return;
-      }
-      const inconsistenciesSection = detectInconsistencies(sections);
-      const normalizedFullText = normalizeMermaidBlocks(fullText);
-      const executiveSummary = generateExecutiveSummary(normalizedFullText, sections, inconsistenciesSection);
-      const finalText = sanitizeSensitivePersonalData(`${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`);
-      const empresa = cleanTitle(extractCompanyName(currentSession?.title));
-      const now = new Date();
-      const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
-      const horaStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const metaLine = `${dataStr} às ${horaStr} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
-      const opened = openPrintReportWindow({
-        title: empresa,
-        subtitle: metaLine,
-        content: finalText,
-        sources: allLinks.map(l => ({ title: l.title || l.url, url: l.url })),
-      });
+      const opened = openDossierPrintReport(allMessages, currentSession?.title);
       if (!opened) {
         toast.error('Não foi possível abrir a visualização de impressão. Verifique se o navegador bloqueou a nova janela.');
       }
     } catch (e) {
-      console.error('Erro ao gerar PDF:', e);
-      toast.error('Erro ao gerar PDF. Tente novamente.');
+      const msg = e instanceof Error ? e.message : 'Erro ao gerar PDF. Tente novamente.';
+      toast.error(msg);
     }
   }
 
@@ -387,25 +330,7 @@ const App: React.FC = () => {
     setExportStatus('loading');
     setExportError(null);
     try {
-      const { text: fullText, sections } = collectFullReport(currentSession.messages);
-      const inconsistenciesSection = detectInconsistencies(sections);
-      const normalizedText = normalizeMermaidBlocks(fullText);
-      const executiveSummary = generateExecutiveSummary(normalizedText, sections, inconsistenciesSection);
-      const contentMarkdown = sanitizeSensitivePersonalData(
-        reportType === 'executive'
-          ? executiveSummary
-          : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`,
-      );
-      const safeTitle = cleanTitle(currentSession.title).replace(/[^a-z0-9]/gi, '_').substring(0, 50);
-      const dateStr = new Date().toISOString().slice(0, 10);
-      const reportSuffix = reportType === 'executive' ? 'EXEC' : reportType === 'tech' ? 'FICHA' : 'DOSSIE';
-      const filename = `SeniorScout_${safeTitle}_${reportSuffix}_${dateStr}`;
-      if (format === 'md') {
-        downloadFile(`${filename}.md`, contentMarkdown, 'text/markdown;charset=utf-8');
-      } else if (format === 'doc') {
-        const htmlContent = simpleMarkdownToHtml(contentMarkdown, currentSession.title);
-        downloadFile(`${filename}.doc`, htmlContent, 'application/msword');
-      }
+      downloadConversationExport(currentSession, format, reportType);
       setExportStatus('success');
       setTimeout(() => setExportStatus('idle'), 3000);
     } catch (error: unknown) {
@@ -413,70 +338,6 @@ const App: React.FC = () => {
       setExportStatus('error');
     }
   };
-
-  async function handleSendEmail() {
-    if (!emailTo.includes('@')) return;
-    setEmailStatus('sending');
-    try {
-      const { text: fullText, sections } = collectFullReport(allMessages);
-      if (!fullText || fullText.length < 100) {
-        setEmailStatus('error');
-        return;
-      }
-      const inconsistenciesSection = detectInconsistencies(sections);
-      const htmlBody = fixFakeLinksHTML(convertMarkdownToHTML(fullText + inconsistenciesSection, true));
-      const response = await fetch(BACKEND_URL, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          action: 'sendEmail',
-          email: emailTo,
-          subject: emailSubject,
-          body: htmlBody,
-          empresa: cleanTitle(extractCompanyName(currentSession?.title)),
-          vendedor: resolvedOperatorName,
-        }),
-      });
-      const text = await response.text();
-      let result: { success: boolean };
-      try {
-        result = JSON.parse(text) as { success: boolean };
-      } catch {
-        result = response.ok ? { success: true } : { success: false };
-      }
-      if (result.success) {
-        setEmailStatus('sent');
-        setTimeout(() => {
-          setShowEmailModal(false);
-          setEmailStatus(null);
-          setEmailTo('');
-        }, 3000);
-      } else {
-        setEmailStatus('error');
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro desconhecido';
-      scoutDiag.warn('Email', 'handleSendEmail falhou', { error: message });
-      setEmailStatus('error');
-      toast.error('Falha ao enviar email. Verifique sua conexão.');
-    }
-  }
-
-  function handleScheduleFollowUp(result: FollowUpScheduleResult) {
-    setFollowUpStatus('sending');
-    if (result.ok) {
-      setFollowUpStatus('sent');
-      setTimeout(() => {
-        setShowFollowUpModal(false);
-        setFollowUpStatus('idle');
-        setFollowUpNotas('');
-      }, 2200);
-      return;
-    }
-    setFollowUpStatus('error');
-    toast.error(result.error || 'Não foi possível preparar o follow-up.');
-  }
 
   const handleSaveToCRM = async (sessionId: string) => {
     if (!canAccessMiniCRM) {
@@ -619,19 +480,8 @@ const App: React.FC = () => {
               pdfReportContent={pdfReportContent}
               loadingVariant={loadingVariant}
               loadingPinnedLabel={loadingPinnedLabel}
-              onOpenEmailModal={() => {
-                setEmailSubject(
-                  'Dossiê de Inteligência — ' +
-                    cleanTitle(extractCompanyName(currentSession?.title)) +
-                    ' — 🦅 Senior Scout 360',
-                );
-                setShowEmailModal(true);
-                setEmailStatus(null);
-              }}
-              onOpenFollowUpModal={() => {
-                setShowFollowUpModal(true);
-                setFollowUpStatus('idle');
-              }}
+              onOpenEmailModal={emailModal.open}
+              onOpenFollowUpModal={followUpModal.open}
               onSaveRemote={handleSaveRemote}
               isSavingRemote={isSavingRemote}
               remoteSaveStatus={remoteSaveStatus}
@@ -692,34 +542,34 @@ const App: React.FC = () => {
         </SuspenseWithError>
       )}
 
-      {showEmailModal && (
+      {emailModal.isOpen && (
         <EmailModal
-          emailTo={emailTo}
-          onEmailToChange={setEmailTo}
-          emailSubject={emailSubject}
-          onEmailSubjectChange={setEmailSubject}
-          emailStatus={emailStatus}
-          onSend={handleSendEmail}
-          onClose={() => setShowEmailModal(false)}
+          emailTo={emailModal.emailTo}
+          onEmailToChange={emailModal.setEmailTo}
+          emailSubject={emailModal.emailSubject}
+          onEmailSubjectChange={emailModal.setEmailSubject}
+          emailStatus={emailModal.emailStatus}
+          onSend={emailModal.handleSend}
+          onClose={emailModal.close}
         />
       )}
 
-      {showFollowUpModal && (
+      {followUpModal.isOpen && (
         <FollowUpModal
-          emailTo={emailTo}
-          onEmailToChange={setEmailTo}
-          followUpDias={followUpDias}
-          onDiasChange={setFollowUpDias}
-          followUpNotas={followUpNotas}
-          onNotasChange={setFollowUpNotas}
-          followUpStatus={followUpStatus}
+          emailTo={followUpModal.emailTo}
+          onEmailToChange={followUpModal.setEmailTo}
+          followUpDias={followUpModal.followUpDias}
+          onDiasChange={followUpModal.setFollowUpDias}
+          followUpNotas={followUpModal.followUpNotas}
+          onNotasChange={followUpModal.setFollowUpNotas}
+          followUpStatus={followUpModal.followUpStatus}
           companyName={
             cleanTitle(extractCompanyName(currentSession?.title)) ||
             currentSession?.empresaAlvo ||
             'Conta em prospecção'
           }
-          onSchedule={handleScheduleFollowUp}
-          onClose={() => setShowFollowUpModal(false)}
+          onSchedule={followUpModal.handleSchedule}
+          onClose={followUpModal.close}
         />
       )}
 

@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-05
+Last updated: 2026-05-16
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -73,3 +73,21 @@ Reason: the recurring symptom was a misleading "Serviço de consulta indisponív
 Decision: remover as skills operacionais versionadas em `.agents/skills/` do repo e mantê-las apenas no ambiente global do usuário em `~/.agents/skills/`, preservando apenas `.agents/skills/archive/` como referência histórica.
 
 Reason: separar o ambiente operacional do conteúdo versionado reduz acoplamento com o repositório, tira essas skills do escopo do GitHub e preserva as lições aprendidas já documentadas.
+
+## 2026-05-16 - Pinecone frontend env aceito para app interno
+
+Decision: manter `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` no frontend durante a Sprint 9.
+
+Reason: o owner confirmou que o app é interno/fechado e aceitou o risco operacional. OI-055 passa a ser risco aceito e deve ser reavaliado se o app virar externo.
+
+## 2026-05-16 - LastAction movido para types.ts
+
+Decision: mover tipo `LastAction` de `features/chat/message-orchestrator.ts` para `types.ts` para eliminar dependência circular com `stores/chatStore.tsx`.
+
+Reason: `chatStore` importa `LastAction` de `message-orchestrator`, e `message-orchestrator` importa `useMaybeChatStore` de `chatStore`, criando ciclo detectável por `madge`. Mover o tipo compartilhado para `types.ts` segue o padrão do repo onde `types.ts` é a fonte centralizada de contratos.
+
+## 2026-05-16 - Review com agente especializado antes de PR
+
+Decision: toda PR da Sprint 9+ deve passar por review com agente `reviewer` antes do commit final.
+
+Reason: a review encontrou 2 P1 e 4 P2 que teriam ido para a PR sem detecção. O custo de rodar o reviewer é baixo comparado ao risco de merge com issues de segurança ou arquiteturais.

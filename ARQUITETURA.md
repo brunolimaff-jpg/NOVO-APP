@@ -142,6 +142,15 @@ Pontos importantes:
 - fallback quando RAG falha
 - chaves de IA protegidas em variaveis de ambiente da Vercel
 
+### Feature Flags
+
+- Flags simples vivem em `utils/featureFlags.ts`.
+- A avaliacao acontece em runtime do frontend, com override opcional via `import.meta.env.VITE_FF_*`.
+- Quando nao ha override, cada flag usa fallback hardcoded versionado no proprio modulo.
+- Nao ha remote config nesta fase; overrides de producao devem ser configurados no ambiente Vercel.
+- Cada flag declara `removeBy` com a sprint-alvo de remocao ou reavaliacao, e flags vencidas devem virar item de close-out.
+- O app e interno/fechado; `VITE_PINECONE_*` permanece aceito no frontend por decisao operacional, e nao e tratado como blocker de seguranca na Sprint 9.
+
 ## 7. Contratos relevantes
 
 ### Tipos centrais

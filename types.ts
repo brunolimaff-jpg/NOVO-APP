@@ -160,8 +160,6 @@ export interface Message {
    */
   groundingUsed?: boolean;
   webVerificationStatus?: WebVerificationStatus;
-  portaFallbackApplied?: boolean;
-  portaFallbackDimensions?: PortaDimension[];
 }
 
 export interface ClienteSeniorData {
@@ -191,6 +189,24 @@ export interface ChatSession {
   messages: Message[];
   // NOVO: Contexto da empresa
   companyContext?: string;
+}
+
+export interface LastAction {
+  type: 'sendMessage' | 'regenerateSuggestions';
+  payload: { text?: string; displayText?: string; messageId?: string };
+}
+
+export interface RunMegaPromptWaterfallArgs {
+  sessionId: string;
+  text: string;
+  safeVisibleText: string;
+  hintedCompany: string | null;
+  normalizedCompany: string;
+  historyToPass: Message[];
+  botMessageId: string;
+  signal: AbortSignal;
+  isFirstInteraction: boolean;
+  sessionCnpjDigits: string;
 }
 
 export interface ChatState {

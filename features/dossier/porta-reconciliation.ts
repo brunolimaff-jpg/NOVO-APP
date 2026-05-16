@@ -4,22 +4,10 @@ import { generateDossierModule } from '../../services/geminiService';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';
-import { isAbortLikeError } from '../chat/message-helpers';
+import { isAbortLikeError } from '../../utils/abortHelpers';
 
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS = 12000;
-
-const HARD_WATERFALL_SCORE_FALLBACK: ScorePortaData = {
-  score: 60,
-  p: 6,
-  o: 6,
-  r: 6,
-  t: 6,
-  a: 6,
-  segmento: 'PRD',
-  flags: [],
-  scoreBruto: 60,
-};
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
   P: ['Estratégia & Expansão'],
@@ -29,20 +17,13 @@ const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
   A: ['RH & Decisores'],
 };
 
-const PORTA_FALLBACK_MARKERS: Record<PortaDimension, string> = {
+const PORTA_MARKER_TEMPLATES: Record<PortaDimension, string> = {
   P: '[[PORTA_FEED_P:6:HA:0:CNPJS:0:FAT:NA]]',
   O: '[[PORTA_FEED_O:6:ELOS:Plantio]]',
   R: '[[PORTA_FEED_R:6:PRESSOES:Sem_pressao_identificada]]',
   T: '[[PORTA_FEED_T:6:T1:6:T2:6:T3:6:STACK:NA]]',
   A: '[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:NA]]',
 };
-
-export interface PortaTechnicalFallbackResult {
-  content: string;
-  resolution: PortaScoreResolution;
-  fallbackApplied: boolean;
-  fallbackDimensions: PortaDimension[];
-}
 
 export interface DossierWaterfallModule {
   name: string;
@@ -77,8 +58,6 @@ export interface ReconcileWaterfallPortaArgs {
 export interface ReconcileWaterfallPortaResult {
   accumulatedText: string;
   resolution: PortaScoreResolution;
-  portaFallbackApplied: boolean;
-  portaFallbackDimensions: PortaDimension[];
   portaIntegrityHold: boolean;
 }
 
@@ -91,7 +70,7 @@ export function resolveModuleNamesForMissingDimensions(missingDimensions: PortaD
 export function buildPortaReconciliationPrompt(missingDimensions: PortaDimension[]): string {
   const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
   const requiredTemplates = uniqueMissingDimensions
-    .map(dimension => `- ${dimension}: ${PORTA_FALLBACK_MARKERS[dimension]}`)
+    .map(dimension => `- ${dimension}: ${PORTA_MARKER_TEMPLATES[dimension]}`)
     .join('\n');
 
   return `
@@ -113,51 +92,6 @@ ${requiredTemplates}
 `.trim();
 }
 
-export function buildPortaFallbackChunk(missingDimensions: PortaDimension[]): string {
-  const uniqueMissingDimensions = Array.from(new Set(missingDimensions));
-  if (uniqueMissingDimensions.length === 0) return '';
-
-  return uniqueMissingDimensions
-    .map(dimension => PORTA_FALLBACK_MARKERS[dimension])
-    .filter(Boolean)
-    .join('\n');
-}
-
-export function applyPortaTechnicalFallback(
-  content: string,
-  currentResolution?: PortaScoreResolution,
-): PortaTechnicalFallbackResult {
-  const resolution = currentResolution ?? resolvePortaScore(content);
-  const fallbackDimensions = Array.from(new Set(resolution.missingDimensions));
-  if (resolution.score || fallbackDimensions.length === 0) {
-    return {
-      content,
-      resolution,
-      fallbackApplied: false,
-      fallbackDimensions: [],
-    };
-  }
-
-  const fallbackChunk = buildPortaFallbackChunk(fallbackDimensions);
-  if (!fallbackChunk) {
-    return {
-      content,
-      resolution,
-      fallbackApplied: false,
-      fallbackDimensions,
-    };
-  }
-
-  const nextContent = `${content.trim()}\n\n${fallbackChunk}`.trim();
-  const nextResolution = resolvePortaScore(nextContent);
-  return {
-    content: nextContent,
-    resolution: nextResolution,
-    fallbackApplied: true,
-    fallbackDimensions,
-  };
-}
-
 export function ensureWaterfallScorePorta(
   content: string,
   currentResolution: PortaScoreResolution,
@@ -167,10 +101,7 @@ export function ensureWaterfallScorePorta(
   const resolvedAgain = resolvePortaScore(content);
   if (resolvedAgain.score) return resolvedAgain.score;
 
-  const technicalFallback = applyPortaTechnicalFallback(content, resolvedAgain);
-  if (technicalFallback.resolution.score) return technicalFallback.resolution.score;
-
-  return { ...HARD_WATERFALL_SCORE_FALLBACK };
+  throw new Error('Score PORTA não pôde ser consolidado após todas as tentativas.');
 }
 
 export function shouldHoldWaterfallScoreForIntegrity(currentResolution: PortaScoreResolution): boolean {
@@ -192,8 +123,6 @@ export async function reconcileWaterfallPorta({
   setFailureCount,
 }: ReconcileWaterfallPortaArgs): Promise<ReconcileWaterfallPortaResult> {
   let nextAccumulatedText = accumulatedText;
-  let portaFallbackApplied = false;
-  let portaFallbackDimensions: PortaDimension[] = [];
   let portaIntegrityHold = false;
 
   const appendWaterfallChunk = (chunk: string) => {
@@ -306,30 +235,13 @@ export async function reconcileWaterfallPorta({
     waterfallPortaResolution = resolvePortaScore(nextAccumulatedText);
   }
 
-  if (shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution)) {
+  if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
     portaIntegrityHold = true;
-    portaFallbackApplied = true;
-    portaFallbackDimensions = Array.from(new Set(waterfallPortaResolution.missingDimensions));
-    scoutDiag.error('ModularDossier', 'integridade PORTA comprometida após retries e reconciliação', {
+    scoutDiag.error('ModularDossier', 'integridade PORTA comprometida — dimensões ausentes após retries e reconciliação', {
       sessionId,
       company: resolvedMegaCompany || null,
       missingDimensions: waterfallPortaResolution.missingDimensions,
     });
-  } else if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
-    const portaFallbackResult = applyPortaTechnicalFallback(nextAccumulatedText, waterfallPortaResolution);
-    if (portaFallbackResult.fallbackApplied) {
-      nextAccumulatedText = portaFallbackResult.content;
-      waterfallPortaResolution = portaFallbackResult.resolution;
-      portaFallbackApplied = true;
-      portaFallbackDimensions = portaFallbackResult.fallbackDimensions;
-      scoutDiag.warn('ModularDossier', 'fallback técnico aplicado para dimensões PORTA ausentes', {
-        sessionId,
-        company: resolvedMegaCompany || null,
-        sourceBeforeFallback: 'feeds',
-        fallbackDimensions: portaFallbackDimensions,
-        resolvedAfterFallback: Boolean(waterfallPortaResolution.score),
-      });
-    }
   }
 
   if (!portaIntegrityHold && !waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
@@ -348,8 +260,6 @@ export async function reconcileWaterfallPorta({
   return {
     accumulatedText: nextAccumulatedText,
     resolution: waterfallPortaResolution,
-    portaFallbackApplied,
-    portaFallbackDimensions,
     portaIntegrityHold,
   };
 }

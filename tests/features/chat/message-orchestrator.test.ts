@@ -1,10 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  useChatMessageOrchestrator,
-  type LastAction,
-} from '../../../features/chat/message-orchestrator';
-import { Sender, type ChatSession, type Message } from '../../../types';
+import { useChatMessageOrchestrator } from '../../../features/chat/message-orchestrator';
+import { Sender, type ChatSession, type LastAction, type Message } from '../../../types';
 import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant';
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());

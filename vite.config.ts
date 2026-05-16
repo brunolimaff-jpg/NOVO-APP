@@ -104,6 +104,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB — mermaid chunk ~3.1 MB
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
@@ -157,22 +158,20 @@ export default defineConfig(() => {
       rollupOptions: {
         external: [],
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            // FIX: chunk com nome fixo evita hash variável a cada deploy.
-            // Sem isso, o browser busca mermaid-aBc123.js que não existe mais
-            // após redeploy, recebendo index.html com MIME text/html → erro fatal.
-            mermaid: ['mermaid'],
-            // FIX: isola módulos raiz em chunk dedicado — avaliados ANTES dos
-            // componentes que os importam, prevenindo TDZ no bundle minificado.
-            // geminiProxy.ts incluído pois suas funções são importadas por
-            // geminiService.ts e warRoomService.ts (alto risco de TDZ).
-            'app-core': [
-              './constants.ts',
-              './types.ts',
-              './services/investigationStore.ts',
-              './services/geminiProxy.ts',
-            ],
+          // FIX: função manualChunks para capturar TODOS os sub-módulos internos
+          // do mermaid (styles, edges, graph, flowDiagram, layout, etc.) em um
+          // único chunk. O formato objeto (`mermaid: ['mermaid']`) só isola o
+          // entry point — os dynamic imports internos geravam sub-chunks com
+          // hashes que não coincidiam após novo deploy no Vercel (404s).
+          manualChunks(id) {
+            if (id.includes('/node_modules/mermaid/')) return 'mermaid';
+            if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) return 'vendor';
+            if (
+              id.includes('/constants.ts') ||
+              id.includes('/types.ts') ||
+              id.includes('/services/investigationStore.ts') ||
+              id.includes('/services/geminiProxy.ts')
+            ) return 'app-core';
           },
         },
       },

@@ -5,7 +5,13 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import { Sender, type ChatSession, type Message } from '../../types';
+import {
+  Sender,
+  type ChatSession,
+  type LastAction,
+  type Message,
+  type RunMegaPromptWaterfallArgs,
+} from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { extractCompanyName } from '../../utils/companyNameExtractor';
@@ -30,11 +36,6 @@ interface ResetLoadingProgressOptions {
   keepHistory?: number;
 }
 
-export interface LastAction {
-  type: 'sendMessage' | 'regenerateSuggestions';
-  payload: { text?: string; displayText?: string; messageId?: string };
-}
-
 export interface HandleSendMessageOptions {
   requestKind?: RequestKind;
   fixedLoadingLine?: string;
@@ -44,19 +45,6 @@ interface ProcessMessageOptions extends HandleSendMessageOptions {
   isFollowUp?: boolean;
   isDeepDive?: boolean;
   isFirstInteraction?: boolean;
-}
-
-export interface RunMegaPromptWaterfallArgs {
-  sessionId: string;
-  text: string;
-  safeVisibleText: string;
-  hintedCompany: string | null;
-  normalizedCompany: string;
-  historyToPass: Message[];
-  botMessageId: string;
-  signal: AbortSignal;
-  isFirstInteraction: boolean;
-  sessionCnpjDigits: string;
 }
 
 export interface UseChatMessageOrchestratorOptions {

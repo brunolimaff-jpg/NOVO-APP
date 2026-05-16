@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-type FollowUpScheduleResult = {
+export type FollowUpScheduleResult = {
   ok: boolean;
   method?: 'outlook' | 'ics';
   error?: string;

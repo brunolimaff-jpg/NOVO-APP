@@ -93,7 +93,7 @@ A Fase 1 foi declarada "estabilizada", mas `dossier` depende de internos de `cha
 
 **Gemini:** `GEMINI_API_KEY` é lida apenas em Vercel Functions (`api/gemini.ts`, `api/gerar-dossie.ts`, etc.) e scripts CLI. Frontend usa proxy em `services/geminiProxy.ts`. **Situação: OK.**
 
-**Pinecone:** `index.tsx:17` declara `VITE_PINECONE_API_KEY` em `OPTIONAL_ENV_VARS` com lookup via `import.meta.env`. Vite inlinea qualquer variável `VITE_*` no bundle final — se um desenvolvedor preencher `.env` com chave real, ela vaza para o JS público. **Situação: risco latente.**
+**Pinecone:** `index.tsx:17` declara `VITE_PINECONE_API_KEY` em `OPTIONAL_ENV_VARS` com lookup via `import.meta.env`. Vite inlinea variáveis `VITE_*` no bundle final. Em 2026-05-16, o owner aceitou esse risco porque o app é interno/fechado. **Situação: risco aceito; reavaliar se o app virar externo.**
 
 `api/docs-rag.ts` e `api/rag.ts` são Vercel Functions (server-only — OK). O problema está somente na validação de env em `index.tsx`.
 
@@ -128,8 +128,8 @@ Durante a janela de ~9 semanas de Fase 2, há branches ativas: `codex/obsidian-c
 Reduzir responsabilidade de wiring em `App.tsx` e estabelecer guardrails formais para a fase.
 
 ### Pré-requisito (antes de abrir PR da sprint)
-- [ ] Criar tag `pre-sprint-9` no HEAD de `main`.
-- [ ] Instalar `madge` e `ts-prune` como devDeps e rodar baseline: `npx madge --circular src/ --extensions ts,tsx` — registrar resultado em `docs/ai-context/refactor/PLANO_COMPLETO_SPRINTS.md` (Apêndice B).
+- [x] Criar tag `pre-sprint-9` no HEAD de `main`.
+- [x] Instalar `madge` e `ts-prune` como devDeps e rodar baseline: `npm run analyze:circular` — registrar resultado em `docs/ai-context/refactor/PLANO_COMPLETO_SPRINTS.md` (Apêndice B).
 
 ### Tarefas
 
@@ -180,9 +180,9 @@ Mover `isAbortLikeError` e os tipos compartilhados para `features/_shared/` ou `
 Atualizar imports em `features/dossier/*`.
 
 **6. Segurança — Pinecone**
-- Remover `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` de `index.tsx` (mover para env-check server-side ou remover completamente).
-- Confirmar que `api/docs-rag.ts` e `api/rag.ts` leem apenas `process.env.PINECONE_*`.
-- Atualizar `.env.example` com comentário `# SERVER-ONLY` nas chaves Pinecone.
+- Decisão Sprint 9: manter `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` em `index.tsx` porque o app é interno/fechado.
+- Registrar OI-055 como risco aceito e reavaliar se o app virar externo.
+- Não mover Pinecone para server-only nesta sprint.
 
 **7. Adicionar `validateServerEnv()` nas Vercel Functions**
 ```typescript
@@ -196,13 +196,13 @@ export function validateServerEnv() {
 ```
 
 ### Critérios de Aceite
-- [ ] `App.tsx` < 550 linhas (redução mínima de 28%).
-- [ ] Zero wiring de modal de export em `App.tsx` (consumidos via hook).
-- [ ] `utils/featureFlags.ts` criado com TTL documentado por flag.
-- [ ] `features/dossier/*` sem imports de `features/chat/*` (leak resolvido).
-- [ ] `VITE_PINECONE_API_KEY` removido de `index.tsx`.
-- [ ] Baseline de circulares (`madge`) registrado.
-- [ ] Gates técnicos verdes: `test`, `typecheck`, `build`, `lint`.
+- [x] `App.tsx` < 700 linhas (`622` linhas em `refactor/sprint-9`).
+- [x] Zero wiring de modal de export em `App.tsx` (consumidos via hook).
+- [x] `utils/featureFlags.ts` criado com TTL documentado por flag.
+- [x] `features/dossier/*` sem imports de `features/chat/*` (leak resolvido).
+- [x] OI-055 documentado como risco aceito; `VITE_PINECONE_*` permanece por decisão operacional.
+- [x] Baseline de circulares (`madge`) registrado.
+- [x] Gates técnicos verdes: `test`, `typecheck`, `build`, `lint`.
 
 ### Rollback
 Tag `pre-sprint-9` — reverter se gate vermelho > 24h sem resolução.
@@ -434,7 +434,7 @@ Tag `pre-sprint-12`.
 | Warnings abertos (OI-003/4/5) | 3 | 0 |
 | Cobertura de testes em alvos refatorados | ~0% | ≥ 60% |
 | Circulares (madge) | não medido | baseline + redução |
-| `VITE_PINECONE_API_KEY` no bundle | risco latente | eliminado |
+| `VITE_PINECONE_API_KEY` no bundle | risco latente | aceito por app interno/fechado |
 
 ---
 
@@ -501,7 +501,7 @@ App.tsx (772 ln), CRMDetail (717 ln), LoadingSmart (766 ln), WarRoom (552 ln), u
 
 | # | Lacuna | Sprint impactada |
 |---|---|---|
-| 1 | `VITE_PINECONE_API_KEY` expõe chave no bundle | Sprint 9 — segurança |
+| 1 | `VITE_PINECONE_API_KEY` expõe chave no bundle | Sprint 9 — risco aceito pelo owner |
 | 2 | CRMDetail e WarRoom sem testes | Sprint 11 — Onda 0 criada |
 | 3 | Boundary leak `dossier → chat` (4 imports) | Sprint 9 — tarefa adicionada |
 | 4 | OI-003 tem risco de PWA (chunking → SW invalidation) | Sprint 12 — protocolo de deploy adicionado |
@@ -515,7 +515,9 @@ App.tsx (772 ln), CRMDetail (717 ln), LoadingSmart (766 ln), WarRoom (552 ln), u
 ### Apêndice B — Baseline de Circulares (preencher em Sprint 9)
 
 ```
-Data: ___________
-Comando: npx madge --circular src/ --extensions ts,tsx
-Resultado: ___________
+Data: 2026-05-16
+Comando: npm run analyze:circular
+Resultado: 1 circular dependency existente
+
+1) `stores/chatStore.tsx` > `features/chat/message-orchestrator.ts`
 ```

@@ -13,7 +13,7 @@ import React, {
 import { useChatLoadingProgress } from '../features/chat/loading-progress';
 import { useSessionStorage } from '../hooks/useSessionStorage';
 import type { ChatSession } from '../types';
-import type { LastAction } from '../features/chat/message-orchestrator';
+import type { LastAction } from '../types';
 
 const PAGE_SIZE = 20;
 

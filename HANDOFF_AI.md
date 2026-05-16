@@ -27,18 +27,19 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural (baseline atual)
 
-> Atualizado em 2026-05-16 — branch local `codex/docs-rag-anti-hallucination` a partir de `origin/main` `b2c67db`.
+> Atualizado em 2026-05-16 — PR `#254` aberto a partir de `origin/main` `df1ca1e`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
+- `services/exportService.ts` criado na Sprint 9 com export/email logic extraida de App.tsx.
 - `features/chat/*` e `features/dossier/*` concentram os fluxos extraidos de `App.tsx`.
-- **Leak ativo:** `features/dossier/*` importa internos de `features/chat/*` (4 imports em `waterfall-orchestrator`, `porta-reconciliation`, `benchmark-stage`) — resolver em Sprint 9.
+- Leak `features/dossier/*` → `features/chat/*` removido na Sprint 9; helpers compartilhados vivem em `utils/*`.
+- Dependência circular `chatStore ↔ message-orchestrator` resolvida: `LastAction` movido para `types.ts`.
 - `features/radar/*` existe como boundary oficial (stub); runtime atual ainda passa por `hooks/useRadar.ts` e `services/radarService.ts`.
-- `types.ts` permanece centralizado.
+- `types.ts` permanece centralizado (agora inclui `LastAction`).
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
-- **Risco latente:** `VITE_PINECONE_API_KEY` referenciado em `index.tsx` — pode vazar no bundle Vite se preenchido em `.env` — resolver em Sprint 9.
-- Docs RAG anti-alucinacao em PR pequena: `api/docs-rag.ts` agora sinaliza ausencia de documentacao forte/textual em vez de devolver contexto vazio ou URL-only como evidencia.
-- PR aberta: `#253` <https://github.com/brunolimaff-jpg/NOVO-APP/pull/253>, commit `df2f232`, checks remotos verdes e `mergeStateStatus: CLEAN`.
+- `VITE_PINECONE_*` no frontend e risco aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
+- Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
 
 ## Programa de refatoracao
 
@@ -52,7 +53,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 | Arquivo | Linhas (atual) | Sprint alvo |
 |---|---|---|
-| `App.tsx` | 772, 46 imports | Sprint 9 |
+| `App.tsx` | 622 | Sprint 9 |
 | `components/CRMDetail.tsx` | 717 + `card: any` + sem testes | Sprint 11 |
 | `components/LoadingSmart.tsx` | 766 | Sprint 11 |
 | `components/WarRoom.tsx` | 552 + sem testes | Sprint 11 |
@@ -60,28 +61,38 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Entrega em curso (2026-05-16)
 
-- Branch: `codex/docs-rag-anti-hallucination`
-- Escopo: anti-alucinacao do `api/docs-rag.ts` sem extractor de URL/PDF e sem lazy-loading de prompts.
+- Branch: `refactor/sprint-9`
+- PR: `#254` (<https://github.com/brunolimaff-jpg/NOVO-APP/pull/254>)
+- Commit: `d88311a`
+- Escopo: App shell decoupling + governanca + fixes de review.
 - Mudancas:
-  - score minimo Docs RAG `0.60`
-  - sinal explicito `SEM DOCUMENTAÇÃO ENCONTRADA`
-  - matches sem texto indexado nao sao promovidos a evidencia textual
-  - cobertura nova em `tests/api-docs-rag.test.ts`
-  - limpeza minima de lint em `utils/webVerification.ts`
+  - `madge`/`ts-prune` adicionados com baseline de 1 ciclo
+  - OI-055 reclassificado como risco aceito
+  - leak `dossier → chat` removido
+  - `utils/featureFlags.ts` criado e documentado em `ARQUITETURA.md`
+  - wiring de EmailModal/FollowUpModal extraido para hooks
+  - export/email movido para `services/exportService.ts`
+  - **Fix P1**: dependência circular `chatStore ↔ message-orchestrator` resolvida (`LastAction` → `types.ts`)
+  - **Fix P1**: error handling com timeout 30s em `sendDossierEmail`
+  - **Fix P2**: validação de email com regex em `useEmailModal`
+  - **Fix P2**: null checks em `openDossierPrintReport`
+  - **Fix P2**: `useUpdateNotification` usa `scoutDiag` em vez de `console.warn`
 - Validacao local:
-  - `npm exec vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts`
-  - `npm run typecheck`
-  - `npm run test`
-  - `npm run build`
-  - `npm run lint`
-- Validacao manual em Vercel preview autenticada pelo Chrome:
-  - CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, `Sapezal/MT`.
-  - Dossie real completou com score `73/100`, `Cliente Senior confirmado`, grupo `GRUPO SCHEFFER`, `74` modulos.
+  - `npm run test` green (`114` arquivos, `854` testes)
+  - `npm run typecheck` green
+  - `npm run build` green (warning aceito OI-003)
+  - `npm run lint` green com `0` erros e `160` warnings conhecidos
+  - `npm run analyze:circular` registrou 1 ciclo existente
+- Validacao manual local:
+  - Playwright em `http://127.0.0.1:3000/`
+  - tela inicial carregou, operador `Bruno QA` foi salvo, home principal abriu
+  - sem `console.error` e sem `pageerror`
+- Review por agente especializado: 0 P0, 2 P1 (corrigidos), 4 P2 (corrigidos), 4 P3 (backlog)
 
 ## Riscos residuais imediatos
 
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
-- `VITE_PINECONE_API_KEY` em `index.tsx` segue pendente.
+- `VITE_PINECONE_*` permanece por decisao operacional em app interno/fechado.
 - Warnings de lint e build seguem como backlog aceito, embora `npm run lint` agora saia com `0` erros.
 
 ## Governance de Handoff
