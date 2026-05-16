@@ -13,10 +13,11 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 7. `docs/ai-context/refactor/01-MASTER-PLAN.md`
 8. `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
 9. `docs/ai-context/refactor/02-BOARD.md`
-10. `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
-11. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
-12. `docs/ai-context/refactor/06-HANDOFF.md`
-13. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
+10. `docs/ai-context/refactor/11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`
+11. `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
+12. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+13. `docs/ai-context/refactor/06-HANDOFF.md`
+14. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
 
 ## Contexto minimo estavel
 
@@ -28,7 +29,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-16 — PR `#254` mergeada em `main` no commit `922a403`.
+> Atualizado em 2026-05-16 — `origin/main` no commit `66591f1` apos merge da PR `#256`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -36,7 +37,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - `features/chat/*` e `features/dossier/*` concentram os fluxos extraidos de `App.tsx`.
 - Leak `features/dossier/*` -> `features/chat/*` removido na Sprint 9; helpers compartilhados vivem em `utils/*`.
 - Dependência circular `chatStore` -> `message-orchestrator` resolvida: `LastAction` movido para `types.ts`.
-- `features/radar/*` existe como boundary oficial (stub); runtime atual ainda passa por `hooks/useRadar.ts` e `services/radarService.ts`.
+- `features/radar/*` e o boundary oficial do Radar runtime; `useRadar` e o service foram movidos para a feature na Sprint 10.
+- `hooks/useRadar.ts` e `services/radarService.ts` existem apenas como facades de compatibilidade.
+- `tests/architecture/radarBoundaryImportGuard.test.ts` bloqueia novos imports de producao para os caminhos legados.
 - `types.ts` permanece centralizado (agora inclui `LastAction`).
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
 - `VITE_PINECONE_*` no frontend é risco aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
@@ -47,37 +50,55 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Fase 1 (Sprints 1-8): concluída em `main` (PR `#241`).
 - Fase 2 (Sprints 9-12): em andamento.
   - Sprint 9: concluída e mergeada via PR `#254`.
-  - Onda 0+1: cleanup base + primeira correção técnica.
-  - Sprint 10: próxima sprint canônica, Radar boundary completion.
+  - Onda 0+1: concluída e mergeada via PR `#255`.
+  - OI-066: concluído e mergeado via PR `#256`.
+  - Sprint 10: em andamento, Radar boundary completion.
 
 ## Hotspots atuais da Fase 2
 
 | Arquivo | Linhas/estado | Sprint alvo |
 |---|---|---|
 | `App.tsx` | 622 | Sprint 9 concluída |
-| `hooks/useRadar.ts` + `services/radarService.ts` | runtime fora de `features/radar/*` | Sprint 10 |
+| `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 em andamento |
 | `components/CRMDetail.tsx` | 717 + `card: any` + sem testes dedicados | Sprint 11 |
 | `components/LoadingSmart.tsx` | 766 | Sprint 11 |
 | `components/WarRoom.tsx` | 552 + sem testes dedicados | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: OI-066
+## Entrega em curso: Sprint 10 Radar boundary
+
+- Branch: `codex/sprint-10-radar-boundary`
+- Base: `origin/main@66591f1`
+- Plano: `docs/ai-context/refactor/11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`
+- Escopo:
+  - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
+  - manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade;
+  - fazer `App.tsx` importar `useRadar` pelo barrel `features/radar`;
+  - exportar hook, service, tipos e constantes estaveis por `features/radar/index.ts`;
+  - adicionar guardrail contra novos imports de producao pelos caminhos legados.
+- Validação local:
+  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes);
+  - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes);
+  - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes);
+  - `npm run typecheck` green;
+  - `npm run test` green (`115` arquivos, `850` testes);
+  - `npm run build` green com warnings aceitos OI-003/OI-057;
+  - `npm run lint` green com `0` erros e `147` warnings conhecidos;
+  - `npm run analyze:circular` green, sem ciclos.
+- Fora de escopo:
+  - mover componentes visuais `Radar*`;
+  - deletar facades de compatibilidade;
+  - redesign funcional do Radar;
+  - limpar warnings globais de lint.
+
+## Entrega anterior: OI-066
 
 - Branch: `codex/fix-delete-icon-unicode`
-- Base: `origin/main@0550454`
-- PR anterior: `#255`, merge commit `0550454`
-- Plano: `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
-- Escopo:
-  - corrigir botão de excluir mensagem que renderizava `\uD83D\uDDD1\uFE0F` como texto cru em vermelho;
-  - manter ação `handleDeleteWithUndo`;
-  - garantir acessibilidade com `aria-label`;
-  - adicionar teste focado em `tests/components/MessageRow.test.tsx`.
-- Validação local:
-  - `npm exec vitest run tests/components/MessageRow.test.tsx tests/components/chat/MessageTimeline.test.tsx` green (`18` testes);
-  - `npm run typecheck` green;
-  - `npm run build` green;
-  - `npm run lint` green com `0` erros e warnings conhecidos;
-  - `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests` sem ocorrências.
+- PR: `#256`, merge commit `66591f1`
+- Resultado:
+  - botão de excluir mensagem renderiza icone de lixeira, nao o escape cru `\uD83D\uDDD1\uFE0F`;
+  - `aria-label` preserva acessibilidade;
+  - teste focado em `tests/components/MessageRow.test.tsx`.
 
 ## Entrega anterior: Onda 0+1
 
@@ -115,8 +136,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Abrir PR do OI-066 e validar no preview que o botão de excluir mensagem mostra ícone de lixeira, não `\uD83D\uDDD1\uFE0F`.
-2. Após merge do OI-066, abrir Sprint 10 a partir de `main` atualizado.
+1. Abrir PR de `codex/sprint-10-radar-boundary`.
+2. Validar preview Vercel: configurar Radar, forçar varredura, abrir painel/configurações, marcar alerta como lido e confirmar que Chat/Home seguem recebendo contexto do Radar.
 
 ## Regras de continuidade
 

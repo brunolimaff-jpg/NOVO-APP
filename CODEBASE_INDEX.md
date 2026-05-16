@@ -1,5 +1,5 @@
 # Codebase Index
-> 2026-04-23 snapshot after Sprint 8 targeted documentation refresh
+> 2026-05-16 snapshot after Sprint 10 Radar runtime boundary update
 >
 > How to use: leia este indice primeiro, depois abra apenas os arquivos necessarios.
 
@@ -59,6 +59,8 @@
 
 - `features/radar/README.md`
 - `features/radar/types.ts`
+- `features/radar/useRadar.ts`
+- `features/radar/service.ts`
 - `features/radar/index.ts`
 
 ## Hooks
@@ -161,6 +163,7 @@ Removed:
 - `tests/services/warRoomCanary.test.ts`
 - `tests/components/warRoomTargetExtract.test.ts`
 - `tests/components/chat/ChatPanels.test.tsx`
+- `tests/architecture/radarBoundaryImportGuard.test.ts`
 - `tests/hooks/useRadar.test.ts`
 - `tests/services/radarService.test.ts`
 

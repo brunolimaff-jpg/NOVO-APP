@@ -34,7 +34,7 @@
 | OI-051 | high | open | `components/CRMDetail.tsx` | `717` linhas + `card: any` + **sem testes** | Sprint 11: Onda 0 (testes) + tipagem forte + extração |
 | OI-052 | high | open | `components/LoadingSmart.tsx` | `766` linhas | Sprint 11: separar timeline/modelo/render |
 | OI-053 | medium | open | `components/WarRoom.tsx` | `552` linhas + **sem testes** | Sprint 11: Onda 0 (testes) + redução de UI |
-| OI-054 | high | open | Radar runtime fora do boundary | `hooks/useRadar.ts` (`291`) + `services/radarService.ts` (`234`) + 29 refs diretas | Sprint 10: completar boundary `features/radar/*` |
+| OI-054 | high | resolved | Radar runtime fora do boundary | runtime movido para `features/radar/useRadar.ts` e `features/radar/service.ts`; facades antigas preservadas | resolvido na Sprint 10; componentes visuais Radar ficam fora desta PR |
 
 ## Fase 2 - Novos Riscos Identificados (auditoria 2026-04-30)
 

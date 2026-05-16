@@ -1,7 +1,7 @@
 // tests/hooks/useRadar.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRadar } from '../../hooks/useRadar';
+import { useRadar } from '../../features/radar';
 import type { RadarAlert } from '../../types';
 
 // Mock IDB
@@ -10,16 +10,16 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Mock radarService (no real HTTP calls)
-vi.mock('../../services/radarService', async () => {
-  const actual = await vi.importActual<typeof import('../../services/radarService')>('../../services/radarService');
+// Mock radar service (no real HTTP calls)
+vi.mock('../../features/radar/service', async () => {
+  const actual = await vi.importActual<typeof import('../../features/radar/service')>('../../features/radar/service');
   return {
     ...actual,
     fetchRadarAlerts: vi.fn(),
   };
 });
 
-import { fetchRadarAlerts } from '../../services/radarService';
+import { fetchRadarAlerts } from '../../features/radar/service';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 
 function makeAlert(id: string, read = false): RadarAlert {

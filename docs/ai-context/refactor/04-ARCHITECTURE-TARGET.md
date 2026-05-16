@@ -1,7 +1,7 @@
 # Target Architecture
 
-> Atualizado em 2026-04-14 — incorpora camadas aprovadas apos revisao Board Room:
-> stores/ (estado global), error boundaries por feature e pre-esqueleto features/radar/.
+> Atualizado em 2026-05-16 — incorpora Sprint 10 com runtime do Radar movido para `features/radar/*`
+> e facades de compatibilidade preservadas.
 
 ## Estrutura Alvo
 
@@ -30,10 +30,12 @@ features/
     porta-reconciliation.ts
     benchmark-stage.ts
     DossierErrorBoundary.tsx     ← NOVO (Sprint 4)
-  radar/                         ← NOVO (pre-esqueleto Sprint 8)
-    README.md                    ← contrato de dominio e tipos base
-    types.ts                     ← RadarAlert, RadarCategory, RadarEntry
-    index.ts                     ← barrel stub (nao implementado)
+  radar/
+    README.md                    ← contrato de dominio e escopo
+    types.ts                     ← reexports de contratos estaveis de `types.ts`
+    service.ts                   ← cliente frontend de `/api/radar-scan`
+    useRadar.ts                  ← estado, persistencia e scan orchestration
+    index.ts                     ← barrel publico da feature
 components/
   chat/
     ChatShell.tsx
@@ -70,6 +72,10 @@ constants/
   - permanece como fachada durante Sprint 8
   - chamadas existentes nao mudam no mesmo sprint de extracao
 
+- `hooks/useRadar.ts` e `services/radarService.ts`
+  - permanecem como facades de compatibilidade durante a Sprint 10
+  - novos imports de producao devem usar `features/radar`
+
 ## Regras de Dependencia
 
 - `App.tsx` pode depender de `features/*` e `stores/*`, nunca de detalhes internos em cascata.
@@ -79,14 +85,14 @@ constants/
 - `prompts/mega/*` nao deve depender de componentes.
 - `services/war-room/*` nao deve depender de UI.
 - `stores/*` nao deve depender de componentes nem de features — apenas de types e utils.
-- `features/radar/*` concentrara toda a logica de negocio do Radar apos Sprint 10. O stub atual (apenas `index.ts` + `types.ts`) sera substituido pelo runtime completo movido de `hooks/useRadar.ts` e `services/radarService.ts`.
+- `features/radar/*` concentra o runtime de Radar. `hooks/useRadar.ts` e `services/radarService.ts` existem apenas como facades temporarias de compatibilidade.
 
-## Estado Atual vs Alvo (2026-04-30)
+## Estado Atual vs Alvo (2026-05-16)
 
 | Regra | Estado Atual | Sprint de Resolucao |
 |---|---|---|
 | `features/dossier/*` nao importa de `features/chat/*` | **Resolvido** (Sprint 9 / PR `#254`) | done |
-| `features/radar/*` contem runtime completo | **Violado** (apenas stub) | Sprint 10 |
+| `features/radar/*` contem runtime completo | **Resolvido** (Sprint 10; facades antigas preservadas) | done |
 | `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco aceito** para app interno/fechado (OI-055) | reavaliar se app virar externo |
 | Componentes < 500 linhas | **Violado** (CRMDetail 717, LoadingSmart 766, WarRoom 552) | Sprint 11 |
 
@@ -108,5 +114,6 @@ constants/
 | `ChatErrorBoundary.tsx` | Sprint 4 | `features/chat/` estabilizada | Gemini 429/500 nao quebra tela |
 | `DossierErrorBoundary.tsx` | Sprint 4 | `features/dossier/` estabilizada | Waterfall falho exibe fallback visual |
 | `features/radar/` (stub) | Sprint 8 | Nenhuma — apenas tipos | `tsc --noEmit` verde |
+| `features/radar/` (runtime) | Sprint 10 | Sprint 8 stub | hook/service movidos + imports novos via barrel + guardrail arquitetural |
 | Validacao Zod em `[[PORTA_*]]` | Sprint 6 | `prompts/mega/contracts.ts` | 3 cenarios de alucinacao passam |
 | `constants/market-intelligence.ts` | Sprint 7 (antes de `constants/app.ts`) | Nenhuma | Nenhuma constante de UI regride |

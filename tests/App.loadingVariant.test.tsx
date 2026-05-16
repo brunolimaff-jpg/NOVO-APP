@@ -190,7 +190,7 @@ vi.mock('../hooks/useUpdateNotification', () => ({
   }),
 }));
 
-vi.mock('../hooks/useRadar', () => ({
+vi.mock('../features/radar', () => ({
   useRadar: () => ({
     alerts: [],
     config: { isConfigured: false },

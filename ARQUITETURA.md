@@ -1,9 +1,9 @@
 # Arquitetura Tecnica - Senior Scout 360
 
-Este documento resume o desenho tecnico atual da aplicacao e o estado arquitetural depois da Sprint 8 do programa de refatoracao.
+Este documento resume o desenho tecnico atual da aplicacao e o estado arquitetural depois da Sprint 10 do programa de refatoracao.
 O backlog estrutural da fase seguinte esta em `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
 
-> Ultima atualizacao: 2026-04-23
+> Ultima atualizacao: 2026-05-16
 > Fonte de verdade para status vivo da trilha: `docs/ai-context/refactor/02-BOARD.md`
 
 ## 1. Contexto
@@ -37,7 +37,10 @@ O sistema combina:
 - `components/chat/`
   - shell visual modular do chat
 - `features/radar/`
-  - boundary arquitetural oficial do Radar, criado na Sprint 8 como stub
+  - boundary arquitetural oficial do Radar
+  - `useRadar.ts` concentra estado, persistencia e orquestracao de scan
+  - `service.ts` concentra o contrato frontend de `/api/radar-scan`
+  - `index.ts` exporta hook, service, tipos e constantes estaveis
 
 ### Estado compartilhado
 
@@ -64,7 +67,7 @@ O sistema combina:
 - `services/ragService.ts`
   - cliente para RAG interno e documental
 - `services/radarService.ts`
-  - runtime atual do Radar
+  - fachada de compatibilidade para `features/radar/service.ts`
 - `services/sessionRemoteStore.ts`
   - persistencia remota de sessoes
 - `services/feedbackRemoteStore.ts`
@@ -179,11 +182,11 @@ Continuam centralizados em `types.ts`, incluindo:
 
 | Item | Status | Observacao |
 |---|---|---|
-| `App.tsx` ainda e hotspot | aberto | reduzir novos acoplamentos fora da trilha |
+| `App.tsx` ainda e hotspot | em reducao | Sprint 9 reduziu shell; Sprint 10 trocou Radar para import de feature |
 | `mobile-responsive.css` separado de `index.css` | aberto | segue como OI-045 |
-| backlog de warnings do `npm run lint` | aberto | baseline atual: `180` warnings |
+| backlog de warnings do `npm run lint` | aberto | baseline atual varia por sprint; ver `03-OPEN-ITEMS.md` |
 | warning de chunking em `utils/idbStorage.ts` | aceito | segue como OI-003 |
-| runtime real do Radar ainda fora de `features/radar/` | aberto | stub arquitetural criado; migracao fica para fatia propria |
+| componentes visuais do Radar ainda em `components/` | aberto | runtime ja esta em `features/radar`; UI pode ser movida em fatia futura |
 
 ## 9. Programa de refatoracao
 
@@ -194,13 +197,16 @@ Continuam centralizados em `types.ts`, incluindo:
 - Sprint 5: done - modularizacao de `components/chat/*`
 - Sprint 6: done - divisao de `prompts/megaPrompts.ts`
 - Sprint 7: done - constantes, links Senior e remocao de legado
-- Sprint 8: implementada, validada e documentada; aguardando merge da PR `#241`
+- Sprint 8: done - War Room modular + stub inicial de `features/radar/`
+- Sprint 9: done - App shell decoupling + governanca
+- Sprint 10: em andamento - runtime do Radar movido para `features/radar/` com facades compatíveis
 
 ## 10. Regras arquiteturais vigentes
 
 - nao quebrar fachadas publicas em sprint estrutural
 - novas responsabilidades Gemini entram em `services/gemini/`, nao na fachada
 - novas responsabilidades War Room entram em `services/war-room/`, nao na fachada
+- novas responsabilidades Radar entram em `features/radar/`, nao em `hooks/` ou `services/` legados
 - `types.ts` continua centralizado ate haver ROI claro para divisao
 - `hooks/useChat.ts` foi removido e nao deve ser recriado
 - validacao manual final acontece em preview/producao da Vercel, nao em `npm run dev`

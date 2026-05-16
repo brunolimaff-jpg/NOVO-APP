@@ -97,3 +97,9 @@ Reason: a review encontrou 2 P1 e 4 P2 que teriam ido para a PR sem detecção. 
 Decision: executar uma ponte curta `refactor/wave-0-1-cleanup` antes de abrir a Sprint 10.
 
 Reason: a PR `#254` já estava mergeada em `main`, mas os docs/memórias ainda tratavam Sprint 9 como aberta. A mesma investigação encontrou dois ajustes pequenos e seguros para fazer antes do Radar: corrigir o hold parcial de PORTA e trocar logs cliente sensíveis por `scoutDiag`. Escopos maiores (`Radar`, componentes grandes, PWA, performance) ficam fora desta onda para preservar revisão pequena.
+
+## 2026-05-16 - Sprint 10 preserva facades Radar
+
+Decision: mover o runtime do Radar para `features/radar/*`, mas manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade nesta PR.
+
+Reason: a Sprint 10 é uma mudança de boundary, não redesign funcional. Preservar os caminhos públicos reduz risco para consumidores existentes, enquanto `tests/architecture/radarBoundaryImportGuard.test.ts` impede novos imports de produção pelos caminhos legados.

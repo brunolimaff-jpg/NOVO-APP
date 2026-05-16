@@ -28,14 +28,19 @@ Last updated: 2026-05-16
   - logs cliente sensíveis migrados para `scoutDiag`
   - `/api/open-web-search` corrigido para não quebrar no runtime Vercel por import ESM sem `.js`
   - review comments do Gemini Code Assist resolvidos
+- OI-066 mergeado via PR `#256` em `2026-05-16`:
+  - merge commit `66591f1`
+  - `components/MessageRow.tsx` deixou de renderizar `\uD83D\uDDD1\uFE0F` como texto cru
+  - ícone de excluir preserva `aria-label` e teste focado
 
 ## In progress
 
-- OI-066 hotfix na branch `codex/fix-delete-icon-unicode`.
+- Sprint 10 Radar boundary na branch `codex/sprint-10-radar-boundary`.
 - Objetivo:
-  - corrigir botão de excluir mensagem que renderizava `\uD83D\uDDD1\uFE0F` como texto cru em vermelho;
-  - preservar tooltip/ação de excluir;
-  - adicionar teste DOM focado para impedir regressão.
+  - mover runtime do Radar para `features/radar/useRadar.ts` e `features/radar/service.ts`;
+  - preservar compatibilidade pública via `hooks/useRadar.ts` e `services/radarService.ts`;
+  - fazer novos imports de produção usarem `features/radar`;
+  - adicionar guardrail arquitetural para impedir regressão de imports legados.
 
 ## Blockers
 
@@ -79,6 +84,18 @@ Last updated: 2026-05-16
 - `npm run lint` green com `0` erros e `147` warnings conhecidos
 - `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests` sem ocorrências
 
+### Sprint 10
+
+- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`40` testes)
+- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes)
+- `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes)
+- `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes)
+- `npm run typecheck` green
+- `npm run test` green (`115` arquivos, `850` testes)
+- `npm run build` green (warnings aceitos OI-003/OI-057)
+- `npm run lint` green com `0` erros e `147` warnings conhecidos
+- `npm run analyze:circular` green, sem ciclos
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -89,5 +106,5 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Abrir PR do OI-066 e validar preview no Chrome.
-- Após merge do OI-066, iniciar Sprint 10: Radar boundary completion.
+- Abrir PR e validar preview Vercel com checklist manual do Radar.
+- Após merge da Sprint 10, iniciar Sprint 11 com testes de caracterização antes de mexer em `CRMDetail`, `LoadingSmart` e `WarRoom`.

@@ -1,7 +1,7 @@
 # Mapa Arquitetural - Senior Scout 360
 
 > Repositorio: [brunolimaff-jpg/NOVO-APP](https://github.com/brunolimaff-jpg/NOVO-APP)
-> Ultima revisao: 2026-04-23
+> Ultima revisao: 2026-05-16
 > Este mapa e auxiliar. Para status vivo da trilha, use `docs/ai-context/refactor/02-BOARD.md`.
 > Plano da fase atual de manutenibilidade: `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`.
 
@@ -61,11 +61,13 @@
 - `components/RadarPanel.tsx`
 - `components/RadarSettings.tsx`
 - `components/RadarBell.tsx`
-- `hooks/useRadar.ts`
-- `services/radarService.ts`
 - `features/radar/`
-  - boundary arquitetural inicial criado na Sprint 8
-  - `README.md`, `types.ts`, `index.ts`
+  - boundary arquitetural oficial do Radar
+  - `README.md`, `types.ts`, `useRadar.ts`, `service.ts`, `index.ts`
+- `hooks/useRadar.ts`
+  - facade de compatibilidade para `features/radar`
+- `services/radarService.ts`
+  - facade de compatibilidade para `features/radar/service`
 
 ## Hooks
 
@@ -74,7 +76,7 @@
 | `useAppInitialization.ts` | bootstrap local da aplicacao | ativo |
 | `useSessionManager.ts` | CRUD de sessoes | ativo |
 | `useSessionStorage.ts` | persistencia local de sessoes | ativo |
-| `useRadar.ts` | polling, estado e integracao do Radar | ativo |
+| `useRadar.ts` | facade de compatibilidade; runtime em `features/radar/useRadar.ts` | ativo |
 | `useOffline.ts` | conectividade | ativo |
 | `useToast.ts` | notificacoes | ativo |
 | `useTheme.ts` | preferencia visual | ativo |
@@ -93,7 +95,7 @@ Observacao:
 | `services/warRoomService.ts` | fachada publica do War Room |
 | `services/war-room/` | implementacao interna modular do War Room |
 | `services/ragService.ts` | RAG interno e documental |
-| `services/radarService.ts` | runtime atual do Radar |
+| `services/radarService.ts` | facade de compatibilidade para `features/radar/service.ts` |
 | `services/sessionRemoteStore.ts` | sync remoto de sessoes |
 | `services/feedbackRemoteStore.ts` | sync remoto de feedback |
 | `services/apiConfig.ts` | env/config tipado e links Senior reexportados |
@@ -125,12 +127,13 @@ Todas rodam em Vercel; validacao manual final deve acontecer em preview/producao
 - `mobile-responsive.css` segue fora da consolidacao principal de estilos
 - `CRMDetail.tsx`, `WarRoom.tsx` e `LoadingSmart.tsx` continuam candidatos a decomposicao
 - lint segue com backlog de warnings
-- runtime do Radar ainda nao foi migrado para dentro de `features/radar/`
+- componentes visuais do Radar ainda estao em `components/`; runtime ja esta em `features/radar/`
 
 ## Regras vigentes
 
 - novas responsabilidades Gemini entram em `services/gemini/`
 - novas responsabilidades War Room entram em `services/war-room/`
+- novas responsabilidades Radar entram em `features/radar/`
 - nao quebrar fachadas publicas em sprint estrutural
 - `types.ts` continua centralizado ate ROI claro para divisao
 - `mcp-server/` segue fora da trilha de refactor atual

@@ -1,12 +1,22 @@
 # Sprint 10 — Execução
 
-**Objetivo:** Mover runtime do Radar para `features/radar/*`, deletar arquivos legados, instalar guard test arquitetural.
+**Objetivo:** Mover runtime do Radar para `features/radar/*`, preservar facades de compatibilidade e instalar guard test arquitetural.
 
-**Branch principal:** `refactor/sprint-10` (derivada de `main`, após Sprint 9 mergeada)
-**Duração:** 2 semanas
-**PRs estimadas:** 3
+**Branch principal:** `codex/sprint-10-radar-boundary` (derivada de `origin/main@66591f1`, após PR `#256`)
+**Duração:** entrega curta
+**PRs estimadas:** 1
 
 > Para contexto completo, ver `../PLANO_COMPLETO_SPRINTS.md`.
+
+## Nota de execução 2026-05-16
+
+O plano original abaixo previa três ondas e deleção dos arquivos legados no final. A execução aprovada para esta PR é mais conservadora:
+
+- mover somente o runtime (`useRadar` + service) para `features/radar/*`;
+- manter `hooks/useRadar.ts` e `services/radarService.ts` como facades públicas;
+- atualizar `App.tsx` e testes de App para o barrel `features/radar`;
+- adicionar guardrail para bloquear novos imports de produção dos caminhos legados;
+- deixar componentes visuais `Radar*` e remoção das facades para uma fatia posterior.
 
 ---
 

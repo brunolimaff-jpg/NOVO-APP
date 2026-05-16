@@ -1,17 +1,23 @@
 # Radar Feature Boundary
 
-`features/radar/` is the canonical architectural boundary for future Radar work.
+`features/radar/` is the canonical architectural boundary for Radar runtime work.
 
-Current runtime ownership still lives in the existing modules:
+Runtime ownership lives here as of Sprint 10:
 
-- `hooks/useRadar.ts` for client state, persistence, and orchestration
-- `services/radarService.ts` for the frontend service contract
-- `components/RadarPanel.tsx`, `components/RadarSettings.tsx`, and `components/RadarBell.tsx` for UI delivery
+- `features/radar/useRadar.ts` owns client state, persistence, and scan orchestration.
+- `features/radar/service.ts` owns the frontend `/api/radar-scan` service contract.
+- `features/radar/types.ts` reexports the stable contracts and constants from root `types.ts`.
+- `features/radar/index.ts` is the public feature barrel for new production imports.
 
-This stub exists to close OI-044 by giving Radar an explicit destination before any new product work pushes more Radar behavior into `App.tsx`.
+Compatibility facades remain intentionally available:
 
-Near-term migration targets:
+- `hooks/useRadar.ts`
+- `services/radarService.ts`
 
-1. Move Radar-specific request/response shaping and orchestration behind this boundary.
-2. Reexport stable feature contracts from here while `types.ts` remains the source of truth.
-3. Shift UI-facing composition out of `App.tsx` and into dedicated Radar feature entrypoints when the next Radar slice is approved.
+Those facades preserve existing public imports while new production code imports Radar through `features/radar`. The guardrail lives in `tests/architecture/radarBoundaryImportGuard.test.ts`.
+
+Still out of this runtime slice:
+
+1. Moving `components/RadarPanel.tsx`, `components/RadarSettings.tsx`, and `components/RadarBell.tsx`.
+2. Deleting the compatibility facades.
+3. Splitting `types.ts`; it remains the source of truth until there is clear ROI.
