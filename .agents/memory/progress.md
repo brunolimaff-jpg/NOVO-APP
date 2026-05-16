@@ -21,24 +21,21 @@ Last updated: 2026-05-16
   - `madge`/`ts-prune` adicionados
   - `utils/featureFlags.ts` criado
   - OI-055 Pinecone via `VITE_*` registrado como risco aceito
+- Onda 0+1 mergeada via PR `#255` em `2026-05-16`:
+  - merge commit `0550454`
+  - docs/memória pós-Sprint 9 sincronizados
+  - PORTA partial integrity hold corrigido
+  - logs cliente sensíveis migrados para `scoutDiag`
+  - `/api/open-web-search` corrigido para não quebrar no runtime Vercel por import ESM sem `.js`
+  - review comments do Gemini Code Assist resolvidos
 
 ## In progress
 
-- Onda 0+1 na branch `refactor/wave-0-1-cleanup`, PR `#255`, pronta para validação final/merge.
+- OI-066 hotfix na branch `codex/fix-delete-icon-unicode`.
 - Objetivo:
-  - sincronizar docs/memória pós-PR `#254`;
-  - criar plano de continuação da Onda 0+1;
-  - corrigir `portaIntegrityHold` para não bloquear score com falha parcial;
-  - migrar logs cliente sensíveis para `scoutDiag`.
-- Ajuste pós-validação manual:
-  - `/api/open-web-search` retornava `500` no preview por crash serverless antes do handler (`ERR_MODULE_NOT_FOUND` em import ESM sem `.js`);
-  - corrigidos imports serverless em `api/open-web-search.ts`, `api/extract-content.ts` e `utils/documentExtractor.ts`;
-  - contrato de `/api/open-web-search` ajustado para aceitar `{ url }` sem `query`.
-- Novo item registrado:
-  - OI-066: botão de excluir mensagem renderiza escape Unicode cru `\uD83D\uDDD1\uFE0F` em vermelho no preview; corrigir em follow-up curto.
-- Review comments da PR `#255`:
-  - Gemini Code Assist apontou `catch (...: any)` em `clientLookupService` e `extractContentService`;
-  - ambos foram corrigidos para `unknown`, respondidos na PR e marcados como resolvidos.
+  - corrigir botão de excluir mensagem que renderizava `\uD83D\uDDD1\uFE0F` como texto cru em vermelho;
+  - preservar tooltip/ação de excluir;
+  - adicionar teste DOM focado para impedir regressão.
 
 ## Blockers
 
@@ -72,7 +69,15 @@ Last updated: 2026-05-16
   - `POST /api/open-web-search` com query real: `200`, `OpenWebSearch/Brave`, `degraded: false`, `5` fontes;
   - `POST /api/open-web-search` com apenas `url`: `200`, `OpenWebSearch/URL`;
   - `POST /api/open-web-search` com `{}`: `400`, esperado;
-  - `vercel logs --status-code 500 --since 15m`: sem ocorrências após o fix.
+- `vercel logs --status-code 500 --since 15m`: sem ocorrências após o fix.
+
+### OI-066
+
+- `npm exec vitest run tests/components/MessageRow.test.tsx tests/components/chat/MessageTimeline.test.tsx` green (`18` testes)
+- `npm run typecheck` green
+- `npm run build` green (warnings aceitos OI-003/OI-057)
+- `npm run lint` green com `0` erros e `147` warnings conhecidos
+- `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests` sem ocorrências
 
 ## Important refs
 
@@ -84,6 +89,5 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Validar PR `#255` no Chrome e mergear se não houver novo `500` em `/api/open-web-search`.
-- Após merge, corrigir OI-066 se o escape Unicode cru do botão excluir mensagem ainda aparecer.
-- Após merge da Onda 0+1, iniciar Sprint 10: Radar boundary completion.
+- Abrir PR do OI-066 e validar preview no Chrome.
+- Após merge do OI-066, iniciar Sprint 10: Radar boundary completion.

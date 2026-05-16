@@ -648,3 +648,22 @@
     - somente `url`: `200`, `OpenWebSearch/URL`
     - `{}`: `400` esperado
     - logs Vercel `500` nos 15 minutos pós-fix: sem ocorrências
+
+## 2026-05-16 - OI-066 delete icon Unicode
+
+- Fase: hotfix visual pós-Onda 0+1
+- Branch: `codex/fix-delete-icon-unicode`
+- Base: `origin/main@0550454`
+- Problema observado:
+  - preview renderizou `\uD83D\uDDD1\uFE0F` em vermelho no botão "Excluir esta mensagem";
+  - causa raiz: JSX em `components/MessageRow.tsx` continha o escape Unicode como texto literal, não como string/entidade renderizável.
+- Correção:
+  - botão de excluir agora usa entidade HTML renderizável `&#x1F5D1;&#xFE0F;`;
+  - botão recebeu `aria-label="Excluir esta mensagem"`;
+  - teste focado garante ícone renderizado, ausência do escape cru e clique chamando `handleDeleteWithUndo`.
+- Checks registrados:
+  - `npm exec vitest run tests/components/MessageRow.test.tsx tests/components/chat/MessageTimeline.test.tsx`: green (`18` testes)
+  - `npm run typecheck`: green
+  - `npm run build`: green
+  - `npm run lint`: green com `0` erros e `147` warnings conhecidos
+  - `rg -F '\\uD83D\\uDDD1\\uFE0F' components tests`: sem ocorrências

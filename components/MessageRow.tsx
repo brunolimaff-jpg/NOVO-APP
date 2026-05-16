@@ -172,8 +172,9 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 : 'text-slate-300 hover:text-red-500 hover:bg-red-50'
             }`}
             title="Excluir esta mensagem"
+            aria-label="Excluir esta mensagem"
           >
-            \uD83D\uDDD1\uFE0F
+            <span aria-hidden="true">&#x1F5D1;&#xFE0F;</span>
           </button>
         )}
         <div
