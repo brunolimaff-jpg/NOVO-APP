@@ -619,3 +619,32 @@
   - `npm run build`: green, com warnings aceitos de chunking
   - `npm run lint`: green com `0` erros e `150` warnings conhecidos
   - `npm run analyze:circular`: green, sem ciclos
+
+## 2026-05-16 - PR #255 ajuste pós-validação: open-web-search
+
+- Fase: validação de preview
+- Branch: `refactor/wave-0-1-cleanup`
+- PR: `#255`
+- Problema observado:
+  - validação manual em preview mostrou `Failed to load resource: /api/open-web-search 500`;
+  - o fluxo funcional concluiu, mas o erro HTTP real não poderia ser tratado como aceitável.
+- Causa raiz confirmada em logs Vercel:
+  - `ERR_MODULE_NOT_FOUND: Cannot find module '/var/task/utils/diagnosticLog' imported from /var/task/api/open-web-search.js`;
+  - a função serverless quebrava antes do `try/catch` do handler.
+- Correções:
+  - imports serverless ESM com `.js` em `api/open-web-search.ts`, `api/extract-content.ts` e `utils/documentExtractor.ts`;
+  - schema de `/api/open-web-search` passou a aceitar `{ url }` sem `query`;
+  - adicionado teste para URL sem query e request vazio.
+- Checks registrados:
+  - `npm exec vitest run tests/api-open-web-search.test.ts tests/services/investigation-orchestration.test.ts tests/services/geminiProxy.test.ts tests/extraction.test.ts`: green (`16` testes)
+  - review comments do Gemini Code Assist em `clientLookupService` e `extractContentService` resolvidos trocando `catch (...: any)` por `unknown`
+  - `npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts tests/api-open-web-search.test.ts`: green (`27` testes)
+  - `npm run typecheck`: green
+  - `npm run build`: green
+  - `vercel build --yes`: green
+  - checks remotos da PR: AI Config, Typecheck, Build, Tests, Dossier Golden, GitGuardian e Vercel green
+  - smoke com Vercel Protection Bypass:
+    - query real em `/api/open-web-search`: `200`, `OpenWebSearch/Brave`, `degraded: false`, `5` fontes
+    - somente `url`: `200`, `OpenWebSearch/URL`
+    - `{}`: `400` esperado
+    - logs Vercel `500` nos 15 minutos pós-fix: sem ocorrências

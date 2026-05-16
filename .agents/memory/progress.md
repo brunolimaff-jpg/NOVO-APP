@@ -24,12 +24,19 @@ Last updated: 2026-05-16
 
 ## In progress
 
-- Onda 0+1 na branch `refactor/wave-0-1-cleanup`, pronta para PR.
+- Onda 0+1 na branch `refactor/wave-0-1-cleanup`, PR `#255`, pronta para validação final/merge.
 - Objetivo:
   - sincronizar docs/memória pós-PR `#254`;
   - criar plano de continuação da Onda 0+1;
   - corrigir `portaIntegrityHold` para não bloquear score com falha parcial;
   - migrar logs cliente sensíveis para `scoutDiag`.
+- Ajuste pós-validação manual:
+  - `/api/open-web-search` retornava `500` no preview por crash serverless antes do handler (`ERR_MODULE_NOT_FOUND` em import ESM sem `.js`);
+  - corrigidos imports serverless em `api/open-web-search.ts`, `api/extract-content.ts` e `utils/documentExtractor.ts`;
+  - contrato de `/api/open-web-search` ajustado para aceitar `{ url }` sem `query`.
+- Review comments da PR `#255`:
+  - Gemini Code Assist apontou `catch (...: any)` em `clientLookupService` e `extractContentService`;
+  - ambos foram corrigidos para `unknown`, respondidos na PR e marcados como resolvidos.
 
 ## Blockers
 
@@ -51,11 +58,19 @@ Last updated: 2026-05-16
 
 - `npm exec vitest run tests/features/dossier/porta-reconciliation.test.ts tests/features/dossier/waterfall-orchestrator.test.ts` green (`15` testes)
 - `npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts` green (`20` testes)
+- `npm exec vitest run tests/api-open-web-search.test.ts tests/services/investigation-orchestration.test.ts tests/services/geminiProxy.test.ts tests/extraction.test.ts` green (`16` testes)
+- `npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts tests/api-open-web-search.test.ts` green (`27` testes) após resolver os review comments
 - `npm run typecheck` green
 - `npm run test` green (`114` arquivos, `846` testes)
 - `npm run build` green (warnings aceitos OI-003/OI-057)
 - `npm run lint` green com `0` erros e `150` warnings conhecidos
 - `npm run analyze:circular` green, sem ciclos
+- `vercel build --yes` green para confirmar empacotamento serverless.
+- Smoke Vercel protegido com bypass de automação:
+  - `POST /api/open-web-search` com query real: `200`, `OpenWebSearch/Brave`, `degraded: false`, `5` fontes;
+  - `POST /api/open-web-search` com apenas `url`: `200`, `OpenWebSearch/URL`;
+  - `POST /api/open-web-search` com `{}`: `400`, esperado;
+  - `vercel logs --status-code 500 --since 15m`: sem ocorrências após o fix.
 
 ## Important refs
 
@@ -67,5 +82,5 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Finalizar Onda 0+1 e abrir PR.
+- Validar PR `#255` no Chrome e mergear se não houver novo `500` em `/api/open-web-search`.
 - Após merge da Onda 0+1, iniciar Sprint 10: Radar boundary completion.

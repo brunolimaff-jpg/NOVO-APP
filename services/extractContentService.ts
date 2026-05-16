@@ -77,12 +77,13 @@ class ExtractContentService {
             }
             
             return result;
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
             scoutDiag.error('ExtractService', 'erro ao extrair conteúdo', {
                 source: params.url ? describeExtractCacheKey(params.url) : 'base64-content',
-                error: error?.message || String(error),
+                error: message,
             });
-            return { text: '', length: 0, error: error.message };
+            return { text: '', length: 0, error: message };
         }
     }
 

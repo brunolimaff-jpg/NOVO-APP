@@ -65,12 +65,20 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 - Branch: `refactor/wave-0-1-cleanup`
 - Base: `origin/main@922a403`
+- PR: `#255`
 - Plano: `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
 - Escopo:
   - sincronizar docs/memória pós-PR `#254`;
   - registrar handoff detalhado no repo e no `claude-mem`;
   - corrigir PORTA para não transformar falha parcial em hold de integridade;
   - migrar logs cliente sensíveis para `scoutDiag`.
+- Ajuste pós-validação manual:
+  - corrigido crash serverless de `/api/open-web-search` causado por imports ESM sem `.js`;
+  - `/api/open-web-search` agora aceita `{ url }` sem `query`, alinhado ao function calling do Gemini;
+  - smoke com Vercel Protection Bypass confirmou `POST /api/open-web-search` com `200`, `source: OpenWebSearch/Brave`, `degraded: false`, `5` fontes;
+  - smoke `{ url: "https://example.com/" }` confirmou `200` e `source: OpenWebSearch/URL`;
+  - smoke `{}` confirmou `400` esperado;
+  - logs Vercel `500` dos 15 minutos posteriores ao fix não retornaram ocorrências.
 - Fora de escopo:
   - Radar boundary;
   - `CRMDetail`, `LoadingSmart`, `WarRoom`;
@@ -88,8 +96,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Finalizar Onda 0+1 com testes focados e gates completos.
-2. Abrir PR da branch `refactor/wave-0-1-cleanup`.
+1. Revalidar o preview da PR `#255` no Chrome, conferindo que não há mais `Failed to load resource: /api/open-web-search 500`.
+2. Mergear a PR `#255` se a validação manual permanecer verde.
 3. Após merge, abrir Sprint 10 a partir de `main` atualizado.
 
 ## Regras de continuidade

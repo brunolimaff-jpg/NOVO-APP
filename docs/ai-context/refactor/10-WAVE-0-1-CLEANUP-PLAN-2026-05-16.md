@@ -20,6 +20,7 @@ Entrega curta entre Sprint 9 e Sprint 10 para alinhar a fonte de verdade pós-PR
 | Auditoria `09-CODEBASE-EXPLORATION` | Snapshot útil, não canônico bruto | Curar achados reais no backlog |
 | PORTA parcial sem score | Bug funcional provável | Corrigir agora |
 | Logs cliente com payload sensível | Risco real em serviços cliente | Migrar agora com truncamento |
+| `/api/open-web-search` 500 no preview | Crash serverless confirmado em Vercel | Corrigir na PR `#255` antes de merge |
 | Radar runtime fora do boundary | Dívida arquitetural real | Sprint 10 |
 | `CRMDetail`, `LoadingSmart`, `WarRoom` grandes | Dívida real | Sprint 11 com testes primeiro |
 | PWA/chunking/lint warnings | Hardening | Sprint 12 |
@@ -41,6 +42,9 @@ Entrega curta entre Sprint 9 e Sprint 10 para alinhar a fonte de verdade pós-PR
 - Garantir que falha parcial de PORTA não silencie a ausência de `scorePorta`.
 - Migrar logs de cliente em `clientLookupService`, `extractContentService`, `feedbackService` e `App.tsx` para `scoutDiag`.
 - Truncar/sanitizar detalhes de URL, query, cache key, feedback e resposta.
+- Corrigir imports serverless ESM em `/api/open-web-search` e `/api/extract-content` para evitar `ERR_MODULE_NOT_FOUND` no runtime Vercel.
+- Aceitar `{ url }` sem `query` em `/api/open-web-search`, preservando `400` para request sem `query` e sem `url`.
+- Resolver review comments da PR `#255` sobre `catch (...: any)` em serviços cliente, usando `unknown` e type guard antes de acessar mensagem.
 
 ## Fora de escopo
 
@@ -58,6 +62,8 @@ Focados:
 ```bash
 npm exec vitest run tests/features/dossier/porta-reconciliation.test.ts tests/features/dossier/waterfall-orchestrator.test.ts
 npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts
+npm exec vitest run tests/api-open-web-search.test.ts tests/services/investigation-orchestration.test.ts tests/services/geminiProxy.test.ts tests/extraction.test.ts
+npm exec vitest run tests/services/clientLookupService.test.ts tests/extraction.test.ts tests/api-open-web-search.test.ts
 ```
 
 Status: green em 2026-05-16.
@@ -70,9 +76,17 @@ npm run test
 npm run build
 npm run lint
 npm run analyze:circular
+vercel build --yes
 ```
 
 Status: green em 2026-05-16. `npm run lint` permanece com warnings conhecidos (`150`) e `0` erros.
+
+Smoke Vercel protegido com bypass de automação:
+
+- `POST /api/open-web-search` com query real: `200`, `source: OpenWebSearch/Brave`, `degraded: false`, `5` fontes.
+- `POST /api/open-web-search` com apenas `url`: `200`, `source: OpenWebSearch/URL`.
+- `POST /api/open-web-search` com `{}`: `400`, esperado.
+- Logs Vercel `500` dos 15 minutos posteriores ao fix: sem ocorrências.
 
 ## Continuação
 

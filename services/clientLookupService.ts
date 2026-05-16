@@ -125,13 +125,13 @@ async function fetchWithRetry(url: string, retries: number = MAX_RETRIES): Promi
         scoutDiag.debug('Lookup', 'consulta concluída', { attempt });
       }
       return response;
-    } catch (err: any) {
-      lastError = err;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
       if (shouldLogLookupDebug) {
         scoutDiag.warn('Lookup', 'tentativa de consulta falhou', {
           attempt,
           retries,
-          error: err?.message || String(err),
+          error: err instanceof Error ? err.message : String(err),
         });
       }
 
