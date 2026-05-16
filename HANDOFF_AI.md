@@ -78,12 +78,14 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - fazer `App.tsx` importar `useRadar` pelo barrel `features/radar`;
   - exportar hook, service, tipos e constantes estaveis por `features/radar/index.ts`;
   - adicionar guardrail contra novos imports de producao pelos caminhos legados.
+- Review:
+  - comentarios do Gemini Code Assist resolvidos: `forceScan` agora funciona com auto-scan desligado e falhas de scan usam `scoutDiag.error`.
 - Validação local:
-  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes);
+  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`35` testes);
   - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes);
   - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes);
   - `npm run typecheck` green;
-  - `npm run test` green (`115` arquivos, `850` testes);
+  - `npm run test` green (`115` arquivos, `851` testes);
   - `npm run build` green com warnings aceitos OI-003/OI-057;
   - `npm run lint` green com `0` erros e `147` warnings conhecidos;
   - `npm run analyze:circular` green, sem ciclos.

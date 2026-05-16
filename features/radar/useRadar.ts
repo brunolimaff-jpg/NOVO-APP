@@ -6,6 +6,7 @@ import { get, set } from 'idb-keyval';
 import type { RadarAlert, RadarConfig } from './types';
 import { DEFAULT_RADAR_CONFIG } from './types';
 import { fetchRadarAlerts, type RadarScanError, type RadarScanErrorCode } from './service';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 const IDB_ALERTS_KEY = 'scout360_radar_alerts';
 const IDB_CONFIG_KEY = 'scout360_radar_config';
@@ -159,7 +160,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   // ===================================================================
 
   const runScan = useCallback(async () => {
-    if (scanLockRef.current || !config.enabled || !config.isConfigured || config.categories.length === 0) return;
+    if (scanLockRef.current || !config.isConfigured || config.categories.length === 0) return;
     scanLockRef.current = true;
     setIsScanning(true);
     setLastError(null);
@@ -201,7 +202,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
         return merged;
       });
     } catch (err) {
-      console.error('[RADAR] Scan failed:', err);
+      scoutDiag.error('Radar', 'falha na varredura', { error: err });
       const scanError = err as RadarScanError;
       const userMessage = scanError?.userMessage || 'Falha na varredura do Radar.';
       const code = scanError?.code || 'RADAR_UNKNOWN';

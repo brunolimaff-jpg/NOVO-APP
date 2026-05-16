@@ -152,6 +152,33 @@ describe('useRadar', () => {
     expect(result.current.lastError!.code).toBe('RADAR_BAD_REQUEST');
   });
 
+  it('forceScan executa varredura manual mesmo com auto-scan desabilitado', async () => {
+    const { result } = renderHook(() => useRadar());
+    await waitFor(() => expect(result.current.config).toBeDefined());
+
+    act(() => {
+      result.current.updateConfig({
+        enabled: false,
+        isConfigured: true,
+        categories: ['concorrentes'],
+        estados: ['MT'],
+      });
+    });
+    await waitFor(() => expect(result.current.config.isConfigured).toBe(true));
+
+    await act(async () => {
+      await result.current.forceScan();
+    });
+
+    expect(fetchRadarAlerts).toHaveBeenCalledTimes(1);
+    expect(fetchRadarAlerts).toHaveBeenCalledWith(expect.objectContaining({
+      enabled: false,
+      isConfigured: true,
+      categories: ['concorrentes'],
+      estados: ['MT'],
+    }));
+  });
+
   it('IDB indisponível não quebra o hook (graceful degradation)', async () => {
     vi.mocked(idbGet).mockRejectedValue(new Error('IDB unavailable'));
 

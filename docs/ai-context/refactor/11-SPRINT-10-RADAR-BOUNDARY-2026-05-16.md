@@ -25,6 +25,7 @@ Sprint 10 move o runtime do Radar para `features/radar/*` sem alterar comportame
 | App | Importar Radar pelo boundary | `App.tsx` |
 | Guardrail | Bloquear novos imports legados em produção | `tests/architecture/radarBoundaryImportGuard.test.ts` |
 | Docs | Atualizar handoff, board, arquitetura e memória | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*` |
+| Review | Resolver comentarios Gemini Code Assist | `features/radar/useRadar.ts`, `tests/hooks/useRadar.test.ts` |
 
 ## Fora de escopo
 
@@ -66,11 +67,12 @@ npm run analyze:circular
 ## Validação executada
 
 - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`40` testes).
-- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes).
+- Review comments do Gemini Code Assist resolvidos: manual `forceScan` com auto-scan desligado + `scoutDiag.error` para falhas.
+- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`35` testes).
 - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes).
 - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes).
 - `npm run typecheck` green.
-- `npm run test` green (`115` arquivos, `850` testes).
+- `npm run test` green (`115` arquivos, `851` testes).
 - `npm run build` green, com warnings aceitos OI-003/OI-057.
 - `npm run lint` green com `0` erros e `147` warnings conhecidos.
 - `npm run analyze:circular` green, sem ciclos.

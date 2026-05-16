@@ -686,17 +686,18 @@
   - `features/radar/index.ts` exporta hook, service, tipos e constantes
   - testes de App passaram a mockar `features/radar`
   - criado `tests/architecture/radarBoundaryImportGuard.test.ts`
+  - review comments do Gemini Code Assist resolvidos: manual `forceScan` não depende de `config.enabled` e falhas de scan usam `scoutDiag.error`
 - PR:
   - `#257` aberta em 2026-05-16
   - preview Vercel ready em `https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app`
   - `mergeStateStatus: CLEAN`
 - Checks registrados até agora:
   - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx`: green (`40` testes)
-  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts`: green (`34` testes)
+  - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts`: green (`35` testes)
   - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx`: green (`11` testes)
   - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx`: green (`7` testes)
   - `npm run typecheck`: green
-  - `npm run test`: green (`115` arquivos, `850` testes)
+  - `npm run test`: green (`115` arquivos, `851` testes)
   - `npm run build`: green com warnings aceitos de chunking
   - `npm run lint`: green com `0` erros e `147` warnings conhecidos
   - `npm run analyze:circular`: green, sem ciclos

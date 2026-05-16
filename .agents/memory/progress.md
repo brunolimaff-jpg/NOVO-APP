@@ -89,11 +89,12 @@ Last updated: 2026-05-16
 ### Sprint 10
 
 - `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`40` testes)
-- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`34` testes)
+- Review comments do Gemini Code Assist resolvidos (`forceScan` manual com auto-scan desligado + `scoutDiag.error` em falha de scan)
+- `npm exec vitest run tests/hooks/useRadar.test.ts tests/services/radarService.test.ts tests/architecture/radarBoundaryImportGuard.test.ts` green (`35` testes)
 - `npm exec vitest run tests/components/chat/ChatPanels.test.tsx tests/components/EmptyStateHome.test.tsx` green (`11` testes)
 - `npm exec vitest run tests/App.layout.test.tsx tests/App.loadingVariant.test.tsx` green (`7` testes)
 - `npm run typecheck` green
-- `npm run test` green (`115` arquivos, `850` testes)
+- `npm run test` green (`115` arquivos, `851` testes)
 - `npm run build` green (warnings aceitos OI-003/OI-057)
 - `npm run lint` green com `0` erros e `147` warnings conhecidos
 - `npm run analyze:circular` green, sem ciclos
