@@ -15,6 +15,7 @@ const routes = (process.env.SMOKE_ROUTES || '/,/login,/dashboard')
 
 const requestTimeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 15000);
 const vercelAutomationBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+const allowProtectedSkip = process.env.SMOKE_ALLOW_PROTECTED_SKIP === 'true';
 const protectionBypassHeaders = vercelAutomationBypassSecret
   ? {
       'x-vercel-protection-bypass': vercelAutomationBypassSecret,
@@ -99,6 +100,14 @@ async function run() {
   }
 
   if (hasFailure) {
+    const looksLikeProtectedPreview = checks.length > 0 && checks.every((check) => check.status === 401);
+    if (allowProtectedSkip && !vercelAutomationBypassSecret && looksLikeProtectedPreview) {
+      console.warn(
+        '\n⚠️ Preview protegido retornou 401 e VERCEL_AUTOMATION_BYPASS_SECRET não está configurado. Smoke ignorado.'
+      );
+      return;
+    }
+
     console.error('\n❌ Smoke falhou.');
     process.exit(1);
   }
