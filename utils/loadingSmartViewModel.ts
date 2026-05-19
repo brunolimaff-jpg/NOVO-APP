@@ -2,6 +2,11 @@ import { MODULAR_DOSSIER_STAGES } from '../constants/loadingStages';
 import { isPhaseTimelineStatus, statusKey, toRichStatus, type RichLoadingStatus } from './loadingStatus';
 import { stripInternalMarkers } from './textCleaners';
 
+const MAX_PROGRESS_PERCENT = 95;
+const QUEUED_PROGRESS_SMOOTHING_FACTOR = 0.3;
+const MIN_INCREMENTAL_STAGE_TOTAL = 6;
+const MIN_STANDARD_STAGE_TOTAL = 12;
+
 export const INVESTIGATION_TIMELINE_STAGES = [
   'Consolidando perímetro da conta alvo...',
   'Recuperando inteligência de conversas anteriores...',
@@ -16,6 +21,19 @@ export const INVESTIGATION_TIMELINE_STAGES = [
   'Sintetizando narrativa executiva de alto impacto...',
   'Materializando recomendações práticas...',
 ] as const;
+
+export const LOADING_STAGE_ORDER_BY_KEY: ReadonlyMap<string, number> = new Map(
+  [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES].reduce<Array<[string, number]>>(
+    (entries, stage, index) => {
+      const key = getLoadingStageIdentity(stage);
+      if (key && !entries.some(([existingKey]) => existingKey === key)) {
+        entries.push([key, index]);
+      }
+      return entries;
+    },
+    [],
+  ),
+);
 
 export interface LoadingSmartProcessingState {
   stage?: string;
@@ -143,13 +161,18 @@ export function buildLoadingSmartViewModel({
 
   const visiblePlannedStages = plannedRich.filter((_, index) => visiblePlannedIndices.has(index));
   const expectedTotal = declaredTotalStages
-    ?? (plannedRich.length > 0
+    ?? (isUsingPlannedStages
       ? plannedRich.length
-      : (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2)));
-  const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
-  const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
+      : (isIncremental
+        ? Math.max(MIN_INCREMENTAL_STAGE_TOTAL, realTotalCompleted + 1)
+        : Math.max(MIN_STANDARD_STAGE_TOTAL, realTotalCompleted + 2)));
+  const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
+  const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
   const percent = pendingInQueue > 0
-    ? Math.min(displayedPercent + Math.round((realPercent - displayedPercent) * 0.3), 95)
+    ? Math.min(
+      displayedPercent + Math.round((realPercent - displayedPercent) * QUEUED_PROGRESS_SMOOTHING_FACTOR),
+      MAX_PROGRESS_PERCENT,
+    )
     : displayedPercent;
 
   return {

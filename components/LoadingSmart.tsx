@@ -6,10 +6,9 @@ import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
 import {
   buildLoadingSmartViewModel,
   getLoadingStageIdentity,
-  INVESTIGATION_TIMELINE_STAGES,
+  LOADING_STAGE_ORDER_BY_KEY,
 } from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
-import { MODULAR_DOSSIER_STAGES } from '../constants/loadingStages';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -183,18 +182,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const stepTimestampsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
-  const plannedOrderByKeyRef = useRef<Map<string, number>>(new Map());
   const insightRequestIdRef = useRef(0);
-
-  if (plannedOrderByKeyRef.current.size === 0) {
-    const mergedPlan = [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES];
-    mergedPlan.forEach((stage, index) => {
-      const key = getLoadingStageIdentity(stripInternalMarkers(stage).trim());
-      if (key && !plannedOrderByKeyRef.current.has(key)) {
-        plannedOrderByKeyRef.current.set(key, index);
-      }
-    });
-  }
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -288,8 +276,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     }
     if (newStages.length > 0) {
       newStages.sort((a, b) => {
-        const aIndex = plannedOrderByKeyRef.current.get(a.key) ?? Number.MAX_SAFE_INTEGER;
-        const bIndex = plannedOrderByKeyRef.current.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+        const aIndex = LOADING_STAGE_ORDER_BY_KEY.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = LOADING_STAGE_ORDER_BY_KEY.get(b.key) ?? Number.MAX_SAFE_INTEGER;
         return aIndex - bIndex;
       });
       queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];

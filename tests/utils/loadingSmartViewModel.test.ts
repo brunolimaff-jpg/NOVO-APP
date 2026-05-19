@@ -63,10 +63,24 @@ describe('loadingSmartViewModel', () => {
     });
 
     expect(viewModel.shouldAppendCurrentStage).toBe(false);
+    expect(viewModel.percent).toBe(17);
     expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toEqual([
       'Preparando dados internos...',
       'Consultando endpoint interno customizado...',
     ]);
+  });
+
+  it('não usa labels observados como total fixo quando não há roadmap reconhecido', () => {
+    const viewModel = buildLoadingSmartViewModel({
+      displayedCompleted: ['Preparando dados internos...'],
+      displayedCurrent: 'Consultando endpoint interno customizado...',
+      pendingInQueue: 0,
+      processing: {
+        completedStages: ['Preparando dados internos...'],
+      },
+    });
+
+    expect(viewModel.percent).toBe(8);
   });
 
   it('normaliza labels equivalentes para evitar duplicação visual', () => {
