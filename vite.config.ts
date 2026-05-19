@@ -4,7 +4,8 @@ import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
 import { readFileSync, writeFileSync } from 'fs';
-import type { Plugin } from 'vite';
+import type { Plugin, ProxyOptions } from 'vite';
+import { LOCAL_DEV_API_PROXY_PATHS, LOCAL_DEV_API_PROXY_TARGET } from './config/localDevApiProxy';
 
 // Plugin customizado para gerar version.json em build
 function generateVersionPlugin(): Plugin {
@@ -40,29 +41,23 @@ function generateVersionPlugin(): Plugin {
 
 export default defineConfig(() => {
   const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
+  const localApiProxy = Object.fromEntries(
+    LOCAL_DEV_API_PROXY_PATHS.map((path) => [
+      path,
+      {
+        target: LOCAL_DEV_API_PROXY_TARGET,
+        changeOrigin: true,
+        secure: true,
+      } satisfies ProxyOptions,
+    ]),
+  );
 
   return {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      proxy: {
-        // Em dev local, evita CORS do browser usando proxy same-origin.
-        '/api/gemini': {
-          target: 'https://scoutagro.vercel.app',
-          changeOrigin: true,
-          secure: true,
-        },
-        '/api/radar-scan': {
-          target: 'https://scoutagro.vercel.app',
-          changeOrigin: true,
-          secure: true,
-        },
-        '/api/gerar-dossie': {
-          target: 'https://scoutagro.vercel.app',
-          changeOrigin: true,
-          secure: true,
-        },
-      },
+      // Em dev local, evita CORS e aproxima o Vite das rotas serverless do Vercel.
+      proxy: localApiProxy,
     },
     plugins: [
       generateVersionPlugin(),

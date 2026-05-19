@@ -31,7 +31,7 @@ const VALID_UFS = new Set([
 const BULLETS: string[] = [
   'Dossiê completo por área: Fiscal, TI, RH e Supply Chain com fontes rastreáveis.',
   'Score PORTA com qualificação preditiva em 5 dimensões — feche os certos primeiro.',
-  'Exportável e direto para o CRM — sem etapa manual.',
+  'Exportável para follow-up comercial — sem retrabalho manual.',
 ];
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {

@@ -34,7 +34,7 @@ Boundaries ja estabilizadas:
 | Hotspot | Sinal atual | Risco de manutencao | Ajustes alvo | Padroes de refactor |
 |---|---|---|---|---|
 | `App.tsx` | `724` linhas, `44` imports | acoplamento de composicao e wiring centralizado | reduzir orchestration local e criar fronteiras de app shell | `Extract Class/Module`, `Move Function`, `Introduce Facade` |
-| `components/CRMDetail.tsx` | `664` linhas | tipagem fraca (`card: any`) + responsabilidades misturadas | fortalecer contratos e quebrar renderizacao/transformacao | `Introduce Parameter Object`, `Extract Component`, `Decompose Conditional` |
+| Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto | não reintroduzir; preservar CRM interno Senior em evidências | remoção de feature sem valor atual |
 | `components/LoadingSmart.tsx` | `704` linhas | timeline, modelo e render acoplados | separar fases de preparacao de dados e render | `Extract Method`, `Split Phase`, `Replace Magic Number with Constant` |
 | `components/WarRoom.tsx` | `513` linhas | complexidade local de UI ainda alta | continuar extracao de blocos visuais e objetos de parametros | `Extract Component`, `Introduce Parameter Object` |
 | Radar runtime fora do boundary | `hooks/useRadar.ts` (`248`) + `services/radarService.ts` (`200`) + wiring no `App.tsx` | runtime do Radar ainda fora de `features/radar/*` | mover orquestracao para o boundary oficial mantendo compatibilidade | `Move Method`, `Extract Module`, `Facade over orchestration` |
@@ -56,7 +56,7 @@ Boundaries ja estabilizadas:
 
 ### Sprint 11 - Componentes grandes + tipagem forte
 
-- atacar `CRMDetail`, `LoadingSmart` e continuidade de reducao em `WarRoom`
+- remover Mini CRM local e atacar `LoadingSmart` + continuidade de reducao em `WarRoom`
 - eliminar `any` criticos e consolidar contratos explicitos
 - reduzir complexidade ciclomatica de blocos de render
 

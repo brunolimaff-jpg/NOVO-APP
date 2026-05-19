@@ -50,7 +50,6 @@ O sistema combina:
   - exportacao, save remoto e payload derivado de dossie
 - `contexts/OperatorContext.tsx`
   - perfil local-only do operador
-- `contexts/CRMContext.tsx`
   - estado do pipeline interno
 
 ### Servicos de dominio
@@ -162,7 +161,6 @@ Continuam centralizados em `types.ts`, incluindo:
 
 - `Message`
 - `ChatSession`
-- `CRMCard`
 - `ScorePortaData`
 - `RadarConfig`
 - `RadarAlert`

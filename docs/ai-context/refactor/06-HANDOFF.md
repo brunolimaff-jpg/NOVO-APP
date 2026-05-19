@@ -61,7 +61,7 @@ Validação manual mínima no preview:
 
 - Não mover componentes `Radar*` nesta PR.
 - Não deletar facades `hooks/useRadar.ts` e `services/radarService.ts` nesta PR.
-- Não refatorar `CRMDetail`, `LoadingSmart` ou `WarRoom` agora.
+- Não refatorar `LoadingSmart` ou `WarRoom` (Mini CRM/`CRMDetail` removido na Onda 0.5) agora.
 - Não fazer sweep global de `any`, `catch {}` ou `console.*`.
 - Não mexer em PWA/chunking ou `framer-motion`.
 - Não deletar branches antigas sem aprovação explícita.

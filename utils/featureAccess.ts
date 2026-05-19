@@ -1,5 +1,4 @@
 export interface UserFeatureAccess {
-  miniCRM: boolean;
   dashboard: boolean;
   integrityCheck: boolean;
   clientLookup: boolean;
@@ -11,7 +10,6 @@ const MVP_LOCK_RESTRICTED_FEATURES = false;
 const DEEP_DIVE_ENV_FLAG = 'VITE_ENABLE_DEEP_DIVE';
 
 const FULL_ACCESS: UserFeatureAccess = {
-  miniCRM: true,
   dashboard: true,
   integrityCheck: true,
   clientLookup: true,
@@ -56,7 +54,6 @@ export function getFeatureAccess(): UserFeatureAccess {
   }
 
   return {
-    miniCRM: false,
     dashboard: false,
     integrityCheck: false,
     clientLookup: true,

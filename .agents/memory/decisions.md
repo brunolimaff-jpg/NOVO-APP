@@ -103,3 +103,17 @@ Reason: a PR `#254` já estava mergeada em `main`, mas os docs/memórias ainda t
 Decision: mover o runtime do Radar para `features/radar/*`, mas manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade nesta PR.
 
 Reason: a Sprint 10 é uma mudança de boundary, não redesign funcional. Preservar os caminhos públicos reduz risco para consumidores existentes, enquanto `tests/architecture/radarBoundaryImportGuard.test.ts` impede novos imports de produção pelos caminhos legados.
+
+## 2026-05-19 - Mini CRM local removido
+
+Decision: remover completamente o Mini CRM local do app (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos, tipos e testes dedicados) e retirar `CRMDetail` da trilha de refatoração da Sprint 11.
+
+Reason: o owner confirmou que o Mini CRM não é usado e não será usado. Remover a feature reduz superfície de manutenção e elimina um hotspot grande sem investir em refatoração de algo sem valor de produto.
+
+Constraint: preservar referências ao CRM interno Senior em prompts, evidências, fixtures e dossiês, pois elas representam fonte comercial de inteligência e não a feature Mini CRM local.
+
+## 2026-05-19 - Vite dev deve proxiar rotas serverless usadas pelo app
+
+Decision: centralizar as rotas de proxy local em `config/localDevApiProxy.ts` e incluir `/api/open-web-search`, `/api/link-status`, `/api/extract-content`, `/api/rag` e `/api/docs-rag` além das rotas já existentes.
+
+Reason: o Vercel é o runtime real, mas `npm run dev` precisa evitar falsos 404 para rotas serverless usadas pelo frontend e pelo fluxo de investigação.

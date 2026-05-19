@@ -23,6 +23,7 @@ Consulte estes arquivos quando necessario:
 
 - [`04-ARCHITECTURE-TARGET.md`](./04-ARCHITECTURE-TARGET.md)
 - [`07-SPRINT-LOG.md`](./07-SPRINT-LOG.md)
+- [`09-CODEBASE-EXPLORATION-2026-05-16.md`](./09-CODEBASE-EXPLORATION-2026-05-16.md) ← auditoria completa 2026-05-16 (27 problemas, 3 agentes)
 
 ## Regra de Ouro
 

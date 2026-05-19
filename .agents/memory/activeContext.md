@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-16
+Last updated: 2026-05-19
 
 ## Current operating context
 
@@ -22,36 +22,28 @@ Fase 2 (manutenibilidade) está em andamento.
 
 - Fase 1 (Sprints 1-8) concluída em `main`.
 - Sprint 9 concluída e mergeada via PR `#254`.
-- `origin/main` pós-OI-066: `66591f16f5463e7ab40bb718ec886a88f52eae40`.
 - Sprint 10 mergeada via PR `#257` em `2026-05-16`.
-- Sprint atual: Sprint 11, Onda 0 — testes de caracterização para componentes grandes.
+- Sprint 11 Onda 0 de testes foi mergeada via PR `#258`.
+- Sprint atual: Sprint 11 Onda 0.5 — correções locais + remoção do Mini CRM local.
 
 ## Current task context
 
-Branch ativa desta entrega: `codex/sprint-11-onda-0-tests`, derivada de `origin/main@fbf5536`.
+Branch/workspace atual: `refactor/code-quality` em `/Users/brunolima/Documents/NOVO-APP`.
 
-Worktree limpo: `~/.config/superpowers/worktrees/NOVO-APP/codex-sprint-11-onda-0-tests`.
+Escopo da Onda 0.5:
 
-Esta Onda 0 existe para criar rede de proteção antes de refatorar `CRMDetail`, `LoadingSmart` e `WarRoom`:
-
-- `tests/components/CRMDetail.test.tsx` cobre header, dados da empresa, CNPJ, ExactSpotter, notas, anexos, sessões vinculadas, revenue profile, IA e exclusão.
-- `tests/components/WarRoom.test.tsx` cobre shell aberto/fechado, envio técnico, cancelamento, fontes, benchmark e erro retryable.
-- `@vitest/coverage-v8` foi adicionado como devDependency porque o gate de cobertura da Sprint 11 usa `vitest --coverage`.
-- Nenhum componente de produção foi alterado nesta onda.
+- Corrigir divergência local/Vercel no runtime Vite adicionando proxies serverless faltantes, especialmente `/api/open-web-search`.
+- Remover Mini CRM local do código: `CRMProvider`, `useCRM`, `CRMView`, `CRMDetail`, `CRMPipeline`, props/botões de CRM, tipos locais e testes dedicados.
+- Remover Revenue Intelligence local acoplada ao Mini CRM.
+- Preservar referências ao **CRM interno Senior** em prompts, evidências, fixtures e dossiês.
+- Atualizar docs/memória para impedir reintrodução de `CRMDetail` como hotspot de refatoração.
 
 ## Workspace note
 
-O workspace principal original estava em `refactor/code-quality` com mudanças não commitadas em:
-
-- `AGENTS.md`
-- `CODEBASE_INDEX.md`
-- `docs/ai-context/refactor/00-README.md`
-- `.agents/memory/last-session-context.md`
-- `docs/ai-context/refactor/09-CODEBASE-EXPLORATION-2026-05-16.md`
-
-Essas mudanças foram preservadas fora do fluxo desta branch; a Sprint 11 Onda 0 também está sendo feita em worktree limpa para não misturar escopos.
+O workspace já possuía mudanças não commitadas antes desta Onda 0.5 em arquivos como `.gitignore`, `components/chat/MessageTimeline.tsx`, `package.json`, `services/geminiProxy.ts`, testes relacionados, `vite.config.ts` e scripts locais. Essas mudanças devem ser preservadas e não revertidas sem confirmação explícita.
 
 ## Immediate next step
 
-1. Abrir PR da branch `codex/sprint-11-onda-0-tests`.
-2. Após review/merge, iniciar Sprint 11 Onda 1 em `CRMDetail` usando estes testes como rede.
+1. Revisar diff final e abrir PR/merge da Onda 0.5.
+2. Acompanhar separadamente o health remoto de `/api/gemini` se continuar retornando `ok:false` apesar de HTTP `200`.
+3. Próxima onda: `LoadingSmart` ou `WarRoom`; não reintroduzir Mini CRM/`CRMDetail`.

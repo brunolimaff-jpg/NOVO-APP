@@ -127,14 +127,6 @@ vi.mock('../contexts/ModeContext', () => ({
   }),
 }));
 
-vi.mock('../contexts/CRMContext', () => ({
-  useCRM: () => ({
-    cards: [],
-    createCardFromSession: vi.fn(() => ({ id: 'card-1', companyName: 'Acme Agro' })),
-    moveCardToStage: vi.fn(),
-  }),
-}));
-
 vi.mock('../components/ToastContainer', () => ({
   default: () => <div data-testid="toast-container" />,
 }));
@@ -165,16 +157,8 @@ vi.mock('../components/InstallPrompt', () => ({
   default: () => null,
 }));
 
-vi.mock('../components/CRMView', () => ({
-  CRMView: () => <div data-testid="crm-view" />,
-}));
-
 vi.mock('../components/AdminDash', () => ({
   AdminDash: () => <div data-testid="admin-dash" />,
-}));
-
-vi.mock('../components/SuspenseWithError', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 function renderApp() {

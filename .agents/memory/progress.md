@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-05-16
+Last updated: 2026-05-19
 
 ## Completed
 
@@ -41,16 +41,17 @@ Last updated: 2026-05-16
 
 ## In progress
 
-- Sprint 11 Onda 0 na branch `codex/sprint-11-onda-0-tests`.
+- Sprint 11 Onda 0.5 na branch/workspace `refactor/code-quality`.
 - Objetivo:
-  - criar testes de caracterização antes de refatorar `CRMDetail` e `WarRoom`;
-  - habilitar provider de cobertura local com `@vitest/coverage-v8`;
-  - manter produção intocada nesta onda.
+  - corrigir divergência local/Vercel no proxy Vite para APIs serverless;
+  - remover Mini CRM local do runtime e dos contratos;
+  - preservar CRM interno Senior em prompts/evidências/fixtures;
+  - atualizar documentação e memória para trocar a antiga Onda 1 de `CRMDetail` por próximos trabalhos em `LoadingSmart`/`WarRoom`.
 
 ## Blockers
 
 - Nenhum bloqueio técnico imediato.
-- O workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; a Sprint 11 Onda 0 roda em worktree limpa para não misturar isso.
+- O workspace `refactor/code-quality` já tinha mudanças não commitadas antes desta tarefa; preservar escopos existentes e não reverter sem confirmação.
 
 ## Validation history
 
@@ -115,6 +116,21 @@ Last updated: 2026-05-16
 - `npm run build` green (warnings aceitos OI-003/OI-057).
 - `npm run lint` green com `0` erros e `147` warnings conhecidos.
 
+
+### Sprint 11 Onda 0.5
+
+- Mini CRM local removido do runtime/contratos/tipos/testes dedicados.
+- `config/localDevApiProxy.ts` criado para centralizar proxies Vite de rotas serverless; `/api/open-web-search` incluído.
+- `tests/config/localDevApiProxy.test.ts` criado como guardrail.
+- `npm run typecheck` green.
+- `npm exec vitest run tests/components/LoadingSmart.test.tsx tests/services/geminiProxy.test.ts tests/config/localDevApiProxy.test.ts tests/components/ChatInterface.test.tsx tests/components/SessionsSidebar.test.tsx tests/components/FeatureGatingUI.test.tsx tests/App.layout.test.tsx` green (`43` testes).
+- `npm run test` green (`115` arquivos, `820` testes).
+- `npm run build` green, com warnings aceitos de chunking (`utils/idbStorage.ts` e chunks grandes).
+- `npm run lint` green com `0` erros e `141` warnings conhecidos.
+- `npm run analyze:circular` green, sem ciclos.
+- Smoke local: `POST /api/open-web-search` em `localhost:3000` retornou `200` com `OpenWebSearch/Brave`; `POST /api/gemini` retornou HTTP `200`, mas health remoto veio `ok:false` e deve ser acompanhado separadamente se persistir.
+- Warning conhecido de `SessionsSidebar.test.tsx` sobre render-prop de `ConfirmPopover` permanece como OI-004.
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -125,5 +141,6 @@ Last updated: 2026-05-16
 
 ## Next checkpoint
 
-- Abrir PR da Sprint 11 Onda 0.
-- Após merge da Onda 0, iniciar Onda 1 em `CRMDetail` sem reduzir cobertura abaixo do baseline criado.
+- Revisar diff final e abrir PR/merge da Onda 0.5.
+- Se necessário, investigar separadamente o health remoto de `/api/gemini` retornando `ok:false` apesar de HTTP `200`.
+- Após merge, seguir para `LoadingSmart` ou `WarRoom`; não reintroduzir Mini CRM/`CRMDetail`.

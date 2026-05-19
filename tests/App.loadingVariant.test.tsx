@@ -98,16 +98,8 @@ vi.mock('../components/InstallPrompt', () => ({
   default: () => <div data-testid="install-prompt" />,
 }));
 
-vi.mock('../components/CRMView', () => ({
-  CRMView: () => <div data-testid="crm-view" />,
-}));
-
 vi.mock('../components/AdminDash', () => ({
   AdminDash: () => <div data-testid="admin-dash" />,
-}));
-
-vi.mock('../components/SuspenseWithError', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('../contexts/OperatorContext', () => ({
@@ -135,14 +127,6 @@ vi.mock('../contexts/ModeContext', () => ({
   useMaybeMode: () => ({
     mode: 'investigacao',
     systemInstruction: 'SYSTEM',
-  }),
-}));
-
-vi.mock('../contexts/CRMContext', () => ({
-  useCRM: () => ({
-    cards: [],
-    createCardFromSession: vi.fn(),
-    moveCardToStage: vi.fn(),
   }),
 }));
 
@@ -247,7 +231,6 @@ function renderApp() {
 
 vi.mock('../utils/featureAccess', () => ({
   getFeatureAccess: () => ({
-    miniCRM: false,
     dashboard: false,
     integrityCheck: false,
     clientLookup: false,

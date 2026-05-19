@@ -60,12 +60,9 @@ describe('UX regression - Phase 5', () => {
         onSelectSession={onSelectSession}
         onNewSession={vi.fn()}
         onDeleteSession={vi.fn()}
-        onSaveToCRM={vi.fn()}
-        onOpenKanban={vi.fn()}
         isOpen={true}
         onCloseMobile={onCloseMobile}
         isDarkMode={true}
-        canAccessMiniCRM={false}
       />,
     );
 

@@ -64,7 +64,7 @@ describe('MVP feature gating UI', () => {
     expect(onExportConversation).toHaveBeenCalledWith('doc', 'full');
   });
 
-  it('hides mini CRM entries in sessions sidebar when restricted', () => {
+  it('does not render removed mini CRM entries in sessions sidebar', () => {
     render(
       <SessionsSidebar
         sessions={[baseSession]}
@@ -72,12 +72,9 @@ describe('MVP feature gating UI', () => {
         onSelectSession={vi.fn()}
         onNewSession={vi.fn()}
         onDeleteSession={vi.fn()}
-        onSaveToCRM={vi.fn()}
-        onOpenKanban={vi.fn()}
         isOpen={true}
         onCloseMobile={vi.fn()}
         isDarkMode={true}
-        canAccessMiniCRM={false}
       />
     );
 
