@@ -19,7 +19,6 @@ const allowProtectedSkip = process.env.SMOKE_ALLOW_PROTECTED_SKIP === 'true';
 const protectionBypassHeaders = vercelAutomationBypassSecret
   ? {
       'x-vercel-protection-bypass': vercelAutomationBypassSecret,
-      'x-vercel-set-bypass-cookie': 'true',
     }
   : {};
 
@@ -43,7 +42,12 @@ async function getStatus(url, options = {}) {
     });
     return { ok: response.ok, status: response.status };
   } catch (error) {
-    return { ok: false, status: 0, error: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    const cause =
+      error instanceof Error && error.cause
+        ? ` | causa: ${error.cause instanceof Error ? error.cause.message : String(error.cause)}`
+        : '';
+    return { ok: false, status: 0, error: `${message}${cause}` };
   } finally {
     cancel();
   }
