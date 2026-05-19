@@ -1,13 +1,14 @@
+---
 name: Preview Smoke
 
-on:
+on:  # yamllint disable-line rule:truthy
   deployment_status:
   issue_comment:
     types: [created]
   workflow_dispatch:
     inputs:
       preview_url:
-        description: URL do deploy preview (ex: https://my-app-git-branch.vercel.app)
+        description: "URL do deploy preview (ex: https://my-app-git-branch.vercel.app)"
         required: true
         type: string
       pr_number:
@@ -72,6 +73,8 @@ jobs:
           PREVIEW_URL: ${{ steps.resolve_url.outputs.preview_url }}
           SMOKE_ROUTES: /,/login,/dashboard
           SMOKE_TIMEOUT_MS: 15000
+          SMOKE_ALLOW_PROTECTED_SKIP: ${{ github.event_name == 'deployment_status' && secrets.VERCEL_AUTOMATION_BYPASS_SECRET == '' }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/smoke-preview.mjs
 
       - name: Comentar falha no PR

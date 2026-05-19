@@ -24,13 +24,13 @@ Fase 2 (manutenibilidade) está em andamento.
 - Sprint 9 concluída e mergeada via PR `#254`.
 - Sprint 10 mergeada via PR `#257` em `2026-05-16`.
 - Sprint 11 Onda 0 de testes foi mergeada via PR `#258`.
-- Sprint atual: Sprint 11 Onda 0.5 — correções locais + remoção do Mini CRM local.
+- Sprint atual: Sprint 11 Onda 1B — refatoração incremental de `LoadingSmart`.
 
 ## Current task context
 
-Branch/workspace atual: `refactor/code-quality` em `/Users/brunolima/Documents/NOVO-APP`.
+Branch/workspace atual: `codex/sprint-11-onda-0-5-mini-crm-local-fixes` em `/Users/brunolima/Documents/NOVO-APP`.
 
-Escopo da Onda 0.5:
+Estado pós-PR `#259`:
 
 - Corrigir divergência local/Vercel no runtime Vite adicionando proxies serverless faltantes, especialmente `/api/open-web-search`.
 - Remover Mini CRM local do código: `CRMProvider`, `useCRM`, `CRMView`, `CRMDetail`, `CRMPipeline`, props/botões de CRM, tipos locais e testes dedicados.
@@ -38,12 +38,25 @@ Escopo da Onda 0.5:
 - Preservar referências ao **CRM interno Senior** em prompts, evidências, fixtures e dossiês.
 - Atualizar docs/memória para impedir reintrodução de `CRMDetail` como hotspot de refatoração.
 
+Onda 1A documental:
+
+- Reconciliar `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `sprints/00-INDEX.md`, `SPRINT-11-EXECUTION.md`, `HANDOFF_AI.md`, memória local e roadmap Obsidian.
+- Marcar planos antigos/stale como históricos ou superseded quando ainda tratam Sprint 8/10/CRMDetail como trabalho ativo.
+- Preparar a sequência limpa: Onda 1B `LoadingSmart`, Onda 1C `WarRoom`, Sprint 12 hardening.
+
+Onda 1B atual:
+
+- `utils/loadingSmartViewModel.ts` criado para isolar timeline/progresso de `components/LoadingSmart.tsx`.
+- `tests/utils/loadingSmartViewModel.test.ts` criado para cobrir regras que antes ficavam dentro do JSX.
+- `components/LoadingSmart.tsx` permanece como fachada/default export; `App.tsx` não mudou.
+- Próximo corte seguro: extrair hook de curiosidades/timers ou fechar PR se a fatia precisar ficar pequena.
+
 ## Workspace note
 
-O workspace já possuía mudanças não commitadas antes desta Onda 0.5 em arquivos como `.gitignore`, `components/chat/MessageTimeline.tsx`, `package.json`, `services/geminiProxy.ts`, testes relacionados, `vite.config.ts` e scripts locais. Essas mudanças devem ser preservadas e não revertidas sem confirmação explícita.
+O workspace atual tem `CODE.md` não rastreado. Preservar sem alteração salvo pedido explícito.
 
 ## Immediate next step
 
-1. Revisar diff final e abrir PR/merge da Onda 0.5.
-2. Acompanhar separadamente o health remoto de `/api/gemini` se continuar retornando `ok:false` apesar de HTTP `200`.
-3. Próxima onda: `LoadingSmart` ou `WarRoom`; não reintroduzir Mini CRM/`CRMDetail`.
+1. Completar Onda 1B com hook de curiosidades/timers ou fechar esta fatia como PR curto.
+2. Antes de fechar, rodar gate ampliado conforme risco (`test`, `typecheck`, `build`, `lint` se necessário).
+3. Depois seguir para Onda 1C `WarRoom`, em PR separado.

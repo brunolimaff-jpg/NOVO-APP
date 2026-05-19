@@ -41,17 +41,17 @@ Last updated: 2026-05-19
 
 ## In progress
 
-- Sprint 11 Onda 0.5 na branch/workspace `refactor/code-quality`.
+- Sprint 11 Onda 1B na branch/workspace `codex/sprint-11-onda-0-5-mini-crm-local-fixes`.
 - Objetivo:
-  - corrigir divergência local/Vercel no proxy Vite para APIs serverless;
-  - remover Mini CRM local do runtime e dos contratos;
-  - preservar CRM interno Senior em prompts/evidências/fixtures;
-  - atualizar documentação e memória para trocar a antiga Onda 1 de `CRMDetail` por próximos trabalhos em `LoadingSmart`/`WarRoom`.
+  - reduzir `LoadingSmart` incrementalmente sem mudar a fachada pública;
+  - manter `components/LoadingSmart.tsx` como default export;
+  - isolar lógica de timeline/progresso em helper testável;
+  - deixar `WarRoom` para PR separado.
 
 ## Blockers
 
 - Nenhum bloqueio técnico imediato.
-- O workspace `refactor/code-quality` já tinha mudanças não commitadas antes desta tarefa; preservar escopos existentes e não reverter sem confirmação.
+- `CODE.md` está não rastreado no workspace atual; preservar sem alteração.
 
 ## Validation history
 
@@ -131,6 +131,22 @@ Last updated: 2026-05-19
 - Smoke local: `POST /api/open-web-search` em `localhost:3000` retornou `200` com `OpenWebSearch/Brave`; `POST /api/gemini` retornou HTTP `200`, mas health remoto veio `ok:false` e deve ser acompanhado separadamente se persistir.
 - Warning conhecido de `SessionsSidebar.test.tsx` sobre render-prop de `ConfirmPopover` permanece como OI-004.
 
+### Sprint 11 Onda 1A
+
+- Saneamento documental feito para evitar duplicação de planos vivos.
+- Alvos: `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `sprints/00-INDEX.md`, `sprints/SPRINT-11-EXECUTION.md` e roadmap Obsidian.
+- Critério: termos do Mini CRM só podem aparecer como histórico/removido, nunca como próximo trabalho.
+- `npm run docs:obsidian:check` green (`14` notas).
+
+### Sprint 11 Onda 1B
+
+- `utils/loadingSmartViewModel.ts` criado para extrair timeline/progresso de `components/LoadingSmart.tsx`.
+- `tests/utils/loadingSmartViewModel.test.ts` criado com cobertura de roadmap modular, roadmap de investigação, suavização de progresso com fila pendente, fallback incremental e normalização de labels equivalentes.
+- `components/LoadingSmart.tsx` reduzido de `766` para `672` linhas e continua como fachada/default export.
+- `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`18` testes).
+- `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx` green (`13` testes) após ajuste de nome de teste.
+- `npm run typecheck` green.
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -141,6 +157,6 @@ Last updated: 2026-05-19
 
 ## Next checkpoint
 
-- Revisar diff final e abrir PR/merge da Onda 0.5.
-- Se necessário, investigar separadamente o health remoto de `/api/gemini` retornando `ok:false` apesar de HTTP `200`.
-- Após merge, seguir para `LoadingSmart` ou `WarRoom`; não reintroduzir Mini CRM/`CRMDetail`.
+- Completar Onda 1B com extração do hook de curiosidades/timers ou fechar a fatia atual como PR curto.
+- Depois seguir para Onda 1C `WarRoom`, em PR separado.
+- Não reintroduzir Mini CRM/`CRMDetail`.

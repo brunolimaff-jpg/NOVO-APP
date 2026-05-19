@@ -26,14 +26,14 @@
 
 ## Fase 2 - Hotspots Prioritarios
 
-> Números atualizados em 2026-05-16 (branch `refactor/sprint-9`).
+> Números atualizados em 2026-05-19 após Sprint 11 Onda 0.5.
 
 | ID | Severidade | Status | Hotspot | Sinal | Acao da fase |
 |---|---|---|---|---|---|
 | OI-050 | high | resolved | `App.tsx` | `622` linhas; wiring de modais/export extraido para hooks/services | Sprint 9 validada com gates e browser |
 | OI-051 | high | resolved | Mini CRM local / `components/CRMDetail.tsx` | Mini CRM removido por decisão de produto; CRM interno Senior preservado como evidência comercial | Sprint 11 Onda 0.5: remoção completa do runtime local |
-| OI-052 | high | open | `components/LoadingSmart.tsx` | `766` linhas | Sprint 11: separar timeline/modelo/render |
-| OI-053 | medium | open | `components/WarRoom.tsx` | `552` linhas + **sem testes** | Sprint 11: Onda 0 (testes) + redução de UI |
+| OI-052 | high | open | `components/LoadingSmart.tsx` | `766` linhas; timeline/modelo/render acoplados | Sprint 11 Onda 1B: extrair lógica pura primeiro, mantendo fachada |
+| OI-053 | medium | open | `components/WarRoom.tsx` | `552` linhas; teste de caracterização criado na Onda 0 | Sprint 11 Onda 1C: extrair UI estática antes de hook de sessão |
 | OI-054 | high | resolved | Radar runtime fora do boundary | runtime movido para `features/radar/useRadar.ts` e `features/radar/service.ts`; facades antigas preservadas | resolvido na Sprint 10; componentes visuais Radar ficam fora desta PR |
 
 ## Fase 2 - Novos Riscos Identificados (auditoria 2026-04-30)
@@ -42,7 +42,7 @@
 |---|---|---|---|---|---|
 | OI-055 | low | accepted | `VITE_PINECONE_API_KEY` em `index.tsx` permanece no bundle Vite por decisao operacional | app interno/fechado; risco aceito pelo owner em 2026-05-16 | Reavaliar se o app virar externo |
 | OI-057 | medium | open | OI-003 (idbStorage chunking) tem risco de PWA — mudança de chunk invalida SW em produção | `vite.config.ts`: `skipWaiting: true`, `cleanupOutdatedCaches: true` | Sprint 12 (protocolo de deploy) |
-| OI-059 | medium | open | Cobertura de testes concentrada nas áreas estabilizadas (Fase 1); `WarRoom` ainda depende da rede de caracterização | `CRMDetail` saiu do escopo por remoção do Mini CRM; `WarRoom` mantém testes da Onda 0 | Sprint 11 |
+| OI-059 | medium | open | Cobertura de testes concentrada nas áreas estabilizadas (Fase 1); `WarRoom` ainda precisa ampliar casos de borda | `CRMDetail` saiu do escopo por remoção do Mini CRM; `WarRoom` mantém testes da Onda 0, mas ainda falta clipboard/retry real/onClose abort/mobile | Sprint 11 |
 | OI-060 | low | open | Branches paralelas ativas durante ~9 semanas de Fase 2 sem política de integração | 5 branches ativas além da principal | Política documentada em `PLANO_COMPLETO_SPRINTS.md` |
 | OI-062 | medium | open | Golden tests de prompts precisam ser criados *antes* da Sprint 13 (migração de strings → `.md`) | Testes em `tests/prompts/` existem mas não têm baseline de output do LLM | Sprint 12 (Onda 4) |
 

@@ -1,9 +1,9 @@
 # Sprint 11 — Execução Atualizada
 
-**Objetivo atualizado:** estabilizar o runtime local, remover o Mini CRM local por decisão de produto e seguir a redução de complexidade em `LoadingSmart` e `WarRoom`.
+**Objetivo atualizado:** estabilizar o runtime local, remover o Mini CRM local por decisão de produto, limpar planos duplicados/stale e seguir a redução de complexidade em `LoadingSmart` e `WarRoom`.
 
-**Branch principal:** `refactor/sprint-11` ou branch de trabalho equivalente derivada de `main` após Sprint 10.
-**Status:** Onda 0 concluída/mergeada; Onda 0.5 em execução.
+**Branch principal:** branches curtas `codex/sprint-11-*` derivadas do baseline mais recente.
+**Status:** Onda 0 e Onda 0.5 concluídas; Onda 1A documental em execução.
 
 > Decisão de produto: o Mini CRM local não será usado. Remover `CRMDetail`, `CRMView`, `CRMPipeline`, `CRMContext` e contratos relacionados. Preservar referências ao **CRM interno Senior** em prompts, evidências, fixtures e dossiês.
 
@@ -16,6 +16,8 @@
 - A cobertura de `WarRoom` segue como rede para a próxima refatoração.
 
 ## Onda 0.5 — Correções locais + remoção Mini CRM
+
+**Status:** concluída via PR `#259`.
 
 **Risco:** médio, porque remove uma feature inteira e simplifica contratos globais.
 
@@ -39,16 +41,42 @@
 - Testes focados de loading/proxy/chat/sidebar verdes.
 - `/api/open-web-search` não retorna `404` no dev server local.
 
-## Onda 1 — LoadingSmart
+## Onda 1A — Saneamento documental sem código de runtime
+
+**Status:** concluída na branch de trabalho.
+
+**Objetivo:** eliminar duplicação entre planos em aberto antes de tocar nos componentes grandes.
+
+### Mudanças
+
+- Atualizar `02-BOARD.md` como status vivo da Sprint 11 pós-PR `#259`.
+- Atualizar `03-OPEN-ITEMS.md` para refletir que `WarRoom` já tem teste de caracterização.
+- Atualizar `06-HANDOFF.md`, `HANDOFF_AI.md` e `.agents/memory/*` para apontarem o próximo passo real.
+- Atualizar `sprints/00-INDEX.md` e roadmap Obsidian para não manter Sprint 8/10 como sprint atual.
+- Marcar menções antigas a `CRMDetail` como histórico/superseded, nunca como próximo trabalho.
+
+### Aceite
+
+- `CRMDetail`, `CRMProvider`, `useCRM`, `CRMView` e `CRMPipeline` aparecem em docs/memória apenas como histórico/removido.
+- `LoadingSmart` e `WarRoom` aparecem como próximos alvos em PRs separados.
+- Nenhum código de runtime é alterado nesta onda.
+
+## Onda 1B — LoadingSmart
+
+**Status:** ativa; primeira fatia de timeline/progresso concluída.
 
 - Refatorar `components/LoadingSmart.tsx` preservando comportamento visual já coberto por `tests/components/LoadingSmart.test.tsx`.
 - Separar modelo/timeline/render em módulos menores.
 - Manter `components/LoadingSmart.tsx` como fachada de compatibilidade.
+- Helper puro de timeline/progresso criado em `utils/loadingSmartViewModel.ts` com teste dedicado.
+- Próxima fatia recomendada: extrair hook de curiosidades/timers preservando proteção contra respostas atrasadas.
 
-## Onda 2 — WarRoom
+## Onda 1C — WarRoom
 
 - Reduzir `components/WarRoom.tsx` usando a cobertura de caracterização já criada.
 - Extrair blocos visuais e tipos locais sem alterar `services/warRoomService.ts`.
+- Manter props públicas: `isOpen`, `onClose`, `isDarkMode`, `defaultCompetitorTarget`.
+- Avaliar hook local de sessão somente depois da extração de UI estática.
 
 ## Onda 3 — Tipagem e hardening final
 

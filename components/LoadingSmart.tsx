@@ -3,9 +3,12 @@ import ReactDOM from 'react-dom';
 import { ChatMode } from '../constants';
 import { generateLoadingCuriosities } from '../services/geminiService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
-import { toRichStatus, isPhaseTimelineStatus, statusKey, type RichLoadingStatus } from '../utils/loadingStatus';
+import {
+  buildLoadingSmartViewModel,
+  getLoadingStageIdentity,
+  LOADING_STAGE_ORDER_BY_KEY,
+} from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
-import { MODULAR_DOSSIER_STAGES } from '../constants/loadingStages';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -18,23 +21,6 @@ const SOURCE_LINKS: Record<string, string> = {
   senior:  'https://www.senior.com.br/',
   gatec:   'https://www.gatec.com.br/',
 };
-
-// MODULAR_DOSSIER_STAGES removido daqui — importado de ../constants/loadingStages
-
-const INVESTIGATION_TIMELINE_STAGES = [
-  'Consolidando perímetro da conta alvo...',
-  'Recuperando inteligência de conversas anteriores...',
-  'Enriquecendo sinais e contexto comercial estratégico...',
-  'Orquestrando protocolo de investigação forense...',
-  'Consultando inteligência Senior...',
-  'Infiltrando em fontes externas e sinais digitais...',
-  'Entendendo a operação e tecnologia...',
-  'Verificando sinais de risco e conformidade...',
-  'Identificando estrutura, liderança e decisores...',
-  'Calibrando Score PORTA contra o setor...',
-  'Sintetizando narrativa executiva de alto impacto...',
-  'Materializando recomendações práticas...',
-];
 
 // EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
 // do que qualquer hardcode por modo. declaredTotalStages tem precedência quando disponível.
@@ -196,18 +182,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const stepTimestampsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
-  const plannedOrderByKeyRef = useRef<Map<string, number>>(new Map());
   const insightRequestIdRef = useRef(0);
-
-  if (plannedOrderByKeyRef.current.size === 0) {
-    const mergedPlan = [...MODULAR_DOSSIER_STAGES, ...INVESTIGATION_TIMELINE_STAGES];
-    mergedPlan.forEach((stage, index) => {
-      const key = statusKey(stripInternalMarkers(stage).trim());
-      if (key && !plannedOrderByKeyRef.current.has(key)) {
-        plannedOrderByKeyRef.current.set(key, index);
-      }
-    });
-  }
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -289,7 +264,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     const realCurrent = stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
     const newStages: Array<{ label: string; key: string }> = [];
     for (const stage of realCompleted) {
-      const stageKey = statusKey(stage);
+      const stageKey = getLoadingStageIdentity(stage);
       if (
         !stageKey ||
         displayedStageKeysRef.current.has(stageKey) ||
@@ -301,8 +276,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     }
     if (newStages.length > 0) {
       newStages.sort((a, b) => {
-        const aIndex = plannedOrderByKeyRef.current.get(a.key) ?? Number.MAX_SAFE_INTEGER;
-        const bIndex = plannedOrderByKeyRef.current.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+        const aIndex = LOADING_STAGE_ORDER_BY_KEY.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = LOADING_STAGE_ORDER_BY_KEY.get(b.key) ?? Number.MAX_SAFE_INTEGER;
         return aIndex - bIndex;
       });
       queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];
@@ -323,7 +298,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       revealTimerRef.current = setTimeout(() => {
         const next = queueRef.current.shift();
         if (next) {
-          const nextKey = statusKey(next);
+          const nextKey = getLoadingStageIdentity(next);
           if (nextKey) {
             queuedStageKeysRef.current.delete(nextKey);
           }
@@ -443,102 +418,21 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
   if (!isVisible) return null;
 
-  // ── Stage normalization ──
-  const enrichStage = (raw: string): RichLoadingStatus => {
-    const rich = toRichStatus(stripInternalMarkers(raw));
-    if (rich) return rich;
-    const label = stripInternalMarkers(raw) || 'Investigação em andamento...';
-    return { label, icon: isPhaseTimelineStatus(label) ? '📌' : '', category: 'unknown' };
-  };
-
-  const getStageIdentity = (raw: string): string => {
-    const label = stripInternalMarkers(raw).trim();
-    return label ? statusKey(label) : '';
-  };
-
-  const completedRich: RichLoadingStatus[] = displayedCompleted.map(enrichStage);
-  const currentRich: RichLoadingStatus = enrichStage(displayedCurrent);
-  const completedCount = completedRich.length;
-  const pendingInQueue = queueRef.current.length;
-  const realTotalCompleted = (processing?.completedStages || []).length;
-  const realCompletedStageKeys = new Set((processing?.completedStages || []).map(getStageIdentity).filter(Boolean));
-  const declaredTotalStages =
-    typeof processing?.totalStages === 'number' && Number.isFinite(processing.totalStages) && processing.totalStages > 0
-      ? processing.totalStages : null;
-  const isIncremental = Boolean(processing?.isIncremental);
-  const observedLabels = [...displayedCompleted, displayedCurrent]
-    .map(step => stripInternalMarkers(step).trim())
-    .filter(Boolean);
-  const observedKeys = new Set(observedLabels.map(getStageIdentity).filter(Boolean));
-  const matchesPlan = (candidate: string[]) =>
-    candidate.some(stage => observedKeys.has(getStageIdentity(stage)));
-  const plannedStageLabels =
-    declaredTotalStages === MODULAR_DOSSIER_STAGES.length || matchesPlan(MODULAR_DOSSIER_STAGES as unknown as string[])
-      ? MODULAR_DOSSIER_STAGES as unknown as string[]
-      : matchesPlan(INVESTIGATION_TIMELINE_STAGES)
-        ? INVESTIGATION_TIMELINE_STAGES
-        : observedLabels;
-  const plannedRich = plannedStageLabels.map(enrichStage);
-  const plannedStageKeys = new Set(plannedStageLabels.map(getStageIdentity).filter(Boolean));
-  const completedStageKeys = new Set<string>();
-
-  if (plannedRich.length > 0) {
-    for (const stage of plannedRich) {
-      const stepKey = getStageIdentity(stage.label);
-      if (!stepKey) continue;
-      if (!realCompletedStageKeys.has(stepKey)) break;
-      completedStageKeys.add(stepKey);
-    }
-  } else {
-    realCompletedStageKeys.forEach((key) => completedStageKeys.add(key));
-  }
-
-  const currentStageKey = getStageIdentity(displayedCurrent);
-  const currentPlannedIndex = plannedRich.findIndex(step => getStageIdentity(step.label) === currentStageKey);
-  const shouldAppendCurrentStage = Boolean(currentStageKey) && !plannedStageKeys.has(currentStageKey);
-  const visiblePlannedIndices = new Set<number>();
-
-  // Estratégia "Full Roadmap": Se um plano foi identificado, mostramos todas as etapas
-  // marcando retrocesso ou progresso conforme necessário.
-  const isUsingPlannedStages = plannedStageLabels === (MODULAR_DOSSIER_STAGES as unknown as string[]) || plannedStageLabels === INVESTIGATION_TIMELINE_STAGES;
-
-  if (isUsingPlannedStages) {
-    plannedRich.forEach((_, index) => visiblePlannedIndices.add(index));
-  } else {
-    // Fallback para quando não há plano fixo: comportamento incremental clássico
-    plannedRich.forEach((step, index) => {
-      if (completedStageKeys.has(getStageIdentity(step.label))) {
-        visiblePlannedIndices.add(index);
-      }
-    });
-
-    if (currentPlannedIndex >= 0) {
-      visiblePlannedIndices.add(currentPlannedIndex);
-      const nextPlannedIndex = plannedRich.findIndex(
-        (step, index) =>
-          index > currentPlannedIndex &&
-          !completedStageKeys.has(getStageIdentity(step.label)),
-      );
-      if (nextPlannedIndex >= 0) {
-        visiblePlannedIndices.add(nextPlannedIndex);
-      }
-    } else {
-      const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getStageIdentity(step.label)));
-      if (nextPendingIndex >= 0) {
-        visiblePlannedIndices.add(nextPendingIndex);
-      }
-    }
-  }
-
-  const visiblePlannedStages = plannedRich.filter((_, index) => visiblePlannedIndices.has(index));
-  // Fallback dinâmico: sem hardcode por modo — autoajusta conforme etapas reais chegam
-  const expectedTotal = declaredTotalStages
-    ?? (plannedRich.length > 0 ? plannedRich.length : (isIncremental ? Math.max(6, realTotalCompleted + 1) : Math.max(12, realTotalCompleted + 2)));
-  const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), 95);
-  const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), 95);
-  const percent = pendingInQueue > 0
-    ? Math.min(displayedPercent + Math.round((realPercent - displayedPercent) * 0.3), 95)
-    : displayedPercent;
+  const {
+    completedCount,
+    currentRich,
+    completedStageKeys,
+    currentStageKey,
+    visiblePlannedStages,
+    shouldAppendCurrentStage,
+    percent,
+    isIncremental,
+  } = buildLoadingSmartViewModel({
+    displayedCompleted,
+    displayedCurrent,
+    pendingInQueue: queueRef.current.length,
+    processing,
+  });
 
   const elapsed = formatElapsed(elapsedTime);
   const totalCuriosities = curiositiesRef.current.length || 1;
@@ -654,7 +548,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
             <div className="flex flex-col gap-2.5 pr-0 md:gap-3 md:pr-2">
               {visiblePlannedStages.map((step, i) => {
-                const stepKey = getStageIdentity(step.label);
+                const stepKey = getLoadingStageIdentity(step.label);
                 const isCompleted = completedStageKeys.has(stepKey);
                 const isCurrent = !isCompleted && stepKey === currentStageKey;
 

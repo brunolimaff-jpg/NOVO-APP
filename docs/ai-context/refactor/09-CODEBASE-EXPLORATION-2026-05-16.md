@@ -2,6 +2,8 @@
 
 Varredura somente-leitura com 3 agentes em paralelo (reviewer, vercel:ai-architect, vercel:performance-optimizer) no branch `refactor/code-quality`. Nenhum código foi modificado.
 
+> Nota histórica pós-PR `#259`: achados sobre Mini CRM, `CRMProvider`, `CRMDetail` e `CRMPipeline` refletem o estado auditado em 2026-05-16. Esses itens foram removidos posteriormente com o Mini CRM local e não são próximos trabalhos.
+
 ---
 
 ## P0 — Crítico (quebra silenciosa ou perda de dados)

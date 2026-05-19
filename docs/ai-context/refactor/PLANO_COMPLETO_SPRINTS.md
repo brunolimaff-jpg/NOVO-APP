@@ -24,7 +24,7 @@
 
 | Domínio | Arquivos (aprox.) | Hotspots |
 |---|---|---|
-| `components/` | 51 | CRMDetail (717 ln), LoadingSmart (766 ln), WarRoom (552 ln) |
+| `components/` | 51 | LoadingSmart (766 ln), WarRoom (552 ln); CRMDetail removido com Mini CRM local |
 | `features/` | 13 | chat/ (8), dossier/ (4), radar/ (stub: 2) |
 | `hooks/` | 11 | useRadar (291 ln) — **fora do boundary** |
 | `services/` | 35 | radarService (234 ln) — **fora do boundary**; gemini/ e war-room/ OK |
@@ -60,10 +60,10 @@
 | Componente | Linhas | Problema Principal |
 |---|---|---|
 | `components/LoadingSmart.tsx` | 766 | Timeline, modelo e render acoplados |
-| `components/CRMDetail.tsx` | 717 | `card: any`, responsabilidades mistas |
+| `components/CRMDetail.tsx` | removido | Mini CRM local removido por decisão de produto |
 | `components/WarRoom.tsx` | 552 | Complexidade de UI ainda alta |
 
-**Cobertura de testes:** `LoadingSmart` tem `tests/components/LoadingSmart.test.tsx`; **CRMDetail e WarRoom não têm testes** — risco de regressão em Sprint 11.
+**Cobertura de testes:** `LoadingSmart` tem `tests/components/LoadingSmart.test.tsx`; `WarRoom` recebeu teste de caracterização na Sprint 11 Onda 0; `CRMDetail` é histórico porque foi removido com o Mini CRM local.
 
 ### 3. Boundary Leak: `features/dossier` → `features/chat`
 
@@ -264,48 +264,28 @@ Tag `pre-sprint-10`.
 **Duração:** 3 semanas | **Branch:** `refactor/sprint-11`
 
 ### Objetivo
-Atacar CRMDetail, LoadingSmart, WarRoom e eliminar `any` críticos.
+Remover Mini CRM local por decisão de produto, sanear planos duplicados/stale, atacar `LoadingSmart` e `WarRoom` em PRs separados e eliminar `any` críticos remanescentes.
 
 ### Pré-requisito
-- [ ] Sprint 10 mergeada.
-- [ ] **Criar tag `pre-sprint-11`.**
-- [ ] **Onda 0 (obrigatória):** Escrever testes de caracterização para `CRMDetail` e `WarRoom` *antes* de extrair sub-componentes. Sem isso, a refatoração não tem rede de proteção.
+- [x] Sprint 10 mergeada.
+- [ ] **Criar tag `pre-sprint-11` ou registrar rollback equivalente da branch ativa.**
+- [x] **Onda 0:** testes de caracterização criados via PR `#258`; cobertura de `CRMDetail` virou histórica após remoção do Mini CRM.
   ```typescript
-  // tests/components/CRMDetail.test.tsx   ← criar
-  // tests/components/WarRoom.test.tsx     ← criar
-  // Cobertura mínima: render principal + 2 interações por componente
+  // tests/components/WarRoom.test.tsx     ← ativo como rede de refatoração
+  // tests/components/CRMDetail.test.tsx   ← histórico; componente removido na Onda 0.5
   ```
 
-### Onda 1: CRMDetail.tsx (717 linhas)
+### Onda 0.5: Mini CRM local removido (superseded)
 
-**Extrair transformadores**
-```typescript
-// components/CRM/transformers.ts
-export function transformCardToClient(card: CRMCard): Client { ... }
-// Eliminar card: any → usar interface CRMCard explícita
-```
+`CRMDetail`, `CRMView`, `CRMPipeline`, `CRMProvider`/`useCRM`, contratos e testes dedicados foram removidos por decisão de produto. Não reintroduzir nem refatorar esses arquivos. Referências ao CRM interno Senior seguem válidas em prompts, evidências e dossiês.
 
-**Quebrar renderização**
-```typescript
-// components/CRM/cards/
-// ├── ClientHeader.tsx
-// ├── ScoreDisplay.tsx
-// ├── InteractionTimeline.tsx
-// └── ActionButtons.tsx
-```
+### Onda 1A: Saneamento documental
 
-**Criar tipos explícitos**
-```typescript
-// types/crm.ts
-export interface CRMCard {
-  id: string;
-  clientName: string;
-  score: number;
-  // ... sem any
-}
-```
+- Atualizar `02-BOARD.md`, `03-OPEN-ITEMS.md`, `06-HANDOFF.md`, `sprints/00-INDEX.md`, `SPRINT-11-EXECUTION.md`, `HANDOFF_AI.md`, memória local e roadmap Obsidian.
+- Garantir que planos antigos com `CRMDetail` estejam claramente históricos/superseded.
+- Próximas ondas devem ser `LoadingSmart` e `WarRoom`, em PRs separados.
 
-### Onda 2: LoadingSmart.tsx (766 linhas)
+### Onda 1B: LoadingSmart.tsx (766 linhas)
 
 **Separar fases (Split Phase Pattern)**
 ```typescript
@@ -317,7 +297,7 @@ export interface CRMCard {
 
 **Extrair constantes mágicas** (expandir `constants/loadingStages.ts` já existente)
 
-### Onda 3: WarRoom.tsx (552 linhas)
+### Onda 1C: WarRoom.tsx (552 linhas)
 
 **Extrair blocos visuais**
 ```typescript
@@ -336,12 +316,12 @@ Prioridade: código de produção (não scripts CLI, não testes):
 - `utils/errorHelpers.ts` — substituir `error: any` por `error: unknown`
 
 ### Critérios de Aceite
-- [ ] `CRMDetail.tsx` < 400 linhas.
+- [x] Mini CRM local removido; `CRMDetail.tsx` não é mais alvo.
 - [ ] `LoadingSmart.tsx` < 400 linhas.
 - [ ] `WarRoom.tsx` < 300 linhas.
 - [ ] Zero `any` em código de produção (exceto testes e scripts CLI).
 - [ ] Cobertura de testes nos arquivos editados ≥ 60% (linhas alteradas).
-- [ ] Tests de caracterização de `CRMDetail` e `WarRoom` verdes.
+- [ ] Testes de caracterização de `WarRoom` verdes.
 - [ ] Gates técnicos verdes.
 
 ### Rollback
@@ -495,14 +475,14 @@ Se qualquer gate técnico falhar e não for resolvido em **24h**, reverter para 
 
 ### Alegações Confirmadas ✅
 
-App.tsx (772 ln), CRMDetail (717 ln), LoadingSmart (766 ln), WarRoom (552 ln), useRadar (291 ln), radarService (234 ln), boundaries `services/gemini/*` e `services/war-room/*`, features/chat/ e features/dossier/ existentes, stores OK, OI-003/004/005 abertos, specialist-prompts (1801 ln) — todos verificados contra o código real.
+App.tsx (772 ln), LoadingSmart (766 ln), WarRoom (552 ln), useRadar (291 ln), radarService (234 ln), boundaries `services/gemini/*` e `services/war-room/*`, features/chat/ e features/dossier/ existentes, stores OK, OI-003/004/005 abertos, specialist-prompts (1801 ln) — todos verificados contra o código real. `CRMDetail` constava na auditoria original, mas foi removido depois com o Mini CRM local.
 
 ### Lacunas Adicionadas a Esta Versão
 
 | # | Lacuna | Sprint impactada |
 |---|---|---|
 | 1 | `VITE_PINECONE_API_KEY` expõe chave no bundle | Sprint 9 — risco aceito pelo owner |
-| 2 | CRMDetail e WarRoom sem testes | Sprint 11 — Onda 0 criada |
+| 2 | Cobertura ausente nos hotspots originais | Sprint 11 — Onda 0 criou cobertura de WarRoom; CRMDetail removido depois com Mini CRM local |
 | 3 | Boundary leak `dossier → chat` (4 imports) | Sprint 9 — tarefa adicionada |
 | 4 | OI-003 tem risco de PWA (chunking → SW invalidation) | Sprint 12 — protocolo de deploy adicionado |
 | 5 | `madge`/`ts-prune` não instalados | Sprint 9 — devDeps adicionados como pré-requisito |

@@ -6,7 +6,7 @@ source_of_truth:
   - docs/ai-context/refactor/01-MASTER-PLAN.md
   - docs/ai-context/refactor/02-BOARD.md
   - docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md
-last_reviewed: 2026-04-23
+last_reviewed: 2026-05-19
 tags:
   - obsidian
   - roadmap
@@ -29,12 +29,12 @@ Back to [[00-MASTER]].
 7. Sprint 7 - constantes e remocao de legado
 8. Sprint 8 - War Room modular + stub `features/radar/*` (mergeada em `main`)
 
-## Fase 2 (ativa em planejamento)
+## Fase 2 (ativa)
 
-9. Sprint 9 - App shell decoupling + governanca
-10. Sprint 10 - Radar boundary completion
-11. Sprint 11 - componentes grandes + tipagem forte
-12. Sprint 12 - hardening final + fechamento documental
+9. Sprint 9 - App shell decoupling + governanca (concluída)
+10. Sprint 10 - Radar boundary completion (concluída)
+11. Sprint 11 - componentes grandes + tipagem forte (ativa: Onda 1A documental)
+12. Sprint 12 - hardening final + fechamento documental (planejada)
 
 ## Areas puxadas por essa trilha
 
