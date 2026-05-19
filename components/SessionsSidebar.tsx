@@ -11,12 +11,9 @@ interface SessionsSidebarProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
-  onSaveToCRM: (id: string) => void;
-  onOpenKanban: () => void;
   isOpen: boolean;
   onCloseMobile: () => void;
   isDarkMode: boolean;
-  canAccessMiniCRM?: boolean;
   /** Busca sincronizada com a barra superior (opcional = estado interno). */
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
@@ -31,12 +28,9 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   onSelectSession,
   onNewSession,
   onDeleteSession,
-  onSaveToCRM,
-  onOpenKanban,
   isOpen,
   onCloseMobile,
   isDarkMode,
-  canAccessMiniCRM = true,
   searchTerm: searchTermProp,
   onSearchChange,
   showSearchField = true,
@@ -98,9 +92,6 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
       ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-sm'
       : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm',
     inputBg: isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400',
-    crmBtn: isDarkMode
-      ? 'border border-blue-500/60 bg-transparent text-blue-300 hover:bg-blue-950/40'
-      : 'border border-blue-500/70 bg-white text-blue-700 hover:bg-blue-50'
   };
 
   useEffect(() => {
@@ -178,19 +169,6 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                       <span>Nova investigação</span>
                     </button>
 
-                    {canAccessMiniCRM && (
-                      <button
-                        onClick={() => {
-                            onOpenKanban();
-                            if (window.innerWidth < 768) onCloseMobile();
-                        }}
-                        className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${theme.crmBtn}`}
-                        title="Abrir Kanban CRM"
-                      >
-                        <span className="text-sm" aria-hidden>📋</span>
-                        <span>CRM</span>
-                      </button>
-                    )}
                 </div>
                 
                 {showSearchField && (
@@ -268,27 +246,8 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                             </div>
                           </button>
 
-                          {/* Botões de ação (CRM e Delete) */}
+                          {/* Botao de acao da sessao */}
                           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
-                            {canAccessMiniCRM && (
-                              <Tooltip label="Enviar para o CRM" position="top">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      onSaveToCRM(session.id);
-                                      if (window.innerWidth < 768) onCloseMobile();
-                                  }}
-                                  className={`
-                                    p-1.5 rounded bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400 transition-all shadow-sm
-                                  `}
-                                  title="Enviar para CRM"
-                                >
-                                  📋
-                                </button>
-                              </Tooltip>
-                            )}
-
                             <ConfirmPopover
                               message="Excluir dossiê?"
                               onConfirm={() => onDeleteSession(session.id)}

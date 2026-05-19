@@ -4,7 +4,6 @@ import App from './App';
 import './index.css';
 import { OperatorProvider } from './contexts/OperatorContext';
 import { ModeProvider } from './contexts/ModeContext';
-import { CRMProvider } from './contexts/CRMContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
@@ -115,9 +114,7 @@ root.render(
           <DossierStoreProvider>
             <OperatorProvider>
               <ModeProvider>
-                <CRMProvider>
-                  <App />
-                </CRMProvider>
+                <App />
               </ModeProvider>
             </OperatorProvider>
           </DossierStoreProvider>

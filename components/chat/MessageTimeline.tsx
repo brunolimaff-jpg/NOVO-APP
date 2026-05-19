@@ -295,6 +295,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
+              // UX contract: never auto-scroll the main chat timeline on new messages.
               followOutput={false}
               increaseViewportBy={{ top: 400, bottom: 400 }}
               defaultItemHeight={96}

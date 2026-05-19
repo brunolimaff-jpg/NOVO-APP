@@ -18,8 +18,6 @@ export interface RadarProps {
 
 export type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onDeleteMessage?: (id: string) => void;
-  onSaveToCRM?: (sessionId: string) => void;
-  onOpenKanban?: () => void;
   onOpenAdminDash?: () => void;
   radar?: RadarProps;
 };

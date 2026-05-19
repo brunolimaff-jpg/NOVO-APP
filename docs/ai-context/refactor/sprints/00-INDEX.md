@@ -37,7 +37,7 @@ Arquivos sob refatoração têm freeze para PRs paralelas:
 |---|---|
 | 9 | `App.tsx`, `index.tsx`, `.env.example`, `features/chat/message-helpers.ts` |
 | 10 | `hooks/useRadar.ts`, `services/radarService.ts`, `components/Radar*.tsx` |
-| 11 | `components/CRMDetail.tsx`, `components/LoadingSmart.tsx`, `components/WarRoom.tsx` |
+| 11 | `config/localDevApiProxy.ts`, `components/LoadingSmart.tsx`, `components/WarRoom.tsx` |
 
 PRs paralelos que tocam esses arquivos devem rebasear da branch da sprint antes de mergear, ou aguardar fim da sprint.
 

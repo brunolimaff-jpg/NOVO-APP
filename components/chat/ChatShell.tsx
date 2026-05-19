@@ -19,9 +19,6 @@ interface ChatShellProps {
   onToggleSidebar: () => void;
   isDarkMode: boolean;
   theme: ChatTheme;
-  onSaveToCRM?: (sessionId: string) => void;
-  onOpenKanban?: () => void;
-  canAccessMiniCRM: boolean;
   displayTitle: string;
   radar?: RadarProps;
   onOpenRadarPanel: () => void;
@@ -50,9 +47,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
   onToggleSidebar,
   isDarkMode,
   theme,
-  onSaveToCRM,
-  onOpenKanban,
-  canAccessMiniCRM,
   displayTitle,
   radar,
   onOpenRadarPanel,
@@ -94,13 +88,10 @@ const ChatShell: React.FC<ChatShellProps> = ({
         isOpen={isSidebarOpen}
         onCloseMobile={closeSidebarOnMobile}
         isDarkMode={isDarkMode}
-        onSaveToCRM={onSaveToCRM || (() => {})}
-        onOpenKanban={onOpenKanban || (() => {})}
         searchTerm={sessionSearchTerm}
         onSearchChange={setSessionSearchTerm}
         showSearchField
         toggleButtonRef={sidebarToggleRef}
-        canAccessMiniCRM={canAccessMiniCRM}
       />
 
       <main data-testid="chat-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden">

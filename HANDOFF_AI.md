@@ -29,7 +29,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-16 — `origin/main` no commit `fbf5536` apos merge da PR `#257`.
+> Atualizado em 2026-05-19 — Onda 0.5 em andamento na branch `refactor/code-quality`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -40,9 +40,10 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - `features/radar/*` e o boundary oficial do Radar runtime; `useRadar` e o service foram movidos para a feature na Sprint 10.
 - `hooks/useRadar.ts` e `services/radarService.ts` existem apenas como facades de compatibilidade.
 - `tests/architecture/radarBoundaryImportGuard.test.ts` bloqueia novos imports de producao para os caminhos legados.
-- `types.ts` permanece centralizado (agora inclui `LastAction`).
+- `types.ts` permanece centralizado (inclui `LastAction`); tipos do Mini CRM local foram removidos.
 - `hooks/useChat.ts` foi removido e protegido por `tests/architecture/useChatImportGuard.test.ts`.
 - `VITE_PINECONE_*` no frontend é risco aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
+- Mini CRM local foi removido por decisão de produto; preservar apenas referências ao CRM interno Senior usadas como evidência em dossiês/prompts.
 - Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
 
 ## Programa de refatoracao
@@ -53,7 +54,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Onda 0+1: concluída e mergeada via PR `#255`.
   - OI-066: concluído e mergeado via PR `#256`.
   - Sprint 10: concluída e mergeada via PR `#257`.
-  - Sprint 11: em andamento, Onda 0 de testes de caracterização.
+  - Sprint 11: em andamento, Onda 0.5 de correções locais + remoção Mini CRM.
 
 ## Hotspots atuais da Fase 2
 
@@ -61,31 +62,35 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 |---|---|---|
 | `App.tsx` | 622 | Sprint 9 concluída |
 | `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 concluída |
-| `components/CRMDetail.tsx` | 717 + `card: any`; teste de caracterização criado na Onda 0 | Sprint 11 |
+| Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto; não refatorar nem reintroduzir | Sprint 11 Onda 0.5 |
 | `components/LoadingSmart.tsx` | 766 | Sprint 11 |
 | `components/WarRoom.tsx` | 552; teste de caracterização criado na Onda 0 | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Sprint 11 Onda 0
+## Entrega em curso: Sprint 11 Onda 0.5
 
-- Branch: `codex/sprint-11-onda-0-tests`
-- Base: `origin/main@fbf5536`
-- Worktree: `~/.config/superpowers/worktrees/NOVO-APP/codex-sprint-11-onda-0-tests`
+- Branch/workspace atual: `refactor/code-quality` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
-  - adicionar `tests/components/CRMDetail.test.tsx`;
-  - adicionar `tests/components/WarRoom.test.tsx`;
-  - adicionar `@vitest/coverage-v8` como devDependency para o gate `vitest --coverage`;
-  - não alterar componentes de produção nesta onda.
+  - completar proxy local Vite para rotas serverless, incluindo `/api/open-web-search`;
+  - remover Mini CRM local (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos e testes);
+  - preservar CRM interno Senior em prompts/evidências/fixtures;
+  - atualizar docs/memória para substituir a antiga Onda 1 de `CRMDetail`.
 - Validação local:
   - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
-  - `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
-  - `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`CRMDetail.tsx` `92.35%` linhas; `WarRoom.tsx` `74.21%` linhas);
+  - Onda 0 anterior: `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
+  - Onda 0 anterior: `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`CRMDetail.tsx` `92.35%` linhas; `WarRoom.tsx` `74.21%` linhas);
+  - Onda 0.5: `npm exec vitest run tests/components/LoadingSmart.test.tsx tests/services/geminiProxy.test.ts tests/config/localDevApiProxy.test.ts tests/components/ChatInterface.test.tsx tests/components/SessionsSidebar.test.tsx tests/components/FeatureGatingUI.test.tsx tests/App.layout.test.tsx` green (`43` testes);
+  - Onda 0.5: `npm run typecheck` green;
+  - Onda 0.5: `npm run test` green (`115` arquivos, `820` testes);
+  - Onda 0.5: `npm run build` green com warnings aceitos de chunking;
+  - Onda 0.5: `npm run lint` green com `0` erros e `141` warnings conhecidos;
+  - Smoke local: `/api/open-web-search` em `localhost:3000` retornou `200` com `OpenWebSearch/Brave`; `/api/gemini` retornou HTTP `200`, mas health remoto veio `ok:false`;
   - `npm run typecheck` green;
   - `npm run test` green (`117` arquivos, `869` testes);
   - `npm run build` green com warnings aceitos OI-003/OI-057;
   - `npm run lint` green com `0` erros e `147` warnings conhecidos;
 - Fora de escopo:
-  - refatorar `CRMDetail`, `LoadingSmart` ou `WarRoom`;
+  - refatorar `LoadingSmart` ou `WarRoom`;
   - remover `card: any`;
   - limpar warnings globais de lint.
 
@@ -144,8 +149,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Abrir PR da branch `codex/sprint-11-onda-0-tests`.
-2. Após merge da Onda 0, iniciar Sprint 11 Onda 1 em `CRMDetail` usando os testes novos como rede de segurança.
+1. Finalizar validação completa da Onda 0.5 (`test`, `build`, `lint`).
+2. Abrir PR/merge da remoção do Mini CRM e correções locais.
+3. Iniciar a próxima onda em `LoadingSmart` ou `WarRoom`; não reintroduzir `CRMDetail`.
 
 ## Regras de continuidade
 

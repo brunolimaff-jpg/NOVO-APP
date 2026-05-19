@@ -22,20 +22,12 @@ import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
 import { UpdateNotificationModal } from './components/UpdateNotificationModal';
 import InstallPrompt from './components/InstallPrompt';
-import { CRMView } from './components/CRMView';
 import { AdminDash } from './components/AdminDash';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
-import { useCRM } from './contexts/CRMContext';
-import { loadWithChunkRetry } from './utils/chunkRetry';
-import SuspenseWithError from './components/SuspenseWithError';
-const CRMDetail = React.lazy(() =>
-  loadWithChunkRetry(() => import('./components/CRMDetail')).then(m => ({ default: m.CRMDetail })),
-);
 import {
   ExportFormat,
   ReportType,
-  CRMStage,
 } from './types';
 import { generateContinuityQuestion } from './services/geminiService';
 
@@ -68,7 +60,6 @@ function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): bool
 const App: React.FC = () => {
   const { name: operatorName, operatorId, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
-  const { cards, createCardFromSession, moveCardToStage } = useCRM();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
   const { isDarkMode, toggleTheme } = useTheme();
   const {
@@ -114,8 +105,7 @@ const App: React.FC = () => {
     remoteSaveStatus,
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'crm' | 'admin'>('chat');
-  const [selectedCRMCardId, setSelectedCRMCardId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'chat' | 'admin'>('chat');
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
@@ -123,9 +113,7 @@ const App: React.FC = () => {
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
 
-  const selectedCRMCard = selectedCRMCardId ? cards.find(c => c.id === selectedCRMCardId) || null : null;
   const featureAccess = getFeatureAccess();
-  const canAccessMiniCRM = featureAccess.miniCRM;
   const canAccessDashboard = featureAccess.dashboard;
   const canAccessIntegrityCheck = featureAccess.integrityCheck;
   const canUseLookup = featureAccess.clientLookup;
@@ -139,13 +127,6 @@ const App: React.FC = () => {
     toast,
   });
   const followUpModal = useFollowUpModal({ toast });
-
-  useEffect(() => {
-    if (!canAccessMiniCRM && activeView === 'crm') {
-      setActiveView('chat');
-      setSelectedCRMCardId(null);
-    }
-  }, [activeView, canAccessMiniCRM]);
 
   const { handleSaveRemote } = useSessionRemoteSave({
     operatorId,
@@ -343,56 +324,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveToCRM = async (sessionId: string) => {
-    if (!canAccessMiniCRM) {
-      toast.error('Mini CRM indisponível no modo MVP.');
-      return;
-    }
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
-    const existingCard = cards.find(c => c.id === `crm_${sessionId}`);
-    if (existingCard) {
-      setSelectedCRMCardId(existingCard.id);
-      setActiveView('crm');
-      toast.success('Empresa já existe no CRM.');
-      return;
-    }
-    const card = await createCardFromSession(session);
-    toast.success(`${card.companyName} adicionada ao CRM!`);
-    setSelectedCRMCardId(card.id);
-    setActiveView('crm');
-  };
-
-  const handleMoveStageFromDetail = async (stage: string) => {
-    if (selectedCRMCardId) await moveCardToStage(selectedCRMCardId, stage as CRMStage);
-  };
-
-  const handleSelectSessionFromDetail = async (sessionId: string) => {
-    await handleSelectSession(sessionId);
-    setActiveView('chat');
-    setSelectedCRMCardId(null);
-  };
-
-  const handleCreateSessionFromDetail = () => {
-    if (!selectedCRMCard) return;
-    const companyName = selectedCRMCard.companyName || 'Empresa';
-    setSelectedCRMCardId(null);
-    setActiveView('chat');
-    setTimeout(() => {
-      handleNewSession();
-      window.dispatchEvent(new CustomEvent('scout:prefill', { detail: { text: companyName } }));
-    }, 80);
-  };
-
-  const handleOpenKanbanSafe = () => {
-    if (!canAccessMiniCRM) {
-      toast.error('Mini CRM indisponível no modo MVP.');
-      return;
-    }
-    setActiveView('crm');
-    setSelectedCRMCardId(null);
-  };
-
   if (!isInitialized) {
     return (
       <div
@@ -446,7 +377,7 @@ const App: React.FC = () => {
               isDarkMode={isDarkMode}
               onClose={() => setActiveView('chat')}
             />
-          ) : activeView === 'chat' || !canAccessMiniCRM ? (
+          ) : (
             <ChatErrorBoundary isDarkMode={isDarkMode}>
               <ChatInterface
               currentSession={currentSession}
@@ -454,8 +385,6 @@ const App: React.FC = () => {
               onNewSession={handleNewSession}
               onSelectSession={handleSelectSession}
               onDeleteSession={handleDeleteSession}
-              onSaveToCRM={handleSaveToCRM}
-              onOpenKanban={handleOpenKanbanSafe}
               onOpenAdminDash={canAccessDashboard ? () => setActiveView('admin') : undefined}
               isSidebarOpen={isSidebarOpen}
               onToggleSidebar={() => setIsSidebarOpen((previous) => !previous)}
@@ -489,7 +418,6 @@ const App: React.FC = () => {
               onSaveRemote={handleSaveRemote}
               isSavingRemote={isSavingRemote}
               remoteSaveStatus={remoteSaveStatus}
-              canAccessMiniCRM={canAccessMiniCRM}
               canAccessDashboard={canAccessDashboard}
               canAccessIntegrityCheck={canAccessIntegrityCheck}
               canDeepDive={canDeepDive}
@@ -497,7 +425,6 @@ const App: React.FC = () => {
               onClearOperator={() => {
                 clearName();
                 setActiveView('chat');
-                setSelectedCRMCardId(null);
               }}
               lastUserQuery={lastQuery}
               onDeleteMessage={handleDeleteMessage}
@@ -518,33 +445,12 @@ const App: React.FC = () => {
               }}
               />
             </ChatErrorBoundary>
-          ) : (
-            <CRMView
-              isDarkMode={isDarkMode}
-              onSelectCard={setSelectedCRMCardId}
-              onBackToChat={() => setActiveView('chat')}
-              canAccessMiniCRM={canAccessMiniCRM}
-            />
           )}
         </main>
         <div className="flex-none">
           <FooterCredits />
         </div>
       </div>
-
-      {selectedCRMCard && canAccessMiniCRM && (
-        <SuspenseWithError>
-          <CRMDetail
-            card={selectedCRMCard}
-            sessions={sessions}
-            onClose={() => setSelectedCRMCardId(null)}
-            onSelectSession={handleSelectSessionFromDetail}
-            onMoveStage={handleMoveStageFromDetail}
-            onCreateSessionFromCard={handleCreateSessionFromDetail}
-            isDarkMode={isDarkMode}
-          />
-        </SuspenseWithError>
-      )}
 
       {emailModal.isOpen && (
         <EmailModal

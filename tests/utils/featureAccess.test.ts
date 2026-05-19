@@ -10,7 +10,6 @@ describe('featureAccess', () => {
     vi.stubEnv('VITE_ENABLE_DEEP_DIVE', '');
 
     expect(getFeatureAccess()).toEqual({
-      miniCRM: true,
       dashboard: true,
       integrityCheck: true,
       clientLookup: true,
@@ -23,7 +22,6 @@ describe('featureAccess', () => {
     vi.stubEnv('VITE_ENABLE_DEEP_DIVE', 'true');
 
     expect(getFeatureAccess()).toEqual({
-      miniCRM: true,
       dashboard: true,
       integrityCheck: true,
       clientLookup: true,

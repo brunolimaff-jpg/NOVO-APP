@@ -105,7 +105,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   pdfReportContent,
   onOpenEmailModal,
   onOpenFollowUpModal,
-  canAccessMiniCRM = true,
   canAccessDashboard = true,
   canAccessIntegrityCheck = true,
   canDeepDive = false,
@@ -116,9 +115,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   loadingVariant,
   loadingPinnedLabel,
   onDeleteMessage,
-  onSaveToCRM,
   onDeepDive,
-  onOpenKanban,
   onOpenAdminDash,
   radar,
 }) => {
@@ -230,9 +227,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onToggleSidebar={onToggleSidebar}
       isDarkMode={isDarkMode}
       theme={theme}
-      onSaveToCRM={onSaveToCRM}
-      onOpenKanban={onOpenKanban}
-      canAccessMiniCRM={canAccessMiniCRM}
       displayTitle={displayTitle}
       radar={radar}
       onOpenRadarPanel={() => setShowRadarPanel(true)}

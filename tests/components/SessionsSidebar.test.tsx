@@ -37,8 +37,6 @@ const defaultProps = {
   onSelectSession: vi.fn(),
   onNewSession: vi.fn(),
   onDeleteSession: vi.fn(),
-  onSaveToCRM: vi.fn(),
-  onOpenKanban: vi.fn(),
   isOpen: true,
   onCloseMobile: vi.fn(),
   isDarkMode: false,

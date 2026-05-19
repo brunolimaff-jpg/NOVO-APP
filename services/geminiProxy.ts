@@ -53,8 +53,8 @@ interface GeminiHealthResponse {
   text?: string;
 }
 
-const LOCAL_DEV_BASE_URL =
-  (import.meta.env.VITE_GEMINI_PROXY_URL || 'https://scoutagro.vercel.app/api/gemini').replace(/\/api\/gemini$/, '');
+const CUSTOM_GEMINI_PROXY_BASE_URL =
+  (import.meta.env.VITE_GEMINI_PROXY_URL || '').replace(/\/api\/gemini$/, '').replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
@@ -65,7 +65,8 @@ const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT
 function resolveEndpoint(path: string): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isLocalDev = import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1');
-  return isLocalDev ? `${LOCAL_DEV_BASE_URL}${path}` : path;
+  if (!isLocalDev) return path;
+  return CUSTOM_GEMINI_PROXY_BASE_URL ? `${CUSTOM_GEMINI_PROXY_BASE_URL}${path}` : path;
 }
 
 export function resolveGeminiApiEndpoint(
@@ -73,7 +74,10 @@ export function resolveGeminiApiEndpoint(
   isDev: boolean = import.meta.env.DEV,
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  return isDev && isLocalDevHost ? `${LOCAL_DEV_BASE_URL}/api/gemini` : '/api/gemini';
+  if (!(isDev && isLocalDevHost)) return '/api/gemini';
+  return CUSTOM_GEMINI_PROXY_BASE_URL
+    ? `${CUSTOM_GEMINI_PROXY_BASE_URL}/api/gemini`
+    : '/api/gemini';
 }
 
 // FIX: removidas as const GEMINI_API_ENDPOINT e GERAR_DOSSIE_ENDPOINT do escopo

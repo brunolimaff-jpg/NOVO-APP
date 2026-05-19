@@ -1334,9 +1334,6 @@
 - `ChatInterface.tsx`
 - `ClienteSeniorScore.tsx`
 - `ConfirmPopover.tsx` — ConfirmPopover — substitui window.confirm() por confirmação inline.
-- `CRMDetail.tsx` — CRMDetail
-- `CRMPipeline.tsx` — CRMPipeline
-- `CRMView.tsx` — CRMView
 - `DeepDiveTopics.tsx` — DeepDiveTopics
 - `DossieSkeletonLoader.tsx` — QW-1 — Skeleton Loader do Dossiê
 - `EmailModal.tsx` — EmailModal
@@ -1361,7 +1358,6 @@
 - `RadarBell.tsx`
 - `RadarPanel.tsx`
 - `RadarSettings.tsx`
-- `RevenueIntelligence.tsx` — Revenue Intelligence Component
 - `ScorePorta.tsx`
 - `SectionalBotMessage.tsx`
 - `SessionsSidebar.tsx`
@@ -1393,7 +1389,6 @@
 - `market-intelligence.ts` — =================================================================== · DOCUMENTATION_PORTALS, PARTNER_NETWORK, BUDGET_ANALYSIS, COMPETITOR_DATABASE, SENIOR_PORTFOLIO_PROMPT
 
 **contexts/**
-- `CRMContext.tsx` — CRMProvider, useCRM
 - `ModeContext.tsx` — ModeProvider, useMode, useMaybeMode
 - `OperatorContext.tsx` — OperatorProvider, useOperator, useMaybeOperator, OperatorProfile
 
@@ -1473,7 +1468,6 @@
 - `portaStateService.ts` — initPortaState, getPortaState, resetPortaState, setBaseScore, addFeedAdjustment, addFlagFeed, addSegmentFeed, generatePortaContextForDeepDive
 - `radarService.ts` — services/radarService.ts · buildCategoryPrompt, generateAlertId, fetchRadarAlerts, RadarScanError, RadarScanErrorCode, RadarPartialFailure, RadarCategoryStat, RadarScanResult
 - `ragService.ts` — buscarContextoPinecone, buscarContextoDocsPinecone, RagResult
-- `revenueService.ts` — Revenue Intelligence Service · normalizarFamilia, inferirPorte, buildRevenueProfile, formatarMoeda, labelTipo
 - `sessionRemoteStore.ts` — listRemoteSessions, getRemoteSession, saveRemoteSession
 - `warRoomService.ts` — Public facade preserved for components/WarRoom.tsx and tests.
 
@@ -1610,7 +1604,6 @@
 - `portaStateService.test.ts`
 - `radarService.test.ts` — tests/services/radarService.test.ts
 - `ragService.test.ts`
-- `revenueService.test.ts`
 - `sessionRemoteStore.test.ts`
 - `warRoomCanary.test.ts`
 - `warRoomService.test.ts`

@@ -34,7 +34,7 @@ Sprint 10 move o runtime do Radar para `features/radar/*` sem alterar comportame
 - Redesign do Radar.
 - Mudanças em `/api/radar-scan`.
 - Sweep global de `any`, `catch {}` ou `console.*`.
-- Refactor de `CRMDetail`, `LoadingSmart` ou `WarRoom`.
+- Refactor de `LoadingSmart` ou `WarRoom` (Mini CRM/`CRMDetail` removido na Onda 0.5).
 
 ## Contrato de continuidade
 
@@ -93,4 +93,4 @@ Depois desta PR:
 
 1. Validar preview manualmente.
 2. Mergear Sprint 10.
-3. Iniciar Sprint 11 com testes de caracterização antes de mexer em `CRMDetail`, `LoadingSmart` e `WarRoom`.
+3. Iniciar Sprint 11 com testes de caracterização antes de mexer em `LoadingSmart` e `WarRoom`; Mini CRM/`CRMDetail` foi removido.

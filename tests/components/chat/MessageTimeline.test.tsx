@@ -14,17 +14,24 @@ vi.mock('react-virtuoso', async () => {
         {
           data = [],
           itemContent,
+          followOutput,
           components,
         }: {
           data?: unknown[];
           itemContent: (index: number, item: unknown) => React.ReactNode;
+          followOutput?: boolean;
           components?: {
             Header?: React.ComponentType;
           };
         },
         ref: React.ForwardedRef<HTMLDivElement>,
       ) => (
-        <div ref={ref} data-testid="messages-scroller" data-virtuoso-scroller="true">
+        <div
+          ref={ref}
+          data-testid="messages-scroller"
+          data-virtuoso-scroller="true"
+          data-follow-output={String(followOutput)}
+        >
           {components?.Header ? <components.Header /> : null}
           {data.map((item, index) => (
             <div key={index} data-testid={`virtuoso-item-${index}`}>
@@ -247,5 +254,56 @@ describe('MessageTimeline', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'prefill-0' }));
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
+  });
+
+  it('mantem auto-scroll desativado no chat principal mesmo com novas mensagens', async () => {
+    vi.useFakeTimers();
+    // @ts-expect-error test fallback path
+    global.ResizeObserver = undefined;
+    window.requestAnimationFrame = vi.fn(() => 1);
+    window.cancelAnimationFrame = vi.fn();
+
+    const scrollIntoViewSpy = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+    try {
+      const initialMessages = [
+        buildMessage('m1', Sender.User, 'Pergunta inicial'),
+        buildMessage('m2', Sender.Bot, 'Resposta inicial'),
+      ];
+      const props = buildProps({ messages: initialMessages, currentSession: buildSession(initialMessages) });
+      const { rerender } = render(<MessageTimeline {...props} />);
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+
+      const nextMessages = [
+        ...initialMessages,
+        buildMessage('m3', Sender.Bot, 'Nova resposta sem auto scroll'),
+      ];
+
+      rerender(
+        <MessageTimeline
+          {...buildProps({
+            ...props,
+            messages: nextMessages,
+            currentSession: buildSession(nextMessages),
+          })}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
   });
 });

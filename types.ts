@@ -221,10 +221,7 @@ export interface ChatInterfaceProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
-  // Props anteriormente faltantes — adicionadas na Fase 1
-  onSaveToCRM: (sessionId: string) => void;
   onDeepDive: (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => Promise<void>;
-  onOpenKanban: () => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   messages: Message[];
@@ -254,7 +251,6 @@ export interface ChatInterfaceProps {
   pdfReportContent: string | null;
   onOpenEmailModal: () => void;
   onOpenFollowUpModal: () => void;
-  canAccessMiniCRM?: boolean;
   canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
@@ -271,113 +267,6 @@ export interface ChatInterfaceProps {
   loadingPinnedLabel?: string | null;
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;
-}
-
-// ===================================================================
-// REVENUE INTELLIGENCE
-// ===================================================================
-
-export type RevenueStreamType = 'licenca' | 'suporte' | 'subscricao' | 'implantacao' | 'treinamento' | 'customizacao';
-
-export type RevenueConfidence = 'confirmado' | 'estimado' | 'potencial';
-
-export type PorteCliente = 'pequeno' | 'medio' | 'grande';
-
-export interface RevenueStream {
-  id: string;
-  tipo: RevenueStreamType;
-  familiasProduto: string; // 'GATec', 'ERP', 'HCM', etc.
-  modulo?: string;
-  descricao: string;
-  valorMensal?: number;
-  valorAnual?: number;
-  custoImplantacao?: number;
-  prazoContratoMeses?: number;
-  recorrente: boolean; // true = RR, false = NR
-  confianca: RevenueConfidence;
-  fonte: string;
-  criadoEm: string;
-}
-
-export interface CustomerRevenueProfile {
-  cardId: string;
-  porte: PorteCliente;
-  totalRRAnual: number;
-  totalNR: number;
-  streamsAtivos: RevenueStream[];
-  oportunidadesExpansao: RevenueStream[];
-  tcvEstimado?: number; // Total Contract Value (RR * prazo + NR)
-  prazoContratoPadrao: number; // meses
-  atualizadoEm: string;
-}
-
-// ===================================================================
-// MINI CRM - Kanban
-// ===================================================================
-
-export type CRMStage = 'prospeccao' | 'primeira_reuniao' | 'levantamento' | 'defesa_tecnica' | 'dossie_final';
-
-export const CRM_STAGE_LABELS: Record<CRMStage, string> = {
-  prospeccao: 'Prospecção',
-  primeira_reuniao: '1ª Reunião',
-  levantamento: 'Levantamento',
-  defesa_tecnica: 'Defesa Técnica',
-  dossie_final: 'Dossiê Final',
-};
-
-export type DealHealth = 'green' | 'yellow' | 'red';
-
-export interface CRMTranscriptionFile {
-  id: string;
-  name: string;
-  content: string;
-  uploadedAt: string;
-  type: 'txt' | 'docx';
-}
-
-export interface CRMStageData {
-  transcriptions: CRMTranscriptionFile[];
-  executiveNotes: string;
-  technicalNotes: string;
-  aiReport?: string;
-  crmNotes?: string;
-  generatedAt?: string;
-  objections?: string[];
-  competitors?: string[];
-}
-
-export interface CRMCard {
-  id: string;
-  companyName: string;
-  // Compat: cnpj unico legado
-  cnpj?: string | null;
-  // NOVO: lista de CNPJs
-  cnpjs?: string[];
-  // NOVO: campos basicos do cadastro
-  website?: string;
-  briefDescription?: string;
-  // NOVO: ExactSpotter
-  exactLink?: string;
-
-  linkedSessionIds: string[];
-  stage: CRMStage;
-  createdAt: string;
-  updatedAt: string;
-  movedToStageAt: Partial<Record<CRMStage, string>>;
-  stages: Partial<Record<CRMStage, CRMStageData>>;
-  latestScorePorta?: number;
-  health: DealHealth;
-  newsRadarEnabled: boolean;
-  lastNewsCheckAt?: string;
-  unreadNewsCount?: number;
-  // Revenue Intelligence
-  revenueProfile?: CustomerRevenueProfile;
-}
-
-export interface CRMPipelineProps {
-  cards: CRMCard[];
-  onMoveCard: (cardId: string, toStage: CRMStage) => void;
-  onSelectCard: (cardId: string) => void;
 }
 
 // ===================================================================

@@ -84,5 +84,5 @@
 | Onda 0+1 | Cleanup base + primeira correção técnica | done | PR `#255` mergeada em `main` (`0550454`) | `origin/main@922a403` | docs/memory, `features/dossier/*`, logs cliente |
 | OI-066 | Delete icon Unicode hotfix | done | PR `#256` mergeada em `main` (`66591f1`) | `origin/main@0550454` | `components/MessageRow.tsx` |
 | 10 | Radar boundary completion | preview_validation | PR `#257` aberta com checks remotos verdes; validação manual pendente | `origin/main@66591f1` | `features/radar/*`, `hooks/useRadar.ts`, `services/radarService.ts` |
-| 11 | Componentes grandes + tipagem forte | planned | reducao de complexidade em `CRMDetail`, `LoadingSmart`, `WarRoom` | `start-of-sprint-11` | `components/CRMDetail.tsx`, `components/LoadingSmart.tsx`, `components/WarRoom.tsx` |
+| 11 | Correções locais + componentes grandes | in_progress | Mini CRM removido; próximos alvos são `LoadingSmart` e `WarRoom` | `start-of-sprint-11` | `vite.config.ts`, `config/localDevApiProxy.ts`, `components/LoadingSmart.tsx`, `components/WarRoom.tsx` |
 | 12 | Hardening final | planned | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |

@@ -21,7 +21,7 @@ Back to [[00-MASTER]].
 
 - Iniciar Sprint 9: desacoplamento do app shell (`App.tsx`) + governanca da fase
 - Iniciar Sprint 10 depois de Sprint 9 green: mover runtime de Radar para `features/radar/*`
-- Iniciar Sprint 11: reducao de complexidade em `CRMDetail`, `LoadingSmart` e `WarRoom`
+- Continuar Sprint 11: Mini CRM local removido; próximos alvos são `LoadingSmart` e `WarRoom`
 - Sprint 12 fecha a fase com hardening de warnings e closeout documental
 
 ## Follow-ups relevantes fora do fluxo principal

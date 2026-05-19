@@ -125,7 +125,7 @@ Todas rodam em Vercel; validacao manual final deve acontecer em preview/producao
 
 - `App.tsx` ainda concentra parte do wiring global
 - `mobile-responsive.css` segue fora da consolidacao principal de estilos
-- `CRMDetail.tsx`, `WarRoom.tsx` e `LoadingSmart.tsx` continuam candidatos a decomposicao
+- `WarRoom.tsx` e `LoadingSmart.tsx` continuam candidatos a decomposicao; `CRMDetail.tsx` foi removido com o Mini CRM local
 - lint segue com backlog de warnings
 - componentes visuais do Radar ainda estao em `components/`; runtime ja esta em `features/radar/`
 
