@@ -2,76 +2,49 @@
 
 ## Current Phase
 
-Sprint 10 da Fase 2 em execução na branch `codex/sprint-10-radar-boundary`.
+Sprint 11 da Fase 2 em execução. A Onda 1B está ativa em `LoadingSmart`, depois do saneamento documental da Onda 1A.
 
-Baseline atual de `main`:
+Baseline local observado:
 
-- Sprint 9 concluída via PR `#254` (`922a403`)
-- Onda 0+1 concluída via PR `#255` (`0550454`)
-- OI-066 concluído via PR `#256` (`66591f1`)
+- Sprint 10 concluída via PR `#257` (`fbf5536`)
+- Sprint 11 Onda 0 concluída via PR `#258` (`423f821`)
+- Sprint 11 Onda 0.5 concluída via PR `#259` na branch `codex/sprint-11-onda-0-5-mini-crm-local-fixes`
+- Sprint 11 Onda 1A documental concluída na branch de trabalho
 
 ## What Was Finished
 
-- Fase 1 (Sprints 1-8) concluída em `main`.
-- PR `#253` Docs RAG anti-alucinação mergeada em `df1ca1e`.
-- Sprint 9 mergeada via PR `#254`:
-  - `App.tsx` reduzido para `622` linhas.
-  - hooks de Email/FollowUp extraídos.
-  - `services/exportService.ts` criado.
-  - leak `features/dossier` -> `features/chat` removido.
-  - `madge`/`ts-prune` adicionados.
-  - `utils/featureFlags.ts` criado.
-  - OI-055 Pinecone via `VITE_*` aceito pelo owner para app interno/fechado.
-- Onda 0+1 mergeada via PR `#255`:
-  - docs/memória pós-Sprint 9 sincronizados.
-  - PORTA partial integrity hold corrigido.
-  - logs cliente sensíveis migrados para `scoutDiag`.
-  - `/api/open-web-search` corrigido no runtime Vercel.
-- OI-066 mergeado via PR `#256`:
-  - botão de excluir mensagem renderiza icone de lixeira em vez de escape Unicode cru.
+- Mini CRM local removido do runtime/contratos/tipos/testes dedicados.
+- Proxy local Vite centralizado em `config/localDevApiProxy.ts`, incluindo `/api/open-web-search`.
+- `WarRoom` já tem teste de caracterização criado na Onda 0.
+- `LoadingSmart` teve timeline/progresso extraídos para `utils/loadingSmartViewModel.ts`, com teste dedicado.
+- Referências ao CRM interno Senior continuam válidas em prompts, evidências, fixtures e dossiês.
 
 ## Active Work
 
-Sprint 10 combina:
+Onda 1B combina:
 
-1. Mover `hooks/useRadar.ts` para `features/radar/useRadar.ts`.
-2. Mover `services/radarService.ts` para `features/radar/service.ts`.
-3. Manter os dois caminhos antigos como facades de compatibilidade.
-4. Fazer novos imports de produção usarem `features/radar`.
-5. Adicionar guardrail arquitetural para bloquear novos imports diretos dos caminhos legados.
+1. Manter `components/LoadingSmart.tsx` como fachada/default export.
+2. Reduzir o componente em fatias pequenas e testadas.
+3. Preservar comportamento coberto por `tests/components/LoadingSmart.test.tsx`.
+4. Manter `WarRoom` fora deste PR.
 
 ## Next Safe Step
 
-PR `#257` da Sprint 10 está aberta, com checks remotos verdes e preview Vercel pronto.
+Completar a Onda 1B com extração do hook de curiosidades/timers, ou fechar a fatia atual como PR curto se o objetivo for review menor. Depois:
 
-- PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/257>
-- Preview: <https://scoutagro-git-codex-sprint-10-143bdc-brunolimaff-3629s-projects.vercel.app>
-
-Finalizar Sprint 10 com validação manual do preview e merge da PR `#257`.
-
-Validação manual mínima no preview:
-
-1. Configurar Radar.
-2. Forçar varredura.
-3. Abrir painel/configurações.
-4. Marcar alerta como lido.
-5. Confirmar que Chat/Home continuam recebendo contexto do Radar.
+1. Onda 1C: `WarRoom`, mantendo props públicas e `services/warRoomService.ts` estável.
+2. Sprint 12: hardening final de OI-003, OI-004, OI-005 e OI-062.
 
 ## Do Not Touch Yet
 
-- Não mover componentes `Radar*` nesta PR.
-- Não deletar facades `hooks/useRadar.ts` e `services/radarService.ts` nesta PR.
-- Não refatorar `LoadingSmart` ou `WarRoom` (Mini CRM/`CRMDetail` removido na Onda 0.5) agora.
-- Não fazer sweep global de `any`, `catch {}` ou `console.*`.
-- Não mexer em PWA/chunking ou `framer-motion`.
-- Não deletar branches antigas sem aprovação explícita.
+- Não reintroduzir `CRMDetail`, `CRMProvider`, `useCRM`, `CRMView` ou `CRMPipeline`.
+- Não misturar `LoadingSmart` e `WarRoom` no mesmo PR.
+- Não alterar `services/geminiService.ts`, `services/warRoomService.ts`, `components/ChatInterface.tsx`, `constants.ts`, `prompts/megaPrompts.ts` ou `types.ts` sem escopo explícito.
+- Não incluir `mcp-server/` antes do fechamento da Sprint 12.
+- Não mexer em `CODE.md` não rastreado salvo pedido explícito.
 
 ## Suggested Prompt For Next AI
 
-Leia `HANDOFF_AI.md`, `.agents/memory/activeContext.md`,
-`.agents/memory/progress.md`, `docs/ai-context/refactor/02-BOARD.md` e
-`docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`.
-Considere a PR `#254` mergeada em `main` no commit `922a403`.
-Considere a PR `#255` mergeada em `main` no commit `0550454`.
-Considere a PR `#256` mergeada em `main` no commit `66591f1`.
-Continue a Sprint 10 validando a PR `#257` no preview Vercel; após validação manual, mergear.
+Leia `HANDOFF_AI.md`, `.agents/memory/activeContext.md`, `.agents/memory/progress.md`, `docs/ai-context/refactor/02-BOARD.md`, `docs/ai-context/refactor/03-OPEN-ITEMS.md` e `docs/ai-context/refactor/sprints/SPRINT-11-EXECUTION.md`.
+
+Considere a Onda 1A documental como a tarefa ativa. Depois dela, seguir para `LoadingSmart` e `WarRoom` em PRs separados, sem reintroduzir Mini CRM local.

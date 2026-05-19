@@ -13,11 +13,10 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 7. `docs/ai-context/refactor/01-MASTER-PLAN.md`
 8. `docs/ai-context/refactor/08-PHASE2-MAINTAINABILITY-PLAN.md`
 9. `docs/ai-context/refactor/02-BOARD.md`
-10. `docs/ai-context/refactor/11-SPRINT-10-RADAR-BOUNDARY-2026-05-16.md`
-11. `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
-12. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
-13. `docs/ai-context/refactor/06-HANDOFF.md`
-14. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
+10. `docs/ai-context/refactor/sprints/SPRINT-11-EXECUTION.md`
+11. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
+12. `docs/ai-context/refactor/06-HANDOFF.md`
+13. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
 
 ## Contexto minimo estavel
 
@@ -29,7 +28,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-19 — Onda 0.5 em andamento na branch `refactor/code-quality`.
+> Atualizado em 2026-05-19 — Sprint 11 Onda 1B `LoadingSmart` em andamento na branch `codex/sprint-11-onda-0-5-mini-crm-local-fixes`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -54,7 +53,10 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Onda 0+1: concluída e mergeada via PR `#255`.
   - OI-066: concluído e mergeado via PR `#256`.
   - Sprint 10: concluída e mergeada via PR `#257`.
-  - Sprint 11: em andamento, Onda 0.5 de correções locais + remoção Mini CRM.
+  - Sprint 11 Onda 0: concluída e mergeada via PR `#258`.
+  - Sprint 11 Onda 0.5: concluída via PR `#259` na branch de trabalho.
+  - Sprint 11 Onda 1A: concluída para saneamento de planos duplicados/stale.
+  - Sprint 11 Onda 1B: em andamento em `LoadingSmart`.
 
 ## Hotspots atuais da Fase 2
 
@@ -67,15 +69,15 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `components/WarRoom.tsx` | 552; teste de caracterização criado na Onda 0 | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Sprint 11 Onda 0.5
+## Entrega em curso: Sprint 11 Onda 1B LoadingSmart
 
-- Branch/workspace atual: `refactor/code-quality` em `/Users/brunolima/Documents/NOVO-APP`.
+- Branch/workspace atual: `codex/sprint-11-onda-0-5-mini-crm-local-fixes` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
-  - completar proxy local Vite para rotas serverless, incluindo `/api/open-web-search`;
-  - remover Mini CRM local (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos e testes);
-  - preservar CRM interno Senior em prompts/evidências/fixtures;
-  - atualizar docs/memória para substituir a antiga Onda 1 de `CRMDetail`.
-- Validação local:
+  - reduzir `components/LoadingSmart.tsx` sem mudar a fachada/default export;
+  - extrair primeiro a lógica pura de timeline/progresso para helper testável;
+  - manter `App.tsx` sem alteração;
+  - manter `WarRoom` fora deste PR.
+- Validação herdada da Onda 0/0.5:
   - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
   - Onda 0 anterior: `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
   - Onda 0 anterior: `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`CRMDetail.tsx` `92.35%` linhas; `WarRoom.tsx` `74.21%` linhas);
@@ -89,10 +91,34 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run test` green (`117` arquivos, `869` testes);
   - `npm run build` green com warnings aceitos OI-003/OI-057;
   - `npm run lint` green com `0` erros e `147` warnings conhecidos;
+- Validação da Onda 1A:
+  - busca textual em docs/memória deve confirmar Mini CRM apenas como histórico/removido;
+  - nenhum código de runtime deve ser alterado nesta onda.
+- Validação da Onda 1B:
+  - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`18` testes);
+  - `npm run typecheck` green.
 - Fora de escopo:
   - refatorar `LoadingSmart` ou `WarRoom`;
   - remover `card: any`;
   - limpar warnings globais de lint.
+
+## Entrega anterior: Sprint 11 Onda 0.5
+
+- Branch: `codex/sprint-11-onda-0-5-mini-crm-local-fixes`
+- PR: `#259`
+- Resultado:
+  - proxy local Vite centralizado em `config/localDevApiProxy.ts`, incluindo `/api/open-web-search`;
+  - Mini CRM local removido (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos e testes dedicados);
+  - Revenue Intelligence local acoplada ao Mini CRM removida;
+  - CRM interno Senior preservado em prompts/evidências/fixtures/dossiês.
+
+## Entrega anterior: Sprint 11 Onda 1A
+
+- Resultado:
+  - canônicos reconciliados para evitar duplicação de planos vivos;
+  - `CRMDetail` mantido apenas como histórico/removido;
+  - `LoadingSmart` e `WarRoom` mantidos como PRs separados;
+  - `npm run docs:obsidian:check` green (`14` notas).
 
 ## Entrega anterior: Sprint 10 Radar boundary
 
@@ -149,9 +175,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Finalizar validação completa da Onda 0.5 (`test`, `build`, `lint`).
-2. Abrir PR/merge da remoção do Mini CRM e correções locais.
-3. Iniciar a próxima onda em `LoadingSmart` ou `WarRoom`; não reintroduzir `CRMDetail`.
+1. Completar a Onda 1B com hook de curiosidades/timers ou fechar a fatia atual como PR curto.
+2. Iniciar Onda 1C em `WarRoom`, mantendo props públicas e `services/warRoomService.ts` estável.
+3. Sprint 12 fica para hardening de OI-003/OI-004/OI-005/OI-062.
 
 ## Regras de continuidade
 

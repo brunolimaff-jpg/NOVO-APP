@@ -704,3 +704,20 @@
   - checks remotos da PR `#257`: green para AI Config, Typecheck, Build, Tests, Dossier Golden, GitGuardian, Vercel e Vercel Preview Comments
 - Próximo passo:
   - validar preview manualmente e mergear PR `#257`
+
+## 2026-05-19 - Sprint 11 Onda 1A saneamento documental
+
+- Fase: docs cleanup
+- Branch: `codex/sprint-11-onda-0-5-mini-crm-local-fixes`
+- Contexto:
+  - Sprint 11 Onda 0 foi mergeada via PR `#258`;
+  - Onda 0.5 removeu Mini CRM local e centralizou proxies locais via PR `#259`;
+  - após isso, alguns planos continuavam apontando Sprint 8/10 ou `CRMDetail` como trabalho ativo.
+- Decisão:
+  - usar modelo canônico enxuto: `02-BOARD.md` para status vivo, `03-OPEN-ITEMS.md` para riscos/OIs, `sprints/SPRINT-11-EXECUTION.md` para plano executável;
+  - tratar `docs/obsidian/*` como navegação visual;
+  - manter `CRMDetail` apenas como histórico/removido.
+- Próximo passo:
+  - fechar PR curto da Onda 1A;
+  - iniciar Onda 1B em `LoadingSmart`;
+  - depois Onda 1C em `WarRoom`, em PR separado.

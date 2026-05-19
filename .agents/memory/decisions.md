@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-16
+Last updated: 2026-05-19
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -117,3 +117,9 @@ Constraint: preservar referências ao CRM interno Senior em prompts, evidências
 Decision: centralizar as rotas de proxy local em `config/localDevApiProxy.ts` e incluir `/api/open-web-search`, `/api/link-status`, `/api/extract-content`, `/api/rag` e `/api/docs-rag` além das rotas já existentes.
 
 Reason: o Vercel é o runtime real, mas `npm run dev` precisa evitar falsos 404 para rotas serverless usadas pelo frontend e pelo fluxo de investigação.
+
+## 2026-05-19 - Modelo canônico enxuto para planos em aberto
+
+Decision: manter `02-BOARD.md` como status vivo, `03-OPEN-ITEMS.md` como fila de riscos/OIs, `sprints/SPRINT-11-EXECUTION.md` como plano executável da Sprint 11, e tratar `docs/obsidian/*` como navegação visual, não fonte de verdade.
+
+Reason: após a PR `#259`, havia duplicação entre handoffs, board, índice de sprints e roadmap Obsidian, com referências antigas a Sprint 8/10 e `CRMDetail`. O modelo enxuto reduz retrabalho e impede que agentes escolham um plano stale como próximo passo.
