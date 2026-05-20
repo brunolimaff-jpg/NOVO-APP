@@ -64,10 +64,15 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
 
   const getLastMessagePreview = (session: ChatSession): string | null => {
     if (!session.messages || session.messages.length === 0) return null;
+    let botText: string | null = null;
+    for (let i = session.messages.length - 1; i >= 0; i--) {
+      if (session.messages[i].sender === 'bot') {
+        botText = session.messages[i].text || null;
+        break;
+      }
+    }
     const lastMessage = session.messages[session.messages.length - 1];
-    // Pegar mensagem do bot, não do usuário
-    const botMessage = session.messages.filter(m => m.sender === 'bot').pop();
-    return botMessage?.text || lastMessage?.text || null;
+    return botText || lastMessage?.text || null;
   };
 
   const filteredSessions = useMemo(() =>
