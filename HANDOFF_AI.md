@@ -28,7 +28,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-20 — Sprint 11 Onda 1C `WarRoom` em andamento na branch `codex/sprint-11-war-room-refactor`.
+> Atualizado em 2026-05-20 — Sprint 12 hardening em `main` após merge da Sprint 11 Onda 1C.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -57,7 +57,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Sprint 11 Onda 0.5: concluída via PR `#259` na branch de trabalho.
   - Sprint 11 Onda 1A: concluída para saneamento de planos duplicados/stale.
   - Sprint 11 Onda 1B: concluída e mergeada via PR `#260`.
-  - Sprint 11 Onda 1C: em andamento em `WarRoom`.
+  - Sprint 11 Onda 1C: concluída e mergeada via PR `#261`.
+  - Sprint 12: próxima fase de hardening final.
 
 ## Hotspots atuais da Fase 2
 
@@ -66,18 +67,18 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `App.tsx` | 622 | Sprint 9 concluída |
 | `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 concluída |
 | Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto; não refatorar nem reintroduzir | Sprint 11 Onda 0.5 |
-| `components/LoadingSmart.tsx` | 672 após Onda 1B; fachada preservada | Sprint 11 |
-| `components/WarRoom.tsx` | 279 após extração de UI estática; teste de caracterização ativo | Sprint 11 |
+| `components/LoadingSmart.tsx` | 672 após Onda 1B; fachada preservada | Sprint 12 avalia se precisa nova fatia |
+| `components/WarRoom.tsx` | 283 após Onda 1C; props públicas preservadas | Sprint 11 concluída |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Sprint 11 Onda 1C WarRoom
+## Entrega em curso: Sprint 12 hardening
 
-- Branch/workspace atual: `codex/sprint-11-war-room-refactor` em `/Users/brunolima/Documents/NOVO-APP`.
+- Branch/workspace atual: `main` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
-  - reduzir `components/WarRoom.tsx` sem mudar props públicas;
-  - manter `services/warRoomService.ts` como fachada estável;
-  - extrair UI estática e tipos locais antes de hook de sessão;
-  - manter `LoadingSmart` fora deste PR.
+  - fechar warnings operacionais e guardrails finais da Fase 2;
+  - priorizar OI-003/OI-004/OI-005/OI-062;
+  - preservar facades públicas e não reintroduzir Mini CRM local;
+  - manter `mcp-server/` fora do escopo salvo repriorização explícita.
 - Validação herdada da Onda 0/0.5:
   - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
   - Onda 0 anterior: `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
@@ -105,10 +106,27 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run lint -- --quiet` green;
   - `npm run test` green (`116` arquivos, `826` testes);
   - `npm run analyze:circular` green, sem ciclos.
+  - checks remotos da PR `#261` green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
 - Fora de escopo:
-  - refatorar `LoadingSmart`;
-  - remover `card: any`;
-  - limpar warnings globais de lint.
+  - mudanças funcionais em `LoadingSmart`/`WarRoom` sem novo escopo;
+  - remover `card: any` fora de uma passada dedicada;
+  - limpar warnings globais sem priorização.
+
+## Entrega anterior: Sprint 11 Onda 1C WarRoom
+
+- PR: `#261`
+- Merge commit: `9fe0821`
+- Resultado:
+  - `components/WarRoom.tsx` reduzido de `552` para `283` linhas;
+  - blocos visuais extraídos para `components/war-room/*`;
+  - `WarRoomModelMessage` e `WarRoomSources` extraídos após review do Gemini;
+  - `key={hint}` aplicado nas sugestões;
+  - `scripts/smoke-preview.mjs` simplificado para usar apenas `x-vercel-protection-bypass`;
+  - props públicas e `services/warRoomService.ts` preservados.
+
+Lição aprendida:
+
+- O erro no check GitHub `Smoke (preview)` da PR `#261` foi causado por eu ter enviado o header opcional `x-vercel-set-bypass-cookie` junto do bypass em todas as requisições. Para smoke automatizado no GitHub Actions, manter somente `x-vercel-protection-bypass`; o cookie é para navegação/sessão e não é necessário quando cada `fetch` já carrega o bypass.
 
 ## Entrega anterior: Sprint 11 Onda 1B LoadingSmart
 
@@ -192,8 +210,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Fechar a primeira fatia da Onda 1C como PR curto ou continuar com hook local de sessão de `WarRoom`.
-2. Sprint 12 fica para hardening de OI-003/OI-004/OI-005/OI-062.
+1. Abrir branch curta para Sprint 12 hardening.
+2. Priorizar OI-003/OI-004/OI-005/OI-062 em PRs pequenos.
+3. Manter gates completos antes de encerrar a Fase 2.
 
 ## Regras de continuidade
 

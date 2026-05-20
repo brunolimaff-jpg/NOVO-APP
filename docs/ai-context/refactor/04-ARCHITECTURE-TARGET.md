@@ -94,7 +94,7 @@ constants/
 | `features/dossier/*` nao importa de `features/chat/*` | **Resolvido** (Sprint 9 / PR `#254`) | done |
 | `features/radar/*` contem runtime completo | **Resolvido** (Sprint 10; facades antigas preservadas) | done |
 | `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco aceito** para app interno/fechado (OI-055) | reavaliar se app virar externo |
-| Componentes < 500 linhas | **Parcialmente resolvido** (`LoadingSmart` 672 após Onda 1B; `WarRoom` 279 após Onda 1C; CRMDetail removido com Mini CRM local) | Sprint 11 |
+| Componentes < 500 linhas | **Parcialmente resolvido** (`WarRoom` 283 após Onda 1C; `LoadingSmart` 672 após Onda 1B; CRMDetail removido com Mini CRM local) | Sprint 12 avalia se `LoadingSmart` precisa de nova fatia |
 
 ## Regras de Organizacao
 

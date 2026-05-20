@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Current operating context
 
@@ -24,11 +24,11 @@ Fase 2 (manutenibilidade) está em andamento.
 - Sprint 9 concluída e mergeada via PR `#254`.
 - Sprint 10 mergeada via PR `#257` em `2026-05-16`.
 - Sprint 11 Onda 0 de testes foi mergeada via PR `#258`.
-- Sprint atual: Sprint 11 Onda 1C — refatoração incremental de `WarRoom`.
+- Sprint atual: Sprint 12 — hardening final da Fase 2.
 
 ## Current task context
 
-Branch/workspace atual: `codex/sprint-11-war-room-refactor` em `/Users/brunolima/Documents/NOVO-APP`.
+Branch/workspace atual: `main` em `/Users/brunolima/Documents/NOVO-APP`.
 
 Estado pós-PR `#259`:
 
@@ -51,18 +51,23 @@ Onda 1B concluída:
 - `components/LoadingSmart.tsx` permanece como fachada/default export; `App.tsx` não mudou.
 - PR `#260` mergeada; Bruno validou e liberou seguir para a próxima onda.
 
-Onda 1C atual:
+Onda 1C concluída:
 
-- `components/WarRoom.tsx` foi reduzido para `279` linhas.
+- `components/WarRoom.tsx` foi reduzido para `283` linhas.
 - Blocos visuais foram extraídos para `components/war-room/*`, mantendo props públicas e `services/warRoomService.ts` estável.
-- Próximo corte seguro: decidir se fecha PR curto ou extrai hook local de sessão em uma segunda fatia.
+- PR `#261` mergeada em `main` com merge commit `9fe0821`.
+- Review comments resolvidos e checks remotos verdes, incluindo Smoke Preview.
+
+Lição aprendida:
+
+- No smoke de preview Vercel, não adicionar header opcional sem necessidade. O erro da PR `#261` foi causado por enviar `x-vercel-set-bypass-cookie` junto com `x-vercel-protection-bypass` em requisições `fetch` do GitHub Actions. Para smoke automatizado que manda o bypass em toda requisição, usar somente `x-vercel-protection-bypass`.
 
 ## Workspace note
 
-O workspace atual tem `CODE.md` não rastreado. Preservar sem alteração salvo pedido explícito.
+`CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
 
 ## Immediate next step
 
-1. Fechar a primeira fatia da Onda 1C como PR curto se o objetivo for review menor.
-2. Se continuar na mesma onda, extrair hook local de sessão de `WarRoom` sem alterar `services/warRoomService.ts`.
-3. Antes de fechar, manter gate ampliado conforme risco (`test`, `typecheck`, `build`, `lint`).
+1. Iniciar Sprint 12 hardening em branch curta.
+2. Priorizar OI-003/OI-004/OI-005/OI-062 conforme `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
+3. Manter gates completos antes de fechar a Fase 2 (`test`, `typecheck`, `build`, `lint`, `analyze:circular`).

@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Completed
 
@@ -41,16 +41,16 @@ Last updated: 2026-05-19
 
 ## In progress
 
-- Sprint 11 Onda 1C na branch/workspace `codex/sprint-11-war-room-refactor`.
+- Sprint 12 hardening final da Fase 2 em `main`.
 - Objetivo:
-  - reduzir `WarRoom` incrementalmente sem mudar props públicas;
-  - manter `services/warRoomService.ts` como fachada estável;
-  - extrair blocos visuais e tipos locais antes de avaliar hook de sessão.
+  - fechar warnings operacionais e guardrails restantes;
+  - priorizar OI-003/OI-004/OI-005/OI-062;
+  - preservar facades públicas e evitar reintroduzir Mini CRM local.
 
 ## Blockers
 
 - Nenhum bloqueio técnico imediato.
-- `CODE.md` está não rastreado no workspace atual; preservar sem alteração.
+- `CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
 
 ## Validation history
 
@@ -150,16 +150,21 @@ Last updated: 2026-05-19
 ### Sprint 11 Onda 1C
 
 - Branch `codex/sprint-11-war-room-refactor` criada a partir de `origin/main@cb52fc1`.
-- `components/WarRoom.tsx` reduzido de `552` para `279` linhas.
-- Extraídos contratos/config/tema e blocos visuais para `components/war-room/*`: `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer`, `WarRoomMessages`.
+- PR `#261` mergeada em `main` com merge commit `9fe0821`.
+- `components/WarRoom.tsx` reduzido de `552` para `283` linhas.
+- Extraídos contratos/config/tema e blocos visuais para `components/war-room/*`: `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer`, `WarRoomMessages`, `WarRoomModelMessage`, `WarRoomSources`.
 - Props públicas preservadas: `isOpen`, `onClose`, `isDarkMode`, `defaultCompetitorTarget`.
 - `services/warRoomService.ts` não foi alterado.
+- Review comments do Gemini resolvidos (`key={hint}` em sugestões e extração de `WarRoomModelMessage`/`WarRoomSources`).
+- Smoke Preview corrigido removendo header opcional `x-vercel-set-bypass-cookie` e mantendo `x-vercel-protection-bypass`.
+- Lição aprendida: o erro remoto do GitHub Actions foi introduzido por excesso de header no bypass Vercel. Como o smoke automatizado envia o bypass a cada request, `x-vercel-set-bypass-cookie` é desnecessário e pode fazer o `fetch` falhar antes de retornar HTTP; usar só `x-vercel-protection-bypass`.
 - `npm exec vitest run tests/components/WarRoom.test.tsx` green (`6` testes).
 - `npm run typecheck` green.
 - `npm run build` green, com warnings aceitos de chunking.
 - `npm run lint -- --quiet` green.
 - `npm run test` green (`116` arquivos, `826` testes).
 - `npm run analyze:circular` green, sem ciclos.
+- Checks remotos da PR `#261` green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
 
 ## Important refs
 
@@ -171,5 +176,5 @@ Last updated: 2026-05-19
 
 ## Next checkpoint
 
-- Fechar a primeira fatia da Onda 1C como PR curto ou continuar com extração de hook local de sessão de `WarRoom`.
+- Iniciar Sprint 12 hardening em branch curta, priorizando OI-003/OI-004/OI-005/OI-062.
 - Não reintroduzir Mini CRM/`CRMDetail`.

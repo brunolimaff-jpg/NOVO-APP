@@ -4,26 +4,26 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `cb52fc1` |
-| Working branch | `codex/sprint-11-war-room-refactor` |
+| Source of truth commit | `origin/main` -> `9fe0821` |
+| Working branch | `main` |
 | Last updated | `2026-05-20` |
-| Current phase | `sprint_11_onda_1c_war_room` |
-| Current sprint | `Sprint 11` |
-| Overall status | `war_room_static_ui_extracted_green` |
-| Current baseline | PR `#260` mergeada; branch atual criada de `origin/main@cb52fc1` |
+| Current phase | `sprint_12_hardening` |
+| Current sprint | `Sprint 12` |
+| Overall status | `sprint_11_done_pr_261_merged` |
+| Current baseline | PR `#261` mergeada em `main` (`9fe0821`) |
 
 ## Current Focus
 
-- Executar a Onda 1C em `WarRoom` sem alterar props públicas.
-- Manter `services/warRoomService.ts` como fachada pública estável.
-- Extrair blocos visuais/tipos locais antes de avaliar hook de sessão.
-- Manter `LoadingSmart` fora deste PR.
+- Iniciar Sprint 12 hardening final da Fase 2.
+- Priorizar OI-003/OI-004/OI-005/OI-062.
+- Preservar facades públicas e não reintroduzir Mini CRM local.
+- Manter `mcp-server/` fora do escopo até repriorização explícita.
 
 ## Next Up
 
-1. Fechar a primeira fatia de `WarRoom` como PR curto ou continuar com hook local de sessão.
-2. Rodar gate ampliado da Sprint 11 quando a fatia fechar.
-3. Depois seguir para Sprint 12 hardening ou segunda fatia de `WarRoom`, conforme review.
+1. Abrir branch curta para Sprint 12 hardening.
+2. Escolher o primeiro item entre OI-003/OI-004/OI-005/OI-062.
+3. Rodar gates completos antes de fechar a Fase 2.
 
 ## Blocked
 
@@ -77,14 +77,18 @@
   - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx`: green (`18` testes).
   - `npm run typecheck`: green.
 - Sprint 11 Onda 1C:
-  - `components/WarRoom.tsx` reduzido de `552` para `279` linhas.
+  - `components/WarRoom.tsx` reduzido de `552` para `283` linhas.
   - Blocos visuais extraídos para `components/war-room/*`, mantendo props públicas e `services/warRoomService.ts`.
+  - PR `#261` mergeada em `main` (`9fe0821`).
+  - Review comments do Gemini e Smoke Preview resolvidos antes do merge.
+  - Lição aprendida: não usar `x-vercel-set-bypass-cookie` no smoke automatizado; para GitHub Actions, cada `fetch` deve carregar apenas `x-vercel-protection-bypass`.
   - `npm exec vitest run tests/components/WarRoom.test.tsx`: green (`6` testes).
   - `npm run typecheck`: green.
   - `npm run build`: green com warnings aceitos OI-003/OI-057.
   - `npm run lint -- --quiet`: green.
   - `npm run test`: green (`116` arquivos, `826` testes).
   - `npm run analyze:circular`: green, sem ciclos.
+  - Checks remotos green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
 
 ## Known Accepted Warnings
 
@@ -113,5 +117,5 @@
 | 11 Onda 0.5 | Remoção Mini CRM + proxies locais | done | PR `#259` concluída; Mini CRM removido e `/api/open-web-search` proxied localmente | `origin/main@423f821` | `vite.config.ts`, `config/localDevApiProxy.ts`, contratos Mini CRM removidos |
 | 11 Onda 1A | Saneamento documental | done | canônicos sem duplicação de próximos passos; `CRMDetail` aparece só como histórico/removido | `start-of-sprint-11` | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*`, `docs/obsidian/*` |
 | 11 Onda 1B | `LoadingSmart` | done | PR `#260` mergeada; fachada preservada e helper de timeline/progresso extraído com testes | `post-onda-1a` | `components/LoadingSmart.tsx`, `utils/loadingSmartViewModel.ts`, `tests/utils/loadingSmartViewModel.test.ts` |
-| 11 Onda 1C | `WarRoom` | active | props públicas preservadas e UI estática extraída antes de hook de sessão | `post-onda-1b` | `components/WarRoom.tsx`, `components/war-room/*` |
+| 11 Onda 1C | `WarRoom` | done | PR `#261` mergeada; props públicas preservadas e UI estática extraída | `post-onda-1b` | `components/WarRoom.tsx`, `components/war-room/*` |
 | 12 | Hardening final | planned | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |

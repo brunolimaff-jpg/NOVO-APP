@@ -3,7 +3,7 @@
 **Objetivo atualizado:** estabilizar o runtime local, remover o Mini CRM local por decisão de produto, limpar planos duplicados/stale e seguir a redução de complexidade em `LoadingSmart` e `WarRoom`.
 
 **Branch principal:** branches curtas `codex/sprint-11-*` derivadas do baseline mais recente.
-**Status:** Onda 0, Onda 0.5, Onda 1A e Onda 1B concluídas; Onda 1C `WarRoom` em execução.
+**Status:** concluída. Onda 0, Onda 0.5, Onda 1A, Onda 1B e Onda 1C foram mergeadas.
 
 > Decisão de produto: o Mini CRM local não será usado. Remover `CRMDetail`, `CRMView`, `CRMPipeline`, `CRMContext` e contratos relacionados. Preservar referências ao **CRM interno Senior** em prompts, evidências, fixtures e dossiês.
 
@@ -73,15 +73,18 @@
 
 ## Onda 1C — WarRoom
 
-**Status:** ativa; primeira fatia de UI estática concluída na branch `codex/sprint-11-war-room-refactor`.
+**Status:** concluída e mergeada via PR `#261`.
 
 - Reduzir `components/WarRoom.tsx` usando a cobertura de caracterização já criada.
 - Extrair blocos visuais e tipos locais sem alterar `services/warRoomService.ts`.
 - Manter props públicas: `isOpen`, `onClose`, `isDarkMode`, `defaultCompetitorTarget`.
 - Avaliar hook local de sessão somente depois da extração de UI estática.
-- `components/WarRoom.tsx` reduzido de `552` para `279` linhas.
-- Extraídos `config`, `theme`, `types`, `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer` e `WarRoomMessages` em `components/war-room/*`.
-- Gates da fatia: `tests/components/WarRoom.test.tsx`, `typecheck`, `build`, `lint -- --quiet`, `test` e `analyze:circular` verdes.
+- `components/WarRoom.tsx` reduzido de `552` para `283` linhas.
+- Extraídos `config`, `theme`, `types`, `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer`, `WarRoomMessages`, `WarRoomModelMessage` e `WarRoomSources` em `components/war-room/*`.
+- Review comments do Gemini resolvidos antes do merge.
+- Smoke Preview resolvido com simplificação do header de bypass em `scripts/smoke-preview.mjs`.
+- Lição aprendida: o erro do check GitHub veio de excesso de header no bypass Vercel. Para smoke em Actions, não usar `x-vercel-set-bypass-cookie`; mandar somente `x-vercel-protection-bypass`.
+- Gates da fatia: `tests/components/WarRoom.test.tsx`, `typecheck`, `build`, `lint -- --quiet`, `test`, `analyze:circular` e checks remotos verdes.
 
 ## Onda 3 — Tipagem e hardening final
 
