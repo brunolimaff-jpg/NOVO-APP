@@ -148,7 +148,7 @@ async function processBatch(batch: any[]) {
 
             await index.namespace(NAMESPACE).upsert(pineconeRecords);
             console.log("-> Retentativa bem sucedida!");
-        } catch (err: any) {
+        } catch {
             console.error("Falha fatal no lote. Pulando.");
         }
     }

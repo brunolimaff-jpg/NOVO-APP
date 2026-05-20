@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  addInvestigation,
   getInvestigations,
   subscribe,
   type Investigation,

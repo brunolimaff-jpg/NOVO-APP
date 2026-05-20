@@ -189,6 +189,19 @@ Last updated: 2026-05-20
 - OI-062 resolvido com golden baseline determinístico em `tests/prompts/megaPrompts.test.ts`.
 - OI-005 medido: `npm run lint` passa com `140` warnings; mantido como cleanup dedicado para evitar sweep global nesta PR.
 
+### Sprint 12 OI-005 lint warnings
+
+- Branch `codex/sprint-12-oi-005-lint-warnings` criada a partir de `origin/main@5a3309d` após merge da PR `#262`.
+- `eslint.config.js` ajustado para tratar scripts CLI, testes, `vite.config.ts` e `utils/diagnosticLog.ts` como contextos intencionais de console/mocks.
+- Warnings simples de `no-unused-vars`, `no-explicit-any` e `no-console` removidos em runtime/API/componentes/utilitários sem alterar facades públicas.
+- `npm run lint` green com `0` warnings.
+- `npm run typecheck` green.
+- `npm exec vitest run tests/api-gemini.test.ts tests/gemini-integration.test.ts` green (`9` testes).
+- `npm run test` green (`117` arquivos, `833` testes).
+- `npm run build` green; permanece apenas warning conhecido de chunks grandes.
+- `npm run analyze:circular` green, sem ciclos.
+- `npm run docs:obsidian:check` green (`14` notas).
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -199,5 +212,5 @@ Last updated: 2026-05-20
 
 ## Next checkpoint
 
-- Abrir PR da Sprint 12 hardening e deixar OI-005 como próxima passada dedicada se necessário.
+- Abrir PR da OI-005 lint warnings.
 - Não reintroduzir Mini CRM/`CRMDetail`.

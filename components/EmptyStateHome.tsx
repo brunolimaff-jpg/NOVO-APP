@@ -3,7 +3,7 @@ import { useOperator } from '../contexts/OperatorContext';
 import { getTimeGreeting } from '../utils/timeGreeting';
 import { ChatMode, MODE_LABELS, DEFAULT_MODE } from '../constants';
 import type { RadarAlert } from '../types';
-import { RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS } from '../types';
+import { RADAR_CATEGORY_ICONS } from '../types';
 import {
   fetchCompanyByCnpj,
   formatCnpj,
@@ -75,7 +75,6 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   const impacto = alert.impacto ?? 'neutro';
   const badge = IMPACTO_BADGE[impacto] ?? IMPACTO_BADGE.neutro;
   const rel = RELEVANCE_BARS[alert.relevance] ?? RELEVANCE_BARS.baixa;
-  const catLabel = RADAR_CATEGORY_LABELS[alert.category] ?? alert.category;
   const catIcon = RADAR_CATEGORY_ICONS[alert.category] ?? '📡';
   const actionLabel = alert.sourceUrl && alert.sourceUrl !== '#' ? 'LER NOTÍCIA' : (ACTION_LABEL[impacto] ?? 'Ver mais');
 

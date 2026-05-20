@@ -17,6 +17,10 @@ interface SystemHealthCheckProps {
   onClose: () => void;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClose }) => {
   const canUseLookup = getFeatureAccess().clientLookup;
   const [isRunning, setIsRunning] = useState(false);
@@ -63,11 +67,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       } else {
         throw new Error('Resposta inválida');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       hasError = true;
       updateTest('🤖 Gemini API', { 
         status: 'error', 
-        message: error.message || 'Falha na conexão' 
+        message: getErrorMessage(error, 'Falha na conexão')
       });
     }
 
@@ -83,11 +87,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
         message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
         duration 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       hasError = true;
       updateTest('🧠 RAG - Base Interna', { 
         status: 'error', 
-        message: error.message || 'Falha no RAG' 
+        message: getErrorMessage(error, 'Falha no RAG')
       });
     }
 
@@ -103,11 +107,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
         message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
         duration 
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       hasError = true;
       updateTest('📚 RAG - Documentação', { 
         status: 'error', 
-        message: error.message || 'Falha no RAG Docs' 
+        message: getErrorMessage(error, 'Falha no RAG Docs')
       });
     }
 
@@ -129,11 +133,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
           message: `Funcional (${duration}ms)`,
           duration,
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         hasError = true;
         updateTest('🔍 Lookup de Clientes', {
           status: 'error',
-          message: error.message || 'Falha no lookup',
+          message: getErrorMessage(error, 'Falha no lookup'),
         });
       }
     }
@@ -157,11 +161,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       hasError = true;
       updateTest('☁️ Backend Cloud', { 
         status: 'error', 
-        message: error.message || 'Backend offline' 
+        message: getErrorMessage(error, 'Backend offline')
       });
     }
 
@@ -185,11 +189,11 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       } else {
         throw new Error('Leitura/escrita falhou');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       hasError = true;
       updateTest('💾 LocalStorage', { 
         status: 'error', 
-        message: error.message || 'Storage bloqueado' 
+        message: getErrorMessage(error, 'Storage bloqueado')
       });
     }
 
@@ -205,7 +209,7 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
         message: `Renderizando (${duration}ms)`,
         duration 
       });
-    } catch (error: any) {
+    } catch {
       hasError = true;
       updateTest('🎨 Interface React', { 
         status: 'error', 
@@ -236,7 +240,6 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
   };
 
   const successCount = results.filter(r => r.status === 'success').length;
-  const errorCount = results.filter(r => r.status === 'error').length;
   const totalTests = results.length;
 
   return (

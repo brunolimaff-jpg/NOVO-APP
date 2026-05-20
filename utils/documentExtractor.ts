@@ -192,8 +192,9 @@ export async function universalExtract(params: {
             length: processedText.length
         };
 
-    } catch (error: any) {
-        scoutDiag.error('DocumentExtractor', 'Falha na extração universal', { error: error.message });
-        return { text: '', length: 0, error: error.message };
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        scoutDiag.error('DocumentExtractor', 'Falha na extração universal', { error: message });
+        return { text: '', length: 0, error: message };
     }
 }

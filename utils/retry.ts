@@ -40,9 +40,11 @@ export async function withAutoRetry<T>(
 
     try {
       return await action();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorName = error instanceof Error ? error.name : undefined;
+
       // Não tenta novamente se foi abortado
-      if (abortSignal?.aborted || error?.name === 'AbortError') throw error;
+      if (abortSignal?.aborted || errorName === 'AbortError') throw error;
 
       // Normaliza erro para checar se é transiente
       const appError: AppError = normalizeAppError(error);

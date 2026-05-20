@@ -4,26 +4,26 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `9fe0821` |
-| Working branch | `main` |
+| Source of truth commit | `origin/main` -> `5a3309d` |
+| Working branch | `codex/sprint-12-oi-005-lint-warnings` |
 | Last updated | `2026-05-20` |
 | Current phase | `sprint_12_hardening` |
 | Current sprint | `Sprint 12` |
-| Overall status | `sprint_12_started_oi_003_oi_004_resolved` |
-| Current baseline | `origin/main@3e4e155`; branch `codex/sprint-12-hardening-oi-004` |
+| Overall status | `sprint_12_oi005_lint_resolved_local` |
+| Current baseline | `origin/main@5a3309d`; branch `codex/sprint-12-oi-005-lint-warnings` |
 
 ## Current Focus
 
-- Sprint 12 hardening final da Fase 2 iniciada.
-- OI-003, OI-004, OI-057 e OI-062 resolvidos localmente; OI-005 mensurado e mantido como cleanup dedicado.
+- Sprint 12 hardening final da Fase 2 em fechamento.
+- OI-003, OI-004, OI-005, OI-057 e OI-062 resolvidos localmente.
 - Preservar facades públicas e não reintroduzir Mini CRM local.
 - Manter `mcp-server/` fora do escopo até repriorização explícita.
 
 ## Next Up
 
-1. Rodar gates completos antes de fechar a Fase 2.
-2. Abrir PR da Sprint 12 hardening.
-3. Deixar OI-005 para passada dedicada de lint warnings.
+1. Abrir PR da OI-005 lint warnings.
+2. Acompanhar checks remotos e mergear se ficarem verdes.
+3. Fechar Fase 2 ou repriorizar itens deferred.
 
 ## Blocked
 
@@ -93,8 +93,8 @@
 ## Known Accepted Warnings
 
 - OI-003/OI-004/OI-057/OI-062 resolvidos na branch `codex/sprint-12-hardening-oi-004`.
+- OI-005 resolvido na branch `codex/sprint-12-oi-005-lint-warnings`; `npm run lint` passa com `0` warnings.
 - Build ainda emite warning geral de chunks grandes, sem o warning específico de `utils/idbStorage.ts`.
-- `npm run lint` passa, mas com `140` warnings aceitos como backlog dedicado (OI-005).
 - OI-055: Pinecone via `VITE_*` aceito pelo owner para app interno/fechado.
 
 ## Sprint Tracker

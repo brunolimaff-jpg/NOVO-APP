@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import type { RadarAlert, RadarCategory } from '../types';
 
 // ===================================================================
 // CONFIGURAÇÃO
@@ -195,9 +196,9 @@ async function fetchFixedRSSFeeds(category: string): Promise<RSSItem[]> {
 async function summarizeWithGemini(
   ai: GoogleGenAI,
   items: RSSItem[],
-  category: string,
+  category: RadarCategory,
   estados: string[],
-): Promise<any[]> {
+): Promise<RadarAlert[]> {
   if (items.length === 0) return [];
 
   // Deduplicate by title similarity
@@ -272,7 +273,7 @@ ${articleList}`;
       clearTimeout(handle);
     }
 
-    console.log(`[RADAR] Gemini summary for ${category} (200 chars): ${text.slice(0, 200)}`);
+    console.warn(`[RADAR] Gemini summary for ${category} (200 chars): ${text.slice(0, 200)}`);
     return parseAlerts(text, category, new Date().toISOString(), batch);
   } catch (err) {
     console.error(`[RADAR] Gemini summarize failed for ${category}:`, err instanceof Error ? err.message : '');
@@ -316,10 +317,10 @@ function parseDate(dateStr: string): string {
   }
 }
 
-function parseAlerts(text: string, category: string, scannedAt: string, originalItems?: RSSItem[]): any[] {
+function parseAlerts(text: string, category: RadarCategory, scannedAt: string, originalItems?: RSSItem[]): RadarAlert[] {
   if (text.includes('NENHUM_RESULTADO')) return [];
 
-  const alerts: any[] = [];
+  const alerts: RadarAlert[] = [];
   const blocks = text.split('---ALERTA---');
 
   for (let i = 1; i < blocks.length; i++) {
@@ -351,6 +352,16 @@ function parseAlerts(text: string, category: string, scannedAt: string, original
 
     if (!title || title.length < 5) continue;
 
+    const relevance = ['alta', 'media', 'baixa'].includes(relevanceRaw)
+      ? relevanceRaw as RadarAlert['relevance']
+      : 'media';
+    const impacto = ['oportunidade', 'ameaca', 'vulnerabilidade', 'neutro'].includes(impactoRaw)
+      ? impactoRaw as NonNullable<RadarAlert['impacto']>
+      : 'neutro';
+    const estagio = ['fato_consumado', 'sinal_fraco'].includes(estagioRaw)
+      ? estagioRaw as NonNullable<RadarAlert['estagio']>
+      : 'fato_consumado';
+
     alerts.push({
       id: hashId(title, sourceUrl),
       title: title.slice(0, 300),
@@ -358,9 +369,9 @@ function parseAlerts(text: string, category: string, scannedAt: string, original
       sourceUrl: sourceUrl.slice(0, 1000),
       sourceName: sourceName.slice(0, 100),
       category,
-      relevance: ['alta', 'media', 'baixa'].includes(relevanceRaw) ? relevanceRaw : 'media',
-      impacto: ['oportunidade', 'ameaca', 'vulnerabilidade', 'neutro'].includes(impactoRaw) ? impactoRaw : 'neutro',
-      estagio: ['fato_consumado', 'sinal_fraco'].includes(estagioRaw) ? estagioRaw : 'fato_consumado',
+      relevance,
+      impacto,
+      estagio,
       publishedAt: publishedAt && publishedAt.length === 10 ? publishedAt : scannedAt.split('T')[0],
       scannedAt,
       estado: estadoRaw && estadoRaw.length === 2 && estadoRaw !== 'no' ? estadoRaw : undefined,
@@ -411,7 +422,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ]);
 
         const allItems = [...googleNewsItems, ...fixedFeedItems];
-        console.log(`[RADAR] ${category}: ${googleNewsItems.length} Google News + ${fixedFeedItems.length} RSS = ${allItems.length} total items`);
+        console.warn(`[RADAR] ${category}: ${googleNewsItems.length} Google News + ${fixedFeedItems.length} RSS = ${allItems.length} total items`);
 
         if (allItems.length === 0) {
           console.warn(`[RADAR] No RSS items found for ${category}`);
@@ -424,7 +435,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     );
 
-    const rawAlerts: any[] = [];
+    const rawAlerts: RadarAlert[] = [];
     const partialFailures: Array<{ category: string; reason: string }> = [];
     const categoryStats: Array<{ category: string; sourceItems: number; generatedAlerts: number; ok: boolean }> = [];
     results.forEach((result, i) => {
@@ -485,7 +496,7 @@ ${topTitles}`;
       }
     }
 
-    console.log(`[RADAR] Total: ${rawAlerts.length} raw → ${allAlerts.length} after dedup`);
+    console.warn(`[RADAR] Total: ${rawAlerts.length} raw → ${allAlerts.length} after dedup`);
     return res.status(200).json({ alerts: allAlerts, metaInsight, scannedAt, partialFailures, categoryStats });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

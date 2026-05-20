@@ -72,11 +72,11 @@ Sprint 12 iniciada:
 - OI-003 resolvido em `utils/sessionExport.ts`: removido dynamic import de `utils/idbStorage.ts`; export/import agora usam storage v2 como JSON com teste dedicado.
 - OI-057 resolvido em `docs/ai-context/refactor/05-VALIDATION.md`: protocolo PWA/chunking documentado.
 - OI-062 resolvido em `tests/prompts/megaPrompts.test.ts`: golden baseline determinístico de inputs do LLM antes da migração para `.md`.
-- OI-005 medido em `140` warnings de lint e mantido como cleanup dedicado, fora desta PR.
+- OI-005 resolvido em `codex/sprint-12-oi-005-lint-warnings`: `npm run lint` agora passa com `0` warnings.
 - `npm run build` não emite mais o warning específico de dynamic import de `utils/idbStorage.ts`; permanece apenas o warning geral de chunks grandes.
 
 ## Immediate next step
 
-1. Rodar gates completos finais (`test`, `typecheck`, `build`, `lint -- --quiet`, `analyze:circular`, `docs:obsidian:check`).
-2. Abrir PR da Sprint 12 hardening.
-3. Tratar OI-005 em passada dedicada, se Bruno quiser zerar warnings.
+1. Abrir PR curta da OI-005 na branch `codex/sprint-12-oi-005-lint-warnings`.
+2. Acompanhar checks remotos e mergear se ficarem verdes.
+3. Depois do merge, fechar a Fase 2 ou repriorizar itens deferred.

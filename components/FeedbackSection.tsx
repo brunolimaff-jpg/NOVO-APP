@@ -25,7 +25,6 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
   userId = "user_default",
   userName = "Convidado",
   isDarkMode,
-  mode
 }) => {
   const [showComment, setShowComment] = useState(false);
   const [comment, setComment] = useState("");

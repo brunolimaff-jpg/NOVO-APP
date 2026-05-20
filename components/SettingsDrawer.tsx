@@ -40,7 +40,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onExportPDF,
   onExportConversation,
   onCopyMarkdown,
-  onScheduleFollowUp,
   onClearOperator,
   exportStatus,
   exportError,

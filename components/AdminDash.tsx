@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ChatSession } from '../types';
 import { useAdminMetrics } from '../hooks/useAdminMetrics';
 

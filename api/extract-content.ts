@@ -42,8 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json(result);
 
-    } catch (error: any) {
-        scoutDiag.error('ExtractContent', 'Erro no handler de extração', { error: error.message });
-        return res.status(500).json({ error: 'Erro interno na extração', details: error.message });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        scoutDiag.error('ExtractContent', 'Erro no handler de extração', { error: message });
+        return res.status(500).json({ error: 'Erro interno na extração', details: message });
     }
 }

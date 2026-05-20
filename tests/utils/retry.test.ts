@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { withAutoRetry } from '../../utils/retry';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: false });
 });
