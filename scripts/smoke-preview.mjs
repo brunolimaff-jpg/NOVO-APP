@@ -19,7 +19,6 @@ const allowProtectedSkip = process.env.SMOKE_ALLOW_PROTECTED_SKIP === 'true';
 const protectionBypassHeaders = vercelAutomationBypassSecret
   ? {
       'x-vercel-protection-bypass': vercelAutomationBypassSecret,
-      'x-vercel-set-bypass-cookie': 'true',
     }
   : {};
 

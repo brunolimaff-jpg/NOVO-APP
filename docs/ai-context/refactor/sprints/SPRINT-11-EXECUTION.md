@@ -3,7 +3,7 @@
 **Objetivo atualizado:** estabilizar o runtime local, remover o Mini CRM local por decisão de produto, limpar planos duplicados/stale e seguir a redução de complexidade em `LoadingSmart` e `WarRoom`.
 
 **Branch principal:** branches curtas `codex/sprint-11-*` derivadas do baseline mais recente.
-**Status:** Onda 0 e Onda 0.5 concluídas; Onda 1A documental em execução.
+**Status:** Onda 0, Onda 0.5, Onda 1A e Onda 1B concluídas; Onda 1C `WarRoom` em execução.
 
 > Decisão de produto: o Mini CRM local não será usado. Remover `CRMDetail`, `CRMView`, `CRMPipeline`, `CRMContext` e contratos relacionados. Preservar referências ao **CRM interno Senior** em prompts, evidências, fixtures e dossiês.
 
@@ -63,20 +63,25 @@
 
 ## Onda 1B — LoadingSmart
 
-**Status:** ativa; primeira fatia de timeline/progresso concluída.
+**Status:** concluída e mergeada via PR `#260`.
 
 - Refatorar `components/LoadingSmart.tsx` preservando comportamento visual já coberto por `tests/components/LoadingSmart.test.tsx`.
 - Separar modelo/timeline/render em módulos menores.
 - Manter `components/LoadingSmart.tsx` como fachada de compatibilidade.
 - Helper puro de timeline/progresso criado em `utils/loadingSmartViewModel.ts` com teste dedicado.
-- Próxima fatia recomendada: extrair hook de curiosidades/timers preservando proteção contra respostas atrasadas.
+- Bruno validou a PR `#260` e liberou seguir para `WarRoom`.
 
 ## Onda 1C — WarRoom
+
+**Status:** ativa; primeira fatia de UI estática concluída na branch `codex/sprint-11-war-room-refactor`.
 
 - Reduzir `components/WarRoom.tsx` usando a cobertura de caracterização já criada.
 - Extrair blocos visuais e tipos locais sem alterar `services/warRoomService.ts`.
 - Manter props públicas: `isOpen`, `onClose`, `isDarkMode`, `defaultCompetitorTarget`.
 - Avaliar hook local de sessão somente depois da extração de UI estática.
+- `components/WarRoom.tsx` reduzido de `552` para `279` linhas.
+- Extraídos `config`, `theme`, `types`, `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer` e `WarRoomMessages` em `components/war-room/*`.
+- Gates da fatia: `tests/components/WarRoom.test.tsx`, `typecheck`, `build`, `lint -- --quiet`, `test` e `analyze:circular` verdes.
 
 ## Onda 3 — Tipagem e hardening final
 
