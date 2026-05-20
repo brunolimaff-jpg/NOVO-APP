@@ -56,7 +56,7 @@ async function processBatch(batch: any[]) {
             const pineconeRecords = batch.map((item, i) => ({ id: item.id, values: vectors[i], metadata: item.metadata }));
             await index.namespace(NAMESPACE).upsert(pineconeRecords);
             console.log("-> Retentativa bem sucedida!");
-        } catch (err: any) {
+        } catch {
             console.error("Falha fatal no lote. Pulando.");
         }
     }

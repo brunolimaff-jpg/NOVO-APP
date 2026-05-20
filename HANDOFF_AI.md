@@ -73,11 +73,11 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Entrega em curso: Sprint 12 hardening
 
-- Branch/workspace atual: `codex/sprint-12-hardening-oi-004` em `/Users/brunolima/Documents/NOVO-APP`.
+- Branch/workspace atual: `codex/sprint-12-oi-005-lint-warnings` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
   - fechar warnings operacionais e guardrails finais da Fase 2;
   - OI-003/OI-004/OI-057/OI-062 resolvidos localmente;
-  - OI-005 mensurado como `140` warnings e mantido como cleanup dedicado;
+  - OI-005 resolvido: `npm run lint` passa com `0` warnings;
   - preservar facades públicas e não reintroduzir Mini CRM local;
   - manter `mcp-server/` fora do escopo salvo repriorização explícita.
 - Validação herdada da Onda 0/0.5:
@@ -118,10 +118,17 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run analyze:circular` green, sem ciclos;
   - `npm run docs:obsidian:check` green (`14` notas);
   - `npm exec vitest run tests/prompts/megaPrompts.test.ts -u` green (`16` testes; snapshot inline criado para baseline de hashes).
+- Validação da OI-005:
+  - `npm run lint` green com `0` warnings;
+  - `npm run typecheck` green;
+  - `npm exec vitest run tests/api-gemini.test.ts tests/gemini-integration.test.ts` green (`9` testes);
+  - `npm run test` green (`117` arquivos, `833` testes);
+  - `npm run build` green, com warning conhecido de chunks grandes;
+  - `npm run analyze:circular` green, sem ciclos;
+  - `npm run docs:obsidian:check` green (`14` notas).
 - Fora de escopo:
   - mudanças funcionais em `LoadingSmart`/`WarRoom` sem novo escopo;
-  - remover `card: any` fora de uma passada dedicada;
-  - limpar warnings globais sem priorização.
+  - refatorar `mcp-server/` sem repriorização.
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 
@@ -216,14 +223,14 @@ Lição aprendida:
 
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
 - `VITE_PINECONE_*` permanece por decisao operacional em app interno/fechado.
-- Warnings de lint/build seguem como backlog aceito.
+- Warning de build por chunks grandes segue como backlog aceito; warnings de lint foram zerados na OI-005.
 - Workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; esta Onda 0+1 foi executada em worktree limpa para não misturar escopos.
 
 ## Próximo passo seguro
 
-1. Abrir PR da Sprint 12 hardening na branch `codex/sprint-12-hardening-oi-004`.
-2. Manter OI-005 como próxima passada dedicada se a prioridade for zerar warnings.
-3. Manter gates completos antes de encerrar a Fase 2.
+1. Abrir PR da OI-005 na branch `codex/sprint-12-oi-005-lint-warnings`.
+2. Acompanhar checks remotos e mergear se ficarem verdes.
+3. Depois do merge, fechar Fase 2 ou repriorizar itens deferred.
 
 ## Regras de continuidade
 

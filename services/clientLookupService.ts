@@ -85,6 +85,16 @@ export interface LookupResponse {
   error?: string;
 }
 
+interface ComexPromptData {
+  isExportador?: boolean;
+  faixaValorEstimado?: string;
+  principaisNCMs?: string[];
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // Fetch com timeout
 async function fetchWithTimeout(url: string, timeout: number = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -98,9 +108,9 @@ async function fetchWithTimeout(url: string, timeout: number = TIMEOUT_MS): Prom
     });
     clearTimeout(timeoutId);
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
+    if (err instanceof Error && err.name === 'AbortError') {
       throw new Error(`Timeout após ${timeout / 1000}s`, { cause: err });
     }
     throw err;
@@ -478,10 +488,10 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
     }
 
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     scoutDiag.error("Lookup", "exceção em lookupCliente", {
       query: nomeEmpresa.slice(0, 120),
-      error: String(err?.message || err),
+      error: errorMessage(err),
     });
     return { ok: false, query: nomeEmpresa, encontrado: false, total: 0, results: [], error: String(err) };
   }
@@ -517,12 +527,13 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
       });
       return { ok: false, query, encontrado: false, total: 0, results: [], error: err };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = errorMessage(err);
     scoutDiag.warn("Lookup", "fetchLookup falhou", {
       query: query.slice(0, 80),
-      error: err?.message || String(err),
+      error: message,
     });
-    return { ok: false, query, encontrado: false, total: 0, results: [], error: err.message };
+    return { ok: false, query, encontrado: false, total: 0, results: [], error: message };
   }
 }
 
@@ -618,25 +629,25 @@ export async function benchmarkClientes(keywords: string | string[]): Promise<Be
 
   try {
     return await attemptParse();
-  } catch (firstErr: any) {
-    if (firstErr?.message === "JSON_PARSE_FAILED") {
+  } catch (firstErr: unknown) {
+    if (errorMessage(firstErr) === "JSON_PARSE_FAILED") {
       // Cold start detectado — aguarda o Apps Script aquecer e tenta uma vez mais
       await new Promise(resolve => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
       try {
         return await attemptParse();
-      } catch (retryErr: any) {
+      } catch (retryErr: unknown) {
         scoutDiag.error("Benchmark", "benchmark falhou após retry de cold start", {
-          error: String(retryErr?.message || retryErr),
+          error: errorMessage(retryErr),
         });
         return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(retryErr) };
       }
     }
-    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: String(firstErr?.message || firstErr) });
+    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: errorMessage(firstErr) });
     return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(firstErr) };
   }
 }
 
-export function formatarBenchmarkParaPrompt(bench: BenchmarkResponse, empresaAlvo: string): string {
+export function formatarBenchmarkParaPrompt(bench: BenchmarkResponse, _empresaAlvo: string): string {
   if (!bench?.ok || !bench.results?.length) {
     // FIX: fallback visual informativo ao invés de bloco vazio silencioso
     const motivo = bench?.error === 'JSON_PARSE_FAILED'
@@ -659,7 +670,7 @@ export function formatarBenchmarkParaPrompt(bench: BenchmarkResponse, empresaAlv
 }
 
 // Comex Stat
-export function formatarComexParaPrompt(comexData: any): string {
+export function formatarComexParaPrompt(comexData: ComexPromptData): string {
   if (!comexData || !comexData.isExportador) return '';
 
   let md = `\n\n---\n## 🚢 COMEX STAT MDIC [🟢 CONFIRMADO]\n`;

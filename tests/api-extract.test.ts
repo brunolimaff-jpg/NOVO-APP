@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import handler from '../api/extract-content';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest } from '@vercel/node';
 
 describe('api/extract-content handler', () => {
     it('deve retornar 405 para GET', async () => {

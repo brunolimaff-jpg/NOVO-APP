@@ -165,7 +165,6 @@ function formatCompanyDisplayName(value: string): string {
   if (!cleaned) return '';
 
   const hasLowercase = /[a-zà-ÿ]/.test(cleaned);
-  const hasUppercase = /[A-ZÀ-Ý]/.test(cleaned);
   const shouldNormalize = !hasLowercase || cleaned === cleaned.toLowerCase();
   if (!shouldNormalize) return cleaned;
 

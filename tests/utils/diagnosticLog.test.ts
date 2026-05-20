@@ -2,13 +2,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { scoutDiag, isScoutDiagEnabled } from '../../utils/diagnosticLog';
 
-// Mock import.meta.env — controlled per test via spy
-const importMetaEnvSpy = vi.hoisted(() => ({
-  DEV: false as boolean,
-  VITE_VERBOSE_LOGS: undefined as string | undefined,
-  VITE_DEBUG_CONSOLE: undefined as string | undefined,
-}));
-
 vi.mock('../../utils/diagnosticLog', async () => {
   // Use the actual module but intercept import.meta.env
   const actual = await vi.importActual<typeof import('../../utils/diagnosticLog')>('../../utils/diagnosticLog');

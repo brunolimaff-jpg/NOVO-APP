@@ -117,8 +117,7 @@ function extractGeminiText(response: unknown): string {
 
 const getEnvVar = (name: string): string | undefined => {
   try {
-    const proc = (globalThis as any).process;
-    return proc?.env?.[name];
+    return typeof process !== 'undefined' ? process.env[name] : undefined;
   } catch {
     return undefined;
   }
@@ -269,9 +268,9 @@ async function executeGeminiAction(
       };
 
       const runChat = async (withGrounding: boolean) => {
-        const activeTools = [];
+        const activeTools: Array<Record<string, unknown>> = [];
         if (withGrounding) activeTools.push({ googleSearch: {} });
-        if (useOpenWebSearch) activeTools.push(openWebSearchTool as any);
+        if (useOpenWebSearch) activeTools.push(openWebSearchTool);
 
         const chat = ai.chats.create({
           model,
@@ -297,8 +296,8 @@ async function executeGeminiAction(
         return { chat, response: res };
       };
 
-      let response: any;
-      let chatSession: any;
+      let response: Awaited<ReturnType<typeof runChat>>['response'];
+      let chatSession: Awaited<ReturnType<typeof runChat>>['chat'];
       let groundingActivated = useGrounding;
 
       try {
@@ -310,9 +309,14 @@ async function executeGeminiAction(
         let maxIterations = 5;
         while (response.functionCalls && response.functionCalls.length > 0 && maxIterations > 0) {
           maxIterations--;
-          console.log(`[Gemini] Turno de Function Call (${response.functionCalls.length} chamadas)`);
+          console.warn(`[Gemini] Turno de Function Call (${response.functionCalls.length} chamadas)`);
 
-          const functionResponses = [];
+          const functionResponses: Array<{
+            functionResponse: {
+              name: string;
+              response: Record<string, unknown>;
+            };
+          }> = [];
 
           for (const call of response.functionCalls) {
             if (call.name === "performWebSearch") {
@@ -354,7 +358,10 @@ async function executeGeminiAction(
 
           if (functionResponses.length > 0) {
             // Envia TODAS as respostas de funções em uma única mensagem (Batching)
-            response = await chatSession.sendMessage(functionResponses);
+            const sendFunctionResponses = chatSession.sendMessage as unknown as (
+              message: typeof functionResponses,
+            ) => Promise<typeof response>;
+            response = await sendFunctionResponses(functionResponses);
           } else {
             break; // Nenhuma chamada reconhecida
           }

@@ -65,6 +65,20 @@ export default [
     },
   },
 
+  // Scripts de manutenção e testes usam console/mocks de forma intencional.
+  {
+    files: [
+      'scripts/**/*.{ts,js,cjs,mjs}',
+      'tests/**/*.{ts,tsx}',
+      'vite.config.ts',
+      'utils/diagnosticLog.ts',
+    ],
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
   // JavaScript files (sem TypeScript parser) — browser + node + es2022
   {
     files: ['**/*.{js,cjs,mjs}'],
@@ -77,6 +91,14 @@ export default [
     },
     rules: {
       ...sharedRules,
+    },
+  },
+
+  // Reaplica apos a config JS para scripts .mjs/.js.
+  {
+    files: ['scripts/**/*.{js,cjs,mjs}'],
+    rules: {
+      'no-console': 'off',
     },
   },
 

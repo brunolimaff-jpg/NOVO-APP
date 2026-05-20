@@ -2,14 +2,30 @@
 import { AppError, ErrorCode, ErrorSource } from '../types';
 import { ChatMode } from '../constants';
 
+type ErrorLike = {
+  code?: unknown;
+  details?: unknown;
+  friendlyMessage?: unknown;
+  message?: unknown;
+  name?: unknown;
+  source?: unknown;
+  status?: unknown;
+};
+
+function toErrorLike(error: unknown): ErrorLike {
+  return error && typeof error === 'object' ? error as ErrorLike : {};
+}
+
 /**
  * Normaliza qualquer erro para o formato AppError.
  */
 export function normalizeAppError(
-  error: any, 
+  error: unknown,
   source: ErrorSource = 'UNKNOWN', 
   defaultMessage: string = 'Ocorreu um erro inesperado.'
 ): AppError {
+  const errorLike = toErrorLike(error);
+
   // Se já for um AppError, retorna ele mesmo (pode precisar ajustar a source se for genérica)
   if (isAppError(error)) {
     return {
@@ -18,8 +34,12 @@ export function normalizeAppError(
     };
   }
 
-  const rawMessage = error?.message || String(error);
-  const status = error?.status || error?.code || 0; // Tenta capturar status HTTP ou código gRPC
+  const rawMessage = typeof errorLike.message === 'string' ? errorLike.message : String(error);
+  const status = typeof errorLike.status === 'number'
+    ? errorLike.status
+    : typeof errorLike.code === 'number'
+      ? errorLike.code
+      : 0; // Tenta capturar status HTTP ou código gRPC
 
   let code: ErrorCode = 'UNKNOWN';
   let friendlyMessage = defaultMessage;
@@ -33,7 +53,7 @@ export function normalizeAppError(
     retryable = false;
     transient = false; // CRÍTICO: Nunca retentar erro de body disturbed
   }
-  else if (rawMessage.match(/aborted/i) || error.name === 'AbortError' || error.code === 'ABORTED') {
+  else if (rawMessage.match(/aborted/i) || errorLike.name === 'AbortError' || errorLike.code === 'ABORTED') {
     code = 'ABORTED';
     friendlyMessage = 'Solicitação cancelada pelo usuário.';
     retryable = false;
@@ -99,12 +119,12 @@ export function normalizeAppError(
     retryable,
     transient,
     source,
-    details: error
+    details: error && typeof error === 'object' ? error as Record<string, unknown> : undefined
   };
 }
 
-function isAppError(error: any): error is AppError {
-  return error && typeof error === 'object' && 'code' in error && 'friendlyMessage' in error;
+function isAppError(error: unknown): error is AppError {
+  return !!error && typeof error === 'object' && 'code' in error && 'friendlyMessage' in error;
 }
 
 /**

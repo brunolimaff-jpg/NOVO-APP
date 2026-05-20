@@ -14,7 +14,6 @@ vi.mock('../../services/apiConfig', () => ({
 import {
   fixFakeLinks,
   fixFakeLinksHTML,
-  cleanFakeSourcesBlock,
   extractValidLinks,
 } from '../../utils/linkFixer';
 

@@ -72,7 +72,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     processing,
     onSendMessage,
     empresaAlvo,
-    cnpj,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;

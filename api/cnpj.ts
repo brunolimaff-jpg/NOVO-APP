@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin ?? '';
   const host = req.headers.host ?? '';
 
-  console.info('[api/cnpj] request:start', {
+  console.warn('[api/cnpj] request:start', {
     cnpj,
     origin,
     host,
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const data = await lookupCnpj(cnpj);
-    console.info('[api/cnpj] request:success', {
+    console.warn('[api/cnpj] request:success', {
       cnpj,
       sourceResult: {
         city: data.city,

@@ -85,10 +85,7 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
-  sessionId = "preview_session",
-  userId,
   isDarkMode,
-  mode = 'investigacao',
   onPreFillInput,
   onRegenerateSuggestions,
   hideSuggestions = false,

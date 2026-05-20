@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { ChatSession } from '../types';
 
+type SessionWithVendor = ChatSession & {
+  vendorName?: string;
+};
+
 function normalizeModeLabel(mode: string | null | undefined): string {
   if (!mode) return 'investigacao';
   if (mode === 'operacao' || mode === 'diretoria') return 'investigacao';
@@ -42,8 +46,9 @@ export function useAdminMetrics(sessions: ChatSession[]): AdminMetrics {
     const modeMap = new Map<string, number>();
 
     for (const s of sessions) {
+      const sessionWithVendor = s as SessionWithVendor;
       const vendor = (s.messages || []).find(m => m.sender === 'user')?.text
-        ? (s as any).vendorName ?? 'Desconhecido'
+        ? sessionWithVendor.vendorName ?? 'Desconhecido'
         : 'Desconhecido';
 
       if (!vendorMap.has(vendor)) {
@@ -82,7 +87,7 @@ export function useAdminMetrics(sessions: ChatSession[]): AdminMetrics {
     // Avg score per vendor
     for (const vm of vendorMap.values()) {
       const vendorSessions = sessions.filter(
-        s => ((s as any).vendorName ?? 'Desconhecido') === vm.name,
+        s => ((s as SessionWithVendor).vendorName ?? 'Desconhecido') === vm.name,
       );
       const scores = vendorSessions
         .map(s => s.scoreOportunidade)

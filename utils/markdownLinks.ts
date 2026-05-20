@@ -1,5 +1,5 @@
 
-import { seniorOfficialLinks, buildSeniorOrGAtecSearchUrl } from './seniorLinks';
+import { seniorOfficialLinks } from './seniorLinks';
 
 export function rewriteMarkdownLinksToGoogle(text: string): string {
   if (!text) return text;
@@ -7,7 +7,7 @@ export function rewriteMarkdownLinksToGoogle(text: string): string {
   // Regex para capturar links Markdown: [Label](URL)
   const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g;
 
-  return text.replace(linkRegex, (match, label, rawUrl) => {
+  return text.replace(linkRegex, (match, label) => {
     const cleanLabel = label.trim();
 
     // 1) Citação com [🔗](URL) → mantém URL original (usado para fontes)

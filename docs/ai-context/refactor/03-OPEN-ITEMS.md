@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|
 | OI-003 | low | resolved | warning de build sobre `utils/idbStorage.ts` | ruido de bundling | resolvido na Sprint 12: `sessionExport` usa import estático de `idbStorage` e teste cobre export/import no storage v2 |
 | OI-004 | medium | resolved | `tests/components/SessionsSidebar.test.tsx` emite `Functions are not valid as a React child` | ruido no baseline de testes | resolvido na Sprint 12: mock de `ConfirmPopover` segue contrato render-prop |
-| OI-005 | medium | accepted | `npm run lint` passa, mas com backlog de warnings | reduz sinal de review | Sprint 12 mediu `140` warnings; manter como cleanup dedicado para não misturar sweep global nesta PR |
+| OI-005 | medium | resolved | `npm run lint` passava com backlog de warnings | reduzia sinal de review | resolvido na OI-005: `npm run lint` passa com `0` warnings; scripts/testes/logger têm política ESLint própria |
 
 ## Deferred Decisions
 

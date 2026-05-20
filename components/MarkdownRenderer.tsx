@@ -230,7 +230,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   isDarkMode = false,
   groundingSources = [],
   auditableSources,
-  showCollapsibleSources = false,
   allowRawHtml = true,
 }) => {
   const resolvedSources = useMemo(
@@ -291,7 +290,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return restoreMermaid(text);
   }, [content, citationMap]);
 
-  const components: Record<string, React.FC<any>> = {
+  const components: NonNullable<React.ComponentProps<typeof ReactMarkdown>['components']> = {
     pre: ({ children }: { children: React.ReactNode }) => {
       const childNodes = React.Children.toArray(children);
       if (childNodes.some(isMermaidCodeNode)) {
