@@ -150,16 +150,15 @@ async function getSessionsFromStorage(): Promise<ChatSession[]> {
  * Salvar sessões no armazenamento (IndexedDB ou localStorage)
  */
 async function saveSessionsToStorage(sessions: ChatSession[]): Promise<void> {
-  try {
-    storageSet('scout360_sessions_v2', JSON.stringify(sessions));
+  const sessionsJson = JSON.stringify(sessions);
+  const savedInV2 = storageSet('scout360_sessions_v2', sessionsJson);
+  if (savedInV2) {
     return;
-  } catch (error) {
-    console.warn('Erro ao salvar em storage v2, usando localStorage:', error);
   }
 
   // Fallback para localStorage
   try {
-    localStorage.setItem('scout360_sessions_v1', JSON.stringify(sessions));
+    localStorage.setItem('scout360_sessions_v1', sessionsJson);
   } catch (error) {
     console.error('Erro ao salvar em localStorage:', error);
     throw new Error('Armazenamento cheio ou indisponível', {

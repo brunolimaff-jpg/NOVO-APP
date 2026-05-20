@@ -15,12 +15,15 @@ import megaPrompts, {
   buildLegacyCompatibleHiddenPrompt,
 } from '../../prompts/megaPrompts';
 
-const digestPrompt = (label: string, prompt: string) => ({
-  label,
-  length: prompt.length,
-  lines: prompt.split('\n').length,
-  sha256: createHash('sha256').update(prompt).digest('hex'),
-});
+const digestPrompt = (label: string, prompt: string) => {
+  const normalized = prompt.replace(/\r\n?/g, '\n');
+  return {
+    label,
+    length: normalized.length,
+    lines: normalized.split('\n').length,
+    sha256: createHash('sha256').update(normalized).digest('hex'),
+  };
+};
 
 describe('PORTA mega prompts', () => {
   it('keeps each deep dive framed as a specialist module instead of a full dossier rewrite', () => {

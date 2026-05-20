@@ -11,7 +11,7 @@ describe('idbStorage', () => {
 
   describe('storageSet', () => {
     it('armazena valor com prefixo', () => {
-      storageSet('theme', 'dark');
+      expect(storageSet('theme', 'dark')).toBe(true);
       expect(localStorage.getItem(PREFIX + 'theme')).toBe('dark');
     });
 
@@ -22,11 +22,11 @@ describe('idbStorage', () => {
     });
 
     it('não lança erro quando localStorage está indisponível', () => {
-      const originalSetItem = localStorage.setItem.bind(localStorage);
-      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new Error('QuotaExceededError');
       });
       expect(() => storageSet('k', 'v')).not.toThrow();
+      expect(storageSet('k', 'v')).toBe(false);
       vi.restoreAllMocks();
     });
   });

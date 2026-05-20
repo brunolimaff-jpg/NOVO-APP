@@ -64,4 +64,31 @@ describe('sessionExport', () => {
 
     expect(localStorage.getItem(`${STORAGE_PREFIX}scout360_sessions_v2`)).toBe(JSON.stringify([session]));
   });
+
+  it('usa storage v1 como fallback quando storage v2 não consegue salvar', async () => {
+    const session = makeSession({ id: 'fallback-session' });
+    const originalSetItem = localStorage.setItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function setItemWithV2Failure(key, value) {
+      if (key === `${STORAGE_PREFIX}scout360_sessions_v2`) {
+        throw new Error('QuotaExceededError');
+      }
+      originalSetItem(key, value);
+    });
+
+    const file = new File([
+      JSON.stringify({
+        version: '1.0',
+        exportDate: '2024-01-03T00:00:00.000Z',
+        sessionCount: 1,
+        sessions: [session],
+      }),
+    ], 'backup.json', { type: 'application/json' });
+
+    await expect(importSessionsFromJSON(file)).resolves.toMatchObject({
+      sessionCount: 1,
+    });
+
+    expect(localStorage.getItem(`${STORAGE_PREFIX}scout360_sessions_v2`)).toBeNull();
+    expect(localStorage.getItem('scout360_sessions_v1')).toBe(JSON.stringify([session]));
+  });
 });
