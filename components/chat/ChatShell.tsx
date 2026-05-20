@@ -26,7 +26,6 @@ interface ChatShellProps {
   onOpenWarRoom: () => void;
   canAccessDashboard: boolean;
   onOpenDashboard: () => void;
-  onOpenAdminDash?: () => void;
   onToggleTheme: () => void;
   displayName: string;
   avatarUrl: string | null;
@@ -54,7 +53,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
   onOpenWarRoom,
   canAccessDashboard,
   onOpenDashboard,
-  onOpenAdminDash,
   onToggleTheme,
   displayName,
   avatarUrl,
@@ -118,9 +116,19 @@ const ChatShell: React.FC<ChatShellProps> = ({
               </button>
             </Tooltip>
 
-            <span data-testid="chat-header-title" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
-              {displayTitle}
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span data-testid="chat-header-breadcrumb-home" className={`text-sm font-semibold ${currentSessionId ? 'cursor-pointer hover:opacity-75 transition-opacity' : ''} ${theme.textPrimary}`} onClick={() => currentSessionId && onNewSession()}>
+                Scout 360
+              </span>
+              {currentSessionId && (
+                <>
+                  <span className={`text-sm ${theme.textSecondary}`}>→</span>
+                  <span data-testid="chat-header-breadcrumb-session" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
+                    {displayTitle}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-1 flex-none">
@@ -179,23 +187,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </button>
-              </Tooltip>
-            )}
-
-            {canAccessDashboard && onOpenAdminDash && (
-              <Tooltip label="Painel administrativo" position="bottom">
-                <button
-                  data-testid="chat-admin-button"
-                  type="button"
-                  onClick={onOpenAdminDash}
-                  className={`p-2 rounded-lg transition-colors ${theme.itemHover}`}
-                  title="Painel Administrativo"
-                  aria-label="Abrir painel administrativo"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
                 </button>
               </Tooltip>

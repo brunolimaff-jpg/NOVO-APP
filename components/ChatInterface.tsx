@@ -108,7 +108,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   loadingPinnedLabel,
   onDeleteMessage,
   onDeepDive,
-  onOpenAdminDash,
   radar,
 }) => {
   const { mode, setMode } = useMode();
@@ -226,7 +225,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onOpenWarRoom={() => setShowWarRoom(true)}
       canAccessDashboard={canAccessDashboard}
       onOpenDashboard={() => setShowDashboard(true)}
-      onOpenAdminDash={onOpenAdminDash}
       onToggleTheme={onToggleTheme}
       displayName={displayName}
       avatarUrl={null}

@@ -22,7 +22,6 @@ import { EmailModal } from './components/EmailModal';
 import { FollowUpModal } from './components/FollowUpModal';
 import { UpdateNotificationModal } from './components/UpdateNotificationModal';
 import InstallPrompt from './components/InstallPrompt';
-import { AdminDash } from './components/AdminDash';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
 import {
@@ -105,7 +104,6 @@ const App: React.FC = () => {
     remoteSaveStatus,
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'chat' | 'admin'>('chat');
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
@@ -371,22 +369,14 @@ const App: React.FC = () => {
         className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {activeView === 'admin' ? (
-            <AdminDash
-              sessions={sessions}
-              isDarkMode={isDarkMode}
-              onClose={() => setActiveView('chat')}
-            />
-          ) : (
-            <ChatErrorBoundary isDarkMode={isDarkMode}>
-              <ChatInterface
-              currentSession={currentSession}
-              sessions={sessions}
-              onNewSession={handleNewSession}
-              onSelectSession={handleSelectSession}
-              onDeleteSession={handleDeleteSession}
-              onOpenAdminDash={canAccessDashboard ? () => setActiveView('admin') : undefined}
-              isSidebarOpen={isSidebarOpen}
+          <ChatErrorBoundary isDarkMode={isDarkMode}>
+            <ChatInterface
+            currentSession={currentSession}
+            sessions={sessions}
+            onNewSession={handleNewSession}
+            onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
+            isSidebarOpen={isSidebarOpen}
               onToggleSidebar={() => setIsSidebarOpen((previous) => !previous)}
               messages={allMessages.slice(-visibleCount)}
               isLoading={isLoading}
@@ -422,10 +412,7 @@ const App: React.FC = () => {
               canAccessIntegrityCheck={canAccessIntegrityCheck}
               canDeepDive={canDeepDive}
               canWarRoom={canWarRoom}
-              onClearOperator={() => {
-                clearName();
-                setActiveView('chat');
-              }}
+              onClearOperator={clearName}
               lastUserQuery={lastQuery}
               onDeleteMessage={handleDeleteMessage}
               radar={{
@@ -443,9 +430,8 @@ const App: React.FC = () => {
                 onForceScan: radar.forceScan,
                 metaInsight: null,
               }}
-              />
-            </ChatErrorBoundary>
-          )}
+            />
+          </ChatErrorBoundary>
         </main>
         <div className="flex-none">
           <FooterCredits />

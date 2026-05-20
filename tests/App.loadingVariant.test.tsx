@@ -98,10 +98,6 @@ vi.mock('../components/InstallPrompt', () => ({
   default: () => <div data-testid="install-prompt" />,
 }));
 
-vi.mock('../components/AdminDash', () => ({
-  AdminDash: () => <div data-testid="admin-dash" />,
-}));
-
 vi.mock('../contexts/OperatorContext', () => ({
   useOperator: () => ({
     name: 'Bruno Lima',
