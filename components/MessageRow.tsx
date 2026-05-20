@@ -246,6 +246,20 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                           : status?.status === 'broken'
                             ? (status.note || 'OFF-LINE').toUpperCase()
                             : 'AUDITORIA EM CURSO';
+                      const statusIcon = statusLabel.includes('CONFIRMADO')
+                        ? '✓'
+                        : statusLabel.includes('OFF-LINE')
+                          ? '✕'
+                          : statusLabel.includes('INFERIDA')
+                            ? '○'
+                            : '◌';
+                      const statusColor = statusLabel.includes('CONFIRMADO')
+                        ? 'text-emerald-500'
+                        : statusLabel.includes('OFF-LINE')
+                          ? 'text-red-500'
+                          : statusLabel.includes('INFERIDA')
+                            ? 'text-amber-500'
+                            : 'text-slate-500';
                       const context =
                         s.contexts[0] ||
                         (s.url
@@ -270,23 +284,28 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                             ) : (
                               <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{s.title}</span>
                             )}
-                            <span
-                              className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                statusLabel.includes('CONFIRMADO')
-                                  ? isDarkMode
-                                    ? 'bg-emerald-900/50 text-emerald-300 font-bold'
-                                    : 'bg-emerald-100 text-emerald-700 font-bold'
-                                  : statusLabel.includes('OFF-LINE')
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] ${statusColor}`} aria-hidden>
+                                {statusIcon}
+                              </span>
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                  statusLabel.includes('CONFIRMADO')
                                     ? isDarkMode
-                                      ? 'bg-red-900/50 text-red-300'
-                                      : 'bg-red-100 text-red-700'
-                                    : isDarkMode
-                                      ? 'bg-amber-900/40 text-amber-300'
-                                      : 'bg-amber-100 text-amber-700'
-                              }`}
-                            >
-                              {statusLabel}
-                            </span>
+                                      ? 'bg-emerald-900/50 text-emerald-300 font-bold'
+                                      : 'bg-emerald-100 text-emerald-700 font-bold'
+                                    : statusLabel.includes('OFF-LINE')
+                                      ? isDarkMode
+                                        ? 'bg-red-900/50 text-red-300'
+                                        : 'bg-red-100 text-red-700'
+                                      : isDarkMode
+                                        ? 'bg-amber-900/40 text-amber-300'
+                                        : 'bg-amber-100 text-amber-700'
+                                }`}
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
                           </div>
                           {s.url ? (
                             <p className={`mt-1 text-[10px] break-all ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>

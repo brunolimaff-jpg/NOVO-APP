@@ -52,14 +52,22 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
 
     const bracketMatch = session.title?.match(/dossi[êe]\s+completo\s+de\s*\[([^\]]+)\]/i);
     if (bracketMatch?.[1]) return cleanTitle(bracketMatch[1]);
-    
+
     const clean = session.title
         ?.replace(/^(investigar|analisar|pesquisar|dossiê\s*de\s*)/i, '')
         ?.replace(/de\s*cuiabá.*/i, '')
         ?.replace(/-\s*mt.*/i, '')
         ?.trim();
-        
+
     return cleanTitle(clean || "Sessão sem nome");
+  };
+
+  const getLastMessagePreview = (session: ChatSession): string | null => {
+    if (!session.messages || session.messages.length === 0) return null;
+    const lastMessage = session.messages[session.messages.length - 1];
+    // Pegar mensagem do bot, não do usuário
+    const botMessage = session.messages.filter(m => m.sender === 'bot').pop();
+    return botMessage?.text || lastMessage?.text || null;
   };
 
   const filteredSessions = useMemo(() =>
@@ -87,7 +95,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
     textPrimary: isDarkMode ? 'text-slate-200' : 'text-slate-700',
     textSecondary: isDarkMode ? 'text-slate-500' : 'text-slate-500',
     itemHover: isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-200',
-    itemActive: isDarkMode ? 'bg-slate-800 border-l-2 border-emerald-500' : 'bg-white border-l-2 border-emerald-500 shadow-sm',
+    itemActive: isDarkMode ? 'bg-emerald-500/15' : 'bg-emerald-500/10',
     newChatBtn: isDarkMode
       ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-sm'
       : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm',
@@ -204,13 +212,14 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                     const date = new Date(session.updatedAt);
                     const isToday = new Date().toDateString() === date.toDateString();
                     const displayName = getDisplayName(session);
-                    
+                    const messagePreview = getLastMessagePreview(session);
+
                     return (
                         <div
                           role="listitem"
                           key={session.id}
                           className={`
-                            group relative flex items-center gap-3 p-3 rounded-md cursor-pointer transition-all
+                            group relative flex items-start gap-3 p-3 rounded-md cursor-pointer transition-all
                             ${isActive ? theme.itemActive : theme.itemHover}
                           `}
                         >
@@ -220,20 +229,20 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                               onSelectSession(session.id);
                               if (window.innerWidth < 768) onCloseMobile();
                             }}
-                            className="flex w-full items-center gap-3 text-left"
+                            className="flex w-full items-start gap-3 text-left"
                             aria-current={isActive ? 'true' : undefined}
                             aria-label={`Abrir investigação ${displayName}`}
                           >
-                            <div className={`flex-none text-lg opacity-80`}>
+                            <div className={`flex-none text-lg opacity-80 mt-0.5`}>
                                 🏢
                             </div>
-                            <div className="flex-1 min-w-0 pr-16">
+                            <div className="flex-1 min-w-0 pr-12">
                                 <h3 className={`text-sm font-medium truncate ${isActive ? 'text-emerald-500' : theme.textPrimary}`}>
                                   {displayName}
                                 </h3>
                                 <div className="flex items-center justify-between gap-2 mt-0.5">
                                   <span className={`text-[10px] ${theme.textSecondary}`}>
-                                    {isToday 
+                                    {isToday
                                       ? date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                                       : date.toLocaleDateString([], {day: '2-digit', month: '2-digit'})}
                                   </span>
@@ -243,11 +252,21 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                                       </span>
                                   )}
                                 </div>
+                                {messagePreview && (
+                                  <p className={`text-xs mt-1 line-clamp-1 ${theme.textSecondary}`}>
+                                    {messagePreview}
+                                  </p>
+                                )}
                             </div>
                           </button>
 
-                          {/* Botao de acao da sessao */}
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
+                          {/* Bolinha verde indicadora de sessão ativa */}
+                          {isActive && (
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
+                          )}
+
+                          {/* Botao de acao da sessao - sempre visivel em mobile, hover no desktop */}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100 z-10">
                             <ConfirmPopover
                               message="Excluir dossiê?"
                               onConfirm={() => onDeleteSession(session.id)}

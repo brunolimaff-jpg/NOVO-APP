@@ -450,9 +450,28 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                     </p>
                   )}
                   {cnpjStatus && !cnpjLocked && (
-                    <p className={`mt-1.5 text-[11px] ${cnpjStatus.startsWith('✓') ? 'text-emerald-600 dark:text-emerald-400' : cnpjStatus.includes('não encontrado') || cnpjStatus.includes('indisponível') ? 'text-amber-600 dark:text-amber-400' : textMuted}`}>
-                      {cnpjStatus}
-                    </p>
+                    <div
+                      className={`mt-2 rounded-md border px-3 py-2.5 ${
+                        cnpjStatus.startsWith('✓')
+                          ? isDarkMode
+                            ? 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : cnpjStatus.includes('não encontrado') || cnpjStatus.includes('indisponível')
+                            ? isDarkMode
+                              ? 'border-amber-700/50 bg-amber-950/30 text-amber-300'
+                              : 'border-amber-200 bg-amber-50 text-amber-800'
+                            : isDarkMode
+                              ? 'border-slate-700/50 bg-slate-900/30 text-slate-300'
+                              : 'border-slate-200 bg-slate-50 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-sm shrink-0">
+                          {cnpjStatus.startsWith('✓') ? '✓' : '⚠️'}
+                        </span>
+                        <p className="text-[11px] leading-relaxed">{cnpjStatus}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
 

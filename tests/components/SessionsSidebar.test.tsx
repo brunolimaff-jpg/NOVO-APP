@@ -143,8 +143,8 @@ describe('SessionsSidebar', () => {
     const { container } = render(
       <SessionsSidebar {...defaultProps} sessions={sessions} currentSessionId="active" />,
     );
-    // Active session element should have the active border class
-    const activeEl = container.querySelector('[class*="border-emerald-500"]');
+    // Active session element should have the active background class
+    const activeEl = container.querySelector('[class*="bg-emerald-500"]');
     expect(activeEl).toBeTruthy();
   });
 

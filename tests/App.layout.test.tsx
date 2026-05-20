@@ -157,10 +157,6 @@ vi.mock('../components/InstallPrompt', () => ({
   default: () => null,
 }));
 
-vi.mock('../components/AdminDash', () => ({
-  AdminDash: () => <div data-testid="admin-dash" />,
-}));
-
 function renderApp() {
   return render(
     <ChatStoreProvider>
