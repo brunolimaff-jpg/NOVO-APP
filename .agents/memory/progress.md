@@ -202,6 +202,18 @@ Last updated: 2026-05-20
 - `npm run analyze:circular` green, sem ciclos.
 - `npm run docs:obsidian:check` green (`14` notas).
 
+### LoadingSmart progress bar hotfix
+
+- Branch `codex/fix-loading-smart-progress-bar` criada a partir de `main@958e731`.
+- Causa raiz: `LoadingSmart` renderizava checks de etapas a partir de `processing.completedStages`, mas a barra usava apenas `displayedCompleted`, que pode ficar atrasado pela fila visual.
+- Fix: `utils/loadingSmartViewModel.ts` calcula `percent` usando o maior valor entre etapas visualmente reveladas e etapas reais concluídas no roadmap.
+- Regressão coberta em `tests/utils/loadingSmartViewModel.test.ts` para cenário com etapas reais concluídas antes da fila visual revelar.
+- Validação local:
+  - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`20` testes).
+  - `npm run typecheck` green.
+  - `npm run lint` green.
+  - `npm run build` green; permanece warning conhecido de chunks grandes.
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -212,5 +224,5 @@ Last updated: 2026-05-20
 
 ## Next checkpoint
 
-- Abrir PR da OI-005 lint warnings.
+- Abrir PR do hotfix `LoadingSmart`.
 - Não reintroduzir Mini CRM/`CRMDetail`.
