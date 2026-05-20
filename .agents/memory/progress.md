@@ -41,17 +41,20 @@ Last updated: 2026-05-20
 
 ## In progress
 
-- Sprint 12 hardening final da Fase 2 em `codex/sprint-12-hardening-oi-004`.
-- Objetivo:
-  - fechar warnings operacionais e guardrails restantes;
-  - OI-003/OI-004/OI-057/OI-062 fechados localmente;
-  - manter OI-005 como cleanup dedicado de lint warnings;
-  - preservar facades públicas e evitar reintroduzir Mini CRM local.
+- Nenhuma sprint ativa. Fase 2 concluída em `2026-05-20`.
 
 ## Blockers
 
-- Nenhum bloqueio técnico imediato.
-- `CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
+- Nenhum bloqueio técnico.
+
+## Sprint 12 closure (2026-05-20)
+
+- PR `#262` (OI-004/003/057/062): mergeada em `5a3309d`.
+- PR `#263` (OI-005 lint): mergeada em `958e731`. `npm run lint` passa com `0` warnings.
+- PR `#264` (LoadingSmart progress bar fix): mergeada em `0694997`.
+- Gates finais: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular` — todos verdes.
+- Validação manual em Vercel aceita pelo owner.
+- **Fase 2 (Manutenibilidade) declarada CONCLUÍDA.**
 
 ## Validation history
 

@@ -1,6 +1,8 @@
 # Phase 2 Maintainability Plan (Post-Sprint 8)
 
-Last updated: 2026-04-23
+Last updated: 2026-05-20
+
+> **Status: CONCLUÍDA.** Todas as Sprints 9–12 mergeadas em `main` (`0694997`). Validação manual em Vercel aceita pelo owner. Gates finais verdes.
 
 ## 1. Contexto e baseline
 
