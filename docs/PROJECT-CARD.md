@@ -4,15 +4,15 @@
 
 Este projeto participa da biblioteca Obsidian central:
 
-`/Users/brunolima/Documents/Senior IA/docs/obsidian`
+`~/Documents/Senior IA/docs/obsidian`
 
 ## Identidade
 
 - Nome: NOVO-APP
 - Status: active/legacy
 - Tipo: Senior Scout 360 em producao/legado operacional
-- Caminho: `/Users/brunolima/Documents/NOVO-APP`
-- Nota Obsidian: `/Users/brunolima/Documents/Senior IA/docs/obsidian/Projects/NOVO-APP.md`
+- Caminho: `~/Documents/NOVO-APP`
+- Nota Obsidian: `~/Documents/Senior IA/docs/obsidian/Projects/NOVO-APP.md`
 
 ## Fontes canonicas
 
