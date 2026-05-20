@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -117,6 +117,22 @@ Constraint: preservar referências ao CRM interno Senior em prompts, evidências
 Decision: centralizar as rotas de proxy local em `config/localDevApiProxy.ts` e incluir `/api/open-web-search`, `/api/link-status`, `/api/extract-content`, `/api/rag` e `/api/docs-rag` além das rotas já existentes.
 
 Reason: o Vercel é o runtime real, mas `npm run dev` precisa evitar falsos 404 para rotas serverless usadas pelo frontend e pelo fluxo de investigação.
+
+## 2026-05-20 - AdminDash removido por decisão de produto
+
+Decision: remover completamente o AdminDash (`components/AdminDash.tsx`, `hooks/useAdminMetrics.ts`, testes dedicados) e a prop `onOpenAdminDash` de `ChatInterface`, `ChatShell` e `App.tsx`.
+
+Reason: o painel administrativo não era usado e não tinha valor de produto. Remover reduz superfície de manutenção e simplifica o header (o botão de admin foi substituído pelo breadcrumb).
+
+Constraint: o estado `activeView` e a lógica de `isAdminOpen` foram removidos de `App.tsx`.
+
+## 2026-05-20 - UX Redesign Phase 1 priorizado sobre Design System
+
+Decision: executar melhorias incrementais de UX (AdminDash removal, breadcrumb, sidebar, error feedback) em vez do Design System completo (Sprints 17-20).
+
+Reason: o owner avaliou que um Design System formal não se justifica para app interno. Melhorias incrementais de usabilidade têm ROI mais alto e custo mais baixo.
+
+Constraint: o escopo foi limitado a 4 itens (AdminDash, breadcrumb, sidebar, error feedback). Simplificar a tela inicial (EmptyStateHome) e unificar loading foram rejeitados pelo owner.
 
 ## 2026-05-19 - Modelo canônico enxuto para planos em aberto
 

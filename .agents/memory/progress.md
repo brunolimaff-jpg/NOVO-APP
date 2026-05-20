@@ -41,7 +41,7 @@ Last updated: 2026-05-20
 
 ## In progress
 
-- Nenhuma sprint ativa. Fase 2 concluída em `2026-05-20`.
+- UX Redesign Phase 1: PR `#266` aberta, aguardando validação do owner no preview Vercel.
 
 ## Blockers
 
@@ -224,6 +224,22 @@ Last updated: 2026-05-20
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`
 - `docs/ai-context/refactor/10-WAVE-0-1-CLEANUP-PLAN-2026-05-16.md`
+
+### UX Redesign Phase 1 (PR `#266`, branch `ux/redesign-phase1-v1`)
+
+- Branch `ux/redesign-phase1-v1` criada a partir de `main@0694997`.
+- AdminDash + useAdminMetrics removidos (268 linhas + hook + testes).
+- Breadcrumb `Scout 360 → [sessão]` no header via `ChatShell.tsx`.
+- Sidebar: preview da última mensagem do bot, indicador ativo com `bg-emerald-500/15` + bolinha verde, botões mobile sempre visíveis.
+- MessageRow: indicadores visuais de status (✓ CONFIRMADO, ✕ OFF-LINE, ○ ANÁLISE INFERIDA, ◌ AUDITORIA EM CURSO).
+- EmptyStateHome: cartão estilizado com ícone para feedback CNPJ.
+- `getLastMessagePreview`: loop reverso em vez de `filter().pop()` após review do Gemini Code Assist.
+- `onOpenAdminDash` removido de `ChatInterface`, `contracts.ts` e `App.tsx`.
+- Teste `SessionsSidebar` atualizado para novo seletor de sessão ativa (`bg-emerald-500`).
+- `npm run typecheck` green.
+- `npm run test` green (`116` arquivos, `824` testes).
+- `npm run lint` green.
+- `npm run build` green.
 
 ## Next checkpoint
 

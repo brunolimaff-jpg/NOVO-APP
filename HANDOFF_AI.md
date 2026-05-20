@@ -87,11 +87,26 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Circulares: zero
   - Lint: `0` erros, `0` warnings
 
+## UX Redesign Phase 1 — CONCLUÍDA
+
+- Branch: `ux/redesign-phase1-v1`
+- PR: `#266`, commit `d84b643`
+- Escopo:
+  - AdminDash + useAdminMetrics removidos (268 linhas + hook + testes)
+  - Breadcrumb no header: `Scout 360` → `Scout 360 → [sessão]`; clicar em "Scout 360" volta pra home
+  - Sidebar: preview da última mensagem do bot, indicador ativo com `bg-emerald-500/15` + bolinha verde, botões mobile sempre visíveis
+  - MessageRow: indicadores visuais de status (✓ verde CONFIRMADO, ✕ vermelho OFF-LINE, ○ amarelo ANÁLISE INFERIDA, ◌ cinza AUDITORIA EM CURSO)
+  - EmptyStateHome: cartão estilizado com ícone para feedback de erro/sucesso CNPJ
+  - `getLastMessagePreview` usa loop reverso em vez de `filter().pop()` (review do Gemini Code Assist)
+- Gates: `test` (116 arq, 824 testes), `typecheck`, `lint` — todos verdes.
+- Design System (Sprints 17-20) descartado por decisão do owner: app interno, custo/benefício não justifica.
+
 ## Próximo passo seguro
 
-1. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
-2. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
-3. Repriorizar itens deferred: `mcp-server/`, design system (Sprints 17–20), observability (Sprints 21–24).
+1. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+2. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
+3. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
+4. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21–24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 
