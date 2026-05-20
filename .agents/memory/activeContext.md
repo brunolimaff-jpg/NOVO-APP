@@ -75,8 +75,14 @@ Sprint 12 iniciada:
 - OI-005 resolvido em `codex/sprint-12-oi-005-lint-warnings`: `npm run lint` agora passa com `0` warnings.
 - `npm run build` não emite mais o warning específico de dynamic import de `utils/idbStorage.ts`; permanece apenas o warning geral de chunks grandes.
 
+LoadingSmart hotfix:
+
+- Branch atual: `codex/fix-loading-smart-progress-bar`.
+- Corrige barra de progresso travada em "Preparando análise..." quando `processing.completedStages` já marca etapas reais como concluídas, mas a fila visual ainda não revelou `displayedCompleted`.
+- `utils/loadingSmartViewModel.ts` agora calcula progresso pelo maior valor entre etapas visualmente reveladas e etapas reais concluídas no roadmap.
+
 ## Immediate next step
 
-1. Abrir PR curta da OI-005 na branch `codex/sprint-12-oi-005-lint-warnings`.
+1. Abrir PR curta do hotfix `LoadingSmart`.
 2. Acompanhar checks remotos e mergear se ficarem verdes.
-3. Depois do merge, fechar a Fase 2 ou repriorizar itens deferred.
+3. Depois do merge, fechar Fase 2 ou repriorizar itens deferred.

@@ -33,7 +33,7 @@ describe('loadingSmartViewModel', () => {
     expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Materializando recomendações práticas...');
   });
 
-  it('suaviza o percentual quando há etapas reais pendentes na fila visual', () => {
+  it('mantém o percentual alinhado às etapas reais mesmo quando há fila visual pendente', () => {
     const viewModel = buildLoadingSmartViewModel({
       displayedCompleted: ['Mapeando inteligência operacional...'],
       displayedCurrent: 'Verificando sinais de risco e conformidade...',
@@ -48,7 +48,25 @@ describe('loadingSmartViewModel', () => {
       },
     });
 
-    expect(viewModel.percent).toBe(23);
+    expect(viewModel.percent).toBe(43);
+  });
+
+  it('mantém a barra alinhada ao progresso real quando a fila visual ainda não revelou etapas', () => {
+    const viewModel = buildLoadingSmartViewModel({
+      displayedCompleted: [],
+      displayedCurrent: 'Verificando sinais de risco e conformidade...',
+      pendingInQueue: 0,
+      processing: {
+        completedStages: [
+          'Mapeando inteligência operacional...',
+          'Entendendo a operação e tecnologia...',
+        ],
+        totalStages: 7,
+      },
+    });
+
+    expect(viewModel.percent).toBe(29);
+    expect(viewModel.completedStageKeys.size).toBe(2);
   });
 
   it('usa fallback incremental quando a etapa atual não pertence a um plano fixo', () => {

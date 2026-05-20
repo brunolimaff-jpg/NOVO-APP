@@ -166,7 +166,8 @@ export function buildLoadingSmartViewModel({
       : (isIncremental
         ? Math.max(MIN_INCREMENTAL_STAGE_TOTAL, realTotalCompleted + 1)
         : Math.max(MIN_STANDARD_STAGE_TOTAL, realTotalCompleted + 2)));
-  const displayedPercent = Math.min(Math.round((completedCount / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
+  const progressCompletedCount = Math.max(completedCount, completedStageKeys.size);
+  const displayedPercent = Math.min(Math.round((progressCompletedCount / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
   const percent = pendingInQueue > 0
     ? Math.min(
