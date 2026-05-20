@@ -9,21 +9,21 @@
 | Last updated | `2026-05-20` |
 | Current phase | `sprint_12_hardening` |
 | Current sprint | `Sprint 12` |
-| Overall status | `sprint_11_done_pr_261_merged` |
-| Current baseline | PR `#261` mergeada em `main` (`9fe0821`) |
+| Overall status | `sprint_12_started_oi_003_oi_004_resolved` |
+| Current baseline | `origin/main@3e4e155`; branch `codex/sprint-12-hardening-oi-004` |
 
 ## Current Focus
 
-- Iniciar Sprint 12 hardening final da Fase 2.
-- Priorizar OI-003/OI-004/OI-005/OI-062.
+- Sprint 12 hardening final da Fase 2 iniciada.
+- OI-003, OI-004, OI-057 e OI-062 resolvidos localmente; OI-005 mensurado e mantido como cleanup dedicado.
 - Preservar facades públicas e não reintroduzir Mini CRM local.
 - Manter `mcp-server/` fora do escopo até repriorização explícita.
 
 ## Next Up
 
-1. Abrir branch curta para Sprint 12 hardening.
-2. Escolher o primeiro item entre OI-003/OI-004/OI-005/OI-062.
-3. Rodar gates completos antes de fechar a Fase 2.
+1. Rodar gates completos antes de fechar a Fase 2.
+2. Abrir PR da Sprint 12 hardening.
+3. Deixar OI-005 para passada dedicada de lint warnings.
 
 ## Blocked
 
@@ -92,9 +92,9 @@
 
 ## Known Accepted Warnings
 
-- `tests/components/SessionsSidebar.test.tsx` ainda emite `Functions are not valid as a React child` (OI-004).
-- Build ainda emite warning de chunking em `utils/idbStorage.ts` (OI-003).
-- `npm run lint` passa, mas com backlog de warnings (OI-005).
+- OI-003/OI-004/OI-057/OI-062 resolvidos na branch `codex/sprint-12-hardening-oi-004`.
+- Build ainda emite warning geral de chunks grandes, sem o warning específico de `utils/idbStorage.ts`.
+- `npm run lint` passa, mas com `140` warnings aceitos como backlog dedicado (OI-005).
 - OI-055: Pinecone via `VITE_*` aceito pelo owner para app interno/fechado.
 
 ## Sprint Tracker
@@ -118,4 +118,4 @@
 | 11 Onda 1A | Saneamento documental | done | canônicos sem duplicação de próximos passos; `CRMDetail` aparece só como histórico/removido | `start-of-sprint-11` | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*`, `docs/obsidian/*` |
 | 11 Onda 1B | `LoadingSmart` | done | PR `#260` mergeada; fachada preservada e helper de timeline/progresso extraído com testes | `post-onda-1a` | `components/LoadingSmart.tsx`, `utils/loadingSmartViewModel.ts`, `tests/utils/loadingSmartViewModel.test.ts` |
 | 11 Onda 1C | `WarRoom` | done | PR `#261` mergeada; props públicas preservadas e UI estática extraída | `post-onda-1b` | `components/WarRoom.tsx`, `components/war-room/*` |
-| 12 | Hardening final | planned | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |
+| 12 | Hardening final | in_progress | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |

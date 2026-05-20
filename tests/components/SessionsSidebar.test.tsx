@@ -5,14 +5,22 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SessionsSidebar from '../../components/SessionsSidebar';
 import type { ChatSession } from '../../types';
 
-// Mock ConfirmPopover — too complex to render in unit tests
+// Mock ConfirmPopover using its render-prop contract.
 vi.mock('../../components/ConfirmPopover', () => ({
-  default: ({ children, onConfirm }: { children: React.ReactNode; onConfirm: () => void }) => (
-    <div>
-      {children}
-      <button data-testid="confirm-delete" onClick={onConfirm}>confirm</button>
-    </div>
-  ),
+  default: ({
+    children,
+    onConfirm,
+  }: {
+    children: (triggerProps: { onClick: (event?: React.MouseEvent) => void }) => React.ReactNode;
+    onConfirm: () => void;
+  }) => {
+    const trigger = (event?: React.MouseEvent) => {
+      event?.stopPropagation();
+      onConfirm();
+    };
+
+    return <>{children({ onClick: trigger })}</>;
+  },
 }));
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
@@ -115,6 +123,16 @@ describe('SessionsSidebar', () => {
     render(<SessionsSidebar {...defaultProps} sessions={sessions} onSelectSession={onSelectSession} />);
     fireEvent.click(screen.getByText('Fazenda Test'));
     expect(onSelectSession).toHaveBeenCalledWith('sess-99');
+  });
+
+  it('chama onDeleteSession ao confirmar exclusão', () => {
+    const onDeleteSession = vi.fn();
+    const sessions = [makeSession({ id: 'sess-delete', empresaAlvo: 'Fazenda Delete' })];
+    render(<SessionsSidebar {...defaultProps} sessions={sessions} onDeleteSession={onDeleteSession} />);
+
+    fireEvent.click(screen.getByTitle('Excluir Investigação'));
+
+    expect(onDeleteSession).toHaveBeenCalledWith('sess-delete');
   });
 
   it('destaca sessão ativa', () => {

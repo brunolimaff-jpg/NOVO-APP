@@ -1,4 +1,5 @@
 import type { ChatSession } from '../types';
+import { storageGet, storageSet } from './idbStorage';
 
 /**
  * Interface para estrutura de backup
@@ -121,17 +122,15 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
  */
 async function getSessionsFromStorage(): Promise<ChatSession[]> {
   try {
-    // Tentar IndexedDB primeiro (via idb-keyval)
-    const { storageGet } = await import('../utils/idbStorage');
-
-    if (storageGet) {
-      const sessions = await storageGet('scout360_sessions_v2') as ChatSession[] | null;
-      if (sessions && Array.isArray(sessions)) {
-        return sessions;
+    const sessionsJson = storageGet('scout360_sessions_v2');
+    if (sessionsJson) {
+      const sessions = JSON.parse(sessionsJson) as unknown;
+      if (Array.isArray(sessions)) {
+        return sessions as ChatSession[];
       }
     }
   } catch (error) {
-    console.warn('IndexedDB não disponível, usando localStorage:', error);
+    console.warn('Storage v2 indisponível, usando localStorage:', error);
   }
 
   // Fallback para localStorage
@@ -151,22 +150,15 @@ async function getSessionsFromStorage(): Promise<ChatSession[]> {
  * Salvar sessões no armazenamento (IndexedDB ou localStorage)
  */
 async function saveSessionsToStorage(sessions: ChatSession[]): Promise<void> {
-  try {
-    // Tentar salvar em IndexedDB primeiro
-    const { storageSet } = await import('../utils/idbStorage');
-
-    if (storageSet) {
-      const sessionsJson = JSON.stringify(sessions);
-      await storageSet('scout360_sessions_v2', sessionsJson);
-      return;
-    }
-  } catch (error) {
-    console.warn('Erro ao salvar em IndexedDB, usando localStorage:', error);
+  const sessionsJson = JSON.stringify(sessions);
+  const savedInV2 = storageSet('scout360_sessions_v2', sessionsJson);
+  if (savedInV2) {
+    return;
   }
 
   // Fallback para localStorage
   try {
-    localStorage.setItem('scout360_sessions_v1', JSON.stringify(sessions));
+    localStorage.setItem('scout360_sessions_v1', sessionsJson);
   } catch (error) {
     console.error('Erro ao salvar em localStorage:', error);
     throw new Error('Armazenamento cheio ou indisponível', {

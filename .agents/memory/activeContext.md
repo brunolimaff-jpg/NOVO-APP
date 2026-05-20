@@ -28,7 +28,7 @@ Fase 2 (manutenibilidade) está em andamento.
 
 ## Current task context
 
-Branch/workspace atual: `main` em `/Users/brunolima/Documents/NOVO-APP`.
+Branch/workspace atual: `codex/sprint-12-hardening-oi-004` em `/Users/brunolima/Documents/NOVO-APP`.
 
 Estado pós-PR `#259`:
 
@@ -66,8 +66,17 @@ Lição aprendida:
 
 `CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
 
+Sprint 12 iniciada:
+
+- OI-004 resolvido em `tests/components/SessionsSidebar.test.tsx`: mock de `ConfirmPopover` agora segue contrato render-prop e cobre `onDeleteSession`.
+- OI-003 resolvido em `utils/sessionExport.ts`: removido dynamic import de `utils/idbStorage.ts`; export/import agora usam storage v2 como JSON com teste dedicado.
+- OI-057 resolvido em `docs/ai-context/refactor/05-VALIDATION.md`: protocolo PWA/chunking documentado.
+- OI-062 resolvido em `tests/prompts/megaPrompts.test.ts`: golden baseline determinístico de inputs do LLM antes da migração para `.md`.
+- OI-005 medido em `140` warnings de lint e mantido como cleanup dedicado, fora desta PR.
+- `npm run build` não emite mais o warning específico de dynamic import de `utils/idbStorage.ts`; permanece apenas o warning geral de chunks grandes.
+
 ## Immediate next step
 
-1. Iniciar Sprint 12 hardening em branch curta.
-2. Priorizar OI-003/OI-004/OI-005/OI-062 conforme `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
-3. Manter gates completos antes de fechar a Fase 2 (`test`, `typecheck`, `build`, `lint`, `analyze:circular`).
+1. Rodar gates completos finais (`test`, `typecheck`, `build`, `lint -- --quiet`, `analyze:circular`, `docs:obsidian:check`).
+2. Abrir PR da Sprint 12 hardening.
+3. Tratar OI-005 em passada dedicada, se Bruno quiser zerar warnings.
