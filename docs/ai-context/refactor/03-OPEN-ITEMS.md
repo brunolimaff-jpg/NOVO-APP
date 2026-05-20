@@ -32,8 +32,8 @@
 |---|---|---|---|---|---|
 | OI-050 | high | resolved | `App.tsx` | `622` linhas; wiring de modais/export extraido para hooks/services | Sprint 9 validada com gates e browser |
 | OI-051 | high | resolved | Mini CRM local / `components/CRMDetail.tsx` | Mini CRM removido por decisão de produto; CRM interno Senior preservado como evidência comercial | Sprint 11 Onda 0.5: remoção completa do runtime local |
-| OI-052 | high | open | `components/LoadingSmart.tsx` | `766` linhas; timeline/modelo/render acoplados | Sprint 11 Onda 1B: extrair lógica pura primeiro, mantendo fachada |
-| OI-053 | medium | open | `components/WarRoom.tsx` | `552` linhas; teste de caracterização criado na Onda 0 | Sprint 11 Onda 1C: extrair UI estática antes de hook de sessão |
+| OI-052 | high | resolved | `components/LoadingSmart.tsx` | `672` linhas após extração de timeline/progresso; fachada preservada | Sprint 11 Onda 1B concluída via PR `#260` |
+| OI-053 | medium | active | `components/WarRoom.tsx` | `279` linhas após extração de UI estática; teste de caracterização ativo | Sprint 11 Onda 1C: fechar PR curto ou extrair hook de sessão |
 | OI-054 | high | resolved | Radar runtime fora do boundary | runtime movido para `features/radar/useRadar.ts` e `features/radar/service.ts`; facades antigas preservadas | resolvido na Sprint 10; componentes visuais Radar ficam fora desta PR |
 
 ## Fase 2 - Novos Riscos Identificados (auditoria 2026-04-30)

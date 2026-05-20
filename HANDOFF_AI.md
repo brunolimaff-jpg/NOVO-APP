@@ -28,7 +28,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-19 — Sprint 11 Onda 1B `LoadingSmart` em andamento na branch `codex/sprint-11-onda-0-5-mini-crm-local-fixes`.
+> Atualizado em 2026-05-20 — Sprint 11 Onda 1C `WarRoom` em andamento na branch `codex/sprint-11-war-room-refactor`.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -56,7 +56,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - Sprint 11 Onda 0: concluída e mergeada via PR `#258`.
   - Sprint 11 Onda 0.5: concluída via PR `#259` na branch de trabalho.
   - Sprint 11 Onda 1A: concluída para saneamento de planos duplicados/stale.
-  - Sprint 11 Onda 1B: em andamento em `LoadingSmart`.
+  - Sprint 11 Onda 1B: concluída e mergeada via PR `#260`.
+  - Sprint 11 Onda 1C: em andamento em `WarRoom`.
 
 ## Hotspots atuais da Fase 2
 
@@ -65,18 +66,18 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `App.tsx` | 622 | Sprint 9 concluída |
 | `features/radar/useRadar.ts` + `features/radar/service.ts` | runtime movido para boundary; facades antigas preservadas | Sprint 10 concluída |
 | Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto; não refatorar nem reintroduzir | Sprint 11 Onda 0.5 |
-| `components/LoadingSmart.tsx` | 766 | Sprint 11 |
-| `components/WarRoom.tsx` | 552; teste de caracterização criado na Onda 0 | Sprint 11 |
+| `components/LoadingSmart.tsx` | 672 após Onda 1B; fachada preservada | Sprint 11 |
+| `components/WarRoom.tsx` | 279 após extração de UI estática; teste de caracterização ativo | Sprint 11 |
 | `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
 
-## Entrega em curso: Sprint 11 Onda 1B LoadingSmart
+## Entrega em curso: Sprint 11 Onda 1C WarRoom
 
-- Branch/workspace atual: `codex/sprint-11-onda-0-5-mini-crm-local-fixes` em `/Users/brunolima/Documents/NOVO-APP`.
+- Branch/workspace atual: `codex/sprint-11-war-room-refactor` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
-  - reduzir `components/LoadingSmart.tsx` sem mudar a fachada/default export;
-  - extrair primeiro a lógica pura de timeline/progresso para helper testável;
-  - manter `App.tsx` sem alteração;
-  - manter `WarRoom` fora deste PR.
+  - reduzir `components/WarRoom.tsx` sem mudar props públicas;
+  - manter `services/warRoomService.ts` como fachada estável;
+  - extrair UI estática e tipos locais antes de hook de sessão;
+  - manter `LoadingSmart` fora deste PR.
 - Validação herdada da Onda 0/0.5:
   - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
   - Onda 0 anterior: `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
@@ -97,10 +98,26 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Validação da Onda 1B:
   - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`18` testes);
   - `npm run typecheck` green.
+- Validação da Onda 1C:
+  - `npm exec vitest run tests/components/WarRoom.test.tsx` green (`6` testes);
+  - `npm run typecheck` green;
+  - `npm run build` green com warnings aceitos OI-003/OI-057;
+  - `npm run lint -- --quiet` green;
+  - `npm run test` green (`116` arquivos, `826` testes);
+  - `npm run analyze:circular` green, sem ciclos.
 - Fora de escopo:
-  - refatorar `LoadingSmart` ou `WarRoom`;
+  - refatorar `LoadingSmart`;
   - remover `card: any`;
   - limpar warnings globais de lint.
+
+## Entrega anterior: Sprint 11 Onda 1B LoadingSmart
+
+- PR: `#260`
+- Resultado:
+  - `utils/loadingSmartViewModel.ts` criado para timeline/progresso;
+  - `tests/utils/loadingSmartViewModel.test.ts` criado;
+  - `components/LoadingSmart.tsx` reduzido de `766` para `672` linhas mantendo fachada/default export;
+  - Bruno validou e liberou seguir para `WarRoom`.
 
 ## Entrega anterior: Sprint 11 Onda 0.5
 
@@ -175,9 +192,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Próximo passo seguro
 
-1. Completar a Onda 1B com hook de curiosidades/timers ou fechar a fatia atual como PR curto.
-2. Iniciar Onda 1C em `WarRoom`, mantendo props públicas e `services/warRoomService.ts` estável.
-3. Sprint 12 fica para hardening de OI-003/OI-004/OI-005/OI-062.
+1. Fechar a primeira fatia da Onda 1C como PR curto ou continuar com hook local de sessão de `WarRoom`.
+2. Sprint 12 fica para hardening de OI-003/OI-004/OI-005/OI-062.
 
 ## Regras de continuidade
 

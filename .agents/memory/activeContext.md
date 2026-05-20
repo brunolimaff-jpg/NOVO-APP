@@ -24,11 +24,11 @@ Fase 2 (manutenibilidade) está em andamento.
 - Sprint 9 concluída e mergeada via PR `#254`.
 - Sprint 10 mergeada via PR `#257` em `2026-05-16`.
 - Sprint 11 Onda 0 de testes foi mergeada via PR `#258`.
-- Sprint atual: Sprint 11 Onda 1B — refatoração incremental de `LoadingSmart`.
+- Sprint atual: Sprint 11 Onda 1C — refatoração incremental de `WarRoom`.
 
 ## Current task context
 
-Branch/workspace atual: `codex/sprint-11-onda-0-5-mini-crm-local-fixes` em `/Users/brunolima/Documents/NOVO-APP`.
+Branch/workspace atual: `codex/sprint-11-war-room-refactor` em `/Users/brunolima/Documents/NOVO-APP`.
 
 Estado pós-PR `#259`:
 
@@ -44,12 +44,18 @@ Onda 1A documental:
 - Marcar planos antigos/stale como históricos ou superseded quando ainda tratam Sprint 8/10/CRMDetail como trabalho ativo.
 - Preparar a sequência limpa: Onda 1B `LoadingSmart`, Onda 1C `WarRoom`, Sprint 12 hardening.
 
-Onda 1B atual:
+Onda 1B concluída:
 
 - `utils/loadingSmartViewModel.ts` criado para isolar timeline/progresso de `components/LoadingSmart.tsx`.
 - `tests/utils/loadingSmartViewModel.test.ts` criado para cobrir regras que antes ficavam dentro do JSX.
 - `components/LoadingSmart.tsx` permanece como fachada/default export; `App.tsx` não mudou.
-- Próximo corte seguro: extrair hook de curiosidades/timers ou fechar PR se a fatia precisar ficar pequena.
+- PR `#260` mergeada; Bruno validou e liberou seguir para a próxima onda.
+
+Onda 1C atual:
+
+- `components/WarRoom.tsx` foi reduzido para `279` linhas.
+- Blocos visuais foram extraídos para `components/war-room/*`, mantendo props públicas e `services/warRoomService.ts` estável.
+- Próximo corte seguro: decidir se fecha PR curto ou extrai hook local de sessão em uma segunda fatia.
 
 ## Workspace note
 
@@ -57,6 +63,6 @@ O workspace atual tem `CODE.md` não rastreado. Preservar sem alteração salvo 
 
 ## Immediate next step
 
-1. Completar Onda 1B com hook de curiosidades/timers ou fechar esta fatia como PR curto.
-2. Antes de fechar, rodar gate ampliado conforme risco (`test`, `typecheck`, `build`, `lint` se necessário).
-3. Depois seguir para Onda 1C `WarRoom`, em PR separado.
+1. Fechar a primeira fatia da Onda 1C como PR curto se o objetivo for review menor.
+2. Se continuar na mesma onda, extrair hook local de sessão de `WarRoom` sem alterar `services/warRoomService.ts`.
+3. Antes de fechar, manter gate ampliado conforme risco (`test`, `typecheck`, `build`, `lint`).

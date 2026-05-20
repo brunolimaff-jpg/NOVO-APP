@@ -41,12 +41,11 @@ Last updated: 2026-05-19
 
 ## In progress
 
-- Sprint 11 Onda 1B na branch/workspace `codex/sprint-11-onda-0-5-mini-crm-local-fixes`.
+- Sprint 11 Onda 1C na branch/workspace `codex/sprint-11-war-room-refactor`.
 - Objetivo:
-  - reduzir `LoadingSmart` incrementalmente sem mudar a fachada pública;
-  - manter `components/LoadingSmart.tsx` como default export;
-  - isolar lógica de timeline/progresso em helper testável;
-  - deixar `WarRoom` para PR separado.
+  - reduzir `WarRoom` incrementalmente sem mudar props públicas;
+  - manter `services/warRoomService.ts` como fachada estável;
+  - extrair blocos visuais e tipos locais antes de avaliar hook de sessão.
 
 ## Blockers
 
@@ -143,9 +142,24 @@ Last updated: 2026-05-19
 - `utils/loadingSmartViewModel.ts` criado para extrair timeline/progresso de `components/LoadingSmart.tsx`.
 - `tests/utils/loadingSmartViewModel.test.ts` criado com cobertura de roadmap modular, roadmap de investigação, suavização de progresso com fila pendente, fallback incremental e normalização de labels equivalentes.
 - `components/LoadingSmart.tsx` reduzido de `766` para `672` linhas e continua como fachada/default export.
+- PR `#260` mergeada; Bruno validou e liberou seguir para a próxima onda.
 - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`18` testes).
 - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx` green (`13` testes) após ajuste de nome de teste.
 - `npm run typecheck` green.
+
+### Sprint 11 Onda 1C
+
+- Branch `codex/sprint-11-war-room-refactor` criada a partir de `origin/main@cb52fc1`.
+- `components/WarRoom.tsx` reduzido de `552` para `279` linhas.
+- Extraídos contratos/config/tema e blocos visuais para `components/war-room/*`: `WarRoomSidebar`, `WarRoomHeader`, `WarRoomEmptyState`, `WarRoomComposer`, `WarRoomMessages`.
+- Props públicas preservadas: `isOpen`, `onClose`, `isDarkMode`, `defaultCompetitorTarget`.
+- `services/warRoomService.ts` não foi alterado.
+- `npm exec vitest run tests/components/WarRoom.test.tsx` green (`6` testes).
+- `npm run typecheck` green.
+- `npm run build` green, com warnings aceitos de chunking.
+- `npm run lint -- --quiet` green.
+- `npm run test` green (`116` arquivos, `826` testes).
+- `npm run analyze:circular` green, sem ciclos.
 
 ## Important refs
 
@@ -157,6 +171,5 @@ Last updated: 2026-05-19
 
 ## Next checkpoint
 
-- Completar Onda 1B com extração do hook de curiosidades/timers ou fechar a fatia atual como PR curto.
-- Depois seguir para Onda 1C `WarRoom`, em PR separado.
+- Fechar a primeira fatia da Onda 1C como PR curto ou continuar com extração de hook local de sessão de `WarRoom`.
 - Não reintroduzir Mini CRM/`CRMDetail`.
