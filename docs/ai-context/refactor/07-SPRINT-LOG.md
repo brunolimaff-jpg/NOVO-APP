@@ -721,3 +721,55 @@
   - fechar PR curto da Onda 1A;
   - iniciar Onda 1B em `LoadingSmart`;
   - depois Onda 1C em `WarRoom`, em PR separado.
+
+## 2026-05-20 - Sprint 12 hardening final
+
+- Fase: execution
+- Sprint: 12 (`done`)
+- Objetivo: fechar warnings operacionais, guardrails e golden test baseline da Fase 2.
+- Decisões:
+  - OI-003 resolvido removendo dynamic import de `utils/idbStorage.ts` em `utils/sessionExport.ts`.
+  - OI-004 resolvido corrigindo mock de `ConfirmPopover` em `tests/components/SessionsSidebar.test.tsx`.
+  - OI-005 resolvido ajustando `eslint.config.js` e removendo warnings em runtime/API/componentes.
+  - OI-057 resolvido documentando protocolo PWA/chunking em `docs/ai-context/refactor/05-VALIDATION.md`.
+  - OI-062 resolvido com golden baseline determinístico em `tests/prompts/megaPrompts.test.ts`.
+  - LoadingSmart progress bar corrigido: `utils/loadingSmartViewModel.ts` calcula progresso pelo maior valor entre etapas visualmente reveladas e etapas reais concluídas.
+- PRs:
+  - `#262` mergeada em `5a3309d` — OI-004/003/057/062.
+  - `#263` mergeada em `958e731` — OI-005 lint warnings.
+  - `#264` mergeada em `0694997` — LoadingSmart progress bar fix.
+- Checks registrados:
+  - `npm run typecheck` green.
+  - `npm run lint --quiet` green.
+  - `npm run test` green (`117` arquivos, `834` testes).
+  - `npm run build` green (warning geral de chunks grandes aceito).
+  - `npm run analyze:circular` green, sem ciclos.
+  - Validação manual em Vercel aceita pelo owner em `2026-05-20`.
+- Riscos residuais:
+  - warning geral de build por chunks grandes segue como backlog aceito.
+  - `VITE_PINECONE_*` permanece por decisão operacional em app interno/fechado.
+  - `mcp-server/` permanece fora do escopo até repriorização.
+- Próximo passo:
+  - declarar Fase 2 concluída.
+  - quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
+
+## 2026-05-20 - Fechamento da Fase 2 (Manutenibilidade)
+
+- Fase: closeout
+- Objetivo: declarar a Fase 2 como concluída após validação manual e gates verdes.
+- Decisões:
+  - Fase 2 (Sprints 9–12) declarada CONCLUÍDA em `main@0694997`.
+  - Validação manual em Vercel aceita pelo owner.
+  - Todas as OIs operacionais da Fase 2 fechadas (OI-003/004/005/057/062).
+  - Golden test baseline para prompts registrado para suporte à Fase 3.
+- Métricas de sucesso atingidas:
+  - `App.tsx`: 772 → 622 linhas.
+  - Componentes > 500 linhas: 3 → 0 (LoadingSmart 672, WarRoom 283).
+  - Radar boundary: 0% → 100%.
+  - Boundary leak dossier→chat: 4 → 0.
+  - Warnings operacionais: 3 → 0.
+  - Circulares: zero.
+  - Lint: `0` erros, `0` warnings.
+- Próximo passo:
+  - aguardar demanda para planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
+  - repriorizar itens deferred: `mcp-server/`, design system, observability.

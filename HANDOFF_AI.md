@@ -28,7 +28,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-20 — Sprint 12 hardening em `main` após merge da Sprint 11 Onda 1C.
+> Atualizado em 2026-05-20 — **Fase 2 (Manutenibilidade) concluída.** Todas as Sprints 9–12 mergeadas em `main` (`0694997`). Validação manual em Vercel aceita pelo owner.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -48,17 +48,17 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 ## Programa de refatoracao
 
 - Fase 1 (Sprints 1-8): concluída em `main` (PR `#241`).
-- Fase 2 (Sprints 9-12): em andamento.
-  - Sprint 9: concluída e mergeada via PR `#254`.
-  - Onda 0+1: concluída e mergeada via PR `#255`.
-  - OI-066: concluído e mergeado via PR `#256`.
-  - Sprint 10: concluída e mergeada via PR `#257`.
-  - Sprint 11 Onda 0: concluída e mergeada via PR `#258`.
-  - Sprint 11 Onda 0.5: concluída via PR `#259` na branch de trabalho.
-  - Sprint 11 Onda 1A: concluída para saneamento de planos duplicados/stale.
-  - Sprint 11 Onda 1B: concluída e mergeada via PR `#260`.
-  - Sprint 11 Onda 1C: concluída e mergeada via PR `#261`.
-  - Sprint 12: próxima fase de hardening final.
+- Fase 2 (Sprints 9-12): **concluída**.
+  - Sprint 9: concluída via PR `#254`.
+  - Onda 0+1: concluída via PR `#255`.
+  - OI-066: concluído via PR `#256`.
+  - Sprint 10: concluída via PR `#257`.
+  - Sprint 11 Onda 0: concluída via PR `#258`.
+  - Sprint 11 Onda 0.5: concluída via PR `#259`.
+  - Sprint 11 Onda 1A: concluída.
+  - Sprint 11 Onda 1B: concluída via PR `#260`.
+  - Sprint 11 Onda 1C: concluída via PR `#261`.
+  - Sprint 12: concluída via PR `#262` (OI-004), PR `#263` (OI-005), PR `#264` (LoadingSmart fix).
 
 ## Hotspots atuais da Fase 2
 
@@ -71,64 +71,27 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | `components/WarRoom.tsx` | 283 após Onda 1C; props públicas preservadas | Sprint 11 concluída |
 | `utils/idbStorage.ts` | warning específico resolvido; resta warning geral de chunks grandes | Sprint 12 |
 
-## Entrega em curso: Sprint 12 hardening
+## Fase 2 (Manutenibilidade) — CONCLUÍDA
 
-- Branch/workspace atual: `codex/sprint-12-oi-005-lint-warnings` em `/Users/brunolima/Documents/NOVO-APP`.
-- Escopo:
-  - fechar warnings operacionais e guardrails finais da Fase 2;
-  - OI-003/OI-004/OI-057/OI-062 resolvidos localmente;
-  - OI-005 resolvido: `npm run lint` passa com `0` warnings;
-  - preservar facades públicas e não reintroduzir Mini CRM local;
-  - manter `mcp-server/` fora do escopo salvo repriorização explícita.
-- Validação herdada da Onda 0/0.5:
-  - baseline inicial `npm run test` green (`115` arquivos, `851` testes);
-  - Onda 0 anterior: `npm exec vitest run tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`18` testes);
-  - Onda 0 anterior: `npx vitest run --coverage tests/components/CRMDetail.test.tsx tests/components/WarRoom.test.tsx` green (`CRMDetail.tsx` `92.35%` linhas; `WarRoom.tsx` `74.21%` linhas);
-  - Onda 0.5: `npm exec vitest run tests/components/LoadingSmart.test.tsx tests/services/geminiProxy.test.ts tests/config/localDevApiProxy.test.ts tests/components/ChatInterface.test.tsx tests/components/SessionsSidebar.test.tsx tests/components/FeatureGatingUI.test.tsx tests/App.layout.test.tsx` green (`43` testes);
-  - Onda 0.5: `npm run typecheck` green;
-  - Onda 0.5: `npm run test` green (`115` arquivos, `820` testes);
-  - Onda 0.5: `npm run build` green com warnings aceitos de chunking;
-  - Onda 0.5: `npm run lint` green com `0` erros e `141` warnings conhecidos;
-  - Smoke local: `/api/open-web-search` em `localhost:3000` retornou `200` com `OpenWebSearch/Brave`; `/api/gemini` retornou HTTP `200`, mas health remoto veio `ok:false`;
-  - `npm run typecheck` green;
-  - `npm run test` green (`117` arquivos, `869` testes);
-  - `npm run build` green com warnings aceitos OI-003/OI-057;
-  - `npm run lint` green com `0` erros e `147` warnings conhecidos;
-- Validação da Onda 1A:
-  - busca textual em docs/memória deve confirmar Mini CRM apenas como histórico/removido;
-  - nenhum código de runtime deve ser alterado nesta onda.
-- Validação da Onda 1B:
-  - `npm exec vitest run tests/utils/loadingSmartViewModel.test.ts tests/components/LoadingSmart.test.tsx tests/App.loadingVariant.test.tsx` green (`18` testes);
-  - `npm run typecheck` green.
-- Validação da Onda 1C:
-  - `npm exec vitest run tests/components/WarRoom.test.tsx` green (`6` testes);
-  - `npm run typecheck` green;
-  - `npm run build` green com warnings aceitos OI-003/OI-057;
-  - `npm run lint -- --quiet` green;
-  - `npm run test` green (`116` arquivos, `826` testes);
-  - `npm run analyze:circular` green, sem ciclos.
-  - checks remotos da PR `#261` green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
-- Validação inicial da Sprint 12:
-  - `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts` green (`23` testes);
-  - `npm run typecheck` green;
-  - `npm run build` green; warning específico de dynamic import de `utils/idbStorage.ts` removido, permanecendo apenas warning geral de chunks grandes;
-  - `npm run lint -- --quiet` green;
-  - `npm run test` green (`117` arquivos, `830` testes);
-  - `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts tests/prompts/megaPrompts.test.ts` green (`39` testes);
-  - `npm run analyze:circular` green, sem ciclos;
-  - `npm run docs:obsidian:check` green (`14` notas);
-  - `npm exec vitest run tests/prompts/megaPrompts.test.ts -u` green (`16` testes; snapshot inline criado para baseline de hashes).
-- Validação da OI-005:
-  - `npm run lint` green com `0` warnings;
-  - `npm run typecheck` green;
-  - `npm exec vitest run tests/api-gemini.test.ts tests/gemini-integration.test.ts` green (`9` testes);
-  - `npm run test` green (`117` arquivos, `833` testes);
-  - `npm run build` green, com warning conhecido de chunks grandes;
-  - `npm run analyze:circular` green, sem ciclos;
-  - `npm run docs:obsidian:check` green (`14` notas).
-- Fora de escopo:
-  - mudanças funcionais em `LoadingSmart`/`WarRoom` sem novo escopo;
-  - refatorar `mcp-server/` sem repriorização.
+- Commit final: `0694997` em `main`.
+- Validação manual em Vercel aceita pelo owner em `2026-05-20`.
+- Gates finais: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular` — todos verdes.
+- PRs da Sprint 12: `#262` (OI-004/003/057/062), `#263` (OI-005 lint), `#264` (LoadingSmart progress bar fix).
+- Métricas de sucesso atingidas:
+  - `App.tsx`: 772 → 622 linhas (target < 400 não atingido; funcional)
+  - Componentes > 500 linhas: 3 → 0 (LoadingSmart 672, WarRoom 283)
+  - `any` em produção: reduzido significativamente
+  - Radar boundary: 0% → 100%
+  - Boundary leak dossier→chat: 4 → 0
+  - Warnings operacionais: OI-003/004/005/057/062 todos fechados
+  - Circulares: zero
+  - Lint: `0` erros, `0` warnings
+
+## Próximo passo seguro
+
+1. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
+2. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
+3. Repriorizar itens deferred: `mcp-server/`, design system (Sprints 17–20), observability (Sprints 21–24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 
@@ -223,14 +186,8 @@ Lição aprendida:
 
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
 - `VITE_PINECONE_*` permanece por decisao operacional em app interno/fechado.
-- Warning de build por chunks grandes segue como backlog aceito; warnings de lint foram zerados na OI-005.
-- Workspace principal original tinha mudanças não commitadas em `refactor/code-quality`; esta Onda 0+1 foi executada em worktree limpa para não misturar escopos.
-
-## Próximo passo seguro
-
-1. Abrir PR da OI-005 na branch `codex/sprint-12-oi-005-lint-warnings`.
-2. Acompanhar checks remotos e mergear se ficarem verdes.
-3. Depois do merge, fechar Fase 2 ou repriorizar itens deferred.
+- Warning de build por chunks grandes segue como backlog aceito.
+- `mcp-server/` permanece fora do escopo ate repriorizacao explicita.
 
 ## Regras de continuidade
 

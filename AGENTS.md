@@ -16,6 +16,18 @@ Senior Scout 360 is a React 19 + TypeScript + Vite web app for commercial intell
 
 Repo-local memory is the canonical cross-session handoff for agents in this project.
 
+## Central Obsidian library
+
+This project is indexed by Bruno's central Obsidian library:
+
+`~/Documents/Senior IA/docs/obsidian`
+
+- Project card: `docs/PROJECT-CARD.md`
+- Central project note: `~/Documents/Senior IA/docs/obsidian/Projects/NOVO-APP.md`
+- Ingestion contract: `~/Documents/Senior IA/docs/obsidian/Library/contrato-ingestao-multi-ia.md`
+
+Codex, Claude Code, DeepSeek, Z.ai, and other agents must keep this repo's canonical sources current. The central library may index this repo, but it does not override `HANDOFF_AI.md`, `.agents/memory/*`, or refactor docs.
+
 - At the start of every session, read `.agents/memory/activeContext.md` and `.agents/memory/progress.md` before diagnosing, planning, or editing.
 - Treat `.agents/memory/decisions.md` as durable project context for decisions that should survive beyond the current sprint.
 - Use `HANDOFF_AI.md` as the canonical quick-entry handoff, then follow any source-of-truth docs it references.

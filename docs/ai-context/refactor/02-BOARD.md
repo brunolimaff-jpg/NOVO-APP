@@ -4,26 +4,25 @@
 
 | Campo | Valor |
 |---|---|
-| Source of truth commit | `origin/main` -> `5a3309d` |
-| Working branch | `codex/sprint-12-oi-005-lint-warnings` |
+| Source of truth commit | `origin/main` -> `0694997` |
+| Working branch | `main` |
 | Last updated | `2026-05-20` |
-| Current phase | `sprint_12_hardening` |
-| Current sprint | `Sprint 12` |
-| Overall status | `sprint_12_oi005_lint_resolved_local` |
-| Current baseline | `origin/main@5a3309d`; branch `codex/sprint-12-oi-005-lint-warnings` |
+| Current phase | `fase2_concluida` |
+| Current sprint | `—` |
+| Overall status | `fase_2_done` |
+| Current baseline | `origin/main@0694997` |
 
 ## Current Focus
 
-- Sprint 12 hardening final da Fase 2 em fechamento.
-- OI-003, OI-004, OI-005, OI-057 e OI-062 resolvidos localmente.
-- Preservar facades públicas e não reintroduzir Mini CRM local.
-- Manter `mcp-server/` fora do escopo até repriorização explícita.
+- **Fase 2 (Manutenibilidade) concluída.**
+- Todas as Sprints 9–12 mergeadas em `main`.
+- Gates finais: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular` — todos verdes.
+- Validação manual em Vercel aceita pelo owner em `2026-05-20`.
 
 ## Next Up
 
-1. Abrir PR da OI-005 lint warnings.
-2. Acompanhar checks remotos e mergear se ficarem verdes.
-3. Fechar Fase 2 ou repriorizar itens deferred.
+1. Planejar Fase 3 (Sprints 13–16: Modularização de Prompts) quando houver demanda.
+2. Repriorizar itens deferred (`mcp-server/`, design system, observability).
 
 ## Blocked
 
@@ -118,4 +117,4 @@
 | 11 Onda 1A | Saneamento documental | done | canônicos sem duplicação de próximos passos; `CRMDetail` aparece só como histórico/removido | `start-of-sprint-11` | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*`, `docs/obsidian/*` |
 | 11 Onda 1B | `LoadingSmart` | done | PR `#260` mergeada; fachada preservada e helper de timeline/progresso extraído com testes | `post-onda-1a` | `components/LoadingSmart.tsx`, `utils/loadingSmartViewModel.ts`, `tests/utils/loadingSmartViewModel.test.ts` |
 | 11 Onda 1C | `WarRoom` | done | PR `#261` mergeada; props públicas preservadas e UI estática extraída | `post-onda-1b` | `components/WarRoom.tsx`, `components/war-room/*` |
-| 12 | Hardening final | in_progress | warnings operacionais e guardrails fechados | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |
+| 12 | Hardening final | done | PR `#262` OI-004 + PR `#263` OI-005 + PR `#264` LoadingSmart fix | `start-of-sprint-12` | `tests/*`, `utils/idbStorage.ts`, docs de closeout |
