@@ -28,12 +28,18 @@ Read order:
 
 ## Current task context
 
-Nenhuma sprint ativa. Aguardando definição da Fase 3.
+**UX Redesign Phase 1 em progresso.**
+- PR `#266` aberta em `ux/redesign-phase1-v1`.
+- Branch: `ux/redesign-phase1-v1`, commit `d84b643`.
+- AdminDash removido, breadcrumb, sidebar melhorada, indicadores de status no MessageRow, feedback CNPJ estilizado.
+- Gates verdes: `test` (116 arq, 824 testes), `typecheck`, `lint`.
+- Aguardando validação do owner no preview Vercel antes do merge.
 
 Próximos passos possíveis:
+- Mergear PR `#266` após validação.
 - Sprints 13–16: Modularização de Prompts (pré-requisito: golden test baseline já criado).
-- Sprints 17–20: Design System.
 - Sprints 21–24: Observability & Monitoring.
+- Design System (17-20) descartado: app interno, custo/benefício não justifica.
 - Repriorizar `mcp-server/` e itens deferred.
 
 ## Workspace note
