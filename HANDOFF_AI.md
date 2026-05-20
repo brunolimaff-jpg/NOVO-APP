@@ -69,14 +69,15 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto; não refatorar nem reintroduzir | Sprint 11 Onda 0.5 |
 | `components/LoadingSmart.tsx` | 672 após Onda 1B; fachada preservada | Sprint 12 avalia se precisa nova fatia |
 | `components/WarRoom.tsx` | 283 após Onda 1C; props públicas preservadas | Sprint 11 concluída |
-| `utils/idbStorage.ts` | warning de chunking/build | Sprint 12 |
+| `utils/idbStorage.ts` | warning específico resolvido; resta warning geral de chunks grandes | Sprint 12 |
 
 ## Entrega em curso: Sprint 12 hardening
 
-- Branch/workspace atual: `main` em `/Users/brunolima/Documents/NOVO-APP`.
+- Branch/workspace atual: `codex/sprint-12-hardening-oi-004` em `/Users/brunolima/Documents/NOVO-APP`.
 - Escopo:
   - fechar warnings operacionais e guardrails finais da Fase 2;
-  - priorizar OI-003/OI-004/OI-005/OI-062;
+  - OI-003/OI-004/OI-057/OI-062 resolvidos localmente;
+  - OI-005 mensurado como `140` warnings e mantido como cleanup dedicado;
   - preservar facades públicas e não reintroduzir Mini CRM local;
   - manter `mcp-server/` fora do escopo salvo repriorização explícita.
 - Validação herdada da Onda 0/0.5:
@@ -107,6 +108,16 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
   - `npm run test` green (`116` arquivos, `826` testes);
   - `npm run analyze:circular` green, sem ciclos.
   - checks remotos da PR `#261` green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
+- Validação inicial da Sprint 12:
+  - `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts` green (`23` testes);
+  - `npm run typecheck` green;
+  - `npm run build` green; warning específico de dynamic import de `utils/idbStorage.ts` removido, permanecendo apenas warning geral de chunks grandes;
+  - `npm run lint -- --quiet` green;
+  - `npm run test` green (`117` arquivos, `830` testes);
+  - `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts tests/prompts/megaPrompts.test.ts` green (`39` testes);
+  - `npm run analyze:circular` green, sem ciclos;
+  - `npm run docs:obsidian:check` green (`14` notas);
+  - `npm exec vitest run tests/prompts/megaPrompts.test.ts -u` green (`16` testes; snapshot inline criado para baseline de hashes).
 - Fora de escopo:
   - mudanças funcionais em `LoadingSmart`/`WarRoom` sem novo escopo;
   - remover `card: any` fora de uma passada dedicada;
@@ -210,8 +221,8 @@ Lição aprendida:
 
 ## Próximo passo seguro
 
-1. Abrir branch curta para Sprint 12 hardening.
-2. Priorizar OI-003/OI-004/OI-005/OI-062 em PRs pequenos.
+1. Abrir PR da Sprint 12 hardening na branch `codex/sprint-12-hardening-oi-004`.
+2. Manter OI-005 como próxima passada dedicada se a prioridade for zerar warnings.
 3. Manter gates completos antes de encerrar a Fase 2.
 
 ## Regras de continuidade

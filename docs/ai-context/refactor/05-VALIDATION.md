@@ -18,6 +18,17 @@ Se qualquer um destes comandos falhar, o sprint nao avanca:
 5. Registrar resultado no `02-BOARD.md`
 6. Se houver warning novo, abrir item em `03-OPEN-ITEMS.md`
 
+## Protocolo PWA/Chunking
+
+Use este protocolo quando uma PR mudar hashes de chunks ou tocar `vite.config.ts`, PWA, service worker, `utils/sessionExport.ts` ou imports que antes geravam warning de chunking.
+
+1. Rodar `npm run build` e confirmar se há warnings novos.
+2. Confirmar que o warning específico de dynamic import de `utils/idbStorage.ts` não voltou.
+3. Confirmar que `dist/sw.js` e `dist/manifest.webmanifest` são gerados no build.
+4. Em preview Vercel, validar carregamento inicial e reload forçado em uma aba já aberta.
+5. Para smoke automatizado protegido, usar somente o header `x-vercel-protection-bypass`.
+6. Se houver erro de asset/chunk em preview, bloquear merge e revisar `manualChunks` antes de tentar novo deploy.
+
 ## Checklist Manual por Sprint
 
 1. Abrir o app
@@ -54,4 +65,4 @@ Warnings aceitos no baseline:
 
 - `fetch('/version.json')` em testes de update notification
 - warnings de `act(...)` nos testes de `App`
-- warning de build sobre `utils/idbStorage.ts`
+- warning geral de chunks grandes; o warning específico de dynamic import de `utils/idbStorage.ts` foi resolvido na Sprint 12

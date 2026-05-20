@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import megaPrompts, {
   ALL_SPECIALIST_PROMPTS,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
@@ -10,8 +11,16 @@ import megaPrompts, {
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
+  buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,
 } from '../../prompts/megaPrompts';
+
+const digestPrompt = (label: string, prompt: string) => ({
+  label,
+  length: prompt.length,
+  lines: prompt.split('\n').length,
+  sha256: createHash('sha256').update(prompt).digest('hex'),
+});
 
 describe('PORTA mega prompts', () => {
   it('keeps each deep dive framed as a specialist module instead of a full dossier rewrite', () => {
@@ -144,6 +153,125 @@ describe('PORTA mega prompts', () => {
     expect(prompt).toContain(PROMPT_RAIO_X_OPERACIONAL_ATAQUE);
     expect(prompt).toContain(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE);
     expect(prompt).not.toContain(PROMPT_ORCAMENTO_JANELA_GOD_MODE);
+  });
+
+  it('keeps deterministic golden baselines for LLM prompt inputs before markdown migration', () => {
+    const fullInvestigationPayload = {
+      companyName: 'Fazenda Modelo',
+      cnpj: '12.345.678/0001-99',
+      city: 'Cuiaba',
+      state: 'MT',
+      aliases: ['Grupo Modelo', 'Modelo Agro'],
+      segmentHint: 'PRD',
+    };
+
+    expect([
+      digestPrompt('shared-foundation', SHARED_FOUNDATION_BLOCK),
+      ...ALL_SPECIALIST_PROMPTS.map((prompt, index) => digestPrompt(`specialist-${index + 1}`, prompt)),
+      digestPrompt(
+        'legacy-compatible-hidden-prompt',
+        buildLegacyCompatibleHiddenPrompt({
+          companyName: fullInvestigationPayload.companyName,
+          cnpj: fullInvestigationPayload.cnpj,
+          city: fullInvestigationPayload.city,
+          state: fullInvestigationPayload.state,
+        }),
+      ),
+      digestPrompt(
+        'executive-full-hidden-prompt',
+        buildInvestigationHiddenPrompt(fullInvestigationPayload, {
+          includeBudget: true,
+          mode: 'executive',
+          strictAudit: true,
+          enableDiscrepancyHunter: true,
+          enableCostOfDelay: true,
+        }),
+      ),
+      digestPrompt(
+        'war-mode-minimal-hidden-prompt',
+        buildInvestigationHiddenPrompt({
+          companyName: 'Cooperativa Horizonte',
+          cnpj: undefined,
+          city: '',
+          state: 'PR',
+        }, {
+          includeBudget: false,
+          mode: 'warMode',
+          strictAudit: false,
+          enableDiscrepancyHunter: false,
+          enableCostOfDelay: false,
+        }),
+      ),
+    ]).toMatchInlineSnapshot(`
+      [
+        {
+          "label": "shared-foundation",
+          "length": 46795,
+          "lines": 1277,
+          "sha256": "2f1d0a7e030821981cb01b10e3cb343c225f44b1f5f7d57cf49e8205328c28f5",
+        },
+        {
+          "label": "specialist-1",
+          "length": 13796,
+          "lines": 315,
+          "sha256": "08e9b1275454900b728bb1ab689bad769af37b5bca153290570b314f1589334c",
+        },
+        {
+          "label": "specialist-2",
+          "length": 11319,
+          "lines": 306,
+          "sha256": "3b226f924f836dbda34ac1274a2aea7384eb66473f93422dc2a29d938753d81e",
+        },
+        {
+          "label": "specialist-3",
+          "length": 8627,
+          "lines": 246,
+          "sha256": "c29ea01d64ab09fc03bdf503d0777c329a2da2e7d8fd5d1f54e096739c480cb8",
+        },
+        {
+          "label": "specialist-4",
+          "length": 8443,
+          "lines": 250,
+          "sha256": "de656a556143312a999d2b96166195508910cd698c0057d01d36e6823695d7af",
+        },
+        {
+          "label": "specialist-5",
+          "length": 6809,
+          "lines": 208,
+          "sha256": "e2d7c2b649d95d76f665e207dbb0b274c4f901ab7dc0638831abd719b843a941",
+        },
+        {
+          "label": "specialist-6",
+          "length": 7451,
+          "lines": 202,
+          "sha256": "602458a0903944a6cd72627699ffc5c20bc8ca3f5e0ab951dc5f05c941ccf50c",
+        },
+        {
+          "label": "specialist-7",
+          "length": 7977,
+          "lines": 233,
+          "sha256": "d2928cf952f3e3c2ce496088a5e25dbff3efa169b05b1cd21ef430aaec7da581",
+        },
+        {
+          "label": "legacy-compatible-hidden-prompt",
+          "length": 103598,
+          "lines": 2830,
+          "sha256": "43e647c0d1636145fc5248df0cb7316df8ac925c51a519293032c50f59635fe3",
+        },
+        {
+          "label": "executive-full-hidden-prompt",
+          "length": 112046,
+          "lines": 3085,
+          "sha256": "2162c905facfc9ce6be428e282aec290d957406d435de30aefc00e4e30640758",
+        },
+        {
+          "label": "war-mode-minimal-hidden-prompt",
+          "length": 104075,
+          "lines": 2850,
+          "sha256": "ff2176c2224b531b40888c0f83e9119ae74c59b338b94b01596a77537054550e",
+        },
+      ]
+    `);
   });
 
   it('keeps the default export aligned with the stable named facade surface', () => {

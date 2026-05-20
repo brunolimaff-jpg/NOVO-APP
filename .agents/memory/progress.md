@@ -41,10 +41,11 @@ Last updated: 2026-05-20
 
 ## In progress
 
-- Sprint 12 hardening final da Fase 2 em `main`.
+- Sprint 12 hardening final da Fase 2 em `codex/sprint-12-hardening-oi-004`.
 - Objetivo:
   - fechar warnings operacionais e guardrails restantes;
-  - priorizar OI-003/OI-004/OI-005/OI-062;
+  - OI-003/OI-004/OI-057/OI-062 fechados localmente;
+  - manter OI-005 como cleanup dedicado de lint warnings;
   - preservar facades públicas e evitar reintroduzir Mini CRM local.
 
 ## Blockers
@@ -128,7 +129,7 @@ Last updated: 2026-05-20
 - `npm run lint` green com `0` erros e `141` warnings conhecidos.
 - `npm run analyze:circular` green, sem ciclos.
 - Smoke local: `POST /api/open-web-search` em `localhost:3000` retornou `200` com `OpenWebSearch/Brave`; `POST /api/gemini` retornou HTTP `200`, mas health remoto veio `ok:false` e deve ser acompanhado separadamente se persistir.
-- Warning conhecido de `SessionsSidebar.test.tsx` sobre render-prop de `ConfirmPopover` permanece como OI-004.
+- Warning conhecido de `SessionsSidebar.test.tsx` sobre render-prop de `ConfirmPopover` permaneceu como OI-004 até ser resolvido na Sprint 12.
 
 ### Sprint 11 Onda 1A
 
@@ -166,6 +167,28 @@ Last updated: 2026-05-20
 - `npm run analyze:circular` green, sem ciclos.
 - Checks remotos da PR `#261` green: Build, Dossier Golden, GitGuardian, Smoke Preview, Tests, Typecheck, Vercel, Vercel Preview Comments.
 
+### Sprint 12 hardening
+
+- Branch `codex/sprint-12-hardening-oi-004` criada a partir de `origin/main@3e4e155`.
+- OI-004 resolvido:
+  - `tests/components/SessionsSidebar.test.tsx` mocka `ConfirmPopover` com contrato render-prop.
+  - teste de exclusão cobre `onDeleteSession`.
+- OI-003 resolvido:
+  - `utils/sessionExport.ts` usa import estático de `storageGet`/`storageSet`.
+  - leitura do storage v2 parseia JSON antes de validar array de sessões.
+  - `tests/utils/sessionExport.test.ts` cobre export/import no storage v2.
+- `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts` green (`23` testes).
+- `npm run typecheck` green.
+- `npm run build` green; warning específico de dynamic import de `utils/idbStorage.ts` removido. Permanece warning geral de chunks grandes.
+- `npm run lint -- --quiet` green.
+- `npm run test` green (`117` arquivos, `830` testes).
+- `npm exec vitest run tests/components/SessionsSidebar.test.tsx tests/utils/sessionExport.test.ts tests/utils/idbStorage.test.ts tests/prompts/megaPrompts.test.ts` green (`39` testes).
+- `npm run analyze:circular` green, sem ciclos.
+- `npm run docs:obsidian:check` green (`14` notas).
+- OI-057 resolvido com protocolo PWA/chunking em `docs/ai-context/refactor/05-VALIDATION.md`.
+- OI-062 resolvido com golden baseline determinístico em `tests/prompts/megaPrompts.test.ts`.
+- OI-005 medido: `npm run lint` passa com `140` warnings; mantido como cleanup dedicado para evitar sweep global nesta PR.
+
 ## Important refs
 
 - `HANDOFF_AI.md`
@@ -176,5 +199,5 @@ Last updated: 2026-05-20
 
 ## Next checkpoint
 
-- Iniciar Sprint 12 hardening em branch curta, priorizando OI-003/OI-004/OI-005/OI-062.
+- Abrir PR da Sprint 12 hardening e deixar OI-005 como próxima passada dedicada se necessário.
 - Não reintroduzir Mini CRM/`CRMDetail`.

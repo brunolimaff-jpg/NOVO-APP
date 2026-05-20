@@ -4,9 +4,9 @@
 
 | ID | Severidade | Status | Item | Impacto | Fechamento |
 |---|---|---|---|---|---|
-| OI-003 | low | open | warning de build sobre `utils/idbStorage.ts` | ruido de bundling | revisar import dinamico/estatico quando tocar `sessionExport` |
-| OI-004 | medium | open | `tests/components/SessionsSidebar.test.tsx` emite `Functions are not valid as a React child` | ruido no baseline de testes | ajustar mock render-prop de `ConfirmPopover` no teste |
-| OI-005 | medium | open | `npm run lint` passa, mas com backlog de warnings | reduz sinal de review | tratar warning cleanup em passada dedicada |
+| OI-003 | low | resolved | warning de build sobre `utils/idbStorage.ts` | ruido de bundling | resolvido na Sprint 12: `sessionExport` usa import estático de `idbStorage` e teste cobre export/import no storage v2 |
+| OI-004 | medium | resolved | `tests/components/SessionsSidebar.test.tsx` emite `Functions are not valid as a React child` | ruido no baseline de testes | resolvido na Sprint 12: mock de `ConfirmPopover` segue contrato render-prop |
+| OI-005 | medium | accepted | `npm run lint` passa, mas com backlog de warnings | reduz sinal de review | Sprint 12 mediu `140` warnings; manter como cleanup dedicado para não misturar sweep global nesta PR |
 
 ## Deferred Decisions
 
@@ -41,10 +41,10 @@
 | ID | Severidade | Status | Item | Evidência | Sprint |
 |---|---|---|---|---|---|
 | OI-055 | low | accepted | `VITE_PINECONE_API_KEY` em `index.tsx` permanece no bundle Vite por decisao operacional | app interno/fechado; risco aceito pelo owner em 2026-05-16 | Reavaliar se o app virar externo |
-| OI-057 | medium | open | OI-003 (idbStorage chunking) tem risco de PWA — mudança de chunk invalida SW em produção | `vite.config.ts`: `skipWaiting: true`, `cleanupOutdatedCaches: true` | Sprint 12 (protocolo de deploy) |
+| OI-057 | medium | resolved | mudanças de chunking têm risco de PWA — mudança de chunk invalida SW em produção | `vite.config.ts`: `skipWaiting: true`, `cleanupOutdatedCaches: true`; OI-003 foi resolvido na Sprint 12 | protocolo registrado em `docs/ai-context/refactor/05-VALIDATION.md` |
 | OI-059 | medium | open | Cobertura de testes concentrada nas áreas estabilizadas (Fase 1); `WarRoom` ainda precisa ampliar casos de borda | `CRMDetail` saiu do escopo por remoção do Mini CRM; `WarRoom` mantém testes da Onda 0, mas ainda falta clipboard/retry real/onClose abort/mobile | Sprint 11 |
 | OI-060 | low | open | Branches paralelas ativas durante ~9 semanas de Fase 2 sem política de integração | 5 branches ativas além da principal | Política documentada em `PLANO_COMPLETO_SPRINTS.md` |
-| OI-062 | medium | open | Golden tests de prompts precisam ser criados *antes* da Sprint 13 (migração de strings → `.md`) | Testes em `tests/prompts/` existem mas não têm baseline de output do LLM | Sprint 12 (Onda 4) |
+| OI-062 | medium | resolved | Golden tests de prompts precisam ser criados *antes* da Sprint 13 (migração de strings → `.md`) | Testes em `tests/prompts/` agora têm baseline determinístico de inputs do LLM | resolvido na Sprint 12 com hashes/linhas/tamanhos em `tests/prompts/megaPrompts.test.ts` |
 
 ## Onda 0+1 - Cleanup pós-Sprint 9
 
