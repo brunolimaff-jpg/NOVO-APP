@@ -49,6 +49,25 @@ function extractHttpStatus(error: unknown): number {
   return 500;
 }
 
+function extractGeminiText(response: unknown): string {
+  if (!response || typeof response !== 'object') return '';
+
+  const directText = (response as { text?: unknown }).text;
+  if (typeof directText === 'string' && directText.trim()) return directText;
+
+  const candidates = (response as { candidates?: unknown }).candidates;
+  if (!Array.isArray(candidates)) return '';
+
+  return candidates
+    .flatMap((candidate) => {
+      const parts = (candidate as { content?: { parts?: unknown } })?.content?.parts;
+      return Array.isArray(parts) ? parts : [];
+    })
+    .map((part) => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
+    .filter(Boolean)
+    .join('');
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -86,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       return res.status(200).json({
-        text: response.text || '',
+        text: extractGeminiText(response),
         candidates: response.candidates || [],
       });
     } catch (error: unknown) {

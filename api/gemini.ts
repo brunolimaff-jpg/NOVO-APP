@@ -96,6 +96,25 @@ function applyPromptLeakShieldLocal(text: string): {
   };
 }
 
+function extractGeminiText(response: unknown): string {
+  if (!response || typeof response !== 'object') return '';
+
+  const directText = (response as { text?: unknown }).text;
+  if (typeof directText === 'string' && directText.trim()) return directText;
+
+  const candidates = (response as { candidates?: unknown }).candidates;
+  if (!Array.isArray(candidates)) return '';
+
+  return candidates
+    .flatMap((candidate) => {
+      const parts = (candidate as { content?: { parts?: unknown } })?.content?.parts;
+      return Array.isArray(parts) ? parts : [];
+    })
+    .map((part) => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
+    .filter(Boolean)
+    .join('');
+}
+
 const getEnvVar = (name: string): string | undefined => {
   try {
     const proc = (globalThis as any).process;
@@ -190,7 +209,7 @@ async function executeGeminiAction(
         config: { temperature: 0, maxOutputTokens: 10 },
       });
 
-      const text = response.text || '';
+      const text = extractGeminiText(response);
       return res.status(200).json({ ok: /ok/i.test(text), text });
     }
 
@@ -218,7 +237,7 @@ async function executeGeminiAction(
       });
 
       return res.status(200).json({
-        text: response.text || '',
+        text: extractGeminiText(response),
         candidates: response.candidates || [],
       });
     }
@@ -351,7 +370,8 @@ async function executeGeminiAction(
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
       const groundingUsed = groundingActivated && groundingChunks.length > 0;
-      const leakShieldResult = applyPromptLeakShieldLocal(response.text || '');
+      const responseText = extractGeminiText(response);
+      const leakShieldResult = applyPromptLeakShieldLocal(responseText);
       if (leakShieldResult.blocked) {
         console.warn('[PromptLeakShield][api/gemini] resposta bloqueada', {
           action: body.action,

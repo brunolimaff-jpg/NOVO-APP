@@ -228,4 +228,81 @@ describe('api/gemini handler', () => {
       }),
     );
   });
+
+  it('extrai texto de candidates quando o SDK não preenche response.text em generateContent', async () => {
+    generateContentMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: 'OK_GEMINI_35_FLASH' }],
+            role: 'model',
+          },
+          finishReason: 'STOP',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-3.5-flash',
+        contents: 'Responda OK',
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'OK_GEMINI_35_FLASH',
+      }),
+    );
+  });
+
+  it('extrai texto de candidates quando o SDK não preenche response.text em chatSendMessage', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: 'Dossiê gerado com sucesso.' }],
+            role: 'model',
+          },
+          groundingMetadata: { groundingChunks: [] },
+          finishReason: 'STOP',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        model: 'gemini-3.5-flash',
+        message: 'analise a conta',
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Dossiê gerado com sucesso.',
+      }),
+    );
+  });
 });
