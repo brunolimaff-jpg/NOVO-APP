@@ -63,8 +63,14 @@ type StateUpdater<T> = T | ((prev: T) => T);
 const DEFAULT_SUGGESTIONS = [
   'Onde a margem começa a vazar primeiro?',
   'Qual frente já exige decisão executiva?',
-  'Que camada operacional segue invisível?',
+  'Que risco operacional segue invisível?',
   'Qual risco amadurece nos próximos 90 dias?',
+];
+const LEGACY_ACME_FALLBACK_SUGGESTIONS = [
+  'Qual gargalo em Acme Agro já está consumindo margem e segue tratado como rotina?',
+  'Que decisão crítica em Acme Agro continua travada por falta de dados confiáveis?',
+  'Onde Acme Agro ainda depende de planilhas e amplia risco operacional sem reação executiva?',
+  'Se nada mudar em Acme Agro nos próximos 90 dias, qual ruptura tende a aparecer primeiro?',
 ];
 const FIXED_TEST_TIMESTAMP = '2026-04-19T12:00:00.000Z';
 
@@ -587,7 +593,8 @@ describe('useDossierWaterfallOrchestrator', () => {
     generateContinuityQuestionMock.mockRejectedValue(new Error('invalid json'));
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
-        'Texto consolidado para Acme Agro',
+        'Texto consolidado para Acme Agro com fechamento financeiro manual, ERP sem integração confiável e vazamento de margem.',
+        'A diretoria posterga decisão por falta de dado executivo e há pressão fiscal recorrente.',
         '---',
         '[[PORTA:70:P7:O7:R5:T7:A6:PRD:NONE]]',
       ].join('\n\n'),
@@ -610,5 +617,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.suggestions).toHaveLength(4);
     expect(finalBotMessage.suggestions?.[0]).toContain('Acme Agro');
     expect(finalBotMessage.suggestions?.every(suggestion => suggestion.endsWith('?'))).toBe(true);
+    expect(finalBotMessage.suggestions).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
+    expect(finalBotMessage.suggestions?.some(suggestion =>
+      /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
+    )).toBe(true);
   });
 });

@@ -37,6 +37,15 @@ Read order:
 - Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`44` testes); `npm run typecheck` green.
 - Risco residual: historico compactado pode omitir detalhe antigo; nesse caso a IA deve perguntar ao usuario em vez de inferir.
 
+**Perguntas de acompanhamento com fallback contextual corrigidas em `codex/chat-inline-followup-refactor` (2026-05-21).**
+- `utils/continuitySuggestions.ts` centraliza normalizacao, deduplicacao e fallback contextual por sinais do dossie/resposta.
+- `features/chat/message-orchestrator.ts` e `features/dossier/waterfall-orchestrator.ts` passam o texto real da resposta/dossie para completar sugestoes.
+- Botao "Novas" usa a mensagem alvo como contexto recente e evita repetir sugestoes antigas.
+- Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
+- Risco residual: fallback ainda e heuristico quando a IA falha, mas agora fica ancorado em temas detectados e bloqueia o conjunto legado ruim.
+- Ajuste posterior na PR `#268`: sugestoes agora devem soar como pergunta de vendedor e falar de negocio; filtro bloqueia jargao tecnico como `GATec`, `CAPEX`, `ERP`, arquitetura, nativamente, modulos Senior e nome do vendedor. Validacoes: recorte de sugestoes/dossie green (`54` testes), `typecheck` green e `lint --quiet` green.
+- Normalizacao posterior na PR `#268`: sugestoes usam nome comercial curto, removendo sufixos societarios (`LTDA`, `CIA`, `ME`, `S/A`, etc.) em entradas manuais e vindas de CNPJ, sem remover termos comerciais validos. Validacoes: recorte green (`58` testes), `typecheck` green e `lint --quiet` green.
+
 **UX Redesign Phase 1 em progresso.**
 - PR `#266` aberta em `ux/redesign-phase1-v1`.
 - Branch: `ux/redesign-phase1-v1`, commit `d84b643`.

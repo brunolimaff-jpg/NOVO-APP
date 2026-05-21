@@ -328,6 +328,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         const safeSuggestions = ensureContinuitySuggestions(
           suggestions,
           normalizedCompany || hintedCompany || null,
+          { contextText: responseText },
         );
 
         if (activeGenerationRef.current[sessionId] !== botMessageId) return;

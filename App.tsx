@@ -265,7 +265,13 @@ const App: React.FC = () => {
     }));
     try {
       const newSuggestions = await generateContinuityQuestion(
-        targetSession.messages,
+        [
+          ...targetSession.messages,
+          {
+            ...targetMessage,
+            text: targetMessage.text || '',
+          },
+        ],
         companyName,
         nomeVendedor,
         {
