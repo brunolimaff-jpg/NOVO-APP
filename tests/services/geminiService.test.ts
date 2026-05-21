@@ -227,10 +227,10 @@ describe('generateContinuityQuestion', () => {
   it('retorna 4 perguntas quando a resposta já vem como JSON válido', async () => {
     proxyGenerateContentMock.mockResolvedValueOnce({
       text: JSON.stringify([
-        'Quais gargalos fiscais hoje atrasam o fechamento mensal da operação?',
-        'Onde o ERP atual falha ao consolidar custos entre unidades e safra?',
-        'Que indicador executivo segue sem dono claro quando o fechamento pressiona a diretoria?',
-        'Se nos próximos 90 dias a integração continuar falhando entre áreas, qual perda tende a aparecer primeiro?',
+        'Qual custo fiscal hoje ameaça o resultado da operação?',
+        'Onde a margem da Acme Agro mais vaza sem virar prioridade?',
+        'Quem da diretoria precisa assumir essa decisão antes da próxima expansão?',
+        'Qual investimento fica travado enquanto o impacto financeiro não aparece?',
       ]),
     });
 
@@ -257,7 +257,7 @@ describe('generateContinuityQuestion', () => {
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
     expectStrongContinuitySet(result);
-    expect(result.some(item => item.includes('decisão executiva'))).toBe(true);
+    expect(result.some(item => /decis[aã]o|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
   });
 
   it('faz retry automático quando a primeira tentativa retorna menos de 4 perguntas', async () => {
@@ -266,7 +266,7 @@ describe('generateContinuityQuestion', () => {
         text: '["Qual processo crítico fica sem visibilidade hoje?"]',
       })
       .mockResolvedValueOnce({
-        text: '["Onde o ERP atual trava o fechamento?","Qual etapa sofre mais retrabalho manual?","Que risco aumenta sem integração de dados?"]',
+        text: '["Onde a margem vaza no fechamento?","Qual etapa sofre mais retrabalho manual?","Que risco aumenta quando o número confiável chega tarde?"]',
       });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
@@ -297,7 +297,7 @@ describe('generateContinuityQuestion', () => {
     );
 
     expectStrongContinuitySet(result);
-    expect(result.some(item => /fiscal|compliance|integra[cç][aã]o|fechamento/i.test(item))).toBe(true);
+    expect(result.some(item => /fiscal|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
     expect(result).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
   });
 
@@ -322,7 +322,45 @@ describe('generateContinuityQuestion', () => {
 
     expectStrongContinuitySet(result);
     expect(result).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
-    expect(result.some(item => /planilha|ERP|integra[cç][aã]o|fiscal|margem|comit[eê]/i.test(item))).toBe(true);
+    expect(result.some(item => /fiscal|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
+  });
+
+  it('rejeita perguntas técnicas da IA e troca por perguntas comerciais', async () => {
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Pela robustez tecnológica da Acme Agro, qual perda financeira estimada por não integrar logística nativamente ao GATec?',
+          'O CAPEX da Acme Agro indica novos ativos físicos; como o Bruno garante gestão de pátio sem virar gargalo para os sistemas?',
+          'Onde o ERP de Acme Agro deixa integração quebrada virar custo invisível no fechamento?',
+          'Que arquitetura atual impede a visibilidade de ponta a ponta?',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          'Qual decisão de investimento em Acme Agro depende de provar perda de margem?',
+          'Quem precisa bancar a mudança antes que a expansão pressione a operação?',
+          'Que custo operacional já incomoda a diretoria e ainda não virou prioridade?',
+          'Onde o crescimento da conta cria urgência comercial para rever o processo?',
+        ]),
+      });
+
+    const result = await generateContinuityQuestion(
+      [
+        {
+          id: '1',
+          sender: Sender.Bot,
+          text: 'A conta cresce, tem logística manual, pressão de margem e decisão de investimento em aberto.',
+          timestamp: new Date(),
+        },
+      ],
+      'Acme Agro',
+      'Bruno',
+    );
+
+    expectStrongContinuitySet(result);
+    expect(result.join(' ')).not.toMatch(/GATec|CAPEX|ERP|Bruno|arquitetura|nativamente|visibilidade de ponta/i);
+    expect(result.some(item => /investimento|margem|diretoria|crescimento|operação/i.test(item))).toBe(true);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -559,14 +597,14 @@ describe('generateContinuityQuestion novelty mode', () => {
   it('evita repetir sugestoes atuais e busca ineditismo real', async () => {
     const avoidSuggestions = [
       'Qual processo critico fica sem visibilidade hoje?',
-      'Onde o ERP atual trava o fechamento mensal?',
+      'Onde a margem vaza no fechamento mensal?',
     ];
 
     proxyGenerateContentMock
       .mockResolvedValueOnce({
         text: JSON.stringify([
           'Qual processo critico fica sem visibilidade hoje?',
-          'Onde o ERP atual trava o fechamento mensal?',
+          'Onde a margem vaza no fechamento mensal?',
           'Que indicador executivo permanece sem rastreabilidade entre filiais?',
           'Qual risco operacional aumenta quando o time depende de planilhas paralelas?',
         ]),
@@ -587,8 +625,8 @@ describe('generateContinuityQuestion novelty mode', () => {
 
     expectStrongContinuitySet(result);
     expect(result.some(item => /processo critico/i.test(item))).toBe(false);
-    expect(result.some(item => /ERP atual trava/i.test(item))).toBe(false);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+    expect(result.some(item => /margem vaza no fechamento/i.test(item))).toBe(false);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
   });
 
   it('completa 4 sugestões com fallback premium quando nao encontra 4 ineditas', async () => {
@@ -596,12 +634,12 @@ describe('generateContinuityQuestion novelty mode', () => {
       .mockResolvedValueOnce({
         text: JSON.stringify([
           'Qual processo critico fica sem visibilidade hoje?',
-          'Onde o ERP atual trava o fechamento mensal?',
+          'Onde a margem vaza no fechamento mensal?',
         ]),
       })
       .mockResolvedValueOnce({
         text: JSON.stringify([
-          'Onde o ERP atual trava o fechamento mensal?',
+          'Onde a margem vaza no fechamento mensal?',
         ]),
       })
       .mockResolvedValueOnce({
@@ -614,7 +652,7 @@ describe('generateContinuityQuestion novelty mode', () => {
       mode: 'regenerate',
       avoidSuggestions: [
         'Qual processo critico fica sem visibilidade hoje?',
-        'Onde o ERP atual trava o fechamento mensal?',
+        'Onde a margem vaza no fechamento mensal?',
       ],
       ensureFresh: true,
     });

@@ -63,7 +63,7 @@ type StateUpdater<T> = T | ((prev: T) => T);
 const DEFAULT_SUGGESTIONS = [
   'Onde a margem começa a vazar primeiro?',
   'Qual frente já exige decisão executiva?',
-  'Que camada operacional segue invisível?',
+  'Que risco operacional segue invisível?',
   'Qual risco amadurece nos próximos 90 dias?',
 ];
 const LEGACY_ACME_FALLBACK_SUGGESTIONS = [
@@ -619,7 +619,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.suggestions?.every(suggestion => suggestion.endsWith('?'))).toBe(true);
     expect(finalBotMessage.suggestions).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
     expect(finalBotMessage.suggestions?.some(suggestion =>
-      /ERP|integra[cç][aã]o|margem|diretoria|fiscal/i.test(suggestion),
+      /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
     )).toBe(true);
   });
 });

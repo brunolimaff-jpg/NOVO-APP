@@ -9,6 +9,7 @@ Last updated: 2026-05-21
   - Fallback estatico ruim das quatro perguntas genericas deixou de ser emitido pela camada compartilhada.
   - Chat normal e waterfall passam `contextText` para completar perguntas; regeneracao ("Novas") evita repetir as sugestoes atuais e usa a mensagem alvo como contexto.
   - Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
+  - Follow-up da PR `#268`: perguntas tecnicas demais foram bloqueadas; prompt de continuidade virou XML com foco em conversa comercial; testes cobrem rejeicao de `GATec`/`CAPEX`/`ERP`/arquitetura e preservacao de perguntas de negocio. Validacoes: recorte green (`54` testes), `typecheck` green, `lint --quiet` green.
 - Inline follow-up do chat principal refatorado em `2026-05-21`:
   - `features/chat/message-orchestrator.ts` passa `isFollowUp` para `sendMessageToGemini`.
   - `services/gemini/runtime.ts` monta historico compacto para follow-ups em pares alternados `user/model`: pesquisa inicial + ultimo turno completo, reduzindo custo e risco de repetir a estrutura do dossie inicial.

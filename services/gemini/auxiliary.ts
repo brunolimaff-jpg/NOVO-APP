@@ -2,24 +2,38 @@ import { Message, Sender } from '../../types';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../../utils/loadingCuriosities';
 import { sanitizeLoadingContextText } from '../../utils/textCleaners';
 import { scoutDiag } from '../../utils/diagnosticLog';
-import { ensureContinuitySuggestions } from '../../utils/continuitySuggestions';
+import { ensureContinuitySuggestions, isBusinessSellerContinuityQuestion } from '../../utils/continuitySuggestions';
 import { proxyGenerateContent } from '../geminiProxy';
 import { LOADING_CURIOSITY_MODEL_ID, ROUTER_MODEL_ID } from './config';
 
 const CONTINUITY_SYSTEM = `
-Você é o estrategista de continuidade do 🦅 Senior Scout 360.
-Sua missão é criar ganchos comerciais que forcem o cliente a admitir um gap de gestão ou tecnologia.
+<task>
+Gerar perguntas de acompanhamento que um vendedor consultivo faria para abrir uma conversa de negocio com a conta.
+</task>
 
-DIRETRIZES DE PENSAMENTO:
-1. ANCORAGEM OBRIGATÓRIA: Cada pergunta deve conter ao menos UM dado específico do contexto.
-2. FOCO EM VENDAS (SENIOR): Direcione para sistemas: ERP, HCM, WMS ou GATec.
-3. ESTILO "SNIPER": Se o contexto diz que a empresa cresceu, pergunte sobre o caos que isso gera.
+<context>
+As perguntas aparecem como botoes clicaveis para o vendedor. Elas precisam ajudar o vendedor a falar de dor, dinheiro, risco, prioridade, decisor, prazo, crescimento, margem, investimento ou impacto operacional.
+</context>
 
-PROIBIÇÕES:
-- PROIBIDO: Iniciar perguntas com "Como você..." (muito vago).
-- PROIBIDO: Perguntas genéricas que sirvam para qualquer empresa.
+<constraints>
+- Linguagem de negocio, simples e falavel em reuniao comercial.
+- Cada pergunta deve parecer uma pergunta feita por vendedor para decisor, nao por arquiteto, analista tecnico ou implementador.
+- Use sinais do contexto, mas traduza tecnologia para impacto de negocio.
+- Proibido citar ou focar em: arquitetura, nativamente, ecossistema, stack, GATec, CAPEX, ERP, HCM, WMS, modulos Senior, sistemas que ja rodam, visibilidade de ponta a ponta.
+- Proibido mencionar o nome do vendedor.
+- Proibido iniciar com "Como voce", "Considerando" ou "Com a".
+- Responda exclusivamente em Portugues (Brasil) usando um Array JSON de strings.
+</constraints>
 
-Responda EXCLUSIVAMENTE em Português (Brasil) usando um Array JSON de strings.
+<example>
+<input>Pergunta tecnica ruim: "Pela robustez tecnologica da Scheffer, qual perda financeira estimada por nao ter logistica integrada nativamente ao GATec?"</input>
+<output>"Onde a Scheffer perde margem quando a logistica fica mais manual do que deveria?"</output>
+</example>
+
+<example>
+<input>Pergunta tecnica ruim: "O CAPEX da Scheffer indica novos ativos; como garantir gestao de patio com os sistemas atuais?"</input>
+<output>"Qual investimento da Scheffer pode perder retorno se a operacao crescer sem mais controle?"</output>
+</example>
 `;
 
 export async function generateLoadingCuriosities(
@@ -128,18 +142,38 @@ export async function generateContinuityQuestion(
   const exclusionConstraint = normalizedExcludedSuggestions.length > 0
     ? `PERGUNTAS BLOQUEADAS (NAO pode repetir):\n${normalizedExcludedSuggestions.map(item => `- ${item}`).join('\n')}`
     : '';
-  const basePrompt = `${contextNote}\n\nHistórico recente:\n${recentMessages}\n\nGere 4 perguntas de continuidade estratégica para o vendedor ${nomeVendedor} usar na próxima interação. Responda como array JSON de strings.`;
-
-  const effectiveBasePrompt = [
+  const basePrompt = [
+    '<task>Gere 4 perguntas de continuidade para uma conversa comercial.</task>',
+    '<context>',
     contextNote,
     `Historico recente:\n${recentMessages}`,
+    '</context>',
+    '<constraints>',
+    `O vendedor se chama ${nomeVendedor}, mas nao cite o nome dele nas perguntas.`,
+    'As perguntas devem falar de negocio: margem, custo, risco, decisor, prioridade, investimento, prazo, crescimento, cliente ou retorno.',
+    'Nao use jargao tecnico nem nomes de produto. Traduza qualquer dado tecnico em impacto comercial.',
+    'Responda como array JSON de strings, sem texto adicional.',
+    '</constraints>',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const effectiveBasePrompt = [
+    '<context>',
+    contextNote,
+    `Historico recente:\n${recentMessages}`,
+    '</context>',
+    '<constraints>',
     noveltyConstraint,
     exclusionConstraint,
-    `Gere ${modelRequestedCount} perguntas de continuidade estrategica para o vendedor ${nomeVendedor} usar na proxima interacao.`,
-    'As 4 perguntas devem ser livres e escolhidas pela força comercial, não por mix artificial.',
-    'Pode citar o nome da empresa quando isso deixar a pergunta mais precisa e mais dura comercialmente.',
+    `Gere ${modelRequestedCount} perguntas de continuidade para a proxima conversa comercial.`,
+    'As perguntas devem soar como fala de vendedor para diretor, CFO, gestor de operacao ou sponsor.',
+    'Priorize negocio: margem, custo, risco, decisor, prioridade, investimento, prazo, crescimento, cliente e retorno.',
+    'Nao use jargao tecnico nem nomes de produto. Traduza qualquer dado tecnico em impacto comercial.',
+    'Pode citar o nome da empresa quando isso deixar a pergunta mais precisa.',
     `A resposta final deve conter no minimo ${CONTINUITY_TARGET} perguntas ineditas em relacao a lista bloqueada (quando houver).`,
     'Responda como array JSON de strings, sem texto adicional.',
+    '</constraints>',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -248,11 +282,12 @@ export async function generateContinuityQuestion(
 
   const isValidQuestionCandidate = (raw: string): boolean => {
     const candidate = normalizeQuestionCandidate(raw);
-    if (candidate.length < 24 || candidate.length > 230) return false;
+    if (candidate.length < 15 || candidate.length > 180) return false;
     if (!candidate.endsWith('?')) return false;
     if (bannedOpeners.test(candidate)) return false;
     if (/^(responda|retorne|array json|json)/i.test(candidate)) return false;
     if (/^\s*(?:\[|{)/.test(candidate)) return false;
+    if (!isBusinessSellerContinuityQuestion(candidate)) return false;
     if (genericQuestionRegex.test(candidate) && !leverageSignalRegex.test(candidate) && !sniperSignalRegex.test(candidate)) return false;
     return true;
   };

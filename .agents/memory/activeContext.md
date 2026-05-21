@@ -43,6 +43,7 @@ Read order:
 - Botao "Novas" usa a mensagem alvo como contexto recente e evita repetir sugestoes antigas.
 - Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
 - Risco residual: fallback ainda e heuristico quando a IA falha, mas agora fica ancorado em temas detectados e bloqueia o conjunto legado ruim.
+- Ajuste posterior na PR `#268`: sugestoes agora devem soar como pergunta de vendedor e falar de negocio; filtro bloqueia jargao tecnico como `GATec`, `CAPEX`, `ERP`, arquitetura, nativamente, modulos Senior e nome do vendedor. Validacoes: recorte de sugestoes/dossie green (`54` testes), `typecheck` green e `lint --quiet` green.
 
 **UX Redesign Phase 1 em progresso.**
 - PR `#266` aberta em `ux/redesign-phase1-v1`.

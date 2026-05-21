@@ -11,6 +11,12 @@ interface ContinuityTheme {
   prompts: Array<(companyReference: string) => string>;
 }
 
+const TECHNICAL_SELLER_QUESTION_REGEX =
+  /\b(arquitetura|nativamente|ecossistema|gatec|capex|erp|hcm|wms|stack|integra[cç][aã]o|m[oó]dulos?\s+senior|sistemas?\s+que\s+j[aá]\s+rodam|visibilidade\s+de\s+ponta\s+a\s+ponta)\b/i;
+const BUSINESS_QUESTION_OPENER_REGEX = /^(qual|quais|que|quem|onde|quando|quanto|quantos|quanta|quantas)\b/i;
+const BUSINESS_SELLER_SIGNAL_REGEX =
+  /\b(margem|custo|risco|decis[aã]o|investimento|or[cç]amento|crescimento|opera[cç][aã]o|atraso|retrabalho|prazo|cliente|produtividade|dinheiro|retorno|diretoria|prioridade|expans[aã]o|perda|multa|controle|patrocin|receita|resultado|servi[cç]o)\b/i;
+
 const LEGACY_FALLBACK_PATTERNS = [
   /^qual gargalo em .+ ja esta consumindo margem e segue tratado como rotina\?$/i,
   /^que decisao critica em .+ continua travada por falta de dados confiaveis\?$/i,
@@ -23,54 +29,54 @@ const themeCatalog: ContinuityTheme[] = [
     id: 'fiscal',
     detect: /\b(fiscal|tribut|compliance|sefaz|multa|autua[cç][aã]o|passivo|pgfn|e-?social|obriga[cç][aã]o)\b/gi,
     prompts: [
-      company => `Qual frente fiscal em ${company} ainda depende de conferência manual antes de virar dado confiável?`,
-      company => `Que exposição de compliance em ${company} já deveria estar no radar da diretoria?`,
-      company => `Onde ${company} transforma risco tributário recorrente em rotina operacional perigosa?`,
+      company => `Qual risco fiscal em ${company} já ameaça virar custo direto para o negócio?`,
+      company => `Quem em ${company} perde sono quando uma rotina fiscal vira multa ou atraso?`,
+      company => `Que custo de regularização em ${company} ainda não entrou na conversa da diretoria?`,
     ],
   },
   {
     id: 'tech',
     detect: /\b(erp|hcm|wms|sistema|integra[cç][aã]o|planilha|dados|fechamento|consolida[cç][aã]o|stack|legado)\b/gi,
     prompts: [
-      company => `Onde o ERP de ${company} deixa integração quebrada virar custo invisível no fechamento?`,
-      company => `Qual etapa em ${company} ainda nasce na planilha porque os sistemas não conversam?`,
-      company => `Que dado crítico de ${company} chega tarde demais para sustentar decisão executiva?`,
+      company => `Qual rotina manual em ${company} mais atrasa uma decisão que já deveria ser simples?`,
+      company => `Onde ${company} perde dinheiro porque o time precisa conferir informação no braço?`,
+      company => `Que decisão comercial em ${company} fica parada porque o número confiável chega tarde?`,
     ],
   },
   {
     id: 'rh',
     detect: /\b(rh|hcm|folha|ponto|sst|turnover|absente[ií]smo|acidente|sindic|headcount|seguran[cç]a)\b/gi,
     prompts: [
-      company => `Qual risco de RH ou SST em ${company} cresce sem visibilidade consolidada para liderança?`,
-      company => `Onde ${company} ainda cruza folha, ponto e segurança tarde demais para agir?`,
-      company => `Que perda de produtividade em ${company} segue invisível por falta de HCM integrado?`,
+      company => `Qual perda de produtividade em ${company} já custa dinheiro e ainda parece normal?`,
+      company => `Que risco trabalhista em ${company} pode virar problema de diretoria se nada mudar?`,
+      company => `Onde ${company} mais perde gente, tempo ou controle sem colocar isso na conta?`,
     ],
   },
   {
     id: 'ops',
     detect: /\b(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o|wms)\b/gi,
     prompts: [
-      company => `Qual etapa operacional em ${company} mais perde previsibilidade por dado atrasado ou desencontrado?`,
-      company => `Onde ${company} perde rastreabilidade quando logística, estoque e produção saem do mesmo plano?`,
-      company => `Que gargalo de operação em ${company} já ficou caro demais para continuar informal?`,
+      company => `Qual gargalo operacional em ${company} mais ameaça margem, prazo ou nível de serviço?`,
+      company => `Onde ${company} perde dinheiro quando a operação cresce mais rápido que o controle?`,
+      company => `Que atraso ou retrabalho em ${company} o cliente final já pode sentir primeiro?`,
     ],
   },
   {
     id: 'governance',
     detect: /\b(diretoria|comit[eê]|decis[aã]o|budget|or[cç]amento|conselho|sponsor|prioridade|investimento|veto)\b/gi,
     prompts: [
-      company => `Que decisão de diretoria em ${company} segue parada por falta de caso financeiro incontestável?`,
-      company => `Quem em ${company} ganha poder político quando o risco vira número e não opinião?`,
-      company => `Qual pauta em ${company} já tem urgência executiva, mas ainda não tem dono claro?`,
+      company => `Qual decisão de investimento em ${company} precisa de um número claro para sair do papel?`,
+      company => `Quem em ${company} sente a dor forte o bastante para patrocinar uma mudança agora?`,
+      company => `Qual prioridade da diretoria de ${company} perde força porque o impacto financeiro não está claro?`,
     ],
   },
   {
     id: 'finance',
     detect: /\b(margem|custo|perda|ebitda|caixa|resultado|rentab|despesa|roi|receita|vazamento)\b/gi,
     prompts: [
-      company => `Qual vazamento de margem em ${company} aparece no resultado, mas ainda não virou projeto?`,
-      company => `Onde o custo oculto de ${company} nasce na operação e some no consolidado financeiro?`,
-      company => `Que perda recorrente em ${company} precisa virar ROI antes de disputar orçamento?`,
+      company => `Onde a margem de ${company} está vazando sem virar uma prioridade de investimento?`,
+      company => `Qual custo escondido em ${company} já é grande o bastante para justificar mudança?`,
+      company => `Que perda recorrente em ${company} precisa aparecer em reais para ganhar orçamento?`,
     ],
   },
 ];
@@ -104,6 +110,16 @@ function isLegacyFallbackSuggestion(value: string): boolean {
   return LEGACY_FALLBACK_PATTERNS.some(pattern => pattern.test(`${comparable}?`));
 }
 
+export function isBusinessSellerContinuityQuestion(value: string): boolean {
+  const normalized = normalizeContinuitySuggestion(value);
+  if (!normalized) return false;
+  if (!BUSINESS_QUESTION_OPENER_REGEX.test(normalized)) return false;
+  if (!BUSINESS_SELLER_SIGNAL_REGEX.test(normalized)) return false;
+  if (TECHNICAL_SELLER_QUESTION_REGEX.test(normalized)) return false;
+  if (/\bbruno\b/i.test(normalized)) return false;
+  return true;
+}
+
 function countThemeHits(text: string, detect: RegExp): number {
   const regex = new RegExp(detect.source, detect.flags.includes('g') ? detect.flags : `${detect.flags}g`);
   return Array.from(text.matchAll(regex)).length;
@@ -127,6 +143,7 @@ function pushUnique(
   const candidate = normalizeContinuitySuggestion(raw);
   if (!candidate || candidate.length < 15) return;
   if (isLegacyFallbackSuggestion(candidate)) return;
+  if (!isBusinessSellerContinuityQuestion(candidate)) return;
 
   const key = normalizeForComparison(candidate);
   if (!key || avoidKeys.has(key) || seen.has(key)) return;
@@ -159,11 +176,11 @@ export function buildContextualContinuityFallback(
   });
 
   [
-    `Qual frente em ${companyReference} concentra retrabalho suficiente para virar conversa de diretoria?`,
-    `Onde ${companyReference} perde velocidade comercial porque o dado operacional chega tarde?`,
+    `Qual dor de negócio em ${companyReference} já está cara demais para continuar informal?`,
+    `Onde ${companyReference} perde margem, prazo ou cliente por falta de controle executivo?`,
     `Que risco em ${companyReference} já tem custo recorrente e ainda não virou pauta de orçamento?`,
     `Qual processo de ${companyReference} precisa sair do improviso antes da próxima expansão?`,
-    `Quem em ${companyReference} deveria patrocinar a correção antes que o problema vire urgência?`,
+    `Quem em ${companyReference} deveria patrocinar a mudança antes que o problema vire urgência?`,
   ].forEach(prompt => pushUnique(candidates, seen, avoidKeys, prompt));
 
   return candidates.slice(0, CONTINUITY_TARGET);

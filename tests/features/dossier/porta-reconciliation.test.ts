@@ -104,7 +104,7 @@ Texto consolidado sem marcador explícito.
     expect(ensuredEmpty.every(item => item.endsWith('?'))).toBe(true);
     expect(ensuredEmpty.some(item => /Scheffer/i.test(item))).toBe(true);
     expect(ensuredEmpty).not.toEqual(legacyFallbackSuggestions);
-    expect(ensuredEmpty.some(item => /fiscal|ERP|integra[cç][aã]o|planilha|margem|diretoria/i.test(item))).toBe(true);
+    expect(ensuredEmpty.some(item => /decis[aã]o|investimento|dinheiro|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
 
     const ensuredPartial = ensureContinuitySuggestions(['Qual risco operacional já está escalando?'], 'Scheffer', {
       contextText,
@@ -122,5 +122,23 @@ Texto consolidado sem marcador explícito.
 
     expect(ensured).toHaveLength(4);
     expect(ensured[0]).toBe('Onde a margem vaza?');
+  });
+
+  it('descarta sugestões técnicas que não parecem pergunta de vendedor', () => {
+    const ensured = ensureContinuitySuggestions(
+      [
+        'Pela robustez tecnológica da Scheffer, qual perda financeira estimada por não ter a logística integrada nativamente ao GATec?',
+        'O CAPEX da Scheffer indica novos ativos físicos; como garantir a gestão de pátio com sistemas que já rodam redondos?',
+        'Onde o ERP de Scheffer deixa integração quebrada virar custo invisível no fechamento?',
+      ],
+      'Scheffer',
+      {
+        contextText: 'A conta tem pressão de margem, crescimento da operação, logística manual e decisão de investimento em aberto.',
+      },
+    );
+
+    expect(ensured).toHaveLength(4);
+    expect(ensured.join(' ')).not.toMatch(/GATec|CAPEX|ERP|nativamente|arquitetura|sistemas que já rodam/i);
+    expect(ensured.some(item => /margem|crescimento|investimento|diretoria|operação/i.test(item))).toBe(true);
   });
 });
