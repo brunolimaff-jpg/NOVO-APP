@@ -11,6 +11,11 @@ interface BuildConversationHistoryOptions {
   isFollowUp?: boolean;
 }
 
+interface ConversationTurn {
+  user: Message;
+  model: Message;
+}
+
 function limitHistoryText(text: string, limit: number): string {
   if (text.length <= limit) return text;
 
@@ -30,6 +35,36 @@ function toModelHistoryItem(message: Message): { role: 'user' | 'model'; text: s
     role: message.sender === Sender.User ? 'user' : 'model',
     text: limitHistoryText(sanitizeHistoryText(message.text || ''), limit),
   };
+}
+
+function buildCompleteTurns(messages: Message[]): ConversationTurn[] {
+  const turns: ConversationTurn[] = [];
+  let pendingUser: Message | null = null;
+
+  for (const message of messages) {
+    if (message.sender === Sender.User) {
+      pendingUser = message;
+      continue;
+    }
+
+    if (message.sender === Sender.Bot && pendingUser) {
+      turns.push({ user: pendingUser, model: message });
+      pendingUser = null;
+    }
+  }
+
+  return turns;
+}
+
+function buildFollowUpHistory(messages: Message[]): Array<{ role: 'user' | 'model'; text: string }> {
+  const turns = buildCompleteTurns(messages);
+  if (turns.length === 0) return [];
+
+  const selectedTurns = turns.length === 1
+    ? turns
+    : [turns[0], turns[turns.length - 1]];
+
+  return selectedTurns.flatMap(turn => [toModelHistoryItem(turn.user), toModelHistoryItem(turn.model)]);
 }
 
 export function isMegaPromptRequest(userMessage: string, systemPrompt: string): boolean {
@@ -90,16 +125,7 @@ export function buildConversationHistory(
   }
 
   if (options.isFollowUp) {
-    const lastBotMessage = [...validMessages].reverse().find(message => message.sender === Sender.Bot);
-    const recentUserMessages = validMessages.filter(message => message.sender === Sender.User).slice(-2);
-    const selectedIds = new Set<string>([
-      ...recentUserMessages.map(message => message.id),
-      ...(lastBotMessage ? [lastBotMessage.id] : []),
-    ]);
-
-    return validMessages
-      .filter(message => selectedIds.has(message.id))
-      .map(toModelHistoryItem);
+    return buildFollowUpHistory(validMessages);
   }
 
   return validMessages.map(message => ({

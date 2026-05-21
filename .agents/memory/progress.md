@@ -6,8 +6,9 @@ Last updated: 2026-05-21
 
 - Inline follow-up do chat principal refatorado em `2026-05-21`:
   - `features/chat/message-orchestrator.ts` passa `isFollowUp` para `sendMessageToGemini`.
-  - `services/gemini/runtime.ts` monta historico compacto para follow-ups: ultimas perguntas do usuario + ultimo bot recortado, reduzindo custo e risco de repetir a estrutura do dossie inicial.
-  - `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta cirurgica, nao reexecuta dossie/modulo em pergunta especifica e evita novo lookup Senior em follow-up sem CNPJ.
+  - `services/gemini/runtime.ts` monta historico compacto para follow-ups em pares alternados `user/model`: pesquisa inicial + ultimo turno completo, reduzindo custo e risco de repetir a estrutura do dossie inicial.
+  - `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta cirurgica para follow-up normal, nao reexecuta dossie/modulo em pergunta especifica e evita novo lookup Senior em follow-up sem CNPJ.
+  - Deep Dive segue feature-flagado/desligado por padrão e ficou fora do escopo desta refatoracao.
   - Risco residual: se o recorte nao carregar contexto suficiente, o modelo deve pedir esclarecimento ao usuario.
 - Sprints 1-8 concluídas e mergeadas em `main`.
 - Sprint 8 mergeada via PR `#241`.
@@ -65,7 +66,7 @@ Last updated: 2026-05-21
 
 ### Inline follow-up do chat principal
 
-- `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`43` testes)
+- `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`44` testes)
 - `npm run typecheck` green
 
 ### Sprint 9 (done, merged)

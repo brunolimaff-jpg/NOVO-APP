@@ -316,6 +316,7 @@ export async function sendMessageToGemini(
   const portaSessionId = sessionId || 'session-unknown';
   const isMegaPromptMessage = isMegaPromptRequest(userMessage, systemPrompt);
   const isDeepDive = isDeepDiveMessage(userMessage, isMegaPromptMessage);
+  const isRegularFollowUp = isFollowUp && !isDeepDive;
   const deepDiveSource = isDeepDive ? getDeepDiveSource(userMessage) : 'UNKNOWN';
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
   const resolvedThinkingLevel =
@@ -333,7 +334,7 @@ export async function sendMessageToGemini(
   }
 
   let targetCompanyForLookup: string | null =
-    canUseLookup && (!isFollowUp || Boolean(cnpjDetected)) ? (empresaAlvo ?? null) : null;
+    canUseLookup && (!isRegularFollowUp || Boolean(cnpjDetected)) ? (empresaAlvo ?? null) : null;
 
   if (canUseLookup && !targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
     const previousTargetMessage = [...conversationHistory]
@@ -402,7 +403,7 @@ export async function sendMessageToGemini(
     }
   }
 
-  if ((isDeepDive || isFollowUp) && (!clienteSeniorData || !clienteSeniorData.encontrado)) {
+  if ((isDeepDive || isRegularFollowUp) && (!clienteSeniorData || !clienteSeniorData.encontrado)) {
     const previousBotMessageWithClientData = [...conversationHistory]
       .reverse()
       .find(message => message.sender === Sender.Bot && message.clienteSeniorData?.encontrado);
@@ -463,7 +464,7 @@ export async function sendMessageToGemini(
     portaContext,
   });
 
-  const systemPromptWithFollowUpGuard = isFollowUp
+  const systemPromptWithFollowUpGuard = isRegularFollowUp
     ? `${systemPrompt}\n\n${FOLLOW_UP_SYSTEM_INSTRUCTION}`
     : systemPrompt;
   const fullSystemPrompt = extraContext
@@ -473,7 +474,7 @@ export async function sendMessageToGemini(
   emitDossieStatus(onStatus, 'prompt');
   emitDossieStatus(onStatus, 'history');
 
-  const history = buildConversationHistory(conversationHistory, { isDeepDive, isFollowUp });
+  const history = buildConversationHistory(conversationHistory, { isDeepDive, isFollowUp: isRegularFollowUp });
   const historyChars = history.reduce((total, item) => total + item.text.length, 0);
   const promptBudget = {
     sessionId: sessionId ?? null,

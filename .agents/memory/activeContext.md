@@ -31,9 +31,10 @@ Read order:
 **Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
 - Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
 - `features/chat/message-orchestrator.ts` marca follow-up real para o Gemini.
-- `services/gemini/runtime.ts` compacta historico de follow-up para reduzir custo e evitar repetir a estrutura do dossie anterior.
-- `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta curta, nao reexecuta dossie/modulo e reaproveita dados Senior do historico quando disponivel.
-- Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`43` testes); `npm run typecheck` green.
+- `services/gemini/runtime.ts` compacta historico de follow-up em pares alternados `user/model`, preservando a pesquisa inicial como contexto ancora e reduzindo custo.
+- `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta curta para follow-up normal, nao reexecuta dossie/modulo e reaproveita dados Senior do historico quando disponivel.
+- Deep Dive segue feature-flagado/desligado por padrão; esta refatoracao nao reativa nem redesenha o fluxo legado.
+- Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`44` testes); `npm run typecheck` green.
 - Risco residual: historico compactado pode omitir detalhe antigo; nesse caso a IA deve perguntar ao usuario em vez de inferir.
 
 **UX Redesign Phase 1 em progresso.**

@@ -424,6 +424,55 @@ describe('sendMessageToGemini — cenários de erro', () => {
     expect(payload.history[1].text).toContain('historico anterior compactado');
   });
 
+  it('em follow-up preserva pares alternados e mantém o dossiê inicial como contexto âncora', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'Resposta curta.' });
+    const firstDossier = `Dossiê inicial com tese da conta.\n${'A'.repeat(8500)}`;
+
+    await sendMessageToGemini(
+      'qual é a próxima pergunta?',
+      [
+        {
+          id: 'user-1',
+          sender: Sender.User,
+          text: 'Dossiê completo de [Santa Rita]',
+          timestamp: new Date(),
+        },
+        {
+          id: 'bot-1',
+          sender: Sender.Bot,
+          text: firstDossier,
+          timestamp: new Date(),
+        },
+        {
+          id: 'user-2',
+          sender: Sender.User,
+          text: 'me dá uma frase curta',
+          timestamp: new Date(),
+        },
+        {
+          id: 'bot-2',
+          sender: Sender.Bot,
+          text: 'Use a dor do Maxiprod.',
+          timestamp: new Date(),
+        },
+      ],
+      'system',
+      {
+        onText: vi.fn(),
+        onStatus: vi.fn(),
+        hintedCompany: 'Santa Rita',
+        isFollowUp: true,
+      },
+      true,
+    );
+
+    const payload = proxyChatSendMessageMock.mock.calls[0][0];
+    expect(payload.history.map((item: { role: string }) => item.role)).toEqual(['user', 'model', 'user', 'model']);
+    expect(payload.history[1].text).toContain('Dossiê inicial com tese da conta.');
+    expect(payload.history[1].text).toContain('historico anterior compactado');
+    expect(payload.history[3].text).toBe('Use a dor do Maxiprod.');
+  });
+
   it('envia thinkingLevel=high por padrão quando não há configuração explícita', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
