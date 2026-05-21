@@ -125,7 +125,7 @@ function pushUnique(
   raw: string,
 ): void {
   const candidate = normalizeContinuitySuggestion(raw);
-  if (!candidate || candidate.length < 24 || !candidate.endsWith('?')) return;
+  if (!candidate || candidate.length < 15) return;
   if (isLegacyFallbackSuggestion(candidate)) return;
 
   const key = normalizeForComparison(candidate);

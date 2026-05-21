@@ -114,4 +114,13 @@ Texto consolidado sem marcador explícito.
     expect(ensuredPartial[0]).toBe('Qual risco operacional já está escalando?');
     expect(ensuredPartial).not.toEqual(legacyFallbackSuggestions);
   });
+
+  it('preserva perguntas curtas e diretas quando elas sao validas', () => {
+    const ensured = ensureContinuitySuggestions(['Onde a margem vaza?'], 'Scheffer', {
+      contextText: 'A operação apresenta perda de margem e custo oculto no fechamento.',
+    });
+
+    expect(ensured).toHaveLength(4);
+    expect(ensured[0]).toBe('Onde a margem vaza?');
+  });
 });
