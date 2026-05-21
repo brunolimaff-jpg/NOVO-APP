@@ -3,6 +3,70 @@ import { sanitizeHistoryText } from './sanitization';
 
 export type DeepDiveSource = (typeof DEEP_DIVE_SOURCES)[keyof typeof DEEP_DIVE_SOURCES] | 'UNKNOWN';
 
+const FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT = 6000;
+const FOLLOW_UP_USER_HISTORY_CHAR_LIMIT = 1200;
+
+interface BuildConversationHistoryOptions {
+  isDeepDive?: boolean;
+  isFollowUp?: boolean;
+}
+
+interface ConversationTurn {
+  user: Message;
+  model: Message;
+}
+
+function limitHistoryText(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+
+  const headLength = Math.ceil(limit * 0.7);
+  const tailLength = Math.floor(limit * 0.3);
+  return [
+    text.slice(0, headLength).trimEnd(),
+    '[historico anterior compactado para reduzir custo; se faltar contexto, pergunte ao usuario]',
+    text.slice(-tailLength).trimStart(),
+  ].join('\n\n');
+}
+
+function toModelHistoryItem(message: Message): { role: 'user' | 'model'; text: string } {
+  const limit =
+    message.sender === Sender.Bot ? FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT : FOLLOW_UP_USER_HISTORY_CHAR_LIMIT;
+  return {
+    role: message.sender === Sender.User ? 'user' : 'model',
+    text: limitHistoryText(sanitizeHistoryText(message.text || ''), limit),
+  };
+}
+
+function buildCompleteTurns(messages: Message[]): ConversationTurn[] {
+  const turns: ConversationTurn[] = [];
+  let pendingUser: Message | null = null;
+
+  for (const message of messages) {
+    if (message.sender === Sender.User) {
+      pendingUser = message;
+      continue;
+    }
+
+    if (message.sender === Sender.Bot && pendingUser) {
+      turns.push({ user: pendingUser, model: message });
+      pendingUser = null;
+    }
+  }
+
+  return turns;
+}
+
+function buildFollowUpHistory(messages: Message[]): Array<{ role: 'user' | 'model'; text: string }> {
+  const turns = buildCompleteTurns(messages);
+  if (turns.length === 0) return [];
+
+  const selectedTurns = turns.length === 1
+    ? turns
+    : [turns[0], turns[turns.length - 1]];
+
+  return selectedTurns.flatMap(turn => [toModelHistoryItem(turn.user), toModelHistoryItem(turn.model)]);
+}
+
 export function isMegaPromptRequest(userMessage: string, systemPrompt: string): boolean {
   const combined = `${systemPrompt}\n${userMessage}`.toUpperCase();
   return (
@@ -42,14 +106,29 @@ export function getDeepDiveSource(message: string): DeepDiveSource {
 
 export function buildConversationHistory(
   conversationHistory: Message[],
-  isDeepDive: boolean,
+  optionsOrIsDeepDive: BuildConversationHistoryOptions | boolean,
 ): Array<{ role: 'user' | 'model'; text: string }> {
   const validMessages = conversationHistory.filter(message => message.text && message.text.trim().length > 0);
-  const sourceMessages = isDeepDive
-    ? validMessages.filter(message => message.sender === Sender.User).slice(-4)
-    : validMessages;
+  const options =
+    typeof optionsOrIsDeepDive === 'boolean'
+      ? { isDeepDive: optionsOrIsDeepDive }
+      : optionsOrIsDeepDive;
 
-  return sourceMessages.map(message => ({
+  if (options.isDeepDive) {
+    return validMessages
+      .filter(message => message.sender === Sender.User)
+      .slice(-4)
+      .map(message => ({
+        role: 'user',
+        text: sanitizeHistoryText(message.text || ''),
+      }));
+  }
+
+  if (options.isFollowUp) {
+    return buildFollowUpHistory(validMessages);
+  }
+
+  return validMessages.map(message => ({
     role: message.sender === Sender.User ? 'user' : 'model',
     text: sanitizeHistoryText(message.text || ''),
   }));

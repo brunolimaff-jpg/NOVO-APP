@@ -16,6 +16,7 @@ export interface GeminiRequestOptions {
   nomeVendedor?: string;
   sessionId?: string;
   hintedCompany?: string | null;
+  isFollowUp?: boolean;
 }
 
 export interface DossierModuleOptions {

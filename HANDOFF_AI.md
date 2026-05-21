@@ -28,12 +28,14 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-20 — **Fase 2 (Manutenibilidade) concluída.** Todas as Sprints 9–12 mergeadas em `main` (`0694997`). Validação manual em Vercel aceita pelo owner.
+> Atualizado em 2026-05-21 — **Fase 2 (Manutenibilidade) concluída.** Todas as Sprints 9–12 mergeadas em `main` (`0694997`). Validação manual em Vercel aceita pelo owner.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
 - `services/exportService.ts` criado na Sprint 9 com export/email logic extraida de App.tsx.
 - `features/chat/*` e `features/dossier/*` concentram os fluxos extraidos de `App.tsx`.
+- Follow-up inline do chat principal usa `GeminiRequestOptions.isFollowUp`, historico compacto em pares alternados `user/model` e instrucao de resposta cirurgica para nao repetir a estrutura do dossie inicial em perguntas especificas.
+- Deep Dive permanece feature-flagado/desligado por padrão (`VITE_ENABLE_DEEP_DIVE`); a refatoracao do follow-up normal nao reativa nem redesenha esse fluxo legado.
 - Leak `features/dossier/*` -> `features/chat/*` removido na Sprint 9; helpers compartilhados vivem em `utils/*`.
 - Dependência circular `chatStore` -> `message-orchestrator` resolvida: `LastAction` movido para `types.ts`.
 - `features/radar/*` e o boundary oficial do Radar runtime; `useRadar` e o service foram movidos para a feature na Sprint 10.

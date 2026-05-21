@@ -58,6 +58,17 @@ function shouldEmitDeepDiveStatus(userMessage: string, label: 'corporate' | 'tec
   return userMessage.includes('LOGÍSTICA') || userMessage.includes('SUPPLY');
 }
 
+const FOLLOW_UP_SYSTEM_INSTRUCTION = `
+## MODO FOLLOW-UP CIRURGICO
+
+A mensagem atual e uma pergunta dentro de uma investigacao ja aberta.
+- Responda somente a pergunta atual, usando o historico apenas como contexto.
+- Nao reexecute, nao resuma e nao imite a estrutura do dossie/pesquisa anterior.
+- Nao crie secoes fixas como FASE, GATILHOS DE ABORDAGEM, LEITURA ESTRATEGICA ou modulo completo, salvo se o usuario pedir isso explicitamente.
+- Seja curto e acionavel: 1 a 3 bullets ou um paragrafo direto costumam bastar.
+- Se a pergunta estiver ambigua ou o historico compacto nao trouxer base suficiente, pergunte ao usuario antes de inferir.
+`;
+
 function extractSourcesFromOpenWebSearchContent(content: string): VerifiedSource[] {
   const out: VerifiedSource[] = [];
   const seen = new Set<string>();
@@ -281,6 +292,7 @@ export async function sendMessageToGemini(
     nomeVendedor = 'Vendedor',
     sessionId,
     hintedCompany = null,
+    isFollowUp = false,
   } = options;
 
   void nomeVendedor;
@@ -304,6 +316,7 @@ export async function sendMessageToGemini(
   const portaSessionId = sessionId || 'session-unknown';
   const isMegaPromptMessage = isMegaPromptRequest(userMessage, systemPrompt);
   const isDeepDive = isDeepDiveMessage(userMessage, isMegaPromptMessage);
+  const isRegularFollowUp = isFollowUp && !isDeepDive;
   const deepDiveSource = isDeepDive ? getDeepDiveSource(userMessage) : 'UNKNOWN';
   const shouldForceDirectAnswer = isMegaPromptMessage && !isDeepDive;
   const resolvedThinkingLevel =
@@ -320,7 +333,8 @@ export async function sendMessageToGemini(
     }
   }
 
-  let targetCompanyForLookup: string | null = canUseLookup ? (empresaAlvo ?? null) : null;
+  let targetCompanyForLookup: string | null =
+    canUseLookup && (!isRegularFollowUp || Boolean(cnpjDetected)) ? (empresaAlvo ?? null) : null;
 
   if (canUseLookup && !targetCompanyForLookup && isDeepDive && conversationHistory.length > 0) {
     const previousTargetMessage = [...conversationHistory]
@@ -389,7 +403,7 @@ export async function sendMessageToGemini(
     }
   }
 
-  if (isDeepDive && (!clienteSeniorData || !clienteSeniorData.encontrado)) {
+  if ((isDeepDive || isRegularFollowUp) && (!clienteSeniorData || !clienteSeniorData.encontrado)) {
     const previousBotMessageWithClientData = [...conversationHistory]
       .reverse()
       .find(message => message.sender === Sender.Bot && message.clienteSeniorData?.encontrado);
@@ -450,12 +464,17 @@ export async function sendMessageToGemini(
     portaContext,
   });
 
-  const fullSystemPrompt = extraContext ? `${systemPrompt}\n\n${extraContext}` : systemPrompt;
+  const systemPromptWithFollowUpGuard = isRegularFollowUp
+    ? `${systemPrompt}\n\n${FOLLOW_UP_SYSTEM_INSTRUCTION}`
+    : systemPrompt;
+  const fullSystemPrompt = extraContext
+    ? `${systemPromptWithFollowUpGuard}\n\n${extraContext}`
+    : systemPromptWithFollowUpGuard;
   emitDossieStatus(onStatus, 'context');
   emitDossieStatus(onStatus, 'prompt');
   emitDossieStatus(onStatus, 'history');
 
-  const history = buildConversationHistory(conversationHistory, isDeepDive);
+  const history = buildConversationHistory(conversationHistory, { isDeepDive, isFollowUp: isRegularFollowUp });
   const historyChars = history.reduce((total, item) => total + item.text.length, 0);
   const promptBudget = {
     sessionId: sessionId ?? null,
