@@ -11,7 +11,7 @@ export const MODULAR_DOSSIER_STAGES = [
   'Verificando pressões e compliance...',
   'Mapeando caminho de venda...',
   'Cruzando referências de mercado...',
-  'Finalizando brief de reunião...',
+  'Finalizando cards de auditoria...',
 ] as const;
 
 export type ModularDossierStage = typeof MODULAR_DOSSIER_STAGES[number];
@@ -27,5 +27,5 @@ export const STAGE_DISPLAY_LABELS: Record<string, string> = {
   'Verificando pressões e compliance...':     'Verificando pressões e compliance...',
   'Mapeando caminho de venda...':             'Mapeando caminho de venda...',
   'Cruzando referências de mercado...':       'Reunindo referências de setor...',
-  'Finalizando brief de reunião...':          'Consolidando brief de reunião...',
+  'Finalizando cards de auditoria...':        'Consolidando cards de auditoria...',
 };

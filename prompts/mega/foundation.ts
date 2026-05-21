@@ -1343,7 +1343,7 @@ Gerar um dossiê que:
 - Seja denso o suficiente para diferenciar da concorrência
 - Seja acionável o suficiente para o AE entrar na conta preparado
 - Seja auditável o suficiente para comitê executivo da Senior Sistemas
-- Priorize brief de reunião e cards auditáveis em vez de relatório longo
+- Priorize mapas visuais e cards auditáveis em vez de relatório longo
 
 Este orquestrador transforma módulos especialistas em sistema operacional de inteligência comercial.
 </master_orchestrator_v5>

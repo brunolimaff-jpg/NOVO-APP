@@ -86,13 +86,12 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
         await saveSessionsToStorage(backup.sessions);
 
         // Disparar evento de sincronização para outras abas
-        const event = new StorageEvent('storage', {
+        const event = new window.StorageEvent('storage', {
           key: 'scout360_sessions_imported',
           newValue: JSON.stringify({
             timestamp: Date.now(),
             count: backup.sessions.length,
           }),
-          storageArea: localStorage,
         });
         window.dispatchEvent(event);
 
@@ -135,7 +134,7 @@ async function getSessionsFromStorage(): Promise<ChatSession[]> {
 
   // Fallback para localStorage
   try {
-    const localStorageSessions = localStorage.getItem('scout360_sessions_v1');
+    const localStorageSessions = window.localStorage.getItem('scout360_sessions_v1');
     if (localStorageSessions) {
       return JSON.parse(localStorageSessions) as ChatSession[];
     }
@@ -158,7 +157,7 @@ async function saveSessionsToStorage(sessions: ChatSession[]): Promise<void> {
 
   // Fallback para localStorage
   try {
-    localStorage.setItem('scout360_sessions_v1', sessionsJson);
+    window.localStorage.setItem('scout360_sessions_v1', sessionsJson);
   } catch (error) {
     console.error('Erro ao salvar em localStorage:', error);
     throw new Error('Armazenamento cheio ou indisponível', {
@@ -186,7 +185,7 @@ export function isValidBackupFile(backup: unknown): backup is SessionBackup {
  * Obter tamanho estimado de sessões
  */
 export function getSessionsSize(): string {
-  const sessions = localStorage.getItem('scout360_sessions_v1');
+  const sessions = window.localStorage.getItem('scout360_sessions_v1');
   if (!sessions) return '0 KB';
 
   const bytes = new Blob([sessions]).size;
