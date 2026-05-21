@@ -320,6 +320,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             nomeVendedor: resolvedOperatorName,
             sessionId,
             hintedCompany,
+            isFollowUp: Boolean(options?.isFollowUp),
           },
           canUseLookup,
         );

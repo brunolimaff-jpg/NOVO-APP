@@ -377,6 +377,53 @@ describe('sendMessageToGemini — cenários de erro', () => {
     ]);
   });
 
+  it('em follow-up usa histórico compacto e instrui resposta cirúrgica sem repetir o dossiê', async () => {
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'Use o gatilho de mismatch tecnologico.' });
+    const longDossier = [
+      '### 🗡️ GATILHOS DE ABORDAGEM',
+      'Gatilho 1: use base Senior para puxar governanca.',
+      'A'.repeat(9000),
+      '### FASE 8: Recomendações de Produtos Senior',
+      'Fechar com ERP + GAtec.',
+    ].join('\n');
+
+    await sendMessageToGemini(
+      'qual frase eu mando pro Edinaldo agora?',
+      [
+        {
+          id: 'user-1',
+          sender: Sender.User,
+          text: 'Dossiê completo de [Santa Rita]',
+          timestamp: new Date(),
+        },
+        {
+          id: 'bot-1',
+          sender: Sender.Bot,
+          text: longDossier,
+          timestamp: new Date(),
+        },
+      ],
+      'system',
+      {
+        onText: vi.fn(),
+        onStatus: vi.fn(),
+        hintedCompany: 'Santa Rita',
+        isFollowUp: true,
+      },
+      true,
+    );
+
+    expect(lookupClienteMock).not.toHaveBeenCalled();
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    const payload = proxyChatSendMessageMock.mock.calls[0][0];
+    expect(payload.systemInstruction).toContain('MODO FOLLOW-UP CIRURGICO');
+    expect(payload.systemInstruction).toContain('Nao reexecute');
+    expect(payload.history).toHaveLength(2);
+    expect(payload.history[1].role).toBe('model');
+    expect(payload.history[1].text.length).toBeLessThan(longDossier.length);
+    expect(payload.history[1].text).toContain('historico anterior compactado');
+  });
+
   it('envia thinkingLevel=high por padrão quando não há configuração explícita', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 

@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Current operating context
 
@@ -27,6 +27,14 @@ Read order:
 - Gates finais verdes: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular`.
 
 ## Current task context
+
+**Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
+- Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
+- `features/chat/message-orchestrator.ts` marca follow-up real para o Gemini.
+- `services/gemini/runtime.ts` compacta historico de follow-up para reduzir custo e evitar repetir a estrutura do dossie anterior.
+- `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta curta, nao reexecuta dossie/modulo e reaproveita dados Senior do historico quando disponivel.
+- Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`43` testes); `npm run typecheck` green.
+- Risco residual: historico compactado pode omitir detalhe antigo; nesse caso a IA deve perguntar ao usuario em vez de inferir.
 
 **UX Redesign Phase 1 em progresso.**
 - PR `#266` aberta em `ux/redesign-phase1-v1`.

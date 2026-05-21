@@ -3,6 +3,35 @@ import { sanitizeHistoryText } from './sanitization';
 
 export type DeepDiveSource = (typeof DEEP_DIVE_SOURCES)[keyof typeof DEEP_DIVE_SOURCES] | 'UNKNOWN';
 
+const FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT = 6000;
+const FOLLOW_UP_USER_HISTORY_CHAR_LIMIT = 1200;
+
+interface BuildConversationHistoryOptions {
+  isDeepDive?: boolean;
+  isFollowUp?: boolean;
+}
+
+function limitHistoryText(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+
+  const headLength = Math.ceil(limit * 0.7);
+  const tailLength = Math.floor(limit * 0.3);
+  return [
+    text.slice(0, headLength).trimEnd(),
+    '[historico anterior compactado para reduzir custo; se faltar contexto, pergunte ao usuario]',
+    text.slice(-tailLength).trimStart(),
+  ].join('\n\n');
+}
+
+function toModelHistoryItem(message: Message): { role: 'user' | 'model'; text: string } {
+  const limit =
+    message.sender === Sender.Bot ? FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT : FOLLOW_UP_USER_HISTORY_CHAR_LIMIT;
+  return {
+    role: message.sender === Sender.User ? 'user' : 'model',
+    text: limitHistoryText(sanitizeHistoryText(message.text || ''), limit),
+  };
+}
+
 export function isMegaPromptRequest(userMessage: string, systemPrompt: string): boolean {
   const combined = `${systemPrompt}\n${userMessage}`.toUpperCase();
   return (
@@ -42,14 +71,38 @@ export function getDeepDiveSource(message: string): DeepDiveSource {
 
 export function buildConversationHistory(
   conversationHistory: Message[],
-  isDeepDive: boolean,
+  optionsOrIsDeepDive: BuildConversationHistoryOptions | boolean,
 ): Array<{ role: 'user' | 'model'; text: string }> {
   const validMessages = conversationHistory.filter(message => message.text && message.text.trim().length > 0);
-  const sourceMessages = isDeepDive
-    ? validMessages.filter(message => message.sender === Sender.User).slice(-4)
-    : validMessages;
+  const options =
+    typeof optionsOrIsDeepDive === 'boolean'
+      ? { isDeepDive: optionsOrIsDeepDive }
+      : optionsOrIsDeepDive;
 
-  return sourceMessages.map(message => ({
+  if (options.isDeepDive) {
+    return validMessages
+      .filter(message => message.sender === Sender.User)
+      .slice(-4)
+      .map(message => ({
+        role: 'user',
+        text: sanitizeHistoryText(message.text || ''),
+      }));
+  }
+
+  if (options.isFollowUp) {
+    const lastBotMessage = [...validMessages].reverse().find(message => message.sender === Sender.Bot);
+    const recentUserMessages = validMessages.filter(message => message.sender === Sender.User).slice(-2);
+    const selectedIds = new Set<string>([
+      ...recentUserMessages.map(message => message.id),
+      ...(lastBotMessage ? [lastBotMessage.id] : []),
+    ]);
+
+    return validMessages
+      .filter(message => selectedIds.has(message.id))
+      .map(toModelHistoryItem);
+  }
+
+  return validMessages.map(message => ({
     role: message.sender === Sender.User ? 'user' : 'model',
     text: sanitizeHistoryText(message.text || ''),
   }));

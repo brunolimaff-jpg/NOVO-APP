@@ -263,7 +263,7 @@ describe('useChatMessageOrchestrator', () => {
         expect.objectContaining({ id: 'bot-1' }),
       ]),
       'SYSTEM',
-      expect.objectContaining({ sessionId: 'session-1' }),
+      expect.objectContaining({ sessionId: 'session-1', isFollowUp: true }),
       true,
     );
     expect(harness.state.loadingVariant).toBe('inline');
