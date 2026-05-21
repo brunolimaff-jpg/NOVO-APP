@@ -15,7 +15,10 @@ const TECHNICAL_SELLER_QUESTION_REGEX =
   /\b(arquitetura|nativamente|ecossistema|gatec|capex|erp|hcm|wms|stack|integra[cç][aã]o|m[oó]dulos?\s+senior|sistemas?\s+que\s+j[aá]\s+rodam|visibilidade\s+de\s+ponta\s+a\s+ponta)\b/i;
 const BUSINESS_QUESTION_OPENER_REGEX = /^(qual|quais|que|quem|onde|quando|quanto|quantos|quanta|quantas)\b/i;
 const BUSINESS_SELLER_SIGNAL_REGEX =
-  /\b(margem|custo|risco|decis[aã]o|investimento|or[cç]amento|crescimento|opera[cç][aã]o|atraso|retrabalho|prazo|cliente|produtividade|dinheiro|retorno|diretoria|prioridade|expans[aã]o|perda|multa|controle|patrocin|receita|resultado|servi[cç]o)\b/i;
+  /\b(margem|custo|risco|decis[aã]o|investimento|or[cç]amento|crescimento|opera[cç][aã]o|atraso|retrabalho|prazo|cliente|produtividade|dinheiro|retorno|diretoria|prioridade|expans[aã]o|perda|multa|controle|patrocina\w*|mudan[cç]a|receita|resultado|servi[cç]o)\b/i;
+const COMPANY_LEGAL_SUFFIX_REGEX =
+  /\b(?:ltda|limitada|me|mei|epp|eireli|s\/a|s\.a\.?|sa|s a|cia|companhia|participa[cç][oõ]es?|holding)\b\.?/gi;
+const COMPANY_LEADING_NOISE_REGEX = /^(?:grupo|empresa|companhia|cia)\s+/i;
 
 const LEGACY_FALLBACK_PATTERNS = [
   /^qual gargalo em .+ ja esta consumindo margem e segue tratado como rotina\?$/i,
@@ -90,6 +93,40 @@ function normalizeForComparison(value: string): string {
     .trim();
 }
 
+function toBusinessDisplayCase(value: string): string {
+  const preserveAcronyms = new Set(['slc', 'brf', 'jbs', 'adm']);
+  return value
+    .split(/\s+/)
+    .map(token => {
+      if (!token) return token;
+      const lower = token.toLowerCase();
+      if (preserveAcronyms.has(lower)) return lower.toUpperCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
+}
+
+export function normalizeCompanyReferenceForSuggestions(companyName?: string | null): string {
+  const normalized = (companyName || '')
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/[()[\]{}]/g, ' ')
+    .replace(/[.,;:]+/g, ' ')
+    .replace(/&/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return 'a operação';
+
+  const withoutLegalNoise = normalized
+    .replace(COMPANY_LEADING_NOISE_REGEX, '')
+    .replace(COMPANY_LEGAL_SUFFIX_REGEX, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const fallback = withoutLegalNoise || normalized;
+  return toBusinessDisplayCase(fallback);
+}
+
 export function normalizeContinuitySuggestion(raw: string): string {
   const normalized = (raw || '')
     .replace(/[\r\n]+/g, ' ')
@@ -103,6 +140,26 @@ export function normalizeContinuitySuggestion(raw: string): string {
   const withoutEndingPunctuation = normalized.replace(/[.!]+$/g, '').trim();
   if (!withoutEndingPunctuation) return '';
   return withoutEndingPunctuation.endsWith('?') ? withoutEndingPunctuation : `${withoutEndingPunctuation}?`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeCompanyMentionInSuggestion(candidate: string, companyName?: string | null): string {
+  const companyReference = normalizeCompanyReferenceForSuggestions(companyName);
+  const rawCompany = (companyName || '').replace(/\s+/g, ' ').trim();
+  if (!rawCompany || companyReference === 'a operação') return candidate;
+
+  const variants = [
+    rawCompany,
+    rawCompany.replace(/&/g, ' '),
+    rawCompany.replace(COMPANY_LEGAL_SUFFIX_REGEX, ' ').replace(/&/g, ' ').replace(/\s+/g, ' ').trim(),
+  ].filter((value, index, list) => value && list.indexOf(value) === index);
+
+  return variants.reduce((text, variant) => {
+    return text.replace(new RegExp(escapeRegExp(variant), 'gi'), companyReference);
+  }, candidate);
 }
 
 function isLegacyFallbackSuggestion(value: string): boolean {
@@ -139,8 +196,9 @@ function pushUnique(
   seen: Set<string>,
   avoidKeys: Set<string>,
   raw: string,
+  companyName?: string | null,
 ): void {
-  const candidate = normalizeContinuitySuggestion(raw);
+  const candidate = normalizeCompanyMentionInSuggestion(normalizeContinuitySuggestion(raw), companyName);
   if (!candidate || candidate.length < 15) return;
   if (isLegacyFallbackSuggestion(candidate)) return;
   if (!isBusinessSellerContinuityQuestion(candidate)) return;
@@ -155,7 +213,7 @@ export function buildContextualContinuityFallback(
   companyName?: string | null,
   options: ContinuitySuggestionOptions = {},
 ): string[] {
-  const companyReference = (companyName || '').trim() || 'a operação';
+  const companyReference = normalizeCompanyReferenceForSuggestions(companyName);
   const contextCorpus = `${companyReference}\n${options.contextText || ''}`;
   const avoidKeys = buildAvoidKeys(options);
   const seen = new Set<string>();
@@ -171,7 +229,7 @@ export function buildContextualContinuityFallback(
   themesToUse.forEach((theme, themeIndex) => {
     theme.prompts.forEach((prompt, promptIndex) => {
       if (themeIndex > CONTINUITY_TARGET && promptIndex > 0) return;
-      pushUnique(candidates, seen, avoidKeys, prompt(companyReference));
+      pushUnique(candidates, seen, avoidKeys, prompt(companyReference), companyName);
     });
   });
 
@@ -181,7 +239,7 @@ export function buildContextualContinuityFallback(
     `Que risco em ${companyReference} já tem custo recorrente e ainda não virou pauta de orçamento?`,
     `Qual processo de ${companyReference} precisa sair do improviso antes da próxima expansão?`,
     `Quem em ${companyReference} deveria patrocinar a mudança antes que o problema vire urgência?`,
-  ].forEach(prompt => pushUnique(candidates, seen, avoidKeys, prompt));
+  ].forEach(prompt => pushUnique(candidates, seen, avoidKeys, prompt, companyName));
 
   return candidates.slice(0, CONTINUITY_TARGET);
 }
@@ -196,12 +254,12 @@ export function ensureContinuitySuggestions(
   const avoidKeys = buildAvoidKeys(options);
 
   (Array.isArray(suggestions) ? suggestions : []).forEach(item => {
-    pushUnique(unique, seen, avoidKeys, item);
+    pushUnique(unique, seen, avoidKeys, item, companyName);
   });
 
   if (unique.length < CONTINUITY_TARGET) {
     buildContextualContinuityFallback(companyName, options).forEach(item => {
-      pushUnique(unique, seen, avoidKeys, item);
+      pushUnique(unique, seen, avoidKeys, item, companyName);
     });
   }
 

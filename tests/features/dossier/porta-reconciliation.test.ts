@@ -141,4 +141,49 @@ Texto consolidado sem marcador explícito.
     expect(ensured.join(' ')).not.toMatch(/GATec|CAPEX|ERP|nativamente|arquitetura|sistemas que já rodam/i);
     expect(ensured.some(item => /margem|crescimento|investimento|diretoria|operação/i.test(item))).toBe(true);
   });
+
+  it('usa nome comercial nas sugestões quando entrada vem de razão social ou CNPJ', () => {
+    const ensured = ensureContinuitySuggestions([], 'SCHEFFER & CIA LTDA', {
+      contextText: 'A conta tem pressão de margem, risco fiscal e decisão de investimento em aberto.',
+    });
+
+    expect(ensured).toHaveLength(4);
+    expect(ensured.join(' ')).toContain('Scheffer');
+    expect(ensured.join(' ')).not.toMatch(/\b(LTDA|CIA|ME|S\/A|S\.A)\b/i);
+  });
+
+  it('normaliza razão social também em perguntas retornadas pela IA', () => {
+    const ensured = ensureContinuitySuggestions(
+      [
+        'Onde a margem da SCHEFFER & CIA LTDA está vazando sem virar prioridade?',
+        'Quem na SCHEFFER & CIA LTDA precisa patrocinar essa mudança agora?',
+      ],
+      'SCHEFFER & CIA LTDA',
+      {
+        contextText: 'A conta tem pressão de margem, crescimento operacional e prioridade de investimento.',
+      },
+    );
+
+    expect(ensured[0]).toBe('Onde a margem da Scheffer está vazando sem virar prioridade?');
+    expect(ensured[1]).toBe('Quem na Scheffer precisa patrocinar essa mudança agora?');
+    expect(ensured.join(' ')).not.toMatch(/\b(LTDA|CIA|ME|S\/A|S\.A)\b/i);
+  });
+
+  it('remove sufixos societários de entradas manuais comuns', () => {
+    const ensured = ensureContinuitySuggestions([], 'Grupo Bom Futuro Ltda ME', {
+      contextText: 'A operação cresce e tem custo recorrente sem orçamento claro.',
+    });
+
+    expect(ensured.join(' ')).toContain('Bom Futuro');
+    expect(ensured.join(' ')).not.toMatch(/\b(Grupo|Ltda|ME)\b/i);
+  });
+
+  it('preserva termos comerciais que fazem parte do nome', () => {
+    const ensured = ensureContinuitySuggestions([], 'Agro Comercial Ltda ME', {
+      contextText: 'A conta tem custo recorrente e decisão de investimento em aberto.',
+    });
+
+    expect(ensured.join(' ')).toContain('Agro Comercial');
+    expect(ensured.join(' ')).not.toMatch(/\b(Ltda|ME)\b/i);
+  });
 });
