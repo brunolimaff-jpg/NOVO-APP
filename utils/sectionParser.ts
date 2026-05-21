@@ -28,6 +28,14 @@ function shouldSplitAtLevel(level: number, hasPrimaryModules: boolean): boolean 
   return level === 2 || level === 3;
 }
 
+function isSellerContainerSection(title: string): boolean {
+  const normalized = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return normalized.includes('mapas visuais') || normalized.includes('cards de auditoria');
+}
+
 export function parseMarkdownSections(markdown: string): ParsedSection[] {
   const source = markdown.replace(/\r\n/g, '\n').trim();
   if (!source) return [];
@@ -72,6 +80,11 @@ export function parseMarkdownSections(markdown: string): ParsedSection[] {
     if (headerMatch) {
       const level = headerMatch[1].length;
       const title = headerMatch[2].trim();
+
+      if (currentSection && isSellerContainerSection(currentSection.title) && level > currentSection.level) {
+        currentSection.content += `${line}\n`;
+        continue;
+      }
 
       if (shouldSplitAtLevel(level, hasPrimaryModules)) {
         if (!currentSection && introLines.length > 0) {

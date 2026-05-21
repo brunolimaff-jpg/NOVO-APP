@@ -32,6 +32,7 @@ export {
   ALL_SPECIALIST_PROMPTS,
   INVESTIGATION_MODE_BLOCKS,
   PROMPT_VERSION,
+  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   SHARED_FOUNDATION_BLOCK,
   buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,

@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
 import {
+  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_RH_SINDICATOS_GOD_MODE,
@@ -203,35 +204,35 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       const modules: DossierWaterfallModule[] = [
         {
-          name: 'Raio-X Operacional',
-          prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+          name: 'Porte / Teia Societária',
+          prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[0],
           optional: false,
           timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
         },
         {
-          name: 'Tech Stack',
-          prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+          name: 'Operação / Cadeia de Valor',
+          prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
           stage: MODULAR_DOSSIER_STAGES[1],
+          optional: false,
+          timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+        },
+        {
+          name: 'Bordas de Controle',
+          prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+          stage: MODULAR_DOSSIER_STAGES[2],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
         {
           name: 'Riscos & Compliance',
           prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
-          stage: MODULAR_DOSSIER_STAGES[2],
-          optional: true,
-          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
-        },
-        {
-          name: 'Estratégia & Expansão',
-          prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[3],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
         },
         {
-          name: 'RH & Decisores',
+          name: 'Caminho de Venda',
           prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
           stage: MODULAR_DOSSIER_STAGES[4],
           optional: true,
@@ -259,6 +260,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             accumulatedTextSnapshot
               ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
               : '',
+            SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
           ]
             .filter(Boolean)
             .join('\n\n'),

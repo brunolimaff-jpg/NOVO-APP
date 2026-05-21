@@ -34,7 +34,7 @@ describe('porta-reconciliation', () => {
 
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
     const result = resolveModuleNamesForMissingDimensions(['O', 'T', 'O', 'A']);
-    expect(result).toEqual(['Raio-X Operacional', 'Tech Stack', 'RH & Decisores']);
+    expect(result).toEqual(['Operação / Cadeia de Valor', 'Bordas de Controle', 'Caminho de Venda']);
   });
 
   it('ativa guardrail de integridade quando todas as dimensões PORTA ficam ausentes', () => {

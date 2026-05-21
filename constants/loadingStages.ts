@@ -5,13 +5,13 @@
  */
 
 export const MODULAR_DOSSIER_STAGES = [
-  'Mapeando inteligência operacional...',
-  'Investigando tech stack...',
-  'Investigando riscos & compliance...',
-  'Investigando estratégia & expansão...',
-  'Investigando RH & decisores...',
+  'Mapeando conta real e teia societária...',
+  'Mapeando operação e cadeia de valor...',
+  'Identificando bordas de controle...',
+  'Verificando pressões e compliance...',
+  'Mapeando caminho de venda...',
   'Cruzando referências de mercado...',
-  'Finalizando dossiê modular...',
+  'Finalizando brief de reunião...',
 ] as const;
 
 export type ModularDossierStage = typeof MODULAR_DOSSIER_STAGES[number];
@@ -21,11 +21,11 @@ export type ModularDossierStage = typeof MODULAR_DOSSIER_STAGES[number];
  * precisem de tradução ou polimento adicional na tela.
  */
 export const STAGE_DISPLAY_LABELS: Record<string, string> = {
-  'Mapeando inteligência operacional...': 'Mapeando inteligência operacional...',
-  'Investigando tech stack...':           'Entendendo a operação e tecnologia...',
-  'Investigando riscos & compliance...':  'Verificando riscos e conformidade...',
-  'Investigando estratégia & expansão...': 'Analisando movimentos de mercado...',
-  'Investigando RH & decisores...':       'Mapeando estrutura e liderança...',
-  'Cruzando referências de mercado...':   'Reunindo referências de setor...',
-  'Finalizando dossiê modular...':        'Consolidando inteligência final...',
+  'Mapeando conta real e teia societária...': 'Mapeando conta real e teia societária...',
+  'Mapeando operação e cadeia de valor...':   'Entendendo operação e cadeia de valor...',
+  'Identificando bordas de controle...':      'Identificando bordas de controle...',
+  'Verificando pressões e compliance...':     'Verificando pressões e compliance...',
+  'Mapeando caminho de venda...':             'Mapeando caminho de venda...',
+  'Cruzando referências de mercado...':       'Reunindo referências de setor...',
+  'Finalizando brief de reunião...':          'Consolidando brief de reunião...',
 };

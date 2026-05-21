@@ -89,12 +89,14 @@ describe('report export helpers', () => {
       { encontrado: true, grupo: 'GRUPO SCHEFFER', totalModulos: 74 },
     );
 
-    expect(intro).toContain('## 📌 Resumo Executivo');
-    expect(intro).toContain('**Tese da Conta:**');
-    expect(intro).toContain('**Por Que Agir Agora:**');
-    expect(intro).toContain('**Risco de Inação:**');
-    expect(intro).toContain('**Direção Recomendada:**');
-    expect(intro).toContain('**Sinal de Confiança:**');
+    expect(intro).toContain('## Brief de Reunião');
+    expect(intro).toContain('**Tese da conta:**');
+    expect(intro).toContain('**Dor principal:**');
+    expect(intro).toContain('**Por que falar agora:**');
+    expect(intro).toContain('**Quem acionar:**');
+    expect(intro).toContain('**Perguntas para reunião:**');
+    expect(intro).toContain('**Próximo passo:**');
+    expect(intro).toContain('**Confiança:**');
     expect(intro).toContain('74 módulos confirmados');
     expect(intro).toContain('expansão de conta');
     expect(intro).not.toContain('WMS/TMS');
@@ -124,6 +126,7 @@ describe('report export helpers', () => {
     expect(intro).toContain('Empresa X concentra uma dor executiva clara');
     expect(intro).toContain('Não há gatilho temporal forte nas fontes');
     expect(intro).toContain('Confiança moderada');
+    expect(intro).toContain('**Perguntas para reunião:**');
     expect(intro).not.toContain('Dimensão');
   });
 

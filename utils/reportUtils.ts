@@ -399,15 +399,42 @@ export function buildMainDossierExecutiveIntro(
     clienteSeniorData,
     inconsistencyDetected: false,
   });
+  const normalized = normalizeForMatch(fullText);
+  const likelyStakeholders = [
+    /\b(logist|frete|patio|pátio|expedic|uba|armaz|trading|porto)\b/.test(normalized) ? 'Operações / Logística' : null,
+    /\b(compliance|fiscal|credito|crédito|margem|ebitda|caixa|frete)\b/.test(normalized) ? 'CFO / Controladoria' : null,
+    /\b(integracao|integração|sistema|stack|dados|planilha|retaguarda|core)\b/.test(normalized) ? 'TI / Sistemas' : null,
+    /\b(rh|sst|jornada|motorista|terceir|eSocial|esocial)\b/.test(normalized) ? 'RH / SST' : null,
+  ].filter((item): item is string => Boolean(item));
+  const stakeholders = Array.from(new Set(likelyStakeholders)).slice(0, 3);
+  const stakeholderText = stakeholders.length > 0
+    ? stakeholders.join(' + ')
+    : 'Operações + Controladoria + TI';
+
+  const cardQuestions = Array.from(
+    fullText.matchAll(/\*\*Pergunta de reunião:\*\*\s*([^\n]+)/gi),
+  )
+    .map(match => stripMarkdownFormatting(match[1] || '').replace(/^["“”]+|["“”]+$/g, '').trim())
+    .filter(Boolean);
+  const fallbackQuestions = [
+    `Onde ${companyName ? formatCompanyDisplayName(companyName) : 'a conta'} ainda perde visibilidade operacional entre unidade, expedição e gestão?`,
+    'Qual controle ainda depende de ajuste manual, planilha ou validação fora do fluxo principal?',
+    'Quem precisa estar na conversa para transformar esse ponto em decisão de projeto?',
+  ];
+  const questions = Array.from(new Set([...cardQuestions, ...fallbackQuestions])).slice(0, 3);
+  const primaryPain = summarizePainPoint(spine.risk);
 
   return [
-    '## 📌 Resumo Executivo',
+    '## Brief de Reunião',
     '',
-    `- **Tese da Conta:** ${spine.thesis}`,
-    `- **Por Que Agir Agora:** ${spine.urgency}`,
-    `- **Risco de Inação:** ${spine.risk}`,
-    `- **Direção Recomendada:** ${spine.direction}`,
-    `- **Sinal de Confiança:** ${spine.confidence}`,
+    `- **Tese da conta:** ${spine.thesis}`,
+    `- **Dor principal:** ${primaryPain}`,
+    `- **Por que falar agora:** ${spine.urgency}`,
+    `- **Quem acionar:** ${stakeholderText}`,
+    '- **Perguntas para reunião:**',
+    ...questions.map((question, index) => `  ${index + 1}. ${question.endsWith('?') ? question : `${question}?`}`),
+    `- **Próximo passo:** ${spine.direction}`,
+    `- **Confiança:** ${spine.confidence}`,
     '',
   ].join('\n');
 }

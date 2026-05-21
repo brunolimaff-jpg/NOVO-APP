@@ -83,6 +83,36 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
   );
 };
 
+function getSellerSectionKind(title: string): 'brief' | 'maps' | 'cards' | 'default' {
+  const normalized = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (normalized.includes('brief de reuniao')) return 'brief';
+  if (normalized.includes('mapas visuais')) return 'maps';
+  if (normalized.includes('cards de auditoria')) return 'cards';
+  return 'default';
+}
+
+function getSellerSectionClass(kind: ReturnType<typeof getSellerSectionKind>, isDarkMode: boolean): string {
+  if (kind === 'brief') {
+    return isDarkMode
+      ? 'rounded-xl border border-emerald-500/25 bg-emerald-500/10 shadow-sm'
+      : 'rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm';
+  }
+  if (kind === 'maps') {
+    return isDarkMode
+      ? 'rounded-xl border border-blue-500/25 bg-blue-500/10 shadow-sm'
+      : 'rounded-xl border border-blue-200 bg-blue-50 shadow-sm';
+  }
+  if (kind === 'cards') {
+    return isDarkMode
+      ? 'rounded-xl border border-slate-700 bg-slate-900/70 shadow-sm'
+      : 'rounded-xl border border-slate-200 bg-white shadow-sm';
+  }
+  return '';
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   isDarkMode,
@@ -158,18 +188,25 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         </div>
       )}
 
-      {sections.map((section, idx) => (
+      {sections.map((section, idx) => {
+        const sellerSectionKind = getSellerSectionKind(section.title);
+        const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
+        const isPrimaryModule = section.level === 1 && section.kind === 'module';
+        const framedClass = sellerSectionClass || (
+          isPrimaryModule
+            ? isDarkMode
+              ? 'rounded-2xl border border-slate-800/80 bg-slate-900/50 shadow-sm'
+              : 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm'
+            : ''
+        );
+
+        return (
         <div
           key={section.key}
-          className={`section-block group relative ${
-            section.level === 1 && section.kind === 'module'
-              ? isDarkMode
-                ? 'rounded-2xl border border-slate-800/80 bg-slate-900/50 shadow-sm'
-                : 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm'
-              : ''
-          }`}
+          data-section-kind={sellerSectionKind}
+          className={`section-block group relative ${framedClass}`}
         >
-          {section.level === 1 && section.kind === 'module' && (
+          {isPrimaryModule && (
             <div className={`flex items-center justify-between gap-3 px-4 pt-4 pb-1 md:px-5 ${
               isDarkMode ? 'border-slate-800/70' : 'border-slate-200'
             }`}>
@@ -184,7 +221,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
               </div>
             </div>
           )}
-          <div className={section.level === 1 && section.kind === 'module' ? 'section-content px-4 pb-4 md:px-5 md:pb-5' : 'section-content'}>
+          <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
             <MarkdownRenderer
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
               isDarkMode={isDarkMode}
@@ -194,7 +231,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             />
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
         <div className="mt-4 min-w-0 border-t border-dashed border-gray-500/20 pt-2">

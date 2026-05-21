@@ -185,15 +185,16 @@ Linguagem:
 - Foque em EBITDA, perda de caixa, risco de governança, urgência de sistema e janela de decisão
 
 Tempo de leitura:
-- Cada seção narrativa: máximo 3 minutos de leitura
-- Tabelas e diagramas não contam no limite
+- O brief principal deve caber em 1 tela / cerca de 90 segundos
+- Cada card de auditoria deve caber em leitura rápida
+- Diagramas só entram quando melhoram a decisão comercial
 
 Estrutura obrigatória de cada módulo:
-1. Abra com UM header H1 claro do módulo
-2. Em seguida traga uma leitura executiva em 3 a 5 bullets curtos
-3. Depois entregue o artefato principal do módulo (tabela, mapa ou diagrama)
-4. Traga 1 bloco de dor/oportunidade com implicação comercial
-5. Feche com gatilhos de abordagem
+1. Abra com UM header H1 comercial curto do módulo
+2. Traga a seção "## Mapas Visuais" com no máximo 1 Mermaid confiável ou declare que não há mapa seguro
+3. Traga a seção "## Cards de Auditoria"
+4. Gere de 1 a 3 cards no formato "### Card: [título]"
+5. Cada card deve ter exatamente: Fato, Evidência, Implicação comercial, Pergunta de reunião, Confiança
 6. Deixe apenas os markers PORTA por último, sem expor bloco visível de score, dimensão, nota sugerida ou explicação de cálculo
 
 Repetição entre módulos:
@@ -208,10 +209,10 @@ Escaneabilidade:
 
 Prioridade de conteúdo (se espaço for curto):
 1. Markers PORTA (camada interna obrigatória)
-2. Gatilhos de abordagem comercial
-3. Fatos duros com implicação de negócio
-4. Análise detalhada
-5. Contexto adicional
+2. Cards com fato, evidência, implicação e pergunta de reunião
+3. Mapa visual quando houver dados reais fortes
+4. Contexto adicional
+5. Análise detalhada
 
 Markers obrigatórios:
 - Os markers [[PORTA_FEED_*]], [[PORTA_FLAG:*]] e [[PORTA_SEG:*]] são OBRIGATÓRIOS
@@ -1316,10 +1317,10 @@ FASE 4 — SCORING E FLAGS (silenciosa)
 - Validar consistência cross-prompt
 
 FASE 5 — RENDERIZAÇÃO (visível)
-- Produzir os subdossiês com títulos obrigatórios
-- Manter estrutura de tabelas e Mermaid
+- Produzir módulos compactos em cards auditáveis
+- Manter Mermaid apenas quando houver dados reais fortes
 - Emitir markers [[PORTA_*]] no formato exato
-- Gerar gatilhos de abordagem comercial específicos
+- Gerar perguntas de reunião específicas dentro dos cards
 
 FASE 6 — RECONCILIAÇÃO FINAL (silenciosa)
 - Validar coerência de narrativa
@@ -1343,6 +1344,7 @@ Gerar um dossiê que:
 - Seja denso o suficiente para diferenciar da concorrência
 - Seja acionável o suficiente para o AE entrar na conta preparado
 - Seja auditável o suficiente para comitê executivo da Senior Sistemas
+- Priorize brief de reunião e cards auditáveis em vez de relatório longo
 
 Este orquestrador transforma módulos especialistas em sistema operacional de inteligência comercial.
 </master_orchestrator_v5>

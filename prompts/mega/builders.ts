@@ -82,6 +82,41 @@ Modo WAR MODE:
 `,
 };
 
+export const SELLER_BRIEF_MODULE_OUTPUT_CONTRACT = `
+<seller_brief_module_output_contract>
+CONTRATO VISÍVEL V1 — BRIEF DE REUNIÃO + CARDS AUDITÁVEIS
+
+Este contrato prevalece sobre templates antigos de subdossiê longo.
+Não gere relatório enciclopédico. Não gere seções longas de "dossiê completo".
+
+Formato obrigatório de cada módulo:
+
+# [Nome comercial curto do módulo]
+
+## Mapas Visuais
+- Inclua no máximo 1 mapa Mermaid quando houver dados reais suficientes.
+- Priorize: teia societária/grupo econômico, fluxo operacional ou mapa de influência.
+- Se os dados forem fracos, escreva: "Sem mapa visual confiável nesta rodada."
+- Nunca gere Mermaid genérico, com placeholders ou nós não identificados.
+
+## Cards de Auditoria
+
+### Card: [título comercial do insight]
+- **Fato:** [1 frase objetiva, com evidência ou "ponto a validar"]
+- **Evidência:** [fonte/CRM/sinal usado; não inventar]
+- **Implicação comercial:** [por que isso muda a conversa de venda]
+- **Pergunta de reunião:** [uma pergunta natural para vendedor usar]
+- **Confiança:** [Alta/Média/Baixa + motivo curto]
+
+Regras:
+- Gere de 1 a 3 cards por módulo.
+- Cada card deve caber em leitura rápida.
+- Use linguagem comercial; evite jargão técnico quando não for necessário.
+- Não exponha cálculo, notas ou dimensões PORTA no texto visível.
+- Mantenha os markers [[PORTA_*]] obrigatórios por último, exatamente no formato esperado.
+</seller_brief_module_output_contract>
+`;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXPORT DE COMPATIBILIDADE — SHARED_FOUNDATION_BLOCK
 // Mantém ChatInterface atual funcionando sem precisar trocar imports agora
@@ -103,6 +138,7 @@ export const SHARED_FOUNDATION_BLOCK = [
   SHARED_PARSER_GUARD_BLOCK,
   SHARED_FINAL_RECONCILIATION_BLOCK,
   MASTER_INVESTIGATION_ORCHESTRATOR_V5,
+  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
 ].join('\n\n');
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -233,6 +269,7 @@ export default {
   SHARED_PARSER_GUARD_BLOCK,
   SHARED_FINAL_RECONCILIATION_BLOCK,
   MASTER_INVESTIGATION_ORCHESTRATOR_V5,
+  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
