@@ -84,10 +84,11 @@ Modo WAR MODE:
 
 export const SELLER_BRIEF_MODULE_OUTPUT_CONTRACT = `
 <seller_brief_module_output_contract>
-CONTRATO VISÍVEL V1 — BRIEF DE REUNIÃO + CARDS AUDITÁVEIS
+CONTRATO VISÍVEL V1 — MAPAS VISUAIS + CARDS AUDITÁVEIS
 
 Este contrato prevalece sobre templates antigos de subdossiê longo.
 Não gere relatório enciclopédico. Não gere seções longas de "dossiê completo".
+Não gere seção "Brief de Reunião"; a saída visível deve começar pelos módulos e seus mapas/cards.
 
 Formato obrigatório de cada módulo:
 

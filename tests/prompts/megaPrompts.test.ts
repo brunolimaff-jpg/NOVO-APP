@@ -129,7 +129,8 @@ describe('PORTA mega prompts', () => {
   });
 
   it('declares the compact seller-facing output contract for module generation', () => {
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('Não gere seção "Brief de Reunião"');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Mapas Visuais');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Cards de Auditoria');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial do insight]');
@@ -219,9 +220,9 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 48460,
+          "length": 48491,
           "lines": 1314,
-          "sha256": "60050d5b45d44fb1734d8cd281a16f2990f7f1a316648be287a5457abd583977",
+          "sha256": "5366c1c620e6f18e99a8504a909bc175945d5028b7e1ecd0aa55af1925d952a5",
         },
         {
           "label": "specialist-1",
@@ -267,21 +268,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105263,
+          "length": 105294,
           "lines": 2867,
-          "sha256": "5b50b108b90c71411c051047d0e38722c4800309e2ce0914a61c2072c514bd92",
+          "sha256": "36e79f92634cb08a527e8568a5cb6b11ffaaabc61a5d2e16bcb28e145c60c507",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113711,
+          "length": 113742,
           "lines": 3122,
-          "sha256": "18d0951f51c457565d7c67d0eaf9c5884d51e19a252c386c6ac446edb86d7172",
+          "sha256": "128ea81aa64e66dde7140a765d211e7070d5ecfdc1cbdfeb5702e94339e1c6a1",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105740,
+          "length": 105771,
           "lines": 2887,
-          "sha256": "72201a2d437bbb542ea88d506807da1149c8a70dc3ce9a961b2654e9ba7da0a8",
+          "sha256": "52622efb953f2a8e5674caa2d84179345cf48b0e4f1b414fafce4229a63d7640",
         },
       ]
     `);

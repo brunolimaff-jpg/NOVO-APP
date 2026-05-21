@@ -329,8 +329,9 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.objectContaining({ useGrounding: true }),
     );
-    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
-    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');
+    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
     expect(runDossierBenchmarkStageMock).toHaveBeenCalledTimes(1);
     expect(ensureWaterfallScorePortaMock).toHaveBeenCalledWith(
       expect.stringContaining('[[PORTA:74'),
@@ -355,6 +356,8 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.suggestions).toEqual(DEFAULT_SUGGESTIONS);
     expect(finalBotMessage.text).toContain('Porte / Teia Societária consolidado');
     expect(finalBotMessage.text).toContain('Benchmark consolidado');
+    expect(finalBotMessage.text).not.toContain('## Brief de Reunião');
+    expect(finalBotMessage.text).not.toContain('**Tese da conta:**');
     expect(finalBotMessage.text).not.toContain('[[PORTA');
   });
 

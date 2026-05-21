@@ -16,7 +16,6 @@ import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationS
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
-import { buildMainDossierExecutiveIntro } from '../../utils/reportUtils';
 import {
   appendSeniorEvidenceNote,
   buildSeniorEvidenceContext,
@@ -377,14 +376,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
-      const waterfallExecutiveIntro = buildMainDossierExecutiveIntro(
-        waterfallNarrativeBase,
-        normalizedCompany || resolvedMegaCompany || waterfallClienteSeniorData?.grupo || null,
-        waterfallClienteSeniorData,
-      );
-      const waterfallFinalText = waterfallExecutiveIntro
-        ? `${waterfallExecutiveIntro}\n\n---\n\n${waterfallNarrativeBase}`
-        : waterfallNarrativeBase;
+      const waterfallFinalText = waterfallNarrativeBase;
       const promotedInlineSources = await validateInlineSourcesForPromotion(
         waterfallFinalText,
         waterfallGroundingSources,

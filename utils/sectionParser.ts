@@ -6,7 +6,7 @@ export interface ParsedSection {
   kind?: 'intro' | 'module' | 'section';
 }
 
-export type SellerSectionKind = 'brief' | 'maps' | 'cards' | 'default';
+export type SellerSectionKind = 'maps' | 'cards' | 'default';
 
 function normalizeSectionTitle(title: string): string {
   return title
@@ -17,7 +17,6 @@ function normalizeSectionTitle(title: string): string {
 
 export function getSellerSectionKind(title: string): SellerSectionKind {
   const normalized = normalizeSectionTitle(title);
-  if (normalized.includes('brief de reuniao')) return 'brief';
   if (normalized.includes('mapas visuais')) return 'maps';
   if (normalized.includes('cards de auditoria')) return 'cards';
   return 'default';

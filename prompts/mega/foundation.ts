@@ -185,7 +185,6 @@ Linguagem:
 - Foque em EBITDA, perda de caixa, risco de governança, urgência de sistema e janela de decisão
 
 Tempo de leitura:
-- O brief principal deve caber em 1 tela / cerca de 90 segundos
 - Cada card de auditoria deve caber em leitura rápida
 - Diagramas só entram quando melhoram a decisão comercial
 

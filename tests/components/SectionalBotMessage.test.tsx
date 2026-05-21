@@ -44,16 +44,12 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/ARQUITETURA DE TI/)).toBeInTheDocument();
   });
 
-  it('renderiza uma abertura executiva antes dos módulos principais', () => {
+  it('renderiza uma introdução simples antes dos módulos principais', () => {
     const message: Message = {
       id: 'bot-2',
       sender: Sender.Bot,
       timestamp: new Date(),
       text: [
-        '## Brief de Reunião',
-        '',
-        'Conta já dominada pela Senior com tese prioritária de expansão.',
-        '',
         '## 🔭 Leitura do Caso',
         '',
         '- **Operação:** Existe gargalo logístico na ponta.',
@@ -67,10 +63,9 @@ describe('SectionalBotMessage', () => {
 
     render(<SectionalBotMessage message={message} isDarkMode={false} />);
 
-    expect(screen.getByText(/Brief de Reunião/)).toBeInTheDocument();
     expect(screen.getByText(/Leitura do Caso/)).toBeInTheDocument();
     expect(screen.getByText('Módulo 1')).toBeInTheDocument();
-    expect(screen.getByText(/Conta já dominada pela Senior/)).toBeInTheDocument();
+    expect(screen.getByText(/Existe gargalo logístico/)).toBeInTheDocument();
   });
 
   it('destaca mapas visuais e cards de auditoria no novo contrato compacto', () => {
@@ -79,10 +74,6 @@ describe('SectionalBotMessage', () => {
       sender: Sender.Bot,
       timestamp: new Date(),
       text: [
-        '## Brief de Reunião',
-        '',
-        '- **Tese da conta:** Conta com massa comercial clara.',
-        '',
         '## Mapas Visuais',
         '',
         '### Mapa: Teia societária',
@@ -108,7 +99,6 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/Mapas Visuais/)).toBeInTheDocument();
     expect(screen.getByText(/Cards de Auditoria/)).toBeInTheDocument();
     expect(screen.getByText(/Borda logística/)).toBeInTheDocument();
-    expect(container.querySelector('[data-section-kind="brief"]')).toBeInTheDocument();
     expect(container.querySelector('[data-section-kind="maps"]')).toBeInTheDocument();
     expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
   });

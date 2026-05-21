@@ -84,11 +84,6 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
 };
 
 function getSellerSectionClass(kind: SellerSectionKind, isDarkMode: boolean): string {
-  if (kind === 'brief') {
-    return isDarkMode
-      ? 'rounded-xl border border-emerald-500/25 bg-emerald-500/10 shadow-sm'
-      : 'rounded-xl border border-emerald-200 bg-emerald-50 shadow-sm';
-  }
   if (kind === 'maps') {
     return isDarkMode
       ? 'rounded-xl border border-blue-500/25 bg-blue-500/10 shadow-sm'
