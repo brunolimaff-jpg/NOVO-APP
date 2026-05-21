@@ -435,6 +435,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       waterfallSuggestions = ensureContinuitySuggestions(
         waterfallSuggestions,
         resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+        { contextText: waterfallFinalText },
       );
 
       updateSessionById(sessionId, session => {

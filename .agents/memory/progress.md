@@ -4,6 +4,11 @@ Last updated: 2026-05-21
 
 ## Completed
 
+- Perguntas de acompanhamento corrigidas em `2026-05-21`:
+  - `utils/continuitySuggestions.ts` criado para fallback contextual de sugestoes por sinais comerciais do dossie/resposta.
+  - Fallback estatico ruim das quatro perguntas genericas deixou de ser emitido pela camada compartilhada.
+  - Chat normal e waterfall passam `contextText` para completar perguntas; regeneracao ("Novas") evita repetir as sugestoes atuais e usa a mensagem alvo como contexto.
+  - Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
 - Inline follow-up do chat principal refatorado em `2026-05-21`:
   - `features/chat/message-orchestrator.ts` passa `isFollowUp` para `sendMessageToGemini`.
   - `services/gemini/runtime.ts` monta historico compacto para follow-ups em pares alternados `user/model`: pesquisa inicial + ultimo turno completo, reduzindo custo e risco de repetir a estrutura do dossie inicial.

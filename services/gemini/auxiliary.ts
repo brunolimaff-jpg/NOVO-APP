@@ -2,6 +2,7 @@ import { Message, Sender } from '../../types';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../../utils/loadingCuriosities';
 import { sanitizeLoadingContextText } from '../../utils/textCleaners';
 import { scoutDiag } from '../../utils/diagnosticLog';
+import { ensureContinuitySuggestions } from '../../utils/continuitySuggestions';
 import { proxyGenerateContent } from '../geminiProxy';
 import { LOADING_CURIOSITY_MODEL_ID, ROUTER_MODEL_ID } from './config';
 
@@ -309,27 +310,6 @@ export async function generateContinuityQuestion(
       .map(entry => entry.item);
   };
 
-  const buildFallbackContinuityQuestions = (): string[] => {
-    const rankedThemes = activeThemes.filter(theme => theme.hits > 0);
-    const fallbackThemes = (rankedThemes.length > 0 ? rankedThemes : activeThemes).slice(0, 4);
-    const candidates: string[] = [];
-
-    fallbackThemes.forEach((theme, index) => {
-      candidates.push(theme.prompts[index % theme.prompts.length]);
-      candidates.push(theme.prompts[(index + 1) % theme.prompts.length]);
-    });
-
-    candidates.push(
-      `Qual caos operacional em ${companyReference} já é conhecido e continua tratado como preço normal de crescer?`,
-      `Onde ${companyReference} já perde margem sem admitir que o problema deixou de ser pontual e virou estrutural?`,
-      `Que decisão em ${companyReference} segue paralisada porque o dado chega tarde demais para virar ação?`,
-      `Qual custo escondido em ${companyReference} já foi normalizado pelo time e deveria incomodar mais a diretoria?`,
-      `Se nada mudar em ${companyReference}, qual ruptura tende a aparecer primeiro na operação ou no resultado?`,
-    );
-
-    return candidates;
-  };
-
   const parseQuestionArray = (raw: string): string[] => {
     if (!raw?.trim()) return [];
     try {
@@ -510,7 +490,10 @@ export async function generateContinuityQuestion(
       error: error instanceof Error ? error.message : String(error),
     });
     return orderByQuality(
-      mergeUniqueQuestions([], buildFallbackContinuityQuestions()),
+      ensureContinuitySuggestions([], normalizedCompany, {
+        contextText: recentMessages,
+        avoidSuggestions: normalizedExcludedSuggestions,
+      }),
     ).slice(0, CONTINUITY_TARGET);
   }
 
@@ -518,9 +501,10 @@ export async function generateContinuityQuestion(
 
   if (collectedQuestions.length < CONTINUITY_TARGET) {
     const beforeFallbackCount = collectedQuestions.length;
-    collectedQuestions = orderByQuality(
-      mergeUniqueQuestions(collectedQuestions, buildFallbackContinuityQuestions()),
-    );
+    collectedQuestions = orderByQuality(ensureContinuitySuggestions(collectedQuestions, normalizedCompany, {
+      contextText: recentMessages,
+      avoidSuggestions: normalizedExcludedSuggestions,
+    }));
     scoutDiag.warn('ContinuityQuestion', 'fallback premium acionado para completar sugestões', {
       company: empresaAlvo || null,
       beforeFallbackCount,
@@ -530,5 +514,8 @@ export async function generateContinuityQuestion(
     });
   }
 
-  return collectedQuestions.slice(0, CONTINUITY_TARGET);
+  return ensureContinuitySuggestions(collectedQuestions, normalizedCompany, {
+    contextText: recentMessages,
+    avoidSuggestions: normalizedExcludedSuggestions,
+  }).slice(0, CONTINUITY_TARGET);
 }

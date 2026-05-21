@@ -1,7 +1,7 @@
 import { extractCompanyName } from './companyNameExtractor';
 import { cleanTitle } from './textCleaners';
 
-const CONTINUITY_TARGET = 4;
+export { ensureContinuitySuggestions } from './continuitySuggestions';
 
 export function isGenericCompanyLabel(value: string | null | undefined): boolean {
   const normalized = cleanTitle(value).trim();
@@ -63,45 +63,4 @@ export function resolveHintedCompany(
   }
 
   return null;
-}
-
-function normalizeContinuitySuggestion(raw: string): string {
-  const normalized = (raw || '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  return normalized.endsWith('?') ? normalized : `${normalized}?`;
-}
-
-function buildContinuitySuggestionsFallback(companyName?: string | null): string[] {
-  const companyReference = (companyName || '').trim() || 'a operação';
-  return [
-    `Qual gargalo em ${companyReference} já está consumindo margem e segue tratado como rotina?`,
-    `Que decisão crítica em ${companyReference} continua travada por falta de dados confiáveis?`,
-    `Onde ${companyReference} ainda depende de planilhas e amplia risco operacional sem reação executiva?`,
-    `Se nada mudar em ${companyReference} nos próximos 90 dias, qual ruptura tende a aparecer primeiro?`,
-  ];
-}
-
-export function ensureContinuitySuggestions(
-  suggestions: string[] | null | undefined,
-  companyName?: string | null,
-): string[] {
-  const unique: string[] = [];
-  const seen = new Set<string>();
-
-  const pushIfValid = (value: string) => {
-    const normalized = normalizeContinuitySuggestion(value);
-    if (!normalized) return;
-    const key = normalized.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    unique.push(normalized);
-  };
-
-  (Array.isArray(suggestions) ? suggestions : []).forEach(pushIfValid);
-
-  if (unique.length < CONTINUITY_TARGET) {
-    buildContinuitySuggestionsFallback(companyName).forEach(pushIfValid);
-  }
-
-  return unique.slice(0, CONTINUITY_TARGET);
 }

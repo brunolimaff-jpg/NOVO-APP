@@ -74,6 +74,13 @@ function expectStrongContinuitySet(result: string[]) {
   expect(result.some(item => /margem|perda|risco|gargalo|trav|retrabalho|custo|press[aã]o|diretoria|integra[cç][aã]o/i.test(item))).toBe(true);
 }
 
+const LEGACY_ACME_FALLBACK_SUGGESTIONS = [
+  'Qual gargalo em Acme Agro já está consumindo margem e segue tratado como rotina?',
+  'Que decisão crítica em Acme Agro continua travada por falta de dados confiáveis?',
+  'Onde Acme Agro ainda depende de planilhas e amplia risco operacional sem reação executiva?',
+  'Se nada mudar em Acme Agro nos próximos 90 dias, qual ruptura tende a aparecer primeiro?',
+];
+
 describe('parsePortaFeeds', () => {
   it('retorna resultado vazio para texto sem marcadores', () => {
     const result = parsePortaFeeds('Texto qualquer sem marcadores PORTA', 'TEST');
@@ -291,6 +298,31 @@ describe('generateContinuityQuestion', () => {
 
     expectStrongContinuitySet(result);
     expect(result.some(item => /fiscal|compliance|integra[cç][aã]o|fechamento/i.test(item))).toBe(true);
+    expect(result).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
+  });
+
+  it('usa fallback contextual quando a geração de perguntas falha por completo', async () => {
+    proxyGenerateContentMock.mockRejectedValueOnce(new Error('quota'));
+
+    const result = await generateContinuityQuestion(
+      [
+        {
+          id: '1',
+          sender: Sender.Bot,
+          text: [
+            'Acme Agro depende de planilhas no fechamento, sofre vazamento de margem e mantém integração frágil do ERP.',
+            'O comitê financeiro adia decisão por falta de dado confiável e há pressão fiscal recorrente.',
+          ].join(' '),
+          timestamp: new Date(),
+        },
+      ],
+      'Acme Agro',
+      'Bruno',
+    );
+
+    expectStrongContinuitySet(result);
+    expect(result).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
+    expect(result.some(item => /planilha|ERP|integra[cç][aã]o|fiscal|margem|comit[eê]/i.test(item))).toBe(true);
   });
 });
 

@@ -25,6 +25,13 @@ import {
 import { ensureContinuitySuggestions } from '../../../utils/messageHelpers';
 
 describe('porta-reconciliation', () => {
+  const legacyFallbackSuggestions = [
+    'Qual gargalo em Scheffer já está consumindo margem e segue tratado como rotina?',
+    'Que decisão crítica em Scheffer continua travada por falta de dados confiáveis?',
+    'Onde Scheffer ainda depende de planilhas e amplia risco operacional sem reação executiva?',
+    'Se nada mudar em Scheffer nos próximos 90 dias, qual ruptura tende a aparecer primeiro?',
+  ];
+
   it('mapeia dimensões faltantes para módulos donos com deduplicação', () => {
     const result = resolveModuleNamesForMissingDimensions(['O', 'T', 'O', 'A']);
     expect(result).toEqual(['Raio-X Operacional', 'Tech Stack', 'RH & Decisores']);
@@ -87,14 +94,24 @@ Texto consolidado sem marcador explícito.
     ).rejects.toThrow('Falha técnica ao consolidar Score PORTA');
   });
 
-  it('preenche perguntas de acompanhamento quando a IA retorna lista vazia ou parcial', () => {
-    const ensuredEmpty = ensureContinuitySuggestions([], 'Scheffer');
+  it('preenche perguntas de acompanhamento contextuais quando a IA retorna lista vazia ou parcial', () => {
+    const contextText = [
+      'O dossiê aponta risco fiscal recorrente, fechamento financeiro manual e reconciliação em planilhas.',
+      'A operação depende de ERP sem integração confiável, sofre perda de margem e tem decisão de diretoria travada por falta de dados.',
+    ].join(' ');
+    const ensuredEmpty = ensureContinuitySuggestions([], 'Scheffer', { contextText });
     expect(ensuredEmpty).toHaveLength(4);
     expect(ensuredEmpty.every(item => item.endsWith('?'))).toBe(true);
     expect(ensuredEmpty.some(item => /Scheffer/i.test(item))).toBe(true);
+    expect(ensuredEmpty).not.toEqual(legacyFallbackSuggestions);
+    expect(ensuredEmpty.some(item => /fiscal|ERP|integra[cç][aã]o|planilha|margem|diretoria/i.test(item))).toBe(true);
 
-    const ensuredPartial = ensureContinuitySuggestions(['Qual risco operacional já está escalando?'], 'Scheffer');
+    const ensuredPartial = ensureContinuitySuggestions(['Qual risco operacional já está escalando?'], 'Scheffer', {
+      contextText,
+      avoidSuggestions: legacyFallbackSuggestions,
+    });
     expect(ensuredPartial).toHaveLength(4);
     expect(ensuredPartial[0]).toBe('Qual risco operacional já está escalando?');
+    expect(ensuredPartial).not.toEqual(legacyFallbackSuggestions);
   });
 });
