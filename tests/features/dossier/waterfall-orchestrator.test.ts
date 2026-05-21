@@ -329,7 +329,8 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.objectContaining({ useGrounding: true }),
     );
-    expect(generateDossierModuleMock.mock.calls[0][4]).toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
+    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('BRIEF DE REUNIÃO + CARDS AUDITÁVEIS');
     expect(runDossierBenchmarkStageMock).toHaveBeenCalledTimes(1);
     expect(ensureWaterfallScorePortaMock).toHaveBeenCalledWith(
       expect.stringContaining('[[PORTA:74'),

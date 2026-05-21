@@ -401,10 +401,10 @@ export function buildMainDossierExecutiveIntro(
   });
   const normalized = normalizeForMatch(fullText);
   const likelyStakeholders = [
-    /\b(logist|frete|patio|pátio|expedic|uba|armaz|trading|porto)\b/.test(normalized) ? 'Operações / Logística' : null,
-    /\b(compliance|fiscal|credito|crédito|margem|ebitda|caixa|frete)\b/.test(normalized) ? 'CFO / Controladoria' : null,
-    /\b(integracao|integração|sistema|stack|dados|planilha|retaguarda|core)\b/.test(normalized) ? 'TI / Sistemas' : null,
-    /\b(rh|sst|jornada|motorista|terceir|eSocial|esocial)\b/.test(normalized) ? 'RH / SST' : null,
+    /\b(logist|frete|patio|expedic|uba|armaz|trading|porto)\b/.test(normalized) ? 'Operações / Logística' : null,
+    /\b(compliance|fiscal|credito|margem|ebitda|caixa|frete)\b/.test(normalized) ? 'CFO / Controladoria' : null,
+    /\b(integracao|sistema|stack|dados|planilha|retaguarda|core)\b/.test(normalized) ? 'TI / Sistemas' : null,
+    /\b(rh|sst|jornada|motorista|terceir|esocial)\b/.test(normalized) ? 'RH / SST' : null,
   ].filter((item): item is string => Boolean(item));
   const stakeholders = Array.from(new Set(likelyStakeholders)).slice(0, 3);
   const stakeholderText = stakeholders.length > 0

@@ -6,6 +6,23 @@ export interface ParsedSection {
   kind?: 'intro' | 'module' | 'section';
 }
 
+export type SellerSectionKind = 'brief' | 'maps' | 'cards' | 'default';
+
+function normalizeSectionTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function getSellerSectionKind(title: string): SellerSectionKind {
+  const normalized = normalizeSectionTitle(title);
+  if (normalized.includes('brief de reuniao')) return 'brief';
+  if (normalized.includes('mapas visuais')) return 'maps';
+  if (normalized.includes('cards de auditoria')) return 'cards';
+  return 'default';
+}
+
 function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -29,11 +46,7 @@ function shouldSplitAtLevel(level: number, hasPrimaryModules: boolean): boolean 
 }
 
 function isSellerContainerSection(title: string): boolean {
-  const normalized = title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-  return normalized.includes('mapas visuais') || normalized.includes('cards de auditoria');
+  return getSellerSectionKind(title) !== 'default';
 }
 
 export function parseMarkdownSections(markdown: string): ParsedSection[] {

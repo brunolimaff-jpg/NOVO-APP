@@ -2,7 +2,6 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
 import {
-  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_RH_SINDICATOS_GOD_MODE,
@@ -260,7 +259,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             accumulatedTextSnapshot
               ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
               : '',
-            SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
           ]
             .filter(Boolean)
             .join('\n\n'),

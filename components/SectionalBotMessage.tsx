@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
-import { parseMarkdownSections } from '../utils/sectionParser';
+import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
@@ -83,18 +83,7 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
   );
 };
 
-function getSellerSectionKind(title: string): 'brief' | 'maps' | 'cards' | 'default' {
-  const normalized = title
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-  if (normalized.includes('brief de reuniao')) return 'brief';
-  if (normalized.includes('mapas visuais')) return 'maps';
-  if (normalized.includes('cards de auditoria')) return 'cards';
-  return 'default';
-}
-
-function getSellerSectionClass(kind: ReturnType<typeof getSellerSectionKind>, isDarkMode: boolean): string {
+function getSellerSectionClass(kind: SellerSectionKind, isDarkMode: boolean): string {
   if (kind === 'brief') {
     return isDarkMode
       ? 'rounded-xl border border-emerald-500/25 bg-emerald-500/10 shadow-sm'
