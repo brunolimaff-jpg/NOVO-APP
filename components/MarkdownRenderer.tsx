@@ -107,7 +107,8 @@ async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')
         fontSize: '11px',
         edgeLabelBackground: isDarkMode ? '#1e293b' : '#ffffff',
       },
-      securityLevel: 'loose',
+      // strict: bloqueia click injection e outras execuções JS arbitrárias em diagramas
+      securityLevel: 'strict',
     });
     mermaidSingleton = mermaid;
     mermaidTheme = themeKey;
@@ -230,7 +231,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   isDarkMode = false,
   groundingSources = [],
   auditableSources,
-  allowRawHtml = true,
+  // ATENÇÃO: rehypeRaw renderiza HTML bruto sem sanitização.
+  // Manter false por padrão para prevenir XSS via conteúdo gerado por IA.
+  // Se true for necessário, usar DOMPurify antes de passar o conteúdo.
+  allowRawHtml = false,
 }) => {
   const resolvedSources = useMemo(
     () =>
@@ -273,6 +277,18 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     text = autoLinkSeniorTerms(text);
     text = cleanFakeSourcesBlock(text);
 
+    // Converte <a href="...">texto</a> HTML bruto para markdown [texto](url).
+    // Necessário porque allowRawHtml=false (XSS prevention) desabilita rehypeRaw,
+    // então HTML de resultados de pesquisa não seria renderizado como link.
+    text = text.replace(
+      /<a\s+(?:[^>]*?\s+)?href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi,
+      (_match, url, linkText) => {
+        const trimmedText = linkText.trim();
+        if (!trimmedText || !url.trim()) return _match;
+        return `[${trimmedText}](${url.trim()})`;
+      },
+    );
+
     text = text.replace(
       /\[(🟢|🟡|🟠|🔴)\s*(?:Fonte oficial|Não confirmado|Evidência forte|Suspeito)?[\s-–:]*([^\]\n]+?)\]/gi,
       (_match, _emoji, rawUrl) => {
@@ -281,9 +297,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         const displayDomain = fullUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
         const citationIndex = citationMap.get(normalizeSourceUrl(fullUrl));
         if (!citationIndex) {
-          return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${displayDomain}</a>`;
+          return `[${displayDomain}](${fullUrl})`;
         }
-        return `<sup><a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="citation-link" title="${displayDomain}">[${citationIndex}]</a></sup>`;
+        return `[${citationIndex}](${fullUrl})`;
       },
     );
 

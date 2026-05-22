@@ -281,8 +281,15 @@ function getBestLookupCandidateMetrics(result: ClienteResult, fullQuery: string)
     if (!normalizedLabel) continue;
 
     const matchedTokenCount = queryTokens.filter(token => normalizedLabel.includes(token)).length;
+    // Single-token queries require exact string match to avoid false positives
+    // (e.g. query "PAMPA" should NOT exact-match label "PAMPAFOODS").
+    // Multi-token queries can use .includes() because multiple tokens provide
+    // sufficient discrimination (e.g. "TOTVS SISTEMAS" in "TOTVS SISTEMAS LTDA").
     const exactPhrase =
-      !!queryNormalized && (normalizedLabel === queryNormalized || normalizedLabel.includes(queryNormalized));
+      !!queryNormalized && (
+        normalizedLabel === queryNormalized ||
+        (queryTokens.length >= 2 && normalizedLabel.includes(queryNormalized))
+      );
     const matchedAllTokens = queryTokens.length > 0 && matchedTokenCount === queryTokens.length;
 
     let matchType: MatchType = 'broad';
@@ -539,19 +546,30 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
 
 export function formatarParaPrompt(lookup: LookupResponse): string {
   if (!lookup?.ok || !lookup.encontrado || !lookup.results?.length) {
-    return `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n**Implicação:** Provável prospect novo (não é cliente atual).\n---\n`;
+    return `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n` +
+      `**Implicação:** Provável prospect novo (não é cliente atual).\n` +
+      `**💡 Validação recomendada:** Confirme no Atlas da Oportunidade ou Cosulta Cliente antes de assumir como prospect.\n---\n`;
   }
 
   const r = lookup.results[0];
   const effectiveMatchType = r.matchType ?? getBestLookupCandidateMetrics(r, lookup.query).matchType;
   const isExact = effectiveMatchType === 'exact';
 
-  let md = `\n\n---\n## 🔍 BASE INTERNA SENIOR ${isExact ? '[🟢 CONFIRMADO — dados CRM interno Senior]' : '[🟡 POSSÍVEL MATCH — verificar precisão]'}\n`;
+  // Match NÃO exato: NÃO incluir dados detalhados de CRM para evitar que o modelo
+  // atribua informações de um cliente a outro (ex: confundir "Pampa" com "Pampafoods").
   if (!isExact) {
-    md += `**Atenção:** Busca retornou dados de um grupo similar. Valide se "${r.grupo}" corresponde à "${lookup.query}".\n\n`;
+    return `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟡 POSSÍVEL MATCH — NÃO USAR COMO CONFIRMAÇÃO]\n` +
+      `**⚠️ ATENÇÃO:** A busca por "${lookup.query}" retornou "${r.grupo}".\n` +
+      `**NÃO** são a mesma empresa. Estes dados NÃO devem ser usados como evidência de contratação Senior.\n` +
+      `**Instrução para o modelo:** Trate "${lookup.query}" como PROSPECT (não cliente). ` +
+      `Não mencione módulos, gaps ou soluções Senior.\n` +
+      `**💡 Validação recomendada:** Consulte o Atlas da Oportunidade ou Cosulta Cliente para confirmar ` +
+      `se há vínculo real com a Senior antes de qualquer abordagem.\n---\n`;
   }
+
+  // Match EXATO: incluir dados completos com segurança
+  let md = `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟢 CONFIRMADO — dados CRM interno Senior]\n`;
   md += `**Grupo Cliente:** ${r.grupo}\n`;
-  md += `**Status CRM:** ${isExact ? 'Confirmado' : 'Possivel match'}\n`;
   md += `**É cliente Senior:** ✅ SIM\n`;
   md += `**Total módulos contratados:** ${r.total_modulos}\n\n`;
 
@@ -580,14 +598,6 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
   }
 
   md += `\n**⚠️ INSTRUÇÃO:** Estes dados são 🟢 CONFIRMADO (CRM interno). Os GAPS DEVEM guiar a FASE 8.\n---\n`;
-  if (!isExact) {
-    md += `\n**INSTRUCAO:** Trate estes dados apenas como pista comercial. Nao use este bloco como confirmacao de cliente Senior sem validacao adicional.\n---\n`;
-  }
-  md = isExact
-    ? md
-    : md
-        .replace(/\n\*\*.*cliente Senior:.*\n/g, '\n')
-        .replace(/\n\*\*.*CRM interno\)\. Os GAPS DEVEM guiar a FASE 8\.\n---\n/g, '');
   return md;
 }
 

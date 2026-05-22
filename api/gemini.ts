@@ -1,6 +1,7 @@
 import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+import { setSecurityHeaders } from './_security-headers.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -68,8 +69,8 @@ function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; ind
   const sample = (text || '').trim();
   if (!sample) return { detected: false, indicators: [] };
 
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `hard_${i}`);
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.filter((pattern) => pattern.test(sample)).map((_, i) => `soft_${i}`);
+  const hardHits = HARD_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => pattern.test(sample) ? [`hard_${i}`] : []);
+  const softHits = SOFT_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => pattern.test(sample) ? [`soft_${i}`] : []);
   return {
     detected: hardHits.length > 0 || softHits.length >= 2,
     indicators: [...hardHits, ...softHits],
@@ -400,6 +401,7 @@ async function executeGeminiAction(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

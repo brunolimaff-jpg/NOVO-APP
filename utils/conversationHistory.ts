@@ -1,6 +1,8 @@
 // utils/conversationHistory.ts
 // Sistema de histórico de conversas com LocalStorage
 
+import { scoutDiag } from './diagnosticLog';
+
 export interface ConversationEntry {
   id: string;
   timestamp: number;
@@ -39,7 +41,11 @@ export function getConversationHistory(): ConversationEntry[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
-  } catch {
+  } catch (err) {
+    scoutDiag.warn('ConversationHistory', 'Histórico corrompido, iniciando novo', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    localStorage.removeItem(STORAGE_KEY);
     return [];
   }
 }

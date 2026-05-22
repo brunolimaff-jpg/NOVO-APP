@@ -2,10 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { universalExtract } from '../utils/documentExtractor.js';
+import { setSecurityHeaders } from './_security-headers.js';
 
 const ExtractRequestSchema = z.object({
     url: z.string().url().optional(),
-    base64Content: z.string().optional(),
+    // Limite de ~10MB em base64 (~13.6M chars) para prevenir DoS por alocação excessiva
+    base64Content: z.string().max(13_600_000).optional(),
     mimeType: z.string().optional(),
 }).refine(data => {
     if (data.url) return true;
@@ -22,6 +24,7 @@ export const config = {
 export const maxDuration = 60;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    setSecurityHeaders(res);
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }

@@ -4,6 +4,7 @@ import {
   subscribe,
   type Investigation,
 } from '../services/investigationStore';
+import { useDebounce } from '../hooks/useDebounce';
 
 // Re-exporta para não quebrar imports externos que usam o path do componente.
 export type { Investigation };
@@ -127,6 +128,7 @@ export default function InvestigationDashboard({
   }, []);
 
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebounce(searchText, 300);
   const [sortBy, setSortBy] = useState<"data" | "score">("data");
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>("todos");
   const [clienteFilter, setClienteFilter] = useState<ClienteFilter>("todos");
@@ -152,8 +154,8 @@ export default function InvestigationDashboard({
   const filtered = useMemo(() => {
     let items = getInvestigations();
 
-    if (searchText.trim()) {
-      const q = searchText.toUpperCase().trim();
+    if (debouncedSearchText.trim()) {
+      const q = debouncedSearchText.toUpperCase().trim();
       items = items.filter(
         (i) =>
           i.empresa.toUpperCase().includes(q) ||
@@ -172,7 +174,7 @@ export default function InvestigationDashboard({
     if (sortBy === "score") items.sort((a, b) => b.score - a.score);
 
     return items;
-  }, [tick, searchText, scoreFilter, clienteFilter, sortBy]);
+  }, [tick, debouncedSearchText, scoreFilter, clienteFilter, sortBy]);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-end md:items-center justify-center md:p-4">

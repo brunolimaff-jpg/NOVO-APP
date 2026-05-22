@@ -100,21 +100,29 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   // PERSISTÊNCIA IDB
   // ===================================================================
 
-  const persistAlerts = useCallback(async (data: RadarAlert[]) => {
-    try { await set(IDB_ALERTS_KEY, data); } catch { /* IDB unavailable */ }
+  const persistToIDB = useCallback(async (key: string, label: string, data: unknown) => {
+    try { await set(key, data); } catch (err) {
+      scoutDiag.warn('RadarStorage', `Falha ao persistir ${label} em IDB`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }, []);
+
+  const persistAlerts = useCallback(async (data: RadarAlert[]) => {
+    await persistToIDB(IDB_ALERTS_KEY, 'alertas', data);
+  }, [persistToIDB]);
 
   const persistConfig = useCallback(async (data: RadarConfig) => {
-    try { await set(IDB_CONFIG_KEY, data); } catch { /* IDB unavailable */ }
-  }, []);
+    await persistToIDB(IDB_CONFIG_KEY, 'config', data);
+  }, [persistToIDB]);
 
   const persistLastScan = useCallback(async (ts: number) => {
-    try { await set(IDB_LAST_SCAN_KEY, ts); } catch { /* IDB unavailable */ }
-  }, []);
+    await persistToIDB(IDB_LAST_SCAN_KEY, 'lastScan', ts);
+  }, [persistToIDB]);
 
   const persistMetaInsight = useCallback(async (insight: string | null) => {
-    try { await set(IDB_META_INSIGHT_KEY, insight); } catch { /* IDB unavailable */ }
-  }, []);
+    await persistToIDB(IDB_META_INSIGHT_KEY, 'metaInsight', insight);
+  }, [persistToIDB]);
 
   // ===================================================================
   // LOAD INICIAL
@@ -135,8 +143,10 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
         if (savedConfig) setConfig(savedConfig);
         if (savedLastScan) setLastScanAt(savedLastScan);
         if (savedMetaInsight) setMetaInsight(savedMetaInsight);
-      } catch {
-        // IDB unavailable, use defaults
+      } catch (err) {
+        scoutDiag.warn('RadarStorage', 'Falha ao carregar dados iniciais do IDB (usando defaults)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
       if (!cancelled) setIsInitialized(true);
     })();

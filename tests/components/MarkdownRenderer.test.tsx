@@ -4,15 +4,29 @@ import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { buildAuditableSources } from '../../utils/textCleaners';
 
 describe('MarkdownRenderer', () => {
-  it('does not render raw HTML when allowRawHtml is false', () => {
+  it('converts raw HTML links to markdown links for rendering', () => {
     const { container } = render(
       <MarkdownRenderer
-        content={'Texto <a href="https://evil.example">clique</a> final'}
+        content={'Texto <a href="https://www.senior.com.br/">clique</a> final'}
         allowRawHtml={false}
       />
     );
 
-    expect(container.querySelector('a[href="https://evil.example"]')).toBeNull();
+    const link = container.querySelector('a[href="https://www.senior.com.br/"]');
+    expect(link).not.toBeNull();
+    expect(link?.textContent).toBe('clique');
+    expect(container.textContent).toContain('Texto');
+  });
+
+  it('does not render non-link raw HTML when allowRawHtml is false', () => {
+    const { container } = render(
+      <MarkdownRenderer
+        content={'Texto <script>alert(1)</script> final'}
+        allowRawHtml={false}
+      />
+    );
+
+    expect(container.querySelector('script')).toBeNull();
     expect(container.textContent).toContain('Texto');
   });
 

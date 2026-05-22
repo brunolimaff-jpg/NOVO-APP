@@ -628,8 +628,10 @@ export async function sendMessageToGemini(
       if (competitorDetected) {
         onCompetitor({ encontrado: true, detected: true, names: ['Concorrente Detectado'] } as CompetitorDetection);
       }
-    } catch {
-      // silencioso
+    } catch (error) {
+      scoutDiag.error('Investigation', 'Falha ao verificar concorrência', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

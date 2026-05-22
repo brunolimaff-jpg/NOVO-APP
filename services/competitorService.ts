@@ -2,6 +2,7 @@
 // Serviço de inteligência competitiva dinâmica — sempre busca em fontes vivas via Gemini.
 // NÃO usa dados fixos de mercado. Tudo é pesquisado em tempo real.
 
+import { scoutDiag } from '../utils/diagnosticLog';
 import { CONCORRENTES, getConcorrente, getRevendasPorEstado, Concorrente } from './competitors';
 
 /**
@@ -89,7 +90,11 @@ function parseFirstJsonObject(raw: string): Record<string, unknown> | null {
       }
     }
     return null;
-  } catch {
+  } catch (err) {
+    scoutDiag.warn('CompetitorService', 'Falha na detecção de concorrente', {
+      error: err instanceof Error ? err.message : String(err),
+      preview: jsonChunk?.slice(0, 100),
+    });
     return null;
   }
 }

@@ -17,10 +17,12 @@ import { useDossierWaterfallOrchestrator } from './features/dossier/waterfall-or
 import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
-import LoadingSmart from './components/LoadingSmart';
-import { EmailModal } from './components/EmailModal';
-import { FollowUpModal } from './components/FollowUpModal';
-import { UpdateNotificationModal } from './components/UpdateNotificationModal';
+
+// Lazy-loaded — não críticos para a primeira paint
+const LoadingSmart = React.lazy(() => import('./components/LoadingSmart'));
+const EmailModal = React.lazy(() => import('./components/EmailModal').then(m => ({ default: m.EmailModal })));
+const FollowUpModal = React.lazy(() => import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal })));
+const UpdateNotificationModal = React.lazy(() => import('./components/UpdateNotificationModal').then(m => ({ default: m.UpdateNotificationModal })));
 import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
@@ -445,66 +447,74 @@ const App: React.FC = () => {
       </div>
 
       {emailModal.isOpen && (
-        <EmailModal
-          emailTo={emailModal.emailTo}
-          onEmailToChange={emailModal.setEmailTo}
-          emailSubject={emailModal.emailSubject}
-          onEmailSubjectChange={emailModal.setEmailSubject}
-          emailStatus={emailModal.emailStatus}
-          onSend={emailModal.handleSend}
-          onClose={emailModal.close}
-        />
+        <React.Suspense fallback={null}>
+          <EmailModal
+            emailTo={emailModal.emailTo}
+            onEmailToChange={emailModal.setEmailTo}
+            emailSubject={emailModal.emailSubject}
+            onEmailSubjectChange={emailModal.setEmailSubject}
+            emailStatus={emailModal.emailStatus}
+            onSend={emailModal.handleSend}
+            onClose={emailModal.close}
+          />
+        </React.Suspense>
       )}
 
       {followUpModal.isOpen && (
-        <FollowUpModal
-          emailTo={followUpModal.emailTo}
-          onEmailToChange={followUpModal.setEmailTo}
-          followUpDias={followUpModal.followUpDias}
-          onDiasChange={followUpModal.setFollowUpDias}
-          followUpNotas={followUpModal.followUpNotas}
-          onNotasChange={followUpModal.setFollowUpNotas}
-          followUpStatus={followUpModal.followUpStatus}
-          companyName={
-            cleanTitle(extractCompanyName(currentSession?.title)) ||
-            currentSession?.empresaAlvo ||
-            'Conta em prospecção'
-          }
-          onSchedule={followUpModal.handleSchedule}
-          onClose={followUpModal.close}
-        />
+        <React.Suspense fallback={null}>
+          <FollowUpModal
+            emailTo={followUpModal.emailTo}
+            onEmailToChange={followUpModal.setEmailTo}
+            followUpDias={followUpModal.followUpDias}
+            onDiasChange={followUpModal.setFollowUpDias}
+            followUpNotas={followUpModal.followUpNotas}
+            onNotasChange={followUpModal.setFollowUpNotas}
+            followUpStatus={followUpModal.followUpStatus}
+            companyName={
+              cleanTitle(extractCompanyName(currentSession?.title)) ||
+              currentSession?.empresaAlvo ||
+              'Conta em prospecção'
+            }
+            onSchedule={followUpModal.handleSchedule}
+            onClose={followUpModal.close}
+          />
+        </React.Suspense>
       )}
 
       {updateAvailable && (
-        <UpdateNotificationModal
-          currentVersion={currentVersion}
-          newVersion={newVersion}
-          isDarkMode={isDarkMode}
-          onDismiss={dismissUpdate}
-          onUpdate={updateNow}
-          isOpen={updateAvailable}
-        />
+        <React.Suspense fallback={null}>
+          <UpdateNotificationModal
+            currentVersion={currentVersion}
+            newVersion={newVersion}
+            isDarkMode={isDarkMode}
+            onDismiss={dismissUpdate}
+            onUpdate={updateNow}
+            isOpen={updateAvailable}
+          />
+        </React.Suspense>
       )}
 
       {isLoading && loadingVariant === 'hero' && (
         <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
-          <LoadingSmart
-            isLoading={isLoading}
-            mode={mode}
-            isDarkMode={isDarkMode}
-            loadingVariant={loadingVariant}
-            fixedStatusLine={loadingPinnedLabel || undefined}
-            onStop={handleStopGeneration}
-            processing={{
-              stage: loadingStatus,
-              completedStages: completedLoadingStatuses,
-              failureCount: failureCount,
-              totalStages: loadingTotalStages,
-              isIncremental: loadingIsIncremental,
-            }}
-            searchQuery={lastQuery}
-            empresaAlvo={currentSession?.empresaAlvo}
-          />
+          <React.Suspense fallback={null}>
+            <LoadingSmart
+              isLoading={isLoading}
+              mode={mode}
+              isDarkMode={isDarkMode}
+              loadingVariant={loadingVariant}
+              fixedStatusLine={loadingPinnedLabel || undefined}
+              onStop={handleStopGeneration}
+              processing={{
+                stage: loadingStatus,
+                completedStages: completedLoadingStatuses,
+                failureCount: failureCount,
+                totalStages: loadingTotalStages,
+                isIncremental: loadingIsIncremental,
+              }}
+              searchQuery={lastQuery}
+              empresaAlvo={currentSession?.empresaAlvo}
+            />
+          </React.Suspense>
         </DossierErrorBoundary>
       )}
 

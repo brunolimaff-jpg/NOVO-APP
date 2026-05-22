@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
 import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
+import { cacheHeaders } from './_cache-headers.js';
+import { setSecurityHeaders } from './_security-headers.js';
 
 export const config = { runtime: 'nodejs' };
 
@@ -16,7 +18,7 @@ const ALLOWED_ORIGINS = new Set([
 function applyCors(req: VercelRequest, res: VercelResponse): boolean {
   const origin = req.headers.origin ?? '';
   // Permite qualquer subdomínio *.vercel.app do projeto (previews de PR)
-  const isVercelPreview = /^https:\/\/novo-app-[a-z0-9-]+-brunolimaff-jpg\.vercel\.app$/.test(origin);
+  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
   if (ALLOWED_ORIGINS.has(origin) || isVercelPreview) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
@@ -27,6 +29,7 @@ function applyCors(req: VercelRequest, res: VercelResponse): boolean {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setSecurityHeaders(res);
   applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -50,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const data = await lookupCnpj(cnpj);
+    res.setHeader('Cache-Control', cacheHeaders(3600)['Cache-Control']);
     console.warn('[api/cnpj] request:success', {
       cnpj,
       sourceResult: {

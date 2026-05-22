@@ -338,10 +338,11 @@ describe('clientLookupService', () => {
         }],
       });
 
-      expect(result).toContain('POSS');
-      expect(result).toContain('Possivel match');
-      expect(result).toContain('pista comercial');
+      expect(result).toContain('POSSÍVEL MATCH');
+      expect(result).toContain('NÃO USAR COMO CONFIRMAÇÃO');
+      expect(result).toContain('PROSPECT');
       expect(result).not.toContain('Os GAPS DEVEM guiar a FASE 8');
+      expect(result).not.toContain('Soluções Senior contratadas');
     });
   });
 

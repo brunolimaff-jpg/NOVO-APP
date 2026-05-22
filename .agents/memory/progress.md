@@ -4,6 +4,11 @@ Last updated: 2026-05-21
 
 ## Completed
 
+- Botão de empresa demo para Preview adicionado em `2026-05-21`:
+  - `components/EmptyStateHome.tsx` mostra CTA de demo somente com `VITE_ENABLE_PREVIEW_DEMO=true` e payload mínimo completo (`VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CITY`, `VITE_PREVIEW_DEMO_STATE`; CNPJ opcional/normalizado).
+  - Clique dispara `onStartInvestigation` diretamente com a empresa configurada, sem regra por usuário.
+  - Testes cobrem exibição/acionamento com env completa e ausência com flag desligada.
+  - Validações: `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green (`11` testes); `npm run typecheck` green.
 - Perguntas de acompanhamento corrigidas em `2026-05-21`:
   - `utils/continuitySuggestions.ts` criado para fallback contextual de sugestoes por sinais comerciais do dossie/resposta.
   - Fallback estatico ruim das quatro perguntas genericas deixou de ser emitido pela camada compartilhada.

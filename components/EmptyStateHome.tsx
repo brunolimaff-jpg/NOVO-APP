@@ -22,6 +22,13 @@ interface EmptyStateHomeProps {
   onOpenRadar?: () => void;
 }
 
+interface PreviewDemoPayload {
+  companyName: string;
+  cnpj: string | null;
+  city: string;
+  state: string;
+}
+
 const VALID_UFS = new Set([
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
   'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
@@ -33,6 +40,24 @@ const BULLETS: string[] = [
   'Score PORTA com qualificação preditiva em 5 dimensões — feche os certos primeiro.',
   'Exportável para follow-up comercial — sem retrabalho manual.',
 ];
+
+function getPreviewDemoPayload(): PreviewDemoPayload | null {
+  if (import.meta.env.VITE_ENABLE_PREVIEW_DEMO !== 'true') return null;
+
+  const companyName = (import.meta.env.VITE_PREVIEW_DEMO_COMPANY || '').trim();
+  const city = (import.meta.env.VITE_PREVIEW_DEMO_CITY || '').trim();
+  const state = (import.meta.env.VITE_PREVIEW_DEMO_STATE || '').trim().toUpperCase();
+  const cnpj = normalizeCnpj(import.meta.env.VITE_PREVIEW_DEMO_CNPJ || '');
+
+  if (companyName.length < 2 || city.length < 2 || !VALID_UFS.has(state)) return null;
+
+  return {
+    companyName,
+    cnpj: cnpj.length === 14 ? cnpj : null,
+    city,
+    state,
+  };
+}
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
   oportunidade: { label: 'OPORTUNIDADE', cls: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
@@ -165,6 +190,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
   const modeMeta = MODE_LABELS[mode] ?? MODE_LABELS[DEFAULT_MODE];
   const bullets = BULLETS;
+  const previewDemoPayload = useMemo(() => getPreviewDemoPayload(), []);
 
   const [companyName, setCompanyName] = useState('');
   const [cnpjInput, setCnpjInput] = useState('');
@@ -284,6 +310,11 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
       city: locationValidation.normalizedCity,
       state: locationValidation.normalizedState,
     });
+  };
+
+  const handlePreviewDemoClick = () => {
+    if (!previewDemoPayload) return;
+    onStartInvestigation(previewDemoPayload);
   };
 
   // ── Derivações de estado do Radar ──────────────────────────────────────────
@@ -519,6 +550,21 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                   </p>
                 )}
                 {locationStatus && <p className={`text-[11px] ${textMuted}`}>{locationStatus}</p>}
+
+                {previewDemoPayload && (
+                  <button
+                    data-testid="preview-demo-investigation-button"
+                    type="button"
+                    onClick={handlePreviewDemoClick}
+                    className={`w-full rounded-md border px-4 py-3 text-sm font-semibold transition-colors ${
+                      isDarkMode
+                        ? 'border-emerald-700/70 bg-emerald-950/30 text-emerald-200 hover:border-emerald-500 hover:bg-emerald-900/40'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-300 hover:bg-emerald-100'
+                    }`}
+                  >
+                    Investigar empresa demo: {previewDemoPayload.companyName}
+                  </button>
+                )}
 
                 <button
                   data-testid="investigation-submit-button"

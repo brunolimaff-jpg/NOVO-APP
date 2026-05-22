@@ -101,7 +101,9 @@ describe('loadingSmartViewModel', () => {
     expect(viewModel.percent).toBe(8);
   });
 
-  it('gera identidade estável para o label novo de compliance', () => {
-    expect(getLoadingStageIdentity('Verificando pressões e compliance...')).toBe('verificando pressoes e compliance');
+  it('normaliza labels equivalentes para evitar duplicação visual', () => {
+    expect(getLoadingStageIdentity('Investigando riscos & compliance...')).toBe(
+      getLoadingStageIdentity('Verificando sinais de risco e conformidade...'),
+    );
   });
 });

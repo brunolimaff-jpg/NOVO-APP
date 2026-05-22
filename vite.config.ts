@@ -160,6 +160,7 @@ export default defineConfig(() => {
           // hashes que não coincidiam após novo deploy no Vercel (404s).
           manualChunks(id) {
             if (id.includes('/node_modules/mermaid/')) return 'mermaid';
+            if (id.includes('/node_modules/framer-motion/')) return 'vendor-anim';
             if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) return 'vendor';
             if (
               id.includes('/constants.ts') ||

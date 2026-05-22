@@ -146,7 +146,10 @@ export async function sendDossierEmail({
     const text = await response.text();
     try {
       return Boolean((JSON.parse(text) as { success?: boolean }).success);
-    } catch {
+    } catch (err) {
+      scoutDiag.warn('ExportService', 'Falha ao parsear resposta do email (assumindo ok)', {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return response.ok;
     }
   } catch (error: unknown) {

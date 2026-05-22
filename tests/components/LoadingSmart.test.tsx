@@ -49,8 +49,8 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Mapeando operação e cadeia de valor...',
-          completedStages: ['Mapeando conta real e teia societária...'],
+          stage: 'Entendendo a operação e tecnologia...',
+          completedStages: ['Mapeando inteligência operacional...'],
           totalStages: 7,
           failureCount: 0,
         }}
@@ -75,13 +75,13 @@ describe('LoadingSmart (variante hero)', () => {
         processing={{
           stage: '',
           completedStages: [
-            'Mapeando conta real e teia societária...',
-            'Mapeando operação e cadeia de valor...',
-            'Verificando pressões e compliance...',
-            'Identificando bordas de controle...',
-            'Mapeando caminho de venda...',
-            'Cruzando referências de mercado...',
-            'Finalizando cards de auditoria...',
+            'Mapeando inteligência operacional...',
+            'Entendendo a operação e tecnologia...',
+            'Verificando sinais de risco e conformidade...',
+            'Analisando movimento e posicionamento de mercado...',
+            'Identificando estrutura, liderança e decisores...',
+            'Reunindo referências e sinais de mercado...',
+            'Consolidando a análise final...',
           ],
           totalStages: 7,
           failureCount: 0,
@@ -156,7 +156,7 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.getByText('Mapeando conta real e teia societária...')).toBeInTheDocument();
     expect(screen.getByText('Mapeando operação e cadeia de valor...')).toBeInTheDocument();
     expect(screen.getAllByText('Verificando pressões e compliance...').length).toBeGreaterThan(0);
-    // Verificamos que o roadmap está completo com os novos labels mapeados
+    // Verificamos que o roadmap está completo com os novos labels
     expect(screen.getByText('Identificando bordas de controle...')).toBeInTheDocument();
     expect(screen.getByText('Mapeando caminho de venda...')).toBeInTheDocument();
   });
@@ -167,7 +167,7 @@ describe('LoadingSmart (variante hero)', () => {
       mode: 'investigacao' as const,
       isDarkMode: false,
       processing: {
-        stage: 'Mapeando operação e cadeia de valor...',
+        stage: 'Entendendo a operação e tecnologia...',
         completedStages: [] as string[],
         totalStages: 7,
         failureCount: 0,
@@ -183,7 +183,7 @@ describe('LoadingSmart (variante hero)', () => {
         {...props}
         processing={{
           ...props.processing,
-          completedStages: ['Mapeando conta real e teia societária...'],
+          completedStages: ['Mapeando inteligência operacional...'],
         }}
       />,
     );
@@ -193,7 +193,7 @@ describe('LoadingSmart (variante hero)', () => {
         {...props}
         processing={{
           ...props.processing,
-          completedStages: ['Mapeando conta real e teia societária...'],
+          completedStages: ['Mapeando inteligência operacional...'],
         }}
       />,
     );
@@ -213,7 +213,7 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Verificando pressões e compliance...',
+          stage: 'Verificando sinais de risco e conformidade...',
           completedStages: ['Investigando riscos & compliance...'],
           totalStages: 7,
           failureCount: 0,
@@ -227,7 +227,7 @@ describe('LoadingSmart (variante hero)', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    expect(screen.getAllByText('Verificando pressões e compliance...')).toHaveLength(2);
+    expect(screen.getAllByText('Verificando sinais de risco e conformidade...')).toHaveLength(2);
   });
 
   it('reseta o insight imediatamente quando o contexto muda de empresa', async () => {
@@ -240,7 +240,7 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Mapeando conta real e teia societária...',
+          stage: 'Mapeando inteligência operacional...',
           completedStages: [],
           totalStages: 7,
           failureCount: 0,
@@ -256,7 +256,7 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Mapeando conta real e teia societária...',
+          stage: 'Mapeando inteligência operacional...',
           completedStages: [],
           totalStages: 7,
           failureCount: 0,
@@ -291,7 +291,7 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Mapeando conta real e teia societária...',
+          stage: 'Mapeando inteligência operacional...',
           completedStages: [],
           totalStages: 7,
           failureCount: 0,
@@ -307,7 +307,7 @@ describe('LoadingSmart (variante hero)', () => {
         mode="investigacao"
         isDarkMode={false}
         processing={{
-          stage: 'Mapeando conta real e teia societária...',
+          stage: 'Mapeando inteligência operacional...',
           completedStages: [],
           totalStages: 7,
           failureCount: 0,
