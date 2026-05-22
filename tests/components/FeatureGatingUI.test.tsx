@@ -32,7 +32,7 @@ const baseSession: ChatSession = {
 };
 
 describe('MVP feature gating UI', () => {
-  it('hides dashboard and integrity actions when restricted', () => {
+  it('hides integrity actions when restricted', () => {
     const onExportConversation = vi.fn();
     render(
       <SettingsDrawer
@@ -44,19 +44,16 @@ describe('MVP feature gating UI', () => {
         onSetMode={vi.fn()}
         isDarkMode={true}
         onToggleTheme={vi.fn()}
-        onOpenDashboard={vi.fn()}
         onExportPDF={vi.fn()}
         onExportConversation={onExportConversation}
         onCopyMarkdown={vi.fn()}
         onScheduleFollowUp={vi.fn()}
         onClearOperator={vi.fn()}
         exportStatus="idle"
-        canAccessDashboard={false}
         canAccessIntegrityCheck={false}
       />
     );
 
-    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     expect(screen.queryByText('Teste de Integridade')).not.toBeInTheDocument();
     expect(screen.queryByText(/modo de investigação/i)).not.toBeInTheDocument();
 

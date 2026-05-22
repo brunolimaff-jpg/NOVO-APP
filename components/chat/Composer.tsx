@@ -17,7 +17,6 @@ interface ComposerProps {
   onSendMessage: (text: string) => void;
   onRetry: () => void;
   onStop?: () => void;
-  onOpenDashboard: () => void;
 }
 
 const Composer: React.FC<ComposerProps> = ({
@@ -29,7 +28,6 @@ const Composer: React.FC<ComposerProps> = ({
   onSendMessage,
   onRetry,
   onStop,
-  onOpenDashboard,
 }) => {
   const [input, setInput] = useState('');
   const [showRetryToast, setShowRetryToast] = useState(false);
@@ -199,19 +197,6 @@ const Composer: React.FC<ComposerProps> = ({
       )}
 
       <div className="p-3 flex items-end gap-2">
-        <Tooltip label="Iniciar nova investigação" position="top">
-          <button
-            data-testid="chat-new-investigation-button"
-            type="button"
-            onClick={onOpenDashboard}
-            className={`flex-none p-2.5 rounded-xl transition-colors ${theme.btnSecondary}`}
-            title="Nova Investigação"
-            aria-label="Iniciar nova investigação"
-          >
-            🔍
-          </button>
-        </Tooltip>
-
         <div className="flex-1 relative">
           <textarea
             data-testid="chat-input"

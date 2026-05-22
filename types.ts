@@ -251,7 +251,6 @@ export interface ChatInterfaceProps {
   pdfReportContent: string | null;
   onOpenEmailModal: () => void;
   onOpenFollowUpModal: () => void;
-  canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
   canWarRoom?: boolean;

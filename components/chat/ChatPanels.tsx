@@ -5,9 +5,6 @@ import type { ExportFormat, ReportType } from '../../types';
 import SuspenseWithError from '../SuspenseWithError';
 import type { RadarProps } from './contracts';
 
-const InvestigationDashboard = React.lazy(() =>
-  loadWithChunkRetry(() => import('../InvestigationDashboard')),
-);
 const SettingsDrawer = React.lazy(() =>
   loadWithChunkRetry(() => import('../SettingsDrawer')),
 );
@@ -16,9 +13,6 @@ const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('../RadarPan
 const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('../RadarSettings')));
 
 interface ChatPanelsProps {
-  showDashboard: boolean;
-  onSelectEmpresa: (empresa: string) => void;
-  onCloseDashboard: () => void;
   showSettings: boolean;
   operatorName: string;
   onUpdateOperatorName: (name: string) => void;
@@ -26,7 +20,6 @@ interface ChatPanelsProps {
   onSetMode: (mode: ChatMode) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
-  onOpenDashboard: () => void;
   onExportPDF: () => void;
   onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
   onCopyMarkdown: () => void;
@@ -34,7 +27,6 @@ interface ChatPanelsProps {
   onClearOperator?: () => void;
   exportStatus: 'idle' | 'loading' | 'success' | 'error';
   exportError?: string | null;
-  canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
   onCloseSettings: () => void;
   showWarRoom: boolean;
@@ -49,9 +41,6 @@ interface ChatPanelsProps {
 }
 
 const ChatPanels: React.FC<ChatPanelsProps> = ({
-  showDashboard,
-  onSelectEmpresa,
-  onCloseDashboard,
   showSettings,
   operatorName,
   onUpdateOperatorName,
@@ -59,7 +48,6 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
   onSetMode,
   isDarkMode,
   onToggleTheme,
-  onOpenDashboard,
   onExportPDF,
   onExportConversation,
   onCopyMarkdown,
@@ -67,7 +55,6 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
   onClearOperator,
   exportStatus,
   exportError,
-  canAccessDashboard = true,
   canAccessIntegrityCheck = true,
   onCloseSettings,
   showWarRoom,
@@ -81,17 +68,6 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
   onCloseRadarSettings,
 }) => (
   <>
-    {showDashboard && (
-      <React.Suspense fallback={null}>
-        <SuspenseWithError>
-          <InvestigationDashboard
-            onSelectEmpresa={onSelectEmpresa}
-            onClose={onCloseDashboard}
-          />
-        </SuspenseWithError>
-      </React.Suspense>
-    )}
-
     {showSettings && (
       <React.Suspense fallback={null}>
         <SuspenseWithError>
@@ -103,7 +79,6 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
             onSetMode={onSetMode}
             isDarkMode={isDarkMode}
             onToggleTheme={onToggleTheme}
-            onOpenDashboard={onOpenDashboard}
             onExportPDF={onExportPDF}
             onExportConversation={onExportConversation}
             onCopyMarkdown={onCopyMarkdown}
@@ -112,7 +87,6 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
             onClose={onCloseSettings}
             exportStatus={exportStatus}
             exportError={exportError}
-            canAccessDashboard={canAccessDashboard}
             canAccessIntegrityCheck={canAccessIntegrityCheck}
           />
         </SuspenseWithError>
