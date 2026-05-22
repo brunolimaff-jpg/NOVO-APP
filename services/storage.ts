@@ -374,7 +374,7 @@ export const storage = {
       return;
     }
 
-    // Supabase upsert
+    // Supabase upsert with onConflict to prevent duplicates
     void supabase!
       .from('favorites')
       .upsert({
@@ -384,7 +384,7 @@ export const storage = {
         reason,
         dossier_id: dossierId,
         created_at: new Date().toISOString(),
-      });
+      }, { onConflict: 'operator_id,cnpj' });
 
     // Log audit
     await this.logAudit('favorite_added', 'dossier', dossierId, {
@@ -467,12 +467,6 @@ export const storage = {
     if (shareError || !shareData) {
       return null;
     }
-
-    // Increment view count (fire and forget)
-    supabase!
-      .from('shared_dossiers')
-      .update({ view_count: 0 }) // will be incremented server-side or via raw SQL
-      .eq('access_token', accessToken);
 
     // Fetch the actual dossier content from dossies table
     const { data: dossierData, error: dossierError } = await supabase!
