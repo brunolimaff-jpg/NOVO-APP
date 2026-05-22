@@ -1,6 +1,33 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
 import { normalizeCnpj, isValidCnpj } from '../utils/cnpj.js';
+import { cacheHeaders } from './_cache-headers.js';
+import { setSecurityHeaders } from './_security-headers.js';
+
+// Origens permitidas: domínio de produção + previews Vercel + dev local
+const ALLOWED_ORIGINS = new Set([
+  process.env.ALLOWED_ORIGIN,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  'https://scoutagro.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean) as string[]);
+
+function applyCors(req: VercelRequest, res: VercelResponse): void {
+  const origin = req.headers.origin ?? '';
+  // Permite qualquer subdomínio *.vercel.app do projeto (previews de PR)
+  const isVercelPreview = /^https:\/\/novo-app-[a-z0-9-]+-brunolimaff-jpg\.vercel\.app$/.test(origin);
+  if (ALLOWED_ORIGINS.has(origin) || isVercelPreview) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+}
 
 // Exemplo de faixas de valor segundo MDIC/Serpro
 type ExportBand = 
@@ -19,14 +46,8 @@ interface ComexResult {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS setup
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  setSecurityHeaders(res);
+  applyCors(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -86,12 +107,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         principaisNCMs: produtos
       };
 
+      res.setHeader('Cache-Control', cacheHeaders(86400)['Cache-Control']);
       return res.status(200).json(result);
     } else {
-      return res.status(200).json({ 
-        isExportador: false, 
+      res.setHeader('Cache-Control', cacheHeaders(86400)['Cache-Control']);
+      return res.status(200).json({
+        isExportador: false,
         cnpj: cleanCnpj,
-        message: 'CNPJ não listado no Cadastro de Exportadores MDIC no último ano base.' 
+        message: 'CNPJ não listado no Cadastro de Exportadores MDIC no último ano base.'
       });
     }
 

@@ -99,7 +99,11 @@ async function validateInlineSourcesForPromotion(
     };
     const results = data?.results || {};
     return candidates.filter(source => results[source.url]?.status === 'valid');
-  } catch {
+  } catch (err) {
+    scoutDiag.warn('Waterfall', 'Falha ao processar fontes do dossiê', {
+      error: err instanceof Error ? err.message : String(err),
+      candidates: candidates.length,
+    });
     return [];
   }
 }

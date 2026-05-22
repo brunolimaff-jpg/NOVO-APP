@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import EmptyStateHome from '../../components/EmptyStateHome';
 
@@ -24,6 +24,10 @@ vi.mock('../../services/brasilApiService', () => ({
 }));
 
 describe('EmptyStateHome onboarding gate', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it.beforeEach(() => {
     vi.clearAllMocks();
     validateCityInStateMock.mockImplementation(async (city: string, state: string) => ({
@@ -60,6 +64,49 @@ describe('EmptyStateHome onboarding gate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Iniciar investigação completa/i }));
     expect(onStartInvestigation).not.toHaveBeenCalled();
+  });
+
+  it('shows preview demo button only when preview demo env is complete', () => {
+    vi.stubEnv('VITE_ENABLE_PREVIEW_DEMO', 'true');
+    vi.stubEnv('VITE_PREVIEW_DEMO_COMPANY', 'Grupo Scheffer');
+    vi.stubEnv('VITE_PREVIEW_DEMO_CNPJ', '04.733.767/0001-80');
+    vi.stubEnv('VITE_PREVIEW_DEMO_CITY', 'Cuiaba');
+    vi.stubEnv('VITE_PREVIEW_DEMO_STATE', 'MT');
+    const onStartInvestigation = vi.fn();
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={onStartInvestigation}
+        isDarkMode={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Investigar empresa demo: Grupo Scheffer/i }));
+
+    expect(onStartInvestigation).toHaveBeenCalledWith({
+      companyName: 'Grupo Scheffer',
+      cnpj: '04733767000180',
+      city: 'Cuiaba',
+      state: 'MT',
+    });
+  });
+
+  it('hides preview demo button when the flag is off', () => {
+    vi.stubEnv('VITE_ENABLE_PREVIEW_DEMO', 'false');
+    vi.stubEnv('VITE_PREVIEW_DEMO_COMPANY', 'Grupo Scheffer');
+    vi.stubEnv('VITE_PREVIEW_DEMO_CITY', 'Cuiaba');
+    vi.stubEnv('VITE_PREVIEW_DEMO_STATE', 'MT');
+
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+      />,
+    );
+
+    expect(screen.queryByTestId('preview-demo-investigation-button')).not.toBeInTheDocument();
   });
 
   it('submits once mandatory fields are valid', async () => {

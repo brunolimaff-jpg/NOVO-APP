@@ -2,6 +2,7 @@ import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import { ChatSession } from '../types';
 import { listRemoteSessions } from '../services/sessionRemoteStore';
 import { LOOKUP_URL } from '../services/apiConfig';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 interface UseAppInitializationOptions {
   loadSessions: () => Promise<ChatSession[]>;
@@ -32,7 +33,9 @@ export function useAppInitialization({
     // WARM-UP: acorda o Apps Script do lookup silenciosamente.
     // Não aguarda resposta nem trata erros — o objetivo é apenas tirar o serviço do cold start
     // antes do vendedor digitar a primeira empresa.
-    fetch(`${LOOKUP_URL}?q=warmup`, { method: 'GET', redirect: 'follow' }).catch(() => {});
+    fetch(`${LOOKUP_URL}?q=warmup`, { method: 'GET', redirect: 'follow' }).catch(() => {
+      scoutDiag.warn('AppInit', 'Warmup do lookup falhou (best-effort)');
+    });
 
     const init = async () => {
       const localSessions = await loadSessions();
@@ -76,7 +79,9 @@ export function useAppInitialization({
             return null;
           });
         })
-        .catch(() => { /* remote sync is best-effort */ });
+        .catch(() => {
+          scoutDiag.warn('AppInit', 'Sync remoto de sessões falhou (best-effort)');
+        });
     };
 
     init();

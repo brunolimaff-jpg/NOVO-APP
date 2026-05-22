@@ -1,12 +1,15 @@
+import { scoutDiag } from '../../utils/diagnosticLog';
 import { proxyGenerateContent } from '../geminiProxy';
 import { RECOVERY_DEBUG_FLAG_KEY, ROUTER_MODEL_ID, OPEN_QUESTION_RECOVERY_METRIC_KEY } from './config';
+
+const RECOVERY_MODULE = 'Recovery';
 
 export function debugRecovery(stage: string, payload: Record<string, unknown>): void {
   if (!isRecoveryDebugEnabled()) return;
   try {
     console.warn(`[RecoveryDebug] ${stage}`, payload);
   } catch {
-    // no-op
+    scoutDiag.warn(RECOVERY_MODULE, 'debugRecovery console.warn falhou');
   }
 }
 
@@ -53,7 +56,10 @@ export async function shouldRecoverOpenQuestionByJudge(
       threshold: confidenceThreshold,
     });
     return parsed?.shouldRetry === true && confidence >= confidenceThreshold;
-  } catch {
+  } catch (err) {
+    scoutDiag.warn(RECOVERY_MODULE, 'Falha no judge de recuperação', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return false;
   }
 }

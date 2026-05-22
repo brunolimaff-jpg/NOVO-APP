@@ -1,3 +1,5 @@
+import { scoutDiag } from './diagnosticLog';
+
 export type LinkValidationState = 'valid' | 'broken' | 'unknown';
 
 export interface LinkValidationResult {
@@ -23,7 +25,11 @@ export async function fetchLinkStatuses(urls: string[]): Promise<Record<string, 
 
     const data = await response.json();
     return data?.results || {};
-  } catch {
+  } catch (err) {
+    scoutDiag.warn('LinkValidation', 'Falha na verificação de link', {
+      error: err instanceof Error ? err.message : String(err),
+      urls: uniqueUrls.length,
+    });
     return {};
   }
 }

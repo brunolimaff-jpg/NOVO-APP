@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { isValidPublicUrl } from '../utils/documentExtractor.js';
+import { setSecurityHeaders } from './_security-headers.js';
 
 type ValidationState = 'valid' | 'broken' | 'unknown';
 
@@ -21,18 +23,11 @@ function withTimeout(ms: number): AbortSignal {
   return controller.signal;
 }
 
-function isHttpUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 async function checkUrl(url: string): Promise<ValidationResult> {
-  if (!isHttpUrl(url)) {
-    return { status: 'unknown', note: 'URL inválida para validação.' };
+  // isValidPublicUrl bloqueia localhost, 127.0.0.1, 169.254.169.254 (AWS metadata),
+  // ranges privados (10.x, 172.16-31.x, 192.168.x), .local, .internal
+  if (!isValidPublicUrl(url)) {
+    return { status: 'unknown', note: 'URL inválida ou restrita para validação.' };
   }
 
   try {
@@ -69,6 +64,7 @@ async function checkUrl(url: string): Promise<ValidationResult> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

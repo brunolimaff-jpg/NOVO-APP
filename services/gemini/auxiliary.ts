@@ -88,8 +88,10 @@ ${regionalRule}`;
       });
       const parsed = parseLoadingCuriosities(flashResponse.text || '', safeContext);
       if (parsed.length > 0) return parsed;
-    } catch {
-      // fallback para o roteador atual quando o modelo Flash dedicado estiver indisponível
+    } catch (err) {
+      scoutDiag.warn('Auxiliary', 'Flash model indisponível, fallback para Router', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     const routerResponse = await proxyGenerateContent({
@@ -98,7 +100,10 @@ ${regionalRule}`;
       config: { temperature: 0.6, maxOutputTokens: 900 },
     });
     return parseLoadingCuriosities(routerResponse.text || '', safeContext);
-  } catch {
+  } catch (err) {
+    scoutDiag.warn('Auxiliary', 'Falha ao gerar curiosidades de loading (usando fallback)', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return fallback;
   }
 }
@@ -354,7 +359,11 @@ export async function generateContinuityQuestion(
         .filter((item): item is string => typeof item === 'string')
         .map(item => normalizeQuestionCandidate(item))
         .filter(item => isValidQuestionCandidate(item));
-    } catch {
+    } catch (err) {
+      scoutDiag.warn('Auxiliary', 'Falha ao parsear array de perguntas', {
+        error: err instanceof Error ? err.message : String(err),
+        preview: raw?.slice(0, 100),
+      });
       return [];
     }
   };

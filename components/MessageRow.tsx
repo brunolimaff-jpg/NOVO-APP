@@ -102,7 +102,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
 
   useEffect(() => {
     if (!msg.isSourcesOpen) return;
-    const urls = (auditableSources || []).filter(s => !!s.url).map(s => s.url as string);
+    const urls = (auditableSources || []).flatMap(s => s.url ? [s.url as string] : []);
     if (urls.length === 0) return;
 
     let cancelled = false;
@@ -229,7 +229,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                   {[
                     { label: 'Fontes verificadas', items: verifiedSources },
                     { label: 'Links citados no texto', items: citedSources },
-                  ].filter(group => group.items.length > 0).map(group => (
+                  ].flatMap(group => group.items.length > 0 ? [(
                     <div key={group.label} className="mb-3 last:mb-0">
                       <p
                         className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
@@ -322,7 +322,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                         })}
                       </ol>
                     </div>
-                  ))}
+                  )] : [])}
                 </div>
               )}
               </>

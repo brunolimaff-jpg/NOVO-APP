@@ -28,6 +28,13 @@ Read order:
 
 ## Current task context
 
+**Botão de empresa demo para Preview em `codex/contextual-continuity-suggestions` (2026-05-21).**
+- `components/EmptyStateHome.tsx` agora lê `VITE_ENABLE_PREVIEW_DEMO`, `VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CNPJ`, `VITE_PREVIEW_DEMO_CITY` e `VITE_PREVIEW_DEMO_STATE`.
+- Quando a flag é `true` e empresa/cidade/UF são válidas, a home mostra o botão `Investigar empresa demo: [empresa]`, que dispara o mesmo `onStartInvestigation` do formulário com CNPJ normalizado.
+- Não depende de nome de usuário e não aparece quando a flag está desligada ou o payload mínimo está incompleto.
+- Validações: `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green (`11` testes); `npm run typecheck` green.
+- Risco residual: variáveis `VITE_*` ficam visíveis no navegador; usar apenas dados de demo/não sensíveis e redeployar o preview após mudar env.
+
 **Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
 - Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
 - `features/chat/message-orchestrator.ts` marca follow-up real para o Gemini.

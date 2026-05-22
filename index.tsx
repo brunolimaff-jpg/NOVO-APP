@@ -12,9 +12,10 @@ import { DossierStoreProvider } from './stores/dossierStore';
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
 
+// ATENÇÃO: Pinecone é usado apenas nas serverless functions (api/rag.ts, api/docs-rag.ts)
+// via PINECONE_API_KEY (sem prefixo VITE_). NUNCA usar VITE_ para chaves secretas,
+// pois o Vite inlineia todo VITE_* no bundle JavaScript, expondo-as no navegador.
 const OPTIONAL_ENV_VARS: Array<{ key: string; label: string }> = [
-  { key: 'VITE_PINECONE_API_KEY', label: 'Chave Pinecone (RAG)' },
-  { key: 'VITE_PINECONE_INDEX_HOST', label: 'Host do índice Pinecone' },
   { key: 'VITE_BACKEND_URL', label: 'URL do backend (Apps Script)' },
 ];
 
