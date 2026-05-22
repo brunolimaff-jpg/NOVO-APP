@@ -23,6 +23,7 @@ interface OperatorContextType {
   setName: (name: string) => void;
   setEmail: (email: string) => void;
   clearName: () => void;
+  linkToExistingOperator: (operatorId: string, name: string, email: string) => void;
 }
 
 const OPERATOR_NAME_KEY = 'operator_name';
@@ -54,7 +55,7 @@ const OperatorContext = createContext<OperatorContextType | undefined>(undefined
 
 export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [name, setOperatorName] = useState<string>(() => getSavedOperatorName());
-  const [operatorId] = useState<string>(() => getOrCreateOperatorId());
+  const [operatorId, setOperatorId] = useState<string>(() => getOrCreateOperatorId());
   const [email, setOperatorEmail] = useState<string>(() => getSavedOperatorEmail());
 
   const setName = useCallback((nextName: string) => {
@@ -86,6 +87,18 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     setOperatorName('');
   }, []);
 
+  const linkToExistingOperator = useCallback((existingOperatorId: string, existingName: string, existingEmail: string) => {
+    storageSet(OPERATOR_ID_KEY, existingOperatorId);
+    storageSet(OPERATOR_NAME_KEY, existingName);
+    storageSet(OPERATOR_EMAIL_KEY, existingEmail);
+    setOperatorId(existingOperatorId);
+    setOperatorName(existingName);
+    setOperatorEmail(existingEmail);
+
+    // Sync to Supabase
+    storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
+  }, []);
+
   const value = useMemo<OperatorContextType>(
     () => ({
       name,
@@ -95,8 +108,9 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       setName,
       setEmail,
       clearName,
+      linkToExistingOperator,
     }),
-    [clearName, email, name, operatorId, setEmail, setName],
+    [clearName, email, linkToExistingOperator, name, operatorId, setEmail, setName],
   );
 
   return (

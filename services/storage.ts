@@ -320,6 +320,27 @@ export const storage = {
   },
 
   // ===================================================================
+  // USER LOOKUP
+  // ===================================================================
+
+  async findUserByEmail(email: string): Promise<{ operatorId: string; displayName: string } | null> {
+    if (!isSupabaseAvailable()) return null;
+
+    const { data, error } = await supabase!
+      .from('user_context')
+      .select('operator_id, display_name')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      operatorId: data.operator_id,
+      displayName: data.display_name || '',
+    };
+  },
+
+  // ===================================================================
   // AUDIT LOG
   // ===================================================================
 

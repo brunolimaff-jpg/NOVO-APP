@@ -20,7 +20,7 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
-  onConfirmOperatorName: (name: string, email: string) => void;
+  onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
   onOpenRadarPanel: () => void;

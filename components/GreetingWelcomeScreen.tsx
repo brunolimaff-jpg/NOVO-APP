@@ -1,15 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { getTimeGreeting } from '../utils/timeGreeting';
+import { storage } from '../services/storage';
 
 interface GreetingWelcomeScreenProps {
   isDarkMode: boolean;
-  onConfirmOperator: (name: string, email: string) => void;
+  onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void;
 }
 
 const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMode, onConfirmOperator }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [touched, setTouched] = useState(false);
+  const [existingUser, setExistingUser] = useState<{ operatorId: string; displayName: string } | null>(null);
+  const [checkingEmail, setCheckingEmail] = useState(false);
 
   const greeting = getTimeGreeting();
   const trimmed = name.trim();
@@ -41,6 +44,40 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
     },
     [isValid, trimmed, trimmedEmail, onConfirmOperator],
   );
+
+  const checkEmailExists = useCallback(() => {
+    if (!isEmailValid) return;
+    const emailToCheck = trimmedEmail;
+    setCheckingEmail(true);
+    storage.findUserByEmail(emailToCheck).then((found) => {
+      if (emailToCheck === trimmedEmail) {
+        setExistingUser(found);
+      }
+    }).catch(() => {
+      if (emailToCheck === trimmedEmail) {
+        setExistingUser(null);
+      }
+    }).finally(() => {
+      if (emailToCheck === trimmedEmail) {
+        setCheckingEmail(false);
+      }
+    });
+  }, [isEmailValid, trimmedEmail]);
+
+  useEffect(() => {
+    checkEmailExists();
+  }, [checkEmailExists]);
+
+  const handleLink = useCallback(() => {
+    if (existingUser) {
+      onConfirmOperator(trimmed, trimmedEmail, existingUser.operatorId);
+    }
+  }, [existingUser, trimmed, trimmedEmail, onConfirmOperator]);
+
+  const handleCreateNew = useCallback(() => {
+    setExistingUser(null);
+    onConfirmOperator(trimmed, trimmedEmail);
+  }, [trimmed, trimmedEmail, onConfirmOperator]);
 
   const pageBg = isDarkMode ? 'bg-slate-950' : 'bg-slate-50/90';
   const textPrimary = isDarkMode ? 'text-white' : 'text-slate-900';
@@ -89,81 +126,124 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
             </h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="px-5 py-6" noValidate>
-            <div className="space-y-4">
-              {/* Campo Nome */}
-              <div className="space-y-1">
-                <label
-                  htmlFor="greeting-name-input"
-                  className={`block text-sm font-medium ${textPrimary}`}
-                >
-                  Seu nome
-                </label>
-                <input
-                  id="greeting-name-input"
-                  data-testid="greeting-name-input"
-                  type="text"
-                  autoFocus
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Nome e sobrenome"
-                  aria-describedby={showNameError ? 'greeting-name-error' : undefined}
-                  aria-invalid={showNameError}
-                  className={getInputClass(showNameError)}
-                />
-                <div aria-live="polite" className="min-h-[1.25rem]">
-                  {showNameError && (
-                    <p id="greeting-name-error" className="text-xs text-red-500 dark:text-red-400">
-                      Digite nome e sobrenome para continuar.
-                    </p>
-                  )}
-                </div>
+          {existingUser ? (
+            <div className="px-5 py-6">
+              <div className={`text-sm ${textPrimary}`}>
+                <p className="font-medium">Já existe um cadastro com este email.</p>
+                <p className={`mt-1 text-xs ${textSecondary}`}>{trimmedEmail}</p>
+                {existingUser.displayName && (
+                  <p className={`mt-2 text-xs ${textSecondary}`}>
+                    Nome cadastrado: <span className="font-medium">{existingUser.displayName}</span>
+                  </p>
+                )}
               </div>
-
-              {/* Campo Email */}
-              <div className="space-y-1">
-                <label
-                  htmlFor="greeting-email-input"
-                  className={`block text-sm font-medium ${textPrimary}`}
+              <div className="mt-6 space-y-3">
+                <button
+                  data-testid="greeting-link-button"
+                  type="button"
+                  onClick={handleLink}
+                  className="w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 >
-                  Seu email
-                </label>
-                <input
-                  id="greeting-email-input"
-                  data-testid="greeting-email-input"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched(true)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="seu.nome@senior.com.br"
-                  aria-describedby={showEmailError ? 'greeting-email-error' : undefined}
-                  aria-invalid={showEmailError}
-                  className={getInputClass(showEmailError)}
-                />
-                <div aria-live="polite" className="min-h-[1.25rem]">
-                  {showEmailError && (
-                    <p id="greeting-email-error" className="text-xs text-red-500 dark:text-red-400">
-                      Use seu email @senior.com.br.
-                    </p>
-                  )}
-                </div>
+                  Vincular este dispositivo
+                </button>
+                <button
+                  data-testid="greeting-create-new-button"
+                  type="button"
+                  onClick={handleCreateNew}
+                  className={`w-full rounded-md border px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400/50 ${isDarkMode ? 'border-slate-600 text-slate-400 hover:bg-slate-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  Criar novo cadastro
+                </button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="px-5 py-6" noValidate>
+              <div className="space-y-4">
+                {/* Campo Nome */}
+                <div className="space-y-1">
+                  <label
+                    htmlFor="greeting-name-input"
+                    className={`block text-sm font-medium ${textPrimary}`}
+                  >
+                    Seu nome
+                  </label>
+                  <input
+                    id="greeting-name-input"
+                    data-testid="greeting-name-input"
+                    type="text"
+                    autoFocus
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => setTouched(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Nome e sobrenome"
+                    aria-describedby={showNameError ? 'greeting-name-error' : undefined}
+                    aria-invalid={showNameError}
+                    className={getInputClass(showNameError)}
+                  />
+                  <div aria-live="polite" className="min-h-[1.25rem]">
+                    {showNameError && (
+                      <p id="greeting-name-error" className="text-xs text-red-500 dark:text-red-400">
+                        Digite nome e sobrenome para continuar.
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <button
-              data-testid="greeting-submit-button"
-              type="submit"
-              disabled={touched && !isValid}
-              className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Continuar →
-            </button>
-          </form>
+                {/* Campo Email */}
+                <div className="space-y-1">
+                  <label
+                    htmlFor="greeting-email-input"
+                    className={`block text-sm font-medium ${textPrimary}`}
+                  >
+                    Seu email
+                  </label>
+                  <input
+                    id="greeting-email-input"
+                    data-testid="greeting-email-input"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (existingUser) setExistingUser(null);
+                    }}
+                    onBlur={() => {
+                      setTouched(true);
+                      checkEmailExists();
+                    }}
+                    onKeyDown={handleKeyDown}
+                    placeholder="seu.nome@senior.com.br"
+                    aria-describedby={showEmailError ? 'greeting-email-error' : undefined}
+                    aria-invalid={showEmailError}
+                    className={getInputClass(showEmailError)}
+                  />
+                  <div aria-live="polite" className="min-h-[1.25rem]">
+                    {showEmailError && (
+                      <p id="greeting-email-error" className="text-xs text-red-500 dark:text-red-400">
+                        Use seu email @senior.com.br.
+                      </p>
+                    )}
+                    {checkingEmail && (
+                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                        Verificando email...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                data-testid="greeting-submit-button"
+                type="submit"
+                disabled={touched && !isValid}
+                className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Continuar →
+              </button>
+            </form>
+          )}
         </div>
 
         <p className={`mt-6 text-center text-xs ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
