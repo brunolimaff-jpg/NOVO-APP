@@ -67,7 +67,10 @@ export const storage = {
           try {
             const { data } = await query;
             if (data && data.length > 0) {
-              await setLocalSessions(data as ChatSession[]);
+              const sessions = data.map(
+                (row: { content: ChatSession }) => row.content
+              );
+              await setLocalSessions(sessions);
             }
           } catch {
             // Silently ignore errors in background refresh
@@ -494,11 +497,13 @@ export const storage = {
       const { table, operation, data } = op;
 
       if (operation === 'upsert') {
-        await supabase!.from(table).upsert(data);
+        const { error } = await supabase!.from(table).upsert(data);
+        if (error) throw new Error(error.message);
       } else if (operation === 'delete') {
         const id = op.id;
         if (id) {
-          await supabase!.from(table).delete().eq('id', id);
+          const { error } = await supabase!.from(table).delete().eq('id', id);
+          if (error) throw new Error(error.message);
         }
       }
     });

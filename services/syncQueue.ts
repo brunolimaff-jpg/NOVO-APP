@@ -23,10 +23,13 @@ class SyncQueue {
     );
 
     if (existingIndex !== -1) {
-      this.queue[existingIndex] = op;
+      this.queue[existingIndex] = { ...op, attempts: 0 };
     } else {
-      this.queue.push(op);
+      this.queue.push({ ...op, attempts: 0 });
     }
+
+    // Persist immediately so items survive browser close
+    this.persist().catch(() => {});
   }
 
   size(): number {
@@ -60,42 +63,31 @@ class SyncQueue {
     if (this.isProcessing) return;
 
     this.isProcessing = true;
+    const { maxRetries = MAX_RETRIES, backoffMs = BACKOFF_MS } = opts;
+    const failed: SyncOperation[] = [];
+
     try {
-      const maxRetries = opts.maxRetries ?? MAX_RETRIES;
-      const backoffMs = opts.backoffMs ?? BACKOFF_MS;
-      const failed: SyncOperation[] = [];
+      while (this.queue.length > 0) {
+        const op = this.queue.shift()!;
+        const attempt = op.attempts ?? 0;
 
-      for (const op of this.queue) {
-        const attempts = op.attempts ?? 0;
-
-        if (attempts >= maxRetries) {
-          failed.push(op);
-          continue;
-        }
-
-        let success = false;
-        for (let attempt = attempts; attempt <= maxRetries; attempt++) {
-          try {
-            op.attempts = attempt;
-            await executor(op);
-            success = true;
-            break;
-          } catch (error) {
-            if (attempt < maxRetries) {
-              const delay = backoffMs * attempt;
-              await new Promise((resolve) => setTimeout(resolve, delay));
-            }
+        try {
+          await executor(op);
+        } catch (err) {
+          if (attempt < maxRetries) {
+            failed.push({ ...op, attempts: attempt + 1 });
+            await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+          } else {
+            console.error(
+              `[SyncQueue] Falha definitiva para ${op.table}:${op.id}`,
+              err
+            );
           }
         }
-
-        if (!success) {
-          failed.push(op);
-        }
       }
-
+    } finally {
       this.queue = failed;
       await this.persist();
-    } finally {
       this.isProcessing = false;
     }
   }
