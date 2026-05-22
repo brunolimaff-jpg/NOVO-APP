@@ -97,7 +97,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   exportStatus,
   exportError,
   onOpenFollowUpModal,
-  canAccessDashboard = true,
   canAccessIntegrityCheck = true,
   canDeepDive = false,
   canWarRoom = false,
@@ -115,10 +114,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     name: operatorName,
     operatorId,
     setName,
+    setEmail,
+    linkToExistingOperator,
     loading: operatorLoading,
   } = useOperator();
 
-  const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
@@ -223,8 +223,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onOpenRadarPanel={() => setShowRadarPanel(true)}
       canWarRoom={canWarRoom}
       onOpenWarRoom={() => setShowWarRoom(true)}
-      canAccessDashboard={canAccessDashboard}
-      onOpenDashboard={() => setShowDashboard(true)}
       onToggleTheme={onToggleTheme}
       displayName={displayName}
       avatarUrl={null}
@@ -241,7 +239,14 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           showOperatorGate={showOperatorGate}
           showInitialHome={showInitialHome}
           shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
-          onConfirmOperatorName={setName}
+          onConfirmOperatorName={(name, email, existingOperatorId) => {
+            if (existingOperatorId) {
+              linkToExistingOperator(existingOperatorId, name, email);
+            } else {
+              setName(name);
+              setEmail(email);
+            }
+          }}
           onStartInvestigation={handleStartInvestigation}
           radar={radar}
           onOpenRadarPanel={() => setShowRadarPanel(true)}
@@ -275,17 +280,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           onSendMessage={(text) => onSendMessage(text)}
           onRetry={onRetry}
           onStop={onStop}
-          onOpenDashboard={() => setShowDashboard(true)}
         />
       }
       panels={
         <ChatPanels
-          showDashboard={showDashboard}
-          onSelectEmpresa={(empresa) => {
-            onSendMessage(`Investigar ${empresa}`);
-            setShowDashboard(false);
-          }}
-          onCloseDashboard={() => setShowDashboard(false)}
           showSettings={showSettings}
           operatorName={operatorName}
           onUpdateOperatorName={setName}
@@ -293,11 +291,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           onSetMode={setMode}
           isDarkMode={isDarkMode}
           onToggleTheme={onToggleTheme}
-          onOpenDashboard={() => {
-            if (canAccessDashboard) {
-              setShowDashboard(true);
-            }
-          }}
           onExportPDF={onExportPDF}
           onExportConversation={onExportConversation}
           onCopyMarkdown={handleCopyMarkdown}
@@ -305,7 +298,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           onClearOperator={onClearOperator}
           exportStatus={exportStatus}
           exportError={exportError}
-          canAccessDashboard={canAccessDashboard}
           canAccessIntegrityCheck={canAccessIntegrityCheck}
           onCloseSettings={() => setShowSettings(false)}
           showWarRoom={showWarRoom}

@@ -60,26 +60,60 @@ export async function generateLoadingCuriosities(
     ? `- Use contexto regional coerente com ${regionalScope}, sem presumir Mato Grosso/Centro-Oeste`
     : '- Não presumir MT/Centro-Oeste quando a localização não estiver explícita';
   try {
-    const prompt = `Você é um gerador de mensagens de alto impacto (Sniper) para tela de carregamento de uma ferramenta de inteligência comercial chamada Senior Scout 360.
-Contexto da investigação: "${safeContext}"
+    const prompt = `<task>
+Gerar prévias de valor para a tela de carregamento do Senior Scout 360 enquanto o dossiê comercial é produzido.
+</task>
+
+<context>
+Empresa ou contexto em análise: "${safeContext}"
 Consulta original: "${querySample}"
+Tempo médio da pesquisa completa: 3 a 5 minutos.
+</context>
 
-Gere um array JSON com 7 a 9 frases extremamente impactantes e informativas (máximo 180 caracteres cada), em português-BR, seguindo RIGOROSAMENTE esta proporção:
-- [75% dos itens] FOCO NO SCOUT: Ações de "investigação profunda" que o Scout está realizando sobre a empresa "${safeContext}". Use verbos fortes e de inteligência: "Rastreando", "Desconstruindo", "Infiltrando", "Escaneando", "Expondo". Foque na sensação de que o Scout está descobrindo segredos operacionais valiosos.
-- [25% dos itens] FOCO EM INOVAÇÃO SENIOR: Curiosidades de autoridade e diferenciação da Senior Sistemas ou inovações tecnológicas de ponta (IA, Agtech, Logtech).
+<objective>
+As frases devem fazer o vendedor sentir que está vendo uma amostra útil do que virá no dossiê: sinais seguros, hipóteses comerciais e próximos pontos de validação.
+</objective>
 
-Exemplos de tom desejado:
-- "O Scout está agora cruzando dados de exportação com o histórico da Logística para expor gargalos ocultos no supply chain."
-- "Desconstruindo a teia societária para identificar os reais centros de poder e influência na tomada de decisão."
-- "Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país."
+<output_contract>
+Responda exclusivamente com JSON neste formato:
+{
+  "empresa": ["2 a 3 frases sobre sinais da empresa"],
+  "setor": ["2 a 3 frases sobre setor, mercado ou cadeia de valor"],
+  "regional": ["1 a 2 frases sobre região quando houver localização explícita"],
+  "senior": ["1 a 2 frases sobre possíveis ângulos de conversa para Senior"]
+}
+Cada frase deve ter no máximo 180 caracteres.
+</output_contract>
 
-Regras:
-- Responda EXCLUSIVAMENTE com um array JSON de strings
-- Tom: Premium, Executivo, Inteligência de Guerra
-- No Scout: Sempre cite o nome da empresa se disponível
-- Na inovação Senior: Foque em autoridade e escala nacional
+<content_rules>
+- Linguagem executiva, comercial e segura.
+- Use termos como "sinal a validar", "ponto de atenção", "hipótese de dor" e "ângulo de conversa".
+- Não afirme fatos específicos sem fonte explícita no contexto.
+- Não diga que a empresa usa, precisa ou comprará produto Senior.
+- Não use "segredos", "ocultos", "infiltrando", "desconstruindo", "expondo" ou "inteligência de guerra".
+- Não invente estatísticas de autoridade da Senior.
+- No grupo "senior", fale de possibilidades comerciais amplas: controle, produtividade, integração operacional, decisão com dados, risco e margem.
 ${regionalLine}
-${regionalRule}`;
+${regionalRule}
+</content_rules>
+
+<examples>
+{
+  "empresa": [
+    "Prévia da conta: sinais cadastrais e operacionais ajudam a separar fato confirmado de hipótese comercial.",
+    "Ponto de atenção: entender operação, risco e tomada de decisão antes de sugerir abordagem."
+  ],
+  "setor": [
+    "Hipótese de dor: margem, logística e previsibilidade costumam orientar conversas de valor neste setor."
+  ],
+  "regional": [
+    "Contexto regional entra como sinal de pressão competitiva, disponibilidade logística e timing comercial."
+  ],
+  "senior": [
+    "Ângulo Senior: se houver dor de controle, a conversa pode partir de produtividade e decisão com dados."
+  ]
+}
+</examples>`;
     try {
       const flashResponse = await proxyGenerateContent({
         model: LOADING_CURIOSITY_MODEL_ID,

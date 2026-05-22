@@ -11,6 +11,7 @@ Objetivo: manter o repo operável sem depender de skills versionadas dentro do r
 - Skills globais do usuário não são pré-requisito operacional
 - Skills válidas para uso padrão: nenhuma é exigida pelo repo
 - `docs/obsidian/` é uma camada documental versionada do repo para navegação em grafo, não uma integração externa nem um MCP extra
+- **Supabase** é a nova camada de banco de dados para persistência (Postgres gerenciado via `lib/supabaseClient.ts`), integração obrigatória para persistência remota — `services/storage.ts`, `services/syncQueue.ts`
 
 ## Allowlist oficial
 

@@ -1365,6 +1365,7 @@
 - `SmartOptions.tsx` — parseSmartOptions
 - `StatusIndicator.tsx` — InvestigationProgress
 - `SuspenseWithError.tsx`
+- `SyncIndicator.tsx` — Badge de status de sincronizacao no header
 - `SystemHealthCheck.tsx`
 - `ToastContainer.tsx` — ToastContainer — exibe a fila de toasts no canto inferior direito.
 - `Tooltip.tsx` — default:Tooltip
@@ -1390,7 +1391,7 @@
 
 **contexts/**
 - `ModeContext.tsx` — ModeProvider, useMode, useMaybeMode
-- `OperatorContext.tsx` — OperatorProvider, useOperator, useMaybeOperator, OperatorProfile
+- `OperatorContext.tsx` — OperatorProvider, useOperator, useMaybeOperator, OperatorProfile — Adicionado email + sync Supabase
 
 **features/chat/**
 - `ChatErrorBoundary.tsx` — ChatErrorBoundary
@@ -1408,7 +1409,10 @@
 
 **features/radar/**
 - `index.ts`
+- `README.md`
+- `service.ts` — Contrato frontend para /api/radar-scan
 - `types.ts`
+- `useRadar.ts` — Migrado de idb-keyval para storage.ts
 
 **hooks/**
 - `useAdminMetrics.ts` — useAdminMetrics, VendorMetric, AdminMetrics
@@ -1418,15 +1422,16 @@
 - `useFollowUpModal.ts` — useFollowUpModal, FollowUpModalStatus
 - `useOffline.ts` — useOffline
 - `usePWA.ts` — usePWA, BeforeInstallPromptEvent
-- `useRadar.ts` — hooks/useRadar.ts · useRadar, UseRadarReturn
+- `useRadar.ts` — hooks/useRadar.ts · useRadar, UseRadarReturn (legado, features/radar/useRadar.ts e o ativo)
 - `useSessionManager.ts`
-- `useSessionStorage.ts` — useSessionStorage
+- `useSessionStorage.ts` — useSessionStorage — Migrado de idb-keyval para storage.ts
 - `useTheme.ts` — useTheme
 - `useToast.ts` — useToast — sistema de notificações global leve (sem dependência externa). · useToast, ToastType, Toast
 - `useUpdateNotification.ts` — useUpdateNotification, UpdateAvailableEvent
 
 **lib/**
 - `cnpjLookup.ts` — lookupCnpj, CnpjNotFoundError, CnpjResult
+- `supabaseClient.ts` — Cliente Supabase browser com graceful degradation
 
 **prompts/**
 - `megaPrompts.ts`
@@ -1459,7 +1464,7 @@
 - `competitors.ts` — data/competitors.ts · getConcorrente, getConcorrentesPorRegiao, getRevendasPorEstado, getConcorrentesPorSegmento, listarConcorrentesParaPrompt, CONCORRENTES, NivelAmeaca, TierERP +2
 - `competitorService.ts` — services/competitorService.ts · detectCompetitorFromContext, pullCompetitorProfile, generatePricingIntel, formatarDeteccaoParaPrompt, formatarProfileParaUI, getContextoConcorrentesRegionais, CompetitorDetection, CompetitorProfile +1
 - `exportService.ts` — buildEmailSubject, buildExportConversationFile, downloadConversationExport, openDossierPrintReport, sendDossierEmail, SendDossierEmailArgs
-- `extractContentService.ts` — extractContentService
+- `extractContentService.ts` — extractContentService — Migrado de idb-keyval para storage.ts
 - `feedbackRemoteStore.ts` — URL agora vem do apiConfig · sendFeedbackRemote, FeedbackType, RemoteFeedbackPayload
 - `feedbackService.ts` — recordFeedback, MessageFeedback
 - `geminiProxy.ts` — resolveGeminiApiEndpoint, proxyGenerateContent, proxyChatSendMessage, executeOpenWebSearchTool, proxyGeminiHealth, proxyGerarDossie, GeminiChatResponse, OpenWebSearchResponse
@@ -1469,6 +1474,8 @@
 - `radarService.ts` — services/radarService.ts · buildCategoryPrompt, generateAlertId, fetchRadarAlerts, RadarScanError, RadarScanErrorCode, RadarPartialFailure, RadarCategoryStat, RadarScanResult
 - `ragService.ts` — buscarContextoPinecone, buscarContextoDocsPinecone, RagResult
 - `sessionRemoteStore.ts` — listRemoteSessions, getRemoteSession, saveRemoteSession
+- `storage.ts` — Interface unificada de storage (24+ metodos, Supabase + IDB offline)
+- `syncQueue.ts` — Fila offline com retry exponencial e persistencia IDB
 - `warRoomService.ts` — Public facade preserved for components/WarRoom.tsx and tests.
 
 **services/gemini/**

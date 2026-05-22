@@ -132,9 +132,7 @@ vi.mock('../components/ToastContainer', () => ({
 }));
 
 vi.mock('../components/ChatInterface', () => ({
-  default: ({ canAccessDashboard }: { canAccessDashboard?: boolean }) => (
-    <div data-testid="chat-interface" data-can-access-dashboard={String(Boolean(canAccessDashboard))} />
-  ),
+  default: () => <div data-testid="chat-interface" />,
 }));
 
 vi.mock('../components/LoadingSmart', () => ({
@@ -186,9 +184,9 @@ describe('App layout shell', () => {
     expect(footer).toBeInTheDocument();
   });
 
-  it('libera dashboard sem depender de papel admin', () => {
+  it('renderiza o layout principal sem erros', () => {
     renderApp();
 
-    expect(screen.getByTestId('chat-interface')).toHaveAttribute('data-can-access-dashboard', 'true');
+    expect(screen.getByTestId('chat-interface')).toBeInTheDocument();
   });
 });

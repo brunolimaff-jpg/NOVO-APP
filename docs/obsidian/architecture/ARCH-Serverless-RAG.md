@@ -15,9 +15,9 @@ tags:
   - vercel
 ---
 
-# ARCH Serverless RAG
+# ARCH RAG Serverless
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Papel
 

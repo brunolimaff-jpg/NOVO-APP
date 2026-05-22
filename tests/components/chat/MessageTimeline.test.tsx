@@ -60,9 +60,9 @@ vi.mock('../../../components/MessageRow', () => ({
 }));
 
 vi.mock('../../../components/GreetingWelcomeScreen', () => ({
-  default: ({ onConfirmName }: { onConfirmName: (name: string) => void }) => (
+  default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void }) => (
     <div data-testid="greeting-screen">
-      <button type="button" onClick={() => onConfirmName('Bruno Lima')}>
+      <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno.lima@senior.com.br')}>
         confirm-name
       </button>
     </div>
@@ -193,7 +193,7 @@ describe('MessageTimeline', () => {
     render(<MessageTimeline {...props} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'confirm-name' }));
-    expect(props.onConfirmOperatorName).toHaveBeenCalledWith('Bruno Lima');
+    expect(props.onConfirmOperatorName).toHaveBeenCalledWith('Bruno Lima', 'bruno.lima@senior.com.br');
   });
 
   it('renderiza a home inicial com ajuda e dispara a investigacao', async () => {

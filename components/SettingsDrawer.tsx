@@ -17,7 +17,6 @@ interface SettingsDrawerProps {
   onSetMode: (mode: ChatMode) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
-  onOpenDashboard: () => void;
   onExportPDF: () => void;
   onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
   onCopyMarkdown: () => void;
@@ -25,7 +24,6 @@ interface SettingsDrawerProps {
   onClearOperator?: () => void;
   exportStatus: 'idle' | 'loading' | 'success' | 'error';
   exportError?: string | null;
-  canAccessDashboard?: boolean;
   canAccessIntegrityCheck?: boolean;
 }
 
@@ -36,14 +34,12 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   onUpdateOperatorName,
   isDarkMode,
   onToggleTheme,
-  onOpenDashboard,
   onExportPDF,
   onExportConversation,
   onCopyMarkdown,
   onClearOperator,
   exportStatus,
   exportError,
-  canAccessDashboard = true,
   canAccessIntegrityCheck = true,
 }) => {
   const { canInstall, isInstalled, installApp } = usePWA();
@@ -472,23 +468,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   <span className="text-lg">✅</span>
                   <p className={`text-xs ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>App instalado na tela inicial</p>
                 </div>
-              )}
-
-              {canAccessDashboard && (
-                <button
-                  onClick={() => { onOpenDashboard(); onClose(); }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
-                    isDarkMode
-                      ? 'bg-gray-800/30 border-gray-700/30 hover:bg-gray-800 hover:border-gray-600'
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                  }`}
-                >
-                  <span className={`text-lg p-2 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 group-hover:bg-gray-600' : 'bg-gray-200 group-hover:bg-gray-300'}`}>📊</span>
-                  <div>
-                    <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Dashboard</p>
-                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Histórico e estatísticas</p>
-                  </div>
-                </button>
               )}
 
               {canAccessIntegrityCheck && (

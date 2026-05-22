@@ -14,9 +14,9 @@ tags:
   - sprints
 ---
 
-# ROADMAP Refactor Track
+# Trilha de Refatoração
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Fase 1 (concluida)
 

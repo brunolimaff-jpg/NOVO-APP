@@ -13,11 +13,11 @@ tags:
   - contract
 ---
 
-# Meta Contract
+# Contrato Meta
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
-## Frontmatter obrigatorio
+## Metadados obrigatorios
 
 Toda nota principal desta camada deve ter:
 

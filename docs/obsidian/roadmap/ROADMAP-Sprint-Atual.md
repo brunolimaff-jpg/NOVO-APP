@@ -15,7 +15,7 @@ tags:
 
 # ROADMAP Sprint Atual
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Sprint viva
 

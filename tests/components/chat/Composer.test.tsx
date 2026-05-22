@@ -27,7 +27,6 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof Composer>> = 
     onSendMessage: vi.fn(),
     onRetry: vi.fn(),
     onStop: vi.fn(),
-    onOpenDashboard: vi.fn(),
     ...overrides,
   };
 }

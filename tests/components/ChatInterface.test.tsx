@@ -17,7 +17,9 @@ const { operatorStateRef } = vi.hoisted(() => ({
       operatorId: 'op-1',
       loading: false,
       setName: vi.fn(),
+      setEmail: vi.fn(),
       clearName: vi.fn(),
+      linkToExistingOperator: vi.fn(),
     },
   },
 }));
@@ -127,10 +129,14 @@ vi.mock('../../components/EmptyStateHome', () => ({
   ),
 }));
 
+vi.mock('../../components/SyncIndicator', () => ({
+  SyncIndicator: () => null,
+}));
+
 vi.mock('../../components/GreetingWelcomeScreen', () => ({
-  default: ({ onConfirmName }: { onConfirmName: (name: string) => void }) => (
+  default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void }) => (
     <div data-testid="greeting-screen">
-      <button type="button" onClick={() => onConfirmName('Bruno Lima')}>
+      <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno.lima@senior.com.br')}>
         confirm-name
       </button>
     </div>
@@ -216,7 +222,9 @@ describe('ChatInterface shell regression', () => {
       operatorId: 'op-1',
       loading: false,
       setName: vi.fn(),
+      setEmail: vi.fn(),
       clearName: vi.fn(),
+      linkToExistingOperator: vi.fn(),
     };
   });
 
@@ -253,7 +261,9 @@ describe('ChatInterface shell regression', () => {
       operatorId: 'op-1',
       loading: false,
       setName: vi.fn(),
+      setEmail: vi.fn(),
       clearName: vi.fn(),
+      linkToExistingOperator: vi.fn(),
     };
 
     render(<ChatInterface {...buildProps()} />);

@@ -114,7 +114,6 @@ const App: React.FC = () => {
   const radar = useRadar(toast);
 
   const featureAccess = getFeatureAccess();
-  const canAccessDashboard = featureAccess.dashboard;
   const canAccessIntegrityCheck = featureAccess.integrityCheck;
   const canUseLookup = featureAccess.clientLookup;
   const canDeepDive = featureAccess.deepDive;
@@ -416,7 +415,6 @@ const App: React.FC = () => {
               onSaveRemote={handleSaveRemote}
               isSavingRemote={isSavingRemote}
               remoteSaveStatus={remoteSaveStatus}
-              canAccessDashboard={canAccessDashboard}
               canAccessIntegrityCheck={canAccessIntegrityCheck}
               canDeepDive={canDeepDive}
               canWarRoom={canWarRoom}

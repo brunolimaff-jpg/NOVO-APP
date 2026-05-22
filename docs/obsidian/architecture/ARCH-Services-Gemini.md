@@ -15,9 +15,9 @@ tags:
   - gemini
 ---
 
-# ARCH Services Gemini
+# ARCH Serviços Gemini
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Papel
 

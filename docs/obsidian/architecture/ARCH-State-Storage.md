@@ -15,9 +15,9 @@ tags:
   - storage
 ---
 
-# ARCH State Storage
+# ARCH Armazenamento de Estado
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Papel
 

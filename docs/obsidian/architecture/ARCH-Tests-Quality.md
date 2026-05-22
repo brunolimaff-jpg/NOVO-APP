@@ -15,9 +15,9 @@ tags:
   - quality
 ---
 
-# ARCH Tests Quality
+# ARCH Testes e Qualidade
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Papel
 

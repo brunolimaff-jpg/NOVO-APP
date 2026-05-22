@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Current operating context
 
@@ -16,62 +16,70 @@ Read order:
 6. `docs/ai-context/refactor/02-BOARD.md`
 7. `docs/obsidian/00-MASTER.md` for visual navigation only
 
-## Current refactor phase
+## Current operating phase
 
-**Fase 2 (Manutenibilidade) CONCLUÍDA.**
+**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`. Branch estendeu com 8 commits adicionais de UX e consistencia.**
 
-- Fase 1 (Sprints 1-8): concluída.
-- Fase 2 (Sprints 9-12): concluída em `2026-05-20`.
-- Commit final: `0694997` em `main`.
-- Validação manual em Vercel aceita pelo owner.
-- Gates finais verdes: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular`.
+- Arquitetura offline-first: Supabase (fonte de verdade) + IndexedDB (cache offline) + sync queue bidirecional.
+- 20 commits totais na branch (12 migracao + 8 pos-migracao).
+- HEAD: `d22fa0c` — feat: beautiful manual sync button + sync-complete event to reload dossiers.
+- 873+ testes verdes, typecheck limpo.
+- Lint com `0` erros.
 
 ## Current task context
 
-**Botão de empresa demo para Preview em `codex/contextual-continuity-suggestions` (2026-05-21).**
-- `components/EmptyStateHome.tsx` agora lê `VITE_ENABLE_PREVIEW_DEMO`, `VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CNPJ`, `VITE_PREVIEW_DEMO_CITY` e `VITE_PREVIEW_DEMO_STATE`.
-- Quando a flag é `true` e empresa/cidade/UF são válidas, a home mostra o botão `Investigar empresa demo: [empresa]`, que dispara o mesmo `onStartInvestigation` do formulário com CNPJ normalizado.
-- Não depende de nome de usuário e não aparece quando a flag está desligada ou o payload mínimo está incompleto.
-- Validações: `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green (`11` testes); `npm run typecheck` green.
-- Risco residual: variáveis `VITE_*` ficam visíveis no navegador; usar apenas dados de demo/não sensíveis e redeployar o preview após mudar env.
+**Migracao Supabase concluida (2026-05-22).**
 
-**Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
-- Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
-- `features/chat/message-orchestrator.ts` marca follow-up real para o Gemini.
-- `services/gemini/runtime.ts` compacta historico de follow-up em pares alternados `user/model`, preservando a pesquisa inicial como contexto ancora e reduzindo custo.
-- `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta curta para follow-up normal, nao reexecuta dossie/modulo e reaproveita dados Senior do historico quando disponivel.
-- Deep Dive segue feature-flagado/desligado por padrão; esta refatoracao nao reativa nem redesenha o fluxo legado.
-- Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`44` testes); `npm run typecheck` green.
-- Risco residual: historico compactado pode omitir detalhe antigo; nesse caso a IA deve perguntar ao usuario em vez de inferir.
+### Camada de infraestrutura:
+- `lib/supabaseClient.ts` — cliente Supabase browser com `createClient`, export default `supabase`, graceful degradation se Supabase indisponivel.
+- `services/storage.ts` — interface unificada que hooks/services chamam. Implementa stale-while-revalidate para leituras (IDB primeiro, Supabase em background) e offline-first para escritas (IDB instantaneo, sync em background).
 
-**Perguntas de acompanhamento com fallback contextual corrigidas em `codex/chat-inline-followup-refactor` (2026-05-21).**
-- `utils/continuitySuggestions.ts` centraliza normalizacao, deduplicacao e fallback contextual por sinais do dossie/resposta.
-- `features/chat/message-orchestrator.ts` e `features/dossier/waterfall-orchestrator.ts` passam o texto real da resposta/dossie para completar sugestoes.
-- Botao "Novas" usa a mensagem alvo como contexto recente e evita repetir sugestoes antigas.
-- Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
-- Risco residual: fallback ainda e heuristico quando a IA falha, mas agora fica ancorado em temas detectados e bloqueia o conjunto legado ruim.
-- Ajuste posterior na PR `#268`: sugestoes agora devem soar como pergunta de vendedor e falar de negocio; filtro bloqueia jargao tecnico como `GATec`, `CAPEX`, `ERP`, arquitetura, nativamente, modulos Senior e nome do vendedor. Validacoes: recorte de sugestoes/dossie green (`54` testes), `typecheck` green e `lint --quiet` green.
-- Normalizacao posterior na PR `#268`: sugestoes usam nome comercial curto, removendo sufixos societarios (`LTDA`, `CIA`, `ME`, `S/A`, etc.) em entradas manuais e vindas de CNPJ, sem remover termos comerciais validos. Validacoes: recorte green (`58` testes), `typecheck` green e `lint --quiet` green.
+### Fila offline:
+- `services/syncQueue.ts` — fila de operacoes pendentes persistida em IDB. Retry com backoff exponencial (3s, 9s, 27s). Dead-letter queue apos falhas consecutivas. Processamento automatico em background e sob demanda.
 
-**UX Redesign Phase 1 em progresso.**
-- PR `#266` aberta em `ux/redesign-phase1-v1`.
-- Branch: `ux/redesign-phase1-v1`, commit `d84b643`.
-- AdminDash removido, breadcrumb, sidebar melhorada, indicadores de status no MessageRow, feedback CNPJ estilizado.
-- Gates verdes: `test` (116 arq, 824 testes), `typecheck`, `lint`.
-- Aguardando validação do owner no preview Vercel antes do merge.
+### Componentes:
+- `components/SyncIndicator.tsx` — badge no header mostrando status: online/syncing/offline/error. Tooltip com contagem de operacoes pendentes.
 
-Próximos passos possíveis:
-- Mergear PR `#266` após validação.
-- Sprints 13–16: Modularização de Prompts (pré-requisito: golden test baseline já criado).
-- Sprints 21–24: Observability & Monitoring.
-- Design System (17-20) descartado: app interno, custo/benefício não justifica.
-- Repriorizar `mcp-server/` e itens deferred.
+### Migracao de hooks:
+- `hooks/useSessionStorage.ts` — substituido `idb-keyval` por `storage.ts`
+- `features/radar/useRadar.ts` — substituido `idb-keyval` por `storage.ts`
+- `services/extractContentService.ts` — substituido `idb-keyval` por `storage.ts`
+
+### Registro de operador:
+- `contexts/OperatorContext.tsx` — adicionado campo `email`, sync com Supabase ao registrar
+- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
+- `components/ChatInterface.tsx` — callback de email propagado
+- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
+- `components/chat/ChatShell.tsx` — SyncIndicator adicionado no header
+- Cadastro restrito a `@senior.com.br` (commit `5a2b35e`): nome completo (2+ palavras, 2+ caracteres cada) obrigatorio
+- Email recovery (commit `c880566`): vincula dispositivo novo a `operator_id` existente quando email ja cadastrado
+- Botao de sync manual (commit `d22fa0c`): pill no header com feedback (+N sent, downarrowN received), dispara evento `scout:sync-complete`
+
+### Schema Supabase:
+- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
+- 8 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`
+- RLS habilitado em todas, politicas por `operator_id IS NOT NULL`
+- 8 indexes para performance de consulta
+- Grants anon para data API (leitura/escrita)
+
+### Env vars necessarias (Vercel):
+- `VITE_SUPABASE_URL=https://vmqfcaoirjcfucvlnpig.supabase.co`
+- `VITE_SUPABASE_ANON_KEY=sb_publishable_OXLwGTgGUjFi-gHwRTsoOg_xHoDJHvO`
+
+### Decisoes arquiteturais:
+1. Auth postergada: UUID local temporario como `operator_id`
+2. Dados migraveis: dossies, radar alerts, radar configs, extract cache, audit log, favorites, shared dossiers
+3. Offline-first com sync queue em background
+4. Conexao direta Supabase (abordagem A) — sem camada serverless intermediaria
 
 ## Workspace note
 
-`CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
+`CODE.md` e instrucao local para Codex e esta ignorado via `.git/info/exclude`.
 
 ## Immediate next step
 
-1. Quando houver demanda, planejar Fase 3.
-2. Repriorizar itens deferred.
+1. Mergear `codex/standardize-mermaid-maps` em `main` (20 commits, migracao + 8 melhorias pos-migracao).
+2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+3. Testar fluxo completo: registrar com `@senior.com.br` (nome completo obrigatorio) -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
+4. Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1) em `main`.
+5. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).

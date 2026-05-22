@@ -218,6 +218,7 @@ Markers obrigatórios:
 - Devem aparecer EXATAMENTE no formato especificado
 - Sem espaços extras, sem decimais em notas, sem alterações de sintaxe
 - A quebra de um marker invalida o parsing — trate com extremo cuidado
+- ATENÇÃO: markers são metadados internos, NUNCA gere seção visível com título "MARKERS" ou "MARKERS DE INTELIGÊNCIA COMERCIAL" para o usuário final
 
 Regra final:
 Se um trecho não gera implicação comercial ou não ajuda o vendedor a vender melhor, ele provavelmente está ocupando espaço demais.

@@ -1,4 +1,4 @@
-import { get, set } from 'idb-keyval';
+import { storage } from './storage';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 /**
@@ -15,7 +15,6 @@ interface ExtractResult {
 }
 
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 dias
-const DB_PREFIX = 'ext-cache-';
 
 function describeExtractCacheKey(cacheKey: string): string {
     if (!cacheKey) return 'empty';
@@ -34,17 +33,16 @@ class ExtractContentService {
      */
     async extract(params: { url?: string; base64Content?: string; mimeType?: string }): Promise<ExtractResult> {
         const cacheKey = params.url || this.generateHash(params.base64Content || '');
-        const dbKey = `${DB_PREFIX}${cacheKey}`;
-        
+
         try {
             // Verifica cache persistente (IndexedDB)
-            const cached = await get<{ result: ExtractResult; timestamp: number }>(dbKey);
-            
+            const cached = await storage.getExtractCache(cacheKey);
+
             if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
                 scoutDiag.info('ExtractService', 'cache persistente encontrado', {
                     cacheKey: describeExtractCacheKey(cacheKey),
                 });
-                return cached.result;
+                return cached.result as ExtractResult;
             }
         } catch (e) {
             scoutDiag.warn('ExtractService', 'erro ao ler cache IndexedDB', {
@@ -66,10 +64,10 @@ class ExtractContentService {
             }
 
             const result: ExtractResult = await response.json();
-            
+
             // Salva no cache persistente
             try {
-                await set(dbKey, { result, timestamp: Date.now() });
+                await storage.saveExtractCache(cacheKey, result);
             } catch (e) {
                 scoutDiag.warn('ExtractService', 'erro ao salvar cache IndexedDB', {
                     error: e instanceof Error ? e.message : String(e),

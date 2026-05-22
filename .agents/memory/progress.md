@@ -1,8 +1,135 @@
 # Progress
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Completed
+
+### Melhorias pos-migracao Supabase (2026-05-22)
+
+**Branch:** `codex/standardize-mermaid-maps`
+**HEAD:** `d22fa0c`
+**Commits adicionais:** 8 commits apos a migracao (12 migracao + 8 melhorias = 20 totais)
+
+#### Cadastro restrito (@senior.com.br) — commit `5a2b35e`
+- `contexts/OperatorContext.tsx`, `components/GreetingWelcomeScreen.tsx`: validacao de email `@senior.com.br` + nome completo (2+ palavras)
+- `types.ts`: campos `name` e `surname` obrigatorios no register
+- Testes atualizados: `tests/components/GreetingWelcomeScreen.test.tsx`
+
+#### onConflict + view_count removido — commit `a8775d9`
+- `services/storage.ts`: `addFavorite()` usa `onConflict` para upsert seguro
+- `view_count` removido da tabela `dossies` (campo broken)
+- Testes atualizados: `tests/services/storage.test.ts`
+
+#### radar_alerts unique + scheduleSync + updated_at fix — commit `b58586d`
+- `services/syncQueue.ts`: `scheduleSync()` apos enqueue
+- `services/storage.ts`: `updated_at` gerado automaticamente no upsert
+- `docs/superpowers/schema-supabase.sql`: unique constraint em `radar_alerts`
+- Testes atualizados: `tests/services/syncQueue.test.ts`
+
+#### Badge sync click: clear → force sync — commit `f74c9d0`
+- `components/SyncIndicator.tsx`: clique no badge agora dispara `syncAll()` em vez de limpar notificacao
+
+#### Docs update — commit `a4a5396`
+- HANDOFF_AI.md, activeContext.md, decisions.md, progress.md, last-session-context.md atualizados apos migracao
+
+#### Email recovery (device linking) — commit `c880566`
+- `contexts/OperatorContext.tsx`: novo fluxo — se email `@senior.com.br` ja existir no Supabase, oferece vincular dispositivo ao `operator_id` existente
+- `components/GreetingWelcomeScreen.tsx`: UI de recovery (botao "Vincular este dispositivo")
+- Testes novos: `tests/services/storage.test.ts` (email lookup)
+
+#### Remocao botao "Dossie de investigacao" — commit `d5f7538`
+- Botao e toda a fiação removida de 14 arquivos: `ChatShell.tsx` (2x), `Composer.tsx` (2x), `Settings.tsx`, `ChatPanels.tsx`, `App.tsx`, `types.ts`, `GREETING_CONFIG.ts`, `contracts.ts`, `ChatInterface.tsx`, `MessageTimeline.tsx`, `EmptyStateHome.tsx`, `SessionsSidebar.tsx`, `ReceitaService.ts`
+- Testes: `tests/App.dossierGolden.test.tsx`, `tests/components/EmptyStateHome.test.tsx` atualizados
+
+#### Sync manual button — commit `d22fa0c`
+- Novo `ManualSyncButton.tsx` (componente): pill visual com icone de sync, feedback animado de envio/recebimento
+- `ChatShell.tsx`: botao adicionado no header ao lado do SyncIndicator
+- `services/storage.ts`: `syncAll()` exposto publicamente, dispara evento `scout:sync-complete`
+- Hook `useSyncStatus` consumido pelo botao para mostrar estado atual
+- Testes: `tests/components/ManualSyncButton.test.tsx` criado
+
+### Migracao Supabase (2026-05-22)
+
+**Arquivos criados:**
+- `lib/supabaseClient.ts` — cliente Supabase browser com graceful degradation
+- `services/syncQueue.ts` — fila offline com retry e persistencia IDB
+- `services/storage.ts` — interface unificada de storage (fonte unica para hooks)
+- `components/SyncIndicator.tsx` — badge no header mostrando status de sync
+- `docs/superpowers/schema-supabase.sql` — DDL completo das 8 tabelas
+- `docs/superpowers/specs/2026-05-22-supabase-migration-design.md` — spec de design
+- `docs/superpowers/plans/2026-05-22-supabase-migration.md` — plano de implementacao
+- `tests/services/syncQueue.test.ts` — 5 testes
+- `tests/services/storage.test.ts` — 28 testes
+- `tests/integration/supabase-sync.test.ts` — 4 testes
+
+**Arquivos modificados:**
+- `hooks/useSessionStorage.ts` — migrado de idb-keyval para storage.ts
+- `features/radar/useRadar.ts` — migrado de idb-keyval para storage.ts
+- `services/extractContentService.ts` — migrado de idb-keyval para storage.ts
+- `contexts/OperatorContext.tsx` — adicionado campo email + sync Supabase
+- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
+- `components/ChatInterface.tsx` — callback de email propagado
+- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
+- `components/chat/ChatShell.tsx` — SyncIndicator no header
+
+**Schema Supabase:**
+- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
+- 8 tabelas com RLS, 8 indexes, grants anon
+- Tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`
+
+**Decisoes arquiteturais:**
+1. Auth postergada (UUID local como operator_id)
+2. Dados migraveis de IDB -> Supabase
+3. Offline-first com sync queue
+4. Conexao direta Supabase sem serverless API layer
+
+**Pendente:**
+- Configurar env vars no Vercel: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+- Testar fluxo completo no preview Vercel
+- Mergear em main
+
+### Auditoria de Código Multi-Fase (2026-05-22)
+
+**Planejamento:**
+- Criado `docs/planos/auditoria-codigo-2026-05-21.md` (840 linhas) com 5 fases: auditoria paralela, falhas silenciosas, segurança, performance, verificação final.
+
+**Fase 1 — Auditoria (3 relatórios gerados):**
+- `docs/planos/audit-silent-failures.md` — 128 catch blocks, 7 P0 + 14 P1
+- `docs/planos/audit-seguranca.md` — 10 vulnerabilidades (2 P0, 4 P1, 3 P2)
+- `docs/planos/audit-performance.md` — 64 regras Vercel, score 2.3/5
+
+**Fase 2 — Correção de Falhas Silenciosas (10 arquivos):**
+- Adicionado `scoutDiag.warn/error` em catches que engoliam erros nos arquivos: `features/radar/useRadar.ts`, `utils/conversationHistory.ts`, `utils/linkValidation.ts`, `features/dossier/waterfall-orchestrator.ts`, `services/competitorService.ts`, `services/gemini/investigation-orchestration.ts`, `services/gemini/auxiliary.ts`, `services/gemini/recovery.ts`, `services/exportService.ts`, `hooks/useAppInitialization.ts`.
+- Validacao: `npm exec vitest run tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`15` testes).
+
+**Fase 3 — Correção de Segurança (15 arquivos):**
+- `api/_security-headers.ts` criado — `setSecurityHeaders(res)` com guard de compatibilidade para testes. Headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy. Aplicado em 11 API routes.
+- `api/_cache-headers.ts` criado — helper `cacheHeaders(maxAgeSeconds)` para Cache-Control.
+- `components/MarkdownRenderer.tsx` — `securityLevel: 'loose'` → `'strict'`, `allowRawHtml` default `true` → `false`. Regex de conversao HTML `<a href>` → `[text](url)` markdown; citações `[🟢 url]` geram markdown links.
+- `index.tsx` — `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` removidos de `OPTIONAL_ENV_VARS`.
+- `api/link-status.ts` — `isHttpUrl()` → `isValidPublicUrl()` (bloqueia SSRF: localhost, 127.0.0.1, 169.254.169.254, redes privadas).
+- `api/extract-content.ts` — `.max(13_600_000)` no campo `base64Content` do schema Zod.
+- `api/comex.ts` — CORS whitelist (nao mais `*`).
+- Validacao: `npm exec vitest run tests/components/MarkdownRenderer.test.tsx` green com +1 teste de conversao HTML→markdown.
+
+**Fase 4 — Correção de Performance (8 arquivos):**
+- `hooks/useDebounce.ts` criado — hook generico `useDebounce<T>(value, delay)`.
+- `App.tsx` — 4 componentes lazy-loaded: LoadingSmart, EmailModal, FollowUpModal, UpdateNotificationModal.
+- `vite.config.ts` — chunk `vendor-anim` para framer-motion (124KB).
+- `components/MessageRow.tsx` — 2x `.filter().map()` → `.flatMap()`.
+- `api/gemini.ts` — 2x `.filter().map()` → `.flatMap()`.
+- `components/InvestigationDashboard.tsx` — `useDebounce(searchText, 300)` no input de busca.
+- `api/cnpj.ts` — Cache-Control 1h.
+- `api/comex.ts` — Cache-Control 24h.
+- Validacao: `npm run typecheck` green; `npm run build` green (chunk `vendor-anim` presente).
+
+**Bug Fixes:**
+- `services/clientLookupService.ts` — `formatarParaPrompt()`: match parcial (`matchType !== 'exact'`) nao inclui dados de CRM. Retorna alerta de PROSPECT. Corrige confusao entre empresas similares.
+- `components/MarkdownRenderer.tsx` — hyperlinks HTML `<a href>` de resultados de pesquisa convertidos para `[text](url)` markdown.
+
+**Testes atualizados (10 arquivos):**
+- `tests/App.dossierGolden.test.tsx`, `tests/components/LoadingSmart.test.tsx`, `tests/utils/loadingSmartViewModel.test.ts`, `tests/components/MarkdownRenderer.test.tsx`, `tests/services/clientLookupService.test.ts`.
+- Validacao final: `npm run test` green.
 
 - Botão de empresa demo para Preview adicionado em `2026-05-21`:
   - `components/EmptyStateHome.tsx` mostra CTA de demo somente com `VITE_ENABLE_PREVIEW_DEMO=true` e payload mínimo completo (`VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CITY`, `VITE_PREVIEW_DEMO_STATE`; CNPJ opcional/normalizado).
@@ -59,11 +186,14 @@ Last updated: 2026-05-21
 
 ## In progress
 
-- UX Redesign Phase 1: PR `#266` aberta, aguardando validação do owner no preview Vercel.
+- Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
+- Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
+- UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 
 ## Blockers
 
-- Nenhum bloqueio técnico.
+- Nenhum bloqueio tecnico.
 
 ## Sprint 12 closure (2026-05-20)
 
@@ -266,5 +396,10 @@ Last updated: 2026-05-21
 
 ## Next checkpoint
 
-- Abrir PR do hotfix `LoadingSmart`.
-- Não reintroduzir Mini CRM/`CRMDetail`.
+- Mergear `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao).
+- Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
+- Mergear PR `#270` (auditoria multi-fase) em `main`.
+- Mergear PR `#266` (UX Redesign Phase 1) apos validacao do owner.
+- Nao reintroduzir Mini CRM/`CRMDetail` nem botao "Dossie de investigacao".
+- Quando houver demanda, iniciar Sprints 13-16 (Modularizacao de Prompts).

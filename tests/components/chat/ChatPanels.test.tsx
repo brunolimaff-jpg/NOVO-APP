@@ -13,24 +13,12 @@ vi.mock('../../../components/SuspenseWithError', () => ({
 }));
 
 vi.mock('../../../components/InvestigationDashboard', () => ({
-  default: ({ onSelectEmpresa, onClose }: { onSelectEmpresa: (empresa: string) => void; onClose: () => void }) => (
-    <div data-testid="investigation-dashboard">
-      <button type="button" onClick={() => onSelectEmpresa('Acme Agro')}>
-        select-company
-      </button>
-      <button type="button" onClick={onClose}>
-        close-dashboard
-      </button>
-    </div>
-  ),
+  default: () => <div data-testid="investigation-dashboard" />,
 }));
 
 vi.mock('../../../components/SettingsDrawer', () => ({
-  default: ({ onClose, onOpenDashboard }: { onClose: () => void; onOpenDashboard: () => void }) => (
+  default: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="settings-drawer">
-      <button type="button" onClick={onOpenDashboard}>
-        open-dashboard-from-settings
-      </button>
       <button type="button" onClick={onClose}>
         close-settings
       </button>
@@ -97,9 +85,6 @@ function buildRadar(): RadarProps {
 
 function buildProps(overrides: Partial<React.ComponentProps<typeof ChatPanels>> = {}): React.ComponentProps<typeof ChatPanels> {
   return {
-    showDashboard: false,
-    onSelectEmpresa: vi.fn(),
-    onCloseDashboard: vi.fn(),
     showSettings: false,
     operatorName: 'Bruno Lima',
     onUpdateOperatorName: vi.fn(),
@@ -107,7 +92,6 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatPanels>> 
     onSetMode: vi.fn(),
     isDarkMode: false,
     onToggleTheme: vi.fn(),
-    onOpenDashboard: vi.fn(),
     onExportPDF: vi.fn(),
     onExportConversation: vi.fn(),
     onCopyMarkdown: vi.fn(),
@@ -115,7 +99,6 @@ function buildProps(overrides: Partial<React.ComponentProps<typeof ChatPanels>> 
     onClearOperator: vi.fn(),
     exportStatus: 'idle',
     exportError: null,
-    canAccessDashboard: true,
     canAccessIntegrityCheck: true,
     onCloseSettings: vi.fn(),
     showWarRoom: false,
@@ -136,9 +119,8 @@ describe('ChatPanels', () => {
     vi.clearAllMocks();
   });
 
-  it('renderiza dashboard, settings e war room com wiring de callbacks', async () => {
+  it('renderiza settings e war room com wiring de callbacks', async () => {
     const props = buildProps({
-      showDashboard: true,
       showSettings: true,
       showWarRoom: true,
       canWarRoom: true,
@@ -147,20 +129,13 @@ describe('ChatPanels', () => {
     render(<ChatPanels {...props} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('investigation-dashboard')).toBeInTheDocument();
       expect(screen.getByTestId('settings-drawer')).toBeInTheDocument();
       expect(screen.getByTestId('war-room')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'select-company' }));
-    fireEvent.click(screen.getByRole('button', { name: 'close-dashboard' }));
-    fireEvent.click(screen.getByRole('button', { name: 'open-dashboard-from-settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'close-settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'close-war-room' }));
 
-    expect(props.onSelectEmpresa).toHaveBeenCalledWith('Acme Agro');
-    expect(props.onCloseDashboard).toHaveBeenCalled();
-    expect(props.onOpenDashboard).toHaveBeenCalled();
     expect(props.onCloseSettings).toHaveBeenCalled();
     expect(props.onCloseWarRoom).toHaveBeenCalled();
   });

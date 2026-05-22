@@ -2,6 +2,7 @@ const MAX_ITEMS = 8;
 const SAFE_GENERIC_BRANDS = new Set(['senior', 'sistemas', 'gatec', 'scout']);
 const COMPANY_MARKER_PATTERN = /\b(?:ltda|s\/a|sa|cia|cooperativa|fazenda|usina|holding|agropecuaria|agroindustrial|industria|alimentos)\b/i;
 const COMPANY_SPECIFIC_PATTERN = /\b(?:teia societ[aá]ria|per[ií]metro fiscal|pegada de mercado|footprint de mercado|rastreando a|auditando .* da|desconstruindo .* da)\b/i;
+const UNSAFE_CURIOSITY_PATTERN = /\b(?:infiltrando|desconstruindo|expondo|segredos?|ocultos?|intelig[êe]ncia de guerra|1 em cada 4|score porta)\b/i;
 
 function sanitizeLoadingContext(value: string): string {
   const text = value.replace(/\s+/g, ' ').trim();
@@ -58,6 +59,7 @@ function toLines(value: unknown, expectedCompany = '', strictCompanyMatch = fals
   const isUnsafeLine = (line: string): boolean => {
     const text = line.toLowerCase();
     return (
+      UNSAFE_CURIOSITY_PATTERN.test(line) ||
       text.includes('investigacao_completa_integrada') ||
       text.includes('protocolo de investigação forense') ||
       text.includes('dossiê completo de [') ||
@@ -104,19 +106,19 @@ export function buildLoadingCuriositiesFallback(context: string): string[] {
   const safeCompany = sanitizeLoadingContext(context || '');
 
   const genericFallback = [
-    'O Scout está agora infiltrando-se em bases de dados públicas para desconstruir o perímetro da conta alvo.',
-    'Rastreando sinais de venda ocultos e detectando gatilhos de dor operacional em tempo real.',
-    'Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país.',
-    'Aguarde: Auditando referências de mercado e calibrando o Score PORTA contra o setor.',
+    'Prévia do dossiê: separando sinais cadastrais, mercado e possíveis dores operacionais antes da recomendação final.',
+    'Os próximos minutos organizam fatos confirmados, hipóteses comerciais e pontos de validação para a conversa.',
+    'Setor e região entram como contexto para avaliar pressão de margem, logística, crescimento e timing comercial.',
+    'A Senior pode aparecer como ângulo quando os sinais indicarem necessidade de controle, produtividade ou decisão com dados.',
   ];
 
   if (!safeCompany) return genericFallback;
 
   return [
-    `Rastreando a ${safeCompany}: Capturando sinais operacionais e pegada de mercado em múltiplas fontes.`,
-    `Desconstruindo a teia societária da ${safeCompany} para calibrar o Score PORTA contra o setor.`,
-    `Inovação: A Senior lidera o mercado Agtech com soluções que integram do campo ao escritório.`,
-    `Auditando o perímetro fiscal da ${safeCompany} para detectar riscos e incentivos ocultos.`,
+    `Prévia do dossiê da ${safeCompany}: separando sinais públicos, hipóteses comerciais e próximos pontos de validação.`,
+    `Na ${safeCompany}, o Scout prioriza indícios de operação, crescimento, risco e tomada de decisão antes da abordagem.`,
+    `Setor e região da ${safeCompany} entram como contexto para avaliar pressão de margem, logística e janela comercial.`,
+    'A Senior pode entrar como ângulo se os sinais apontarem necessidade de controle, produtividade ou decisão com dados.',
   ];
 }
 
@@ -141,8 +143,9 @@ export function parseLoadingCuriosities(rawText: string, context: string): strin
       const empresa = toLines((parsed as Record<string, unknown>).empresa, safeContext, true);
       const setor = toLines((parsed as Record<string, unknown>).setor, safeContext);
       const regional = toLines((parsed as Record<string, unknown>).regional, safeContext);
+      const senior = toLines((parsed as Record<string, unknown>).senior, safeContext);
 
-      const merged = interleaveGroups([empresa, setor, regional], MAX_ITEMS);
+      const merged = interleaveGroups([empresa, [...setor, ...regional], senior], MAX_ITEMS);
       return merged.length > 0 ? [...merged, ...fallback].slice(0, MAX_ITEMS) : fallback;
     }
 

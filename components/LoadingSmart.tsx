@@ -341,8 +341,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
 
     setCurrentInsight(
       companyFocus
-        ? `Mapeando sinais operacionais e footprint de mercado da ${companyFocus} — isso leva alguns instantes.`
-        : 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+        ? `Prévia do dossiê da ${companyFocus}: organizando sinais seguros, hipóteses comerciais e pontos de validação.`
+        : 'Prévia do dossiê: organizando sinais seguros, hipóteses comerciais e pontos de validação.',
     );
   }, [clearInsightTimer, companyFocus, isLoading, loadingContextKey]);
 
