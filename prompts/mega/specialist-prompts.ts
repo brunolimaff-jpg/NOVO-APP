@@ -1087,13 +1087,15 @@ Se houver mais de 15 CNPJs:
 
 \`\`\`mermaid
 graph LR
-    classDef target fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    classDef person fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#fff
-    classDef company fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
-    classDef parallel fill:#7e22ce,stroke:#581c87,stroke-width:2px,color:#fff
+    classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+    classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+    classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
+    classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,stroke-width:1px,color:#475569;
 
     %% CONSTRUIR COM DADOS REAIS
-    %% aplicar classes em linhas separadas no final: class Grupo company;
+    %% core = alvo/controladora; satellite = filiais/verticais; neutral = sócios/contexto; warning = relação indireta/incerta; danger = risco societário real
+    %% aplicar classes em linhas separadas no final: class Grupo core;
 \`\`\`
 
 ---
@@ -1509,11 +1511,14 @@ A2 — Timing / Janela
 
 \`\`\`mermaid
 graph LR
-    classDef danger fill:#b91c1c,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef warning fill:#b45309,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef core fill:#1e40af,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+    classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+    classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
+    classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,stroke-width:1px,color:#475569;
 
     %% CONSTRUIR COM DADOS REAIS
+    %% core = sponsor/decisor forte; warning = influência ambígua/resistência; danger = veto/sabotagem; neutral = ator sem papel confirmado
     %% aplicar classes em linhas separadas no final: class CFO core;
 \`\`\`
 

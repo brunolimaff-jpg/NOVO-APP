@@ -166,7 +166,7 @@ Sempre inclua as seguintes diretivas de classe (Design Spells / Ultra-Premium St
 - classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
 - classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
 - classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
-- classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5,5,stroke-width:1px,color:#475569;
+- classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,stroke-width:1px,color:#475569;
 
 Utilize as classes acima para diferenciar os status:
 - class A core; -> Sistemas centrais (ERP, CRM oficial)

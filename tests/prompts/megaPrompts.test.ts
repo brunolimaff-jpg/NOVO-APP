@@ -222,7 +222,7 @@ describe('PORTA mega prompts', () => {
           "label": "shared-foundation",
           "length": 48491,
           "lines": 1314,
-          "sha256": "5366c1c620e6f18e99a8504a909bc175945d5028b7e1ecd0aa55af1925d952a5",
+          "sha256": "a0dcd52dbed1bf97c589fb92db505b4bb5b035e6857826adf13b4d8ab77026c4",
         },
         {
           "label": "specialist-1",
@@ -244,9 +244,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8443,
-          "lines": 250,
-          "sha256": "de656a556143312a999d2b96166195508910cd698c0057d01d36e6823695d7af",
+          "length": 8715,
+          "lines": 252,
+          "sha256": "56181464a9b8813f4bffa52e3de9dabf2311a1d538c14f66564948c940f8e484",
         },
         {
           "label": "specialist-5",
@@ -256,9 +256,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-6",
-          "length": 7451,
-          "lines": 202,
-          "sha256": "602458a0903944a6cd72627699ffc5c20bc8ca3f5e0ab951dc5f05c941ccf50c",
+          "length": 7794,
+          "lines": 205,
+          "sha256": "c93e4b3333d4f1791f76b25e1785705039ed8fa26767cde2ca1e1c0097651a5f",
         },
         {
           "label": "specialist-7",
@@ -268,21 +268,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105294,
-          "lines": 2867,
-          "sha256": "36e79f92634cb08a527e8568a5cb6b11ffaaabc61a5d2e16bcb28e145c60c507",
+          "length": 105909,
+          "lines": 2872,
+          "sha256": "d57d32803365500c08def1bee2a870493b72ad8c03564372fb20037a2ca5a152",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113742,
-          "lines": 3122,
-          "sha256": "128ea81aa64e66dde7140a765d211e7070d5ecfdc1cbdfeb5702e94339e1c6a1",
+          "length": 114357,
+          "lines": 3127,
+          "sha256": "ff1cda77aae86e442f781b85b44899ddbdab7f86ba28b0c08adedfb3cc2cac76",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105771,
-          "lines": 2887,
-          "sha256": "52622efb953f2a8e5674caa2d84179345cf48b0e4f1b414fafce4229a63d7640",
+          "length": 106386,
+          "lines": 2892,
+          "sha256": "dd41e2917e9891253b1c359a458a00fdcd42d62e4c83f0e036b3aca9ae46669f",
         },
       ]
     `);
