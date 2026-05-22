@@ -6,6 +6,22 @@ export interface ParsedSection {
   kind?: 'intro' | 'module' | 'section';
 }
 
+export type SellerSectionKind = 'maps' | 'cards' | 'default';
+
+function normalizeSectionTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function getSellerSectionKind(title: string): SellerSectionKind {
+  const normalized = normalizeSectionTitle(title);
+  if (normalized.includes('mapas visuais')) return 'maps';
+  if (normalized.includes('cards de auditoria')) return 'cards';
+  return 'default';
+}
+
 function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -26,6 +42,10 @@ function buildKey(title: string, index: number): string {
 function shouldSplitAtLevel(level: number, hasPrimaryModules: boolean): boolean {
   if (hasPrimaryModules) return level === 1;
   return level === 2 || level === 3;
+}
+
+function isSellerContainerSection(title: string): boolean {
+  return getSellerSectionKind(title) !== 'default';
 }
 
 export function parseMarkdownSections(markdown: string): ParsedSection[] {
@@ -72,6 +92,11 @@ export function parseMarkdownSections(markdown: string): ParsedSection[] {
     if (headerMatch) {
       const level = headerMatch[1].length;
       const title = headerMatch[2].trim();
+
+      if (currentSection && isSellerContainerSection(currentSection.title) && level > currentSection.level) {
+        currentSection.content += `${line}\n`;
+        continue;
+      }
 
       if (shouldSplitAtLevel(level, hasPrimaryModules)) {
         if (!currentSection && introLines.length > 0) {

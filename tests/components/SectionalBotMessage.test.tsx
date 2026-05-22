@@ -44,16 +44,12 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/ARQUITETURA DE TI/)).toBeInTheDocument();
   });
 
-  it('renderiza uma abertura executiva antes dos módulos principais', () => {
+  it('renderiza uma introdução simples antes dos módulos principais', () => {
     const message: Message = {
       id: 'bot-2',
       sender: Sender.Bot,
       timestamp: new Date(),
       text: [
-        '## 📌 Resumo Executivo',
-        '',
-        'Conta já dominada pela Senior com tese prioritária de expansão.',
-        '',
         '## 🔭 Leitura do Caso',
         '',
         '- **Operação:** Existe gargalo logístico na ponta.',
@@ -67,9 +63,43 @@ describe('SectionalBotMessage', () => {
 
     render(<SectionalBotMessage message={message} isDarkMode={false} />);
 
-    expect(screen.getByText(/Resumo Executivo/)).toBeInTheDocument();
     expect(screen.getByText(/Leitura do Caso/)).toBeInTheDocument();
     expect(screen.getByText('Módulo 1')).toBeInTheDocument();
-    expect(screen.getByText(/Conta já dominada pela Senior/)).toBeInTheDocument();
+    expect(screen.getByText(/Existe gargalo logístico/)).toBeInTheDocument();
+  });
+
+  it('destaca mapas visuais e cards de auditoria no novo contrato compacto', () => {
+    const message: Message = {
+      id: 'bot-3',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '## Mapas Visuais',
+        '',
+        '### Mapa: Teia societária',
+        '',
+        '```mermaid',
+        'graph LR',
+        'A["Matriz"] --> B["Filial"]',
+        '```',
+        '',
+        '## Cards de Auditoria',
+        '',
+        '### Card: Borda logística',
+        '- **Fato:** expedição com ponto a validar.',
+        '- **Evidência:** CRM interno.',
+        '- **Implicação comercial:** abre conversa com Operações.',
+        '- **Pergunta de reunião:** Como enxergam pátio hoje?',
+        '- **Confiança:** Média.',
+      ].join('\n'),
+    };
+
+    const { container } = render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+    expect(screen.getByText(/Mapas Visuais/)).toBeInTheDocument();
+    expect(screen.getByText(/Cards de Auditoria/)).toBeInTheDocument();
+    expect(screen.getByText(/Borda logística/)).toBeInTheDocument();
+    expect(container.querySelector('[data-section-kind="maps"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
   });
 });

@@ -2,16 +2,14 @@
   "cnpj": "04.733.767/0001-80",
   "companyName": "Scheffer & CIA LTDA",
   "requiredHeadings": [
-    "## 📌 RESUMO EXECUTIVO",
-    "## 📌 Resumo Executivo",
+    "# 🎯 DOSSIÊ: TEIA SOCIETÁRIA E MASSA REAL - GRUPO SCHEFFER",
     "# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - SCHEFFER & CIA LTDA",
     "# 🦅 DOSSIÊ SCOUT 360: ARQUITETURA DE TI E DÍVIDA TÉCNICA - SCHEFFER & CIA LTDA",
     "# 🎯 DOSSIÊ: COMPLIANCE, RISCO FISCAL - SCHEFFER & CIA LTDA",
-    "# 🎯 DOSSIÊ: TEIA SOCIETÁRIA E MASSA REAL - GRUPO SCHEFFER",
     "# 🎯 DOSSIÊ: RH, SST E GESTÃO DE PESSOAS — GRUPO SCHEFFER"
   ],
   "requiredPhrases": [
-    "74 módulos confirmados",
+    "74 módulos Senior ativos",
     "🎯 RADAR DE ESTRUTURA E CAPEX",
     "Commerce Log (TMS/WMS)",
     "PRODEIC",
@@ -23,6 +21,7 @@
     "Falha técnica",
     "⚠️ Nota operacional:",
     "## ⚠️ INCONSISTÊNCIAS DETECTADAS",
+    "## Brief de Reunião",
     "Nenhum dossiê para exportar."
   ],
   "minimumMermaidBlocks": 3,

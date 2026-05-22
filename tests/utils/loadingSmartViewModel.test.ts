@@ -4,19 +4,19 @@ import { buildLoadingSmartViewModel, getLoadingStageIdentity } from '../../utils
 describe('loadingSmartViewModel', () => {
   it('usa o total declarado para calcular progresso do roteiro modular', () => {
     const viewModel = buildLoadingSmartViewModel({
-      displayedCompleted: ['Mapeando inteligência operacional...'],
-      displayedCurrent: 'Entendendo a operação e tecnologia...',
+      displayedCompleted: ['Mapeando conta real e teia societária...'],
+      displayedCurrent: 'Mapeando operação e cadeia de valor...',
       pendingInQueue: 0,
       processing: {
-        completedStages: ['Mapeando inteligência operacional...'],
+        completedStages: ['Mapeando conta real e teia societária...'],
         totalStages: 7,
       },
     });
 
     expect(viewModel.percent).toBe(14);
     expect(viewModel.completedCount).toBe(1);
-    expect(viewModel.currentRich.label).toBe('Entendendo a operação e tecnologia...');
-    expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Consolidando dossiê de inteligência final...');
+    expect(viewModel.currentRich.label).toBe('Mapeando operação e cadeia de valor...');
+    expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Finalizando cards de auditoria...');
   });
 
   it('mostra o roadmap de investigação quando a etapa observada pertence a esse plano', () => {
@@ -35,14 +35,14 @@ describe('loadingSmartViewModel', () => {
 
   it('mantém o percentual alinhado às etapas reais mesmo quando há fila visual pendente', () => {
     const viewModel = buildLoadingSmartViewModel({
-      displayedCompleted: ['Mapeando inteligência operacional...'],
-      displayedCurrent: 'Verificando sinais de risco e conformidade...',
+      displayedCompleted: ['Mapeando conta real e teia societária...'],
+      displayedCurrent: 'Identificando bordas de controle...',
       pendingInQueue: 1,
       processing: {
         completedStages: [
-          'Mapeando inteligência operacional...',
-          'Entendendo a operação e tecnologia...',
-          'Verificando sinais de risco e conformidade...',
+          'Mapeando conta real e teia societária...',
+          'Mapeando operação e cadeia de valor...',
+          'Identificando bordas de controle...',
         ],
         totalStages: 7,
       },
@@ -54,12 +54,12 @@ describe('loadingSmartViewModel', () => {
   it('mantém a barra alinhada ao progresso real quando a fila visual ainda não revelou etapas', () => {
     const viewModel = buildLoadingSmartViewModel({
       displayedCompleted: [],
-      displayedCurrent: 'Verificando sinais de risco e conformidade...',
+      displayedCurrent: 'Verificando pressões e compliance...',
       pendingInQueue: 0,
       processing: {
         completedStages: [
-          'Mapeando inteligência operacional...',
-          'Entendendo a operação e tecnologia...',
+          'Mapeando conta real e teia societária...',
+          'Mapeando operação e cadeia de valor...',
         ],
         totalStages: 7,
       },
@@ -101,9 +101,7 @@ describe('loadingSmartViewModel', () => {
     expect(viewModel.percent).toBe(8);
   });
 
-  it('normaliza labels equivalentes para evitar duplicação visual', () => {
-    expect(getLoadingStageIdentity('Investigando riscos & compliance...')).toBe(
-      getLoadingStageIdentity('Verificando sinais de risco e conformidade...'),
-    );
+  it('gera identidade estável para o label novo de compliance', () => {
+    expect(getLoadingStageIdentity('Verificando pressões e compliance...')).toBe('verificando pressoes e compliance');
   });
 });

@@ -10,6 +10,7 @@ import megaPrompts, {
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_VERSION,
+  SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   SHARED_FOUNDATION_BLOCK,
   buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,
@@ -127,6 +128,16 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE).not.toContain('Nota A1 sugerida');
   });
 
+  it('declares the compact seller-facing output contract for module generation', () => {
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('Não gere seção "Brief de Reunião"');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Mapas Visuais');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Cards de Auditoria');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial do insight]');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('**Pergunta de reunião:**');
+    expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
+  });
+
   it('keeps the facade metadata and specialist prompt collection stable', () => {
     expect(PROMPT_VERSION).toBe('Scout360_v5.0_ExecutiveCommitteeGrade');
     expect(ALL_SPECIALIST_PROMPTS).toHaveLength(7);
@@ -209,9 +220,9 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 46795,
-          "lines": 1277,
-          "sha256": "2f1d0a7e030821981cb01b10e3cb343c225f44b1f5f7d57cf49e8205328c28f5",
+          "length": 48488,
+          "lines": 1314,
+          "sha256": "7ab9000f15a197ba17889cffd0ae380195989f30f8633b029197ee71301c3fe8",
         },
         {
           "label": "specialist-1",
@@ -257,21 +268,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 103598,
-          "lines": 2830,
-          "sha256": "43e647c0d1636145fc5248df0cb7316df8ac925c51a519293032c50f59635fe3",
+          "length": 105291,
+          "lines": 2867,
+          "sha256": "370bb726432e5677c169169e0b15c1e8997492d8b7d32b4ef18efbafb9d91fad",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 112046,
-          "lines": 3085,
-          "sha256": "2162c905facfc9ce6be428e282aec290d957406d435de30aefc00e4e30640758",
+          "length": 113739,
+          "lines": 3122,
+          "sha256": "e6403cac47e60e9f0e27eef0881e9be41a85b9f922726e68667c9ead8bb278ab",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 104075,
-          "lines": 2850,
-          "sha256": "ff2176c2224b531b40888c0f83e9119ae74c59b338b94b01596a77537054550e",
+          "length": 105768,
+          "lines": 2887,
+          "sha256": "47dd179e04b5cb6978492b557dc33d96e9afb222a1f37cb91ed0f8404e3cc74c",
         },
       ]
     `);
@@ -286,6 +297,7 @@ describe('PORTA mega prompts', () => {
     expect(megaPrompts.PROMPT_RH_SINDICATOS_GOD_MODE).toBe(PROMPT_RH_SINDICATOS_GOD_MODE);
     expect(megaPrompts.PROMPT_MAPEAMENTO_DECISORES_GOD_MODE).toBe(PROMPT_MAPEAMENTO_DECISORES_GOD_MODE);
     expect(megaPrompts.PROMPT_ORCAMENTO_JANELA_GOD_MODE).toBe(PROMPT_ORCAMENTO_JANELA_GOD_MODE);
+    expect(megaPrompts.SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toBe(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
     expect(megaPrompts.buildLegacyCompatibleHiddenPrompt).toBe(buildLegacyCompatibleHiddenPrompt);
     expect(megaPrompts.PROMPT_VERSION).toBe(PROMPT_VERSION);
   });

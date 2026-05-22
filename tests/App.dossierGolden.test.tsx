@@ -259,11 +259,11 @@ function readFixture(relativePath: string): string {
 
 function loadModuleFixtures(): Record<string, string> {
   return {
-    'Raio-X Operacional': readFixture('modules/01-raio-x-operacional.md'),
-    'Tech Stack': readFixture('modules/02-tech-stack.md'),
+    'Porte / Teia Societária': readFixture('modules/04-teia-societaria-massa-real.md'),
+    'Operação / Cadeia de Valor': readFixture('modules/01-raio-x-operacional.md'),
+    'Bordas de Controle': readFixture('modules/02-tech-stack.md'),
     'Riscos & Compliance': readFixture('modules/03-compliance-risco-fiscal.md'),
-    'Estratégia & Expansão': readFixture('modules/04-teia-societaria-massa-real.md'),
-    'RH & Decisores': readFixture('modules/05-rh-sst-gestao-pessoas.md'),
+    'Caminho de Venda': readFixture('modules/05-rh-sst-gestao-pessoas.md'),
   };
 }
 
@@ -300,7 +300,8 @@ describe('App dossier markdown golden flow', () => {
 
     await waitFor(() => {
       expect(generateDossierModuleMock).toHaveBeenCalledTimes(5);
-      expect(screen.getByTestId('last-bot-message').textContent).toContain('## 📌 Resumo Executivo');
+      expect(screen.getByTestId('last-bot-message').textContent).toContain('# 🎯 DOSSIÊ: TEIA SOCIETÁRIA E MASSA REAL');
+      expect(screen.getByTestId('last-bot-message').textContent).not.toContain('## Brief de Reunião');
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'export-dossier-md' }));

@@ -280,7 +280,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const defaultScore = makeScorePorta(72);
     reconcileWaterfallPortaMock.mockResolvedValue({
-      accumulatedText: 'Raio-X Operacional consolidado\n\n---\n\n[[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]',
+      accumulatedText: 'Porte / Teia Societária consolidado\n\n---\n\n[[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]',
       resolution: makeResolution(defaultScore),
       portaIntegrityHold: false,
     });
@@ -291,7 +291,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     const score = makeScorePorta(74);
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
-        'Raio-X Operacional consolidado',
+        'Porte / Teia Societária consolidado',
         '---',
         'Benchmark consolidado',
         '---',
@@ -314,6 +314,13 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(lookupClienteMock).toHaveBeenCalledWith('Acme Agro');
     expect(formatarParaPromptMock).toHaveBeenCalledTimes(1);
     expect(generateDossierModuleMock).toHaveBeenCalledTimes(5);
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).toEqual([
+      'Porte / Teia Societária',
+      'Operação / Cadeia de Valor',
+      'Bordas de Controle',
+      'Riscos & Compliance',
+      'Caminho de Venda',
+    ]);
     expect(generateDossierModuleMock).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(String),
@@ -322,6 +329,9 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.objectContaining({ useGrounding: true }),
     );
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');
+    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
     expect(runDossierBenchmarkStageMock).toHaveBeenCalledTimes(1);
     expect(ensureWaterfallScorePortaMock).toHaveBeenCalledWith(
       expect.stringContaining('[[PORTA:74'),
@@ -344,8 +354,10 @@ describe('useDossierWaterfallOrchestrator', () => {
       totalModulos: 3,
     });
     expect(finalBotMessage.suggestions).toEqual(DEFAULT_SUGGESTIONS);
-    expect(finalBotMessage.text).toContain('Raio-X Operacional consolidado');
+    expect(finalBotMessage.text).toContain('Porte / Teia Societária consolidado');
     expect(finalBotMessage.text).toContain('Benchmark consolidado');
+    expect(finalBotMessage.text).not.toContain('## Brief de Reunião');
+    expect(finalBotMessage.text).not.toContain('**Tese da conta:**');
     expect(finalBotMessage.text).not.toContain('[[PORTA');
   });
 
@@ -369,7 +381,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
-        'Raio-X Operacional consolidado',
+        'Porte / Teia Societária consolidado',
         '---',
         '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
       ].join('\n\n'),
@@ -389,7 +401,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.groundingUsed).toBe(true);
     expect(finalBotMessage.webVerificationStatus).toBe('verified');
     expect(finalBotMessage.groundingSources).toEqual([
-      { title: 'Raio-X Operacional fonte', url: 'https://example.com/fonte', verification: 'grounding' },
+      { title: 'Porte / Teia Societária fonte', url: 'https://example.com/fonte', verification: 'grounding' },
       {
         title: 'BNDES',
         url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi',
@@ -414,7 +426,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       },
     );
     reconcileWaterfallPortaMock.mockResolvedValue({
-      accumulatedText: 'Raio-X Operacional consolidado\n\n[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
+      accumulatedText: 'Porte / Teia Societária consolidado\n\n[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
       resolution: makeResolution(score),
       portaIntegrityHold: false,
     });
@@ -474,14 +486,14 @@ describe('useDossierWaterfallOrchestrator', () => {
   it('ignora falha em módulo opcional e anexa nota operacional no dossiê final', async () => {
     const score = makeScorePorta(68);
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
-      if (moduleName === 'Tech Stack') {
+      if (moduleName === 'Bordas de Controle') {
         throw new Error('timeout opcional');
       }
       return `${moduleName} consolidado`;
     });
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
-        'Raio-X Operacional consolidado',
+        'Porte / Teia Societária consolidado',
         '---',
         'Riscos & Compliance consolidado',
         '---',
@@ -503,10 +515,10 @@ describe('useDossierWaterfallOrchestrator', () => {
     const finalBotMessage = getBotMessage(harness);
 
     expect(harness.resetLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[0], 7);
-    expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[2], 7);
+    expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[3], 7);
     expect(harness.setFailureCount.mock.calls.some(([arg]) => typeof arg === 'function')).toBe(true);
     expect(finalBotMessage.text).toContain('Nota operacional');
-    expect(finalBotMessage.text).toContain('Tech Stack');
+    expect(finalBotMessage.text).toContain('Bordas de Controle');
     expect(finalBotMessage.scorePorta?.score).toBe(68);
     expect(harness.completeLoadingProgress).toHaveBeenCalledTimes(1);
   });
@@ -521,9 +533,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
-        'Raio-X Operacional consolidado',
+        'Porte / Teia Societária consolidado',
         '---',
-        'Estratégia & Expansão consolidado',
+        'Riscos & Compliance consolidado',
         '---',
         '[[PORTA:65:P6:O7:R6:T6:A5:PRD:NONE]]',
       ].join('\n\n'),

@@ -386,32 +386,6 @@ function buildExecutiveSummarySpine(
   };
 }
 
-export function buildMainDossierExecutiveIntro(
-  fullText: string,
-  companyName?: string | null,
-  clienteSeniorData?: ClienteSeniorData,
-): string {
-  const sections = parseMarkdownSections(fullText);
-  const modules = sections.filter(section => section.level === 1 && section.kind === 'module');
-  if (modules.length === 0) return '';
-  const spine = buildExecutiveSummarySpine(fullText, modules, {
-    companyName,
-    clienteSeniorData,
-    inconsistencyDetected: false,
-  });
-
-  return [
-    '## 📌 Resumo Executivo',
-    '',
-    `- **Tese da Conta:** ${spine.thesis}`,
-    `- **Por Que Agir Agora:** ${spine.urgency}`,
-    `- **Risco de Inação:** ${spine.risk}`,
-    `- **Direção Recomendada:** ${spine.direction}`,
-    `- **Sinal de Confiança:** ${spine.confidence}`,
-    '',
-  ].join('\n');
-}
-
 function normalizeComparableValue(value: string): string {
   return value
     .toLowerCase()

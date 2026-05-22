@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildMainDossierExecutiveIntro,
   collectFullReport,
   detectInconsistencies,
   generateExecutiveSummary,
@@ -70,76 +69,6 @@ describe('report export helpers', () => {
     expect(summary).toContain('precisa validar');
     expect(summary).toContain('Diagramas mermaid');
     expect(summary).not.toContain('movimento estrutural');
-  });
-
-  it('builds an executive intro for the main dossier without exposing PORTA language', () => {
-    const intro = buildMainDossierExecutiveIntro(
-      [
-        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - GRUPO SCHEFFER',
-        '',
-        '**🎯 RADAR DE ESTRUTURA E CAPEX**',
-        '* **O Calcanhar de Aquiles:** a logística de saída ainda opera fora da esteira nativa da Senior.',
-        '',
-        '# 🦅 DOSSIÊ SCOUT 360: ARQUITETURA DE TI E DÍVIDA TÉCNICA - GRUPO SCHEFFER',
-        '',
-        '**🎯 RADAR DO ECOSSISTEMA SISTÊMICO**',
-        '* **A Ruptura Crítica:** o gap de WMS/TMS mantém shadow IT na ponta logística.',
-      ].join('\n'),
-      'Grupo Scheffer',
-      { encontrado: true, grupo: 'GRUPO SCHEFFER', totalModulos: 74 },
-    );
-
-    expect(intro).toContain('## 📌 Resumo Executivo');
-    expect(intro).toContain('**Tese da Conta:**');
-    expect(intro).toContain('**Por Que Agir Agora:**');
-    expect(intro).toContain('**Risco de Inação:**');
-    expect(intro).toContain('**Direção Recomendada:**');
-    expect(intro).toContain('**Sinal de Confiança:**');
-    expect(intro).toContain('74 módulos confirmados');
-    expect(intro).toContain('expansão de conta');
-    expect(intro).not.toContain('WMS/TMS');
-    expect(intro).not.toContain('movimento estrutural');
-    expect(intro).not.toContain('reposicionar a próxima conversa');
-    expect(intro).not.toContain('Dimensão O');
-    expect(intro).not.toContain('Nota O sugerida');
-  });
-
-  it('keeps a commercial thesis for new accounts with discrete confidence language', () => {
-    const intro = buildMainDossierExecutiveIntro(
-      [
-        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - EMPRESA X',
-        '',
-        '* **O Calcanhar de Aquiles:** a operação ainda depende de controles manuais entre campo e backoffice.',
-        '',
-        '# 🦅 DOSSIÊ SCOUT 360: ARQUITETURA DE TI E DÍVIDA TÉCNICA - EMPRESA X',
-        '',
-        '* **A Ruptura Crítica:** a retaguarda ainda convive com integrações manuais e fluxos paralelos.',
-        '',
-        'Não encontrado nas fontes públicas: organograma detalhado.',
-      ].join('\n'),
-      'Empresa X',
-      { encontrado: false, grupo: 'EMPRESA X' },
-    );
-
-    expect(intro).toContain('Empresa X concentra uma dor executiva clara');
-    expect(intro).toContain('Não há gatilho temporal forte nas fontes');
-    expect(intro).toContain('Confiança moderada');
-    expect(intro).not.toContain('Dimensão');
-  });
-
-  it('normalizes lowercase company name and blocks confidence inflation without basis', () => {
-    const intro = buildMainDossierExecutiveIntro(
-      [
-        '# 🦅 DOSSIÊ SCOUT 360: INTELIGÊNCIA OPERACIONAL - scheffer',
-        '',
-        '* **O Calcanhar de Aquiles:** a expedição segue com controles manuais e auditoria de fretes fora do core atual.',
-      ].join('\n'),
-      'scheffer',
-      { encontrado: true, grupo: 'scheffer', totalModulos: 12 },
-    );
-
-    expect(intro).toContain('Scheffer já é uma conta instalada Senior');
-    expect(intro).not.toContain('Confiança alta: a leitura se apoia em múltiplos sinais convergentes do dossiê e já sustenta priorização comercial.');
   });
 
   it('includes grounding sources from bot messages in exported links', () => {

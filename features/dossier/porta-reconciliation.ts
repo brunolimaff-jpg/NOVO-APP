@@ -10,11 +10,11 @@ const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS = 12000;
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
-  P: ['Estratégia & Expansão'],
-  O: ['Raio-X Operacional'],
+  P: ['Porte / Teia Societária'],
+  O: ['Operação / Cadeia de Valor'],
   R: ['Riscos & Compliance'],
-  T: ['Tech Stack'],
-  A: ['RH & Decisores'],
+  T: ['Bordas de Controle'],
+  A: ['Caminho de Venda'],
 };
 
 const PORTA_MARKER_TEMPLATES: Record<PortaDimension, string> = {

@@ -25,14 +25,24 @@ function createMemoryStorage(): Storage {
   };
 }
 
-if (typeof window !== 'undefined' && !window.localStorage) {
-  const localStorage = createMemoryStorage();
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    value: localStorage,
-  });
+if (typeof window !== 'undefined') {
+  const browserStorage = window.localStorage ?? createMemoryStorage();
+  if (!window.localStorage) {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: browserStorage,
+    });
+  }
+
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
-    value: localStorage,
+    value: browserStorage,
   });
+
+  if (window.Storage) {
+    Object.defineProperty(globalThis, 'Storage', {
+      configurable: true,
+      value: window.Storage,
+    });
+  }
 }
