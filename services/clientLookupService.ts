@@ -546,7 +546,9 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
 
 export function formatarParaPrompt(lookup: LookupResponse): string {
   if (!lookup?.ok || !lookup.encontrado || !lookup.results?.length) {
-    return `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n**Implicação:** Provável prospect novo (não é cliente atual).\n---\n`;
+    return `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n` +
+      `**Implicação:** Provável prospect novo (não é cliente atual).\n` +
+      `**💡 Validação recomendada:** Confirme no Atlas da Oportunidade ou Cosulta Cliente antes de assumir como prospect.\n---\n`;
   }
 
   const r = lookup.results[0];
@@ -560,7 +562,9 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
       `**⚠️ ATENÇÃO:** A busca por "${lookup.query}" retornou "${r.grupo}".\n` +
       `**NÃO** são a mesma empresa. Estes dados NÃO devem ser usados como evidência de contratação Senior.\n` +
       `**Instrução para o modelo:** Trate "${lookup.query}" como PROSPECT (não cliente). ` +
-      `Não mencione módulos, gaps ou soluções Senior.\n---\n`;
+      `Não mencione módulos, gaps ou soluções Senior.\n` +
+      `**💡 Validação recomendada:** Consulte o Atlas da Oportunidade ou Cosulta Cliente para confirmar ` +
+      `se há vínculo real com a Senior antes de qualquer abordagem.\n---\n`;
   }
 
   // Match EXATO: incluir dados completos com segurança
