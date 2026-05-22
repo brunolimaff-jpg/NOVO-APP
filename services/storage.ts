@@ -478,15 +478,19 @@ export const storage = {
   },
 
   async processSyncQueue(): Promise<void> {
+    if (!isSupabaseAvailable()) {
+      return;
+    }
+
     // Load queue from IDB
     await syncQueue.load();
 
+    if (syncQueue.size() === 0) {
+      return;
+    }
+
     // Process all operations with Supabase executor
     await syncQueue.processAll(async (op) => {
-      if (!isSupabaseAvailable()) {
-        throw new Error('Supabase unavailable');
-      }
-
       const { table, operation, data } = op;
 
       if (operation === 'upsert') {
