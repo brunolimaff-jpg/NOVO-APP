@@ -281,8 +281,15 @@ function getBestLookupCandidateMetrics(result: ClienteResult, fullQuery: string)
     if (!normalizedLabel) continue;
 
     const matchedTokenCount = queryTokens.filter(token => normalizedLabel.includes(token)).length;
+    // Single-token queries require exact string match to avoid false positives
+    // (e.g. query "PAMPA" should NOT exact-match label "PAMPAFOODS").
+    // Multi-token queries can use .includes() because multiple tokens provide
+    // sufficient discrimination (e.g. "TOTVS SISTEMAS" in "TOTVS SISTEMAS LTDA").
     const exactPhrase =
-      !!queryNormalized && (normalizedLabel === queryNormalized || normalizedLabel.includes(queryNormalized));
+      !!queryNormalized && (
+        normalizedLabel === queryNormalized ||
+        (queryTokens.length >= 2 && normalizedLabel.includes(queryNormalized))
+      );
     const matchedAllTokens = queryTokens.length > 0 && matchedTokenCount === queryTokens.length;
 
     let matchType: MatchType = 'broad';
