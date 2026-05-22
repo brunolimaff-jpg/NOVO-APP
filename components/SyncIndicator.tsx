@@ -28,7 +28,7 @@ export function SyncIndicator() {
 
   if (pending === 0) {
     return (
-      <Tooltip label="Seus dados estão salvos com segurança no Scout 360. Você pode acessar de qualquer dispositivo." position="bottom">
+      <Tooltip label="Dados salvos no Scout 360. Acesse de qualquer dispositivo." position="left">
         <span className="text-xs text-green-500 flex items-center gap-1 cursor-help">
           <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
           Sincronizado
@@ -38,7 +38,7 @@ export function SyncIndicator() {
   }
 
   return (
-    <Tooltip label={`${pending} alteraç${pending > 1 ? 'ões' : 'ão'} aguardando para ser salva. Seus dados continuam disponíveis offline e serão sincronizados assim que houver conexão.`} position="bottom">
+    <Tooltip label={`${pending} alteraç${pending > 1 ? 'ões' : 'ão'} offline — sincroniza ao conectar.`} position="left">
       <span className="text-xs text-yellow-500 flex items-center gap-1 cursor-help">
         <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block animate-pulse" />
         {pending} pendente{pending > 1 ? 's' : ''}
