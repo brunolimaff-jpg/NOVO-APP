@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { get, set } from 'idb-keyval';
+import { storage } from '../services/storage';
 import { ChatSession } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
 
-const SESSIONS_IDB_KEY = 'scout360_sessions_v2';
 const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 
 export function useSessionStorage() {
@@ -27,7 +26,7 @@ export function useSessionStorage() {
       }));
 
     try {
-      const idbSessions = await get<ChatSession[]>(SESSIONS_IDB_KEY);
+      const idbSessions = await storage.getDossiers();
       if (idbSessions && idbSessions.length > 0) return sanitizeLoadedSessions(idbSessions);
     } catch {
       // IndexedDB unavailable, try localStorage fallback
@@ -56,7 +55,7 @@ export function useSessionStorage() {
 
   const persistSessions = useCallback(async (data: ChatSession[]) => {
     try {
-      await set(SESSIONS_IDB_KEY, data);
+      await storage.saveAllDossiers(data);
     } catch {
       try {
         localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(data));
