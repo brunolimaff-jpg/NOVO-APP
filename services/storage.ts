@@ -193,7 +193,7 @@ export const storage = {
     syncQueue.enqueue({
       table: 'radar_alerts',
       operation: 'upsert',
-      data: { alerts, operator_id: operatorId },
+      data: { alert_data: alerts, operator_id: operatorId },
       id: 'alerts', // Bulk operation
     });
   },
@@ -213,7 +213,7 @@ export const storage = {
     if (!operatorId) return; // Local-only until registered
 
     syncQueue.enqueue({
-      table: 'radar_config',
+      table: 'radar_configs',
       operation: 'upsert',
       data: { config, operator_id: operatorId },
       id: 'config', // Single config per operator
@@ -281,7 +281,7 @@ export const storage = {
       table: 'extract_cache',
       operation: 'upsert',
       data: {
-        cache_key: cacheKey,
+        id: cacheKey,
         result,
         expires_at: expiresAt.toISOString(),
         operator_id: operatorId,
@@ -304,7 +304,7 @@ export const storage = {
       operation: 'upsert',
       data: {
         operator_id: data.operatorId,
-        name: data.name,
+        display_name: data.name,
         email: data.email,
         updated_at: new Date().toISOString(),
       },
@@ -431,18 +431,16 @@ export const storage = {
       return null;
     }
 
-    // Insert to shared_dossiers
+    // Insert to shared_dossiers — only stores the link, content lives in dossies
     const { error } = await supabase!
       .from('shared_dossiers')
       .insert({
-        token,
+        access_token: token,
         dossier_id: dossierId,
-        content: dossier,
-        created_by: operatorId,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+        operator_id: operatorId,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
-      .select('token')
+      .select('access_token')
       .single();
 
     if (error) {
@@ -453,23 +451,42 @@ export const storage = {
     return token;
   },
 
-  async getSharedDossier(token: string): Promise<ChatSession | null> {
+  async getSharedDossier(accessToken: string): Promise<ChatSession | null> {
     if (!isSupabaseAvailable()) {
       return null;
     }
 
-    const { data, error } = await supabase!
+    // Find the share link, then fetch the actual dossier
+    const { data: shareData, error: shareError } = await supabase!
       .from('shared_dossiers')
-      .select('content')
-      .eq('token', token)
+      .select('dossier_id')
+      .eq('access_token', accessToken)
       .gt('expires_at', new Date().toISOString())
       .single();
 
-    if (error || !data) {
+    if (shareError || !shareData) {
       return null;
     }
 
-    return data.content as ChatSession;
+    // Increment view count (fire and forget)
+    supabase!
+      .from('shared_dossiers')
+      .update({ view_count: 0 }) // will be incremented server-side or via raw SQL
+      .eq('access_token', accessToken);
+
+    // Fetch the actual dossier content from dossies table
+    const { data: dossierData, error: dossierError } = await supabase!
+      .from('dossies')
+      .select('content')
+      .eq('id', shareData.dossier_id)
+      .is('deleted_at', null)
+      .single();
+
+    if (dossierError || !dossierData) {
+      return null;
+    }
+
+    return dossierData.content as ChatSession;
   },
 
   // ===================================================================
@@ -504,12 +521,23 @@ export const storage = {
       return;
     }
 
+    // Tables with unique constraints on non-PK columns need explicit onConflict
+    const conflictColumns: Record<string, string> = {
+      user_context: 'operator_id',
+      radar_configs: 'operator_id',
+      favorites: 'operator_id,cnpj',
+    };
+
     // Process all operations with Supabase executor
     await syncQueue.processAll(async (op) => {
       const { table, operation, data } = op;
 
       if (operation === 'upsert') {
-        const { error } = await supabase!.from(table).upsert(data);
+        const onConflict = conflictColumns[table];
+        const { error } = await supabase!.from(table).upsert(
+          data,
+          onConflict ? { onConflict } : undefined
+        );
         if (error) throw new Error(error.message);
       } else if (operation === 'delete') {
         const id = op.id;

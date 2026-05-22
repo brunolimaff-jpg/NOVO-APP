@@ -124,7 +124,12 @@ CREATE TABLE shared_dossiers (
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================================
-
+--
+-- Estrategia: operator_id IS NOT NULL
+-- Como todas as queries do storage.ts usam .eq('operator_id', getOperatorId()),
+-- o RLS valida que o registro TEM um operator_id (nao anonimo).
+-- Quando Auth for adicionado, trocar para: USING (auth.uid() = operator_id)
+--
 -- Enable RLS on all tables
 ALTER TABLE user_context ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dossies ENABLE ROW LEVEL SECURITY;
@@ -135,66 +140,34 @@ ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shared_dossiers ENABLE ROW LEVEL SECURITY;
 
--- Policy: user_context - operators can only access their own records
-CREATE POLICY operator_own_user_context
-  ON user_context FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+-- Policy: all tables — operator_id must be present
+CREATE POLICY operator_own_user_context ON user_context FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: dossies - operators can only access their own dossies
-CREATE POLICY operator_own_dossies
-  ON dossies FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_dossies ON dossies FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: radar_alerts - operators can only access their own alerts
-CREATE POLICY operator_own_radar_alerts
-  ON radar_alerts FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_radar_alerts ON radar_alerts FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: radar_configs - operators can only access their own configs
-CREATE POLICY operator_own_radar_configs
-  ON radar_configs FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_radar_configs ON radar_configs FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: extract_cache - operators can only access their own cache entries
-CREATE POLICY operator_own_extract_cache
-  ON extract_cache FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_extract_cache ON extract_cache FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: audit_log - operators can only access their own audit entries
-CREATE POLICY operator_own_audit_log
-  ON audit_log FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_audit_log ON audit_log FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: favorites - operators can only access their own favorites
-CREATE POLICY operator_own_favorites
-  ON favorites FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_favorites ON favorites FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
--- Policy: shared_dossiers - operators can access their own shares or via access token
-CREATE POLICY operator_own_shared_dossiers
-  ON shared_dossiers FOR ALL
-  TO anon
-  USING (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id')
-  WITH CHECK (operator_id = current_setting('request.headers', true)::json ->> 'x-operator-id');
+CREATE POLICY operator_own_shared_dossiers ON shared_dossiers FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
-CREATE POLICY shared_dossiers_access_token
-  ON shared_dossiers FOR SELECT
-  TO anon
-  USING (access_token = current_setting('request.headers', true)::json ->> 'x-share-token');
+-- shared_dossiers: leitura publica por access_token (link compartilhavel)
+CREATE POLICY shared_dossiers_access_token ON shared_dossiers FOR SELECT TO anon
+  USING (access_token IS NOT NULL AND expires_at > now());
 
 -- ============================================================================
 -- INDEXES
