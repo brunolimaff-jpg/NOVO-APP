@@ -222,7 +222,7 @@ describe('PORTA mega prompts', () => {
           "label": "shared-foundation",
           "length": 48491,
           "lines": 1314,
-          "sha256": "5366c1c620e6f18e99a8504a909bc175945d5028b7e1ecd0aa55af1925d952a5",
+          "sha256": "a0dcd52dbed1bf97c589fb92db505b4bb5b035e6857826adf13b4d8ab77026c4",
         },
         {
           "label": "specialist-1",
@@ -246,7 +246,7 @@ describe('PORTA mega prompts', () => {
           "label": "specialist-4",
           "length": 8715,
           "lines": 252,
-          "sha256": "3657f3576c9a5902c25b4eb8b7ca04bfe408097928bb765a2dfb8c45d140b4ac",
+          "sha256": "56181464a9b8813f4bffa52e3de9dabf2311a1d538c14f66564948c940f8e484",
         },
         {
           "label": "specialist-5",
@@ -258,7 +258,7 @@ describe('PORTA mega prompts', () => {
           "label": "specialist-6",
           "length": 7794,
           "lines": 205,
-          "sha256": "8d9a72a20b3b32793033b017b7db187a08a97f88b6f6710d8facc6625d31bf43",
+          "sha256": "c93e4b3333d4f1791f76b25e1785705039ed8fa26767cde2ca1e1c0097651a5f",
         },
         {
           "label": "specialist-7",
@@ -270,19 +270,19 @@ describe('PORTA mega prompts', () => {
           "label": "legacy-compatible-hidden-prompt",
           "length": 105909,
           "lines": 2872,
-          "sha256": "92a1ac8467d4f92b41096c4b62cecd54f70488f4a8aae74e4c237c9acb7dff05",
+          "sha256": "d57d32803365500c08def1bee2a870493b72ad8c03564372fb20037a2ca5a152",
         },
         {
           "label": "executive-full-hidden-prompt",
           "length": 114357,
           "lines": 3127,
-          "sha256": "c09b3372970b053299a57e087158854544dd6f699bf77743ffd150fbb2fe23b9",
+          "sha256": "ff1cda77aae86e442f781b85b44899ddbdab7f86ba28b0c08adedfb3cc2cac76",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
           "length": 106386,
           "lines": 2892,
-          "sha256": "299bc9eeed3992bdb1de48c71f2a9fcac7842dcb75df5fb838f81960ab05e44f",
+          "sha256": "dd41e2917e9891253b1c359a458a00fdcd42d62e4c83f0e036b3aca9ae46669f",
         },
       ]
     `);
