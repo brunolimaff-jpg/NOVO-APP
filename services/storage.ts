@@ -480,6 +480,18 @@ export const storage = {
     return syncQueue.size();
   },
 
+  getSyncQueueItems(): { table: string; operation: string }[] {
+    return syncQueue.peek().map((op) => ({
+      table: op.table,
+      operation: op.operation,
+    }));
+  },
+
+  async resetSyncQueue(): Promise<void> {
+    syncQueue.clear();
+    await syncQueue.persist();
+  },
+
   async processSyncQueue(): Promise<void> {
     if (!isSupabaseAvailable()) {
       return;

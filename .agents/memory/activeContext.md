@@ -16,43 +16,65 @@ Read order:
 6. `docs/ai-context/refactor/02-BOARD.md`
 7. `docs/obsidian/00-MASTER.md` for visual navigation only
 
-## Current refactor phase
+## Current operating phase
 
-**Auditoria de Código Multi-Fase CONCLUÍDA (PR #270).**
+**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`.**
 
-- Fase 1: Sprints 1-8 concluída.
-- Fase 2: Manutenibilidade (Sprints 9-12) concluída em `2026-05-20`.
-- Fase 3: Auditoria de Falhas Silenciosas, Segurança e Performance concluída em `2026-05-22` na branch `codex/contextual-continuity-suggestions`.
-- Commit final da auditoria: `bdf80f4`.
-- 33+ arquivos alterados entre Fases 2, 3 e 4 da auditoria.
+- Arquitetura offline-first: Supabase (fonte de verdade) + IndexedDB (cache offline) + sync queue bidirecional.
+- 12 commits na branch, 37 novos testes (28 unitarios storage, 5 sync queue, 4 integracao).
+- 873 testes verdes, typecheck limpo.
+- Lint com `0` erros.
 
 ## Current task context
 
-**Auditoria de Código Multi-Fase concluída em `codex/contextual-continuity-suggestions` (2026-05-22).**
-- PR `#270` aberta, commit final `bdf80f4`, 33+ arquivos alterados.
-- Plano em `docs/planos/auditoria-codigo-2026-05-21.md` (840 linhas).
-- **Fase 2 (Falhas Silenciosas):** 10 arquivos com `scoutDiag.warn/error` adicionado em catches que engoliam erros. Destaque: `useRadar.ts` (5 operações IDB), `investigation-orchestration.ts` (catch silencioso removido), `hooks/useAppInitialization.ts` (`.catch(() => {})` com log).
-- **Fase 3 (Segurança):** 15 arquivos. Criado `api/_security-headers.ts` e `api/_cache-headers.ts` como helpers serverless reutilizáveis. Security headers aplicados em 11 API routes. MarkdownRenderer com `allowRawHtml=false`, `securityLevel='strict'`, HTML links convertidos para markdown. `index.tsx` sem Pinecone env vars no frontend. `api/link-status.ts` com proteção SSRF. `api/extract-content.ts` com `.max(13_600_000)` no schema Zod. CORS whitelist em `api/comex.ts`.
-- **Fase 4 (Performance):** 8 arquivos. Criado `hooks/useDebounce.ts` genérico. 4 componentes lazy-loaded em `App.tsx`. `vendor-anim` chunk (framer-motion 124KB) em `vite.config.ts`. Cache-Control 1h em `api/cnpj.ts`, 24h em `api/comex.ts`. `.filter().map()` substituído por `.flatMap()` em 3 locais.
-- **Bug fixes:** `clientLookupService.ts` — match parcial não inclui dados CRM (evita alucinação de empresas similares). `MarkdownRenderer.tsx` — links HTML convertidos corretamente para markdown.
-- **Testes:** 10 arquivos de teste atualizados para refletir as mudanças.
-- **Gates:** pendente confirmação de checks remotos na PR `#270`.
+**Migracao Supabase concluida (2026-05-22).**
 
-**UX Redesign Phase 1 em progresso (PR `#266`).**
-- Branch: `ux/redesign-phase1-v1`, commit `d84b643`.
-- AdminDash removido, breadcrumb, sidebar melhorada, indicadores de status no MessageRow, feedback CNPJ estilizado.
-- Aguardando validação do owner no preview Vercel antes do merge.
+### Camada de infraestrutura:
+- `lib/supabaseClient.ts` — cliente Supabase browser com `createClient`, export default `supabase`, graceful degradation se Supabase indisponivel.
+- `services/storage.ts` — interface unificada que hooks/services chamam. Implementa stale-while-revalidate para leituras (IDB primeiro, Supabase em background) e offline-first para escritas (IDB instantaneo, sync em background).
 
-**Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
-- Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
+### Fila offline:
+- `services/syncQueue.ts` — fila de operacoes pendentes persistida em IDB. Retry com backoff exponencial (3s, 9s, 27s). Dead-letter queue apos falhas consecutivas. Processamento automatico em background e sob demanda.
+
+### Componentes:
+- `components/SyncIndicator.tsx` — badge no header mostrando status: online/syncing/offline/error. Tooltip com contagem de operacoes pendentes.
+
+### Migracao de hooks:
+- `hooks/useSessionStorage.ts` — substituido `idb-keyval` por `storage.ts`
+- `features/radar/useRadar.ts` — substituido `idb-keyval` por `storage.ts`
+- `services/extractContentService.ts` — substituido `idb-keyval` por `storage.ts`
+
+### Registro de operador:
+- `contexts/OperatorContext.tsx` — adicionado campo `email`, sync com Supabase ao registrar
+- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
+- `components/ChatInterface.tsx` — callback de email propagado
+- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
+- `components/chat/ChatShell.tsx` — SyncIndicator adicionado no header
+
+### Schema Supabase:
+- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
+- 8 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`
+- RLS habilitado em todas, politicas por `operator_id IS NOT NULL`
+- 8 indexes para performance de consulta
+- Grants anon para data API (leitura/escrita)
+
+### Env vars necessarias (Vercel):
+- `VITE_SUPABASE_URL=https://vmqfcaoirjcfucvlnpig.supabase.co`
+- `VITE_SUPABASE_ANON_KEY=sb_publishable_OXLwGTgGUjFi-gHwRTsoOg_xHoDJHvO`
+
+### Decisoes arquiteturais:
+1. Auth postergada: UUID local temporario como `operator_id`
+2. Dados migraveis: dossies, radar alerts, radar configs, extract cache, audit log, favorites, shared dossiers
+3. Offline-first com sync queue em background
+4. Conexao direta Supabase (abordagem A) — sem camada serverless intermediaria
 
 ## Workspace note
 
-`CODE.md` é instrução local para Codex e está ignorado via `.git/info/exclude`.
+`CODE.md` e instrucao local para Codex e esta ignorado via `.git/info/exclude`.
 
 ## Immediate next step
 
-1. Mergear PR `#270` em `main` (auditoria multi-fase concluída).
-2. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
-3. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularização de Prompts).
-4. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
+1. Mergear `codex/standardize-mermaid-maps` em `main`.
+2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+3. Testar fluxo completo: registrar operador -> criar dossie -> verificar dados no dashboard Supabase.
+4. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).

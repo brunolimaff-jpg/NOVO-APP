@@ -21,14 +21,15 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 ## Contexto minimo estavel
 
 - Projeto: **Senior Scout 360**
-- Stack: React 19 + TypeScript + Vite + Tailwind + Gemini + Pinecone
+- Stack: React 19 + TypeScript + Vite + Tailwind + Gemini + Pinecone + Supabase
 - Auth: local-only via `contexts/OperatorContext.tsx`
 - Runtime real para validacao manual: Vercel
 - Integracao externa padrao de IA: nenhuma obrigatoria no repo
+- **Persistencia:** Supabase (primario) + IndexedDB (offline cache) + sync queue bidirecional
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-22 — **Auditoria de código multi-fase concluída (PR #270).** Fase 2 (Manutenibilidade) permanece concluída em `main`. A branch `codex/contextual-continuity-suggestions` recebeu auditoria de falhas silenciosas, segurança e performance com 33+ arquivos alterados.
+> Atualizado em 2026-05-22 — **Migracao de persistencia IDB/localStorage para Supabase concluida na branch `codex/standardize-mermaid-maps`.** Projeto agora usa arquitetura offline-first: Supabase como fonte de verdade, IDB como cache offline, sync queue para reconciliacao bidirecional.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -46,6 +47,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - `VITE_PINECONE_*` no frontend é risco aceito pelo owner para app interno/fechado; reavaliar se o app virar externo.
 - Mini CRM local foi removido por decisão de produto; preservar apenas referências ao CRM interno Senior usadas como evidência em dossiês/prompts.
 - Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
+- **Supabase** integrado como camada de persistencia: `lib/supabaseClient.ts` + `services/storage.ts` (interface unificada) + `services/syncQueue.ts` (fila offline) + `components/SyncIndicator.tsx` (badge de status). 8 tabelas com RLS por `operator_id`, 8 indexes, grants anon. Conexao direta browser → Supabase via anon key; sem camada serverless intermediaria. Offline-first: IDB cache + sync fila com retry. 873 testes verdes, typecheck limpo.
 
 ## Programa de refatoracao
 
@@ -71,7 +73,10 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 | Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto; não refatorar nem reintroduzir | Sprint 11 Onda 0.5 |
 | `components/LoadingSmart.tsx` | 672 após Onda 1B; fachada preservada | Sprint 12 avalia se precisa nova fatia |
 | `components/WarRoom.tsx` | 283 após Onda 1C; props públicas preservadas | Sprint 11 concluída |
-| `utils/idbStorage.ts` | warning específico resolvido; resta warning geral de chunks grandes | Sprint 12 |
+| `services/storage.ts` | 198 — interface unificada Supabase + IDB offline | — migracao concluida |
+| `services/syncQueue.ts` | ~150 — fila offline com retry e dead-letter | — migracao concluida |
+| `lib/supabaseClient.ts` | ~90 — cliente Supabase browser com degradacao graciosa | — migracao concluida |
+| `components/SyncIndicator.tsx` | ~80 — badge de status de sync no header | — migracao concluida |
 
 ## Fase 2 (Manutenibilidade) — CONCLUÍDA
 
@@ -172,11 +177,14 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Próximo passo seguro
 
-1. Mergear PR `#270` em `main` (auditoria multi-fase concluída).
-2. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
-3. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
-4. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
-5. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21–24).
+1. Mergear a branch `codex/standardize-mermaid-maps` em `main` (migracao Supabase concluida).
+2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+3. Testar fluxo completo: registrar operador -> criar dossie -> verificar dados no dashboard Supabase.
+4. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
+5. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+6. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+7. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
+8. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 
@@ -275,6 +283,9 @@ Lição aprendida:
 - `mcp-server/` permanece fora do escopo ate repriorizacao explicita.
 - CORS em `api/comex.ts` agora usa whitelist (nao mais `*`); `api/link-status.ts` bloqueia SSRF (localhost, 169.254.169.254, redes privadas).
 - MarkdownRenderer com `allowRawHtml=false` e `securityLevel='strict'` — links HTML de pesquisa são convertidos para markdown, sem reabilitar rehypeRaw.
+- **Supabase anon key exposta no bundle:** risco aceito para app interno (mesmo padrao do `VITE_PINECONE_*`). RLS por `operator_id` mitiga acesso indevido. Reavaliar se app virar externo.
+- **Sync queue pode acumular:** se o operador ficar offline por periodo prolongado, a fila IDB pode crescer. Dead-letter queue trata falhas irrecoveraveis.
+- **Migracao de dados IDB -> Supabase:** operadores existentes perdem dados locais se o storage IDB for limpo antes da sync. A sync queue mitiga isso, mas nao ha migracao retroativa de dados legados.
 
 ## Regras de continuidade
 

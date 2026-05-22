@@ -4,6 +4,51 @@ Last updated: 2026-05-22
 
 ## Completed
 
+### Migracao Supabase (2026-05-22)
+
+**Branch:** `codex/standardize-mermaid-maps`
+**Commits:** 12 commits a partir de `72fca6e` ate `59ca6b9`
+**Testes novos:** 37 (28 unitarios storage, 5 sync queue, 4 integracao)
+**Testes totais:** 873 verdes, typecheck limpo
+
+**Arquivos criados:**
+- `lib/supabaseClient.ts` — cliente Supabase browser com graceful degradation
+- `services/syncQueue.ts` — fila offline com retry e persistencia IDB
+- `services/storage.ts` — interface unificada de storage (fonte unica para hooks)
+- `components/SyncIndicator.tsx` — badge no header mostrando status de sync
+- `docs/superpowers/schema-supabase.sql` — DDL completo das 8 tabelas
+- `docs/superpowers/specs/2026-05-22-supabase-migration-design.md` — spec de design
+- `docs/superpowers/plans/2026-05-22-supabase-migration.md` — plano de implementacao
+- `tests/services/syncQueue.test.ts` — 5 testes
+- `tests/services/storage.test.ts` — 28 testes
+- `tests/integration/supabase-sync.test.ts` — 4 testes
+
+**Arquivos modificados:**
+- `hooks/useSessionStorage.ts` — migrado de idb-keyval para storage.ts
+- `features/radar/useRadar.ts` — migrado de idb-keyval para storage.ts
+- `services/extractContentService.ts` — migrado de idb-keyval para storage.ts
+- `contexts/OperatorContext.tsx` — adicionado campo email + sync Supabase
+- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
+- `components/ChatInterface.tsx` — callback de email propagado
+- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
+- `components/chat/ChatShell.tsx` — SyncIndicator no header
+
+**Schema Supabase:**
+- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
+- 8 tabelas com RLS, 8 indexes, grants anon
+- Tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`
+
+**Decisoes arquiteturais:**
+1. Auth postergada (UUID local como operator_id)
+2. Dados migraveis de IDB -> Supabase
+3. Offline-first com sync queue
+4. Conexao direta Supabase sem serverless API layer
+
+**Pendente:**
+- Configurar env vars no Vercel: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+- Testar fluxo completo no preview Vercel
+- Mergear em main
+
 ### Auditoria de Código Multi-Fase (2026-05-22)
 
 **Planejamento:**
@@ -102,12 +147,14 @@ Last updated: 2026-05-22
 
 ## In progress
 
+- Merge de `codex/standardize-mermaid-maps` em `main` (migracao Supabase concluida).
+- Configuracao de env vars no Vercel para Supabase.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
-- UX Redesign Phase 1: PR `#266` aberta, aguardando validação do owner no preview Vercel.
+- UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 
 ## Blockers
 
-- Nenhum bloqueio técnico.
+- Nenhum bloqueio tecnico.
 
 ## Sprint 12 closure (2026-05-20)
 
