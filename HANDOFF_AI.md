@@ -29,7 +29,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-22 — **Migracao de persistencia IDB/localStorage para Supabase concluida na branch `codex/standardize-mermaid-maps`.** Projeto agora usa arquitetura offline-first: Supabase como fonte de verdade, IDB como cache offline, sync queue para reconciliacao bidirecional.
+> Atualizado em 2026-05-22 — **Migracao de persistencia IDB/localStorage para Supabase concluida na branch `codex/standardize-mermaid-maps`.** Projeto agora usa arquitetura offline-first: Supabase como fonte de verdade, IDB como cache offline, sync queue para reconciliacao bidirecional. **Branch com 8 commits adicionais apos a migracao:** cadastro restrito (`@senior.com.br` + nome completo), email recovery (vincular dispositivo a operador existente), botao de sync manual no header, e remocao do botao "Dossie de investigacao" de 14 arquivos.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -48,6 +48,14 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Mini CRM local foi removido por decisão de produto; preservar apenas referências ao CRM interno Senior usadas como evidência em dossiês/prompts.
 - Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
 - **Supabase** integrado como camada de persistencia: `lib/supabaseClient.ts` + `services/storage.ts` (interface unificada) + `services/syncQueue.ts` (fila offline) + `components/SyncIndicator.tsx` (badge de status). 8 tabelas com RLS por `operator_id`, 8 indexes, grants anon. Conexao direta browser → Supabase via anon key; sem camada serverless intermediaria. Offline-first: IDB cache + sync fila com retry. 873 testes verdes, typecheck limpo.
+
+### Melhorias pos-migracao (8 commits adicionais na branch)
+
+- **Cadastro restrito** (commit `5a2b35e`): apenas emails `@senior.com.br` sao aceitos no registro. Nome completo obrigatorio (pelo menos 2 palavras com 2+ caracteres cada).
+- **Email recovery** (commit `c880566`): quando usuario tenta registrar com email `@senior.com.br` ja existente, oferece vincular o dispositivo ao `operator_id` existente. Permite recuperar dados em dispositivo novo sem perder historico.
+- **Sync manual** (commit `d22fa0c`): botao pill no header com feedback visual (+N enviados, Baixados N). Dispara `scout:sync-complete` para hooks recarregarem dados automaticamente. Clique no badge SyncIndicator mudou de "limpar notificacao" para "forcar sync" (commit `f74c9d0`).
+- **Dossie de investigacao removido** (commit `d5f7538`): botao removido de 14 arquivos (ChatShell, Composer, Settings, ChatPanels, App, types, testes). Feature nao utilizada.
+- **Consistencia Supabase** (commits `b58586d`, `a8775d9`): `radar_alerts` com unique constraint, `scheduleSync` apos enqueue, fix `updated_at`, `onConflict` para addFavorite, `view_count` removido (broken).
 
 ## Programa de refatoracao
 
@@ -177,9 +185,9 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Próximo passo seguro
 
-1. Mergear a branch `codex/standardize-mermaid-maps` em `main` (migracao Supabase concluida).
+1. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
 2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-3. Testar fluxo completo: registrar operador -> criar dossie -> verificar dados no dashboard Supabase.
+3. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossie -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
 4. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
 5. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
 6. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
@@ -286,6 +294,8 @@ Lição aprendida:
 - **Supabase anon key exposta no bundle:** risco aceito para app interno (mesmo padrao do `VITE_PINECONE_*`). RLS por `operator_id` mitiga acesso indevido. Reavaliar se app virar externo.
 - **Sync queue pode acumular:** se o operador ficar offline por periodo prolongado, a fila IDB pode crescer. Dead-letter queue trata falhas irrecoveraveis.
 - **Migracao de dados IDB -> Supabase:** operadores existentes perdem dados locais se o storage IDB for limpo antes da sync. A sync queue mitiga isso, mas nao ha migracao retroativa de dados legados.
+- **Email recovery experimental:** o fluxo de vinculacao de dispositivo por email ainda nao foi testado em producao. Pode haver conflitos se dois dispositivos tentarem sync simultaneamente com o mesmo `operator_id`.
+- **Restricao `@senior.com.br`:** impede registro de usuarios externos, mas blocagens manuais (ex-vendedores, parceiros) exigiriam uma lista de allow/block.
 
 ## Regras de continuidade
 

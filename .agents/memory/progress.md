@@ -4,12 +4,51 @@ Last updated: 2026-05-22
 
 ## Completed
 
-### Migracao Supabase (2026-05-22)
+### Melhorias pos-migracao Supabase (2026-05-22)
 
 **Branch:** `codex/standardize-mermaid-maps`
-**Commits:** 12 commits a partir de `72fca6e` ate `59ca6b9`
-**Testes novos:** 37 (28 unitarios storage, 5 sync queue, 4 integracao)
-**Testes totais:** 873 verdes, typecheck limpo
+**HEAD:** `d22fa0c`
+**Commits adicionais:** 8 commits apos a migracao (12 migracao + 8 melhorias = 20 totais)
+
+#### Cadastro restrito (@senior.com.br) — commit `5a2b35e`
+- `contexts/OperatorContext.tsx`, `components/GreetingWelcomeScreen.tsx`: validacao de email `@senior.com.br` + nome completo (2+ palavras)
+- `types.ts`: campos `name` e `surname` obrigatorios no register
+- Testes atualizados: `tests/components/GreetingWelcomeScreen.test.tsx`
+
+#### onConflict + view_count removido — commit `a8775d9`
+- `services/storage.ts`: `addFavorite()` usa `onConflict` para upsert seguro
+- `view_count` removido da tabela `dossies` (campo broken)
+- Testes atualizados: `tests/services/storage.test.ts`
+
+#### radar_alerts unique + scheduleSync + updated_at fix — commit `b58586d`
+- `services/syncQueue.ts`: `scheduleSync()` apos enqueue
+- `services/storage.ts`: `updated_at` gerado automaticamente no upsert
+- `docs/superpowers/schema-supabase.sql`: unique constraint em `radar_alerts`
+- Testes atualizados: `tests/services/syncQueue.test.ts`
+
+#### Badge sync click: clear → force sync — commit `f74c9d0`
+- `components/SyncIndicator.tsx`: clique no badge agora dispara `syncAll()` em vez de limpar notificacao
+
+#### Docs update — commit `a4a5396`
+- HANDOFF_AI.md, activeContext.md, decisions.md, progress.md, last-session-context.md atualizados apos migracao
+
+#### Email recovery (device linking) — commit `c880566`
+- `contexts/OperatorContext.tsx`: novo fluxo — se email `@senior.com.br` ja existir no Supabase, oferece vincular dispositivo ao `operator_id` existente
+- `components/GreetingWelcomeScreen.tsx`: UI de recovery (botao "Vincular este dispositivo")
+- Testes novos: `tests/services/storage.test.ts` (email lookup)
+
+#### Remocao botao "Dossie de investigacao" — commit `d5f7538`
+- Botao e toda a fiação removida de 14 arquivos: `ChatShell.tsx` (2x), `Composer.tsx` (2x), `Settings.tsx`, `ChatPanels.tsx`, `App.tsx`, `types.ts`, `GREETING_CONFIG.ts`, `contracts.ts`, `ChatInterface.tsx`, `MessageTimeline.tsx`, `EmptyStateHome.tsx`, `SessionsSidebar.tsx`, `ReceitaService.ts`
+- Testes: `tests/App.dossierGolden.test.tsx`, `tests/components/EmptyStateHome.test.tsx` atualizados
+
+#### Sync manual button — commit `d22fa0c`
+- Novo `ManualSyncButton.tsx` (componente): pill visual com icone de sync, feedback animado de envio/recebimento
+- `ChatShell.tsx`: botao adicionado no header ao lado do SyncIndicator
+- `services/storage.ts`: `syncAll()` exposto publicamente, dispara evento `scout:sync-complete`
+- Hook `useSyncStatus` consumido pelo botao para mostrar estado atual
+- Testes: `tests/components/ManualSyncButton.test.tsx` criado
+
+### Migracao Supabase (2026-05-22)
 
 **Arquivos criados:**
 - `lib/supabaseClient.ts` — cliente Supabase browser com graceful degradation
@@ -147,8 +186,8 @@ Last updated: 2026-05-22
 
 ## In progress
 
-- Merge de `codex/standardize-mermaid-maps` em `main` (migracao Supabase concluida).
-- Configuracao de env vars no Vercel para Supabase.
+- Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
+- Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 
@@ -357,12 +396,10 @@ Last updated: 2026-05-22
 
 ## Next checkpoint
 
-- Mergear PR `#270` (auditoria multi-fase) em `main`.
-- Mergear PR `#266` (UX Redesign Phase 1) após validação do owner.
-- Mergear `codex/standardize-mermaid-maps` em `main` (migracao Supabase).
+- Mergear `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao).
 - Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- Testar fluxo completo: registrar operador, criar dossie, verificar dashboard Supabase.
+- Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
 - Mergear PR `#270` (auditoria multi-fase) em `main`.
 - Mergear PR `#266` (UX Redesign Phase 1) apos validacao do owner.
-- Não reintroduzir Mini CRM/`CRMDetail`.
-- Quando houver demanda, iniciar Sprints 13-16 (Modularização de Prompts).
+- Nao reintroduzir Mini CRM/`CRMDetail` nem botao "Dossie de investigacao".
+- Quando houver demanda, iniciar Sprints 13-16 (Modularizacao de Prompts).

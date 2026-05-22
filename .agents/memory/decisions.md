@@ -205,3 +205,19 @@ Options considered:
 - C: Hibrido (algumas operacoes diretas, outras via serverless) — complexidade desnecessaria
 
 Constraint: se no futuro houver necessidade de logica de servidor (webhooks, validacao complexa, agendamento), uma API layer Vercel pode ser adicionada seletivamente sem quebrar o modelo existente.
+
+## 2026-05-22 - Botao Dossie removido
+
+Decision: remover completamente o botao "Dossie de investigacao" e toda a fiação associada de 14 arquivos (ChatShell, Composer, Settings, ChatPanels, App, types, GREETING_CONFIG, contracts, ChatInterface, MessageTimeline, EmptyStateHome, SessionsSidebar, ReceitaService, testes).
+
+Reason: a feature nao era utilizada e nenhum operador reportou falta. Manter o codigo morto aumenta superficie de manutencao e confunde novos desenvolvedores. A remocao foi segura porque o fluxo nunca foi ativado na UI principal — era um botao acessorio no chat que nao disparava nenhum servico core.
+
+Constraint: se no futuro houver demanda por funcionalidade similar, deve ser implementada como feature nova, nao reativando o codigo removido.
+
+## 2026-05-22 - Sync manual em vez de automatico
+
+Decision: adicionar botao de sync manual no header (`ManualSyncButton.tsx`) com feedback visual real (+N enviados, Baixados N) em vez de sync automatico silencioso. O badge SyncIndicator tambem mudou de "limpar notificacao" para "forcar sync".
+
+Reason: operadores precisam de visibilidade do estado da sincronizacao. Sync automatico silencioso gera incerteza ("meus dados estao salvos?"). O botao manual com contagem fornece feedback tangivel. O evento `scout:sync-complete` permite que hooks recarreguem dados apos sync, garantindo consistencia da UI.
+
+Constraint: sync automatico em background continua rodando (sync queue processa offline operations). O botao manual e um complemento, nao substituicao. Se no futuro o sync for confiavel a ponto de ser invisivel, o botao pode ser ocultado, nao removido.

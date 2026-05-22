@@ -18,11 +18,12 @@ Read order:
 
 ## Current operating phase
 
-**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`.**
+**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`. Branch estendeu com 8 commits adicionais de UX e consistencia.**
 
 - Arquitetura offline-first: Supabase (fonte de verdade) + IndexedDB (cache offline) + sync queue bidirecional.
-- 12 commits na branch, 37 novos testes (28 unitarios storage, 5 sync queue, 4 integracao).
-- 873 testes verdes, typecheck limpo.
+- 20 commits totais na branch (12 migracao + 8 pos-migracao).
+- HEAD: `d22fa0c` — feat: beautiful manual sync button + sync-complete event to reload dossiers.
+- 873+ testes verdes, typecheck limpo.
 - Lint com `0` erros.
 
 ## Current task context
@@ -50,6 +51,9 @@ Read order:
 - `components/ChatInterface.tsx` — callback de email propagado
 - `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
 - `components/chat/ChatShell.tsx` — SyncIndicator adicionado no header
+- Cadastro restrito a `@senior.com.br` (commit `5a2b35e`): nome completo (2+ palavras, 2+ caracteres cada) obrigatorio
+- Email recovery (commit `c880566`): vincula dispositivo novo a `operator_id` existente quando email ja cadastrado
+- Botao de sync manual (commit `d22fa0c`): pill no header com feedback (+N sent, downarrowN received), dispara evento `scout:sync-complete`
 
 ### Schema Supabase:
 - URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
@@ -74,7 +78,8 @@ Read order:
 
 ## Immediate next step
 
-1. Mergear `codex/standardize-mermaid-maps` em `main`.
+1. Mergear `codex/standardize-mermaid-maps` em `main` (20 commits, migracao + 8 melhorias pos-migracao).
 2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-3. Testar fluxo completo: registrar operador -> criar dossie -> verificar dados no dashboard Supabase.
-4. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+3. Testar fluxo completo: registrar com `@senior.com.br` (nome completo obrigatorio) -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
+4. Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1) em `main`.
+5. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
