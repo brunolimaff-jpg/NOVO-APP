@@ -14,10 +14,11 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
   const greeting = getTimeGreeting();
   const trimmed = name.trim();
   const trimmedEmail = email.trim();
-  const isNameValid = trimmed.length >= 2;
-  const isEmailValid = trimmedEmail.length > 0 && trimmedEmail.includes('@') && !trimmedEmail.endsWith('@');
+  const nameWords = trimmed.split(/\s+/).filter(w => w.length >= 2);
+  const isNameValid = nameWords.length >= 2;
+  const isEmailValid = trimmedEmail.endsWith('@senior.com.br') && trimmedEmail.length > '@senior.com.br'.length;
   const isValid = isNameValid && isEmailValid;
-  const showNameError = touched && !isNameValid;
+  const showNameError = touched && !isNameValid && trimmed.length > 0;
   const showEmailError = touched && trimmedEmail.length > 0 && !isEmailValid;
 
   const handleSubmit = useCallback(
@@ -108,7 +109,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => setTouched(true)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Nome ou apelido"
+                  placeholder="Nome e sobrenome"
                   aria-describedby={showNameError ? 'greeting-name-error' : undefined}
                   aria-invalid={showNameError}
                   className={getInputClass(showNameError)}
@@ -116,7 +117,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                 <div aria-live="polite" className="min-h-[1.25rem]">
                   {showNameError && (
                     <p id="greeting-name-error" className="text-xs text-red-500 dark:text-red-400">
-                      Digite pelo menos 2 caracteres para continuar.
+                      Digite nome e sobrenome para continuar.
                     </p>
                   )}
                 </div>
@@ -139,7 +140,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => setTouched(true)}
                   onKeyDown={handleKeyDown}
-                  placeholder="seu@email.com.br"
+                  placeholder="seu.nome@senior.com.br"
                   aria-describedby={showEmailError ? 'greeting-email-error' : undefined}
                   aria-invalid={showEmailError}
                   className={getInputClass(showEmailError)}
@@ -147,7 +148,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                 <div aria-live="polite" className="min-h-[1.25rem]">
                   {showEmailError && (
                     <p id="greeting-email-error" className="text-xs text-red-500 dark:text-red-400">
-                      Digite um email válido.
+                      Use seu email @senior.com.br.
                     </p>
                   )}
                 </div>

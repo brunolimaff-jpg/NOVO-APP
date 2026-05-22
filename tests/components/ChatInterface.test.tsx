@@ -134,7 +134,7 @@ vi.mock('../../components/SyncIndicator', () => ({
 vi.mock('../../components/GreetingWelcomeScreen', () => ({
   default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string) => void }) => (
     <div data-testid="greeting-screen">
-      <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno@email.com')}>
+      <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno.lima@senior.com.br')}>
         confirm-name
       </button>
     </div>
