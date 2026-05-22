@@ -55,9 +55,8 @@ export function SyncIndicator() {
     };
   }, [refresh]);
 
-  const handleClearStuck = useCallback(() => {
-    storage.resetSyncQueue();
-    refresh();
+  const handleSyncNow = useCallback(() => {
+    storage.processSyncQueue().then(refresh);
   }, [refresh]);
 
   if (pending === 0) {
@@ -74,10 +73,10 @@ export function SyncIndicator() {
   const description = describeItems(items);
 
   return (
-    <Tooltip label={`${pending} alteraç${pending > 1 ? 'ões' : 'ão'} será${pending > 1 ? 'm' : ''} salva${pending > 1 ? 's' : ''} na nuvem assim que possível. ${description}.`} position="left">
+    <Tooltip label={`${description}. Clique para sincronizar agora.`} position="left">
       <button
         type="button"
-        onClick={handleClearStuck}
+        onClick={handleSyncNow}
         className="text-xs text-yellow-500 flex items-center gap-1 cursor-pointer hover:text-yellow-400 transition-colors select-none"
       >
         <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block animate-pulse" />
