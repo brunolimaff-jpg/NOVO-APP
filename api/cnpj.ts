@@ -18,7 +18,7 @@ const ALLOWED_ORIGINS = new Set([
 function applyCors(req: VercelRequest, res: VercelResponse): boolean {
   const origin = req.headers.origin ?? '';
   // Permite qualquer subdomínio *.vercel.app do projeto (previews de PR)
-  const isVercelPreview = /^https:\/\/novo-app-[a-z0-9-]+-brunolimaff-jpg\.vercel\.app$/.test(origin);
+  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
   if (ALLOWED_ORIGINS.has(origin) || isVercelPreview) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');

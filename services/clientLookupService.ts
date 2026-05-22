@@ -552,8 +552,8 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
     return `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟡 POSSÍVEL MATCH — NÃO USAR COMO CONFIRMAÇÃO]\n` +
       `**⚠️ ATENÇÃO:** A busca por "${lookup.query}" retornou "${r.grupo}".\n` +
       `**NÃO** são a mesma empresa. Estes dados NÃO devem ser usados como evidência de contratação Senior.\n` +
-      `**Instrução para o modelo:** Ignore completamente as informações de CRM abaixo. ` +
-      `Trate "${lookup.query}" como PROSPECT (não cliente). Não mencione módulos, gaps ou soluções Senior.\n---\n`;
+      `**Instrução para o modelo:** Trate "${lookup.query}" como PROSPECT (não cliente). ` +
+      `Não mencione módulos, gaps ou soluções Senior.\n---\n`;
   }
 
   // Match EXATO: incluir dados completos com segurança
