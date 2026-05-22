@@ -193,7 +193,7 @@ describe('MessageTimeline', () => {
     render(<MessageTimeline {...props} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'confirm-name' }));
-    expect(props.onConfirmOperatorName).toHaveBeenCalledWith('Bruno Lima');
+    expect(props.onConfirmOperatorName).toHaveBeenCalledWith('Bruno Lima', 'bruno@email.com');
   });
 
   it('renderiza a home inicial com ajuda e dispara a investigacao', async () => {

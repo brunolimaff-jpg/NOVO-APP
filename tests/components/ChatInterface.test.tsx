@@ -127,6 +127,10 @@ vi.mock('../../components/EmptyStateHome', () => ({
   ),
 }));
 
+vi.mock('../../components/SyncIndicator', () => ({
+  SyncIndicator: () => null,
+}));
+
 vi.mock('../../components/GreetingWelcomeScreen', () => ({
   default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string) => void }) => (
     <div data-testid="greeting-screen">
