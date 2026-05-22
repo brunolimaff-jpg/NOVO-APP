@@ -119,6 +119,7 @@ export const storage = {
       },
       id: session.id,
     });
+    scheduleSync();
   },
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
@@ -148,6 +149,7 @@ export const storage = {
         id: session.id,
       });
     }
+    scheduleSync();
   },
 
   async deleteDossier(id: string): Promise<void> {
@@ -170,6 +172,7 @@ export const storage = {
       },
       id,
     });
+    scheduleSync();
   },
 
   // ===================================================================
@@ -196,6 +199,7 @@ export const storage = {
       data: { alert_data: alerts, operator_id: operatorId },
       id: 'alerts', // Bulk operation
     });
+    scheduleSync();
   },
 
   async getRadarConfig(): Promise<unknown | null> {
@@ -218,6 +222,7 @@ export const storage = {
       data: { config, operator_id: operatorId },
       id: 'config', // Single config per operator
     });
+    scheduleSync();
   },
 
   async getRadarLastScan(): Promise<number | null> {
@@ -288,6 +293,7 @@ export const storage = {
       },
       id: cacheKey,
     });
+    scheduleSync();
   },
 
   // ===================================================================
@@ -306,10 +312,11 @@ export const storage = {
         operator_id: data.operatorId,
         display_name: data.name,
         email: data.email,
-        updated_at: new Date().toISOString(),
+        last_seen: new Date().toISOString(),
       },
       id: data.operatorId,
     });
+    scheduleSync();
   },
 
   // ===================================================================
@@ -520,6 +527,7 @@ export const storage = {
       user_context: 'operator_id',
       radar_configs: 'operator_id',
       favorites: 'operator_id,cnpj',
+      radar_alerts: 'operator_id',
     };
 
     // Process all operations with Supabase executor
@@ -543,3 +551,17 @@ export const storage = {
     });
   },
 };
+
+// ===================================================================
+// SYNC SCHEDULER
+// ===================================================================
+
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleSync(): void {
+  if (!isSupabaseAvailable()) return;
+  if (syncTimer !== null) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    storage.processSyncQueue();
+  }, 1000);
+}
