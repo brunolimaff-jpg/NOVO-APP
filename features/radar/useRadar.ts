@@ -2,16 +2,11 @@
 // Gerencia estado do Radar Competitivo & Setorial: alertas, config, auto-scan, persistência IDB.
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { get, set } from 'idb-keyval';
 import type { RadarAlert, RadarConfig } from './types';
 import { DEFAULT_RADAR_CONFIG } from './types';
 import { fetchRadarAlerts, type RadarScanError, type RadarScanErrorCode } from './service';
 import { scoutDiag } from '../../utils/diagnosticLog';
-
-const IDB_ALERTS_KEY = 'scout360_radar_alerts';
-const IDB_CONFIG_KEY = 'scout360_radar_config';
-const IDB_LAST_SCAN_KEY = 'scout360_radar_last_scan';
-const IDB_META_INSIGHT_KEY = 'scout360_radar_meta_insight';
+import { storage } from '../../services/storage';
 const MAX_ALERTS = 100;
 
 export interface UseRadarReturn {
@@ -100,29 +95,21 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   // PERSISTÊNCIA IDB
   // ===================================================================
 
-  const persistToIDB = useCallback(async (key: string, label: string, data: unknown) => {
-    try { await set(key, data); } catch (err) {
-      scoutDiag.warn('RadarStorage', `Falha ao persistir ${label} em IDB`, {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+  const persistAlerts = useCallback(async (data: RadarAlert[]) => {
+    await storage.saveRadarAlerts(data);
   }, []);
 
-  const persistAlerts = useCallback(async (data: RadarAlert[]) => {
-    await persistToIDB(IDB_ALERTS_KEY, 'alertas', data);
-  }, [persistToIDB]);
-
   const persistConfig = useCallback(async (data: RadarConfig) => {
-    await persistToIDB(IDB_CONFIG_KEY, 'config', data);
-  }, [persistToIDB]);
+    await storage.saveRadarConfig(data);
+  }, []);
 
   const persistLastScan = useCallback(async (ts: number) => {
-    await persistToIDB(IDB_LAST_SCAN_KEY, 'lastScan', ts);
-  }, [persistToIDB]);
+    await storage.saveRadarLastScan(ts);
+  }, []);
 
   const persistMetaInsight = useCallback(async (insight: string | null) => {
-    await persistToIDB(IDB_META_INSIGHT_KEY, 'metaInsight', insight);
-  }, [persistToIDB]);
+    await storage.saveRadarMetaInsight(insight);
+  }, []);
 
   // ===================================================================
   // LOAD INICIAL
@@ -133,10 +120,10 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     (async () => {
       try {
         const [savedAlerts, savedConfig, savedLastScan, savedMetaInsight] = await Promise.all([
-          get<RadarAlert[]>(IDB_ALERTS_KEY),
-          get<RadarConfig>(IDB_CONFIG_KEY),
-          get<number>(IDB_LAST_SCAN_KEY),
-          get<string | null>(IDB_META_INSIGHT_KEY),
+          storage.getRadarAlerts() as Promise<RadarAlert[]>,
+          storage.getRadarConfig() as Promise<RadarConfig>,
+          storage.getRadarLastScan(),
+          storage.getRadarMetaInsight(),
         ]);
         if (cancelled) return;
         if (savedAlerts) setAlerts(savedAlerts);
