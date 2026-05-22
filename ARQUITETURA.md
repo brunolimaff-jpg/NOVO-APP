@@ -118,23 +118,59 @@ Pontos importantes:
 
 ## 5. Persistencia
 
-### Local
+A camada de persistencia foi migrada para uma arquitetura offline-first com Supabase como source of truth e IndexedDB como cache local.
 
-- `useSessionStorage`
-  - prioriza IndexedDB (`scout360_sessions_v2`)
-  - fallback para localStorage legado (`scout360_sessions_v1`)
+### Stack
 
-### Remota
+- **Supabase** (Postgres gerenciado) — persistencia primaria remota
+- **IndexedDB** (`scout360_v2`) — cache local offline para leitura e escrita instantanea
+- **Storage service** (`services/storage.ts`) — interface unificada com ~24 metodos, abstrai Supabase e IDB
+- **Sync queue** (`services/syncQueue.ts`) — fila offline com retry exponencial e debounce de 1s
 
-- `sessionRemoteStore`
-  - `listSessions`
-  - `getSession`
-  - `saveSession`
+### Arquitetura de dados
+
+8 tabelas no schema `public` do Supabase:
+
+| Tabela | Finalidade |
+|--------|-----------|
+| `user_context` | Contexto do operador (email, preferencias, estado) |
+| `dossies` | Dossies gerados por operador |
+| `radar_alerts` | Alertas do Radar de Mercado |
+| `radar_configs` | Configuracoes de monitoramento do Radar |
+| `extract_cache` | Cache de extracao de conteudo |
+| `audit_log` | Log de auditoria de operacoes |
+| `favorites` | Itens favoritados pelo operador |
+| `shared_dossiers` | Dossies compartilhados entre operadores |
+
+### Fluxo offline-first
+
+```
+Escrita: componente -> storage.ts -> IDB (instantaneo) -> syncQueue -> Supabase (background, debounce 1s)
+Leitura: componente -> storage.ts -> IDB (stale-while-revalidate) -> Supabase (atualizacao em background)
+```
+
+- Toda escrita vai primeiro para o IDB, garantindo resposta instantanea ao usuario
+- A sync queue processa em background com retry exponencial (max 5 tentativas)
+- Leitura usa stale-while-revalidate: retorna dado do cache imediatamente, atualiza em background
+- RLS com `operator_id IS NOT NULL` como politica provisoria (transicao para Auth completa no futuro)
+
+### Seguranca
+
+- `lib/supabaseClient.ts` — cliente browser com graceful degradation (app funciona offline)
+- `components/SyncIndicator.tsx` — badge visual no header indicando status da sincronizacao
+- `services/syncQueue.ts` — pendencia de escrita acumulada exibida ao usuario
+
+### Servicos migrados de idb-keyval para storage.ts
+
+- `hooks/useSessionStorage.ts`
+- `features/radar/useRadar.ts` (e hooks/useRadar.ts legado)
+- `services/extractContentService.ts`
+- `contexts/OperatorContext.tsx` — adicionado email + sync Supabase
 
 ### CRM
 
 - `CRMContext`
-  - persiste cards em localStorage e IndexedDB
+  - persiste cards em localStorage e IndexedDB (ainda nao migrado para Supabase)
 
 ## 6. Seguranca e resiliencia
 
