@@ -76,6 +76,18 @@ export function useSessionStorage() {
     }
   }, [sessions, isInitialized, persistSessions]);
 
+  // Reload sessions from IDB after sync pulls data from Supabase
+  useEffect(() => {
+    const handleSyncComplete = () => {
+      loadSessions().then((loaded) => {
+        setSessions(loaded);
+        setIsInitialized(true);
+      });
+    };
+    window.addEventListener('scout:sync-complete', handleSyncComplete);
+    return () => window.removeEventListener('scout:sync-complete', handleSyncComplete);
+  }, [loadSessions]);
+
   return {
     sessions,
     setSessions,

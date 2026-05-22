@@ -119,7 +119,6 @@ export const storage = {
       },
       id: session.id,
     });
-    scheduleSync();
   },
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
@@ -149,7 +148,7 @@ export const storage = {
         id: session.id,
       });
     }
-    scheduleSync();
+
   },
 
   async deleteDossier(id: string): Promise<void> {
@@ -172,7 +171,7 @@ export const storage = {
       },
       id,
     });
-    scheduleSync();
+
   },
 
   // ===================================================================
@@ -199,7 +198,7 @@ export const storage = {
       data: { alert_data: alerts, operator_id: operatorId },
       id: 'alerts', // Bulk operation
     });
-    scheduleSync();
+
   },
 
   async getRadarConfig(): Promise<unknown | null> {
@@ -222,7 +221,7 @@ export const storage = {
       data: { config, operator_id: operatorId },
       id: 'config', // Single config per operator
     });
-    scheduleSync();
+
   },
 
   async getRadarLastScan(): Promise<number | null> {
@@ -293,7 +292,7 @@ export const storage = {
       },
       id: cacheKey,
     });
-    scheduleSync();
+
   },
 
   // ===================================================================
@@ -316,7 +315,7 @@ export const storage = {
       },
       id: data.operatorId,
     });
-    scheduleSync();
+
   },
 
   // ===================================================================
@@ -571,18 +570,72 @@ export const storage = {
       }
     });
   },
+
+  // ===================================================================
+  // MANUAL SYNC (push + pull)
+  // ===================================================================
+
+  async syncAll(): Promise<{ pushed: number; pulled: number; errors: string[] }> {
+    const errors: string[] = [];
+    let pushed = 0;
+    let pulled = 0;
+
+    if (!isSupabaseAvailable()) {
+      return { pushed: 0, pulled: 0, errors: ['Supabase indisponivel'] };
+    }
+
+    const operatorId = getOperatorId();
+    if (!operatorId) {
+      return { pushed: 0, pulled: 0, errors: ['Operador nao registrado'] };
+    }
+
+    // 1. Push: process pending queue
+    const pendingBefore = syncQueue.size();
+    await this.processSyncQueue();
+    const pendingAfter = syncQueue.size();
+    pushed = pendingBefore - pendingAfter;
+    if (pendingAfter > 0) {
+      errors.push(`${pendingAfter} itens falharam no envio`);
+    }
+
+    // 2. Pull: download dossiers from Supabase
+    try {
+      const { data, error } = await supabase!
+        .from('dossies')
+        .select('content')
+        .eq('operator_id', operatorId)
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        errors.push('Erro ao baixar dossies');
+      } else if (data) {
+        const sessions = data.map((row: { content: ChatSession }) => row.content);
+        await setLocalSessions(sessions);
+        pulled += sessions.length;
+      }
+    } catch (e) {
+      errors.push('Falha ao baixar dossies: ' + (e instanceof Error ? e.message : String(e)));
+    }
+
+    // 3. Pull: download radar alerts
+    try {
+      const { data, error } = await supabase!
+        .from('radar_alerts')
+        .select('alert_data')
+        .eq('operator_id', operatorId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data?.alert_data) {
+        await set('scout360_radar_alerts', data.alert_data);
+        pulled++;
+      }
+    } catch {
+      // non-critical
+    }
+
+    return { pushed, pulled, errors };
+  },
 };
-
-// ===================================================================
-// SYNC SCHEDULER
-// ===================================================================
-
-let syncTimer: ReturnType<typeof setTimeout> | null = null;
-
-function scheduleSync(): void {
-  if (!isSupabaseAvailable()) return;
-  if (syncTimer !== null) clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => {
-    storage.processSyncQueue();
-  }, 1000);
-}
