@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { loadWithChunkRetry } from '../../utils/chunkRetry';
 import type { ChatSession } from '../../types';
 import SessionsSidebar from '../SessionsSidebar';
+import { SyncIndicator } from '../SyncIndicator';
 import Tooltip from '../Tooltip';
 import UserMenu from '../UserMenu';
 import type { ChatTheme, RadarProps } from './contracts';
@@ -211,6 +212,8 @@ const ChatShell: React.FC<ChatShellProps> = ({
                 )}
               </button>
             </Tooltip>
+
+            <SyncIndicator />
 
             <UserMenu
               isDarkMode={isDarkMode}
