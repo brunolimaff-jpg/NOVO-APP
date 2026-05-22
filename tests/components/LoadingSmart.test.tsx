@@ -267,7 +267,7 @@ describe('LoadingSmart (variante hero)', () => {
     );
 
     expect(
-      screen.getByText(/Mapeando sinais operacionais e footprint de mercado da Grupo Scheffer/i),
+      screen.getByText(/Prévia do dossiê da Grupo Scheffer: organizando sinais seguros/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
 
@@ -319,14 +319,14 @@ describe('LoadingSmart (variante hero)', () => {
 
     await act(async () => {
       secondRequest.resolve([
-        'Desconstruindo a teia societária do Grupo Scheffer para calibrar o Score PORTA contra o setor.',
-        'Rastreando o perímetro fiscal do Grupo Scheffer para identificar riscos ocultos.',
+        'Grupo Scheffer mostra sinal a validar sobre controle operacional.',
+        'Ângulo Senior: produtividade e decisão com dados podem abrir conversa.',
       ]);
       await Promise.resolve();
     });
 
     expect(
-      screen.getByText(/Desconstruindo a teia societária do Grupo Scheffer/i),
+      screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
 
@@ -339,7 +339,7 @@ describe('LoadingSmart (variante hero)', () => {
     });
 
     expect(
-      screen.getByText(/Desconstruindo a teia societária do Grupo Scheffer/i),
+      screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
   });

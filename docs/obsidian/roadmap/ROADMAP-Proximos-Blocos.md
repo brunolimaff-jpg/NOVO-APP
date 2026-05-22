@@ -15,7 +15,7 @@ tags:
 
 # ROADMAP Proximos Blocos
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Proximo horizonte tecnico
 

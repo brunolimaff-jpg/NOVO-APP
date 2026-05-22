@@ -115,6 +115,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     name: operatorName,
     operatorId,
     setName,
+    setEmail,
     loading: operatorLoading,
   } = useOperator();
 
@@ -241,7 +242,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           showOperatorGate={showOperatorGate}
           showInitialHome={showInitialHome}
           shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
-          onConfirmOperatorName={setName}
+          onConfirmOperatorName={(name, email) => { setName(name); setEmail(email); }}
           onStartInvestigation={handleStartInvestigation}
           radar={radar}
           onOpenRadarPanel={() => setShowRadarPanel(true)}

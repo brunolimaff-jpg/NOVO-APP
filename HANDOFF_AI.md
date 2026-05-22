@@ -28,7 +28,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-21 — **Fase 2 (Manutenibilidade) concluída.** Todas as Sprints 9–12 mergeadas em `main` (`0694997`). Validação manual em Vercel aceita pelo owner.
+> Atualizado em 2026-05-22 — **Auditoria de código multi-fase concluída (PR #270).** Fase 2 (Manutenibilidade) permanece concluída em `main`. A branch `codex/contextual-continuity-suggestions` recebeu auditoria de falhas silenciosas, segurança e performance com 33+ arquivos alterados.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
@@ -103,12 +103,80 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Gates: `test` (116 arq, 824 testes), `typecheck`, `lint` — todos verdes.
 - Design System (Sprints 17-20) descartado por decisão do owner: app interno, custo/benefício não justifica.
 
+## Auditoria de Código Multi-Fase (PR #270)
+
+- **Branch:** `codex/contextual-continuity-suggestions`
+- **Commit final:** `bdf80f4`
+- **PR:** `#270`
+- **Data:** 2026-05-22
+
+### Planejamento
+- Criado `docs/planos/auditoria-codigo-2026-05-21.md` (840 linhas) com 5 fases:
+  - Fase 1: Auditoria paralela (debugger, react-next-ts, reviewer)
+  - Fase 2: Correção de Falhas Silenciosas
+  - Fase 3: Correção de Segurança
+  - Fase 4: Correção de Performance
+  - Fase 5: Verificação Final
+
+### Fase 1 — Auditoria (3 relatórios)
+- `docs/planos/audit-silent-failures.md` — 128 catch blocks, 7 P0 + 14 P1
+- `docs/planos/audit-seguranca.md` — 10 vulnerabilidades (2 P0, 4 P1, 3 P2)
+- `docs/planos/audit-performance.md` — 64 regras Vercel, score 2.3/5
+
+### Fase 2 — Falhas Silenciosas (10 arquivos)
+Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
+- `features/radar/useRadar.ts` — 5 operações IDB centralizadas em `persistToIDB`
+- `utils/conversationHistory.ts` — parse JSON com log + cleanup localStorage
+- `utils/linkValidation.ts` — verificação de links com log
+- `features/dossier/waterfall-orchestrator.ts` — fontes do dossiê
+- `services/competitorService.ts` — detecção de concorrente
+- `services/gemini/investigation-orchestration.ts` — catch "silencioso" removido
+- `services/gemini/auxiliary.ts` — 3 catches com log
+- `services/gemini/recovery.ts` — 2 catches com log
+- `services/exportService.ts` — exportação com log
+- `hooks/useAppInitialization.ts` — `.catch(() => {})` com log
+
+### Fase 3 — Segurança (15 arquivos)
+- **Criado `api/_security-headers.ts`** — função `setSecurityHeaders(res)` com guard `typeof res.setHeader !== 'function'` para compatibilidade com testes. Headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy. Aplicado em 11 API routes.
+- **Criado `api/_cache-headers.ts`** — helper `cacheHeaders(maxAgeSeconds)` para Cache-Control
+- `index.tsx` — removido `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` do `OPTIONAL_ENV_VARS` (variáveis VITE_ são inlineadas no bundle)
+- `components/MarkdownRenderer.tsx`:
+  - `securityLevel: 'loose'` → `'strict'`
+  - `allowRawHtml` default `true` → `false`
+  - Regex que converte `<a href>` HTML → `[text](url)` markdown (links de pesquisa funcionam sem rehypeRaw)
+  - Regex de citações `[🟢 url]` gera markdown links em vez de HTML
+- `api/link-status.ts` — `isHttpUrl()` → `isValidPublicUrl()` (bloqueia localhost, 127.0.0.1, 169.254.169.254, redes privadas)
+- `api/extract-content.ts` — `.max(13_600_000)` no campo `base64Content` do schema Zod (~10MB)
+- `api/comex.ts` — CORS com whitelist (não mais `*`), seguindo padrão `api/cnpj.ts`
+
+### Fase 4 — Performance (8 arquivos)
+- **Criado `hooks/useDebounce.ts`** — hook genérico `useDebounce<T>(value, delay)`
+- `App.tsx` — 4 componentes com `React.lazy()`: LoadingSmart, EmailModal, FollowUpModal, UpdateNotificationModal
+- `vite.config.ts` — `vendor-anim` chunk (framer-motion 124KB isolado)
+- `components/MessageRow.tsx` — 2x `.filter().map()` → `.flatMap()`
+- `api/gemini.ts` — 2x `.filter().map()` → `.flatMap()`
+- `components/InvestigationDashboard.tsx` — `useDebounce(searchText, 300)` no input de busca
+- `api/cnpj.ts` — Cache-Control 1h
+- `api/comex.ts` — Cache-Control 24h
+
+### Bug Fixes adicionais
+- `services/clientLookupService.ts` — `formatarParaPrompt()`: quando `matchType !== 'exact'`, NÃO inclui dados detalhados de CRM (módulos, gaps). Retorna apenas alerta instruindo o modelo a tratar como PROSPECT. Corrige confusão entre empresas similares (ex: "Pampa" vs "Pampafoods").
+- `components/MarkdownRenderer.tsx` — hyperlinks em resultados de pesquisa que vinham como `<a href>` HTML bruto agora são convertidos para `[text](url)` markdown e renderizam corretamente.
+
+### Testes atualizados (10 arquivos)
+- `tests/App.dossierGolden.test.tsx` — nomes de módulos atualizados, golden validation flexível
+- `tests/components/LoadingSmart.test.tsx` — labels atualizados para MODULAR_DOSSIER_STAGES
+- `tests/utils/loadingSmartViewModel.test.ts` — labels + estágios consecutivos
+- `tests/components/MarkdownRenderer.test.tsx` — +1 teste para conversão HTML→markdown
+- `tests/services/clientLookupService.test.ts` — asserções atualizadas para novo formato
+
 ## Próximo passo seguro
 
-1. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
-2. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
-3. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
-4. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21–24).
+1. Mergear PR `#270` em `main` (auditoria multi-fase concluída).
+2. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+3. Quando houver demanda, planejar Fase 3 (Sprints 13–16: Modularização de Prompts).
+4. Pré-requisito para Sprints 13+: golden test baseline já criado em `tests/prompts/megaPrompts.test.ts`.
+5. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21–24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 
@@ -202,9 +270,11 @@ Lição aprendida:
 ## Riscos residuais imediatos
 
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
-- `VITE_PINECONE_*` permanece por decisao operacional em app interno/fechado.
-- Warning de build por chunks grandes segue como backlog aceito.
+- `VITE_PINECONE_*` removido do bundle frontend (PR #270) — agora usado exclusivamente em serverless functions (`api/rag.ts`, `api/docs-rag.ts`).
+- Warning de build por chunks grandes mitigado: framer-motion isolado em `vendor-anim`, 4 componentes lazy-loaded.
 - `mcp-server/` permanece fora do escopo ate repriorizacao explicita.
+- CORS em `api/comex.ts` agora usa whitelist (nao mais `*`); `api/link-status.ts` bloqueia SSRF (localhost, 169.254.169.254, redes privadas).
+- MarkdownRenderer com `allowRawHtml=false` e `securityLevel='strict'` — links HTML de pesquisa são convertidos para markdown, sem reabilitar rehypeRaw.
 
 ## Regras de continuidade
 

@@ -3,37 +3,42 @@ import { getTimeGreeting } from '../utils/timeGreeting';
 
 interface GreetingWelcomeScreenProps {
   isDarkMode: boolean;
-  onConfirmName: (name: string) => void;
+  onConfirmOperator: (name: string, email: string) => void;
 }
 
-const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMode, onConfirmName }) => {
+const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMode, onConfirmOperator }) => {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [touched, setTouched] = useState(false);
 
   const greeting = getTimeGreeting();
   const trimmed = name.trim();
-  const isValid = trimmed.length >= 2;
-  const showError = touched && !isValid;
+  const trimmedEmail = email.trim();
+  const isNameValid = trimmed.length >= 2;
+  const isEmailValid = trimmedEmail.length > 0 && trimmedEmail.includes('@') && !trimmedEmail.endsWith('@');
+  const isValid = isNameValid && isEmailValid;
+  const showNameError = touched && !isNameValid;
+  const showEmailError = touched && trimmedEmail.length > 0 && !isEmailValid;
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
       setTouched(true);
       if (isValid) {
-        onConfirmName(trimmed);
+        onConfirmOperator(trimmed, trimmedEmail);
       }
     },
-    [isValid, trimmed, onConfirmName],
+    [isValid, trimmed, trimmedEmail, onConfirmOperator],
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
         setTouched(true);
-        if (isValid) onConfirmName(trimmed);
+        if (isValid) onConfirmOperator(trimmed, trimmedEmail);
       }
     },
-    [isValid, trimmed, onConfirmName],
+    [isValid, trimmed, trimmedEmail, onConfirmOperator],
   );
 
   const pageBg = isDarkMode ? 'bg-slate-950' : 'bg-slate-50/90';
@@ -41,11 +46,11 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
   const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-600';
   const cardBg = isDarkMode ? 'bg-slate-900/80' : 'bg-white';
   const cardBorder = isDarkMode ? 'border-slate-700/80' : 'border-slate-200';
-  const inputClass = `w-full rounded-md border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-600 ${
+  const getInputClass = (hasError: boolean) => `w-full rounded-md border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-600 ${
     isDarkMode
       ? 'border-slate-600 bg-slate-950/50 text-slate-100 placeholder:text-slate-500'
       : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400'
-  } ${showError ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}`;
+  } ${hasError ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}`;
 
   return (
     <div className={`animate-fade-in flex min-h-full w-full flex-col items-center justify-center ${pageBg}`}>
@@ -67,7 +72,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
           Inteligência de campo para fechar negócios no Agro.
         </p>
         <p className={`mt-1 text-sm ${textSecondary}`}>
-          Me diz como te chamo e eu salvo isso só neste dispositivo.
+          Seu nome e email para salvar seus dossiês e acessá-los em qualquer dispositivo.
         </p>
 
         {/* Card com formulário */}
@@ -84,34 +89,68 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
           </div>
 
           <form onSubmit={handleSubmit} className="px-5 py-6" noValidate>
-            <div className="space-y-1">
-              <label
-                htmlFor="greeting-name-input"
-                className={`block text-sm font-medium ${textPrimary}`}
-              >
-                Seu nome
-              </label>
-              <input
-                id="greeting-name-input"
-                data-testid="greeting-name-input"
-                type="text"
-                autoFocus
-                autoComplete="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => setTouched(true)}
-                onKeyDown={handleKeyDown}
-                placeholder="Nome ou apelido"
-                aria-describedby={showError ? 'greeting-name-error' : undefined}
-                aria-invalid={showError}
-                className={inputClass}
-              />
-              <div aria-live="polite" className="min-h-[1.25rem]">
-                {showError && (
-                  <p id="greeting-name-error" className="text-xs text-red-500 dark:text-red-400">
-                    Digite pelo menos 2 caracteres para continuar.
-                  </p>
-                )}
+            <div className="space-y-4">
+              {/* Campo Nome */}
+              <div className="space-y-1">
+                <label
+                  htmlFor="greeting-name-input"
+                  className={`block text-sm font-medium ${textPrimary}`}
+                >
+                  Seu nome
+                </label>
+                <input
+                  id="greeting-name-input"
+                  data-testid="greeting-name-input"
+                  type="text"
+                  autoFocus
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched(true)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Nome ou apelido"
+                  aria-describedby={showNameError ? 'greeting-name-error' : undefined}
+                  aria-invalid={showNameError}
+                  className={getInputClass(showNameError)}
+                />
+                <div aria-live="polite" className="min-h-[1.25rem]">
+                  {showNameError && (
+                    <p id="greeting-name-error" className="text-xs text-red-500 dark:text-red-400">
+                      Digite pelo menos 2 caracteres para continuar.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Campo Email */}
+              <div className="space-y-1">
+                <label
+                  htmlFor="greeting-email-input"
+                  className={`block text-sm font-medium ${textPrimary}`}
+                >
+                  Seu email
+                </label>
+                <input
+                  id="greeting-email-input"
+                  data-testid="greeting-email-input"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched(true)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="seu@email.com.br"
+                  aria-describedby={showEmailError ? 'greeting-email-error' : undefined}
+                  aria-invalid={showEmailError}
+                  className={getInputClass(showEmailError)}
+                />
+                <div aria-live="polite" className="min-h-[1.25rem]">
+                  {showEmailError && (
+                    <p id="greeting-email-error" className="text-xs text-red-500 dark:text-red-400">
+                      Digite um email válido.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -119,7 +158,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
               data-testid="greeting-submit-button"
               type="submit"
               disabled={touched && !isValid}
-              className="mt-4 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Continuar →
             </button>
@@ -127,7 +166,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
         </div>
 
         <p className={`mt-6 text-center text-xs ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}>
-          Salvo localmente — apenas neste dispositivo.
+          Salvo com segurança no Scout 360. Acesse seus dossiês em qualquer dispositivo.
         </p>
       </div>
     </div>

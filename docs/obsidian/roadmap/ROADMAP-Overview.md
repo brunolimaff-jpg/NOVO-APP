@@ -13,9 +13,9 @@ tags:
   - refactor
 ---
 
-# ROADMAP Overview
+# Visão Geral do Roadmap
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Estado atual
 

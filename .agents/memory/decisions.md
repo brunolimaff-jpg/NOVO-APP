@@ -134,6 +134,32 @@ Reason: o owner avaliou que um Design System formal não se justifica para app i
 
 Constraint: o escopo foi limitado a 4 itens (AdminDash, breadcrumb, sidebar, error feedback). Simplificar a tela inicial (EmptyStateHome) e unificar loading foram rejeitados pelo owner.
 
+## 2026-05-22 - allowRawHtml=false como padrão seguro
+
+Decision: alterar `components/MarkdownRenderer.tsx` para `securityLevel: 'strict'` e `allowRawHtml` default `false`. Links HTML de resultados de pesquisa (`<a href>`) são convertidos para markdown `[text](url)` via regex no `processedContent`, e citações `[🟢 url]` geram markdown links em vez de HTML.
+
+Reason: prevenção de XSS. Em vez de reabilitar `rehypeRaw` (que permitiria HTML arbitrário), o conteúdo pré-processado normaliza HTML conhecido para markdown puro. Isso mantém a segurança sem quebrar links de pesquisa.
+
+Constraint: se `rehypeRaw` for reintroduzido no futuro, deve vir com `allowedElements` e `disallowedTagsMode: 'escape'` explícitos.
+
+## 2026-05-22 - clientLookupService: match parcial não inclui dados CRM
+
+Decision: em `services/clientLookupService.ts`, quando `matchType !== 'exact'`, `formatarParaPrompt()` não inclui dados detalhados de CRM (módulos, gaps). Retorna apenas um alerta instruindo o modelo a tratar a empresa como PROSPECT.
+
+Reason: empresas similares (ex: "Pampa" vs "Pampafoods") causavam alucinação do Gemini, que usava dados de módulos/gaps de uma empresa na resposta sobre outra. Omitir dados CRM em match parcial elimina a fonte de confusão.
+
+## 2026-05-22 - setSecurityHeaders com guard de compatibilidade
+
+Decision: `api/_security-headers.ts` usa `typeof res.setHeader !== 'function'` como guard antes de aplicar security headers, em vez de lançar erro ou exigir mock completo em testes.
+
+Reason: testes Vitest que chamam handlers serverless sem mock completo do objeto `res` não quebram. O guard é silencioso — se `setHeader` não existe, os headers simplesmente não são aplicados. Isso é aceitável porque segurança header é uma preocupação de runtime Vercel, não de teste unitário.
+
+## 2026-05-22 - Pinecone exclusivamente via serverless
+
+Decision: remover `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` de `index.tsx` (`OPTIONAL_ENV_VARS`) e do bundle frontend. Pinecone é usado exclusivamente em `api/rag.ts` e `api/docs-rag.ts`.
+
+Reason: variáveis `VITE_*` são inlineadas no bundle frontend no build, expondo chaves de API no navegador. Como o Pinecone já era acessado apenas via serverless functions, esta mudança remove o risco sem perda funcional. A decisão anterior de 2026-05-16 (Pinecone frontend env aceito para app interno) fica sobrescrita.
+
 ## 2026-05-19 - Modelo canônico enxuto para planos em aberto
 
 Decision: manter `02-BOARD.md` como status vivo, `03-OPEN-ITEMS.md` como fila de riscos/OIs, `sprints/SPRINT-11-EXECUTION.md` como plano executável da Sprint 11, e tratar `docs/obsidian/*` como navegação visual, não fonte de verdade.

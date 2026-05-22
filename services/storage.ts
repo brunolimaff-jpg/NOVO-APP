@@ -97,10 +97,23 @@ export const storage = {
 
     // Enqueue sync for background Supabase sync
     const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'dossies',
       operation: 'upsert',
-      data: { ...session, operator_id: operatorId },
+      data: {
+        id: session.id,
+        operator_id: operatorId,
+        title: session.title,
+        empresa_alvo: session.empresaAlvo,
+        cnpj: session.cnpj,
+        modo_principal: session.modoPrincipal,
+        score_oportunidade: session.scoreOportunidade,
+        resumo_dossie: session.resumoDossie,
+        content: session as unknown as Record<string, unknown>,
+        updated_at: session.updatedAt,
+      },
       id: session.id,
     });
   },
@@ -111,11 +124,24 @@ export const storage = {
 
     // Enqueue sync for each session
     const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     for (const session of sessions) {
       syncQueue.enqueue({
         table: 'dossies',
         operation: 'upsert',
-        data: { ...session, operator_id: operatorId },
+        data: {
+          id: session.id,
+          operator_id: operatorId,
+          title: session.title,
+          empresa_alvo: session.empresaAlvo,
+          cnpj: session.cnpj,
+          modo_principal: session.modoPrincipal,
+          score_oportunidade: session.scoreOportunidade,
+          resumo_dossie: session.resumoDossie,
+          content: session as unknown as Record<string, unknown>,
+          updated_at: session.updatedAt,
+        },
         id: session.id,
       });
     }
@@ -128,13 +154,16 @@ export const storage = {
     await setLocalSessions(filtered);
 
     // Enqueue soft delete via syncQueue
+    const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'dossies',
       operation: 'upsert',
       data: {
         id,
+        operator_id: operatorId,
         deleted_at: new Date().toISOString(),
-        operator_id: getOperatorId(),
       },
       id,
     });
@@ -156,6 +185,8 @@ export const storage = {
     await set(IDB_KEYS.RADAR_ALERTS, alerts);
 
     const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'radar_alerts',
       operation: 'upsert',
@@ -176,6 +207,8 @@ export const storage = {
     await set(IDB_KEYS.RADAR_CONFIG, config);
 
     const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'radar_config',
       operation: 'upsert',
@@ -238,6 +271,9 @@ export const storage = {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
+    const operatorId = getOperatorId();
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'extract_cache',
       operation: 'upsert',
@@ -245,7 +281,7 @@ export const storage = {
         cache_key: cacheKey,
         result,
         expires_at: expiresAt.toISOString(),
-        operator_id: getOperatorId(),
+        operator_id: operatorId,
       },
       id: cacheKey,
     });
@@ -257,6 +293,9 @@ export const storage = {
 
   async saveUserContext(data: { operatorId: string; name: string; email: string }): Promise<void> {
     // SyncQueue only (no local IDB, just goes to Supabase)
+    const operatorId = data.operatorId;
+    if (!operatorId) return; // Local-only until registered
+
     syncQueue.enqueue({
       table: 'user_context',
       operation: 'upsert',
@@ -282,6 +321,9 @@ export const storage = {
   ): Promise<void> {
     // Direct Supabase insert (fire and forget, no queue)
     if (isSupabaseAvailable()) {
+      const operatorId = getOperatorId();
+      if (!operatorId) return; // Local-only until registered
+
       void supabase!
         .from('audit_log')
         .insert({
@@ -289,7 +331,7 @@ export const storage = {
           target_type: targetType,
           target_id: targetId,
           metadata,
-          operator_id: getOperatorId(),
+          operator_id: operatorId,
           created_at: new Date().toISOString(),
         });
     }
@@ -374,6 +416,9 @@ export const storage = {
       return null;
     }
 
+    const operatorId = getOperatorId();
+    if (!operatorId) return null;
+
     // Generate UUID token
     const token = crypto.randomUUID();
 
@@ -390,7 +435,7 @@ export const storage = {
         token,
         dossier_id: dossierId,
         content: dossier,
-        created_by: getOperatorId(),
+        created_by: operatorId,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
       })

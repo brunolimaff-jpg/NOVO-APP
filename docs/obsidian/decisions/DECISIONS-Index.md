@@ -14,9 +14,9 @@ tags:
   - roadmap
 ---
 
-# DECISIONS Index
+# Índice de Decisões
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Decisoes duraveis atuais
 

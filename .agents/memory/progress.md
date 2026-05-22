@@ -1,8 +1,51 @@
 # Progress
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Completed
+
+### Auditoria de Código Multi-Fase (2026-05-22)
+
+**Planejamento:**
+- Criado `docs/planos/auditoria-codigo-2026-05-21.md` (840 linhas) com 5 fases: auditoria paralela, falhas silenciosas, segurança, performance, verificação final.
+
+**Fase 1 — Auditoria (3 relatórios gerados):**
+- `docs/planos/audit-silent-failures.md` — 128 catch blocks, 7 P0 + 14 P1
+- `docs/planos/audit-seguranca.md` — 10 vulnerabilidades (2 P0, 4 P1, 3 P2)
+- `docs/planos/audit-performance.md` — 64 regras Vercel, score 2.3/5
+
+**Fase 2 — Correção de Falhas Silenciosas (10 arquivos):**
+- Adicionado `scoutDiag.warn/error` em catches que engoliam erros nos arquivos: `features/radar/useRadar.ts`, `utils/conversationHistory.ts`, `utils/linkValidation.ts`, `features/dossier/waterfall-orchestrator.ts`, `services/competitorService.ts`, `services/gemini/investigation-orchestration.ts`, `services/gemini/auxiliary.ts`, `services/gemini/recovery.ts`, `services/exportService.ts`, `hooks/useAppInitialization.ts`.
+- Validacao: `npm exec vitest run tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`15` testes).
+
+**Fase 3 — Correção de Segurança (15 arquivos):**
+- `api/_security-headers.ts` criado — `setSecurityHeaders(res)` com guard de compatibilidade para testes. Headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy. Aplicado em 11 API routes.
+- `api/_cache-headers.ts` criado — helper `cacheHeaders(maxAgeSeconds)` para Cache-Control.
+- `components/MarkdownRenderer.tsx` — `securityLevel: 'loose'` → `'strict'`, `allowRawHtml` default `true` → `false`. Regex de conversao HTML `<a href>` → `[text](url)` markdown; citações `[🟢 url]` geram markdown links.
+- `index.tsx` — `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` removidos de `OPTIONAL_ENV_VARS`.
+- `api/link-status.ts` — `isHttpUrl()` → `isValidPublicUrl()` (bloqueia SSRF: localhost, 127.0.0.1, 169.254.169.254, redes privadas).
+- `api/extract-content.ts` — `.max(13_600_000)` no campo `base64Content` do schema Zod.
+- `api/comex.ts` — CORS whitelist (nao mais `*`).
+- Validacao: `npm exec vitest run tests/components/MarkdownRenderer.test.tsx` green com +1 teste de conversao HTML→markdown.
+
+**Fase 4 — Correção de Performance (8 arquivos):**
+- `hooks/useDebounce.ts` criado — hook generico `useDebounce<T>(value, delay)`.
+- `App.tsx` — 4 componentes lazy-loaded: LoadingSmart, EmailModal, FollowUpModal, UpdateNotificationModal.
+- `vite.config.ts` — chunk `vendor-anim` para framer-motion (124KB).
+- `components/MessageRow.tsx` — 2x `.filter().map()` → `.flatMap()`.
+- `api/gemini.ts` — 2x `.filter().map()` → `.flatMap()`.
+- `components/InvestigationDashboard.tsx` — `useDebounce(searchText, 300)` no input de busca.
+- `api/cnpj.ts` — Cache-Control 1h.
+- `api/comex.ts` — Cache-Control 24h.
+- Validacao: `npm run typecheck` green; `npm run build` green (chunk `vendor-anim` presente).
+
+**Bug Fixes:**
+- `services/clientLookupService.ts` — `formatarParaPrompt()`: match parcial (`matchType !== 'exact'`) nao inclui dados de CRM. Retorna alerta de PROSPECT. Corrige confusao entre empresas similares.
+- `components/MarkdownRenderer.tsx` — hyperlinks HTML `<a href>` de resultados de pesquisa convertidos para `[text](url)` markdown.
+
+**Testes atualizados (10 arquivos):**
+- `tests/App.dossierGolden.test.tsx`, `tests/components/LoadingSmart.test.tsx`, `tests/utils/loadingSmartViewModel.test.ts`, `tests/components/MarkdownRenderer.test.tsx`, `tests/services/clientLookupService.test.ts`.
+- Validacao final: `npm run test` green.
 
 - Botão de empresa demo para Preview adicionado em `2026-05-21`:
   - `components/EmptyStateHome.tsx` mostra CTA de demo somente com `VITE_ENABLE_PREVIEW_DEMO=true` e payload mínimo completo (`VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CITY`, `VITE_PREVIEW_DEMO_STATE`; CNPJ opcional/normalizado).
@@ -59,6 +102,7 @@ Last updated: 2026-05-21
 
 ## In progress
 
+- PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validação do owner no preview Vercel.
 
 ## Blockers
@@ -266,5 +310,7 @@ Last updated: 2026-05-21
 
 ## Next checkpoint
 
-- Abrir PR do hotfix `LoadingSmart`.
+- Mergear PR `#270` (auditoria multi-fase) em `main`.
+- Mergear PR `#266` (UX Redesign Phase 1) após validação do owner.
 - Não reintroduzir Mini CRM/`CRMDetail`.
+- Quando houver demanda, iniciar Sprints 13-16 (Modularização de Prompts).

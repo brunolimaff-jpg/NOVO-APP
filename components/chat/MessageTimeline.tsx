@@ -20,7 +20,7 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
-  onConfirmOperatorName: (name: string) => void;
+  onConfirmOperatorName: (name: string, email: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
   onOpenRadarPanel: () => void;
@@ -269,7 +269,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
           <GreetingWelcomeScreen
             isDarkMode={isDarkMode}
-            onConfirmName={onConfirmOperatorName}
+            onConfirmOperator={onConfirmOperatorName}
           />
         </div>
       ) : showInitialHome ? (

@@ -2,31 +2,37 @@ import { describe, expect, it } from 'vitest';
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../../utils/loadingCuriosities';
 
 describe('loadingCuriosities', () => {
-  const statusLike = /^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando|rastreando|desconstruindo|auditando|infiltrando|inovação|sabia|aguarde)\b/i;
+  const forbiddenTone = /\b(infiltrando|desconstruindo|segredos?|ocultos?|1 em cada 4|score porta)\b/i;
 
-  it('fallback com empresa mantém foco na conta alvo', () => {
+  it('fallback com empresa mantém foco na conta alvo, setor e ângulo Senior', () => {
     const lines = buildLoadingCuriositiesFallback('Coprosoja');
     expect(lines.some((line) => line.toLowerCase().includes('coprosoja'))).toBe(true);
     expect(lines.some((line) => line.toLowerCase().includes('senior sistemas'))).toBe(false);
-    expect(lines.some((line) => /score porta/i.test(line))).toBe(true);
+    expect(lines.some((line) => /setor|regi[aã]o|margem|log[ií]stica/i.test(line))).toBe(true);
+    expect(lines.some((line) => /senior|controle|produtividade|decis[aã]o com dados/i.test(line))).toBe(true);
+    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
   });
 
-  it('parseia resposta estruturada com foco em empresa/setor/região', () => {
+  it('parseia resposta estruturada com foco em empresa, setor/região e Senior', () => {
     const raw = JSON.stringify({
-      empresa: ['Coprosoja ampliou armazenagem em apuração.'],
-      setor: ['Agro intensifica digitalização de operações de grãos.']
+      empresa: ['Coprosoja mostra sinal a validar sobre expansão operacional.'],
+      setor: ['Agro intensifica digitalização de operações de grãos.'],
+      regional: ['Contexto regional pode pressionar logística e margem.'],
+      senior: ['Ângulo Senior: produtividade e decisão com dados podem abrir conversa.'],
     });
     const lines = parseLoadingCuriosities(raw, 'Coprosoja');
     expect(lines[0]).toContain('Coprosoja');
     expect(lines.some((line) => line.toLowerCase().includes('agro'))).toBe(true);
+    expect(lines.some((line) => line.toLowerCase().includes('regional'))).toBe(true);
+    expect(lines.some((line) => line.toLowerCase().includes('senior'))).toBe(true);
   });
 
   it('quando JSON vem inválido, usa fallback robusto', () => {
     const lines = parseLoadingCuriosities('texto livre inválido', 'Grupo Scheffer');
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.some((line) => line.toLowerCase().includes('grupo scheffer'))).toBe(true);
-    expect(lines.some((line) => statusLike.test(line))).toBe(true);
-    expect(lines.some((line) => /score porta/i.test(line))).toBe(true);
+    expect(lines.some((line) => /hip[oó]teses comerciais|pontos de valida[cç][aã]o/i.test(line))).toBe(true);
+    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
   });
 
   it('filtra textos internos de prompt e protocolo do loading', () => {
@@ -61,7 +67,7 @@ describe('loadingCuriosities', () => {
   it('descarta linhas que citam explicitamente outra empresa e preserva itens genéricos', () => {
     const raw = JSON.stringify([
       "Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor.",
-      'Sabia? A tecnologia Senior orquestra os processos críticos de 1 em cada 4 grandes empresas do país.',
+      'Ângulo Senior: produtividade e decisão com dados podem abrir uma conversa segura.',
     ]);
 
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
@@ -69,6 +75,7 @@ describe('loadingCuriosities', () => {
     expect(lines.some((line) => /hart/i.test(line))).toBe(false);
     expect(lines.some((line) => /senior/i.test(line))).toBe(true);
     expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
+    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
   });
 
   it('cai para fallback da empresa atual quando todas as curiosidades estruturadas estão contaminadas', () => {
@@ -83,5 +90,23 @@ describe('loadingCuriosities', () => {
 
     expect(lines.some((line) => /hart/i.test(line))).toBe(false);
     expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
+    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+  });
+
+  it('bloqueia frases agressivas e preserva sinais comerciais seguros', () => {
+    const raw = JSON.stringify({
+      empresa: [
+        'Infiltrando bases públicas para expor segredos ocultos da Coprosoja.',
+        'Coprosoja mostra sinal a validar sobre controle operacional.',
+      ],
+      setor: ['Hipótese de dor: logística e margem podem orientar a conversa.'],
+      senior: ['Ângulo Senior: controle e decisão com dados podem ser relevantes.'],
+    });
+
+    const lines = parseLoadingCuriosities(raw, 'Coprosoja');
+
+    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some((line) => /sinal a validar/i.test(line))).toBe(true);
+    expect(lines.some((line) => /ângulo senior/i.test(line))).toBe(true);
   });
 });

@@ -60,6 +60,7 @@ describe('storage', () => {
 
   describe('Dossiers', () => {
     it('saveDossier should call IDB set and syncQueue.enqueue', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       vi.mocked(set).mockResolvedValue(undefined);
       vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
 
@@ -72,13 +73,30 @@ describe('storage', () => {
         data: expect.objectContaining({
           id: mockSession.id,
           title: mockSession.title,
-          operator_id: null, // No operator_id set in localStorage
+          empresa_alvo: mockSession.empresaAlvo,
+          cnpj: mockSession.cnpj,
+          modo_principal: mockSession.modoPrincipal,
+          score_oportunidade: mockSession.scoreOportunidade,
+          resumo_dossie: mockSession.resumoDossie,
+          operator_id: 'operator-123',
         }),
         id: mockSession.id,
       });
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('saveDossier should save to IDB but NOT enqueue when no operator_id', async () => {
+      vi.mocked(set).mockResolvedValue(undefined);
+      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
+
+      await storage.saveDossier(mockSession);
+
+      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', expect.any(Array));
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
     it('saveAllDossiers should bulk save to IDB and enqueue sync for each', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       const sessions = [mockSession];
       vi.mocked(set).mockResolvedValue(undefined);
       vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
@@ -92,10 +110,22 @@ describe('storage', () => {
         operation: 'upsert',
         data: expect.objectContaining({
           id: mockSession.id,
-          operator_id: null,
+          operator_id: 'operator-123',
         }),
         id: mockSession.id,
       });
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('saveAllDossiers should save to IDB but NOT enqueue when no operator_id', async () => {
+      const sessions = [mockSession];
+      vi.mocked(set).mockResolvedValue(undefined);
+      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
+
+      await storage.saveAllDossiers(sessions);
+
+      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', sessions);
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
     it('getDossiers should return from IDB', async () => {
@@ -124,6 +154,7 @@ describe('storage', () => {
     });
 
     it('deleteDossier should remove from local and enqueue sync with deleted_at', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       vi.mocked(get).mockResolvedValue([mockSession]);
       vi.mocked(set).mockResolvedValue(undefined);
 
@@ -135,10 +166,22 @@ describe('storage', () => {
         operation: 'upsert',
         data: expect.objectContaining({
           id: 'session-1',
+          operator_id: 'operator-123',
           deleted_at: expect.any(String),
         }),
         id: 'session-1',
       });
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('deleteDossier should remove from local but NOT enqueue when no operator_id', async () => {
+      vi.mocked(get).mockResolvedValue([mockSession]);
+      vi.mocked(set).mockResolvedValue(undefined);
+
+      await storage.deleteDossier('session-1');
+
+      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', []);
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });
 
@@ -154,6 +197,7 @@ describe('storage', () => {
     });
 
     it('saveRadarAlerts should save to IDB and enqueue sync', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
       vi.mocked(set).mockResolvedValue(undefined);
 
@@ -161,6 +205,17 @@ describe('storage', () => {
 
       expect(set).toHaveBeenCalledWith('scout360_radar_alerts', mockAlerts);
       expect(syncQueue.enqueue).toHaveBeenCalled();
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('saveRadarAlerts should save to IDB but NOT enqueue when no operator_id', async () => {
+      const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
+      vi.mocked(set).mockResolvedValue(undefined);
+
+      await storage.saveRadarAlerts(mockAlerts);
+
+      expect(set).toHaveBeenCalledWith('scout360_radar_alerts', mockAlerts);
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
     it('getRadarConfig should return from IDB', async () => {
@@ -174,6 +229,7 @@ describe('storage', () => {
     });
 
     it('saveRadarConfig should save to IDB and enqueue sync', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       const mockConfig = { enabled: true, categories: [] };
       vi.mocked(set).mockResolvedValue(undefined);
 
@@ -181,6 +237,17 @@ describe('storage', () => {
 
       expect(set).toHaveBeenCalledWith('scout360_radar_config', mockConfig);
       expect(syncQueue.enqueue).toHaveBeenCalled();
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('saveRadarConfig should save to IDB but NOT enqueue when no operator_id', async () => {
+      const mockConfig = { enabled: true, categories: [] };
+      vi.mocked(set).mockResolvedValue(undefined);
+
+      await storage.saveRadarConfig(mockConfig);
+
+      expect(set).toHaveBeenCalledWith('scout360_radar_config', mockConfig);
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
     it('getRadarLastScan should return from IDB', async () => {
@@ -232,6 +299,7 @@ describe('storage', () => {
     });
 
     it('saveExtractCache should save to IDB and enqueue sync with expires_at', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       vi.mocked(set).mockResolvedValue(undefined);
 
       await storage.saveExtractCache('test-key', { data: 'test' });
@@ -241,13 +309,24 @@ describe('storage', () => {
         timestamp: expect.any(Number),
       });
       expect(syncQueue.enqueue).toHaveBeenCalled();
+      localStorage.removeItem('scout360:operator_id');
+    });
+
+    it('saveExtractCache should save to IDB but NOT enqueue when no operator_id', async () => {
+      vi.mocked(set).mockResolvedValue(undefined);
+
+      await storage.saveExtractCache('test-key', { data: 'test' });
+
+      expect(set).toHaveBeenCalledWith('ext-cache-test-key', {
+        result: { data: 'test' },
+        timestamp: expect.any(Number),
+      });
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });
 
   describe('User Context', () => {
     it('saveUserContext should enqueue sync only', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-
       await storage.saveUserContext({
         operatorId: 'operator-123',
         name: 'Test Operator',
@@ -256,6 +335,16 @@ describe('storage', () => {
 
       expect(syncQueue.enqueue).toHaveBeenCalled();
       expect(set).not.toHaveBeenCalled();
+    });
+
+    it('saveUserContext should NOT enqueue when no operatorId', async () => {
+      await storage.saveUserContext({
+        operatorId: '',
+        name: 'Test Operator',
+        email: 'test@example.com',
+      });
+
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });
 
@@ -276,6 +365,7 @@ describe('storage', () => {
     });
 
     it('saveDossier should work without Supabase', async () => {
+      localStorage.setItem('scout360:operator_id', 'operator-123');
       vi.mocked(set).mockResolvedValue(undefined);
       vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
 
@@ -283,6 +373,7 @@ describe('storage', () => {
 
       expect(set).toHaveBeenCalled();
       expect(syncQueue.enqueue).toHaveBeenCalled();
+      localStorage.removeItem('scout360:operator_id');
     });
 
     it('getDossiers should work without Supabase', async () => {

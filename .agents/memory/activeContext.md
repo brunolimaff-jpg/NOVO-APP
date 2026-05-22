@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Current operating context
 
@@ -18,54 +18,33 @@ Read order:
 
 ## Current refactor phase
 
-**Fase 2 (Manutenibilidade) CONCLUÍDA.**
+**Auditoria de Código Multi-Fase CONCLUÍDA (PR #270).**
 
-- Fase 1 (Sprints 1-8): concluída.
-- Fase 2 (Sprints 9-12): concluída em `2026-05-20`.
-- Commit final: `0694997` em `main`.
-- Validação manual em Vercel aceita pelo owner.
-- Gates finais verdes: `test` (117 arq, 834 testes), `typecheck`, `build`, `lint --quiet`, `analyze:circular`.
+- Fase 1: Sprints 1-8 concluída.
+- Fase 2: Manutenibilidade (Sprints 9-12) concluída em `2026-05-20`.
+- Fase 3: Auditoria de Falhas Silenciosas, Segurança e Performance concluída em `2026-05-22` na branch `codex/contextual-continuity-suggestions`.
+- Commit final da auditoria: `bdf80f4`.
+- 33+ arquivos alterados entre Fases 2, 3 e 4 da auditoria.
 
 ## Current task context
 
-**Botão de empresa demo para Preview em `codex/contextual-continuity-suggestions` (2026-05-21).**
-- `components/EmptyStateHome.tsx` agora lê `VITE_ENABLE_PREVIEW_DEMO`, `VITE_PREVIEW_DEMO_COMPANY`, `VITE_PREVIEW_DEMO_CNPJ`, `VITE_PREVIEW_DEMO_CITY` e `VITE_PREVIEW_DEMO_STATE`.
-- Quando a flag é `true` e empresa/cidade/UF são válidas, a home mostra o botão `Investigar empresa demo: [empresa]`, que dispara o mesmo `onStartInvestigation` do formulário com CNPJ normalizado.
-- Não depende de nome de usuário e não aparece quando a flag está desligada ou o payload mínimo está incompleto.
-- Validações: `npm exec vitest run tests/components/EmptyStateHome.test.tsx` green (`11` testes); `npm run typecheck` green.
-- Risco residual: variáveis `VITE_*` ficam visíveis no navegador; usar apenas dados de demo/não sensíveis e redeployar o preview após mudar env.
+**Auditoria de Código Multi-Fase concluída em `codex/contextual-continuity-suggestions` (2026-05-22).**
+- PR `#270` aberta, commit final `bdf80f4`, 33+ arquivos alterados.
+- Plano em `docs/planos/auditoria-codigo-2026-05-21.md` (840 linhas).
+- **Fase 2 (Falhas Silenciosas):** 10 arquivos com `scoutDiag.warn/error` adicionado em catches que engoliam erros. Destaque: `useRadar.ts` (5 operações IDB), `investigation-orchestration.ts` (catch silencioso removido), `hooks/useAppInitialization.ts` (`.catch(() => {})` com log).
+- **Fase 3 (Segurança):** 15 arquivos. Criado `api/_security-headers.ts` e `api/_cache-headers.ts` como helpers serverless reutilizáveis. Security headers aplicados em 11 API routes. MarkdownRenderer com `allowRawHtml=false`, `securityLevel='strict'`, HTML links convertidos para markdown. `index.tsx` sem Pinecone env vars no frontend. `api/link-status.ts` com proteção SSRF. `api/extract-content.ts` com `.max(13_600_000)` no schema Zod. CORS whitelist em `api/comex.ts`.
+- **Fase 4 (Performance):** 8 arquivos. Criado `hooks/useDebounce.ts` genérico. 4 componentes lazy-loaded em `App.tsx`. `vendor-anim` chunk (framer-motion 124KB) em `vite.config.ts`. Cache-Control 1h em `api/cnpj.ts`, 24h em `api/comex.ts`. `.filter().map()` substituído por `.flatMap()` em 3 locais.
+- **Bug fixes:** `clientLookupService.ts` — match parcial não inclui dados CRM (evita alucinação de empresas similares). `MarkdownRenderer.tsx` — links HTML convertidos corretamente para markdown.
+- **Testes:** 10 arquivos de teste atualizados para refletir as mudanças.
+- **Gates:** pendente confirmação de checks remotos na PR `#270`.
+
+**UX Redesign Phase 1 em progresso (PR `#266`).**
+- Branch: `ux/redesign-phase1-v1`, commit `d84b643`.
+- AdminDash removido, breadcrumb, sidebar melhorada, indicadores de status no MessageRow, feedback CNPJ estilizado.
+- Aguardando validação do owner no preview Vercel antes do merge.
 
 **Inline follow-up do chat principal refatorado em `main` (2026-05-21).**
 - Follow-ups apos a primeira pesquisa agora entram em modo cirurgico via `GeminiRequestOptions.isFollowUp`.
-- `features/chat/message-orchestrator.ts` marca follow-up real para o Gemini.
-- `services/gemini/runtime.ts` compacta historico de follow-up em pares alternados `user/model`, preservando a pesquisa inicial como contexto ancora e reduzindo custo.
-- `services/gemini/investigation-orchestration.ts` adiciona instrucao de resposta curta para follow-up normal, nao reexecuta dossie/modulo e reaproveita dados Senior do historico quando disponivel.
-- Deep Dive segue feature-flagado/desligado por padrão; esta refatoracao nao reativa nem redesenha o fluxo legado.
-- Validacoes: `npm exec vitest run tests/features/chat/message-orchestrator.test.ts tests/services/geminiService.test.ts` green (`44` testes); `npm run typecheck` green.
-- Risco residual: historico compactado pode omitir detalhe antigo; nesse caso a IA deve perguntar ao usuario em vez de inferir.
-
-**Perguntas de acompanhamento com fallback contextual corrigidas em `codex/chat-inline-followup-refactor` (2026-05-21).**
-- `utils/continuitySuggestions.ts` centraliza normalizacao, deduplicacao e fallback contextual por sinais do dossie/resposta.
-- `features/chat/message-orchestrator.ts` e `features/dossier/waterfall-orchestrator.ts` passam o texto real da resposta/dossie para completar sugestoes.
-- Botao "Novas" usa a mensagem alvo como contexto recente e evita repetir sugestoes antigas.
-- Validacoes: `npm exec vitest run tests/services/geminiService.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts` green (`51` testes); `npm run typecheck` green; `npm run lint -- --quiet` green.
-- Risco residual: fallback ainda e heuristico quando a IA falha, mas agora fica ancorado em temas detectados e bloqueia o conjunto legado ruim.
-- Ajuste posterior na PR `#268`: sugestoes agora devem soar como pergunta de vendedor e falar de negocio; filtro bloqueia jargao tecnico como `GATec`, `CAPEX`, `ERP`, arquitetura, nativamente, modulos Senior e nome do vendedor. Validacoes: recorte de sugestoes/dossie green (`54` testes), `typecheck` green e `lint --quiet` green.
-- Normalizacao posterior na PR `#268`: sugestoes usam nome comercial curto, removendo sufixos societarios (`LTDA`, `CIA`, `ME`, `S/A`, etc.) em entradas manuais e vindas de CNPJ, sem remover termos comerciais validos. Validacoes: recorte green (`58` testes), `typecheck` green e `lint --quiet` green.
-
-**UX Redesign Phase 1 em progresso.**
-- PR `#266` aberta em `ux/redesign-phase1-v1`.
-- Branch: `ux/redesign-phase1-v1`, commit `d84b643`.
-- AdminDash removido, breadcrumb, sidebar melhorada, indicadores de status no MessageRow, feedback CNPJ estilizado.
-- Gates verdes: `test` (116 arq, 824 testes), `typecheck`, `lint`.
-- Aguardando validação do owner no preview Vercel antes do merge.
-
-Próximos passos possíveis:
-- Mergear PR `#266` após validação.
-- Sprints 13–16: Modularização de Prompts (pré-requisito: golden test baseline já criado).
-- Sprints 21–24: Observability & Monitoring.
-- Design System (17-20) descartado: app interno, custo/benefício não justifica.
-- Repriorizar `mcp-server/` e itens deferred.
 
 ## Workspace note
 
@@ -73,5 +52,7 @@ Próximos passos possíveis:
 
 ## Immediate next step
 
-1. Quando houver demanda, planejar Fase 3.
-2. Repriorizar itens deferred.
+1. Mergear PR `#270` em `main` (auditoria multi-fase concluída).
+2. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+3. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularização de Prompts).
+4. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).

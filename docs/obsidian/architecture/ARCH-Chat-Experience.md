@@ -16,9 +16,9 @@ tags:
   - ui
 ---
 
-# ARCH Chat Experience
+# ARCH Experiência de Chat
 
-Back to [[00-MASTER]].
+Voltar para [[00-MASTER]].
 
 ## Papel
 
