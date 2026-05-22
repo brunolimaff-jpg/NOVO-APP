@@ -45,10 +45,11 @@
 
 ```mermaid
 graph LR
-    classDef target fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    classDef person fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#fff
-    classDef company fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
-    classDef parallel fill:#7e22ce,stroke:#581c87,stroke-width:2px,color:#fff
+    classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
+    classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
+    classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
+    classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
+    classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5,5,stroke-width:1px,color:#475569;
 
     %% Estrutura de Controle
     Socio1["Elizeu Maggi Scheffer"]
@@ -75,19 +76,9 @@ graph LR
     Holding -.->|"Investimento"| Col
     Matriz --> Avia
 
-    class Matriz target;
-    class Holding company;
-    class Bio parallel;
-    class Col parallel;
-class Socio1 person;
-class Socio2 person;
-class Holding company;
-class Matriz target;
-class FiliaisMT target;
-class FiliaisMA target;
-class Bio parallel;
-class Avia parallel;
-class Col parallel;
+    class Socio1,Socio2 neutral;
+    class Holding,Matriz core;
+    class FiliaisMT,FiliaisMA,Bio,Avia,Col satellite;
 ```
 
 ---

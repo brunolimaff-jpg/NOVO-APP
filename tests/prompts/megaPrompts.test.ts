@@ -244,9 +244,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8443,
-          "lines": 250,
-          "sha256": "de656a556143312a999d2b96166195508910cd698c0057d01d36e6823695d7af",
+          "length": 8715,
+          "lines": 252,
+          "sha256": "3657f3576c9a5902c25b4eb8b7ca04bfe408097928bb765a2dfb8c45d140b4ac",
         },
         {
           "label": "specialist-5",
@@ -256,9 +256,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-6",
-          "length": 7451,
-          "lines": 202,
-          "sha256": "602458a0903944a6cd72627699ffc5c20bc8ca3f5e0ab951dc5f05c941ccf50c",
+          "length": 7794,
+          "lines": 205,
+          "sha256": "8d9a72a20b3b32793033b017b7db187a08a97f88b6f6710d8facc6625d31bf43",
         },
         {
           "label": "specialist-7",
@@ -268,21 +268,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105294,
-          "lines": 2867,
-          "sha256": "36e79f92634cb08a527e8568a5cb6b11ffaaabc61a5d2e16bcb28e145c60c507",
+          "length": 105909,
+          "lines": 2872,
+          "sha256": "92a1ac8467d4f92b41096c4b62cecd54f70488f4a8aae74e4c237c9acb7dff05",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113742,
-          "lines": 3122,
-          "sha256": "128ea81aa64e66dde7140a765d211e7070d5ecfdc1cbdfeb5702e94339e1c6a1",
+          "length": 114357,
+          "lines": 3127,
+          "sha256": "c09b3372970b053299a57e087158854544dd6f699bf77743ffd150fbb2fe23b9",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105771,
-          "lines": 2887,
-          "sha256": "52622efb953f2a8e5674caa2d84179345cf48b0e4f1b414fafce4229a63d7640",
+          "length": 106386,
+          "lines": 2892,
+          "sha256": "299bc9eeed3992bdb1de48c71f2a9fcac7842dcb75df5fb838f81960ab05e44f",
         },
       ]
     `);
