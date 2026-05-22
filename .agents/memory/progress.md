@@ -359,5 +359,10 @@ Last updated: 2026-05-22
 
 - Mergear PR `#270` (auditoria multi-fase) em `main`.
 - Mergear PR `#266` (UX Redesign Phase 1) após validação do owner.
+- Mergear `codex/standardize-mermaid-maps` em `main` (migracao Supabase).
+- Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- Testar fluxo completo: registrar operador, criar dossie, verificar dashboard Supabase.
+- Mergear PR `#270` (auditoria multi-fase) em `main`.
+- Mergear PR `#266` (UX Redesign Phase 1) apos validacao do owner.
 - Não reintroduzir Mini CRM/`CRMDetail`.
 - Quando houver demanda, iniciar Sprints 13-16 (Modularização de Prompts).

@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-20
+Last updated: 2026-05-22
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -66,102 +66,142 @@ Reason: in this repo the frontend dev server does not proxy `/api/cnpj`, so `npm
 
 Decision: when `localhost` receives the app HTML instead of JSON for `/api/cnpj`, surface an explicit local-proxy guidance message in logs and UI instead of treating it as generic service downtime.
 
-Reason: the recurring symptom was a misleading "Serviço de consulta indisponível" message. Distinguishing "missing local proxy/runtime" from true provider failure reduces wasted debugging on preview/Vercel and external APIs.
+Reason: the recurring symptom was a misleading "Servico de consulta indisponivel" message. Distinguishing "missing local proxy/runtime" from true provider failure reduces wasted debugging on preview/Vercel and external APIs.
 
 ## 2026-05-05 - Repo sem skills locais ativas
 
-Decision: remover as skills operacionais versionadas em `.agents/skills/` do repo e mantê-las apenas no ambiente global do usuário em `~/.agents/skills/`, preservando apenas `.agents/skills/archive/` como referência histórica.
+Decision: remover as skills operacionais versionadas em `.agents/skills/` do repo e mante-las apenas no ambiente global do usuario em `~/.agents/skills/`, preservando apenas `.agents/skills/archive/` como referencia historica.
 
-Reason: separar o ambiente operacional do conteúdo versionado reduz acoplamento com o repositório, tira essas skills do escopo do GitHub e preserva as lições aprendidas já documentadas.
+Reason: separar o ambiente operacional do conteudo versionado reduz acoplamento com o repositorio, tira essas skills do escopo do GitHub e preserva as licoes aprendidas ja documentadas.
 
 ## 2026-05-16 - Pinecone frontend env aceito para app interno
 
 Decision: manter `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` no frontend durante a Sprint 9.
 
-Reason: o owner confirmou que o app é interno/fechado e aceitou o risco operacional. OI-055 passa a ser risco aceito e deve ser reavaliado se o app virar externo.
+Reason: o owner confirmou que o app e interno/fechado e aceitou o risco operacional. OI-055 passa a ser risco aceito e deve ser reavaliado se o app virar externo.
 
 ## 2026-05-16 - LastAction movido para types.ts
 
-Decision: mover tipo `LastAction` de `features/chat/message-orchestrator.ts` para `types.ts` para eliminar dependência circular com `stores/chatStore.tsx`.
+Decision: mover tipo `LastAction` de `features/chat/message-orchestrator.ts` para `types.ts` para eliminar dependencia circular com `stores/chatStore.tsx`.
 
-Reason: `chatStore` importa `LastAction` de `message-orchestrator`, e `message-orchestrator` importa `useMaybeChatStore` de `chatStore`, criando ciclo detectável por `madge`. Mover o tipo compartilhado para `types.ts` segue o padrão do repo onde `types.ts` é a fonte centralizada de contratos.
+Reason: `chatStore` importa `LastAction` de `message-orchestrator`, e `message-orchestrator` importa `useMaybeChatStore` de `chatStore`, criando ciclo detectavel por `madge`. Mover o tipo compartilhado para `types.ts` segue o padrao do repo onde `types.ts` e a fonte centralizada de contratos.
 
 ## 2026-05-16 - Review com agente especializado antes de PR
 
 Decision: toda PR da Sprint 9+ deve passar por review com agente `reviewer` antes do commit final.
 
-Reason: a review encontrou 2 P1 e 4 P2 que teriam ido para a PR sem detecção. O custo de rodar o reviewer é baixo comparado ao risco de merge com issues de segurança ou arquiteturais.
+Reason: a review encontrou 2 P1 e 4 P2 que teriam ido para a PR sem deteccao. O custo de rodar o reviewer e baixo comparado ao risco de merge com issues de seguranca ou arquiteturais.
 
 ## 2026-05-16 - Onda 0+1 antes da Sprint 10
 
 Decision: executar uma ponte curta `refactor/wave-0-1-cleanup` antes de abrir a Sprint 10.
 
-Reason: a PR `#254` já estava mergeada em `main`, mas os docs/memórias ainda tratavam Sprint 9 como aberta. A mesma investigação encontrou dois ajustes pequenos e seguros para fazer antes do Radar: corrigir o hold parcial de PORTA e trocar logs cliente sensíveis por `scoutDiag`. Escopos maiores (`Radar`, componentes grandes, PWA, performance) ficam fora desta onda para preservar revisão pequena.
+Reason: a PR `#254` ja estava mergeada em `main`, mas os docs/memorias ainda tratavam Sprint 9 como aberta. A mesma investigacao encontrou dois ajustes pequenos e seguros para fazer antes do Radar: corrigir o hold parcial de PORTA e trocar logs cliente sensiveis por `scoutDiag`. Escopos maiores (`Radar`, componentes grandes, PWA, performance) ficam fora desta onda para preservar revisao pequena.
 
 ## 2026-05-16 - Sprint 10 preserva facades Radar
 
 Decision: mover o runtime do Radar para `features/radar/*`, mas manter `hooks/useRadar.ts` e `services/radarService.ts` como facades de compatibilidade nesta PR.
 
-Reason: a Sprint 10 é uma mudança de boundary, não redesign funcional. Preservar os caminhos públicos reduz risco para consumidores existentes, enquanto `tests/architecture/radarBoundaryImportGuard.test.ts` impede novos imports de produção pelos caminhos legados.
+Reason: a Sprint 10 e uma mudanca de boundary, nao redesign funcional. Preservar os caminhos publicos reduz risco para consumidores existentes, enquanto `tests/architecture/radarBoundaryImportGuard.test.ts` impede novos imports de producao pelos caminhos legados.
 
 ## 2026-05-19 - Mini CRM local removido
 
-Decision: remover completamente o Mini CRM local do app (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos, tipos e testes dedicados) e retirar `CRMDetail` da trilha de refatoração da Sprint 11.
+Decision: remover completamente o Mini CRM local do app (`CRMProvider`, `CRMView`, `CRMDetail`, `CRMPipeline`, contratos, tipos e testes dedicados) e retirar `CRMDetail` da trilha de refatoracao da Sprint 11.
 
-Reason: o owner confirmou que o Mini CRM não é usado e não será usado. Remover a feature reduz superfície de manutenção e elimina um hotspot grande sem investir em refatoração de algo sem valor de produto.
+Reason: o owner confirmou que o Mini CRM nao e usado e nao sera usado. Remover a feature reduz superficie de manutencao e elimina um hotspot grande sem investir em refatoracao de algo sem valor de produto.
 
-Constraint: preservar referências ao CRM interno Senior em prompts, evidências, fixtures e dossiês, pois elas representam fonte comercial de inteligência e não a feature Mini CRM local.
+Constraint: preservar referencias ao CRM interno Senior em prompts, evidencias, fixtures e dossies, pois elas representam fonte comercial de inteligencia e nao a feature Mini CRM local.
 
 ## 2026-05-19 - Vite dev deve proxiar rotas serverless usadas pelo app
 
-Decision: centralizar as rotas de proxy local em `config/localDevApiProxy.ts` e incluir `/api/open-web-search`, `/api/link-status`, `/api/extract-content`, `/api/rag` e `/api/docs-rag` além das rotas já existentes.
+Decision: centralizar as rotas de proxy local em `config/localDevApiProxy.ts` e incluir `/api/open-web-search`, `/api/link-status`, `/api/extract-content`, `/api/rag` e `/api/docs-rag` alem das rotas ja existentes.
 
-Reason: o Vercel é o runtime real, mas `npm run dev` precisa evitar falsos 404 para rotas serverless usadas pelo frontend e pelo fluxo de investigação.
+Reason: o Vercel e o runtime real, mas `npm run dev` precisa evitar falsos 404 para rotas serverless usadas pelo frontend e pelo fluxo de investigacao.
 
 ## 2026-05-20 - AdminDash removido por decisão de produto
 
 Decision: remover completamente o AdminDash (`components/AdminDash.tsx`, `hooks/useAdminMetrics.ts`, testes dedicados) e a prop `onOpenAdminDash` de `ChatInterface`, `ChatShell` e `App.tsx`.
 
-Reason: o painel administrativo não era usado e não tinha valor de produto. Remover reduz superfície de manutenção e simplifica o header (o botão de admin foi substituído pelo breadcrumb).
+Reason: o painel administrativo nao era usado e nao tinha valor de produto. Remover reduz superficie de manutencao e simplifica o header (o botao de admin foi substituido pelo breadcrumb).
 
-Constraint: o estado `activeView` e a lógica de `isAdminOpen` foram removidos de `App.tsx`.
+Constraint: o estado `activeView` e a logica de `isAdminOpen` foram removidos de `App.tsx`.
 
 ## 2026-05-20 - UX Redesign Phase 1 priorizado sobre Design System
 
 Decision: executar melhorias incrementais de UX (AdminDash removal, breadcrumb, sidebar, error feedback) em vez do Design System completo (Sprints 17-20).
 
-Reason: o owner avaliou que um Design System formal não se justifica para app interno. Melhorias incrementais de usabilidade têm ROI mais alto e custo mais baixo.
+Reason: o owner avaliou que um Design System formal nao se justifica para app interno. Melhorias incrementais de usabilidade tem ROI mais alto e custo mais baixo.
 
 Constraint: o escopo foi limitado a 4 itens (AdminDash, breadcrumb, sidebar, error feedback). Simplificar a tela inicial (EmptyStateHome) e unificar loading foram rejeitados pelo owner.
 
 ## 2026-05-22 - allowRawHtml=false como padrão seguro
 
-Decision: alterar `components/MarkdownRenderer.tsx` para `securityLevel: 'strict'` e `allowRawHtml` default `false`. Links HTML de resultados de pesquisa (`<a href>`) são convertidos para markdown `[text](url)` via regex no `processedContent`, e citações `[🟢 url]` geram markdown links em vez de HTML.
+Decision: alterar `components/MarkdownRenderer.tsx` para `securityLevel: 'strict'` e `allowRawHtml` default `false`. Links HTML de resultados de pesquisa (`<a href>`) sao convertidos para markdown `[text](url)` via regex no `processedContent`, e citacoes `[url]` geram markdown links em vez de HTML.
 
-Reason: prevenção de XSS. Em vez de reabilitar `rehypeRaw` (que permitiria HTML arbitrário), o conteúdo pré-processado normaliza HTML conhecido para markdown puro. Isso mantém a segurança sem quebrar links de pesquisa.
+Reason: prevencao de XSS. Em vez de reabilitar `rehypeRaw` (que permitiria HTML arbitrario), o conteudo pre-processado normaliza HTML conhecido para markdown puro. Isso mantem a seguranca sem quebrar links de pesquisa.
 
-Constraint: se `rehypeRaw` for reintroduzido no futuro, deve vir com `allowedElements` e `disallowedTagsMode: 'escape'` explícitos.
+Constraint: se `rehypeRaw` for reintroduzido no futuro, deve vir com `allowedElements` e `disallowedTagsMode: 'escape'` explicitos.
 
 ## 2026-05-22 - clientLookupService: match parcial não inclui dados CRM
 
-Decision: em `services/clientLookupService.ts`, quando `matchType !== 'exact'`, `formatarParaPrompt()` não inclui dados detalhados de CRM (módulos, gaps). Retorna apenas um alerta instruindo o modelo a tratar a empresa como PROSPECT.
+Decision: em `services/clientLookupService.ts`, quando `matchType !== 'exact'`, `formatarParaPrompt()` nao inclui dados detalhados de CRM (modulos, gaps). Retorna apenas um alerta instruindo o modelo a tratar a empresa como PROSPECT.
 
-Reason: empresas similares (ex: "Pampa" vs "Pampafoods") causavam alucinação do Gemini, que usava dados de módulos/gaps de uma empresa na resposta sobre outra. Omitir dados CRM em match parcial elimina a fonte de confusão.
+Reason: empresas similares (ex: "Pampa" vs "Pampafoods") causavam alucinacao do Gemini, que usava dados de modulos/gaps de uma empresa na resposta sobre outra. Omitir dados CRM em match parcial elimina a fonte de confusao.
 
 ## 2026-05-22 - setSecurityHeaders com guard de compatibilidade
 
-Decision: `api/_security-headers.ts` usa `typeof res.setHeader !== 'function'` como guard antes de aplicar security headers, em vez de lançar erro ou exigir mock completo em testes.
+Decision: `api/_security-headers.ts` usa `typeof res.setHeader !== 'function'` como guard antes de aplicar security headers, em vez de lancar erro ou exigir mock completo em testes.
 
-Reason: testes Vitest que chamam handlers serverless sem mock completo do objeto `res` não quebram. O guard é silencioso — se `setHeader` não existe, os headers simplesmente não são aplicados. Isso é aceitável porque segurança header é uma preocupação de runtime Vercel, não de teste unitário.
+Reason: testes Vitest que chamam handlers serverless sem mock completo do objeto `res` nao quebram. O guard e silencioso — se `setHeader` nao existe, os headers simplesmente nao sao aplicados. Isso e aceitavel porque seguranca header e uma preocupacao de runtime Vercel, nao de teste unitario.
 
 ## 2026-05-22 - Pinecone exclusivamente via serverless
 
-Decision: remover `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` de `index.tsx` (`OPTIONAL_ENV_VARS`) e do bundle frontend. Pinecone é usado exclusivamente em `api/rag.ts` e `api/docs-rag.ts`.
+Decision: remover `VITE_PINECONE_API_KEY` e `VITE_PINECONE_INDEX_HOST` de `index.tsx` (`OPTIONAL_ENV_VARS`) e do bundle frontend. Pinecone e usado exclusivamente em `api/rag.ts` e `api/docs-rag.ts`.
 
-Reason: variáveis `VITE_*` são inlineadas no bundle frontend no build, expondo chaves de API no navegador. Como o Pinecone já era acessado apenas via serverless functions, esta mudança remove o risco sem perda funcional. A decisão anterior de 2026-05-16 (Pinecone frontend env aceito para app interno) fica sobrescrita.
+Reason: variaveis `VITE_*` sao inlineadas no bundle frontend no build, expondo chaves de API no navegador. Como o Pinecone ja era acessado apenas via serverless functions, esta mudanca remove o risco sem perda funcional. A decisao anterior de 2026-05-16 (Pinecone frontend env aceito para app interno) fica sobrescrita.
 
 ## 2026-05-19 - Modelo canônico enxuto para planos em aberto
 
-Decision: manter `02-BOARD.md` como status vivo, `03-OPEN-ITEMS.md` como fila de riscos/OIs, `sprints/SPRINT-11-EXECUTION.md` como plano executável da Sprint 11, e tratar `docs/obsidian/*` como navegação visual, não fonte de verdade.
+Decision: manter `02-BOARD.md` como status vivo, `03-OPEN-ITEMS.md` como fila de riscos/OIs, `sprints/SPRINT-11-EXECUTION.md` como plano executavel da Sprint 11, e tratar `docs/obsidian/*` como navegacao visual, nao fonte de verdade.
 
-Reason: após a PR `#259`, havia duplicação entre handoffs, board, índice de sprints e roadmap Obsidian, com referências antigas a Sprint 8/10 e `CRMDetail`. O modelo enxuto reduz retrabalho e impede que agentes escolham um plano stale como próximo passo.
+Reason: apos a PR `#259`, havia duplicacao entre handoffs, board, indice de sprints e roadmap Obsidian, com referencias antigas a Sprint 8/10 e `CRMDetail`. O modelo enxuto reduz retrabalho e impede que agentes escolham um plano stale como proximo passo.
+
+## 2026-05-22 - Supabase como camada de persistencia primaria
+
+Decision: migrar armazenamento persistente de IndexedDB/localStorage para Supabase, mantendo IDB como cache offline. Arquitetura offline-first: browser -> Supabase (anon key + RLS por operator_id).
+
+Reason: dados de operadores (dossies, radar alerts, configuracoes) precisam sobreviver a limpeza de cache do navegador e serem acessiveis de qualquer dispositivo. Supabase oferece schema SQL, RLS por linha, tempo real e planos gratuitos que cobrem o volume atual. A escolha de conexao direta (sem serverless API layer) reduz latencia e custo de operacao.
+
+Options considered:
+- A: Supabase direto do browser (escolhido) — menor latencia, sem custo de serverless, sem camada extra
+- B: Serverless functions como proxy — maior seguranca percebida, mas adiciona latencia e custo Vercel
+- C: Firebase Firestore — alternativa valida, mas exigiria outro provider alem do Supabase para SQL queries
+
+## 2026-05-22 - Auth postergada, UUID local como operator_id
+
+Decision: manter autenticacao local-only por enquanto. `operator_id` continua sendo UUID gerado no browser e armazenado em IDB. O campo `email` foi adicionado ao registro para identificacao do operador.
+
+Reason: Supabase Auth adicionaria complexidade de fluxo de login, recovery de senha e gerenciamento de sessao que nao sao necessarios para o uso atual (app interno, operadores conhecidos). O RLS usa `operator_id` como chave de isolamento, que e tao seguro quanto o UUID local. Quando autenticacao for necessaria, a migracao e direta: substituir o UUID local pelo `auth.uid()` do Supabase.
+
+Constraint: esta decisao deve ser reavaliada se o app virar externo ou se houver necessidade de auditoria de acesso por operador.
+
+## 2026-05-22 - Offline-first com sync queue
+
+Decision: escritas vao primeiro para IndexedDB (instantaneas) e depois sincronizam com Supabase em background via `services/syncQueue.ts`. Leituras usam stale-while-revalidate: IDB primeiro, Supabase em background, atualiza cache.
+
+Reason: garantir que o app funcione sem conexao com a internet (offline-first). Vendedores podem estar em campo com conectividade intermitente. A sync queue com retry (backoff exponencial 3s/9s/27s) e dead-letter queue garante que nenhuma operacao seja perdida.
+
+Constraint: se a fila IDB crescer muito (milhares de operacoes pendentes), pode afetar performance. O dead-letter queue trata falhas irrecoveraveis sem travar o fluxo.
+
+## 2026-05-22 - Supabase direto sem serverless API layer
+
+Decision: o browser conecta-se diretamente ao Supabase via anon key, sem passar por serverless functions do Vercel como proxy.
+
+Reason: adicionar uma camada serverless entre browser e Supabase aumenta latencia, dobra o custo de execucao (Vercel + Supabase) e nao adiciona seguranca real porque o RLS do Supabase ja isola dados por operator_id. A anon key e restrita por RLS e grants especificos. Esta abordagem e a mais simples, mais rapida e mais barata.
+
+Options considered:
+- A: Conexao direta (escolhida) — simples, rapida, barata
+- B: Serverless proxy (rejeitada) — mais complexa, mais cara, sem ganho real de seguranca
+- C: Hibrido (algumas operacoes diretas, outras via serverless) — complexidade desnecessaria
+
+Constraint: se no futuro houver necessidade de logica de servidor (webhooks, validacao complexa, agendamento), uma API layer Vercel pode ser adicionada seletivamente sem quebrar o modelo existente.
