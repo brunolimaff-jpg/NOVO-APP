@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Tooltip from './Tooltip';
 import { ChatSession } from '../types';
 import { cleanTitle } from '../utils/textCleaners';
+import { useIsMobile } from '../hooks/useIsMobile';
 import ConfirmPopover from './ConfirmPopover';
 
 interface SessionsSidebarProps {
@@ -36,6 +37,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   showSearchField = true,
   toggleButtonRef,
 }) => {
+  const isMobile = useIsMobile();
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const asideRef = useRef<HTMLElement>(null);
   const searchControlled = searchTermProp !== undefined && onSearchChange !== undefined;
@@ -108,7 +110,6 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   };
 
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
     if (!isOpen || !isMobile) return;
 
     const focusable = asideRef.current?.querySelector<HTMLElement>(
@@ -141,7 +142,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onCloseMobile, toggleButtonRef]);
+  }, [isOpen, isMobile, onCloseMobile, toggleButtonRef]);
 
   return (
     <>
@@ -155,7 +156,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
         id="sessions-sidebar-panel"
         ref={asideRef}
         role="dialog"
-        aria-modal={window.innerWidth < 768 ? 'true' : undefined}
+        aria-modal={isMobile ? 'true' : undefined}
         aria-label="Histórico de investigações"
         className={`
         fixed inset-y-0 left-0 z-30 h-full border-r flex flex-col
@@ -174,7 +175,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                     <button
                       onClick={() => {
                           onNewSession();
-                          if (window.innerWidth < 768) onCloseMobile();
+                          if (isMobile) onCloseMobile();
                       }}
                       className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${theme.newChatBtn}`}
                     >
@@ -232,7 +233,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                             type="button"
                             onClick={() => {
                               onSelectSession(session.id);
-                              if (window.innerWidth < 768) onCloseMobile();
+                              if (isMobile) onCloseMobile();
                             }}
                             className="flex w-full items-start gap-3 text-left"
                             aria-current={isActive ? 'true' : undefined}
