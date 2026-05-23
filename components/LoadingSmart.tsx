@@ -9,6 +9,10 @@ import {
   LOADING_STAGE_ORDER_BY_KEY,
 } from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
+import { StepSpinner } from './LoadingShared';
+import { LoadingOverlayHeader } from './LoadingOverlayHeader';
+import { LoadingStepsList } from './LoadingStepsList';
+import { LoadingInsightCarousel } from './LoadingInsightCarousel';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -57,37 +61,6 @@ function ClockIcon({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="9" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
     </svg>
-  );
-}
-
-/* ── Sub-components ──────────────────────────────────────────────────── */
-
-function StepCheckIcon({ isDarkMode }: { isDarkMode: boolean }) {
-  return (
-    <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
-      isDarkMode ? 'bg-emerald-500/20' : 'bg-emerald-100'
-    }`}>
-      <svg className={`w-4 h-4 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-      </svg>
-    </div>
-  );
-}
-
-function StepSpinner({ isDarkMode }: { isDarkMode: boolean }) {
-  return (
-    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center relative">
-      <div className={`absolute inset-0 rounded-full ${isDarkMode ? 'bg-emerald-500/10' : 'bg-emerald-100/60'} animate-ping`} style={{ animationDuration: '2s' }} />
-      <div className={`w-5 h-5 border-2 ${isDarkMode ? 'border-emerald-400' : 'border-emerald-600'} border-t-transparent rounded-full animate-spin`} />
-    </div>
-  );
-}
-
-function StepPending({ isDarkMode }: { isDarkMode: boolean }) {
-  return (
-    <div className={`flex-shrink-0 w-7 h-7 rounded-full border-2 ${
-      isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-300 bg-slate-100'
-    }`} />
   );
 }
 
@@ -475,50 +448,15 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       } ${isFadingOut && !isLoading ? 'opacity-0 transition-opacity duration-400' : ''}`}
       style={{ backdropFilter: 'blur(8px)' }}
     >
-      {/* ── Header ── */}
-      <div className={`flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-3 md:py-4 border-b ${
-        isDarkMode ? 'border-slate-800' : 'border-slate-200'
-      }`}>
-        <div className="flex w-full min-w-0 items-center gap-2 md:w-auto md:gap-3">
-          <div className={`w-3 h-3 flex-shrink-0 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
-          <h1 className={`text-sm md:text-base font-bold tracking-tight truncate ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>Senior Scout 360</h1>
-          {companyFocus && (
-            <span className={`hidden sm:inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 ${
-              isDarkMode ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-            }`}>
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              {companyFocus}
-            </span>
-          )}
-        </div>
-        <div className="ml-0 flex w-full flex-wrap items-center justify-end gap-2 md:ml-2 md:w-auto md:gap-3">
-          <span className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg ${
-            isDarkMode ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-          }`}>
-            <ClockIcon className="w-3.5 h-3.5" />{elapsed}
-          </span>
-          {onStop && (
-            confirmStop ? (
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Interromper?</span>
-                <button onClick={() => { setConfirmStop(false); onStop(); }}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full transition-all text-xs font-bold">Sim</button>
-                <button onClick={() => setConfirmStop(false)}
-                  className={`px-3 py-1.5 rounded-full transition-all text-xs font-bold border ${
-                    isDarkMode ? 'border-slate-600 text-slate-400 hover:bg-slate-700' : 'border-slate-300 text-slate-500 hover:bg-slate-100'
-                  }`}>Não</button>
-              </div>
-            ) : (
-              <button onClick={() => setConfirmStop(true)}
-                className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold">
-                Interromper
-              </button>
-            )
-          )}
-        </div>
-      </div>
+      <LoadingOverlayHeader
+        isDarkMode={isDarkMode}
+        companyFocus={companyFocus}
+        elapsed={elapsed}
+        confirmStop={confirmStop}
+        onStop={onStop}
+        onRequestStop={() => setConfirmStop(true)}
+        onCancelStop={() => setConfirmStop(false)}
+      />
 
       {/* ── Centralized Progress Control ── */}
       <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-3 md:py-6">
@@ -540,59 +478,17 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       <div className="flex-1 px-4 pb-3 md:px-8 md:pb-4">
         <div className={`mx-auto grid grid-cols-1 items-start gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl md:grid-cols-1' : 'max-w-5xl md:grid-cols-2'}`}>
 
-          {/* Steps column */}
-          <div className="flex min-w-0 flex-col">
-            <h2 className={`text-xs md:text-sm font-bold uppercase tracking-wider mb-3 ${
-              isDarkMode ? 'text-slate-400' : 'text-slate-500'
-            }`}>Etapas da análise</h2>
-
-            <div className="flex flex-col gap-2.5 pr-0 md:gap-3 md:pr-2">
-              {visiblePlannedStages.map((step, i) => {
-                const stepKey = getLoadingStageIdentity(step.label);
-                const isCompleted = completedStageKeys.has(stepKey);
-                const isCurrent = !isCompleted && stepKey === currentStageKey;
-
-                return (
-                  <div key={`${stepKey || 'step'}-${i}`} className={`flex items-center gap-3 ${isCompleted ? 'animate-fade-in' : ''}`}>
-                    {isCompleted ? (
-                      <StepCheckIcon isDarkMode={isDarkMode} />
-                    ) : isCurrent ? (
-                      <StepSpinner isDarkMode={isDarkMode} />
-                    ) : (
-                      <StepPending isDarkMode={isDarkMode} />
-                    )}
-                    <span className={`text-sm flex-1 min-w-0 break-words ${
-                      isCompleted
-                        ? (isDarkMode ? 'text-slate-500' : 'text-slate-400')
-                        : isCurrent
-                          ? (isDarkMode ? 'text-slate-200 font-medium' : 'text-slate-700 font-medium')
-                          : (isDarkMode ? 'text-slate-500' : 'text-slate-500')
-                    }`}>
-                      {step.label}
-                    </span>
-                    {isCompleted && stepTimestampsRef.current[step.label] !== undefined ? (
-                      <span className={`text-xs font-mono flex-shrink-0 tabular-nums ${
-                        isDarkMode ? 'text-slate-600' : 'text-slate-300'
-                      }`}>
-                        +{formatElapsed(stepTimestampsRef.current[step.label])}
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
-
-              {shouldAppendCurrentStage ? (
-                <div className="flex items-center gap-3">
-                  <StepSpinner isDarkMode={isDarkMode} />
-                  <span className={`text-sm flex-1 min-w-0 font-medium ${
-                    isDarkMode ? 'text-slate-200' : 'text-slate-700'
-                  }`}>
-                    {currentRich.label}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <LoadingStepsList
+            isDarkMode={isDarkMode}
+            visiblePlannedStages={visiblePlannedStages}
+            completedStageKeys={completedStageKeys}
+            currentStageKey={currentStageKey}
+            currentRichLabel={currentRich.label}
+            shouldAppendCurrentStage={shouldAppendCurrentStage}
+            stepTimestamps={stepTimestampsRef.current}
+            getStageKey={getLoadingStageIdentity}
+            formatElapsed={formatElapsed}
+          />
 
           {!isIncremental && (
             <div className="hidden lg:flex items-center justify-center">
@@ -602,48 +498,17 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         </div>
       </div>
 
-      {/* ── Insight carousel ── */}
-      <div className={`flex-shrink-0 px-4 py-3 md:px-8 md:py-4 border-t ${
-        isDarkMode ? 'border-slate-800' : 'border-slate-200'
-      }`}>
-        <div className={`mx-auto w-full max-w-3xl rounded-xl px-4 py-3 md:px-5 ${
-          isDarkMode ? 'bg-slate-900/80 border border-emerald-500/15' : 'bg-emerald-50/50 border border-emerald-200'
-        }`}>
-          <div className="flex items-start gap-3 mb-2">
-            <span className="text-base flex-shrink-0">💡</span>
-            <div className={`flex-1 min-w-0 transition-opacity duration-300 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
-              <p className={`text-xs font-black uppercase tracking-widest mb-1 ${
-                isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-              }`}>Contexto estratégico</p>
-              <div className="max-h-none">
-                <p className={`text-sm font-medium leading-relaxed ${isDarkMode ? 'text-slate-100' : 'text-slate-700'}`}>
-                  {renderInsight(currentInsight)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center justify-center gap-3">
-            <button onClick={() => goToInsight(activeInsightIndex - 1)}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                isDarkMode ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200' : 'hover:bg-emerald-100 text-slate-400 hover:text-slate-600'
-              }`} aria-label="Insight anterior">‹</button>
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: Math.min(totalCuriosities, 6) }).map((_, i) => (
-                <button key={i} onClick={() => goToInsight(i)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === activeInsightIndex
-                      ? (isDarkMode ? 'bg-emerald-400 w-3' : 'bg-emerald-500 w-3')
-                      : (isDarkMode ? 'bg-slate-600' : 'bg-slate-300')
-                  }`} aria-label={`Insight ${i + 1}`} />
-              ))}
-            </div>
-            <button onClick={() => goToInsight(activeInsightIndex + 1)}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                isDarkMode ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200' : 'hover:bg-emerald-100 text-slate-400 hover:text-slate-600'
-              }`} aria-label="Próximo insight">›</button>
-          </div>
-        </div>
-      </div>
+      <LoadingInsightCarousel
+        isDarkMode={isDarkMode}
+        isFadingOut={isFadingOut}
+        currentInsight={currentInsight}
+        activeInsightIndex={activeInsightIndex}
+        totalCuriosities={totalCuriosities}
+        onPrev={() => goToInsight(activeInsightIndex - 1)}
+        onNext={() => goToInsight(activeInsightIndex + 1)}
+        onGoTo={goToInsight}
+        renderInsight={renderInsight}
+      />
     </div>
   );
 
