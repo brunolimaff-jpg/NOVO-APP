@@ -9,7 +9,7 @@ import {
   LOADING_STAGE_ORDER_BY_KEY,
 } from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
-import { StepSpinner } from './LoadingShared';
+import { ClockIcon, StepSpinner } from './LoadingShared';
 import { LoadingOverlayHeader } from './LoadingOverlayHeader';
 import { LoadingStepsList } from './LoadingStepsList';
 import { LoadingInsightCarousel } from './LoadingInsightCarousel';
@@ -51,17 +51,6 @@ interface LoadingSmartProps {
   };
   searchQuery?: string;
   empresaAlvo?: string | null;
-}
-
-/* ── SVG Icons ───────────────────────────────────────────────────────── */
-
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
-    </svg>
-  );
 }
 
 function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
@@ -389,6 +378,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     };
   }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey]);
 
+  const handleRequestStop = useCallback(() => setConfirmStop(true), []);
+  const handleCancelStop = useCallback(() => setConfirmStop(false), []);
+  const handlePrev = useCallback(() => goToInsight(activeInsightIndex - 1), [goToInsight, activeInsightIndex]);
+  const handleNext = useCallback(() => goToInsight(activeInsightIndex + 1), [goToInsight, activeInsightIndex]);
+
   if (!isVisible) return null;
 
   const {
@@ -454,8 +448,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         elapsed={elapsed}
         confirmStop={confirmStop}
         onStop={onStop}
-        onRequestStop={() => setConfirmStop(true)}
-        onCancelStop={() => setConfirmStop(false)}
+        onRequestStop={handleRequestStop}
+        onCancelStop={handleCancelStop}
       />
 
       {/* ── Centralized Progress Control ── */}
@@ -504,8 +498,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
         currentInsight={currentInsight}
         activeInsightIndex={activeInsightIndex}
         totalCuriosities={totalCuriosities}
-        onPrev={() => goToInsight(activeInsightIndex - 1)}
-        onNext={() => goToInsight(activeInsightIndex + 1)}
+        onPrev={handlePrev}
+        onNext={handleNext}
         onGoTo={goToInsight}
         renderInsight={renderInsight}
       />

@@ -1,4 +1,5 @@
 import React from 'react';
+import { ClockIcon } from './LoadingShared';
 
 interface LoadingOverlayHeaderProps {
   isDarkMode: boolean;
@@ -10,16 +11,7 @@ interface LoadingOverlayHeaderProps {
   onCancelStop: () => void;
 }
 
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
-    </svg>
-  );
-}
-
-export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = ({
+export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.memo(({
   isDarkMode, companyFocus, elapsed, confirmStop, onStop, onRequestStop, onCancelStop,
 }) => (
   <div className={`flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 md:px-8 py-3 md:py-4 border-b ${
@@ -65,4 +57,4 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = ({
       )}
     </div>
   </div>
-);
+));

@@ -12,10 +12,18 @@ interface LoadingInsightCarouselProps {
   renderInsight: (insight: string) => React.ReactNode;
 }
 
-export const LoadingInsightCarousel: React.FC<LoadingInsightCarouselProps> = ({
+const MAX_DOTS = 6;
+
+export const LoadingInsightCarousel: React.FC<LoadingInsightCarouselProps> = React.memo(({
   isDarkMode, isFadingOut, currentInsight, activeInsightIndex, totalCuriosities,
   onPrev, onNext, onGoTo, renderInsight,
-}) => (
+}) => {
+  const dotCount = Math.min(totalCuriosities, MAX_DOTS);
+  const dotStart = totalCuriosities <= MAX_DOTS
+    ? 0
+    : Math.max(0, Math.min(activeInsightIndex - 2, totalCuriosities - MAX_DOTS));
+
+  return (
   <div className={`flex-shrink-0 px-4 py-3 md:px-8 md:py-4 border-t ${
     isDarkMode ? 'border-slate-800' : 'border-slate-200'
   }`}>
@@ -41,14 +49,16 @@ export const LoadingInsightCarousel: React.FC<LoadingInsightCarouselProps> = ({
             isDarkMode ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200' : 'hover:bg-emerald-100 text-slate-400 hover:text-slate-600'
           }`} aria-label="Insight anterior">‹</button>
         <div className="flex items-center gap-1.5">
-          {Array.from({ length: Math.min(totalCuriosities, 6) }).map((_, i) => (
-            <button key={i} onClick={() => onGoTo(i)}
+          {Array.from({ length: dotCount }).map((_, i) => {
+            const realIndex = dotStart + i;
+            return (
+            <button key={realIndex} onClick={() => onGoTo(realIndex)}
               className={`w-2 h-2 rounded-full transition-all ${
-                i === activeInsightIndex
+                realIndex === activeInsightIndex
                   ? (isDarkMode ? 'bg-emerald-400 w-3' : 'bg-emerald-500 w-3')
                   : (isDarkMode ? 'bg-slate-600' : 'bg-slate-300')
-              }`} aria-label={`Insight ${i + 1}`} />
-          ))}
+              }`} aria-label={`Insight ${realIndex + 1}`} />
+          )})}
         </div>
         <button onClick={onNext}
           className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
@@ -57,4 +67,4 @@ export const LoadingInsightCarousel: React.FC<LoadingInsightCarouselProps> = ({
       </div>
     </div>
   </div>
-);
+)});

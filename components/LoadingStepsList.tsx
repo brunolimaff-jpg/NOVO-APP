@@ -13,7 +13,7 @@ interface LoadingStepsListProps {
   formatElapsed: (ms: number) => string;
 }
 
-export const LoadingStepsList: React.FC<LoadingStepsListProps> = ({
+export const LoadingStepsList: React.FC<LoadingStepsListProps> = React.memo(({
   isDarkMode, visiblePlannedStages, completedStageKeys, currentStageKey,
   currentRichLabel, shouldAppendCurrentStage, stepTimestamps, getStageKey,
   formatElapsed,
@@ -70,4 +70,4 @@ export const LoadingStepsList: React.FC<LoadingStepsListProps> = ({
       ) : null}
     </div>
   </div>
-);
+));
