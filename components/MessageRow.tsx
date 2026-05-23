@@ -78,6 +78,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     processing,
     onSendMessage,
     empresaAlvo,
+    cnpj,
   } = data;
 
   if (!messages || !Array.isArray(messages)) return null;
@@ -207,6 +208,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 isDarkMode={isDarkMode}
                 mode={mode}
                 empresaAlvo={empresaAlvo}
+                cnpj={cnpj}
                 auditableSources={auditableSources}
                 onPreFillInput={text => {
                   if (onSendMessage) {

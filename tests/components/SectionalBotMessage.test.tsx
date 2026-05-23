@@ -12,6 +12,12 @@ vi.mock('../../components/SmartOptions', () => ({
   parseSmartOptions: (text?: string) => ({ cleanText: text || '', options: [] }),
 }));
 
+vi.mock('../../features/dossier/SocietaryMap', () => ({
+  default: ({ cnpj, empresaAlvo }: { cnpj?: string | null; empresaAlvo?: string | null }) => (
+    <div data-testid="societary-map">{cnpj}::{empresaAlvo}</div>
+  ),
+}));
+
 describe('SectionalBotMessage', () => {
   it('destaca módulos principais quando o dossiê tem múltiplos headers H1', () => {
     const message: Message = {
@@ -101,6 +107,33 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/Borda logística/)).toBeInTheDocument();
     expect(container.querySelector('[data-section-kind="maps"]')).toBeInTheDocument();
     expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
+  });
+
+  it('renderiza mapa societário Tipo 5 dentro da seção de teia quando há CNPJ', () => {
+    const message: Message = {
+      id: 'bot-teia',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '## Mapas Visuais',
+        '',
+        '### Mapa: Teia societária',
+        '',
+        'Conteúdo textual da teia.',
+      ].join('\n'),
+    };
+
+    render(
+      <SectionalBotMessage
+        message={message}
+        isDarkMode={false}
+        empresaAlvo="Scheffer & Cia"
+        cnpj="04733767000180"
+      />,
+    );
+
+    expect(screen.getByTestId('societary-map')).toHaveTextContent('04733767000180::Scheffer & Cia');
+    expect(screen.getByText(/Conteúdo textual da teia/)).toBeInTheDocument();
   });
 
   it('mostra feedback apenas em seções relevantes', () => {

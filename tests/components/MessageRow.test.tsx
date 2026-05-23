@@ -7,8 +7,9 @@ import type { Message } from '../../types';
 import { Sender } from '../../types';
 import type { MessageRowData } from '../../components/MessageRow';
 
-const { sectionalBotShouldThrowRef } = vi.hoisted(() => ({
+const { sectionalBotShouldThrowRef, sectionalBotPropsRef } = vi.hoisted(() => ({
   sectionalBotShouldThrowRef: { current: false },
+  sectionalBotPropsRef: { current: null as null | { empresaAlvo?: string | null; cnpj?: string | null } },
 }));
 
 // Mock all heavy sub-components
@@ -21,12 +22,13 @@ vi.mock('../../components/ErrorMessageCard', () => ({
   ),
 }));
 vi.mock('../../components/SectionalBotMessage', () => ({
-  default: ({ text }: { text: string }) => {
+  default: (props: { text?: string; empresaAlvo?: string | null; cnpj?: string | null }) => {
     if (sectionalBotShouldThrowRef.current) {
       throw new Error('sectional render failed');
     }
 
-    return <div data-testid="sectional-bot">{text}</div>;
+    sectionalBotPropsRef.current = props;
+    return <div data-testid="sectional-bot">{props.text}</div>;
   },
 }));
 vi.mock('../../components/LoadingSmart', () => ({
@@ -92,6 +94,7 @@ describe('MessageRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sectionalBotShouldThrowRef.current = false;
+    sectionalBotPropsRef.current = null;
   });
 
   it('retorna null quando index está fora dos limites', () => {
@@ -190,6 +193,28 @@ describe('MessageRow', () => {
     });
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
+  });
+
+  it('repassa empresa alvo e CNPJ para o SectionalBotMessage', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Análise Completa\nConteúdo aqui',
+    });
+
+    render(
+      <MessageRow
+        index={0}
+        data={makeData([msg], {
+          empresaAlvo: 'Scheffer & Cia',
+          cnpj: '04733767000180',
+        })}
+      />,
+    );
+
+    expect(sectionalBotPropsRef.current).toMatchObject({
+      empresaAlvo: 'Scheffer & Cia',
+      cnpj: '04733767000180',
+    });
   });
 
   it('não renderiza badge visual de verificação web no chat', () => {
