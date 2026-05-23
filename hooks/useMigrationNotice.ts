@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 
 const STORAGE_KEY_MIGRATION_SEEN = 'scout360:supabase_migration_seen';
-const STORAGE_KEY_OPERATOR_ID = 'scout360:operator_id';
 
-export function useMigrationNotice() {
+export function useMigrationNotice(operatorId: string | null | undefined) {
   const [showMigrationNotice, setShowMigrationNotice] = useState(false);
 
   const dismissMigrationNotice = useCallback(() => {
@@ -13,12 +12,11 @@ export function useMigrationNotice() {
 
   useEffect(() => {
     const alreadySeen = localStorage.getItem(STORAGE_KEY_MIGRATION_SEEN);
-    const hasOperator = !!localStorage.getItem(STORAGE_KEY_OPERATOR_ID);
 
-    if (!alreadySeen && hasOperator) {
+    if (!alreadySeen && operatorId) {
       setShowMigrationNotice(true);
     }
-  }, []);
+  }, [operatorId]);
 
   return {
     showMigrationNotice,

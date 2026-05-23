@@ -35,6 +35,11 @@ export function useUpdateNotification() {
   // Atualizar agora (limpar cache + reload)
   const updateNow = useCallback(async () => {
     try {
+      // Persistir nova versão ANTES de limpar cache para evitar re-notificação
+      if (newVersion) {
+        localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, newVersion);
+      }
+
       // Deletar todos os caches
       const cacheNames = await caches.keys();
       await Promise.all(cacheNames.map(name => caches.delete(name)));
@@ -50,7 +55,7 @@ export function useUpdateNotification() {
       // Fallback: apenas recarregar
       window.location.reload();
     }
-  }, []);
+  }, [newVersion]);
 
   // Verificar se devemos fazer check (3 dias passaram)
   const shouldCheck = useCallback((): boolean => {
@@ -92,13 +97,15 @@ export function useUpdateNotification() {
       if (!contentType.includes('application/json')) return;
 
       const versionData: VersionInfo = await response.json();
-      const storedVersion = localStorage.getItem(STORAGE_KEY_CURRENT_VERSION) || versionData.version;
+      const storedVersion = localStorage.getItem(STORAGE_KEY_CURRENT_VERSION);
 
       setCurrentVersion(storedVersion);
       setLastCheckTime(Date.now());
 
-      // Comparar versões (simples: usar string compare, assumindo versionamento semver)
-      if (isNewerVersion(versionData.version, storedVersion)) {
+      if (!storedVersion) {
+        // Primeiro acesso — registra versão corrente sem notificar
+        localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, versionData.version);
+      } else if (isNewerVersion(versionData.version, storedVersion)) {
         setNewVersion(versionData.version);
         setUpdateAvailable(true);
 
@@ -112,9 +119,6 @@ export function useUpdateNotification() {
         });
         window.dispatchEvent(event);
       }
-
-      // Sempre salvar versão corrente para futuras comparações funcionarem
-      localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, versionData.version);
 
       // Armazenar timestamp do check
       localStorage.setItem(STORAGE_KEY_LAST_CHECK, Date.now().toString());
