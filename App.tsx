@@ -15,6 +15,7 @@ import {
 import DossierErrorBoundary from './features/dossier/DossierErrorBoundary';
 import { useDossierWaterfallOrchestrator } from './features/dossier/waterfall-orchestrator';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
+import { useMigrationNotice } from './hooks/useMigrationNotice';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 
@@ -23,6 +24,7 @@ const LoadingSmart = React.lazy(() => import('./components/LoadingSmart'));
 const EmailModal = React.lazy(() => import('./components/EmailModal').then(m => ({ default: m.EmailModal })));
 const FollowUpModal = React.lazy(() => import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal })));
 const UpdateNotificationModal = React.lazy(() => import('./components/UpdateNotificationModal').then(m => ({ default: m.UpdateNotificationModal })));
+const MigrationNoticeModal = React.lazy(() => import('./components/MigrationNoticeModal').then(m => ({ default: m.MigrationNoticeModal })));
 import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
@@ -109,6 +111,9 @@ const App: React.FC = () => {
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
+
+  // Migration notice (Supabase)
+  const { showMigrationNotice, dismissMigrationNotice } = useMigrationNotice(operatorId);
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
@@ -479,7 +484,17 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {updateAvailable && (
+      {showMigrationNotice && (
+        <React.Suspense fallback={null}>
+          <MigrationNoticeModal
+            isDarkMode={isDarkMode}
+            onDismiss={dismissMigrationNotice}
+            isOpen={showMigrationNotice}
+          />
+        </React.Suspense>
+      )}
+
+      {updateAvailable && !showMigrationNotice && (
         <React.Suspense fallback={null}>
           <UpdateNotificationModal
             currentVersion={currentVersion}
