@@ -88,10 +88,12 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       setShowComment(false);
       setComment("");
       setSelectedReason(null);
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
       feedbackTimerRef.current = setTimeout(() => setFeedbackSent(null), 4000);
     } catch (err) {
       console.error("Erro ao enviar feedback:", err);
       setSubmitError(true);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
       errorTimerRef.current = setTimeout(() => setSubmitError(false), 4000);
     } finally {
       setIsSubmitting(false);

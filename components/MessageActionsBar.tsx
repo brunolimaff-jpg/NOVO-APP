@@ -76,6 +76,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     try {
       await navigator.clipboard.writeText(safeContent);
       setCopyState('copied');
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
       copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
     } catch (err) {
       console.warn('Clipboard API failed, trying fallback...', err);
@@ -90,6 +91,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
         document.body.removeChild(textArea);
         if (ok) {
           setCopyState('copied');
+          if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
           copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
         }
       } catch (fallbackErr) {
@@ -121,6 +123,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
       setDownloadError(true);
+      if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
       downloadTimerRef.current = setTimeout(() => setDownloadError(false), 4000);
     }
   };
@@ -196,7 +199,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             <span className="hidden sm:inline">PDF</span>
           </button>
           {downloadError && (
-            <span className="text-[10px] text-red-400 animate-fade-in">Erro ao gerar PDF</span>
+            <span role="alert" className="text-[10px] text-red-400 animate-fade-in">Erro ao gerar PDF</span>
           )}
 
           <button
