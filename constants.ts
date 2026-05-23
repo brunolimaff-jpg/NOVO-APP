@@ -8,6 +8,15 @@ import {
 export const APP_NAME = '🦅 Senior Scout 360';
 export const APP_VERSION = 'Investigação Completa v4.7';
 
+export const FEEDBACK_REASONS: Array<{ value: import('./types').FeedbackReason; label: string }> = [
+  { value: 'generic', label: 'Genérico' },
+  { value: 'no_evidence', label: 'Sem evidência' },
+  { value: 'wrong_info', label: 'Informação errada' },
+  { value: 'not_actionable', label: 'Pouco acionável' },
+  { value: 'too_long', label: 'Muito longo' },
+  { value: 'other', label: 'Outro' },
+];
+
 export type ChatMode = 'investigacao';
 
 export const DEFAULT_MODE: ChatMode = 'investigacao';

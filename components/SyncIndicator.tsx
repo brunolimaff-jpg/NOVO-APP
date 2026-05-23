@@ -45,7 +45,8 @@ export function SyncIndicator() {
       } else {
         setLastResult('OK');
       }
-    } catch {
+    } catch (err) {
+      console.warn('SyncIndicator: erro ao sincronizar com nuvem', err);
       if (mountedRef.current) setLastResult('Erro');
     } finally {
       if (mountedRef.current) {

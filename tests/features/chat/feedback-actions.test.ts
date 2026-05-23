@@ -101,12 +101,38 @@ describe('useChatFeedbackActions', () => {
       sectionKey: null,
       sectionTitle: null,
       type: 'dislike',
+      scope: 'message',
+      reason: null,
       comment: 'Faltou fonte',
       aiContent: 'Conteúdo do relatório',
       userId: 'operator-1',
       userName: 'Bruno Lima',
+      metadata: undefined,
       timestamp: expect.any(String),
     });
+  });
+
+  it('envia motivo e metadados opcionais no feedback remoto', async () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useChatFeedbackActions(options));
+
+    await act(async () => {
+      await result.current.handleSendFeedback('message-1', 'down', '', 'Trecho da seção', {
+        scope: 'section',
+        sectionKey: 'resumo_1',
+        sectionTitle: 'Resumo executivo',
+        reason: 'not_actionable',
+        metadata: { source: 'section_feedback' },
+      });
+    });
+
+    expect(sendFeedbackRemoteMock).toHaveBeenCalledWith(expect.objectContaining({
+      sectionKey: 'resumo_1',
+      sectionTitle: 'Resumo executivo',
+      scope: 'section',
+      reason: 'not_actionable',
+      metadata: { source: 'section_feedback' },
+    }));
   });
 
   it('registra erro quando o envio remoto de feedback falha', async () => {
@@ -218,6 +244,8 @@ describe('useChatFeedbackActions', () => {
       sectionKey: 'ERROR_REPORT',
       sectionTitle: 'System Error',
       type: 'dislike',
+      scope: 'error',
+      reason: 'generic',
       comment: 'Automated Error Report: NETWORK',
       aiContent: JSON.stringify(
         {
@@ -231,6 +259,10 @@ describe('useChatFeedbackActions', () => {
       ),
       userId: 'operator-1',
       userName: 'Bruno Lima',
+      metadata: {
+        errorCode: 'NETWORK',
+        source: 'GEMINI',
+      },
       timestamp: expect.any(String),
     });
   });

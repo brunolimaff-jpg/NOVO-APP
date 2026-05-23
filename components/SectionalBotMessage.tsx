@@ -5,6 +5,7 @@ import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } f
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
+import { FeedbackSection } from './FeedbackSection';
 
 interface SectionalBotMessageProps {
   message: Message;
@@ -27,7 +28,8 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (err) {
+      console.warn('SectionalBotMessage: Clipboard API failed, usando fallback', err);
       // fallback para ambientes sem clipboard API
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -97,9 +99,34 @@ function getSellerSectionClass(kind: SellerSectionKind, isDarkMode: boolean): st
   return '';
 }
 
+function normalizeFeedbackSectionTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+const SECTION_FEEDBACK_FRAGMENTS = [
+  'resumo',
+  'dor',
+  'evidencia',
+  'porta',
+  'abordagem',
+  'proxima acao',
+  'cards de auditoria',
+];
+
+function shouldShowSectionFeedback(title: string): boolean {
+  const normalized = normalizeFeedbackSectionTitle(title);
+  return SECTION_FEEDBACK_FRAGMENTS.some(fragment => normalized.includes(fragment));
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
+  sessionId,
+  userId,
   isDarkMode,
+  mode,
   onPreFillInput,
   onRegenerateSuggestions,
   hideSuggestions = false,
@@ -213,6 +240,18 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
               auditableSources={auditableSources}
               showCollapsibleSources={idx === sections.length - 1}
             />
+            {sessionId && shouldShowSectionFeedback(section.title) && (
+              <FeedbackSection
+                sectionKey={section.key}
+                sectionTitle={section.title}
+                sectionContent={section.content}
+                sessionId={sessionId}
+                messageId={message.id}
+                userId={userId}
+                isDarkMode={isDarkMode}
+                mode={mode}
+              />
+            )}
           </div>
         </div>
         );

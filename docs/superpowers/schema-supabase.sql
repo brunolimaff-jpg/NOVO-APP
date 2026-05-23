@@ -1,7 +1,7 @@
 -- Supabase Schema for Senior Scout 360
 --
 -- Run this SQL in Supabase Dashboard → SQL Editor
--- This file contains the complete DDL for 8 tables, RLS policies, and indexes
+-- This file contains the complete DDL for 9 tables, RLS policies, and indexes
 --
 -- Schema Overview:
 -- - user_context: Operator profiles and authentication
@@ -12,6 +12,7 @@
 -- - audit_log: Action audit trail
 -- - favorites: User-favorite companies
 -- - shared_dossiers: Temporary dossier sharing links
+-- - feedback_events: Product feedback events for messages and dossier sections
 
 -- ============================================================================
 -- TABLES
@@ -96,6 +97,26 @@ CREATE TABLE audit_log (
   created_at timestamptz DEFAULT now()
 );
 
+-- Table: feedback_events
+-- Product feedback events for messages and high-value dossier sections
+CREATE TABLE feedback_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  feedback_id text UNIQUE NOT NULL,
+  operator_id text NOT NULL,
+  user_name text,
+  session_id text NOT NULL,
+  message_id text NOT NULL,
+  scope text NOT NULL CHECK (scope IN ('message', 'section', 'error')),
+  section_key text,
+  section_title text,
+  feedback_type text NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
+  reason text CHECK (reason IN ('generic', 'no_evidence', 'wrong_info', 'not_actionable', 'too_long', 'other')),
+  comment text DEFAULT '',
+  ai_content text NOT NULL,
+  metadata jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
+
 -- Table: favorites
 -- User-favorite companies
 CREATE TABLE favorites (
@@ -137,6 +158,7 @@ ALTER TABLE radar_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE radar_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE extract_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shared_dossiers ENABLE ROW LEVEL SECURITY;
 
@@ -159,6 +181,9 @@ CREATE POLICY operator_own_extract_cache ON extract_cache FOR ALL TO anon
 CREATE POLICY operator_own_audit_log ON audit_log FOR ALL TO anon
   USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
+CREATE POLICY operator_own_feedback_events ON feedback_events FOR ALL TO anon
+  USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
+
 CREATE POLICY operator_own_favorites ON favorites FOR ALL TO anon
   USING (operator_id IS NOT NULL) WITH CHECK (operator_id IS NOT NULL);
 
@@ -168,6 +193,15 @@ CREATE POLICY operator_own_shared_dossiers ON shared_dossiers FOR ALL TO anon
 -- shared_dossiers: leitura publica por access_token (link compartilhavel)
 CREATE POLICY shared_dossiers_access_token ON shared_dossiers FOR SELECT TO anon
   USING (access_token IS NOT NULL AND expires_at > now());
+
+-- ============================================================================
+-- DATA API GRANTS
+-- ============================================================================
+
+-- Newly created tables need explicit grants in Supabase projects where automatic
+-- Data API grants are disabled. RLS still controls which rows are accessible.
+REVOKE ALL PRIVILEGES ON TABLE feedback_events FROM anon;
+GRANT SELECT, INSERT ON TABLE feedback_events TO anon;
 
 -- ============================================================================
 -- INDEXES
@@ -190,6 +224,15 @@ CREATE INDEX idx_extract_cache_operator ON extract_cache(operator_id);
 
 -- Index: audit_log - operator_id + created_at (for audit trail pagination)
 CREATE INDEX idx_audit_log_operator_created ON audit_log(operator_id, created_at DESC);
+
+-- Index: feedback_events - operator_id + created_at (for feedback review)
+CREATE INDEX idx_feedback_events_operator_created ON feedback_events(operator_id, created_at DESC);
+
+-- Index: feedback_events - session_id (for dossier feedback aggregation)
+CREATE INDEX idx_feedback_events_session ON feedback_events(session_id);
+
+-- Index: feedback_events - reason (for lightweight product learning)
+CREATE INDEX idx_feedback_events_reason ON feedback_events(reason);
 
 -- Index: favorites - operator_id (for fetching user favorites)
 CREATE INDEX idx_favorites_operator ON favorites(operator_id);

@@ -102,4 +102,36 @@ describe('SectionalBotMessage', () => {
     expect(container.querySelector('[data-section-kind="maps"]')).toBeInTheDocument();
     expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
   });
+
+  it('mostra feedback apenas em seções relevantes', () => {
+    const message: Message = {
+      id: 'bot-feedback',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '## Resumo executivo',
+        'Síntese comercial.',
+        '',
+        '## Mapas Visuais',
+        'Mapa sem feedback contextual.',
+        '',
+        '## Próxima ação',
+        'Ligar para operação.',
+      ].join('\n'),
+    };
+
+    render(
+      <SectionalBotMessage
+        message={message}
+        sessionId="session-1"
+        userId="operator-1"
+        isDarkMode={false}
+      />,
+    );
+
+    expect(screen.getAllByText('Essa parte ajudou?')).toHaveLength(2);
+    expect(screen.getByText(/Resumo executivo/)).toBeInTheDocument();
+    expect(screen.getByText(/Mapas Visuais/)).toBeInTheDocument();
+    expect(screen.getByText(/Próxima ação/)).toBeInTheDocument();
+  });
 });

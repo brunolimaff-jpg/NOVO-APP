@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { Message, Sender, AppError, Feedback } from '../types';
+import { Message, Sender, AppError, Feedback, FeedbackSubmissionOptions } from '../types';
 import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
@@ -22,7 +22,13 @@ export interface MessageRowData {
   onDeleteMessage?: (id: string) => void;
   onReportError?: (id: string, err: AppError) => void;
   onFeedback: (messageId: string, feedback: Feedback) => void;
-  onSendFeedback: (messageId: string, feedback: Feedback, comment: string, content: string) => void;
+  onSendFeedback: (
+    messageId: string,
+    feedback: Feedback,
+    comment: string,
+    content: string,
+    options?: FeedbackSubmissionOptions,
+  ) => void;
   onToggleMessageSources: (messageId: string) => void;
   onDeepDive?: (display: string, hidden: string) => Promise<void>;
   onRegenerateSuggestions: (messageId: string) => void;
@@ -219,7 +225,7 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
                 citedLinksCount={citedSources.length}
                 currentFeedback={msg.feedback}
                 onFeedback={fb => onFeedback(msg.id, fb)}
-                onSubmitFeedback={(fb, comment, content) => onSendFeedback(msg.id, fb, comment, content)}
+                onSubmitFeedback={(fb, comment, content, options) => onSendFeedback(msg.id, fb, comment, content, options)}
                 onToggleSources={() => onToggleMessageSources(msg.id)}
                 isSourcesVisible={!!msg.isSourcesOpen}
                 isDarkMode={isDarkMode}

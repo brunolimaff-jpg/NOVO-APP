@@ -9,6 +9,11 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
   Aplicado com sucesso — migracao completa de idb-keyval para Supabase.
 
+- **Validar intencao de produto alem do evento tecnico** [ux, feedback, supabase, produto]
+  Ao validar fluxos de produto, confirmar se o comportamento real representa a intencao esperada, nao apenas se o evento chegou no destino tecnico.
+  Exemplo: feedback chegou no Supabase, mas cliques repetidos revelaram duplicacao e o clique negativo dependia de motivo + confirmacao.
+  Validacao boa cruza banco, UX e semantica esperada antes de concluir que "funcionou".
+
 - Prompts Gemini com XML delimiters têm menor taxa de alucinação
 - Score PORTA deve sempre ser gerado com temperatura 0.1 (factual)
 - Search Grounding nunca deve ser cacheado — dados de empresa mudam
