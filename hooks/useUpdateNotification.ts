@@ -113,6 +113,9 @@ export function useUpdateNotification() {
         window.dispatchEvent(event);
       }
 
+      // Sempre salvar versão corrente para futuras comparações funcionarem
+      localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, versionData.version);
+
       // Armazenar timestamp do check
       localStorage.setItem(STORAGE_KEY_LAST_CHECK, Date.now().toString());
     } catch (error) {
