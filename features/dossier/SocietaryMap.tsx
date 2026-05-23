@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import {
@@ -46,17 +46,19 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
-  const [searchedPartnerKeys, setSearchedPartnerKeys] = useState<Record<string, boolean>>({});
   const [loadingPartnerKey, setLoadingPartnerKey] = useState<string | null>(null);
   const [selectedPartnerName, setSelectedPartnerName] = useState<string | undefined>();
   const [notice, setNotice] = useState<string | null>(null);
+  const searchedPartnerKeysRef = useRef<Record<string, boolean>>({});
+  const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!cnpj) {
       setState('empty');
       setRootData(null);
       setCompaniesByPartner({});
-      setSearchedPartnerKeys({});
+      searchedPartnerKeysRef.current = {};
+      loadingPartnerKeysRef.current = {};
       setSelectedPartnerName(undefined);
       setLoadingPartnerKey(null);
       setNotice('CNPJ nao disponivel para montar a teia societaria.');
@@ -87,7 +89,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           if (!cancelled) {
             setRootData(null);
             setCompaniesByPartner({});
-            setSearchedPartnerKeys({});
+            searchedPartnerKeysRef.current = {};
+            loadingPartnerKeysRef.current = {};
             setSelectedPartnerName(undefined);
             setLoadingPartnerKey(null);
             setState('empty');
@@ -103,7 +106,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             partners,
           });
           setCompaniesByPartner({});
-          setSearchedPartnerKeys({});
+          searchedPartnerKeysRef.current = {};
+          loadingPartnerKeysRef.current = {};
           setSelectedPartnerName(partners[0]?.name);
           setLoadingPartnerKey(null);
           setState('ready');
@@ -112,7 +116,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         if (!cancelled) {
           setRootData(null);
           setCompaniesByPartner({});
-          setSearchedPartnerKeys({});
+          searchedPartnerKeysRef.current = {};
+          loadingPartnerKeysRef.current = {};
           setSelectedPartnerName(undefined);
           setLoadingPartnerKey(null);
           setState('error');
@@ -135,7 +140,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     if (!selected) return;
 
     const partnerKey = normalizePartnerKey(selected.name);
-    if (searchedPartnerKeys[partnerKey]) return;
+    if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) return;
+    loadingPartnerKeysRef.current[partnerKey] = true;
     const partnerName = selected.name;
     const rootName = rootData.name;
     const rootCnpj = rootData.cnpj;
@@ -161,15 +167,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
         if (!cancelled) {
           setCompaniesByPartner(prev => ({ ...prev, [partnerKey]: payload.companies || [] }));
-          setSearchedPartnerKeys(prev => ({ ...prev, [partnerKey]: true }));
+          searchedPartnerKeysRef.current[partnerKey] = true;
           setNotice(payload.degraded ? 'Busca societaria degradada; mapa usa dados parciais.' : null);
         }
       } catch (error) {
         if (!cancelled) {
-          setSearchedPartnerKeys(prev => ({ ...prev, [partnerKey]: true }));
+          searchedPartnerKeysRef.current[partnerKey] = true;
           setNotice('Nao foi possivel montar a teia societaria agora. Mantendo o dossie textual como fallback.');
         }
       } finally {
+        delete loadingPartnerKeysRef.current[partnerKey];
         if (!cancelled) {
           setLoadingPartnerKey(current => (current === partnerKey ? null : current));
         }
@@ -181,8 +188,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     return () => {
       cancelled = true;
       controller.abort();
+      delete loadingPartnerKeysRef.current[partnerKey];
     };
-  }, [rootData, selectedPartnerName, searchedPartnerKeys]);
+  }, [rootData, selectedPartnerName]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
