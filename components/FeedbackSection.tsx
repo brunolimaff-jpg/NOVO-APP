@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { sendFeedbackRemote, FeedbackType } from "../services/feedbackRemoteStore";
 import { ChatMode, FEEDBACK_REASONS } from "../constants";
@@ -33,6 +33,15 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
   const [feedbackSent, setFeedbackSent] = useState<FeedbackType | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
 
   const theme = {
     text: isDarkMode ? 'text-slate-500' : 'text-slate-400', // Mais discreto
@@ -79,11 +88,11 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       setShowComment(false);
       setComment("");
       setSelectedReason(null);
-      setTimeout(() => setFeedbackSent(null), 4000);
+      feedbackTimerRef.current = setTimeout(() => setFeedbackSent(null), 4000);
     } catch (err) {
       console.error("Erro ao enviar feedback:", err);
       setSubmitError(true);
-      setTimeout(() => setSubmitError(false), 4000);
+      errorTimerRef.current = setTimeout(() => setSubmitError(false), 4000);
     } finally {
       setIsSubmitting(false);
     }
@@ -135,18 +144,20 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
           disabled={isSubmitting || feedbackSent === 'like'}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${theme.text} ${theme.hoverLike} disabled:opacity-50`}
           title="Conteúdo útil / correto"
+          aria-label="Marcar conteúdo como útil"
         >
-          <span className="text-sm">👍</span> 
+          <span className="text-sm" aria-hidden="true">👍</span>
           <span>{texts.like}</span>
         </button>
-        
+
         <button
           onClick={handleDislikeClick}
           disabled={isSubmitting || showComment || feedbackSent === 'dislike'}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${theme.text} ${theme.hoverDislike} disabled:opacity-50`}
           title="Conteúdo incorreto / irrelevante"
+          aria-label="Reportar conteúdo como incorreto"
         >
-          <span className="text-sm">👎</span> 
+          <span className="text-sm" aria-hidden="true">👎</span>
           <span>{texts.dislike}</span>
         </button>
       </div>
@@ -161,6 +172,8 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
                   key={reason.value}
                   type="button"
                   onClick={() => setSelectedReason(reason.value)}
+                  aria-pressed={isSelected}
+                  aria-label={`Motivo: ${reason.label}`}
                   className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
                     isSelected
                       ? isDarkMode
@@ -182,6 +195,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Comentário opcional"
+                aria-label="Comentário do feedback"
                 className={`flex-1 text-xs px-2 py-1.5 rounded border outline-none focus:ring-1 focus:ring-emerald-500 transition-all ${theme.inputBg}`}
                 autoFocus
                 onKeyDown={(e) => {
@@ -193,6 +207,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
               onClick={handleSendComment}
               disabled={isSubmitting || !selectedReason}
               className={`text-xs px-3 py-1.5 rounded transition-colors shadow-sm whitespace-nowrap ${theme.btnSubmit} disabled:opacity-50`}
+              aria-label="Enviar feedback"
             >
               {isSubmitting ? "..." : "Enviar"}
             </button>
@@ -200,8 +215,9 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
                 onClick={() => { setShowComment(false); setComment(""); setSelectedReason(null); }}
                 className={`text-xs px-2 py-1.5 rounded transition-colors ${theme.btnCancel}`}
                 title="Cancelar"
+                aria-label="Cancelar feedback"
             >
-                ✕
+                <span aria-hidden="true">✕</span>
             </button>
           </div>
         </div>

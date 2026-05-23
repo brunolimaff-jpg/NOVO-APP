@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Tooltip from './Tooltip';
 import { Feedback, FeedbackReason, FeedbackSubmissionOptions } from '../types';
 import { FEEDBACK_REASONS } from '../constants';
@@ -36,13 +36,23 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   onSubmitFeedback,
   onToggleSources,
   isSourcesVisible,
-  isDarkMode
+  isDarkMode,
 }) => {
+  const downloadTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [downloadError, setDownloadError] = useState(false);
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [comment, setComment] = useState('');
   const [selectedReason, setSelectedReason] = useState<FeedbackReason | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<Feedback | null>(currentFeedback ?? null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
+    };
+  }, []);
 
   const texts = {
     successLike: 'Obrigado, isso ajuda a melhorar os próximos dossiês.',
@@ -66,7 +76,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     try {
       await navigator.clipboard.writeText(safeContent);
       setCopyState('copied');
-      setTimeout(() => setCopyState('idle'), 3000);
+      copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
     } catch (err) {
       console.warn('Clipboard API failed, trying fallback...', err);
       try {
@@ -80,7 +90,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
         document.body.removeChild(textArea);
         if (ok) {
           setCopyState('copied');
-          setTimeout(() => setCopyState('idle'), 3000);
+          copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
         }
       } catch (fallbackErr) {
         console.error('Fallback copy error', fallbackErr);
@@ -110,7 +120,8 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       if (!opened) throw new Error('Popup bloqueado ao abrir exportação em PDF.');
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
-      alert('Erro ao gerar PDF. Tente novamente.');
+      setDownloadError(true);
+      downloadTimerRef.current = setTimeout(() => setDownloadError(false), 4000);
     }
   };
 
@@ -184,6 +195,9 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             <span>📕</span>
             <span className="hidden sm:inline">PDF</span>
           </button>
+          {downloadError && (
+            <span className="text-[10px] text-red-400 animate-fade-in">Erro ao gerar PDF</span>
+          )}
 
           <button
             onClick={handleCopy}
