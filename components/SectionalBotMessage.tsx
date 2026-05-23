@@ -106,20 +106,19 @@ function normalizeFeedbackSectionTitle(title: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+const SECTION_FEEDBACK_FRAGMENTS = [
+  'resumo',
+  'dor',
+  'evidencia',
+  'porta',
+  'abordagem',
+  'proxima acao',
+  'cards de auditoria',
+];
+
 function shouldShowSectionFeedback(title: string): boolean {
   const normalized = normalizeFeedbackSectionTitle(title);
-  return [
-    'resumo',
-    'dor',
-    'dores',
-    'evidencia',
-    'score porta',
-    'porta',
-    'abordagem',
-    'proxima acao',
-    'proximas acoes',
-    'cards de auditoria',
-  ].some(fragment => normalized.includes(fragment));
+  return SECTION_FEEDBACK_FRAGMENTS.some(fragment => normalized.includes(fragment));
 }
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({

@@ -44,6 +44,12 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const [selectedReason, setSelectedReason] = useState<FeedbackReason | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<Feedback | null>(currentFeedback ?? null);
 
+  const texts = {
+    successLike: 'Obrigado, isso ajuda a melhorar os próximos dossiês.',
+    successDislike: 'Registrado. Vamos usar isso para ajustar esse tipo de análise.',
+    prompt: 'Essas informações te ajudaram a mapear a conta?',
+  };
+
   const textColor = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const hoverColor = isDarkMode ? 'hover:text-slate-200' : 'hover:text-slate-800';
   const activeBg = isDarkMode ? 'bg-slate-700/50' : 'bg-slate-200';
@@ -205,16 +211,16 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
         <div className="flex items-center gap-1">
           {feedbackSubmitted === 'up' && (
             <span className="text-[10px] text-emerald-500 mr-1 animate-fade-in">
-              Obrigado, isso ajuda a melhorar os próximos dossiês.
+              {texts.successLike}
             </span>
           )}
           {feedbackSubmitted === 'down' && (
             <span className="text-[10px] text-red-400 mr-1 animate-fade-in">
-              Registrado. Vamos usar isso para ajustar esse tipo de análise.
+              {texts.successDislike}
             </span>
           )}
           <span className={`text-[11px] mr-1 ${textColor}`}>
-            Essa resposta ajudou a avançar com a conta?
+            {texts.prompt}
           </span>
           <button
             onClick={handleLike}

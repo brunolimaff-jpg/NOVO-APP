@@ -36,7 +36,7 @@ describe('MessageActionsBar', () => {
     const onSubmitFeedback = vi.fn();
     renderBar({ onFeedback, onSubmitFeedback });
 
-    expect(screen.getByText('Essa resposta ajudou a avançar com a conta?')).toBeInTheDocument();
+    expect(screen.getByText('Essas informações te ajudaram a mapear a conta?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /útil/i }));
 
     expect(onFeedback).toHaveBeenCalledWith('up');
