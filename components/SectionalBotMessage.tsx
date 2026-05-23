@@ -28,7 +28,8 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (err) {
+      console.warn('SectionalBotMessage: Clipboard API failed, usando fallback', err);
       // fallback para ambientes sem clipboard API
       const ta = document.createElement('textarea');
       ta.value = text;

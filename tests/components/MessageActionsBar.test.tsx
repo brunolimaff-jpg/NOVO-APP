@@ -44,6 +44,18 @@ describe('MessageActionsBar', () => {
     expect(screen.getByText('Obrigado, isso ajuda a melhorar os próximos dossiês.')).toBeInTheDocument();
   });
 
+  it('nao reenvia o mesmo feedback positivo em cliques repetidos', () => {
+    const onSubmitFeedback = vi.fn();
+    renderBar({ onSubmitFeedback });
+
+    const likeButton = screen.getByRole('button', { name: /útil/i });
+    fireEvent.click(likeButton);
+    fireEvent.click(likeButton);
+
+    expect(onSubmitFeedback).toHaveBeenCalledTimes(1);
+    expect(likeButton).toBeDisabled();
+  });
+
   it('oferece motivos rapidos no dislike e comentario opcional', () => {
     const onSubmitFeedback = vi.fn();
     renderBar({ onSubmitFeedback });

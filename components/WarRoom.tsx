@@ -54,7 +54,8 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
       setCopyFeedback('Conteúdo copiado.');
       setTimeout(() => setCopiedId(null), 2000);
       setTimeout(() => setCopyFeedback(null), 2200);
-    } catch {
+    } catch (err) {
+      console.warn('WarRoom: Clipboard API failed, usando fallback', err);
       setCopyFeedback('Não foi possível copiar. Copie manualmente.');
       setTimeout(() => setCopyFeedback(null), 2600);
     }

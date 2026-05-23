@@ -97,7 +97,8 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('FollowUpModal: erro ao gerar/download arquivo .ics', err);
       return false;
     }
   };

@@ -2,18 +2,10 @@
 import React, { useState } from 'react';
 import Tooltip from './Tooltip';
 import { Feedback, FeedbackReason, FeedbackSubmissionOptions } from '../types';
+import { FEEDBACK_REASONS } from '../constants';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 import { openPrintReportWindow } from '../utils/printExport';
 import { sanitizeSensitivePersonalData } from '../utils/privacy';
-
-const FEEDBACK_REASONS: Array<{ value: FeedbackReason; label: string }> = [
-  { value: 'generic', label: 'Genérico' },
-  { value: 'no_evidence', label: 'Sem evidência' },
-  { value: 'wrong_info', label: 'Informação errada' },
-  { value: 'not_actionable', label: 'Pouco acionável' },
-  { value: 'too_long', label: 'Muito longo' },
-  { value: 'other', label: 'Outro' },
-];
 
 interface MessageActionsBarProps {
   content: string;
@@ -50,7 +42,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [comment, setComment] = useState('');
   const [selectedReason, setSelectedReason] = useState<FeedbackReason | null>(null);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState<Feedback | null>(currentFeedback || null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<Feedback | null>(currentFeedback ?? null);
 
   const textColor = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const hoverColor = isDarkMode ? 'hover:text-slate-200' : 'hover:text-slate-800';
@@ -120,7 +112,8 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     if (navigator.share) {
       try {
         await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: sanitizeSensitivePersonalData(content) });
-      } catch {
+      } catch (err) {
+        console.warn('MessageActionsBar: Web Share API failed, usando clipboard fallback', err);
         handleCopy();
       }
     } else {
@@ -129,6 +122,8 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   };
 
   const handleLike = () => {
+    if (feedbackSubmitted === 'up') return;
+
     onFeedback('up');
     onSubmitFeedback('up', '', content, { scope: 'message' });
     setFeedbackSubmitted('up');
@@ -136,7 +131,10 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     setSelectedReason(null);
   };
 
-  const handleDislikeStart = () => setShowCommentBox(true);
+  const handleDislikeStart = () => {
+    if (feedbackSubmitted === 'down') return;
+    setShowCommentBox(true);
+  };
 
   const submitDislike = () => {
     if (!selectedReason) return;
@@ -220,6 +218,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
           </span>
           <button
             onClick={handleLike}
+            disabled={feedbackSubmitted === 'up'}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-md transition-all ${
               feedbackSubmitted === 'up'
                 ? 'text-emerald-500 bg-emerald-500/10'
@@ -232,6 +231,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
           </button>
           <button
             onClick={handleDislikeStart}
+            disabled={feedbackSubmitted === 'down'}
             className={`flex items-center gap-1 px-2 py-1.5 rounded-md transition-all ${
               feedbackSubmitted === 'down'
                 ? 'text-red-500 bg-red-500/10'

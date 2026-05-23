@@ -2,17 +2,8 @@
 import React, { useState } from "react";
 import { v4 as uuidv4 } from 'uuid';
 import { sendFeedbackRemote, FeedbackType } from "../services/feedbackRemoteStore";
-import { ChatMode } from "../constants";
+import { ChatMode, FEEDBACK_REASONS } from "../constants";
 import type { FeedbackReason } from "../types";
-
-const SECTION_FEEDBACK_REASONS: Array<{ value: FeedbackReason; label: string }> = [
-  { value: 'generic', label: 'Genérico' },
-  { value: 'no_evidence', label: 'Sem evidência' },
-  { value: 'wrong_info', label: 'Informação errada' },
-  { value: 'not_actionable', label: 'Pouco acionável' },
-  { value: 'too_long', label: 'Muito longo' },
-  { value: 'other', label: 'Outro' },
-];
 
 interface FeedbackSectionProps {
   sectionKey: string;
@@ -99,10 +90,12 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
   };
 
   const handleDislikeClick = () => {
+    if (feedbackSent === 'dislike') return;
     setShowComment(true);
   };
 
   const handleLikeClick = () => {
+    if (feedbackSent === 'like') return;
     submitFeedback("like");
   };
 
@@ -139,7 +132,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
         
         <button
           onClick={handleLikeClick}
-          disabled={isSubmitting}
+          disabled={isSubmitting || feedbackSent === 'like'}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${theme.text} ${theme.hoverLike} disabled:opacity-50`}
           title="Conteúdo útil / correto"
         >
@@ -149,7 +142,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
         
         <button
           onClick={handleDislikeClick}
-          disabled={isSubmitting || showComment}
+          disabled={isSubmitting || showComment || feedbackSent === 'dislike'}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all ${theme.text} ${theme.hoverDislike} disabled:opacity-50`}
           title="Conteúdo incorreto / irrelevante"
         >
@@ -161,7 +154,7 @@ export const FeedbackSection: React.FC<FeedbackSectionProps> = ({
       {showComment && (
         <div className="w-full max-w-md animate-slide-in mt-1">
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {SECTION_FEEDBACK_REASONS.map(reason => {
+            {FEEDBACK_REASONS.map(reason => {
               const isSelected = selectedReason === reason.value;
               return (
                 <button

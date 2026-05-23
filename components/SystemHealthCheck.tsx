@@ -204,16 +204,17 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       await new Promise(resolve => setTimeout(resolve, 100));
       const duration = Date.now() - start;
       
-      updateTest('🎨 Interface React', { 
-        status: 'success', 
+      updateTest('🎨 Interface React', {
+        status: 'success',
         message: `Renderizando (${duration}ms)`,
-        duration 
+        duration
       });
-    } catch {
+    } catch (err) {
       hasError = true;
-      updateTest('🎨 Interface React', { 
-        status: 'error', 
-        message: 'Erro crítico' 
+      console.warn('SystemHealthCheck: erro no teste de interface React', err);
+      updateTest('🎨 Interface React', {
+        status: 'error',
+        message: 'Erro crítico'
       });
     }
 
