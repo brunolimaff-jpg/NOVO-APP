@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useMaybeOperator } from '../../contexts/OperatorContext';
 import { sendFeedbackRemote } from '../../services/feedbackRemoteStore';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import type { AppError, ChatSession, Feedback } from '../../types';
+import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions } from '../../types';
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
   if (value === null || value === undefined) {
@@ -56,10 +56,16 @@ export function useChatFeedbackActions(options: UseChatFeedbackActionsOptions = 
           sectionKey: 'ERROR_REPORT',
           sectionTitle: 'System Error',
           type: 'dislike',
+          scope: 'error',
+          reason: 'generic',
           comment: `Automated Error Report: ${error.code}`,
           aiContent: errorPayload,
           userId: operatorId,
           userName: operatorName || undefined,
+          metadata: {
+            errorCode: error.code,
+            source: error.source,
+          },
           timestamp: new Date().toISOString(),
         });
       } catch (err) {
@@ -84,7 +90,13 @@ export function useChatFeedbackActions(options: UseChatFeedbackActionsOptions = 
   );
 
   const handleSendFeedback = useCallback(
-    async (messageId: string, feedback: Feedback, comment: string, content: string) => {
+    async (
+      messageId: string,
+      feedback: Feedback,
+      comment: string,
+      content: string,
+      options: FeedbackSubmissionOptions = {},
+    ) => {
       const sessionId = currentSession?.id;
       if (!sessionId) return;
 
@@ -100,13 +112,16 @@ export function useChatFeedbackActions(options: UseChatFeedbackActionsOptions = 
           feedbackId: uuidv4(),
           sessionId,
           messageId,
-          sectionKey: null,
-          sectionTitle: null,
+          sectionKey: options.sectionKey ?? null,
+          sectionTitle: options.sectionTitle ?? null,
           type: feedback === 'up' ? 'like' : 'dislike',
+          scope: options.scope ?? 'message',
+          reason: options.reason ?? null,
           comment,
           aiContent: content,
           userId: operatorId,
           userName: operatorName || undefined,
+          metadata: options.metadata,
           timestamp: new Date().toISOString(),
         });
       } catch (error) {

@@ -5,6 +5,7 @@ import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } f
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
+import { FeedbackSection } from './FeedbackSection';
 
 interface SectionalBotMessageProps {
   message: Message;
@@ -97,9 +98,35 @@ function getSellerSectionClass(kind: SellerSectionKind, isDarkMode: boolean): st
   return '';
 }
 
+function normalizeFeedbackSectionTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function shouldShowSectionFeedback(title: string): boolean {
+  const normalized = normalizeFeedbackSectionTitle(title);
+  return [
+    'resumo',
+    'dor',
+    'dores',
+    'evidencia',
+    'score porta',
+    'porta',
+    'abordagem',
+    'proxima acao',
+    'proximas acoes',
+    'cards de auditoria',
+  ].some(fragment => normalized.includes(fragment));
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
+  sessionId,
+  userId,
   isDarkMode,
+  mode,
   onPreFillInput,
   onRegenerateSuggestions,
   hideSuggestions = false,
@@ -213,6 +240,18 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
               auditableSources={auditableSources}
               showCollapsibleSources={idx === sections.length - 1}
             />
+            {sessionId && shouldShowSectionFeedback(section.title) && (
+              <FeedbackSection
+                sectionKey={section.key}
+                sectionTitle={section.title}
+                sectionContent={section.content}
+                sessionId={sessionId}
+                messageId={message.id}
+                userId={userId}
+                isDarkMode={isDarkMode}
+                mode={mode}
+              />
+            )}
           </div>
         </div>
         );

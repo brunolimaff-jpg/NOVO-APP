@@ -1,10 +1,19 @@
 
 import React, { useState } from 'react';
 import Tooltip from './Tooltip';
-import { Feedback } from '../types';
+import { Feedback, FeedbackReason, FeedbackSubmissionOptions } from '../types';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 import { openPrintReportWindow } from '../utils/printExport';
 import { sanitizeSensitivePersonalData } from '../utils/privacy';
+
+const FEEDBACK_REASONS: Array<{ value: FeedbackReason; label: string }> = [
+  { value: 'generic', label: 'Genérico' },
+  { value: 'no_evidence', label: 'Sem evidência' },
+  { value: 'wrong_info', label: 'Informação errada' },
+  { value: 'not_actionable', label: 'Pouco acionável' },
+  { value: 'too_long', label: 'Muito longo' },
+  { value: 'other', label: 'Outro' },
+];
 
 interface MessageActionsBarProps {
   content: string;
@@ -12,7 +21,12 @@ interface MessageActionsBarProps {
   citedLinksCount: number;
   currentFeedback?: Feedback;
   onFeedback: (type: Feedback) => void;
-  onSubmitFeedback: (type: Feedback, comment: string, content: string) => void;
+  onSubmitFeedback: (
+    type: Feedback,
+    comment: string,
+    content: string,
+    options?: FeedbackSubmissionOptions,
+  ) => void;
   onToggleSources: () => void;
   isSourcesVisible: boolean;
   isDarkMode: boolean;
@@ -35,6 +49,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [comment, setComment] = useState('');
+  const [selectedReason, setSelectedReason] = useState<FeedbackReason | null>(null);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState<Feedback | null>(currentFeedback || null);
 
   const textColor = isDarkMode ? 'text-slate-400' : 'text-slate-500';
@@ -115,24 +130,32 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
   const handleLike = () => {
     onFeedback('up');
-    onSubmitFeedback('up', '', content);
+    onSubmitFeedback('up', '', content, { scope: 'message' });
     setFeedbackSubmitted('up');
     setShowCommentBox(false);
+    setSelectedReason(null);
   };
 
   const handleDislikeStart = () => setShowCommentBox(true);
 
   const submitDislike = () => {
+    if (!selectedReason) return;
+
     onFeedback('down');
-    onSubmitFeedback('down', comment, content);
+    onSubmitFeedback('down', comment.trim(), content, {
+      scope: 'message',
+      reason: selectedReason,
+    });
     setFeedbackSubmitted('down');
     setShowCommentBox(false);
     setComment('');
+    setSelectedReason(null);
   };
 
   const cancelDislike = () => {
     setShowCommentBox(false);
     setComment('');
+    setSelectedReason(null);
   };
 
   return (
@@ -183,32 +206,41 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
         <div className="flex items-center gap-1">
           {feedbackSubmitted === 'up' && (
-            <span className="text-[10px] text-emerald-500 mr-1 animate-fade-in">Obrigado!</span>
+            <span className="text-[10px] text-emerald-500 mr-1 animate-fade-in">
+              Obrigado, isso ajuda a melhorar os próximos dossiês.
+            </span>
           )}
           {feedbackSubmitted === 'down' && (
-            <span className="text-[10px] text-red-400 mr-1 animate-fade-in">Feedback enviado</span>
+            <span className="text-[10px] text-red-400 mr-1 animate-fade-in">
+              Registrado. Vamos usar isso para ajustar esse tipo de análise.
+            </span>
           )}
+          <span className={`text-[11px] mr-1 ${textColor}`}>
+            Essa resposta ajudou a avançar com a conta?
+          </span>
           <button
             onClick={handleLike}
-            className={`p-1.5 rounded-md transition-all ${
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md transition-all ${
               feedbackSubmitted === 'up'
                 ? 'text-emerald-500 bg-emerald-500/10'
                 : `${textColor} ${hoverColor} hover:${activeBg}`
             }`}
             title="Resposta útil"
           >
-            👍
+            <span>👍</span>
+            <span>Útil</span>
           </button>
           <button
             onClick={handleDislikeStart}
-            className={`p-1.5 rounded-md transition-all ${
+            className={`flex items-center gap-1 px-2 py-1.5 rounded-md transition-all ${
               feedbackSubmitted === 'down'
                 ? 'text-red-500 bg-red-500/10'
                 : `${textColor} ${hoverColor} hover:${activeBg}`
             }`}
             title="Resposta não útil"
           >
-            👎
+            <span>👎</span>
+            <span>Ajustar</span>
           </button>
         </div>
       </div>
@@ -222,12 +254,35 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
           }`}
         >
           <p className={`mb-2 font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-            O que não ficou bom nesta resposta?
+            O que precisa ajustar para ficar mais útil na próxima ação?
           </p>
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {FEEDBACK_REASONS.map(reason => {
+              const isSelected = selectedReason === reason.value;
+              return (
+                <button
+                  key={reason.value}
+                  type="button"
+                  onClick={() => setSelectedReason(reason.value)}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                    isSelected
+                      ? isDarkMode
+                        ? 'border-emerald-500/70 bg-emerald-500/15 text-emerald-200'
+                        : 'border-emerald-500/60 bg-emerald-50 text-emerald-700'
+                      : isDarkMode
+                        ? 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                  }`}
+                >
+                  {reason.label}
+                </button>
+              );
+            })}
+          </div>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Ex: Informação desatualizada, alucinação, link quebrado..."
+            placeholder="Comentário opcional para dar contexto comercial."
             className={`w-full p-2 rounded mb-2 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
               isDarkMode
                 ? 'bg-slate-900 text-white placeholder-slate-500 border-slate-700'
@@ -251,9 +306,10 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             <Tooltip label="Enviar avaliação negativa com comentário" position="top">
               <button
                 onClick={submitDislike}
-                className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm"
+                disabled={!selectedReason}
+                className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-500 transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Enviar Feedback
+                Registrar ajuste
               </button>
             </Tooltip>
           </div>

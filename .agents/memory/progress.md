@@ -1,8 +1,16 @@
 # Progress
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## Completed
+
+### Feedback Scout 360 com Supabase (2026-05-23)
+
+- Criada tabela `feedback_events` no Supabase (`vmqfcaoirjcfucvlnpig`) com RLS ativa, policy `operator_own_feedback_events` e grants `SELECT/INSERT` para `anon`.
+- `services/feedbackRemoteStore.ts` agora grava feedback no Supabase e mantem o backend/planilha legado em paralelo.
+- `MessageActionsBar` ganhou pergunta comercial, like em 1 clique, dislike com motivos rápidos e comentario opcional.
+- `FeedbackSection` foi integrado ao `SectionalBotMessage` apenas para secoes relevantes (resumo, dores, evidencias, PORTA, abordagem, proxima acao, cards de auditoria).
+- Validacoes: recorte Vitest de feedback (`24` testes) green; `npm run typecheck` green; insert Supabase como `anon` validado em transacao com rollback.
 
 ### Melhorias pos-migracao Supabase (2026-05-22)
 

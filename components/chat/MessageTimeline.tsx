@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
-import type { AppError, ChatSession, Feedback, Message } from '../../types';
+import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
 import { Sender } from '../../types';
 import EmptyStateHome from '../EmptyStateHome';
 import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
@@ -29,7 +29,13 @@ interface MessageTimelineProps {
   onDeleteMessage?: (id: string) => void;
   onReportError?: (messageId: string, error: AppError) => void;
   onFeedback: (messageId: string, feedback: Feedback) => void;
-  onSendFeedback: (messageId: string, feedback: Feedback, comment: string, content: string) => void;
+  onSendFeedback: (
+    messageId: string,
+    feedback: Feedback,
+    comment: string,
+    content: string,
+    options?: FeedbackSubmissionOptions,
+  ) => void;
   onToggleMessageSources: (messageId: string) => void;
   onDeepDive?: (displayMessage: string, hiddenPrompt: string) => Promise<void>;
   onRegenerateSuggestions: (messageId: string) => void;

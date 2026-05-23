@@ -5,6 +5,24 @@ export enum Sender {
 
 export type Feedback = 'up' | 'down';
 
+export type FeedbackScope = 'message' | 'section' | 'error';
+
+export type FeedbackReason =
+  | 'generic'
+  | 'no_evidence'
+  | 'wrong_info'
+  | 'not_actionable'
+  | 'too_long'
+  | 'other';
+
+export interface FeedbackSubmissionOptions {
+  scope?: FeedbackScope;
+  sectionKey?: string | null;
+  sectionTitle?: string | null;
+  reason?: FeedbackReason | null;
+  metadata?: Record<string, unknown>;
+}
+
 export type ExportFormat = 'md' | 'pdf' | 'doc';
 
 export type ReportType = 'executive' | 'full' | 'tech';
@@ -229,7 +247,13 @@ export interface ChatInterfaceProps {
   hasMore: boolean;
   onSendMessage: (text: string, displayText?: string, hintedCompanyOverride?: string | null) => void;
   onFeedback: (messageId: string, feedback: Feedback) => void;
-  onSendFeedback: (messageId: string, feedback: Feedback, comment: string, content: string) => void;
+  onSendFeedback: (
+    messageId: string,
+    feedback: Feedback,
+    comment: string,
+    content: string,
+    options?: FeedbackSubmissionOptions,
+  ) => void;
   onSectionFeedback: (messageId: string, sectionTitle: string, feedback: Feedback) => void;
   onLoadMore: () => void;
   onExportConversation: (format: ExportFormat, reportType: ReportType) => void;

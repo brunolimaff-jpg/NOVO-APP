@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## Current operating context
 
@@ -18,11 +18,11 @@ Read order:
 
 ## Current operating phase
 
-**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`. Branch estendeu com 8 commits adicionais de UX e consistencia.**
+**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`. Branch estendeu com melhorias adicionais de UX, consistencia e feedback conectado ao Supabase.**
 
 - Arquitetura offline-first: Supabase (fonte de verdade) + IndexedDB (cache offline) + sync queue bidirecional.
-- 20 commits totais na branch (12 migracao + 8 pos-migracao).
-- HEAD: `d22fa0c` — feat: beautiful manual sync button + sync-complete event to reload dossiers.
+- 20 commits totais na branch antes do feedback Supabase (12 migracao + 8 pos-migracao).
+- HEAD antes do feedback Supabase: `d22fa0c` — feat: beautiful manual sync button + sync-complete event to reload dossiers.
 - 873+ testes verdes, typecheck limpo.
 - Lint com `0` erros.
 
@@ -57,9 +57,10 @@ Read order:
 
 ### Schema Supabase:
 - URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
-- 8 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`
+- 9 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`, `feedback_events`
 - RLS habilitado em todas, politicas por `operator_id IS NOT NULL`
-- 8 indexes para performance de consulta
+- `feedback_events` registra feedback por mensagem/secao/erro com `reason`, `scope`, `metadata`, `session_id`, `message_id` e `operator_id`.
+- 11 indexes para performance de consulta
 - Grants anon para data API (leitura/escrita)
 
 ### Env vars necessarias (Vercel):
