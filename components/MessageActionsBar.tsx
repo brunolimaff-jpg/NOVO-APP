@@ -139,6 +139,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
   const handleDislikeStart = () => {
     if (feedbackSubmitted === 'down') return;
+    setFeedbackSubmitted(null);
     setShowCommentBox(true);
   };
 
