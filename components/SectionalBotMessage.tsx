@@ -6,6 +6,7 @@ import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
+import SocietaryMap from '../features/dossier/SocietaryMap';
 
 interface SectionalBotMessageProps {
   message: Message;
@@ -17,6 +18,7 @@ interface SectionalBotMessageProps {
   onRegenerateSuggestions?: (messageId: string) => void;
   hideSuggestions?: boolean;
   empresaAlvo?: string | null;
+  cnpj?: string | null;
   auditableSources?: AuditableSource[];
 }
 
@@ -121,6 +123,12 @@ function shouldShowSectionFeedback(title: string): boolean {
   return SECTION_FEEDBACK_FRAGMENTS.some(fragment => normalized.includes(fragment));
 }
 
+function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | null): boolean {
+  if (!cnpj) return false;
+  const normalized = normalizeFeedbackSectionTitle(`${title}\n${content}`);
+  return normalized.includes('teia societaria') || normalized.includes('poder societario');
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId,
@@ -131,6 +139,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   onRegenerateSuggestions,
   hideSuggestions = false,
   empresaAlvo,
+  cnpj,
   auditableSources = []
 }) => {
   const content = message.text || "";
@@ -233,6 +242,9 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             </div>
           )}
           <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
+            {shouldShowSocietaryMap(section.title, section.content, cnpj) ? (
+              <SocietaryMap cnpj={cnpj} empresaAlvo={empresaAlvo} isDarkMode={isDarkMode} />
+            ) : null}
             <MarkdownRenderer
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
               isDarkMode={isDarkMode}

@@ -1,5 +1,16 @@
 import { normalizeCnpj } from '../utils/cnpj.js';
 
+export type CnpjPartnerSource = 'BrasilAPI' | 'CNPJ.ws' | 'MinhaReceita';
+export type CnpjPartnerConfidence = 'official';
+
+export interface CnpjPartner {
+  name?: string;
+  role?: string;
+  document?: string;
+  source: CnpjPartnerSource;
+  confidence: CnpjPartnerConfidence;
+}
+
 export interface CnpjResult {
   cnpj: string;
   companyName: string;
@@ -7,6 +18,7 @@ export interface CnpjResult {
   state: string;
   cnae?: string;
   cnaeDescricao?: string;
+  qsa?: CnpjPartner[];
 }
 
 export class CnpjNotFoundError extends Error {
@@ -54,6 +66,63 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
   }
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readText(value: unknown): string | undefined {
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    return text || undefined;
+  }
+
+  if (isRecord(value)) {
+    return readText(value.descricao) || readText(value.nome) || readText(value.role);
+  }
+
+  return undefined;
+}
+
+function pickText(payload: UnknownRecord, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const text = readText(payload[key]);
+    if (text) return text;
+  }
+  return undefined;
+}
+
+function pickPublicDocument(payload: UnknownRecord, keys: string[]): string | undefined {
+  const document = pickText(payload, keys);
+  if (!document) return undefined;
+
+  const digits = document.replace(/\D/g, '');
+  const isMasked = document.includes('*');
+  const hasFullSensitiveId = digits.length === 11 || digits.length === 14;
+  return isMasked || !hasFullSensitiveId ? document : undefined;
+}
+
+function mapPartners(items: unknown, source: CnpjPartnerSource): CnpjPartner[] | undefined {
+  if (!Array.isArray(items)) return undefined;
+
+  const partners = items.flatMap((item): CnpjPartner[] => {
+    if (!isRecord(item)) return [];
+
+    const partner: CnpjPartner = {
+      name: pickText(item, ['nome_socio', 'nome', 'razao_social']),
+      role: pickText(item, ['qualificacao_socio', 'qualificacao', 'cargo']),
+      document: pickPublicDocument(item, ['documento_socio', 'cpf_cnpj_socio', 'cnpj_cpf_socio', 'cpf_cnpj', 'documento']),
+      source,
+      confidence: 'official',
+    };
+
+    return partner.name || partner.role || partner.document ? [partner] : [];
+  });
+
+  return partners.length > 0 ? partners : undefined;
+}
+
 // ── Fonte 1: BrasilAPI ────────────────────────────────────────────────────────
 async function fromBrasilApi(cnpj: string): Promise<CnpjResult> {
   const res = await fetchWithTimeout(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 8000);
@@ -71,6 +140,7 @@ async function fromBrasilApi(cnpj: string): Promise<CnpjResult> {
     state,
     cnae: p.cnae_fiscal ? String(p.cnae_fiscal) : undefined,
     cnaeDescricao: p.cnae_fiscal_descricao || undefined,
+    qsa: mapPartners(p.qsa, 'BrasilAPI'),
   };
 }
 
@@ -92,6 +162,7 @@ async function fromCnpjWs(cnpj: string): Promise<CnpjResult> {
     state,
     cnae: est.atividade_principal?.subclasse || undefined,
     cnaeDescricao: est.atividade_principal?.descricao || undefined,
+    qsa: mapPartners(p.socios, 'CNPJ.ws'),
   };
 }
 
@@ -112,6 +183,7 @@ async function fromMinhaReceita(cnpj: string): Promise<CnpjResult> {
     state,
     cnae: p.cnae_fiscal ? String(p.cnae_fiscal) : undefined,
     cnaeDescricao: p.cnae_fiscal_descricao || undefined,
+    qsa: mapPartners(p.qsa || p.socios, 'MinhaReceita'),
   };
 }
 

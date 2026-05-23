@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -217,6 +217,22 @@ Constraint: se no futuro houver demanda por funcionalidade similar, deve ser imp
 ## 2026-05-22 - Sync manual em vez de automatico
 
 Decision: adicionar botao de sync manual no header (`ManualSyncButton.tsx`) com feedback visual real (+N enviados, Baixados N) em vez de sync automatico silencioso. O badge SyncIndicator tambem mudou de "limpar notificacao" para "forcar sync".
+
+## 2026-05-23 - Teia societaria em producao usa Mermaid LR, nao SVG manual
+
+Decision: implementar a Teia Societaria Tipo 5 como grafo Mermaid LR dinamico renderizado pelo `MarkdownRenderer`, com componente React apenas orquestrando dados, selecao de socio, badges e evidencias.
+
+Reason: Bruno preferiu o estilo Mermaid pela clareza/disposicao de informacoes e pediu abandonar SVG manual por ser prematuro. Mermaid mantem fallback textual, reduz codigo de layout proprietario e preserva compatibilidade com o dossie existente.
+
+Constraint: novas visualizacoes societarias devem continuar `LR` por padrao; `TD/TB` nao devem ser usados nessa teia.
+
+## 2026-05-23 - Drill-down societario precisa de evidencia e cache persistente
+
+Decision: o drill-down por socio deve rodar apenas no server-side (`/api/socio-search`), rejeitar ligacao por nome sozinho, exigir contexto explicito da empresa raiz (`rootContext` + `rootCompanyName` ou `rootCnpj`) e cache persistente de 7 dias em Supabase `extract_cache`.
+
+Reason: dados societarios publicos tem risco alto de homonimos. A IA ou uma fonte generica nao pode conectar empresa apenas por nome de socio. Em producao, scraping sem cache persistente geraria instabilidade, custo e risco operacional.
+
+Constraint: o cache server-side aceita somente `SUPABASE_SERVICE_ROLE_KEY`; anon/public key nao e suficiente. Se o cache persistente nao estiver configurado/gravavel em producao, a API deve degradar sem scraping.
 
 Reason: operadores precisam de visibilidade do estado da sincronizacao. Sync automatico silencioso gera incerteza ("meus dados estao salvos?"). O botao manual com contagem fornece feedback tangivel. O evento `scout:sync-complete` permite que hooks recarreguem dados apos sync, garantindo consistencia da UI.
 
