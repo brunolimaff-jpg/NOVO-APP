@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const withAutoRetryMock = vi.hoisted(() => vi.fn());
 const scoutDiagMock = vi.hoisted(() => ({
   error: vi.fn(),
   info: vi.fn(),
@@ -11,10 +10,6 @@ const supabaseFromMock = vi.hoisted(() => vi.fn(() => ({
   insert: supabaseInsertMock,
 })));
 const isSupabaseAvailableMock = vi.hoisted(() => vi.fn());
-
-vi.mock('../../utils/retry', () => ({
-  withAutoRetry: withAutoRetryMock,
-}));
 
 vi.mock('../../utils/diagnosticLog', () => ({
   scoutDiag: scoutDiagMock,
@@ -49,73 +44,62 @@ function makePayload(overrides: Partial<RemoteFeedbackPayload> = {}): RemoteFeed
 describe('sendFeedbackRemote', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isSupabaseAvailableMock.mockReturnValue(false);
+    isSupabaseAvailableMock.mockReturnValue(true);
     supabaseInsertMock.mockResolvedValue({ error: null });
   });
 
-  it('retorna true em caso de sucesso', async () => {
-    withAutoRetryMock.mockImplementation(async (_name: string, action: () => Promise<unknown>) => action());
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      text: async () => JSON.stringify({ ok: true }),
-    } as Response);
-
+  it('retorna true em caso de sucesso no Supabase', async () => {
     const result = await sendFeedbackRemote(makePayload());
     expect(result).toBe(true);
+    expect(supabaseFromMock).toHaveBeenCalledWith('feedback_events');
   });
 
-  it('retorna false em caso de erro de rede (não lança)', async () => {
-    withAutoRetryMock.mockRejectedValue(new TypeError('fetch failed'));
+  it('retorna false quando Supabase retorna erro', async () => {
+    supabaseInsertMock.mockResolvedValue({ error: { message: 'RLS failed' } });
 
     const result = await sendFeedbackRemote(makePayload());
     expect(result).toBe(false);
+    expect(scoutDiagMock.error).toHaveBeenCalledWith(
+      'Feedback',
+      'envio Supabase falhou',
+      expect.objectContaining({
+        sessionId: 'sess-001',
+        messageId: 'msg-001',
+      }),
+    );
   });
 
-  it('retorna false quando API responde com ok=false', async () => {
-    withAutoRetryMock.mockImplementation(async (_name: string, action: () => Promise<unknown>) => action());
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      text: async () => JSON.stringify({ ok: false, error: 'Not found' }),
-    } as Response);
+  it('retorna false quando Supabase indisponível', async () => {
+    isSupabaseAvailableMock.mockReturnValue(false);
 
     const result = await sendFeedbackRemote(makePayload());
     expect(result).toBe(false);
+    expect(scoutDiagMock.error).toHaveBeenCalledWith(
+      'Feedback',
+      'Supabase indisponível ou userId ausente',
+      expect.any(Object),
+    );
   });
 
-  it('loga erro via scoutDiag quando falha', async () => {
-    withAutoRetryMock.mockRejectedValue(new Error('Timeout'));
-
-    await sendFeedbackRemote(makePayload());
-    expect(scoutDiagMock.error).toHaveBeenCalled();
-  });
-
-  it('retorna false para JSON inválido na resposta', async () => {
-    withAutoRetryMock.mockImplementation(async (_name: string, action: () => Promise<unknown>) => action());
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      text: async () => 'NOT_JSON_AT_ALL',
-    } as Response);
-
-    const result = await sendFeedbackRemote(makePayload());
+  it('retorna false quando userId ausente', async () => {
+    const result = await sendFeedbackRemote(makePayload({ userId: '' }));
     expect(result).toBe(false);
   });
 
-  it('envia payload com action=feedback', async () => {
-    let capturedBody = '';
-    withAutoRetryMock.mockImplementation(async (_name: string, action: () => Promise<unknown>) => action());
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, options) => {
-      capturedBody = options?.body as string;
-      return { text: async () => JSON.stringify({ ok: true }) } as Response;
-    });
+  it('loga erro via scoutDiag em exceção', async () => {
+    supabaseInsertMock.mockRejectedValue(new Error('Network error'));
 
-    await sendFeedbackRemote(makePayload({ type: 'dislike' }));
-    const parsed = JSON.parse(capturedBody);
-    expect(parsed.action).toBe('feedback');
-    expect(parsed.feedback.type).toBe('dislike');
+    const result = await sendFeedbackRemote(makePayload());
+    expect(result).toBe(false);
+    expect(scoutDiagMock.error).toHaveBeenCalledWith(
+      'Feedback',
+      'envio Supabase falhou',
+      expect.objectContaining({ error: 'Network error' }),
+    );
   });
 
-  it('grava no Supabase e retorna sucesso mesmo quando legado falha', async () => {
-    isSupabaseAvailableMock.mockReturnValue(true);
-    withAutoRetryMock.mockRejectedValue(new Error('Legacy down'));
-
-    const result = await sendFeedbackRemote(makePayload({
+  it('envia payload completo com scope section e reason', async () => {
+    await sendFeedbackRemote(makePayload({
       type: 'dislike',
       scope: 'section',
       sectionKey: 'resumo_1',
@@ -124,8 +108,6 @@ describe('sendFeedbackRemote', () => {
       metadata: { source: 'section_feedback' },
     }));
 
-    expect(result).toBe(true);
-    expect(supabaseFromMock).toHaveBeenCalledWith('feedback_events');
     expect(supabaseInsertMock).toHaveBeenCalledWith({
       feedback_id: 'fb-001',
       operator_id: 'user-123',
@@ -142,35 +124,5 @@ describe('sendFeedbackRemote', () => {
       metadata: { source: 'section_feedback' },
       created_at: expect.any(String),
     });
-  });
-
-  it('continua chamando legado quando Supabase falha', async () => {
-    isSupabaseAvailableMock.mockReturnValue(true);
-    supabaseInsertMock.mockResolvedValue({ error: { message: 'RLS failed' } });
-    withAutoRetryMock.mockImplementation(async (_name: string, action: () => Promise<unknown>) => action());
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      text: async () => JSON.stringify({ ok: true }),
-    } as Response);
-
-    const result = await sendFeedbackRemote(makePayload());
-
-    expect(result).toBe(true);
-    expect(withAutoRetryMock).toHaveBeenCalled();
-    expect(scoutDiagMock.error).toHaveBeenCalledWith(
-      'Feedback',
-      'envio Supabase falhou',
-      expect.objectContaining({ error: 'RLS failed' }),
-    );
-  });
-
-  it('usa maxRetries=2 no withAutoRetry', async () => {
-    withAutoRetryMock.mockResolvedValue(true);
-
-    await sendFeedbackRemote(makePayload());
-    expect(withAutoRetryMock).toHaveBeenCalledWith(
-      'Feedback:send',
-      expect.any(Function),
-      expect.objectContaining({ maxRetries: 2 }),
-    );
   });
 });
