@@ -113,8 +113,6 @@ REGRAS DEMONSTRADAS NESTES EXEMPLOS:
 7. Nome de pessoa exatamente como na fonte oficial (QSA)
 </fact_vs_inference_examples>
 
-
-
 <citation_protocol>
 Toda afirmação factual DEVE ter fonte auditável.
 

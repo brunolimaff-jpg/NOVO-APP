@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import megaPrompts, {
   ALL_SPECIALIST_PROMPTS,
-  PROMPT_CAMINHO_DE_VENDA,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+  PROMPT_CAMINHO_DE_VENDA,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -135,6 +135,7 @@ describe('PORTA mega prompts', () => {
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Mapas Visuais');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Cards de Auditoria');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial]');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('**Pergunta de reunião:**');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('CAMINHO DE VENDA');
     expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
   });
@@ -164,6 +165,7 @@ describe('PORTA mega prompts', () => {
     });
 
     expect(prompt).toContain('INVESTIGACAO_COMPLETA_INTEGRADA (MVP+ v6):');
+    expect(prompt).toContain('ANTES DE TUDO: valide a identidade');
     expect(prompt).toContain('Empresa=Fazenda Modelo; CNPJ=12.345.678/0001-99; Cidade=Cuiaba; UF=MT.');
     expect(prompt).toContain(SHARED_FOUNDATION_BLOCK);
     expect(prompt).toContain(PROMPT_RAIO_X_OPERACIONAL_ATAQUE);
@@ -222,15 +224,15 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 42827,
-          "lines": 1029,
-          "sha256": "8baf90770a5b0e2d97ac6455411c0163b3ff711ab200600b87c091d61e24e27d",
+          "length": 42760,
+          "lines": 1027,
+          "sha256": "b01057ba9c360a320b9c40de6f82d086b1cc3e5ab6bc55e00b8ebeb235947da0",
         },
         {
           "label": "specialist-1",
-          "length": 13111,
+          "length": 13381,
           "lines": 301,
-          "sha256": "3c034c734ad11fd01fb166a4d08486881c5f3a11c61b9d661e2ed3278100e7a5",
+          "sha256": "33e3a228cda74e7bb3fe2cc27cf4f9807bcda9dc69c6f956e0f3d94300ffe961",
         },
         {
           "label": "specialist-2",
@@ -246,9 +248,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8225,
-          "lines": 241,
-          "sha256": "ad8bc024378786e4f3d2b0ca1c6d1b9b049998fddcb49056916dcbc0da0466c2",
+          "length": 8525,
+          "lines": 244,
+          "sha256": "dd0238c1ea3a50c4c5bd925e905c1db3ecd27832c6980ae6e6a7a0fb2a646b38",
         },
         {
           "label": "specialist-5",
@@ -276,21 +278,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 104553,
-          "lines": 2661,
-          "sha256": "bb2df6aa032e6678cf472d93544e651b470467d85ff9291eebc303300908af95",
+          "length": 105056,
+          "lines": 2662,
+          "sha256": "e4dbd56f16a2f55566ae94d914cf712e280d7f79fdb09fc88f7dfc101bd8aa5c",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 112817,
-          "lines": 2911,
-          "sha256": "e52143de4e4f1d20d63863802477904334b7b351821b75c914f05cfb8876ae5d",
+          "length": 113320,
+          "lines": 2912,
+          "sha256": "417ff459747b63f6daedcad0b00a7c16db5024c4984d2a2fae8ed622e62bcfd0",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105027,
-          "lines": 2681,
-          "sha256": "d68b5fa942a787c3fbbb38b97f100d756c1d0b590b73122177864b3dc345fed2",
+          "length": 105530,
+          "lines": 2682,
+          "sha256": "a6b4939a83ba33f56d20dde6bcf9dd6767497c9042849106f974d675640a1386",
         },
       ]
     `);

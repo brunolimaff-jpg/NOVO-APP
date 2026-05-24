@@ -356,9 +356,9 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.objectContaining({ useGrounding: true }),
     );
-    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('MAPAS + CARDS + ARMA DE VENDA UNIFICADA');
+    expect(generateDossierModuleMock.mock.calls[0][2]).toContain('CONTRATO VISÍVEL V2');
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');
-    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('MAPAS + CARDS + ARMA DE VENDA UNIFICADA');
+    expect(generateDossierModuleMock.mock.calls[0][4]).not.toContain('CONTRATO VISÍVEL V2');
     expect(runDossierBenchmarkStageMock).toHaveBeenCalledTimes(1);
     expect(ensureWaterfallScorePortaMock).toHaveBeenCalledWith(
       expect.stringContaining('[[PORTA:74'),

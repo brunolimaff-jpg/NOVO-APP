@@ -39,8 +39,7 @@ npm run lint       # ESLint
 6. **Search Grounding nunca cachear**
 7. **Validar CNPJ antes de chamadas IA**
 8. **Framework PORTA**: 5 dimensões (Porte, Operação, Retorno, Tecnologia, Adoção) — temp 0.1
-9. **Trava de agentes**: NUNCA commitar, push ou merge enquanto planner/validator/reviewer estiverem rodando em background. Aguardar `<task-notification>` de conclusão de TODOS antes de qualquer ação de git. "Finaliza" não dispensa aguardar.
-10. **Gate de validação obrigatório**: Antes de declarar qualquer tarefa de prompt concluída, rodar EM SEQUÊNCIA: (1) `npx tsc --noEmit` (2) `npx vitest run tests/prompts/ tests/features/dossier/waterfall-orchestrator.test.ts` (3) `./scripts/validate-preview.sh http://localhost:5173 04.733.767/0001-80` (4) Validar output no navegador com dossiê Scheffer. Se qualquer gate falhar, a tarefa NÃO está concluída.
+9. **Trava de agentes**: NUNCA commitar, fazer push, merge, ou modificar estado do repositório enquanto houver agentes de planejamento (planner), validação (validator) ou revisão (reviewer) em execução. Sempre aguardar TODOS terminarem via `<task-notification>` e pedir confirmação explícita do usuário antes de qualquer ação de git. "Finaliza" não dispensa aguardar agentes.
 
 ## Agent Dispatch
 

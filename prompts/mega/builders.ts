@@ -164,7 +164,7 @@ ${'```'}
 [[PORTA_FEED_R_TRAB:[NOTA]:PASSIVOS:[LISTA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]
 
-⚠️ O CAMINHO DE VENDA é o ÚNICO módulo com gatilhos e scripts. Os outros módulos (Operacional, Tech Stack, Compliance, Expansão, RH, Decisores) só fazem análise (Mapas Visuais + Cards de Auditoria).
+⚠️ O CAMINHO DE VENDA é o ÚNICO módulo com gatilhos e scripts. Os outros módulos只 fazem análise (Mapas Visuais + Cards de Auditoria).
 </seller_brief_module_output_contract>
 `;
 
