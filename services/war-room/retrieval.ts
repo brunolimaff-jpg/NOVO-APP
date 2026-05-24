@@ -299,19 +299,19 @@ export async function loadWarRoomDocsContext(
       fercus: flags.wantsFercus,
     });
 
-    if (flags.wantsFercus && !/gatec-modulo-fercus/i.test(docsContext)) {
+    if (flags.wantsFercus && docsContext && !/gatec-modulo-fercus/i.test(docsContext)) {
       docsContext = mergeDocContexts([FERCUS_REFERENCE_BLOCK, docsContext]);
     }
 
-    if (flags.wantsTalhao && !/consulta-analitica-de-talhao/i.test(docsContext)) {
+    if (flags.wantsTalhao && docsContext && !/consulta-analitica-de-talhao/i.test(docsContext)) {
       docsContext = mergeDocContexts([TALHAO_REFERENCE_BLOCK, docsContext]);
     }
 
-    if (flags.wantsGatecAgricola && !/simplefarm\/manual-do-usuario\/agricola/i.test(docsContext)) {
+    if (flags.wantsGatecAgricola && docsContext && !/simplefarm\/manual-do-usuario\/agricola/i.test(docsContext)) {
       docsContext = mergeDocContexts([GATEC_AGRICOLA_REFERENCE_BLOCK, docsContext]);
     }
 
-    if (flags.wantsBanking && !/integracao-erp-banking/i.test(docsContext)) {
+    if (flags.wantsBanking && docsContext && !/integracao-erp-banking/i.test(docsContext)) {
       docsContext = mergeDocContexts([ERP_BANKING_REFERENCE_BLOCK, docsContext]);
     }
 
