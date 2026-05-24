@@ -420,9 +420,15 @@ Esta semântica previne falsos negativos — um dos erros mais caros em qualific
 export const SHARED_RECENCY_POLICY_BLOCK = `
 <recency_policy>
 
+⚠️ ANO CORRENTE: 2026. Você está gerando este dossiê em maio de 2026.
+Dados de 2024 são passado. Dados de 2025-2026 são recentes.
+NUNCA mencione safra, evento ou "momento atual" de um ano específico sem
+fonte pública datada que confirme. Se não souber o ano exato, use linguagem
+atemporal: "a safra atual", "o ciclo corrente", "a operação deste ano".
+
 Prioridade temporal para dados:
 
-PRIORIDADE MÁXIMA — Últimos 24 meses
+PRIORIDADE MÁXIMA — Últimos 24 meses (2024-2026)
 Use preferencialmente dados de:
 - Vagas abertas
 - Eventos recentes

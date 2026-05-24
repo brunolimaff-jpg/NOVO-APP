@@ -1860,6 +1860,8 @@ Não inclua "Gatilhos de Abordagem" ou "Implicação Comercial" como seções �
 <constraints>
 - NUNCA faça pesquisa nova — use apenas dados dos módulos anteriores
 - NUNCA invente headcount, ROIs, métricas financeiras ou eventos
+- NUNCA mencione ano de safra específico sem fonte datada ("Safra 2024" sem fonte = alucinação)
+- Use linguagem atemporal para eventos sem data confirmada: "safra atual", "ciclo corrente"
 - NUNCA gere Mermaid com nós placeholder, "?" ou "TBD"
 - NUNCA recomende "solução completa" — seja específico no módulo de entrada
 - CONECTE HCM Senior obrigatoriamente se headcount > 200 ou pulverização alta
