@@ -4,6 +4,18 @@ Last updated: 2026-05-23
 
 ## Completed
 
+### Teia Societaria Tipo 5 — Mermaid dinamico + drill-down (2026-05-23)
+
+**Branch:** `codex/teia-societaria-tipo5`
+
+- QSA exposto no fluxo CNPJ (`lib/cnpjLookup.ts`, `services/brasilApiService.ts`) com socios normalizados, qualificacao, documento publico mascarado, fonte e confianca.
+- Criado `/api/socio-search` para drill-down server-side por socio, com busca web, rejeicao de homonimos, preservacao de Scheffer Colombia S.A.S. quando ha contexto do grupo e evidencia internacional, e cache persistente de 7 dias.
+- Cache de producao exige `SUPABASE_SERVICE_ROLE_KEY`; chave anon/publica e ignorada. Sem cache persistente legivel/gravavel, a API degrada e nao executa scraping.
+- Criados `features/dossier/societaryGraph.ts` e `features/dossier/SocietaryMap.tsx`: grafo unico para UI/Mermaid, sempre `graph LR`, drill-down ao trocar socio, badges, fontes/confianca/tipo de evidencia visiveis e fallback textual mantido.
+- Integracao no dossie via `SectionalBotMessage`/`MessageRow`, sem alterar Score PORTA e sem SVG manual em producao.
+- Reviews: spec compliance aprovado por subagente; quality review aprovado por subagente; code-review local sem blockers apos correcoes.
+- Validacoes: `npm run typecheck`; recorte Vitest de 53 testes; `npm run test:dossier`; `npm run build`. Avisos conhecidos: warnings de localStorage no Vitest, log esperado do teste de `/api/link-status`, e warning de bundle grande por Mermaid ja existente no build.
+
 ### Feedback Scout 360 com Supabase (2026-05-23)
 
 - Criada tabela `feedback_events` no Supabase (`vmqfcaoirjcfucvlnpig`) com RLS ativa, policy `operator_own_feedback_events` e grants `SELECT/INSERT` para `anon`.
@@ -194,6 +206,8 @@ Last updated: 2026-05-23
 
 ## In progress
 
+- Abrir PR da branch `codex/teia-societaria-tipo5` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
+- Configurar `SUPABASE_SERVICE_ROLE_KEY` no ambiente Vercel para habilitar o cache persistente server-side do `/api/socio-search`.
 - Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
 - Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.

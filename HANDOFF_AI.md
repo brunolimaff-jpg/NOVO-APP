@@ -31,6 +31,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 > Atualizado em 2026-05-22 — **Migracao de persistencia IDB/localStorage para Supabase concluida na branch `codex/standardize-mermaid-maps`.** Projeto agora usa arquitetura offline-first: Supabase como fonte de verdade, IDB como cache offline, sync queue para reconciliacao bidirecional. **Branch com 8 commits adicionais apos a migracao:** cadastro restrito (`@senior.com.br` + nome completo), email recovery (vincular dispositivo a operador existente), botao de sync manual no header, e remocao do botao "Dossie de investigacao" de 14 arquivos.
 
+> Atualizado em 2026-05-23 — **Teia Societaria Tipo 5 implementada na branch `codex/teia-societaria-tipo5`.** O dossie agora pode trocar o mapa societario estatico por Mermaid LR dinamico com QSA real, drill-down server-side por socio, evidencias visiveis e fallback textual. Em producao, `/api/socio-search` exige `SUPABASE_SERVICE_ROLE_KEY` para cache persistente de 7 dias; sem cache persistente, degrada sem scraping.
+
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.
 - `services/warRoomService.ts` segue como fachada publica com internals em `services/war-room/*`.
 - `services/exportService.ts` criado na Sprint 9 com export/email logic extraida de App.tsx.
@@ -48,6 +50,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Mini CRM local foi removido por decisão de produto; preservar apenas referências ao CRM interno Senior usadas como evidência em dossiês/prompts.
 - Docs RAG anti-alucinacao mergeado via PR `#253` (`df1ca1e`).
 - **Supabase** integrado como camada de persistencia: `lib/supabaseClient.ts` + `services/storage.ts` (interface unificada) + `services/syncQueue.ts` (fila offline) + `components/SyncIndicator.tsx` (badge de status). 8 tabelas com RLS por `operator_id`, 8 indexes, grants anon. Conexao direta browser → Supabase via anon key; sem camada serverless intermediaria. Offline-first: IDB cache + sync fila com retry. 873 testes verdes, typecheck limpo.
+- **Teia Societaria Tipo 5:** `features/dossier/SocietaryMap.tsx` injeta Mermaid LR nas secoes de Teia/Poder Societario; `features/dossier/societaryGraph.ts` e a fonte unica para UI/export Mermaid; `/api/socio-search` faz drill-down por socio com cache persistente, bloqueio de homonimo e metadados de evidencia; `lib/cnpjLookup.ts`/`services/brasilApiService.ts` propagam QSA.
 
 ### Melhorias pos-migracao (8 commits adicionais na branch)
 
@@ -185,14 +188,16 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Próximo passo seguro
 
-1. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
-2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-3. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossie -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
-4. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
-5. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
-6. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
-7. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
-8. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
+1. Abrir/validar PR da branch `codex/teia-societaria-tipo5`.
+2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`; manter `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` para o app browser.
+3. Validar preview com CNPJ Scheffer `04.733.767/0001-80`: QSA, drill-down por socio, Scheffer Colombia S.A.S. com fonte, fallback textual.
+4. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
+5. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossie -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
+6. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
+7. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+8. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+9. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
+10. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 

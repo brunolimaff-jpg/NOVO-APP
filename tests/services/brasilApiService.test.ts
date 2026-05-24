@@ -56,6 +56,59 @@ describe('brasilApiService helpers', () => {
     expect(result.state).toBe('MT');
   });
 
+  it('preserves qsa data returned by the /api/cnpj proxy', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({
+        cnpj: '04252011000110',
+        companyName: 'Empresa Exemplo',
+        city: 'Cuiabá',
+        state: 'MT',
+        qsa: [
+          {
+            name: 'Maria Exemplo',
+            role: 'Sócia-Administradora',
+            document: '***.123.456-**',
+            source: 'BrasilAPI',
+            confidence: 'official',
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await fetchCompanyByCnpj('04.252.011/0001-10');
+
+    expect(result.qsa).toEqual([
+      {
+        name: 'Maria Exemplo',
+        role: 'Sócia-Administradora',
+        document: '***.123.456-**',
+        source: 'BrasilAPI',
+        confidence: 'official',
+      },
+    ]);
+  });
+
+  it('keeps qsa undefined when the proxy response has no partner data', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify({
+        cnpj: '04252011000110',
+        companyName: 'Empresa Exemplo',
+        city: 'Cuiabá',
+        state: 'MT',
+      }),
+    } as Response);
+
+    const result = await fetchCompanyByCnpj('04.252.011/0001-10');
+
+    expect(result.qsa).toBeUndefined();
+  });
+
   it('throws when proxy returns error', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: false,

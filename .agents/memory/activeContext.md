@@ -26,6 +26,17 @@ Read order:
 - 873+ testes verdes, typecheck limpo.
 - Lint com `0` erros.
 
+## Current implementation branch
+
+**Teia Societaria Tipo 5 implementada na branch `codex/teia-societaria-tipo5` (worktree isolado).**
+
+- Substitui o rumo do mockup SVG por Mermaid LR dinamico dentro do dossie, preservando o markdown textual como fallback.
+- QSA passa pelo pipeline CNPJ (`lib/cnpjLookup.ts` -> `api/cnpj.ts` -> `services/brasilApiService.ts`) com socios, qualificacao, documento publico mascarado, fonte e confianca.
+- `features/dossier/SocietaryMap.tsx` injeta o mapa em secoes de Teia/Poder Societario e faz drill-down quando o operador troca o socio selecionado.
+- `api/socio-search.ts` executa busca/scraping apenas server-side, rejeita homonimos, preserva Scheffer Colombia S.A.S. quando ha contexto do grupo e evidencia internacional, e grava cache persistente de 7 dias em `extract_cache`.
+- Cache de producao exige `SUPABASE_SERVICE_ROLE_KEY`; chave anon/publica nao e aceita nesse endpoint. Sem service role/cache gravavel, a busca degrada e nao executa scraping.
+- O grafo exige `rootContext` com `rootCompanyName` ou `rootCnpj` compativel com a empresa raiz; `confidence: strong` sozinho nao conecta empresa.
+
 ## Current task context
 
 **Migracao Supabase concluida (2026-05-22).**
@@ -79,8 +90,7 @@ Read order:
 
 ## Immediate next step
 
-1. Mergear `codex/standardize-mermaid-maps` em `main` (20 commits, migracao + 8 melhorias pos-migracao).
-2. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-3. Testar fluxo completo: registrar com `@senior.com.br` (nome completo obrigatorio) -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
-4. Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1) em `main`.
-5. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+1. Finalizar/mergear `codex/teia-societaria-tipo5`.
+2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para habilitar o cache persistente do `/api/socio-search`; manter `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` para o app browser.
+3. Validar no preview um dossie Scheffer com CNPJ `04.733.767/0001-80`: QSA visivel, drill-down por socio, Scheffer Colombia preservada com fonte, fallback textual mantido.
+4. Depois, seguir merges pendentes: `codex/standardize-mermaid-maps`, PR `#270` e PR `#266`, conforme prioridade do owner.

@@ -1,5 +1,6 @@
 import { normalizeCnpj, formatCnpj, isValidCnpj } from '../utils/cnpj';
 import { scoutDiag } from '../utils/diagnosticLog';
+import type { CnpjPartner } from '../lib/cnpjLookup';
 
 export { normalizeCnpj, formatCnpj, isValidCnpj };
 
@@ -10,6 +11,7 @@ export interface BrasilApiCompanyData {
   state: string;
   cnae?: string;
   cnaeDescricao?: string;
+  qsa?: CnpjPartner[];
 }
 
 export interface CityValidationResult {
@@ -116,6 +118,7 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
       state: string;
       cnae?: string;
       cnaeDescricao?: string;
+      qsa?: CnpjPartner[];
       error?: string;
     }>(endpoint, 30000, signal);
 
@@ -137,6 +140,7 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
       state: data.state,
       cnae: data.cnae,
       cnaeDescricao: data.cnaeDescricao,
+      qsa: data.qsa,
     };
   } catch (error) {
     timer.fail(error);

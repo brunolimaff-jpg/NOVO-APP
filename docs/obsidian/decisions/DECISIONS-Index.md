@@ -36,6 +36,12 @@ Voltar para [[00-MASTER]].
 - board/open-items/handoff do refactor continuam como verdade viva
 - impacto maior em [[ROADMAP-Overview]]
 
+### Teia Societaria Tipo 5
+
+- Mermaid LR dinamico substitui o rumo de SVG manual para producao
+- drill-down por socio exige evidencia do grupo, bloqueio de homonimo e cache persistente server-side
+- detalhes em [[TEIA-SOCIETARIA-ENRIQUECIMENTO]]
+
 ### Stores com `Context + Reducer`
 
 - Sprint 4 escolheu `stores/*` em vez de adicionar `zustand`
