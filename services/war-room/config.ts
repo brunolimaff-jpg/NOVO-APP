@@ -14,7 +14,7 @@ export const COMPETITOR_DOCS_NAMESPACE = 'competitor-pdfs';
 export const FERCUS_REFERENCE_BLOCK = [
   '### Integracao Gatec: Gestão de Custos Gerenciais (Fercus)',
   'Módulo focado em custos gerenciais dentro do contexto GAtec/ERP.',
-  '(Fonte: https://documentacao.senior.com.br/gestaoempresarialerp/5.10.4/manuais_processos/agronegocio/integracao-gatec/gatec-modulo-fercus.htm)',
+  '(Fonte: https://documentacao.senior.com.br/gestaoempresarialerp/manuais_processos/agronegocio/integracao-gatec/gatec-modulo-fercus.htm)',
 ].join('\n');
 
 export const TALHAO_REFERENCE_BLOCK = [
@@ -34,7 +34,7 @@ export const GATEC_AGRICOLA_REFERENCE_BLOCK = [
 export const ERP_BANKING_REFERENCE_BLOCK = [
   '### ERP Banking: Integração Bancária',
   'Referências oficiais para integração de pagamentos eletrônicos, conciliação e fluxo ERP Banking.',
-  '(Fonte: https://documentacao.senior.com.br/gestaoempresarialerp/5.10.4/processos-automaticos/166-integracao-erp-banking.htm)',
+  '(Fonte: https://documentacao.senior.com.br/gestaoempresarialerp/processos-automaticos/166-integracao-erp-banking.htm)',
   '(Fonte: https://documentacao.senior.com.br/seniorxplatform/manual-do-usuario/erp/?utm_source=portal-documentacao&utm_medium=referral&utm_campaign=link-home-portal#Banking/banking.htm)',
 ].join('\n');
 
@@ -45,6 +45,6 @@ export const ERP_BANKING_CANONICAL_BLOCK = [
   '- Leitura correta no comparativo: quando houver menção a Banking, contraste explícito entre API de boletos/títulos e governança de pagamentos/conciliação do ERP Banking.',
   '',
   '### Referência explícita: ERP Banking',
-  '- Integração ERP x ERP Banking: https://documentacao.senior.com.br/gestaoempresarialerp/5.10.4/processos-automaticos/166-integracao-erp-banking.htm',
+  '- Integração ERP x ERP Banking: https://documentacao.senior.com.br/gestaoempresarialerp/processos-automaticos/166-integracao-erp-banking.htm',
   '- Módulo ERP Banking (Senior X Platform): https://documentacao.senior.com.br/seniorxplatform/manual-do-usuario/erp/?utm_source=portal-documentacao&utm_medium=referral&utm_campaign=link-home-portal#Banking/banking.htm',
 ].join('\n');

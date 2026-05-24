@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
 import {
+  PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_RH_SINDICATOS_GOD_MODE,
@@ -464,7 +465,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         },
         {
           name: 'Caminho de Venda',
-          prompt: PROMPT_RH_SINDICATOS_GOD_MODE,
+          prompt: PROMPT_CAMINHO_DE_VENDA,
           stage: MODULAR_DOSSIER_STAGES[4],
           optional: true,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,

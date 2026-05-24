@@ -1,0 +1,140 @@
+- generic [ref=e7]:
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - dialog "Histórico de investigações":
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - button "Nova investigação" [ref=e13] [cursor=pointer]:
+              - generic [ref=e14]: 🦅
+              - generic [ref=e15]: Nova investigação
+            - generic [ref=e16]:
+              - generic [ref=e17]: 🔍
+              - textbox "Buscar no histórico" [ref=e18]:
+                - /placeholder: Buscar empresa ou CNPJ...
+          - generic [ref=e19]:
+            - generic [ref=e20]: Histórico (0)
+            - generic [ref=e21]: Nenhuma investigação salva.
+          - paragraph [ref=e23]: 🦅 Senior Scout 360
+      - main [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - button "Abrir painel lateral" [ref=e28] [cursor=pointer]:
+              - img [ref=e29]
+            - generic [ref=e32]: Scout 360
+          - generic [ref=e33]:
+            - button "Radar Setorial" [ref=e34] [cursor=pointer]:
+              - img [ref=e35]
+            - button "Abrir War Room" [ref=e38] [cursor=pointer]:
+              - img [ref=e41]
+            - button "Mudar para modo escuro" [ref=e43] [cursor=pointer]:
+              - img [ref=e44]
+            - button "2" [ref=e46] [cursor=pointer]:
+              - generic [ref=e51]: "2"
+            - button "BL Bruno Lima ▾" [ref=e53] [cursor=pointer]:
+              - generic [ref=e54]: BL
+              - generic [ref=e55]: Bruno Lima
+              - generic [ref=e56]: ▾
+        - generic [ref=e58]:
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - generic [ref=e63]:
+                - paragraph [ref=e64]: Nova investigação
+                - generic [ref=e65]:
+                  - heading "Inteligência de Campo" [level=1] [ref=e66]
+                  - generic [ref=e67]: Fluxo único
+                - paragraph [ref=e68]: Do alvo ao dossiê completo em minutos — Score PORTA, táticas e próximos passos.
+                - paragraph [ref=e69]: Boa tarde, Bruno Lima. Qual é o próximo alvo?
+                - list [ref=e70]:
+                  - listitem [ref=e71]:
+                    - generic [ref=e73]: "Dossiê completo por área: Fiscal, TI, RH e Supply Chain com fontes rastreáveis."
+                  - listitem [ref=e74]:
+                    - generic [ref=e76]: Score PORTA com qualificação preditiva em 5 dimensões — feche os certos primeiro.
+                  - listitem [ref=e77]:
+                    - generic [ref=e79]: Exportável para follow-up comercial — sem retrabalho manual.
+              - generic [ref=e81]:
+                - generic [ref=e82]:
+                  - heading "Dados do alvo" [level=2] [ref=e83]
+                  - paragraph [ref=e84]: Empresa e localização são suficientes para começar.
+                - generic [ref=e85]:
+                  - generic [ref=e86]:
+                    - generic [ref=e87]: Nome da empresa *
+                    - textbox "Nome da empresa *" [ref=e88]:
+                      - /placeholder: Razão social ou nome fantasia
+                  - generic [ref=e89]:
+                    - generic [ref=e90]: CNPJ (opcional)
+                    - paragraph [ref=e91]: Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA.
+                    - generic [ref=e92]:
+                      - textbox "00.000.000/0000-00" [ref=e93]
+                      - button "Validar CNPJ" [disabled] [ref=e94]
+                    - paragraph [ref=e95]: Digite o CNPJ e clique em Validar — nome, cidade e UF serão preenchidos automaticamente.
+                  - generic [ref=e96]:
+                    - generic [ref=e97]:
+                      - generic [ref=e98]: Cidade *
+                      - textbox "Cidade *" [ref=e99]:
+                        - /placeholder: Município
+                    - generic [ref=e100]:
+                      - generic [ref=e101]: UF *
+                      - textbox "UF *" [ref=e102]:
+                        - /placeholder: SP
+                  - button "Iniciar investigação completa" [ref=e103] [cursor=pointer]
+            - region "Radar Setorial" [ref=e104]:
+              - generic [ref=e105]:
+                - generic [ref=e106]:
+                  - heading "Radar Setorial" [level=2] [ref=e107]
+                  - paragraph [ref=e108]: Sinais vitais e inteligência de mercado em tempo real.
+                - generic [ref=e109]:
+                  - button "Configurar Radar" [ref=e110] [cursor=pointer]
+                  - button "Varrer agora" [ref=e111] [cursor=pointer]:
+                    - generic [ref=e112]: ↻
+                    - text: Varrer agora
+              - generic [ref=e113]:
+                - paragraph [ref=e114]: Nenhum sinal relevante detectado no momento.
+                - paragraph [ref=e115]: O Radar varre automaticamente. Clique em "Varrer agora" para forçar uma nova leitura.
+            - paragraph [ref=e116]: Senior Scout 360 — Inteligência forense
+          - button "Abrir ajuda do Scout" [ref=e118] [cursor=pointer]:
+            - img [ref=e119]
+            - generic [ref=e122]: Ajuda
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - generic [ref=e134]:
+            - generic [ref=e135]:
+              - generic [ref=e136]: ⚔️
+              - generic [ref=e137]:
+                - heading "The War Room" [level=2] [ref=e138]
+                - paragraph [ref=e139]: Centro de Comando Tático
+            - button "✕" [ref=e140] [cursor=pointer]
+          - generic [ref=e141]:
+            - paragraph [ref=e142]: Modo ativo
+            - generic [ref=e144]:
+              - generic [ref=e145]: ⚔️
+              - generic [ref=e146]:
+                - paragraph [ref=e147]: The War Room
+                - paragraph [ref=e148]: Roteamento automático para técnico e comparativo
+          - generic [ref=e150]:
+            - generic [ref=e151]: OPERACIONAL
+            - generic [ref=e153]: 0 consultas
+        - generic [ref=e154]:
+          - generic [ref=e156]:
+            - generic [ref=e157]: 🧠
+            - generic [ref=e158]:
+              - heading "The War Room" [level=3] [ref=e159]
+              - paragraph [ref=e160]: Rota atual:Tira-Dúvidas Técnico
+          - generic [ref=e163]:
+            - generic [ref=e164]: 🧠
+            - heading "The War Room" [level=4] [ref=e165]
+            - paragraph [ref=e166]: Faça perguntas técnicas ou comparativas. A rota é escolhida automaticamente.
+            - generic [ref=e167]:
+              - button "💡Como funciona o custo por talhão no SimpleFarm?" [ref=e168] [cursor=pointer]
+              - button "💡Qual o fluxo completo da ordem de serviço até a valorização?" [ref=e169] [cursor=pointer]
+              - button "💡Compare Senior x TOTVS para folha + agronegócio." [ref=e170] [cursor=pointer]
+              - button "💡Quais integrações da Senior reduzem retrabalho com ERP?" [ref=e171] [cursor=pointer]
+          - generic [ref=e173]:
+            - textbox "Pergunte sobre produto, processo, integração ou comparação com concorrentes..." [active] [ref=e174]
+            - button "▶" [disabled] [ref=e175]
+  - contentinfo [ref=e124]:
+    - paragraph [ref=e126]:
+      - generic [ref=e127]: "Ajuda e Suporte:"
+      - link "bruno.ferreira" [ref=e128] [cursor=pointer]:
+        - /url: https://teams.microsoft.com/l/chat/0/0?users=bruno.ferreira@senior.com.br
+      - generic [ref=e129]: ·
+      - generic [ref=e130]: Senior Scout 360 © 2026

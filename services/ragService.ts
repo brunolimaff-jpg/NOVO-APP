@@ -3,6 +3,9 @@ import { scoutDiag } from '../utils/diagnosticLog';
 const RAG_FETCH_TIMEOUT_MS = 15000;
 const RAG_QUERY_MAX_CHARS = 9500;
 
+/** Prefixo retornado por api/docs-rag.ts quando nao ha documentacao viavel no Pinecone. */
+const NO_DOCS_SIGNAL_PREFIX = '[SEM DOCUMENTAÇÃO ENCONTRADA';
+
 export interface RagResult {
   context: string;
   failed: boolean;
@@ -44,7 +47,11 @@ async function fetchRagContext(
       }
 
       const data = await response.json();
-      return { context: data.context || '', failed: false };
+      const context = data.context || '';
+      if (context.startsWith(NO_DOCS_SIGNAL_PREFIX) || !context.trim()) {
+        return { context: '', failed: true };
+      }
+      return { context, failed: false };
 
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {

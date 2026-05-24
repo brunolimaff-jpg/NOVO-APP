@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
 import { GoogleGenAI } from '@google/genai';
@@ -67,11 +68,10 @@ async function ingestAgro() {
     console.log(`Lendo arquivo: ${csvPath}`);
     const parser = fs.createReadStream(csvPath, { encoding: 'utf8' }).pipe(parse({ columns: true, skip_empty_lines: true }));
     let buffer: any[] = [];
-    let count = 0; let successCount = 0;
+    let successCount = 0;
 
     for await (const row of parser) {
         const r = row as any;
-        count++;
         // Header: Portal,Produto,Módulo,Título,URL
         const titulo = Object.keys(r).find(k => k.includes('tulo' /* Título */)) || 'Título';
         const modulo = Object.keys(r).find(k => k.includes('dulo' /* Módulo */)) || 'Módulo';
@@ -79,8 +79,9 @@ async function ingestAgro() {
 
         const textToEmbed = `Manual Senior Agro | Portal: ${r.Portal} | Produto: ${r.Produto} | Módulo: ${r[modulo]} | Título: ${r[titulo]}`;
 
+        const agroId = `agro-doc-${crypto.createHash('sha1').update(r.URL).digest('hex').slice(0, 20)}`;
         buffer.push({
-            id: `agro-doc-${count}`,
+            id: agroId,
             text: textToEmbed,
             metadata: { categoria: r[modulo] || r.Produto || 'Agro', titulo: r[titulo] || '', url: r.URL }
         });
@@ -101,11 +102,10 @@ async function ingestFlow() {
     console.log(`Lendo arquivo: ${csvPath}`);
     const parser = fs.createReadStream(csvPath, { encoding: 'utf8' }).pipe(parse({ columns: true, skip_empty_lines: true }));
     let buffer: any[] = [];
-    let count = 0; let successCount = 0;
+    let successCount = 0;
 
     for await (const row of parser) {
         const r = row as any;
-        count++;
         // Header: Categoria,Título,Caminho,URL Completa
         const titulo = Object.keys(r).find(k => k.includes('tulo' /* Título */)) || 'Título';
         const urlCompleta = r['URL Completa'] || r.URL || Object.keys(r).find(k => k.includes('URL'));
@@ -113,8 +113,9 @@ async function ingestFlow() {
 
         const textToEmbed = `Manual Senior Flow / HCM | Categoria: ${r.Categoria} | Caminho: ${r.Caminho} | Título: ${r[titulo]}`;
 
+        const flowId = `flow-doc-${crypto.createHash('sha1').update(urlCompleta).digest('hex').slice(0, 20)}`;
         buffer.push({
-            id: `flow-doc-${count}`,
+            id: flowId,
             text: textToEmbed,
             metadata: { categoria: r.Categoria || 'Flow/XPlatform', titulo: r[titulo] || '', url: urlCompleta }
         });

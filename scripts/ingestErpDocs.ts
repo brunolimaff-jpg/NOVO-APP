@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
 import { GoogleGenAI } from '@google/genai';
@@ -28,6 +29,7 @@ const index = pc.index(PINECONE_INDEX_NAME);
 // Namespace seguro e isolado para documentação
 const NAMESPACE = 'senior-erp-docs';
 const BATCH_SIZE = 50;
+const failedBatches: string[] = [];
 
 interface CsvRow {
     Categoria?: string;
@@ -72,12 +74,10 @@ async function ingest() {
     );
 
     let buffer: any[] = [];
-    let count = 0;
     let successCount = 0;
 
     for await (const row of parser) {
         const r = row as CsvRow;
-        count++;
 
         // Só precisamos ingestão das URLs reais de documentação (Source chunk...)
         // A coluna Source no CSV tem 'chunk_0', 'chunkstart' ou vazio
@@ -92,8 +92,9 @@ async function ingest() {
         const breadcrumbText = r.Breadcrumb ? ` | Caminho/Portal: ${r.Breadcrumb}` : (r.Portal ? ` | Portal: ${r.Portal}` : '');
         const textToEmbed = `Manual Senior | Área: ${modulo} | Título: ${originalTitle}${breadcrumbText}`;
 
+        const docId = `senior-doc-${crypto.createHash('sha1').update(urlStr).digest('hex').slice(0, 20)}`;
         buffer.push({
-            id: `senior-doc-${count}-${Date.now()}`,
+            id: docId,
             text: textToEmbed,
             metadata: {
                 categoria: modulo,
@@ -117,6 +118,10 @@ async function ingest() {
     }
 
     console.log(`\n🎉 Finalizado! ${successCount} documentos do ERP Senior inseridos no Pinecone no namespace '${NAMESPACE}'.`);
+
+    if (failedBatches.length > 0) {
+        console.log(`⚠️ ${failedBatches.length} lotes falharam: [${failedBatches.slice(0, 10).join(', ')}${failedBatches.length > 10 ? ', ...' : ''}]`);
+    }
 }
 
 async function processBatch(batch: any[]) {
@@ -149,6 +154,7 @@ async function processBatch(batch: any[]) {
             await index.namespace(NAMESPACE).upsert(pineconeRecords);
             console.log("-> Retentativa bem sucedida!");
         } catch {
+            failedBatches.push(...batch.map((item: any) => item.id));
             console.error("Falha fatal no lote. Pulando.");
         }
     }

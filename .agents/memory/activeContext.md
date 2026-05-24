@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
 
 ## Current operating context
 
@@ -18,79 +18,69 @@ Read order:
 
 ## Current operating phase
 
-**Migracao de persistencia IDB/localStorage para Supabase CONCLUIDA na branch `codex/standardize-mermaid-maps`. Branch estendeu com melhorias adicionais de UX, consistencia e feedback conectado ao Supabase.**
+**Sessao de consolidacao de prompts + correcao de anti-alucinacao CONCLUIDA em 2026-05-24.**
 
-- Arquitetura offline-first: Supabase (fonte de verdade) + IndexedDB (cache offline) + sync queue bidirecional.
-- 20 commits totais na branch antes do feedback Supabase (12 migracao + 8 pos-migracao).
-- HEAD antes do feedback Supabase: `d22fa0c` — feat: beautiful manual sync button + sync-complete event to reload dossiers.
-- 873+ testes verdes, typecheck limpo.
-- Lint com `0` erros.
+Branches envolvidas:
+- `codex/prompt-consolidation-v6` (PR #282) — consolidacao de prompts, correcao de regressao, anti-fabrication
+- `fix/war-room-rag-antialucinacao` — anti-alucinacao para war room e RAG
+- PR #283 — unificacao das duas branches anteriores
+
+### Fases executadas:
+
+**Fase 1 — Diagnostico com 4 agentes em paralelo:**
+- Debugger: A2 feeds ignorados, decimal quebra parsing, output_contract conflitante com especialistas
+- RAG-Gemini: temperature nao passada (API default 1.0), recomendou 0.1 + system instruction separada
+- UI-UX: 18 gatilhos repetidos no dossier, abordagem comercial diluida
+- Explore: waterfall repete foundation 7-9x (~109K tokens), golden dossier 452 linhas
+
+**Fase 2 — Consolidacao:**
+- 5 blocos de traducao -> 1 (`SHARED_COMMERCIAL_INTELLIGENCE_ENGINE`)
+- `MASTER_INVESTIGATION_ORCHESTRATOR_V5` removido -> REGRESSAO no mapa societario -> RESTAURADO
+- `PROMPT_CAMINHO_DE_VENDA` criado como novo modulo
+- Contrato de output V2: modulos sem gatilhos individuais
+- Mermaid classDef removido dos especialistas
+
+**Fase 3 — Anti-alucinacao:**
+- `<anti_fabrication_rules>`, `<refusal_protocol>`, `<evidence_scope_protocol>`, `<fact_vs_inference_examples>`
+- Temperature 0.1 em `proxyChatSendMessage`
+- Queries de bioinsumos, mineracao, mercado de capitais
+
+**Fase 4 — Bug do Mapeamento:**
+- CAMINHO DE VENDA mapeado para `PROMPT_RH_SINDICATOS_GOD_MODE` (prompt de RH/SST!) no waterfall-orchestrator.ts
+- Corrigido para `PROMPT_CAMINHO_DE_VENDA`
 
 ## Current implementation branch
 
-**Teia Societaria Tipo 5 implementada na branch `codex/teia-societaria-tipo5` (worktree isolado).**
+**Sessao adicional: automacao de validacao E2E (Scripts + Playwright + curl).**
 
-- Substitui o rumo do mockup SVG por Mermaid LR dinamico dentro do dossie, preservando o markdown textual como fallback.
-- QSA passa pelo pipeline CNPJ (`lib/cnpjLookup.ts` -> `api/cnpj.ts` -> `services/brasilApiService.ts`) com socios, qualificacao, documento publico mascarado, fonte e confianca.
-- `features/dossier/SocietaryMap.tsx` injeta o mapa em secoes de Teia/Poder Societario e faz drill-down quando o operador troca o socio selecionado.
-- `api/socio-search.ts` executa busca/scraping apenas server-side, rejeita homonimos, preserva Scheffer Colombia S.A.S. quando ha contexto do grupo e evidencia internacional, e grava cache persistente de 7 dias em `extract_cache`.
-- Cache de producao exige `SUPABASE_SERVICE_ROLE_KEY`; chave anon/publica nao e aceita nesse endpoint. Sem service role/cache gravavel, a busca degrada e nao executa scraping.
-- O grafo exige `rootContext` com `rootCompanyName` ou `rootCnpj` compativel com a empresa raiz; `confidence: strong` sozinho nao conecta empresa.
+Arquivos criados:
+- `tests-e2e/cnpj-investigation-flow.spec.ts` — teste Playwright E2E: CNPJ Scheffer, lookup BrasilAPI, investigacao Gemini, assercao de resposta > 50 chars, rejeicao de CNPJ invalido
+- `scripts/validate-preview.sh` — script curl: health check GET /, CNPJ lookup GET /api/cnpj, validacao JSON (companyName/city/state/cnae), print PASS/FAIL colorido
 
-## Current task context
+Arquivos alterados:
+- `package.json` — scripts `test:e2e:cnpj` e `validate:preview`
+- `playwright.config.ts` — suporte a `BASE_URL` env var, salta webServer quando URL externa, timeout 180s
 
-**Migracao Supabase concluida (2026-05-22).**
+Arquivos alterados anteriormente nesta sessao:
+- `prompts/megaPrompts.ts` — consolidacao, anti-fabrication, correcao de exports
+- `prompts/mega/foundation.ts` — blocos de traducao unificados
+- `prompts/mega/builders.ts` — PROMPT_CAMINHO_DE_VENDA
+- `prompts/mega/specialist-prompts.ts` — classDef removido, anti-fabrication
+- `tests/prompts/megaPrompts.test.ts` — testes atualizados
+- `services/storage.ts` — ajustes de teste
+- `tests/services/storage.test.ts` — testes atualizados
 
-### Camada de infraestrutura:
-- `lib/supabaseClient.ts` — cliente Supabase browser com `createClient`, export default `supabase`, graceful degradation se Supabase indisponivel.
-- `services/storage.ts` — interface unificada que hooks/services chamam. Implementa stale-while-revalidate para leituras (IDB primeiro, Supabase em background) e offline-first para escritas (IDB instantaneo, sync em background).
+## Problemas residuais da sessao
 
-### Fila offline:
-- `services/syncQueue.ts` — fila de operacoes pendentes persistida em IDB. Retry com backoff exponencial (3s, 9s, 27s). Dead-letter queue apos falhas consecutivas. Processamento automatico em background e sob demanda.
-
-### Componentes:
-- `components/SyncIndicator.tsx` — badge no header mostrando status: online/syncing/offline/error. Tooltip com contagem de operacoes pendentes.
-
-### Migracao de hooks:
-- `hooks/useSessionStorage.ts` — substituido `idb-keyval` por `storage.ts`
-- `features/radar/useRadar.ts` — substituido `idb-keyval` por `storage.ts`
-- `services/extractContentService.ts` — substituido `idb-keyval` por `storage.ts`
-
-### Registro de operador:
-- `contexts/OperatorContext.tsx` — adicionado campo `email`, sync com Supabase ao registrar
-- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
-- `components/ChatInterface.tsx` — callback de email propagado
-- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
-- `components/chat/ChatShell.tsx` — SyncIndicator adicionado no header
-- Cadastro restrito a `@senior.com.br` (commit `5a2b35e`): nome completo (2+ palavras, 2+ caracteres cada) obrigatorio
-- Email recovery (commit `c880566`): vincula dispositivo novo a `operator_id` existente quando email ja cadastrado
-- Botao de sync manual (commit `d22fa0c`): pill no header com feedback (+N sent, downarrowN received), dispara evento `scout:sync-complete`
-
-### Schema Supabase:
-- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
-- 9 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`, `feedback_events`
-- RLS habilitado em todas, politicas por `operator_id IS NOT NULL`
-- `feedback_events` registra feedback por mensagem/secao/erro com `reason`, `scope`, `metadata`, `session_id`, `message_id` e `operator_id`.
-- 11 indexes para performance de consulta
-- Grants anon para data API (leitura/escrita)
-
-### Env vars necessarias (Vercel):
-- `VITE_SUPABASE_URL=https://vmqfcaoirjcfucvlnpig.supabase.co`
-- `VITE_SUPABASE_ANON_KEY=sb_publishable_OXLwGTgGUjFi-gHwRTsoOg_xHoDJHvO`
-
-### Decisoes arquiteturais:
-1. Auth postergada: UUID local temporario como `operator_id`
-2. Dados migraveis: dossies, radar alerts, radar configs, extract cache, audit log, favorites, shared dossiers
-3. Offline-first com sync queue em background
-4. Conexao direta Supabase (abordagem A) — sem camada serverless intermediaria
-
-## Workspace note
-
-`CODE.md` e instrucao local para Codex e esta ignorado via `.git/info/exclude`.
+| Prioridade | Problema | Arquivo/Modulo |
+|------------|----------|----------------|
+| P1 | CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout | features/dossier/teia-deep |
+| P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
+| P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Finalizar/mergear `codex/teia-societaria-tipo5`.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para habilitar o cache persistente do `/api/socio-search`; manter `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` para o app browser.
-3. Validar no preview um dossie Scheffer com CNPJ `04.733.767/0001-80`: QSA visivel, drill-down por socio, Scheffer Colombia preservada com fonte, fallback textual mantido.
-4. Depois, seguir merges pendentes: `codex/standardize-mermaid-maps`, PR `#270` e PR `#266`, conforme prioridade do owner.
+1. Abrir/validar PR da branch `codex/teia-societaria-tipo5`.
+2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`.
+3. Resolver problemas residuais P1 e P2 acima.
+4. Mergear branches pendentes: `codex/standardize-mermaid-maps`, PR `#270`, PR `#266`.

@@ -4,6 +4,7 @@ import {
   COMPETITOR_DOCS_NAMESPACE,
   DEFAULT_DOCS_NAMESPACE,
   DOCS_CACHE_TTL_MS,
+  ERP_BANKING_CANONICAL_BLOCK,
   ERP_BANKING_REFERENCE_BLOCK,
   FERCUS_REFERENCE_BLOCK,
   GATEC_AGRICOLA_REFERENCE_BLOCK,
@@ -24,6 +25,56 @@ const docsCache = new Map<string, DocsCacheEntry>();
 const docsInflight = new Map<string, Promise<string>>();
 const globalCache = new Map<string, DocsCacheEntry>();
 const globalInflight = new Map<string, Promise<string>>();
+
+// RAG metrics counters (Fase 4.3)
+let ragQueriesTotal = 0;
+let ragQueriesFailed = 0;
+let ragQueriesEmpty = 0;
+let staticBlocksInjected = 0;
+
+export function getRagMetrics() {
+  return { ragQueriesTotal, ragQueriesFailed, ragQueriesEmpty, staticBlocksInjected };
+}
+
+const STATIC_URL_BLOCKS = [
+  FERCUS_REFERENCE_BLOCK,
+  TALHAO_REFERENCE_BLOCK,
+  GATEC_AGRICOLA_REFERENCE_BLOCK,
+  ERP_BANKING_REFERENCE_BLOCK,
+  ERP_BANKING_CANONICAL_BLOCK,
+];
+
+/**
+ * Verifica se todas as URLs nos blocos estáticos respondem 200.
+ * Fire-and-forget — não bloqueia o fluxo principal.
+ */
+export async function validateStaticUrls(): Promise<void> {
+  if (typeof window !== 'undefined') return; // CORS block no browser; health check requires serverless
+
+  const allText = STATIC_URL_BLOCKS.join('\n');
+  const urls = allText.match(/https:\/\/[^\s)]+/g) || [];
+  const uniqueUrls = [...new Set(urls)];
+
+  await Promise.allSettled(
+    uniqueUrls.map(async (url) => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        try {
+          const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+          if (response.status === 404) {
+            console.warn(`[WarRoom][URL Health] URL retornou 404: ${url}`);
+          }
+        } finally {
+          clearTimeout(timer);
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[WarRoom][URL Health] Falha ao verificar URL: ${url} — ${msg}`);
+      }
+    }),
+  );
+}
 
 type SettledStringResult = PromiseSettledResult<string>;
 
@@ -56,7 +107,13 @@ async function getDocsContextCached(query: string, namespace: string = DEFAULT_D
     try {
       const rawResult = await buscarContextoDocsPinecone(query, namespace);
       const result = normalizeRagResponse(rawResult);
+
+      ragQueriesTotal++;
       if (result.failed) {
+        ragQueriesFailed++;
+        if (!result.context.trim()) {
+          ragQueriesEmpty++;
+        }
         console.warn(`[WarRoom][Pinecone Docs] RAG falhou — namespace="${namespace}", query="${query.slice(0, 80)}"`);
       }
 
@@ -92,7 +149,13 @@ async function getGlobalContextCached(query: string): Promise<string> {
     try {
       const rawResult = await buscarContextoPinecone(query);
       const result = normalizeRagResponse(rawResult);
+
+      ragQueriesTotal++;
       if (result.failed) {
+        ragQueriesFailed++;
+        if (!result.context.trim()) {
+          ragQueriesEmpty++;
+        }
         console.warn(`[WarRoom][Pinecone Global] RAG falhou — query="${query.slice(0, 80)}"`);
       }
 
@@ -231,6 +294,9 @@ export async function loadWarRoomDocsContext(
   flags: WarRoomIntentFlags,
   onStatus?: (status: string) => void,
 ): Promise<WarRoomDocsContextResult> {
+  // Health check de URLs estáticas (fire-and-forget, não bloqueia)
+  validateStaticUrls().catch(() => {});
+
   let docsContext = '';
   let docsUnavailable = false;
 
@@ -299,20 +365,24 @@ export async function loadWarRoomDocsContext(
       fercus: flags.wantsFercus,
     });
 
-    if (flags.wantsFercus && !/gatec-modulo-fercus/i.test(docsContext)) {
+    if (flags.wantsFercus && docsContext && !/gatec-modulo-fercus/i.test(docsContext)) {
       docsContext = mergeDocContexts([FERCUS_REFERENCE_BLOCK, docsContext]);
+      staticBlocksInjected++;
     }
 
-    if (flags.wantsTalhao && !/consulta-analitica-de-talhao/i.test(docsContext)) {
+    if (flags.wantsTalhao && docsContext && !/consulta-analitica-de-talhao/i.test(docsContext)) {
       docsContext = mergeDocContexts([TALHAO_REFERENCE_BLOCK, docsContext]);
+      staticBlocksInjected++;
     }
 
-    if (flags.wantsGatecAgricola && !/simplefarm\/manual-do-usuario\/agricola/i.test(docsContext)) {
+    if (flags.wantsGatecAgricola && docsContext && !/simplefarm\/manual-do-usuario\/agricola/i.test(docsContext)) {
       docsContext = mergeDocContexts([GATEC_AGRICOLA_REFERENCE_BLOCK, docsContext]);
+      staticBlocksInjected++;
     }
 
-    if (flags.wantsBanking) {
+    if (flags.wantsBanking && docsContext && !/integracao-erp-banking/i.test(docsContext)) {
       docsContext = mergeDocContexts([ERP_BANKING_REFERENCE_BLOCK, docsContext]);
+      staticBlocksInjected++;
     }
 
     if (flags.wantsFercus) {
@@ -352,6 +422,10 @@ export async function loadWarRoomDocsContext(
     console.error('[WarRoom][Pinecone] Falha crítica no bloco RAG:', details);
     onStatus?.('⚠️ Falha ao consultar Pinecone — continuando sem RAG.');
   }
+
+  console.warn(
+    `[WarRoom][RAG Metrics] queries=${ragQueriesTotal} failed=${ragQueriesFailed} empty=${ragQueriesEmpty} staticBlocks=${staticBlocksInjected}`,
+  );
 
   return { docsContext, docsUnavailable };
 }

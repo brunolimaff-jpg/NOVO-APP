@@ -23,6 +23,32 @@ export function extractGroundingSources(response: GroundingResponseLike | null |
   return sources;
 }
 
+/**
+ * Detecta URLs na resposta do Gemini que não estão presentes nos matches do RAG.
+ * URLs que não vieram do contexto RAG têm alta chance de serem alucinações.
+ */
+export function detectHallucinatedUrls(text: string, ragMatches: Array<{ url?: string }>): string[] {
+  const knownUrls = new Set<string>();
+  for (const match of ragMatches) {
+    if (match.url) {
+      knownUrls.add(match.url.replace(/[)>]+$/, ''));
+    }
+  }
+
+  const responseUrls = text.match(/https:\/\/documentacao\.senior\.com\.br\/[^\s)>]+/g) || [];
+  const hallucinated: string[] = [];
+
+  for (const url of responseUrls) {
+    const cleanUrl = url.replace(/[)>]+$/, '');
+    if (!knownUrls.has(cleanUrl)) {
+      console.warn('[HALLUCINATION] URL nao veio do RAG:', cleanUrl);
+      hallucinated.push(cleanUrl);
+    }
+  }
+
+  return hallucinated;
+}
+
 export function enforceBankingAnchors(text: string): string {
   let output = text || '';
   if (!output) return output;

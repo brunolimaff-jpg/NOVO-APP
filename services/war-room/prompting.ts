@@ -111,7 +111,7 @@ export function buildWarRoomPrompt({
 
   if (flags.wantsBanking) {
     fullPrompt +=
-      '\n\n## FOCO DE RESPOSTA (ERP BANKING)\nQuando houver contexto de integração bancária, priorize explicitamente o fluxo de ERP Banking (pagamentos eletrônicos, CNAB e conciliação). Evite responder de forma genérica sem citar ERP Banking.\nRegra obrigatória: inclua pelo menos 1 referência explícita a ERP Banking com um destes links: https://documentacao.senior.com.br/gestaoempresarialerp/5.10.4/processos-automaticos/166-integracao-erp-banking.htm ou https://documentacao.senior.com.br/seniorxplatform/manual-do-usuario/erp/?utm_source=portal-documentacao&utm_medium=referral&utm_campaign=link-home-portal#Banking/banking.htm.\nNão use a expressão "Senior compensa" sem ancorar a argumentação em ERP Banking.';
+      '\n\n## FOCO DE RESPOSTA (ERP BANKING)\nQuando houver contexto de integração bancária, priorize explicitamente o fluxo de ERP Banking (pagamentos eletrônicos, CNAB e conciliação). Evite responder de forma genérica sem citar ERP Banking.\nUse apenas URLs de documentação fornecidas no bloco ## DOCUMENTAÇÃO OFICIAL acima. NUNCA invente URLs de documentação.\nNão use a expressão "Senior compensa" sem ancorar a argumentação em ERP Banking.';
   }
 
   return fullPrompt;
