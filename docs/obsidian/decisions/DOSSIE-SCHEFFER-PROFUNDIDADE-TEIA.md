@@ -244,6 +244,7 @@ Esse mapa e gerado exclusivamente pelo `SocietaryMap`. Os modulos 1a/1b nao gera
 - O modulo 1b contem tabela mestre, QSA, sinais e implicacao comercial.
 - QSA oficial aparece como evidencia oficial.
 - Empresas conectadas por drill-down exibem fonte e confianca.
+- CNPJs onde o socio aparece, mas sem prova de grupo economico, aparecem como "Outro CNPJ do socio" e nao recebem aresta direta da raiz.
 - Homonimos nao entram como conexao visual.
 - >30% de CNPJs nao confirmados geram alerta no dossie.
 - Se module 1a falhar, fallback para PROMPT_RADAR_EXPANSAO_GOD_MODE.

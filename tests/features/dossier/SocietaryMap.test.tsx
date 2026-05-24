@@ -156,6 +156,54 @@ describe('SocietaryMap', () => {
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
   });
 
+  it('exibe outro CNPJ do socio sem tratar como empresa do grupo', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        companies: [
+          {
+            name: 'Fazenda Independente LTDA',
+            cnpj: '12345678000195',
+            partnerName: 'Guilherme M. Scheffer',
+            sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+            sourceTitle: 'Consulta Sócio',
+            snippet: 'Guilherme M. Scheffer consta como sócio administrador.',
+            confidence: 'strong',
+            evidenceType: 'qsa',
+            rootContext: false,
+            relationshipScope: 'partner_other_cnpj',
+          },
+        ],
+        rejected: [],
+        degraded: false,
+        cached: false,
+      }),
+    } as Response);
+
+    render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Fazenda Independente LTDA'));
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Outro CNPJ do sócio');
+    expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Root -- CNPJ relacionado');
+    fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: Outro CNPJ do sócio');
+    expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
+  });
+
   it('atualiza o mapa incrementalmente enquanto ainda busca outros socios', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',

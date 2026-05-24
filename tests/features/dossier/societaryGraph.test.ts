@@ -133,6 +133,43 @@ describe('societaryGraph', () => {
     expect(graph.rejectedCompanies[0].reason).toMatch(/contexto/i);
   });
 
+  it('mostra outro CNPJ do socio sem conectar como empresa do grupo', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Fazenda Independente LTDA',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          role: 'Cultivo de soja',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          sourceTitle: 'Consulta Sócio',
+          snippet: 'Guilherme M. Scheffer consta como sócio administrador.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: false,
+          relationshipScope: 'partner_other_cnpj',
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0]).toMatchObject({
+      cnpj: '12345678000195',
+      relationshipScope: 'partner_other_cnpj',
+      rootLinked: false,
+      partnerIds: ['guilherme'],
+    });
+    expect(graph.companies[0].badges).toContain('outro CNPJ do sócio');
+    expect(graph.companies[0].badges).toContain('validar grupo');
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(mermaid).toContain('Fazenda Independente LTDA');
+    expect(mermaid).toContain('guilherme -- Outro CNPJ do sócio --> company_12345678000195');
+    expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
+  });
+
   it('preserva Scheffer Colombia quando existe evidencia internacional forte', () => {
     const graph = buildSocietaryGraph({
       root,
@@ -182,6 +219,80 @@ describe('societaryGraph', () => {
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Agropecuária Scheffer LTDA');
     expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_00111222000133');
+  });
+
+  it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [],
+    }, [
+      {
+        name: 'Fazenda Independente LTDA',
+        cnpj: '12.345.678/0001-95',
+        partnerName: 'Guilherme M. Scheffer',
+        sourceTitle: 'Gemini — Outros CNPJs do sócio',
+        confidence: 'medium',
+        evidenceType: 'registry',
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0]).toMatchObject({
+      confidence: 'medium',
+      evidenceType: 'registry',
+      relationshipScope: 'partner_other_cnpj',
+      rootContext: false,
+      rootLinked: false,
+      partnerIds: ['guilherme'],
+    });
+    expect(graph.companies[0].badges).not.toContain('oficial');
+  });
+
+  it('nao deixa Gemini rebaixar evidencia oficial ja confirmada pela API', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Agropecuaria Scheffer Ltda',
+          cnpj: '00.111.222/0001-33',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'BrasilAPI QSA',
+          sourceUrl: 'https://brasilapi.com.br/api/cnpj/v1/00111222000133',
+          snippet: 'QSA oficial confirma Guilherme M. Scheffer.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    }, [
+      {
+        name: 'Agropecuaria Scheffer Ltda',
+        cnpj: '00.111.222/0001-33',
+        partnerName: 'Guilherme M. Scheffer',
+        sourceTitle: 'Gemini — Outros CNPJs do sócio',
+        confidence: 'medium',
+        evidenceType: 'registry',
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0]).toMatchObject({
+      confidence: 'strong',
+      evidenceType: 'qsa',
+      relationshipScope: 'group_link',
+      rootContext: true,
+    });
+    expect(graph.companies[0].badges).toContain('oficial');
+    expect(graph.companies[0].badges).not.toContain('outro CNPJ do sócio');
   });
 
   it('mostra empresas Gemini sem sócio como ligadas à raiz', () => {

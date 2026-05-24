@@ -2,13 +2,16 @@ import { normalizeCnpj } from '../../utils/cnpj';
 
 export type SocietaryConfidence = 'official' | 'strong' | 'medium' | 'weak';
 export type SocietaryEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'institutional';
+export type SocietaryRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'unconfirmed';
 export type SocietaryBadge =
   | 'empresa em comum'
   | 'holding'
   | 'oficial'
   | 'internacional'
   | 'estimado'
-  | 'validar';
+  | 'validar'
+  | 'outro CNPJ do sócio'
+  | 'validar grupo';
 
 export interface SocietaryRootInput {
   cnpj?: string | null;
@@ -37,6 +40,7 @@ export interface SocietaryCompanyInput {
   snippet?: string;
   confidence?: SocietaryConfidence;
   evidenceType?: SocietaryEvidenceType;
+  relationshipScope?: SocietaryRelationshipScope;
   rootContext?: boolean;
   rootCompanyName?: string;
   rootCnpj?: string | null;
@@ -64,6 +68,7 @@ export interface SocietaryCompany {
   snippet?: string;
   confidence: SocietaryConfidence;
   evidenceType: SocietaryEvidenceType;
+  relationshipScope: SocietaryRelationshipScope;
   rootContext: boolean;
   rootCompanyName?: string;
   rootCnpj?: string;
@@ -201,6 +206,59 @@ function mergeBranchData(existing: SocietaryCompany, incoming: SocietaryCompanyI
   }
 }
 
+function confidenceRank(confidence?: SocietaryConfidence): number {
+  switch (confidence) {
+    case 'official':
+      return 4;
+    case 'strong':
+      return 3;
+    case 'medium':
+      return 2;
+    case 'weak':
+    default:
+      return 1;
+  }
+}
+
+function evidenceTypeRank(evidenceType?: SocietaryEvidenceType): number {
+  switch (evidenceType) {
+    case 'qsa':
+      return 5;
+    case 'registry':
+      return 4;
+    case 'institutional':
+      return 3;
+    case 'trade':
+      return 2;
+    case 'web':
+    default:
+      return 1;
+  }
+}
+
+function relationshipScopeRank(scope?: SocietaryRelationshipScope): number {
+  switch (scope) {
+    case 'group_link':
+      return 3;
+    case 'partner_other_cnpj':
+      return 2;
+    case 'unconfirmed':
+    default:
+      return 1;
+  }
+}
+
+function companyEvidenceRank(company: Pick<SocietaryCompanyInput, 'confidence' | 'evidenceType' | 'relationshipScope' | 'rootContext'>): number {
+  return confidenceRank(company.confidence) * 1000
+    + evidenceTypeRank(company.evidenceType) * 100
+    + relationshipScopeRank(company.relationshipScope) * 10
+    + (company.rootContext ? 1 : 0);
+}
+
+function shouldPromoteEvidence(existing: SocietaryCompany, incoming: SocietaryCompanyInput): boolean {
+  return companyEvidenceRank(incoming) > companyEvidenceRank(existing);
+}
+
 function hasGroupContext(company: SocietaryCompanyInput, root: SocietaryRootInput): boolean {
   const rootCnpj = normalizeCnpj(root.cnpj || '');
   const companyRootCnpj = normalizeCnpj(company.rootCnpj || '');
@@ -217,7 +275,11 @@ function hasEnoughEvidence(company: SocietaryCompanyInput, root: SocietaryRootIn
   const hasSource = Boolean(company.sourceUrl || company.sourceTitle || company.snippet);
   const hasCnpj = normalizeCnpj(company.cnpj || '').length === 14;
   const evidenceType = company.evidenceType || 'web';
+  const relationshipScope = company.relationshipScope || 'group_link';
 
+  if (relationshipScope === 'partner_other_cnpj') {
+    return hasCnpj && hasSource && confidence !== 'weak';
+  }
   if (!hasGroupContext(company, root)) return false;
   if (hasCnpj && hasSource) return true;
   if (confidence === 'official' || confidence === 'strong') return hasSource;
@@ -234,10 +296,20 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
   const country = (company.country || 'BR').toUpperCase();
 
   if (company.partnerIds.length > 1) badges.add('empresa em comum');
+  if (company.relationshipScope === 'partner_other_cnpj') {
+    badges.add('outro CNPJ do sócio');
+    badges.add('validar grupo');
+  }
   if (country && country !== 'BR') badges.add('internacional');
   if (/colombia|colômbia/i.test(company.name)) badges.add('internacional');
   if (role.includes('holding') || role.includes('participa') || role.includes('invest')) badges.add('holding');
-  if (company.evidenceType === 'registry' || company.evidenceType === 'qsa') badges.add('oficial');
+  if (
+    (company.evidenceType === 'registry' || company.evidenceType === 'qsa')
+    && (
+      company.relationshipScope !== 'partner_other_cnpj'
+      || (company.confidence === 'strong' && company.evidenceType === 'qsa')
+    )
+  ) badges.add('oficial');
   if (company.confidence === 'weak' || company.confidence === 'medium') badges.add('validar');
 
   return Array.from(badges);
@@ -271,7 +343,9 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       continue;
     }
 
-    if (!hasGroupContext(company, input.root)) {
+    const relationshipScope = company.relationshipScope || 'group_link';
+
+    if (relationshipScope !== 'partner_other_cnpj' && !hasGroupContext(company, input.root)) {
       rejectedCompanies.push({ input: company, reason: 'Possivel homonimo sem contexto suficiente do grupo.' });
       continue;
     }
@@ -305,6 +379,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       snippet: company.snippet?.trim() || undefined,
       confidence: company.confidence || 'weak',
       evidenceType: company.evidenceType || 'web',
+      relationshipScope,
       rootContext: hasGroupContext(company, input.root),
       rootCompanyName: company.rootCompanyName?.trim() || undefined,
       rootCnpj: normalizeCnpj(company.rootCnpj || '') || undefined,
@@ -334,8 +409,12 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           }
           existing.role = geminiCompany.role || existing.role;
           existing.sourceTitle = geminiCompany.sourceTitle || existing.sourceTitle;
-          existing.confidence = 'strong';
-          existing.evidenceType = 'qsa';
+          if (shouldPromoteEvidence(existing, geminiCompany)) {
+            existing.confidence = geminiCompany.confidence || existing.confidence;
+            existing.evidenceType = geminiCompany.evidenceType || existing.evidenceType;
+            existing.relationshipScope = geminiCompany.relationshipScope || existing.relationshipScope;
+            existing.rootContext = geminiCompany.rootContext ?? existing.rootContext;
+          }
           mergeBranchData(existing, geminiCompany);
           if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
           if (!partner && !existing.partnerIds.length) existing.rootLinked = true;
@@ -357,9 +436,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           sourceTitle: geminiCompany.sourceTitle?.trim() || undefined,
           sourceUrl: geminiCompany.sourceUrl?.trim() || undefined,
           snippet: geminiCompany.snippet?.trim() || undefined,
-          confidence: hasValidCnpj ? 'strong' : 'weak',
-          evidenceType: hasValidCnpj ? 'qsa' : 'web',
-          rootContext: true,
+          confidence: geminiCompany.confidence || (hasValidCnpj ? 'strong' : 'weak'),
+          evidenceType: geminiCompany.evidenceType || (hasValidCnpj ? 'qsa' : 'web'),
+          relationshipScope: geminiCompany.relationshipScope || 'group_link',
+          rootContext: geminiCompany.rootContext ?? true,
           partnerIds,
           rootLinked: partnerIds.length === 0,
           badges: [],
@@ -461,6 +541,7 @@ function rootToCompanyEdgeLabel(company: SocietaryCompany, root: SocietaryGraph[
 }
 
 function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string {
+  if (company.relationshipScope === 'partner_other_cnpj') return 'Outro CNPJ do sócio';
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
   if (normalizedRole.includes('administrador')) return 'Administra CNPJ';

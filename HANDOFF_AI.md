@@ -65,8 +65,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Modificado `playwright.config.ts` — aceita `BASE_URL` env var (aponta para preview Vercel), pula `webServer` quando URL externa, timeout global 180s.
 - Abordagem dual: `validate:preview` (curl, segundos) para smoke rapido em CI/pre-merge; `test:e2e:cnpj` (Playwright, ~2-3 min) para validacao completa com interacao real.
 
-### Problemas Residuais (NAO CORRIGIDOS)
-1. **CNPJs nao aparecendo todos no mapa societario** — modulo teia deep falha por timeout (P1)
+### Problemas Residuais
+1. **CNPJs dos socios no mapa societario** — resolvido na branch `codex/cnpj-socios-todos-cnpjs` com `relationshipScope=partner_other_cnpj` para CNPJs laterais sem prova de grupo economico; `/api/socio-search` tem budget interno e `lookupCnpj` aceita timeout/maxSources nesse fluxo.
 2. **Entidades internacionais sem link de auditoria** — "Conexoes internacionais exigem comprovacao documental... Se nao houver evidencia concreta, a conexao e INFERIDA" (P1)
 3. **Mermaid no contrato ainda e condicional** ("quando houver dados"), deveria ser obrigatorio (P2)
 
@@ -198,15 +198,15 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Proximo passo seguro
 
-1. Abrir/validar PR da branch `codex/teia-societaria-tipo5`.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`; manter `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` para o app browser.
-3. Validar preview com CNPJ Scheffer `04.733.767/0001-80`: QSA, drill-down por socio, Scheffer Colombia S.A.S. com fonte, fallback textual.
+1. Finalizar PR da branch `codex/cnpj-socios-todos-cnpjs`.
+2. Aguardar preview Vercel e validar com CNPJ Scheffer `04.733.767/0001-80`: QSA, drill-down por socio, CNPJs laterais como "Outro CNPJ do socio", Scheffer Colombia S.A.S. com fonte, fallback textual.
+3. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`; manter `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` para o app browser.
 4. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
 5. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
 6. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
 7. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
 8. **Problemas residuais da sessao de prompts:**
-   - (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+   - (Resolvido nesta branch) CNPJs dos socios aparecem como "Outro CNPJ do socio" quando nao ha prova de grupo economico
    - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
    - (P2) Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
 9. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
@@ -315,7 +315,7 @@ Licao aprendida:
 - **Migracao de dados IDB -> Supabase:** operadores existentes perdem dados locais se o storage IDB for limpo antes da sync. A sync queue mitiga isso, mas nao ha migracao retroativa de dados legados.
 - **Email recovery experimental:** o fluxo de vinculacao de dispositivo por email ainda nao foi testado em producao. Pode haver conflitos se dois dispositivos tentarem sync simultaneamente com o mesmo `operator_id`.
 - **Restricao `@senior.com.br`:** impede registro de usuarios externos, mas blocagens manuais (ex-vendedores, parceiros) exigiriam uma lista de allow/block.
-- **CNPJs nao aparecendo todos no mapa societario:** modulo teia deep falha por timeout. (P1) — descoberto nesta sessao.
+- **CNPJs dos socios no mapa societario:** corrigido na branch `codex/cnpj-socios-todos-cnpjs`; CNPJs laterais aparecem com escopo explicito e sem aresta raiz -> empresa.
 - **Entidades internacionais sem link de auditoria:** "conexao INFERIDA" sem comprovacao documental concreta. (P1) — descoberto nesta sessao.
 - **Mermaid no contrato condicional:** o contrato de output diz "quando houver dados" para o grafo Mermaid, mas deveria ser obrigatorio para todo dossier. (P2) — descoberto nesta sessao.
 

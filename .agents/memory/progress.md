@@ -48,7 +48,7 @@ Last updated: 2026-05-24
 - `services/storage.ts`, `tests/services/storage.test.ts` — ajustes
 
 **Problemas residuais (NAO CORRIGIDOS):**
-- (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+- (Resolvido nesta branch) CNPJs dos socios passam a aparecer como `partner_other_cnpj` quando nao ha prova de grupo economico
 - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
 - (P2) Mermaid no contrato ainda e condicional ("quando houver dados"), deveria ser obrigatorio
 
@@ -63,6 +63,17 @@ Last updated: 2026-05-24
 - Integracao no dossie via `SectionalBotMessage`/`MessageRow`, sem alterar Score PORTA e sem SVG manual em producao.
 - Reviews: spec compliance aprovado por subagente; quality review aprovado por subagente; code-review local sem blockers apos correcoes.
 - Validacoes: `npm run typecheck`; recorte Vitest de 53 testes; `npm run test:dossier`; `npm run build`. Avisos conhecidos: warnings de localStorage no Vitest, log esperado do teste de `/api/link-status`, e warning de bundle grande por Mermaid ja existente no build.
+
+### Teia CNPJ — Todos os CNPJs dos Socios (2026-05-24)
+
+**Branch:** `codex/cnpj-socios-todos-cnpjs`
+
+- `/api/socio-search` agora diferencia `relationshipScope`: `group_link`, `partner_other_cnpj` e `unconfirmed`.
+- Busca societaria passou a incluir queries por socio sem empresa raiz, para capturar CNPJs onde o socio aparece mesmo sem prova de pertencer ao grupo economico.
+- Enriquecimento de CNPJ em `/api/socio-search` tem budget interno: deadline de 45s, maximo de 5 lookups, `lookupCnpj` com timeout curto e primeira fonte oficial nesse fluxo.
+- `SocietaryMap`/Mermaid mostra "Outro CNPJ do socio" sem criar aresta raiz -> empresa.
+- `teia-deep` e `teiaTextParser` separam "Empresas do grupo economico" de "Outros CNPJs onde o socio aparece".
+- Validacao local: review agent final sem blockers; recorte Vitest de 46 testes verde; `tests/prompts/megaPrompts.test.ts` verde; `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1063 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde. `./scripts/validate-prompts.sh` nao existe nesta branch; equivalente local usado foi `tests/prompts/megaPrompts.test.ts`.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 
@@ -254,14 +265,14 @@ Last updated: 2026-05-24
 
 ## In progress
 
-- Abrir PR da branch `codex/teia-societaria-tipo5` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
+- Finalizar PR da branch `codex/cnpj-socios-todos-cnpjs` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
 - Configurar `SUPABASE_SERVICE_ROLE_KEY` no ambiente Vercel para habilitar o cache persistente server-side do `/api/socio-search`.
 - Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
 - Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 - **Resolver problemas residuais da sessao de prompts:**
-  - (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+  - (Resolvido nesta branch) CNPJs dos socios aparecem como "Outro CNPJ do socio" quando nao ha prova de grupo economico
   - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
   - (P2) Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
 

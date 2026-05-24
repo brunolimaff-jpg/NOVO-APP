@@ -74,13 +74,14 @@ Arquivos alterados anteriormente nesta sessao:
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| P1 | CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout | features/dossier/teia-deep |
+| Resolvido nesta branch | CNPJs dos socios aparecem com escopo explicito `partner_other_cnpj`, sem afirmar grupo economico; enriquecimento tem timeout e limite global | api/socio-search.ts, lib/cnpjLookup.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx |
 | P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
 | P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Abrir/validar PR da branch `codex/teia-societaria-tipo5`.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`.
-3. Resolver problemas residuais P1 e P2 acima.
-4. Mergear branches pendentes: `codex/standardize-mermaid-maps`, PR `#270`, PR `#266`.
+1. Finalizar PR da branch `codex/cnpj-socios-todos-cnpjs`.
+2. Aguardar preview Vercel e validar o fluxo com CNPJ Scheffer `04.733.767/0001-80`.
+3. Conferir se a teia mostra CNPJs laterais dos socios como "Outro CNPJ do socio", sem aresta raiz -> empresa.
+4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
+5. Resolver problemas residuais P1/P2 restantes acima.

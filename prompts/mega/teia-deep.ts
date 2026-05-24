@@ -157,7 +157,8 @@ Traduza a estrutura societaria em linguagem de venda:
 
 **Socio 1:** [Nome]
 - **Qualificacao:** [qualificacao]
-- **Empresas Relacionadas:** [lista de CNPJs/razoes]
+- **Empresas do Grupo Economico:** [CNPJs/razoes com comprovacao de vinculo com a empresa raiz]
+- **Outros CNPJs:** [CNPJs/razoes onde o socio aparece, mas sem prova de pertencer ao grupo economico]
 - **Controle:** [CLASSIFICACAO ESTIMADA ou percentual]
 - **Risco de Homonimo:** [SIM/NAO — justificativa]
 

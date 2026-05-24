@@ -59,6 +59,12 @@ function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGrap
     .join(' / ');
 }
 
+function describeRelationshipScope(company: SocietaryCompany): string {
+  if (company.relationshipScope === 'partner_other_cnpj') return 'Outro CNPJ do sócio';
+  if (company.relationshipScope === 'unconfirmed') return 'Não confirmado';
+  return 'Empresa do grupo';
+}
+
 const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMode, geminiCnpjs }) => {
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
@@ -355,6 +361,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
                   </div>
                   <p className="mt-1 text-[11px] text-slate-600">
                     Sócio/admin: {describeEvidencePartner(company, graph)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    Escopo: {describeRelationshipScope(company)}
                   </p>
                   <p className="mt-1 text-[11px] text-slate-600">
                     Tipo: {describeSocietaryCompanyType(company)}
