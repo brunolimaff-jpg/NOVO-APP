@@ -222,9 +222,9 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 42762,
+          "length": 42827,
           "lines": 1029,
-          "sha256": "1874a1cc3c7c994c29bdd7cf9183339c596f474d9130f7724c2872d648edfaa1",
+          "sha256": "8baf90770a5b0e2d97ac6455411c0163b3ff711ab200600b87c091d61e24e27d",
         },
         {
           "label": "specialist-1",
@@ -276,21 +276,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 104488,
+          "length": 104553,
           "lines": 2661,
-          "sha256": "80285d212b71fba473c2a4bb86190cc3b455d131914f585efeeef4ea8f479fa6",
+          "sha256": "bb2df6aa032e6678cf472d93544e651b470467d85ff9291eebc303300908af95",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 112752,
+          "length": 112817,
           "lines": 2911,
-          "sha256": "caf4ac9a31e09859d4771f37dab34a77aeaabb9f32131b4d61d66372dc7ac779",
+          "sha256": "e52143de4e4f1d20d63863802477904334b7b351821b75c914f05cfb8876ae5d",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 104962,
+          "length": 105027,
           "lines": 2681,
-          "sha256": "16a566a7d03579bf0f4e187629af0d7049888974bd178ff94b0ece7689644574",
+          "sha256": "d68b5fa942a787c3fbbb38b97f100d756c1d0b590b73122177864b3dc345fed2",
         },
       ]
     `);
