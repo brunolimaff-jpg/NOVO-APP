@@ -166,8 +166,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     let cancelled = false;
 
     async function loadAllPartners() {
-      const newCompanies: Record<string, SocietaryCompanyInput[]> = {};
-
       for (const partner of rootData!.partners) {
         if (cancelled) return;
         const partnerKey = normalizePartnerKey(partner.name);
@@ -191,7 +189,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
 
           if (!cancelled) {
-            newCompanies[partnerKey] = payload.companies || [];
+            setCompaniesByPartner(prev => ({ ...prev, [partnerKey]: payload.companies || [] }));
             searchedPartnerKeysRef.current[partnerKey] = true;
             if (payload.degraded && payload.companies?.length === 0) {
               setNotice('Busca societaria degradada; mapa usa dados parciais.');
@@ -207,7 +205,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       }
 
       if (!cancelled) {
-        setCompaniesByPartner(prev => ({ ...prev, ...newCompanies }));
         setLoadingPartnerKey(null);
       }
     }

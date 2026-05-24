@@ -299,8 +299,8 @@ function inferCompanyName(title: string, snippet: string): string {
 
 function inferEvidenceType(title: string, snippet: string, url: string): SocioSearchEvidenceType {
   const haystack = normalizeText(`${title} ${snippet} ${url}`);
-  if (/veritrade|importa|exporta|comercio exterior|comércio exterior/.test(haystack)) return 'trade';
-  if (/cnpj|qsa|societ|socio|sócio|receita|empresa/.test(haystack)) return 'registry';
+  if (/veritrade|importa|exporta|comercio exterior/.test(haystack)) return 'trade';
+  if (/cnpj|qsa|societ|socio|receita|empresa/.test(haystack)) return 'registry';
   if (/site oficial|institucional|forbes|emis|portafolio/.test(haystack)) return 'institutional';
   return 'web';
 }
@@ -334,7 +334,7 @@ function scoreEvidence(params: {
   const cnpjHit = rootCnpj.length === 14 && digitHaystack.includes(rootCnpj);
   const internationalHit = isInternational(params.title, params.snippet, params.url);
   const strongDomain = /consultasocio|cnpj|veritrade|emis|portafolio|scheffer\.agr/i.test(params.url);
-  const negativeConnection = /sem conexao|sem conexão|nao conectado|não conectado|homonimo|homônimo/.test(haystack);
+  const negativeConnection = /sem conexao|nao conectado|homonimo/.test(haystack);
   const groupContextHit = rootHit || cnpjHit;
 
   if (negativeConnection) {

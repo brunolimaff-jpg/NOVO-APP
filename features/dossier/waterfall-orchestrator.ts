@@ -639,7 +639,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
-        return validatedText;
+        return warnings.length > 0
+          ? [
+            validatedText,
+            '### Alertas de validação societária',
+            ...warnings.map(warning => `- ${warning}`),
+          ].join('\n\n')
+          : validatedText;
       };
 
       if (isFirstInteraction) {
