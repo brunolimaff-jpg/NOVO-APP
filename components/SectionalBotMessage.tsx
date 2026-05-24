@@ -151,15 +151,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
 
   const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
-  const geminiDataBySection = useMemo(() => {
-    const map = new Map<number, ReturnType<typeof parseTeiaText>>();
-    sections.forEach((section, idx) => {
-      if (shouldShowSocietaryMap(section.title, section.content, cnpj)) {
-        map.set(idx, parsedTeiaData);
-      }
-    });
-    return map;
-  }, [sections, cnpj, parsedTeiaData]);
+  const societaryMapSectionIndex = useMemo(
+    () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
+    [sections, cnpj],
+  );
 
   const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
@@ -256,12 +251,12 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             </div>
           )}
           <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
-            {geminiDataBySection.has(idx) ? (
+            {idx === societaryMapSectionIndex ? (
               <SocietaryMap
                 cnpj={cnpj}
                 empresaAlvo={empresaAlvo}
                 isDarkMode={isDarkMode}
-                geminiCnpjs={geminiDataBySection.get(idx)!.companies.length > 0 ? geminiDataBySection.get(idx)!.companies : undefined}
+                geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
               />
             ) : null}
             <MarkdownRenderer

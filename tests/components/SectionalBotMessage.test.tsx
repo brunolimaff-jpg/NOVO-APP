@@ -181,6 +181,44 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByTestId('societary-map')).toHaveTextContent('Agropecuaria Scheffer Ltda');
   });
 
+  it('renderiza apenas um mapa societário quando visão geral e profundidade citam teia', () => {
+    const message: Message = {
+      id: 'bot-teia-duplicada',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '# TEIA SOCIETÁRIA: VISÃO GERAL DO GRUPO',
+        '',
+        'Mapa Interativo: consulte o gráfico interativo SocietaryMap.',
+        '',
+        '# Teia Societária — Profundidade',
+        '',
+        '## Tabela Mestre de CNPJs',
+        '',
+        '| CNPJ | Razao Social | Relacao na Teia | Fonte | Confianca |',
+        '|------|--------------|-----------------|-------|-----------|',
+        '| 00.111.222/0001-33 | Agropecuaria Scheffer Ltda | Operacional | BrasilAPI | OFICIAL |',
+        '',
+        '## QSA e Poder Societario',
+        '',
+        '**Socio 1:** Guilherme M. Scheffer',
+        '- **Empresas Relacionadas:** Agropecuaria Scheffer Ltda',
+      ].join('\n'),
+    };
+
+    render(
+      <SectionalBotMessage
+        message={message}
+        isDarkMode={false}
+        empresaAlvo="Scheffer & Cia"
+        cnpj="04733767000180"
+      />,
+    );
+
+    expect(screen.getAllByTestId('societary-map')).toHaveLength(1);
+    expect(screen.getByTestId('societary-map')).toHaveTextContent('Agropecuaria Scheffer Ltda');
+  });
+
   it('mostra feedback apenas em seções relevantes', () => {
     const message: Message = {
       id: 'bot-feedback',
