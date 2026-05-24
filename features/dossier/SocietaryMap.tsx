@@ -52,7 +52,7 @@ function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGrap
     .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
     .filter((partner): partner is typeof graph.partners[number] => Boolean(partner));
 
-  if (partners.length === 0) return company.rootLinked ? 'Grupo raiz' : 'Sem sócio identificado';
+  if (partners.length === 0) return 'Sem sócio identificado';
 
   return partners
     .map(partner => [partner.name, partner.role].filter(Boolean).join(' - '))

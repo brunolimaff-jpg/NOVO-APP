@@ -207,6 +207,7 @@ describe('societaryGraph', () => {
     const mermaid = buildSocietaryMermaid(graph);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
     expect(mermaid).toContain('Root --> company_scheffer_colombia_s_a_s');
+    expect(mermaid).not.toContain('Ligada ao grupo raiz');
   });
 
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
@@ -388,6 +389,36 @@ describe('societaryGraph', () => {
     });
 
     expect(formatSocietaryCnpj('00111222000133')).toBe('00.111.222/0001-33');
-    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding / participacoes');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding');
+  });
+
+  it('usa CNAE ou papel principal para classificar empresa raiz sem socios no rótulo', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [],
+    }, [
+      {
+        name: 'Scheffer Logística e Administração LTDA',
+        cnpj: '10.536.467/0001-00',
+        partnerName: '',
+        role: '64.62-0-00 Holdings de instituições não-financeiras',
+        sourceTitle: 'Receita Federal',
+        confidence: 'strong',
+        evidenceType: 'qsa',
+        rootContext: true,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(1);
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding');
+
+    const mermaid = buildSocietaryMermaid(graph);
+
+    expect(mermaid).toContain('Scheffer Logística e Administração LTDA');
+    expect(mermaid).toContain('CNPJ 10.536.467/0001-00');
+    expect(mermaid).toContain('Holding');
+    expect(mermaid).not.toContain('Ligada ao grupo raiz');
+    expect(mermaid).not.toContain('Holding / participacoes');
   });
 });

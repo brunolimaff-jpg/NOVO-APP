@@ -133,12 +133,14 @@ function escapeMermaidLabel(value: string): string {
 
 function titleCaseName(value: string): string {
   const acronyms = new Set(['LTDA', 'S/A', 'S.A.', 'S.A.S.', 'SAS']);
+  const particles = new Set(['e', 'de', 'da', 'do', 'das', 'dos']);
   return value
     .toLowerCase()
     .split(/(\s+|&|\/|-)/)
     .map(part => {
       const upper = part.toUpperCase();
       if (acronyms.has(upper)) return upper;
+      if (particles.has(part)) return part;
       if (!/[a-zà-ÿ]/i.test(part)) return part;
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
@@ -395,7 +397,17 @@ export function describeSocietaryCompanyType(company: SocietaryCompany): string 
   }
   if (company.cnpj && !isHeadquartersCnpj(company.cnpj)) return 'Filial operacional';
   if (country && country !== 'BR') return 'Empresa internacional';
-  if (role.includes('holding') || role.includes('participa') || role.includes('invest')) return 'Holding / participacoes';
+  if (
+    role.includes('holding')
+    || role.includes('holdings')
+    || role.includes('participa')
+    || role.includes('invest')
+    || role.includes('6462')
+    || role.includes('64 62')
+  ) return 'Holding';
+  if (role.includes('cultivo') || role.includes('soja') || role.includes('algodao') || role.includes('milho')) return 'Produção agrícola';
+  if (role.includes('semente')) return 'Sementes';
+  if (role.includes('armaz') || role.includes('armazen')) return 'Armazenagem';
   if (role.includes('filial')) return 'Filial operacional';
   if (role.includes('logistica') || role.includes('transp')) return 'Logistica';
   if (role.includes('bio') || role.includes('industrial')) return 'Industrial';
@@ -407,7 +419,7 @@ function partnerSummary(company: SocietaryCompany, partnersById: Map<string, Soc
   const partners = company.partnerIds
     .map(partnerId => partnersById.get(partnerId))
     .filter((partner): partner is SocietaryPartner => Boolean(partner));
-  if (partners.length === 0) return company.rootLinked ? 'Ligada ao grupo raiz' : '';
+  if (partners.length === 0) return '';
   const visiblePartners = [...partners]
     .sort((a, b) => firstGivenName(a.name).localeCompare(firstGivenName(b.name), 'pt-BR'))
     .slice(0, 2);
