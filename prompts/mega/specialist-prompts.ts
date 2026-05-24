@@ -275,20 +275,6 @@ graph LR
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Caixa Operacional):** *"[script usando dado real encontrado e custo do atraso]"*
-* **Gatilho 2 (Governança de Escala):** *"[script usando mismatch entre crescimento físico e capacidade de controle]"*
-* **Gatilho 3 (Compliance/Rastreabilidade):** *"[script usando pressão regulatória/certificação para elevar urgência]"*
-
----
-
-### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
-
-- [1 linha sintetizando o que esta operação já domina em escala]
-- [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
-
-⚠️ OBRIGATÓRIO — EMITA ESTAS 3 LINHAS EXATAMENTE NESTE FORMATO, SEM ESPAÇOS EXTRAS, ANTES DE ENCERRAR O OUTPUT:
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
@@ -601,18 +587,6 @@ e explique por que isso é sintoma de perda de controle sistêmico]
 - por onde a Senior entra
 - qual wedge de entrada faz mais sentido]
 
-### 🗡️ GATILHOS DE ABORDAGEM
-* **Gatilho 1 (TCO / Incumbent):** *"[script usando dor real do incumbent e custo oculto]"*
-* **Gatilho 2 (Integração / Shadow IT):** *"[script usando ruptura entre operação e backoffice]"*
-* **Gatilho 3 (Entrada Tática):** *"[script indicando por onde entrar primeiro sem disparar resistência máxima]"*
-
----
-
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha sobre como a arquitetura atual favorece ou bloqueia avanço comercial]
-- [1 linha sobre o wedge de entrada sem expor scoring]
-
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
 
 </output_format>
@@ -848,19 +822,6 @@ com datas e fontes, se houver]
 - certificação vigente convivendo com arquitetura operacional aparentemente frágil]
 
 ---
-
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (CFO / Controle):** *"[script usando risco estrutural e custo de permanecer em arquitetura frágil]"*
-* **Gatilho 2 (Conselho / Governança):** *"[script usando reforma tributária / passivo / auditoria]"*
-* **Gatilho 3 (Compliance Operacional):** *"[script usando rastreabilidade, ESG real e risco de reputação]"*
-
----
-
-### 🎯 SÍNTESE PARA ABORDAGEM
-
-- [1 linha traduzindo se a pressão externa aumenta urgência comercial ou apenas exige governança]
-- [1 linha conectando risco, contrapeso e discurso executivo sem falar em score]
 
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA]]]
 [[PORTA_FLAG:TRAD:[SIM/NAO]:NATUREZA:[PRODUCAO/TRADING/MISTA]]]
@@ -1110,19 +1071,6 @@ graph LR
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Escala / Grupo):** *"[script usando massa real maior que o cadastro sugere]"*
-* **Gatilho 2 (Padronização / Crescimento):** *"[script usando expansão e complexidade de grupo]"*
-* **Gatilho 3 (Governança / Multiempresa):** *"[script usando dispersão societária e necessidade de visão consolidada]"*
-
----
-
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha traduzindo por que a massa crítica muda o ticket, o pitch ou a governança da venda]
-- [1 linha conectando complexidade societária com necessidade de padronização sem falar em score]
-
 [[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]
 [[PORTA_SEG:[PRD/AGI/COP]]]
 
@@ -1323,19 +1271,6 @@ A2 (timing sazonal / absorção de projeto)
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Porte Humano Oculto):** *"[script usando headcount real maior que o aparente]"*
-* **Gatilho 2 (SST / Governança):** *"[script usando imposto oculto de SST e risco de compliance]"*
-* **Gatilho 3 (Timing de Projeto):** *"[script usando entressafra ou alertando contra pico operacional]"*
-
----
-
-### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
-
-- [1 linha sobre o que o tamanho e a dispersão da força de trabalho revelam para a venda]
-- [1 linha sobre timing, risco humano e execução sem falar em score]
-
 [[PORTA_FEED_P_PROXY:FUNC:[TOTAL_FUNCIONARIOS]]]
 [[PORTA_FEED_R_TRAB:[NOTA]:PASSIVOS:[LISTA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]
@@ -1532,18 +1467,6 @@ graph LR
 
 ### 🧠 OBJEÇÕES PROVÁVEIS POR PERSONA
 [Liste 2-4 objeções prováveis e resposta tática]
-
-### 🗡️ GATILHOS DE ABORDAGEM
-* **Gatilho 1 (Sponsor):** *"[script para CEO/herdeiro/profissional usando modernização, escala ou legado]"*
-* **Gatilho 2 (Controlador):** *"[script para CFO/controller usando risco, ROI e governança]"*
-* **Gatilho 3 (Neutralização do Sabotador):** *"[pergunta que expõe o custo de manter remendo]"*
-
----
-
-### 🎯 SÍNTESE PARA ABORDAGEM
-
-- [1 linha sobre abertura política real da conta]
-- [1 linha sobre quem tende a patrocinar, travar ou acelerar a venda sem expor scoring]
 
 [[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]
 
@@ -1777,11 +1700,6 @@ A2 (janela financeira/organizacional)
 **Objeção esperada + resposta:** *"[objeção] → [resposta baseada nesta pesquisa]"*
 
 ---
-
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha sobre urgência financeira ou custo de esperar]
-- [1 linha sobre abertura de budget/janela sem falar em nota, dimensão ou cálculo]
 
 [[PORTA_FEED_R:[NOTA]:PRESSAO:[ALTA/MEDIA/BAIXA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]
