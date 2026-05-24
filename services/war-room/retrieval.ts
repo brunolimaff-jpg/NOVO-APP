@@ -421,7 +421,7 @@ export async function loadWarRoomDocsContext(
     onStatus?.('⚠️ Falha ao consultar Pinecone — continuando sem RAG.');
   }
 
-  console.log(
+  console.warn(
     `[WarRoom][RAG Metrics] queries=${ragQueriesTotal} failed=${ragQueriesFailed} empty=${ragQueriesEmpty} staticBlocks=${staticBlocksInjected}`,
   );
 
