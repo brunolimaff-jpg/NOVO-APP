@@ -311,7 +311,7 @@ export async function loadWarRoomDocsContext(
       docsContext = mergeDocContexts([GATEC_AGRICOLA_REFERENCE_BLOCK, docsContext]);
     }
 
-    if (flags.wantsBanking) {
+    if (flags.wantsBanking && !/integracao-erp-banking/i.test(docsContext)) {
       docsContext = mergeDocContexts([ERP_BANKING_REFERENCE_BLOCK, docsContext]);
     }
 
