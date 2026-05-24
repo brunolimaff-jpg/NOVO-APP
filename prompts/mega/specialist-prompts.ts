@@ -33,7 +33,7 @@ PROTOCOLO DE BUSCA — execute cada query via search grounding e trate o resulta
 
 PASSO 1 — CADEIA DE VALOR (alimenta O)
 Query principal:
-"[Empresa-alvo]" AND ("plantio" OR "armazenagem" OR "beneficiamento" OR "UBA" OR "algodoeira" OR "moinho" OR "usina" OR "exportação direta" OR "Comex" OR "logística própria" OR "frota" OR "sementes" OR "piscicultura" OR "aquicultura" OR "hidrelétrica" OR "PCH" OR "energia" OR "aviação agrícola" OR "imobiliária" OR "ILP" OR "integração lavoura pecuária")
+"[Empresa-alvo]" AND ("plantio" OR "armazenagem" OR "beneficiamento" OR "UBA" OR "algodoeira" OR "moinho" OR "usina" OR "exportação direta" OR "Comex" OR "logística própria" OR "frota" OR "sementes" OR "piscicultura" OR "aquicultura" OR "hidrelétrica" OR "PCH" OR "energia" OR "aviação agrícola" OR "imobiliária" OR "ILP" OR "integração lavoura pecuária" OR "bioinsumos" OR "controle biológico" OR "biofábrica" OR "P&D" OR "pesquisa e desenvolvimento" OR "fertilizante" OR "termofosfato" OR "mineração" OR "rocha fosfática" OR "fosfato")
 
 Objetivo:
 - Contar QUANTOS elos a empresa controla de fato
@@ -95,7 +95,7 @@ Se não encontrar, declarar: "Quantidade de frota não encontrada publicamente."
 
 PASSO 5 — RASTREABILIDADE, QUALIDADE E LOTE
 Buscar:
-"[Empresa-alvo]" AND ("laboratório" OR "classificação de grãos" OR "tratamento de sementes" OR "lote" OR "rastreabilidade" OR "seed processing" OR "GlobalGAP" OR "RTRS" OR "Sisbov")
+"[Empresa-alvo]" AND ("laboratório" OR "classificação de grãos" OR "tratamento de sementes" OR "lote" OR "rastreabilidade" OR "seed processing" OR "GlobalGAP" OR "RTRS" OR "Sisbov" OR "RFID" OR "track and trace" OR "sensores" OR "IoT agrícola" OR "tecnologia de campo")
 
 Objetivo:
 - Detectar necessidade de rastreabilidade por lote/talhão
@@ -918,6 +918,9 @@ DRILL-DOWN OBRIGATÓRIO em todos os sócios/QSA encontrados.
 PASSO 1 — MATRIZ / CABEÇA DO GRUPO
 Buscar:
 "[Empresa]" OR "[CNPJ]"
+
+Buscar (holdings financeiras/patrimoniais):
+"[Empresa]" AND ("holding" OR "participações" OR "investimentos" OR "patrimonial" OR "financeira" OR "administradora de bens" OR "SPE")
 Objetivo:
 - identificar matriz
 - identificar QSA
@@ -965,7 +968,7 @@ Objetivo:
 
 PASSO 6 — EXPANSÃO / M&A / NOVAS UNIDADES
 Buscar:
-"[Empresa]" AND ("aquisição" OR "fusão" OR "expansão" OR "nova unidade" OR "greenfield" OR "joint venture" OR "nova planta" OR "reestruturação societária")
+"[Empresa]" AND ("aquisição" OR "fusão" OR "expansão" OR "nova unidade" OR "greenfield" OR "joint venture" OR "nova planta" OR "reestruturação societária" OR "nota comercial" OR "debêntures" OR "CRA" OR "mercado de capitais" OR "captação" OR "FIAGRO" OR "agente fiduciário")
 
 Objetivo:
 - capturar crescimento recente
