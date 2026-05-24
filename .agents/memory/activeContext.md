@@ -80,8 +80,7 @@ Arquivos alterados anteriormente nesta sessao:
 
 ## Immediate next step
 
-1. Finalizar PR da branch `codex/cnpj-socios-todos-cnpjs`.
-2. Aguardar preview Vercel e validar o fluxo com CNPJ Scheffer `04.733.767/0001-80`.
-3. Conferir se a teia mostra CNPJs laterais dos socios como "Outro CNPJ do socio", sem aresta raiz -> empresa.
-4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
-5. Resolver problemas residuais P1/P2 restantes acima.
+1. Aguardar review/merge da PR #285 (`codex/cnpj-socios-todos-cnpjs`).
+2. Depois do merge, fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
+3. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
+4. Resolver problemas residuais P1/P2 restantes acima.

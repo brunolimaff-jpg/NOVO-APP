@@ -66,7 +66,7 @@ Last updated: 2026-05-24
 
 ### Teia CNPJ — Todos os CNPJs dos Socios (2026-05-24)
 
-**Branch:** `codex/cnpj-socios-todos-cnpjs`
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285
 
 - `/api/socio-search` agora diferencia `relationshipScope`: `group_link`, `partner_other_cnpj` e `unconfirmed`.
 - Busca societaria passou a incluir queries por socio sem empresa raiz, para capturar CNPJs onde o socio aparece mesmo sem prova de pertencer ao grupo economico.
@@ -74,6 +74,7 @@ Last updated: 2026-05-24
 - `SocietaryMap`/Mermaid mostra "Outro CNPJ do socio" sem criar aresta raiz -> empresa.
 - `teia-deep` e `teiaTextParser` separam "Empresas do grupo economico" de "Outros CNPJs onde o socio aparece".
 - Validacao local: review agent final sem blockers; recorte Vitest de 46 testes verde; `tests/prompts/megaPrompts.test.ts` verde; `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1063 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde. `./scripts/validate-prompts.sh` nao existe nesta branch; equivalente local usado foi `tests/prompts/megaPrompts.test.ts`.
+- Validacao remota: PR #285 com CI/Vercel/Smoke preview verdes; preview protegido exigiu `x-vercel-protection-bypass`; fluxo Scheffer `04.733.767/0001-80` validado no preview com CNPJ preenchendo `SCHEFFER & CIA LTDA`, `Sapezal/MT`, Score PORTA visivel e mapa societario renderizado com botoes de socios.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 
