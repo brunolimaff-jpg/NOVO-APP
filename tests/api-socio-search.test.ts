@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
+const lookupCnpjMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../utils/documentExtractor', async () => {
   const actual = await vi.importActual<typeof import('../utils/documentExtractor')>('../utils/documentExtractor');
@@ -10,6 +11,10 @@ vi.mock('../utils/documentExtractor', async () => {
     performWebSearch: performWebSearchMock,
   };
 });
+
+vi.mock('../lib/cnpjLookup', () => ({
+  lookupCnpj: lookupCnpjMock,
+}));
 
 function makeResponse() {
   let statusCode = 0;
@@ -48,11 +53,15 @@ describe('api/socio-search', () => {
     vi.clearAllMocks();
     vi.resetModules();
     vi.unstubAllEnvs();
+    performWebSearchMock.mockReset();
+    lookupCnpjMock.mockReset();
     vi.stubEnv('SUPABASE_URL', '');
     vi.stubEnv('VITE_SUPABASE_URL', '');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
     vi.stubEnv('SUPABASE_ANON_KEY', '');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
+    lookupCnpjMock.mockRejectedValue(new Error('cnpj lookup not mocked'));
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch not mocked'));
   });
 
   it('retorna empresas fortes e remove CPF completo do snippet', async () => {
@@ -82,7 +91,7 @@ describe('api/socio-search', () => {
         expect.objectContaining({
           name: 'Scheffer Colombia S.A.S.',
           confidence: 'strong',
-          evidenceType: 'trade',
+          evidenceType: 'registry',
           rootContext: true,
           rootCompanyName: 'Scheffer & Cia Ltda',
           rootCnpj: '04733767000180',
@@ -148,7 +157,7 @@ describe('api/socio-search', () => {
   });
 
   it('usa cache para repetir a mesma busca sem novo scraping', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
+    performWebSearchMock.mockResolvedValue([
       'Título: Agropecuária Scheffer',
       'URL: https://example.com/agropecuaria-scheffer',
       'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem no contexto societário da Agropecuária Scheffer.',
@@ -179,12 +188,21 @@ describe('api/socio-search', () => {
 
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
-    expect(performWebSearchMock).toHaveBeenCalledTimes(1);
-    expect(second.payload).toMatchObject({ cached: true });
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
+    expect(second.payload).toMatchObject({
+      cached: true,
+      diagnostics: expect.objectContaining({ cacheSource: 'memory' }),
+    });
   });
 
-  it('nao faz scraping em producao quando cache persistente nao esta configurado', async () => {
+  it('continua pesquisando em producao quando cache persistente nao esta configurado', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    performWebSearchMock.mockResolvedValue([
+      'Título: Scheffer Colombia S.A.S. importações',
+      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+      '---',
+    ].join('\n'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
@@ -199,15 +217,33 @@ describe('api/socio-search', () => {
     } as VercelRequest, response.res);
 
     expect(response.statusCode).toBe(200);
-    expect(response.payload).toMatchObject({ companies: [], degraded: true, cached: false });
-    expect(performWebSearchMock).not.toHaveBeenCalled();
+    expect(response.payload).toMatchObject({
+      companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
+      degraded: false,
+      cached: false,
+      diagnostics: expect.objectContaining({
+        queriesRun: expect.arrayContaining([
+          expect.stringContaining('consultasocio.com'),
+          expect.stringContaining('holding'),
+          expect.stringContaining('S.A.S.'),
+        ]),
+        cacheSource: 'none',
+      }),
+    });
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
   });
 
-  it('ignora chave anon publica para cache server-side em producao', async () => {
+  it('ignora chave anon publica para cache server-side mas nao bloqueia busca viva', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'public-anon-key');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('page fetch not mocked'));
+    performWebSearchMock.mockResolvedValue([
+      'Título: Scheffer Colombia S.A.S. importações',
+      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+      '---',
+    ].join('\n'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
@@ -222,12 +258,16 @@ describe('api/socio-search', () => {
     } as VercelRequest, response.res);
 
     expect(response.statusCode).toBe(200);
-    expect(response.payload).toMatchObject({ companies: [], degraded: true, cached: false });
+    expect(response.payload).toMatchObject({
+      companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
+      degraded: false,
+      cached: false,
+    });
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(performWebSearchMock).not.toHaveBeenCalled();
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
   });
 
-  it('nao faz scraping em producao quando cache persistente nao aceita gravacao', async () => {
+  it('serve resultado vivo em producao mesmo quando cache persistente nao aceita gravacao', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
@@ -236,11 +276,17 @@ describe('api/socio-search', () => {
         ok: true,
         json: async () => [],
       } as Response)
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         ok: false,
         status: 503,
         json: async () => ({}),
       } as Response);
+    performWebSearchMock.mockResolvedValue([
+      'Título: Scheffer Colombia S.A.S. importações',
+      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+      '---',
+    ].join('\n'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
@@ -255,12 +301,16 @@ describe('api/socio-search', () => {
     } as VercelRequest, response.res);
 
     expect(response.statusCode).toBe(200);
-    expect(response.payload).toMatchObject({ companies: [], degraded: true, cached: false });
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(performWebSearchMock).not.toHaveBeenCalled();
+    expect(response.payload).toMatchObject({
+      companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
+      degraded: false,
+      cached: false,
+    });
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
   });
 
-  it('em producao nao usa cache volatil antes de validar cache persistente', async () => {
+  it('em producao usa cache volatil como fallback depois da primeira busca viva', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
@@ -282,7 +332,7 @@ describe('api/socio-search', () => {
         status: 503,
         json: async () => ({}),
       } as Response);
-    performWebSearchMock.mockResolvedValueOnce([
+    performWebSearchMock.mockResolvedValue([
       'Título: Scheffer Colombia S.A.S. importações',
       'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
       'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
@@ -311,9 +361,14 @@ describe('api/socio-search', () => {
     } as VercelRequest, second.res);
 
     expect(first.payload).toMatchObject({ companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })] });
-    expect(second.payload).toMatchObject({ companies: [], degraded: true, cached: false });
-    expect(fetchSpy).toHaveBeenCalledTimes(4);
-    expect(performWebSearchMock).toHaveBeenCalledTimes(1);
+    expect(second.payload).toMatchObject({
+      companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
+      degraded: false,
+      cached: true,
+      diagnostics: expect.objectContaining({ cacheSource: 'memory' }),
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
   });
 
   it('le cache persistente antes de rodar scraping', async () => {
@@ -331,7 +386,7 @@ describe('api/socio-search', () => {
             sourceTitle: 'Fonte cache',
             snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
             confidence: 'strong',
-            evidenceType: 'trade',
+            evidenceType: 'registry',
           }],
           rejected: [],
           degraded: false,
@@ -370,7 +425,7 @@ describe('api/socio-search', () => {
         ok: true,
         json: async () => ({}),
       } as Response);
-    performWebSearchMock.mockResolvedValueOnce([
+    performWebSearchMock.mockResolvedValue([
       'Título: Scheffer Colombia S.A.S. importações',
       'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
       'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
@@ -395,5 +450,80 @@ describe('api/socio-search', () => {
     expect(upsertBody.id).toContain('socio-search:04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+  });
+
+  it('roda todas as queries, abre paginas candidatas e enriquece CNPJ brasileiro via lookup oficial', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      text: async () => '<html><body>Guilherme M. Scheffer aparece com Scheffer & Cia Ltda na Agropecuaria Scheffer CNPJ 00.111.222/0001-33.</body></html>',
+    } as Response);
+    performWebSearchMock
+      .mockResolvedValueOnce([
+        'Título: Resultado genérico Scheffer',
+        'URL: https://example.com/generico',
+        'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem em resultado superficial.',
+        '---',
+      ].join('\n'))
+      .mockResolvedValueOnce([
+        'Título: Agropecuaria Scheffer QSA',
+        'URL: https://example.com/agropecuaria-scheffer',
+        'Resumo: Guilherme M. Scheffer aparece no quadro societário do grupo Scheffer.',
+        '---',
+      ].join('\n'))
+      .mockResolvedValueOnce('Nenhum resultado encontrado.');
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: '00111222000133',
+      companyName: 'Agropecuaria Scheffer Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      cnaeDescricao: 'Cultivo de soja',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(performWebSearchMock).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledWith('https://example.com/generico', expect.any(Object));
+    expect(lookupCnpjMock).toHaveBeenCalledWith('00111222000133');
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          name: 'Agropecuaria Scheffer Ltda',
+          cnpj: '00111222000133',
+          role: 'Cultivo de soja',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          sourceDepth: 'cnpj_lookup',
+        }),
+      ],
+      diagnostics: expect.objectContaining({
+        queriesRun: expect.arrayContaining([
+          expect.stringContaining('consultasocio.com'),
+          expect.stringContaining('holding'),
+          expect.stringContaining('S.A.S.'),
+        ]),
+        pagesFetched: expect.any(Number),
+        rejectedCount: expect.any(Number),
+      }),
+    });
   });
 });

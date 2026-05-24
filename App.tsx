@@ -192,7 +192,7 @@ const App: React.FC = () => {
     runMegaPromptWaterfall: dossierWaterfall.runMegaPromptWaterfall,
   });
 
-  const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => {
+  const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string, cnpj?: string | null) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
@@ -216,6 +216,7 @@ const App: React.FC = () => {
             : isTopicDeepDive
               ? 'Deep Dive em andamento'
               : undefined,
+        cnpj: cnpj ?? null,
       },
     );
   };

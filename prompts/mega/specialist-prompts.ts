@@ -1017,6 +1017,12 @@ Responder internamente:
 - Há múltiplos veículos societários escondendo massa?
 - O footprint operacional é enterprise mesmo se o cadastro parecer médio?
 
+REGRAS DE CNPJ:
+- Todo CNPJ mencionado DEVE estar no formato ##.###.###/####-##. NUNCA gere um CNPJ parcial ou completo.
+- Se um CNPJ não foi encontrado em fonte oficial, escreva "CNPJ não confirmado" em vez de inventar.
+- Se um CNPJ aparece em fonte oficial (QSA, BrasilAPI, registro comercial), cite a fonte ao lado.
+- CNPJ confirmado apenas por busca reversa (consultasocio.com) deve vir com nível de confiança reduzido e nota "validar".
+
 </instructions>
 
 <scoring_scales>

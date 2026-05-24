@@ -284,6 +284,7 @@ describe('ChatInterface shell regression', () => {
         '🔍 Investigando Acme Agro...',
         expect.stringContaining('Empresa=Acme Agro'),
         'Acme Agro',
+        expect.any(String),
       );
     });
   });

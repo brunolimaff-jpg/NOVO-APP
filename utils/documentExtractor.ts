@@ -86,19 +86,65 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Realiza busca no DuckDuckGo Lite.
+ * Realiza busca web — Brave Search API com fallback para DuckDuckGo Lite.
  */
-export async function performWebSearch(query: string): Promise<string | null> {
+export async function performWebSearch(query: string, options: { count?: number } = {}): Promise<string | null> {
+    const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+
+    if (braveKey) {
+        return performBraveSearch(query, braveKey, options);
+    }
+
+    return performDuckDuckGoSearch(query);
+}
+
+async function performBraveSearch(query: string, apiKey: string, options: { count?: number } = {}): Promise<string | null> {
+    scoutDiag.info('DocumentExtractor', `Buscando no Brave Search: ${query}`);
+
+    try {
+        const count = Math.max(1, Math.min(options.count ?? 5, 10));
+        const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`;
+        const response = await fetch(searchUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip',
+                'X-Subscription-Token': apiKey,
+            },
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!response.ok) {
+            scoutDiag.warn('DocumentExtractor', `Brave Search HTTP ${response.status}, falling back to DuckDuckGo`);
+            return performDuckDuckGoSearch(query);
+        }
+
+        const data = await response.json() as { web?: { results?: Array<{ title?: string; url?: string; description?: string }> } };
+        const webResults = data.web?.results ?? [];
+
+        if (webResults.length === 0) return 'Nenhum resultado encontrado.';
+
+        const results = webResults.map(r =>
+            `Título: ${r.title || ''}\nURL: ${r.url || ''}\nResumo: ${r.description || ''}\n---`,
+        );
+
+        return results.join('\n');
+    } catch (error) {
+        scoutDiag.warn('DocumentExtractor', 'Brave Search falhou, falling back to DuckDuckGo', error);
+        return performDuckDuckGoSearch(query);
+    }
+}
+
+async function performDuckDuckGoSearch(query: string): Promise<string | null> {
     const cheerio = await import('cheerio');
     scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (Cheerio): ${query}`);
 
     try {
         const searchUrl = `https://duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
         const response = await fetch(searchUrl, {
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' 
+            headers: {
+                'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0',
             },
-            signal: AbortSignal.timeout(15000)
+            signal: AbortSignal.timeout(15000),
         });
 
         if (!response.ok) throw new Error(`Search failed: ${response.status}`);
@@ -107,7 +153,6 @@ export async function performWebSearch(query: string): Promise<string | null> {
         const $ = cheerio.load(html);
         const results: string[] = [];
 
-        // Log de memória em modo verbose
         if (typeof process !== 'undefined' && process.memoryUsage) {
             const memory = process.memoryUsage();
             scoutDiag.info('DocumentExtractor', `Memória RAM: ${Math.round(memory.heapUsed / 1024 / 1024)}MB / ${Math.round(memory.rss / 1024 / 1024)}MB`);
@@ -117,17 +162,16 @@ export async function performWebSearch(query: string): Promise<string | null> {
             if (i >= 5) return;
             const title = $(el).text().trim();
             let url = $(el).attr('href') || '#';
-            
-            // Corrige URLs relativas do DDG Lite
+
             if (url.startsWith('//')) url = 'https:' + url;
-            
+
             const snippet = $(el).closest('tr').next().find('.result-snippet').text().trim();
             results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
         });
 
         return results.join('\n') || 'Nenhum resultado encontrado.';
     } catch (error) {
-        scoutDiag.error('DocumentExtractor', 'Erro na busca web', error);
+        scoutDiag.error('DocumentExtractor', 'Erro na busca DuckDuckGo', error);
         return null;
     }
 }

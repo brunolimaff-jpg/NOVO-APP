@@ -7,6 +7,7 @@ import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
 import SocietaryMap from '../features/dossier/SocietaryMap';
+import { parseTeiaText } from '../features/dossier/teiaTextParser';
 
 interface SectionalBotMessageProps {
   message: Message;
@@ -126,7 +127,9 @@ function shouldShowSectionFeedback(title: string): boolean {
 function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | null): boolean {
   if (!cnpj) return false;
   const normalized = normalizeFeedbackSectionTitle(`${title}\n${content}`);
-  return normalized.includes('teia societaria') || normalized.includes('poder societario');
+  return normalized.includes('teia societaria')
+    || normalized.includes('mapa de poder societario')
+    || normalized.includes('mapa do poder societario');
 }
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
@@ -146,6 +149,12 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
+
+  const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
+  const societaryMapSectionIndex = useMemo(
+    () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
+    [sections, cnpj],
+  );
 
   const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
@@ -242,8 +251,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             </div>
           )}
           <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
-            {shouldShowSocietaryMap(section.title, section.content, cnpj) ? (
-              <SocietaryMap cnpj={cnpj} empresaAlvo={empresaAlvo} isDarkMode={isDarkMode} />
+            {idx === societaryMapSectionIndex ? (
+              <SocietaryMap
+                cnpj={cnpj}
+                empresaAlvo={empresaAlvo}
+                isDarkMode={isDarkMode}
+                geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
+              />
             ) : null}
             <MarkdownRenderer
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}

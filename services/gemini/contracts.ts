@@ -23,6 +23,7 @@ export interface DossierModuleOptions {
   signal?: AbortSignal;
   onText?: (text: string) => void;
   timeoutMs?: number;
+  temperature?: number;
   useGrounding?: boolean;
   onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
   onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
