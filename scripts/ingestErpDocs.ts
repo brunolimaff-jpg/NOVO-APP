@@ -29,6 +29,7 @@ const index = pc.index(PINECONE_INDEX_NAME);
 // Namespace seguro e isolado para documentação
 const NAMESPACE = 'senior-erp-docs';
 const BATCH_SIZE = 50;
+const failedBatches: string[] = [];
 
 interface CsvRow {
     Categoria?: string;
@@ -117,6 +118,10 @@ async function ingest() {
     }
 
     console.log(`\n🎉 Finalizado! ${successCount} documentos do ERP Senior inseridos no Pinecone no namespace '${NAMESPACE}'.`);
+
+    if (failedBatches.length > 0) {
+        console.log(`⚠️ ${failedBatches.length} lotes falharam: [${failedBatches.slice(0, 10).join(', ')}${failedBatches.length > 10 ? ', ...' : ''}]`);
+    }
 }
 
 async function processBatch(batch: any[]) {
@@ -149,6 +154,7 @@ async function processBatch(batch: any[]) {
             await index.namespace(NAMESPACE).upsert(pineconeRecords);
             console.log("-> Retentativa bem sucedida!");
         } catch {
+            failedBatches.push(...batch.map((item: any) => item.id));
             console.error("Falha fatal no lote. Pulando.");
         }
     }
