@@ -315,7 +315,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(formatarParaPromptMock).toHaveBeenCalledTimes(1);
     expect(generateDossierModuleMock).toHaveBeenCalledTimes(5);
     expect(generateDossierModuleMock.mock.calls.map(call => call[0])).toEqual([
-      'Porte / Teia Societária',
+      'Teia Societaria — Identidade',
       'Operação / Cadeia de Valor',
       'Bordas de Controle',
       'Riscos & Compliance',
@@ -401,7 +401,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.groundingUsed).toBe(true);
     expect(finalBotMessage.webVerificationStatus).toBe('verified');
     expect(finalBotMessage.groundingSources).toEqual([
-      { title: 'Porte / Teia Societária fonte', url: 'https://example.com/fonte', verification: 'grounding' },
+      { title: 'Teia Societaria — Identidade fonte', url: 'https://example.com/fonte', verification: 'grounding' },
       {
         title: 'BNDES',
         url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi',

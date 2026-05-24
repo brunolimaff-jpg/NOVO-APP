@@ -39,6 +39,7 @@ interface ResetLoadingProgressOptions {
 export interface HandleSendMessageOptions {
   requestKind?: RequestKind;
   fixedLoadingLine?: string;
+  cnpj?: string | null;
 }
 
 interface ProcessMessageOptions extends HandleSendMessageOptions {
@@ -488,7 +489,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           id: sessionId,
           title: immediateTitle || 'Nova Investigação',
           empresaAlvo: immediateTitle || null,
-          cnpj: null,
+          cnpj: options?.cnpj ?? null,
           modoPrincipal: DEFAULT_MODE,
           scoreOportunidade: null,
           resumoDossie: null,
@@ -502,6 +503,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       } else {
         currentHistory = existingSession.messages ? [...existingSession.messages] : [];
         immediateCompany = hintedCompanyOverride || existingSession.empresaAlvo || null;
+        if (options?.cnpj && !existingSession.cnpj) {
+          setSessions(prev =>
+            prev.map(session =>
+              session.id === sessionId ? { ...session, cnpj: options.cnpj ?? null } : session,
+            ),
+          );
+        }
       }
 
       const userMessage: Message = {

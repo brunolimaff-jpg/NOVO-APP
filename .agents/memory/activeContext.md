@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-23
+Last updated: 2026-05-23 — Plano de Melhorias no Dossiê (RAG + Contexto)
 
 ## Current operating context
 
@@ -26,71 +26,84 @@ Read order:
 - 873+ testes verdes, typecheck limpo.
 - Lint com `0` erros.
 
-## Current implementation branch
-
-**Teia Societaria Tipo 5 implementada na branch `codex/teia-societaria-tipo5` (worktree isolado).**
-
-- Substitui o rumo do mockup SVG por Mermaid LR dinamico dentro do dossie, preservando o markdown textual como fallback.
-- QSA passa pelo pipeline CNPJ (`lib/cnpjLookup.ts` -> `api/cnpj.ts` -> `services/brasilApiService.ts`) com socios, qualificacao, documento publico mascarado, fonte e confianca.
-- `features/dossier/SocietaryMap.tsx` injeta o mapa em secoes de Teia/Poder Societario e faz drill-down quando o operador troca o socio selecionado.
-- `api/socio-search.ts` executa busca/scraping apenas server-side, rejeita homonimos, preserva Scheffer Colombia S.A.S. quando ha contexto do grupo e evidencia internacional, e grava cache persistente de 7 dias em `extract_cache`.
-- Cache de producao exige `SUPABASE_SERVICE_ROLE_KEY`; chave anon/publica nao e aceita nesse endpoint. Sem service role/cache gravavel, a busca degrada e nao executa scraping.
-- O grafo exige `rootContext` com `rootCompanyName` ou `rootCnpj` compativel com a empresa raiz; `confidence: strong` sozinho nao conecta empresa.
-
 ## Current task context
 
-**Migracao Supabase concluida (2026-05-22).**
+**Sessao de Brainstorming — Teia Societaria Interativa**
 
-### Camada de infraestrutura:
-- `lib/supabaseClient.ts` — cliente Supabase browser com `createClient`, export default `supabase`, graceful degradation se Supabase indisponivel.
-- `services/storage.ts` — interface unificada que hooks/services chamam. Implementa stale-while-revalidate para leituras (IDB primeiro, Supabase em background) e offline-first para escritas (IDB instantaneo, sync em background).
+Componente visual de estrutura societaria (ownership structure) para o dossie de CNPJ. Evoluimos de Mermaid estatico para SVG interativo com drill-down.
 
-### Fila offline:
-- `services/syncQueue.ts` — fila de operacoes pendentes persistida em IDB. Retry com backoff exponencial (3s, 9s, 27s). Dead-letter queue apos falhas consecutivas. Processamento automatico em background e sob demanda.
+### Fonte de dados
+- **BrasilAPI** `/api/cnpj/v1/{cnpj}` → `qsa[]` com nome e qualificacao
+- **consultasocio.com** `/q/sa/{nome}` → busca reversa de empresas por socio
+- Sem API paga disponivel para percentual de participacao → classificacao por faixa (controlador/minoritario) via qualificacao + numero de socios
 
-### Componentes:
-- `components/SyncIndicator.tsx` — badge no header mostrando status: online/syncing/offline/error. Tooltip com contagem de operacoes pendentes.
+### Tecnologia
+- **Mockup:** SVG customizado com bezier curves + JS vanilla (arquivos HTML em `.superpowers/brainstorm/93190-1779565087/content/`)
+- **Implementacao real (futuro):** React component + dagre (6KB, mesma lib do Mermaid) + framer-motion
 
-### Migracao de hooks:
-- `hooks/useSessionStorage.ts` — substituido `idb-keyval` por `storage.ts`
-- `features/radar/useRadar.ts` — substituido `idb-keyval` por `storage.ts`
-- `services/extractContentService.ts` — substituido `idb-keyval` por `storage.ts`
+### Design final — 14 iteracoes ate polished.html
+- Tema claro (#f8fafc), fonte system-ui
+- Layout: CNPJ raiz (azul) → 6 socios (roxo) → empresas expandem inline na linha do socio
+- Bezier curves em vez de linhas retas
+- Linhas verdes pontilhadas (#22c55e) com animacao pulse conectando socios que compartilham empresas
+- Badges verdes com contagem de socios compartilhados
+- Drill-down multiplo: pode expandir varios socios ao mesmo tempo
+- Animacao spring nos cards (cubic-bezier 0.34,1.56,0.64,1)
+- Socios nao conectados ficam opacos (14%) com grayscale
+- viewBox 1200x680 com bastante respiro
 
-### Registro de operador:
-- `contexts/OperatorContext.tsx` — adicionado campo `email`, sync com Supabase ao registrar
-- `components/GreetingWelcomeScreen.tsx` — input de email com validacao
-- `components/ChatInterface.tsx` — callback de email propagado
-- `components/chat/MessageTimeline.tsx` — assinatura de callback atualizada
-- `components/chat/ChatShell.tsx` — SyncIndicator adicionado no header
-- Cadastro restrito a `@senior.com.br` (commit `5a2b35e`): nome completo (2+ palavras, 2+ caracteres cada) obrigatorio
-- Email recovery (commit `c880566`): vincula dispositivo novo a `operator_id` existente quando email ja cadastrado
-- Botao de sync manual (commit `d22fa0c`): pill no header com feedback (+N sent, downarrowN received), dispara evento `scout:sync-complete`
+### Estado
+- Mockup completo em `polished.html` com todos os 6 socios Scheffer funcionando
+- Dados mockados (nao chamadas reais de API)
+- Implementacao NAO iniciada — apenas mockups HTML
 
-### Schema Supabase:
-- URL: `https://vmqfcaoirjcfucvlnpig.supabase.co`
-- 9 tabelas: `user_context`, `dossies`, `radar_alerts`, `radar_configs`, `extract_cache`, `audit_log`, `favorites`, `shared_dossiers`, `feedback_events`
-- RLS habilitado em todas, politicas por `operator_id IS NOT NULL`
-- `feedback_events` registra feedback por mensagem/secao/erro com `reason`, `scope`, `metadata`, `session_id`, `message_id` e `operator_id`.
-- 11 indexes para performance de consulta
-- Grants anon para data API (leitura/escrita)
+### Artefatos
+- `.superpowers/brainstorm/93190-1779565087/content/polished.html` — versao final multi-expansao
+- `.superpowers/brainstorm/93190-1779565087/content/index.html` — catalogo de 14 iteracoes
+- `.superpowers/brainstorm/93190-1779565087/content/tres-cenarios-v2.html` — versao "boa" com 4 cenarios em abas
+- `.superpowers/brainstorm/93190-1779565087/content/conexoes-cruzadas.html` — versao alternativa com accordion
+- `docs/obsidian/decisions/TEIA-SOCIETARIA-ENRIQUECIMENTO.md` — documento de decisao
 
-### Env vars necessarias (Vercel):
-- `VITE_SUPABASE_URL=https://vmqfcaoirjcfucvlnpig.supabase.co`
-- `VITE_SUPABASE_ANON_KEY=sb_publishable_OXLwGTgGUjFi-gHwRTsoOg_xHoDJHvO`
+### Bugs corrigidos nos mockups
+- Linhas verdes pontilhadas invisiveis: conflito `style="opacity:0"` CSS inline vs `setAttribute('opacity','1')` no JS. Fix: remover style inline, usar atributo SVG + `.pulse` CSS animation.
+- Badges de compartilhamento invisiveis: mesmo problema de opacidade.
+- Layout muito compacto: viewBox 1000x540 → 1200x680, cards maiores, mais distancia.
+- Expansao centralizada → inline por socio: empresas expandem na linha do socio clicado.
 
-### Decisoes arquiteturais:
-1. Auth postergada: UUID local temporario como `operator_id`
-2. Dados migraveis: dossies, radar alerts, radar configs, extract cache, audit log, favorites, shared dossiers
-3. Offline-first com sync queue em background
-4. Conexao direta Supabase (abordagem A) — sem camada serverless intermediaria
+### Pendentes para implementacao
+- `lib/cnpjLookup.ts` — precisa expor QSA
+- `api/cnpj.ts` — Vercel endpoint precisa propagar QSA
+- `services/brasilApiService.ts` — frontend wrapper precisa expor QSA
 
 ## Workspace note
 
 `CODE.md` e instrucao local para Codex e esta ignorado via `.git/info/exclude`.
 
+## Sessao de Diagnostico — Melhorias no Dossie (RAG + Contexto)
+
+**Branch atual:** `feat/migration-notice-supabase`
+
+### Diagnostico
+
+O fluxo de geracao de dossie (waterfall de 5 modulos) tem uma **lacuna de contexto**: RAG Pinecone, Docs RAG, concorrentes regionais e PORTA state chegam ao `sendMessageToGemini` mas NAO aos modulos individuais do waterfall (`generateDossierModule`).
+
+### Causa raiz
+
+`generateDossierModule` nao chama `buscarContextoPinecone` nem `buscarContextoDocsPinecone`. O waterfall passa apenas: `dossierSeedContext` + `waterfallLookupContext` + `seniorEvidenceContext` + `accumulatedTextSnapshot`.
+
+### Plano completo
+
+Documentado em `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md`.
+
+**Sprint 1 (8-10h):** Quick wins — RAG + concorrentes + PORTA no waterfall, temperatura por modulo, marcador de falha, `linhas_produto` no CRM.
+**Sprint 2 (8-12h):** Estruturais — RAG per-modulo, foundation reduzido, cache RAG, benchmark contextualizado, web fallback inteligente.
+
+### Artefatos
+
+- `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md` — documento de decisao com plano completo
+
 ## Immediate next step
 
-1. Finalizar/mergear `codex/teia-societaria-tipo5`.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para habilitar o cache persistente do `/api/socio-search`; manter `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` para o app browser.
-3. Validar no preview um dossie Scheffer com CNPJ `04.733.767/0001-80`: QSA visivel, drill-down por socio, Scheffer Colombia preservada com fonte, fallback textual mantido.
-4. Depois, seguir merges pendentes: `codex/standardize-mermaid-maps`, PR `#270` e PR `#266`, conforme prioridade do owner.
+**Iniciar Sprint 1 do plano de melhorias do dossie** pelo item C2 (`linhas_produto` no CRM context) — independente e baixissimo risco.
+
+Em paralelo: iniciar Fase 1 da Teia Societaria (`features/dossier/SocietaryTree.tsx`, hook `hooks/useSocietaryTree.ts`, modificar `lib/cnpjLookup.ts` para expor QSA).

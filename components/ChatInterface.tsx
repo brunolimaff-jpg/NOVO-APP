@@ -166,7 +166,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         },
       );
       const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
-      await onDeepDive(prompt, hiddenPrompt, payload.companyName);
+      await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj);
     },
     [mode, canWarRoom, radar, onDeepDive],
   );

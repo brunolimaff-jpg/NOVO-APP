@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
+import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
@@ -101,7 +102,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
         if (!cancelled) {
           setRootData({
-            cnpj: company.cnpj,
+            cnpj: normalizeCnpj(company.cnpj || ''),
             name: company.companyName || empresaAlvo || 'Empresa analisada',
             partners,
           });

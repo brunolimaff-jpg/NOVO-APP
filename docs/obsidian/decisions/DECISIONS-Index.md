@@ -47,6 +47,12 @@ Voltar para [[00-MASTER]].
 - Sprint 4 escolheu `stores/*` em vez de adicionar `zustand`
 - impacto maior em [[ARCH-State-Storage]] e [[ARCH-App-Orchestration]]
 
+## Decisoes recentes
+
+- [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints
+- [[TEIA-SOCIETARIA-ENRIQUECIMENTO]] — 2026-05-23 — Componente visual de estrutura societaria com drill-down
+- [[UX-REDESIGN-DIREÇÕES]] — 2026-05-23 — Redesenho UX do Scout 360 (direcao Paper Executivo, caminho C)
+
 ## Como usar esta nota
 
 - confirme a decisao duravel aqui

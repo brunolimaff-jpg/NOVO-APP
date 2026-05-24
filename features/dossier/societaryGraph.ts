@@ -5,7 +5,7 @@ export type SocietaryEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'inst
 export type SocietaryBadge =
   | 'empresa em comum'
   | 'holding'
-  | 'operação'
+  | 'oficial'
   | 'internacional'
   | 'estimado'
   | 'validar';
@@ -159,7 +159,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
   if (country && country !== 'BR') badges.add('internacional');
   if (/colombia|colômbia/i.test(company.name)) badges.add('internacional');
   if (role.includes('holding') || role.includes('participa') || role.includes('invest')) badges.add('holding');
-  if (company.evidenceType === 'registry' || company.evidenceType === 'qsa') badges.add('operação');
+  if (company.evidenceType === 'registry' || company.evidenceType === 'qsa') badges.add('oficial');
   if (company.confidence === 'weak' || company.confidence === 'medium') badges.add('validar');
 
   return Array.from(badges);

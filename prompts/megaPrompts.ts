@@ -28,6 +28,8 @@ export {
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
 } from './mega/specialist-prompts';
+export { PROMPT_TEIA_IDENTITY_MODULE } from './mega/teia-identity';
+export { PROMPT_TEIA_DEEP_MODULE } from './mega/teia-deep';
 export {
   ALL_SPECIALIST_PROMPTS,
   INVESTIGATION_MODE_BLOCKS,

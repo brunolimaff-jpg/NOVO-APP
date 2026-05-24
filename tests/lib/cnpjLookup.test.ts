@@ -18,10 +18,8 @@ describe('cnpjLookup qsa mapping', () => {
     vi.restoreAllMocks();
   });
 
-  it('normalizes BrasilAPI qsa partners when earlier sources miss', async () => {
+  it('normalizes BrasilAPI qsa partners from primary source', async () => {
     vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({}, 404))
-      .mockResolvedValueOnce(jsonResponse({}, 404))
       .mockResolvedValueOnce(jsonResponse({
         razao_social: 'Empresa Exemplo LTDA',
         municipio: 'Cuiabá',
@@ -50,8 +48,10 @@ describe('cnpjLookup qsa mapping', () => {
     ]);
   });
 
-  it('maps CNPJ.ws socios when available', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({
+  it('maps CNPJ.ws socios when BrasilAPI fails first', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({}, 404))
+      .mockResolvedValueOnce(jsonResponse({
       razao_social: 'Empresa CNPJ WS',
       estabelecimento: {
         cidade: { nome: 'Sorriso' },

@@ -712,7 +712,7 @@ export async function generateDossierModule(
           contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
           config: {
             systemInstruction: finalPrompt,
-            temperature: 0.2,
+            temperature: options.temperature ?? 0.2,
             maxOutputTokens: 8192,
             tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
           },

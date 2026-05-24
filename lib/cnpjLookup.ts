@@ -35,7 +35,8 @@ class CnpjSourceError extends Error {
 }
 
 // ── Cache com limite de 1000 entradas (evict-oldest) ─────────────────────────
-interface CacheEntry { data: CnpjResult; expiresAt: number }
+const CACHE_VERSION = 2;
+interface CacheEntry { data: CnpjResult; expiresAt: number; version: number }
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_MAX = 1000;
@@ -43,6 +44,7 @@ const CACHE_MAX = 1000;
 function getCached(cnpj: string): CnpjResult | null {
   const entry = cache.get(cnpj);
   if (!entry) return null;
+  if (entry.version !== CACHE_VERSION) { cache.delete(cnpj); return null; }
   if (Date.now() > entry.expiresAt) { cache.delete(cnpj); return null; }
   return entry.data;
 }
@@ -52,7 +54,7 @@ function setCache(cnpj: string, data: CnpjResult): void {
     const oldest = cache.keys().next().value;
     if (oldest) cache.delete(oldest);
   }
-  cache.set(cnpj, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  cache.set(cnpj, { data, expiresAt: Date.now() + CACHE_TTL_MS, version: CACHE_VERSION });
 }
 
 // ── Fetch helper ──────────────────────────────────────────────────────────────
@@ -195,9 +197,9 @@ export async function lookupCnpj(cnpjValue: string): Promise<CnpjResult> {
   if (cached) return cached;
 
   const sources = [
+    { name: 'BrasilAPI',    fn: () => fromBrasilApi(cnpj) },
     { name: 'CNPJ.ws',      fn: () => fromCnpjWs(cnpj) },
     { name: 'MinhaReceita', fn: () => fromMinhaReceita(cnpj) },
-    { name: 'BrasilAPI',    fn: () => fromBrasilApi(cnpj) },
   ];
 
   const errors: Array<{ notFound: boolean; msg: string }> = [];

@@ -291,7 +291,7 @@ describe('App dossier markdown golden flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'trigger-dossier' }));
 
     await waitFor(() => {
-      expect(generateDossierModuleMock).toHaveBeenCalledTimes(5);
+      expect(generateDossierModuleMock).toHaveBeenCalledTimes(6);
       const text = screen.getByTestId('last-bot-message').textContent ?? '';
       expect(text.length).toBeGreaterThan(500);
       expect(text).toContain('Scheffer');

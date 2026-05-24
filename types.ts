@@ -239,7 +239,7 @@ export interface ChatInterfaceProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
-  onDeepDive: (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string) => Promise<void>;
+  onDeepDive: (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string, cnpj?: string | null) => Promise<void>;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   messages: Message[];

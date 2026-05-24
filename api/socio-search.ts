@@ -143,6 +143,9 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
     const payload = rows[0]?.result;
     if (!payload) return { status: 'miss' };
     if (!isSocioSearchResponse(payload)) return { status: 'unavailable' };
+    if (payload.degraded && payload.companies.length === 0 && payload.rejected.length === 0) {
+      return { status: 'miss' };
+    }
 
     return { status: 'hit', payload: { ...payload, cached: true } };
   } catch (error) {
