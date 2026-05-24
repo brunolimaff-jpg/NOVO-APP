@@ -135,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const filtered = results.matches.filter(m => (m.score ?? 0) >= DOCS_RAG_SCORE_MIN);
         const matches = results.matches.map(m => m.metadata || {});
         if (filtered.length === 0) {
-            return res.status(200).json({ context: NO_DOCS_SIGNAL, matches });
+            return res.status(200).json({ context: NO_DOCS_SIGNAL });
         }
 
         const textBackedParts: string[] = [];
@@ -154,10 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (textBackedParts.length === 0) {
-            return res.status(200).json({ context: NO_DOCS_SIGNAL, matches });
+            return res.status(200).json({ context: NO_DOCS_SIGNAL });
         }
 
-        const context = [...textBackedParts, ...urlOnlyParts].join('\n\n---\n\n');
+        const context = textBackedParts.join('\n\n---\n\n');
 
         return res.status(200).json({ context, matches });
 
