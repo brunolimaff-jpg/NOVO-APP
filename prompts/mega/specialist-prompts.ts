@@ -1844,9 +1844,11 @@ SARA (Hub de IA):
 - SARA Studio: criação de agentes sem código
 
 REGRAS DE USO:
-- Use estes números APENAS quando conectarem diretamente com uma dor encontrada no dossiê
-- Cite o case pelo nome (ex: "caso Sicredi") e o número (ex: "800% de ganho")
-- NUNCA invente números — se não houver case para a dor específica, use referência genérica "referência de mercado"
+- ⚠️ ESTES SÃO CASES DA SENIOR, NÃO DA EMPRESA INVESTIGADA. Use APENAS como referência de produto.
+- NUNCA atribua estes números ou cases à empresa-alvo como se fossem dela.
+- Use APENAS quando conectarem diretamente com uma dor encontrada no dossiê
+- Cite o case pelo nome (ex: "como no case Sicredi") e o número (ex: "800% de ganho")
+- NUNCA invente números — se não houver case para a dor específica, use "referência de mercado"
 - Prefira cases do agro (Agrodanieli, Florida Crystals, Agro Norte) para prospects do agro
 </senior_commercial_differentiators>
 
