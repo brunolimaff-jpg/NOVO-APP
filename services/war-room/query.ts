@@ -12,7 +12,7 @@ import type {
 import { collectWarRoomIntentFlags, isOutOfScope, normalizeTarget } from './intent';
 import { buildWarRoomPrompt, getWarRoomSystemPrompt } from './prompting';
 import { loadWarRoomDocsContext } from './retrieval';
-import { enforceBankingAnchors, extractGroundingSources } from './sources';
+import { detectHallucinatedUrls, enforceBankingAnchors, extractGroundingSources } from './sources';
 
 function makeAbortError(): Error {
   const error = new Error('Request aborted');
@@ -160,6 +160,17 @@ export async function queryWarRoom(
 
     if (flags.wantsBanking) {
       text = enforceBankingAnchors(text);
+    }
+
+    // Detector de alucinacao pos-processamento
+    if (docsContext) {
+      const knownUrls: Array<{ url?: string }> = [];
+      const urlRegex = /https:\/\/documentacao\.senior\.com\.br\/[^\s)>]+/g;
+      let urlMatch: RegExpExecArray | null;
+      while ((urlMatch = urlRegex.exec(docsContext)) !== null) {
+        knownUrls.push({ url: urlMatch[0] });
+      }
+      detectHallucinatedUrls(text, knownUrls);
     }
 
     const disclaimer =
