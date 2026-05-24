@@ -130,26 +130,66 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
       (generatedText.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')),
     )];
 
-    if (foundCnpjs.length === 0) return { text: generatedText, warnings };
+    if (foundCnpjs.length > 0) {
+      const knownCnpjs = [...new Set(
+        (knownContext.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')),
+      )];
+      const knownSet = new Set(knownCnpjs);
+      const knownRoots = new Set(knownCnpjs.map((c: string) => c.slice(0, 8)));
 
-    const knownCnpjs = [...new Set(
-      (knownContext.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')),
-    )];
-    const knownSet = new Set(knownCnpjs);
-    const knownRoots = new Set(knownCnpjs.map((c: string) => c.slice(0, 8)));
+      const unconfirmed = foundCnpjs.filter((c: string) => !knownSet.has(c));
+      const unconfirmedRoots = foundCnpjs.filter((c: string) => !knownRoots.has(c.slice(0, 8)));
 
-    const unconfirmed = foundCnpjs.filter((c: string) => !knownSet.has(c));
-    const unconfirmedRoots = foundCnpjs.filter((c: string) => !knownRoots.has(c.slice(0, 8)));
+      if (unconfirmed.length > 0 && unconfirmed.length / foundCnpjs.length > 0.3) {
+        warnings.push(
+          `⚠️ Validação CNPJ: ${unconfirmed.length} de ${foundCnpjs.length} CNPJs citados nao foram confirmados em fontes oficiais disponiveis.`,
+        );
+      }
 
-    if (unconfirmed.length > 0 && unconfirmed.length / foundCnpjs.length > 0.3) {
-      warnings.push(
-        `⚠️ Validação CNPJ: ${unconfirmed.length} de ${foundCnpjs.length} CNPJs citados nao foram confirmados em fontes oficiais disponiveis.`,
-      );
+      if (unconfirmedRoots.length > 0 && unconfirmedRoots.length <= 3) {
+        warnings.push(
+          `🔍 CNPJs com raiz nao confirmada: ${unconfirmedRoots.join(', ')}.`,
+        );
+      }
     }
 
-    if (unconfirmedRoots.length > 0 && unconfirmedRoots.length <= 3) {
+    const internationalPatterns = [
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (S\.?A\.?S\.?)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'S.A.S. (Colômbia/França)' },
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ B\.?V\.?(?!\s*(Brasil|BR|CNPJ))/gi, label: 'B.V. (Holanda)' },
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (GmbH|G\.m\.b\.H\.)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'GmbH (Alemanha)' },
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Inc\.?|LLC|Corp\.?)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'Inc./LLC (EUA)' },
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Ltd\.?|Limited)(?!\s*(Brasil|BR|CNPJ|LTDA|Ltda))/gi, label: 'Ltd. (UK/Hong Kong)' },
+      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ S\.?L\.?(?!\s*(Brasil|BR|CNPJ))/gi, label: 'S.L. (Espanha)' },
+    ];
+
+    const foundInternational = new Set<string>();
+
+    for (const { regex } of internationalPatterns) {
+      regex.lastIndex = 0;
+      const matches = generatedText.match(regex);
+      if (matches) {
+        for (const match of matches) {
+          const cleaned = match.trim();
+          if (!foundInternational.has(cleaned)) {
+            foundInternational.add(cleaned);
+          }
+        }
+      }
+    }
+
+    if (foundInternational.size > 0) {
+      const names = [...foundInternational].join(', ');
+      const labels = [...new Set(
+        [...foundInternational].map(name => {
+          for (const { regex, label } of internationalPatterns) {
+            regex.lastIndex = 0;
+            if (regex.test(name)) return label;
+          }
+          return 'Internacional';
+        }),
+      )].join('; ');
       warnings.push(
-        `🔍 CNPJs com raiz nao confirmada: ${unconfirmedRoots.join(', ')}.`,
+        `🌐 Entidade(s) internacional(is) detectada(s) sem CNPJ: ${names} (${labels}). Conexoes internacionais exigem comprovacao documental (registro estrangeiro, socio comum com CPF, ou fonte oficial com URL). Se nao houver evidencia concreta, a conexao e INFERIDA e nao deve ser tratada como fato.`,
       );
     }
   } catch (err) {
@@ -413,7 +453,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 signal,
                 timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
                 useGrounding: true,
-                temperature: 0.2,
+                temperature: 0.1,
                 onGroundingSources: appendGroundingSources,
                 onVerificationStatus: rememberVerificationStatus,
               },

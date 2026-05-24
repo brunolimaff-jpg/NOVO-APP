@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-23 — Plano de Melhorias no Dossiê (RAG + Contexto)
+Last updated: 2026-05-23 — Diagnostico e Correcao Teia Societaria concluido
 
 ## Current operating context
 
@@ -28,60 +28,41 @@ Read order:
 
 ## Current task context
 
-**Sessao de Brainstorming — Teia Societaria Interativa**
+**Diagnostico e Correcao da Teia Societaria — concluido (2026-05-23)**
 
-Componente visual de estrutura societaria (ownership structure) para o dossie de CNPJ. Evoluimos de Mermaid estatico para SVG interativo com drill-down.
+Sessao com 4 agentes paralelos para investigar e corrigir problemas na Teia Societaria e profundidade do dossie.
 
-### Fonte de dados
-- **BrasilAPI** `/api/cnpj/v1/{cnpj}` → `qsa[]` com nome e qualificacao
-- **consultasocio.com** `/q/sa/{nome}` → busca reversa de empresas por socio
-- Sem API paga disponivel para percentual de participacao → classificacao por faixa (controlador/minoritario) via qualificacao + numero de socios
+### Diagnostico (agentes)
 
-### Tecnologia
-- **Mockup:** SVG customizado com bezier curves + JS vanilla (arquivos HTML em `.superpowers/brainstorm/93190-1779565087/content/`)
-- **Implementacao real (futuro):** React component + dagre (6KB, mesma lib do Mermaid) + framer-motion
+**debugger** — `/api/socio-search` retornava `degraded: true`. Causa raiz: `performWebSearch()` usava DuckDuckGo Lite que falha em serverless Vercel. `BRAVE_SEARCH_API_KEY` nunca era usada.
 
-### Design final — 14 iteracoes ate polished.html
-- Tema claro (#f8fafc), fonte system-ui
-- Layout: CNPJ raiz (azul) → 6 socios (roxo) → empresas expandem inline na linha do socio
-- Bezier curves em vez de linhas retas
-- Linhas verdes pontilhadas (#22c55e) com animacao pulse conectando socios que compartilham empresas
-- Badges verdes com contagem de socios compartilhados
-- Drill-down multiplo: pode expandir varios socios ao mesmo tempo
-- Animacao spring nos cards (cubic-bezier 0.34,1.56,0.64,1)
-- Socios nao conectados ficam opacos (14%) com grayscale
-- viewBox 1200x680 com bastante respiro
+**reviewer** — 7 vulnerabilidades nos prompts `teia-identity.ts` e `teia-deep.ts`: falta de restricao territorial, validacao documental CNPJ e bloqueio de siglas estrangeiras (S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L.).
+
+**planner** — Plano de ~24h com 3 quick wins: P3.6 (teiaTextParser), P3.1 (geminiCnpjs), P3.7 (cache socios).
+
+**rag-gemini** — Bug no `gemini-3-flash-preview`: groundingMetadata ausente desde abril/2026. 7 recomendacoes de melhoria de prompt (R1-R7). Sugeriu fallback para `gemini-2.5-flash`.
+
+### Correcoes aplicadas (5 arquivos)
+
+1. **`api/socio-search.ts`** — Cache volatil fallback quando Supabase ausente
+2. **`utils/documentExtractor.ts`** — Brave Search como primario, DuckDuckGo como fallback. `performWebSearch()` refatorado em 3 funcoes
+3. **`features/dossier/waterfall-orchestrator.ts`** — `validateTeiaCnpjsOutput()` expandido para detectar entidades internacionais sem CNPJ
+4. **`features/dossier/SocietaryMap.tsx`** — Drill-down automatico para TODOS os socios ao carregar
+5. **`config/localDevApiProxy.ts`** — Adicionado `/api/socio-search` ao proxy
+
+### Documentacao
+
+- `docs/obsidian/decisions/LICOES-APRENDIDAS.md` — 7 licoes documentadas (0 a 6)
+- Deploy: `https://scoutagro-bar5evneo-brunolimaff-3629s-projects.vercel.app`
 
 ### Estado
-- Mockup completo em `polished.html` com todos os 6 socios Scheffer funcionando
-- Dados mockados (nao chamadas reais de API)
-- Implementacao NAO iniciada — apenas mockups HTML
 
-### Artefatos
-- `.superpowers/brainstorm/93190-1779565087/content/polished.html` — versao final multi-expansao
-- `.superpowers/brainstorm/93190-1779565087/content/index.html` — catalogo de 14 iteracoes
-- `.superpowers/brainstorm/93190-1779565087/content/tres-cenarios-v2.html` — versao "boa" com 4 cenarios em abas
-- `.superpowers/brainstorm/93190-1779565087/content/conexoes-cruzadas.html` — versao alternativa com accordion
-- `docs/obsidian/decisions/TEIA-SOCIETARIA-ENRIQUECIMENTO.md` — documento de decisao
+**Funcionando:** Brave Search API + cache volatil, validador internacional de entidades, mapa carrega todos os socios automaticamente.
+**Pendente quick wins:** P3.6 (teiaTextParser), P3.1 (geminiCnpjs).
+**Pendente prompt:** R1-R7 do rag-gemini, temperatura modulo 1b para 0.1.
+**Pendente modelo:** Avaliar `gemini-2.5-flash` como fallback.
 
-### Bugs corrigidos nos mockups
-- Linhas verdes pontilhadas invisiveis: conflito `style="opacity:0"` CSS inline vs `setAttribute('opacity','1')` no JS. Fix: remover style inline, usar atributo SVG + `.pulse` CSS animation.
-- Badges de compartilhamento invisiveis: mesmo problema de opacidade.
-- Layout muito compacto: viewBox 1000x540 → 1200x680, cards maiores, mais distancia.
-- Expansao centralizada → inline por socio: empresas expandem na linha do socio clicado.
-
-### Pendentes para implementacao
-- `lib/cnpjLookup.ts` — precisa expor QSA
-- `api/cnpj.ts` — Vercel endpoint precisa propagar QSA
-- `services/brasilApiService.ts` — frontend wrapper precisa expor QSA
-
-## Workspace note
-
-`CODE.md` e instrucao local para Codex e esta ignorado via `.git/info/exclude`.
-
-## Sessao de Diagnostico — Melhorias no Dossie (RAG + Contexto)
-
-**Branch atual:** `feat/migration-notice-supabase`
+## Sessao anterior — Plano de Melhorias no Dossie (RAG + Contexto)
 
 ### Diagnostico
 
@@ -98,12 +79,25 @@ Documentado em `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md`.
 **Sprint 1 (8-10h):** Quick wins — RAG + concorrentes + PORTA no waterfall, temperatura por modulo, marcador de falha, `linhas_produto` no CRM.
 **Sprint 2 (8-12h):** Estruturais — RAG per-modulo, foundation reduzido, cache RAG, benchmark contextualizado, web fallback inteligente.
 
-### Artefatos
+## Sessao anterior — Teia Societaria Interativa (Brainstorming + Mockup)
 
-- `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md` — documento de decisao com plano completo
+Componente visual de estrutura societaria. Mockup concluido em `polished.html` com 14 iteracoes. Implementacao nao iniciada.
+
+### Artefatos
+- `.superpowers/brainstorm/93190-1779565087/content/polished.html` — versao final multi-expansao
+- `docs/obsidian/decisions/TEIA-SOCIETARIA-ENRIQUECIMENTO.md` — documento de decisao
+
+### Pendentes para implementacao
+- `lib/cnpjLookup.ts` — precisa expor QSA
+- `api/cnpj.ts` — Vercel endpoint precisa propagar QSA
+- `services/brasilApiService.ts` — frontend wrapper precisa expor QSA
 
 ## Immediate next step
 
-**Iniciar Sprint 1 do plano de melhorias do dossie** pelo item C2 (`linhas_produto` no CRM context) — independente e baixissimo risco.
-
-Em paralelo: iniciar Fase 1 da Teia Societaria (`features/dossier/SocietaryTree.tsx`, hook `hooks/useSocietaryTree.ts`, modificar `lib/cnpjLookup.ts` para expor QSA).
+1. **Mergear PR `#278` em `main`** (version 1.0.0 + aviso migracao + bug fix).
+2. **Implementar quick wins restantes (P3.6, P3.1):** parseador de tabela markdown + prop `geminiCnpjs` no SocietaryMap.
+3. **Aplicar melhorias de prompt R1-R7** do rag-gemini.
+4. **Avaliar fallback de modelo:** `gemini-2.5-flash` vs `gemini-3-flash-preview`.
+5. Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1).
+6. Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+7. Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery.

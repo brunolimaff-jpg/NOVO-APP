@@ -60,6 +60,17 @@ So conecte duas empresas se houver pelo menos UM dos seguintes criterios:
 NOME PARECIDO NAO E SUFICIENTE para conectar empresas.
 Se o unico vinculo for nome de socio sem CPF ou qualificacao, marque como "RISCO DE HOMONIMO".
 
+GATE DE ENTIDADE INTERNACIONAL:
+Qualquer empresa fora do Brasil exige PELO MENOS UM dos seguintes:
+- Registro internacional valido (KVK, NIT, EIN, etc.) citado com documento/URL
+- Socio pessoa fisica com CPF brasileiro OU passaporte compativel com socio do grupo
+- Matriz brasileira confirmando abertura no exterior em fonte oficial
+
+Se a unica evidencia for NOME PARECIDO, declare "CONEXAO INTERNACIONAL NAO CONFIRMADA"
+e NAO inclua a entidade na tabela mestra nem como sinal de enterprise.
+
+NOME DE EMPRESA PARECIDO NÃO E CONEXAO. Exija registro legal ou socio comprovado.
+
 PASSO 1 — TABELA MESTRA DE CNPJs
 
 Liste OS CNPJs mais relevantes do grupo, com:
@@ -96,7 +107,7 @@ PASSO 3 — SINAIS DE ENTERPRISE INVISIVEL
 Avalie a conta contra estes sinais:
 1. Verticalizacao: a empresa controla multiple elos da cadeia (producao, armazenagem, industria, logistica, trading)?
 2. Logistica propria: frota, frota contratada dedicada, estrutura de transporte?
-3. Internacionalizacao: exportacao direta, filial no exterior, trading internacional?
+3. Internacionalizacao CONFIRMADA: ha evidencias documentais de operacao internacional? (exportacao, filial no exterior, trading)? Se nao houver registro oficial, classifique como NAO.
 4. Operacoes industriais: usina, UBA, moinho, beneficiadora, fabrica?
 5. Gaps Senior/GAtec/ERP/TMS/WMS: onde a operacao parece depender de sistema que a Senior fornece?
 
@@ -160,7 +171,8 @@ Traduza a estrutura societaria em linguagem de venda:
 |-------|--------|-----------|-----------|
 | Verticalizacao | [SIM/NAO/INCERTO] | [fato] | [CONFIRMADO/FORTE/MODERADO/INFERIDO] |
 | Logistica propria | [SIM/NAO/INCERTO] | [fato] | [CONFIRMADO/FORTE/MODERADO/INFERIDO] |
-| Internacionalizacao | [SIM/NAO/INCERTO] | [fato] | [CONFIRMADO/FORTE/MODERADO/INFERIDO] |
+| Internacionalizacao CONFIRMADA | SIM/NAO | [fato com fonte documental] | CONFIRMADO/FORTE |
+| Internacionalizacao INFERIDA | SIM/NAO | [fato baseado apenas em nome, site, terceiros] | INFERIDO (NAO COMPUTA) |
 | Operacao industrial | [SIM/NAO/INCERTO] | [fato] | [CONFIRMADO/FORTE/MODERADO/INFERIDO] |
 | Gap Senior/GAtec/ERP | [detalhe] | [fato] | [CONFIRMADO/FORTE/MODERADO/INFERIDO] |
 

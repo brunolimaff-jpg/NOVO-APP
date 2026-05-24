@@ -1,6 +1,38 @@
 # Decisions
 
-Last updated: 2026-05-23
+Last updated: 2026-05-23 — Decisoes da sessao de diagnostico e correcao Teia Societaria
+
+## 2026-05-23 — Brave Search como fonte primaria de web search
+
+Decision: `utils/documentExtractor.ts` passa a usar Brave Search API (`performBraveSearch()`) como fonte primaria de web search, com DuckDuckGo Lite (`performDuckDuckGoSearch()`) como fallback secundario. `performWebSearch()` foi refatorado em 3 funcoes separadas.
+
+Reason: `performWebSearch()` usava exclusivamente DuckDuckGo Lite, que falha silenciosamente em serverless Vercel (DNS lookup falha, rate-limit agressivo). A variavel `BRAVE_SEARCH_API_KEY` ja estava configurada no Vercel (`BRAVE_SEARCH_API_KEY` at least 8 chars, not ending in `\n`), mas nunca era chamada pelo codigo. A correcao aproveita um recurso ja pago e disponivel.
+
+Constraint: se ambas as fontes falharem, `performWebSearch()` retorna array vazio — o orquestrador ja trata fallback graciosamente sem quebrar o dossie.
+
+## 2026-05-23 — Cache volatil no socio-search como fallback de Supabase ausente
+
+Decision: `api/socio-search.ts` usa cache volatil (objeto Map em memoria) como fallback quando Supabase esta ausente, em vez de retornar `degraded: true` imediatamente.
+
+Reason: a rota `/api/socio-search` depende de Supabase para salvar resultados de consulta socio. Quando o Supabase esta indisponivel (ou em primeiro deploy sem banco configurado), a rota degradava sem servir nenhum dado. O cache volatil permite que consultas recentes sejam re-servidas mesmo sem banco, enquanto consultas novas seguem para a web search.
+
+Constraint: cache volatil e perdido entre restart serverless (Vercel cold starts). Aceitavel porque e um fallback temporario — o fluxo ideal sempre usa Supabase.
+
+## 2026-05-23 — Validacao de entidades internacionais no waterfall do dossie
+
+Decision: expandir `validateTeiaCnpjsOutput()` em `features/dossier/waterfall-orchestrator.ts` para detectar entidades internacionais sem CNPJ. Padroes detectados: S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L. Quando encontradas sem comprovacao documental, emite warning no dossie.
+
+Reason: o reviewer descobriu que os prompts `teia-identity.ts` e `teia-deep.ts` permitiam que o Gemini alucinasse entidades estrangeiras na teia societaria. Sem restricao territorial explicita e sem validacao de CNPJ, o modelo inventava conexoes internacionais (ex: "Matrix S.A.S." ou "AgroTech B.V.") que nao existem nos dados reais. A correcao no validador e agnostica a modelo — funciona com qualquer LLM.
+
+Constraint: esta validacao e POS-processamento (corta saida ruim). O ideal e prevenir na origem (prompt com regras explicitas de territorio). Ambos serao implementados: prompt na sprint de melhorias (R1-R7), validacao ja aplicada.
+
+## 2026-05-23 — SocietaryMap com drill-down automatico para todos os socios
+
+Decision: `features/dossier/SocietaryMap.tsx` faz drill-down automatico para TODOS os socios ao carregar o mapa. O `useEffect` foi refatorado de `[rootData, selectedPartnerName]` (so pesquisava ao clicar) para `[rootData]` com loop sobre todos os partners.
+
+Reason: o mapa ficava vazio ate o usuario clicar em um socio. Para usuarios que nao sabiam que precisavam clicar, a teia societaria parecia "quebrada". Carregar todos os socios automaticamente elimina essa friccao e mostra o valor do componente imediatamente.
+
+Constraint: em empresas com muitos socios (10+), pode haver muitas chamadas simultaneas. O cache volatil no socio-search mitiga isso parcialmente. P3.7 (cache local de socios) e o fix definitivo.
 
 ## 2026-05-23 — Plano de Melhorias no Dossiê (RAG + Contexto)
 
@@ -284,6 +316,14 @@ Decision: os mockus HTML usam dados hardcoded do grupo Scheffer (6 socios, ~18 e
 Reason: a interface da BrasilAPI ja retorna `qsa[]`, mas o pipeline de dados do app nao expoe esse campo para o frontend. Implementar em paralelo ao componente e mais eficiente que mockar retroativamente.
 
 Constraint: `lib/cnpjLookup.ts` e API route sao alteracoes controladas — verificar testes antes e depois da modificacao.
+
+## 2026-05-23 — Lição Aprendida: Agentes em worktree DEVEM commitar antes de declarar concluído
+
+Decision: todo agente que trabalha em worktree isolado deve commitar as alterações no branch ANTES de declarar a tarefa como concluída. O gate de conclusão agora inclui verificação explícita: `git status --porcelain` deve retornar vazio no worktree.
+
+Reason: nesta sessão, o implementer trabalhou no worktree `codex/teia-societaria-tipo5`, declarou todos os passos completos com typecheck verde e 903 testes passando, mas **nunca commitou** as alterações. O merge posterior (`git merge codex/teia-societaria-tipo5`) trouxe apenas os 3 commits originais da PR #279 — não os arquivos criados/editados pelo implementer (`teia-identity.ts`, `teia-deep.ts`, `waterfall-orchestrator.ts`, `megaPrompts.ts`, `investigation-orchestration.ts`, `contracts.ts`, testes, docs). O resultado foi: (1) usuário rodou `localhost:3007` e o Módulo 1b de profundidade não executou porque o código não existia na branch, (2) ciclo extra de debugging para descobrir que era ausência de arquivos, não bug lógico, (3) cópia manual de 12 arquivos do worktree, (4) ajuste de imports quebrados e tipo ausente (`temperature` no `DossierModuleOptions`). Custo do retrabalho: ~30min e quebra de confiança.
+
+Constraint: o gate se aplica a qualquer agente que use `isolation: "worktree"`. O agente deve ser explicitamente instruído a commitar. O protocolo de verificação pós-agente deve incluir `git log --oneline -3` e `git diff --stat HEAD~1` para confirmar que as alterações foram persistidas no branch.
 
 ## 2026-05-22 - Sync manual em vez de automatico
 

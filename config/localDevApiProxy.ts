@@ -11,4 +11,5 @@ export const LOCAL_DEV_API_PROXY_PATHS = [
   '/api/extract-content',
   '/api/rag',
   '/api/docs-rag',
+  '/api/socio-search',
 ] as const;

@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-05-23 — Plano de Melhorias no Dossiê documentado
+Last updated: 2026-05-23 — Diagnostico e Correcao Teia Societaria concluido
 
 ## Completed
 
@@ -33,6 +33,55 @@ Last updated: 2026-05-23 — Plano de Melhorias no Dossiê documentado
 - `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md` — documento completo com plano, queries, temperaturas, riscos e gates
 
 **Proximo passo:** iniciar Sprint 1 pelo item C2.
+
+### Diagnostico e Correcao Teia Societaria (2026-05-23)
+
+**Branch:** `feat/migration-notice-supabase`
+**Deploy preview:** `https://scoutagro-bar5evneo-brunolimaff-3629s-projects.vercel.app`
+
+**Contexto:** Sessao com 4 agentes paralelos para diagnosticar e corrigir problemas na Teia Societaria e profundidade do dossie.
+
+**debugger — Raiz do degraded no /api/socio-search:**
+- `performWebSearch()` usava DuckDuckGo Lite que falha silenciosamente em serverless Vercel
+- `BRAVE_SEARCH_API_KEY` configurada no Vercel mas nunca usada pelo codigo
+- Fix: `performWebSearch()` refatorado em 3 funcoes com Brave Search como primario, DuckDuckGo como fallback
+
+**reviewer — 7 vulnerabilidades em prompts teia-identity.ts e teia-deep.ts:**
+- Falta de restricao territorial brasileira, validacao documental CNPJ
+- Siglas estrangeiras (S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L.) permitiam alucinacao de entidade internacional
+- Correcao em `validateTeiaCnpjsOutput()` no `waterfall-orchestrator.ts`
+
+**planner — Plano de ~24h com 3 quick wins:**
+- P3.6: Parseador de tabela markdown (`features/dossier/teiaTextParser.ts`)
+- P3.1: Prop `geminiCnpjs` no SocietaryMap
+- P3.7: Cache local de socios (evitar re-consulta)
+
+**rag-gemini — Bug no modelo:**
+- `gemini-3-flash-preview` com groundingMetadata ausente desde abril/2026
+- 7 recomendacoes de melhoria de prompt (R1-R7)
+- Recomendou avaliar fallback para `gemini-2.5-flash`
+
+**Correcoes (5 arquivos):**
+1. `api/socio-search.ts` — Cache volatil fallback quando Supabase ausente
+2. `utils/documentExtractor.ts` — Brave Search API como primario, DuckDuckGo fallback
+3. `features/dossier/waterfall-orchestrator.ts` — Validador de entidades internacionais expandido
+4. `features/dossier/SocietaryMap.tsx` — Drill-down automatico para todos os socios
+5. `config/localDevApiProxy.ts` — Adicionado `/api/socio-search` ao proxy
+
+**Documentacao:**
+- `docs/obsidian/decisions/LICOES-APRENDIDAS.md` — 7 licoes documentadas (Licao 0 a 6)
+
+**Validacoes:**
+- `npm run typecheck` green
+- `npm run build` green
+- Deploy Vercel preview funcional com Brave Search API
+
+**Pendente (proxima sessao):**
+- P3.6: Criar parseador de tabela markdown
+- P3.1: Adicionar prop `geminiCnpjs` ao SocietaryMap
+- R1-R7: Melhorias de prompt para restricao internacional
+- Temperatura modulo 1b: reduzir de 0.2 para 0.1
+- Avaliar `gemini-2.5-flash` como fallback
 
 ### PR #278 — Aviso de Migracao Supabase + Version 1.0.0 (2026-05-23)
 
@@ -537,6 +586,9 @@ Last updated: 2026-05-23 — Plano de Melhorias no Dossiê documentado
 ## Next checkpoint
 
 - Mergear PR `#278` em `main` (version 1.0.0 + aviso migracao + bug fix).
+- Implementar quick wins P3.6 (teiaTextParser) e P3.1 (geminiCnpjs).
+- Aplicar melhorias de prompt R1-R7 do rag-gemini.
+- Avaliar fallback para `gemini-2.5-flash` (groundingMetadata bug).
 - Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1) em `main`.
 - Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery.

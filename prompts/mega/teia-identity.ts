@@ -69,7 +69,9 @@ Apos a analise, classifique o grupo em um dos 3 niveis:
 
 BAIXA: ≤3 CNPJs no grupo E ≤2 socios unicos E sem holding explicita
 MEDIA: 4-8 CNPJs totais OU socios multiplos (3+) OU holding simples identificada
-ALTA: 9+ CNPJs totais OU holdings em cascata OU presenca internacional OU cross-ownership
+ALTA: 9+ CNPJs totais OU holdings em cascata OU presenca internacional CONFIRMADA (com registro estrangeiro valido) OU cross-ownership
+
+NOTA: Presenca internacional inferida apenas por nome ou site NAO classifica como ALTA. Sem registro estrangeiro ou socio comprovado, considere MEDIA no maximo.
 
 A complexidade determina se a analise prossegue para o modulo de profundidade.
 
@@ -137,6 +139,9 @@ Ao final do output, inclua EXATAMENTE UM dos tres marcadores abaixo, corresponde
 - Nao classifique como PRD se houver qualquer operacao industrial relevante
 - NAO gere Mermaid — o SocietaryMap e o unico responsavel por grafos
 - Se nao houver massa real, declare "Nao foi possivel confirmar massa real do grupo" e use complexidade BAIXA
+- Presenca internacional so deve ser mencionada se houver fonte publica confirmando registro legal ou socio comprovado
+- Nao infira internacionalizacao por nome de empresa similar
+- Se houver duvida, declare "internacionalizacao nao confirmada" e nao use isso para classificar complexidade como ALTA
 </constraints>
 `;
 

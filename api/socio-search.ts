@@ -55,7 +55,6 @@ const RequestSchema = z.object({
 });
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const PERSISTENT_CACHE_PROBE_TTL_MS = 5 * 60 * 1000;
 const CACHE_MAX = 250;
 const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
 const cache = new Map<string, CacheEntry>();
@@ -200,14 +199,6 @@ async function setPersistentCached(key: string, payload: SocioSearchResponse): P
   return writePersistentCacheRecord(buildPersistentCacheId(key), payload, CACHE_TTL_MS);
 }
 
-async function probePersistentCacheWrite(key: string): Promise<boolean> {
-  return writePersistentCacheRecord(`socio-search-probe:${key}`, {
-    companies: [],
-    rejected: [],
-    degraded: true,
-    cached: false,
-  }, PERSISTENT_CACHE_PROBE_TTL_MS);
-}
 
 function splitSearchBlocks(content: string): Array<{ title: string; url: string; snippet: string }> {
   return (content || '')
@@ -366,65 +357,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const cacheKey = buildCacheKey(parsed.data.rootCnpj, parsed.data.rootCompanyName, parsed.data.socioName);
-  if (!getSupabaseCacheConfig() && requiresPersistentCache()) {
-    scoutDiag.warn('SocioSearch', 'cache persistente obrigatorio nao configurado; busca societaria degradada', {
-      socioName: parsed.data.socioName,
-      rootCompanyName: parsed.data.rootCompanyName,
-    });
-    return res.status(200).json({
-      companies: [],
-      rejected: [],
-      degraded: true,
-      cached: false,
-      detail: 'Cache persistente societario nao configurado.',
-    });
-  }
-
   const persistentCacheRequired = requiresPersistentCache();
+  const hasPersistentConfig = Boolean(getSupabaseCacheConfig());
+
   if (!persistentCacheRequired) {
     const cached = getMemoryCached(cacheKey);
     if (cached) return res.status(200).json(cached);
-  }
-  const persistentCached = await getPersistentCached(cacheKey);
-  if (persistentCached.status === 'hit') {
-    setMemoryCached(cacheKey, persistentCached.payload);
-    return res.status(200).json(persistentCached.payload);
-  }
-  if (persistentCached.status === 'unavailable' && persistentCacheRequired) {
-    return res.status(200).json({
-      companies: [],
-      rejected: [],
-      degraded: true,
-      cached: false,
-      detail: 'Cache persistente societario indisponivel.',
-    });
-  }
-  if (persistentCacheRequired) {
-    const cacheWritable = await probePersistentCacheWrite(cacheKey);
-    if (!cacheWritable) {
-      return res.status(200).json({
-        companies: [],
-        rejected: [],
-        degraded: true,
-        cached: false,
-        detail: 'Cache persistente societario indisponivel para gravacao.',
+  } else {
+    const persistentCached = await getPersistentCached(cacheKey);
+    if (persistentCached.status === 'hit') {
+      setMemoryCached(cacheKey, persistentCached.payload);
+      return res.status(200).json(persistentCached.payload);
+    }
+    if (!hasPersistentConfig) {
+      scoutDiag.warn('SocioSearch', 'cache persistente nao configurado; usando cache volatil', {
+        socioName: parsed.data.socioName,
+        rootCompanyName: parsed.data.rootCompanyName,
       });
     }
+    const memoryCached = getMemoryCached(cacheKey);
+    if (memoryCached) return res.status(200).json(memoryCached);
   }
 
   try {
     const payload = await runSearch(parsed.data);
-    const persisted = await setPersistentCached(cacheKey, payload);
-    if (!persisted && persistentCacheRequired) {
-      return res.status(200).json({
-        companies: [],
-        rejected: payload.rejected,
-        degraded: true,
-        cached: false,
-        detail: 'Resultado societario nao retornado porque o cache persistente falhou.',
-      });
-    }
     setMemoryCached(cacheKey, payload);
+
+    if (persistentCacheRequired && hasPersistentConfig) {
+      const persisted = await setPersistentCached(cacheKey, payload);
+      if (!persisted) {
+        scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para gravacao; resultado servido via cache volatil', {
+          socioName: parsed.data.socioName,
+          rootCompanyName: parsed.data.rootCompanyName,
+        });
+      }
+    }
+
     return res.status(200).json(payload);
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha no drill-down de socio', {

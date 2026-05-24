@@ -349,17 +349,87 @@ Sprint 2 (8-12h) — Estruturais:
 
 **Próximo passo:** Iniciar Sprint 1 pelo item C2 (independente, baixíssimo risco).
 
+## Diagnostico e Correcao Teia Societaria (2026-05-23)
+
+**Branch:** `feat/migration-notice-supabase`
+**Deploy preview:** `https://scoutagro-bar5evneo-brunolimaff-3629s-projects.vercel.app`
+
+### Diagnostico (4 agentes paralelos)
+
+Disparamos 4 agentes em paralelo para investigar problemas na Teia Societaria e profundidade do dossie.
+
+**debugger** — Investigou falha no `/api/socio-search`:
+- Causa raiz: `performWebSearch()` usava DuckDuckGo Lite, que falha silenciosamente em serverless Vercel (DNS/rate-limit)
+- `BRAVE_SEARCH_API_KEY` estava configurada no Vercel mas nunca era usada pelo codigo
+- A rota retornava `degraded: true` sem que o frontend soubesse
+
+**reviewer** — Revisou prompts `teia-identity.ts` e `teia-deep.ts`:
+- 7 vulnerabilidades encontradas que permitiam alucinacao de entidade internacional
+- Prompts nao explicitavam restricao territorial, validacao documental CNPJ, nem bloqueio de siglas estrangeiras (S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L.)
+
+**planner** — Criou plano de ~24h com 3 quick wins prioritarios:
+- P3.6: Parseador de tabela markdown (`features/dossier/teiaTextParser.ts`)
+- P3.1: Prop `geminiCnpjs` no SocietaryMap para sinergia texto↔mapa
+- P3.7: Cache local de socios (evitar re-consulta)
+
+**rag-gemini** — Diagnosticou o modulo 1b de profundidade:
+- Bug conhecido no `gemini-3-flash-preview`: groundingMetadata ausente desde abril/2026
+- 7 recomendacoes de melhoria de prompt (R1-R7)
+- Recomendou avaliar fallback para `gemini-2.5-flash`
+
+### Correcoes aplicadas (5 arquivos)
+
+1. **`api/socio-search.ts`** — Cache volatil fallback quando Supabase ausente (em vez de degradar imediatamente). Removidos probe write e constante nao utilizada.
+
+2. **`utils/documentExtractor.ts`** — Brave Search API como fonte primaria, DuckDuckGo como fallback secundario. `performWebSearch()` refatorado em 3 funcoes: `performWebSearch()` → `performBraveSearch()` → `performDuckDuckGoSearch()`.
+
+3. **`features/dossier/waterfall-orchestrator.ts`** — `validateTeiaCnpjsOutput()` expandido para detectar entidades internacionais sem CNPJ (S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L.). Emite warning quando entidade estrangeira aparece sem comprovacao documental.
+
+4. **`features/dossier/SocietaryMap.tsx`** — Drill-down automatico para TODOS os socios ao carregar o mapa (antes so pesquisava ao clicar). `useEffect` refatorado de `[rootData, selectedPartnerName]` para `[rootData]` com loop sobre todos os partners.
+
+5. **`config/localDevApiProxy.ts`** — Adicionado `/api/socio-search` ao proxy (estava faltando, impedia teste local).
+
+### Documentacao criada
+
+- **`docs/obsidian/decisions/LICOES-APRENDIDAS.md`** — 7 licoes documentadas (Licao 0 a 6), incluindo:
+  - DuckDuckGo Lite falha em serverless (Licao 0)
+  - `BRAVE_SEARCH_API_KEY` configurada mas nunca usada (Licao 1)
+  - Prompts sem restricao territorial geram alucinacao internacional (Licao 2)
+  - `gemini-3-flash-preview` com bug de groundingMetadata (Licao 3)
+  - Modelos "flash" sao inconsistentes para extracao estruturada (Licao 4)
+  - Validacao robusta de saida precisa ser agnostica a modelo (Licao 5)
+  - Agentes em worktree DEVEM commitar antes de declarar conclusao (Licao 6)
+
+### Estado atual
+
+**Funcionando:**
+- Deploy no ar com Brave Search API + cache volatil
+- Validador de entidades internacionais ativo no waterfall
+- Mapa carrega todos os socios automaticamente ao abrir
+
+**Pendente (quick wins restantes):**
+- P3.6: Criar parseador de tabela markdown (`features/dossier/teiaTextParser.ts`)
+- P3.1: Adicionar prop `geminiCnpjs` ao SocietaryMap para sinergia texto↔mapa
+
+**Pendente (prompt):**
+- R1-R7 do rag-gemini: fortalecer regras de conexao internacional nos prompts
+- Reduzir temperatura do modulo 1b de 0.2 para 0.1
+
+**Pendente (modelo):**
+- Avaliar fallback para `gemini-2.5-flash` devido ao bug do `groundingMetadata` no `gemini-3-flash-preview`
+
 ## Proximo passo seguro
 
-1. **Iniciar Sprint 1 do plano de melhorias do dossiê** — começar por C2 (`linhas_produto` no CRM).
-2. **Mergear PR `#278` em `main`** (feat/migration-notice-supabase: aviso de migracao + version 1.0.0 + bug fix update notification).
-3. Mergear PR `#270` em `main` (auditoria multi-fase).
-4. Mergear PR `#266` em `main` (UX Redesign Phase 1).
-5. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-6. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossie -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
-7. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
-8. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
-9. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
+1. **Mergear PR `#278` em `main`** (feat/migration-notice-supabase: aviso de migracao + version 1.0.0 + bug fix update notification).
+2. **Implementar quick wins restantes (P3.6, P3.1):** parseador de tabela markdown + prop `geminiCnpjs` no SocietaryMap.
+3. **Aplicar melhorias de prompt R1-R7** do rag-gemini: fortalecer restricoes territoriais, reduzir temperatura do modulo 1b para 0.1, adicionar validacao documental.
+4. **Avaliar fallback de modelo:** testar `gemini-2.5-flash` como alternativa ao `gemini-3-flash-preview` com `groundingMetadata` quebrado.
+5. Mergear PR `#270` em `main` (auditoria multi-fase).
+6. Mergear PR `#266` em `main` (UX Redesign Phase 1).
+7. Configurar env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+8. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossie -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
+9. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+10. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 

@@ -165,7 +165,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
   return Array.from(badges);
 }
 
-export function buildSocietaryGraph(input: BuildSocietaryGraphInput): SocietaryGraph {
+export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs?: SocietaryCompanyInput[]): SocietaryGraph {
   const partners: SocietaryPartner[] = input.partners
     .filter(partner => partner.name.trim())
     .map(partner => ({
@@ -230,6 +230,48 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput): SocietaryG
     };
     created.badges = buildBadges(created);
     companiesByKey.set(key, created);
+  }
+
+  if (geminiCnpjs) {
+    for (const geminiCompany of geminiCnpjs) {
+      if (!geminiCompany.name.trim()) continue;
+
+      const normalizedCnpj = normalizeCnpj(geminiCompany.cnpj || '');
+      const hasValidCnpj = normalizedCnpj.length === 14;
+
+      let merged = false;
+      if (hasValidCnpj) {
+        const existingKey = `cnpj:${normalizedCnpj}`;
+        const existing = companiesByKey.get(existingKey);
+        if (existing) {
+          existing.name = geminiCompany.name.trim();
+          existing.role = geminiCompany.role || existing.role;
+          existing.sourceTitle = geminiCompany.sourceTitle || existing.sourceTitle;
+          existing.confidence = 'strong';
+          existing.evidenceType = 'qsa';
+          existing.badges = buildBadges(existing);
+          merged = true;
+        }
+      }
+
+      if (!merged) {
+        const partnerIds: string[] = [];
+        const created: SocietaryCompany = {
+          id: toId('company', hasValidCnpj ? normalizedCnpj : geminiCompany.name),
+          name: geminiCompany.name.trim(),
+          cnpj: hasValidCnpj ? normalizedCnpj : undefined,
+          role: geminiCompany.role?.trim() || undefined,
+          sourceTitle: geminiCompany.sourceTitle?.trim() || undefined,
+          confidence: hasValidCnpj ? 'strong' : 'weak',
+          evidenceType: hasValidCnpj ? 'qsa' : 'web',
+          rootContext: true,
+          partnerIds,
+          badges: [],
+        };
+        created.badges = buildBadges(created);
+        companiesByKey.set(buildCompanyKey(geminiCompany), created);
+      }
+    }
   }
 
   const rootCnpj = normalizeCnpj(input.root.cnpj || '');

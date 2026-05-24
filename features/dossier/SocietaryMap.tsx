@@ -14,6 +14,7 @@ interface SocietaryMapProps {
   cnpj?: string | null;
   empresaAlvo?: string | null;
   isDarkMode: boolean;
+  geminiCnpjs?: SocietaryCompanyInput[];
 }
 
 interface SocioSearchResponse {
@@ -43,7 +44,7 @@ function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCom
   return Object.values(companiesByPartner).flat();
 }
 
-const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMode }) => {
+const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMode, geminiCnpjs }) => {
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
@@ -74,9 +75,15 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       setState('loading');
       setNotice(null);
 
+      let partners: SocietaryPartnerInput[] = [];
+      let companyName = empresaAlvo || 'Empresa analisada';
+      let companyCnpj = '';
+
       try {
         const company = await fetchCompanyByCnpj(lookupCnpj, controller.signal);
-        const partners: SocietaryPartnerInput[] = (company.qsa || [])
+        companyName = company.companyName || companyName;
+        companyCnpj = company.cnpj || '';
+        partners = (company.qsa || [])
           .filter(partner => partner.name?.trim())
           .map(partner => ({
             name: partner.name || '',
@@ -85,35 +92,36 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             sourceTitle: partner.source,
             confidence: partner.confidence,
           }));
+      } catch {
+        // BrasilAPI falhou — tenta usar dados do Gemini
+      }
 
-        if (partners.length === 0) {
-          if (!cancelled) {
-            setRootData(null);
-            setCompaniesByPartner({});
-            searchedPartnerKeysRef.current = {};
-            loadingPartnerKeysRef.current = {};
-            setSelectedPartnerName(undefined);
-            setLoadingPartnerKey(null);
-            setState('empty');
-            setNotice('QSA ainda nao disponivel para este CNPJ.');
+      if (partners.length === 0 && geminiCnpjs && geminiCnpjs.length > 0) {
+        const geminiPartners = new Map<string, SocietaryPartnerInput>();
+        for (const c of geminiCnpjs) {
+          if (c.partnerName && !geminiPartners.has(c.partnerName)) {
+            geminiPartners.set(c.partnerName, {
+              name: c.partnerName,
+              role: c.role,
+              sourceTitle: c.sourceTitle,
+              confidence: c.confidence,
+            });
           }
-          return;
         }
+        if (geminiPartners.size > 0) {
+          partners = [...geminiPartners.values()];
+          if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
+        } else {
+          partners = [{
+            name: 'Grupo Econômico (Gemini)',
+            sourceTitle: 'Gemini — Teia Societária',
+            confidence: 'weak',
+          }];
+          if (!cancelled) setNotice('Mapa montado com dados do Gemini. Validacao via QSA pendente.');
+        }
+      }
 
-        if (!cancelled) {
-          setRootData({
-            cnpj: normalizeCnpj(company.cnpj || ''),
-            name: company.companyName || empresaAlvo || 'Empresa analisada',
-            partners,
-          });
-          setCompaniesByPartner({});
-          searchedPartnerKeysRef.current = {};
-          loadingPartnerKeysRef.current = {};
-          setSelectedPartnerName(partners[0]?.name);
-          setLoadingPartnerKey(null);
-          setState('ready');
-        }
-      } catch (error) {
+      if (partners.length === 0) {
         if (!cancelled) {
           setRootData(null);
           setCompaniesByPartner({});
@@ -121,9 +129,24 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           loadingPartnerKeysRef.current = {};
           setSelectedPartnerName(undefined);
           setLoadingPartnerKey(null);
-          setState('error');
-          setNotice('Nao foi possivel montar a teia societaria agora. Mantendo o dossie textual como fallback.');
+          setState('empty');
+          setNotice('QSA ainda nao disponivel para este CNPJ.');
         }
+        return;
+      }
+
+      if (!cancelled) {
+        setRootData({
+          cnpj: normalizeCnpj(companyCnpj || ''),
+          name: companyName,
+          partners,
+        });
+        setCompaniesByPartner({});
+        searchedPartnerKeysRef.current = {};
+        loadingPartnerKeysRef.current = {};
+        setSelectedPartnerName(partners[0]?.name);
+        setLoadingPartnerKey(null);
+        setState('ready');
       }
     }
 
@@ -136,65 +159,73 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
   }, [cnpj, empresaAlvo]);
 
   useEffect(() => {
-    if (!rootData || !selectedPartnerName) return;
-    const selected = rootData.partners.find(partner => partner.name === selectedPartnerName);
-    if (!selected) return;
+    if (!rootData || rootData.partners.length === 0) return;
 
-    const partnerKey = normalizePartnerKey(selected.name);
-    if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) return;
-    loadingPartnerKeysRef.current[partnerKey] = true;
-    const partnerName = selected.name;
     const rootName = rootData.name;
     const rootCnpj = rootData.cnpj;
-
     let cancelled = false;
-    const controller = new AbortController();
 
-    async function loadPartnerCompanies() {
-      setLoadingPartnerKey(partnerKey);
+    async function loadAllPartners() {
+      const newCompanies: Record<string, SocietaryCompanyInput[]> = {};
 
-      try {
-        const response = await fetch('/api/socio-search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            socioName: partnerName,
-            rootCompanyName: rootName,
-            rootCnpj,
-          }),
-          signal: controller.signal,
-        });
-        const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
+      for (const partner of rootData!.partners) {
+        if (cancelled) return;
+        const partnerKey = normalizePartnerKey(partner.name);
+        if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
 
-        if (!cancelled) {
-          setCompaniesByPartner(prev => ({ ...prev, [partnerKey]: payload.companies || [] }));
-          searchedPartnerKeysRef.current[partnerKey] = true;
-          setNotice(payload.degraded ? 'Busca societaria degradada; mapa usa dados parciais.' : null);
+        loadingPartnerKeysRef.current[partnerKey] = true;
+        setLoadingPartnerKey(partnerKey);
+
+        try {
+          const controller = new AbortController();
+          const response = await fetch('/api/socio-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              socioName: partner.name,
+              rootCompanyName: rootName,
+              rootCnpj,
+            }),
+            signal: controller.signal,
+          });
+          const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
+
+          if (!cancelled) {
+            newCompanies[partnerKey] = payload.companies || [];
+            searchedPartnerKeysRef.current[partnerKey] = true;
+            if (payload.degraded && payload.companies?.length === 0) {
+              setNotice('Busca societaria degradada; mapa usa dados parciais.');
+            }
+          }
+        } catch {
+          if (!cancelled) {
+            searchedPartnerKeysRef.current[partnerKey] = true;
+          }
+        } finally {
+          delete loadingPartnerKeysRef.current[partnerKey];
         }
-      } catch (error) {
-        if (!cancelled) {
-          searchedPartnerKeysRef.current[partnerKey] = true;
-          setNotice('Nao foi possivel montar a teia societaria agora. Mantendo o dossie textual como fallback.');
-        }
-      } finally {
-        delete loadingPartnerKeysRef.current[partnerKey];
-        if (!cancelled) {
-          setLoadingPartnerKey(current => (current === partnerKey ? null : current));
-        }
+      }
+
+      if (!cancelled) {
+        setCompaniesByPartner(prev => ({ ...prev, ...newCompanies }));
+        setLoadingPartnerKey(null);
       }
     }
 
-    void loadPartnerCompanies();
+    void loadAllPartners();
 
     return () => {
       cancelled = true;
-      controller.abort();
-      delete loadingPartnerKeysRef.current[partnerKey];
     };
-  }, [rootData, selectedPartnerName]);
+  }, [rootData]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
+    const isSyntheticFallback = rootData.partners.length === 1
+      && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
+    const enrichedGemini = isSyntheticFallback && geminiCnpjs
+      ? geminiCnpjs.map(c => c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' })
+      : geminiCnpjs;
     return buildSocietaryGraph({
       root: {
         cnpj: rootData.cnpj,
@@ -202,8 +233,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       },
       partners: rootData.partners,
       companies: collectPartnerCompanies(companiesByPartner),
-    });
-  }, [rootData, companiesByPartner]);
+    }, enrichedGemini);
+  }, [rootData, companiesByPartner, geminiCnpjs]);
 
   const selectedPartner = useMemo(() => {
     if (!graph) return undefined;
