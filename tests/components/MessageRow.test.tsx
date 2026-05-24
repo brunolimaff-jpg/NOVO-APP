@@ -132,25 +132,25 @@ describe('MessageRow', () => {
     expect(handleDeleteWithUndo).toHaveBeenCalledWith('msg-1');
   });
 
-  it('delegates hero loading to the global App overlay', () => {
+  it('delegates hero loading to the global App overlay without creating a zero-height virtual row', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       loadingVariant: 'hero',
       text: '',
     });
-    const { container } = render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(container.firstChild).toBeNull();
+    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(screen.getByTestId('hero-loading-spacer')).toBeInTheDocument();
   });
 
-  it('uses hero as the safe fallback when loadingVariant is absent and lets App own the overlay', () => {
+  it('uses hero as the safe fallback when loadingVariant is absent and keeps the virtual row measurable', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       text: '',
     });
-    const { container } = render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(container.firstChild).toBeNull();
+    render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
+    expect(screen.getByTestId('hero-loading-spacer')).toBeInTheDocument();
   });
 
   it('renderiza thinking state inline quando loadingVariant=inline', () => {

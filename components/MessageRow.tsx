@@ -123,8 +123,8 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
 
   if (showHeroLoading) {
     // Hero loading lives in App.tsx via the fullscreen LoadingSmart overlay.
-    // Rendering a second inline card here downgrades the premium experience.
-    return null;
+    // Keep a measurable virtual row so react-virtuoso does not warn about zero-sized items.
+    return <div aria-hidden="true" className="h-px w-full overflow-hidden" data-testid="hero-loading-spacer" />;
   } else if (showInlineLoading) {
     content = (
       <div className="flex justify-start animate-fade-in">
