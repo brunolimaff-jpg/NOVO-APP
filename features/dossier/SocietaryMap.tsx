@@ -164,6 +164,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     const rootName = rootData.name;
     const rootCnpj = rootData.cnpj;
     let cancelled = false;
+    const controller = new AbortController();
 
     async function loadAllPartners() {
       for (const partner of rootData!.partners) {
@@ -175,7 +176,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         setLoadingPartnerKey(partnerKey);
 
         try {
-          const controller = new AbortController();
           const response = await fetch('/api/socio-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -213,6 +213,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [rootData]);
 

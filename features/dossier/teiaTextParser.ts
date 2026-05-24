@@ -9,7 +9,7 @@ export interface ParsedTeiaData {
 function normalizeText(value: string): string {
   return (value || '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
@@ -35,7 +35,7 @@ function findCnpjTable(lines: string[]): { headerIdx: number; tableEndIdx: numbe
     const hasPipe = trimmed.includes('|');
     const normalized = trimmed
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
     if (
       hasPipe &&
@@ -68,7 +68,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
     .filter(Boolean);
 
   const normalizedHeaders = headerCells.map(c =>
-    c.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(),
+    c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
   );
 
   const cnpjCol = normalizedHeaders.findIndex(c => c === 'cnpj');

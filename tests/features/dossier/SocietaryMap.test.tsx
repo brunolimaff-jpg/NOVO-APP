@@ -231,6 +231,38 @@ describe('SocietaryMap', () => {
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A'));
   });
 
+  it('aborta buscas de socios em andamento ao desmontar o mapa', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    let capturedSignal: AbortSignal | undefined;
+    vi.mocked(fetch).mockImplementationOnce((_url, init) => {
+      capturedSignal = init?.signal as AbortSignal | undefined;
+      return new Promise<Response>(() => undefined);
+    });
+
+    const { unmount } = render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    await waitFor(() => expect(capturedSignal).toBeDefined());
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(capturedSignal?.aborted).toBe(true);
+  });
+
   it('mostra fallback discreto quando nao ha QSA', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
