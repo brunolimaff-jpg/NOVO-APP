@@ -299,7 +299,6 @@ function inferCompanyName(title: string, snippet: string): string {
 
 function inferEvidenceType(title: string, snippet: string, url: string): SocioSearchEvidenceType {
   const haystack = normalizeText(`${title} ${snippet} ${url}`);
-  if (/veritrade|importa|exporta|comercio exterior/.test(haystack)) return 'trade';
   if (/cnpj|qsa|societ|socio|receita|empresa/.test(haystack)) return 'registry';
   if (/site oficial|institucional|forbes|emis|portafolio/.test(haystack)) return 'institutional';
   return 'web';

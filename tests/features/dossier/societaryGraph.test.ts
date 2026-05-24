@@ -146,7 +146,7 @@ describe('societaryGraph', () => {
           sourceTitle: 'Veritrade',
           snippet: 'SCHEFFER & CIA LTDA exportou para SCHEFFER COLOMBIA S.A.S.',
           confidence: 'strong',
-          evidenceType: 'trade',
+          evidenceType: 'institutional',
           rootContext: true,
           rootCompanyName: 'Scheffer & Cia Ltda',
           rootCnpj: '04733767000180',
@@ -181,7 +181,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Agropecuária Scheffer LTDA');
-    expect(mermaid).toContain('guilherme --> company_00111222000133');
+    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_00111222000133');
   });
 
   it('mostra empresas Gemini sem sócio como ligadas à raiz', () => {
@@ -206,8 +206,43 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
-    expect(mermaid).toContain('Root --> company_scheffer_colombia_s_a_s');
+    expect(mermaid).toContain('Root -- Vínculo ao grupo --> company_scheffer_colombia_s_a_s');
     expect(mermaid).not.toContain('Ligada ao grupo raiz');
+  });
+
+  it('mostra tipo Trading por nome ou papel sem depender de flag trade', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer Trading LTDA',
+          cnpj: '33.003.540/0001-00',
+          partnerName: '',
+          role: 'Trading e exportacao de commodities',
+          sourceUrl: 'https://example.com/scheffer-trading',
+          sourceTitle: 'Fonte institucional',
+          snippet: 'Scheffer Trading LTDA aparece como empresa do grupo Scheffer.',
+          confidence: 'strong',
+          evidenceType: 'institutional',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Trading');
+
+    const mermaid = buildSocietaryMermaid(graph);
+
+    expect(mermaid).toContain('Scheffer Trading LTDA');
+    expect(mermaid).toContain('CNPJ 33.003.540/0001-00');
+    expect(mermaid).toContain('Trading');
+    expect(mermaid).toContain('Root -- CNPJ relacionado --> company_33003540000100');
+    expect(mermaid).not.toContain('Empresa relacionada');
+    expect(mermaid).not.toContain('Comercio exterior');
   });
 
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
@@ -242,6 +277,8 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
+    expect(mermaid).toContain('Root -- QSA da matriz --> guilherme');
+    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_scheffer_colombia_s_a_s');
   });
 
   it('colore arestas por socio para separar conexoes em comum', () => {
@@ -282,6 +319,64 @@ describe('societaryGraph', () => {
     expect(mermaid).toContain('linkStyle 1 stroke:#0891b2');
     expect(mermaid).toContain('linkStyle 2 stroke:#7c3aed');
     expect(mermaid).toContain('linkStyle 3 stroke:#0891b2');
+  });
+
+  it('filtra a visao de um socio para empresas dele sem misturar raiz ou outros socios', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer Trading LTDA',
+          cnpj: '33.003.540/0001-00',
+          partnerName: 'Guilherme M. Scheffer',
+          role: 'Trading',
+          sourceUrl: 'https://example.com/trading',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Scheffer Logística e Administração LTDA',
+          cnpj: '10.536.467/0001-00',
+          partnerName: 'Carolina M. Scheffer',
+          role: 'Holding',
+          sourceUrl: 'https://example.com/logistica',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Empresa Raiz Sem Socio LTDA',
+          cnpj: '22.222.222/0001-22',
+          partnerName: '',
+          role: 'Produção agrícola',
+          sourceUrl: 'https://example.com/raiz',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    const selectedMermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(selectedMermaid).toContain('Scheffer Trading LTDA');
+    expect(selectedMermaid).not.toContain('Scheffer Logística e Administração LTDA');
+    expect(selectedMermaid).not.toContain('Empresa Raiz Sem Socio LTDA');
+
+    const allMermaid = buildSocietaryMermaid(graph);
+    expect(allMermaid).toContain('Scheffer Trading LTDA');
+    expect(allMermaid).toContain('Scheffer Logística e Administração LTDA');
+    expect(allMermaid).toContain('Empresa Raiz Sem Socio LTDA');
   });
 
   it('consolida filiais no bloco da matriz com contagem de CNPJs', () => {

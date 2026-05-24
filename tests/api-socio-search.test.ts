@@ -91,7 +91,7 @@ describe('api/socio-search', () => {
         expect.objectContaining({
           name: 'Scheffer Colombia S.A.S.',
           confidence: 'strong',
-          evidenceType: 'trade',
+          evidenceType: 'registry',
           rootContext: true,
           rootCompanyName: 'Scheffer & Cia Ltda',
           rootCnpj: '04733767000180',
@@ -386,7 +386,7 @@ describe('api/socio-search', () => {
             sourceTitle: 'Fonte cache',
             snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
             confidence: 'strong',
-            evidenceType: 'trade',
+            evidenceType: 'registry',
           }],
           rejected: [],
           degraded: false,
