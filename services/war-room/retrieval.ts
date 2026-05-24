@@ -49,6 +49,8 @@ const STATIC_URL_BLOCKS = [
  * Fire-and-forget — não bloqueia o fluxo principal.
  */
 export async function validateStaticUrls(): Promise<void> {
+  if (typeof window !== 'undefined') return; // CORS block no browser; health check requires serverless
+
   const allText = STATIC_URL_BLOCKS.join('\n');
   const urls = allText.match(/https:\/\/[^\s)]+/g) || [];
   const uniqueUrls = [...new Set(urls)];
