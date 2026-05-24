@@ -145,7 +145,11 @@ describe('warRoomService', () => {
   });
 
   it('injects fercus official reference when retrieval misses it', async () => {
-    buscarDocsMock.mockResolvedValue('### Customizações: Pro_FerFgt\n(Fonte: https://documentacao.senior.com.br/gestao-de-pessoas-hcm/6.10.4/customizacoes/variaveis/pro_ferfgt.htm)');
+    buscarDocsMock.mockResolvedValue([
+      '### ERP: Custos Gerenciais',
+      'Descrição genérica sobre custos no ERP.',
+      '(Fonte: https://documentacao.senior.com.br/erp/custos-gerenciais)',
+    ].join('\n'));
     generateContentMock.mockResolvedValue(emptyResponse);
     const { queryWarRoom } = await import('../../services/warRoomService');
 
@@ -183,7 +187,11 @@ describe('warRoomService', () => {
   });
 
   it('prioritizes ERP Banking references on benchmark banking questions', async () => {
-    buscarDocsMock.mockResolvedValue('');
+    buscarDocsMock.mockResolvedValue([
+      '### ERP Banking: Conciliação Bancária',
+      'Fluxo de conciliação bancária no sistema.',
+      '(Fonte: https://documentacao.senior.com.br/banking/conciliacao)',
+    ].join('\n'));
     buscarBaseMock.mockResolvedValue('');
     generateContentMock.mockResolvedValue(emptyResponse);
     const { queryWarRoom } = await import('../../services/warRoomService');

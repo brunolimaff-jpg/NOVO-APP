@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import megaPrompts, {
   ALL_SPECIALIST_PROMPTS,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
+  PROMPT_CAMINHO_DE_VENDA,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -129,18 +130,19 @@ describe('PORTA mega prompts', () => {
   });
 
   it('declares the compact seller-facing output contract for module generation', () => {
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS + CARDS + ARMA DE VENDA UNIFICADA');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('Não gere seção "Brief de Reunião"');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Mapas Visuais');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Cards de Auditoria');
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial do insight]');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial]');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('**Pergunta de reunião:**');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('CAMINHO DE VENDA');
     expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
   });
 
   it('keeps the facade metadata and specialist prompt collection stable', () => {
     expect(PROMPT_VERSION).toBe('Scout360_v5.0_ExecutiveCommitteeGrade');
-    expect(ALL_SPECIALIST_PROMPTS).toHaveLength(7);
+    expect(ALL_SPECIALIST_PROMPTS).toHaveLength(8);
     expect(new Set(ALL_SPECIALIST_PROMPTS).size).toBe(ALL_SPECIALIST_PROMPTS.length);
     expect(ALL_SPECIALIST_PROMPTS).toEqual([
       PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -150,6 +152,7 @@ describe('PORTA mega prompts', () => {
       PROMPT_RH_SINDICATOS_GOD_MODE,
       PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
       PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+      PROMPT_CAMINHO_DE_VENDA,
     ]);
   });
 
@@ -161,7 +164,8 @@ describe('PORTA mega prompts', () => {
       state: 'MT',
     });
 
-    expect(prompt).toContain('INVESTIGACAO_COMPLETA_INTEGRADA (MVP+):');
+    expect(prompt).toContain('INVESTIGACAO_COMPLETA_INTEGRADA (MVP+ v6):');
+    expect(prompt).toContain('ANTES DE TUDO: valide a identidade');
     expect(prompt).toContain('Empresa=Fazenda Modelo; CNPJ=12.345.678/0001-99; Cidade=Cuiaba; UF=MT.');
     expect(prompt).toContain(SHARED_FOUNDATION_BLOCK);
     expect(prompt).toContain(PROMPT_RAIO_X_OPERACIONAL_ATAQUE);
@@ -220,69 +224,75 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 48640,
-          "lines": 1315,
-          "sha256": "3c25e9a323de4c8897af797f68156a51c1c78e9ffd1230f537f267ad0db85398",
+          "length": 42760,
+          "lines": 1027,
+          "sha256": "b01057ba9c360a320b9c40de6f82d086b1cc3e5ab6bc55e00b8ebeb235947da0",
         },
         {
           "label": "specialist-1",
-          "length": 13796,
-          "lines": 315,
-          "sha256": "08e9b1275454900b728bb1ab689bad769af37b5bca153290570b314f1589334c",
+          "length": 13381,
+          "lines": 301,
+          "sha256": "33e3a228cda74e7bb3fe2cc27cf4f9807bcda9dc69c6f956e0f3d94300ffe961",
         },
         {
           "label": "specialist-2",
-          "length": 11319,
-          "lines": 306,
-          "sha256": "3b226f924f836dbda34ac1274a2aea7384eb66473f93422dc2a29d938753d81e",
+          "length": 10803,
+          "lines": 294,
+          "sha256": "55adbd05da55e39f9f563a246bbd8514e9b976411ccc7fa05d53c55b75f5a045",
         },
         {
           "label": "specialist-3",
-          "length": 8627,
-          "lines": 246,
-          "sha256": "c29ea01d64ab09fc03bdf503d0777c329a2da2e7d8fd5d1f54e096739c480cb8",
+          "length": 8053,
+          "lines": 233,
+          "sha256": "dc85631955166a42489a9137e3a766aa2c7a53e61a4f011e947b393357992eda",
         },
         {
           "label": "specialist-4",
-          "length": 9157,
-          "lines": 258,
-          "sha256": "17bdfad74a8d7dd32c108f3e60710aec8bf658f63a385e61ea974f1f0a26b748",
+          "length": 8525,
+          "lines": 244,
+          "sha256": "dd0238c1ea3a50c4c5bd925e905c1db3ecd27832c6980ae6e6a7a0fb2a646b38",
         },
         {
           "label": "specialist-5",
-          "length": 6809,
-          "lines": 208,
-          "sha256": "e2d7c2b649d95d76f665e207dbb0b274c4f901ab7dc0638831abd719b843a941",
+          "length": 6273,
+          "lines": 195,
+          "sha256": "87bce7d8c79e8ff6087e17d7542907b96ac32d2dd09202f6e003bae64c165472",
         },
         {
           "label": "specialist-6",
-          "length": 7794,
-          "lines": 205,
-          "sha256": "c93e4b3333d4f1791f76b25e1785705039ed8fa26767cde2ca1e1c0097651a5f",
+          "length": 6938,
+          "lines": 189,
+          "sha256": "05834c1fb329c314d4b6fa192e7b46be41cc7949d7b18f13004e68290b91669d",
         },
         {
           "label": "specialist-7",
-          "length": 7977,
-          "lines": 233,
-          "sha256": "d2928cf952f3e3c2ce496088a5e25dbff3efa169b05b1cd21ef430aaec7da581",
+          "length": 7796,
+          "lines": 228,
+          "sha256": "5e20b6b2357264a0d19ac55af8a3bf981f2091d97a9489e82f17965e8071b4fd",
+        },
+        {
+          "label": "specialist-8",
+          "length": 7821,
+          "lines": 148,
+          "sha256": "8fff981db22b5ad7ad18ad225be955d38a4d569a4b4880d1bd25aae0293a5599",
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 106500,
-          "lines": 2879,
-          "sha256": "06a676162eb2bd743d2637c4e2f58aa3218d1862f74bc9cf45a40cc63be512c1",
+          "length": 105056,
+          "lines": 2662,
+          "sha256": "e4dbd56f16a2f55566ae94d914cf712e280d7f79fdb09fc88f7dfc101bd8aa5c",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 114948,
-          "lines": 3134,
-          "sha256": "557fad612d019cca80121fb49a701d33ce74480bd6fb0b418428559687d3bea6",
+          "length": 113320,
+          "lines": 2912,
+          "sha256": "417ff459747b63f6daedcad0b00a7c16db5024c4984d2a2fae8ed622e62bcfd0",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 106977,
-          "lines": 2899,
-          "sha256": "002b0a1b2a8108e0948ba1bf6dbbad6ac913da7c3df1308e022fa328fd44990d",
+          "length": 105530,
+          "lines": 2682,
+          "sha256": "a6b4939a83ba33f56d20dde6bcf9dd6767497c9042849106f974d675640a1386",
         },
       ]
     `);

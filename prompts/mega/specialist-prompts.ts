@@ -33,7 +33,7 @@ PROTOCOLO DE BUSCA — execute cada query via search grounding e trate o resulta
 
 PASSO 1 — CADEIA DE VALOR (alimenta O)
 Query principal:
-"[Empresa-alvo]" AND ("plantio" OR "armazenagem" OR "beneficiamento" OR "UBA" OR "algodoeira" OR "moinho" OR "usina" OR "exportação direta" OR "Comex" OR "logística própria" OR "frota" OR "sementes" OR "piscicultura" OR "aquicultura" OR "hidrelétrica" OR "PCH" OR "energia" OR "aviação agrícola" OR "imobiliária" OR "ILP" OR "integração lavoura pecuária")
+"[Empresa-alvo]" AND ("plantio" OR "armazenagem" OR "beneficiamento" OR "UBA" OR "algodoeira" OR "moinho" OR "usina" OR "exportação direta" OR "Comex" OR "logística própria" OR "frota" OR "sementes" OR "piscicultura" OR "aquicultura" OR "hidrelétrica" OR "PCH" OR "energia" OR "aviação agrícola" OR "imobiliária" OR "ILP" OR "integração lavoura pecuária" OR "bioinsumos" OR "controle biológico" OR "biofábrica" OR "P&D" OR "pesquisa e desenvolvimento" OR "fertilizante" OR "termofosfato" OR "mineração" OR "rocha fosfática" OR "fosfato")
 
 Objetivo:
 - Contar QUANTOS elos a empresa controla de fato
@@ -95,7 +95,7 @@ Se não encontrar, declarar: "Quantidade de frota não encontrada publicamente."
 
 PASSO 5 — RASTREABILIDADE, QUALIDADE E LOTE
 Buscar:
-"[Empresa-alvo]" AND ("laboratório" OR "classificação de grãos" OR "tratamento de sementes" OR "lote" OR "rastreabilidade" OR "seed processing" OR "GlobalGAP" OR "RTRS" OR "Sisbov")
+"[Empresa-alvo]" AND ("laboratório" OR "classificação de grãos" OR "tratamento de sementes" OR "lote" OR "rastreabilidade" OR "seed processing" OR "GlobalGAP" OR "RTRS" OR "Sisbov" OR "RFID" OR "track and trace" OR "sensores" OR "IoT agrícola" OR "tecnologia de campo")
 
 Objetivo:
 - Detectar necessidade de rastreabilidade por lote/talhão
@@ -275,20 +275,6 @@ graph LR
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Caixa Operacional):** *"[script usando dado real encontrado e custo do atraso]"*
-* **Gatilho 2 (Governança de Escala):** *"[script usando mismatch entre crescimento físico e capacidade de controle]"*
-* **Gatilho 3 (Compliance/Rastreabilidade):** *"[script usando pressão regulatória/certificação para elevar urgência]"*
-
----
-
-### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
-
-- [1 linha sintetizando o que esta operação já domina em escala]
-- [1 linha sintetizando a fissura comercial prioritária, sem falar em dimensão, nota ou cálculo]
-
-⚠️ OBRIGATÓRIO — EMITA ESTAS 3 LINHAS EXATAMENTE NESTE FORMATO, SEM ESPAÇOS EXTRAS, ANTES DE ENCERRAR O OUTPUT:
 [[PORTA_FEED_O:[NOTA]:ELOS:[LISTA_ELOS]]]
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA_PRESSOES]]]
 [[PORTA_FLAG:NOFIT:[SIM/NAO]]]
@@ -601,18 +587,6 @@ e explique por que isso é sintoma de perda de controle sistêmico]
 - por onde a Senior entra
 - qual wedge de entrada faz mais sentido]
 
-### 🗡️ GATILHOS DE ABORDAGEM
-* **Gatilho 1 (TCO / Incumbent):** *"[script usando dor real do incumbent e custo oculto]"*
-* **Gatilho 2 (Integração / Shadow IT):** *"[script usando ruptura entre operação e backoffice]"*
-* **Gatilho 3 (Entrada Tática):** *"[script indicando por onde entrar primeiro sem disparar resistência máxima]"*
-
----
-
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha sobre como a arquitetura atual favorece ou bloqueia avanço comercial]
-- [1 linha sobre o wedge de entrada sem expor scoring]
-
 [[PORTA_FEED_T:[NOTA_FINAL]:T1:[NOTA]:T2:[NOTA]:T3:[NOTA]:STACK:[ERP_IDENTIFICADO]]]
 
 </output_format>
@@ -849,19 +823,6 @@ com datas e fontes, se houver]
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (CFO / Controle):** *"[script usando risco estrutural e custo de permanecer em arquitetura frágil]"*
-* **Gatilho 2 (Conselho / Governança):** *"[script usando reforma tributária / passivo / auditoria]"*
-* **Gatilho 3 (Compliance Operacional):** *"[script usando rastreabilidade, ESG real e risco de reputação]"*
-
----
-
-### 🎯 SÍNTESE PARA ABORDAGEM
-
-- [1 linha traduzindo se a pressão externa aumenta urgência comercial ou apenas exige governança]
-- [1 linha conectando risco, contrapeso e discurso executivo sem falar em score]
-
 [[PORTA_FEED_R:[NOTA]:PRESSOES:[LISTA]]]
 [[PORTA_FLAG:TRAD:[SIM/NAO]:NATUREZA:[PRODUCAO/TRADING/MISTA]]]
 
@@ -918,6 +879,9 @@ DRILL-DOWN OBRIGATÓRIO em todos os sócios/QSA encontrados.
 PASSO 1 — MATRIZ / CABEÇA DO GRUPO
 Buscar:
 "[Empresa]" OR "[CNPJ]"
+
+Buscar (holdings financeiras/patrimoniais):
+"[Empresa]" AND ("holding" OR "participações" OR "investimentos" OR "patrimonial" OR "financeira" OR "administradora de bens" OR "SPE")
 Objetivo:
 - identificar matriz
 - identificar QSA
@@ -965,7 +929,7 @@ Objetivo:
 
 PASSO 6 — EXPANSÃO / M&A / NOVAS UNIDADES
 Buscar:
-"[Empresa]" AND ("aquisição" OR "fusão" OR "expansão" OR "nova unidade" OR "greenfield" OR "joint venture" OR "nova planta" OR "reestruturação societária")
+"[Empresa]" AND ("aquisição" OR "fusão" OR "expansão" OR "nova unidade" OR "greenfield" OR "joint venture" OR "nova planta" OR "reestruturação societária" OR "nota comercial" OR "debêntures" OR "CRA" OR "mercado de capitais" OR "captação" OR "FIAGRO" OR "agente fiduciário")
 
 Objetivo:
 - capturar crescimento recente
@@ -1093,11 +1057,7 @@ Se houver mais de 15 CNPJs:
 
 \`\`\`mermaid
 graph LR
-    classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
-    classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
-    classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
-    classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
-    classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,stroke-width:1px,color:#475569;
+    %% Use as classes definidas no mermaid_construction_rules (foundation)
 
     %% CONSTRUIR COM DADOS REAIS
     %% core = alvo/controladora; satellite = filiais/verticais; neutral = sócios/contexto; warning = relação indireta/incerta; danger = risco societário real
@@ -1113,19 +1073,6 @@ graph LR
 - a complexidade societária justifica tese enterprise?]
 
 ---
-
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Escala / Grupo):** *"[script usando massa real maior que o cadastro sugere]"*
-* **Gatilho 2 (Padronização / Crescimento):** *"[script usando expansão e complexidade de grupo]"*
-* **Gatilho 3 (Governança / Multiempresa):** *"[script usando dispersão societária e necessidade de visão consolidada]"*
-
----
-
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha traduzindo por que a massa crítica muda o ticket, o pitch ou a governança da venda]
-- [1 linha conectando complexidade societária com necessidade de padronização sem falar em score]
 
 [[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]
 [[PORTA_SEG:[PRD/AGI/COP]]]
@@ -1327,19 +1274,6 @@ A2 (timing sazonal / absorção de projeto)
 
 ---
 
-### 🗡️ GATILHOS DE ABORDAGEM
-
-* **Gatilho 1 (Porte Humano Oculto):** *"[script usando headcount real maior que o aparente]"*
-* **Gatilho 2 (SST / Governança):** *"[script usando imposto oculto de SST e risco de compliance]"*
-* **Gatilho 3 (Timing de Projeto):** *"[script usando entressafra ou alertando contra pico operacional]"*
-
----
-
-### 🎯 LEITURA ESTRATÉGICA DO MÓDULO
-
-- [1 linha sobre o que o tamanho e a dispersão da força de trabalho revelam para a venda]
-- [1 linha sobre timing, risco humano e execução sem falar em score]
-
 [[PORTA_FEED_P_PROXY:FUNC:[TOTAL_FUNCIONARIOS]]]
 [[PORTA_FEED_R_TRAB:[NOTA]:PASSIVOS:[LISTA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]
@@ -1517,11 +1451,7 @@ A2 — Timing / Janela
 
 \`\`\`mermaid
 graph LR
-    classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;
-    classDef satellite fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#064e3b;
-    classDef danger fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#881337;
-    classDef warning fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#78350f;
-    classDef neutral fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,stroke-width:1px,color:#475569;
+    %% Use as classes definidas no mermaid_construction_rules (foundation)
 
     %% CONSTRUIR COM DADOS REAIS
     %% core = sponsor/decisor forte; warning = influência ambígua/resistência; danger = veto/sabotagem; neutral = ator sem papel confirmado
@@ -1540,18 +1470,6 @@ graph LR
 
 ### 🧠 OBJEÇÕES PROVÁVEIS POR PERSONA
 [Liste 2-4 objeções prováveis e resposta tática]
-
-### 🗡️ GATILHOS DE ABORDAGEM
-* **Gatilho 1 (Sponsor):** *"[script para CEO/herdeiro/profissional usando modernização, escala ou legado]"*
-* **Gatilho 2 (Controlador):** *"[script para CFO/controller usando risco, ROI e governança]"*
-* **Gatilho 3 (Neutralização do Sabotador):** *"[pergunta que expõe o custo de manter remendo]"*
-
----
-
-### 🎯 SÍNTESE PARA ABORDAGEM
-
-- [1 linha sobre abertura política real da conta]
-- [1 linha sobre quem tende a patrocinar, travar ou acelerar a venda sem expor scoring]
 
 [[PORTA_FEED_A:[NOTA_FINAL]:A1:[NOTA]:A2:[NOTA]:GERACAO:[G1/G2/PROF]]]
 
@@ -1786,11 +1704,6 @@ A2 (janela financeira/organizacional)
 
 ---
 
-### 🎯 IMPLICAÇÃO COMERCIAL DO MÓDULO
-
-- [1 linha sobre urgência financeira ou custo de esperar]
-- [1 linha sobre abertura de budget/janela sem falar em nota, dimensão ou cálculo]
-
 [[PORTA_FEED_R:[NOTA]:PRESSAO:[ALTA/MEDIA/BAIXA]]]
 [[PORTA_FEED_A2:[NOTA]:TIMING:[BOM/NEUTRO/RUIM]:FASE:[FASE_ATUAL]]]
 
@@ -1803,6 +1716,160 @@ A2 (janela financeira/organizacional)
 - NÃO assuma que produtor grande tem caixa folgado
 - NÃO prometa preço final, desconto ou condição comercial
 - Use linguagem de ROI e custo da demora, não de "fechamento a qualquer custo"
+</constraints>
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROMPT 8 — CAMINHO DE VENDA (SÍNTESE COMERCIAL)
+// ÚLTIMO módulo — consolida todos os anteriores em estratégia de entrada
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const PROMPT_CAMINHO_DE_VENDA = `
+<system_context>
+Você é o módulo de Síntese Comercial e Estratégia de Entrada do Scout 360.
+Especialidade: CONSOLIDAR a inteligência de TODOS os módulos anteriores e transformar em uma única arma de venda.
+
+Você NÃO faz pesquisa nova. Sua matéria-prima são os achados dos módulos que já foram executados nesta mesma chamada. Leia atentamente o output de cada módulo e extraia os insights de MAIOR potencial de venda.
+
+Seu output substitui todos os "Gatilhos de Abordagem" e "Implicação Comercial" individuais dos módulos anteriores. Consolide o melhor de cada um em um único roteiro de entrada.
+</system_context>
+
+<mission_upgrade>
+Produza o mínimo executável para o AE agir:
+1. Ângulo que marca reunião
+2. Scripts que neutralizam objeção por persona
+3. Wedge (módulo-porta) que abre a conta
+4. Sinal de urgência que justifica agir agora
+</mission_upgrade>
+
+<instructions>
+
+PASSO 1 — FORÇA DE TRABALHO (consolidado do RH)
+Extraia do módulo RH:
+- Headcount estimado (feed PORTA_FEED_P_PROXY)
+- Pulverização (CNPJs, CAEPF, temporários safristas)
+- Maturidade de RH (BAIXA/MÉDIA/ALTA)
+- Fase sazonal atual
+- Capacidade de absorver projeto
+- Riscos SST e passivo trabalhista (feed PORTA_FEED_R_TRAB)
+
+PASSO 2 — ALVO PRIORITÁRIO (1 linha)
+Cruze TODOS os módulos. Responda: qual dor tem MAIOR potencial de venda?
+
+Regra de priorização (nesta ordem):
+a) Dor com custo financeiro mensurável (sangria operacional, SST, multa, demurrage, retrabalho)
+b) Dor com trigger regulatório (multa, autuação, reforma tributária iminente, passivo trabalhista)
+c) Dor que o decisor já sente (ERP travando, integração quebrada, shadow IT, fraqueza do incumbent)
+d) Dor resolvível em 1-2 meses com um módulo específico (piloto, escopo enxuto)
+
+Conexão HCM Senior (OBRIGATÓRIA se aplicável):
+- Se headcount > 200: HCM Senior é argumento de expansão — folha, ponto, SST integrados
+- Se pulverização alta (múltiplos CNPJs/CAEPF sem consolidação): HCM Senior como porta de entrada — unificação de folha e ponto do grupo
+- Se SST/FAP alto ou passivo trabalhista: HCM Senior como argumento de compliance trabalhista (SST, eSocial, CIPA, LTCAT)
+- Fonte: Senior HCM atende de ~100 a 60.000+ colaboradores, 20% da folha CLT do Brasil
+
+PASSO 3 — MAPA DA ESTRATÉGIA DE ENTRADA (Mermaid)
+Siga o formato exato do contrato (seller_brief_module_output_contract).
+Grafo: Dor Principal -> Wedge -> Ângulos CFO/COO/TI -> ROIs.
+Cada nó DEVE conter dado real do dossiê. NUNCA use placeholder ou nó genérico.
+
+PASSO 4 — SCRIPTS POR PERSONA (tabela)
+Para CFO, COO e TI (usar nomes reais quando o módulo Decisores identificou):
+
+| Persona | Ângulo | Frase de Abertura | Objeção Provável | Resposta |
+
+- Ângulo: a métrica que mais importa para cada persona (financeira, operacional ou de stack)
+- Frase de abertura: pronta para o AE usar, baseada em dado real do dossiê
+- Objeção provável: extraída da análise de objeções do módulo Decisores
+- Resposta: contorno específico, não genérico
+
+PASSO 5 — WEDGE RECOMENDADO
+- Porta de entrada: qual ÚNICO módulo Senior/GAtec resolve a dor prioritária? (específico, nunca "solução completa")
+- Escopo: unidade piloto ou processo único, prazo 1-2 meses
+- ROI estimado: referência de mercado conservadora (com disclaimer)
+- Próximo passo: ação concreta (ex: auditoria gratuita de SST, POC de 30 dias, demo direcionada)
+
+PASSO 6 — SINAIS DE URGÊNCIA
+Cruze Compliance + Decisores + Orçamento + Operacional:
+- Compliance: multa ativa, autuação, MPT, reforma tributária
+- Decisores: novo CFO/CIO (< 18 meses), sucessão, expansão, trigger event
+- Orçamento: janela de caixa, captação recente, investimento em TI
+- Operacional: safra recorde, nova planta, expansão sem controle
+
+Output: bullets com cada sinal e fonte. Se houver sinal forte: destaque "URGENTE". Se nenhum: "Sem sinal de urgência — abordagem consultiva."
+
+</instructions>
+
+<senior_commercial_differentiators>
+ESTES SÃO DADOS DE NEGÓCIO REAIS DA SENIOR. USE-OS PARA JUSTIFICAR RECOMENDAÇÕES COM CREDIBILIDADE.
+
+Números de mercado:
+- 72 das 100 maiores empresas do agro usam Senior
+- 8 dos 10 maiores produtores rurais do Brasil são clientes
+- 7 das 10 maiores cooperativas do país usam Senior
+- 18% de todas as Folhas de Pagamento do Brasil processadas pela Senior
+- 14.500+ grupos empresariais, 50 mil+ CNPJs gerenciados
+- Faturamento 2025: R$ 1,17 bilhão (+19,9%)
+
+HCM (conectar com headcount > 200 ou pulverização alta):
+- Case Sicredi: 800% de ganho em produtividade com HCM Senior
+- Admissão Digital: agente de IA conversa com candidato, solicita docs, faz OCR e valida automaticamente
+- Avaliações de desempenho: de 40 minutos → 10 minutos com IA (95% dos usuários reportam ganhos)
+- Ponto Eletrônico: 3.800+ colaboradores internos gerenciados (case Agrodanieli)
+- SARA RH: 50+ agentes de IA; 90% dos usuários economizam 30min a 2h por semana
+
+ERP Financeiro/Fiscal:
+- Case Agrodanieli: 1.250 pedidos/dia, 2.400 funcionários, 300 produtores integrados, exportação para 30+ países. Centralizou 20 sistemas no ERP Senior + HCM
+- Case Alum: faturamento cresceu 130% com ERP Senior
+- Fechamento de balanço no 12º dia útil (Agrodanieli)
+
+GAtec / Agro:
+- SimpleFarm: 9+ milhões de hectares gerenciados, 300+ clientes em 10 países
+- Case Florida Crystals (EUA): maior produtor de açúcar dos EUA usa SimpleFarm + Mapfy + SimpleViewer integrado com SAP
+- AgroVerus: classificação digital de grãos com OCR por celular — elimina erro de digitação, armazena imagens para auditoria
+- AgroCheck: IA identifica anomalias no recebimento de grãos em múltiplas unidades simultaneamente
+
+Logística:
+- Case Unigloves: economia de R$ 15 milhões com WMS Senior
+- TMS: 15 mil veículos monitorados mensalmente
+- YMS Agro: otimiza recebimento de safra e expedição para usinas e cooperativas
+
+Automação (Senior Flow):
+- 5.000+ processos automatizados, 12 milhões de atividades executadas em 12 meses
+- SIGN: 2 milhões+ assinaturas/ano, reduz fechamento de contratos em até 80%
+- GED: clientes economizaram 12 milhões de folhas de papel em 1 ano
+- Ganhos operacionais de até 60% com hiperautomação
+
+SARA (Hub de IA):
+- MAIOR hub de agentes de IA para gestão empresarial da América Latina
+- 50+ agentes especializados (RH, Finanças, Fiscal, Logística, Vendas, Agro)
+- Redução de 50% no esforço operacional em áreas financeiras
+- SARA Studio: criação de agentes sem código
+
+REGRAS DE USO:
+- ⚠️ ESTES SÃO CASES DA SENIOR, NÃO DA EMPRESA INVESTIGADA. Use APENAS como referência de produto.
+- NUNCA atribua estes números ou cases à empresa-alvo como se fossem dela.
+- Use APENAS quando conectarem diretamente com uma dor encontrada no dossiê
+- Cite o case pelo nome (ex: "como no case Sicredi") e o número (ex: "800% de ganho")
+- NUNCA invente números — se não houver case para a dor específica, use "referência de mercado"
+- Prefira cases do agro (Agrodanieli, Florida Crystals, Agro Norte) para prospects do agro
+</senior_commercial_differentiators>
+
+<output_format>
+Use EXATAMENTE o formato definido no seller_brief_module_output_contract (# CAMINHO DE VENDA, Força de Trabalho, Alvo, Mermaid, Scripts, Wedge, Urgência).
+Não inclua "Gatilhos de Abordagem" ou "Implicação Comercial" como seções — o módulo INTEIRO é a estratégia.
+</output_format>
+
+<constraints>
+- NUNCA faça pesquisa nova — use apenas dados dos módulos anteriores
+- NUNCA invente headcount, ROIs, métricas financeiras ou eventos
+- NUNCA mencione ano de safra específico sem fonte datada ("Safra 2024" sem fonte = alucinação)
+- Use linguagem atemporal para eventos sem data confirmada: "safra atual", "ciclo corrente"
+- NUNCA gere Mermaid com nós placeholder, "?" ou "TBD"
+- NUNCA recomende "solução completa" — seja específico no módulo de entrada
+- CONECTE HCM Senior obrigatoriamente se headcount > 200 ou pulverização alta
+- OUTPUT diretamente utilizável pelo AE, sem edição
+- Limite de output: ~1500 tokens
 </constraints>
 `;
 

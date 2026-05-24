@@ -39,6 +39,7 @@ npm run lint       # ESLint
 6. **Search Grounding nunca cachear**
 7. **Validar CNPJ antes de chamadas IA**
 8. **Framework PORTA**: 5 dimensões (Porte, Operação, Retorno, Tecnologia, Adoção) — temp 0.1
+9. **Trava de agentes**: NUNCA commitar, fazer push, merge, ou modificar estado do repositório enquanto houver agentes de planejamento (planner), validação (validator) ou revisão (reviewer) em execução. Sempre aguardar TODOS terminarem via `<task-notification>` e pedir confirmação explícita do usuário antes de qualquer ação de git. "Finaliza" não dispensa aguardar agentes.
 
 ## Agent Dispatch
 
