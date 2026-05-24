@@ -1,46 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-23 — Decisoes da sessao de diagnostico e correcao Teia Societaria
-
-## 2026-05-23 — Brave Search como fonte primaria de web search
-
-Decision: `utils/documentExtractor.ts` passa a usar Brave Search API (`performBraveSearch()`) como fonte primaria de web search, com DuckDuckGo Lite (`performDuckDuckGoSearch()`) como fallback secundario. `performWebSearch()` foi refatorado em 3 funcoes separadas.
-
-Reason: `performWebSearch()` usava exclusivamente DuckDuckGo Lite, que falha silenciosamente em serverless Vercel (DNS lookup falha, rate-limit agressivo). A variavel `BRAVE_SEARCH_API_KEY` ja estava configurada no Vercel (`BRAVE_SEARCH_API_KEY` at least 8 chars, not ending in `\n`), mas nunca era chamada pelo codigo. A correcao aproveita um recurso ja pago e disponivel.
-
-Constraint: se ambas as fontes falharem, `performWebSearch()` retorna array vazio — o orquestrador ja trata fallback graciosamente sem quebrar o dossie.
-
-## 2026-05-23 — Cache volatil no socio-search como fallback de Supabase ausente
-
-Decision: `api/socio-search.ts` usa cache volatil (objeto Map em memoria) como fallback quando Supabase esta ausente, em vez de retornar `degraded: true` imediatamente.
-
-Reason: a rota `/api/socio-search` depende de Supabase para salvar resultados de consulta socio. Quando o Supabase esta indisponivel (ou em primeiro deploy sem banco configurado), a rota degradava sem servir nenhum dado. O cache volatil permite que consultas recentes sejam re-servidas mesmo sem banco, enquanto consultas novas seguem para a web search.
-
-Constraint: cache volatil e perdido entre restart serverless (Vercel cold starts). Aceitavel porque e um fallback temporario — o fluxo ideal sempre usa Supabase.
-
-## 2026-05-23 — Validacao de entidades internacionais no waterfall do dossie
-
-Decision: expandir `validateTeiaCnpjsOutput()` em `features/dossier/waterfall-orchestrator.ts` para detectar entidades internacionais sem CNPJ. Padroes detectados: S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L. Quando encontradas sem comprovacao documental, emite warning no dossie.
-
-Reason: o reviewer descobriu que os prompts `teia-identity.ts` e `teia-deep.ts` permitiam que o Gemini alucinasse entidades estrangeiras na teia societaria. Sem restricao territorial explicita e sem validacao de CNPJ, o modelo inventava conexoes internacionais (ex: "Matrix S.A.S." ou "AgroTech B.V.") que nao existem nos dados reais. A correcao no validador e agnostica a modelo — funciona com qualquer LLM.
-
-Constraint: esta validacao e POS-processamento (corta saida ruim). O ideal e prevenir na origem (prompt com regras explicitas de territorio). Ambos serao implementados: prompt na sprint de melhorias (R1-R7), validacao ja aplicada.
-
-## 2026-05-23 — SocietaryMap com drill-down automatico para todos os socios
-
-Decision: `features/dossier/SocietaryMap.tsx` faz drill-down automatico para TODOS os socios ao carregar o mapa. O `useEffect` foi refatorado de `[rootData, selectedPartnerName]` (so pesquisava ao clicar) para `[rootData]` com loop sobre todos os partners.
-
-Reason: o mapa ficava vazio ate o usuario clicar em um socio. Para usuarios que nao sabiam que precisavam clicar, a teia societaria parecia "quebrada". Carregar todos os socios automaticamente elimina essa friccao e mostra o valor do componente imediatamente.
-
-Constraint: em empresas com muitos socios (10+), pode haver muitas chamadas simultaneas. O cache volatil no socio-search mitiga isso parcialmente. P3.7 (cache local de socios) e o fix definitivo.
-
-## 2026-05-23 — Plano de Melhorias no Dossiê (RAG + Contexto)
-
-Decision: executar 10 melhorias no fluxo de geração de dossiê em 2 sprints, começando por passar contexto RAG, concorrentes e PORTA para todos os módulos do waterfall (A1 — base crítica). Documento completo em `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md`.
-
-Reason: o waterfall de 5 módulos não recebe RAG/Pinecone, docs da Senior, concorrentes regionais nem PORTA state — contexto que só chega ao `sendMessageToGemini`. A lacuna foi descoberta ao rastrear o fluxo completo de `waterfall-orchestrator.ts` → `generateDossierModule` vs `sendMessageToGemini` → `buildExtraContext`.
-
-Constraint: não tocar em fachadas congeladas (`geminiService.ts`, `ChatInterface.tsx`, `constants.ts`, `types.ts`). Reusar `buildExtraContext` em vez de duplicar. Temperaturas: 0.1 (factual) a 0.3 (inferência).
+Last updated: 2026-05-23
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -206,33 +166,6 @@ Decision: manter `02-BOARD.md` como status vivo, `03-OPEN-ITEMS.md` como fila de
 
 Reason: apos a PR `#259`, havia duplicacao entre handoffs, board, indice de sprints e roadmap Obsidian, com referencias antigas a Sprint 8/10 e `CRMDetail`. O modelo enxuto reduz retrabalho e impede que agentes escolham um plano stale como proximo passo.
 
-## 2026-05-23 - Version bump 0.0.0 -> 1.0.0 para trigger PWA auto-update
-
-Decision: alterar `package.json` version de `0.0.0` para `1.0.0` como gatilho para o service worker detectar nova versao e oferecer atualizacao via `vite-plugin-pwa`.
-
-Reason: a versao `0.0.0` era um placeholder de desenvolvimento. A migracao Supabase e as melhorias pos-migracao (cadastro restrito, email recovery, sync manual, feedback remoto) representam um marco funcional que justifica a promocao para `1.0.0`. Alem disso, usuarios existentes precisam ser notificados para atualizar o app e comecar a usar a nova camada de persistencia. O `vite-plugin-pwa` compara o `version.json` servido pelo deploy com o armazenado no `localStorage`; qualquer mudanca de string version dispara o update flow.
-
-Constraint: a versao e semantica apenas para este efeito. Nao ha processo formal de versionamento semantico. Reavaliar quando houver processo de release.
-
-## 2026-05-23 - Bug fix update notification: fallback removido, persistencia adiada
-
-Decision: remover o fallback `|| versionData.version` em `hooks/useUpdateNotification.ts`. No primeiro acesso (sem `current_app_version` no localStorage), salvar a versao sem notificar. A versao so e persistida em `updateNow()` quando o usuario clica em "atualizar agora".
-
-Reason: o fallback causava um falso positivo: quando nao havia `current_app_version` (primeiro acesso ou localStorage limpo), `versionData.version` era interpretado como versao "nova" em relacao a `undefined`, disparando notificacao indevida. Adiar a persistencia para `updateNow()` garante que, se o usuario snoozar a notificacao e ela expirar, o check subsequente encontre `storedVersion` vazio novamente e re-exiba a notificacao, em vez de achar que o usuario ja esta atualizado.
-
-## 2026-05-23 - Migration notice como modal one-time com prioridade
-
-Decision: criar `components/MigrationNoticeModal.tsx` como modal one-time para usuarios legados, renderizado com prioridade sobre `UpdateNotificationModal`. Flag `scout360:supabase_migration_seen` no localStorage controla a exibicao unica.
-
-Reason: usuarios que ja usavam o app antes da migracao Supabase precisam saber que (1) dados antigos continuam no navegador, nao migraveis, e (2) novos dossies serao salvos no banco. Exibir o aviso uma unica vez evita friccao recorrente. Oferecer exportacao do historico via `exportSessionsAsJSON()` da ao usuario controle sobre seus dados legados.
-
-Options considered:
-- A: Banner no header — menos intrusivo, mas facil de ignorar; informacao critica seria perdida
-- B: Modal one-time (escolhido) — forcado a ver, mas so uma vez; equilibrio entre comunicacao e friccao
-- C: Toast notification — muito facil de ignorar, informacao importante se perde
-
-Constraint: se o usuario fechar o modal sem exportar o historico, nao ha como re-exibir a menos que a flag seja removida manualmente do localStorage. Aceitavel porque o dado legado nao e perdido — continua no navegador ate que o storage IDB seja limpo.
-
 ## 2026-05-22 - Supabase como camada de persistencia primaria
 
 Decision: migrar armazenamento persistente de IndexedDB/localStorage para Supabase, mantendo IDB como cache offline. Arquitetura offline-first: browser -> Supabase (anon key + RLS por operator_id).
@@ -281,53 +214,25 @@ Reason: a feature nao era utilizada e nenhum operador reportou falta. Manter o c
 
 Constraint: se no futuro houver demanda por funcionalidade similar, deve ser implementada como feature nova, nao reativando o codigo removido.
 
-## 2026-05-23 - Teia Societaria: SVG customizado para mockup, React+dagre+framer-motion para implementacao
-
-Decision: mockup visual da teia societaria sera em SVG customizado (bezier curves + JS vanilla sem dependencias), e a implementacao real usara React component + dagre (6KB) + framer-motion.
-
-Reason: SVG vanilla permite iteracao rapida de design sem configuracao de bundler. Para producao, dagre e a mesma biblioteca de layout dirigido que o Mermaid usa internamente (elimina dependencia extra), e framer-motion fornece as animacoes spring necessarias sem implementar from scratch.
-
-Options considered:
-- Mermaid estatico (atual) — nao interativo, sem drill-down
-- react-flow (~50KB) — muito pesado para este uso especifico
-- cytoscape (~30KB) — overkill, foco em grafos complexos
-- SVG customizado para mockup + dagre para producao (escolhido) — equilibrio entre velocidade de prototipagem e qualidade de producao
-
-## 2026-05-23 - Teia Societaria: fonte de dados sem percentual exato de participacao
-
-Decision: usar classificacao por faixa (controlador/minoritario) em vez de percentual exato. Deducao via qualificacao do QSA (socio-administrador, titular, etc.) + numero de socios.
-
-Reason: BrasilAPI nao retorna percentual de participacao. Nenhuma API publica/gratuita oferece esse dado. Tentativas de deducao via capital social sao imprecisas (holdings com capital social nao refletem participacao real). A faixa (controlador = 50%+, minoritario < 50%) ja e suficiente para inteligencia comercial.
-
-Constraint: o componente deve sempre declarar "CLASSIFICACAO ESTIMADA" no tooltip/hover.
-
-## 2026-05-23 - Teia Societaria: design final com multi-expansao e conexoes compartilhadas
-
-Decision: o componente permite expandir varios socios simultaneamente. Empresas aparecem inline na linha do socio clicado. Linhas verdes pontilhadas com animacao pulse conectam socios que compartilham a mesma empresa. Badges verdes mostram contagem de socios compartilhados.
-
-Reason: multi-expansao e superior a single-select porque permite comparacao visual entre socios. Empresas inline evitam desorientacao (centralizacao fazia o usuario perder referencia de qual socio expandiu). Linhas pulse e badges resolvem o problema de "quem compartilha o que" sem exigir hover em cada conexao.
-
-Constraint: em casos com muitos socios (10+), pode ser necessario limitar expansoes simultaneas ou adicionar scroll virtual.
-
-## 2026-05-23 - Teia Societaria: dados mockados ate QSA ser exposto
-
-Decision: os mockus HTML usam dados hardcoded do grupo Scheffer (6 socios, ~18 empresas). Dados reais serao integrados quando `lib/cnpjLookup.ts` expuser QSA e `api/cnpj.ts` propagar os dados.
-
-Reason: a interface da BrasilAPI ja retorna `qsa[]`, mas o pipeline de dados do app nao expoe esse campo para o frontend. Implementar em paralelo ao componente e mais eficiente que mockar retroativamente.
-
-Constraint: `lib/cnpjLookup.ts` e API route sao alteracoes controladas — verificar testes antes e depois da modificacao.
-
-## 2026-05-23 — Lição Aprendida: Agentes em worktree DEVEM commitar antes de declarar concluído
-
-Decision: todo agente que trabalha em worktree isolado deve commitar as alterações no branch ANTES de declarar a tarefa como concluída. O gate de conclusão agora inclui verificação explícita: `git status --porcelain` deve retornar vazio no worktree.
-
-Reason: nesta sessão, o implementer trabalhou no worktree `codex/teia-societaria-tipo5`, declarou todos os passos completos com typecheck verde e 903 testes passando, mas **nunca commitou** as alterações. O merge posterior (`git merge codex/teia-societaria-tipo5`) trouxe apenas os 3 commits originais da PR #279 — não os arquivos criados/editados pelo implementer (`teia-identity.ts`, `teia-deep.ts`, `waterfall-orchestrator.ts`, `megaPrompts.ts`, `investigation-orchestration.ts`, `contracts.ts`, testes, docs). O resultado foi: (1) usuário rodou `localhost:3007` e o Módulo 1b de profundidade não executou porque o código não existia na branch, (2) ciclo extra de debugging para descobrir que era ausência de arquivos, não bug lógico, (3) cópia manual de 12 arquivos do worktree, (4) ajuste de imports quebrados e tipo ausente (`temperature` no `DossierModuleOptions`). Custo do retrabalho: ~30min e quebra de confiança.
-
-Constraint: o gate se aplica a qualquer agente que use `isolation: "worktree"`. O agente deve ser explicitamente instruído a commitar. O protocolo de verificação pós-agente deve incluir `git log --oneline -3` e `git diff --stat HEAD~1` para confirmar que as alterações foram persistidas no branch.
-
 ## 2026-05-22 - Sync manual em vez de automatico
 
 Decision: adicionar botao de sync manual no header (`ManualSyncButton.tsx`) com feedback visual real (+N enviados, Baixados N) em vez de sync automatico silencioso. O badge SyncIndicator tambem mudou de "limpar notificacao" para "forcar sync".
+
+## 2026-05-23 - Teia societaria em producao usa Mermaid LR, nao SVG manual
+
+Decision: implementar a Teia Societaria Tipo 5 como grafo Mermaid LR dinamico renderizado pelo `MarkdownRenderer`, com componente React apenas orquestrando dados, selecao de socio, badges e evidencias.
+
+Reason: Bruno preferiu o estilo Mermaid pela clareza/disposicao de informacoes e pediu abandonar SVG manual por ser prematuro. Mermaid mantem fallback textual, reduz codigo de layout proprietario e preserva compatibilidade com o dossie existente.
+
+Constraint: novas visualizacoes societarias devem continuar `LR` por padrao; `TD/TB` nao devem ser usados nessa teia.
+
+## 2026-05-23 - Drill-down societario precisa de evidencia e cache persistente
+
+Decision: o drill-down por socio deve rodar apenas no server-side (`/api/socio-search`), rejeitar ligacao por nome sozinho, exigir contexto explicito da empresa raiz (`rootContext` + `rootCompanyName` ou `rootCnpj`) e cache persistente de 7 dias em Supabase `extract_cache`.
+
+Reason: dados societarios publicos tem risco alto de homonimos. A IA ou uma fonte generica nao pode conectar empresa apenas por nome de socio. Em producao, scraping sem cache persistente geraria instabilidade, custo e risco operacional.
+
+Constraint: o cache server-side aceita somente `SUPABASE_SERVICE_ROLE_KEY`; anon/public key nao e suficiente. Se o cache persistente nao estiver configurado/gravavel em producao, a API deve degradar sem scraping.
 
 Reason: operadores precisam de visibilidade do estado da sincronizacao. Sync automatico silencioso gera incerteza ("meus dados estao salvos?"). O botao manual com contagem fornece feedback tangivel. O evento `scout:sync-complete` permite que hooks recarreguem dados apos sync, garantindo consistencia da UI.
 
