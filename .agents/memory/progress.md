@@ -1,8 +1,56 @@
 # Progress
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
 
 ## Completed
+
+### Consolidacao de Prompts + Anti-Alucinacao (2026-05-24)
+
+**Branches:** `codex/prompt-consolidation-v6` (PR #282), `fix/war-room-rag-antialucinacao`, PR #283 (unificada)
+
+**Fase 1 — Diagnostico com 4 agentes paralelos:**
+- **Debugger:** encontrou bugs criticos nos prompts — A2 feeds silenciosamente ignorados, decimal quebra parsing, output_contract conflitante com especialistas
+- **RAG-Gemini:** identificou que temperature NAO estava sendo passada (API default 1.0), recomendou 0.1, system instruction separada, JSON estruturado
+- **UI-UX:** 18 gatilhos repetidos no dossie, dossie ilegivel em 30s, abordagem comercial diluida
+- **Explore:** mapeou pipeline completo — waterfall repete foundation 7-9x (~109K tokens), golden dossie 452 linhas
+
+**Fase 2 — Consolidacao de Prompts:**
+- 5 blocos de traducao -> 1 (`SHARED_COMMERCIAL_INTELLIGENCE_ENGINE`)
+- `MASTER_INVESTIGATION_ORCHESTRATOR_V5` removido -> REGRESSAO no mapa societario -> RESTAURADO
+- Criado `PROMPT_CAMINHO_DE_VENDA` (novo modulo comercial)
+- Contrato de output V2: modulos sem gatilhos individuais
+- Mermaid classDef removido dos especialistas (sobreposicao com foundation)
+
+**Fase 3 — Anti-Alucinacao:**
+- CNPJs ficticios removidos dos prompts, Evermat substituido como exemplo real, "Safra 2024" corrigido para 2026
+- Adicionados: `<anti_fabrication_rules>`, `<refusal_protocol>`, `<evidence_scope_protocol>`, `<fact_vs_inference_examples>`
+- Temperature 0.1 forçada em `proxyChatSendMessage`
+- Queries especializadas: bioinsumos, mineracao, mercado de capitais
+
+**Fase 4 — Bug do Mapeamento:**
+- CAMINHO DE VENDA estava mapeado para `PROMPT_RH_SINDICATOS_GOD_MODE` (prompt de RH/SST!) no waterfall-orchestrator.ts
+- Corrigido para `PROMPT_CAMINHO_DE_VENDA` — 1 linha de correcao
+- MegaPrompts.ts perdia exports a cada branch switch (monitorar)
+
+**Fase 5 — Automacao de Validacao de Preview:**
+- Criado `tests-e2e/cnpj-investigation-flow.spec.ts` — teste Playwright E2E do fluxo completo CNPJ (Scheffer, BrasilAPI, Gemini)
+- Criado `scripts/validate-preview.sh` — script curl para smoke rapido: health check, CNPJ lookup, validacao JSON
+- Modificado `package.json` — scripts `test:e2e:cnpj` e `validate:preview`
+- Modificado `playwright.config.ts` — suporte a `BASE_URL` env var, timeout 180s
+- Abordagem dual: `validate:preview` (curl, segundos) para CI/pre-merge; `test:e2e:cnpj` (Playwright, ~2-3 min) para validacao completa
+
+**Arquivos alterados:**
+- `prompts/megaPrompts.ts` — consolidacao, anti-fabrication, correcao de exports
+- `prompts/mega/foundation.ts` — blocos de traducao unificados
+- `prompts/mega/builders.ts` — PROMPT_CAMINHO_DE_VENDA
+- `prompts/mega/specialist-prompts.ts` — classDef removido, anti-fabrication
+- `tests/prompts/megaPrompts.test.ts` — testes atualizados
+- `services/storage.ts`, `tests/services/storage.test.ts` — ajustes
+
+**Problemas residuais (NAO CORRIGIDOS):**
+- (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+- (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
+- (P2) Mermaid no contrato ainda e condicional ("quando houver dados"), deveria ser obrigatorio
 
 ### Teia Societaria Tipo 5 — Mermaid dinamico + drill-down (2026-05-23)
 
@@ -212,6 +260,10 @@ Last updated: 2026-05-23
 - Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
+- **Resolver problemas residuais da sessao de prompts:**
+  - (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+  - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
+  - (P2) Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
 
 ## Blockers
 

@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-23
+Last updated: 2026-05-24
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -237,3 +237,72 @@ Constraint: o cache server-side aceita somente `SUPABASE_SERVICE_ROLE_KEY`; anon
 Reason: operadores precisam de visibilidade do estado da sincronizacao. Sync automatico silencioso gera incerteza ("meus dados estao salvos?"). O botao manual com contagem fornece feedback tangivel. O evento `scout:sync-complete` permite que hooks recarreguem dados apos sync, garantindo consistencia da UI.
 
 Constraint: sync automatico em background continua rodando (sync queue processa offline operations). O botao manual e um complemento, nao substituicao. Se no futuro o sync for confiavel a ponto de ser invisivel, o botao pode ser ocultado, nao removido.
+
+## 2026-05-24 - Temperature 0.1 obrigatoria para toda chamada Gemini de dossie
+
+Decision: toda chamada `proxyChatSendMessage` para geracao de dossiê/investigacao deve explicitar `temperature: 0.1`. O valor nao pode ser omitido (que usaria default da API de 1.0).
+
+Reason: durante a sessao de consolidacao de prompts, o agente RAG-Gemini descobriu que a temperature nao estava sendo passada em nenhuma chamada. O default da API Gemini e 1.0, que e extremamente alto para saida estruturada e causa alucinacao, variacao entre execucoes e formatacao inconsistente. Temperature 0.1 garante determinismo e aderencia ao contrato de output.
+
+Constraint: esta decisao se aplica a geracao de dossies e investigacao estruturada. Follow-up conversationais (chat normal) podem usar temperature mais alta (0.7) para variedade de resposta.
+
+## 2026-05-24 - Prompt consolidation: 5 translation blocks -> 1 shared engine
+
+Decision: consolidar 5 blocos de traducao separados em um unico `SHARED_COMMERCIAL_INTELLIGENCE_ENGINE` compartilhado entre todos os prompts especialistas.
+
+Reason: cada bloco de traducao tinha copias quase identicas com pequenas variacoes. Isso causava drift entre especialistas (cada um podia interpretar "receita" ou "faturamento" de forma diferente) e aumentava o tamanho do contexto desnecessariamente. Um bloco unico no foundation garante consistencia terminologica em todo o pipeline.
+
+Constraint: o bloco unico deve ficar em `prompts/mega/foundation.ts` e ser importado por todos os especialistas. Nenhum especialista deve sobrescrever ou duplicar terminologia.
+
+## 2026-05-24 - MASTER_INVESTIGATION_ORCHESTRATOR_V5 nao pode ser removido
+
+Decision: restaurar `MASTER_INVESTIGATION_ORCHESTRATOR_V5` apos tentativa de remocao ter causado REGRESSAO no mapa societario (Mermaid deixou de ser gerado).
+
+Reason: o orquestrador mestre e responsavel por montar o grafo Mermaid consolidado a partir dos modulos especialistas. Sem ele, cada especialista produzia seu proprio grafo parcial, e o waterfall nao conseguia unificar. O orquestrador deve ser preservado e apenas os especialistas individualmente podem ser modificados.
+
+Constraint: nenhum prompt de orquestracao mestre deve ser removido sem validacao completa do golden dossier test. O teste `tests/prompts/megaPrompts.test.ts` e a primeira linha de defesa contra regressao.
+
+## 2026-05-24 - Contrato de output V2: modulos sem gatilhos individuais
+
+Decision: o contrato de output (output_contract V2) nao deve listar gatilhos individuais por modulo. Cada modulo especialista tem seu proprio contexto, e o contrato define apenas a estrutura global do JSON de resposta.
+
+Reason: na versao anterior, o contrato listava 18 gatilhos repetidos de "quando houver dados, faca X", que poluiam o prompt e tornavam o contrato ilegivel. O modelo ja recebe instrucoes condicionais dentro de cada modulo. Repeti-las no contrato era redundante e aumentava o tamanho do prompt sem beneficio.
+
+## 2026-05-24 - Mapeamento CAMINHO_DE_VENDA corrigido no waterfall-orchestrator
+
+Decision: corrigir o mapeamento do modulo `PROMPT_CAMINHO_DE_VENDA` no `waterfall-orchestrator.ts`. Estava apontando para `PROMPT_RH_SINDICATOS_GOD_MODE` (um prompt de RH/SST!).
+
+Reason: durante a criacao do modulo CAMINHO_DE_VENDA, o mapeamento no orquestrador waterfall foi feito incorretamente, apontando para um prompt existente de RH. Isso fez com que a secao "Caminho de Venda" no dossie recebesse conteudo sindical em vez de analise comercial. A correcao foi de 1 linha, mas o bug so foi descoberto porque o Mermaid nao era gerado (o prompt de RH nao tem logica de grafo).
+
+Constraint: sempre que criar um novo modulo de prompt, verificar DUAS vezes o mapeamento no `waterfall-orchestrator.ts` e no golden dossier test.
+
+## 2026-05-24 - Protocolos de anti-alucinacao em XML nos prompts
+
+Decision: adicionar 4 protocolos de anti-alucinacao em formato XML nos prompts: `<anti_fabrication_rules>`, `<refusal_protocol>`, `<evidence_scope_protocol>`, `<fact_vs_inference_examples>`.
+
+Reason: durante a sessao, foram encontrados CNPJs ficticios nos prompts, "Safra 2024" em 2026, e Evermat como exemplo real que o Gemini poderia repetir em respostas sobre outras empresas. Os protocolos XML forcam o modelo a:
+1. Nao fabricar CNPJs ou dados financeiros
+2. Recusar responder quando nao tiver dados suficientes
+3. Limitar escopo a evidencias concretas
+4. Distinguir explicitamente fato de inferencia
+
+Constraint: protocolos devem estar em XML dentro do prompt (nao como comentarios ou markdown) porque o Gemini respeita melhor delimitacao XML. Testar com golden dossier apos cada alteracao.
+
+## 2026-05-24 - Queries especializadas adicionadas aos especialistas
+
+Decision: adicionar queries de bioinsumos (setor agricola), mineracao e mercado de capitais aos prompts especialistas correspondentes.
+
+Reason: o escopo de investigacao do Senior Scout 360 inclui empresas do agronegocio que podem ter divisoes de bioinsumos, mineracao ou atuacao em mercado de capitais. Sem queries especificas, o Gemini nao investigava estas areas e o dossier ficava incompleto.
+
+## 2026-05-24 - Abordagem dual para validacao E2E: curl + Playwright
+
+Decision: manter duas ferramentas de validacao para o fluxo CNPJ — `scripts/validate-preview.sh` (curl, shell script) para smoke rapido e `tests-e2e/cnpj-investigation-flow.spec.ts` (Playwright) para validacao completa com interacao real.
+
+Reason: curl smoke roda em segundos e e ideal para CI/pre-merge (valida que a rota serverless responde e o JSON tem o formato esperado, sem depender de browser). Playwright E2E valida o fluxo completo com interacao real (preenchimento de formulario, clique, renderizacao de dossie), mas leva 2-3 minutos e depende de Gemini rodando. Ter ambas cobre os cenarios: smoke rapido falha primeiro (feedback em segundos), E2E confirma antes do merge.
+
+Options considered:
+- A: Apenas Playwright (rejeitado) — valida fluxo completo mas e lento para smoke rapido em CI
+- B: Apenas curl (rejeitado) — rapido mas nao captura erros de interacao frontend
+- C: Dual (escolhido) — smoke curl no CI trigger, E2E Playwright como gate de pre-merge manual
+
+Constraint: `validate:preview` requer `python3` para parse JSON (disponivel em GitHub Actions e ambientes macOS/Linux). O script nao instala dependencias — depende de `curl` e `python3` ja disponiveis no sistema.
