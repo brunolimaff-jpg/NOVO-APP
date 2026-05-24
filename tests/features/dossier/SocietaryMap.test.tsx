@@ -65,7 +65,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte internacional');
   });
 
-  it('faz drill-down do socio selecionado sem reaproveitar apenas o primeiro socio', async () => {
+  it('faz drill-down automático de todos os sócios e inicia na visão Todos', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -135,14 +135,16 @@ describe('SocietaryMap', () => {
 
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    fireEvent.click(await screen.findByRole('button', { name: /Luciano R\. Scheffer/i }));
-
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     const secondBody = JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body));
     expect(secondBody.socioName).toBe('Luciano R. Scheffer');
+    expect(screen.getByRole('button', { name: /Todos/i })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte societaria');
+
+    fireEvent.click(screen.getByRole('button', { name: /Luciano R\. Scheffer/i }));
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Scheffer Colombia S.A.S.'));
   });
 
   it('mostra fallback discreto quando nao ha QSA', async () => {
@@ -157,5 +159,37 @@ describe('SocietaryMap', () => {
 
     await waitFor(() => expect(screen.getByText(/QSA ainda nao disponivel/i)).toBeInTheDocument());
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('usa empresas extraídas do Gemini como fonte visual quando QSA oficial está ausente', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+    });
+
+    render(
+      <SocietaryMap
+        cnpj="04733767000180"
+        empresaAlvo="Scheffer & Cia"
+        isDarkMode={false}
+        geminiCnpjs={[
+          {
+            name: 'Agropecuaria Scheffer Ltda',
+            cnpj: '00.111.222/0001-33',
+            partnerName: 'Guilherme M. Scheffer',
+            sourceTitle: 'Gemini — Tabela Mestre',
+            confidence: 'strong',
+            evidenceType: 'qsa',
+            rootContext: true,
+          },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Agropecuaria Scheffer Ltda'));
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Gemini — Tabela Mestre');
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

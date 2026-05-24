@@ -127,7 +127,9 @@ function shouldShowSectionFeedback(title: string): boolean {
 function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | null): boolean {
   if (!cnpj) return false;
   const normalized = normalizeFeedbackSectionTitle(`${title}\n${content}`);
-  return normalized.includes('teia societaria') || normalized.includes('poder societario');
+  return normalized.includes('teia societaria')
+    || normalized.includes('mapa de poder societario')
+    || normalized.includes('mapa do poder societario');
 }
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
@@ -148,15 +150,16 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
 
+  const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
   const geminiDataBySection = useMemo(() => {
     const map = new Map<number, ReturnType<typeof parseTeiaText>>();
     sections.forEach((section, idx) => {
       if (shouldShowSocietaryMap(section.title, section.content, cnpj)) {
-        map.set(idx, parseTeiaText(section.content));
+        map.set(idx, parsedTeiaData);
       }
     });
     return map;
-  }, [sections, cnpj]);
+  }, [sections, cnpj, parsedTeiaData]);
 
   const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions

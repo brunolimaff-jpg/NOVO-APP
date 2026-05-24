@@ -29,6 +29,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
+> Atualizado em 2026-05-24 — **Teia Societaria aprofundada.** `/api/socio-search` agora faz deep search controlado (todas as queries, Brave com mais resultados, abertura limitada de paginas publicas, extracao/enriquecimento de CNPJ e diagnosticos opcionais). O waterfall envia RAG, Docs RAG, concorrentes, PORTA state e QSA oficial ao modulo 1a/1b, e roda o 1b por evidencia objetiva quando o marcador de complexidade falta ou vem baixo. O mapa societario inicia em "Todos" e usa empresas Gemini-only como fonte visual efetiva.
+
 > Atualizado em 2026-05-22 — **Migracao de persistencia IDB/localStorage para Supabase concluida na branch `codex/standardize-mermaid-maps`.** Projeto agora usa arquitetura offline-first: Supabase como fonte de verdade, IDB como cache offline, sync queue para reconciliacao bidirecional. **Branch com 8 commits adicionais apos a migracao:** cadastro restrito (`@senior.com.br` + nome completo), email recovery (vincular dispositivo a operador existente), botao de sync manual no header, e remocao do botao "Dossie de investigacao" de 14 arquivos.
 
 - `services/geminiService.ts` segue como fachada publica com internals em `services/gemini/*`.

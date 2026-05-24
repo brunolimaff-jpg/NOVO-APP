@@ -88,21 +88,22 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 /**
  * Realiza busca web — Brave Search API com fallback para DuckDuckGo Lite.
  */
-export async function performWebSearch(query: string): Promise<string | null> {
+export async function performWebSearch(query: string, options: { count?: number } = {}): Promise<string | null> {
     const braveKey = process.env.BRAVE_SEARCH_API_KEY;
 
     if (braveKey) {
-        return performBraveSearch(query, braveKey);
+        return performBraveSearch(query, braveKey, options);
     }
 
     return performDuckDuckGoSearch(query);
 }
 
-async function performBraveSearch(query: string, apiKey: string): Promise<string | null> {
+async function performBraveSearch(query: string, apiKey: string, options: { count?: number } = {}): Promise<string | null> {
     scoutDiag.info('DocumentExtractor', `Buscando no Brave Search: ${query}`);
 
     try {
-        const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`;
+        const count = Math.max(1, Math.min(options.count ?? 5, 10));
+        const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`;
         const response = await fetch(searchUrl, {
             headers: {
                 'Accept': 'application/json',

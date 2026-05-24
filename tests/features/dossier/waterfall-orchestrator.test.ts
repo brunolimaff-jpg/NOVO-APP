@@ -18,6 +18,11 @@ const generateDossierModuleMock = vi.hoisted(() => vi.fn());
 const generateContinuityQuestionMock = vi.hoisted(() => vi.fn());
 const lookupClienteMock = vi.hoisted(() => vi.fn());
 const formatarParaPromptMock = vi.hoisted(() => vi.fn());
+const buscarContextoPineconeMock = vi.hoisted(() => vi.fn());
+const buscarContextoDocsPineconeMock = vi.hoisted(() => vi.fn());
+const getContextoConcorrentesRegionaisMock = vi.hoisted(() => vi.fn());
+const generatePortaContextForDeepDiveMock = vi.hoisted(() => vi.fn());
+const fetchCompanyByCnpjMock = vi.hoisted(() => vi.fn());
 const runDossierBenchmarkStageMock = vi.hoisted(() => vi.fn());
 const reconcileWaterfallPortaMock = vi.hoisted(() => vi.fn());
 const ensureWaterfallScorePortaMock = vi.hoisted(() => vi.fn());
@@ -39,6 +44,23 @@ vi.mock('../../../services/geminiService', () => ({
 vi.mock('../../../services/clientLookupService', () => ({
   lookupCliente: lookupClienteMock,
   formatarParaPrompt: formatarParaPromptMock,
+}));
+
+vi.mock('../../../services/ragService', () => ({
+  buscarContextoPinecone: buscarContextoPineconeMock,
+  buscarContextoDocsPinecone: buscarContextoDocsPineconeMock,
+}));
+
+vi.mock('../../../services/competitorService', () => ({
+  getContextoConcorrentesRegionais: getContextoConcorrentesRegionaisMock,
+}));
+
+vi.mock('../../../services/portaStateService', () => ({
+  generatePortaContextForDeepDive: generatePortaContextForDeepDiveMock,
+}));
+
+vi.mock('../../../services/brasilApiService', () => ({
+  fetchCompanyByCnpj: fetchCompanyByCnpjMock,
 }));
 
 vi.mock('../../../features/dossier/benchmark-stage', () => ({
@@ -269,6 +291,11 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     lookupClienteMock.mockResolvedValue(makeLookupResponse());
     formatarParaPromptMock.mockReturnValue('Lookup formatado');
+    buscarContextoPineconeMock.mockResolvedValue({ context: '', failed: false });
+    buscarContextoDocsPineconeMock.mockResolvedValue({ context: '', failed: false });
+    getContextoConcorrentesRegionaisMock.mockReturnValue('');
+    generatePortaContextForDeepDiveMock.mockReturnValue('');
+    fetchCompanyByCnpjMock.mockRejectedValue(new Error('CNPJ lookup not mocked'));
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => `${moduleName} consolidado`);
     generateContinuityQuestionMock.mockResolvedValue(DEFAULT_SUGGESTIONS);
     runDossierBenchmarkStageMock.mockImplementation(
@@ -408,6 +435,99 @@ describe('useDossierWaterfallOrchestrator', () => {
         verification: 'grounding',
       },
     ]);
+  });
+
+  it('executa módulo 1b quando o gateway do 1a retorna MEDIA e passa contexto RAG/Docs/PORTA', async () => {
+    buscarContextoPineconeMock.mockResolvedValue({
+      context: 'RAG holding socios QSA Grupo Acme',
+      failed: false,
+    });
+    buscarContextoDocsPineconeMock.mockResolvedValue({
+      context: 'Docs Senior para governanca multi-CNPJ',
+      failed: false,
+    });
+    getContextoConcorrentesRegionaisMock.mockReturnValue('Concorrentes regionais em MT');
+    generatePortaContextForDeepDiveMock.mockReturnValue('PORTA Score atual 74');
+    fetchCompanyByCnpjMock.mockResolvedValue({
+      cnpj: '12345678000190',
+      companyName: 'Acme Agro Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        { name: 'Maria Acme', role: 'Sócia-administradora', source: 'BrasilAPI', confidence: 'official' },
+      ],
+    });
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      if (moduleName === 'Teia Societaria — Identidade') {
+        return 'Visão geral do grupo\n[[TEIA_COMPLEXIDADE:MEDIA]]';
+      }
+      if (moduleName === 'Teia Societaria — Profundidade') {
+        return 'Tabela Mestre de CNPJs aprofundada';
+      }
+      return `${moduleName} consolidado`;
+    });
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).toEqual([
+      'Teia Societaria — Identidade',
+      'Teia Societaria — Profundidade',
+      'Operação / Cadeia de Valor',
+      'Bordas de Controle',
+      'Riscos & Compliance',
+      'Caminho de Venda',
+    ]);
+    const identityExtraContext = generateDossierModuleMock.mock.calls[0][4] as string;
+    const deepExtraContext = generateDossierModuleMock.mock.calls[1][4] as string;
+    expect(identityExtraContext).toContain('[CONTEXTO RAG]');
+    expect(identityExtraContext).toContain('RAG holding socios QSA Grupo Acme');
+    expect(identityExtraContext).toContain('[DOCS RAG]');
+    expect(identityExtraContext).toContain('[CONCORRENTES]');
+    expect(identityExtraContext).toContain('[PORTA STATE]');
+    expect(identityExtraContext).toContain('[QSA OFICIAL]');
+    expect(identityExtraContext).toContain('Maria Acme');
+    expect(deepExtraContext).toContain('Contexto anterior consolidado');
+    expect(deepExtraContext).toContain('Visão geral do grupo');
+  });
+
+  it('executa módulo 1b quando o 1a não emite marcador mas a evidência objetiva indica complexidade média', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValue({
+      cnpj: '12345678000190',
+      companyName: 'Acme Agro Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        { name: 'Maria Acme', role: 'Sócia-administradora', source: 'BrasilAPI', confidence: 'official' },
+        { name: 'João Acme', role: 'Sócio', source: 'BrasilAPI', confidence: 'official' },
+        { name: 'Holding Acme Participações S/A', role: 'Sócia', source: 'BrasilAPI', confidence: 'official' },
+      ],
+    });
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      if (moduleName === 'Teia Societaria — Identidade') {
+        return 'Visão geral sem marcador, mas com QSA robusto.';
+      }
+      if (moduleName === 'Teia Societaria — Profundidade') {
+        return 'Profundidade forçada por evidência objetiva.';
+      }
+      return `${moduleName} consolidado`;
+    });
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).toContain('Teia Societaria — Profundidade');
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'TeiaSocietaria',
+      expect.stringMatching(/marcador de complexidade ausente/i),
+      expect.any(Object),
+    );
   });
 
   it('marca dossiê como fallback_verified quando módulo usa fallback web', async () => {

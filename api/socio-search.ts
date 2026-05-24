@@ -1,13 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { performWebSearch } from '../utils/documentExtractor.js';
+import { extractHtml, isValidPublicUrl, performWebSearch } from '../utils/documentExtractor.js';
 import { sanitizeSensitivePersonalData } from '../utils/privacy.js';
 import { normalizeCnpj } from '../utils/cnpj.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
+import { lookupCnpj } from '../lib/cnpjLookup.js';
 import { setSecurityHeaders } from './_security-headers.js';
 
 type SocioSearchConfidence = 'strong' | 'medium' | 'weak';
-type SocioSearchEvidenceType = 'registry' | 'web' | 'trade' | 'institutional';
+type SocioSearchEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'institutional';
+type SocioSearchSourceDepth = 'search_result' | 'page_extract' | 'cnpj_lookup';
+type SocioSearchCacheSource = 'none' | 'memory' | 'persistent';
 
 interface SocioSearchCompany {
   name: string;
@@ -22,6 +25,8 @@ interface SocioSearchCompany {
   rootContext: boolean;
   rootCompanyName: string;
   rootCnpj?: string;
+  role?: string;
+  sourceDepth?: SocioSearchSourceDepth;
 }
 
 interface RejectedSocioSearchResult {
@@ -36,11 +41,20 @@ interface CacheEntry {
   payload: SocioSearchResponse;
 }
 
+interface SocioSearchDiagnostics {
+  queriesRun: string[];
+  pagesFetched: number;
+  cacheSource: SocioSearchCacheSource;
+  rejectedCount: number;
+  cnpjsEnriched?: number;
+}
+
 interface SocioSearchResponse {
   companies: SocioSearchCompany[];
   rejected: RejectedSocioSearchResult[];
   degraded: boolean;
   cached: boolean;
+  diagnostics?: SocioSearchDiagnostics;
 }
 
 type PersistentCacheRead =
@@ -56,6 +70,8 @@ const RequestSchema = z.object({
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_MAX = 250;
+const PAGE_FETCH_LIMIT = 4;
+const PAGE_EXTRACT_LIMIT = 6000;
 const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
 const cache = new Map<string, CacheEntry>();
 
@@ -104,7 +120,17 @@ function getMemoryCached(key: string): SocioSearchResponse | null {
     cache.delete(key);
     return null;
   }
-  return { ...entry.payload, cached: true };
+  return {
+    ...entry.payload,
+    cached: true,
+    diagnostics: {
+      ...entry.payload.diagnostics,
+      queriesRun: entry.payload.diagnostics?.queriesRun || [],
+      pagesFetched: entry.payload.diagnostics?.pagesFetched || 0,
+      rejectedCount: entry.payload.diagnostics?.rejectedCount || entry.payload.rejected.length,
+      cacheSource: 'memory',
+    },
+  };
 }
 
 function setMemoryCached(key: string, payload: SocioSearchResponse): void {
@@ -146,7 +172,20 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
       return { status: 'miss' };
     }
 
-    return { status: 'hit', payload: { ...payload, cached: true } };
+    return {
+      status: 'hit',
+      payload: {
+        ...payload,
+        cached: true,
+        diagnostics: {
+          ...payload.diagnostics,
+          queriesRun: payload.diagnostics?.queriesRun || [],
+          pagesFetched: payload.diagnostics?.pagesFetched || 0,
+          rejectedCount: payload.diagnostics?.rejectedCount || payload.rejected.length,
+          cacheSource: 'persistent',
+        },
+      },
+    };
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha ao ler cache persistente', {
       message: error instanceof Error ? error.message : String(error),
@@ -210,6 +249,38 @@ function splitSearchBlocks(content: string): Array<{ title: string; url: string;
       return { title, url, snippet: sanitizeSensitivePersonalData(snippet) };
     })
     .filter(block => block.title && /^https?:\/\//i.test(block.url));
+}
+
+function extractCnpjs(text: string): string[] {
+  const matches = text.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g) || [];
+  return [...new Set(matches.map(match => normalizeCnpj(match)).filter(cnpj => cnpj.length === 14))];
+}
+
+async function fetchCandidatePage(url: string): Promise<string> {
+  if (!isValidPublicUrl(url)) return '';
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!response.ok) return '';
+
+    const contentType = response.headers?.get?.('content-type')?.toLowerCase() || '';
+    if (contentType && !contentType.includes('text/html') && !contentType.includes('text/plain')) return '';
+
+    const body = await response.text();
+    const extracted = contentType.includes('text/plain')
+      ? body
+      : await extractHtml(body, PAGE_EXTRACT_LIMIT);
+    return sanitizeSensitivePersonalData(extracted).slice(0, PAGE_EXTRACT_LIMIT);
+  } catch (error) {
+    scoutDiag.warn('SocioSearch', 'falha ao abrir pagina candidata', {
+      url,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return '';
+  }
 }
 
 function inferCompanyName(title: string, snippet: string): string {
@@ -289,19 +360,59 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
   const companies: SocioSearchCompany[] = [];
   const rejected: RejectedSocioSearchResult[] = [];
   const seen = new Set<string>();
+  const queriesRun = buildQueries(params.socioName, params.rootCompanyName);
   let degraded = false;
+  let pagesFetched = 0;
+  let cnpjsEnriched = 0;
 
-  for (const query of buildQueries(params.socioName, params.rootCompanyName)) {
-    const content = await performWebSearch(query);
+  const addCompany = (company: SocioSearchCompany) => {
+    const cnpj = normalizeCnpj(company.cnpj || '');
+    const key = cnpj.length === 14 ? `cnpj:${cnpj}` : `name:${normalizeText(company.name)}:${company.country || 'BR'}`;
+    if (!company.name || seen.has(key)) return;
+    seen.add(key);
+    companies.push(company);
+  };
+
+  for (const query of queriesRun) {
+    const content = await performWebSearch(query, { count: 10 });
     if (!content || /Nenhum resultado encontrado/i.test(content)) {
       degraded = true;
       continue;
     }
 
     for (const block of splitSearchBlocks(content)) {
+      let snippet = block.snippet;
+      let sourceDepth: SocioSearchSourceDepth = 'search_result';
+      let blockCnpjs = extractCnpjs(`${block.title} ${snippet}`);
+      const initialEvidence = scoreEvidence({
+        title: block.title,
+        snippet,
+        url: block.url,
+        socioName: params.socioName,
+        rootCompanyName: params.rootCompanyName,
+        rootCnpj: params.rootCnpj,
+      });
+
+      const shouldFetchPage = pagesFetched < PAGE_FETCH_LIMIT
+        && blockCnpjs.length === 0
+        && (
+          initialEvidence.confidence !== 'strong'
+          || /cnpj|qsa|societ|s[oó]cio|participa|holding|quadro/i.test(`${block.title} ${snippet} ${block.url}`)
+        );
+
+      if (shouldFetchPage) {
+        pagesFetched += 1;
+        const pageText = await fetchCandidatePage(block.url);
+        if (pageText) {
+          snippet = sanitizeSensitivePersonalData([snippet, pageText].filter(Boolean).join('\n'));
+          blockCnpjs = extractCnpjs(`${block.title} ${snippet}`);
+          sourceDepth = 'page_extract';
+        }
+      }
+
       const evidence = scoreEvidence({
         title: block.title,
-        snippet: block.snippet,
+        snippet,
         url: block.url,
         socioName: params.socioName,
         rootCompanyName: params.rootCompanyName,
@@ -312,36 +423,80 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
         rejected.push({
           sourceTitle: block.title,
           sourceUrl: block.url,
-          snippet: block.snippet,
+          snippet,
           reason: evidence.rejectReason || 'Evidencia fraca.',
         });
         continue;
       }
 
-      const name = inferCompanyName(block.title, block.snippet);
-      const key = normalizeText(name || block.url);
-      if (!name || seen.has(key)) continue;
-      seen.add(key);
+      const rootCnpj = normalizeCnpj(params.rootCnpj);
+      const relatedCnpjs = blockCnpjs.filter(cnpj => cnpj !== rootCnpj);
+      const unseenRelatedCnpjs = relatedCnpjs.filter(cnpj => !seen.has(`cnpj:${cnpj}`));
+      if (relatedCnpjs.length > 0 && unseenRelatedCnpjs.length === 0) continue;
+      let enrichedAnyCnpj = false;
 
-      companies.push({
+      for (const cnpj of unseenRelatedCnpjs.slice(0, 3)) {
+        try {
+          const official = await lookupCnpj(cnpj);
+          cnpjsEnriched += 1;
+          enrichedAnyCnpj = true;
+          addCompany({
+            name: official.companyName || inferCompanyName(block.title, snippet),
+            cnpj,
+            partnerName: params.socioName,
+            sourceTitle: block.title,
+            sourceUrl: block.url,
+            snippet,
+            confidence: 'strong',
+            evidenceType: 'qsa',
+            rootContext: evidence.rootContext,
+            rootCompanyName: params.rootCompanyName,
+            rootCnpj: rootCnpj || undefined,
+            role: official.cnaeDescricao || official.cnae,
+            sourceDepth: 'cnpj_lookup',
+          });
+        } catch (error) {
+          scoutDiag.warn('SocioSearch', 'falha ao enriquecer CNPJ encontrado', {
+            cnpj,
+            url: block.url,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      if (enrichedAnyCnpj) continue;
+
+      const name = inferCompanyName(block.title, snippet);
+      addCompany({
         name,
         country: isInternational(block.title, block.snippet, block.url) ? 'CO' : undefined,
         partnerName: params.socioName,
         sourceTitle: block.title,
         sourceUrl: block.url,
-        snippet: block.snippet,
+        snippet,
         confidence: evidence.confidence,
         evidenceType: inferEvidenceType(block.title, block.snippet, block.url),
         rootContext: evidence.rootContext,
         rootCompanyName: params.rootCompanyName,
         rootCnpj: normalizeCnpj(params.rootCnpj) || undefined,
+        sourceDepth,
       });
     }
-
-    if (companies.length > 0) break;
   }
 
-  return { companies, rejected, degraded: degraded && companies.length === 0, cached: false };
+  return {
+    companies,
+    rejected,
+    degraded: degraded && companies.length === 0,
+    cached: false,
+    diagnostics: {
+      queriesRun,
+      pagesFetched,
+      cacheSource: 'none',
+      rejectedCount: rejected.length,
+      cnpjsEnriched: cnpjsEnriched || undefined,
+    },
+  };
 }
 
 export const config = { runtime: 'nodejs' };
@@ -360,7 +515,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const persistentCacheRequired = requiresPersistentCache();
   const hasPersistentConfig = Boolean(getSupabaseCacheConfig());
 
-  if (!persistentCacheRequired) {
+  if (!persistentCacheRequired && !hasPersistentConfig) {
     const cached = getMemoryCached(cacheKey);
     if (cached) return res.status(200).json(cached);
   } else {
@@ -369,7 +524,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       setMemoryCached(cacheKey, persistentCached.payload);
       return res.status(200).json(persistentCached.payload);
     }
-    if (!hasPersistentConfig) {
+    if (persistentCacheRequired && !hasPersistentConfig) {
       scoutDiag.warn('SocioSearch', 'cache persistente nao configurado; usando cache volatil', {
         socioName: parsed.data.socioName,
         rootCompanyName: parsed.data.rootCompanyName,
@@ -383,7 +538,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload = await runSearch(parsed.data);
     setMemoryCached(cacheKey, payload);
 
-    if (persistentCacheRequired && hasPersistentConfig) {
+    if (hasPersistentConfig) {
       const persisted = await setPersistentCached(cacheKey, payload);
       if (!persisted) {
         scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para gravacao; resultado servido via cache volatil', {

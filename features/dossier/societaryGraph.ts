@@ -66,6 +66,7 @@ export interface SocietaryCompany {
   rootCompanyName?: string;
   rootCnpj?: string;
   partnerIds: string[];
+  rootLinked?: boolean;
   badges: SocietaryBadge[];
 }
 
@@ -92,7 +93,7 @@ export interface BuildSocietaryGraphInput {
 }
 
 export interface BuildSocietaryMermaidOptions {
-  selectedPartnerId?: string;
+  selectedPartnerId?: string | null;
 }
 
 function normalizeText(value: string): string {
@@ -238,6 +239,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       const normalizedCnpj = normalizeCnpj(geminiCompany.cnpj || '');
       const hasValidCnpj = normalizedCnpj.length === 14;
+      const partner = partnerByName.get(normalizeText(geminiCompany.partnerName || ''));
 
       let merged = false;
       if (hasValidCnpj) {
@@ -249,23 +251,29 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           existing.sourceTitle = geminiCompany.sourceTitle || existing.sourceTitle;
           existing.confidence = 'strong';
           existing.evidenceType = 'qsa';
+          if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
+          if (!partner && !existing.partnerIds.length) existing.rootLinked = true;
           existing.badges = buildBadges(existing);
           merged = true;
         }
       }
 
       if (!merged) {
-        const partnerIds: string[] = [];
+        const partnerIds: string[] = partner ? [partner.id] : [];
         const created: SocietaryCompany = {
           id: toId('company', hasValidCnpj ? normalizedCnpj : geminiCompany.name),
           name: geminiCompany.name.trim(),
           cnpj: hasValidCnpj ? normalizedCnpj : undefined,
+          country: geminiCompany.country?.trim().toUpperCase() || undefined,
           role: geminiCompany.role?.trim() || undefined,
           sourceTitle: geminiCompany.sourceTitle?.trim() || undefined,
+          sourceUrl: geminiCompany.sourceUrl?.trim() || undefined,
+          snippet: geminiCompany.snippet?.trim() || undefined,
           confidence: hasValidCnpj ? 'strong' : 'weak',
           evidenceType: hasValidCnpj ? 'qsa' : 'web',
           rootContext: true,
           partnerIds,
+          rootLinked: partnerIds.length === 0,
           badges: [],
         };
         created.badges = buildBadges(created);
@@ -304,11 +312,13 @@ function companyLabel(company: SocietaryCompany): string {
 }
 
 export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocietaryMermaidOptions = {}): string {
-  const selectedPartner = graph.partners.find(partner => partner.id === options.selectedPartnerId);
+  const selectedPartner = options.selectedPartnerId
+    ? graph.partners.find(partner => partner.id === options.selectedPartnerId)
+    : undefined;
   const partners = selectedPartner ? [selectedPartner] : graph.partners;
   const visiblePartnerIds = new Set(partners.map(partner => partner.id));
   const visibleCompanies = graph.companies.filter(company =>
-    company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId)),
+    company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId)),
   );
 
   const lines = [
@@ -330,6 +340,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
 
   for (const company of visibleCompanies) {
     lines.push(`  ${company.id}["${companyLabel(company)}"]`);
+    if (company.rootLinked) lines.push(`  Root --> ${company.id}`);
     for (const partnerId of company.partnerIds) {
       if (visiblePartnerIds.has(partnerId)) lines.push(`  ${partnerId} --> ${company.id}`);
     }

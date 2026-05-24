@@ -1,8 +1,36 @@
 # Progress
 
-Last updated: 2026-05-23 — Diagnostico e Correcao Teia Societaria concluido
+Last updated: 2026-05-24 — Profundidade da Teia Societaria corrigida
 
 ## Completed
+
+### Profundidade da Teia Societaria (2026-05-24)
+
+**Contexto:** A teia societaria pesquisava, mas de forma rasa: `/api/socio-search` lia snippets, parava no primeiro achado aceito e nao abria paginas nem enriquecia CNPJs. O dossie tambem deixava o modulo 1b desligado quando o 1a nao emitia marcador de complexidade, e a UI descartava empresas vindas do Gemini quando nao havia vinculo explicito com socio.
+
+**Correcoes principais:**
+- `api/socio-search.ts`: roda todas as queries, pede mais resultados ao Brave, abre paginas publicas seguras com limite, extrai CNPJs, enriquece via `lookupCnpj`, deduplica por CNPJ/nome e retorna diagnosticos opcionais sem quebrar contrato existente.
+- `utils/documentExtractor.ts`: `performWebSearch()` passou a aceitar `count` opcional para buscas mais profundas.
+- `features/dossier/waterfall-orchestrator.ts`: modulo 1a/1b agora recebe pacote com RAG, Docs RAG, concorrentes, PORTA state e QSA oficial quando houver CNPJ. A complexidade tambem e derivada de evidencia objetiva para rodar 1b como `MEDIA` quando o marcador falta ou vem baixo.
+- `features/dossier/societaryGraph.ts`, `features/dossier/SocietaryMap.tsx`, `components/SectionalBotMessage.tsx`: mapa usa o texto completo do dossie, conecta empresas Gemini-only ao socio quando existe `partnerName`, liga empresas sem socio a raiz e inicia na visao "Todos".
+
+**Testes atualizados/criados:**
+- `tests/api-socio-search.test.ts`
+- `tests/features/dossier/waterfall-orchestrator.test.ts`
+- `tests/features/dossier/SocietaryMap.test.tsx`
+- `tests/features/dossier/societaryGraph.test.ts`
+- `tests/features/dossier/teiaTextParser.test.ts`
+- `tests/components/SectionalBotMessage.test.tsx`
+
+**Validacoes:**
+- Recorte afetado Vitest: `42` testes verdes.
+- `npm run typecheck` green.
+- `npm run test:dossier` green.
+- `npm run test` green: `124` arquivos, `912` testes.
+
+**Risco residual:** precisa smoke real em preview com `BRAVE_SEARCH_API_KEY` e paginas publicas acessiveis; a profundidade segue limitada a 2 niveis por decisao de escopo.
+
+**Proximo passo:** validar um dossie real no preview e conferir no mapa se empresas enriquecidas por CNPJ aparecem ligadas ao socio correto ou a raiz quando nao houver socio.
 
 ### Diagnostico e Plano de Melhorias no Dossie (2026-05-23)
 

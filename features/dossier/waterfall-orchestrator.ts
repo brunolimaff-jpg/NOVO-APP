@@ -13,10 +13,15 @@ import {
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
+import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../../services/ragService';
+import { getContextoConcorrentesRegionais } from '../../services/competitorService';
+import { generatePortaContextForDeepDive } from '../../services/portaStateService';
+import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
+import { normalizeCnpj } from '../../utils/cnpj';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
 import {
   appendSeniorEvidenceNote,
@@ -47,6 +52,13 @@ const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 const MAX_INLINE_SOURCES_TO_VALIDATE = 10;
 const FIRST_MODULE_INDEX = 0;
+
+type TeiaComplexity = 'BAIXA' | 'MEDIA' | 'ALTA';
+
+interface TeiaResearchContext {
+  text: string;
+  objectiveComplexity: TeiaComplexity | null;
+}
 
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
@@ -80,6 +92,127 @@ function buildDossierSeedContext(rawPrompt: string): string {
   ].filter(Boolean);
 
   return sections.join('\n\n');
+}
+
+function hasHoldingSignal(value: string): boolean {
+  return /holding|participa[cç][oõ]es|investimentos|s\/a|s\.a\./i.test(value || '');
+}
+
+function hasInternationalSignal(value: string): boolean {
+  return /colombia|colômbia|s\.?a\.?s\.?|nit|filial no exterior|subsidi[aá]ria no exterior|registro estrangeiro/i.test(value || '');
+}
+
+function deriveObjectiveComplexity(params: {
+  qsaCount: number;
+  knownCnpjCount: number;
+  hasHolding: boolean;
+  hasInternational: boolean;
+}): TeiaComplexity | null {
+  if (params.knownCnpjCount >= 9 || params.hasInternational) return 'ALTA';
+  if (params.knownCnpjCount >= 4 || params.qsaCount >= 3 || params.hasHolding) return 'MEDIA';
+  return null;
+}
+
+async function buildTeiaResearchContext(params: {
+  company: string;
+  sessionCnpjDigits?: string | null;
+  signal: AbortSignal;
+}): Promise<TeiaResearchContext> {
+  const { company, sessionCnpjDigits, signal } = params;
+  const blocks: string[] = [];
+  const query = `holding socios QSA grupo economico ${company}`.trim();
+  let qsaCount = 0;
+  let hasHolding = false;
+  let stateHint = '';
+  const knownCnpjs = new Set<string>();
+
+  const normalizedCnpj = normalizeCnpj(sessionCnpjDigits || '');
+  if (normalizedCnpj.length === 14) {
+    try {
+      const companyData = await fetchCompanyByCnpj(normalizedCnpj, signal);
+      knownCnpjs.add(normalizeCnpj(companyData.cnpj));
+      qsaCount = companyData.qsa?.length || 0;
+      stateHint = companyData.state || '';
+      const qsaLines = (companyData.qsa || []).map(partner => {
+        const partnerText = `${partner.name || 'Socio sem nome'} — ${partner.role || 'qualificacao nao informada'} (${partner.source})`;
+        if (hasHoldingSignal(partnerText)) hasHolding = true;
+        return `- ${partnerText}`;
+      });
+
+      blocks.push([
+        '[QSA OFICIAL]',
+        `Empresa: ${companyData.companyName}`,
+        `CNPJ raiz: ${companyData.cnpj}`,
+        companyData.cnaeDescricao ? `CNAE principal: ${companyData.cnaeDescricao}` : '',
+        `Sócios confirmados: ${qsaCount}`,
+        qsaLines.join('\n'),
+      ].filter(Boolean).join('\n'));
+    } catch (error) {
+      scoutDiag.warn('TeiaSocietaria', 'falha ao buscar QSA oficial para contexto do waterfall', {
+        company,
+        cnpj: normalizedCnpj,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const [ragContext, docsContext] = await Promise.all([
+    buscarContextoPinecone(query, company).catch(error => {
+      scoutDiag.warn('TeiaSocietaria', 'RAG da teia falhou', {
+        company,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { context: '', failed: true };
+    }),
+    buscarContextoDocsPinecone(query).catch(error => {
+      scoutDiag.warn('TeiaSocietaria', 'Docs RAG da teia falhou', {
+        company,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { context: '', failed: true };
+    }),
+  ]);
+
+  if (ragContext.context) blocks.push(`[CONTEXTO RAG]\n${ragContext.context}`);
+  if (docsContext.context) blocks.push(`[DOCS RAG]\n${docsContext.context}`);
+
+  try {
+    const concorrentesContext = getContextoConcorrentesRegionais(stateHint || company);
+    if (concorrentesContext) blocks.push(`[CONCORRENTES]\n${concorrentesContext}`);
+  } catch (error) {
+    scoutDiag.warn('TeiaSocietaria', 'falha ao montar concorrentes no waterfall', {
+      company,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  try {
+    const portaContext = generatePortaContextForDeepDive('MEGA');
+    if (portaContext) blocks.push(`[PORTA STATE]\n${portaContext}`);
+  } catch (error) {
+    scoutDiag.warn('TeiaSocietaria', 'falha ao montar contexto PORTA no waterfall', {
+      company,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  const combined = blocks.join('\n\n');
+  for (const cnpj of combined.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g) || []) {
+    const normalized = normalizeCnpj(cnpj);
+    if (normalized.length === 14) knownCnpjs.add(normalized);
+  }
+
+  const objectiveComplexity = deriveObjectiveComplexity({
+    qsaCount,
+    knownCnpjCount: knownCnpjs.size,
+    hasHolding: hasHolding || hasHoldingSignal(combined),
+    hasInternational: hasInternationalSignal(combined),
+  });
+
+  return {
+    text: combined,
+    objectiveComplexity,
+  };
 }
 
 async function validateInlineSourcesForPromotion(
@@ -288,6 +421,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
+      const teiaResearchContext = await buildTeiaResearchContext({
+        company: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+        sessionCnpjDigits,
+        signal,
+      });
 
       const appendWaterfallChunk = (chunk: string) => {
         const normalizedChunk = chunk.trim();
@@ -349,6 +487,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             dossierSeedContext,
             waterfallLookupContext,
             seniorEvidenceContext,
+            teiaResearchContext.text,
             contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
             accumulatedTextSnapshot
               ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
@@ -378,6 +517,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               dossierSeedContext,
               waterfallLookupContext,
               seniorEvidenceContext,
+              teiaResearchContext.text,
               accumulatedText
                 ? `Contexto anterior consolidado:\n${accumulatedText.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
                 : '',
@@ -409,7 +549,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const allMatches = [...identityResult.matchAll(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi)];
         const detectedLevels = allMatches.map(m => m[1]?.toUpperCase()).filter(Boolean) as Array<'BAIXA' | 'MEDIA' | 'ALTA'>;
 
-        const complexity = detectedLevels.includes('ALTA') ? 'ALTA'
+        let complexity: TeiaComplexity = detectedLevels.includes('ALTA') ? 'ALTA'
           : detectedLevels.includes('MEDIA') ? 'MEDIA'
           : detectedLevels.includes('BAIXA') ? 'BAIXA'
           : 'BAIXA';
@@ -418,9 +558,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           scoutDiag.warn('TeiaSocietaria', 'marcador de complexidade ausente na saida do modulo 1a — usando BAIXA', {
             sessionId,
             company: resolvedMegaCompany || null,
+            objectiveComplexity: teiaResearchContext.objectiveComplexity,
           });
         } else if (detectedLevels.length > 1) {
           scoutDiag.warn('TeiaSocietaria', 'multiplos marcadores de complexidade detectados', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            detectedLevels,
+            chosen: complexity,
+          });
+        }
+
+        if (
+          teiaResearchContext.objectiveComplexity
+          && (detectedLevels.length === 0 || complexity === 'BAIXA')
+        ) {
+          complexity = teiaResearchContext.objectiveComplexity;
+          scoutDiag.warn('TeiaSocietaria', 'complexidade ajustada por evidencia objetiva da teia', {
             sessionId,
             company: resolvedMegaCompany || null,
             detectedLevels,
@@ -443,6 +597,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 dossierSeedContext,
                 waterfallLookupContext,
                 seniorEvidenceContext,
+                teiaResearchContext.text,
                 combinedTeiaText
                   ? `Contexto anterior consolidado:\n${combinedTeiaText.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
                   : '',
@@ -473,7 +628,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         const { text: validatedText, warnings } = validateTeiaCnpjsOutput(
           combinedTeiaText,
-          waterfallLookupContext + '\n' + dossierSeedContext,
+          [waterfallLookupContext, dossierSeedContext, teiaResearchContext.text].join('\n'),
         );
 
         for (const warning of warnings) {

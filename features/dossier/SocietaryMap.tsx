@@ -144,7 +144,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         setCompaniesByPartner({});
         searchedPartnerKeysRef.current = {};
         loadingPartnerKeysRef.current = {};
-        setSelectedPartnerName(partners[0]?.name);
+        setSelectedPartnerName(undefined);
         setLoadingPartnerKey(null);
         setState('ready');
       }
@@ -156,7 +156,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       cancelled = true;
       controller.abort();
     };
-  }, [cnpj, empresaAlvo]);
+  }, [cnpj, empresaAlvo, geminiCnpjs]);
 
   useEffect(() => {
     if (!rootData || rootData.partners.length === 0) return;
@@ -237,12 +237,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
   const selectedPartner = useMemo(() => {
-    if (!graph) return undefined;
+    if (!graph || !selectedPartnerName) return undefined;
     return graph.partners.find(partner => partner.name === selectedPartnerName) || graph.partners[0];
   }, [graph, selectedPartnerName]);
 
   const selectedCompanies = useMemo<SocietaryCompany[]>(() => {
-    if (!graph || !selectedPartner) return [];
+    if (!graph) return [];
+    if (!selectedPartner) return graph.companies;
     return graph.companies.filter(company => company.partnerIds.includes(selectedPartner.id));
   }, [graph, selectedPartner]);
 
@@ -266,6 +267,17 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         </div>
         {graph?.partners.length ? (
           <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelectedPartnerName(undefined)}
+              className={`rounded-md border px-2 py-1 text-[11px] font-semibold transition ${
+                !selectedPartner
+                  ? 'border-violet-500 bg-violet-50 text-violet-800'
+                  : 'border-slate-200 bg-white text-slate-600'
+              }`}
+            >
+              Todos
+            </button>
             {graph.partners.map(partner => (
               <button
                 key={partner.id}

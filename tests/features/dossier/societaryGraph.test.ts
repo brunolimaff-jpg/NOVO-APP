@@ -157,6 +157,56 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].badges).toContain('internacional');
   });
 
+  it('conecta empresas vindas apenas do Gemini ao sócio correspondente', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [],
+    }, [
+      {
+        name: 'Agropecuaria Scheffer Ltda',
+        cnpj: '00.111.222/0001-33',
+        partnerName: 'Guilherme M. Scheffer',
+        sourceTitle: 'Gemini — Tabela Mestre',
+        confidence: 'strong',
+        evidenceType: 'qsa',
+        rootContext: true,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0].partnerIds).toEqual(['guilherme']);
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(mermaid).toContain('Agropecuaria Scheffer Ltda');
+    expect(mermaid).toContain('guilherme --> company_00111222000133');
+  });
+
+  it('mostra empresas Gemini sem sócio como ligadas à raiz', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [],
+    }, [
+      {
+        name: 'Scheffer Colombia S.A.S.',
+        country: 'CO',
+        partnerName: '',
+        sourceTitle: 'Gemini — Internacional',
+        confidence: 'weak',
+        evidenceType: 'web',
+        rootContext: true,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0].partnerIds).toEqual([]);
+
+    const mermaid = buildSocietaryMermaid(graph);
+    expect(mermaid).toContain('Scheffer Colombia S.A.S.');
+    expect(mermaid).toContain('Root --> company_scheffer_colombia_s_a_s');
+  });
+
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
     const graph = buildSocietaryGraph({
       root,

@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-23 — Diagnostico e Correcao Teia Societaria concluido
+Last updated: 2026-05-24 — Profundidade da Teia Societaria corrigida
 
 ## Current operating context
 
@@ -28,7 +28,31 @@ Read order:
 
 ## Current task context
 
-**Diagnostico e Correcao da Teia Societaria — concluido (2026-05-23)**
+**Profundidade da Teia Societaria — concluido (2026-05-24)**
+
+Correcao completa para a teia deixar de pesquisar de forma rasa.
+
+### Entregue
+
+- `/api/socio-search.ts`: deep search controlado com todas as queries, Brave com mais resultados, abertura limitada de paginas publicas seguras, extracao de CNPJs, enriquecimento via `lookupCnpj` e diagnosticos opcionais (`queriesRun`, `pagesFetched`, `cacheSource`, `rejectedCount`).
+- `features/dossier/waterfall-orchestrator.ts`: pacote de contexto para modulo 1a/1b com `[CONTEXTO RAG]`, `[DOCS RAG]`, `[CONCORRENTES]`, `[PORTA STATE]` e `[QSA OFICIAL]` quando houver CNPJ.
+- Waterfall: derivacao deterministica de complexidade roda 1b como `MEDIA` quando o marcador falta ou vem baixo apesar de evidencia objetiva (3+ socios, 4+ CNPJs, holding ou internacional confirmado).
+- UI/grafo: o mapa agora usa dados do texto completo do dossie, torna `geminiCnpjs` fonte visual efetiva, conecta empresas Gemini-only ao socio quando ha `partnerName`, liga empresas sem socio a raiz e inicia em visao "Todos".
+
+### Validacao
+
+- Recorte afetado Vitest: `42` testes verdes.
+- `npm run typecheck` verde.
+- `npm run test:dossier` verde.
+- `npm run test` verde: `124` arquivos, `912` testes.
+
+### Risco residual
+
+- A busca continua limitada a profundidade 2: empresa raiz -> socios -> empresas ligadas aos socios.
+- Qualidade real depende de `BRAVE_SEARCH_API_KEY`, paginas publicas acessiveis e disponibilidade do enriquecimento de CNPJ.
+- Recomendado smoke em preview com uma empresa real antes de considerar o comportamento validado em producao.
+
+**Historico anterior — Diagnostico e Correcao da Teia Societaria (2026-05-23)**
 
 Sessao com 4 agentes paralelos para investigar e corrigir problemas na Teia Societaria e profundidade do dossie.
 
@@ -57,8 +81,7 @@ Sessao com 4 agentes paralelos para investigar e corrigir problemas na Teia Soci
 
 ### Estado
 
-**Funcionando:** Brave Search API + cache volatil, validador internacional de entidades, mapa carrega todos os socios automaticamente.
-**Pendente quick wins:** P3.6 (teiaTextParser), P3.1 (geminiCnpjs).
+**Funcionando:** Brave Search API + cache volatil, validador internacional de entidades, mapa carrega todos os socios automaticamente. Em 2026-05-24, P3.6 (`teiaTextParser`) e P3.1 (`geminiCnpjs` visual efetivo) foram entregues junto com deep search controlado.
 **Pendente prompt:** R1-R7 do rag-gemini, temperatura modulo 1b para 0.1.
 **Pendente modelo:** Avaliar `gemini-2.5-flash` como fallback.
 
@@ -94,8 +117,8 @@ Componente visual de estrutura societaria. Mockup concluido em `polished.html` c
 
 ## Immediate next step
 
-1. **Mergear PR `#278` em `main`** (version 1.0.0 + aviso migracao + bug fix).
-2. **Implementar quick wins restantes (P3.6, P3.1):** parseador de tabela markdown + prop `geminiCnpjs` no SocietaryMap.
+1. Rodar smoke em preview com uma empresa real e confirmar: socios -> empresas ligadas, CNPJs enriquecidos e mapa em "Todos".
+2. **Mergear PR `#278` em `main`** (version 1.0.0 + aviso migracao + bug fix).
 3. **Aplicar melhorias de prompt R1-R7** do rag-gemini.
 4. **Avaliar fallback de modelo:** `gemini-2.5-flash` vs `gemini-3-flash-preview`.
 5. Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1).
