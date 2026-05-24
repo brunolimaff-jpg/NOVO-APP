@@ -124,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         const results = await index.namespace(docsNamespace).query({
             vector: queryVector,
-            topK: 5,
+            topK: 8,
             includeMetadata: true
         });
 
