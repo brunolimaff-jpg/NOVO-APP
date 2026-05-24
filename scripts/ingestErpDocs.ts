@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
 import { GoogleGenAI } from '@google/genai';
@@ -72,12 +73,10 @@ async function ingest() {
     );
 
     let buffer: any[] = [];
-    let count = 0;
     let successCount = 0;
 
     for await (const row of parser) {
         const r = row as CsvRow;
-        count++;
 
         // Só precisamos ingestão das URLs reais de documentação (Source chunk...)
         // A coluna Source no CSV tem 'chunk_0', 'chunkstart' ou vazio
@@ -92,8 +91,9 @@ async function ingest() {
         const breadcrumbText = r.Breadcrumb ? ` | Caminho/Portal: ${r.Breadcrumb}` : (r.Portal ? ` | Portal: ${r.Portal}` : '');
         const textToEmbed = `Manual Senior | Área: ${modulo} | Título: ${originalTitle}${breadcrumbText}`;
 
+        const docId = `senior-doc-${crypto.createHash('sha1').update(urlStr).digest('hex').slice(0, 20)}`;
         buffer.push({
-            id: `senior-doc-${count}-${Date.now()}`,
+            id: docId,
             text: textToEmbed,
             metadata: {
                 categoria: modulo,
