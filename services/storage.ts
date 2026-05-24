@@ -577,7 +577,9 @@ export const storage = {
 
   async syncAll(): Promise<{ pushed: number; pulled: number; errors: string[] }> {
     const errors: string[] = [];
+    // eslint-disable-next-line no-useless-assignment -- early returns use this value
     let pushed = 0;
+     
     let pulled = 0;
 
     if (!isSupabaseAvailable()) {

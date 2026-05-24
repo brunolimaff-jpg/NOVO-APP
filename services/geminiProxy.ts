@@ -21,8 +21,10 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   message: string;
   useGrounding?: boolean;
   thinkingLevel?: 'low' | 'medium' | 'high';
-  thinkingMode?: boolean; // Deprecated: mantido para compatibilidade temporária
-  useOpenWebSearch?: boolean; // Novo: para ativar a ferramenta open-web-search
+  thinkingMode?: boolean;
+  useOpenWebSearch?: boolean;
+  temperature?: number;
+  stopSequences?: string[];
 }
 
 interface GeminiHealthRequest extends GeminiApiBaseRequest {
