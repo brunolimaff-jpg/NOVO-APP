@@ -1,152 +1,20 @@
 # Progress
 
-Last updated: 2026-05-24 — Profundidade da Teia Societaria corrigida
+Last updated: 2026-05-23
 
 ## Completed
 
-### Profundidade da Teia Societaria (2026-05-24)
+### Teia Societaria Tipo 5 — Mermaid dinamico + drill-down (2026-05-23)
 
-**Contexto:** A teia societaria pesquisava, mas de forma rasa: `/api/socio-search` lia snippets, parava no primeiro achado aceito e nao abria paginas nem enriquecia CNPJs. O dossie tambem deixava o modulo 1b desligado quando o 1a nao emitia marcador de complexidade, e a UI descartava empresas vindas do Gemini quando nao havia vinculo explicito com socio.
+**Branch:** `codex/teia-societaria-tipo5`
 
-**Correcoes principais:**
-- `api/socio-search.ts`: roda todas as queries, pede mais resultados ao Brave, abre paginas publicas seguras com limite, extrai CNPJs, enriquece via `lookupCnpj`, deduplica por CNPJ/nome e retorna diagnosticos opcionais sem quebrar contrato existente.
-- `utils/documentExtractor.ts`: `performWebSearch()` passou a aceitar `count` opcional para buscas mais profundas.
-- `features/dossier/waterfall-orchestrator.ts`: modulo 1a/1b agora recebe pacote com RAG, Docs RAG, concorrentes, PORTA state e QSA oficial quando houver CNPJ. A complexidade tambem e derivada de evidencia objetiva para rodar 1b como `MEDIA` quando o marcador falta ou vem baixo.
-- `features/dossier/societaryGraph.ts`, `features/dossier/SocietaryMap.tsx`, `components/SectionalBotMessage.tsx`: mapa usa o texto completo do dossie, conecta empresas Gemini-only ao socio quando existe `partnerName`, liga empresas sem socio a raiz e inicia na visao "Todos".
-
-**Testes atualizados/criados:**
-- `tests/api-socio-search.test.ts`
-- `tests/features/dossier/waterfall-orchestrator.test.ts`
-- `tests/features/dossier/SocietaryMap.test.tsx`
-- `tests/features/dossier/societaryGraph.test.ts`
-- `tests/features/dossier/teiaTextParser.test.ts`
-- `tests/components/SectionalBotMessage.test.tsx`
-
-**Validacoes:**
-- Recorte afetado Vitest: `42` testes verdes.
-- `npm run typecheck` green.
-- `npm run test:dossier` green.
-- `npm run test` green: `124` arquivos, `912` testes.
-
-**Risco residual:** precisa smoke real em preview com `BRAVE_SEARCH_API_KEY` e paginas publicas acessiveis; a profundidade segue limitada a 2 niveis por decisao de escopo.
-
-**Proximo passo:** validar um dossie real no preview e conferir no mapa se empresas enriquecidas por CNPJ aparecem ligadas ao socio correto ou a raiz quando nao houver socio.
-
-### Diagnostico e Plano de Melhorias no Dossie (2026-05-23)
-
-**Contexto:** Sessao de diagnostico revelou que o waterfall de 5 modulos do dossie nao recebe contexto RAG/Pinecone, docs da Senior, concorrentes regionais nem PORTA state — contexto que so chega ao `sendMessageToGemini` (chat avulso).
-
-**Diagnostico:**
-- `generateDossierModule` (chamado por cada modulo) nao chama `buscarContextoPinecone` nem `buscarContextoDocsPinecone`
-- Waterfall so passa: `dossierSeedContext` + `waterfallLookupContext` + `seniorEvidenceContext` + `accumulatedTextSnapshot`
-- RAG so e chamado em `sendMessageToGemini:416-431`
-
-**10 melhorias identificadas** (via brainstorming com ideator), priorizadas em 2 sprints:
-
-**Sprint 1 (8-10h):**
-- C2: `linhas_produto` no CRM context (+5 linhas)
-- A3: Marcador de modulo falho (+2 linhas)
-- A4: Temperatura por modulo 0.1-0.3 (+20 linhas)
-- A1: RAG + concorrentes + PORTA no waterfall (+60 linhas) — BASE
-- B3: Marcadores semanticos + prioridade de fontes (+5 linhas)
-
-**Sprint 2 (8-12h):**
-- B2: `SHARED_FOUNDATION_BLOCK` reduzido (+15 linhas)
-- B1: RAG per-modulo com queries especificas (+40 linhas)
-- C3: Cache RAG entre modulos (+25 linhas)
-- C1: Benchmark com contexto (+20 linhas)
-- C4: Web fallback com hints do RAG (+20 linhas)
-
-**Artefatos:**
-- `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md` — documento completo com plano, queries, temperaturas, riscos e gates
-
-**Proximo passo:** iniciar Sprint 1 pelo item C2.
-
-### Diagnostico e Correcao Teia Societaria (2026-05-23)
-
-**Branch:** `feat/migration-notice-supabase`
-**Deploy preview:** `https://scoutagro-bar5evneo-brunolimaff-3629s-projects.vercel.app`
-
-**Contexto:** Sessao com 4 agentes paralelos para diagnosticar e corrigir problemas na Teia Societaria e profundidade do dossie.
-
-**debugger — Raiz do degraded no /api/socio-search:**
-- `performWebSearch()` usava DuckDuckGo Lite que falha silenciosamente em serverless Vercel
-- `BRAVE_SEARCH_API_KEY` configurada no Vercel mas nunca usada pelo codigo
-- Fix: `performWebSearch()` refatorado em 3 funcoes com Brave Search como primario, DuckDuckGo como fallback
-
-**reviewer — 7 vulnerabilidades em prompts teia-identity.ts e teia-deep.ts:**
-- Falta de restricao territorial brasileira, validacao documental CNPJ
-- Siglas estrangeiras (S.A.S., B.V., GmbH, Inc./LLC, Ltd., S.L.) permitiam alucinacao de entidade internacional
-- Correcao em `validateTeiaCnpjsOutput()` no `waterfall-orchestrator.ts`
-
-**planner — Plano de ~24h com 3 quick wins:**
-- P3.6: Parseador de tabela markdown (`features/dossier/teiaTextParser.ts`)
-- P3.1: Prop `geminiCnpjs` no SocietaryMap
-- P3.7: Cache local de socios (evitar re-consulta)
-
-**rag-gemini — Bug no modelo:**
-- `gemini-3-flash-preview` com groundingMetadata ausente desde abril/2026
-- 7 recomendacoes de melhoria de prompt (R1-R7)
-- Recomendou avaliar fallback para `gemini-2.5-flash`
-
-**Correcoes (5 arquivos):**
-1. `api/socio-search.ts` — Cache volatil fallback quando Supabase ausente
-2. `utils/documentExtractor.ts` — Brave Search API como primario, DuckDuckGo fallback
-3. `features/dossier/waterfall-orchestrator.ts` — Validador de entidades internacionais expandido
-4. `features/dossier/SocietaryMap.tsx` — Drill-down automatico para todos os socios
-5. `config/localDevApiProxy.ts` — Adicionado `/api/socio-search` ao proxy
-
-**Documentacao:**
-- `docs/obsidian/decisions/LICOES-APRENDIDAS.md` — 7 licoes documentadas (Licao 0 a 6)
-
-**Validacoes:**
-- `npm run typecheck` green
-- `npm run build` green
-- Deploy Vercel preview funcional com Brave Search API
-
-**Pendente (proxima sessao):**
-- P3.6: Criar parseador de tabela markdown
-- P3.1: Adicionar prop `geminiCnpjs` ao SocietaryMap
-- R1-R7: Melhorias de prompt para restricao internacional
-- Temperatura modulo 1b: reduzir de 0.2 para 0.1
-- Avaliar `gemini-2.5-flash` como fallback
-
-### PR #278 — Aviso de Migracao Supabase + Version 1.0.0 (2026-05-23)
-
-**Branch:** `feat/migration-notice-supabase`
-**Commit final:** `346f891`
-**PR:** `#278`
-
-**Version bump:**
-- `package.json`: `0.0.0` -> `1.0.0` — trigger PWA auto-update
-
-**Bug fix em useUpdateNotification.ts:**
-- Removido fallback `|| versionData.version` que mascarava versao ausente
-- Primeiro acesso salva versao sem notificar o usuario
-- Versao so persistida em `updateNow()` (quando usuario realmente atualiza)
-- Garante re-notificacao apos snooze expirar
-
-**MigrationNoticeModal criado:**
-- `components/MigrationNoticeModal.tsx` — modal one-time com:
-  - Overlay com backdrop blur
-  - Explicacao sobre dados antigos vs novos (pre-Supabase vs pos-Supabase)
-  - Botao de exportacao do historico (via `exportSessionsAsJSON()`)
-  - Flag `scout360:supabase_migration_seen` no localStorage
-  - Tema escuro/claro integrado com `isDarkMode` prop
-
-**useMigrationNotice hook criado:**
-- `hooks/useMigrationNotice.ts` — detecta usuarios legados
-- Reativo a mudancas de `operatorId`
-- So exibe modal se operador tem ID mas nunca viu o aviso
-
-**Integracao em App.tsx:**
-- Lazy import do `MigrationNoticeModal` via `React.lazy()`
-- Renderizado com prioridade sobre UpdateNotificationModal
-- `showMigrationNotice` suprime `updateAvailable` na condicao de render
-
-**Validacoes:**
-- `npm run typecheck` green
-- `npm run test` green (recorte de componentes afetados)
+- QSA exposto no fluxo CNPJ (`lib/cnpjLookup.ts`, `services/brasilApiService.ts`) com socios normalizados, qualificacao, documento publico mascarado, fonte e confianca.
+- Criado `/api/socio-search` para drill-down server-side por socio, com busca web, rejeicao de homonimos, preservacao de Scheffer Colombia S.A.S. quando ha contexto do grupo e evidencia internacional, e cache persistente de 7 dias.
+- Cache de producao exige `SUPABASE_SERVICE_ROLE_KEY`; chave anon/publica e ignorada. Sem cache persistente legivel/gravavel, a API degrada e nao executa scraping.
+- Criados `features/dossier/societaryGraph.ts` e `features/dossier/SocietaryMap.tsx`: grafo unico para UI/Mermaid, sempre `graph LR`, drill-down ao trocar socio, badges, fontes/confianca/tipo de evidencia visiveis e fallback textual mantido.
+- Integracao no dossie via `SectionalBotMessage`/`MessageRow`, sem alterar Score PORTA e sem SVG manual em producao.
+- Reviews: spec compliance aprovado por subagente; quality review aprovado por subagente; code-review local sem blockers apos correcoes.
+- Validacoes: `npm run typecheck`; recorte Vitest de 53 testes; `npm run test:dossier`; `npm run build`. Avisos conhecidos: warnings de localStorage no Vitest, log esperado do teste de `/api/link-status`, e warning de bundle grande por Mermaid ja existente no build.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 
@@ -336,76 +204,13 @@ Last updated: 2026-05-24 — Profundidade da Teia Societaria corrigida
   - guardrail `tests/architecture/radarBoundaryImportGuard.test.ts` ativo
   - checks remotos verdes antes do merge
 
-### Sessao de Brainstorming UX Redesign (2026-05-23)
-
-**Branch:** `codex/explorar-redesign-uxui-premium`
-**Objetivo:** Redesenhar UX do Scout 360 de "dashboard generico" para "ferramenta de pesquisa de conta premium".
-
-**Direcoes visuais exploradas:**
-- A: Terminal de Inteligencia (fundo escuro, estilo Bloomberg/Stripe Press)
-- B: Paper Executivo (fundo papel quente #fbfaf7, tipografia editorial, estilo McKinsey/Linear) — **ESCOLHIDA**
-- C: Score Canvas (azul claro institucional, cards brancos, score circular como hero)
-
-**Arquitetura de informacao:**
-- Piramide Invertida: veredito (10s) -> evidencias (30s) -> acao (5s)
-- Painel Lateral: sidebar fixa, uma secao por vez
-- Timeline Narrativa: historia linear do diagnostico a acao
-
-**Dossie Visual proposto — componentes por secao:**
-- Score PORTA: Radar chart pentagonal
-- Dores: Matriz severidade x urgencia com bolhas
-- Stakeholders: Org chart hierarquico
-- Fit: Diagrama de interseccao + pills
-- Riscos: Heatmap horizontal com barras
-- Evidencias: Timeline vertical compacta
-- Acao: Destaque em fundo escuro com CTA
-
-**Caminho de implementacao escolhido:** C — Prompt estruturado JSON + componentes React visuais (1-2 dias). O Gemini passara a devolver JSON estruturado em vez de markdown livre, e componentes React renderizarao cada visualizacao.
-
-**Decisao registrada:** `.agents/memory/decisions.md` — Caminho C.
-
-**Artefatos:** mockups em `.superpowers/brainstorm/54811-1779551924/content/` (5 arquivos HTML).
-
-**Proximos passos:** validar direcao com owner, definir schema JSON do dossie, alterar prompt megaPrompts.ts, implementar componentes visuais.
-
-### Sessao de Brainstorming — Teia Societaria Interativa (2026-05-23)
-
-**Branch:** `fix/loading-smart-refactor`
-**Motivacao:** Transformar a secao "Teia Societaria" do dossie de texto/Mermaid estatico em um componente visual interativo com drill-down.
-
-**Cronologia das 14 iteracoes:**
-1. `current-state.html` — estado atual do Mermaid no dossie (baseline)
-2. `scheffer-mermaid.html` — Mermaid melhorado com dados Scheffer
-3. `approaches.html` — 3 abordagens exploradas
-4. `3-approaches.html` — versao detalhada das 3 abordagens
-5. `tres-cenarios.html` — 3 cenarios de layout
-6. `tres-cenarios-v2.html` — versao "boa" com 4 cenarios em abas
-7. `teia-interativa.html` — primeiro SVG interativo
-8. `teia-interativa-v2.html` — SVG com hover e click
-9. `golden-mockup.html` — mockup gold standard
-10. `conexoes-cruzadas.html` — accordion com conexoes entre socios
-11. `final.html` — versao final antes de polish
-12. `grandao.html` — versao expandida com todas as empresas
-13. `mermaid-expansivel.html` — Mermaid com toggle expansivel
-14. `polished.html` — **versao final** com multi-expansao, bezier curves, pulse animation, badges
-
-**Decisoes tomadas:**
-- SVG customizado (nao Mermaid, nao react-flow) para o mockup
-- Bezier curves em vez de linhas retas
-- Linhas verdes pontilhadas pulse para conexoes compartilhadas
-- Multi-expansao (nao single-select)
-- Dados mockados (QSA da BrasilAPI nao exposto ainda)
-
-**Artefatos:** 22 arquivos HTML em `.superpowers/brainstorm/93190-1779565087/content/`
-
-**Proximo passo:** Fase 1 — componentizar QSA no dossie (18h estimadas)
-
 ## In progress
 
-- **Plano de Melhorias no Dossie (RAG + Contexto):** diagnosticado e planejado. Documento em `docs/obsidian/decisions/MELHORIAS-DOSSIE-RAG.md`. Sprint 1 (8-10h) e Sprint 2 (8-12h) planejadas. Aguardando inicio da execucao.
-- Sessao de Brainstorming Teia Societaria — mockup concluido em `polished.html`, implementacao nao iniciada.
-- PR `#278` (feat/migration-notice-supabase): aguardando merge em `main`.
-- PR `#270` (auditoria multi-fase): aberta, aguardando merge.
+- Abrir PR da branch `codex/teia-societaria-tipo5` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
+- Configurar `SUPABASE_SERVICE_ROLE_KEY` no ambiente Vercel para habilitar o cache persistente server-side do `/api/socio-search`.
+- Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
+- Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+- PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 
 ## Blockers
@@ -613,11 +418,10 @@ Last updated: 2026-05-24 — Profundidade da Teia Societaria corrigida
 
 ## Next checkpoint
 
-- Mergear PR `#278` em `main` (version 1.0.0 + aviso migracao + bug fix).
-- Implementar quick wins P3.6 (teiaTextParser) e P3.1 (geminiCnpjs).
-- Aplicar melhorias de prompt R1-R7 do rag-gemini.
-- Avaliar fallback para `gemini-2.5-flash` (groundingMetadata bug).
-- Mergear PR `#270` (auditoria multi-fase) e PR `#266` (UX Redesign Phase 1) em `main`.
+- Mergear `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao).
 - Configurar env vars Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-- Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery.
+- Testar fluxo completo: registrar com `@senior.com.br` -> criar dossie -> sync manual -> email recovery em segundo dispositivo.
+- Mergear PR `#270` (auditoria multi-fase) em `main`.
+- Mergear PR `#266` (UX Redesign Phase 1) apos validacao do owner.
+- Nao reintroduzir Mini CRM/`CRMDetail` nem botao "Dossie de investigacao".
 - Quando houver demanda, iniciar Sprints 13-16 (Modularizacao de Prompts).
