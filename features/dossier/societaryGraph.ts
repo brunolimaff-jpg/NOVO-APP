@@ -131,6 +131,34 @@ function escapeMermaidLabel(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+function titleCaseName(value: string): string {
+  const acronyms = new Set(['LTDA', 'S/A', 'S.A.', 'S.A.S.', 'SAS']);
+  return value
+    .toLowerCase()
+    .split(/(\s+|&|\/|-)/)
+    .map(part => {
+      const upper = part.toUpperCase();
+      if (acronyms.has(upper)) return upper;
+      if (!/[a-zà-ÿ]/i.test(part)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join('');
+}
+
+function formatCompanyDisplayName(value: string): string {
+  let name = value.trim();
+  if (name === name.toUpperCase()) name = titleCaseName(name);
+  name = name
+    .replace(/\bAgropecuaria\b/gi, 'Agropecuária')
+    .replace(/\bLtda\b/g, 'LTDA');
+  return name;
+}
+
+function firstGivenName(fullName: string): string {
+  const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
+  return titleCaseName(first);
+}
+
 export function formatSocietaryCnpj(value?: string | null): string {
   const cnpj = normalizeCnpj(value || '');
   if (cnpj.length !== 14) return value || '';
@@ -372,7 +400,6 @@ export function describeSocietaryCompanyType(company: SocietaryCompany): string 
   if (role.includes('logistica') || role.includes('transp')) return 'Logistica';
   if (role.includes('bio') || role.includes('industrial')) return 'Industrial';
   if (company.evidenceType === 'trade') return 'Comercio exterior';
-  if (company.evidenceType === 'qsa' || company.evidenceType === 'registry') return 'Empresa vinculada no QSA';
   return 'Empresa relacionada';
 }
 
@@ -381,21 +408,18 @@ function partnerSummary(company: SocietaryCompany, partnersById: Map<string, Soc
     .map(partnerId => partnersById.get(partnerId))
     .filter((partner): partner is SocietaryPartner => Boolean(partner));
   if (partners.length === 0) return company.rootLinked ? 'Ligada ao grupo raiz' : '';
-  return partners
-    .slice(0, 2)
-    .map(partner => [partner.name, partner.role].filter(Boolean).join(' · '))
-    .join(' / ');
+  const visiblePartners = [...partners]
+    .sort((a, b) => firstGivenName(a.name).localeCompare(firstGivenName(b.name), 'pt-BR'))
+    .slice(0, 2);
+  const role = visiblePartners.find(partner => partner.role)?.role || 'Sócio';
+  return `${role} ${visiblePartners.map(partner => firstGivenName(partner.name)).join('/')}`;
 }
 
 function companyLabel(company: SocietaryCompany, partnersById: Map<string, SocietaryPartner>): string {
   const ownerLine = partnerSummary(company, partnersById);
-  const branchLine = (company.branchCount || 0) > 1
-    ? `CNPJs do mesmo radical: ${company.branchCount}`
-    : '';
   return [
-    `<b>${escapeMermaidLabel(company.name)}</b>`,
+    `<b>${escapeMermaidLabel(formatCompanyDisplayName(company.name))}</b>`,
     company.cnpj ? `CNPJ ${formatSocietaryCnpj(company.cnpj)}` : company.country ? `País ${escapeMermaidLabel(company.country)}` : '',
-    branchLine,
     ownerLine ? escapeMermaidLabel(ownerLine) : '',
     escapeMermaidLabel(describeSocietaryCompanyType(company)),
   ].filter(Boolean).join('<br/>');

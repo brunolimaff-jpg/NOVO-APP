@@ -61,7 +61,7 @@ describe('SocietaryMap', () => {
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Guilherme M. Scheffer · Administrador');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Administrador Guilherme');
     expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Empresa internacional');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('estimado');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('oficial');
@@ -313,7 +313,7 @@ describe('SocietaryMap', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Agropecuaria Scheffer Ltda'));
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Agropecuária Scheffer LTDA'));
     expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ 00.111.222/0001-33');
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));

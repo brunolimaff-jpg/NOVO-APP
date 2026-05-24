@@ -180,7 +180,7 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].partnerIds).toEqual(['guilherme']);
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
-    expect(mermaid).toContain('Agropecuaria Scheffer Ltda');
+    expect(mermaid).toContain('Agropecuária Scheffer LTDA');
     expect(mermaid).toContain('guilherme --> company_00111222000133');
   });
 
@@ -236,7 +236,7 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toMatch(/graph\s+(TD|TB)/);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
     expect(mermaid).toContain('CNPJ 04.733.767/0001-80');
-    expect(mermaid).toContain('Guilherme M. Scheffer · Administrador');
+    expect(mermaid).toContain('Administrador Guilherme');
     expect(mermaid).toContain('Empresa internacional');
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
@@ -284,14 +284,30 @@ describe('societaryGraph', () => {
   });
 
   it('consolida filiais no bloco da matriz com contagem de CNPJs', () => {
+    const adminPartners = [
+      {
+        id: 'gilliard',
+        name: 'GILLIARD ANTONIO SCHEFFER',
+        role: 'Sócio-Administrador',
+        sourceTitle: 'BrasilAPI',
+        confidence: 'official' as const,
+      },
+      {
+        id: 'elizeu',
+        name: 'ELIZEU ZULMAR MAGGI SCHEFFER',
+        role: 'Sócio-Administrador',
+        sourceTitle: 'BrasilAPI',
+        confidence: 'official' as const,
+      },
+    ];
     const graph = buildSocietaryGraph({
       root,
-      partners,
+      partners: adminPartners,
       companies: [
         {
-          name: 'Scheffer & Cia Ltda em Sapezal',
+          name: 'AGROPECUARIA SCHEFFER LTDA',
           cnpj: '04.733.767/0023-96',
-          partnerName: 'Guilherme M. Scheffer',
+          partnerName: 'GILLIARD ANTONIO SCHEFFER',
           sourceUrl: 'https://example.com/filial-sapezal',
           sourceTitle: 'Fonte filial Sapezal',
           confidence: 'strong',
@@ -301,9 +317,9 @@ describe('societaryGraph', () => {
           rootCnpj: '04733767000180',
         },
         {
-          name: 'Scheffer & Cia Ltda em Cuiabá',
+          name: 'AGROPECUARIA SCHEFFER LTDA',
           cnpj: '04.733.767/0014-03',
-          partnerName: 'Carolina M. Scheffer',
+          partnerName: 'ELIZEU ZULMAR MAGGI SCHEFFER',
           sourceUrl: 'https://example.com/filial-cuiaba',
           sourceTitle: 'Fonte filial Cuiaba',
           confidence: 'strong',
@@ -313,9 +329,9 @@ describe('societaryGraph', () => {
           rootCnpj: '04733767000180',
         },
         {
-          name: 'Scheffer & Cia Ltda',
+          name: 'AGROPECUARIA SCHEFFER LTDA',
           cnpj: '04.733.767/0001-80',
-          partnerName: 'Guilherme M. Scheffer',
+          partnerName: 'GILLIARD ANTONIO SCHEFFER',
           sourceUrl: 'https://example.com/matriz',
           sourceTitle: 'Fonte matriz',
           confidence: 'strong',
@@ -330,19 +346,22 @@ describe('societaryGraph', () => {
     expect(graph.companies).toHaveLength(1);
     expect(graph.companies[0].cnpj).toBe('04733767000180');
     expect(graph.companies[0].branchCount).toBe(3);
-    expect(graph.companies[0].partnerIds.sort()).toEqual(['carolina', 'guilherme']);
+    expect(graph.companies[0].partnerIds.sort()).toEqual(['elizeu', 'gilliard']);
     expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Matriz + 2 filiais');
 
     const mermaid = buildSocietaryMermaid(graph);
 
     expect(mermaid).toContain('company_04733767000180');
+    expect(mermaid).toContain('Agropecuária Scheffer LTDA');
+    expect(mermaid).toContain('Sócio-Administrador Elizeu/Gilliard');
     expect(mermaid).not.toContain('company_04733767002396');
     expect(mermaid).not.toContain('company_04733767001403');
     expect(mermaid).not.toContain('Sapezal');
     expect(mermaid).not.toContain('Cuiabá');
-    expect(mermaid).toContain('CNPJs do mesmo radical: 3');
+    expect(mermaid).not.toContain('CNPJs do mesmo radical');
     expect(mermaid).toContain('Matriz + 2 filiais');
     expect(mermaid).not.toContain('Empresa vinculada no QSA');
+    expect(mermaid).not.toContain('AGROPECUARIA SCHEFFER');
     expect(mermaid).not.toContain('04.733.767/0023-96');
     expect(mermaid).not.toContain('04.733.767/0014-03');
   });
