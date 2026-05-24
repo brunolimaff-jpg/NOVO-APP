@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import megaPrompts, {
   ALL_SPECIALIST_PROMPTS,
+  PROMPT_CAMINHO_DE_VENDA,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
@@ -129,18 +130,18 @@ describe('PORTA mega prompts', () => {
   });
 
   it('declares the compact seller-facing output contract for module generation', () => {
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS VISUAIS + CARDS AUDITÁVEIS');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('MAPAS + CARDS + ARMA DE VENDA UNIFICADA');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('Não gere seção "Brief de Reunião"');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Mapas Visuais');
     expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('## Cards de Auditoria');
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial do insight]');
-    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('**Pergunta de reunião:**');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('### Card: [título comercial]');
+    expect(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT).toContain('CAMINHO DE VENDA');
     expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
   });
 
   it('keeps the facade metadata and specialist prompt collection stable', () => {
     expect(PROMPT_VERSION).toBe('Scout360_v5.0_ExecutiveCommitteeGrade');
-    expect(ALL_SPECIALIST_PROMPTS).toHaveLength(7);
+    expect(ALL_SPECIALIST_PROMPTS).toHaveLength(8);
     expect(new Set(ALL_SPECIALIST_PROMPTS).size).toBe(ALL_SPECIALIST_PROMPTS.length);
     expect(ALL_SPECIALIST_PROMPTS).toEqual([
       PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
@@ -150,6 +151,7 @@ describe('PORTA mega prompts', () => {
       PROMPT_RH_SINDICATOS_GOD_MODE,
       PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
       PROMPT_ORCAMENTO_JANELA_GOD_MODE,
+      PROMPT_CAMINHO_DE_VENDA,
     ]);
   });
 
@@ -161,7 +163,7 @@ describe('PORTA mega prompts', () => {
       state: 'MT',
     });
 
-    expect(prompt).toContain('INVESTIGACAO_COMPLETA_INTEGRADA (MVP+):');
+    expect(prompt).toContain('INVESTIGACAO_COMPLETA_INTEGRADA (MVP+ v6):');
     expect(prompt).toContain('Empresa=Fazenda Modelo; CNPJ=12.345.678/0001-99; Cidade=Cuiaba; UF=MT.');
     expect(prompt).toContain(SHARED_FOUNDATION_BLOCK);
     expect(prompt).toContain(PROMPT_RAIO_X_OPERACIONAL_ATAQUE);
