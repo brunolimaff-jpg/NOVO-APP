@@ -283,6 +283,70 @@ describe('societaryGraph', () => {
     expect(mermaid).toContain('linkStyle 3 stroke:#0891b2');
   });
 
+  it('consolida filiais no bloco da matriz com contagem de CNPJs', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer & Cia Ltda em Sapezal',
+          cnpj: '04.733.767/0023-96',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceUrl: 'https://example.com/filial-sapezal',
+          sourceTitle: 'Fonte filial Sapezal',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Scheffer & Cia Ltda em Cuiabá',
+          cnpj: '04.733.767/0014-03',
+          partnerName: 'Carolina M. Scheffer',
+          sourceUrl: 'https://example.com/filial-cuiaba',
+          sourceTitle: 'Fonte filial Cuiaba',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Scheffer & Cia Ltda',
+          cnpj: '04.733.767/0001-80',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceUrl: 'https://example.com/matriz',
+          sourceTitle: 'Fonte matriz',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0].cnpj).toBe('04733767000180');
+    expect(graph.companies[0].branchCount).toBe(3);
+    expect(graph.companies[0].partnerIds.sort()).toEqual(['carolina', 'guilherme']);
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Matriz + 2 filiais');
+
+    const mermaid = buildSocietaryMermaid(graph);
+
+    expect(mermaid).toContain('company_04733767000180');
+    expect(mermaid).not.toContain('company_04733767002396');
+    expect(mermaid).not.toContain('company_04733767001403');
+    expect(mermaid).not.toContain('Sapezal');
+    expect(mermaid).not.toContain('Cuiabá');
+    expect(mermaid).toContain('CNPJs do mesmo radical: 3');
+    expect(mermaid).toContain('Matriz + 2 filiais');
+    expect(mermaid).not.toContain('Empresa vinculada no QSA');
+    expect(mermaid).not.toContain('04.733.767/0023-96');
+    expect(mermaid).not.toContain('04.733.767/0014-03');
+  });
+
   it('formata CNPJ e descreve tipo de empresa para exibicao', () => {
     const graph = buildSocietaryGraph({
       root,

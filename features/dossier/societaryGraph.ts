@@ -55,6 +55,8 @@ export interface SocietaryCompany {
   id: string;
   name: string;
   cnpj?: string;
+  branchCount?: number;
+  branchCnpjs?: string[];
   country?: string;
   role?: string;
   sourceTitle?: string;
@@ -137,8 +139,36 @@ export function formatSocietaryCnpj(value?: string | null): string {
 
 function buildCompanyKey(company: SocietaryCompanyInput): string {
   const cnpj = normalizeCnpj(company.cnpj || '');
-  if (cnpj.length === 14) return `cnpj:${cnpj}`;
+  if (cnpj.length === 14) return `cnpj-root:${cnpj.slice(0, 8)}`;
   return `name:${normalizeText(company.name)}:${(company.country || 'BR').trim().toUpperCase()}`;
+}
+
+function isHeadquartersCnpj(cnpj?: string): boolean {
+  return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
+}
+
+function mergeBranchData(existing: SocietaryCompany, incoming: SocietaryCompanyInput): void {
+  const normalizedCnpj = normalizeCnpj(incoming.cnpj || '');
+  if (normalizedCnpj.length !== 14) return;
+
+  const cnpjs = new Set(existing.branchCnpjs || (existing.cnpj ? [existing.cnpj] : []));
+  cnpjs.add(normalizedCnpj);
+  existing.branchCnpjs = Array.from(cnpjs).sort((a, b) => {
+    if (isHeadquartersCnpj(a)) return -1;
+    if (isHeadquartersCnpj(b)) return 1;
+    return a.localeCompare(b);
+  });
+  existing.branchCount = existing.branchCnpjs.length;
+
+  if (!existing.cnpj || (!isHeadquartersCnpj(existing.cnpj) && isHeadquartersCnpj(normalizedCnpj))) {
+    existing.id = toId('company', normalizedCnpj);
+    existing.cnpj = normalizedCnpj;
+    existing.name = incoming.name.trim() || existing.name;
+    existing.role = incoming.role?.trim() || existing.role;
+    existing.sourceTitle = incoming.sourceTitle?.trim() || existing.sourceTitle;
+    existing.sourceUrl = incoming.sourceUrl?.trim() || existing.sourceUrl;
+    existing.snippet = incoming.snippet?.trim() || existing.snippet;
+  }
 }
 
 function hasGroupContext(company: SocietaryCompanyInput, root: SocietaryRootInput): boolean {
@@ -224,6 +254,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     const existing = companiesByKey.get(key);
     if (existing) {
       if (!existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
+      mergeBranchData(existing, company);
       existing.badges = buildBadges(existing);
       continue;
     }
@@ -233,6 +264,8 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       id: toId('company', normalizedCnpj || `${company.name}-${company.country || 'BR'}`),
       name: company.name.trim(),
       cnpj: normalizedCnpj.length === 14 ? normalizedCnpj : undefined,
+      branchCount: normalizedCnpj.length === 14 ? 1 : undefined,
+      branchCnpjs: normalizedCnpj.length === 14 ? [normalizedCnpj] : undefined,
       country: company.country?.trim().toUpperCase() || undefined,
       role: company.role?.trim() || undefined,
       sourceTitle: company.sourceTitle?.trim() || undefined,
@@ -260,14 +293,17 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       let merged = false;
       if (hasValidCnpj) {
-        const existingKey = `cnpj:${normalizedCnpj}`;
+        const existingKey = buildCompanyKey(geminiCompany);
         const existing = companiesByKey.get(existingKey);
         if (existing) {
-          existing.name = geminiCompany.name.trim();
+          if (!isHeadquartersCnpj(existing.cnpj) || isHeadquartersCnpj(normalizedCnpj)) {
+            existing.name = geminiCompany.name.trim();
+          }
           existing.role = geminiCompany.role || existing.role;
           existing.sourceTitle = geminiCompany.sourceTitle || existing.sourceTitle;
           existing.confidence = 'strong';
           existing.evidenceType = 'qsa';
+          mergeBranchData(existing, geminiCompany);
           if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
           if (!partner && !existing.partnerIds.length) existing.rootLinked = true;
           existing.badges = buildBadges(existing);
@@ -281,6 +317,8 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           id: toId('company', hasValidCnpj ? normalizedCnpj : geminiCompany.name),
           name: geminiCompany.name.trim(),
           cnpj: hasValidCnpj ? normalizedCnpj : undefined,
+          branchCount: hasValidCnpj ? 1 : undefined,
+          branchCnpjs: hasValidCnpj ? [normalizedCnpj] : undefined,
           country: geminiCompany.country?.trim().toUpperCase() || undefined,
           role: geminiCompany.role?.trim() || undefined,
           sourceTitle: geminiCompany.sourceTitle?.trim() || undefined,
@@ -322,6 +360,12 @@ function partnerLabel(partner: SocietaryPartner): string {
 export function describeSocietaryCompanyType(company: SocietaryCompany): string {
   const role = normalizeText(`${company.role || ''} ${company.name}`);
   const country = (company.country || 'BR').toUpperCase();
+  if ((company.branchCount || 0) > 1) {
+    return isHeadquartersCnpj(company.cnpj)
+      ? `Matriz + ${(company.branchCount || 1) - 1} filiais`
+      : `${company.branchCount} filiais consolidadas`;
+  }
+  if (company.cnpj && !isHeadquartersCnpj(company.cnpj)) return 'Filial operacional';
   if (country && country !== 'BR') return 'Empresa internacional';
   if (role.includes('holding') || role.includes('participa') || role.includes('invest')) return 'Holding / participacoes';
   if (role.includes('filial')) return 'Filial operacional';
@@ -345,9 +389,13 @@ function partnerSummary(company: SocietaryCompany, partnersById: Map<string, Soc
 
 function companyLabel(company: SocietaryCompany, partnersById: Map<string, SocietaryPartner>): string {
   const ownerLine = partnerSummary(company, partnersById);
+  const branchLine = (company.branchCount || 0) > 1
+    ? `CNPJs do mesmo radical: ${company.branchCount}`
+    : '';
   return [
     `<b>${escapeMermaidLabel(company.name)}</b>`,
     company.cnpj ? `CNPJ ${formatSocietaryCnpj(company.cnpj)}` : company.country ? `País ${escapeMermaidLabel(company.country)}` : '',
+    branchLine,
     ownerLine ? escapeMermaidLabel(ownerLine) : '',
     escapeMermaidLabel(describeSocietaryCompanyType(company)),
   ].filter(Boolean).join('<br/>');
