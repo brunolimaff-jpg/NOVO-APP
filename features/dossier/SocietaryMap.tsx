@@ -5,8 +5,11 @@ import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
+  describeSocietaryCompanyType,
+  formatSocietaryCnpj,
   type SocietaryCompany,
   type SocietaryCompanyInput,
+  type SocietaryGraph,
   type SocietaryPartnerInput,
 } from './societaryGraph';
 
@@ -44,12 +47,25 @@ function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCom
   return Object.values(companiesByPartner).flat();
 }
 
+function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
+  const partners = company.partnerIds
+    .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
+    .filter((partner): partner is typeof graph.partners[number] => Boolean(partner));
+
+  if (partners.length === 0) return company.rootLinked ? 'Grupo raiz' : 'Sem sócio identificado';
+
+  return partners
+    .map(partner => [partner.name, partner.role].filter(Boolean).join(' - '))
+    .join(' / ');
+}
+
 const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMode, geminiCnpjs }) => {
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
   const [loadingPartnerKey, setLoadingPartnerKey] = useState<string | null>(null);
   const [selectedPartnerName, setSelectedPartnerName] = useState<string | undefined>();
+  const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const searchedPartnerKeysRef = useRef<Record<string, boolean>>({});
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
@@ -62,6 +78,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       searchedPartnerKeysRef.current = {};
       loadingPartnerKeysRef.current = {};
       setSelectedPartnerName(undefined);
+      setIsEvidenceOpen(false);
       setLoadingPartnerKey(null);
       setNotice('CNPJ nao disponivel para montar a teia societaria.');
       return;
@@ -128,6 +145,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           searchedPartnerKeysRef.current = {};
           loadingPartnerKeysRef.current = {};
           setSelectedPartnerName(undefined);
+          setIsEvidenceOpen(false);
           setLoadingPartnerKey(null);
           setState('empty');
           setNotice('QSA ainda nao disponivel para este CNPJ.');
@@ -145,6 +163,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         searchedPartnerKeysRef.current = {};
         loadingPartnerKeysRef.current = {};
         setSelectedPartnerName(undefined);
+        setIsEvidenceOpen(false);
         setLoadingPartnerKey(null);
         setState('ready');
       }
@@ -157,6 +176,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       controller.abort();
     };
   }, [cnpj, empresaAlvo, geminiCnpjs]);
+
+  useEffect(() => {
+    setIsEvidenceOpen(false);
+  }, [selectedPartnerName]);
 
   useEffect(() => {
     if (!rootData || rootData.partners.length === 0) return;
@@ -261,7 +284,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Mapa de poder societario</p>
-          <p className="mt-1 text-xs text-slate-500">CLASSIFICAÇÃO ESTIMADA</p>
+          <p className="mt-1 text-xs text-slate-500">Conexões por sócio</p>
         </div>
         {graph?.partners.length ? (
           <div className="flex flex-wrap gap-1.5">
@@ -306,29 +329,48 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
       {mermaid ? <MarkdownRenderer content={`\`\`\`mermaid\n${mermaid}\n\`\`\``} isDarkMode={isDarkMode} /> : null}
 
-      {selectedCompanies.length > 0 ? (
-        <div className="mt-3 space-y-2" data-testid="societary-evidence-list">
-          {selectedCompanies.map(company => (
-            <article key={company.id} className="rounded-lg border border-slate-200/70 p-2 text-xs">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-bold text-slate-700">{company.name}</span>
-                <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                  {company.confidence}
-                </span>
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
-                  {company.evidenceType}
-                </span>
-              </div>
-              {company.sourceUrl ? (
-                <a className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline" href={company.sourceUrl} target="_blank" rel="noreferrer">
-                  {company.sourceTitle || company.sourceUrl}
-                </a>
-              ) : company.sourceTitle ? (
-                <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
-              ) : null}
-              {company.snippet ? <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p> : null}
-            </article>
-          ))}
+      {selectedCompanies.length > 0 && graph ? (
+        <div className="mt-3" data-testid="societary-evidence-panel">
+          <button
+            type="button"
+            aria-expanded={isEvidenceOpen}
+            onClick={() => setIsEvidenceOpen(open => !open)}
+            className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+            data-testid="societary-evidence-toggle"
+          >
+            {isEvidenceOpen ? 'Recolher evidências' : `Ver evidências (${selectedCompanies.length})`}
+          </button>
+
+          {isEvidenceOpen ? (
+            <div className="mt-2 space-y-2" data-testid="societary-evidence-list">
+              {selectedCompanies.map(company => (
+                <article key={company.id} className="rounded-lg border border-slate-200/70 p-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-bold text-slate-700">{company.name}</span>
+                    {company.cnpj ? (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+                        CNPJ {formatSocietaryCnpj(company.cnpj)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    Sócio/admin: {describeEvidencePartner(company, graph)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    Tipo: {describeSocietaryCompanyType(company)}
+                  </p>
+                  {company.sourceUrl ? (
+                    <a className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline" href={company.sourceUrl} target="_blank" rel="noreferrer">
+                      {company.sourceTitle || company.sourceUrl}
+                    </a>
+                  ) : company.sourceTitle ? (
+                    <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
+                  ) : null}
+                  {company.snippet ? <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

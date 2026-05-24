@@ -96,6 +96,17 @@ export interface BuildSocietaryMermaidOptions {
   selectedPartnerId?: string | null;
 }
 
+const PARTNER_EDGE_COLORS = [
+  '#7c3aed',
+  '#0891b2',
+  '#dc2626',
+  '#ca8a04',
+  '#16a34a',
+  '#db2777',
+  '#4f46e5',
+  '#ea580c',
+];
+
 function normalizeText(value: string): string {
   return (value || '')
     .normalize('NFD')
@@ -116,6 +127,12 @@ function escapeMermaidLabel(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+export function formatSocietaryCnpj(value?: string | null): string {
+  const cnpj = normalizeCnpj(value || '');
+  if (cnpj.length !== 14) return value || '';
+  return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
 }
 
 function buildCompanyKey(company: SocietaryCompanyInput): string {
@@ -302,12 +319,37 @@ function partnerLabel(partner: SocietaryPartner): string {
   ].filter(Boolean).join('<br/>');
 }
 
-function companyLabel(company: SocietaryCompany): string {
-  const badges = company.badges.length > 0 ? company.badges.join(' · ') : 'CLASSIFICAÇÃO ESTIMADA';
+export function describeSocietaryCompanyType(company: SocietaryCompany): string {
+  const role = normalizeText(`${company.role || ''} ${company.name}`);
+  const country = (company.country || 'BR').toUpperCase();
+  if (country && country !== 'BR') return 'Empresa internacional';
+  if (role.includes('holding') || role.includes('participa') || role.includes('invest')) return 'Holding / participacoes';
+  if (role.includes('filial')) return 'Filial operacional';
+  if (role.includes('logistica') || role.includes('transp')) return 'Logistica';
+  if (role.includes('bio') || role.includes('industrial')) return 'Industrial';
+  if (company.evidenceType === 'trade') return 'Comercio exterior';
+  if (company.evidenceType === 'qsa' || company.evidenceType === 'registry') return 'Empresa vinculada no QSA';
+  return 'Empresa relacionada';
+}
+
+function partnerSummary(company: SocietaryCompany, partnersById: Map<string, SocietaryPartner>): string {
+  const partners = company.partnerIds
+    .map(partnerId => partnersById.get(partnerId))
+    .filter((partner): partner is SocietaryPartner => Boolean(partner));
+  if (partners.length === 0) return company.rootLinked ? 'Ligada ao grupo raiz' : '';
+  return partners
+    .slice(0, 2)
+    .map(partner => [partner.name, partner.role].filter(Boolean).join(' · '))
+    .join(' / ');
+}
+
+function companyLabel(company: SocietaryCompany, partnersById: Map<string, SocietaryPartner>): string {
+  const ownerLine = partnerSummary(company, partnersById);
   return [
     `<b>${escapeMermaidLabel(company.name)}</b>`,
-    company.cnpj ? `CNPJ ${company.cnpj}` : company.country ? `País ${escapeMermaidLabel(company.country)}` : '',
-    escapeMermaidLabel(badges),
+    company.cnpj ? `CNPJ ${formatSocietaryCnpj(company.cnpj)}` : company.country ? `País ${escapeMermaidLabel(company.country)}` : '',
+    ownerLine ? escapeMermaidLabel(ownerLine) : '',
+    escapeMermaidLabel(describeSocietaryCompanyType(company)),
   ].filter(Boolean).join('<br/>');
 }
 
@@ -316,11 +358,15 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     ? graph.partners.find(partner => partner.id === options.selectedPartnerId)
     : undefined;
   const partners = selectedPartner ? [selectedPartner] : graph.partners;
+  const allPartnerIds = graph.partners.map(partner => partner.id);
+  const partnerColorById = new Map(
+    allPartnerIds.map((partnerId, index) => [partnerId, PARTNER_EDGE_COLORS[index % PARTNER_EDGE_COLORS.length]]),
+  );
+  const partnersById = new Map(graph.partners.map(partner => [partner.id, partner]));
   const visiblePartnerIds = new Set(partners.map(partner => partner.id));
   const visibleCompanies = graph.companies.filter(company =>
     company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId)),
   );
-
   const lines = [
     'graph LR',
     '  classDef root fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;',
@@ -330,19 +376,27 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     '  classDef international fill:#eef2ff,stroke:#4f46e5,stroke-width:2.5px,color:#312e81;',
     '  classDef evidence fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,color:#475569;',
     '',
-    `  Root["<b>${escapeMermaidLabel(graph.root.name)}</b>${graph.root.cnpj ? `<br/>CNPJ ${graph.root.cnpj}` : ''}<br/>CLASSIFICAÇÃO ESTIMADA"]`,
+    `  Root["<b>${escapeMermaidLabel(graph.root.name)}</b>${graph.root.cnpj ? `<br/>CNPJ ${formatSocietaryCnpj(graph.root.cnpj)}` : ''}<br/>Empresa raiz"]`,
   ];
+  const edgeStyles: string[] = [];
+  let edgeIndex = 0;
+
+  const addEdge = (line: string, color?: string) => {
+    lines.push(line);
+    edgeStyles.push(color ? `  linkStyle ${edgeIndex} stroke:${color},stroke-width:2.5px;` : '');
+    edgeIndex += 1;
+  };
 
   for (const partner of partners) {
     lines.push(`  ${partner.id}["${partnerLabel(partner)}"]`);
-    lines.push(`  Root --> ${partner.id}`);
+    addEdge(`  Root --> ${partner.id}`, partnerColorById.get(partner.id));
   }
 
   for (const company of visibleCompanies) {
-    lines.push(`  ${company.id}["${companyLabel(company)}"]`);
-    if (company.rootLinked) lines.push(`  Root --> ${company.id}`);
+    lines.push(`  ${company.id}["${companyLabel(company, partnersById)}"]`);
+    if (company.rootLinked) addEdge(`  Root --> ${company.id}`, '#64748b');
     for (const partnerId of company.partnerIds) {
-      if (visiblePartnerIds.has(partnerId)) lines.push(`  ${partnerId} --> ${company.id}`);
+      if (visiblePartnerIds.has(partnerId)) addEdge(`  ${partnerId} --> ${company.id}`, partnerColorById.get(partnerId));
     }
   }
 
@@ -352,6 +406,10 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   }
   for (const company of visibleCompanies) {
     lines.push(`  class ${company.id} ${company.badges.includes('internacional') ? 'international' : 'company'};`);
+  }
+  const nonEmptyEdgeStyles = edgeStyles.filter(Boolean);
+  if (nonEmptyEdgeStyles.length > 0) {
+    lines.push('', ...nonEmptyEdgeStyles);
   }
 
   return lines.join('\n');

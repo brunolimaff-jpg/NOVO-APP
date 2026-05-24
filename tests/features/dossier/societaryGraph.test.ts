@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
+  describeSocietaryCompanyType,
+  formatSocietaryCnpj,
 } from '../../../features/dossier/societaryGraph';
 
 describe('societaryGraph', () => {
@@ -233,6 +235,76 @@ describe('societaryGraph', () => {
     expect(mermaid).toMatch(/^graph LR/);
     expect(mermaid).not.toMatch(/graph\s+(TD|TB)/);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
-    expect(mermaid).toContain('CLASSIFICAÇÃO ESTIMADA');
+    expect(mermaid).toContain('CNPJ 04.733.767/0001-80');
+    expect(mermaid).toContain('Guilherme M. Scheffer · Administrador');
+    expect(mermaid).toContain('Empresa internacional');
+    expect(mermaid).not.toContain('estimado');
+    expect(mermaid).not.toContain('oficial');
+    expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
+  });
+
+  it('colore arestas por socio para separar conexoes em comum', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Agropecuária Scheffer',
+          cnpj: '00111222000133',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceUrl: 'https://example.com/agro',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Agropecuária Scheffer',
+          cnpj: '00111222000133',
+          partnerName: 'Carolina M. Scheffer',
+          sourceUrl: 'https://example.com/agro',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    const mermaid = buildSocietaryMermaid(graph);
+
+    expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
+    expect(mermaid).toContain('linkStyle 1 stroke:#0891b2');
+    expect(mermaid).toContain('linkStyle 2 stroke:#7c3aed');
+    expect(mermaid).toContain('linkStyle 3 stroke:#0891b2');
+  });
+
+  it('formata CNPJ e descreve tipo de empresa para exibicao', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer Participações S/A',
+          cnpj: '00111222000133',
+          partnerName: 'Guilherme M. Scheffer',
+          role: 'holding',
+          sourceUrl: 'https://example.com/holding',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    expect(formatSocietaryCnpj('00111222000133')).toBe('00.111.222/0001-33');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding / participacoes');
   });
 });

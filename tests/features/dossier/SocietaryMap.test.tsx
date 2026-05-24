@@ -61,8 +61,15 @@ describe('SocietaryMap', () => {
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
-    expect(screen.getAllByText(/CLASSIFICAÇÃO ESTIMADA/).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Guilherme M. Scheffer · Administrador');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Empresa internacional');
+    expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('estimado');
+    expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('oficial');
+    expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte internacional');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Sócio/admin: Guilherme M. Scheffer - Administrador');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Tipo: Empresa internacional');
   });
 
   it('faz drill-down automático de todos os sócios e inicia na visão Todos', async () => {
@@ -141,10 +148,12 @@ describe('SocietaryMap', () => {
     expect(screen.getByRole('button', { name: /Todos/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A'));
+    fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte societaria');
 
     fireEvent.click(screen.getByRole('button', { name: /Luciano R\. Scheffer/i }));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Scheffer Colombia S.A.S.'));
+    expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
   });
 
   it('atualiza o mapa incrementalmente enquanto ainda busca outros socios', async () => {
@@ -305,7 +314,11 @@ describe('SocietaryMap', () => {
     );
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Agropecuaria Scheffer Ltda'));
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ 00.111.222/0001-33');
+    expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Gemini — Tabela Mestre');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('CNPJ 00.111.222/0001-33');
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
