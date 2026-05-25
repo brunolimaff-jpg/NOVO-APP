@@ -226,6 +226,14 @@ Reason: Bruno preferiu o estilo Mermaid pela clareza/disposicao de informacoes e
 
 Constraint: novas visualizacoes societarias devem continuar `LR` por padrao; `TD/TB` nao devem ser usados nessa teia.
 
+## 2026-05-24 - Teia CNPJ nao promove raiz/filial nem Gemini sem CNPJ
+
+Decision: o grafo societario deve rejeitar a propria raiz e qualquer CNPJ com o mesmo radical da raiz como "empresa relacionada"; empresas extraidas do Gemini so entram no visual quando carregam CNPJ valido e evidencia suficiente.
+
+Reason: o preview da PR #285 mostrou regressao visual em que a matriz/filiais da propria Scheffer eram renderizadas como novas empresas relacionadas (`Matriz + 2 filiais`), o que reintroduzia aparencia de CNPJ inventado/duplicado.
+
+Constraint: `scripts/validate-prompts.sh` deve permanecer como gate de contrato para prompts, parser e grafo societario sempre que mexer na teia CNPJ.
+
 ## 2026-05-23 - Drill-down societario precisa de evidencia e cache persistente
 
 Decision: o drill-down por socio deve rodar apenas no server-side (`/api/socio-search`), rejeitar ligacao por nome sozinho, exigir contexto explicito da empresa raiz (`rootContext` + `rootCompanyName` ou `rootCnpj`) e cache persistente de 7 dias em Supabase `extract_cache`.

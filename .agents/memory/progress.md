@@ -73,8 +73,10 @@ Last updated: 2026-05-24
 - Enriquecimento de CNPJ em `/api/socio-search` tem budget interno: deadline de 45s, maximo de 5 lookups, `lookupCnpj` com timeout curto e primeira fonte oficial nesse fluxo.
 - `SocietaryMap`/Mermaid mostra "Outro CNPJ do socio" sem criar aresta raiz -> empresa.
 - `teia-deep` e `teiaTextParser` separam "Empresas do grupo economico" de "Outros CNPJs onde o socio aparece".
-- Validacao local: review agent final sem blockers; recorte Vitest de 46 testes verde; `tests/prompts/megaPrompts.test.ts` verde; `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1063 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde. `./scripts/validate-prompts.sh` nao existe nesta branch; equivalente local usado foi `tests/prompts/megaPrompts.test.ts`.
-- Validacao remota: PR #285 com CI/Vercel/Smoke preview verdes; preview protegido exigiu `x-vercel-protection-bypass`; fluxo Scheffer `04.733.767/0001-80` validado no preview com CNPJ preenchendo `SCHEFFER & CIA LTDA`, `Sapezal/MT`, Score PORTA visivel e mapa societario renderizado com botoes de socios.
+- Hotfix `b238f25`: bloqueia raiz e filiais de mesmo radical no grafo (`04.733.767/*` nao vira empresa relacionada), rejeita empresa vinda do Gemini sem CNPJ valido e impede que o CNPJ raiz apareca como `partner_other_cnpj`.
+- `scripts/validate-prompts.sh` foi criado e ligado a `npm run validate:prompts`; o gate roda testes de prompts, parser da teia e `societaryGraph` para capturar regressao de CNPJ inventado/duplicado.
+- Validacao local: review agent final sem blockers; `./scripts/validate-prompts.sh` verde (44 testes); `npm run validate:prompts` verde; recortes de API/mapa/parser verdes; `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1064 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde.
+- Validacao remota: PR #285 com CI/Vercel/Smoke preview verdes; preview protegido exigiu `x-vercel-protection-bypass`; apos 5 min do deploy, fluxo Scheffer `04.733.767/0001-80` validado no preview com Score PORTA visivel e mapa societario sem `Matriz + 2 filiais`, sem `04.733.767/0023-96` e sem `04.733.767/0014-03`.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 

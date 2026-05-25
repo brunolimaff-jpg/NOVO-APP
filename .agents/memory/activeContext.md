@@ -74,13 +74,13 @@ Arquivos alterados anteriormente nesta sessao:
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| Resolvido nesta branch | CNPJs dos socios aparecem com escopo explicito `partner_other_cnpj`, sem afirmar grupo economico; enriquecimento tem timeout e limite global | api/socio-search.ts, lib/cnpjLookup.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx |
+| Resolvido nesta branch | CNPJs dos socios aparecem com escopo explicito `partner_other_cnpj`, sem afirmar grupo economico; raiz/filiais de mesmo radical nao viram empresa relacionada; `scripts/validate-prompts.sh` cobre prompt/parser/grafo | api/socio-search.ts, lib/cnpjLookup.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx, scripts/validate-prompts.sh |
 | P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
 | P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Aguardar review/merge da PR #285 (`codex/cnpj-socios-todos-cnpjs`).
+1. Aguardar review/merge da PR #285 (`codex/cnpj-socios-todos-cnpjs`); CI/Vercel/Smoke preview estao verdes no commit `b238f25`.
 2. Depois do merge, fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
 3. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
 4. Resolver problemas residuais P1/P2 restantes acima.

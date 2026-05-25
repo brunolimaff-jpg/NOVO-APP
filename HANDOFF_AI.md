@@ -66,7 +66,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Abordagem dual: `validate:preview` (curl, segundos) para smoke rapido em CI/pre-merge; `test:e2e:cnpj` (Playwright, ~2-3 min) para validacao completa com interacao real.
 
 ### Problemas Residuais
-1. **CNPJs dos socios no mapa societario** — resolvido na PR #285 (`codex/cnpj-socios-todos-cnpjs`) com `relationshipScope=partner_other_cnpj` para CNPJs laterais sem prova de grupo economico; `/api/socio-search` tem budget interno e `lookupCnpj` aceita timeout/maxSources nesse fluxo. Preview Scheffer `04.733.767/0001-80` validado com Score PORTA e mapa societario renderizados.
+1. **CNPJs dos socios no mapa societario** — resolvido na PR #285 (`codex/cnpj-socios-todos-cnpjs`) com `relationshipScope=partner_other_cnpj` para CNPJs laterais sem prova de grupo economico; `/api/socio-search` tem budget interno e `lookupCnpj` aceita timeout/maxSources nesse fluxo. Hotfix `b238f25` bloqueia raiz/filiais de mesmo radical como empresa relacionada, exige CNPJ valido para empresa vinda do Gemini e adiciona `scripts/validate-prompts.sh` como gate de prompt/parser/grafo. Preview Scheffer `04.733.767/0001-80` validado apos 5 min de Vercel sem `Matriz + 2 filiais` nem filiais `04.733.767/0023-96` / `04.733.767/0014-03` no mapa.
 2. **Entidades internacionais sem link de auditoria** — "Conexoes internacionais exigem comprovacao documental... Se nao houver evidencia concreta, a conexao e INFERIDA" (P1)
 3. **Mermaid no contrato ainda e condicional** ("quando houver dados"), deveria ser obrigatorio (P2)
 
