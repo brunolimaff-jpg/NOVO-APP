@@ -134,6 +134,13 @@ Se a informação veio de search grounding sem URL específica:
 
 Regra crítica:
 - Fonte institucional do próprio prospect pode ter viés, mas continua válida como evidência de nível B
+
+Regras de distribuição inline (OBRIGATÓRIAS):
+1. Para CADA fato ou afirmação no dossiê, a citação DEVE estar INLINE no mesmo parágrafo, não apenas no bloco de fontes no final.
+2. O bloco "Fontes" no final é apenas uma CONSOLIDAÇÃO — as citações no corpo do texto são obrigatórias.
+3. Um card de auditoria sem URL inline na Evidência é considerado INCOMPLETO.
+4. Cada seção principal deve conter pelo menos 2-3 links inline espalhados em parágrafos diferentes daquela seção.
+5. NÃO concentre [[1]](url1), [[2]](url2) no mesmo parágrafo — distribua pelas seções.
 </citation_protocol>
 
 <research_breadth_protocol>

@@ -30,7 +30,6 @@ interface MarkdownRendererProps {
   isDarkMode?: boolean;
   groundingSources?: GroundingSource[];
   auditableSources?: AuditableSource[];
-  showCollapsibleSources?: boolean;
   allowRawHtml?: boolean;
 }
 
@@ -254,6 +253,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return map;
   }, [resolvedSources]);
 
+  const titleMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const source of resolvedSources) {
+      if (source.url && source.title) {
+        map.set(normalizeSourceUrl(source.url), source.title);
+      }
+    }
+    return map;
+  }, [resolvedSources]);
+
   const processedContent = useMemo(() => {
     if (!content) return '';
 
@@ -352,7 +361,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:hover:text-blue-300"
+            className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
             title={title}
             {...props}
           >
@@ -377,8 +386,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:hover:text-blue-300"
-              title={displayDomain}
+              className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+              title={titleMap.get(normalizeSourceUrl(href)) || displayDomain}
               {...props}
             >
               [{citationIndex ?? '?'}]
@@ -394,8 +403,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:hover:text-blue-300"
-              title={cleanText || href}
+              className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+              title={titleMap.get(normalizeSourceUrl(href)) || cleanText || href}
               {...props}
             >
               [{citationIndex}]
@@ -411,8 +420,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:hover:text-blue-300"
-              title={href}
+              className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+              title={titleMap.get(normalizeSourceUrl(href)) || href}
               {...props}
             >
               [{citationIndex}]
@@ -424,8 +433,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       if (!citationIndex && isDomainLike) {
         const displayDomain = cleanText.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
         return (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400" {...props}>
-            {displayDomain}
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 visited:text-purple-600 hover:underline dark:text-blue-400 dark:visited:text-purple-400" title={titleMap.get(normalizeSourceUrl(href)) || displayDomain} {...props}>
+            {displayDomain} ↗
           </a>
         );
       }
@@ -438,10 +447,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="break-words text-blue-600 transition-colors hover:underline dark:text-blue-400"
+            className="break-words text-blue-600 visited:text-purple-600 transition-colors hover:underline dark:text-blue-400 dark:visited:text-purple-400"
+            title={titleMap.get(normalizeSourceUrl(href)) || href}
             {...props}
           >
-            {children}
+            {children} ↗
           </a>
           {citationIndex && !isAlreadyCitation ? (
             <sup className="ml-0.5 text-[10px] font-bold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400">

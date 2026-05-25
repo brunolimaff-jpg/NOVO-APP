@@ -12,6 +12,7 @@ vi.mock('../../services/apiConfig', () => ({
 }));
 
 import {
+  deduplicateSourcesBlock,
   fixFakeLinks,
   fixFakeLinksHTML,
   extractValidLinks,
@@ -135,5 +136,60 @@ describe('extractValidLinks', () => {
 
   it('retorna array vazio para texto vazio', () => {
     expect(extractValidLinks('')).toHaveLength(0);
+  });
+});
+
+describe('deduplicateSourcesBlock', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isFakeUrlMock.mockReturnValue(false);
+    findSeniorProductUrlMock.mockReturnValue(null);
+  });
+
+  it('remove fontes repetidas mesmo com parametros de tracking', () => {
+    const text = [
+      'A evidencia aparece inline em [Fonte A](https://example.com/relatorio?utm_source=gemini).',
+      '',
+      'Fontes:',
+      '- Fonte A https://example.com/relatorio/',
+      '- Fonte B https://example.com/outra',
+    ].join('\n');
+
+    const result = deduplicateSourcesBlock(text);
+
+    expect(result).not.toContain('Fonte A https://example.com/relatorio/');
+    expect(result).toContain('Fonte B https://example.com/outra');
+  });
+
+  it('considera links HTML e URLs puras no corpo ao deduplicar fontes', () => {
+    const text = [
+      'Fonte HTML <a href="https://example.com/html">HTML</a> e URL pura https://example.com/pura.',
+      '',
+      'Fontes:',
+      '- HTML https://example.com/html',
+      '- Pura https://example.com/pura',
+      '- Complementar https://example.com/complementar',
+    ].join('\n');
+
+    const result = deduplicateSourcesBlock(text);
+
+    expect(result).not.toContain('- HTML https://example.com/html');
+    expect(result).not.toContain('- Pura https://example.com/pura');
+    expect(result).toContain('- Complementar https://example.com/complementar');
+  });
+
+  it('preserva titulo quando remove URL falsa do bloco de fontes', () => {
+    isFakeUrlMock.mockImplementation(url => url.includes('fake'));
+    const text = [
+      'Texto principal sem fonte.',
+      '',
+      'Fontes:',
+      '- Relatorio setorial relevante (https://fake.io/relatorio)',
+    ].join('\n');
+
+    const result = deduplicateSourcesBlock(text);
+
+    expect(result).toContain('Relatorio setorial relevante');
+    expect(result).not.toContain('https://fake.io/relatorio');
   });
 });

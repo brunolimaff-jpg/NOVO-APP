@@ -168,6 +168,15 @@ Para cada achado importante, derive:
 3. Qual módulo Senior/GAtec corrige
 4. Que frase um AE pode usar para abrir conversa
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <scoring_scales>
@@ -467,6 +476,15 @@ Para cada hemorragia tecnológica, derive:
 3. Por que o incumbent continua vivo
 4. Como a Senior entra sem bater de frente de forma burra
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <scoring_scales>
@@ -747,6 +765,15 @@ Para cada risco material, responda:
 4. Qual contrapeso reduz o exagero?
 5. Como um CFO/Conselho leria isso?
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <scoring_scales>
@@ -987,6 +1014,15 @@ REGRAS DE CNPJ:
 - Se um CNPJ aparece em fonte oficial (QSA, BrasilAPI, registro comercial), cite a fonte ao lado.
 - CNPJ confirmado apenas por busca reversa (consultasocio.com) deve vir com nível de confiança reduzido e nota "validar".
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <scoring_scales>
@@ -1203,6 +1239,15 @@ Para cada achado importante, derive:
 4. Se a janela operacional permite projeto agora
 5. Como usar isso em discurso de HCM/governança/implantação
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <scoring_scales>
@@ -1400,6 +1445,15 @@ Exemplos:
 - TI: "vai dar retrabalho / vamos perder controle"
 - Herdeiro: "preciso mostrar gestão moderna"
 - COO: "não para a operação"
+
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
 
 </instructions>
 
@@ -1621,6 +1675,15 @@ Produza:
 - objeção de budget provável
 - resposta baseada em dado real
 
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
+
 </instructions>
 
 <pricing_reference>
@@ -1799,6 +1862,15 @@ Cruze Compliance + Decisores + Orçamento + Operacional:
 - Operacional: safra recorde, nova planta, expansão sem controle
 
 Output: bullets com cada sinal e fonte. Se houver sinal forte: destaque "URGENTE". Se nenhum: "Sem sinal de urgência — abordagem consultiva."
+
+<inline_citation_rule>
+REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
+- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
+- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
+- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
+- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
+- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+</inline_citation_rule>
 
 </instructions>
 

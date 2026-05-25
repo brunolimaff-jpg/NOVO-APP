@@ -4,6 +4,22 @@ Last updated: 2026-05-25
 
 ## Completed
 
+### PR #285 mergeada + PR #286 validada localmente (2026-05-25 17:35)
+
+**Merge:** PR #285 foi mergeada em `main` por squash no commit `ed5c825`.
+
+**PR aberta restante:** #286 (`codex/inline-links-auditaveis`).
+
+**Pendencias encontradas na #286:**
+- Gemini Code Assist: `useMemo` dentro de `map` em `components/SectionalBotMessage.tsx` violava Rules of Hooks.
+- Gemini Code Assist: `utils/linkFixer.ts` descartava a linha inteira quando URL falsa era removida, perdendo titulo util.
+- Gemini Code Assist: deduplicacao de fontes nao normalizava URL nem capturava HTML/URL pura.
+- CI: job `Tests` falhava por snapshot de prompts desatualizado.
+
+**Correcoes aplicadas:** conflito com #285 resolvido preservando `stripUnsafeSocietarySections`; `filterSourcesForSection` virou chamada direta no loop; `deduplicateSourcesBlock` normaliza URLs, le markdown/HTML/URL pura e preserva titulo sem URL falsa; snapshot de `megaPrompts.test.ts` atualizado.
+
+**Validacao:** recortes focados, `./scripts/validate-prompts.sh`, `npm run typecheck`, `npm run test`, `npm run build` e `npm run lint` passaram localmente. Apos push `ee74d35`, GitHub ficou `CLEAN` com Typecheck, Dossier Golden, Tests, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview verdes. As 3 threads do Gemini Code Assist foram respondidas e resolvidas.
+
 ### Fechamento Teia CNPJ PR #285 (2026-05-25 17:05)
 
 **Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285.

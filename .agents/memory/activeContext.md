@@ -18,7 +18,16 @@ Read order:
 
 ## Current operating phase
 
-**Branch: `codex/cnpj-socios-todos-cnpjs` — PR #285 validada tecnicamente e pronta para merge quando o owner confirmar a janela. O achado P0 semantico virou decisao duravel: CNPJ lateral nao vira empresa do grupo.**
+**Branch: `codex/inline-links-auditaveis` — PR #285 foi mergeada em `main` (`ed5c825`). A sessao atual valida e corrige a PR #286 sobre links inline auditaveis.**
+
+### Atualizacao 2026-05-25 17:35 — pos-merge da #285 e validacao da #286
+
+- PR #285 mergeada por squash em `main`: `ed5c825 feat: show partner CNPJs in societary map (#285)`.
+- PR #286 era a unica PR aberta restante.
+- Pendencias encontradas na #286: 3 threads do Gemini Code Assist e falha no job `Tests` por snapshot de prompt desatualizado.
+- Correcoes aplicadas na #286: remover `useMemo` dentro de `map`, preservar titulo quando URL falsa e descartada, deduplicar fontes com URL normalizada e atualizar golden de prompts.
+- Validacao da #286: recortes, `validate-prompts.sh`, `typecheck`, `npm run test`, `npm run build` e `npm run lint` passaram localmente; apos push `ee74d35`, GitHub ficou `CLEAN` com Typecheck, Dossier Golden, Tests, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview verdes.
+- As 3 threads do Gemini Code Assist na #286 foram respondidas e resolvidas.
 
 ### Atualizacao 2026-05-25 17:05 — fechamento documental da Teia
 
