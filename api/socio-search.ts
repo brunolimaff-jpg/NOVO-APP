@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHtml, isValidPublicUrl, performWebSearch } from '../utils/documentExtractor.js';
+import { extractHtml, isValidPublicUrl, isPessoaJuridica, performWebSearch, searchConsultasocioDirect } from '../utils/documentExtractor.js';
 import { sanitizeSensitivePersonalData } from '../utils/privacy.js';
 import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
@@ -532,12 +532,12 @@ function scopeForEnrichedCnpj(params: {
 
 function buildQueries(socioName: string, rootCompanyName: string): string[] {
   return [
-    `site:consultasocio.com/q/sa "${socioName}" "${rootCompanyName}"`,
-    `"${socioName}" "${rootCompanyName}" ("sócio" OR "QSA" OR "participações" OR "holding")`,
-    `"${socioName}" "${rootCompanyName}" ("Colombia" OR "Colômbia" OR "S.A.S." OR "NIT")`,
-    `"${socioName}" "CNPJ"`,
-    `site:consultasocio.com/q/sa "${socioName}"`,
-    `"${socioName}" ("quadro societário" OR "sócio" OR "administrador")`,
+    `"${socioName}" "${rootCompanyName}" socio`,
+    `"${socioName}" "${rootCompanyName}" empresa`,
+    `"${socioName}" cnpj`,
+    `"${socioName}" socio administrador`,
+    `"${socioName}" quadro societario`,
+    `"${socioName}" ${rootCompanyName}`,
   ];
 }
 
@@ -613,26 +613,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     companies.push(company);
   };
 
-  for (const query of queries) {
-    if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
-      if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
-      else if (companies.length > 0) markTruncated('deadline');
-      else degraded = true;
-      break;
-    }
-    queriesRun.push(query);
-    const content = await performWebSearch(query, { count: 10 });
-    if (!content) {
-      searchFailureCount += 1;
-      degraded = true;
-      continue;
-    }
-    if (/Nenhum resultado encontrado/i.test(content)) {
-      searchNoResultCount += 1;
-      degraded = true;
-      continue;
-    }
-
+  const processContentBlocks = async (content: string) => {
     for (const block of splitSearchBlocks(content)) {
       if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
         if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
@@ -694,8 +675,8 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
         continue;
       }
 
-      const rootCnpj = normalizeCnpj(params.rootCnpj);
-      const relatedCnpjs = blockCnpjs.filter(cnpj => cnpj !== rootCnpj);
+      const rootCnpjLocal = normalizeCnpj(params.rootCnpj);
+      const relatedCnpjs = blockCnpjs.filter(cnpj => cnpj !== rootCnpjLocal);
       for (const cnpj of relatedCnpjs) cnpjsFound.add(cnpj);
       const unseenRelatedCnpjs = relatedCnpjs.filter(cnpj => !seen.has(`cnpj:${cnpj}`));
       if (relatedCnpjs.length > 0 && unseenRelatedCnpjs.length === 0) continue;
@@ -750,7 +731,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
             relationshipScope: scopedRelationship.relationshipScope,
             rootContext: scopedRelationship.rootContext,
             rootCompanyName: params.rootCompanyName,
-            rootCnpj: rootCnpj || undefined,
+            rootCnpj: rootCnpjLocal || undefined,
             role: official.cnaeDescricao || official.cnae,
             sourceDepth: 'cnpj_lookup',
           });
@@ -776,7 +757,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
             sourceDepth,
           }),
           rootCompanyName: params.rootCompanyName,
-          rootCnpj: rootCnpj || undefined,
+          rootCnpj: rootCnpjLocal || undefined,
         });
       }
 
@@ -799,6 +780,44 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
         sourceDepth,
       });
     }
+  };
+
+  const socioIsPessoaFisica = !isPessoaJuridica(params.socioName);
+
+  if (socioIsPessoaFisica && hasSearchBudget()) {
+    queriesRun.push('consultasocio.com/direct');
+    const consultasocioContent = await searchConsultasocioDirect(params.socioName);
+    if (consultasocioContent && !/Nenhum resultado encontrado/i.test(consultasocioContent)) {
+      scoutDiag.info('SocioSearch', 'consultasocio.com retornou resultados, processando antes do DDG');
+      await processContentBlocks(consultasocioContent);
+    } else if (!consultasocioContent) {
+      searchFailureCount += 1;
+      degraded = true;
+      scoutDiag.warn('SocioSearch', 'consultasocio.com falhou, fallback para DDG');
+    }
+  }
+
+  for (const query of queries) {
+    if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
+      if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
+      else if (companies.length > 0) markTruncated('deadline');
+      else degraded = true;
+      break;
+    }
+    queriesRun.push(query);
+    const content = await performWebSearch(query, { count: 10 });
+    if (!content) {
+      searchFailureCount += 1;
+      degraded = true;
+      continue;
+    }
+    if (/Nenhum resultado encontrado/i.test(content)) {
+      searchNoResultCount += 1;
+      degraded = true;
+      continue;
+    }
+
+    await processContentBlocks(content);
   }
 
   return {

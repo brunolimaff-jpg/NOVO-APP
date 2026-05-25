@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { normalizeCnpj } from '../utils/cnpj';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
+const searchConsultasocioDirectMock = vi.hoisted(() => vi.fn());
 const lookupCnpjMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../utils/documentExtractor', async () => {
@@ -10,6 +11,7 @@ vi.mock('../utils/documentExtractor', async () => {
   return {
     ...actual,
     performWebSearch: performWebSearchMock,
+    searchConsultasocioDirect: searchConsultasocioDirectMock,
   };
 });
 
@@ -71,12 +73,14 @@ describe('api/socio-search', () => {
     vi.resetModules();
     vi.unstubAllEnvs();
     performWebSearchMock.mockReset();
+    searchConsultasocioDirectMock.mockReset();
     lookupCnpjMock.mockReset();
     vi.stubEnv('SUPABASE_URL', '');
     vi.stubEnv('VITE_SUPABASE_URL', '');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
     vi.stubEnv('SUPABASE_ANON_KEY', '');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
+    searchConsultasocioDirectMock.mockResolvedValue(null);
     lookupCnpjMock.mockRejectedValue(new Error('cnpj lookup not mocked'));
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch not mocked'));
   });
@@ -213,7 +217,7 @@ describe('api/socio-search', () => {
 
     expect(response.statusCode).toBe(200);
     expect(performWebSearchMock).toHaveBeenCalledWith(
-      'site:consultasocio.com/q/sa "Guilherme M. Scheffer"',
+      '"Guilherme M. Scheffer" "Scheffer & Cia Ltda" socio',
       expect.objectContaining({ count: 10 }),
     );
     expect(response.payload).toMatchObject({
@@ -586,7 +590,7 @@ describe('api/socio-search', () => {
       degraded: true,
       diagnostics: expect.objectContaining({
         searchNoResultCount: 5,
-        searchFailureCount: 1,
+        searchFailureCount: 2,
       }),
     });
   });
@@ -826,8 +830,8 @@ describe('api/socio-search', () => {
       diagnostics: expect.objectContaining({
         queriesRun: expect.arrayContaining([
           expect.stringContaining('consultasocio.com'),
-          expect.stringContaining('holding'),
-          expect.stringContaining('S.A.S.'),
+          expect.stringContaining('socio'),
+          expect.stringContaining('cnpj'),
         ]),
         cacheSource: 'none',
       }),
@@ -1125,8 +1129,8 @@ describe('api/socio-search', () => {
       diagnostics: expect.objectContaining({
         queriesRun: expect.arrayContaining([
           expect.stringContaining('consultasocio.com'),
-          expect.stringContaining('holding'),
-          expect.stringContaining('S.A.S.'),
+          expect.stringContaining('socio'),
+          expect.stringContaining('cnpj'),
         ]),
         pagesFetched: expect.any(Number),
         rejectedCount: expect.any(Number),
