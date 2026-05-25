@@ -540,6 +540,7 @@ Conclusao: a camada de contrato/anti-alucinacao melhorou, mas a busca real por s
 - Browser local em `http://127.0.0.1:3000/`: DOM confirmou que a mensagem visivel nao mostra mais `Outros CNPJs`, `Alertas`, `Vinculo...`; matriz nao mostra `Relação` nem badge `CNPJ lateral do socio`.
 - Complemento pos-push: Vite proxy agora injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`.
 - API via proxy local apos deploy da PR: `GUILHERME MOGNON SCHEFFER` retornou `15` empresas, `5` rejeitadas, `degraded: false`; amostra com `partner_other_cnpj` e `rootContext: false`.
+- Browser local: apos alternar `Grafo -> Tabela`, matriz exibiu `18` CNPJs laterais com colunas `EMPRESA`, `CNPJ`, `CNAE` e socios; sem `Relação`, sem badge `CNPJ lateral do socio`, sem secoes/textos inseguros.
 
 ## Important refs
 
