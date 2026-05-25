@@ -1,7 +1,7 @@
 ---
 title: "Handoff Teia CNPJ 2026-05-25"
 type: handoff
-status: active
+status: blocked
 projeto: "NOVO-APP"
 data: 2026-05-25
 branch: "codex/cnpj-socios-todos-cnpjs"
@@ -17,6 +17,12 @@ tags:
 # Handoff Teia CNPJ 2026-05-25
 
 Voltar para [[DECISIONS-Index]] | [[LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24]] | [[SESSAO-TEIA-SOCIETARIA-2026-05-24]].
+
+## Resumo executivo
+
+PR #285 (`codex/cnpj-socios-todos-cnpjs`) **nao esta pronta para merge**. Ela esta com checks remotos verdes e `mergeStateStatus: CLEAN`, mas a preview atual ainda nao entrega a profundidade de CNPJs por socio: `/api/cnpj` encontra 6 socios da Scheffer, enquanto `/api/socio-search` retorna 0 empresas para todos eles.
+
+O trabalho feito ate aqui melhorou contrato, parser, grafo, UI, testes e diagnostico, mas nao resolveu a causa de produto: a busca publica por socio esta vindo vazia/degradada no runtime Vercel. O proximo ciclo precisa investigar fonte de dados/provedor/cache e nao apenas ajustar apresentacao.
 
 ## Contexto
 
@@ -118,17 +124,228 @@ Resultado:
 - O arquivo solto `HANDOFF_TEIA_CNPJ_2026-05-25_0834.md` foi consolidado nesta nota e nao deve ser usado como fonte atual.
 - `BRAVE_SEARCH_API_KEY` pode continuar cadastrada na Vercel, mas o runtime nao usa mais Brave.
 - `SUPABASE_SERVICE_ROLE_KEY` ainda precisa ser configurada para Preview geral ou especificamente para `codex/cnpj-socios-todos-cnpjs` para cache persistente de `/api/socio-search`.
-- Checks remotos do commit `b01ec45` passaram: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview.
-- A validacao funcional da preview deve ser refeita apos o deploy do commit DuckDuckGo-only.
+- Checks remotos do commit `d743c77` passaram: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview.
+- `gh pr view 285` em 2026-05-25 mostrou `mergeStateStatus: CLEAN`, mas isso nao representa prontidao funcional.
+- Comentarios da PR lidos em 2026-05-25:
+  - nao ha `reviewThreads` inline abertas;
+  - review do Gemini Code Assist: `COMMENTED`, sem feedback acionavel;
+  - comentario da Vercel e apenas informativo;
+  - dois comentarios anteriores de validacao do owner ficaram obsoletos, pois diziam que a preview estava pronta.
+
+## Validacao funcional que falhou em 2026-05-25
+
+**Horario:** 2026-05-25 09:30 -04
+**Preview:** `https://scoutagro-git-codex-cnpj-soci-4d3068-brunolimaff-3629s-projects.vercel.app`
+**CNPJ testado:** `04.733.767/0001-80` (`04733767000180`)
+
+### Resultado de `/api/cnpj`
+
+Funcionou:
+
+- status `200`;
+- `companyName: SCHEFFER & CIA LTDA`;
+- `city: Sapezal`;
+- `state: MT`;
+- `qsaCount: 6`;
+- socios retornados:
+  - `GILLIARD ANTONIO SCHEFFER`;
+  - `ELIZEU ZULMAR MAGGI SCHEFFER`;
+  - `GUILHERME MOGNON SCHEFFER`;
+  - `GISLAYNE RAFAELA SCHEFFER`;
+  - `SCHEFFER PARTICIPACOES S/A`;
+  - `CAROLINA MOGNON SCHEFFER`.
+
+Conclusao: a base inicial/QSA esta disponivel. O problema nao e a consulta do CNPJ raiz.
+
+### Resultado de `/api/open-web-search`
+
+Falhou em profundidade:
+
+```json
+{
+  "status": 200,
+  "source": "OpenWebSearch/DdgDegraded",
+  "degraded": true,
+  "contentLength": 0,
+  "providerStatus": [
+    {
+      "provider": "duckduckgo",
+      "ok": false,
+      "reason": "empty_result"
+    }
+  ],
+  "detail": "Nenhum resultado público capturado."
+}
+```
+
+Conclusao: remover Brave resolveu a dependencia/erro 402, mas DuckDuckGo-only nao esta trazendo resultado publico na preview.
+
+### Resultado de `/api/socio-search`
+
+Falhou para todos os 6 socios:
+
+| Socio | Status | Empresas | Degraded | Pages fetched | Cache | Falhas de busca |
+|---|---:|---:|---|---:|---|---:|
+| `GILLIARD ANTONIO SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+| `ELIZEU ZULMAR MAGGI SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+| `GUILHERME MOGNON SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+| `GISLAYNE RAFAELA SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+| `SCHEFFER PARTICIPACOES S/A` | 200 | 0 | true | 0 | memory | 6 |
+| `CAROLINA MOGNON SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+
+Diagnostico comum:
+
+```json
+{
+  "pagesFetched": 0,
+  "cacheSource": "memory",
+  "rejectedCount": 0,
+  "searchFailureCount": 6
+}
+```
+
+Conclusao: a API agora diagnostica melhor a falha, mas ainda nao resolve a profundidade. Ela retorna HTTP 200 degradado, sem empresa, sem pagina extraida e sem CNPJ lateral.
+
+## O que ja foi tentado e nao resolveu
+
+| Tentativa | O que melhorou | Por que nao resolveu ainda |
+|---|---|---|
+| Separar `group_link`, `partner_other_cnpj` e `unconfirmed` | Evitou tratar CNPJ lateral como grupo economico | Nao cria fonte de dados; se a busca vem vazia, o inventario continua vazio |
+| Bloquear CNPJ invalido por digito verificador | Reduziu risco de CNPJ inventado oficial | Nao aumenta cobertura de pesquisa por socio |
+| Permitir CNPJ hipotetico com `*` | Atende regra do Bruno: pode virar linha, mas marcado | So funciona quando existe fonte textual; a preview nao esta encontrando texto |
+| Mermaid tracejado para `unconfirmed` | Visualmente separa hipotese de oficial | Nao aparece se `/api/socio-search` nao encontra nada |
+| Rejeitar `Cia Ltda` e nomes sem identidade real | Evita lixo visual no mapa | Corrige qualidade do dado encontrado, nao a ausencia de dado |
+| Remover Brave e usar DuckDuckGo-only | Removeu dependencia do `BRAVE_SEARCH_API_KEY` e o erro Brave 402 | DuckDuckGo Lite retorna `empty_result` na preview para as queries testadas |
+| Diagnosticar `searchFailureCount` vs `searchNoResultCount` | Ficou claro que e falha/degradacao de busca, nao ausencia confirmada | Diagnostico nao e dado; o produto continua sem profundidade |
+| Checks remotos e Smoke Preview | Garante build/test/deploy basico | Smoke atual nao falha quando o resultado societario vem vazio |
+| Validacoes unitarias de parser/grafo/API | Protegem contratos locais e anti-alucinacao | Testes mockados nao provam que o provedor publico entrega resultados reais |
+
+## Decisao de merge
+
+**Decisao:** nao mergear a PR #285 neste estado.
+
+**Racional:** a PR esta tecnicamente mergeavel pelo GitHub, mas falha no comportamento de negocio principal: entregar profundidade de pesquisa de CNPJs dos socios. Fazer merge agora consolidaria uma tela que parece correta em contrato, mas continua vazia na preview real.
+
+**Criterio minimo para liberar merge:**
+
+1. `/api/cnpj` continua retornando os 6 socios da Scheffer.
+2. `/api/socio-search` retorna CNPJs laterais nao vazios para ao menos parte relevante dos socios, ou explica com diagnostico forte por que nao ha fonte.
+3. CNPJ inferido aparece somente com `*`, `validationStatus: pending`, `relationshipScope: unconfirmed`.
+4. CNPJ sem `*` e sem validacao oficial nao aparece como oficial.
+5. Smoke de preview passa a validar resultado de negocio, nao apenas HTTP 200.
+
+## Registro da sessao de 2026-05-25
+
+### Branch e PR
+
+- Branch: `codex/cnpj-socios-todos-cnpjs`
+- PR: `#285`
+- Base: `main`
+- Commit validado antes desta baixa documental: `d743c77`
+- Estado GitHub antes da baixa: `mergeStateStatus: CLEAN`
+- Estado de produto: **bloqueado**
+
+### Comentarios e reviews lidos
+
+- `gh pr view 285 --json ...`
+- GraphQL `reviewThreads(first:100)`:
+  - resultado: `[]`;
+  - nao havia thread inline para resolver.
+- Comentario Vercel:
+  - informativo;
+  - preview atual: `https://scoutagro-git-codex-cnpj-soci-4d3068-brunolimaff-3629s-projects.vercel.app`.
+- Comentarios antigos do owner:
+  - classificacao: `ja-enderecado naquele momento, agora obsoleto`;
+  - risco: documentavam preview como validada, mas a validacao atual contradiz.
+- Review Gemini Code Assist:
+  - estado `COMMENTED`;
+  - sem comentario acionavel.
+
+### Arquivos lidos
+
+- `AGENTS.md` — regras do repo, memoria local e handoff.
+- `.agents/memory/activeContext.md` — status vivo da branch e pendencias.
+- `.agents/memory/progress.md` — historico da PR #285 e status antigo de preview.
+- `.agents/memory/decisions.md` — decisoes persistentes.
+- `HANDOFF_AI.md` — fonte canonica de entrada rapida.
+- `api/socio-search.ts` — contrato real da rota (`POST`) e diagnosticos.
+- `api/open-web-search.ts` — contrato real da rota (`POST`) e DuckDuckGo-only.
+- `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — handoff consolidado.
+- `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — prevencao de regressao.
+
+### Arquivos modificados nesta baixa
+
+- `HANDOFF_AI.md` — corrigido de "PR #285 validada" para "PR #285 bloqueada por falha funcional".
+- `.agents/memory/activeContext.md` — atualizado com preview falha, decisao de nao mergear e next step.
+- `.agents/memory/progress.md` — adicionado override detalhado do status antigo de preview.
+- `.agents/memory/decisions.md` — registrada decisao duravel de gate funcional antes de merge.
+- `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — esta nota virou o handoff principal da investigacao.
+- `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — adicionadas licoes 13-17 e secao de nao resolvidos.
+
+### Comandos uteis para continuar
+
+```bash
+gh pr view 285 --json number,title,url,headRefName,baseRefName,mergeStateStatus,reviewDecision,comments,reviews,files,statusCheckRollup
+```
+
+```bash
+gh api graphql -f owner='brunolimaff-jpg' -f repo='NOVO-APP' -F number=285 -f query='query($owner:String!,$repo:String!,$number:Int!){ repository(owner:$owner,name:$repo){ pullRequest(number:$number){ reviewThreads(first:100){ nodes{ id isResolved path line comments(first:20){ nodes{ id body author{login} url createdAt outdated diffHunk } } } } } } }'
+```
+
+```bash
+npm exec vitest run tests/api-open-web-search.test.ts tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/prompts/megaPrompts.test.ts
+./scripts/validate-prompts.sh
+npm run typecheck
+npm run build
+npm run docs:obsidian:check
+```
+
+### Payload de validacao manual da preview
+
+Use `POST`, nao `GET`, para as duas rotas abaixo:
+
+```json
+{
+  "query": "GUILHERME MOGNON SCHEFFER CNPJ"
+}
+```
+
+```json
+{
+  "socioName": "GUILHERME MOGNON SCHEFFER",
+  "rootCnpj": "04733767000180",
+  "rootCompanyName": "SCHEFFER & CIA LTDA"
+}
+```
+
+Headers quando a preview estiver protegida:
+
+```text
+x-vercel-protection-bypass: <VERCEL_AUTOMATION_BYPASS_SECRET>
+content-type: application/json
+```
+
+### Perguntas abertas
+
+- DuckDuckGo Lite esta retornando vazio por bloqueio, mudanca de HTML, query ruim, User-Agent ou limitacao do runtime Vercel?
+- Vale manter DuckDuckGo como unico provedor se ele nao entrega inventario societario em preview?
+- Qual fonte confiavel deve alimentar pesquisa por socio quando nao houver cache persistente?
+- O smoke de preview deve falhar com `searchFailureCount > 0` ou apenas quando todos os socios voltarem `companies: 0`?
+- `SUPABASE_SERVICE_ROLE_KEY` de Preview sera geral ou restrita a branch `codex/cnpj-socios-todos-cnpjs`?
 
 ## Proximos passos
 
-1. Aguardar checks remotos apos o commit documental desta nota.
-2. Revalidar preview Scheffer `04.733.767/0001-80`:
-   - 6 socios em `/api/cnpj`;
-   - `/api/socio-search` usando DuckDuckGo-only;
-   - CNPJ sem validacao oficial com `*`;
-   - Mermaid com no tracejado para `unconfirmed`;
-   - nenhum CNPJ inventado sem `*` como oficial.
-3. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente.
-4. So considerar a PR pronta quando a preview confirmar comportamento de negocio, nao apenas checks verdes.
+1. Responder na PR #285 corrigindo o status: comentarios antigos de validacao estao stale; merge bloqueado.
+2. Investigar `performWebSearch`/DuckDuckGo Lite no runtime Vercel:
+   - confirmar se o HTML do DuckDuckGo mudou;
+   - verificar se ha bloqueio/rate-limit/UA;
+   - testar consultas equivalentes fora da Vercel e dentro da Vercel;
+   - capturar corpo bruto anonimizado quando `empty_result`.
+3. Avaliar fonte alternativa confiavel para consulta por socio, sem voltar a aceitar Brave como dependencia obrigatoria:
+   - fonte oficial ou semi-oficial quando disponivel;
+   - endpoint dedicado de consulta societaria;
+   - scraping controlado de pagina especifica apenas se legal/estavel;
+   - cache persistente para resultados bons.
+4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente.
+5. Atualizar o smoke de preview para falhar quando todos os 6 socios retornarem `companies: 0`.
+6. Revalidar Scheffer `04.733.767/0001-80` antes de qualquer merge.

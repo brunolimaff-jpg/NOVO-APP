@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ## Current operating context
 
@@ -69,20 +69,26 @@ Validacao local ja executada:
 - `npm run typecheck` verde
 - Recorte Vitest verde em 2026-05-25: `tests/api-open-web-search.test.ts`, `tests/features/dossier/SocietaryMap.test.tsx`, `tests/features/dossier/teiaTextParser.test.ts`, `tests/features/dossier/societaryGraph.test.ts`, `tests/api-socio-search.test.ts`, `tests/prompts/megaPrompts.test.ts` (91 testes)
 - `npm run build` verde com warning conhecido de chunks grandes
-- PR checks remotos verdes do commit anterior, mas ainda precisam reexecutar apos push desta correcao.
-- Preview Scheffer `04.733.767/0001-80` mostrou regressao antes desta correcao: `/api/cnpj` retornou 6 socios, mas `/api/socio-search` retornou 0 empresas para todos, `degraded: true`, `pagesFetched: 0`, `cacheSource: none`. Apos deploy novo, `/api/socio-search` diferencia a falha como `searchFailureCount: 6`; `/api/open-web-search` diagnosticou Brave HTTP `402` e DuckDuckGo vazio. Decisao posterior do Bruno: remover Brave do codigo e deixar busca web somente em DuckDuckGo Lite, ignorando `BRAVE_SEARCH_API_KEY` mesmo que a env continue cadastrada na Vercel. A causa operacional de cache ainda inclui `SUPABASE_SERVICE_ROLE_KEY` existente em Production e em uma preview de outra branch, nao na preview geral/branch `codex/cnpj-socios-todos-cnpjs`.
+- PR checks remotos verdes no commit `d743c77`: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview.
+- `gh pr view 285` em 2026-05-25: `mergeStateStatus: CLEAN`, sem review threads inline abertas; Gemini Code Assist sem feedback acionavel. Mesmo assim, **nao mergear ainda**.
+- Preview Scheffer `04.733.767/0001-80` validada em 2026-05-25 09:30 -04: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/open-web-search` retornou `OpenWebSearch/DdgDegraded`, DuckDuckGo `empty_result`, `contentLength: 0`; `/api/socio-search` retornou 0 empresas para todos os 6 socios, `degraded: true`, `pagesFetched: 0`, `searchFailureCount: 6`, `cacheSource: memory`.
+- Decisao do Bruno mantida: remover Brave do codigo e deixar busca web somente em DuckDuckGo Lite, ignorando `BRAVE_SEARCH_API_KEY` mesmo que a env continue cadastrada na Vercel. Licao atual: DuckDuckGo-only remove a dependencia ruim, mas nao resolve a profundidade por si so.
+- A causa operacional de cache ainda inclui `SUPABASE_SERVICE_ROLE_KEY` existente em Production e em uma preview de outra branch, nao na preview geral/branch `codex/cnpj-socios-todos-cnpjs`.
 
 ## Problemas residuais da sessao
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| Validado localmente nesta branch | Todos os CNPJs validos encontrados para socios aparecem com escopo explicito `partner_other_cnpj`; nomes truncados como `Cia Ltda` sao substituidos/rejeitados; parser/prompt nao podem mais amostrar inventario; UI avisa inventario parcial | api/socio-search.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx, features/dossier/teiaTextParser.ts, prompts/mega/teia-deep.ts, prompts/mega/teia-identity.ts, prompts/mega/specialist-prompts.ts |
+| P0 | PR #285 nao esta pronta para merge: preview atual retorna 0 empresas para todos os 6 socios Scheffer em `/api/socio-search`, apesar de checks verdes e `/api/cnpj` OK | api/socio-search.ts, utils/documentExtractor.ts, api/open-web-search.ts, Vercel Preview |
+| Validado localmente nesta branch | Todos os CNPJs validos encontrados para socios aparecem com escopo explicito `partner_other_cnpj`; nomes truncados como `Cia Ltda` sao substituidos/rejeitados; parser/prompt nao podem mais amostrar inventario; UI avisa inventario parcial. Isso protege dados encontrados, mas nao resolve a ausencia de fonte na preview | api/socio-search.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx, features/dossier/teiaTextParser.ts, prompts/mega/teia-deep.ts, prompts/mega/teia-identity.ts, prompts/mega/specialist-prompts.ts |
 | P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
 | P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Publicar commit documental final com a evidencia de preview.
-2. Fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
-3. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
-4. Manter `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` como guia de prevencao para novas regressoes nessa trilha.
+1. Nao mergear PR #285 ate a profundidade real ser recuperada.
+2. Investigar `performWebSearch`/DuckDuckGo Lite na Vercel: HTML vazio, bloqueio, rate-limit, parser quebrado ou User-Agent.
+3. Definir fonte confiavel para consulta por socio; DuckDuckGo-only nao esta suficiente na preview.
+4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
+5. Atualizar Smoke Preview para falhar quando todos os 6 socios Scheffer retornarem `companies: 0`.
+6. Manter `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` como guia de prevencao para novas regressoes nessa trilha.

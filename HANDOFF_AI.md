@@ -19,6 +19,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 13. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
 14. `docs/obsidian/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` — 13 lições aprendidas na sessão de prompts 2026-05-24
 15. `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — lições do hotfix P0 da Teia CNPJ, incluindo PRs #279/#280/#285 e critérios de preview
+16. `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — status detalhado da PR #285, incluindo validações que passaram, validações que falharam e bloqueio de merge
 
 ## Contexto minimo estavel
 
@@ -31,7 +32,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-24 — **Sessao de consolidacao de prompts (PR #282, PR #283) e correcao de anti-alucinacao concluidas.** Branch principal `codex/prompt-consolidation-v6` (PR #282), branch anti-alucinacao `fix/war-room-rag-antialucinacao`, PR unificada #283.
+> Atualizado em 2026-05-25 — **PR #285 da Teia CNPJ continua aberta e nao deve ser mergeada ainda.** Os checks remotos estao verdes, mas a validacao funcional da preview falhou de novo: `/api/socio-search` retorna 0 empresas para todos os 6 socios Scheffer, com busca DuckDuckGo-only degradada.
 
 ### O que foi feito nesta sessao (2026-05-24)
 
@@ -67,7 +68,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Abordagem dual: `validate:preview` (curl, segundos) para smoke rapido em CI/pre-merge; `test:e2e:cnpj` (Playwright, ~2-3 min) para validacao completa com interacao real.
 
 ### Problemas Residuais
-1. **CNPJs dos socios no mapa societario** — PR #285 (`codex/cnpj-socios-todos-cnpjs`) em hotfix P0 apos preview mostrar poucos CNPJs e nome truncado `Cia Ltda`. Estado atual: `/api/socio-search` retorna todos os CNPJs validos encontrados por socio ate limite operacional de 60, inclui `diagnostics.totalCnpjsFound/truncated`, versiona cache em `v5-full-partner-inventory` e substitui nomes truncados por razao inferida/fallback de CNPJ. `teia-deep` nao pode mais amostrar inventario; `teiaTextParser` aceita varias tabelas e coluna `CNPJ / Tipo`; `societaryGraph` preserva `partner_other_cnpj` por CNPJ exato e a UI avisa inventario parcial. Review agent final encontrou blockers e foram corrigidos: CNPJ invalido barrado em parser/grafo, `partner_other_cnpj` sem socio confirmado rejeitado, promocao para `group_link` consolidada por radical e prompt sem regra residual de truncagem acima de 15 linhas. Validacao local verde: `validate-prompts` (54 testes), `typecheck`, `test` (128 arquivos, 1083 testes), `lint` (0 erros, 5 warnings preexistentes), `build`. Validacao remota verde apos push `0ba0910`: PR checks, Smoke preview, `/api/cnpj`, `/api/socio-search` para 6 socios e browser preview Scheffer com `Ver evidências (4)`, `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como relacionadas.
+1. **CNPJs dos socios no mapa societario — PR #285 bloqueada para merge** — Branch `codex/cnpj-socios-todos-cnpjs`, PR #285, ultimo commit validado `d743c77`. O codigo ja implementou varias protecoes importantes: `relationshipScope` separado em `group_link`, `partner_other_cnpj` e `unconfirmed`; CNPJ inferido com `*`; Mermaid tracejado para pendente; rejeicao de CNPJ invalido; remoção do Brave; DuckDuckGo-only; diagnostico `searchFailureCount` vs `searchNoResultCount`; e testes locais/remotos verdes. Mesmo assim, a validacao funcional da preview em 2026-05-25 09:30 -04 falhou: `/api/cnpj?cnpj=04733767000180` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 QSA, mas `/api/open-web-search` retornou `OpenWebSearch/DdgDegraded`, `providerStatus duckduckgo empty_result`, `contentLength: 0`; `/api/socio-search` retornou 0 empresas para todos os 6 socios, `degraded: true`, `pagesFetched: 0`, `searchFailureCount: 6`, `cacheSource: memory`, sem amostra de CNPJ. Os comentarios antigos da PR que diziam "pronto/validado" estao obsoletos. Nao mergear ate investigar a causa de profundidade real.
 2. **Entidades internacionais sem link de auditoria** — "Conexoes internacionais exigem comprovacao documental... Se nao houver evidencia concreta, a conexao e INFERIDA" (P1)
 3. **Mermaid no contrato ainda e condicional** ("quando houver dados"), deveria ser obrigatorio (P2)
 
@@ -199,20 +200,24 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Proximo passo seguro
 
-1. PR #285 esta validada; proximo passo e merge/baixa documental do hotfix de Teia CNPJ.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`; manter `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` para o app browser.
-3. Registrar a baixa das PRs antigas ja mergeadas e remover a pendencia historica "CNPJs nao aparecem todos".
-4. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
-5. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
-6. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
-7. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
-8. **Problemas residuais da sessao de prompts:**
+1. **Nao mergear PR #285 ainda**, apesar de `mergeStateStatus: CLEAN` e checks verdes. O gate funcional falhou.
+2. Investigar a raiz da falta de profundidade em `/api/socio-search`: DuckDuckGo Lite retornando vazio no runtime Vercel, `performWebSearch` sem fontes, cache persistente ausente e nenhuma pagina extraida (`pagesFetched: 0`).
+3. Definir fonte confiavel para pesquisa societaria por socio. Remover Brave resolveu o 402, mas nao resolveu ausencia de resultados. DuckDuckGo-only sozinho nao esta entregando inventario.
+4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview geral ou especificamente na branch `codex/cnpj-socios-todos-cnpjs`, para cache persistente de resultados bons e diagnostico estavel.
+5. Endurecer o smoke de preview para falhar quando `/api/socio-search` retornar 0 empresas para todos os 6 socios Scheffer. HTTP 200 e checks verdes nao bastam.
+6. Depois da correcao real, revalidar Scheffer `04.733.767/0001-80`: 6 socios no QSA, CNPJs laterais nao vazios, CNPJ inferido apenas com `*`, Mermaid tracejado para `unconfirmed`, nenhum CNPJ inventado sem `*` como oficial.
+7. Registrar a baixa das PRs antigas ja mergeadas somente depois da PR #285 ter validacao funcional real.
+8. Mergear a branch `codex/standardize-mermaid-maps` em `main` — migracao Supabase concluida **com 8 commits adicionais** (cadastro restrito, email recovery, sync manual, remocao dossie).
+9. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery em segundo dispositivo.
+10. Mergear PR `#270` em `main` (auditoria multi-fase, se ainda aberta).
+11. Validar UX no preview Vercel do PR `#266` e mergear em `main`.
+12. **Problemas residuais da sessao de prompts:**
    - (Resolvido nesta branch) CNPJs dos socios aparecem como "Outro CNPJ do socio" quando nao ha prova de grupo economico
    - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
    - (P2) Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
-9. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
-10. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
-11. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
+13. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+14. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
+15. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
 

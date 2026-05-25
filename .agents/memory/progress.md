@@ -68,6 +68,8 @@ Last updated: 2026-05-25
 
 **Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285
 
+**Atualizacao critica 2026-05-25:** status anterior de "preview validada" ficou obsoleto. A PR #285 esta com checks verdes e `mergeStateStatus: CLEAN`, mas **nao deve ser mergeada** porque a validacao funcional da preview voltou a falhar em profundidade.
+
 - `/api/socio-search` agora diferencia `relationshipScope`: `group_link`, `partner_other_cnpj` e `unconfirmed`.
 - Busca societaria passou a incluir queries por socio sem empresa raiz, para capturar CNPJs onde o socio aparece mesmo sem prova de pertencer ao grupo economico.
 - Enriquecimento de CNPJ em `/api/socio-search` tem budget interno: deadline de 45s, maximo de 5 lookups, `lookupCnpj` com timeout curto e primeira fonte oficial nesse fluxo.
@@ -85,6 +87,34 @@ Last updated: 2026-05-25
 - Preview Scheffer apos aguardar 5 minutos: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/socio-search` achou CNPJs laterais para todos os 6 socios testados; browser renderizou mapa com `Ver evidências (4)`, `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como relacionadas.
 - Licoes aprendidas registradas em `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md`: revisar PRs #279/#280/#285 quando a regressao voltar, validar inventario real e nao apenas label, exigir `validate-prompts.sh` antes de preview.
 - Pendencia pos-hotfix: baixar documentalmente as pendencias antigas de CNPJ/PRs mergeadas e validar/configurar `SUPABASE_SERVICE_ROLE_KEY` para cache persistente server-side de `/api/socio-search`.
+
+#### Revalidacao falha em 2026-05-25
+
+**Commit/PR:** `d743c77`, PR #285
+**Preview:** `https://scoutagro-git-codex-cnpj-soci-4d3068-brunolimaff-3629s-projects.vercel.app`
+**Horario:** 2026-05-25 09:30 -04
+
+- Comentarios da PR lidos: sem review threads inline abertas; Gemini Code Assist sem feedback acionavel; comentario da Vercel apenas informativo; comentarios antigos de validacao agora estao stale.
+- Checks remotos verdes: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments, Smoke Preview.
+- `/api/cnpj?cnpj=04733767000180`: status 200, `SCHEFFER & CIA LTDA`, Sapezal/MT, 6 socios no QSA.
+- `/api/open-web-search` via POST: status 200, `source: OpenWebSearch/DdgDegraded`, `degraded: true`, `providerStatus duckduckgo empty_result`, `contentLength: 0`.
+- `/api/socio-search` via POST para todos os 6 socios: status 200, `companies: 0`, `degraded: true`, `pagesFetched: 0`, `searchFailureCount: 6`, `cacheSource: memory`.
+- Primeira tentativa via GET retornou 405 em `/api/open-web-search` e `/api/socio-search`; isso foi descartado como erro de metodo, porque as rotas reais usam POST.
+
+O que ja foi feito e nao resolveu a profundidade:
+
+- `relationshipScope` separado (`group_link`, `partner_other_cnpj`, `unconfirmed`);
+- CNPJ inferido com `*` e nota obrigatoria no prompt;
+- parser/grafo preservando `validationStatus: pending`, `rawCnpjLabel`, `confidence: weak`;
+- Mermaid tracejado para `unconfirmed`;
+- CNPJ invalido rejeitado;
+- `Cia Ltda` e nomes sem identidade real rejeitados/substituidos;
+- Brave removido do runtime;
+- DuckDuckGo-only implementado;
+- diagnostico `searchFailureCount` vs `searchNoResultCount`;
+- testes locais e checks remotos verdes.
+
+Conclusao: a camada de contrato/anti-alucinacao melhorou, mas a busca real por socio ainda nao entrega fonte textual/CNPJs. Proximo ciclo deve investigar fonte/provedor/cache e endurecer o Smoke Preview para validar inventario nao vazio.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 

@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -217,6 +217,14 @@ Constraint: se no futuro houver demanda por funcionalidade similar, deve ser imp
 ## 2026-05-22 - Sync manual em vez de automatico
 
 Decision: adicionar botao de sync manual no header (`ManualSyncButton.tsx`) com feedback visual real (+N enviados, Baixados N) em vez de sync automatico silencioso. O badge SyncIndicator tambem mudou de "limpar notificacao" para "forcar sync".
+
+## 2026-05-25 - PR #285 exige gate funcional antes de merge
+
+Decision: nao mergear a PR #285 (`codex/cnpj-socios-todos-cnpjs`) enquanto a preview Scheffer retornar `companies: 0` para todos os 6 socios em `/api/socio-search`, mesmo com checks verdes e `mergeStateStatus: CLEAN`.
+
+Reason: a mudanca corrige contrato, parser, grafo, UI e anti-alucinacao, mas ainda nao entrega a promessa de negocio de profundidade de CNPJs por socio. Em 2026-05-25 09:30 -04, `/api/cnpj` retornou 6 socios da Scheffer, porem DuckDuckGo-only retornou `empty_result` e `/api/socio-search` veio degradado com `pagesFetched: 0` e `searchFailureCount: 6` para todos. Check verde e HTTP 200 degradado nao sao evidencia suficiente.
+
+Constraint: o proximo merge dessa trilha precisa de smoke funcional que valide inventario nao vazio ou diagnostico conclusivo. CNPJ inferido so pode aparecer com `*`, `validationStatus: pending` e visual tracejado; CNPJ invalido sem `*` nunca pode parecer oficial.
 
 ## 2026-05-23 - Teia societaria em producao usa Mermaid LR, nao SVG manual
 
