@@ -61,25 +61,66 @@ function sectionHeadingBefore(lines: string[], idx: number): string {
   return '';
 }
 
-function parseRelatedCompanyToken(rawValue: string): { name: string; cnpj: string | null } | null {
+function parseCnpjLabel(rawValue: string): {
+  cnpj: string | null;
+  rawCnpjLabel?: string;
+  validationStatus?: SocietaryCompanyInput['validationStatus'];
+  hasCnpjText: boolean;
+  isInvalidWithoutPendingMarker: boolean;
+} {
+  const cnpjMatch = rawValue.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})(\*)?/);
+  if (!cnpjMatch) {
+    return {
+      cnpj: null,
+      hasCnpjText: false,
+      isInvalidWithoutPendingMarker: false,
+    };
+  }
+
+  const normalized = normalizeCnpj(cnpjMatch[1]);
+  const hasPendingMarker = Boolean(cnpjMatch[2]) || rawValue.includes('*');
+  const isValid = isValidCnpj(normalized);
+  const rawCnpjLabel = `${cnpjMatch[1]}${hasPendingMarker ? '*' : ''}`;
+
+  if (!isValid && !hasPendingMarker) {
+    return {
+      cnpj: null,
+      hasCnpjText: true,
+      isInvalidWithoutPendingMarker: true,
+    };
+  }
+
+  return {
+    cnpj: isValid ? normalized : null,
+    rawCnpjLabel: hasPendingMarker ? rawCnpjLabel : undefined,
+    validationStatus: hasPendingMarker ? 'pending' : undefined,
+    hasCnpjText: true,
+    isInvalidWithoutPendingMarker: false,
+  };
+}
+
+function parseRelatedCompanyToken(rawValue: string): {
+  name: string;
+  cnpj: string | null;
+  rawCnpjLabel?: string;
+  validationStatus?: SocietaryCompanyInput['validationStatus'];
+} | null {
   const value = rawValue.trim().replace(/\.$/, '');
   if (!value) return null;
-  const cnpjMatch = value.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/);
-  const cnpj = normalizeCnpj(cnpjMatch?.[0] || '');
+  const parsedCnpj = parseCnpjLabel(value);
   const name = value
-    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, '')
+    .replace(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})(\*)?/g, '')
     .replace(/[()]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
   if (!name) return null;
-  if (cnpjMatch && !isValidCnpj(cnpj)) return null;
-  return { name, cnpj: isValidCnpj(cnpj) ? cnpj : null };
-}
-
-function extractFirstCnpj(value: string): string {
-  const cnpjMatch = value.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/);
-  const cnpj = normalizeCnpj(cnpjMatch?.[0] || value);
-  return isValidCnpj(cnpj) ? cnpj : '';
+  if (parsedCnpj.isInvalidWithoutPendingMarker) return null;
+  return {
+    name,
+    cnpj: parsedCnpj.cnpj,
+    rawCnpjLabel: parsedCnpj.rawCnpjLabel,
+    validationStatus: parsedCnpj.validationStatus,
+  };
 }
 
 export function parseTeiaText(markdown: string): ParsedTeiaData {
@@ -116,10 +157,15 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       const name = nameCol >= 0 && nameCol < cells.length ? cells[nameCol] : '';
       if (!name || name === '-') continue;
 
-      const normalizedCnpj = extractFirstCnpj(rawCnpj);
+      const parsedCnpj = parseCnpjLabel(rawCnpj);
       const cnpjNote = rawCnpj.trim().toUpperCase();
 
-      if (rawCnpj && cnpjNote !== 'CNPJ NAO CONFIRMADO' && !cnpjNote.startsWith('-') && normalizedCnpj.length !== 14) {
+      if (
+        rawCnpj
+        && cnpjNote !== 'CNPJ NAO CONFIRMADO'
+        && !cnpjNote.startsWith('-')
+        && parsedCnpj.isInvalidWithoutPendingMarker
+      ) {
         warnings.push(`CNPJ invalido ignorado para "${name}": ${rawCnpj}`);
         continue;
       }
@@ -130,17 +176,23 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
 
       const rawConfidence = confiancaCol >= 0 ? cells[confiancaCol] ?? '' : '';
       const partnerName = socioCol >= 0 && socioCol < cells.length ? cells[socioCol]?.trim() || '' : '';
-      const relationshipScope = isOtherCnpjsTable || partnerName ? 'partner_other_cnpj' : 'group_link';
+      const relationshipScope = parsedCnpj.validationStatus === 'pending'
+        ? 'unconfirmed'
+        : isOtherCnpjsTable || partnerName
+          ? 'partner_other_cnpj'
+          : 'group_link';
 
       companies.push({
         name: name.trim(),
-        cnpj: isValidCnpj(normalizedCnpj) ? normalizedCnpj : null,
+        cnpj: parsedCnpj.cnpj,
+        rawCnpjLabel: parsedCnpj.rawCnpjLabel,
         partnerName,
         role: relacaoCol >= 0 ? cells[relacaoCol]?.trim() || undefined : undefined,
         sourceTitle: fonteCol >= 0 ? cells[fonteCol]?.trim() || undefined : undefined,
-        confidence: mapConfidence(rawConfidence),
+        confidence: parsedCnpj.validationStatus === 'pending' ? 'weak' : mapConfidence(rawConfidence),
         evidenceType: mapEvidenceType(rawConfidence),
         relationshipScope,
+        validationStatus: parsedCnpj.validationStatus,
         rootContext: relationshipScope === 'group_link',
       });
     }
@@ -196,17 +248,24 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       const tokens = outrosCnpjsMatch[1]
         .split(',')
         .map(parseRelatedCompanyToken)
-        .filter((token): token is { name: string; cnpj: string | null } => Boolean(token));
+        .filter((token): token is {
+          name: string;
+          cnpj: string | null;
+          rawCnpjLabel?: string;
+          validationStatus?: SocietaryCompanyInput['validationStatus'];
+        } => Boolean(token));
 
       for (const token of tokens) {
         companies.push({
           name: token.name,
           cnpj: token.cnpj,
+          rawCnpjLabel: token.rawCnpjLabel,
           partnerName: extractedPartnerName,
           sourceTitle: 'Gemini — Outros CNPJs do sócio',
-          confidence: token.cnpj ? 'medium' : 'weak',
+          confidence: token.validationStatus === 'pending' ? 'weak' : token.cnpj ? 'medium' : 'weak',
           evidenceType: token.cnpj ? 'registry' : 'web',
-          relationshipScope: 'partner_other_cnpj',
+          relationshipScope: token.validationStatus === 'pending' ? 'unconfirmed' : 'partner_other_cnpj',
+          validationStatus: token.validationStatus,
           rootContext: false,
         });
       }

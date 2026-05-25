@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ## Completed
 
@@ -465,6 +465,17 @@ Last updated: 2026-05-24
   - `npm run typecheck` green.
   - `npm run lint` green.
   - `npm run build` green; permanece warning conhecido de chunks grandes.
+
+### Teia CNPJ pending validation hotfix (PR `#285`, branch `codex/cnpj-socios-todos-cnpjs`)
+
+- Em 2026-05-25, preview da PR `#285` estava verde nos checks, mas falhava funcionalmente: Scheffer `04.733.767/0001-80` retornava 6 sócios em `/api/cnpj` e 0 empresas em `/api/socio-search`, com `degraded: true`, `pagesFetched: 0`, `cacheSource: none`.
+- `prompts/mega/teia-deep.ts` passou a exigir CNPJ oficial sem `*`, CNPJ inferido como `##.###.###/####-##*` e nota obrigatória `* = hipótese a validar, não confirmado em fonte oficial`.
+- `features/dossier/teiaTextParser.ts` preserva CNPJ com `*` como `relationshipScope: unconfirmed`, `validationStatus: pending`, `rawCnpjLabel` e confiança fraca; CNPJ inválido sem `*` continua rejeitado.
+- `features/dossier/societaryGraph.ts` renderiza pendentes com classe Mermaid tracejada (`evidence`), sem `oficial`, sem `group_link` e sem aresta raiz forte; `features/dossier/SocietaryMap.tsx` mantém o `*` no painel de evidências e mostra `Escopo: Validação pendente`.
+- `/api/socio-search` agora diferencia `searchNoResultCount` de `searchFailureCount` e retorna CNPJ textual sem validação oficial como pendente (`rawCnpjLabel` com `*`), não como oficial.
+- Cache de `/api/socio-search` versionado para `v6-pending-cnpj-diagnostics`.
+- Validação local: `npm exec vitest run tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/api-socio-search.test.ts tests/prompts/megaPrompts.test.ts` green (`86` testes); `./scripts/validate-prompts.sh` green (`56` testes); `npm run typecheck` green; `npm run build` green com warning conhecido de chunks grandes.
+- Caveat operacional: `vercel env ls` mostra `BRAVE_SEARCH_API_KEY` em Preview/Production, mas `SUPABASE_SERVICE_ROLE_KEY` apenas em Production e na preview da branch `feat/migration-notice-supabase`; falta configurar a env para Preview geral ou para `codex/cnpj-socios-todos-cnpjs` antes de considerar a preview funcionalmente fechada.
 
 ## Important refs
 

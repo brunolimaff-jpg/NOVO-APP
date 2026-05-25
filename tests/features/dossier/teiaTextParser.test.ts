@@ -124,6 +124,30 @@ describe('teiaTextParser', () => {
     ]));
   });
 
+  it('preserva CNPJ inferido com asterisco como validacao pendente', () => {
+    const parsed = parseTeiaText([
+      '## Outros CNPJs onde o sócio aparece',
+      '',
+      '| Sócio | CNPJ | Razão Social | Fonte | Confiança |',
+      '|-------|------|--------------|-------|-----------|',
+      '| Guilherme Scheffer | 11.222.333/0001-44* | Condomínio Rural X* | Inferida | INFERIDA |',
+    ].join('\n'));
+
+    expect(parsed.warnings).toEqual([]);
+    expect(parsed.companies).toEqual([
+      expect.objectContaining({
+        name: 'Condomínio Rural X*',
+        cnpj: null,
+        rawCnpjLabel: '11.222.333/0001-44*',
+        partnerName: 'Guilherme Scheffer',
+        relationshipScope: 'unconfirmed',
+        validationStatus: 'pending',
+        rootContext: false,
+        confidence: 'weak',
+      }),
+    ]);
+  });
+
   it('nao para na primeira tabela quando a secao de outros CNPJs vem depois da tabela mestre', () => {
     const parsed = parseTeiaText([
       '## Tabela Mestre de CNPJs',

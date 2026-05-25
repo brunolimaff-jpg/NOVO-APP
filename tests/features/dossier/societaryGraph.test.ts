@@ -200,6 +200,45 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_10000000000145');
   });
 
+  it('renderiza CNPJ hipotetico com borda tracejada e sem aresta da raiz', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Condomínio Rural X*',
+          cnpj: null,
+          rawCnpjLabel: '11.222.333/0001-44*',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Inferida',
+          snippet: 'CNPJ citado sem confirmacao oficial.',
+          confidence: 'weak',
+          evidenceType: 'web',
+          relationshipScope: 'unconfirmed',
+          validationStatus: 'pending',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0]).toMatchObject({
+      rawCnpjLabel: '11.222.333/0001-44*',
+      relationshipScope: 'unconfirmed',
+      validationStatus: 'pending',
+      rootLinked: false,
+    });
+    expect(graph.companies[0].badges).toContain('validar');
+    expect(graph.companies[0].badges).not.toContain('oficial');
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(mermaid).toContain('CNPJ 11.222.333/0001-44*');
+    expect(mermaid).toContain('Validação pendente');
+    expect(mermaid).toContain('class company_condominio_rural_x_br evidence;');
+    expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_condominio_rural_x_br');
+    expect(mermaid).not.toContain('Root -- Vínculo ao grupo --> company_condominio_rural_x_br');
+  });
+
   it('rejeita CNPJ com digito verificador invalido antes de renderizar', () => {
     const graph = buildSocietaryGraph({
       root,

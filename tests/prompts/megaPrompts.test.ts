@@ -116,6 +116,8 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Outros CNPJs:**');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('## Outros CNPJs onde o socio aparece');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca |');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('##.###.###/####-##*');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('* = hipótese a validar');
 
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('CNPJ / Tipo');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');

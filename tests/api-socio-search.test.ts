@@ -333,24 +333,39 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledWith('https://consultasocio.com/q/sa/guilherme-m-scheffer', expect.any(Object));
     const payload = response.payload as {
-      companies: Array<{ name: string; cnpj: string; relationshipScope: string; rootContext: boolean }>;
+      companies: Array<{
+        name: string;
+        cnpj: string;
+        rawCnpjLabel?: string;
+        relationshipScope: string;
+        rootContext: boolean;
+        validationStatus?: string;
+      }>;
       diagnostics?: { cnpjsEnriched?: number };
     };
     expect(payload.companies).toHaveLength(6);
     expect(payload.companies).toEqual(expect.arrayContaining(
-      pageCompanies.map(([name, cnpj]) => expect.objectContaining({
+      pageCompanies.slice(0, 5).map(([name, cnpj]) => expect.objectContaining({
         name,
         cnpj: normalizeCnpj(cnpj),
         relationshipScope: 'partner_other_cnpj',
         rootContext: false,
       })),
     ));
+    expect(payload.companies.at(-1)).toMatchObject({
+      name: pageCompanies.at(-1)?.[0],
+      cnpj: normalizeCnpj(pageCompanies.at(-1)?.[1] || ''),
+      rawCnpjLabel: `${pageCompanies.at(-1)?.[1]}*`,
+      relationshipScope: 'unconfirmed',
+      validationStatus: 'pending',
+      rootContext: false,
+    });
     expect(payload.diagnostics).toMatchObject({
       cnpjsEnriched: 5,
     });
   });
 
-  it('extrai varios CNPJs da mesma pagina de perfil do socio e retorna os nao enriquecidos como outro CNPJ do socio', async () => {
+  it('extrai varios CNPJs da mesma pagina de perfil do socio e retorna excedentes sem lookup como pendentes', async () => {
     const profileCnpjs = Array.from({ length: 7 }, (_, index) => formatTestCnpj(buildValidCnpj(index + 10)));
     performWebSearchMock.mockResolvedValueOnce([
       'Título: Guilherme M. Scheffer - Consulta Sócio',
@@ -399,7 +414,14 @@ describe('api/socio-search', () => {
 
     expect(response.statusCode).toBe(200);
     const payload = response.payload as {
-      companies: Array<{ cnpj: string; name: string; relationshipScope: string; rootContext: boolean }>;
+      companies: Array<{
+        cnpj: string;
+        name: string;
+        rawCnpjLabel?: string;
+        relationshipScope: string;
+        rootContext: boolean;
+        validationStatus?: string;
+      }>;
       diagnostics?: { pagesFetched?: number; cnpjsEnriched?: number };
     };
 
@@ -407,10 +429,13 @@ describe('api/socio-search', () => {
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
     expect(payload.diagnostics).toMatchObject({ pagesFetched: 1, cnpjsEnriched: 5 });
     expect(payload.companies.map(company => company.cnpj)).toEqual(profileCnpjs.map(normalizeCnpj));
-    expect(payload.companies.every(company => company.relationshipScope === 'partner_other_cnpj')).toBe(true);
+    expect(payload.companies.slice(0, 5).every(company => company.relationshipScope === 'partner_other_cnpj')).toBe(true);
+    expect(payload.companies.slice(5).every(company => company.relationshipScope === 'unconfirmed')).toBe(true);
+    expect(payload.companies.slice(5).every(company => company.validationStatus === 'pending')).toBe(true);
     expect(payload.companies.every(company => company.rootContext === false)).toBe(true);
     expect(payload.companies.map(company => company.name)).not.toContain('Cia Ltda');
     expect(payload.companies.at(-1)?.name).toBe('Trading Centro LTDA');
+    expect(payload.companies.at(-1)?.rawCnpjLabel).toBe(`${profileCnpjs.at(-1)}*`);
   });
 
   it('substitui nome truncado por fallback de CNPJ quando lookup oficial nao enriquece', async () => {
@@ -442,11 +467,52 @@ describe('api/socio-search', () => {
         expect.objectContaining({
           cnpj: validCnpj,
           name: `Empresa CNPJ ${formattedCnpj}`,
-          relationshipScope: 'partner_other_cnpj',
+          rawCnpjLabel: `${formattedCnpj}*`,
+          relationshipScope: 'unconfirmed',
+          validationStatus: 'pending',
+          confidence: 'weak',
         }),
       ],
     });
     expect(JSON.stringify(response.payload)).not.toContain('"name":"Cia Ltda"');
+  });
+
+  it('retorna CNPJ textual sem validacao oficial como pendente e nao confirmado', async () => {
+    const validCnpj = buildValidCnpj(32);
+    const formattedCnpj = formatTestCnpj(validCnpj);
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      `Resumo: Guilherme M. Scheffer consta no quadro societário de Condominio Rural X CNPJ ${formattedCnpj}.`,
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          cnpj: validCnpj,
+          rawCnpjLabel: `${formattedCnpj}*`,
+          validationStatus: 'pending',
+          relationshipScope: 'unconfirmed',
+          rootContext: false,
+          confidence: 'weak',
+        }),
+      ],
+    });
   });
 
   it('substitui nome oficial truncado por razao inferida do bloco do CNPJ', async () => {
@@ -494,6 +560,35 @@ describe('api/socio-search', () => {
       ],
     });
     expect(JSON.stringify(response.payload)).not.toContain('"name":"Cia Ltda"');
+  });
+
+  it('diagnostica busca sem resultado diferente de falha de busca', async () => {
+    performWebSearchMock
+      .mockResolvedValueOnce('Nenhum resultado encontrado.')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue('Nenhum resultado encontrado.');
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [],
+      degraded: true,
+      diagnostics: expect.objectContaining({
+        searchNoResultCount: 5,
+        searchFailureCount: 1,
+      }),
+    });
   });
 
   it('sinaliza truncamento quando a fonte tem mais CNPJs validos que o limite de retorno', async () => {
@@ -954,7 +1049,7 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
-    expect(upsertBody.id).toContain('socio-search:v5-full-partner-inventory::04733767000180::guilherme m scheffer');
+    expect(upsertBody.id).toContain('socio-search:v6-pending-cnpj-diagnostics::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
@@ -1074,7 +1169,9 @@ describe('api/socio-search', () => {
     expect(performWebSearchMock).toHaveBeenCalledTimes(6);
     expect(response.payload).toMatchObject({
       companies: expect.arrayContaining([
-        expect.objectContaining({ relationshipScope: 'partner_other_cnpj' }),
+        expect.objectContaining({
+          relationshipScope: 'partner_other_cnpj',
+        }),
       ]),
       diagnostics: expect.objectContaining({
         cnpjsEnriched: 5,
@@ -1114,7 +1211,11 @@ describe('api/socio-search', () => {
     expect(performWebSearchMock).toHaveBeenCalledTimes(6);
     expect(response.payload).toMatchObject({
       companies: expect.arrayContaining([
-        expect.objectContaining({ relationshipScope: 'partner_other_cnpj' }),
+        expect.objectContaining({
+          relationshipScope: 'unconfirmed',
+          validationStatus: 'pending',
+          confidence: 'weak',
+        }),
       ]),
       diagnostics: expect.objectContaining({
         totalCnpjsFound: 12,

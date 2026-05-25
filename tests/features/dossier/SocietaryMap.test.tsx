@@ -204,6 +204,57 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
   });
 
+  it('exibe CNPJ hipotetico com asterisco, borda tracejada e validacao pendente', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        companies: [
+          {
+            name: 'Condomínio Rural X*',
+            cnpj: null,
+            rawCnpjLabel: '11.222.333/0001-44*',
+            partnerName: 'Guilherme M. Scheffer',
+            sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+            sourceTitle: 'Consulta Sócio',
+            snippet: 'CNPJ citado sem confirmação oficial.',
+            confidence: 'weak',
+            evidenceType: 'web',
+            rootContext: false,
+            relationshipScope: 'unconfirmed',
+            validationStatus: 'pending',
+          },
+        ],
+        rejected: [],
+        degraded: true,
+        cached: false,
+      }),
+    } as Response);
+
+    render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Condomínio Rural X*'));
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ 11.222.333/0001-44*');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('class company_condominio_rural_x_br evidence;');
+    expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Root -- CNPJ relacionado');
+    fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('CNPJ 11.222.333/0001-44*');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: Validação pendente');
+  });
+
   it('mantem outros CNPJs dos socios na visao Todos e filtra por socio sem mudar o escopo', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',

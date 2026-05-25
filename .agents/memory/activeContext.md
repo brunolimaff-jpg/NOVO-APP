@@ -51,25 +51,26 @@ Branches envolvidas:
 
 ## Current implementation branch
 
-**Branch atual: `codex/cnpj-socios-todos-cnpjs` — hotfix P0 de Teia CNPJ validado em preview.**
+**Branch atual: `codex/cnpj-socios-todos-cnpjs` — hotfix P0 de Teia CNPJ em revisao apos regressao de profundidade em preview.**
 
 Escopo do hotfix:
-- `/api/socio-search` passa a extrair todos os CNPJs validos do perfil do socio, mesmo quando o snippet ja tinha um CNPJ, e retorna excedentes sem lookup oficial como `partner_other_cnpj`.
-- Cache versionado para `v5-full-partner-inventory` para nao reutilizar respostas antigas que escondiam CNPJs ou traziam nomes truncados.
+- `/api/socio-search` passa a extrair todos os CNPJs validos do perfil do socio, mesmo quando o snippet ja tinha um CNPJ, e retorna excedentes sem lookup oficial como CNPJ pendente (`relationshipScope: unconfirmed`, `validationStatus: pending`, `rawCnpjLabel` com `*`), nao como CNPJ oficial.
+- Cache versionado para `v6-pending-cnpj-diagnostics` para nao reutilizar respostas antigas que escondiam CNPJs, traziam nomes truncados ou promoviam CNPJ nao confirmado.
 - Nome oficial truncado como `Cia Ltda` nao entra mais no payload; a API usa razao inferida do bloco do CNPJ ou fallback `Empresa CNPJ ##.###.###/####-##`.
 - Diagnostico explicito de parcialidade: `diagnostics.totalCnpjsFound`, `diagnostics.truncated`, `diagnostics.truncatedReason`; a UI mostra aviso de inventario parcial.
 - `teia-deep` proibe amostragem (`10 mais relevantes`) e exige inventario parseavel, inclusive tabela `Outros CNPJs onde o socio aparece`.
 - `teiaTextParser` le varias tabelas, aceita coluna legada `CNPJ / Tipo` e mapeia tabela de outros CNPJs como `partner_other_cnpj`.
 - `societaryGraph` preserva CNPJs laterais por CNPJ exato, rejeita nomes sem identidade real e rotula `Outro CNPJ do socio` sem aresta raiz -> empresa.
+- CNPJ inferido/não confirmado pode aparecer no dossiê como `##.###.###/####-##*`, mas o parser/grafo/UI tratam como validação pendente, confiança fraca, nó tracejado no Mermaid, sem selo `oficial` e sem aresta forte de grupo.
+- Diagnóstico de busca distingue `searchNoResultCount` de `searchFailureCount`, para separar “sem resultado encontrado” de falha/degradação de busca.
 
 Validacao local ja executada:
-- `./scripts/validate-prompts.sh` verde (54 testes)
+- `./scripts/validate-prompts.sh` verde (56 testes) em 2026-05-25
 - `npm run typecheck` verde
-- `npm run test` verde (128 arquivos, 1083 testes)
-- `npm run lint` verde com 5 warnings preexistentes
+- Recorte Vitest verde em 2026-05-25: `tests/features/dossier/SocietaryMap.test.tsx`, `tests/features/dossier/teiaTextParser.test.ts`, `tests/features/dossier/societaryGraph.test.ts`, `tests/api-socio-search.test.ts`, `tests/prompts/megaPrompts.test.ts` (86 testes)
 - `npm run build` verde com warning conhecido de chunks grandes
-- PR checks remotos verdes apos push `0ba0910`: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke (preview)
-- Preview Scheffer `04.733.767/0001-80` validado apos aguardar Vercel: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/socio-search` encontrou CNPJs laterais para todos os 6 socios testados; browser renderizou `societary-map-shell` com `Ver evidências (4)` e escopo `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como evidencia relacionada.
+- PR checks remotos verdes do commit anterior, mas ainda precisam reexecutar apos push desta correcao.
+- Preview Scheffer `04.733.767/0001-80` mostrou regressao antes desta correcao: `/api/cnpj` retornou 6 socios, mas `/api/socio-search` retornou 0 empresas para todos, `degraded: true`, `pagesFetched: 0`, `cacheSource: none`. A causa operacional ainda inclui env de cache: `SUPABASE_SERVICE_ROLE_KEY` existe em Production e em uma preview de outra branch, nao na preview geral/branch `codex/cnpj-socios-todos-cnpjs`; `BRAVE_SEARCH_API_KEY` existe em Preview e Production.
 
 ## Problemas residuais da sessao
 

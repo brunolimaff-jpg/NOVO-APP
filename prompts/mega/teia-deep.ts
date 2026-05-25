@@ -84,9 +84,12 @@ Liste TODOS OS CNPJs validos encontrados do grupo, com:
 Regras:
 - Nao amostre CNPJs. Se encontrar 32 CNPJs validos, liste 32 linhas individualizadas.
 - Se uma fonte citar um total maior que os CNPJs identificados individualmente, declare como "total indicado pela fonte", nao como "mapeado".
-- CNPJ nao confirmado: escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
+- CNPJ oficial/validado: escreva sem asterisco.
+- CNPJ inferido, textual ou nao confirmado em fonte oficial: pode virar linha, mas DEVE usar asterisco no CNPJ, no formato ##.###.###/####-##*.
+- Adicione nota obrigatoria: "* = hipótese a validar, não confirmado em fonte oficial".
+- Se nao houver nem numero textual, escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
 - CNPJ de fonte oficial (QSA, BrasilAPI): cite a fonte e marque como OFICIAL.
-- CNPJ de busca reversa (consultasocio.com): marque como INFERIDA com nota "validar".
+- CNPJ de busca reversa (consultasocio.com) sem validacao oficial: marque como INFERIDA com asterisco e nota "validar".
 
 PASSO 2 — QSA E PODER SOCIETARIO
 
@@ -104,6 +107,7 @@ Regras:
 - Se socio aparecer em multiplas empresas do grupo, destaque isso como sinal de concentracao de poder
 - Se socio tiver CPF, mantenha apenas os 3 primeiros e 2 ultimos digitos (ex: ***.123.456-**)
 - Alem do resumo por socio, preencha a tabela "Outros CNPJs onde o socio aparece" com cada CNPJ valido encontrado fora do grupo economico confirmado.
+- Quando um CNPJ tiver asterisco, trate a relacao como hipotese visual/pendente; nao use como prova de controle nem de grupo economico.
 
 PASSO 3 — SINAIS DE ENTERPRISE INVISIVEL
 
@@ -173,7 +177,9 @@ Traduza a estrutura societaria em linguagem de venda:
 
 | Socio | CNPJ | Razao Social | Fonte | Confianca |
 |-------|------|--------------|-------|-----------|
-| [socio] | [##.###.###/####-##] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] |
+| [socio] | [##.###.###/####-## ou ##.###.###/####-##*] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] |
+
+* = hipótese a validar, não confirmado em fonte oficial.
 
 ---
 

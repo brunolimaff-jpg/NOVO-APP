@@ -16,6 +16,7 @@ type SocioSearchRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'uncon
 interface SocioSearchCompany {
   name: string;
   cnpj?: string;
+  rawCnpjLabel?: string;
   country?: string;
   partnerName: string;
   sourceUrl: string;
@@ -24,6 +25,7 @@ interface SocioSearchCompany {
   confidence: SocioSearchConfidence;
   evidenceType: SocioSearchEvidenceType;
   relationshipScope: SocioSearchRelationshipScope;
+  validationStatus?: 'official' | 'pending' | 'rejected';
   rootContext: boolean;
   rootCompanyName: string;
   rootCnpj?: string;
@@ -50,6 +52,8 @@ interface SocioSearchDiagnostics {
   rejectedCount: number;
   cnpjsEnriched?: number;
   totalCnpjsFound?: number;
+  searchNoResultCount?: number;
+  searchFailureCount?: number;
   truncated?: boolean;
   truncatedReason?: 'company_limit' | 'deadline';
 }
@@ -82,7 +86,7 @@ const CNPJ_LOOKUP_TIMEOUT_MS = 3_500;
 const MAX_CNPJ_LOOKUPS = 5;
 const MAX_COMPANIES = 60;
 const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
-const CACHE_KEY_VERSION = 'v5-full-partner-inventory';
+const CACHE_KEY_VERSION = 'v6-pending-cnpj-diagnostics';
 const cache = new Map<string, CacheEntry>();
 
 function normalizeText(value: string): string {
@@ -279,6 +283,36 @@ function extractCnpjs(text: string): string[] {
 
 function formatCnpjLabel(cnpj: string): string {
   return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+}
+
+function buildPendingCompanyForCnpj(params: {
+  cnpj: string;
+  title: string;
+  snippet: string;
+  url: string;
+  socioName: string;
+  rootCompanyName: string;
+  rootCnpj: string;
+  sourceDepth: SocioSearchSourceDepth;
+}): SocioSearchCompany {
+  const cnpj = normalizeCnpj(params.cnpj);
+  return {
+    name: inferCompanyNameForCnpj(cnpj, params.title, params.snippet),
+    cnpj,
+    rawCnpjLabel: `${formatCnpjLabel(cnpj)}*`,
+    partnerName: params.socioName,
+    sourceTitle: params.title,
+    sourceUrl: params.url,
+    snippet: params.snippet,
+    confidence: 'weak',
+    evidenceType: 'web',
+    relationshipScope: 'unconfirmed',
+    validationStatus: 'pending',
+    rootContext: false,
+    rootCompanyName: params.rootCompanyName,
+    rootCnpj: normalizeCnpj(params.rootCnpj) || undefined,
+    sourceDepth: params.sourceDepth,
+  };
 }
 
 function cleanInferredCompanyName(value: string): string {
@@ -559,6 +593,8 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
   let pagesFetched = 0;
   let cnpjsEnriched = 0;
   let cnpjLookupAttempts = 0;
+  let searchNoResultCount = 0;
+  let searchFailureCount = 0;
   const cnpjsFound = new Set<string>();
 
   const hasSearchBudget = () => Date.now() - startedAt < SEARCH_DEADLINE_MS;
@@ -586,7 +622,13 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     }
     queriesRun.push(query);
     const content = await performWebSearch(query, { count: 10 });
-    if (!content || /Nenhum resultado encontrado/i.test(content)) {
+    if (!content) {
+      searchFailureCount += 1;
+      degraded = true;
+      continue;
+    }
+    if (/Nenhum resultado encontrado/i.test(content)) {
+      searchNoResultCount += 1;
       degraded = true;
       continue;
     }
@@ -723,19 +765,18 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
 
         enrichedAnyCnpj = true;
         addCompany({
-          name: inferCompanyNameForCnpj(cnpj, block.title, snippet),
-          cnpj,
-          partnerName: params.socioName,
-          sourceTitle: block.title,
-          sourceUrl: block.url,
-          snippet,
-          confidence: evidence.confidence,
-          evidenceType: inferEvidenceType(block.title, snippet, block.url),
-          relationshipScope: scopedRelationship.relationshipScope,
-          rootContext: scopedRelationship.rootContext,
+          ...buildPendingCompanyForCnpj({
+            cnpj,
+            title: block.title,
+            snippet,
+            url: block.url,
+            socioName: params.socioName,
+            rootCompanyName: params.rootCompanyName,
+            rootCnpj: params.rootCnpj,
+            sourceDepth,
+          }),
           rootCompanyName: params.rootCompanyName,
           rootCnpj: rootCnpj || undefined,
-          sourceDepth,
         });
       }
 
@@ -772,6 +813,8 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
       rejectedCount: rejected.length,
       cnpjsEnriched: cnpjsEnriched || undefined,
       totalCnpjsFound: cnpjsFound.size || undefined,
+      searchNoResultCount: searchNoResultCount || undefined,
+      searchFailureCount: searchFailureCount || undefined,
       truncated: truncated || undefined,
       truncatedReason,
     },
