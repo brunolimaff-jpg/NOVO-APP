@@ -692,7 +692,6 @@ export function describeSocietaryCompanyType(company: SocietaryCompany): string 
       ? `Matriz + ${(company.branchCount || 1) - 1} filiais`
       : `${company.branchCount} filiais consolidadas`;
   }
-  if (company.cnpj && !isHeadquartersCnpj(company.cnpj)) return 'Filial operacional';
   if (country && country !== 'BR') return 'Empresa internacional';
   if (
     role.includes('holding')
@@ -706,9 +705,10 @@ export function describeSocietaryCompanyType(company: SocietaryCompany): string 
   if (role.includes('semente')) return 'Sementes';
   if (role.includes('armaz') || role.includes('armazen')) return 'Armazenagem';
   if (role.includes('trading') || role.includes('trade') || role.includes('exporta') || role.includes('importa')) return 'Trading';
-  if (role.includes('filial')) return 'Filial operacional';
   if (role.includes('logistica') || role.includes('transp')) return 'Logistica';
   if (role.includes('bio') || role.includes('industrial')) return 'Industrial';
+  if (company.cnpj && !isHeadquartersCnpj(company.cnpj)) return 'Filial operacional';
+  if (role.includes('filial')) return 'Filial operacional';
   return 'Empresa relacionada';
 }
 

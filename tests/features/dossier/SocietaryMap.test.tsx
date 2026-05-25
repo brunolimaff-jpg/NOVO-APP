@@ -381,88 +381,40 @@ describe('SocietaryMap', () => {
     expect(screen.getByText(/inventario parcial/i)).toBeInTheDocument();
   });
 
-  it('atualiza o mapa incrementalmente enquanto ainda busca outros socios', async () => {
+  it('coleta todos os socios antes de renderizar o mapa de uma vez', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
       city: 'Sapezal',
       state: 'MT',
       qsa: [
-        {
-          name: 'Guilherme M. Scheffer',
-          role: 'Administrador',
-          source: 'BrasilAPI',
-          confidence: 'official',
-        },
-        {
-          name: 'Luciano R. Scheffer',
-          role: 'Socio',
-          source: 'BrasilAPI',
-          confidence: 'official',
-        },
+        { name: 'Guilherme M. Scheffer', role: 'Administrador', source: 'BrasilAPI', confidence: 'official' },
+        { name: 'Luciano R. Scheffer', role: 'Socio', source: 'BrasilAPI', confidence: 'official' },
       ],
-    });
-
-    let resolveSecondSearch: (value: Response) => void = () => undefined;
-    const secondSearchPromise = new Promise<Response>(resolve => {
-      resolveSecondSearch = resolve;
     });
 
     vi.mocked(fetch)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          companies: [
-            {
-              name: 'Scheffer Colombia S.A.S.',
-              country: 'CO',
-              partnerName: 'Guilherme M. Scheffer',
-              sourceUrl: 'https://example.com/colombia',
-              sourceTitle: 'Fonte internacional',
-              snippet: 'Operação internacional conectada ao grupo.',
-              confidence: 'strong',
-              evidenceType: 'institutional',
-              rootContext: true,
-              rootCompanyName: 'Scheffer & Cia Ltda',
-              rootCnpj: '04733767000180',
-            },
-          ],
-          rejected: [],
-          degraded: false,
-          cached: false,
+          companies: [{ name: 'Scheffer Colombia S.A.S.', country: 'CO', partnerName: 'Guilherme M. Scheffer', sourceUrl: 'https://example.com/colombia', sourceTitle: 'Fonte internacional', snippet: 'Operacao internacional', confidence: 'strong', evidenceType: 'institutional', rootContext: true, rootCompanyName: 'Scheffer & Cia Ltda', rootCnpj: '04733767000180' }],
+          rejected: [], degraded: false, cached: false,
         }),
       } as Response)
-      .mockImplementationOnce(() => secondSearchPromise);
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          companies: [{ name: 'Scheffer Participações S/A', partnerName: 'Luciano R. Scheffer', sourceUrl: 'https://example.com/participacoes', sourceTitle: 'Fonte societaria', snippet: 'Luciano R. Scheffer no contexto.', confidence: 'strong', evidenceType: 'registry', rootContext: true, rootCompanyName: 'Scheffer & Cia Ltda', rootCnpj: '04733767000180' }],
+          rejected: [], degraded: false, cached: false,
+        }),
+      } as Response);
 
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
-    expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Scheffer Participações S/A');
-
-    resolveSecondSearch({
-      ok: true,
-      json: async () => ({
-        companies: [
-          {
-            name: 'Scheffer Participações S/A',
-            partnerName: 'Luciano R. Scheffer',
-            sourceUrl: 'https://example.com/participacoes',
-            sourceTitle: 'Fonte societaria',
-            snippet: 'Luciano R. Scheffer e Scheffer & Cia Ltda aparecem no mesmo contexto societario.',
-            confidence: 'strong',
-            evidenceType: 'registry',
-            rootContext: true,
-            rootCompanyName: 'Scheffer & Cia Ltda',
-            rootCnpj: '04733767000180',
-          },
-        ],
-        rejected: [],
-        degraded: false,
-        cached: false,
-      }),
-    } as Response);
-
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A'));
+    await waitFor(() => {
+      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.');
+      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A');
+    });
   });
 
   it('aborta buscas de socios em andamento ao desmontar o mapa', async () => {

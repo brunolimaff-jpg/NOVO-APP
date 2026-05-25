@@ -201,13 +201,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     const controller = new AbortController();
 
     async function loadAllPartners() {
+      const collected: Record<string, SocietaryCompanyInput[]> = {};
+      let truncatedNotice: string | null = null;
+      let degradedNotice: string | null = null;
+
       for (const partner of rootData!.partners) {
         if (cancelled) return;
         const partnerKey = normalizePartnerKey(partner.name);
         if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
 
         loadingPartnerKeysRef.current[partnerKey] = true;
-        setLoadingPartnerKey(partnerKey);
 
         try {
           const response = await fetch('/api/socio-search', {
@@ -223,12 +226,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
 
           if (!cancelled) {
-            setCompaniesByPartner(prev => ({ ...prev, [partnerKey]: payload.companies || [] }));
+            collected[partnerKey] = payload.companies || [];
             searchedPartnerKeysRef.current[partnerKey] = true;
             if (payload.diagnostics?.truncated) {
-              setNotice('Busca societaria retornou inventario parcial; valide fontes para CNPJs adicionais.');
+              truncatedNotice = 'Busca societaria retornou inventario parcial; valide fontes para CNPJs adicionais.';
             } else if (payload.degraded && payload.companies?.length === 0) {
-              setNotice('Busca societaria degradada; mapa usa dados parciais.');
+              degradedNotice = 'Busca societaria degradada; mapa usa dados parciais.';
             }
           }
         } catch {
@@ -241,7 +244,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       }
 
       if (!cancelled) {
+        setCompaniesByPartner(collected);
         setLoadingPartnerKey(null);
+        if (truncatedNotice) setNotice(truncatedNotice);
+        else if (degradedNotice) setNotice(degradedNotice);
       }
     }
 
