@@ -295,7 +295,7 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].badges).not.toContain('outro CNPJ do sócio');
   });
 
-  it('mostra empresas Gemini sem sócio como ligadas à raiz', () => {
+  it('rejeita empresas Gemini sem CNPJ valido para nao criar no visual por inferencia textual', () => {
     const graph = buildSocietaryGraph({
       root,
       partners,
@@ -306,19 +306,18 @@ describe('societaryGraph', () => {
         country: 'CO',
         partnerName: '',
         sourceTitle: 'Gemini — Internacional',
-        confidence: 'weak',
+        confidence: 'strong',
         evidenceType: 'web',
         rootContext: true,
       },
     ]);
 
-    expect(graph.companies).toHaveLength(1);
-    expect(graph.companies[0].partnerIds).toEqual([]);
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies).toHaveLength(1);
+    expect(graph.rejectedCompanies[0].reason).toMatch(/CNPJ valido/i);
 
     const mermaid = buildSocietaryMermaid(graph);
-    expect(mermaid).toContain('Scheffer Colombia S.A.S.');
-    expect(mermaid).toContain('Root -- Vínculo ao grupo --> company_scheffer_colombia_s_a_s');
-    expect(mermaid).not.toContain('Ligada ao grupo raiz');
+    expect(mermaid).not.toContain('Scheffer Colombia S.A.S.');
   });
 
   it('mostra tipo Trading por nome ou papel sem depender de flag trade', () => {
@@ -490,7 +489,7 @@ describe('societaryGraph', () => {
     expect(allMermaid).toContain('Empresa Raiz Sem Socio LTDA');
   });
 
-  it('consolida filiais no bloco da matriz com contagem de CNPJs', () => {
+  it('nao renderiza matriz ou filiais da propria raiz como empresas relacionadas', () => {
     const adminPartners = [
       {
         id: 'gilliard',
@@ -550,27 +549,48 @@ describe('societaryGraph', () => {
       ],
     });
 
-    expect(graph.companies).toHaveLength(1);
-    expect(graph.companies[0].cnpj).toBe('04733767000180');
-    expect(graph.companies[0].branchCount).toBe(3);
-    expect(graph.companies[0].partnerIds.sort()).toEqual(['elizeu', 'gilliard']);
-    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Matriz + 2 filiais');
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies).toHaveLength(3);
+    expect(graph.rejectedCompanies.every(item => /propria matriz|filial da raiz/i.test(item.reason))).toBe(true);
 
     const mermaid = buildSocietaryMermaid(graph);
 
-    expect(mermaid).toContain('company_04733767000180');
-    expect(mermaid).toContain('Agropecuária Scheffer LTDA');
-    expect(mermaid).toContain('Sócio-Administrador Elizeu/Gilliard');
+    expect(mermaid).toContain('Root["<b>Scheffer &amp; Cia Ltda</b>');
+    expect(mermaid).not.toContain('company_04733767000180');
     expect(mermaid).not.toContain('company_04733767002396');
     expect(mermaid).not.toContain('company_04733767001403');
+    expect(mermaid).not.toContain('Agropecuária Scheffer LTDA');
     expect(mermaid).not.toContain('Sapezal');
     expect(mermaid).not.toContain('Cuiabá');
     expect(mermaid).not.toContain('CNPJs do mesmo radical');
-    expect(mermaid).toContain('Matriz + 2 filiais');
+    expect(mermaid).not.toContain('Matriz + 2 filiais');
     expect(mermaid).not.toContain('Empresa vinculada no QSA');
     expect(mermaid).not.toContain('AGROPECUARIA SCHEFFER');
     expect(mermaid).not.toContain('04.733.767/0023-96');
     expect(mermaid).not.toContain('04.733.767/0014-03');
+  });
+
+  it('rejeita Gemini que tenta recriar a propria raiz como outro CNPJ do socio', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [],
+    }, [
+      {
+        name: 'Scheffer & Cia LTDA',
+        cnpj: '04.733.767/0001-80',
+        partnerName: 'Guilherme M. Scheffer',
+        sourceTitle: 'Gemini — Outros CNPJs do sócio',
+        confidence: 'medium',
+        evidenceType: 'registry',
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      },
+    ]);
+
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies).toHaveLength(1);
+    expect(graph.rejectedCompanies[0].reason).toMatch(/propria matriz|filial da raiz/i);
   });
 
   it('formata CNPJ e descreve tipo de empresa para exibicao', () => {
