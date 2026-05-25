@@ -159,6 +159,42 @@ function filterSourcesForSection(
   );
 }
 
+function stripUnsafeSocietarySections(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const output: string[] = [];
+  let skippingLevel: number | null = null;
+
+  for (const line of lines) {
+    const normalizedLine = normalizeFeedbackSectionTitle(line);
+    if (/^\s*[-*]?\s*(?:\*\*)?outros cnpjs(?:\*\*)?\s*:/i.test(normalizedLine)) {
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const normalizedTitle = normalizeFeedbackSectionTitle(heading[2]);
+
+      if (skippingLevel !== null && level <= skippingLevel) {
+        skippingLevel = null;
+      }
+
+      if (
+        normalizedTitle.includes('outros cnpjs onde o socio aparece')
+        || normalizedTitle.includes('alertas de validacao societaria')
+      ) {
+        skippingLevel = level;
+        continue;
+      }
+    }
+
+    if (skippingLevel !== null) continue;
+    output.push(line);
+  }
+
+  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId,
@@ -175,7 +211,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const content = message.text || "";
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
-  const sections = useMemo(() => parseMarkdownSections(cleanText), [cleanText]);
+  const displayText = useMemo(() => stripUnsafeSocietarySections(cleanText), [cleanText]);
+  const sections = useMemo(() => parseMarkdownSections(displayText), [displayText]);
 
   const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
   const societaryMapSectionIndex = useMemo(
@@ -208,18 +245,18 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   };
 
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
-  const showCopyButton = cleanText.length > 300;
+  const showCopyButton = displayText.length > 300;
 
-  if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(cleanText)) {
+  if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(displayText)) {
     return (
       <div className="flex min-w-0 flex-col gap-2">
         {showCopyButton && (
           <div className="relative h-0">
-            <CopyButton text={cleanText} isDarkMode={isDarkMode} />
+            <CopyButton text={displayText} isDarkMode={isDarkMode} />
           </div>
         )}
         <MarkdownRenderer
-          content={cleanText}
+          content={displayText}
           isDarkMode={isDarkMode}
           groundingSources={message.groundingSources}
           auditableSources={auditableSources}
@@ -240,7 +277,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     <div className="sectional-message space-y-4">
       {showCopyButton && (
         <div className="relative flex justify-end mb-1">
-          <CopyButton text={cleanText} isDarkMode={isDarkMode} />
+          <CopyButton text={displayText} isDarkMode={isDarkMode} />
         </div>
       )}
 
@@ -249,10 +286,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
         const isPrimaryModule = section.level === 1 && section.kind === 'module';
 
-        const sectionSources = useMemo(
-          () => filterSourcesForSection(auditableSources, section.content),
-          [auditableSources, section.content],
-        );
+        const sectionSources = filterSourcesForSection(auditableSources, section.content);
 
         const framedClass = sellerSectionClass || (
           isPrimaryModule

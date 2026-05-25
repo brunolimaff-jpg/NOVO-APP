@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ## Current operating context
 
@@ -18,69 +18,146 @@ Read order:
 
 ## Current operating phase
 
-**Sessao de consolidacao de prompts + correcao de anti-alucinacao CONCLUIDA em 2026-05-24.**
+**Branch: `codex/inline-links-auditaveis` — PR #285 foi mergeada em `main` (`ed5c825`). A sessao atual valida e corrige a PR #286 sobre links inline auditaveis.**
 
-Branches envolvidas:
-- `codex/prompt-consolidation-v6` (PR #282) — consolidacao de prompts, correcao de regressao, anti-fabrication
-- `fix/war-room-rag-antialucinacao` — anti-alucinacao para war room e RAG
-- PR #283 — unificacao das duas branches anteriores
+### Atualizacao 2026-05-25 17:35 — pos-merge da #285 e validacao da #286
 
-### Fases executadas:
+- PR #285 mergeada por squash em `main`: `ed5c825 feat: show partner CNPJs in societary map (#285)`.
+- PR #286 era a unica PR aberta restante.
+- Pendencias encontradas na #286: 3 threads do Gemini Code Assist e falha no job `Tests` por snapshot de prompt desatualizado.
+- Correcoes aplicadas na #286: remover `useMemo` dentro de `map`, preservar titulo quando URL falsa e descartada, deduplicar fontes com URL normalizada e atualizar golden de prompts.
+- Validacao local da #286: recortes, `validate-prompts.sh`, `typecheck`, `npm run test`, `npm run build` e `npm run lint` passam; lint mantem 5 warnings preexistentes.
 
-**Fase 1 — Diagnostico com 4 agentes em paralelo:**
-- Debugger: A2 feeds ignorados, decimal quebra parsing, output_contract conflitante com especialistas
-- RAG-Gemini: temperature nao passada (API default 1.0), recomendou 0.1 + system instruction separada
-- UI-UX: 18 gatilhos repetidos no dossier, abordagem comercial diluida
-- Explore: waterfall repete foundation 7-9x (~109K tokens), golden dossier 452 linhas
+### Atualizacao 2026-05-25 17:05 — fechamento documental da Teia
 
-**Fase 2 — Consolidacao:**
-- 5 blocos de traducao -> 1 (`SHARED_COMMERCIAL_INTELLIGENCE_ENGINE`)
-- `MASTER_INVESTIGATION_ORCHESTRATOR_V5` removido -> REGRESSAO no mapa societario -> RESTAURADO
-- `PROMPT_CAMINHO_DE_VENDA` criado como novo modulo
-- Contrato de output V2: modulos sem gatilhos individuais
-- Mermaid classDef removido dos especialistas
+- PR #285 esta `CLEAN` no GitHub com checks remotos verdes.
+- Fonte atual do fechamento: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+- Nenhum P0 conhecido continua bloqueando a #285 depois da validacao por proxy/local.
+- Pendencias principais apos merge: validar PR #286, configurar cache persistente com `SUPABASE_SERVICE_ROLE_KEY`, criar smoke de preview mais forte e planejar reestruturacao da Teia como modulo de dominio.
 
-**Fase 3 — Anti-alucinacao:**
-- `<anti_fabrication_rules>`, `<refusal_protocol>`, `<evidence_scope_protocol>`, `<fact_vs_inference_examples>`
-- Temperature 0.1 em `proxyChatSendMessage`
-- Queries de bioinsumos, mineracao, mercado de capitais
+### Atualizacao 2026-05-25 16:45 — limpeza visual final da Teia
 
-**Fase 4 — Bug do Mapeamento:**
-- CAMINHO DE VENDA mapeado para `PROMPT_RH_SINDICATOS_GOD_MODE` (prompt de RH/SST!) no waterfall-orchestrator.ts
-- Corrigido para `PROMPT_CAMINHO_DE_VENDA`
+- Matriz societaria removeu a coluna/badge visual `CNPJ lateral do socio`; agora exibe `EMPRESA`, `CNPJ`, `CNAE` e colunas de socios.
+- `Tabela` e `Grafo` usam os mesmos nomes curtos de socios (`Gilliard`, `Elizeu`, `Guilherme`, `Gislayne`, `Scheffer`, `Carolina`).
+- Renderer remove da mensagem exibida e do copiar:
+  - secao `Outros CNPJs onde o socio aparece`;
+  - linha textual `Outros CNPJs:`;
+  - secao `Alertas de validacao societaria`;
+  - texto `Vinculo do socio; grupo nao confirmado`.
+- `/api/socio-search` teve cache versionado para `v7-structured-lateral-cnpj` para escapar do cache persistente antigo.
+- `.env.local` local aponta o proxy Vite para a preview da PR, inclui `VERCEL_AUTOMATION_BYPASS_SECRET` sem versionar segredo, e continua ignorado pelo Git.
+- Validacao local: recorte Vitest da teia `88` testes, `validate-prompts.sh` `59` testes, `typecheck`, `lint` com 5 warnings preexistentes, `build`.
+- Browser local `http://127.0.0.1:3000/`: DOM confirmou que a matriz nao mostra `Relação`, `CNPJ lateral do socio`, `Outros CNPJs`, `Alertas` nem `Vinculo...`; depois de alternar `Grafo -> Tabela`, a matriz exibiu `18` CNPJs laterais.
+- API via proxy local apos deploy da PR: `GUILHERME MOGNON SCHEFFER` retornou `15` empresas, `5` rejeitadas, `degraded: false`; amostra com `partner_other_cnpj` e `rootContext: false`.
 
-## Current implementation branch
+### Atualizacao 2026-05-25 16:01 — Achado P0 Teia CNPJ
 
-**Sessao adicional: automacao de validacao E2E (Scripts + Playwright + curl).**
+- QSA oficial / CNPJ Aberto confirma `socio -> CNPJ`, nao `CNPJ -> grupo`.
+- `partner_other_cnpj` deve aparecer como `CNPJ lateral do socio`, com `rootContext: false`.
+- Proibido chamar lateral de `Proprias`, `Side business`, `veiculo operacional`, bioinsumos, verticalizacao, enterprise ou wedge Senior.
+- Fonte principal do contexto: `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
+- Historico diario append-only: `docs/obsidian/daily/INDEX.md`.
+- Gates locais verdes: `validate-prompts.sh`, recorte Vitest da teia (91 testes), `typecheck`, `lint` e `build`.
 
-Arquivos criados:
-- `tests-e2e/cnpj-investigation-flow.spec.ts` — teste Playwright E2E: CNPJ Scheffer, lookup BrasilAPI, investigacao Gemini, assercao de resposta > 50 chars, rejeicao de CNPJ invalido
-- `scripts/validate-preview.sh` — script curl: health check GET /, CNPJ lookup GET /api/cnpj, validacao JSON (companyName/city/state/cnae), print PASS/FAIL colorido
+> O snapshot abaixo sobre CNPJ Aberto/SocietaryMatrix preserva o estado anterior da PR #285. Nao usar como liberacao de merge sem validar o P0.
 
-Arquivos alterados:
-- `package.json` — scripts `test:e2e:cnpj` e `validate:preview`
-- `playwright.config.ts` — suporte a `BASE_URL` env var, salta webServer quando URL externa, timeout 180s
+### Resumo do que foi feito nesta sessao
 
-Arquivos alterados anteriormente nesta sessao:
-- `prompts/megaPrompts.ts` — consolidacao, anti-fabrication, correcao de exports
-- `prompts/mega/foundation.ts` — blocos de traducao unificados
-- `prompts/mega/builders.ts` — PROMPT_CAMINHO_DE_VENDA
-- `prompts/mega/specialist-prompts.ts` — classDef removido, anti-fabrication
-- `tests/prompts/megaPrompts.test.ts` — testes atualizados
-- `services/storage.ts` — ajustes de teste
-- `tests/services/storage.test.ts` — testes atualizados
+#### CNPJ Aberto API (resolve o bug principal da PR #285)
+- Integracao com [CNPJ Aberto](https://cnpjaberto.com.br) — API gratuita (1000 queries/dia)
+- Endpoint: `GET /api/socio/empresas?nome={name}&limit=50`
+- Env var: `CNPJABERTO_API_KEY` configurada na Vercel preview
+- `searchCnpjAberto()` em `utils/documentExtractor.ts` (linhas 324-381)
+- Pipeline atualizado em `api/socio-search.ts`: CNPJ Aberto como primeira fonte
 
-## Problemas residuais da sessao
+#### SocietaryMatrix (Tabela Societaria)
+- **Novo:** `features/dossier/SocietaryMatrix.tsx` (376 linhas) — tabela completa com filtros
+- **Novo:** `features/dossier/societaryCategories.ts` (~60 linhas) — classificacao de empresas
+- **Modificado:** `features/dossier/SocietaryMap.tsx` — toggle Tabela | Grafo, CNAE enrichment
+- **Tests:** `tests/features/dossier/SocietaryMap.test.tsx` atualizados
+
+#### Funcionalidades da tabela
+- 5 colunas: Empresa | Grupo | CNPJ | CNAE | dots de socios
+- Categorias: Estrategico (3+), Operacoes (2), Proprias (1)
+- Filtros: categoria (AND) + socio (AND)
+- CNAE enrichment: batch de 5, fire-and-forget
+- Dots com significado visual (preenchido/tracejado/vazio)
+- Dark mode
+- Empresas inativas excluidas
+
+#### Mockup validation
+- `mockups-mermaid.html` validado com usuario
+- 16 empresas ativas para Scheffer em 5 socios
+
+### Pipeline de busca atual
+
+```
+/api/socio-search (runSearch)
+  |
+  +-> searchCnpjAberto(socioName)              [Primaria: CNPJ Aberto API, funciona local + Vercel]
+  |
+  +-> searchConsultasocioDirect(socioName)      [Fallback 1: funciona local, BLOQUEIA Vercel]
+  |
+  +-> performGeminiSearch(query, apiKey)         [Fallback 2: Gemini URL-only + scrape]
+  |
+  +-> performDuckDuckGoSearch(query)             [Fallback 3: pode retornar empty_result na Vercel]
+```
+
+- **CNPJ Aberto**: Funciona em ambos ambientes (local e Vercel). Primeira tentativa.
+- **consultasocio.com**: Fallback quando CNPJ Aberto retorna vazio. Funciona local, bloqueia Vercel.
+- **Gemini Search v2**: Fallback secundario. URL discovery + scrape direto. Zero alucinacao.
+- **DuckDuckGo Lite**: Fallback final. Gratuito, pode retornar `empty_result` na Vercel.
+
+### Estado dos ambientes
+
+| Ambiente | Pipeline de busca | Status |
+|----------|-------------------|--------|
+| Local | CNPJ Aberto → consultasocio → Gemini → DDG | OK |
+| Vercel Preview | CNPJ Aberto → Gemini → DDG (consultasocio bloqueia) | Deploy buildando |
+| Producao (futuro) | CNPJ Aberto → Gemini → DDG | Depende de env vars |
+
+### Dependencias de configuracao
+
+1. `CNPJABERTO_API_KEY` — Configurada na Vercel preview. Necessaria para CNPJ Aberto funcionar.
+2. `GEMINI_API_KEY` — Necessaria para Gemini Search Grounding (fallback).
+3. `SUPABASE_SERVICE_ROLE_KEY` — Necessaria para cache persistente. Nao configurada.
+
+### Arquivos alterados nesta sessao (diff 6d49b28..2e1e986)
+
+- `features/dossier/SocietaryMatrix.tsx` — NOVO (376 linhas)
+- `features/dossier/societaryCategories.ts` — NOVO (~60 linhas)
+- `features/dossier/SocietaryMap.tsx` — toggle Tabela | Grafo, CNAE enrichment
+- `utils/documentExtractor.ts` — `searchCnpjAberto()` (linhas 324-381)
+- `api/socio-search.ts` — CNPJ Aberto como primeira fonte
+- `components/GreetingWelcomeScreen.tsx` — email autocomplete do IndexedDB
+- `tests/features/dossier/SocietaryMap.test.tsx` — clique "Grafo" antes de testes Mermaid
+- `tests/api-socio-search.test.ts` — `searchFailureCount: 2 → 3`
+
+### Validacao local executada
+
+- `npm run typecheck` — verde
+- `npm run test` — verde (128 arquivos, 1086 testes)
+- `npm run lint` — verde
+- `npm run build` — verde (preview buildando na Vercel)
+
+### Problemas residuais
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| P1 | CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout | features/dossier/teia-deep |
-| P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
+| P1 | Validar PR #286 depois do merge da #285 | GitHub / narrativa inline |
+| P1 | Heuristica de side business pode precisar refinamento com dados reais de outras empresas | features/dossier/societaryCategories.ts |
+| P1 | `SUPABASE_SERVICE_ROLE_KEY` nao configurada na Preview — cache persistente indisponivel | Vercel env / Supabase |
+| P1 | Smoke de preview deve falhar quando todos os socios retornarem `companies: 0` ou payload degradado sem inventario util | scripts / GitHub Actions |
+| P1 | Reestruturar Teia CNPJ como boundary de dominio unico | api + features/dossier + prompts |
+| P2 | Ordenacao por coluna na tabela — futura iteracao | SocietaryMatrix.tsx |
+| P2 | Clique na linha → expandir detalhes de evidencia — futura iteracao | SocietaryMatrix.tsx |
+| P2 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
 | P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Abrir/validar PR da branch `codex/teia-societaria-tipo5`.
-2. Configurar no Vercel `SUPABASE_SERVICE_ROLE_KEY` para `/api/socio-search`.
-3. Resolver problemas residuais P1 e P2 acima.
-4. Mergear branches pendentes: `codex/standardize-mermaid-maps`, PR `#270`, PR `#266`.
+1. Subir este fechamento documental na PR #285.
+2. Mergear PR #285 quando checks ficarem verdes.
+3. Validar PR #286 com `gh-resolve-pr-comments` e checar pendencias/checks.
+4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente.
+5. Planejar a reestruturacao da Teia CNPJ como proximo ciclo.

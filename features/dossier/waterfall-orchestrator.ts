@@ -640,13 +640,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
-        return warnings.length > 0
-          ? [
-            validatedText,
-            '### Alertas de validação societária',
-            ...warnings.map(warning => `- ${warning}`),
-          ].join('\n\n')
-          : validatedText;
+        return validatedText;
       };
 
       if (isFirstInteraction) {

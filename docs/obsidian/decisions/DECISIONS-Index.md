@@ -49,9 +49,13 @@ Voltar para [[00-MASTER]].
 
 ## Decisoes recentes
 
+- [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]] — 2026-05-25 — fechamento da PR #285, validações finais, lições aprendidas e pendências de reestruturação
+- [[ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25]] — 2026-05-25 — QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo; decisao duravel da Teia CNPJ
 - [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints
 - [[TEIA-SOCIETARIA-ENRIQUECIMENTO]] — 2026-05-23 — Componente visual de estrutura societaria com drill-down
 - [[UX-REDESIGN-DIREÇÕES]] — 2026-05-23 — Redesenho UX do Scout 360 (direcao Paper Executivo, caminho C)
+- [[LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24]] — 2026-05-24 — Licoes do hotfix P0 da Teia CNPJ e PRs #279/#280/#285
+- [[HANDOFF-TEIA-CNPJ-2026-05-25]] — 2026-05-25 — Handoff consolidado da PR #285; marca o snapshot `9d1448c` como status anterior e registra CNPJ pendente com `*` + DuckDuckGo-only
 
 ## Como usar esta nota
 

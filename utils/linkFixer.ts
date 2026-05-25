@@ -4,8 +4,38 @@
  */
 
 import { findSeniorProductUrl, isFakeUrl, FAKE_DOMAINS } from '../services/apiConfig';
+import { normalizeSourceUrl } from './textCleaners';
 
 const MARKDOWN_HTTP_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const HTML_HREF_REGEX = /href=["'](https?:\/\/[^"']+)["']/gi;
+const STANDALONE_HTTP_URL_REGEX = /https?:\/\/[^\s<>)]+/gi;
+
+function addNormalizedUrl(urls: Set<string>, url: string): void {
+  const normalized = normalizeSourceUrl(url);
+  if (normalized) urls.add(normalized);
+}
+
+function collectInlineUrls(text: string): Set<string> {
+  const urls = new Set<string>();
+  let match: RegExpExecArray | null;
+
+  MARKDOWN_HTTP_LINK_REGEX.lastIndex = 0;
+  while ((match = MARKDOWN_HTTP_LINK_REGEX.exec(text)) !== null) {
+    addNormalizedUrl(urls, match[2]);
+  }
+
+  HTML_HREF_REGEX.lastIndex = 0;
+  while ((match = HTML_HREF_REGEX.exec(text)) !== null) {
+    addNormalizedUrl(urls, match[1]);
+  }
+
+  STANDALONE_HTTP_URL_REGEX.lastIndex = 0;
+  while ((match = STANDALONE_HTTP_URL_REGEX.exec(text)) !== null) {
+    addNormalizedUrl(urls, match[0]);
+  }
+
+  return urls;
+}
 
 /**
  * Corrige links no texto MARKDOWN (antes de renderizar)
@@ -86,13 +116,8 @@ export function deduplicateSourcesBlock(text: string): string {
   const sourcesBlock = sourcesMatch[1];
   const lines = sourcesBlock.split('\n');
 
-  // 2. Coleta todas as URLs inline do corpo do texto (antes do bloco "Fontes")
-  const inlineUrls = new Set<string>();
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
-  let linkMatch: RegExpExecArray | null;
-  while ((linkMatch = linkRegex.exec(bodyText)) !== null) {
-    inlineUrls.add(linkMatch[2].trim());
-  }
+  // 2. Coleta URLs inline do corpo, incluindo markdown, HTML e URLs puras.
+  const inlineUrls = collectInlineUrls(bodyText);
 
   // 3. Processa cada linha do bloco de fontes
   const cleanedLines: string[] = [];
@@ -103,10 +128,14 @@ export function deduplicateSourcesBlock(text: string): string {
       const url = urlMatch[1];
       // Remove linhas com URLs comprovadamente falsas (FAKE_DOMAINS)
       if (isFakeUrl(url)) {
+        const titleMatch = line.match(/^\s*\[?\^?\d*\]?\s*[-–—:"]?\s*(.+?)(?:\s*\(|\s*https?:\/\/)/);
+        if (titleMatch && titleMatch[1] && titleMatch[1].trim().length > 3) {
+          cleanedLines.push(line.replace(url, '').replace(/[()]/g, '').trim());
+        }
         continue;
       }
       // Remove linhas cuja URL já apareceu inline no corpo do texto
-      if (inlineUrls.has(url)) {
+      if (inlineUrls.has(normalizeSourceUrl(url))) {
         continue;
       }
     }
