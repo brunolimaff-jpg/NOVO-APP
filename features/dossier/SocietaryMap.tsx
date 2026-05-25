@@ -68,7 +68,7 @@ function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGrap
 }
 
 function describeRelationshipScope(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'partner_other_cnpj') return 'Outro CNPJ do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
   return 'Empresa do grupo';
 }
@@ -375,7 +375,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             </button>
           </div>
         </div>
-        {graph?.partners.length ? (
+        {viewMode === 'mermaid' && graph?.partners.length ? (
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"

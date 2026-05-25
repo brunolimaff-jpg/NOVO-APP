@@ -10,7 +10,7 @@ export type SocietaryBadge =
   | 'internacional'
   | 'estimado'
   | 'validar'
-  | 'outro CNPJ do sócio'
+  | 'CNPJ lateral do sócio'
   | 'validar grupo';
 
 export interface SocietaryRootInput {
@@ -418,7 +418,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
 
   if (company.partnerIds.length > 1) badges.add('empresa em comum');
   if (company.relationshipScope === 'partner_other_cnpj') {
-    badges.add('outro CNPJ do sócio');
+    badges.add('CNPJ lateral do sócio');
     badges.add('validar grupo');
   }
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') {
@@ -430,11 +430,8 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
   if (
     (company.evidenceType === 'registry' || company.evidenceType === 'qsa')
     && company.relationshipScope !== 'unconfirmed'
+    && company.relationshipScope !== 'partner_other_cnpj'
     && company.validationStatus !== 'pending'
-    && (
-      company.relationshipScope !== 'partner_other_cnpj'
-      || (company.confidence === 'strong' && company.evidenceType === 'qsa')
-    )
   ) badges.add('oficial');
   if (company.confidence === 'weak' || company.confidence === 'medium') badges.add('validar');
 
@@ -478,7 +475,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
 
     if (relationshipScope === 'partner_other_cnpj' && !partner) {
-      rejectedCompanies.push({ input: company, reason: 'Outro CNPJ do socio sem socio confirmado para conectar empresa.' });
+      rejectedCompanies.push({ input: company, reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.' });
       continue;
     }
 
@@ -585,7 +582,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       const relationshipScope = geminiCandidate.relationshipScope || 'group_link';
       const partner = partnerByName.get(normalizeText(geminiCandidate.partnerName || ''));
       if (relationshipScope === 'partner_other_cnpj' && !partner) {
-        rejectedCompanies.push({ input: geminiCandidate, reason: 'Outro CNPJ do socio sem socio confirmado para conectar empresa.' });
+        rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.' });
         continue;
       }
 
@@ -684,7 +681,7 @@ function partnerLabel(partner: SocietaryPartner): string {
 
 export function describeSocietaryCompanyType(company: SocietaryCompany): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'Outro CNPJ do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
   const role = normalizeText(`${company.role || ''} ${company.name}`);
   const country = (company.country || 'BR').toUpperCase();
   if ((company.branchCount || 0) > 1) {
@@ -763,7 +760,7 @@ function rootToCompanyEdgeLabel(company: SocietaryCompany, root: SocietaryGraph[
 
 function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validar CNPJ';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'Outro CNPJ do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
   if (normalizedRole.includes('administrador')) return 'Administra CNPJ';
@@ -793,6 +790,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     '  classDef partner fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#3b0764;',
     '  classDef selected fill:#ede9fe,stroke:#6d28d9,stroke-width:2.5px,color:#2e1065;',
     '  classDef company fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#064e3b;',
+    '  classDef lateral fill:#fff7ed,stroke:#f59e0b,stroke-width:2px,stroke-dasharray:4 4,color:#7c2d12;',
     '  classDef international fill:#eef2ff,stroke:#4f46e5,stroke-width:2.5px,color:#312e81;',
     '  classDef evidence fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,color:#475569;',
     '',
@@ -834,9 +832,11 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   for (const company of visibleCompanies) {
     const className = company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending'
       ? 'evidence'
-      : company.badges.includes('internacional')
-        ? 'international'
-        : 'company';
+      : company.relationshipScope === 'partner_other_cnpj'
+        ? 'lateral'
+        : company.badges.includes('internacional')
+          ? 'international'
+          : 'company';
     lines.push(`  class ${company.id} ${className};`);
   }
   const nonEmptyEdgeStyles = edgeStyles.filter(Boolean);

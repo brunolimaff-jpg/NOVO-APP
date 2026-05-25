@@ -4,6 +4,22 @@ Last updated: 2026-05-25
 
 ## Completed
 
+### Achado P0 Teia CNPJ + contrato lateral (2026-05-25 16:01)
+
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285 ainda aberta e funcionalmente bloqueada ate preview validar o P0.
+
+**Decisao:** CNPJ Aberto/QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`. CNPJs sem prova independente de grupo ficam como `partner_other_cnpj` / `CNPJ lateral do socio`.
+
+**Mudancas aplicadas:**
+- API: CNPJ Aberto entra por contrato estruturado (`sourceProvider: cnpj_aberto`, `evidenceBasis: official_qsa_owner_search`, `claimType: socio_participation`, `rootRelationStatus: not_supported`, `operationalThesisAllowed: false`).
+- Parser: `QSA Oficial | OFICIAL` em `Outros CNPJs` permanece lateral.
+- UI: tabela separa `CNPJs laterais`, nao usa `Proprias`/`Side business` para lateral e nao duplica filtros externos na visao Tabela.
+- Grafo: lateral nao cria aresta `Root -> company`, nao recebe badge `oficial`, e usa classe visual propria.
+- Prompt: regra explicita de que `OFICIAL` qualifica o vinculo do socio, nao o grupo.
+- Docs: criado historico diario append-only e nota `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
+
+**Validacao:** `validate-prompts.sh`, recorte Vitest da teia (91 testes), `typecheck`, `lint` e `build` passaram localmente. `lint` manteve 5 warnings conhecidos fora do P0; `build` manteve warning conhecido de chunk grande por Mermaid.
+
 ### Consolidacao de Prompts + Anti-Alucinacao (2026-05-24)
 
 **Branches:** `codex/prompt-consolidation-v6` (PR #282), `fix/war-room-rag-antialucinacao`, PR #283 (unificada)

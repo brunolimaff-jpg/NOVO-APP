@@ -1087,6 +1087,7 @@ graph LR
 - NÃO use P para medir verticalização
 - NÃO classifique como PRD se houver qualquer operação industrial relevante
 - NÃO trunque nem amostre a tabela de CNPJs; se uma fonte citar total maior, separe total indicado de CNPJs individualizados
+- Nao use CNPJ lateral do socio como prova de grupo economico ou verticalizacao
 </constraints>
 `;
 

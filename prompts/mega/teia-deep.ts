@@ -90,6 +90,11 @@ Regras:
 - Se nao houver nem numero textual, escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
 - CNPJ de fonte oficial (QSA, BrasilAPI): cite a fonte e marque como OFICIAL.
 - CNPJ de busca reversa (consultasocio.com) sem validacao oficial: marque como INFERIDA com asterisco e nota "validar".
+- OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo.
+- Use Escopo = GRUPO_CONFIRMADO somente quando houver prova independente de vinculo com a raiz/grupo.
+- Use Escopo = CNPJ_LATERAL_SOCIO quando QSA/CNPJ Aberto/Receita confirmar que o socio aparece no CNPJ, mas o grupo nao estiver confirmado.
+- Use Escopo = NAO_CONFIRMADO para CNPJ textual, com asterisco, inconsistente ou sem validacao oficial.
+- CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior.
 
 PASSO 2 — QSA E PODER SOCIETARIO
 
@@ -108,6 +113,7 @@ Regras:
 - Se socio tiver CPF, mantenha apenas os 3 primeiros e 2 ultimos digitos (ex: ***.123.456-**)
 - Alem do resumo por socio, preencha a tabela "Outros CNPJs onde o socio aparece" com cada CNPJ valido encontrado fora do grupo economico confirmado.
 - Quando um CNPJ tiver asterisco, trate a relacao como hipotese visual/pendente; nao use como prova de controle nem de grupo economico.
+- Mesmo quando a Fonte for QSA Oficial e a Confianca for OFICIAL, em "Outros CNPJs" isso confirma apenas socio -> CNPJ. Nao promova para empresa do grupo.
 
 PASSO 3 — SINAIS DE ENTERPRISE INVISIVEL
 
@@ -175,9 +181,9 @@ Traduza a estrutura societaria em linguagem de venda:
 
 ## Outros CNPJs onde o socio aparece
 
-| Socio | CNPJ | Razao Social | Fonte | Confianca |
-|-------|------|--------------|-------|-----------|
-| [socio] | [##.###.###/####-## ou ##.###.###/####-##*] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] |
+| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |
+|-------|------|--------------|-------|-----------|--------|---------------|
+| [socio] | [##.###.###/####-## ou ##.###.###/####-##*] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] | [CNPJ_LATERAL_SOCIO/NAO_CONFIRMADO] | [validar em reuniao; nao usar como tese operacional] |
 
 * = hipótese a validar, não confirmado em fonte oficial.
 

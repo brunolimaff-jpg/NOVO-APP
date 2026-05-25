@@ -115,7 +115,10 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Empresas do Grupo Economico:**');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Outros CNPJs:**');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('## Outros CNPJs onde o socio aparece');
-    expect(PROMPT_TEIA_DEEP_MODULE).toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca |');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ_LATERAL_SOCIO');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('##.###.###/####-##*');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('* = hipótese a validar');
 
@@ -123,6 +126,7 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('NÃO gere tabela > 15 linhas');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('NÃO trunque nem amostre a tabela de CNPJs');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('Nao use CNPJ lateral do socio como prova de grupo economico ou verticalizacao');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |');
   });
 
@@ -271,9 +275,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8757,
-          "lines": 245,
-          "sha256": "1317a00b389ab6b7e9021ce7ac1945ba763b6a72cadc25cc100fe78cc0c214e7",
+          "length": 8837,
+          "lines": 246,
+          "sha256": "179ceb0343a8aeed08ab1c678da70f80d8db0ee105b8647cc8651e84d7ad04ca",
         },
         {
           "label": "specialist-5",
@@ -301,21 +305,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105288,
-          "lines": 2663,
-          "sha256": "1b5cc26c358c252c2f1ccdcdd5b1264780b8cdb7b4732d35efbcc098c5212c39",
+          "length": 105368,
+          "lines": 2664,
+          "sha256": "85597e90a4221a7ad200420a5937c37ac9bb117567b0c3c32741f57e95b6b63c",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113552,
-          "lines": 2913,
-          "sha256": "7201d3cc6a190dafc179d9f92fe23f438e95cd4f4d5af1b42298fe0fa8af2b64",
+          "length": 113632,
+          "lines": 2914,
+          "sha256": "4da98f3289527141f0de2d2277f0d1953c87a91be8d8950b881e64c351a23ae0",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105762,
-          "lines": 2683,
-          "sha256": "0a41233355cb64f46d6a83f28eff31b735660d5bb080789b11fafe81b15d1f7d",
+          "length": 105842,
+          "lines": 2684,
+          "sha256": "7e9e622432e32a7df1ad4f627c39e72f75c7a9553c7a5dac6a4de9d0339f3c54",
         },
       ]
     `);

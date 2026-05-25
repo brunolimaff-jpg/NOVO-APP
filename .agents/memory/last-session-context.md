@@ -1,46 +1,70 @@
 # Last Session Context
-Saved: 2026-05-22 23:30
+Saved: 2026-05-25
 
 ## Git
-Branch: codex/standardize-mermaid-maps | Commit: d22fa0c | 20 commits (12 migracao + 8 melhorias)
+Branch: codex/cnpj-socios-todos-cnpjs | HEAD: 2e1e986 | PR #285 (OPEN)
 
 ## Resumo da sessao
-APOS migracao Supabase, 8 commits adicionais de UX e consistencia:
+Nova sessao focada em fechar o ciclo da PR #285. O estado atual mudou: CNPJ Aberto resolveu a fonte de dados, mas revelou P0 semantico de escopo.
 
-### Novas features:
-1. **Cadastro restrito** (`5a2b35e`): so `@senior.com.br`, nome completo obrigatorio (2+ palavras)
-2. **Consistencia Supabase** (`a8775d9`): `onConflict` no addFavorite, `view_count` removido
-3. **radar_alerts** (`b58586d`): unique constraint, `scheduleSync` apos enqueue, `updated_at` fix
-4. **Badge sync click** (`f74c9d0`): de "limpar notificacao" para "forcar sync"
-5. **Docs update** (`a4a5396`): HANDOFF, memory, decisions apos migracao
-6. **Email recovery** (`c880566`): vincula dispositivo novo a operator_id existente
-7. **Remocao Dossie** (`d5f7538`): botao removido de 14 arquivos
-8. **Sync manual** (`d22fa0c`): pill button no header com feedback (+N sent, downarrowN received)
+### Atualizacao 2026-05-25 16:01 — Onde paramos
 
-### Decisoes arquiteturais novas:
-1. Botao Dossie removido — feature nao utilizada, 14 arquivos limpos
-2. Sync manual em vez de automatico — feedback real para o usuario
+- PR #285 continua aberta e nao deve ser mergeada ate validar preview.
+- Achado P0: QSA/CNPJ Aberto confirma `socio -> CNPJ`, nao `CNPJ -> grupo`.
+- Laterais agora devem aparecer como `CNPJs laterais` / `CNPJ lateral do socio`, nunca `Proprias` ou `Side business`.
+- Historico diario append-only criado em `docs/obsidian/daily/`.
+- Nota principal: `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
+- Recorte Vitest da teia passou com 91 testes; `validate-prompts.sh`, `typecheck`, `lint` e `build` passaram localmente.
 
-### Schema Supabase:
-- URL: https://vmqfcaoirjcfucvlnpig.supabase.co
-- 8 tabelas com RLS, 8 indexes, grants anon
+> O bloco abaixo preserva o snapshot anterior da PR #285 e nao libera merge sem a validacao P0 acima.
 
-### Resultados:
-- 873+ testes verdes
-- Typecheck limpo
-- Lint com 0 erros
-- 20 commits na branch
+### CNPJ Aberto API Integration
+- **Problema resolvido:** busca de CNPJs por nome de socio retornava vazio ou alucinado
+- **Solucao:** integracao com [CNPJ Aberto](https://cnpjaberto.com.br) (API gratuita, 1000 queries/dia)
+- **Endpoint:** `GET /api/socio/empresas?nome={name}&limit=50`
+- **Env var:** `CNPJABERTO_API_KEY` configurada na Vercel preview
+- **Pipeline atual:**
+  ```
+  CNPJ Aberto API → consultasocio.com (fallback) → Gemini Search Grounding → DuckDuckGo (final fallback)
+  ```
+- **Arquivos alterados:** `utils/documentExtractor.ts` (funcao `searchCnpjAberto()`, linhas 324-381), `api/socio-search.ts` (CNPJ Aberto como primeira fonte), `tests/api-socio-search.test.ts` (`searchFailureCount: 2 → 3`)
 
-### Env vars pendentes (Vercel):
-- VITE_SUPABASE_URL
-- VITE_SUPABASE_ANON_KEY
+### SocietaryMatrix (Tabela Societaria)
+- **Novo arquivo:** `features/dossier/SocietaryMatrix.tsx` (376 linhas) — tabela com filtros, colunas CNPJ/CNAE, dots de socios
+- **Novo arquivo:** `features/dossier/societaryCategories.ts` (~60 linhas) — `classifyCompany()`, `isSideBusiness()`, `countByCategory()`
+- **Modificado:** `features/dossier/SocietaryMap.tsx` — toggle Tabela | Grafo, enriquecimento CNAE via `lookupCnpj()` batch de 5
+- **Tests:** `tests/features/dossier/SocietaryMap.test.tsx` — clique "Grafo" antes de testes Mermaid
+
+### Funcionalidades da Tabela
+- Layout 5 colunas: Empresa | Grupo | CNPJ | CNAE | [dots socios]
+- Classificacao: Estrategico (3+ socios), Operacoes (2 socios), Proprias (1 socio)
+- Filtros: Todos + pills de categoria + pills de socio (AND)
+- Filtros condicionais: mostra apenas categorias com >0 empresas
+- Enriquecimento CNAE: batch background de 5 via `lookupCnpj()`, fire-and-forget
+- Dots de socio: preenchido = compartilhado, borda tracejada = side business, vazio = sem conexao
+- Suporte a dark mode
+- Legenda com cores dos socios
+
+### Email autocomplete
+- `components/GreetingWelcomeScreen.tsx` — carrega ultimo email usado do IndexedDB ao montar
+
+### Mockup validation
+- `mockups-mermaid.html` — validado design da tabela com usuario
+- 16 empresas ativas mapeadas para grupo Scheffer em 5 socios
+
+## Decisoes arquiteturais da sessao
+1. **Mermaid + Table sao complementares** — Table mostra distribuicao/CNAE/CNPJ, Mermaid mostra relacoes de aresta. Toggle entre elas.
+2. **CNAE enrichment no frontend** — reusa `lookupCnpj()` com batch de 5, nao bloqueia UI
+3. **View padrao: Table** — preferencia do usuario
+4. **Empresas inativas excluidas** — "Baixada" filtradas
+5. **Sem mudancas no backend** — todas as features sao frontend-only
 
 ## Mudancas pendentes
-- Branch codex/standardize-mermaid-maps ainda nao mergeada em main (20 commits)
-- Env vars Vercel ainda nao configuradas
-- Fluxo completo com sync manual e email recovery ainda nao testado em preview Vercel
-- PR #270 (auditoria multi-fase) ainda nao mergeada
-- PR #266 (UX Redesign Phase 1) ainda nao mergeada
+- Validacao da preview pendente para provar que CNPJ lateral nao vira grupo
+- Ordenacao por coluna (futura iteracao)
+- Clique na linha → expandir detalhes de evidencia (futura iteracao)
+- PR #285 merge somente apos validacao do P0 na preview
+- Merge PR #286 (links inline auditaveis)
 
 ## Recuperacao
 Na proxima sessao, recovery-context.sh vai ler HANDOFF_AI.md,

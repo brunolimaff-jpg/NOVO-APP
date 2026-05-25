@@ -123,6 +123,68 @@ function parseRelatedCompanyToken(rawValue: string): {
   };
 }
 
+function splitPartnerNames(rawValue: string): string[] {
+  return rawValue
+    .split(/\s*(?:,|;|\/|\be\b|\band\b)\s*/i)
+    .map(name => name.trim().replace(/\*\*/g, '').trim())
+    .filter(name => name.length > 0 && name !== '-');
+}
+
+function pushCompanyForPartners(
+  companies: SocietaryCompanyInput[],
+  company: SocietaryCompanyInput,
+  partnerNames: string[],
+): void {
+  const names = partnerNames.length > 0 ? partnerNames : [company.partnerName || ''];
+  for (const partnerName of names) {
+    companies.push({
+      ...company,
+      partnerName,
+    });
+  }
+}
+
+function inferTableRelationshipScope(params: {
+  validationStatus?: SocietaryCompanyInput['validationStatus'];
+  isOtherCnpjsTable: boolean;
+  partnerName: string;
+  relation: string;
+  scope: string;
+  usage: string;
+}): SocietaryCompanyInput['relationshipScope'] {
+  if (params.validationStatus === 'pending') return 'unconfirmed';
+
+  const semanticText = normalizeText([
+    params.relation,
+    params.scope,
+    params.usage,
+  ].filter(Boolean).join(' '));
+
+  const groupConfirmed = /\bgrupo confirmado\b/.test(semanticText)
+    || /\bempresa do grupo\b/.test(semanticText)
+    || /\bgrupo economico\b/.test(semanticText)
+    || /\bmesmo cnpj raiz\b/.test(semanticText)
+    || /\bmatriz\b/.test(semanticText)
+    || /\bfilial\b/.test(semanticText)
+    || /\bcabeca do grupo\b/.test(semanticText);
+  if (groupConfirmed) return 'group_link';
+
+  const lateral = /\bcnpj lateral\b/.test(semanticText)
+    || /\bcnpj lateral socio\b/.test(semanticText)
+    || /\boutro cnpj\b/.test(semanticText)
+    || /\boutros cnpjs\b/.test(semanticText)
+    || /\bsocio aparece\b/.test(semanticText)
+    || /\bgrupo nao confirmado\b/.test(semanticText)
+    || /\bsem prova\b/.test(semanticText)
+    || /\bnao usar\b/.test(semanticText)
+    || /\bvalidar em reuniao\b/.test(semanticText);
+  if (lateral) return 'partner_other_cnpj';
+
+  if (params.isOtherCnpjsTable) return 'partner_other_cnpj';
+  if (params.partnerName) return 'partner_other_cnpj';
+  return 'group_link';
+}
+
 export function parseTeiaText(markdown: string): ParsedTeiaData {
   const warnings: string[] = [];
   const companies: SocietaryCompanyInput[] = [];
@@ -145,7 +207,11 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
 
     const cnpjCol = normalizedHeaders.findIndex(c => /^cnpj\b/.test(c));
     const nameCol = normalizedHeaders.findIndex(c => /razao\s+socia/.test(c));
-    const socioCol = normalizedHeaders.findIndex(c => /^socio$|^socio\s+admin|^socio\s+administrador/.test(c));
+    const socioCol = normalizedHeaders.findIndex(c =>
+      /^socio(s)?$/.test(c)
+      || /^socio(s)?\s+(admin|administrador|ligado|ligados|relacionado|relacionados)/.test(c)
+      || /socio(s)?\s+ligado/.test(c),
+    );
     const isOtherCnpjsTable = normalizeText(sectionHeadingBefore(lines, table.headerIdx)).includes('outros cnpjs');
 
     for (let i = table.headerIdx + 2; i < table.tableEndIdx; i++) {
@@ -171,23 +237,30 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       }
 
       const relacaoCol = normalizedHeaders.findIndex(c => /relac(ao|ão)/.test(c));
+      const escopoCol = normalizedHeaders.findIndex(c => /^escopo\b/.test(c));
+      const usoCol = normalizedHeaders.findIndex(c => /uso\s+comercial/.test(c) || /^uso$/.test(c));
       const fonteCol = normalizedHeaders.findIndex(c => c === 'fonte');
       const confiancaCol = normalizedHeaders.findIndex(c => /confianc(a|ça)/.test(c));
 
       const rawConfidence = confiancaCol >= 0 ? cells[confiancaCol] ?? '' : '';
-      const partnerName = socioCol >= 0 && socioCol < cells.length ? cells[socioCol]?.trim() || '' : '';
-      const relationshipScope = parsedCnpj.validationStatus === 'pending'
-        ? 'unconfirmed'
-        : isOtherCnpjsTable || partnerName
-          ? 'partner_other_cnpj'
-          : 'group_link';
+      const partnerNames = socioCol >= 0 && socioCol < cells.length ? splitPartnerNames(cells[socioCol] || '') : [];
+      const partnerName = partnerNames[0] || '';
+      const relation = relacaoCol >= 0 ? cells[relacaoCol]?.trim() || '' : '';
+      const relationshipScope = inferTableRelationshipScope({
+        validationStatus: parsedCnpj.validationStatus,
+        isOtherCnpjsTable,
+        partnerName,
+        relation,
+        scope: escopoCol >= 0 ? cells[escopoCol]?.trim() || '' : '',
+        usage: usoCol >= 0 ? cells[usoCol]?.trim() || '' : '',
+      });
 
-      companies.push({
+      pushCompanyForPartners(companies, {
         name: name.trim(),
         cnpj: parsedCnpj.cnpj,
         rawCnpjLabel: parsedCnpj.rawCnpjLabel,
         partnerName,
-        role: relacaoCol >= 0 ? cells[relacaoCol]?.trim() || undefined : undefined,
+        role: relation || undefined,
         sourceTitle: fonteCol >= 0 && cells[fonteCol]?.trim()
           ? cells[fonteCol].trim()
           : 'Gemini — Tabela CNPJs',
@@ -202,7 +275,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
         relationshipScope,
         validationStatus: parsedCnpj.validationStatus,
         rootContext: relationshipScope === 'group_link',
-      });
+      }, partnerNames);
     }
     }
   }
@@ -233,6 +306,14 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
         if (existing) {
           if (extractedPartnerName && !existing.partnerName) {
             existing.partnerName = extractedPartnerName;
+          } else if (
+            extractedPartnerName
+            && normalizeText(existing.partnerName || '') !== normalizeText(extractedPartnerName)
+          ) {
+            companies.push({
+              ...existing,
+              partnerName: extractedPartnerName,
+            });
           }
           continue;
         }

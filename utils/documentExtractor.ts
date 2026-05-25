@@ -1,3 +1,4 @@
+import { normalizeCnpj } from './cnpj.js';
 import { scoutDiag } from './diagnosticLog.js';
 
 /**
@@ -117,7 +118,13 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
             return null;
         }
 
-        const data = await response.json() as any;
+        const data = await response.json() as {
+            candidates?: Array<{
+                groundingMetadata?: {
+                    groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
+                };
+            }>;
+        };
         const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
         const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
 
@@ -315,13 +322,44 @@ export async function searchConsultasocioDirect(socioName: string): Promise<stri
     }
 }
 
+export interface CnpjAbertoCompanyResult {
+	name: string;
+	cnpj?: string;
+	role?: string;
+	sourceTitle: string;
+	sourceUrl: string;
+	snippet: string;
+}
+
+type CnpjAbertoApiRecord = Record<string, unknown>;
+
+function readString(record: CnpjAbertoApiRecord, keys: string[]): string {
+	for (const key of keys) {
+		const value = record[key];
+		if (typeof value === 'string' && value.trim()) return value.trim();
+	}
+	return '';
+}
+
+function extractCnpjAbertoRecords(data: unknown): CnpjAbertoApiRecord[] {
+	if (Array.isArray(data)) return data.filter((item): item is CnpjAbertoApiRecord => Boolean(item && typeof item === 'object'));
+	if (!data || typeof data !== 'object') return [];
+	const record = data as CnpjAbertoApiRecord;
+	for (const key of ['empresas', 'data', 'results', 'companies']) {
+		const value = record[key];
+		if (Array.isArray(value)) {
+			return value.filter((item): item is CnpjAbertoApiRecord => Boolean(item && typeof item === 'object'));
+		}
+	}
+	return [];
+}
+
 /**
  * Busca empresas vinculadas a uma pessoa física via CNPJ Aberto API.
  * Endpoint: GET /api/socio/empresas?nome={name}&limit=50
  * Header: X-API-Key: CNPJABERTO_API_KEY
- * Retorna texto formatado compatível com splitSearchBlocks() do socio-search.
  */
-export async function searchCnpjAberto(socioName: string): Promise<string | null> {
+export async function searchCnpjAbertoCompanies(socioName: string): Promise<CnpjAbertoCompanyResult[] | null> {
 	const apiKey = process.env.CNPJABERTO_API_KEY;
 	if (!apiKey) return null;
 
@@ -345,32 +383,42 @@ export async function searchCnpjAberto(socioName: string): Promise<string | null
 			return null;
 		}
 
-		const data = await response.json() as any;
-		const companies: any[] = Array.isArray(data)
-			? data
-			: data?.empresas || data?.data || data?.results || data?.companies || [];
+		const data = await response.json() as unknown;
+		const companies = extractCnpjAbertoRecords(data);
 
 		if (!Array.isArray(companies) || companies.length === 0) {
 			scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: sem empresas encontradas');
 			return null;
 		}
 
-		const blocks: string[] = [];
+		const results: CnpjAbertoCompanyResult[] = [];
 		for (const company of companies) {
-			const name = company.razao_social || company.nome || company.name || '';
-			const cnpj = company.cnpj || company.cnpj_formatado || '';
-			const role = company.qualificacao || company.qualificacao_socio || company.cargo || company.role || '';
-			const title = `Título: CNPJ Aberto — ${name}${cnpj ? ` (CNPJ ${cnpj})` : ''}`;
-			const url = `URL: https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}`;
+			const name = readString(company, ['razao_social', 'razão_social', 'nome', 'name']);
+			const cnpjRaw = readString(company, ['cnpj', 'cnpj_formatado']);
+			const cnpj = normalizeCnpj(cnpjRaw);
+			const role = readString(company, ['qualificacao', 'qualificacao_socio', 'qualificação', 'cargo', 'role']);
+			if (!name && !cnpj) continue;
+
+			const sourceTitle = `CNPJ Aberto — ${name || `CNPJ ${cnpjRaw}`}${cnpjRaw ? ` (CNPJ ${cnpjRaw})` : ''}`;
+			const sourceUrl = cnpj
+				? `https://cnpjaberto.com.br/${cnpj}`
+				: `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}`;
 			const summaryParts = [name];
-			if (cnpj) summaryParts.push(`CNPJ ${cnpj}`);
+			if (cnpjRaw) summaryParts.push(`CNPJ ${cnpjRaw}`);
 			if (role) summaryParts.push(role);
-			const summary = `Resumo: ${summaryParts.join(' — ')}`;
-			blocks.push(`${title}\n${url}\n${summary}\n---`);
+			results.push({
+				name: name || `Empresa CNPJ ${cnpjRaw}`,
+				cnpj: cnpj || cnpjRaw || undefined,
+				role: role || undefined,
+				sourceTitle,
+				sourceUrl,
+				snippet: summaryParts.filter(Boolean).join(' — '),
+			});
 		}
 
-		scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${blocks.length} empresas encontradas`);
-		return blocks.join('\n');
+		if (results.length === 0) return null;
+		scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${results.length} empresas encontradas`);
+		return results;
 	} catch (error) {
 		scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
 			socioName,
@@ -378,6 +426,22 @@ export async function searchCnpjAberto(socioName: string): Promise<string | null
 		});
 		return null;
 	}
+}
+
+/**
+ * Compatibilidade com o pipeline textual legado.
+ */
+export async function searchCnpjAberto(socioName: string): Promise<string | null> {
+	const companies = await searchCnpjAbertoCompanies(socioName);
+	if (!companies?.length) return null;
+	return companies
+		.map(company => [
+			`Título: ${company.sourceTitle}`,
+			`URL: ${company.sourceUrl}`,
+			`Resumo: ${company.snippet}`,
+			'---',
+		].join('\n'))
+		.join('\n');
 }
 
 /**

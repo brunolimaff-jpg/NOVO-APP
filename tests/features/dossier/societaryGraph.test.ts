@@ -133,7 +133,7 @@ describe('societaryGraph', () => {
     expect(graph.rejectedCompanies[0].reason).toMatch(/contexto/i);
   });
 
-  it('mostra outro CNPJ do socio sem conectar como empresa do grupo', () => {
+  it('mostra CNPJ lateral do socio sem conectar como empresa do grupo', () => {
     const graph = buildSocietaryGraph({
       root,
       partners,
@@ -161,13 +161,15 @@ describe('societaryGraph', () => {
       rootLinked: false,
       partnerIds: ['guilherme'],
     });
-    expect(graph.companies[0].badges).toContain('outro CNPJ do sócio');
+    expect(graph.companies[0].badges).toContain('CNPJ lateral do sócio');
     expect(graph.companies[0].badges).toContain('validar grupo');
-    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Outro CNPJ do sócio');
+    expect(graph.companies[0].badges).not.toContain('oficial');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('CNPJ lateral do sócio');
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Fazenda Independente LTDA');
-    expect(mermaid).toContain('guilherme -- Outro CNPJ do sócio --> company_12345678000195');
+    expect(mermaid).toContain('guilherme -- CNPJ lateral do sócio --> company_12345678000195');
+    expect(mermaid).toContain('class company_12345678000195 lateral;');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
   });
 
@@ -362,7 +364,7 @@ describe('societaryGraph', () => {
       branchCount: 2,
       branchCnpjs: ['12345678000195', '12345678000276'],
     });
-    expect(graph.companies[0].badges).not.toContain('outro CNPJ do sócio');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral do sócio');
   });
 
   it('rejeita nome de empresa truncado sem identidade real', () => {
@@ -511,7 +513,7 @@ describe('societaryGraph', () => {
       rootContext: true,
     });
     expect(graph.companies[0].badges).toContain('oficial');
-    expect(graph.companies[0].badges).not.toContain('outro CNPJ do sócio');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral do sócio');
   });
 
   it('rejeita empresas Gemini sem CNPJ valido para nao criar no visual por inferencia textual', () => {

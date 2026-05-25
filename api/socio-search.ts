@@ -1,6 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHtml, isValidPublicUrl, isPessoaJuridica, performWebSearch, searchCnpjAberto, searchConsultasocioDirect } from '../utils/documentExtractor.js';
+import {
+  extractHtml,
+  isValidPublicUrl,
+  isPessoaJuridica,
+  performWebSearch,
+  searchCnpjAbertoCompanies,
+  searchConsultasocioDirect,
+  type CnpjAbertoCompanyResult,
+} from '../utils/documentExtractor.js';
 import { sanitizeSensitivePersonalData } from '../utils/privacy.js';
 import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
@@ -12,6 +20,9 @@ type SocioSearchEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'instituti
 type SocioSearchSourceDepth = 'search_result' | 'page_extract' | 'cnpj_lookup';
 type SocioSearchCacheSource = 'none' | 'memory' | 'persistent';
 type SocioSearchRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'unconfirmed';
+type SocioSearchSourceProvider = 'cnpj_aberto' | 'consultasocio' | 'web_search';
+type SocioSearchClaimType = 'group_relationship' | 'socio_participation' | 'unconfirmed';
+type SocioSearchRootRelationStatus = 'supported' | 'not_supported' | 'pending';
 
 interface SocioSearchCompany {
   name: string;
@@ -31,6 +42,11 @@ interface SocioSearchCompany {
   rootCnpj?: string;
   role?: string;
   sourceDepth?: SocioSearchSourceDepth;
+  sourceProvider?: SocioSearchSourceProvider;
+  evidenceBasis?: string;
+  claimType?: SocioSearchClaimType;
+  rootRelationStatus?: SocioSearchRootRelationStatus;
+  operationalThesisAllowed?: boolean;
 }
 
 interface RejectedSocioSearchResult {
@@ -312,6 +328,45 @@ function buildPendingCompanyForCnpj(params: {
     rootCompanyName: params.rootCompanyName,
     rootCnpj: normalizeCnpj(params.rootCnpj) || undefined,
     sourceDepth: params.sourceDepth,
+  };
+}
+
+function buildCnpjAbertoCompany(params: {
+  candidate: CnpjAbertoCompanyResult;
+  official?: Awaited<ReturnType<typeof lookupCnpj>> | null;
+  qsaConfirmsSocio: boolean | null;
+  socioName: string;
+  rootCompanyName: string;
+  rootCnpj: string;
+}): SocioSearchCompany {
+  const cnpj = normalizeCnpj(params.official?.cnpj || params.candidate.cnpj || '');
+  const rootCnpj = normalizeCnpj(params.rootCnpj);
+  const sameRoot = isValidCnpj(cnpj) && isValidCnpj(rootCnpj) && cnpj.slice(0, 8) === rootCnpj.slice(0, 8);
+  const relationshipScope: SocioSearchRelationshipScope = sameRoot ? 'group_link' : 'partner_other_cnpj';
+  const officialName = params.official?.companyName?.trim() || '';
+  const candidateName = params.candidate.name.trim();
+
+  return {
+    name: hasMeaningfulInferredCompanyName(officialName) ? officialName : candidateName,
+    cnpj,
+    partnerName: params.socioName,
+    sourceTitle: params.candidate.sourceTitle,
+    sourceUrl: params.candidate.sourceUrl,
+    snippet: params.candidate.snippet,
+    confidence: params.qsaConfirmsSocio === true ? 'strong' : 'medium',
+    evidenceType: 'qsa',
+    relationshipScope,
+    validationStatus: 'official',
+    rootContext: sameRoot,
+    rootCompanyName: params.rootCompanyName,
+    rootCnpj: rootCnpj || undefined,
+    role: params.official?.cnaeDescricao || params.official?.cnae || params.candidate.role,
+    sourceDepth: params.official ? 'cnpj_lookup' : 'search_result',
+    sourceProvider: 'cnpj_aberto',
+    evidenceBasis: 'official_qsa_owner_search',
+    claimType: sameRoot ? 'group_relationship' : 'socio_participation',
+    rootRelationStatus: sameRoot ? 'supported' : 'not_supported',
+    operationalThesisAllowed: sameRoot,
   };
 }
 
@@ -782,14 +837,79 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     }
   };
 
+  const processCnpjAbertoCompanies = async (candidates: CnpjAbertoCompanyResult[]) => {
+    for (const candidate of candidates) {
+      if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
+        if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
+        else if (companies.length > 0) markTruncated('deadline');
+        else degraded = true;
+        break;
+      }
+
+      const cnpj = normalizeCnpj(candidate.cnpj || '');
+      if (!isValidCnpj(cnpj)) {
+        rejected.push({
+          sourceTitle: candidate.sourceTitle,
+          sourceUrl: candidate.sourceUrl,
+          snippet: candidate.snippet,
+          reason: 'CNPJ Aberto retornou empresa sem CNPJ valido.',
+        });
+        continue;
+      }
+      cnpjsFound.add(cnpj);
+
+      let official: Awaited<ReturnType<typeof lookupCnpj>> | null = null;
+      let qsaConfirmsSocio: boolean | null = null;
+      const remainingMs = remainingSearchBudget();
+      const canTryOfficialLookup = cnpjLookupAttempts < MAX_CNPJ_LOOKUPS && remainingMs >= 1_000;
+
+      if (canTryOfficialLookup) {
+        try {
+          cnpjLookupAttempts += 1;
+          official = await lookupCnpj(cnpj, {
+            timeoutMs: Math.min(CNPJ_LOOKUP_TIMEOUT_MS, Math.max(1_000, remainingMs - 500)),
+            maxSources: 1,
+          });
+          cnpjsEnriched += 1;
+          qsaConfirmsSocio = officialQsaIncludesSocio(official.qsa, params.socioName);
+          if (qsaConfirmsSocio === false) {
+            rejected.push({
+              sourceTitle: candidate.sourceTitle,
+              sourceUrl: candidate.sourceUrl,
+              snippet: candidate.snippet,
+              reason: `QSA oficial nao confirma o socio ${params.socioName} neste CNPJ.`,
+            });
+            continue;
+          }
+        } catch (error) {
+          scoutDiag.warn('SocioSearch', 'falha ao enriquecer CNPJ do CNPJ Aberto', {
+            cnpj,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      addCompany(buildCnpjAbertoCompany({
+        candidate,
+        official,
+        qsaConfirmsSocio,
+        socioName: params.socioName,
+        rootCompanyName: params.rootCompanyName,
+        rootCnpj: params.rootCnpj,
+      }));
+    }
+  };
+
   const socioIsPessoaFisica = !isPessoaJuridica(params.socioName);
+  let cnpjAbertoStructuredReturned = false;
 
   if (socioIsPessoaFisica && hasSearchBudget()) {
     queriesRun.push('cnpjaberto.com/companies_by_owner');
-    const cnpjAbertoContent = await searchCnpjAberto(params.socioName);
-    if (cnpjAbertoContent) {
-      scoutDiag.info('SocioSearch', 'CNPJ Aberto retornou resultados, processando');
-      await processContentBlocks(cnpjAbertoContent);
+    const cnpjAbertoCompanies = await searchCnpjAbertoCompanies(params.socioName);
+    if (cnpjAbertoCompanies?.length) {
+      cnpjAbertoStructuredReturned = true;
+      scoutDiag.info('SocioSearch', 'CNPJ Aberto retornou resultados estruturados, processando');
+      await processCnpjAbertoCompanies(cnpjAbertoCompanies);
     } else {
       searchFailureCount += 1;
       degraded = true;
@@ -797,7 +917,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     }
   }
 
-  if (socioIsPessoaFisica && companies.length === 0 && hasSearchBudget()) {
+  if (!cnpjAbertoStructuredReturned && socioIsPessoaFisica && companies.length === 0 && hasSearchBudget()) {
     queriesRun.push('consultasocio.com/direct');
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);
     if (consultasocioContent && !/Nenhum resultado encontrado/i.test(consultasocioContent)) {
@@ -810,7 +930,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     }
   }
 
-  for (const query of queries) {
+  if (!cnpjAbertoStructuredReturned) for (const query of queries) {
     if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
       if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
       else if (companies.length > 0) markTruncated('deadline');

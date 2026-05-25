@@ -21,11 +21,11 @@ function firstGivenName(fullName: string): string {
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
-type CompanyCategory = 'strategic' | 'operation' | 'own';
+type CompanyCategory = 'strategic' | 'operation' | 'own' | 'lateral';
 
 function classifyCompany(company: SocietaryCompany, _totalPartners: number): CompanyCategory {
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'own';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'own';
+  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'lateral';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'lateral';
   if (company.partnerIds.length >= 3) return 'strategic';
   if (company.partnerIds.length >= 2) return 'operation';
   return 'own';
@@ -39,12 +39,14 @@ const CATEGORY_LABELS: Record<CompanyCategory, string> = {
   strategic: 'Estratégico',
   operation: 'Operações',
   own: 'Próprias',
+  lateral: 'CNPJs laterais',
 };
 
 const CATEGORY_ORDER: Record<CompanyCategory, number> = {
   strategic: 0,
   operation: 1,
   own: 2,
+  lateral: 3,
 };
 
 interface SocietaryMatrixProps {
@@ -135,11 +137,12 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
 
   // Summary metrics
   const metrics = useMemo(() => {
-    const total = classified.length;
+    const total = classified.filter(c => c.category !== 'lateral').length;
     const strategic = classified.filter(c => c.category === 'strategic').length;
     const operation = classified.filter(c => c.category === 'operation').length;
     const own = classified.filter(c => c.category === 'own').length;
-    return { total, strategic, operation, own };
+    const lateral = classified.filter(c => c.category === 'lateral').length;
+    return { total, strategic, operation, own, lateral };
   }, [classified]);
 
   // Filtered + sorted rows (category + partner AND logic)
@@ -209,10 +212,11 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     <section className={`rounded-xl border p-5 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
       <div className="grid grid-cols-4 gap-3 mb-3.5">
-        <SummaryCard label="empresas mapeadas" value={metrics.total} isDarkMode={isDarkMode} />
+        <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />
         {metrics.strategic > 0 && <SummaryCard label="frentes estratégicas" value={metrics.strategic} isDarkMode={isDarkMode} />}
         {metrics.operation > 0 && <SummaryCard label="operações compartilhadas" value={metrics.operation} isDarkMode={isDarkMode} />}
         {metrics.own > 0 && <SummaryCard label="empresas próprias" value={metrics.own} isDarkMode={isDarkMode} />}
+        {metrics.lateral > 0 && <SummaryCard label="CNPJs laterais" value={metrics.lateral} isDarkMode={isDarkMode} />}
       </div>
 
       {/* ============ Filter toolbar ============ */}
@@ -220,7 +224,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         <FilterButton isActive={isAllActive} onClick={handleClearFilters}>
           Todos
         </FilterButton>
-        {(['strategic', 'operation', 'own'] as const).filter(cat => metrics[cat] > 0).map(cat => (
+        {(['strategic', 'operation', 'own', 'lateral'] as const).filter(cat => metrics[cat] > 0).map(cat => (
           <FilterButton
             key={cat}
             isActive={activeCategory === cat}
@@ -246,7 +250,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
           <thead>
             <tr className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 dark:text-slate-400">
               <th className="text-left px-2.5 py-2 min-w-[180px]">Empresa</th>
-              <th className="text-left px-2.5 py-2 w-[110px]">Grupo</th>
+              <th className="text-left px-2.5 py-2 w-[130px]">Relação</th>
               <th className="px-2.5 py-2">CNPJ</th>
               <th className="text-left px-2.5 py-2">CNAE</th>
               {partnerColumns.map(partner => (
@@ -285,10 +289,12 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                           ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300'
                           : row.category === 'operation'
                             ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
+                            : row.category === 'lateral'
+                              ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800'
+                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
                       }`}
                     >
-                      {CATEGORY_LABELS[row.category]}
+                      {row.category === 'lateral' ? 'CNPJ lateral do sócio' : CATEGORY_LABELS[row.category]}
                     </span>
                   </td>
 
@@ -365,7 +371,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
             className="inline-block w-3.5 mr-1 align-middle"
             style={{ borderTop: '2px dashed #94a3b8' }}
           />
-          Side business
+          Vínculo do sócio; grupo não confirmado
         </span>
       </div>
     </section>

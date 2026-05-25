@@ -4,6 +4,7 @@ import { normalizeCnpj } from '../utils/cnpj';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
 const searchConsultasocioDirectMock = vi.hoisted(() => vi.fn());
+const searchCnpjAbertoCompaniesMock = vi.hoisted(() => vi.fn());
 const lookupCnpjMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../utils/documentExtractor', async () => {
@@ -12,6 +13,7 @@ vi.mock('../utils/documentExtractor', async () => {
     ...actual,
     performWebSearch: performWebSearchMock,
     searchConsultasocioDirect: searchConsultasocioDirectMock,
+    searchCnpjAbertoCompanies: searchCnpjAbertoCompaniesMock,
   };
 });
 
@@ -74,6 +76,7 @@ describe('api/socio-search', () => {
     vi.unstubAllEnvs();
     performWebSearchMock.mockReset();
     searchConsultasocioDirectMock.mockReset();
+    searchCnpjAbertoCompaniesMock.mockReset();
     lookupCnpjMock.mockReset();
     vi.stubEnv('SUPABASE_URL', '');
     vi.stubEnv('VITE_SUPABASE_URL', '');
@@ -81,8 +84,73 @@ describe('api/socio-search', () => {
     vi.stubEnv('SUPABASE_ANON_KEY', '');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
     searchConsultasocioDirectMock.mockResolvedValue(null);
+    searchCnpjAbertoCompaniesMock.mockResolvedValue(null);
     lookupCnpjMock.mockRejectedValue(new Error('cnpj lookup not mocked'));
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('fetch not mocked'));
+  });
+
+  it('mantem CNPJ Aberto como CNPJ lateral sem tese de grupo', async () => {
+    searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
+      {
+        name: 'E.Z.M.S. Participações Ltda',
+        cnpj: '09.567.366/0001-11',
+        role: 'Sócio-administrador',
+        sourceTitle: 'CNPJ Aberto — Elizeu Zulmar Maggi Scheffer',
+        sourceUrl: 'https://cnpjaberto.com.br/09567366000111',
+        snippet: 'Elizeu Zulmar Maggi Scheffer consta no QSA oficial da E.Z.M.S. Participações Ltda.',
+      },
+    ]);
+    performWebSearchMock.mockResolvedValue('Nenhum resultado encontrado.');
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: '09567366000111',
+      companyName: 'E.Z.M.S. Participações Ltda',
+      cnae: '6462000',
+      cnaeDescricao: 'Holdings de instituições não-financeiras',
+      qsa: [
+        {
+          name: 'Elizeu Zulmar Maggi Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Elizeu Zulmar Maggi Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04.733.767/0001-80',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          name: 'E.Z.M.S. Participações Ltda',
+          cnpj: '09567366000111',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          sourceProvider: 'cnpj_aberto',
+          evidenceBasis: 'official_qsa_owner_search',
+          claimType: 'socio_participation',
+          rootRelationStatus: 'not_supported',
+          operationalThesisAllowed: false,
+        }),
+      ],
+    });
+    expect((response.payload as { companies: Array<{ relationshipScope: string; rootContext: boolean }> }).companies)
+      .not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ relationshipScope: 'group_link' }),
+        expect.objectContaining({ rootContext: true }),
+      ]));
   });
 
   it('retorna empresas fortes e remove CPF completo do snippet', async () => {

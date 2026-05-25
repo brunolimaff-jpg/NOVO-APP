@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-25
 
+## 2026-05-25 - P0 Teia CNPJ: QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo
+
+Decision: tratar CNPJs retornados por CNPJ Aberto/QSA Oficial como `partner_other_cnpj` por padrao, com label `CNPJ lateral do socio`, ate existir prova independente de vinculo com a raiz/grupo. PR #285 fica bloqueada ate preview validar esse contrato.
+
+Reason: a fonte oficial confirma que o socio aparece no CNPJ. Isso nao prova que o CNPJ pertence ao grupo economico analisado. Misturar esses escopos contaminava prompt, API, parser, tabela, grafo e narrativa comercial.
+
+Contract: `group_link` exige mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo; `partner_other_cnpj` e vinculo do socio com grupo nao confirmado; `unconfirmed` e CNPJ textual/com asterisco/inconsistente/sem validacao oficial.
+
+Constraint: lateral nao pode ser `Proprias`, `Side business`, veiculo operacional, tese de bioinsumos, enterprise, verticalizacao ou wedge Senior.
+
+Refs: `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`, `docs/obsidian/daily/INDEX.md`.
+
 ## 2026-04-14 - Repo-local memory v1
 
 Decision: use repo-local Markdown files under `.agents/memory/` for persistent memory.

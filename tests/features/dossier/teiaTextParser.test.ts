@@ -124,6 +124,68 @@ describe('teiaTextParser', () => {
     ]));
   });
 
+  it('mantem QSA Oficial em Outros CNPJs como lateral, nao como grupo', () => {
+    const parsed = parseTeiaText([
+      '## Outros CNPJs onde o sócio aparece',
+      '',
+      '| Sócio | CNPJ | Razão Social | Fonte | Confiança | Escopo | Uso Comercial |',
+      '|-------|------|--------------|-------|-----------|--------|---------------|',
+      '| Carolina Scheffer | 09.567.366/0001-11 | Scheffer Bio Insumos Ltda | QSA Oficial | OFICIAL | CNPJ_LATERAL_SOCIO | Validar em reunião; não usar como tese operacional |',
+    ].join('\n'));
+
+    expect(parsed.companies).toEqual([
+      expect.objectContaining({
+        name: 'Scheffer Bio Insumos Ltda',
+        cnpj: '09567366000111',
+        partnerName: 'Carolina Scheffer',
+        confidence: 'strong',
+        evidenceType: 'qsa',
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      }),
+    ]);
+  });
+
+  it('nao rebaixa Tabela Mestre confirmada so por ter coluna de socio', () => {
+    const parsed = parseTeiaText([
+      '## Tabela Mestre de CNPJs',
+      '',
+      '| Sócio | CNPJ | Razão Social | Relação na Teia | Fonte | Confiança | Escopo |',
+      '|-------|------|--------------|-----------------|-------|-----------|--------|',
+      '| Guilherme M. Scheffer | 00.111.222/0001-81 | Agropecuaria Scheffer Ltda | Empresa do Grupo Econômico | BrasilAPI | OFICIAL | GRUPO_CONFIRMADO |',
+    ].join('\n'));
+
+    expect(parsed.companies).toEqual([
+      expect.objectContaining({
+        name: 'Agropecuaria Scheffer Ltda',
+        cnpj: '00111222000181',
+        partnerName: 'Guilherme M. Scheffer',
+        relationshipScope: 'group_link',
+        rootContext: true,
+      }),
+    ]);
+  });
+
+  it('rebaixa linha fora de Outros CNPJs quando a relacao diz que e lateral do socio', () => {
+    const parsed = parseTeiaText([
+      '## Tabela Mestre de CNPJs',
+      '',
+      '| Sócio | CNPJ | Razão Social | Relação na Teia | Fonte | Confiança |',
+      '|-------|------|--------------|-----------------|-------|-----------|',
+      '| Elizeu Scheffer | 09.567.366/0001-11 | E.Z.M.S. Participações Ltda | Outro CNPJ do sócio; grupo não confirmado | QSA Oficial | OFICIAL |',
+    ].join('\n'));
+
+    expect(parsed.companies).toEqual([
+      expect.objectContaining({
+        name: 'E.Z.M.S. Participações Ltda',
+        cnpj: '09567366000111',
+        partnerName: 'Elizeu Scheffer',
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      }),
+    ]);
+  });
+
   it('preserva CNPJ inferido com asterisco como validacao pendente', () => {
     const parsed = parseTeiaText([
       '## Outros CNPJs onde o sócio aparece',
