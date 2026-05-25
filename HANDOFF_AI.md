@@ -21,8 +21,9 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 15. `docs/obsidian/daily/INDEX.md` — histórico diário append-only; não sobrescrever entradas antigas
 16. `docs/obsidian/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` — 13 lições aprendidas na sessão de prompts 2026-05-24
 17. `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — lições do hotfix P0 da Teia CNPJ, incluindo PRs #279/#280/#285 e critérios de preview
-18. `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — status detalhado da PR #285, incluindo validações que passaram, validações que falharam e bloqueio de merge
-19. `docs/obsidian/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md` — documentação dos 8 ciclos de tentativa de busca reversa de CNPJs por nome de sócio
+18. `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md` — fechamento atual da PR #285, validações finais, lições e pendências de reestruturação
+19. `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — status detalhado da PR #285; seções antigas preservam snapshots superados
+20. `docs/obsidian/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md` — documentação dos ciclos de tentativa de busca reversa de CNPJs por nome de sócio
 
 ## Contexto minimo estavel
 
@@ -35,19 +36,20 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-25 16:45 — **PR #285 esta bloqueada por achado P0 semantico ate a preview atualizada validar.** Localmente o contrato visual foi limpo: matriz sem coluna/badge `CNPJ lateral do socio`, Tabela/Grafo com nomes curtos consistentes, textos inseguros removidos da mensagem e cache de `/api/socio-search` em `v7-structured-lateral-cnpj`.
+> Atualizado em 2026-05-25 17:05 — **PR #285 saiu do bloqueio funcional.** O achado P0 continua como decisao duravel, mas o fluxo atual ja valida que CNPJ lateral nao vira empresa do grupo. PR #285 esta `CLEAN` no GitHub, com checks remotos verdes e validacao local via proxy da preview.
 
 ### Achado P0 atual — Teia CNPJ
 
 - Fonte oficial (`QSA Oficial`, CNPJ Aberto, Receita/BrasilAPI) qualifica o vinculo do socio com o CNPJ.
 - O CNPJ so vira `group_link` quando houver prova independente de vinculo com a raiz/grupo.
-- CNPJ lateral deve aparecer como `CNPJs laterais` / `CNPJ lateral do socio`.
+- CNPJ lateral deve aparecer como `CNPJs laterais`; a matriz nao exibe mais coluna/badge textual de relacao lateral.
 - Proibido usar lateral como `Proprias`, `Side business`, veiculo operacional do grupo, bioinsumos, verticalizacao, enterprise ou wedge Senior.
+- Fechamento atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
 - Historico completo: `docs/obsidian/daily/INDEX.md`.
 - Validacao local final: recorte Vitest da teia (`88`), `validate-prompts.sh` (`59`), `typecheck`, `lint` com 5 warnings preexistentes, `build`; Browser local confirmou ausencia de `Outros CNPJs`, `Alertas`, `Vinculo...`, `Relação` e badge lateral na matriz.
 - Complemento pos-push: Vite proxy injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`; API via proxy local retornou `15` empresas para `GUILHERME MOGNON SCHEFFER`, `degraded: false`, todas na amostra como `partner_other_cnpj`/`rootContext: false`. Browser local confirmou `18` CNPJs laterais na matriz apos alternar `Grafo -> Tabela`.
 
-> As secoes abaixo sobre CNPJ Aberto/SocietaryMatrix preservam o snapshot anterior da PR #285. Elas nao liberam merge sem a validacao do achado P0 acima.
+> As secoes abaixo sobre CNPJ Aberto/SocietaryMatrix preservam snapshots anteriores da PR #285. Em caso de divergencia, usar o fechamento de 17:05 como fonte atual.
 
 ### O que foi feito nesta sessao (2026-05-25)
 
@@ -149,12 +151,12 @@ Para referencia, foram executados 7 ciclos de tentativa entre os commits `b8b905
 | 7 | Gemini Search Grounding v2 (URL-only) | Zero alucinacao, nao validado na preview | 6d49b28 |
 
 ### Problemas Residuais
-1. **Preview validation pendente** — Deploy buildando em `https://scoutagro-kvyuqv46n-brunolimaff-3629s-projects.vercel.app`. Validar Scheffer `04.733.767/0001-80` apos deploy para confirmar CNPJ Aberto funcionando na Vercel. Se aprovado, PR #285 pode ser mergeada.
-2. **Side business heuristic** — `isSideBusiness()` pode precisar refinamento com dados reais de outras empresas (alem de Scheffer)
-3. **Ordenacao por coluna e expandir detalhes** — funcionalidades futuras para SocietaryMatrix
-4. **Entidades internacionais sem link de auditoria** — "Conexoes internacionais exigem comprovacao documental... Se nao houver evidencia concreta, a conexao e INFERIDA" (P2)
-5. **Mermaid no contrato ainda e condicional** ("quando houver dados"), deveria ser obrigatorio (P2)
-6. **`SUPABASE_SERVICE_ROLE_KEY` nao configurada na Preview** — Cache persistente de `/api/socio-search` indisponivel
+1. **PR #286 precisa ser validada depois da #285** — links inline auditaveis podem ter ficado desalinhados com a narrativa limpa da Teia.
+2. **Cache persistente da Teia** — `SUPABASE_SERVICE_ROLE_KEY` ainda precisa ser configurada na Preview geral/branch para cache server-side.
+3. **Smoke de preview mais forte** — automatizar falha quando todos os socios voltarem `companies: 0` ou payload degradado sem inventario util.
+4. **Reestruturacao da Teia** — consolidar tipos/contratos de API, parser, grafo, tabela e narrativa em um boundary de dominio.
+5. **Ordenacao por coluna e painel de evidencia** — funcionalidades futuras para SocietaryMatrix.
+6. **Bundle/chunk Mermaid** — warning conhecido no build, sem bloquear a #285.
 
 ## Programa de refatoracao
 
@@ -306,20 +308,16 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Proximo passo seguro
 
-1. **Aguardar deploy da preview Vercel** e validar Scheffer `04.733.767/0001-80`:
-   - Confirmar que `CNPJABERTO_API_KEY` esta configurada no runtime da Preview
-   - `/api/socio-search` retorna empresas com dados reais para os 6 socios Scheffer
-   - Tabela societaria renderiza no toggle Tabela
-   - Toggle Tabela/Grafo funciona sem erros
-   - Nenhum CNPJ inventado ou alucinado aparece
-2. **Se preview validada: mergear PR #285** em `main`. O bloqueio anterior esta removido porque CNPJ Aberto funciona em ambos ambientes (local e Vercel). HEAD: `2e1e986`.
-3. **Mergear PR #286 (links inline auditaveis)** — 7 arquivos, +207/-54, typecheck e testes verdes.
+1. Subir documentacao de fechamento na PR #285 e aguardar checks.
+2. Mergear PR #285 em `main`.
+3. Validar PR #286 (`codex/inline-links-auditaveis`) contra o estado pos-merge da #285.
 4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente de `/api/socio-search`.
-5. Refinar heuristica `isSideBusiness()` com dados reais de outras empresas (alem de Scheffer).
-6. Iteracoes futuras na SocietaryMatrix: ordenacao por coluna, clique na linha para expandir detalhes de evidencia.
-7. Mergear branch `codex/standardize-mermaid-maps` em `main` (migracao Supabase + 8 commits adicionais: cadastro restrito, email recovery, sync manual, remocao dossie).
-8. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery.
-9. **Problemas residuais (P2) de sessoes anteriores:**
+5. Planejar a reestruturacao da Teia CNPJ como boundary de dominio unico.
+6. Refinar heuristica lateral com dados reais de outras empresas (alem de Scheffer).
+7. Iteracoes futuras na SocietaryMatrix: ordenacao por coluna, clique na linha para expandir detalhes de evidencia.
+8. Mergear branch `codex/standardize-mermaid-maps` em `main` quando voltar ao escopo Supabase.
+9. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery.
+10. **Problemas residuais (P2) de sessoes anteriores:**
    - Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
    - Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
 10. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
@@ -417,8 +415,8 @@ Licao aprendida:
 
 ## Riscos residuais imediatos
 
-- **Preview validation pendente:** O deploy esta buildando. CNPJ Aberto funciona local e deve funcionar na Vercel, mas ainda nao foi validado no ambiente real. Se `CNPJABERTO_API_KEY` nao estiver configurada ou o rate limit (1000 queries/dia) for excedido, o pipeline recai para fallbacks que podem ser bloqueados.
-- **Side business heuristic sem validacao cross-company:** `isSideBusiness()` foi testada apenas com dados Scheffer. Pode precisar refinamento com outras empresas.
+- **Teia CNPJ pos-merge:** validar PR #286 contra a narrativa limpa da #285.
+- **Heuristica lateral sem validacao cross-company:** a regra foi validada em Scheffer, mas precisa de segundo grupo economico.
 - **SocietaryMatrix sem ordenacao ou expand:** funcionalidades de UX postergadas para iteracoes futuras.
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.
 - `VITE_PINECONE_*` removido do bundle frontend (PR #270) — agora usado exclusivamente em serverless functions.
@@ -428,7 +426,7 @@ Licao aprendida:
 - **Supabase anon key exposta no bundle:** risco aceito para app interno. RLS por `operator_id` mitiga.
 - **Sync queue pode acumular:** se operador ficar offline prolongado, fila IDB pode crescer.
 - **Email recovery experimental:** fluxo de vinculacao de dispositivo ainda nao testado em producao.
-- **PR #285 com CNPJ Aberto integrado:** O bloqueio anterior (nenhuma fonte funcionava em todos ambientes) esta removido. CNPJ Aberto funciona em ambos ambientes. Risco residual: confirmar `CNPJABERTO_API_KEY` configurada na Vercel.
+- **PR #285 com CNPJ Aberto estruturado:** bloqueio funcional superado em 2026-05-25 17:05; risco residual agora e reestruturacao/gate automatizado, nao o contrato atual da PR.
 - **Entidades internacionais sem link de auditoria:** "conexao INFERIDA" sem comprovacao documental. (P2)
 - **Mermaid no contrato condicional:** contrato diz "quando houver dados" para o grafo, deveria ser obrigatorio. (P2)
 

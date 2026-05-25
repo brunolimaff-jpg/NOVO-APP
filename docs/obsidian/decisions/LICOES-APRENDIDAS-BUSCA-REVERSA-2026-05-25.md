@@ -3,11 +3,11 @@
 **Data:** 2026-05-25
 **Branch:** `codex/cnpj-socios-todos-cnpjs`
 **PR:** `#285`
-**Contexto:** 7 ciclos de tentativa para encontrar uma fonte de busca que funcione no runtime Vercel e entregue CNPJs de socios com profundidade real.
+**Contexto:** 9 ciclos de tentativa para encontrar uma fonte de busca que funcione no runtime Vercel e entregue CNPJs de socios com profundidade real.
 
 ## Resumo Executivo
 
-A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs por socio. Ao longo de 3 dias, passamos por 8 ciclos de tentativa, cada um resolvendo um problema mas revelando outro. O estado atualizado em 2026-05-25 16:01 e: CNPJ Aberto resolve a fonte de dados, mas revelou um P0 semantico. QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`. Todo CNPJ fora de prova independente do grupo deve entrar como `partner_other_cnpj` / `CNPJ lateral do socio`.
+A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs por socio. Ao longo de 3 dias, passamos por 9 ciclos de tentativa, cada um resolvendo um problema mas revelando outro. O estado final de 2026-05-25 17:05 e: CNPJ Aberto resolve a fonte de dados quando entra por contrato estruturado; QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`; a UI mostra `CNPJs laterais` sem promover lateral a empresa do grupo.
 
 ## Os 8 Ciclos
 
@@ -156,7 +156,20 @@ performGeminiSearch(query, apiKey):
 
 **Status:** recorte Vitest da teia passou com 91 testes em 2026-05-25 16:00.
 
-## Tabela Resumo dos 8 Ciclos
+### Ciclo 9: Fechamento visual, cache v7 e validação por proxy da preview
+
+**Problema:** Mesmo depois do contrato semantico, a UI ainda mostrava coluna/badge `CNPJ lateral do socio`, secoes textuais inseguras, alerta falso de validacao e dados potencialmente servidos por cache antigo.
+
+**Correcao:**
+- Matriz removeu coluna/badge de relacao lateral.
+- Tabela/Grafo normalizaram nomes curtos dos socios.
+- Renderer filtrou `Outros CNPJs`, `Alertas` e `Vinculo do socio; grupo nao confirmado`.
+- `/api/socio-search` subiu cache para `v7-structured-lateral-cnpj`.
+- Vite proxy local passou a usar a preview com `x-vercel-protection-bypass` vindo de `.env.local`.
+
+**Resultado:** PR #285 ficou `CLEAN`; API via proxy local da preview retornou 15 empresas e 5 rejeitadas para `GUILHERME MOGNON SCHEFFER`, `degraded: false`; browser local exibiu 18 CNPJs laterais na matriz.
+
+## Tabela Resumo dos 9 Ciclos
 
 | # | Ciclo | Resultado | Problema resolvido | Problema criado/revelado |
 |---|-------|-----------|-------------------|--------------------------|
@@ -168,6 +181,7 @@ performGeminiSearch(query, apiKey):
 | 6 | Gemini Search v1 (LLM) | FALHA | Fonte pra Vercel | Alucina CNPJs falsos |
 | 7 | Gemini Search v2 (URL-only) | TESTANDO | Alucinacao de CNPJs | Depende de GEMINI_API_KEY na preview |
 | 8 | CNPJ Aberto estruturado | OK em teste local | Fonte dedicada por socio | Exige contrato semantico para nao promover lateral a grupo |
+| 9 | Fechamento visual + cache v7 | OK validado | UI/texto/cache obsoletos | Exige reestruturacao posterior para nao espalhar regra |
 
 ## Arquitetura anterior de busca (HEAD `6d49b28`, superada pelo Ciclo 8)
 
@@ -257,7 +271,7 @@ O Ciclo 3 mostrou que atualizar estado a cada socio causa flickering. O padrao d
 
 **CNPJ Aberto e a fonte primaria de busca reversa por socio, mas nunca deve virar bloco textual generico.** A resposta entra estruturada como vinculo do socio. O escopo de grupo so pode ser promovido por prova independente.
 
-**Nao mergear PR #285** ate validar o P0 em preview: laterais aparecem como `CNPJs laterais`, nao como `Proprias`; nao existe aresta `Root -> company` para lateral; e nenhuma tese operacional usa lateral como prova.
+Status 17:05: o P0 foi validado tecnicamente na PR #285. Antes de mergear, manter o criterio: laterais aparecem como `CNPJs laterais`, nao como `Proprias`; nao existe aresta `Root -> company` para lateral; e nenhuma tese operacional usa lateral como prova.
 
 ## Referencias
 
@@ -269,4 +283,5 @@ O Ciclo 3 mostrou que atualizar estado a cada socio causa flickering. O padrao d
 - Commit f2d9500: Gemini Search v1 (LLM)
 - Commit 6d49b28: Gemini Search v2 (URL-only)
 - Achado P0: `ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`
+- Fechamento: `FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`
 - Licoes anteriores: `LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md`

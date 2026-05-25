@@ -1,7 +1,7 @@
 # Achado P0 - Teia CNPJ: Escopo de grupo vs CNPJ lateral
 
 **Data:** 2026-05-25  
-**Status:** ativo  
+**Status:** decisao duravel; bloqueio funcional da PR #285 superado em 2026-05-25 17:05
 **Escopo:** PR #285 (`codex/cnpj-socios-todos-cnpjs`)  
 **Severidade:** P0 funcional/semantico
 
@@ -19,11 +19,11 @@ Um CNPJ onde o socio aparece deve ser `partner_other_cnpj` ate existir prova ind
 | `partner_other_cnpj` | QSA/CNPJ Aberto/Receita confirma que o socio aparece no CNPJ, mas grupo nao esta confirmado | Nao; serve para pergunta de reuniao/validacao |
 | `unconfirmed` | CNPJ textual, com `*`, invalido, inconsistente ou sem validacao oficial | Nao; apenas pendencia de validacao |
 
-Labels finais:
+Labels finais de produto:
 
 - Filtro: `CNPJs laterais`
-- Badge: `CNPJ lateral do socio`
-- Evidencia: `Vinculo do socio; grupo nao confirmado`
+- Matriz: sem coluna/badge textual de relacao lateral
+- Evidencia interna: `Vinculo do socio; grupo nao confirmado`, sem renderizar essa frase como narrativa principal
 
 Termos proibidos para lateral:
 
@@ -41,7 +41,7 @@ Termos proibidos para lateral:
 | 2026-05-24 | #280 | MERGED | Aprofundou pesquisa da teia e preparou busca reversa por socio. |
 | 2026-05-24 | #283 | MERGED | Consolidou prompts e anti-alucinacao. |
 | 2026-05-24 | #284 | MERGED | Fechou War Room RAG anti-alucinacao. |
-| 2026-05-25 | #285 | OPEN / bloqueada | Integra CNPJ Aberto e matriz societaria, mas revelou mistura de lateral com grupo. |
+| 2026-05-25 | #285 | OPEN / validada tecnicamente | Integra CNPJ Aberto e matriz societaria; P0 semantico corrigido e documentado no fechamento. |
 | 2026-05-25 | #286 | OPEN | Links inline auditaveis; trilha complementar, nao corrige o P0. |
 
 ## Correcoes exigidas
@@ -64,4 +64,11 @@ Atualizacao 16:08:
 - `validate-prompts.sh`, recorte Vitest da teia, `typecheck`, `lint` e `build` passaram localmente.
 - `lint` manteve 5 warnings conhecidos fora do escopo do P0.
 - `build` manteve warning conhecido de chunk grande por Mermaid.
-- PR #285 continua bloqueada ate validacao visual/preview confirmar que laterais nao viram grupo.
+- Status historico: naquele momento a PR #285 continuava bloqueada ate validacao visual/preview confirmar que laterais nao viram grupo.
+
+Atualizacao 17:05:
+
+- PR #285 ficou `CLEAN` no GitHub com checks remotos verdes.
+- API via proxy local da preview retornou inventario lateral nao degradado.
+- Browser local validou matriz preenchida sem coluna/badge lateral e sem secoes textuais inseguras.
+- Fechamento atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.

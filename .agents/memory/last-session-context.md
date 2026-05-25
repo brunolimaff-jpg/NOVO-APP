@@ -2,14 +2,22 @@
 Saved: 2026-05-25
 
 ## Git
-Branch: codex/cnpj-socios-todos-cnpjs | HEAD: 2e1e986 | PR #285 (OPEN)
+Branch: codex/cnpj-socios-todos-cnpjs | HEAD: 2c9a976 | PR #285 (OPEN / validada tecnicamente)
 
 ## Resumo da sessao
 Nova sessao focada em fechar o ciclo da PR #285. O estado atual mudou: CNPJ Aberto resolveu a fonte de dados, mas revelou P0 semantico de escopo.
 
+### Atualizacao 2026-05-25 17:05 — fechamento atual
+
+- PR #285 esta `CLEAN` no GitHub e sem P0 conhecido aberto.
+- Fonte atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+- API via proxy local da preview retornou inventario lateral nao degradado.
+- Browser local confirmou matriz com 18 CNPJs laterais, sem coluna/badge lateral e sem secoes textuais inseguras.
+- Proximo passo: subir documentacao, mergear #285, validar PR #286.
+
 ### Atualizacao 2026-05-25 16:01 — Onde paramos
 
-- PR #285 continua aberta e nao deve ser mergeada ate validar preview.
+- Snapshot historico: naquele momento a PR #285 continuava aberta e nao deveria ser mergeada ate validar preview.
 - Achado P0: QSA/CNPJ Aberto confirma `socio -> CNPJ`, nao `CNPJ -> grupo`.
 - Laterais agora devem aparecer como `CNPJs laterais` / `CNPJ lateral do socio`, nunca `Proprias` ou `Side business`.
 - Historico diario append-only criado em `docs/obsidian/daily/`.
@@ -60,11 +68,12 @@ Nova sessao focada em fechar o ciclo da PR #285. O estado atual mudou: CNPJ Aber
 5. **Sem mudancas no backend** — todas as features sao frontend-only
 
 ## Mudancas pendentes
-- Validacao da preview pendente para provar que CNPJ lateral nao vira grupo
+- Validar PR #286 depois do merge da #285
+- Configurar `SUPABASE_SERVICE_ROLE_KEY` para cache persistente na Preview
+- Criar smoke de preview que falhe com inventario vazio/degradado
 - Ordenacao por coluna (futura iteracao)
 - Clique na linha → expandir detalhes de evidencia (futura iteracao)
-- PR #285 merge somente apos validacao do P0 na preview
-- Merge PR #286 (links inline auditaveis)
+- Planejar reestruturacao da Teia CNPJ como boundary de dominio
 
 ## Recuperacao
 Na proxima sessao, recovery-context.sh vai ler HANDOFF_AI.md,

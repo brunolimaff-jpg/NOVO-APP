@@ -49,7 +49,8 @@ Voltar para [[00-MASTER]].
 
 ## Decisoes recentes
 
-- [[ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25]] — 2026-05-25 — QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo; bloqueia PR #285 ate validar escopo lateral
+- [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]] — 2026-05-25 — fechamento da PR #285, validações finais, lições aprendidas e pendências de reestruturação
+- [[ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25]] — 2026-05-25 — QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo; decisao duravel da Teia CNPJ
 - [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints
 - [[TEIA-SOCIETARIA-ENRIQUECIMENTO]] — 2026-05-23 — Componente visual de estrutura societaria com drill-down
 - [[UX-REDESIGN-DIREÇÕES]] — 2026-05-23 — Redesenho UX do Scout 360 (direcao Paper Executivo, caminho C)

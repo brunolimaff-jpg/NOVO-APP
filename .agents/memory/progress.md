@@ -4,9 +4,23 @@ Last updated: 2026-05-25
 
 ## Completed
 
+### Fechamento Teia CNPJ PR #285 (2026-05-25 17:05)
+
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285.
+
+**Status:** validada tecnicamente. O bloqueio P0 virou decisao duravel, nao bloqueio aberto. Fonte atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+
+**Evidencia final:**
+- GitHub PR #285: `mergeStateStatus: CLEAN`, checks remotos verdes.
+- API via proxy local da preview: `GUILHERME MOGNON SCHEFFER` retornou 15 empresas, 5 rejeitadas, `degraded: false`, amostra com `partner_other_cnpj` e `rootContext: false`.
+- Browser local: matriz exibiu 18 CNPJs laterais apos alternar `Grafo -> Tabela`, sem coluna `Relação`, sem badge `CNPJ lateral do socio`, sem secoes textuais inseguras.
+- Gates: `validate-prompts.sh`, recorte Vitest da teia, `typecheck`, `lint` e `build` verdes; warnings conhecidos permanecem fora do escopo.
+
+**Pendencias abertas:** validar PR #286 apos merge da #285; configurar `SUPABASE_SERVICE_ROLE_KEY`; criar smoke de preview mais forte; reestruturar Teia CNPJ como modulo de dominio.
+
 ### Achado P0 Teia CNPJ + contrato lateral (2026-05-25 16:01)
 
-**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285 ainda aberta e funcionalmente bloqueada ate preview validar o P0.
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285. Snapshot historico das 16:01; status atual superado pelo fechamento das 17:05.
 
 **Decisao:** CNPJ Aberto/QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`. CNPJs sem prova independente de grupo ficam como `partner_other_cnpj` / `CNPJ lateral do socio`.
 
@@ -84,7 +98,7 @@ Last updated: 2026-05-25
 
 **Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285
 
-**Atualizacao critica 2026-05-25:** status anterior de "preview validada" ficou obsoleto. A PR #285 esta com checks verdes e `mergeStateStatus: CLEAN`, mas **nao deve ser mergeada** porque a validacao funcional da preview voltou a falhar em profundidade.
+**Atualizacao critica 2026-05-25 09:30 (snapshot historico):** status anterior de "preview validada" ficou obsoleto. Naquele momento a PR #285 estava com checks verdes e `mergeStateStatus: CLEAN`, mas **nao devia ser mergeada** porque a validacao funcional da preview voltou a falhar em profundidade. Status atual superado pelo fechamento das 17:05.
 
 - `/api/socio-search` agora diferencia `relationshipScope`: `group_link`, `partner_other_cnpj` e `unconfirmed`.
 - Busca societaria passou a incluir queries por socio sem empresa raiz, para capturar CNPJs onde o socio aparece mesmo sem prova de pertencer ao grupo economico.

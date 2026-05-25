@@ -50,7 +50,8 @@ Use este material para navegar por arquitetura e roadmap. O status vivo continua
 - `.agents/memory/progress.md`
 - `.agents/memory/decisions.md`
 - `docs/obsidian/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` (13 lições aprendidas — sessão 2026-05-24)
-- `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` (PR #285 — status anterior, CNPJ pendente com `*`, DuckDuckGo-only)
+- `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md` (PR #285 — fechamento validado, lições e pendências)
+- `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` (PR #285 — snapshots históricos; alguns estados foram superados)
 - `docs/ai-context/refactor/02-BOARD.md`
 - `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 - `docs/ai-context/refactor/06-HANDOFF.md`

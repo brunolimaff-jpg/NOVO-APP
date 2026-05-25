@@ -18,7 +18,14 @@ Read order:
 
 ## Current operating phase
 
-**Branch: `codex/cnpj-socios-todos-cnpjs` — PR #285 BLOQUEADA por achado P0 semantico ate preview atualizado validar. Localmente o contrato ja foi corrigido: CNPJ lateral nao vira empresa do grupo, textos inseguros foram removidos e a matriz nao duplica filtros.**
+**Branch: `codex/cnpj-socios-todos-cnpjs` — PR #285 validada tecnicamente e pronta para merge quando o owner confirmar a janela. O achado P0 semantico virou decisao duravel: CNPJ lateral nao vira empresa do grupo.**
+
+### Atualizacao 2026-05-25 17:05 — fechamento documental da Teia
+
+- PR #285 esta `CLEAN` no GitHub com checks remotos verdes.
+- Fonte atual do fechamento: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+- Nenhum P0 conhecido continua bloqueando a #285 depois da validacao por proxy/local.
+- Pendencias principais apos merge: validar PR #286, configurar cache persistente com `SUPABASE_SERVICE_ROLE_KEY`, criar smoke de preview mais forte e planejar reestruturacao da Teia como modulo de dominio.
 
 ### Atualizacao 2026-05-25 16:45 — limpeza visual final da Teia
 
@@ -129,9 +136,11 @@ Read order:
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| P0 | Validacao da preview pendente — deploy ainda buildando, confirmar CNPJ Aberto funcionando na Vercel | Vercel Preview / CNPJ Aberto |
+| P1 | Validar PR #286 depois do merge da #285 | GitHub / narrativa inline |
 | P1 | Heuristica de side business pode precisar refinamento com dados reais de outras empresas | features/dossier/societaryCategories.ts |
 | P1 | `SUPABASE_SERVICE_ROLE_KEY` nao configurada na Preview — cache persistente indisponivel | Vercel env / Supabase |
+| P1 | Smoke de preview deve falhar quando todos os socios retornarem `companies: 0` ou payload degradado sem inventario util | scripts / GitHub Actions |
+| P1 | Reestruturar Teia CNPJ como boundary de dominio unico | api + features/dossier + prompts |
 | P2 | Ordenacao por coluna na tabela — futura iteracao | SocietaryMatrix.tsx |
 | P2 | Clique na linha → expandir detalhes de evidencia — futura iteracao | SocietaryMatrix.tsx |
 | P2 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
@@ -139,11 +148,8 @@ Read order:
 
 ## Immediate next step
 
-1. Validar preview Vercel com Scheffer `04.733.767/0001-80`:
-   - laterais aparecem como `CNPJs laterais`;
-   - nenhum lateral aparece como `Próprias`/`Side business`;
-   - grafo nao cria aresta `Root -> company` para lateral;
-   - narrativa nao usa lateral como tese operacional/bioinsumos/verticalizacao.
-2. **Se P0 validado:** merge da PR #285 em main.
-3. Merge PR #286 (links inline auditaveis).
+1. Subir este fechamento documental na PR #285.
+2. Mergear PR #285 quando checks ficarem verdes.
+3. Validar PR #286 com `gh-resolve-pr-comments` e checar pendencias/checks.
 4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente.
+5. Planejar a reestruturacao da Teia CNPJ como proximo ciclo.

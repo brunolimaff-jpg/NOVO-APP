@@ -1,7 +1,7 @@
 ---
 title: "Handoff Teia CNPJ 2026-05-25"
 type: handoff
-status: blocked
+status: validated-pending-merge
 projeto: "NOVO-APP"
 data: 2026-05-25
 branch: "codex/cnpj-socios-todos-cnpjs"
@@ -20,9 +20,13 @@ Voltar para [[DECISIONS-Index]] | [[LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24]] | [
 
 ## Resumo executivo
 
-PR #285 (`codex/cnpj-socios-todos-cnpjs`) **nao esta pronta para merge**. Ela esta com checks remotos verdes e `mergeStateStatus: CLEAN`, mas a preview atual ainda nao entrega a profundidade de CNPJs por socio: `/api/cnpj` encontra 6 socios da Scheffer, enquanto `/api/socio-search` retorna 0 empresas para todos eles.
+Atualizacao 2026-05-25 17:05: o estado abaixo de bloqueio foi superado. A PR #285 (`codex/cnpj-socios-todos-cnpjs`) ficou tecnicamente validada no commit `2c9a976`: GitHub `CLEAN`, checks remotos verdes, API via proxy local da preview retornando inventario lateral nao degradado e browser local mostrando matriz preenchida sem textos inseguros.
 
-O trabalho feito ate aqui melhorou contrato, parser, grafo, UI, testes e diagnostico, mas nao resolveu a causa de produto: a busca publica por socio esta vindo vazia/degradada no runtime Vercel. O proximo ciclo precisa investigar fonte de dados/provedor/cache e nao apenas ajustar apresentacao.
+Fonte atual de fechamento: [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]].
+
+Snapshot historico anterior: PR #285 **nao estava pronta para merge** quando `/api/cnpj` encontrava 6 socios da Scheffer e `/api/socio-search` retornava 0 empresas para todos eles.
+
+O trabalho posterior resolveu a causa de produto com CNPJ Aberto estruturado, cache versionado e limpeza visual/textual. As secoes abaixo permanecem para auditoria do caminho, nao como status atual.
 
 ## Contexto
 
@@ -220,13 +224,15 @@ Conclusao: a API agora diagnostica melhor a falha, mas ainda nao resolve a profu
 | Checks remotos e Smoke Preview | Garante build/test/deploy basico | Smoke atual nao falha quando o resultado societario vem vazio |
 | Validacoes unitarias de parser/grafo/API | Protegem contratos locais e anti-alucinacao | Testes mockados nao provam que o provedor publico entrega resultados reais |
 
-## Decisao de merge
+## Decisao de merge historica
 
-**Decisao:** nao mergear a PR #285 neste estado.
+**Status:** superada pelo fechamento de 2026-05-25 17:05.
+
+**Decisao naquele momento:** nao mergear a PR #285 naquele estado.
 
 **Racional:** a PR esta tecnicamente mergeavel pelo GitHub, mas falha no comportamento de negocio principal: entregar profundidade de pesquisa de CNPJs dos socios. Fazer merge agora consolidaria uma tela que parece correta em contrato, mas continua vazia na preview real.
 
-**Criterio minimo para liberar merge:**
+**Criterio minimo definido naquele momento para liberar merge:**
 
 1. `/api/cnpj` continua retornando os 6 socios da Scheffer.
 2. `/api/socio-search` retorna CNPJs laterais nao vazios para ao menos parte relevante dos socios, ou explica com diagnostico forte por que nao ha fonte.
@@ -275,7 +281,7 @@ Conclusao: a API agora diagnostica melhor a falha, mas ainda nao resolve a profu
 
 ### Arquivos modificados nesta baixa
 
-- `HANDOFF_AI.md` — corrigido de "PR #285 validada" para "PR #285 bloqueada por falha funcional".
+- `HANDOFF_AI.md` — naquele snapshot foi corrigido de "PR #285 validada" para "PR #285 bloqueada por falha funcional"; status superado no fechamento das 17:05.
 - `.agents/memory/activeContext.md` — atualizado com preview falha, decisao de nao mergear e next step.
 - `.agents/memory/progress.md` — adicionado override detalhado do status antigo de preview.
 - `.agents/memory/decisions.md` — registrada decisao duravel de gate funcional antes de merge.
@@ -333,19 +339,11 @@ content-type: application/json
 - O smoke de preview deve falhar com `searchFailureCount > 0` ou apenas quando todos os socios voltarem `companies: 0`?
 - `SUPABASE_SERVICE_ROLE_KEY` de Preview sera geral ou restrita a branch `codex/cnpj-socios-todos-cnpjs`?
 
-## Proximos passos
+## Proximos passos atuais
 
-1. Responder na PR #285 corrigindo o status: comentarios antigos de validacao estao stale; merge bloqueado.
-2. Investigar `performWebSearch`/DuckDuckGo Lite no runtime Vercel:
-   - confirmar se o HTML do DuckDuckGo mudou;
-   - verificar se ha bloqueio/rate-limit/UA;
-   - testar consultas equivalentes fora da Vercel e dentro da Vercel;
-   - capturar corpo bruto anonimizado quando `empty_result`.
-3. Avaliar fonte alternativa confiavel para consulta por socio, sem voltar a aceitar Brave como dependencia obrigatoria:
-   - fonte oficial ou semi-oficial quando disponivel;
-   - endpoint dedicado de consulta societaria;
-   - scraping controlado de pagina especifica apenas se legal/estavel;
-   - cache persistente para resultados bons.
+1. Subir a documentacao de fechamento na PR #285.
+2. Mergear PR #285 depois dos checks.
+3. Validar PR #286 contra o estado pos-merge.
 4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente.
-5. Atualizar o smoke de preview para falhar quando todos os 6 socios retornarem `companies: 0`.
-6. Revalidar Scheffer `04.733.767/0001-80` antes de qualquer merge.
+5. Atualizar smoke de preview para falhar quando todos os 6 socios retornarem `companies: 0` ou payload degradado sem inventario util.
+6. Planejar a reestruturacao da Teia CNPJ como boundary de dominio.
