@@ -181,6 +181,53 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByTestId('societary-map')).toHaveTextContent('Agropecuaria Scheffer Ltda');
   });
 
+  it('remove seções textuais inseguras de CNPJs laterais e alertas societários', () => {
+    const message: Message = {
+      id: 'bot-teia-cleanup',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '# TEIA SOCIETÁRIA: VISÃO GERAL DO GRUPO',
+        '',
+        '## Mapa de poder societario',
+        '',
+        'Consulte a teia interativa.',
+        '',
+        '- **Outros CNPJs:** Participações em veículos patrimoniais sem confirmação.',
+        '',
+        '## Outros CNPJs onde o sócio aparece',
+        '',
+        '| Sócio | CNPJ | Razão Social | Fonte | Confiança |',
+        '|-------|------|--------------|-------|-----------|',
+        '| Elizeu Scheffer | 00.348.003/0001-10 | Amaggi Exportação e Importação | QSA Oficial | OFICIAL |',
+        '',
+        '### Alertas de validação societária',
+        '',
+        '⚠️ Validação CNPJ: 7 de 7 CNPJs citados nao foram confirmados.',
+        '',
+        '## Sinais úteis',
+        '',
+        'Conteúdo que deve permanecer.',
+      ].join('\n'),
+    };
+
+    render(
+      <SectionalBotMessage
+        message={message}
+        isDarkMode={false}
+        empresaAlvo="Scheffer & Cia"
+        cnpj="04733767000180"
+      />,
+    );
+
+    expect(screen.queryByText(/Amaggi Exportação/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Participações em veículos patrimoniais/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Alertas de validação societária/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Validação CNPJ/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Sinais úteis/)).toBeInTheDocument();
+    expect(screen.getByText(/Conteúdo que deve permanecer/)).toBeInTheDocument();
+  });
+
   it('renderiza apenas um mapa societário quando visão geral e profundidade citam teia', () => {
     const message: Message = {
       id: 'bot-teia-duplicada',

@@ -524,6 +524,22 @@ Conclusao: a camada de contrato/anti-alucinacao melhorou, mas a busca real por s
 - Validação local: `npm exec vitest run tests/api-open-web-search.test.ts tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/prompts/megaPrompts.test.ts` green (`91` testes); `./scripts/validate-prompts.sh` green (`56` testes); `npm run typecheck` green; `npm run build` green com warning conhecido de chunks grandes.
 - Caveat operacional: `BRAVE_SEARCH_API_KEY` pode continuar cadastrada na Vercel, mas nao e mais lida pelo runtime; `SUPABASE_SERVICE_ROLE_KEY` aparece apenas em Production e na preview da branch `feat/migration-notice-supabase`, entao falta configurar a env de cache para Preview geral ou para `codex/cnpj-socios-todos-cnpjs`.
 
+### Teia CNPJ visual cleanup final (PR `#285`, branch `codex/cnpj-socios-todos-cnpjs`)
+
+- Em 2026-05-25 16:45, a matriz foi simplificada para remover a coluna/badge visual `CNPJ lateral do socio`; ficam apenas `EMPRESA`, `CNPJ`, `CNAE` e socios.
+- `Tabela` e `Grafo` passaram a usar nomes curtos consistentes para socios, evitando botoes com nomes completos em caixa alta.
+- `SectionalBotMessage` remove do texto exibido e do copiar as secoes/linhas inseguras: `Outros CNPJs onde o socio aparece`, `Outros CNPJs:`, `Alertas de validacao societaria` e `Vinculo do socio; grupo nao confirmado`.
+- `/api/socio-search` teve `CACHE_KEY_VERSION` atualizado para `v7-structured-lateral-cnpj` para nao reaproveitar cache persistente do contrato antigo.
+- CNPJ Aberto agora expõe `registrationStatus`; CNPJ baixado/inativo entra em `rejected`, nao no inventario principal.
+- Validação local:
+  - `npm run test -- tests/components/SectionalBotMessage.test.tsx tests/features/dossier/SocietaryMap.test.tsx tests/api-socio-search.test.ts tests/features/dossier/teiaTextParser.test.ts tests/prompts/megaPrompts.test.ts tests/features/dossier/waterfall-orchestrator.test.ts` green (`88` testes).
+  - `./scripts/validate-prompts.sh` green (`59` testes).
+  - `npm run typecheck` green.
+  - `npm run lint` green com 5 warnings preexistentes conhecidos.
+  - `npm run build` green com warning conhecido de chunk grande por Mermaid.
+- Browser local em `http://127.0.0.1:3000/`: DOM confirmou que a mensagem visivel nao mostra mais `Outros CNPJs`, `Alertas`, `Vinculo...`; matriz nao mostra `Relação` nem badge `CNPJ lateral do socio`.
+- Caveat: CNPJs estruturados ainda nao apareceram no local porque a preview/API usada pelo proxy precisa receber este commit para recomputar com o cache `v7`.
+
 ## Important refs
 
 - `HANDOFF_AI.md`

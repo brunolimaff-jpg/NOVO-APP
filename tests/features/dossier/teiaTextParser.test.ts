@@ -76,7 +76,7 @@ describe('teiaTextParser', () => {
     ]);
   });
 
-  it('marca outros CNPJs do socio com escopo proprio', () => {
+  it('ignora linha textual de outros CNPJs do socio', () => {
     const parsed = parseTeiaText([
       '## Outros CNPJs onde o sócio aparece',
       '',
@@ -84,18 +84,11 @@ describe('teiaTextParser', () => {
       '- **Outros CNPJs:** Fazenda Independente LTDA (12.345.678/0001-95)',
     ].join('\n'));
 
-    expect(parsed.companies).toEqual([
-      expect.objectContaining({
-        name: 'Fazenda Independente LTDA',
-        cnpj: '12345678000195',
-        partnerName: 'Guilherme M. Scheffer',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      }),
-    ]);
+    expect(parsed.companies).toHaveLength(0);
+    expect(parsed.warnings).toContain('Linha textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
   });
 
-  it('reconhece tabela de outros CNPJs por socio', () => {
+  it('ignora tabela textual de outros CNPJs por socio', () => {
     const parsed = parseTeiaText([
       '## Outros CNPJs onde o sócio aparece',
       '',
@@ -105,26 +98,11 @@ describe('teiaTextParser', () => {
       '| Gislayne Rafaela Scheffer | 21.333.444/0001-19 | Associacao Scheffer de Lazer | Consulta Sócio | PÚBLICA |',
     ].join('\n'));
 
-    expect(parsed.companies).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        name: 'Agropecuaria Scheffer LTDA',
-        cnpj: '09567366000111',
-        partnerName: 'Guilherme M. Scheffer',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      }),
-      expect.objectContaining({
-        name: 'Associacao Scheffer de Lazer',
-        cnpj: '21333444000119',
-        partnerName: 'Gislayne Rafaela Scheffer',
-        confidence: 'medium',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      }),
-    ]));
+    expect(parsed.companies).toHaveLength(0);
+    expect(parsed.warnings).toContain('Tabela textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
   });
 
-  it('mantem QSA Oficial em Outros CNPJs como lateral, nao como grupo', () => {
+  it('nao usa QSA Oficial textual em Outros CNPJs como dado estruturado', () => {
     const parsed = parseTeiaText([
       '## Outros CNPJs onde o sócio aparece',
       '',
@@ -133,17 +111,8 @@ describe('teiaTextParser', () => {
       '| Carolina Scheffer | 09.567.366/0001-11 | Scheffer Bio Insumos Ltda | QSA Oficial | OFICIAL | CNPJ_LATERAL_SOCIO | Validar em reunião; não usar como tese operacional |',
     ].join('\n'));
 
-    expect(parsed.companies).toEqual([
-      expect.objectContaining({
-        name: 'Scheffer Bio Insumos Ltda',
-        cnpj: '09567366000111',
-        partnerName: 'Carolina Scheffer',
-        confidence: 'strong',
-        evidenceType: 'qsa',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      }),
-    ]);
+    expect(parsed.companies).toHaveLength(0);
+    expect(parsed.warnings).toContain('Tabela textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
   });
 
   it('nao rebaixa Tabela Mestre confirmada so por ter coluna de socio', () => {
@@ -195,19 +164,8 @@ describe('teiaTextParser', () => {
       '| Guilherme Scheffer | 11.222.333/0001-44* | Condomínio Rural X* | Inferida | INFERIDA |',
     ].join('\n'));
 
-    expect(parsed.warnings).toEqual([]);
-    expect(parsed.companies).toEqual([
-      expect.objectContaining({
-        name: 'Condomínio Rural X*',
-        cnpj: null,
-        rawCnpjLabel: '11.222.333/0001-44*',
-        partnerName: 'Guilherme Scheffer',
-        relationshipScope: 'unconfirmed',
-        validationStatus: 'pending',
-        rootContext: false,
-        confidence: 'weak',
-      }),
-    ]);
+    expect(parsed.companies).toHaveLength(0);
+    expect(parsed.warnings).toContain('Tabela textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
   });
 
   it('nao para na primeira tabela quando a secao de outros CNPJs vem depois da tabela mestre', () => {
@@ -231,13 +189,8 @@ describe('teiaTextParser', () => {
         relationshipScope: 'group_link',
         rootContext: true,
       }),
-      expect.objectContaining({
-        cnpj: '09567366000111',
-        partnerName: 'Guilherme M. Scheffer',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      }),
     ]));
+    expect(parsed.companies).toHaveLength(1);
   });
 
   it('mantem compatibilidade com a coluna legada CNPJ / Tipo', () => {

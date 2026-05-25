@@ -18,7 +18,21 @@ Read order:
 
 ## Current operating phase
 
-**Branch: `codex/cnpj-socios-todos-cnpjs` — PR #285 BLOQUEADA por achado P0 semantico. CNPJ Aberto esta integrado, mas CNPJ lateral do socio nao pode ser tratado como empresa do grupo.**
+**Branch: `codex/cnpj-socios-todos-cnpjs` — PR #285 BLOQUEADA por achado P0 semantico ate preview atualizado validar. Localmente o contrato ja foi corrigido: CNPJ lateral nao vira empresa do grupo, textos inseguros foram removidos e a matriz nao duplica filtros.**
+
+### Atualizacao 2026-05-25 16:45 — limpeza visual final da Teia
+
+- Matriz societaria removeu a coluna/badge visual `CNPJ lateral do socio`; agora exibe `EMPRESA`, `CNPJ`, `CNAE` e colunas de socios.
+- `Tabela` e `Grafo` usam os mesmos nomes curtos de socios (`Gilliard`, `Elizeu`, `Guilherme`, `Gislayne`, `Scheffer`, `Carolina`).
+- Renderer remove da mensagem exibida e do copiar:
+  - secao `Outros CNPJs onde o socio aparece`;
+  - linha textual `Outros CNPJs:`;
+  - secao `Alertas de validacao societaria`;
+  - texto `Vinculo do socio; grupo nao confirmado`.
+- `/api/socio-search` teve cache versionado para `v7-structured-lateral-cnpj` para escapar do cache persistente antigo.
+- `.env.local` local aponta o proxy Vite para a preview da PR e continua ignorado pelo Git.
+- Validacao local: recorte Vitest da teia `88` testes, `validate-prompts.sh` `59` testes, `typecheck`, `lint` com 5 warnings preexistentes, `build`.
+- Browser local `http://127.0.0.1:3000/`: DOM confirmou que a matriz nao mostra `Relação`, `CNPJ lateral do socio`, `Outros CNPJs`, `Alertas` nem `Vinculo...`. A busca estruturada ainda depende do deploy atualizado da PR para a API recomputar sem cache antigo.
 
 ### Atualizacao 2026-05-25 16:01 — Achado P0 Teia CNPJ
 

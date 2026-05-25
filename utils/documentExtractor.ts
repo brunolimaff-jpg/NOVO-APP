@@ -326,6 +326,7 @@ export interface CnpjAbertoCompanyResult {
 	name: string;
 	cnpj?: string;
 	role?: string;
+	registrationStatus?: string;
 	sourceTitle: string;
 	sourceUrl: string;
 	snippet: string;
@@ -397,6 +398,15 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
 			const cnpjRaw = readString(company, ['cnpj', 'cnpj_formatado']);
 			const cnpj = normalizeCnpj(cnpjRaw);
 			const role = readString(company, ['qualificacao', 'qualificacao_socio', 'qualificação', 'cargo', 'role']);
+			const registrationStatus = readString(company, [
+				'situacao',
+				'situação',
+				'situacao_cadastral',
+				'situação_cadastral',
+				'descricao_situacao_cadastral',
+				'status',
+				'status_receita',
+			]);
 			if (!name && !cnpj) continue;
 
 			const sourceTitle = `CNPJ Aberto — ${name || `CNPJ ${cnpjRaw}`}${cnpjRaw ? ` (CNPJ ${cnpjRaw})` : ''}`;
@@ -406,10 +416,12 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
 			const summaryParts = [name];
 			if (cnpjRaw) summaryParts.push(`CNPJ ${cnpjRaw}`);
 			if (role) summaryParts.push(role);
+			if (registrationStatus) summaryParts.push(`Situação ${registrationStatus}`);
 			results.push({
 				name: name || `Empresa CNPJ ${cnpjRaw}`,
 				cnpj: cnpj || cnpjRaw || undefined,
 				role: role || undefined,
+				registrationStatus: registrationStatus || undefined,
 				sourceTitle,
 				sourceUrl,
 				snippet: summaryParts.filter(Boolean).join(' — '),

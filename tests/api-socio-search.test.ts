@@ -153,6 +153,46 @@ describe('api/socio-search', () => {
       ]));
   });
 
+  it('referencia CNPJ baixado do CNPJ Aberto sem inserir no inventario principal', async () => {
+    searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
+      {
+        name: 'Empresa Baixada LTDA',
+        cnpj: '11.111.111/0001-91',
+        role: 'Sócio-administrador',
+        registrationStatus: 'Baixada',
+        sourceTitle: 'CNPJ Aberto — Empresa Baixada LTDA',
+        sourceUrl: 'https://cnpjaberto.com.br/11111111000191',
+        snippet: 'Empresa Baixada LTDA — CNPJ 11.111.111/0001-91 — Situação Baixada',
+      },
+    ]);
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Carolina Moggnon Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04.733.767/0001-80',
+      },
+    } as VercelRequest, response.res);
+
+    const payload = response.payload as {
+      companies: unknown[];
+      rejected: Array<{ reason: string; sourceTitle?: string }>;
+    };
+    expect(response.statusCode).toBe(200);
+    expect(payload.companies).toHaveLength(0);
+    expect(payload.rejected).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceTitle: 'CNPJ Aberto — Empresa Baixada LTDA',
+        reason: expect.stringMatching(/baixado\/inativo/i),
+      }),
+    ]));
+    expect(lookupCnpjMock).not.toHaveBeenCalled();
+  });
+
   it('retorna empresas fortes e remove CPF completo do snippet', async () => {
     performWebSearchMock.mockResolvedValueOnce([
       'Título: Scheffer Colombia S.A.S. importações',
@@ -1121,7 +1161,7 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
-    expect(upsertBody.id).toContain('socio-search:v6-pending-cnpj-diagnostics::04733767000180::guilherme m scheffer');
+    expect(upsertBody.id).toContain('socio-search:v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });

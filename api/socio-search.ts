@@ -102,7 +102,7 @@ const CNPJ_LOOKUP_TIMEOUT_MS = 3_500;
 const MAX_CNPJ_LOOKUPS = 5;
 const MAX_COMPANIES = 60;
 const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
-const CACHE_KEY_VERSION = 'v6-pending-cnpj-diagnostics';
+const CACHE_KEY_VERSION = 'v7-structured-lateral-cnpj';
 const cache = new Map<string, CacheEntry>();
 
 function normalizeText(value: string): string {
@@ -368,6 +368,11 @@ function buildCnpjAbertoCompany(params: {
     rootRelationStatus: sameRoot ? 'supported' : 'not_supported',
     operationalThesisAllowed: sameRoot,
   };
+}
+
+function isInactiveRegistrationStatus(value?: string): boolean {
+  const status = normalizeText(value || '');
+  return /\b(baixad|inativ|inapt|suspens|nul)\w*\b/.test(status);
 }
 
 function cleanInferredCompanyName(value: string): string {
@@ -857,6 +862,16 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
         continue;
       }
       cnpjsFound.add(cnpj);
+
+      if (isInactiveRegistrationStatus(candidate.registrationStatus)) {
+        rejected.push({
+          sourceTitle: candidate.sourceTitle,
+          sourceUrl: candidate.sourceUrl,
+          snippet: candidate.snippet,
+          reason: `CNPJ baixado/inativo na Receita: ${candidate.registrationStatus}. Referenciado fora do inventario principal.`,
+        });
+        continue;
+      }
 
       let official: Awaited<ReturnType<typeof lookupCnpj>> | null = null;
       let qsaConfirmsSocio: boolean | null = null;

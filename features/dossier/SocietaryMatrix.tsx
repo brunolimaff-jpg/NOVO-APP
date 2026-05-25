@@ -56,6 +56,12 @@ interface SocietaryMatrixProps {
   rootName: string;
   selectedPartnerId?: string | null;
   onSelectPartner?: (partnerId: string | null) => void;
+  inactiveReferences?: Array<{
+    sourceTitle?: string;
+    sourceUrl?: string;
+    snippet?: string;
+    reason: string;
+  }>;
 }
 
 interface ClassifiedRow {
@@ -99,7 +105,7 @@ function SummaryCard({
 }) {
   return (
     <div
-      className={`rounded-lg border p-3 ${
+      className={`rounded-lg border p-4 ${
         isDarkMode
           ? 'border-slate-700 bg-slate-800/50'
           : 'border-slate-200 bg-slate-50'
@@ -108,7 +114,7 @@ function SummaryCard({
       <strong className="block text-[1.15rem] text-slate-900 dark:text-slate-100">
         {value}
       </strong>
-      <span className="text-[0.7rem] text-slate-500 dark:text-slate-400">
+      <span className="text-[0.78rem] text-slate-500 dark:text-slate-400">
         {label}
       </span>
     </div>
@@ -122,6 +128,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   rootName: _rootName,
   selectedPartnerId = null,
   onSelectPartner,
+  inactiveReferences = [],
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | CompanyCategory>('all');
 
@@ -209,9 +216,9 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   const partnerColumns = graph.partners;
 
   return (
-    <section className={`rounded-xl border p-5 shadow-sm ${shellClass}`}>
+    <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
-      <div className="grid grid-cols-4 gap-3 mb-3.5">
+      <div className="grid grid-cols-1 gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />
         {metrics.strategic > 0 && <SummaryCard label="frentes estratégicas" value={metrics.strategic} isDarkMode={isDarkMode} />}
         {metrics.operation > 0 && <SummaryCard label="operações compartilhadas" value={metrics.operation} isDarkMode={isDarkMode} />}
@@ -220,7 +227,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
       </div>
 
       {/* ============ Filter toolbar ============ */}
-      <div className="flex flex-wrap items-center gap-2 mb-3.5" aria-label="Filtros da tabela societária">
+      <div className="flex flex-wrap items-center gap-2.5 mb-5" aria-label="Filtros da tabela societária">
         <FilterButton isActive={isAllActive} onClick={handleClearFilters}>
           Todos
         </FilterButton>
@@ -246,15 +253,14 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
 
       {/* ============ Matrix table ============ */}
       <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-        <table className="w-full min-w-[940px] border-collapse text-[0.78rem]">
+        <table className="w-full min-w-[880px] border-collapse text-[0.78rem]">
           <thead>
             <tr className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 dark:text-slate-400">
-              <th className="text-left px-2.5 py-2 min-w-[180px]">Empresa</th>
-              <th className="text-left px-2.5 py-2 w-[130px]">Relação</th>
-              <th className="px-2.5 py-2">CNPJ</th>
-              <th className="text-left px-2.5 py-2">CNAE</th>
+              <th className="text-left px-3 py-3 min-w-[240px]">Empresa</th>
+              <th className="px-3 py-3">CNPJ</th>
+              <th className="text-left px-3 py-3">CNAE</th>
               {partnerColumns.map(partner => (
-                <th key={partner.id} className="px-2.5 py-2">
+                <th key={partner.id} className="px-3 py-3">
                   {firstGivenName(partner.name)}
                 </th>
               ))}
@@ -264,8 +270,8 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
             {visibleRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4 + partnerColumns.length}
-                  className="py-8 text-center text-slate-400 dark:text-slate-500"
+                  colSpan={3 + partnerColumns.length}
+                  className="py-10 text-center text-slate-400 dark:text-slate-500"
                 >
                   Nenhuma empresa encontrada para os filtros ativos.
                 </td>
@@ -277,34 +283,17 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                   className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 >
                   {/* Company name */}
-                  <td className="text-left font-bold text-slate-900 dark:text-slate-100 px-2.5 py-2.5">
+                  <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
                     {row.company.name}
                   </td>
 
-                  {/* Category pill */}
-                  <td className="text-left px-2.5 py-2.5">
-                    <span
-                      className={`inline-flex items-center h-5.5 rounded-full px-2 text-[0.68rem] font-extrabold ${
-                        row.category === 'strategic'
-                          ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300'
-                          : row.category === 'operation'
-                            ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
-                            : row.category === 'lateral'
-                              ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border border-orange-200 dark:border-orange-800'
-                              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600'
-                      }`}
-                    >
-                      {row.category === 'lateral' ? 'CNPJ lateral do sócio' : CATEGORY_LABELS[row.category]}
-                    </span>
-                  </td>
-
                   {/* CNPJ */}
-                  <td className="font-mono text-[0.7rem] text-slate-600 dark:text-slate-400 whitespace-nowrap px-2.5 py-2.5">
+                  <td className="font-mono text-[0.72rem] text-slate-600 dark:text-slate-400 whitespace-nowrap px-3 py-4">
                     {row.company.cnpj ? formatSocietaryCnpj(row.company.cnpj) : '—'}
                   </td>
 
                   {/* CNAE */}
-                  <td className="text-[0.7rem] text-slate-500 dark:text-slate-400 text-left max-w-[200px] px-2.5 py-2.5">
+                  <td className="text-[0.72rem] leading-relaxed text-slate-500 dark:text-slate-400 text-left max-w-[260px] px-3 py-4">
                     {getCnaeLabel(row.company)}
                   </td>
 
@@ -313,7 +302,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                     const isConnected = row.company.partnerIds.includes(partner.id);
                     if (!isConnected) {
                       return (
-                        <td key={partner.id} className="px-2.5 py-2.5">
+                        <td key={partner.id} className="px-3 py-4">
                           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-slate-300 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-600">
                             -
                           </span>
@@ -324,7 +313,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                     const initial = firstGivenName(partner.name).charAt(0).toUpperCase();
                     if (row.side) {
                       return (
-                        <td key={partner.id} className="px-2.5 py-2.5">
+                        <td key={partner.id} className="px-3 py-4">
                           <span
                             style={{ borderColor: color, color }}
                             className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black bg-white dark:bg-slate-800 border-2 border-dashed"
@@ -335,7 +324,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                       );
                     }
                     return (
-                      <td key={partner.id} className="px-2.5 py-2.5">
+                      <td key={partner.id} className="px-3 py-4">
                         <span
                           style={{ backgroundColor: color }}
                           className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-white"
@@ -352,28 +341,14 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         </table>
       </div>
 
-      {/* ============ Legend ============ */}
-      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 text-[0.75rem] text-slate-500 dark:text-slate-400">
-        {graph.partners.map(partner => {
-          const color = partnerColors.get(partner.id) ?? '#94a3b8';
-          return (
-            <span key={partner.id}>
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full mr-1 align-middle"
-                style={{ backgroundColor: color }}
-              />
-              {partner.name}
-            </span>
-          );
-        })}
-        <span>
-          <span
-            className="inline-block w-3.5 mr-1 align-middle"
-            style={{ borderTop: '2px dashed #94a3b8' }}
-          />
-          Vínculo do sócio; grupo não confirmado
-        </span>
-      </div>
+      {inactiveReferences.length > 0 ? (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[0.76rem] leading-relaxed text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <strong>{inactiveReferences.length}</strong>{' '}
+          {inactiveReferences.length === 1 ? 'CNPJ baixado/inativo foi referenciado' : 'CNPJs baixados/inativos foram referenciados'} pelas fontes e excluído
+          {inactiveReferences.length === 1 ? '' : 's'} do inventário principal.
+        </div>
+      ) : null}
+
     </section>
   );
 };

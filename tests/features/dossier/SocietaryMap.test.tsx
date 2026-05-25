@@ -153,7 +153,7 @@ describe('SocietaryMap', () => {
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte societaria');
 
-    fireEvent.click(screen.getByRole('button', { name: /Luciano R\. Scheffer/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Luciano' }));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Scheffer Colombia S.A.S.'));
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
   });
@@ -245,7 +245,14 @@ describe('SocietaryMap', () => {
             relationshipScope: 'partner_other_cnpj',
           },
         ],
-        rejected: [],
+        rejected: [
+          {
+            sourceTitle: 'CNPJ Aberto — Empresa Baixada LTDA',
+            sourceUrl: 'https://cnpjaberto.com.br/11111111000191',
+            snippet: 'Empresa Baixada LTDA — CNPJ 11.111.111/0001-91 — Situação Baixada',
+            reason: 'CNPJ baixado/inativo na Receita: Baixada. Referenciado fora do inventario principal.',
+          },
+        ],
         degraded: false,
         cached: false,
       }),
@@ -255,7 +262,11 @@ describe('SocietaryMap', () => {
 
     await waitFor(() => expect(screen.getByText('E.Z.M.S. Participações Ltda')).toBeInTheDocument());
     expect(screen.getAllByText('CNPJs laterais').length).toBeGreaterThan(0);
-    expect(screen.getByText('CNPJ lateral do sócio')).toBeInTheDocument();
+    expect(screen.queryByText('Relação')).not.toBeInTheDocument();
+    expect(screen.queryByText('CNPJ lateral do sócio')).not.toBeInTheDocument();
+    expect(screen.getByTestId('societary-map-shell')).toHaveTextContent(
+      '1 CNPJ baixado/inativo foi referenciado pelas fontes e excluído do inventário principal.',
+    );
     expect(screen.queryByText('Side business')).not.toBeInTheDocument();
     expect(screen.queryByText('Próprias')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Guilherme M\. Scheffer/i })).not.toBeInTheDocument();
@@ -263,7 +274,8 @@ describe('SocietaryMap', () => {
 
     fireEvent.click(screen.getByText('Grafo'));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Guilherme M\. Scheffer/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Guilherme M\. Scheffer/i })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Guilherme' })).toBeInTheDocument();
   });
 
   it('exibe CNPJ hipotetico com asterisco, borda tracejada e validacao pendente', async () => {
@@ -391,7 +403,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral do sócio');
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
 
-    fireEvent.click(screen.getByRole('button', { name: /Gislayne Rafaela Scheffer/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gislayne' }));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent(/Agropecu[aá]ria Norte LTDA/));
     expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Associacao Scheffer de Lazer');
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));

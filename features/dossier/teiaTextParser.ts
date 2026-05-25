@@ -99,30 +99,6 @@ function parseCnpjLabel(rawValue: string): {
   };
 }
 
-function parseRelatedCompanyToken(rawValue: string): {
-  name: string;
-  cnpj: string | null;
-  rawCnpjLabel?: string;
-  validationStatus?: SocietaryCompanyInput['validationStatus'];
-} | null {
-  const value = rawValue.trim().replace(/\.$/, '');
-  if (!value) return null;
-  const parsedCnpj = parseCnpjLabel(value);
-  const name = value
-    .replace(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})(\*)?/g, '')
-    .replace(/[()]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!name) return null;
-  if (parsedCnpj.isInvalidWithoutPendingMarker) return null;
-  return {
-    name,
-    cnpj: parsedCnpj.cnpj,
-    rawCnpjLabel: parsedCnpj.rawCnpjLabel,
-    validationStatus: parsedCnpj.validationStatus,
-  };
-}
-
 function splitPartnerNames(rawValue: string): string[] {
   return rawValue
     .split(/\s*(?:,|;|\/|\be\b|\band\b)\s*/i)
@@ -213,6 +189,10 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       || /socio(s)?\s+ligado/.test(c),
     );
     const isOtherCnpjsTable = normalizeText(sectionHeadingBefore(lines, table.headerIdx)).includes('outros cnpjs');
+    if (isOtherCnpjsTable) {
+      warnings.push('Tabela textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
+      continue;
+    }
 
     for (let i = table.headerIdx + 2; i < table.tableEndIdx; i++) {
       const row = lines[i].trim();
@@ -330,34 +310,8 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       }
     }
 
-    const outrosCnpjsMatch = block.match(
-      /\*\*Outros CNPJs:\*\*\s*([^\n]+)/i,
-    );
-    if (outrosCnpjsMatch) {
-      const tokens = outrosCnpjsMatch[1]
-        .split(',')
-        .map(parseRelatedCompanyToken)
-        .filter((token): token is {
-          name: string;
-          cnpj: string | null;
-          rawCnpjLabel?: string;
-          validationStatus?: SocietaryCompanyInput['validationStatus'];
-        } => Boolean(token));
-
-      for (const token of tokens) {
-        companies.push({
-          name: token.name,
-          cnpj: token.cnpj,
-          rawCnpjLabel: token.rawCnpjLabel,
-          partnerName: extractedPartnerName,
-          sourceTitle: 'Gemini — Outros CNPJs do sócio',
-          confidence: token.validationStatus === 'pending' ? 'weak' : token.cnpj ? 'medium' : 'weak',
-          evidenceType: token.cnpj ? 'registry' : 'web',
-          relationshipScope: token.validationStatus === 'pending' ? 'unconfirmed' : 'partner_other_cnpj',
-          validationStatus: token.validationStatus,
-          rootContext: false,
-        });
-      }
+    if (/\*\*Outros CNPJs:\*\*\s*([^\n]+)/i.test(block)) {
+      warnings.push('Linha textual de Outros CNPJs ignorada; CNPJs laterais devem vir da busca estruturada.');
     }
   }
 

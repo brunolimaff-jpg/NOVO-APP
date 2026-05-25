@@ -674,7 +674,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
 function partnerLabel(partner: SocietaryPartner): string {
   return [
-    `<b>${escapeMermaidLabel(partner.name)}</b>`,
+    `<b>${escapeMermaidLabel(firstGivenName(partner.name))}</b>`,
     partner.role ? escapeMermaidLabel(partner.role) : '',
   ].filter(Boolean).join('<br/>');
 }

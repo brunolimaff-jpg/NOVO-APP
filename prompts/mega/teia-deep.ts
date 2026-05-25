@@ -111,7 +111,7 @@ Regras:
 - Se nao houver percentual societario, SEMPRE declarar "CLASSIFICACAO ESTIMADA"
 - Se socio aparecer em multiplas empresas do grupo, destaque isso como sinal de concentracao de poder
 - Se socio tiver CPF, mantenha apenas os 3 primeiros e 2 ultimos digitos (ex: ***.123.456-**)
-- Alem do resumo por socio, preencha a tabela "Outros CNPJs onde o socio aparece" com cada CNPJ valido encontrado fora do grupo economico confirmado.
+- Nao gere tabela textual de "Outros CNPJs onde o socio aparece"; CNPJs laterais devem ser entregues pela busca estruturada da aplicacao.
 - Quando um CNPJ tiver asterisco, trate a relacao como hipotese visual/pendente; nao use como prova de controle nem de grupo economico.
 - Mesmo quando a Fonte for QSA Oficial e a Confianca for OFICIAL, em "Outros CNPJs" isso confirma apenas socio -> CNPJ. Nao promova para empresa do grupo.
 
@@ -176,16 +176,6 @@ Traduza a estrutura societaria em linguagem de venda:
 - **Risco de Homonimo:** [SIM/NAO — justificativa]
 
 [Repetir para cada socio relevante]
-
----
-
-## Outros CNPJs onde o socio aparece
-
-| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |
-|-------|------|--------------|-------|-----------|--------|---------------|
-| [socio] | [##.###.###/####-## ou ##.###.###/####-##*] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] | [CNPJ_LATERAL_SOCIO/NAO_CONFIRMADO] | [validar em reuniao; nao usar como tese operacional] |
-
-* = hipótese a validar, não confirmado em fonte oficial.
 
 ---
 

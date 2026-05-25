@@ -35,7 +35,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-25 16:01 — **PR #285 esta bloqueada por achado P0 semantico.** CNPJ Aberto resolveu a fonte, mas nao o escopo: QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`. Nao mergear ate validar preview com `partner_other_cnpj` como `CNPJ lateral do socio`, sem badge `oficial`, sem aresta `Root -> company` e sem tese operacional baseada em lateral.
+> Atualizado em 2026-05-25 16:45 — **PR #285 esta bloqueada por achado P0 semantico ate a preview atualizada validar.** Localmente o contrato visual foi limpo: matriz sem coluna/badge `CNPJ lateral do socio`, Tabela/Grafo com nomes curtos consistentes, textos inseguros removidos da mensagem e cache de `/api/socio-search` em `v7-structured-lateral-cnpj`.
 
 ### Achado P0 atual — Teia CNPJ
 
@@ -44,6 +44,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - CNPJ lateral deve aparecer como `CNPJs laterais` / `CNPJ lateral do socio`.
 - Proibido usar lateral como `Proprias`, `Side business`, veiculo operacional do grupo, bioinsumos, verticalizacao, enterprise ou wedge Senior.
 - Historico completo: `docs/obsidian/daily/INDEX.md`.
+- Validacao local final: recorte Vitest da teia (`88`), `validate-prompts.sh` (`59`), `typecheck`, `lint` com 5 warnings preexistentes, `build`; Browser local confirmou ausencia de `Outros CNPJs`, `Alertas`, `Vinculo...`, `Relação` e badge lateral na matriz.
+- Caveat atual: o proxy local usa a preview da PR; os CNPJs estruturados so devem voltar a aparecer depois do push/deploy recomputar a API com cache `v7`.
 
 > As secoes abaixo sobre CNPJ Aberto/SocietaryMatrix preservam o snapshot anterior da PR #285. Elas nao liberam merge sem a validacao do achado P0 acima.
 

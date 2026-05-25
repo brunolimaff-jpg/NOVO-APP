@@ -25,6 +25,7 @@ interface SocietaryMapProps {
 
 interface SocioSearchResponse {
   companies?: SocietaryCompanyInput[];
+  rejected?: RejectedSocioSearchResult[];
   degraded?: boolean;
   cached?: boolean;
   diagnostics?: {
@@ -32,6 +33,13 @@ interface SocioSearchResponse {
     totalCnpjsFound?: number;
     truncatedReason?: string;
   };
+}
+
+interface RejectedSocioSearchResult {
+  sourceTitle?: string;
+  sourceUrl?: string;
+  snippet?: string;
+  reason: string;
 }
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
@@ -49,6 +57,11 @@ function normalizePartnerKey(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+}
+
+function firstGivenName(fullName: string): string {
+  const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
 function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCompanyInput[]>): SocietaryCompanyInput[] {
@@ -77,6 +90,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
+  const [rejectedReferences, setRejectedReferences] = useState<RejectedSocioSearchResult[]>([]);
   const [loadingPartnerKey, setLoadingPartnerKey] = useState<string | null>(null);
   const [selectedPartnerName, setSelectedPartnerName] = useState<string | undefined>();
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
@@ -91,6 +105,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       setState('empty');
       setRootData(null);
       setCompaniesByPartner({});
+      setRejectedReferences([]);
       searchedPartnerKeysRef.current = {};
       loadingPartnerKeysRef.current = {};
       setSelectedPartnerName(undefined);
@@ -158,6 +173,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         if (!cancelled) {
           setRootData(null);
           setCompaniesByPartner({});
+          setRejectedReferences([]);
           searchedPartnerKeysRef.current = {};
           loadingPartnerKeysRef.current = {};
           setSelectedPartnerName(undefined);
@@ -176,6 +192,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           partners,
         });
         setCompaniesByPartner({});
+        setRejectedReferences([]);
         searchedPartnerKeysRef.current = {};
         loadingPartnerKeysRef.current = {};
         setSelectedPartnerName(undefined);
@@ -207,6 +224,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
     async function loadAllPartners() {
       const collected: Record<string, SocietaryCompanyInput[]> = {};
+      const rejected: RejectedSocioSearchResult[] = [];
       let truncatedNotice: string | null = null;
       let degradedNotice: string | null = null;
 
@@ -232,6 +250,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
           if (!cancelled) {
             collected[partnerKey] = payload.companies || [];
+            rejected.push(...(payload.rejected || []));
             searchedPartnerKeysRef.current[partnerKey] = true;
             if (payload.diagnostics?.truncated) {
               truncatedNotice = 'Busca societaria retornou inventario parcial; valide fontes para CNPJs adicionais.';
@@ -250,6 +269,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
 
       if (!cancelled) {
         setCompaniesByPartner(collected);
+        setRejectedReferences(rejected);
         setLoadingPartnerKey(null);
         if (truncatedNotice) setNotice(truncatedNotice);
         else if (degradedNotice) setNotice(degradedNotice);
@@ -334,6 +354,11 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
     return graph.companies.filter(company => company.partnerIds.includes(selectedPartner.id));
   }, [graph, selectedPartner]);
 
+  const inactiveReferences = useMemo(
+    () => rejectedReferences.filter(item => /baixad|inativ/i.test(item.reason)),
+    [rejectedReferences],
+  );
+
   const mermaid = useMemo(() => {
     if (!graph) return '';
     return buildSocietaryMermaid(graph, { selectedPartnerId: selectedPartner?.id });
@@ -399,7 +424,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
                     : 'border-slate-200 bg-white text-slate-600'
                 }`}
               >
-                {partner.name}
+                {firstGivenName(partner.name)}
               </button>
             ))}
           </div>
@@ -423,6 +448,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           isDarkMode={isDarkMode}
           rootName={rootData?.name || 'Empresa analisada'}
           selectedPartnerId={selectedPartner?.id || null}
+          inactiveReferences={inactiveReferences}
           onSelectPartner={(partnerId) => {
             if (partnerId) {
               const partner = graph.partners.find(p => p.id === partnerId);
