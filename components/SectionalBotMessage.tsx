@@ -132,6 +132,33 @@ function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | 
     || normalized.includes('mapa do poder societario');
 }
 
+/**
+ * Filtra fontes auditaveis para mostrar apenas aquelas cujo contexto
+ * textual aparece no conteudo da secao.
+ *
+ * Fallback seguro: se qualquer fonte tiver `contexts` vazio, retorna
+ * todas as fontes (comportamento original).
+ */
+function filterSourcesForSection(
+  sources: AuditableSource[],
+  sectionContent: string,
+): AuditableSource[] {
+  if (!sources || sources.length === 0) return [];
+  if (!sectionContent) return sources;
+
+  // Fallback: se alguma fonte nao tem contexts, nao podemos filtrar
+  const hasEmptyContexts = sources.some(s => !s.contexts || s.contexts.length === 0);
+  if (hasEmptyContexts) return sources;
+
+  const contentLower = sectionContent.toLowerCase();
+  return sources.filter(source =>
+    source.contexts.some(ctx => {
+      if (!ctx) return false;
+      return contentLower.includes(ctx.toLowerCase());
+    }),
+  );
+}
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId,
@@ -221,6 +248,12 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         const sellerSectionKind = getSellerSectionKind(section.title);
         const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
         const isPrimaryModule = section.level === 1 && section.kind === 'module';
+
+        const sectionSources = useMemo(
+          () => filterSourcesForSection(auditableSources, section.content),
+          [auditableSources, section.content],
+        );
+
         const framedClass = sellerSectionClass || (
           isPrimaryModule
             ? isDarkMode
@@ -251,6 +284,16 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             </div>
           )}
           <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
+            {sectionSources.length > 0 && (
+              <div className={`flex items-center justify-end gap-1.5 mb-2 text-[10px] font-medium uppercase tracking-wider ${
+                isDarkMode ? 'text-slate-500' : 'text-slate-400'
+              }`}>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span>{sectionSources.length} fonte{sectionSources.length !== 1 ? 's' : ''}</span>
+              </div>
+            )}
             {idx === societaryMapSectionIndex ? (
               <SocietaryMap
                 cnpj={cnpj}
@@ -263,8 +306,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
               content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
               isDarkMode={isDarkMode}
               groundingSources={message.groundingSources}
-              auditableSources={auditableSources}
-              showCollapsibleSources={idx === sections.length - 1}
+              auditableSources={sectionSources}
             />
             {sessionId && shouldShowSectionFeedback(section.title) && (
               <FeedbackSection

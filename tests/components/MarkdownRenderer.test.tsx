@@ -14,7 +14,7 @@ describe('MarkdownRenderer', () => {
 
     const link = container.querySelector('a[href="https://www.senior.com.br/"]');
     expect(link).not.toBeNull();
-    expect(link?.textContent).toBe('clique');
+    expect(link?.textContent).toBe('clique ↗');
     expect(container.textContent).toContain('Texto');
   });
 
@@ -32,7 +32,7 @@ describe('MarkdownRenderer', () => {
 
   it('still renders markdown links when raw HTML is disabled', () => {
     render(<MarkdownRenderer content={'[Site](https://www.senior.com.br/)'} allowRawHtml={false} />);
-    const link = screen.getByRole('link', { name: 'Site' });
+    const link = screen.getByRole('link', { name: /^Site/ });
     expect(link).toHaveAttribute('href', 'https://www.senior.com.br/');
   });
 

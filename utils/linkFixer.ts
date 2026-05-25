@@ -25,12 +25,12 @@ export function fixFakeLinks(markdownText: string): string {
         if (isBadge) {
           return `**${linkText}**`;
         }
-        
+
         const realUrl = findSeniorProductUrl(linkText);
         if (realUrl) {
           return `[${linkText}](${realUrl})`;
         }
-        
+
         // NÃO remove o link - mantém como negrito com indicação para fontes não-badges
         return `**${linkText}** *[fonte não disponível]*`;
       }
@@ -41,7 +41,7 @@ export function fixFakeLinks(markdownText: string): string {
   // 2. URLs soltas fake no texto → remover
   const domainsRegexPart = FAKE_DOMAINS.map(d => d.replace(/\./g, '\\.')).join('|');
   const fakeStandaloneRegex = new RegExp(`https?:\\/\\/(?:www\\.)?(?:${domainsRegexPart})[^\\s)>]*`, 'gi');
-  
+
   clean = clean.replace(fakeStandaloneRegex, '');
 
   return clean;
@@ -69,51 +69,73 @@ export function fixFakeLinksHTML(html: string): string {
 }
 
 /**
- * Remove bloco de "Fontes" que contém apenas URLs fake do Gemini
- * MELHORADO: Preserva linhas com título mesmo sem URL
+ * NOVA: Deduplica o bloco "Fontes" ao final do texto.
+ * Remove linhas cuja URL já apareceu inline no corpo do texto
+ * (evita duplicação de fontes). Mantém apenas URLs complementares
+ * que NÃO foram citadas inline e linhas de contexto sem URL.
+ * Também remove fontes comprovadamente falsas (FAKE_DOMAINS).
  */
-export function cleanFakeSourcesBlock(text: string): string {
+export function deduplicateSourcesBlock(text: string): string {
   if (!text) return text;
 
+  // 1. Encontra o bloco "Fontes" ao final
   const sourcesMatch = text.match(/(\n\*?\*?(?:Fontes?|Referências?|Sources?)[\s\S]*$)/i);
   if (!sourcesMatch) return text;
 
+  const bodyText = text.slice(0, sourcesMatch.index!);
   const sourcesBlock = sourcesMatch[1];
   const lines = sourcesBlock.split('\n');
-  const cleanedLines: string[] = [];
-  let hasValidContent = false;
 
+  // 2. Coleta todas as URLs inline do corpo do texto (antes do bloco "Fontes")
+  const inlineUrls = new Set<string>();
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+  let linkMatch: RegExpExecArray | null;
+  while ((linkMatch = linkRegex.exec(bodyText)) !== null) {
+    inlineUrls.add(linkMatch[2].trim());
+  }
+
+  // 3. Processa cada linha do bloco de fontes
+  const cleanedLines: string[] = [];
   for (const line of lines) {
     const urlMatch = line.match(/(https?:\/\/[^\s)]+)/);
-    
-    if (urlMatch && isFakeUrl(urlMatch[1])) {
-      // Linha com URL fake → TENTAR RECUPERAR o título
-      const titleMatch = line.match(/^\s*[\^]?\d*\s*[-–—:"]?\s*(.+?)(?:\s*\(|\s*https?:\/\/)/);
-      if (titleMatch && titleMatch[1] && titleMatch[1].trim().length > 3) {
-        // Tem título válido → manter sem o link fake
-        cleanedLines.push(line.replace(urlMatch[1], '').replace(/[()]/g, '').trim());
-        hasValidContent = true;
+
+    if (urlMatch) {
+      const url = urlMatch[1];
+      // Remove linhas com URLs comprovadamente falsas (FAKE_DOMAINS)
+      if (isFakeUrl(url)) {
+        continue;
       }
-      continue;
+      // Remove linhas cuja URL já apareceu inline no corpo do texto
+      if (inlineUrls.has(url)) {
+        continue;
+      }
     }
-    
-    if (urlMatch && !isFakeUrl(urlMatch[1])) {
-      hasValidContent = true;
-    }
-    
-    if (!urlMatch && line.trim().length > 5) {
-      hasValidContent = true;
-    }
-    
+
+    // Mantém: linhas sem URL (contexto narrativo) e linhas com URL complementar
     cleanedLines.push(line);
   }
 
+  // 4. Se após processamento não sobrou conteúdo relevante, remove o bloco inteiro
   const cleaned = cleanedLines.join('\n').trim();
-  if (!hasValidContent || cleaned.replace(/\*?\*?(?:Fontes?|Referências?|Sources?)\*?\*?:?\s*/i, '').trim().length < 10) {
+  const headerPattern = /\*?\*?(?:Fontes?|Referências?|Sources?)\*?\*?:?\s*/i;
+  const contentAfterHeader = cleaned.replace(headerPattern, '').trim();
+
+  if (contentAfterHeader.length < 3) {
     return text.replace(sourcesMatch[1], '').trim();
   }
 
   return text.replace(sourcesMatch[1], '\n' + cleaned);
+}
+
+/**
+ * Remove bloco de "Fontes" ao final do texto.
+ * AGORA: preserva o bloco como consolidação complementar, removendo
+ * apenas URLs duplicadas de links inline e URLs comprovadamente falsas.
+ * Delega a lógica central para deduplicateSourcesBlock().
+ */
+export function cleanFakeSourcesBlock(text: string): string {
+  if (!text) return text;
+  return deduplicateSourcesBlock(text);
 }
 
 /**
@@ -123,14 +145,14 @@ export function cleanFakeSourcesBlock(text: string): string {
 export function extractValidLinks(text: string): Array<{ title: string; url: string }> {
   const links: Array<{ title: string; url: string }> = [];
   if (!text) return links;
-  
+
   const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
   let match;
-  
+
   while ((match = linkRegex.exec(text)) !== null) {
     const title = match[1].trim();
     const url = match[2].trim();
-    
+
     // Só adiciona se NÃO for URL fake
     if (!isFakeUrl(url)) {
       if (!links.find(l => l.url === url)) {
@@ -138,7 +160,7 @@ export function extractValidLinks(text: string): Array<{ title: string; url: str
       }
     }
   }
-  
+
   return links;
 }
 
@@ -149,15 +171,15 @@ export function extractValidLinks(text: string): Array<{ title: string; url: str
 export function extractAllSourceMentions(text: string): Array<{ title: string; url?: string }> {
   const sources: Array<{ title: string; url?: string }> = [];
   if (!text) return sources;
-  
+
   // 1. Links markdown
   const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
   let match;
-  
+
   while ((match = linkRegex.exec(text)) !== null) {
     const title = match[1].trim();
     const url = match[2].trim();
-    
+
     if (!isFakeUrl(url)) {
       if (!sources.find(s => s.url === url)) {
         sources.push({ title, url });
@@ -169,13 +191,13 @@ export function extractAllSourceMentions(text: string): Array<{ title: string; u
       }
     }
   }
-  
+
   // 2. Menções de fontes no texto (ex: "segundo Valor Econômico", "conforme IBGE")
   const mentionPatterns = [
     /(?:segundo|conforme|de acordo com|fonte:?)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:(?:\s*[,.])|(?:\s*\[)|\s*$)/gi,
     /(?:citado em|mencionado em|relatado por)\s+([A-Z][A-Za-zÀ-ÿ\s]+?)(?:(?:\s*[,.])|(?:\s*\[)|\s*$)/gi,
   ];
-  
+
   for (const pattern of mentionPatterns) {
     while ((match = pattern.exec(text)) !== null) {
       const title = match[1].trim();
@@ -184,7 +206,7 @@ export function extractAllSourceMentions(text: string): Array<{ title: string; u
       }
     }
   }
-  
+
   return sources;
 }
 

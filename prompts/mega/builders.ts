@@ -99,7 +99,7 @@ CADA MÓDULO (análise, sem gatilhos):
 
 ### Card: [título comercial]
 - **Fato:** [1 frase objetiva com evidência]
-- **Evidência:** [fonte; não inventar]
+- **Evidência:** [fonte com URL inline obrigatória; use formato [texto](url); toda evidência DEVE ter URL auditável]
 - **Implicação comercial:** [como isso muda a conversa de venda]
 - **Pergunta de reunião:** [pergunta natural para o vendedor usar]
 - **Confiança:** [Alta/Média/Baixa + motivo curto]
