@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { getTimeGreeting } from '../utils/timeGreeting';
 import { storage } from '../services/storage';
+import { storageGet } from '../utils/idbStorage';
 
 interface GreetingWelcomeScreenProps {
   isDarkMode: boolean;
@@ -9,7 +10,7 @@ interface GreetingWelcomeScreenProps {
 
 const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMode, onConfirmOperator }) => {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => storageGet('operator_email')?.trim() || '');
   const [touched, setTouched] = useState(false);
   const [existingUser, setExistingUser] = useState<{ operatorId: string; displayName: string } | null>(null);
   const [checkingEmail, setCheckingEmail] = useState(false);

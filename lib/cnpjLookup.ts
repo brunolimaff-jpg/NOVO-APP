@@ -21,6 +21,11 @@ export interface CnpjResult {
   qsa?: CnpjPartner[];
 }
 
+export interface LookupCnpjOptions {
+  timeoutMs?: number;
+  maxSources?: number;
+}
+
 export class CnpjNotFoundError extends Error {
   constructor(cnpj: string) {
     super(`CNPJ ${cnpj} não encontrado na base da Receita Federal.`);
@@ -126,8 +131,8 @@ function mapPartners(items: unknown, source: CnpjPartnerSource): CnpjPartner[] |
 }
 
 // ── Fonte 1: BrasilAPI ────────────────────────────────────────────────────────
-async function fromBrasilApi(cnpj: string): Promise<CnpjResult> {
-  const res = await fetchWithTimeout(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 8000);
+async function fromBrasilApi(cnpj: string, timeoutMs = 8000): Promise<CnpjResult> {
+  const res = await fetchWithTimeout(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, timeoutMs);
   if (res.status === 404) throw new CnpjSourceError('BrasilAPI: não encontrado', true);
   if (!res.ok) throw new CnpjSourceError(`BrasilAPI HTTP ${res.status}`, false);
   const p = await res.json();
@@ -147,8 +152,8 @@ async function fromBrasilApi(cnpj: string): Promise<CnpjResult> {
 }
 
 // ── Fonte 2: CNPJ.ws ──────────────────────────────────────────────────────────
-async function fromCnpjWs(cnpj: string): Promise<CnpjResult> {
-  const res = await fetchWithTimeout(`https://publica.cnpj.ws/cnpj/${cnpj}`, 10000);
+async function fromCnpjWs(cnpj: string, timeoutMs = 10000): Promise<CnpjResult> {
+  const res = await fetchWithTimeout(`https://publica.cnpj.ws/cnpj/${cnpj}`, timeoutMs);
   if (res.status === 404) throw new CnpjSourceError('CNPJ.ws: não encontrado', true);
   if (!res.ok) throw new CnpjSourceError(`CNPJ.ws HTTP ${res.status}`, false);
   const p = await res.json();
@@ -169,8 +174,8 @@ async function fromCnpjWs(cnpj: string): Promise<CnpjResult> {
 }
 
 // ── Fonte 3: Minha Receita ────────────────────────────────────────────────────
-async function fromMinhaReceita(cnpj: string): Promise<CnpjResult> {
-  const res = await fetchWithTimeout(`https://minhareceita.org/${cnpj}`, 10000);
+async function fromMinhaReceita(cnpj: string, timeoutMs = 10000): Promise<CnpjResult> {
+  const res = await fetchWithTimeout(`https://minhareceita.org/${cnpj}`, timeoutMs);
   if (res.status === 404) throw new CnpjSourceError('MinhaReceita: não encontrado', true);
   if (!res.ok) throw new CnpjSourceError(`MinhaReceita HTTP ${res.status}`, false);
   const p = await res.json();
@@ -190,23 +195,24 @@ async function fromMinhaReceita(cnpj: string): Promise<CnpjResult> {
 }
 
 // ── Lookup principal ──────────────────────────────────────────────────────────
-export async function lookupCnpj(cnpjValue: string): Promise<CnpjResult> {
+export async function lookupCnpj(cnpjValue: string, options: LookupCnpjOptions = {}): Promise<CnpjResult> {
   const cnpj = normalizeCnpj(cnpjValue);
 
   const cached = getCached(cnpj);
   if (cached) return cached;
 
   const sources = [
-    { name: 'BrasilAPI',    fn: () => fromBrasilApi(cnpj) },
-    { name: 'CNPJ.ws',      fn: () => fromCnpjWs(cnpj) },
-    { name: 'MinhaReceita', fn: () => fromMinhaReceita(cnpj) },
-  ];
+    { name: 'BrasilAPI', defaultTimeoutMs: 8000, fn: (timeoutMs: number) => fromBrasilApi(cnpj, timeoutMs) },
+    { name: 'CNPJ.ws', defaultTimeoutMs: 10000, fn: (timeoutMs: number) => fromCnpjWs(cnpj, timeoutMs) },
+    { name: 'MinhaReceita', defaultTimeoutMs: 10000, fn: (timeoutMs: number) => fromMinhaReceita(cnpj, timeoutMs) },
+  ].slice(0, options.maxSources || undefined);
 
   const errors: Array<{ notFound: boolean; msg: string }> = [];
 
   for (const source of sources) {
     try {
-      const data = await source.fn();
+      const timeoutMs = Math.min(source.defaultTimeoutMs, options.timeoutMs || source.defaultTimeoutMs);
+      const data = await source.fn(timeoutMs);
       setCache(cnpj, data);
       return data;
     } catch (err) {

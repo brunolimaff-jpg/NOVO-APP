@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -39,15 +39,21 @@ function generateVersionPlugin(): Plugin {
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
   const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
+  const localApiProxyTarget = env.LOCAL_DEV_API_PROXY_TARGET || LOCAL_DEV_API_PROXY_TARGET;
+  const localApiProxyHeaders = env.VERCEL_AUTOMATION_BYPASS_SECRET
+    ? { 'x-vercel-protection-bypass': env.VERCEL_AUTOMATION_BYPASS_SECRET }
+    : undefined;
   const localApiProxy = Object.fromEntries(
     LOCAL_DEV_API_PROXY_PATHS.map((path) => [
       path,
       {
-        target: LOCAL_DEV_API_PROXY_TARGET,
+        target: localApiProxyTarget,
         changeOrigin: true,
         secure: true,
+        headers: localApiProxyHeaders,
       } satisfies ProxyOptions,
     ]),
   );

@@ -78,6 +78,7 @@ O mockup visual anterior em `.superpowers/brainstorm/93190-1779565087/content/po
 
 ## Pendencias de Ambiente
 
-1. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para habilitar `/api/socio-search` em producao.
-2. Validar no preview com CNPJ Scheffer `04.733.767/0001-80`.
-3. Conferir visualmente: QSA, troca de socio, fontes exibidas, Scheffer Colombia, fallback textual.
+1. Finalizar `codex/cnpj-socios-todos-cnpjs` para mostrar todos os CNPJs encontrados por socio.
+2. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para habilitar `/api/socio-search` em producao.
+3. Validar no preview com CNPJ Scheffer `04.733.767/0001-80`.
+4. Conferir visualmente: QSA, troca de socio, CNPJs laterais como "Outro CNPJ do socio", fontes exibidas, Scheffer Colombia, fallback textual.

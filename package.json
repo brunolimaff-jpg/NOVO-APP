@@ -17,6 +17,7 @@
     "test:e2e:smoke:ui": "playwright test tests-e2e/smoke.*.spec.ts --ui",
     "test:e2e:cnpj": "playwright test tests-e2e/cnpj-investigation-flow.spec.ts",
     "validate:chat:no-autoscroll": "bash scripts/validate-chat-no-autoscroll.sh",
+    "validate:prompts": "bash scripts/validate-prompts.sh",
     "validate:preview": "bash scripts/validate-preview.sh",
     "lint": "eslint .",
     "analyze:circular": "madge --circular . --extensions ts,tsx --exclude '^(node_modules|dist|\\.next|public)'",

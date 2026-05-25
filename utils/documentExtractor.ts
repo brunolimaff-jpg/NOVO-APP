@@ -1,3 +1,4 @@
+import { normalizeCnpj } from './cnpj.js';
 import { scoutDiag } from './diagnosticLog.js';
 
 /**
@@ -86,64 +87,122 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Realiza busca web — Brave Search API com fallback para DuckDuckGo Lite.
+ * Usa Gemini Search Grounding APENAS para encontrar URLs relevantes.
+ * Os CNPJs sao extraidos diretamente do scraping dessas URLs — zero alucinacao.
+ * Retorna no formato Título/URL/Resumo/--- compatível com splitSearchBlocks().
  */
-export async function performWebSearch(query: string, options: { count?: number } = {}): Promise<string | null> {
-    const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-
-    if (braveKey) {
-        return performBraveSearch(query, braveKey, options);
-    }
-
-    return performDuckDuckGoSearch(query);
-}
-
-async function performBraveSearch(query: string, apiKey: string, options: { count?: number } = {}): Promise<string | null> {
-    scoutDiag.info('DocumentExtractor', `Buscando no Brave Search: ${query}`);
+export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
+    scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
 
     try {
-        const count = Math.max(1, Math.min(options.count ?? 5, 10));
-        const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`;
-        const response = await fetch(searchUrl, {
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip',
-                'X-Subscription-Token': apiKey,
-            },
-            signal: AbortSignal.timeout(15000),
-        });
-
-        if (!response.ok) {
-            scoutDiag.warn('DocumentExtractor', `Brave Search HTTP ${response.status}, falling back to DuckDuckGo`);
-            return performDuckDuckGoSearch(query);
-        }
-
-        const data = await response.json() as { web?: { results?: Array<{ title?: string; url?: string; description?: string }> } };
-        const webResults = data.web?.results ?? [];
-
-        if (webResults.length === 0) return 'Nenhum resultado encontrado.';
-
-        const results = webResults.map(r =>
-            `Título: ${r.title || ''}\nURL: ${r.url || ''}\nResumo: ${r.description || ''}\n---`,
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Find web pages listing Brazilian companies where "${query}" appears as a partner, shareholder, or administrator. Focus on consultasocio.com, econodata.com.br, cnpj.ws, casadosdados.com.br, and similar Brazilian corporate registry sites.`
+                        }]
+                    }],
+                    tools: [{ google_search: {} }],
+                    generationConfig: { temperature: 0, maxOutputTokens: 256 },
+                }),
+                signal: AbortSignal.timeout(30000),
+            }
         );
 
-        return results.join('\n');
+        if (!response.ok) {
+            scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json() as {
+            candidates?: Array<{
+                groundingMetadata?: {
+                    groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
+                };
+            }>;
+        };
+        const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
+        const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
+
+        if (groundingChunks.length === 0) {
+            scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
+            return null;
+        }
+
+        const cheerio = await import('cheerio');
+        const results: string[] = [];
+        const urlSet = new Set<string>();
+
+        for (const chunk of groundingChunks) {
+            const url = chunk?.web?.uri || '';
+            const title = chunk?.web?.title || '';
+            if (!url || urlSet.has(url) || !isValidPublicUrl(url)) continue;
+            urlSet.add(url);
+
+            try {
+                const pageResponse = await fetch(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+                    signal: AbortSignal.timeout(8000),
+                });
+
+                if (!pageResponse.ok) continue;
+
+                const html = await pageResponse.text();
+                const $ = cheerio.load(html);
+                const pageText = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 6000);
+
+                if (!pageText) continue;
+
+                results.push(
+                    `Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`
+                );
+            } catch {
+                continue;
+            }
+        }
+
+        scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
+        return results.length > 0 ? results.join('\n') : null;
     } catch (error) {
-        scoutDiag.warn('DocumentExtractor', 'Brave Search falhou, falling back to DuckDuckGo', error);
-        return performDuckDuckGoSearch(query);
+        scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+        return null;
     }
+}
+
+/**
+ * Realiza busca web via Gemini Search Grounding (se API key disponivel)
+ * ou fallback para DuckDuckGo Lite (POST).
+ */
+export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
+    // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
+    const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
+    if (apiKey) {
+        const result = await performGeminiSearch(query, apiKey);
+        if (result) return result;
+        scoutDiag.info('DocumentExtractor', 'Gemini indisponivel, fallback para DuckDuckGo');
+    }
+    // Fallback para DuckDuckGo
+    return performDuckDuckGoSearch(query);
 }
 
 async function performDuckDuckGoSearch(query: string): Promise<string | null> {
     const cheerio = await import('cheerio');
-    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (Cheerio): ${query}`);
+    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (POST): ${query}`);
 
     try {
-        const searchUrl = `https://duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
-        const response = await fetch(searchUrl, {
+        const response = await fetch('https://lite.duckduckgo.com/lite/', {
+            method: 'POST',
             headers: {
                 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
+            body: `q=${encodeURIComponent(query)}`,
             signal: AbortSignal.timeout(15000),
         });
 
@@ -174,6 +233,227 @@ async function performDuckDuckGoSearch(query: string): Promise<string | null> {
         scoutDiag.error('DocumentExtractor', 'Erro na busca DuckDuckGo', error);
         return null;
     }
+}
+
+/**
+ * Verifica se o nome parece ser de empresa (PJ) em vez de pessoa física.
+ * Usado para decidir se tentamos consultasocio.com (que só tem PF).
+ */
+export function isPessoaJuridica(name: string): boolean {
+    return /\b(LTDA|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME|CIA|PARTICIPACOES|PARTICIPAÇÕES|AGROPECUARIA|AGROPECUÁRIA|COMERCIAL|ATACADISTA|INDUSTRIA|INDÚSTRIA|SERVICOS|SERVIÇOS|HOLDING|EMPRESA|CONSULTORIA|ASSESSORIA|TRANSPORTES|INCORPORADORA|EMPREENDIMENTOS)\b/i.test(name);
+}
+
+/**
+ * Monta a URL do consultasocio.com para buscar empresas de uma pessoa física.
+ * O site usa o padrão /q/sa/{nome-minusculo-sem-acentos-com-hifens}
+ */
+export function buildConsultasocioUrl(nomeSocio: string): string {
+    const slug = nomeSocio
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    return `https://www.consultasocio.com/q/sa/${slug}`;
+}
+
+/**
+ * Busca direta no consultasocio.com — scraping de todas as empresas de uma pessoa física.
+ * Retorna texto formatado compatível com splitSearchBlocks() do socio-search.
+ * Lê até 3 páginas de resultados para capturar o inventário completo.
+ */
+export async function searchConsultasocioDirect(socioName: string): Promise<string | null> {
+    const cheerio = await import('cheerio');
+    const url = buildConsultasocioUrl(socioName);
+    scoutDiag.info('DocumentExtractor', `consultasocio.com direto: ${url}`);
+
+    try {
+        const allBlocks: string[] = [];
+        const maxPages = 15;
+
+        for (let page = 1; page <= maxPages; page++) {
+            const pageUrl = page === 1 ? url : `${url}?page=${page}`;
+
+            const response = await fetch(pageUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+                signal: AbortSignal.timeout(10000),
+            });
+
+            if (!response.ok) {
+                if (page === 1) {
+                    scoutDiag.warn('DocumentExtractor', `consultasocio.com retornou ${response.status}`, { url });
+                    return null;
+                }
+                break;
+            }
+
+            const html = await response.text();
+            const $ = cheerio.load(html);
+            const pageText = $('body').text().replace(/\s+/g, ' ').trim();
+
+            const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
+            const foundCnpjs = pageText.match(cnpjPattern);
+
+            if (!foundCnpjs || foundCnpjs.length === 0) {
+                if (page === 1) {
+                    scoutDiag.warn('DocumentExtractor', 'consultasocio.com sem CNPJs na pagina 1', { url });
+                    return null;
+                }
+                break;
+            }
+
+            allBlocks.push(`Título: consultasocio.com — ${socioName} (página ${page})\nURL: ${pageUrl}\nResumo: ${pageText}\n---`);
+
+            const hasNextPage = $('a').toArray().some(el => $(el).attr('href')?.includes(`page=${page + 1}`));
+            if (!hasNextPage) break;
+        }
+
+        const result = allBlocks.join('\n');
+        scoutDiag.info('DocumentExtractor', `consultasocio.com: ${allBlocks.length} páginas extraídas`);
+        return result || null;
+    } catch (error) {
+        scoutDiag.warn('DocumentExtractor', 'consultasocio.com indisponivel', {
+            socioName,
+            message: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+}
+
+export interface CnpjAbertoCompanyResult {
+	name: string;
+	cnpj?: string;
+	role?: string;
+	registrationStatus?: string;
+	sourceTitle: string;
+	sourceUrl: string;
+	snippet: string;
+}
+
+type CnpjAbertoApiRecord = Record<string, unknown>;
+
+function readString(record: CnpjAbertoApiRecord, keys: string[]): string {
+	for (const key of keys) {
+		const value = record[key];
+		if (typeof value === 'string' && value.trim()) return value.trim();
+	}
+	return '';
+}
+
+function extractCnpjAbertoRecords(data: unknown): CnpjAbertoApiRecord[] {
+	if (Array.isArray(data)) return data.filter((item): item is CnpjAbertoApiRecord => Boolean(item && typeof item === 'object'));
+	if (!data || typeof data !== 'object') return [];
+	const record = data as CnpjAbertoApiRecord;
+	for (const key of ['empresas', 'data', 'results', 'companies']) {
+		const value = record[key];
+		if (Array.isArray(value)) {
+			return value.filter((item): item is CnpjAbertoApiRecord => Boolean(item && typeof item === 'object'));
+		}
+	}
+	return [];
+}
+
+/**
+ * Busca empresas vinculadas a uma pessoa física via CNPJ Aberto API.
+ * Endpoint: GET /api/socio/empresas?nome={name}&limit=50
+ * Header: X-API-Key: CNPJABERTO_API_KEY
+ */
+export async function searchCnpjAbertoCompanies(socioName: string): Promise<CnpjAbertoCompanyResult[] | null> {
+	const apiKey = process.env.CNPJABERTO_API_KEY;
+	if (!apiKey) return null;
+
+	scoutDiag.info('DocumentExtractor', `CNPJ Aberto — companies_by_owner: ${socioName}`);
+
+	try {
+		const response = await fetch(
+			`https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=50`,
+			{
+				headers: {
+					'X-API-Key': apiKey,
+					'Accept': 'application/json',
+					'User-Agent': 'ScoutAgro/1.0',
+				},
+				signal: AbortSignal.timeout(15000),
+			},
+		);
+
+		if (!response.ok) {
+			scoutDiag.warn('DocumentExtractor', `CNPJ Aberto API error: ${response.status}`);
+			return null;
+		}
+
+		const data = await response.json() as unknown;
+		const companies = extractCnpjAbertoRecords(data);
+
+		if (!Array.isArray(companies) || companies.length === 0) {
+			scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: sem empresas encontradas');
+			return null;
+		}
+
+		const results: CnpjAbertoCompanyResult[] = [];
+		for (const company of companies) {
+			const name = readString(company, ['razao_social', 'razão_social', 'nome', 'name']);
+			const cnpjRaw = readString(company, ['cnpj', 'cnpj_formatado']);
+			const cnpj = normalizeCnpj(cnpjRaw);
+			const role = readString(company, ['qualificacao', 'qualificacao_socio', 'qualificação', 'cargo', 'role']);
+			const registrationStatus = readString(company, [
+				'situacao',
+				'situação',
+				'situacao_cadastral',
+				'situação_cadastral',
+				'descricao_situacao_cadastral',
+				'status',
+				'status_receita',
+			]);
+			if (!name && !cnpj) continue;
+
+			const sourceTitle = `CNPJ Aberto — ${name || `CNPJ ${cnpjRaw}`}${cnpjRaw ? ` (CNPJ ${cnpjRaw})` : ''}`;
+			const sourceUrl = cnpj
+				? `https://cnpjaberto.com.br/${cnpj}`
+				: `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}`;
+			const summaryParts = [name];
+			if (cnpjRaw) summaryParts.push(`CNPJ ${cnpjRaw}`);
+			if (role) summaryParts.push(role);
+			if (registrationStatus) summaryParts.push(`Situação ${registrationStatus}`);
+			results.push({
+				name: name || `Empresa CNPJ ${cnpjRaw}`,
+				cnpj: cnpj || cnpjRaw || undefined,
+				role: role || undefined,
+				registrationStatus: registrationStatus || undefined,
+				sourceTitle,
+				sourceUrl,
+				snippet: summaryParts.filter(Boolean).join(' — '),
+			});
+		}
+
+		if (results.length === 0) return null;
+		scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${results.length} empresas encontradas`);
+		return results;
+	} catch (error) {
+		scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
+			socioName,
+			message: error instanceof Error ? error.message : String(error),
+		});
+		return null;
+	}
+}
+
+/**
+ * Compatibilidade com o pipeline textual legado.
+ */
+export async function searchCnpjAberto(socioName: string): Promise<string | null> {
+	const companies = await searchCnpjAbertoCompanies(socioName);
+	if (!companies?.length) return null;
+	return companies
+		.map(company => [
+			`Título: ${company.sourceTitle}`,
+			`URL: ${company.sourceUrl}`,
+			`Resumo: ${company.snippet}`,
+			'---',
+		].join('\n'))
+		.join('\n');
 }
 
 /**

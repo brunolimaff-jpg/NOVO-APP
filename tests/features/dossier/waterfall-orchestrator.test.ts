@@ -530,7 +530,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
   });
 
-  it('anexa alertas de validação societária ao markdown final da teia', async () => {
+  it('registra alertas de validação societária sem anexar seção fake ao markdown final', async () => {
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
       if (moduleName === 'Teia Societaria — Identidade') {
         return 'Entidade internacional citada: Scheffer Colombia S.A.S.\n[[TEIA_COMPLEXIDADE:BAIXA]]';
@@ -550,8 +550,15 @@ describe('useDossierWaterfallOrchestrator', () => {
     });
 
     const finalBotMessage = getBotMessage(harness);
-    expect(finalBotMessage.text).toContain('### Alertas de validação societária');
-    expect(finalBotMessage.text).toContain('Entidade(s) internacional(is) detectada(s) sem CNPJ');
+    expect(finalBotMessage.text).not.toContain('### Alertas de validação societária');
+    expect(finalBotMessage.text).not.toContain('Entidade(s) internacional(is) detectada(s) sem CNPJ');
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'TeiaSocietaria',
+      'CNPJ validation warning',
+      expect.objectContaining({
+        warning: expect.stringContaining('Entidade(s) internacional(is) detectada(s) sem CNPJ'),
+      }),
+    );
   });
 
   it('marca dossiê como fallback_verified quando módulo usa fallback web', async () => {

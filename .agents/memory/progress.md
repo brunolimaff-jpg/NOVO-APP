@@ -1,8 +1,38 @@
 # Progress
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
 
 ## Completed
+
+### Fechamento Teia CNPJ PR #285 (2026-05-25 17:05)
+
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285.
+
+**Status:** validada tecnicamente. O bloqueio P0 virou decisao duravel, nao bloqueio aberto. Fonte atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+
+**Evidencia final:**
+- GitHub PR #285: `mergeStateStatus: CLEAN`, checks remotos verdes.
+- API via proxy local da preview: `GUILHERME MOGNON SCHEFFER` retornou 15 empresas, 5 rejeitadas, `degraded: false`, amostra com `partner_other_cnpj` e `rootContext: false`.
+- Browser local: matriz exibiu 18 CNPJs laterais apos alternar `Grafo -> Tabela`, sem coluna `Relação`, sem badge `CNPJ lateral do socio`, sem secoes textuais inseguras.
+- Gates: `validate-prompts.sh`, recorte Vitest da teia, `typecheck`, `lint` e `build` verdes; warnings conhecidos permanecem fora do escopo.
+
+**Pendencias abertas:** validar PR #286 apos merge da #285; configurar `SUPABASE_SERVICE_ROLE_KEY`; criar smoke de preview mais forte; reestruturar Teia CNPJ como modulo de dominio.
+
+### Achado P0 Teia CNPJ + contrato lateral (2026-05-25 16:01)
+
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285. Snapshot historico das 16:01; status atual superado pelo fechamento das 17:05.
+
+**Decisao:** CNPJ Aberto/QSA oficial confirma `socio -> CNPJ`, nao `CNPJ -> grupo`. CNPJs sem prova independente de grupo ficam como `partner_other_cnpj` / `CNPJ lateral do socio`.
+
+**Mudancas aplicadas:**
+- API: CNPJ Aberto entra por contrato estruturado (`sourceProvider: cnpj_aberto`, `evidenceBasis: official_qsa_owner_search`, `claimType: socio_participation`, `rootRelationStatus: not_supported`, `operationalThesisAllowed: false`).
+- Parser: `QSA Oficial | OFICIAL` em `Outros CNPJs` permanece lateral.
+- UI: tabela separa `CNPJs laterais`, nao usa `Proprias`/`Side business` para lateral e nao duplica filtros externos na visao Tabela.
+- Grafo: lateral nao cria aresta `Root -> company`, nao recebe badge `oficial`, e usa classe visual propria.
+- Prompt: regra explicita de que `OFICIAL` qualifica o vinculo do socio, nao o grupo.
+- Docs: criado historico diario append-only e nota `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
+
+**Validacao:** `validate-prompts.sh`, recorte Vitest da teia (91 testes), `typecheck`, `lint` e `build` passaram localmente. `lint` manteve 5 warnings conhecidos fora do P0; `build` manteve warning conhecido de chunk grande por Mermaid.
 
 ### Consolidacao de Prompts + Anti-Alucinacao (2026-05-24)
 
@@ -48,7 +78,7 @@ Last updated: 2026-05-24
 - `services/storage.ts`, `tests/services/storage.test.ts` — ajustes
 
 **Problemas residuais (NAO CORRIGIDOS):**
-- (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+- (Resolvido nesta branch) CNPJs dos socios passam a aparecer como `partner_other_cnpj` quando nao ha prova de grupo economico
 - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
 - (P2) Mermaid no contrato ainda e condicional ("quando houver dados"), deveria ser obrigatorio
 
@@ -63,6 +93,58 @@ Last updated: 2026-05-24
 - Integracao no dossie via `SectionalBotMessage`/`MessageRow`, sem alterar Score PORTA e sem SVG manual em producao.
 - Reviews: spec compliance aprovado por subagente; quality review aprovado por subagente; code-review local sem blockers apos correcoes.
 - Validacoes: `npm run typecheck`; recorte Vitest de 53 testes; `npm run test:dossier`; `npm run build`. Avisos conhecidos: warnings de localStorage no Vitest, log esperado do teste de `/api/link-status`, e warning de bundle grande por Mermaid ja existente no build.
+
+### Teia CNPJ — Todos os CNPJs dos Socios (2026-05-24)
+
+**Branch/PR:** `codex/cnpj-socios-todos-cnpjs`, PR #285
+
+**Atualizacao critica 2026-05-25 09:30 (snapshot historico):** status anterior de "preview validada" ficou obsoleto. Naquele momento a PR #285 estava com checks verdes e `mergeStateStatus: CLEAN`, mas **nao devia ser mergeada** porque a validacao funcional da preview voltou a falhar em profundidade. Status atual superado pelo fechamento das 17:05.
+
+- `/api/socio-search` agora diferencia `relationshipScope`: `group_link`, `partner_other_cnpj` e `unconfirmed`.
+- Busca societaria passou a incluir queries por socio sem empresa raiz, para capturar CNPJs onde o socio aparece mesmo sem prova de pertencer ao grupo economico.
+- Enriquecimento de CNPJ em `/api/socio-search` tem budget interno: deadline de 45s, maximo de 5 lookups, `lookupCnpj` com timeout curto e primeira fonte oficial nesse fluxo.
+- `SocietaryMap`/Mermaid mostra "Outro CNPJ do socio" sem criar aresta raiz -> empresa.
+- `teia-deep` e `teiaTextParser` separam "Empresas do grupo economico" de "Outros CNPJs onde o socio aparece".
+- Hotfix `b238f25`: bloqueia raiz e filiais de mesmo radical no grafo (`04.733.767/*` nao vira empresa relacionada), rejeita empresa vinda do Gemini sem CNPJ valido e impede que o CNPJ raiz apareca como `partner_other_cnpj`.
+- `scripts/validate-prompts.sh` foi criado e ligado a `npm run validate:prompts`; o gate roda testes de prompts, parser da teia e `societaryGraph` para capturar regressao de CNPJ inventado/duplicado.
+- Hotfix P0 pos-preview ruim: `/api/socio-search` deixou de parar no limite de lookup oficial, passa a retornar CNPJs excedentes com fallback local, sobe `MAX_COMPANIES` para 60, versiona cache para `v5-full-partner-inventory` e sinaliza `diagnostics.totalCnpjsFound/truncated/truncatedReason`.
+- Hotfix de nome: `Cia Ltda` e nomes sem identidade real nao entram mais no payload/mapa; quando lookup oficial retorna nome truncado, a API usa a razao inferida junto ao CNPJ ou fallback `Empresa CNPJ`.
+- Hotfix de prompt/parser: `teia-deep` proibe amostragem, exige tabela parseavel `Outros CNPJs onde o socio aparece`; `teiaTextParser` le varias tabelas e aceita coluna legada `CNPJ / Tipo`.
+- Hotfix de grafo/UI: `partner_other_cnpj` usa chave por CNPJ exato, tipo visual `Outro CNPJ do socio`, sem aresta raiz -> empresa; `SocietaryMap` mostra aviso quando inventario veio truncado.
+- Review agent final encontrou blockers reais e eles foram corrigidos: CNPJ invalido agora e barrado tambem em parser/grafo, `partner_other_cnpj` sem socio confirmado nao renderiza, promocao para `group_link` consolida por radical e o prompt nao carrega mais a regra residual de truncar tabela acima de 15 linhas.
+- Validacao local apos hotfix: `./scripts/validate-prompts.sh` verde (54 testes); `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1083 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde com warning conhecido de chunk grande.
+- Validacao remota apos push `0ba0910`: PR #285 com Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke (preview) verdes.
+- Preview Scheffer apos aguardar 5 minutos: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/socio-search` achou CNPJs laterais para todos os 6 socios testados; browser renderizou mapa com `Ver evidências (4)`, `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como relacionadas.
+- Licoes aprendidas registradas em `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md`: revisar PRs #279/#280/#285 quando a regressao voltar, validar inventario real e nao apenas label, exigir `validate-prompts.sh` antes de preview.
+- Pendencia pos-hotfix: baixar documentalmente as pendencias antigas de CNPJ/PRs mergeadas e validar/configurar `SUPABASE_SERVICE_ROLE_KEY` para cache persistente server-side de `/api/socio-search`.
+
+#### Revalidacao falha em 2026-05-25
+
+**Commit/PR:** `d743c77`, PR #285
+**Preview:** `https://scoutagro-git-codex-cnpj-soci-4d3068-brunolimaff-3629s-projects.vercel.app`
+**Horario:** 2026-05-25 09:30 -04
+
+- Comentarios da PR lidos: sem review threads inline abertas; Gemini Code Assist sem feedback acionavel; comentario da Vercel apenas informativo; comentarios antigos de validacao agora estao stale.
+- Checks remotos verdes: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments, Smoke Preview.
+- `/api/cnpj?cnpj=04733767000180`: status 200, `SCHEFFER & CIA LTDA`, Sapezal/MT, 6 socios no QSA.
+- `/api/open-web-search` via POST: status 200, `source: OpenWebSearch/DdgDegraded`, `degraded: true`, `providerStatus duckduckgo empty_result`, `contentLength: 0`.
+- `/api/socio-search` via POST para todos os 6 socios: status 200, `companies: 0`, `degraded: true`, `pagesFetched: 0`, `searchFailureCount: 6`, `cacheSource: memory`.
+- Primeira tentativa via GET retornou 405 em `/api/open-web-search` e `/api/socio-search`; isso foi descartado como erro de metodo, porque as rotas reais usam POST.
+
+O que ja foi feito e nao resolveu a profundidade:
+
+- `relationshipScope` separado (`group_link`, `partner_other_cnpj`, `unconfirmed`);
+- CNPJ inferido com `*` e nota obrigatoria no prompt;
+- parser/grafo preservando `validationStatus: pending`, `rawCnpjLabel`, `confidence: weak`;
+- Mermaid tracejado para `unconfirmed`;
+- CNPJ invalido rejeitado;
+- `Cia Ltda` e nomes sem identidade real rejeitados/substituidos;
+- Brave removido do runtime;
+- DuckDuckGo-only implementado;
+- diagnostico `searchFailureCount` vs `searchNoResultCount`;
+- testes locais e checks remotos verdes.
+
+Conclusao: a camada de contrato/anti-alucinacao melhorou, mas a busca real por socio ainda nao entrega fonte textual/CNPJs. Proximo ciclo deve investigar fonte/provedor/cache e endurecer o Smoke Preview para validar inventario nao vazio.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 
@@ -254,14 +336,14 @@ Last updated: 2026-05-24
 
 ## In progress
 
-- Abrir PR da branch `codex/teia-societaria-tipo5` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
+- Finalizar PR da branch `codex/cnpj-socios-todos-cnpjs` e validar preview com CNPJ Scheffer `04.733.767/0001-80`.
 - Configurar `SUPABASE_SERVICE_ROLE_KEY` no ambiente Vercel para habilitar o cache persistente server-side do `/api/socio-search`.
 - Merge de `codex/standardize-mermaid-maps` em `main` (20 commits — migracao Supabase + 8 melhorias pos-migracao: cadastro restrito, email recovery, sync manual, remocao dossie).
 - Configuracao de env vars no Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 - PR `#270` (auditoria multi-fase): aberta em `codex/contextual-continuity-suggestions`, aguardando checks remotos e merge.
 - UX Redesign Phase 1: PR `#266` aberta, aguardando validacao do owner no preview Vercel.
 - **Resolver problemas residuais da sessao de prompts:**
-  - (P1) CNPJs nao aparecendo todos no mapa societario — modulo teia deep falha por timeout
+  - (Resolvido nesta branch) CNPJs dos socios aparecem como "Outro CNPJ do socio" quando nao ha prova de grupo economico
   - (P1) Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
   - (P2) Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
 
@@ -443,6 +525,36 @@ Last updated: 2026-05-24
   - `npm run typecheck` green.
   - `npm run lint` green.
   - `npm run build` green; permanece warning conhecido de chunks grandes.
+
+### Teia CNPJ pending validation hotfix (PR `#285`, branch `codex/cnpj-socios-todos-cnpjs`)
+
+- Em 2026-05-25, preview da PR `#285` estava verde nos checks, mas falhava funcionalmente: Scheffer `04.733.767/0001-80` retornava 6 sócios em `/api/cnpj` e 0 empresas em `/api/socio-search`, com `degraded: true`, `pagesFetched: 0`, `cacheSource: none`.
+- `prompts/mega/teia-deep.ts` passou a exigir CNPJ oficial sem `*`, CNPJ inferido como `##.###.###/####-##*` e nota obrigatória `* = hipótese a validar, não confirmado em fonte oficial`.
+- `features/dossier/teiaTextParser.ts` preserva CNPJ com `*` como `relationshipScope: unconfirmed`, `validationStatus: pending`, `rawCnpjLabel` e confiança fraca; CNPJ inválido sem `*` continua rejeitado.
+- `features/dossier/societaryGraph.ts` renderiza pendentes com classe Mermaid tracejada (`evidence`), sem `oficial`, sem `group_link` e sem aresta raiz forte; `features/dossier/SocietaryMap.tsx` mantém o `*` no painel de evidências e mostra `Escopo: Validação pendente`.
+- `/api/socio-search` agora diferencia `searchNoResultCount` de `searchFailureCount` e retorna CNPJ textual sem validação oficial como pendente (`rawCnpjLabel` com `*`), não como oficial.
+- Cache de `/api/socio-search` versionado para `v6-pending-cnpj-diagnostics`.
+- Bruno decidiu remover Brave do runtime; `utils/documentExtractor.ts` e `/api/open-web-search` passam a usar somente DuckDuckGo Lite, ignorando `BRAVE_SEARCH_API_KEY` mesmo se a variável continuar cadastrada.
+- Validação local: `npm exec vitest run tests/api-open-web-search.test.ts tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/prompts/megaPrompts.test.ts` green (`91` testes); `./scripts/validate-prompts.sh` green (`56` testes); `npm run typecheck` green; `npm run build` green com warning conhecido de chunks grandes.
+- Caveat operacional: `BRAVE_SEARCH_API_KEY` pode continuar cadastrada na Vercel, mas nao e mais lida pelo runtime; `SUPABASE_SERVICE_ROLE_KEY` aparece apenas em Production e na preview da branch `feat/migration-notice-supabase`, entao falta configurar a env de cache para Preview geral ou para `codex/cnpj-socios-todos-cnpjs`.
+
+### Teia CNPJ visual cleanup final (PR `#285`, branch `codex/cnpj-socios-todos-cnpjs`)
+
+- Em 2026-05-25 16:45, a matriz foi simplificada para remover a coluna/badge visual `CNPJ lateral do socio`; ficam apenas `EMPRESA`, `CNPJ`, `CNAE` e socios.
+- `Tabela` e `Grafo` passaram a usar nomes curtos consistentes para socios, evitando botoes com nomes completos em caixa alta.
+- `SectionalBotMessage` remove do texto exibido e do copiar as secoes/linhas inseguras: `Outros CNPJs onde o socio aparece`, `Outros CNPJs:`, `Alertas de validacao societaria` e `Vinculo do socio; grupo nao confirmado`.
+- `/api/socio-search` teve `CACHE_KEY_VERSION` atualizado para `v7-structured-lateral-cnpj` para nao reaproveitar cache persistente do contrato antigo.
+- CNPJ Aberto agora expõe `registrationStatus`; CNPJ baixado/inativo entra em `rejected`, nao no inventario principal.
+- Validação local:
+  - `npm run test -- tests/components/SectionalBotMessage.test.tsx tests/features/dossier/SocietaryMap.test.tsx tests/api-socio-search.test.ts tests/features/dossier/teiaTextParser.test.ts tests/prompts/megaPrompts.test.ts tests/features/dossier/waterfall-orchestrator.test.ts` green (`88` testes).
+  - `./scripts/validate-prompts.sh` green (`59` testes).
+  - `npm run typecheck` green.
+  - `npm run lint` green com 5 warnings preexistentes conhecidos.
+  - `npm run build` green com warning conhecido de chunk grande por Mermaid.
+- Browser local em `http://127.0.0.1:3000/`: DOM confirmou que a mensagem visivel nao mostra mais `Outros CNPJs`, `Alertas`, `Vinculo...`; matriz nao mostra `Relação` nem badge `CNPJ lateral do socio`.
+- Complemento pos-push: Vite proxy agora injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`.
+- API via proxy local apos deploy da PR: `GUILHERME MOGNON SCHEFFER` retornou `15` empresas, `5` rejeitadas, `degraded: false`; amostra com `partner_other_cnpj` e `rootContext: false`.
+- Browser local: apos alternar `Grafo -> Tabela`, matriz exibiu `18` CNPJs laterais com colunas `EMPRESA`, `CNPJ`, `CNAE` e socios; sem `Relação`, sem badge `CNPJ lateral do socio`, sem secoes/textos inseguros.
 
 ## Important refs
 

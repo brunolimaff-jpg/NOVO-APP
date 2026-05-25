@@ -1,6 +1,18 @@
 # Decisions
 
-Last updated: 2026-05-24
+Last updated: 2026-05-25
+
+## 2026-05-25 - P0 Teia CNPJ: QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo
+
+Decision: tratar CNPJs retornados por CNPJ Aberto/QSA Oficial como `partner_other_cnpj` por padrao ate existir prova independente de vinculo com a raiz/grupo. UI final usa `CNPJs laterais` como filtro/metrica e nao exibe coluna/badge textual de relacao lateral na matriz. O bloqueio P0 da PR #285 foi superado em 2026-05-25 17:05 por validacao tecnica documentada.
+
+Reason: a fonte oficial confirma que o socio aparece no CNPJ. Isso nao prova que o CNPJ pertence ao grupo economico analisado. Misturar esses escopos contaminava prompt, API, parser, tabela, grafo e narrativa comercial.
+
+Contract: `group_link` exige mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo; `partner_other_cnpj` e vinculo do socio com grupo nao confirmado; `unconfirmed` e CNPJ textual/com asterisco/inconsistente/sem validacao oficial.
+
+Constraint: lateral nao pode ser `Proprias`, `Side business`, veiculo operacional, tese de bioinsumos, enterprise, verticalizacao ou wedge Senior.
+
+Refs: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`, `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`, `docs/obsidian/daily/INDEX.md`.
 
 ## 2026-04-14 - Repo-local memory v1
 
@@ -218,6 +230,14 @@ Constraint: se no futuro houver demanda por funcionalidade similar, deve ser imp
 
 Decision: adicionar botao de sync manual no header (`ManualSyncButton.tsx`) com feedback visual real (+N enviados, Baixados N) em vez de sync automatico silencioso. O badge SyncIndicator tambem mudou de "limpar notificacao" para "forcar sync".
 
+## 2026-05-25 - PR #285 exige gate funcional antes de merge
+
+Decision: nao mergear a PR #285 (`codex/cnpj-socios-todos-cnpjs`) enquanto a preview Scheffer retornar `companies: 0` para todos os 6 socios em `/api/socio-search`, mesmo com checks verdes e `mergeStateStatus: CLEAN`.
+
+Reason: a mudanca corrige contrato, parser, grafo, UI e anti-alucinacao, mas ainda nao entrega a promessa de negocio de profundidade de CNPJs por socio. Em 2026-05-25 09:30 -04, `/api/cnpj` retornou 6 socios da Scheffer, porem DuckDuckGo-only retornou `empty_result` e `/api/socio-search` veio degradado com `pagesFetched: 0` e `searchFailureCount: 6` para todos. Check verde e HTTP 200 degradado nao sao evidencia suficiente.
+
+Constraint: o proximo merge dessa trilha precisa de smoke funcional que valide inventario nao vazio ou diagnostico conclusivo. CNPJ inferido so pode aparecer com `*`, `validationStatus: pending` e visual tracejado; CNPJ invalido sem `*` nunca pode parecer oficial.
+
 ## 2026-05-23 - Teia societaria em producao usa Mermaid LR, nao SVG manual
 
 Decision: implementar a Teia Societaria Tipo 5 como grafo Mermaid LR dinamico renderizado pelo `MarkdownRenderer`, com componente React apenas orquestrando dados, selecao de socio, badges e evidencias.
@@ -225,6 +245,14 @@ Decision: implementar a Teia Societaria Tipo 5 como grafo Mermaid LR dinamico re
 Reason: Bruno preferiu o estilo Mermaid pela clareza/disposicao de informacoes e pediu abandonar SVG manual por ser prematuro. Mermaid mantem fallback textual, reduz codigo de layout proprietario e preserva compatibilidade com o dossie existente.
 
 Constraint: novas visualizacoes societarias devem continuar `LR` por padrao; `TD/TB` nao devem ser usados nessa teia.
+
+## 2026-05-24 - Teia CNPJ nao promove raiz/filial nem Gemini sem CNPJ
+
+Decision: o grafo societario deve rejeitar a propria raiz e qualquer CNPJ com o mesmo radical da raiz como "empresa relacionada"; empresas extraidas do Gemini so entram no visual quando carregam CNPJ valido e evidencia suficiente.
+
+Reason: o preview da PR #285 mostrou regressao visual em que a matriz/filiais da propria Scheffer eram renderizadas como novas empresas relacionadas (`Matriz + 2 filiais`), o que reintroduzia aparencia de CNPJ inventado/duplicado.
+
+Constraint: `scripts/validate-prompts.sh` deve permanecer como gate de contrato para prompts, parser e grafo societario sempre que mexer na teia CNPJ.
 
 ## 2026-05-23 - Drill-down societario precisa de evidencia e cache persistente
 

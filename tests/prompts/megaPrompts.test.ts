@@ -13,6 +13,8 @@ import megaPrompts, {
   PROMPT_VERSION,
   SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   SHARED_FOUNDATION_BLOCK,
+  PROMPT_TEIA_DEEP_MODULE,
+  PROMPT_TEIA_IDENTITY_MODULE,
   buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,
 } from '../../prompts/megaPrompts';
@@ -101,6 +103,31 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('mais de 3 verticais');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('energia');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('piscicultura');
+  });
+
+  it('requires parseable full CNPJ inventory for Teia instead of sampled totals', () => {
+    expect(PROMPT_TEIA_IDENTITY_MODULE).not.toContain('Total de CNPJs mapeados');
+    expect(PROMPT_TEIA_IDENTITY_MODULE).toContain('Total de CNPJs identificados com fonte');
+
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('Liste TODOS OS CNPJs validos encontrados');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('Maximo 15 linhas');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('Mais [X] filiais/veiculos nao listados individualmente');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Empresas do Grupo Economico:**');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Outros CNPJs:**');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('Nao gere tabela textual de "Outros CNPJs onde o socio aparece"');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ_LATERAL_SOCIO');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('##.###.###/####-##*');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('* = hipótese a validar');
+
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('CNPJ / Tipo');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('NÃO gere tabela > 15 linhas');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('NÃO trunque nem amostre a tabela de CNPJs');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('Nao use CNPJ lateral do socio como prova de grupo economico ou verticalizacao');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |');
   });
 
   it('includes P proxy, R trabalhista and A2 markers in the RH prompt', () => {
@@ -248,9 +275,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8525,
-          "lines": 244,
-          "sha256": "dd0238c1ea3a50c4c5bd925e905c1db3ecd27832c6980ae6e6a7a0fb2a646b38",
+          "length": 8837,
+          "lines": 246,
+          "sha256": "179ceb0343a8aeed08ab1c678da70f80d8db0ee105b8647cc8651e84d7ad04ca",
         },
         {
           "label": "specialist-5",
@@ -278,21 +305,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105056,
-          "lines": 2662,
-          "sha256": "e4dbd56f16a2f55566ae94d914cf712e280d7f79fdb09fc88f7dfc101bd8aa5c",
+          "length": 105368,
+          "lines": 2664,
+          "sha256": "85597e90a4221a7ad200420a5937c37ac9bb117567b0c3c32741f57e95b6b63c",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113320,
-          "lines": 2912,
-          "sha256": "417ff459747b63f6daedcad0b00a7c16db5024c4984d2a2fae8ed622e62bcfd0",
+          "length": 113632,
+          "lines": 2914,
+          "sha256": "4da98f3289527141f0de2d2277f0d1953c87a91be8d8950b881e64c351a23ae0",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105530,
-          "lines": 2682,
-          "sha256": "a6b4939a83ba33f56d20dde6bcf9dd6767497c9042849106f974d675640a1386",
+          "length": 105842,
+          "lines": 2684,
+          "sha256": "7e9e622432e32a7df1ad4f627c39e72f75c7a9553c7a5dac6a4de9d0339f3c54",
         },
       ]
     `);

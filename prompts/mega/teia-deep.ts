@@ -73,7 +73,7 @@ NOME DE EMPRESA PARECIDO NÃO E CONEXAO. Exija registro legal ou socio comprovad
 
 PASSO 1 — TABELA MESTRA DE CNPJs
 
-Liste OS CNPJs mais relevantes do grupo, com:
+Liste TODOS OS CNPJs validos encontrados do grupo, com:
 - CNPJ (formato ##.###.###/####-##)
 - Razao Social
 - Relacao na Teia (matriz, holding, filial, SPE, veiculo patrimonial, operacional)
@@ -82,17 +82,27 @@ Liste OS CNPJs mais relevantes do grupo, com:
 - Confianca: OFICIAL, PUBLICA, INFERIDA, NAO CONFIRMADA
 
 Regras:
-- Maximo 15 linhas. Se houver mais, liste os 10 mais relevantes e nota: "Mais [X] filiais/veiculos nao listados individualmente."
-- CNPJ nao confirmado: escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
+- Nao amostre CNPJs. Se encontrar 32 CNPJs validos, liste 32 linhas individualizadas.
+- Se uma fonte citar um total maior que os CNPJs identificados individualmente, declare como "total indicado pela fonte", nao como "mapeado".
+- CNPJ oficial/validado: escreva sem asterisco.
+- CNPJ inferido, textual ou nao confirmado em fonte oficial: pode virar linha, mas DEVE usar asterisco no CNPJ, no formato ##.###.###/####-##*.
+- Adicione nota obrigatoria: "* = hipótese a validar, não confirmado em fonte oficial".
+- Se nao houver nem numero textual, escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
 - CNPJ de fonte oficial (QSA, BrasilAPI): cite a fonte e marque como OFICIAL.
-- CNPJ de busca reversa (consultasocio.com): marque como INFERIDA com nota "validar".
+- CNPJ de busca reversa (consultasocio.com) sem validacao oficial: marque como INFERIDA com asterisco e nota "validar".
+- OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo.
+- Use Escopo = GRUPO_CONFIRMADO somente quando houver prova independente de vinculo com a raiz/grupo.
+- Use Escopo = CNPJ_LATERAL_SOCIO quando QSA/CNPJ Aberto/Receita confirmar que o socio aparece no CNPJ, mas o grupo nao estiver confirmado.
+- Use Escopo = NAO_CONFIRMADO para CNPJ textual, com asterisco, inconsistente ou sem validacao oficial.
+- CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior.
 
 PASSO 2 — QSA E PODER SOCIETARIO
 
 Para cada socio relevante identificado:
 - Nome ou razao social
 - Qualificacao (socio-administrador, titular, cotista, etc.)
-- Empresas relacionadas (outros CNPJs onde o mesmo socio aparece)
+- Empresas do Grupo Economico: CNPJs/razoes com comprovacao de vinculo com a empresa raiz
+- Outros CNPJs: CNPJs/razoes onde o socio aparece, mas sem prova de pertencer ao grupo economico
 - Controle estimado quando percentual societario nao existir: use "CLASSIFICACAO ESTIMADA"
 - Risco de homonimo quando aplicavel
 
@@ -101,6 +111,9 @@ Regras:
 - Se nao houver percentual societario, SEMPRE declarar "CLASSIFICACAO ESTIMADA"
 - Se socio aparecer em multiplas empresas do grupo, destaque isso como sinal de concentracao de poder
 - Se socio tiver CPF, mantenha apenas os 3 primeiros e 2 ultimos digitos (ex: ***.123.456-**)
+- Nao gere tabela textual de "Outros CNPJs onde o socio aparece"; CNPJs laterais devem ser entregues pela busca estruturada da aplicacao.
+- Quando um CNPJ tiver asterisco, trate a relacao como hipotese visual/pendente; nao use como prova de controle nem de grupo economico.
+- Mesmo quando a Fonte for QSA Oficial e a Confianca for OFICIAL, em "Outros CNPJs" isso confirma apenas socio -> CNPJ. Nao promova para empresa do grupo.
 
 PASSO 3 — SINAIS DE ENTERPRISE INVISIVEL
 
@@ -157,7 +170,8 @@ Traduza a estrutura societaria em linguagem de venda:
 
 **Socio 1:** [Nome]
 - **Qualificacao:** [qualificacao]
-- **Empresas Relacionadas:** [lista de CNPJs/razoes]
+- **Empresas do Grupo Economico:** [CNPJs/razoes com comprovacao de vinculo com a empresa raiz]
+- **Outros CNPJs:** [CNPJs/razoes onde o socio aparece, mas sem prova de pertencer ao grupo economico]
 - **Controle:** [CLASSIFICACAO ESTIMADA ou percentual]
 - **Risco de Homonimo:** [SIM/NAO — justificativa]
 
