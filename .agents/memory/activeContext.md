@@ -26,7 +26,8 @@ Read order:
 - PR #286 era a unica PR aberta restante.
 - Pendencias encontradas na #286: 3 threads do Gemini Code Assist e falha no job `Tests` por snapshot de prompt desatualizado.
 - Correcoes aplicadas na #286: remover `useMemo` dentro de `map`, preservar titulo quando URL falsa e descartada, deduplicar fontes com URL normalizada e atualizar golden de prompts.
-- Validacao local da #286: recortes, `validate-prompts.sh`, `typecheck`, `npm run test`, `npm run build` e `npm run lint` passam; lint mantem 5 warnings preexistentes.
+- Validacao da #286: recortes, `validate-prompts.sh`, `typecheck`, `npm run test`, `npm run build` e `npm run lint` passaram localmente; apos push `ee74d35`, GitHub ficou `CLEAN` com Typecheck, Dossier Golden, Tests, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview verdes.
+- As 3 threads do Gemini Code Assist na #286 foram respondidas e resolvidas.
 
 ### Atualizacao 2026-05-25 17:05 — fechamento documental da Teia
 

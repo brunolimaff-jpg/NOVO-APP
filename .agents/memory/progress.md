@@ -18,7 +18,7 @@ Last updated: 2026-05-25
 
 **Correcoes aplicadas:** conflito com #285 resolvido preservando `stripUnsafeSocietarySections`; `filterSourcesForSection` virou chamada direta no loop; `deduplicateSourcesBlock` normaliza URLs, le markdown/HTML/URL pura e preserva titulo sem URL falsa; snapshot de `megaPrompts.test.ts` atualizado.
 
-**Validacao local:** recortes focados, `./scripts/validate-prompts.sh`, `npm run typecheck`, `npm run test`, `npm run build` e `npm run lint` passam. `lint` manteve 5 warnings preexistentes fora da #286.
+**Validacao:** recortes focados, `./scripts/validate-prompts.sh`, `npm run typecheck`, `npm run test`, `npm run build` e `npm run lint` passaram localmente. Apos push `ee74d35`, GitHub ficou `CLEAN` com Typecheck, Dossier Golden, Tests, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke Preview verdes. As 3 threads do Gemini Code Assist foram respondidas e resolvidas.
 
 ### Fechamento Teia CNPJ PR #285 (2026-05-25 17:05)
 
