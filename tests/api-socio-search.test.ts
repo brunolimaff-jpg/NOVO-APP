@@ -590,7 +590,7 @@ describe('api/socio-search', () => {
       degraded: true,
       diagnostics: expect.objectContaining({
         searchNoResultCount: 5,
-        searchFailureCount: 2,
+        searchFailureCount: 3,
       }),
     });
   });

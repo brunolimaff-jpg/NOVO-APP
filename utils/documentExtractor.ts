@@ -316,6 +316,71 @@ export async function searchConsultasocioDirect(socioName: string): Promise<stri
 }
 
 /**
+ * Busca empresas vinculadas a uma pessoa física via CNPJ Aberto API.
+ * Endpoint: GET /api/socio/empresas?nome={name}&limit=50
+ * Header: X-API-Key: CNPJABERTO_API_KEY
+ * Retorna texto formatado compatível com splitSearchBlocks() do socio-search.
+ */
+export async function searchCnpjAberto(socioName: string): Promise<string | null> {
+	const apiKey = process.env.CNPJABERTO_API_KEY;
+	if (!apiKey) return null;
+
+	scoutDiag.info('DocumentExtractor', `CNPJ Aberto — companies_by_owner: ${socioName}`);
+
+	try {
+		const response = await fetch(
+			`https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=50`,
+			{
+				headers: {
+					'X-API-Key': apiKey,
+					'Accept': 'application/json',
+					'User-Agent': 'ScoutAgro/1.0',
+				},
+				signal: AbortSignal.timeout(15000),
+			},
+		);
+
+		if (!response.ok) {
+			scoutDiag.warn('DocumentExtractor', `CNPJ Aberto API error: ${response.status}`);
+			return null;
+		}
+
+		const data = await response.json() as any;
+		const companies: any[] = Array.isArray(data)
+			? data
+			: data?.empresas || data?.data || data?.results || data?.companies || [];
+
+		if (!Array.isArray(companies) || companies.length === 0) {
+			scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: sem empresas encontradas');
+			return null;
+		}
+
+		const blocks: string[] = [];
+		for (const company of companies) {
+			const name = company.razao_social || company.nome || company.name || '';
+			const cnpj = company.cnpj || company.cnpj_formatado || '';
+			const role = company.qualificacao || company.qualificacao_socio || company.cargo || company.role || '';
+			const title = `Título: CNPJ Aberto — ${name}${cnpj ? ` (CNPJ ${cnpj})` : ''}`;
+			const url = `URL: https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}`;
+			const summaryParts = [name];
+			if (cnpj) summaryParts.push(`CNPJ ${cnpj}`);
+			if (role) summaryParts.push(role);
+			const summary = `Resumo: ${summaryParts.join(' — ')}`;
+			blocks.push(`${title}\n${url}\n${summary}\n---`);
+		}
+
+		scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${blocks.length} empresas encontradas`);
+		return blocks.join('\n');
+	} catch (error) {
+		scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
+			socioName,
+			message: error instanceof Error ? error.message : String(error),
+		});
+		return null;
+	}
+}
+
+/**
  * Função Unificada para Extração de Documentos ou Web.
  */
 export async function universalExtract(params: { 

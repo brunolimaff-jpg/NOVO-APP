@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { extractHtml, isValidPublicUrl, isPessoaJuridica, performWebSearch, searchConsultasocioDirect } from '../utils/documentExtractor.js';
+import { extractHtml, isValidPublicUrl, isPessoaJuridica, performWebSearch, searchCnpjAberto, searchConsultasocioDirect } from '../utils/documentExtractor.js';
 import { sanitizeSensitivePersonalData } from '../utils/privacy.js';
 import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
@@ -785,10 +785,23 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
   const socioIsPessoaFisica = !isPessoaJuridica(params.socioName);
 
   if (socioIsPessoaFisica && hasSearchBudget()) {
+    queriesRun.push('cnpjaberto.com/companies_by_owner');
+    const cnpjAbertoContent = await searchCnpjAberto(params.socioName);
+    if (cnpjAbertoContent) {
+      scoutDiag.info('SocioSearch', 'CNPJ Aberto retornou resultados, processando');
+      await processContentBlocks(cnpjAbertoContent);
+    } else {
+      searchFailureCount += 1;
+      degraded = true;
+      scoutDiag.warn('SocioSearch', 'CNPJ Aberto indisponivel, fallback para consultasocio.com');
+    }
+  }
+
+  if (socioIsPessoaFisica && companies.length === 0 && hasSearchBudget()) {
     queriesRun.push('consultasocio.com/direct');
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);
     if (consultasocioContent && !/Nenhum resultado encontrado/i.test(consultasocioContent)) {
-      scoutDiag.info('SocioSearch', 'consultasocio.com retornou resultados, processando antes do DDG');
+      scoutDiag.info('SocioSearch', 'consultasocio.com retornou resultados, processando');
       await processContentBlocks(consultasocioContent);
     } else if (!consultasocioContent) {
       searchFailureCount += 1;
