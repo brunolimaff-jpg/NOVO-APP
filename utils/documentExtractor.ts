@@ -86,13 +86,12 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Realiza busca web via Gemini Search Grounding.
- * Usa o modelo gemini-2.5-flash com google_search tool para obter
- * resultados com fontes verificaveis da web.
+ * Usa Gemini Search Grounding APENAS para encontrar URLs relevantes.
+ * Os CNPJs sao extraidos diretamente do scraping dessas URLs — zero alucinacao.
  * Retorna no formato Título/URL/Resumo/--- compatível com splitSearchBlocks().
  */
 export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
-    scoutDiag.info('DocumentExtractor', `Buscando via Gemini Search Grounding: ${query}`);
+    scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
 
     try {
         const response = await fetch(
@@ -103,72 +102,66 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
-                            text: `Search the web for Brazilian companies (CNPJ) where ${query} appears as a partner, shareholder, or administrator. Return a structured list with: company name, CNPJ (formatted as ##.###.###/####-##), and role. Only include real companies with valid CNPJs found in official or public sources. Do not fabricate any data.`
+                            text: `Find web pages listing Brazilian companies where "${query}" appears as a partner, shareholder, or administrator. Focus on consultasocio.com, econodata.com.br, cnpj.ws, casadosdados.com.br, and similar Brazilian corporate registry sites.`
                         }]
                     }],
-                    tools: [{ google_search: {} }]
+                    tools: [{ google_search: {} }],
+                    generationConfig: { temperature: 0, maxOutputTokens: 256 },
                 }),
                 signal: AbortSignal.timeout(30000),
             }
         );
 
         if (!response.ok) {
-            const errorText = await response.text().catch(() => 'Unknown error');
-            scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`, { error: errorText });
+            scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
             return null;
         }
 
         const data = await response.json() as any;
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text || !text.trim()) {
-            scoutDiag.warn('DocumentExtractor', 'Gemini retornou resposta vazia');
-            return null;
-        }
-
         const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
         const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
 
-        // Sem chunks de grounding — retorna o texto como um bloco unico
         if (groundingChunks.length === 0) {
-            return `Título: Gemini Search Result\nURL: https://www.google.com/search?q=${encodeURIComponent(query)}\nResumo: ${text.slice(0, 8000).replace(/\s+/g, ' ').trim()}\n---`;
+            scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
+            return null;
         }
 
+        const cheerio = await import('cheerio');
         const results: string[] = [];
         const urlSet = new Set<string>();
-        const supports: Array<{ segment?: { text?: string }; groundingChunkIndices?: number[] }> = groundingMetadata?.groundingSupports || [];
 
-        for (let i = 0; i < groundingChunks.length; i++) {
-            const chunk = groundingChunks[i];
+        for (const chunk of groundingChunks) {
             const url = chunk?.web?.uri || '';
             const title = chunk?.web?.title || '';
-            if (!url || urlSet.has(url)) continue;
+            if (!url || urlSet.has(url) || !isValidPublicUrl(url)) continue;
             urlSet.add(url);
 
-            // Busca o segmento de texto correspondente a este chunk
-            let snippet = '';
-            for (const support of supports) {
-                const chunkIndices = support?.groundingChunkIndices || [];
-                if (chunkIndices.includes(i)) {
-                    snippet = support?.segment?.text || '';
-                    break;
-                }
+            try {
+                const pageResponse = await fetch(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+                    signal: AbortSignal.timeout(8000),
+                });
+
+                if (!pageResponse.ok) continue;
+
+                const html = await pageResponse.text();
+                const $ = cheerio.load(html);
+                const pageText = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 6000);
+
+                if (!pageText) continue;
+
+                results.push(
+                    `Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`
+                );
+            } catch {
+                continue;
             }
-
-            results.push(
-                `Título: ${title}\nURL: ${url}\nResumo: ${(snippet || text.slice(0, 500)).replace(/\s+/g, ' ').trim()}\n---`
-            );
         }
 
-        // Garante que o texto completo da resposta Gemini esteja disponivel
-        // para os extratores de CNPJ mesmo sem chunks de grounding
-        if (results.length === 0) {
-            results.push(`Título: Gemini Search Result\nURL: https://www.google.com/search?q=${encodeURIComponent(query)}\nResumo: ${text.slice(0, 8000).replace(/\s+/g, ' ').trim()}\n---`);
-        }
-
-        scoutDiag.info('DocumentExtractor', `Gemini Search Grounding: ${results.length} blocos de resultado`);
-        return results.join('\n');
+        scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
+        return results.length > 0 ? results.join('\n') : null;
     } catch (error) {
-        scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search Grounding', {
+        scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
             message: error instanceof Error ? error.message : String(error),
         });
         return null;
