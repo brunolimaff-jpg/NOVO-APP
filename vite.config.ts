@@ -43,6 +43,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
   const localApiProxyTarget = env.LOCAL_DEV_API_PROXY_TARGET || LOCAL_DEV_API_PROXY_TARGET;
+  const localApiProxyHeaders = env.VERCEL_AUTOMATION_BYPASS_SECRET
+    ? { 'x-vercel-protection-bypass': env.VERCEL_AUTOMATION_BYPASS_SECRET }
+    : undefined;
   const localApiProxy = Object.fromEntries(
     LOCAL_DEV_API_PROXY_PATHS.map((path) => [
       path,
@@ -50,6 +53,7 @@ export default defineConfig(({ mode }) => {
         target: localApiProxyTarget,
         changeOrigin: true,
         secure: true,
+        headers: localApiProxyHeaders,
       } satisfies ProxyOptions,
     ]),
   );

@@ -45,7 +45,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Proibido usar lateral como `Proprias`, `Side business`, veiculo operacional do grupo, bioinsumos, verticalizacao, enterprise ou wedge Senior.
 - Historico completo: `docs/obsidian/daily/INDEX.md`.
 - Validacao local final: recorte Vitest da teia (`88`), `validate-prompts.sh` (`59`), `typecheck`, `lint` com 5 warnings preexistentes, `build`; Browser local confirmou ausencia de `Outros CNPJs`, `Alertas`, `Vinculo...`, `Relação` e badge lateral na matriz.
-- Caveat atual: o proxy local usa a preview da PR; os CNPJs estruturados so devem voltar a aparecer depois do push/deploy recomputar a API com cache `v7`.
+- Complemento pos-push: Vite proxy injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`; API via proxy local retornou `15` empresas para `GUILHERME MOGNON SCHEFFER`, `degraded: false`, todas na amostra como `partner_other_cnpj`/`rootContext: false`.
 
 > As secoes abaixo sobre CNPJ Aberto/SocietaryMatrix preservam o snapshot anterior da PR #285. Elas nao liberam merge sem a validacao do achado P0 acima.
 

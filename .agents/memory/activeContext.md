@@ -30,9 +30,10 @@ Read order:
   - secao `Alertas de validacao societaria`;
   - texto `Vinculo do socio; grupo nao confirmado`.
 - `/api/socio-search` teve cache versionado para `v7-structured-lateral-cnpj` para escapar do cache persistente antigo.
-- `.env.local` local aponta o proxy Vite para a preview da PR e continua ignorado pelo Git.
+- `.env.local` local aponta o proxy Vite para a preview da PR, inclui `VERCEL_AUTOMATION_BYPASS_SECRET` sem versionar segredo, e continua ignorado pelo Git.
 - Validacao local: recorte Vitest da teia `88` testes, `validate-prompts.sh` `59` testes, `typecheck`, `lint` com 5 warnings preexistentes, `build`.
-- Browser local `http://127.0.0.1:3000/`: DOM confirmou que a matriz nao mostra `Relação`, `CNPJ lateral do socio`, `Outros CNPJs`, `Alertas` nem `Vinculo...`. A busca estruturada ainda depende do deploy atualizado da PR para a API recomputar sem cache antigo.
+- Browser local `http://127.0.0.1:3000/`: DOM confirmou que a matriz nao mostra `Relação`, `CNPJ lateral do socio`, `Outros CNPJs`, `Alertas` nem `Vinculo...`.
+- API via proxy local apos deploy da PR: `GUILHERME MOGNON SCHEFFER` retornou `15` empresas, `5` rejeitadas, `degraded: false`; amostra com `partner_other_cnpj` e `rootContext: false`.
 
 ### Atualizacao 2026-05-25 16:01 — Achado P0 Teia CNPJ
 

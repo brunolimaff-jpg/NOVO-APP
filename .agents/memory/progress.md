@@ -538,7 +538,8 @@ Conclusao: a camada de contrato/anti-alucinacao melhorou, mas a busca real por s
   - `npm run lint` green com 5 warnings preexistentes conhecidos.
   - `npm run build` green com warning conhecido de chunk grande por Mermaid.
 - Browser local em `http://127.0.0.1:3000/`: DOM confirmou que a mensagem visivel nao mostra mais `Outros CNPJs`, `Alertas`, `Vinculo...`; matriz nao mostra `Relação` nem badge `CNPJ lateral do socio`.
-- Caveat: CNPJs estruturados ainda nao apareceram no local porque a preview/API usada pelo proxy precisa receber este commit para recomputar com o cache `v7`.
+- Complemento pos-push: Vite proxy agora injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`.
+- API via proxy local apos deploy da PR: `GUILHERME MOGNON SCHEFFER` retornou `15` empresas, `5` rejeitadas, `degraded: false`; amostra com `partner_other_cnpj` e `rootContext: false`.
 
 ## Important refs
 
