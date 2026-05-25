@@ -86,9 +86,108 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Realiza busca web via DuckDuckGo Lite (POST).
+ * Realiza busca web via Gemini Search Grounding.
+ * Usa o modelo gemini-2.5-flash com google_search tool para obter
+ * resultados com fontes verificaveis da web.
+ * Retorna no formato Título/URL/Resumo/--- compatível com splitSearchBlocks().
+ */
+export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
+    scoutDiag.info('DocumentExtractor', `Buscando via Gemini Search Grounding: ${query}`);
+
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Search the web for Brazilian companies (CNPJ) where ${query} appears as a partner, shareholder, or administrator. Return a structured list with: company name, CNPJ (formatted as ##.###.###/####-##), and role. Only include real companies with valid CNPJs found in official or public sources. Do not fabricate any data.`
+                        }]
+                    }],
+                    tools: [{ google_search: {} }]
+                }),
+                signal: AbortSignal.timeout(30000),
+            }
+        );
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error');
+            scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`, { error: errorText });
+            return null;
+        }
+
+        const data = await response.json() as any;
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text || !text.trim()) {
+            scoutDiag.warn('DocumentExtractor', 'Gemini retornou resposta vazia');
+            return null;
+        }
+
+        const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
+        const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
+
+        // Sem chunks de grounding — retorna o texto como um bloco unico
+        if (groundingChunks.length === 0) {
+            return `Título: Gemini Search Result\nURL: https://www.google.com/search?q=${encodeURIComponent(query)}\nResumo: ${text.slice(0, 8000).replace(/\s+/g, ' ').trim()}\n---`;
+        }
+
+        const results: string[] = [];
+        const urlSet = new Set<string>();
+        const supports: Array<{ segment?: { text?: string }; groundingChunkIndices?: number[] }> = groundingMetadata?.groundingSupports || [];
+
+        for (let i = 0; i < groundingChunks.length; i++) {
+            const chunk = groundingChunks[i];
+            const url = chunk?.web?.uri || '';
+            const title = chunk?.web?.title || '';
+            if (!url || urlSet.has(url)) continue;
+            urlSet.add(url);
+
+            // Busca o segmento de texto correspondente a este chunk
+            let snippet = '';
+            for (const support of supports) {
+                const chunkIndices = support?.groundingChunkIndices || [];
+                if (chunkIndices.includes(i)) {
+                    snippet = support?.segment?.text || '';
+                    break;
+                }
+            }
+
+            results.push(
+                `Título: ${title}\nURL: ${url}\nResumo: ${(snippet || text.slice(0, 500)).replace(/\s+/g, ' ').trim()}\n---`
+            );
+        }
+
+        // Garante que o texto completo da resposta Gemini esteja disponivel
+        // para os extratores de CNPJ mesmo sem chunks de grounding
+        if (results.length === 0) {
+            results.push(`Título: Gemini Search Result\nURL: https://www.google.com/search?q=${encodeURIComponent(query)}\nResumo: ${text.slice(0, 8000).replace(/\s+/g, ' ').trim()}\n---`);
+        }
+
+        scoutDiag.info('DocumentExtractor', `Gemini Search Grounding: ${results.length} blocos de resultado`);
+        return results.join('\n');
+    } catch (error) {
+        scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search Grounding', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+    }
+}
+
+/**
+ * Realiza busca web via Gemini Search Grounding (se API key disponivel)
+ * ou fallback para DuckDuckGo Lite (POST).
  */
 export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
+    // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
+    const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
+    if (apiKey) {
+        const result = await performGeminiSearch(query, apiKey);
+        if (result) return result;
+        scoutDiag.info('DocumentExtractor', 'Gemini indisponivel, fallback para DuckDuckGo');
+    }
+    // Fallback para DuckDuckGo
     return performDuckDuckGoSearch(query);
 }
 
