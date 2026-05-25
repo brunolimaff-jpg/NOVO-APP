@@ -51,7 +51,7 @@ Branches envolvidas:
 
 ## Current implementation branch
 
-**Branch atual: `codex/cnpj-socios-todos-cnpjs` — hotfix P0 de Teia CNPJ em validacao.**
+**Branch atual: `codex/cnpj-socios-todos-cnpjs` — hotfix P0 de Teia CNPJ validado em preview.**
 
 Escopo do hotfix:
 - `/api/socio-search` passa a extrair todos os CNPJs validos do perfil do socio, mesmo quando o snippet ja tinha um CNPJ, e retorna excedentes sem lookup oficial como `partner_other_cnpj`.
@@ -68,6 +68,8 @@ Validacao local ja executada:
 - `npm run test` verde (128 arquivos, 1083 testes)
 - `npm run lint` verde com 5 warnings preexistentes
 - `npm run build` verde com warning conhecido de chunks grandes
+- PR checks remotos verdes apos push `0ba0910`: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke (preview)
+- Preview Scheffer `04.733.767/0001-80` validado apos aguardar Vercel: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/socio-search` encontrou CNPJs laterais para todos os 6 socios testados; browser renderizou `societary-map-shell` com `Ver evidências (4)` e escopo `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como evidencia relacionada.
 
 ## Problemas residuais da sessao
 
@@ -79,8 +81,7 @@ Validacao local ja executada:
 
 ## Immediate next step
 
-1. Commitar/pushar hotfix na PR #285.
-2. Aguardar novo deploy Vercel por 5 minutos e validar Scheffer `04.733.767/0001-80` no preview: sem `Cia Ltda`, com multiplos `Outro CNPJ do socio`, sem raiz/filiais da propria raiz como relacionadas.
-3. Depois do preview verde, fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
-4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
-5. Manter `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` como guia de prevencao para novas regressoes nessa trilha.
+1. Publicar commit documental final com a evidencia de preview.
+2. Fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
+3. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
+4. Manter `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` como guia de prevencao para novas regressoes nessa trilha.

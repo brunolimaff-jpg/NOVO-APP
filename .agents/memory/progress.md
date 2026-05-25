@@ -81,8 +81,10 @@ Last updated: 2026-05-24
 - Hotfix de grafo/UI: `partner_other_cnpj` usa chave por CNPJ exato, tipo visual `Outro CNPJ do socio`, sem aresta raiz -> empresa; `SocietaryMap` mostra aviso quando inventario veio truncado.
 - Review agent final encontrou blockers reais e eles foram corrigidos: CNPJ invalido agora e barrado tambem em parser/grafo, `partner_other_cnpj` sem socio confirmado nao renderiza, promocao para `group_link` consolida por radical e o prompt nao carrega mais a regra residual de truncar tabela acima de 15 linhas.
 - Validacao local apos hotfix: `./scripts/validate-prompts.sh` verde (54 testes); `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1083 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde com warning conhecido de chunk grande.
+- Validacao remota apos push `0ba0910`: PR #285 com Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments e Smoke (preview) verdes.
+- Preview Scheffer apos aguardar 5 minutos: `/api/cnpj` retornou `SCHEFFER & CIA LTDA`, Sapezal/MT e 6 socios; `/api/socio-search` achou CNPJs laterais para todos os 6 socios testados; browser renderizou mapa com `Ver evidências (4)`, `Outro CNPJ do sócio`, sem `Cia Ltda` standalone e sem matriz/filiais formatadas da raiz como relacionadas.
 - Licoes aprendidas registradas em `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md`: revisar PRs #279/#280/#285 quando a regressao voltar, validar inventario real e nao apenas label, exigir `validate-prompts.sh` antes de preview.
-- Pendencia antes de considerar pronto: commit/push do hotfix, novo deploy Vercel, aguardar 5 min, validar Scheffer `04.733.767/0001-80` no preview sem `Cia Ltda` e com multiplos CNPJs laterais por socio.
+- Pendencia pos-hotfix: baixar documentalmente as pendencias antigas de CNPJ/PRs mergeadas e validar/configurar `SUPABASE_SERVICE_ROLE_KEY` para cache persistente server-side de `/api/socio-search`.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 

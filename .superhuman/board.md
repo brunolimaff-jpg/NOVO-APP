@@ -1,6 +1,6 @@
 # Superhuman Board - Teia CNPJ P0
 
-Status: in-progress
+Status: completed
 Rollback point: `12fc6cb61f78836af6480ee191d933b86e0b7415`
 Branch: `codex/cnpj-socios-todos-cnpjs`
 
@@ -36,7 +36,7 @@ Constraints:
 - SH-003 Fix `/api/socio-search` multi-CNPJ extraction and fallback naming - done
 - SH-004 Fix parser/graph merge gaps for partner-owned other CNPJs - done
 - SH-005 Self code review and agent review - done
-- SH-006 Requirements validation against Scheffer preview - pending
+- SH-006 Requirements validation against Scheffer preview - done
 - SH-007 Full project verification suite - done
 
 ## Findings Table
@@ -71,3 +71,6 @@ Constraints:
 - Green typecheck: `npm run typecheck`.
 - Green lint: `npm run lint` = 0 errors, 5 preexisting warnings.
 - Green build: `npm run build` = success, existing large chunk warning.
+- PR checks after push `0ba0910`: Typecheck, Tests, Dossier Golden, Build, GitGuardian, Vercel, Vercel Preview Comments and Smoke (preview) all green.
+- Preview Scheffer validation after 5-minute wait: `/api/cnpj` returned `SCHEFFER & CIA LTDA`, Sapezal/MT and 6 QSA entries; `/api/socio-search` returned partner-owned CNPJs for all six partners checked.
+- Browser preview validation: CNPJ `04.733.767/0001-80` completed lookup and generated dossier; `societary-map-shell` rendered with `Ver evidências (4)`, `Outro CNPJ do sócio` present, no standalone `Cia Ltda`, and no formatted root matriz/filial `04.733.767/0001-80`, `04.733.767/0023-96` or `04.733.767/0014-03` as related evidence.
