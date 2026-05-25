@@ -188,9 +188,17 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
         rawCnpjLabel: parsedCnpj.rawCnpjLabel,
         partnerName,
         role: relacaoCol >= 0 ? cells[relacaoCol]?.trim() || undefined : undefined,
-        sourceTitle: fonteCol >= 0 ? cells[fonteCol]?.trim() || undefined : undefined,
-        confidence: parsedCnpj.validationStatus === 'pending' ? 'weak' : mapConfidence(rawConfidence),
-        evidenceType: mapEvidenceType(rawConfidence),
+        sourceTitle: fonteCol >= 0 && cells[fonteCol]?.trim()
+          ? cells[fonteCol].trim()
+          : 'Gemini — Tabela CNPJs',
+        confidence: parsedCnpj.validationStatus === 'pending'
+          ? 'weak'
+          : parsedCnpj.cnpj && mapConfidence(rawConfidence) === 'weak'
+            ? 'medium'
+            : mapConfidence(rawConfidence),
+        evidenceType: parsedCnpj.cnpj && mapEvidenceType(rawConfidence) === 'web'
+          ? 'registry'
+          : mapEvidenceType(rawConfidence),
         relationshipScope,
         validationStatus: parsedCnpj.validationStatus,
         rootContext: relationshipScope === 'group_link',
@@ -204,7 +212,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
 
   for (const block of qsaBlocks) {
     const partnerNameMatch = block.match(/^([^\n]+)/);
-    const extractedPartnerName = partnerNameMatch?.[1]?.trim() || '';
+    const extractedPartnerName = partnerNameMatch?.[1]?.trim().replace(/\*\*/g, '').trim() || '';
 
     const empresasMatch = block.match(
       /\*\*(?:Empresas Relacionadas|Empresas do Grupo Economico|Empresas do Grupo Econômico):\*\*\s*([^\n]+)/i,
