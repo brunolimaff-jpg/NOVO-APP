@@ -86,52 +86,10 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Realiza busca web — Brave Search API com fallback para DuckDuckGo Lite.
+ * Realiza busca web via DuckDuckGo Lite.
  */
-export async function performWebSearch(query: string, options: { count?: number } = {}): Promise<string | null> {
-    const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-
-    if (braveKey) {
-        return performBraveSearch(query, braveKey, options);
-    }
-
+export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
     return performDuckDuckGoSearch(query);
-}
-
-async function performBraveSearch(query: string, apiKey: string, options: { count?: number } = {}): Promise<string | null> {
-    scoutDiag.info('DocumentExtractor', `Buscando no Brave Search: ${query}`);
-
-    try {
-        const count = Math.max(1, Math.min(options.count ?? 5, 10));
-        const searchUrl = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`;
-        const response = await fetch(searchUrl, {
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip',
-                'X-Subscription-Token': apiKey,
-            },
-            signal: AbortSignal.timeout(15000),
-        });
-
-        if (!response.ok) {
-            scoutDiag.warn('DocumentExtractor', `Brave Search HTTP ${response.status}, falling back to DuckDuckGo`);
-            return performDuckDuckGoSearch(query);
-        }
-
-        const data = await response.json() as { web?: { results?: Array<{ title?: string; url?: string; description?: string }> } };
-        const webResults = data.web?.results ?? [];
-
-        if (webResults.length === 0) return 'Nenhum resultado encontrado.';
-
-        const results = webResults.map(r =>
-            `Título: ${r.title || ''}\nURL: ${r.url || ''}\nResumo: ${r.description || ''}\n---`,
-        );
-
-        return results.join('\n');
-    } catch (error) {
-        scoutDiag.warn('DocumentExtractor', 'Brave Search falhou, falling back to DuckDuckGo', error);
-        return performDuckDuckGoSearch(query);
-    }
 }
 
 async function performDuckDuckGoSearch(query: string): Promise<string | null> {

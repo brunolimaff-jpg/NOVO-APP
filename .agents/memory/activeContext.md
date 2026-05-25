@@ -67,10 +67,10 @@ Escopo do hotfix:
 Validacao local ja executada:
 - `./scripts/validate-prompts.sh` verde (56 testes) em 2026-05-25
 - `npm run typecheck` verde
-- Recorte Vitest verde em 2026-05-25: `tests/features/dossier/SocietaryMap.test.tsx`, `tests/features/dossier/teiaTextParser.test.ts`, `tests/features/dossier/societaryGraph.test.ts`, `tests/api-socio-search.test.ts`, `tests/prompts/megaPrompts.test.ts` (86 testes)
+- Recorte Vitest verde em 2026-05-25: `tests/api-open-web-search.test.ts`, `tests/features/dossier/SocietaryMap.test.tsx`, `tests/features/dossier/teiaTextParser.test.ts`, `tests/features/dossier/societaryGraph.test.ts`, `tests/api-socio-search.test.ts`, `tests/prompts/megaPrompts.test.ts` (91 testes)
 - `npm run build` verde com warning conhecido de chunks grandes
 - PR checks remotos verdes do commit anterior, mas ainda precisam reexecutar apos push desta correcao.
-- Preview Scheffer `04.733.767/0001-80` mostrou regressao antes desta correcao: `/api/cnpj` retornou 6 socios, mas `/api/socio-search` retornou 0 empresas para todos, `degraded: true`, `pagesFetched: 0`, `cacheSource: none`. A causa operacional ainda inclui env de cache: `SUPABASE_SERVICE_ROLE_KEY` existe em Production e em uma preview de outra branch, nao na preview geral/branch `codex/cnpj-socios-todos-cnpjs`; `BRAVE_SEARCH_API_KEY` existe em Preview e Production.
+- Preview Scheffer `04.733.767/0001-80` mostrou regressao antes desta correcao: `/api/cnpj` retornou 6 socios, mas `/api/socio-search` retornou 0 empresas para todos, `degraded: true`, `pagesFetched: 0`, `cacheSource: none`. Apos deploy novo, `/api/socio-search` diferencia a falha como `searchFailureCount: 6`; `/api/open-web-search` diagnosticou Brave HTTP `402` e DuckDuckGo vazio. Decisao posterior do Bruno: remover Brave do codigo e deixar busca web somente em DuckDuckGo Lite, ignorando `BRAVE_SEARCH_API_KEY` mesmo que a env continue cadastrada na Vercel. A causa operacional de cache ainda inclui `SUPABASE_SERVICE_ROLE_KEY` existente em Production e em uma preview de outra branch, nao na preview geral/branch `codex/cnpj-socios-todos-cnpjs`.
 
 ## Problemas residuais da sessao
 

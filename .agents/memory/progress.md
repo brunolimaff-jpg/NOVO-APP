@@ -474,8 +474,9 @@ Last updated: 2026-05-25
 - `features/dossier/societaryGraph.ts` renderiza pendentes com classe Mermaid tracejada (`evidence`), sem `oficial`, sem `group_link` e sem aresta raiz forte; `features/dossier/SocietaryMap.tsx` mantém o `*` no painel de evidências e mostra `Escopo: Validação pendente`.
 - `/api/socio-search` agora diferencia `searchNoResultCount` de `searchFailureCount` e retorna CNPJ textual sem validação oficial como pendente (`rawCnpjLabel` com `*`), não como oficial.
 - Cache de `/api/socio-search` versionado para `v6-pending-cnpj-diagnostics`.
-- Validação local: `npm exec vitest run tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/api-socio-search.test.ts tests/prompts/megaPrompts.test.ts` green (`86` testes); `./scripts/validate-prompts.sh` green (`56` testes); `npm run typecheck` green; `npm run build` green com warning conhecido de chunks grandes.
-- Caveat operacional: `vercel env ls` mostra `BRAVE_SEARCH_API_KEY` em Preview/Production, mas `SUPABASE_SERVICE_ROLE_KEY` apenas em Production e na preview da branch `feat/migration-notice-supabase`; falta configurar a env para Preview geral ou para `codex/cnpj-socios-todos-cnpjs` antes de considerar a preview funcionalmente fechada.
+- Bruno decidiu remover Brave do runtime; `utils/documentExtractor.ts` e `/api/open-web-search` passam a usar somente DuckDuckGo Lite, ignorando `BRAVE_SEARCH_API_KEY` mesmo se a variável continuar cadastrada.
+- Validação local: `npm exec vitest run tests/api-open-web-search.test.ts tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/teiaTextParser.test.ts tests/features/dossier/societaryGraph.test.ts tests/prompts/megaPrompts.test.ts` green (`91` testes); `./scripts/validate-prompts.sh` green (`56` testes); `npm run typecheck` green; `npm run build` green com warning conhecido de chunks grandes.
+- Caveat operacional: `BRAVE_SEARCH_API_KEY` pode continuar cadastrada na Vercel, mas nao e mais lida pelo runtime; `SUPABASE_SERVICE_ROLE_KEY` aparece apenas em Production e na preview da branch `feat/migration-notice-supabase`, entao falta configurar a env de cache para Preview geral ou para `codex/cnpj-socios-todos-cnpjs`.
 
 ## Important refs
 
