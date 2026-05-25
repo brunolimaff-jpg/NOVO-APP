@@ -172,7 +172,7 @@ export async function searchConsultasocioDirect(socioName: string): Promise<stri
 
     try {
         const allBlocks: string[] = [];
-        const maxPages = 3;
+        const maxPages = 15;
 
         for (let page = 1; page <= maxPages; page++) {
             const pageUrl = page === 1 ? url : `${url}?page=${page}`;
