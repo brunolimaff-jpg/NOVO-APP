@@ -73,7 +73,7 @@ NOME DE EMPRESA PARECIDO NÃO E CONEXAO. Exija registro legal ou socio comprovad
 
 PASSO 1 — TABELA MESTRA DE CNPJs
 
-Liste OS CNPJs mais relevantes do grupo, com:
+Liste TODOS OS CNPJs validos encontrados do grupo, com:
 - CNPJ (formato ##.###.###/####-##)
 - Razao Social
 - Relacao na Teia (matriz, holding, filial, SPE, veiculo patrimonial, operacional)
@@ -82,7 +82,8 @@ Liste OS CNPJs mais relevantes do grupo, com:
 - Confianca: OFICIAL, PUBLICA, INFERIDA, NAO CONFIRMADA
 
 Regras:
-- Maximo 15 linhas. Se houver mais, liste os 10 mais relevantes e nota: "Mais [X] filiais/veiculos nao listados individualmente."
+- Nao amostre CNPJs. Se encontrar 32 CNPJs validos, liste 32 linhas individualizadas.
+- Se uma fonte citar um total maior que os CNPJs identificados individualmente, declare como "total indicado pela fonte", nao como "mapeado".
 - CNPJ nao confirmado: escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
 - CNPJ de fonte oficial (QSA, BrasilAPI): cite a fonte e marque como OFICIAL.
 - CNPJ de busca reversa (consultasocio.com): marque como INFERIDA com nota "validar".
@@ -92,7 +93,8 @@ PASSO 2 — QSA E PODER SOCIETARIO
 Para cada socio relevante identificado:
 - Nome ou razao social
 - Qualificacao (socio-administrador, titular, cotista, etc.)
-- Empresas relacionadas (outros CNPJs onde o mesmo socio aparece)
+- Empresas do Grupo Economico: CNPJs/razoes com comprovacao de vinculo com a empresa raiz
+- Outros CNPJs: CNPJs/razoes onde o socio aparece, mas sem prova de pertencer ao grupo economico
 - Controle estimado quando percentual societario nao existir: use "CLASSIFICACAO ESTIMADA"
 - Risco de homonimo quando aplicavel
 
@@ -101,6 +103,7 @@ Regras:
 - Se nao houver percentual societario, SEMPRE declarar "CLASSIFICACAO ESTIMADA"
 - Se socio aparecer em multiplas empresas do grupo, destaque isso como sinal de concentracao de poder
 - Se socio tiver CPF, mantenha apenas os 3 primeiros e 2 ultimos digitos (ex: ***.123.456-**)
+- Alem do resumo por socio, preencha a tabela "Outros CNPJs onde o socio aparece" com cada CNPJ valido encontrado fora do grupo economico confirmado.
 
 PASSO 3 — SINAIS DE ENTERPRISE INVISIVEL
 
@@ -163,6 +166,14 @@ Traduza a estrutura societaria em linguagem de venda:
 - **Risco de Homonimo:** [SIM/NAO — justificativa]
 
 [Repetir para cada socio relevante]
+
+---
+
+## Outros CNPJs onde o socio aparece
+
+| Socio | CNPJ | Razao Social | Fonte | Confianca |
+|-------|------|--------------|-------|-----------|
+| [socio] | [##.###.###/####-##] | [razao social] | [fonte] | [OFICIAL/PUBLICA/INFERIDA/NAO_CONFIRMADA] |
 
 ---
 

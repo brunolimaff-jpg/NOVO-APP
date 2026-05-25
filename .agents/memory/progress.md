@@ -75,8 +75,14 @@ Last updated: 2026-05-24
 - `teia-deep` e `teiaTextParser` separam "Empresas do grupo economico" de "Outros CNPJs onde o socio aparece".
 - Hotfix `b238f25`: bloqueia raiz e filiais de mesmo radical no grafo (`04.733.767/*` nao vira empresa relacionada), rejeita empresa vinda do Gemini sem CNPJ valido e impede que o CNPJ raiz apareca como `partner_other_cnpj`.
 - `scripts/validate-prompts.sh` foi criado e ligado a `npm run validate:prompts`; o gate roda testes de prompts, parser da teia e `societaryGraph` para capturar regressao de CNPJ inventado/duplicado.
-- Validacao local: review agent final sem blockers; `./scripts/validate-prompts.sh` verde (44 testes); `npm run validate:prompts` verde; recortes de API/mapa/parser verdes; `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1064 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde.
-- Validacao remota: PR #285 com CI/Vercel/Smoke preview verdes; preview protegido exigiu `x-vercel-protection-bypass`; apos 5 min do deploy, fluxo Scheffer `04.733.767/0001-80` validado no preview com Score PORTA visivel e mapa societario sem `Matriz + 2 filiais`, sem `04.733.767/0023-96` e sem `04.733.767/0014-03`.
+- Hotfix P0 pos-preview ruim: `/api/socio-search` deixou de parar no limite de lookup oficial, passa a retornar CNPJs excedentes com fallback local, sobe `MAX_COMPANIES` para 60, versiona cache para `v5-full-partner-inventory` e sinaliza `diagnostics.totalCnpjsFound/truncated/truncatedReason`.
+- Hotfix de nome: `Cia Ltda` e nomes sem identidade real nao entram mais no payload/mapa; quando lookup oficial retorna nome truncado, a API usa a razao inferida junto ao CNPJ ou fallback `Empresa CNPJ`.
+- Hotfix de prompt/parser: `teia-deep` proibe amostragem, exige tabela parseavel `Outros CNPJs onde o socio aparece`; `teiaTextParser` le varias tabelas e aceita coluna legada `CNPJ / Tipo`.
+- Hotfix de grafo/UI: `partner_other_cnpj` usa chave por CNPJ exato, tipo visual `Outro CNPJ do socio`, sem aresta raiz -> empresa; `SocietaryMap` mostra aviso quando inventario veio truncado.
+- Review agent final encontrou blockers reais e eles foram corrigidos: CNPJ invalido agora e barrado tambem em parser/grafo, `partner_other_cnpj` sem socio confirmado nao renderiza, promocao para `group_link` consolida por radical e o prompt nao carrega mais a regra residual de truncar tabela acima de 15 linhas.
+- Validacao local apos hotfix: `./scripts/validate-prompts.sh` verde (54 testes); `npm run typecheck` verde; `npm run test` verde (128 arquivos, 1083 testes); `npm run lint` sem erros e 5 warnings preexistentes; `npm run build` verde com warning conhecido de chunk grande.
+- Licoes aprendidas registradas em `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md`: revisar PRs #279/#280/#285 quando a regressao voltar, validar inventario real e nao apenas label, exigir `validate-prompts.sh` antes de preview.
+- Pendencia antes de considerar pronto: commit/push do hotfix, novo deploy Vercel, aguardar 5 min, validar Scheffer `04.733.767/0001-80` no preview sem `Cia Ltda` e com multiplos CNPJs laterais por socio.
 
 ### Feedback Scout 360 com Supabase (2026-05-23)
 

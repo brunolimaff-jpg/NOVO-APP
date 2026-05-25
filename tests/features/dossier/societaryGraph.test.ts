@@ -37,7 +37,7 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Agropecuária Scheffer',
-          cnpj: '00111222000133',
+          cnpj: '00111222000181',
           partnerName: 'Guilherme M. Scheffer',
           sourceUrl: 'https://example.com/agro',
           sourceTitle: 'Fonte societária',
@@ -49,7 +49,7 @@ describe('societaryGraph', () => {
         },
         {
           name: 'AGROPECUARIA SCHEFFER LTDA',
-          cnpj: '00.111.222/0001-33',
+          cnpj: '00.111.222/0001-81',
           partnerName: 'Carolina M. Scheffer',
           sourceUrl: 'https://example.com/agro',
           sourceTitle: 'Fonte societária',
@@ -163,11 +163,191 @@ describe('societaryGraph', () => {
     });
     expect(graph.companies[0].badges).toContain('outro CNPJ do sócio');
     expect(graph.companies[0].badges).toContain('validar grupo');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Outro CNPJ do sócio');
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Fazenda Independente LTDA');
     expect(mermaid).toContain('guilherme -- Outro CNPJ do sócio --> company_12345678000195');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
+  });
+
+  it('rejeita outro CNPJ do socio quando nao ha socio confirmado para conectar', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Fazenda Independente LTDA',
+          cnpj: '10.000.000/0001-45',
+          partnerName: '',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Bloco sem nome do socio confirmado.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies).toHaveLength(1);
+    expect(graph.rejectedCompanies[0].reason).toMatch(/sem socio confirmado/i);
+
+    const mermaid = buildSocietaryMermaid(graph);
+    expect(mermaid).not.toContain('Root -- Empresa no QSA --> company_10000000000145');
+    expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_10000000000145');
+  });
+
+  it('rejeita CNPJ com digito verificador invalido antes de renderizar', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Empresa Inventada LTDA',
+          cnpj: '11.111.111/0001-11',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceUrl: 'https://example.com/inventada',
+          sourceTitle: 'Fonte pública',
+          snippet: 'Guilherme M. Scheffer aparece em texto sem CNPJ valido.',
+          confidence: 'strong',
+          evidenceType: 'registry',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies).toHaveLength(1);
+    expect(graph.rejectedCompanies[0].reason).toMatch(/CNPJ invalido/i);
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(mermaid).not.toContain('Empresa Inventada LTDA');
+    expect(mermaid).not.toContain('11111111000111');
+  });
+
+  it('mantem CNPJs distintos do socio quando compartilham radical mas nao sao grupo raiz', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Agropecuaria Scheffer LTDA',
+          cnpj: '09.567.366/0001-11',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Guilherme M. Scheffer consta como sócio.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+        {
+          name: 'Agropecuaria Scheffer Filial LTDA',
+          cnpj: '09.567.366/0002-00',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Guilherme M. Scheffer consta como sócio.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(2);
+    expect(graph.companies.map(company => company.cnpj)).toEqual(['09567366000111', '09567366000200']);
+  });
+
+  it('promove CNPJ duplicado para grupo quando evidencia posterior comprova vinculo forte', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Fazenda Independente LTDA',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Guilherme M. Scheffer consta como sócio administrador.',
+          confidence: 'medium',
+          evidenceType: 'registry',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+        {
+          name: 'Fazenda Independente LTDA',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte oficial do grupo',
+          sourceUrl: 'https://example.com/grupo',
+          snippet: 'Scheffer & Cia Ltda comprova a Fazenda Independente LTDA como empresa do grupo.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+        {
+          name: 'Fazenda Independente Filial LTDA',
+          cnpj: '12.345.678/0002-76',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte oficial do grupo',
+          sourceUrl: 'https://example.com/grupo-filial',
+          snippet: 'Scheffer & Cia Ltda comprova filial da Fazenda Independente LTDA como empresa do grupo.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0]).toMatchObject({
+      relationshipScope: 'group_link',
+      rootContext: true,
+      rootLinked: true,
+      confidence: 'strong',
+      evidenceType: 'qsa',
+      branchCount: 2,
+      branchCnpjs: ['12345678000195', '12345678000276'],
+    });
+    expect(graph.companies[0].badges).not.toContain('outro CNPJ do sócio');
+  });
+
+  it('rejeita nome de empresa truncado sem identidade real', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Cia Ltda',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Texto truncado em Scheffer & Cia Ltda.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(0);
+    expect(graph.rejectedCompanies[0].reason).toMatch(/nome/i);
   });
 
   it('preserva Scheffer Colombia quando existe evidencia internacional forte', () => {
@@ -204,7 +384,7 @@ describe('societaryGraph', () => {
     }, [
       {
         name: 'Agropecuaria Scheffer Ltda',
-        cnpj: '00.111.222/0001-33',
+        cnpj: '00.111.222/0001-81',
         partnerName: 'Guilherme M. Scheffer',
         sourceTitle: 'Gemini — Tabela Mestre',
         confidence: 'strong',
@@ -218,7 +398,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Agropecuária Scheffer LTDA');
-    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_00111222000133');
+    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_00111222000181');
   });
 
   it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
@@ -258,10 +438,10 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Agropecuaria Scheffer Ltda',
-          cnpj: '00.111.222/0001-33',
+          cnpj: '00.111.222/0001-81',
           partnerName: 'Guilherme M. Scheffer',
           sourceTitle: 'BrasilAPI QSA',
-          sourceUrl: 'https://brasilapi.com.br/api/cnpj/v1/00111222000133',
+          sourceUrl: 'https://brasilapi.com.br/api/cnpj/v1/00111222000181',
           snippet: 'QSA oficial confirma Guilherme M. Scheffer.',
           confidence: 'strong',
           evidenceType: 'qsa',
@@ -274,7 +454,7 @@ describe('societaryGraph', () => {
     }, [
       {
         name: 'Agropecuaria Scheffer Ltda',
-        cnpj: '00.111.222/0001-33',
+        cnpj: '00.111.222/0001-81',
         partnerName: 'Guilherme M. Scheffer',
         sourceTitle: 'Gemini — Outros CNPJs do sócio',
         confidence: 'medium',
@@ -327,7 +507,7 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Scheffer Trading LTDA',
-          cnpj: '33.003.540/0001-00',
+          cnpj: '33.003.540/0001-88',
           partnerName: '',
           role: 'Trading e exportacao de commodities',
           sourceUrl: 'https://example.com/scheffer-trading',
@@ -348,9 +528,9 @@ describe('societaryGraph', () => {
     const mermaid = buildSocietaryMermaid(graph);
 
     expect(mermaid).toContain('Scheffer Trading LTDA');
-    expect(mermaid).toContain('CNPJ 33.003.540/0001-00');
+    expect(mermaid).toContain('CNPJ 33.003.540/0001-88');
     expect(mermaid).toContain('Trading');
-    expect(mermaid).toContain('Root -- CNPJ relacionado --> company_33003540000100');
+    expect(mermaid).toContain('Root -- CNPJ relacionado --> company_33003540000188');
     expect(mermaid).not.toContain('Empresa relacionada');
     expect(mermaid).not.toContain('Comercio exterior');
   });
@@ -398,7 +578,7 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Agropecuária Scheffer',
-          cnpj: '00111222000133',
+          cnpj: '00111222000181',
           partnerName: 'Guilherme M. Scheffer',
           sourceUrl: 'https://example.com/agro',
           sourceTitle: 'Fonte societária',
@@ -410,7 +590,7 @@ describe('societaryGraph', () => {
         },
         {
           name: 'Agropecuária Scheffer',
-          cnpj: '00111222000133',
+          cnpj: '00111222000181',
           partnerName: 'Carolina M. Scheffer',
           sourceUrl: 'https://example.com/agro',
           sourceTitle: 'Fonte societária',
@@ -427,8 +607,10 @@ describe('societaryGraph', () => {
 
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
     expect(mermaid).toContain('linkStyle 1 stroke:#0891b2');
-    expect(mermaid).toContain('linkStyle 2 stroke:#7c3aed');
-    expect(mermaid).toContain('linkStyle 3 stroke:#0891b2');
+    expect(mermaid).toContain('Root -- Empresa no QSA --> company_00111222000181');
+    expect(mermaid).toContain('linkStyle 2 stroke:#64748b');
+    expect(mermaid).toContain('linkStyle 3 stroke:#7c3aed');
+    expect(mermaid).toContain('linkStyle 4 stroke:#0891b2');
   });
 
   it('filtra a visao de um socio para empresas dele sem misturar raiz ou outros socios', () => {
@@ -438,7 +620,7 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Scheffer Trading LTDA',
-          cnpj: '33.003.540/0001-00',
+          cnpj: '33.003.540/0001-88',
           partnerName: 'Guilherme M. Scheffer',
           role: 'Trading',
           sourceUrl: 'https://example.com/trading',
@@ -451,7 +633,7 @@ describe('societaryGraph', () => {
         },
         {
           name: 'Scheffer Logística e Administração LTDA',
-          cnpj: '10.536.467/0001-00',
+          cnpj: '10.536.467/0001-04',
           partnerName: 'Carolina M. Scheffer',
           role: 'Holding',
           sourceUrl: 'https://example.com/logistica',
@@ -464,7 +646,7 @@ describe('societaryGraph', () => {
         },
         {
           name: 'Empresa Raiz Sem Socio LTDA',
-          cnpj: '22.222.222/0001-22',
+          cnpj: '22.222.222/0001-91',
           partnerName: '',
           role: 'Produção agrícola',
           sourceUrl: 'https://example.com/raiz',
@@ -600,7 +782,7 @@ describe('societaryGraph', () => {
       companies: [
         {
           name: 'Scheffer Participações S/A',
-          cnpj: '00111222000133',
+          cnpj: '00111222000181',
           partnerName: 'Guilherme M. Scheffer',
           role: 'holding',
           sourceUrl: 'https://example.com/holding',
@@ -614,7 +796,7 @@ describe('societaryGraph', () => {
       ],
     });
 
-    expect(formatSocietaryCnpj('00111222000133')).toBe('00.111.222/0001-33');
+    expect(formatSocietaryCnpj('00111222000181')).toBe('00.111.222/0001-81');
     expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding');
   });
 
@@ -626,7 +808,7 @@ describe('societaryGraph', () => {
     }, [
       {
         name: 'Scheffer Logística e Administração LTDA',
-        cnpj: '10.536.467/0001-00',
+        cnpj: '10.536.467/0001-04',
         partnerName: '',
         role: '64.62-0-00 Holdings de instituições não-financeiras',
         sourceTitle: 'Receita Federal',
@@ -642,7 +824,7 @@ describe('societaryGraph', () => {
     const mermaid = buildSocietaryMermaid(graph);
 
     expect(mermaid).toContain('Scheffer Logística e Administração LTDA');
-    expect(mermaid).toContain('CNPJ 10.536.467/0001-00');
+    expect(mermaid).toContain('CNPJ 10.536.467/0001-04');
     expect(mermaid).toContain('Holding');
     expect(mermaid).not.toContain('Ligada ao grupo raiz');
     expect(mermaid).not.toContain('Holding / participacoes');

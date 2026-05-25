@@ -51,36 +51,36 @@ Branches envolvidas:
 
 ## Current implementation branch
 
-**Sessao adicional: automacao de validacao E2E (Scripts + Playwright + curl).**
+**Branch atual: `codex/cnpj-socios-todos-cnpjs` — hotfix P0 de Teia CNPJ em validacao.**
 
-Arquivos criados:
-- `tests-e2e/cnpj-investigation-flow.spec.ts` — teste Playwright E2E: CNPJ Scheffer, lookup BrasilAPI, investigacao Gemini, assercao de resposta > 50 chars, rejeicao de CNPJ invalido
-- `scripts/validate-preview.sh` — script curl: health check GET /, CNPJ lookup GET /api/cnpj, validacao JSON (companyName/city/state/cnae), print PASS/FAIL colorido
+Escopo do hotfix:
+- `/api/socio-search` passa a extrair todos os CNPJs validos do perfil do socio, mesmo quando o snippet ja tinha um CNPJ, e retorna excedentes sem lookup oficial como `partner_other_cnpj`.
+- Cache versionado para `v5-full-partner-inventory` para nao reutilizar respostas antigas que escondiam CNPJs ou traziam nomes truncados.
+- Nome oficial truncado como `Cia Ltda` nao entra mais no payload; a API usa razao inferida do bloco do CNPJ ou fallback `Empresa CNPJ ##.###.###/####-##`.
+- Diagnostico explicito de parcialidade: `diagnostics.totalCnpjsFound`, `diagnostics.truncated`, `diagnostics.truncatedReason`; a UI mostra aviso de inventario parcial.
+- `teia-deep` proibe amostragem (`10 mais relevantes`) e exige inventario parseavel, inclusive tabela `Outros CNPJs onde o socio aparece`.
+- `teiaTextParser` le varias tabelas, aceita coluna legada `CNPJ / Tipo` e mapeia tabela de outros CNPJs como `partner_other_cnpj`.
+- `societaryGraph` preserva CNPJs laterais por CNPJ exato, rejeita nomes sem identidade real e rotula `Outro CNPJ do socio` sem aresta raiz -> empresa.
 
-Arquivos alterados:
-- `package.json` — scripts `test:e2e:cnpj` e `validate:preview`
-- `playwright.config.ts` — suporte a `BASE_URL` env var, salta webServer quando URL externa, timeout 180s
-
-Arquivos alterados anteriormente nesta sessao:
-- `prompts/megaPrompts.ts` — consolidacao, anti-fabrication, correcao de exports
-- `prompts/mega/foundation.ts` — blocos de traducao unificados
-- `prompts/mega/builders.ts` — PROMPT_CAMINHO_DE_VENDA
-- `prompts/mega/specialist-prompts.ts` — classDef removido, anti-fabrication
-- `tests/prompts/megaPrompts.test.ts` — testes atualizados
-- `services/storage.ts` — ajustes de teste
-- `tests/services/storage.test.ts` — testes atualizados
+Validacao local ja executada:
+- `./scripts/validate-prompts.sh` verde (54 testes)
+- `npm run typecheck` verde
+- `npm run test` verde (128 arquivos, 1083 testes)
+- `npm run lint` verde com 5 warnings preexistentes
+- `npm run build` verde com warning conhecido de chunks grandes
 
 ## Problemas residuais da sessao
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| Resolvido nesta branch | CNPJs dos socios aparecem com escopo explicito `partner_other_cnpj`, sem afirmar grupo economico; raiz/filiais de mesmo radical nao viram empresa relacionada; `scripts/validate-prompts.sh` cobre prompt/parser/grafo | api/socio-search.ts, lib/cnpjLookup.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx, scripts/validate-prompts.sh |
+| Validado localmente nesta branch | Todos os CNPJs validos encontrados para socios aparecem com escopo explicito `partner_other_cnpj`; nomes truncados como `Cia Ltda` sao substituidos/rejeitados; parser/prompt nao podem mais amostrar inventario; UI avisa inventario parcial | api/socio-search.ts, features/dossier/societaryGraph.ts, features/dossier/SocietaryMap.tsx, features/dossier/teiaTextParser.ts, prompts/mega/teia-deep.ts, prompts/mega/teia-identity.ts, prompts/mega/specialist-prompts.ts |
 | P1 | Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental | prompts/mega/specialist-prompts.ts |
 | P2 | Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio | prompts/mega/builders.ts |
 
 ## Immediate next step
 
-1. Aguardar review/merge da PR #285 (`codex/cnpj-socios-todos-cnpjs`); CI/Vercel/Smoke preview estao verdes no commit `b238f25`.
-2. Depois do merge, fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
-3. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
-4. Resolver problemas residuais P1/P2 restantes acima.
+1. Commitar/pushar hotfix na PR #285.
+2. Aguardar novo deploy Vercel por 5 minutos e validar Scheffer `04.733.767/0001-80` no preview: sem `Cia Ltda`, com multiplos `Outro CNPJ do socio`, sem raiz/filiais da propria raiz como relacionadas.
+3. Depois do preview verde, fazer a baixa documental separada das pendencias antigas de CNPJ/PRs ja mergeadas.
+4. Configurar/validar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente de `/api/socio-search`.
+5. Manter `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` como guia de prevencao para novas regressoes nessa trilha.

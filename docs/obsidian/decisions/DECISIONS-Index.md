@@ -52,6 +52,7 @@ Voltar para [[00-MASTER]].
 - [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints
 - [[TEIA-SOCIETARIA-ENRIQUECIMENTO]] — 2026-05-23 — Componente visual de estrutura societaria com drill-down
 - [[UX-REDESIGN-DIREÇÕES]] — 2026-05-23 — Redesenho UX do Scout 360 (direcao Paper Executivo, caminho C)
+- [[LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24]] — 2026-05-24 — Licoes do hotfix P0 da Teia CNPJ e PRs #279/#280/#285
 
 ## Como usar esta nota
 

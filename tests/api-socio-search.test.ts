@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { normalizeCnpj } from '../utils/cnpj';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
 const lookupCnpjMock = vi.hoisted(() => vi.fn());
@@ -45,6 +46,22 @@ function makeResponse() {
     },
     headers,
   };
+}
+
+function buildValidCnpj(index: number): string {
+  const base = String(100000000001 + index).padStart(12, '0');
+  const calcDigit = (value: string, factors: number[]): number => {
+    const total = value.split('').reduce((sum, char, idx) => sum + Number(char) * factors[idx], 0);
+    const remainder = total % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+  const firstDigit = calcDigit(base, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const secondDigit = calcDigit(`${base}${firstDigit}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return `${base}${firstDigit}${secondDigit}`;
+}
+
+function formatTestCnpj(cnpj: string): string {
+  return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
 }
 
 describe('api/socio-search', () => {
@@ -213,18 +230,354 @@ describe('api/socio-search', () => {
     });
   });
 
+  it('nao promove CNPJ de perfil do socio para grupo so porque a raiz aparece no mesmo bloco', async () => {
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Econodata',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: '09567366000111',
+      companyName: 'AGROPECUARIA SCHEFFER LTDA',
+      city: 'Sapezal',
+      state: 'MT',
+      cnaeDescricao: 'Cultivo de soja',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          name: 'AGROPECUARIA SCHEFFER LTDA',
+          cnpj: '09567366000111',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+          confidence: 'strong',
+          evidenceType: 'qsa',
+        }),
+      ],
+    });
+  });
+
+  it('extrai varios CNPJs da pagina de perfil do socio mesmo quando o snippet ja tem um CNPJ', async () => {
+    const pageCompanies = [
+      ['Agropecuaria Scheffer LTDA', '09.567.366/0001-11'],
+      ['Scheffer Comercial Atacadista de Produtos Agricolas LTDA', formatTestCnpj(buildValidCnpj(1))],
+      ['Associacao Scheffer de Lazer e Convivencia Familiar', formatTestCnpj(buildValidCnpj(2))],
+      ['Fazenda Independente Scheffer LTDA', formatTestCnpj(buildValidCnpj(3))],
+      ['Sementes Scheffer LTDA', formatTestCnpj(buildValidCnpj(4))],
+      ['Transportes Scheffer LTDA', formatTestCnpj(buildValidCnpj(5))],
+    ];
+    const pageHtml = `<html><body>${pageCompanies
+      .map(([name, cnpj]) => `<section>${name} Ativa Socio Administrador CNPJ ${cnpj} Setor Cultivo de soja</section>`)
+      .join('\n')}</body></html>`;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/html' }),
+      text: async () => pageHtml,
+    } as Response);
+    performWebSearchMock
+      .mockResolvedValueOnce([
+        'Título: Guilherme M. Scheffer - Econodata',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
+        '---',
+      ].join('\n'))
+      .mockResolvedValue('Nenhum resultado encontrado.');
+    lookupCnpjMock.mockImplementation(async (cnpj: string) => ({
+      cnpj,
+      companyName: pageCompanies.find(([, listedCnpj]) => normalizeCnpj(listedCnpj) === normalizeCnpj(cnpj))?.[0],
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    }));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledWith('https://consultasocio.com/q/sa/guilherme-m-scheffer', expect.any(Object));
+    const payload = response.payload as {
+      companies: Array<{ name: string; cnpj: string; relationshipScope: string; rootContext: boolean }>;
+      diagnostics?: { cnpjsEnriched?: number };
+    };
+    expect(payload.companies).toHaveLength(6);
+    expect(payload.companies).toEqual(expect.arrayContaining(
+      pageCompanies.map(([name, cnpj]) => expect.objectContaining({
+        name,
+        cnpj: normalizeCnpj(cnpj),
+        relationshipScope: 'partner_other_cnpj',
+        rootContext: false,
+      })),
+    ));
+    expect(payload.diagnostics).toMatchObject({
+      cnpjsEnriched: 5,
+    });
+  });
+
+  it('extrai varios CNPJs da mesma pagina de perfil do socio e retorna os nao enriquecidos como outro CNPJ do socio', async () => {
+    const profileCnpjs = Array.from({ length: 7 }, (_, index) => formatTestCnpj(buildValidCnpj(index + 10)));
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${profileCnpjs[0]}.`,
+      '---',
+    ].join('\n'));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-type': 'text/plain' }),
+      text: async () => [
+        'Empresas em que Guilherme M. Scheffer aparece:',
+        `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[0]}`,
+        `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[1]}`,
+        `Fazenda Leste LTDA CNPJ ${profileCnpjs[2]}`,
+        `Armazens Serra LTDA CNPJ ${profileCnpjs[3]}`,
+        `Transportes Oeste LTDA CNPJ ${profileCnpjs[4]}`,
+        `Bio Insumos Vale LTDA CNPJ ${profileCnpjs[5]}`,
+        `Trading Centro LTDA CNPJ ${profileCnpjs[6]}`,
+      ].join('\n'),
+    } as Response);
+    lookupCnpjMock.mockImplementation(async (cnpj: string) => ({
+      cnpj,
+      companyName: `Empresa Oficial ${cnpj.slice(0, 2)} LTDA`,
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    }));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    const payload = response.payload as {
+      companies: Array<{ cnpj: string; name: string; relationshipScope: string; rootContext: boolean }>;
+      diagnostics?: { pagesFetched?: number; cnpjsEnriched?: number };
+    };
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://consultasocio.com/q/sa/guilherme-m-scheffer', expect.any(Object));
+    expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
+    expect(payload.diagnostics).toMatchObject({ pagesFetched: 1, cnpjsEnriched: 5 });
+    expect(payload.companies.map(company => company.cnpj)).toEqual(profileCnpjs.map(normalizeCnpj));
+    expect(payload.companies.every(company => company.relationshipScope === 'partner_other_cnpj')).toBe(true);
+    expect(payload.companies.every(company => company.rootContext === false)).toBe(true);
+    expect(payload.companies.map(company => company.name)).not.toContain('Cia Ltda');
+    expect(payload.companies.at(-1)?.name).toBe('Trading Centro LTDA');
+  });
+
+  it('substitui nome truncado por fallback de CNPJ quando lookup oficial nao enriquece', async () => {
+    const validCnpj = buildValidCnpj(30);
+    const formattedCnpj = formatTestCnpj(validCnpj);
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${formattedCnpj}.`,
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          cnpj: validCnpj,
+          name: `Empresa CNPJ ${formattedCnpj}`,
+          relationshipScope: 'partner_other_cnpj',
+        }),
+      ],
+    });
+    expect(JSON.stringify(response.payload)).not.toContain('"name":"Cia Ltda"');
+  });
+
+  it('substitui nome oficial truncado por razao inferida do bloco do CNPJ', async () => {
+    const validCnpj = buildValidCnpj(31);
+    const formattedCnpj = formatTestCnpj(validCnpj);
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      `Resumo: Guilherme M. Scheffer consta no quadro societário de Agropecuaria Norte LTDA CNPJ ${formattedCnpj}.`,
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: validCnpj,
+      companyName: 'Cia Ltda',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [
+        expect.objectContaining({
+          cnpj: validCnpj,
+          name: 'Agropecuaria Norte LTDA',
+          relationshipScope: 'partner_other_cnpj',
+        }),
+      ],
+    });
+    expect(JSON.stringify(response.payload)).not.toContain('"name":"Cia Ltda"');
+  });
+
+  it('sinaliza truncamento quando a fonte tem mais CNPJs validos que o limite de retorno', async () => {
+    const cnpjList = Array.from({ length: 62 }, (_, index) => {
+      return [`Empresa ${index + 1} LTDA`, formatTestCnpj(buildValidCnpj(index + 100))] as const;
+    });
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      `Resumo: Guilherme M. Scheffer consta como sócio administrador. ${cnpjList.map(([name, cnpj]) => `${name} CNPJ ${cnpj}`).join(' ')}`,
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    const payload = response.payload as {
+      companies: Array<{ cnpj: string }>;
+      degraded?: boolean;
+      diagnostics?: { totalCnpjsFound?: number; truncated?: boolean; truncatedReason?: string };
+    };
+    expect(payload.companies).toHaveLength(60);
+    expect(payload.degraded).toBe(true);
+    expect(payload.diagnostics).toMatchObject({
+      totalCnpjsFound: 62,
+      truncated: true,
+      truncatedReason: 'company_limit',
+    });
+  });
+
+  it('rejeita CNPJ com digito verificador invalido quando o lookup oficial nao confirma', async () => {
+    performWebSearchMock.mockResolvedValueOnce([
+      'Título: Guilherme M. Scheffer - Consulta Sócio',
+      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      'Resumo: Guilherme M. Scheffer consta como sócio administrador de Cia Ltda CNPJ 11.111.111/0001-11.',
+      '---',
+    ].join('\n'));
+    lookupCnpjMock.mockRejectedValue(new Error('official source timeout'));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Guilherme M. Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04733767000180',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [],
+      rejected: [expect.objectContaining({ reason: expect.stringMatching(/CNPJ valido|fonte societaria/i) })],
+    });
+    expect(lookupCnpjMock).not.toHaveBeenCalled();
+  });
+
   it('rejeita CNPJ enriquecido quando o QSA oficial nao contem o socio pesquisado', async () => {
+    const validCnpj = buildValidCnpj(500);
+    const formattedCnpj = formatTestCnpj(validCnpj);
     performWebSearchMock
       .mockResolvedValueOnce('Nenhum resultado encontrado.')
       .mockResolvedValueOnce([
         'Título: Guilherme M. Scheffer - quadro societário',
         'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        'Resumo: Guilherme M. Scheffer aparece perto da Fazenda Homonima LTDA CNPJ 98.765.432/0001-10.',
+        `Resumo: Guilherme M. Scheffer aparece perto da Fazenda Homonima LTDA CNPJ ${formattedCnpj}.`,
         '---',
       ].join('\n'))
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
-      cnpj: '98765432000110',
+      cnpj: validCnpj,
       companyName: 'Fazenda Homonima LTDA',
       city: 'Sapezal',
       state: 'MT',
@@ -263,17 +616,19 @@ describe('api/socio-search', () => {
   });
 
   it('rejeita homonimo de QSA quando nome curto bate so por primeiro e ultimo nome', async () => {
+    const validCnpj = buildValidCnpj(501);
+    const formattedCnpj = formatTestCnpj(validCnpj);
     performWebSearchMock
       .mockResolvedValueOnce('Nenhum resultado encontrado.')
       .mockResolvedValueOnce([
         'Título: João Silva - quadro societário',
         'URL: https://consultasocio.com/q/sa/joao-silva',
-        'Resumo: João Silva aparece no quadro societário da Agro Silva LTDA CNPJ 11.222.333/0001-44.',
+        `Resumo: João Silva aparece no quadro societário da Agro Silva LTDA CNPJ ${formattedCnpj}.`,
         '---',
       ].join('\n'))
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
-      cnpj: '11222333000144',
+      cnpj: validCnpj,
       companyName: 'Agro Silva LTDA',
       qsa: [
         {
@@ -599,16 +954,18 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
-    expect(upsertBody.id).toContain('socio-search:v2-all-partner-cnpjs::04733767000180::guilherme m scheffer');
+    expect(upsertBody.id).toContain('socio-search:v5-full-partner-inventory::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
 
   it('roda todas as queries, abre paginas candidatas e enriquece CNPJ brasileiro via lookup oficial', async () => {
+    const validCnpj = buildValidCnpj(200);
+    const formattedCnpj = formatTestCnpj(validCnpj);
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       headers: new Headers({ 'content-type': 'text/html' }),
-      text: async () => '<html><body>Guilherme M. Scheffer aparece com Scheffer & Cia Ltda na Agropecuaria Scheffer CNPJ 00.111.222/0001-33.</body></html>',
+      text: async () => `<html><body>Guilherme M. Scheffer aparece com Scheffer & Cia Ltda na Agropecuaria Scheffer CNPJ ${formattedCnpj}.</body></html>`,
     } as Response);
     performWebSearchMock
       .mockResolvedValueOnce([
@@ -625,7 +982,7 @@ describe('api/socio-search', () => {
       ].join('\n'))
       .mockResolvedValueOnce('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
-      cnpj: '00111222000133',
+      cnpj: validCnpj,
       companyName: 'Agropecuaria Scheffer Ltda',
       city: 'Sapezal',
       state: 'MT',
@@ -655,7 +1012,7 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(performWebSearchMock).toHaveBeenCalledTimes(6);
     expect(fetchSpy).toHaveBeenCalledWith('https://example.com/generico', expect.any(Object));
-    expect(lookupCnpjMock).toHaveBeenCalledWith('00111222000133', expect.objectContaining({
+    expect(lookupCnpjMock).toHaveBeenCalledWith(validCnpj, expect.objectContaining({
       maxSources: 1,
       timeoutMs: expect.any(Number),
     }));
@@ -663,7 +1020,7 @@ describe('api/socio-search', () => {
       companies: [
         expect.objectContaining({
           name: 'Agropecuaria Scheffer Ltda',
-          cnpj: '00111222000133',
+          cnpj: validCnpj,
           role: 'Cultivo de soja',
           confidence: 'strong',
           evidenceType: 'qsa',
@@ -684,11 +1041,12 @@ describe('api/socio-search', () => {
 
   it('limita enriquecimentos globais para preservar budget da serverless', async () => {
     const blocks = Array.from({ length: 12 }, (_, index) => {
+      const cnpj = formatTestCnpj(buildValidCnpj(index + 300));
       const suffix = String(index + 1).padStart(3, '0');
       return [
         `Título: Fazenda ${suffix} de Guilherme M. Scheffer`,
         'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        `Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda ${suffix} CNPJ 00.111.${suffix}/0001-33.`,
+        `Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda ${suffix} CNPJ ${cnpj}.`,
         '---',
       ].join('\n');
     }).join('\n');
@@ -713,24 +1071,26 @@ describe('api/socio-search', () => {
 
     expect(response.statusCode).toBe(200);
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
-    expect(performWebSearchMock).toHaveBeenCalledTimes(1);
+    expect(performWebSearchMock).toHaveBeenCalledTimes(6);
     expect(response.payload).toMatchObject({
       companies: expect.arrayContaining([
         expect.objectContaining({ relationshipScope: 'partner_other_cnpj' }),
       ]),
       diagnostics: expect.objectContaining({
         cnpjsEnriched: 5,
+        totalCnpjsFound: 12,
       }),
     });
   });
 
   it('limita tentativas globais mesmo quando lookup oficial falha', async () => {
     const blocks = Array.from({ length: 12 }, (_, index) => {
+      const cnpj = formatTestCnpj(buildValidCnpj(index + 400));
       const suffix = String(index + 1).padStart(3, '0');
       return [
         `Título: Fazenda ${suffix} de Guilherme M. Scheffer`,
         'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        `Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda ${suffix} CNPJ 00.222.${suffix}/0001-44.`,
+        `Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda ${suffix} CNPJ ${cnpj}.`,
         '---',
       ].join('\n');
     }).join('\n');
@@ -751,6 +1111,14 @@ describe('api/socio-search', () => {
 
     expect(response.statusCode).toBe(200);
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
-    expect(performWebSearchMock).toHaveBeenCalledTimes(1);
+    expect(performWebSearchMock).toHaveBeenCalledTimes(6);
+    expect(response.payload).toMatchObject({
+      companies: expect.arrayContaining([
+        expect.objectContaining({ relationshipScope: 'partner_other_cnpj' }),
+      ]),
+      diagnostics: expect.objectContaining({
+        totalCnpjsFound: 12,
+      }),
+    });
   });
 });

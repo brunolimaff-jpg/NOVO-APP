@@ -24,6 +24,11 @@ interface SocioSearchResponse {
   companies?: SocietaryCompanyInput[];
   degraded?: boolean;
   cached?: boolean;
+  diagnostics?: {
+    truncated?: boolean;
+    totalCnpjsFound?: number;
+    truncatedReason?: string;
+  };
 }
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
@@ -220,7 +225,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           if (!cancelled) {
             setCompaniesByPartner(prev => ({ ...prev, [partnerKey]: payload.companies || [] }));
             searchedPartnerKeysRef.current[partnerKey] = true;
-            if (payload.degraded && payload.companies?.length === 0) {
+            if (payload.diagnostics?.truncated) {
+              setNotice('Busca societaria retornou inventario parcial; valide fontes para CNPJs adicionais.');
+            } else if (payload.degraded && payload.companies?.length === 0) {
               setNotice('Busca societaria degradada; mapa usa dados parciais.');
             }
           }

@@ -1017,7 +1017,7 @@ SEGMENTO:
 
 **📋 VISÃO GERAL DO GRUPO ECONÔMICO REAL**
 * **Cabeça do Grupo:** [holding/matriz principal]
-* **Total de CNPJs mapeados:** [X]
+* **Total de CNPJs identificados com fonte:** [X ou "não confirmado"; não use total estimado como mapeado]
 * **💰 Faturamento consolidado:** [fonte pública ou "ESTIMADO via MÉTODO [N]: R$ X"]
 * **🌾 Área total estimada:** [X ha — somando todos os imóveis/operação do grupo]
 * **🏭 Capacidade estática total:** [X toneladas]
@@ -1043,13 +1043,14 @@ SEGMENTO:
 
 ### 🏢 TABELA MESTRA DE CNPJs
 
-| CNPJ / Tipo | Razão Social | Relação na Teia | CNAE Principal | Faturamento Est. |
-|-------------|-------------|-----------------|----------------|------------------|
+| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |
+|------|-------------|-----------------|--------------|-------|-----------|
 | [dados reais por linha] |
 
 Se houver mais de 15 CNPJs:
-- listar os 10 mais relevantes
-- declarar: "Mais [X] filiais/veículos operacionais não listados individualmente"
+- não amostrar
+- listar todos os CNPJs válidos em linhas individualizadas
+- se uma fonte citar um total maior que os CNPJs identificados individualmente, declarar como "total indicado pela fonte", não como "mapeado"
 
 ---
 
@@ -1085,7 +1086,7 @@ graph LR
 - NÃO apresente faturamento estimado como dado confirmado
 - NÃO use P para medir verticalização
 - NÃO classifique como PRD se houver qualquer operação industrial relevante
-- NÃO gere tabela > 15 linhas sem nota de truncagem
+- NÃO trunque nem amostre a tabela de CNPJs; se uma fonte citar total maior, separe total indicado de CNPJs individualizados
 </constraints>
 `;
 

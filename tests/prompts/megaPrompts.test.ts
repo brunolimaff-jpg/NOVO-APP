@@ -13,6 +13,8 @@ import megaPrompts, {
   PROMPT_VERSION,
   SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
   SHARED_FOUNDATION_BLOCK,
+  PROMPT_TEIA_DEEP_MODULE,
+  PROMPT_TEIA_IDENTITY_MODULE,
   buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,
 } from '../../prompts/megaPrompts';
@@ -101,6 +103,25 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('mais de 3 verticais');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('energia');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('piscicultura');
+  });
+
+  it('requires parseable full CNPJ inventory for Teia instead of sampled totals', () => {
+    expect(PROMPT_TEIA_IDENTITY_MODULE).not.toContain('Total de CNPJs mapeados');
+    expect(PROMPT_TEIA_IDENTITY_MODULE).toContain('Total de CNPJs identificados com fonte');
+
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('Liste TODOS OS CNPJs validos encontrados');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('Maximo 15 linhas');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('Mais [X] filiais/veiculos nao listados individualmente');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Empresas do Grupo Economico:**');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Outros CNPJs:**');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('## Outros CNPJs onde o socio aparece');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca |');
+
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('CNPJ / Tipo');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('NÃO gere tabela > 15 linhas');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('NÃO trunque nem amostre a tabela de CNPJs');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |');
   });
 
   it('includes P proxy, R trabalhista and A2 markers in the RH prompt', () => {
@@ -248,9 +269,9 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "specialist-4",
-          "length": 8525,
-          "lines": 244,
-          "sha256": "dd0238c1ea3a50c4c5bd925e905c1db3ecd27832c6980ae6e6a7a0fb2a646b38",
+          "length": 8757,
+          "lines": 245,
+          "sha256": "1317a00b389ab6b7e9021ce7ac1945ba763b6a72cadc25cc100fe78cc0c214e7",
         },
         {
           "label": "specialist-5",
@@ -278,21 +299,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 105056,
-          "lines": 2662,
-          "sha256": "e4dbd56f16a2f55566ae94d914cf712e280d7f79fdb09fc88f7dfc101bd8aa5c",
+          "length": 105288,
+          "lines": 2663,
+          "sha256": "1b5cc26c358c252c2f1ccdcdd5b1264780b8cdb7b4732d35efbcc098c5212c39",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 113320,
-          "lines": 2912,
-          "sha256": "417ff459747b63f6daedcad0b00a7c16db5024c4984d2a2fae8ed622e62bcfd0",
+          "length": 113552,
+          "lines": 2913,
+          "sha256": "7201d3cc6a190dafc179d9f92fe23f438e95cd4f4d5af1b42298fe0fa8af2b64",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 105530,
-          "lines": 2682,
-          "sha256": "a6b4939a83ba33f56d20dde6bcf9dd6767497c9042849106f974d675640a1386",
+          "length": 105762,
+          "lines": 2683,
+          "sha256": "0a41233355cb64f46d6a83f28eff31b735660d5bb080789b11fafe81b15d1f7d",
         },
       ]
     `);

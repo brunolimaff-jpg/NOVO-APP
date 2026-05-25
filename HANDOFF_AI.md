@@ -18,6 +18,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 12. `docs/ai-context/refactor/06-HANDOFF.md`
 13. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
 14. `docs/obsidian/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` — 13 lições aprendidas na sessão de prompts 2026-05-24
+15. `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — lições do hotfix P0 da Teia CNPJ, incluindo PRs #279/#280/#285 e critérios de preview
 
 ## Contexto minimo estavel
 
@@ -66,7 +67,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Abordagem dual: `validate:preview` (curl, segundos) para smoke rapido em CI/pre-merge; `test:e2e:cnpj` (Playwright, ~2-3 min) para validacao completa com interacao real.
 
 ### Problemas Residuais
-1. **CNPJs dos socios no mapa societario** — resolvido na PR #285 (`codex/cnpj-socios-todos-cnpjs`) com `relationshipScope=partner_other_cnpj` para CNPJs laterais sem prova de grupo economico; `/api/socio-search` tem budget interno e `lookupCnpj` aceita timeout/maxSources nesse fluxo. Hotfix `b238f25` bloqueia raiz/filiais de mesmo radical como empresa relacionada, exige CNPJ valido para empresa vinda do Gemini e adiciona `scripts/validate-prompts.sh` como gate de prompt/parser/grafo. Preview Scheffer `04.733.767/0001-80` validado apos 5 min de Vercel sem `Matriz + 2 filiais` nem filiais `04.733.767/0023-96` / `04.733.767/0014-03` no mapa.
+1. **CNPJs dos socios no mapa societario** — PR #285 (`codex/cnpj-socios-todos-cnpjs`) em hotfix P0 apos preview mostrar poucos CNPJs e nome truncado `Cia Ltda`. Estado local atual: `/api/socio-search` retorna todos os CNPJs validos encontrados por socio ate limite operacional de 60, inclui `diagnostics.totalCnpjsFound/truncated`, versiona cache em `v5-full-partner-inventory` e substitui nomes truncados por razao inferida/fallback de CNPJ. `teia-deep` nao pode mais amostrar inventario; `teiaTextParser` aceita varias tabelas e coluna `CNPJ / Tipo`; `societaryGraph` preserva `partner_other_cnpj` por CNPJ exato e a UI avisa inventario parcial. Review agent final encontrou blockers e foram corrigidos: CNPJ invalido barrado em parser/grafo, `partner_other_cnpj` sem socio confirmado rejeitado, promocao para `group_link` consolidada por radical e prompt sem regra residual de truncagem acima de 15 linhas. Validacao local verde: `validate-prompts` (54 testes), `typecheck`, `test` (128 arquivos, 1083 testes), `lint` (0 erros, 5 warnings preexistentes), `build`. Falta push + novo preview Scheffer `04.733.767/0001-80` apos deploy.
 2. **Entidades internacionais sem link de auditoria** — "Conexoes internacionais exigem comprovacao documental... Se nao houver evidencia concreta, a conexao e INFERIDA" (P1)
 3. **Mermaid no contrato ainda e condicional** ("quando houver dados"), deveria ser obrigatorio (P2)
 

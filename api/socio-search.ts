@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { extractHtml, isValidPublicUrl, performWebSearch } from '../utils/documentExtractor.js';
 import { sanitizeSensitivePersonalData } from '../utils/privacy.js';
-import { normalizeCnpj } from '../utils/cnpj.js';
+import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { lookupCnpj } from '../lib/cnpjLookup.js';
 import { setSecurityHeaders } from './_security-headers.js';
@@ -49,6 +49,9 @@ interface SocioSearchDiagnostics {
   cacheSource: SocioSearchCacheSource;
   rejectedCount: number;
   cnpjsEnriched?: number;
+  totalCnpjsFound?: number;
+  truncated?: boolean;
+  truncatedReason?: 'company_limit' | 'deadline';
 }
 
 interface SocioSearchResponse {
@@ -77,9 +80,9 @@ const PAGE_EXTRACT_LIMIT = 6000;
 const SEARCH_DEADLINE_MS = 45_000;
 const CNPJ_LOOKUP_TIMEOUT_MS = 3_500;
 const MAX_CNPJ_LOOKUPS = 5;
-const MAX_COMPANIES = 12;
+const MAX_COMPANIES = 60;
 const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
-const CACHE_KEY_VERSION = 'v2-all-partner-cnpjs';
+const CACHE_KEY_VERSION = 'v5-full-partner-inventory';
 const cache = new Map<string, CacheEntry>();
 
 function normalizeText(value: string): string {
@@ -258,9 +261,78 @@ function splitSearchBlocks(content: string): Array<{ title: string; url: string;
     .filter(block => block.title && /^https?:\/\//i.test(block.url));
 }
 
+function extractCnpjMatches(text: string): Array<{ raw: string; cnpj: string; index: number }> {
+  const matches: Array<{ raw: string; cnpj: string; index: number }> = [];
+  const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
+  for (const match of text.matchAll(cnpjPattern)) {
+    const raw = match[0];
+    const cnpj = normalizeCnpj(raw);
+    if (!isValidCnpj(cnpj)) continue;
+    matches.push({ raw, cnpj, index: match.index || 0 });
+  }
+  return matches;
+}
+
 function extractCnpjs(text: string): string[] {
-  const matches = text.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g) || [];
-  return [...new Set(matches.map(match => normalizeCnpj(match)).filter(cnpj => cnpj.length === 14))];
+  return [...new Set(extractCnpjMatches(text).map(match => match.cnpj))];
+}
+
+function formatCnpjLabel(cnpj: string): string {
+  return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+}
+
+function cleanInferredCompanyName(value: string): string {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  const tokens = compact.split(/\s+/).filter(Boolean);
+  const legalSuffixIndex = tokens.findIndex(token => /^(LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME)$/i.test(token));
+  if (legalSuffixIndex > 1) {
+    for (let index = legalSuffixIndex - 1; index >= 1; index--) {
+      const token = tokens[index];
+      const previous = tokens[index - 1];
+      if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9]/.test(token) && /^[a-zà-ÿ]/.test(previous)) {
+        return tokens.slice(index).join(' ');
+      }
+    }
+  }
+  return compact;
+}
+
+function hasMeaningfulInferredCompanyName(value: string): boolean {
+  const legalOnly = new Set(['cia', 'companhia', 'ltda', 'sa', 's', 'a', 'sas', 'me', 'eireli']);
+  return normalizeText(value)
+    .split(/\s+/)
+    .some(token => token.length >= 3 && !legalOnly.has(token));
+}
+
+function inferredNameOrCnpjFallback(value: string, cnpj: string): string {
+  const cleaned = cleanInferredCompanyName(value);
+  return hasMeaningfulInferredCompanyName(cleaned) ? cleaned : `Empresa CNPJ ${formatCnpjLabel(cnpj)}`;
+}
+
+function inferCompanyNameForCnpj(cnpj: string, title: string, snippet: string): string {
+  const text = `${title} ${snippet}`.replace(/\s+/g, ' ');
+  const matches = extractCnpjMatches(text);
+  const matchIndex = matches.findIndex(item => item.cnpj === cnpj);
+  const match = matches[matchIndex];
+  if (!match) return inferredNameOrCnpjFallback(inferCompanyName(title, snippet), cnpj);
+
+  const before = text.slice(Math.max(0, match.index - 260), match.index).trim();
+  const previousMatch = matchIndex > 0 ? matches[matchIndex - 1] : null;
+  const localBefore = text.slice(previousMatch ? previousMatch.index + previousMatch.raw.length : 0, match.index).trim();
+  const localNameMatches = [...localBefore.matchAll(/([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/gi)];
+  const localName = localNameMatches.at(-1)?.[1];
+  if (localName) return inferredNameOrCnpjFallback(localName, cnpj);
+
+  const reasonName = before.match(/raz[aã]o social\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9&.\s-]{2,100}?(?:LTDA|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/i)?.[1];
+  if (reasonName) return inferredNameOrCnpjFallback(reasonName, cnpj);
+
+  const companyBeforeCnpj = before.match(/([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))\s*(?:ativa|inativa|opera|com|,|;|-)?$/i)?.[1];
+  if (companyBeforeCnpj) return inferredNameOrCnpjFallback(companyBeforeCnpj, cnpj);
+
+  const listedName = before.match(/empresas? em que [^:]{0,80}:\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100})$/i)?.[1];
+  if (listedName) return inferredNameOrCnpjFallback(listedName, cnpj);
+
+  return inferredNameOrCnpjFallback(inferCompanyName(title, snippet), cnpj);
 }
 
 async function fetchCandidatePage(url: string): Promise<string> {
@@ -344,12 +416,12 @@ function scoreEvidence(params: {
   const socioHit = socioHitCount >= Math.min(2, socioParts.length);
   const rootPhraseHit = normalizedRootName.length > 0 && haystack.includes(normalizedRootName);
   const rootHit = rootPhraseHit || (rootParts.length > 0 && rootParts.some(part => haystack.includes(part)));
-  const cnpjHit = rootCnpj.length === 14 && digitHaystack.includes(rootCnpj);
+  const cnpjHit = isValidCnpj(rootCnpj) && digitHaystack.includes(rootCnpj);
   const internationalHit = isInternational(params.title, params.snippet, params.url);
   const strongDomain = /consultasocio|cnpj|veritrade|emis|portafolio|scheffer\.agr/i.test(params.url);
   const negativeConnection = /sem conexao|nao conectado|homonimo/.test(haystack);
   const groupContextHit = rootHit || cnpjHit;
-  const hasValidCnpj = (params.cnpjs || []).some(cnpj => normalizeCnpj(cnpj).length === 14);
+  const hasValidCnpj = (params.cnpjs || []).some(cnpj => isValidCnpj(cnpj));
   const registryContext = /consultasocio|cnpj|qsa|societ|socio|sócio|administrador|quadro/.test(haystack)
     || /consultasocio|cnpj|receita/i.test(params.url);
 
@@ -383,6 +455,44 @@ function scoreEvidence(params: {
     rootContext: false,
     socioContext: socioHit,
     rejectReason: 'Possivel homonimo sem CNPJ valido ou fonte societaria suficiente.',
+  };
+}
+
+function sourceLooksSocioCentric(title: string, snippet: string, url: string, socioName: string): boolean {
+  const haystack = normalizeText(`${title} ${snippet} ${url}`);
+  const socioParts = normalizeText(socioName).split(/\s+/).filter(part => part.length > 2);
+  const socioHitCount = socioParts.filter(part => haystack.includes(part)).length;
+  const socioHit = socioHitCount >= Math.min(2, socioParts.length);
+  return /consultasocio\.com\/q\/sa/i.test(url)
+    || /econodata\.com\.br\/consulta-empresa|econodata\.com\.br\/consulta-socio/i.test(url)
+    || (socioHit && /empresas em que|socio administrador|sócio administrador|quadro societario|quadro societário|consta como socio|consta como sócio/.test(haystack));
+}
+
+function scopeForEnrichedCnpj(params: {
+  cnpj: string;
+  evidence: ReturnType<typeof scoreEvidence>;
+  title: string;
+  snippet: string;
+  url: string;
+  socioName: string;
+  rootCnpj: string;
+}): Pick<SocioSearchCompany, 'relationshipScope' | 'rootContext'> {
+  const cnpj = normalizeCnpj(params.cnpj);
+  const rootCnpj = normalizeCnpj(params.rootCnpj);
+  if (isValidCnpj(cnpj) && isValidCnpj(rootCnpj) && cnpj.slice(0, 8) === rootCnpj.slice(0, 8)) {
+    return { relationshipScope: 'group_link', rootContext: true };
+  }
+
+  if (
+    params.evidence.relationshipScope === 'group_link'
+    && sourceLooksSocioCentric(params.title, params.snippet, params.url, params.socioName)
+  ) {
+    return { relationshipScope: 'partner_other_cnpj', rootContext: false };
+  }
+
+  return {
+    relationshipScope: params.evidence.relationshipScope,
+    rootContext: params.evidence.rootContext,
   };
 }
 
@@ -444,24 +554,34 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
   const queriesRun: string[] = [];
   const startedAt = Date.now();
   let degraded = false;
+  let truncated = false;
+  let truncatedReason: SocioSearchDiagnostics['truncatedReason'];
   let pagesFetched = 0;
   let cnpjsEnriched = 0;
   let cnpjLookupAttempts = 0;
+  const cnpjsFound = new Set<string>();
 
   const hasSearchBudget = () => Date.now() - startedAt < SEARCH_DEADLINE_MS;
   const remainingSearchBudget = () => Math.max(0, SEARCH_DEADLINE_MS - (Date.now() - startedAt));
+  const markTruncated = (reason: SocioSearchDiagnostics['truncatedReason']) => {
+    truncated = true;
+    truncatedReason = truncatedReason || reason;
+    degraded = true;
+  };
 
   const addCompany = (company: SocioSearchCompany) => {
     const cnpj = normalizeCnpj(company.cnpj || '');
-    const key = cnpj.length === 14 ? `cnpj:${cnpj}` : `name:${normalizeText(company.name)}:${company.country || 'BR'}`;
+    const key = isValidCnpj(cnpj) ? `cnpj:${cnpj}` : `name:${normalizeText(company.name)}:${company.country || 'BR'}`;
     if (!company.name || seen.has(key)) return;
     seen.add(key);
     companies.push(company);
   };
 
   for (const query of queries) {
-    if (!hasSearchBudget() || companies.length >= MAX_COMPANIES || cnpjLookupAttempts >= MAX_CNPJ_LOOKUPS) {
-      degraded = true;
+    if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
+      if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
+      else if (companies.length > 0) markTruncated('deadline');
+      else degraded = true;
       break;
     }
     queriesRun.push(query);
@@ -472,8 +592,10 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     }
 
     for (const block of splitSearchBlocks(content)) {
-      if (!hasSearchBudget() || companies.length >= MAX_COMPANIES || cnpjLookupAttempts >= MAX_CNPJ_LOOKUPS) {
-        degraded = true;
+      if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
+        if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
+        else if (companies.length > 0) markTruncated('deadline');
+        else degraded = true;
         break;
       }
       let snippet = block.snippet;
@@ -491,7 +613,10 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
 
       const shouldFetchPage = pagesFetched < PAGE_FETCH_LIMIT
         && hasSearchBudget()
-        && blockCnpjs.length === 0
+        && (
+          blockCnpjs.length === 0
+          || sourceLooksSocioCentric(block.title, snippet, block.url, params.socioName)
+        )
         && (
           initialEvidence.confidence !== 'strong'
           || /cnpj|qsa|societ|s[oó]cio|participa|holding|quadro/i.test(`${block.title} ${snippet} ${block.url}`)
@@ -529,23 +654,28 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
 
       const rootCnpj = normalizeCnpj(params.rootCnpj);
       const relatedCnpjs = blockCnpjs.filter(cnpj => cnpj !== rootCnpj);
+      for (const cnpj of relatedCnpjs) cnpjsFound.add(cnpj);
       const unseenRelatedCnpjs = relatedCnpjs.filter(cnpj => !seen.has(`cnpj:${cnpj}`));
       if (relatedCnpjs.length > 0 && unseenRelatedCnpjs.length === 0) continue;
       let enrichedAnyCnpj = false;
 
-      const remainingLookupBudget = Math.max(0, MAX_CNPJ_LOOKUPS - cnpjLookupAttempts);
-      if (unseenRelatedCnpjs.length > 0 && remainingLookupBudget === 0) {
-        degraded = true;
-        break;
-      }
-
-      for (const cnpj of unseenRelatedCnpjs.slice(0, Math.min(3, remainingLookupBudget))) {
-        const remainingMs = remainingSearchBudget();
-        if (remainingMs < 1_000) {
-          degraded = true;
+      for (const cnpj of unseenRelatedCnpjs) {
+        if (companies.length >= MAX_COMPANIES) {
+          markTruncated('company_limit');
           break;
         }
-        try {
+        const scopedRelationship = scopeForEnrichedCnpj({
+          cnpj,
+          evidence,
+          title: block.title,
+          snippet,
+          url: block.url,
+          socioName: params.socioName,
+          rootCnpj: params.rootCnpj,
+        });
+        const remainingMs = remainingSearchBudget();
+        const canTryOfficialLookup = cnpjLookupAttempts < MAX_CNPJ_LOOKUPS && remainingMs >= 1_000;
+        if (canTryOfficialLookup) try {
           cnpjLookupAttempts += 1;
           const official = await lookupCnpj(cnpj, {
             timeoutMs: Math.min(CNPJ_LOOKUP_TIMEOUT_MS, Math.max(1_000, remainingMs - 500)),
@@ -564,8 +694,10 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
             continue;
           }
           enrichedAnyCnpj = true;
+          const inferredName = inferCompanyNameForCnpj(cnpj, block.title, snippet);
+          const officialName = official.companyName?.trim() || '';
           addCompany({
-            name: official.companyName || inferCompanyName(block.title, snippet),
+            name: hasMeaningfulInferredCompanyName(officialName) ? officialName : inferredName,
             cnpj,
             partnerName: params.socioName,
             sourceTitle: block.title,
@@ -573,13 +705,14 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
             snippet,
             confidence: qsaConfirmsSocio === true ? 'strong' : 'medium',
             evidenceType: qsaConfirmsSocio === true ? 'qsa' : 'registry',
-            relationshipScope: evidence.relationshipScope,
-            rootContext: evidence.rootContext,
+            relationshipScope: scopedRelationship.relationshipScope,
+            rootContext: scopedRelationship.rootContext,
             rootCompanyName: params.rootCompanyName,
             rootCnpj: rootCnpj || undefined,
             role: official.cnaeDescricao || official.cnae,
             sourceDepth: 'cnpj_lookup',
           });
+          continue;
         } catch (error) {
           scoutDiag.warn('SocioSearch', 'falha ao enriquecer CNPJ encontrado', {
             cnpj,
@@ -587,6 +720,23 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
             message: error instanceof Error ? error.message : String(error),
           });
         }
+
+        enrichedAnyCnpj = true;
+        addCompany({
+          name: inferCompanyNameForCnpj(cnpj, block.title, snippet),
+          cnpj,
+          partnerName: params.socioName,
+          sourceTitle: block.title,
+          sourceUrl: block.url,
+          snippet,
+          confidence: evidence.confidence,
+          evidenceType: inferEvidenceType(block.title, snippet, block.url),
+          relationshipScope: scopedRelationship.relationshipScope,
+          rootContext: scopedRelationship.rootContext,
+          rootCompanyName: params.rootCompanyName,
+          rootCnpj: rootCnpj || undefined,
+          sourceDepth,
+        });
       }
 
       if (enrichedAnyCnpj) continue;
@@ -613,7 +763,7 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
   return {
     companies,
     rejected,
-    degraded: degraded && companies.length === 0,
+    degraded: companies.length === 0 ? degraded : truncated,
     cached: false,
     diagnostics: {
       queriesRun,
@@ -621,6 +771,9 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
       cacheSource: 'none',
       rejectedCount: rejected.length,
       cnpjsEnriched: cnpjsEnriched || undefined,
+      totalCnpjsFound: cnpjsFound.size || undefined,
+      truncated: truncated || undefined,
+      truncatedReason,
     },
   };
 }

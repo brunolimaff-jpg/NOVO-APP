@@ -110,7 +110,7 @@ SEGMENTO:
 **Visao Geral do Grupo Economico Real**
 - **Cabeca do Grupo:** [holding/matriz principal]
 - **CNPJ Raiz:** [##.###.###/####-##]
-- **Total de CNPJs mapeados:** [X]
+- **Total de CNPJs identificados com fonte:** [X ou "nao confirmado"; nao use total estimado como mapeado]
 - **Faturamento consolidado:** [fonte publica ou "ESTIMADO via METODO [N]: R$ X"]
 - **Area total estimada:** [X ha — somando todos os imoveis/operacao do grupo]
 - **Capacidade estatica total:** [X toneladas]

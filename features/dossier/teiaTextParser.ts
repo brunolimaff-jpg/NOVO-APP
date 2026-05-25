@@ -1,4 +1,4 @@
-import { normalizeCnpj } from '../../utils/cnpj';
+import { isValidCnpj, normalizeCnpj } from '../../utils/cnpj';
 import type { SocietaryCompanyInput } from './societaryGraph';
 
 export interface ParsedTeiaData {
@@ -16,20 +16,21 @@ function normalizeText(value: string): string {
 }
 
 function mapConfidence(confidenceStr: string): SocietaryCompanyInput['confidence'] {
-  const upper = confidenceStr.toUpperCase();
-  if (upper.includes('OFICIAL')) return 'strong';
-  if (upper.includes('PUBLICA')) return 'medium';
-  if (upper.includes('INFERIDA') || upper.includes('NAO CONFIRMADA')) return 'weak';
+  const normalized = normalizeText(confidenceStr);
+  if (normalized.includes('oficial')) return 'strong';
+  if (normalized.includes('publica')) return 'medium';
+  if (normalized.includes('inferida') || normalized.includes('nao confirmada')) return 'weak';
   return 'weak';
 }
 
 function mapEvidenceType(confidenceStr: string): SocietaryCompanyInput['evidenceType'] {
-  const upper = confidenceStr.toUpperCase();
-  if (upper.includes('OFICIAL')) return 'qsa';
+  const normalized = normalizeText(confidenceStr);
+  if (normalized.includes('oficial')) return 'qsa';
   return 'web';
 }
 
-function findCnpjTable(lines: string[]): { headerIdx: number; tableEndIdx: number } | null {
+function findCnpjTables(lines: string[]): Array<{ headerIdx: number; tableEndIdx: number }> {
+  const tables: Array<{ headerIdx: number; tableEndIdx: number }> = [];
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     const hasPipe = trimmed.includes('|');
@@ -45,10 +46,19 @@ function findCnpjTable(lines: string[]): { headerIdx: number; tableEndIdx: numbe
       while (endIdx < lines.length && lines[endIdx].trim().includes('|')) {
         endIdx++;
       }
-      return { headerIdx: i, tableEndIdx: endIdx };
+      tables.push({ headerIdx: i, tableEndIdx: endIdx });
+      i = endIdx - 1;
     }
   }
-  return null;
+  return tables;
+}
+
+function sectionHeadingBefore(lines: string[], idx: number): string {
+  for (let i = idx; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (/^#{1,6}\s+/.test(trimmed)) return trimmed;
+  }
+  return '';
 }
 
 function parseRelatedCompanyToken(rawValue: string): { name: string; cnpj: string | null } | null {
@@ -62,7 +72,14 @@ function parseRelatedCompanyToken(rawValue: string): { name: string; cnpj: strin
     .replace(/\s+/g, ' ')
     .trim();
   if (!name) return null;
-  return { name, cnpj: cnpj.length === 14 ? cnpj : null };
+  if (cnpjMatch && !isValidCnpj(cnpj)) return null;
+  return { name, cnpj: isValidCnpj(cnpj) ? cnpj : null };
+}
+
+function extractFirstCnpj(value: string): string {
+  const cnpjMatch = value.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/);
+  const cnpj = normalizeCnpj(cnpjMatch?.[0] || value);
+  return isValidCnpj(cnpj) ? cnpj : '';
 }
 
 export function parseTeiaText(markdown: string): ParsedTeiaData {
@@ -70,10 +87,11 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
   const companies: SocietaryCompanyInput[] = [];
   const lines = markdown.split('\n');
 
-  const table = findCnpjTable(lines);
-  if (!table) {
+  const tables = findCnpjTables(lines);
+  if (tables.length === 0) {
     warnings.push('Tabela de CNPJs nao encontrada no texto.');
   } else {
+    for (const table of tables) {
 
     const headerCells = lines[table.headerIdx]
       .split('|')
@@ -84,8 +102,10 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
     );
 
-    const cnpjCol = normalizedHeaders.findIndex(c => c === 'cnpj');
+    const cnpjCol = normalizedHeaders.findIndex(c => /^cnpj\b/.test(c));
     const nameCol = normalizedHeaders.findIndex(c => /razao\s+socia/.test(c));
+    const socioCol = normalizedHeaders.findIndex(c => /^socio$|^socio\s+admin|^socio\s+administrador/.test(c));
+    const isOtherCnpjsTable = normalizeText(sectionHeadingBefore(lines, table.headerIdx)).includes('outros cnpjs');
 
     for (let i = table.headerIdx + 2; i < table.tableEndIdx; i++) {
       const row = lines[i].trim();
@@ -96,7 +116,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       const name = nameCol >= 0 && nameCol < cells.length ? cells[nameCol] : '';
       if (!name || name === '-') continue;
 
-      const normalizedCnpj = normalizeCnpj(rawCnpj);
+      const normalizedCnpj = extractFirstCnpj(rawCnpj);
       const cnpjNote = rawCnpj.trim().toUpperCase();
 
       if (rawCnpj && cnpjNote !== 'CNPJ NAO CONFIRMADO' && !cnpjNote.startsWith('-') && normalizedCnpj.length !== 14) {
@@ -109,18 +129,21 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       const confiancaCol = normalizedHeaders.findIndex(c => /confianc(a|ça)/.test(c));
 
       const rawConfidence = confiancaCol >= 0 ? cells[confiancaCol] ?? '' : '';
+      const partnerName = socioCol >= 0 && socioCol < cells.length ? cells[socioCol]?.trim() || '' : '';
+      const relationshipScope = isOtherCnpjsTable || partnerName ? 'partner_other_cnpj' : 'group_link';
 
       companies.push({
         name: name.trim(),
-        cnpj: normalizedCnpj.length === 14 ? normalizedCnpj : null,
-        partnerName: '',
+        cnpj: isValidCnpj(normalizedCnpj) ? normalizedCnpj : null,
+        partnerName,
         role: relacaoCol >= 0 ? cells[relacaoCol]?.trim() || undefined : undefined,
         sourceTitle: fonteCol >= 0 ? cells[fonteCol]?.trim() || undefined : undefined,
         confidence: mapConfidence(rawConfidence),
         evidenceType: mapEvidenceType(rawConfidence),
-        relationshipScope: 'group_link',
-        rootContext: true,
+        relationshipScope,
+        rootContext: relationshipScope === 'group_link',
       });
+    }
     }
   }
 
