@@ -4,14 +4,14 @@ export type SocietaryConfidence = 'official' | 'strong' | 'medium' | 'weak';
 export type SocietaryEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'institutional';
 export type SocietaryRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'unconfirmed';
 export type SocietaryBadge =
-  | 'empresa em comum'
   | 'holding'
   | 'oficial'
   | 'internacional'
-  | 'estimado'
-  | 'validar'
-  | 'CNPJ lateral'
-  | 'validar grupo';
+  | 'validar';
+
+export const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
+
+const DISPLAY_BADGE_ORDER: SocietaryBadge[] = ['holding', 'internacional', 'oficial', 'validar'];
 
 export interface SocietaryRootInput {
   cnpj?: string | null;
@@ -209,8 +209,22 @@ function isRootEstablishment(company: SocietaryCompanyInput, root: SocietaryRoot
   return Boolean(rootName && companyName && companyName === rootName);
 }
 
-function isHeadquartersCnpj(cnpj?: string): boolean {
+export function isHeadquartersCnpj(cnpj?: string): boolean {
   return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
+}
+
+export function formatBranchBadgeLabel(company: Pick<SocietaryCompany, 'branchCount' | 'cnpj'>): string | null {
+  const count = company.branchCount || 0;
+  if (count <= 1) return null;
+  const branches = count - 1;
+  if (isHeadquartersCnpj(company.cnpj)) {
+    return `Matriz + ${branches} ${branches === 1 ? 'filial' : 'filiais'}`;
+  }
+  return `${count} filiais consolidadas`;
+}
+
+export function getDisplayBadges(company: SocietaryCompany): SocietaryBadge[] {
+  return DISPLAY_BADGE_ORDER.filter(badge => company.badges.includes(badge));
 }
 
 function mergeBranchData(existing: SocietaryCompany, incoming: SocietaryCompanyInput): void {
@@ -412,15 +426,10 @@ function hasEnoughGeminiEvidence(company: SocietaryCompanyInput, root: Societary
 }
 
 function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
-  const badges = new Set<SocietaryBadge>(['estimado']);
+  const badges = new Set<SocietaryBadge>();
   const role = normalizeText(company.role || company.name);
   const country = (company.country || 'BR').toUpperCase();
 
-  if (company.partnerIds.length > 1) badges.add('empresa em comum');
-  if (company.relationshipScope === 'partner_other_cnpj') {
-    badges.add('CNPJ lateral');
-    badges.add('validar grupo');
-  }
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') {
     badges.add('validar');
   }
@@ -679,9 +688,16 @@ function partnerLabel(partner: SocietaryPartner): string {
   ].filter(Boolean).join('<br/>');
 }
 
+function partnerAdminRoleLabel(company: SocietaryCompany): string {
+  const role = normalizeText(company.role || '');
+  if (role.includes('administrador')) return 'Sócio-Administrador';
+  if (role.includes('socio')) return 'Sócio';
+  return SOCIETARY_LABEL_SOCIO_ADMIN;
+}
+
 export function describeSocietaryCompanyType(company: SocietaryCompany): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral';
+  if (company.relationshipScope === 'partner_other_cnpj') return partnerAdminRoleLabel(company);
   const role = normalizeText(`${company.role || ''} ${company.name}`);
   const country = (company.country || 'BR').toUpperCase();
   if ((company.branchCount || 0) > 1) {
@@ -743,8 +759,7 @@ function edgeLabel(value: string): string {
 }
 
 function rootToPartnerEdgeLabel(partner: SocietaryPartner): string {
-  if (partner.confidence === 'official') return 'QSA';
-  if (partner.sourceTitle) return 'QSA';
+  if (partner.confidence === 'official') return SOCIETARY_LABEL_SOCIO_ADMIN;
   return 'Sócio';
 }
 
@@ -753,19 +768,19 @@ function rootToCompanyEdgeLabel(company: SocietaryCompany, root: SocietaryGraph[
   const rootCnpj = normalizeCnpj(root.cnpj || '');
   if ((company.branchCount || 0) > 1) return 'Mesmo radical CNPJ';
   if (companyCnpj && rootCnpj && companyCnpj.slice(0, 8) === rootCnpj.slice(0, 8)) return 'Mesmo radical CNPJ';
-  if (company.evidenceType === 'qsa' || company.evidenceType === 'registry') return 'Empresa no QSA';
+  if (company.evidenceType === 'qsa' || company.evidenceType === 'registry') return 'Empresa do grupo';
   if (company.cnpj) return 'CNPJ relacionado';
   return 'Vínculo ao grupo';
 }
 
 function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validar CNPJ';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'Lateral';
+  if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
-  if (normalizedRole.includes('administrador')) return 'Administra CNPJ';
+  if (normalizedRole.includes('administrador')) return SOCIETARY_LABEL_SOCIO_ADMIN;
+  if (company.evidenceType === 'qsa') return SOCIETARY_LABEL_SOCIO_ADMIN;
   if (normalizedRole.includes('socio')) return 'Sócio no CNPJ';
-  if (company.evidenceType === 'qsa') return 'QSA do CNPJ';
   return describeSocietaryCompanyType(company);
 }
 
@@ -790,7 +805,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     '  classDef partner fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#3b0764;',
     '  classDef selected fill:#ede9fe,stroke:#6d28d9,stroke-width:2.5px,color:#2e1065;',
     '  classDef company fill:#ecfdf5,stroke:#10b981,stroke-width:2px,color:#064e3b;',
-    '  classDef lateral fill:#fff7ed,stroke:#f59e0b,stroke-width:2px,stroke-dasharray:4 4,color:#7c2d12;',
+    '  classDef socioAdmin fill:#fff7ed,stroke:#f59e0b,stroke-width:2px,stroke-dasharray:4 4,color:#7c2d12;',
     '  classDef international fill:#eef2ff,stroke:#4f46e5,stroke-width:2.5px,color:#312e81;',
     '  classDef evidence fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:5 5,color:#475569;',
     '',
@@ -833,7 +848,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     const className = company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending'
       ? 'evidence'
       : company.relationshipScope === 'partner_other_cnpj'
-        ? 'lateral'
+        ? 'socioAdmin'
         : company.badges.includes('internacional')
           ? 'international'
           : 'company';

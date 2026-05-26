@@ -7,6 +7,7 @@ import {
   buildSocietaryMermaid,
   describeSocietaryCompanyType,
   formatSocietaryCnpj,
+  SOCIETARY_LABEL_SOCIO_ADMIN,
   type SocietaryCompany,
   type SocietaryCompanyInput,
   type SocietaryGraph,
@@ -94,7 +95,7 @@ function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGrap
 }
 
 function describeRelationshipScope(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral';
+  if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
   return 'Empresa do grupo';
 }

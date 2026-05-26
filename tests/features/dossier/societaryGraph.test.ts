@@ -4,7 +4,9 @@ import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
   describeSocietaryCompanyType,
+  formatBranchBadgeLabel,
   formatSocietaryCnpj,
+  getDisplayBadges,
 } from '../../../features/dossier/societaryGraph';
 
 describe('societaryGraph', () => {
@@ -64,7 +66,7 @@ describe('societaryGraph', () => {
 
     expect(graph.companies).toHaveLength(1);
     expect(graph.companies[0].partnerIds.sort()).toEqual(['carolina', 'guilherme']);
-    expect(graph.companies[0].badges).toContain('empresa em comum');
+    expect(getDisplayBadges(graph.companies[0])).not.toContain('empresa em comum' as never);
   });
 
   it('rejeita homonimo fraco sem fonte suficiente', () => {
@@ -133,7 +135,7 @@ describe('societaryGraph', () => {
     expect(graph.rejectedCompanies[0].reason).toMatch(/contexto/i);
   });
 
-  it('mostra CNPJ lateral do socio sem conectar como empresa do grupo', () => {
+  it('mostra CNPJ do socio admin sem conectar como empresa do grupo', () => {
     const graph = buildSocietaryGraph({
       root,
       partners,
@@ -161,15 +163,15 @@ describe('societaryGraph', () => {
       rootLinked: false,
       partnerIds: ['guilherme'],
     });
-    expect(graph.companies[0].badges).toContain('CNPJ lateral');
-    expect(graph.companies[0].badges).toContain('validar grupo');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral' as never);
+    expect(graph.companies[0].badges).not.toContain('validar grupo' as never);
     expect(graph.companies[0].badges).not.toContain('oficial');
-    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('CNPJ lateral');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Sócio admin');
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Fazenda Independente LTDA');
-    expect(mermaid).toContain('guilherme -- Lateral --> company_12345678000195');
-    expect(mermaid).toContain('class company_12345678000195 lateral;');
+    expect(mermaid).toContain('guilherme -- Sócio admin --> company_12345678000195');
+    expect(mermaid).toContain('class company_12345678000195 socioAdmin;');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
   });
 
@@ -198,7 +200,7 @@ describe('societaryGraph', () => {
     expect(graph.rejectedCompanies[0].reason).toMatch(/sem socio confirmado/i);
 
     const mermaid = buildSocietaryMermaid(graph);
-    expect(mermaid).not.toContain('Root -- Empresa no QSA --> company_10000000000145');
+    expect(mermaid).not.toContain('Root -- Empresa do grupo --> company_10000000000145');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_10000000000145');
   });
 
@@ -364,7 +366,8 @@ describe('societaryGraph', () => {
       branchCount: 2,
       branchCnpjs: ['12345678000195', '12345678000276'],
     });
-    expect(graph.companies[0].badges).not.toContain('CNPJ lateral');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral' as never);
+    expect(formatBranchBadgeLabel(graph.companies[0])).toBe('Matriz + 1 filial');
   });
 
   it('rejeita nome de empresa truncado sem identidade real', () => {
@@ -439,7 +442,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Agropecuária Scheffer LTDA');
-    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_00111222000181');
+    expect(mermaid).toContain('guilherme -- Sócio admin --> company_00111222000181');
   });
 
   it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
@@ -576,6 +579,34 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('Comercio exterior');
   });
 
+  it('rotula apenas socio com confianca oficial como Socio admin na aresta da raiz', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners: [
+        {
+          id: 'guilherme',
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          sourceTitle: 'BrasilAPI',
+          confidence: 'official',
+        },
+        {
+          id: 'inferido',
+          name: 'Luciano R. Scheffer',
+          role: 'Sócio',
+          sourceTitle: 'Gemini — inferência',
+          confidence: 'strong',
+        },
+      ],
+      companies: [],
+    });
+
+    const mermaid = buildSocietaryMermaid(graph);
+    expect(mermaid).toContain('Root -- Sócio admin --> guilherme');
+    expect(mermaid).toContain('Root -- Sócio --> inferido');
+    expect(mermaid).not.toContain('Root -- Sócio admin --> inferido');
+  });
+
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
     const graph = buildSocietaryGraph({
       root,
@@ -608,8 +639,8 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
-    expect(mermaid).toContain('Root -- QSA --> guilherme');
-    expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_scheffer_colombia_s_a_s');
+    expect(mermaid).toContain('Root -- Sócio admin --> guilherme');
+    expect(mermaid).toContain('guilherme -- Sócio admin --> company_scheffer_colombia_s_a_s');
   });
 
   it('colore arestas por socio para separar conexoes em comum', () => {
@@ -648,7 +679,7 @@ describe('societaryGraph', () => {
 
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
     expect(mermaid).toContain('linkStyle 1 stroke:#0891b2');
-    expect(mermaid).toContain('Root -- Empresa no QSA --> company_00111222000181');
+    expect(mermaid).toContain('Root -- Empresa do grupo --> company_00111222000181');
     expect(mermaid).toContain('linkStyle 2 stroke:#64748b');
     expect(mermaid).toContain('linkStyle 3 stroke:#7c3aed');
     expect(mermaid).toContain('linkStyle 4 stroke:#0891b2');
