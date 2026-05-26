@@ -24,6 +24,7 @@ export async function loadWithChunkRetry<T>(loader: () => Promise<T>): Promise<T
       if (!hasRetried) {
         window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1');
         window.sessionStorage.setItem(CHUNK_RELOAD_PENDING_KEY, '1');
+        // Reservado para futuro uso em analytics/telemetria de chunk errors
         window.dispatchEvent(new CustomEvent('scout:chunk-reload'));
         window.location.reload();
         return new Promise<T>(() => {});

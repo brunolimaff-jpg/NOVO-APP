@@ -87,25 +87,35 @@ export class DossierErrorBoundary extends React.Component<
               : 'O restante do chat continua disponivel. Remonte apenas este trecho ou recarregue o app se o problema persistir.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
-            >
-              Recarregar app
-            </button>
-            {!isStaleChunk && (
+            {isStaleChunk ? (
               <button
                 type="button"
-                onClick={this.handleRetry}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  isDarkMode
-                    ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
-                    : 'border-slate-300 text-slate-700 hover:bg-white'
-                }`}
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
               >
-                Tentar novamente
+                Recarregar app
               </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={this.handleRetry}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+                >
+                  Tentar novamente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                      : 'border-slate-300 text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Recarregar app
+                </button>
+              </>
             )}
           </div>
         </div>

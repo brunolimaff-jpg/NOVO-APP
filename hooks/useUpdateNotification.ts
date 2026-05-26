@@ -83,8 +83,11 @@ export function useUpdateNotification() {
   const lastFocusCheckRef = useRef(0);
 
   // Verificar versão no servidor
-  const checkForUpdates = useCallback(async (options?: { force?: boolean }) => {
-    if (!options?.force && (!shouldCheck() || isSnoozed())) return;
+  const checkForUpdates = useCallback(async (options?: { force?: boolean; ignoreSnooze?: boolean }) => {
+    const skipInterval = options?.force ?? false;
+    const skipSnooze = options?.ignoreSnooze ?? false;
+    if (!skipInterval && !shouldCheck()) return;
+    if (!skipSnooze && isSnoozed()) return;
 
     try {
       setIsChecking(true);
@@ -138,13 +141,22 @@ export function useUpdateNotification() {
 
   // Executar check no mount (forçado após reload por chunk stale)
   useEffect(() => {
-    const pendingChunkReload =
-      typeof window !== 'undefined' &&
-      window.sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY) === '1';
-    if (pendingChunkReload) {
-      window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY);
+    let pendingChunkReload = false;
+    try {
+      pendingChunkReload =
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY) === '1';
+    } catch {
+      // sessionStorage indisponivel em contextos restritos (cross-origin iframe etc.)
     }
-    void checkForUpdates({ force: pendingChunkReload });
+    if (pendingChunkReload) {
+      try { window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY); } catch {}
+    }
+    if (pendingChunkReload) {
+      void checkForUpdates({ force: true, ignoreSnooze: true });
+    } else {
+      void checkForUpdates();
+    }
   }, [checkForUpdates]);
 
   // Revalidar versão quando a aba volta ao foco (throttle 30 min)
