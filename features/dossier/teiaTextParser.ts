@@ -317,3 +317,27 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
 
   return { companies, warnings };
 }
+
+/** Total citado no resumo narrativo (Visão Geral), distinto da busca estruturada do SocietaryMap. */
+export function parseNarrativeCnpjTotal(text: string): number | null {
+  if (!text?.trim()) return null;
+
+  const patterns = [
+    /total de cnpjs identificados com fonte:[^0-9]*(\d+)/i,
+    /total de cnpjs mapeados:[^0-9]*(\d+)/i,
+    /numero de cnpjs ativos\s*\|\s*(\d+)/i,
+  ];
+
+  const normalized = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const value = Number.parseInt(match[1], 10);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+
+  return null;
+}

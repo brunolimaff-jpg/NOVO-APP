@@ -7,7 +7,7 @@ import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
 import SocietaryMap from '../features/dossier/SocietaryMap';
-import { parseTeiaText } from '../features/dossier/teiaTextParser';
+import { parseNarrativeCnpjTotal, parseTeiaText } from '../features/dossier/teiaTextParser';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../utils/diagnosticLog';
 
 interface SectionalBotMessageProps {
@@ -160,6 +160,41 @@ function filterSourcesForSection(
   );
 }
 
+function stripTabelaMestreCnpjs(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const output: string[] = [];
+  let skipping = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const normalized = normalizeFeedbackSectionTitle(line);
+
+    if (
+      normalized.includes('tabela mestre de cnpjs')
+      || normalized.includes('tabela mestra de cnpjs')
+    ) {
+      skipping = true;
+      continue;
+    }
+
+    if (skipping) {
+      if (/^#{1,6}\s+/.test(line)) {
+        skipping = false;
+        output.push(line);
+      } else if (line.trim().startsWith('|') || /^\s*\|[-:| ]+\|\s*$/.test(line) || line.trim() === '') {
+        continue;
+      } else {
+        skipping = false;
+        output.push(line);
+      }
+    } else {
+      output.push(line);
+    }
+  }
+
+  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function stripUnsafeSocietarySections(markdown: string): string {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const output: string[] = [];
@@ -229,6 +264,11 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
   );
+  const narrativeCnpjTotal = useMemo(() => {
+    const teiaSection = societaryMapSectionIndex >= 0 ? sections[societaryMapSectionIndex] : null;
+    const scopedText = teiaSection ? `${teiaSection.title}\n${teiaSection.content}` : cleanText;
+    return parseNarrativeCnpjTotal(scopedText);
+  }, [cleanText, sections, societaryMapSectionIndex]);
   const teiaTraceIdRef = useRef(createScoutTraceId('teia'));
   const teiaTraceEnabled = isScoutTraceEnabled('teia');
 
@@ -366,12 +406,16 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 empresaAlvo={empresaAlvo}
                 isDarkMode={isDarkMode}
                 geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
+                narrativeCnpjTotal={narrativeCnpjTotal}
                 traceId={teiaTraceIdRef.current}
                 traceEnabled={teiaTraceEnabled}
               />
             ) : null}
             <MarkdownRenderer
-              content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
+              content={(() => {
+                const raw = section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
+                return idx === societaryMapSectionIndex ? stripTabelaMestreCnpjs(raw) : raw;
+              })()}
               isDarkMode={isDarkMode}
               groundingSources={message.groundingSources}
               auditableSources={sectionSources}

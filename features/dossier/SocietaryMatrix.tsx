@@ -10,6 +10,7 @@ import {
 import {
   type CompanyCategory,
   classifyCompany,
+  getPFPartnerIds,
   isSideBusiness,
 } from './societaryCategories';
 import { scoutDiag } from '../../utils/diagnosticLog';
@@ -31,15 +32,13 @@ function firstGivenName(fullName: string): string {
 }
 
 const CATEGORY_LABELS: Record<CompanyCategory, string> = {
-  strategic: 'Estratégico',
-  operation: 'Operações',
-  own: 'Próprias',
+  em_comum: 'Em comum',
+  proprias: 'Próprias',
 };
 
 const CATEGORY_ORDER: Record<CompanyCategory, number> = {
-  strategic: 0,
-  operation: 1,
-  own: 2,
+  em_comum: 0,
+  proprias: 1,
 };
 
 interface SocietaryMatrixProps {
@@ -57,6 +56,7 @@ interface SocietaryMatrixProps {
   }>;
   traceId?: string;
   traceEnabled?: boolean;
+  narrativeCnpjTotal?: number | null;
 }
 
 interface ClassifiedRow {
@@ -89,31 +89,31 @@ function FilterButton({
   );
 }
 
-function SummaryCard({
-  label,
+function SummaryMetric({
   value,
-  isDarkMode,
+  label,
 }: {
-  label: string;
   value: number;
-  isDarkMode: boolean;
+  label: string;
 }) {
   return (
-    <div
-      className={`rounded-lg border p-4 ${
-        isDarkMode
-          ? 'border-slate-700 bg-slate-800/50'
-          : 'border-slate-200 bg-slate-50'
-      }`}
-    >
-      <strong className="block text-[1.15rem] text-slate-900 dark:text-slate-100">
+    <div className="min-w-[7.5rem] text-center" data-testid={`summary-metric-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <strong className="block text-[1.35rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
         {value}
       </strong>
-      <span className="text-[0.78rem] text-slate-500 dark:text-slate-400">
+      <span className="mt-1.5 block text-[0.72rem] font-medium uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">
         {label}
       </span>
     </div>
   );
+}
+
+function countBranchEstablishments(companies: SocietaryCompany[]): number {
+  return companies.reduce((sum, company) => sum + Math.max(0, (company.branchCount || 1) - 1), 0);
+}
+
+function countTotalCnpjs(companies: SocietaryCompany[]): number {
+  return companies.reduce((sum, company) => sum + (company.branchCount || 1), 0);
 }
 
 function badgeTone(badge: SocietaryBadge): string {
@@ -151,29 +151,29 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   inactiveReferences = [],
   traceId,
   traceEnabled = false,
+  narrativeCnpjTotal = null,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | CompanyCategory>('all');
 
-  // Classify each company
+  const pfPartnerIds = useMemo(() => getPFPartnerIds(graph.partners), [graph.partners]);
+
   const classified = useMemo<ClassifiedRow[]>(() => {
     return graph.companies.map(company => ({
       company,
-      category: classifyCompany(company),
+      category: classifyCompany(company, pfPartnerIds),
       side: isSideBusiness(company),
     }));
-  }, [graph.companies]);
+  }, [graph.companies, pfPartnerIds]);
 
-  // Summary metrics
   const metrics = useMemo(() => {
-    const found = classified.length;
-    const strategic = classified.filter(c => c.category === 'strategic').length;
-    const operation = classified.filter(c => c.category === 'operation').length;
-    const own = classified.filter(c => c.category === 'own').length;
-    const total = classified.filter(c => !c.side).length;
-    return { found, total, strategic, operation, own };
+    const companies = classified.map(row => row.company);
+    const cnpjsTotais = countTotalCnpjs(companies);
+    const filiais = countBranchEstablishments(companies);
+    const emComum = classified.filter(c => c.category === 'em_comum').length;
+    const proprias = classified.filter(c => c.category === 'proprias').length;
+    return { cnpjsTotais, filiais, em_comum: emComum, proprias };
   }, [classified]);
 
-  // Filtered + sorted rows (category + partner AND logic)
   const visibleRows = useMemo<ClassifiedRow[]>(() => {
     let rows = classified;
     if (activeCategory !== 'all') {
@@ -185,7 +185,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return [...rows].sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]);
   }, [classified, activeCategory, selectedPartnerId]);
 
-  // Partner index-based color map
   const partnerColors = useMemo(() => {
     const map = new Map<string, string>();
     graph.partners.forEach((p, i) =>
@@ -194,7 +193,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return map;
   }, [graph.partners]);
 
-  // CNAE lookup with fallback keys
   function getCnaeLabel(company: SocietaryCompany): string {
     const candidates: string[] = [];
     if (company.cnpj) candidates.push(company.cnpj);
@@ -209,7 +207,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return '—';
   }
 
-  // Filter handlers
   const isAllActive = activeCategory === 'all' && selectedPartnerId == null;
 
   function handleClearFilters() {
@@ -228,12 +225,10 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     onSelectPartner?.(newId);
   }
 
-  // Shell style
   const shellClass = isDarkMode
     ? 'border-slate-700 bg-slate-900/60 text-slate-100'
     : 'border-slate-200 bg-white text-slate-900';
 
-  // Partner columns
   const partnerColumns = graph.partners;
 
   useEffect(() => {
@@ -271,20 +266,37 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   return (
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
-      <div className="grid grid-cols-1 gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="CNPJs encontrados" value={metrics.found} isDarkMode={isDarkMode} />
-        {metrics.total > 0 && <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />}
-        {metrics.strategic > 0 && <SummaryCard label="frentes estratégicas" value={metrics.strategic} isDarkMode={isDarkMode} />}
-        {metrics.operation > 0 && <SummaryCard label="operações compartilhadas" value={metrics.operation} isDarkMode={isDarkMode} />}
-        {metrics.own > 0 && <SummaryCard label="empresas próprias" value={metrics.own} isDarkMode={isDarkMode} />}
+      <div
+        className="mb-5 flex flex-wrap items-start justify-center gap-x-10 gap-y-4 border-b border-slate-200 pb-5 dark:border-slate-700"
+        aria-label="Resumo da teia societária"
+        data-testid="societary-summary-metrics"
+      >
+        <SummaryMetric value={metrics.cnpjsTotais} label="CNPJs no mapa" />
+        <SummaryMetric value={metrics.filiais} label="Filiais" />
+        <SummaryMetric value={metrics.em_comum} label="Em comum" />
+        <SummaryMetric value={metrics.proprias} label="Próprias" />
       </div>
+
+      {narrativeCnpjTotal != null && narrativeCnpjTotal !== metrics.cnpjsTotais ? (
+        <div
+          className="mb-5 rounded-lg border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-[0.78rem] leading-relaxed text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100"
+          data-testid="societary-count-disclaimer"
+          role="note"
+        >
+          O resumo textual acima cita{' '}
+          <strong>{narrativeCnpjTotal} CNPJs</strong> com fonte documental. Este mapa mostra{' '}
+          <strong>{metrics.cnpjsTotais}</strong> vínculos confirmados pela busca estruturada por sócio
+          (CNPJ Aberto). A diferença pode incluir filiais citadas no relatório, veículos ainda em validação
+          ou busca parcial/truncada.
+        </div>
+      ) : null}
 
       {/* ============ Filter toolbar ============ */}
       <div className="flex flex-wrap items-center gap-2.5 mb-5" aria-label="Filtros da tabela societária">
         <FilterButton isActive={isAllActive} onClick={handleClearFilters}>
           Todos
         </FilterButton>
-        {(['strategic', 'operation', 'own'] as const).filter(cat => metrics[cat] > 0).map(cat => (
+        {(['em_comum', 'proprias'] as const).filter(cat => metrics[cat] > 0).map(cat => (
           <FilterButton
             key={cat}
             isActive={activeCategory === cat}
@@ -293,6 +305,9 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
             {CATEGORY_LABELS[cat]}
           </FilterButton>
         ))}
+
+        <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden />
+
         {graph.partners.map(partner => (
           <FilterButton
             key={partner.id}
