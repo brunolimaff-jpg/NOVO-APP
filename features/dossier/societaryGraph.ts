@@ -926,7 +926,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     for (const company of visibleCompanies) {
       const fullName = formatCompanyDisplayName(company.name);
       const cnpjText = company.cnpj ? ` (${formatSocietaryCnpj(company.cnpj)})` : '';
-      lines.push(`  ${company.id}["${companyLabelCompact(company)}"]:::tooltip`);
+      lines.push(`  ${company.id}["${companyLabelCompact(company)}"]`);
       // tooltip via title attribute isn't natively supported in Mermaid SVG but we
       // encode full name as a comment for future tooling; compact label is kept short
       lines.push(`  %% title: ${fullName}${cnpjText}`);

@@ -702,7 +702,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                   </button>
                 ) : null}
               </div>
-              <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left', width: `${100 / zoomLevel}%` }}>
+              <div style={{ zoom: zoomLevel }}>
                 <MarkdownRenderer content={`\`\`\`mermaid\n${debouncedMermaid}\n\`\`\``} isDarkMode={isDarkMode} variant="compact" />
               </div>
             </div>

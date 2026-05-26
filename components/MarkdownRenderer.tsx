@@ -179,14 +179,20 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'de
         // Remove temporary render container that mermaid injects into the body
         const tempEl = document.getElementById(idRef.current);
         tempEl?.remove();
-        // Also clean up any lingering dmermaid-* nodes
-        document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
+        // Clean up lingering dmermaid-* nodes for this specific instance only
+        document.querySelectorAll(`[id^="dmermaid-${idRef.current}"]`).forEach(el => el.remove());
 
         if (isMermaidRenderErrorOutput(rendered)) {
           throw new Error('Mermaid retornou um SVG de erro sintático');
         }
 
         if (!cancelled) {
+          if (mermaidSvgCache.size >= 100) {
+            const firstKey = mermaidSvgCache.keys().next().value;
+            if (firstKey !== undefined) {
+              mermaidSvgCache.delete(firstKey);
+            }
+          }
           mermaidSvgCache.set(cacheKey, rendered);
           setSvg(rendered);
           setError(null);
