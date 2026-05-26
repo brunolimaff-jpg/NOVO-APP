@@ -153,8 +153,6 @@ export function useUpdateNotification() {
       try { window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY); } catch {
         // sessionStorage indisponivel em contextos restritos (cross-origin iframe etc.)
       }
-    }
-    if (pendingChunkReload) {
       void checkForUpdates({ force: true, ignoreSnooze: true });
     } else {
       void checkForUpdates();
