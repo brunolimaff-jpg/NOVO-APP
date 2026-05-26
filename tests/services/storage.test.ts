@@ -32,7 +32,9 @@ vi.mock('../../services/syncQueue', () => ({
     enqueue: vi.fn(),
     remove: vi.fn(),
     size: vi.fn(() => 0),
+    peek: vi.fn(() => []),
     load: vi.fn(async () => []),
+    processWhere: vi.fn(async () => true),
     processAll: vi.fn(),
   },
 }));
@@ -58,8 +60,10 @@ describe('storage', () => {
   };
 
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     vi.mocked(isSupabaseAvailable).mockReturnValue(false);
+    vi.mocked(syncQueue.peek).mockReturnValue([]);
     supabaseMock.from.mockReset();
     supabaseMock.upsert.mockReset();
     supabaseMock.select.mockReset();
@@ -186,7 +190,9 @@ describe('storage', () => {
         data: expect.objectContaining({
           id: 'session-1',
           operator_id: 'operator-123',
+          content: mockSession,
           deleted_at: expect.any(String),
+          updated_at: expect.any(String),
         }),
         id: 'session-1',
       });
@@ -201,6 +207,48 @@ describe('storage', () => {
 
       expect(set).toHaveBeenCalledWith('scout360_sessions_v2', []);
       expect(syncQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('saveDossier should schedule one debounced auto sync for dossier operations', async () => {
+      vi.useFakeTimers();
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      localStorage.setItem('scout360:operator_id', 'operator-123');
+      vi.mocked(set).mockResolvedValue(undefined);
+      vi.mocked(get).mockResolvedValue([]);
+      vi.mocked(syncQueue.peek)
+        .mockReturnValueOnce([{
+          table: 'dossies',
+          operation: 'upsert',
+          data: {},
+          id: 'session-1',
+        }])
+        .mockReturnValueOnce([]);
+
+      await storage.saveDossier(mockSession);
+      await storage.saveDossier({ ...mockSession, title: 'Updated Session' });
+
+      expect(syncQueue.processWhere).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(749);
+      expect(syncQueue.processWhere).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(syncQueue.processWhere).toHaveBeenCalledTimes(1);
+      const [predicate] = vi.mocked(syncQueue.processWhere).mock.calls[0];
+      expect(predicate({
+        table: 'dossies',
+        operation: 'upsert',
+        data: {},
+        id: 'session-1',
+      })).toBe(true);
+      expect(predicate({
+        table: 'radar_alerts',
+        operation: 'upsert',
+        data: {},
+        id: 'alerts',
+      })).toBe(false);
+      localStorage.removeItem('scout360:operator_id');
     });
   });
 

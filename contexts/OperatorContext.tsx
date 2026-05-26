@@ -102,6 +102,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       name: normalizedName,
       email: normalizedEmail,
     });
+    storage.scheduleDossierSync({ pull: true });
   }, [operatorId]);
 
   useEffect(() => {
@@ -127,6 +128,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Sync to Supabase
     void storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
+    storage.scheduleDossierSync({ pull: true });
   }, []);
 
   const value = useMemo<OperatorContextType>(

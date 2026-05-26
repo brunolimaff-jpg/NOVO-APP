@@ -94,16 +94,36 @@ class SyncQueue {
     executor: (op: SyncOperation) => Promise<void>,
     opts: { maxRetries?: number; backoffMs?: number } = {}
   ): Promise<void> {
-    if (this.isProcessing) return;
+    await this.processWhere(() => true, executor, opts);
+  }
+
+  async processWhere(
+    predicate: (op: SyncOperation) => boolean,
+    executor: (op: SyncOperation) => Promise<void>,
+    opts: { maxRetries?: number; backoffMs?: number } = {}
+  ): Promise<boolean> {
+    if (this.isProcessing) return false;
 
     this.isProcessing = true;
     await this.pendingPersist;
     const { maxRetries = MAX_RETRIES, backoffMs = BACKOFF_MS } = opts;
     const failed: SyncOperation[] = [];
+    const matching: SyncOperation[] = [];
+    const retained: SyncOperation[] = [];
+
+    for (const op of this.queue) {
+      if (predicate(op)) {
+        matching.push(op);
+      } else {
+        retained.push(op);
+      }
+    }
+
+    this.queue = retained;
 
     try {
-      while (this.queue.length > 0) {
-        const op = this.queue.shift()!;
+      while (matching.length > 0) {
+        const op = matching.shift()!;
         const attempt = op.attempts ?? 0;
 
         try {
@@ -121,10 +141,12 @@ class SyncQueue {
         }
       }
     } finally {
-      this.queue = failed;
+      this.queue = [...this.queue, ...failed];
       await this.persist();
       this.isProcessing = false;
     }
+
+    return true;
   }
 }
 
