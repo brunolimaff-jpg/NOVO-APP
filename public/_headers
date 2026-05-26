@@ -1,0 +1,14 @@
+# SPA shell — sempre revalidar para apontar para chunks do deploy atual
+/
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+# Hashed Vite assets — cache longo e imutável
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Versão do build para detecção de update
+/version.json
+  Cache-Control: no-store

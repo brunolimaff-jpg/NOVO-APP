@@ -18,13 +18,50 @@ import { useUpdateNotification } from './hooks/useUpdateNotification';
 import { useMigrationNotice } from './hooks/useMigrationNotice';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
+import { loadWithChunkRetry } from './utils/chunkRetry';
 
 // Lazy-loaded — não críticos para a primeira paint
-const LoadingSmart = React.lazy(() => import('./components/LoadingSmart'));
-const EmailModal = React.lazy(() => import('./components/EmailModal').then(m => ({ default: m.EmailModal })));
-const FollowUpModal = React.lazy(() => import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal })));
-const UpdateNotificationModal = React.lazy(() => import('./components/UpdateNotificationModal').then(m => ({ default: m.UpdateNotificationModal })));
-const MigrationNoticeModal = React.lazy(() => import('./components/MigrationNoticeModal').then(m => ({ default: m.MigrationNoticeModal })));
+const LoadingSmart = React.lazy(() =>
+  loadWithChunkRetry(() => import('./components/LoadingSmart')),
+);
+const EmailModal = React.lazy(() =>
+  loadWithChunkRetry(() =>
+    import('./components/EmailModal').then(m => ({ default: m.EmailModal })),
+  ),
+);
+const FollowUpModal = React.lazy(() =>
+  loadWithChunkRetry(() =>
+    import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal })),
+  ),
+);
+const UpdateNotificationModal = React.lazy(() =>
+  loadWithChunkRetry(() =>
+    import('./components/UpdateNotificationModal').then(m => ({ default: m.UpdateNotificationModal })),
+  ),
+);
+const MigrationNoticeModal = React.lazy(() =>
+  loadWithChunkRetry(() =>
+    import('./components/MigrationNoticeModal').then(m => ({ default: m.MigrationNoticeModal })),
+  ),
+);
+
+function HeroLoadingChunkFallback({ isDarkMode }: { isDarkMode: boolean }) {
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none"
+      aria-busy="true"
+      aria-label="Carregando interface de investigação"
+    >
+      <div
+        className={`w-10 h-10 border-4 rounded-full animate-spin ${
+          isDarkMode
+            ? 'border-emerald-500/20 border-t-emerald-500'
+            : 'border-emerald-600/20 border-t-emerald-600'
+        }`}
+      />
+    </div>
+  );
+}
 import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
@@ -510,7 +547,7 @@ const App: React.FC = () => {
 
       {isLoading && loadingVariant === 'hero' && (
         <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
-          <React.Suspense fallback={null}>
+          <React.Suspense fallback={<HeroLoadingChunkFallback isDarkMode={isDarkMode} />}>
             <LoadingSmart
               isLoading={isLoading}
               mode={mode}
