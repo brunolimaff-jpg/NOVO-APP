@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { syncQueue, SyncOperation } from '../../services/syncQueue';
+import { get, set } from 'idb-keyval';
 
 vi.mock('idb-keyval', () => ({
   get: vi.fn(),
@@ -11,6 +12,8 @@ describe('syncQueue', () => {
     // Reset queue before each test
     syncQueue.clear();
     vi.clearAllMocks();
+    vi.mocked(get).mockResolvedValue(undefined);
+    vi.mocked(set).mockResolvedValue(undefined);
   });
 
   it('deve adicionar operacao a fila', () => {
@@ -74,8 +77,6 @@ describe('syncQueue', () => {
   });
 
   it('deve persistir fila no IDB', async () => {
-    const { get, set } = await import('idb-keyval');
-
     // Mock an IDB store: set saves, get retrieves
     const store = new Map<string, unknown>();
     vi.mocked(set).mockImplementation(async (key: string, value: unknown) => {
@@ -103,6 +104,42 @@ describe('syncQueue', () => {
     expect(loaded).toHaveLength(1);
     expect(loaded[0]).toMatchObject(op);
     expect(loaded[0].attempts).toBe(0);
+  });
+
+  it('nao deve sobrescrever fila em memoria com snapshot antigo do IDB', async () => {
+    let resolvePersist: (() => void) | undefined;
+    let persistStarted: (() => void) | undefined;
+    const persistStartedPromise = new Promise<void>((resolve) => {
+      persistStarted = resolve;
+    });
+
+    vi.mocked(set).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePersist = resolve;
+          persistStarted?.();
+        })
+    );
+    vi.mocked(get).mockResolvedValue([]);
+
+    const op: SyncOperation = {
+      table: 'user_context',
+      operation: 'upsert',
+      data: { operator_id: 'operator-123' },
+      id: 'operator-123',
+    };
+
+    syncQueue.enqueue(op);
+    const loadedPromise = syncQueue.load();
+    await persistStartedPromise;
+    resolvePersist?.();
+
+    const loaded = await loadedPromise;
+
+    expect(get).toHaveBeenCalledWith('scout360_sync_queue');
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]).toMatchObject(op);
+    expect(syncQueue.peek()).toHaveLength(1);
   });
 
   it('deve mover item para failed queue com attempts incrementado em caso de falha', async () => {

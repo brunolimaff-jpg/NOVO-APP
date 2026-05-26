@@ -430,34 +430,43 @@ describe('storage', () => {
     it('touchUserContext should update only last_seen for an existing user', async () => {
       vi.mocked(isSupabaseAvailable).mockReturnValue(true);
       const updateEq = vi.fn().mockResolvedValue({ error: null });
-      supabaseMock.maybeSingle.mockResolvedValue({ data: { operator_id: 'operator-123' }, error: null });
-      supabaseMock.eq.mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
-      supabaseMock.select.mockReturnValue({ eq: supabaseMock.eq });
       supabaseMock.update.mockReturnValue({ eq: updateEq });
-      supabaseMock.from
-        .mockReturnValueOnce({ select: supabaseMock.select })
-        .mockReturnValueOnce({ update: supabaseMock.update });
+      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
 
       await storage.touchUserContext('operator-123');
 
-      expect(supabaseMock.from).toHaveBeenNthCalledWith(1, 'user_context');
-      expect(supabaseMock.select).toHaveBeenCalledWith('operator_id');
+      expect(supabaseMock.from).toHaveBeenCalledWith('user_context');
+      expect(supabaseMock.select).not.toHaveBeenCalled();
       expect(supabaseMock.update).toHaveBeenCalledWith({ last_seen: expect.any(String) });
       expect(updateEq).toHaveBeenCalledWith('operator_id', 'operator-123');
       expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
-    it('touchUserContext should skip when no user_context row exists', async () => {
+    it('touchUserContext should not create or enqueue when no matching row exists', async () => {
       vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      supabaseMock.maybeSingle.mockResolvedValue({ data: null, error: null });
-      supabaseMock.eq.mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
-      supabaseMock.select.mockReturnValue({ eq: supabaseMock.eq });
-      supabaseMock.from.mockReturnValue({ select: supabaseMock.select });
+      const updateEq = vi.fn().mockResolvedValue({ error: null });
+      supabaseMock.update.mockReturnValue({ eq: updateEq });
+      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
 
       await storage.touchUserContext('operator-missing');
 
-      expect(supabaseMock.select).toHaveBeenCalledWith('operator_id');
-      expect(supabaseMock.update).not.toHaveBeenCalled();
+      expect(supabaseMock.select).not.toHaveBeenCalled();
+      expect(supabaseMock.update).toHaveBeenCalledWith({ last_seen: expect.any(String) });
+      expect(updateEq).toHaveBeenCalledWith('operator_id', 'operator-missing');
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+      expect(supabaseMock.upsert).not.toHaveBeenCalled();
+    });
+
+    it('touchUserContext should debounce repeated touches for same operator', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      const updateEq = vi.fn().mockResolvedValue({ error: null });
+      supabaseMock.update.mockReturnValue({ eq: updateEq });
+      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
+
+      await storage.touchUserContext('operator-debounce');
+      await storage.touchUserContext('operator-debounce');
+
+      expect(updateEq).toHaveBeenCalledTimes(1);
       expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });

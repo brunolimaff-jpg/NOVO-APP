@@ -352,14 +352,6 @@ export const storage = {
     userContextTouchTimestamps.set(operatorId, now);
 
     try {
-      const { data, error } = await supabase!
-        .from('user_context')
-        .select('operator_id')
-        .eq('operator_id', operatorId)
-        .maybeSingle();
-
-      if (error || !data) return;
-
       const { error: updateError } = await supabase!
         .from('user_context')
         .update({ last_seen: new Date().toISOString() })
