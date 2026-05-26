@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const fetchCompanyByCnpjMock = vi.hoisted(() => vi.fn());
@@ -17,6 +17,8 @@ describe('SocietaryMap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(globalThis, 'fetch').mockReset();
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
   });
 
   it('renderiza Mermaid LR com QSA e drill-down do primeiro sócio', async () => {
@@ -71,6 +73,54 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte internacional');
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Sócio/admin: Guilherme M. Scheffer - Administrador');
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Tipo: Empresa internacional');
+  });
+
+  it('envia trace true para socio-search quando o rastreador da teia esta ativo', async () => {
+    window.localStorage.setItem('scoutTrace', 'teia');
+    const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        companies: [],
+        rejected: [],
+        degraded: true,
+        cached: false,
+        diagnostics: { queriesRun: [], pagesFetched: 0, cacheSource: 'none', rejectedCount: 0 },
+        trace: {
+          enabled: true,
+          providers: [],
+          totals: { companiesCount: 0, rejectedCount: 0 },
+          rejectedByReason: {},
+        },
+      }),
+    } as Response);
+
+    render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+    expect(body).toMatchObject({
+      socioName: 'Guilherme M. Scheffer',
+      rootCompanyName: 'Scheffer & Cia Ltda',
+      rootCnpj: '04733767000180',
+      trace: true,
+    });
+    consoleInfoSpy.mockRestore();
   });
 
   it('faz drill-down automático de todos os sócios e inicia na visão Todos', async () => {
@@ -158,6 +208,89 @@ describe('SocietaryMap', () => {
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
   });
 
+  it('renderiza resultados parciais enquanto ainda busca outros socios', async () => {
+    fetchCompanyByCnpjMock.mockResolvedValueOnce({
+      cnpj: '04733767000180',
+      companyName: 'Scheffer & Cia Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [
+        {
+          name: 'Guilherme M. Scheffer',
+          role: 'Administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+        {
+          name: 'Luciano R. Scheffer',
+          role: 'Socio',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    let resolveSecond: (response: Response) => void = () => {};
+    const secondResponse = new Promise<Response>(resolve => {
+      resolveSecond = resolve;
+    });
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          companies: [
+            {
+              name: 'Primeira Empresa Parcial LTDA',
+              cnpj: '12345678000195',
+              partnerName: 'Guilherme M. Scheffer',
+              sourceTitle: 'CNPJ Aberto',
+              snippet: 'Guilherme M. Scheffer consta no QSA oficial.',
+              confidence: 'strong',
+              evidenceType: 'qsa',
+              rootContext: false,
+              relationshipScope: 'partner_other_cnpj',
+            },
+          ],
+          rejected: [],
+          degraded: false,
+          cached: false,
+        }),
+      } as Response)
+      .mockImplementationOnce(() => secondResponse);
+
+    render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Primeira Empresa Parcial LTDA')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveSecond({
+        ok: true,
+        json: async () => ({
+          companies: [
+            {
+              name: 'Segunda Empresa Final LTDA',
+              cnpj: '09567366000111',
+              partnerName: 'Luciano R. Scheffer',
+              sourceTitle: 'CNPJ Aberto',
+              snippet: 'Luciano R. Scheffer consta no QSA oficial.',
+              confidence: 'strong',
+              evidenceType: 'qsa',
+              rootContext: false,
+              relationshipScope: 'partner_other_cnpj',
+            },
+          ],
+          rejected: [],
+          degraded: false,
+          cached: false,
+        }),
+      } as Response);
+    });
+
+    await waitFor(() => expect(screen.getByText('Segunda Empresa Final LTDA')).toBeInTheDocument());
+  });
+
   it('exibe CNPJ lateral do socio sem tratar como empresa do grupo', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
@@ -200,10 +333,10 @@ describe('SocietaryMap', () => {
       fireEvent.click(screen.getByText("Grafo"));
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Fazenda Independente LTDA'));
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ lateral do sócio');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ lateral');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Root -- CNPJ relacionado');
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
-    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral do sócio');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral');
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
   });
 
@@ -263,7 +396,7 @@ describe('SocietaryMap', () => {
     await waitFor(() => expect(screen.getByText('E.Z.M.S. Participações Ltda')).toBeInTheDocument());
     expect(screen.getAllByText('CNPJs laterais').length).toBeGreaterThan(0);
     expect(screen.queryByText('Relação')).not.toBeInTheDocument();
-    expect(screen.queryByText('CNPJ lateral do sócio')).not.toBeInTheDocument();
+    expect(screen.getByText('CNPJ lateral')).toBeInTheDocument();
     expect(screen.getByTestId('societary-map-shell')).toHaveTextContent(
       '1 CNPJ baixado/inativo foi referenciado pelas fontes e excluído do inventário principal.',
     );
@@ -395,19 +528,19 @@ describe('SocietaryMap', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent(/Agropecu[aá]ria Norte LTDA/));
     expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Associacao Scheffer de Lazer');
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ lateral do sócio');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ lateral');
 
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent(/Agropecu[aá]ria Norte LTDA/);
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Associacao Scheffer de Lazer');
-    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral do sócio');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral');
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
 
     fireEvent.click(screen.getByRole('button', { name: 'Gislayne' }));
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent(/Agropecu[aá]ria Norte LTDA/));
     expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Associacao Scheffer de Lazer');
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
-    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral do sócio');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: CNPJ lateral');
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
   });
 

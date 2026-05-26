@@ -14,9 +14,22 @@ Read order:
 4. `.agents/memory/progress.md`
 5. `.agents/memory/decisions.md`
 6. `docs/ai-context/refactor/02-BOARD.md`
-7. `docs/obsidian/00-MASTER.md` for visual navigation only
+7. `docs/OBSIDIAN_VAULT.md` — ponteiro para o vault central; navegação visual em `/Users/brunolima/Documents/Bruno Vault/00-MASTER.md`
 
 ## Current operating phase
+
+**Atualizacao 2026-05-26 09:05 — Teia traceavel, incremental e documentada no Bruno Vault.**
+
+- GitHub: `gh pr list --state open` retornou vazio para `brunolimaff-jpg/NOVO-APP`; nao ha thread de PR a resolver nesta sessao.
+- Branch local: `main`, com diff local amplo e varias mudancas documentais preexistentes; nao reverter sem pedido explicito.
+- Rastreador da Teia: `?scoutTrace=teia` liga, `?scoutTrace=off` desliga, estado persiste em `localStorage`.
+- Logs `[Scout360][Trace:teia]` cobrem parse textual, QSA, chamadas `/api/socio-search`, payload, rejeicoes, grafo e matriz.
+- `/api/socio-search` aceita `trace: true` e retorna diagnostico ampliado somente quando solicitado.
+- UI da Teia agora aplica resultado incremental por socio; tabela nao espera a ultima chamada pendente.
+- Matriz: card principal `CNPJs encontrados`; `empresas do grupo` aparece apenas quando confirmado. Labels curtas: `QSA`, `Lateral`, `CNPJ lateral`.
+- Preview: `https://scoutagro-hxq9vmrpw-brunolimaff-3629s-projects.vercel.app/?scoutTrace=teia`.
+- Validacoes executadas: recortes Vitest da Teia/API/diagnosticLog e `npm run typecheck`.
+- Documentacao central atualizada em `/Users/brunolima/Documents/Bruno Vault/10-PROJETOS/NOVO-APP.md`.
 
 **Branch: `main` — PR #285 (`ed5c825`) e PR #286 (`0eb2935`) foram mergeadas. Nao ha PR aberta no GitHub neste momento.**
 
@@ -40,7 +53,7 @@ Read order:
 ### Atualizacao 2026-05-25 17:05 — fechamento documental da Teia
 
 - PR #285 esta `CLEAN` no GitHub com checks remotos verdes.
-- Fonte atual do fechamento: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+- Fonte atual do fechamento: `Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
 - Nenhum P0 conhecido continua bloqueando a #285 depois da validacao por proxy/local.
 - Status superado pelo fechamento de 20:36: #285 e #286 ja foram mergeadas. Pendencias atuais sao cache persistente, smoke de preview mais forte e reestruturacao da Teia como modulo de dominio.
 
@@ -64,8 +77,8 @@ Read order:
 - QSA oficial / CNPJ Aberto confirma `socio -> CNPJ`, nao `CNPJ -> grupo`.
 - `partner_other_cnpj` deve aparecer como `CNPJ lateral do socio`, com `rootContext: false`.
 - Proibido chamar lateral de `Proprias`, `Side business`, `veiculo operacional`, bioinsumos, verticalizacao, enterprise ou wedge Senior.
-- Fonte principal do contexto: `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
-- Historico diario append-only: `docs/obsidian/daily/INDEX.md`.
+- Fonte principal do contexto: `Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md`.
+- Historico diario append-only: `Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/daily/INDEX.md`.
 - Gates locais verdes: `validate-prompts.sh`, recorte Vitest da teia (91 testes), `typecheck`, `lint` e `build`.
 
 > O snapshot abaixo sobre CNPJ Aberto/SocietaryMatrix preserva o estado anterior da PR #285. Nao usar como liberacao de merge sem validar o P0.

@@ -10,7 +10,7 @@ export type SocietaryBadge =
   | 'internacional'
   | 'estimado'
   | 'validar'
-  | 'CNPJ lateral do sócio'
+  | 'CNPJ lateral'
   | 'validar grupo';
 
 export interface SocietaryRootInput {
@@ -418,7 +418,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
 
   if (company.partnerIds.length > 1) badges.add('empresa em comum');
   if (company.relationshipScope === 'partner_other_cnpj') {
-    badges.add('CNPJ lateral do sócio');
+    badges.add('CNPJ lateral');
     badges.add('validar grupo');
   }
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') {
@@ -681,7 +681,7 @@ function partnerLabel(partner: SocietaryPartner): string {
 
 export function describeSocietaryCompanyType(company: SocietaryCompany): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral';
   const role = normalizeText(`${company.role || ''} ${company.name}`);
   const country = (company.country || 'BR').toUpperCase();
   if ((company.branchCount || 0) > 1) {
@@ -743,8 +743,8 @@ function edgeLabel(value: string): string {
 }
 
 function rootToPartnerEdgeLabel(partner: SocietaryPartner): string {
-  if (partner.confidence === 'official') return 'QSA da matriz';
-  if (partner.sourceTitle) return 'QSA da empresa raiz';
+  if (partner.confidence === 'official') return 'QSA';
+  if (partner.sourceTitle) return 'QSA';
   return 'Sócio';
 }
 
@@ -760,7 +760,7 @@ function rootToCompanyEdgeLabel(company: SocietaryCompany, root: SocietaryGraph[
 
 function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validar CNPJ';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'Lateral';
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
   if (normalizedRole.includes('administrador')) return 'Administra CNPJ';

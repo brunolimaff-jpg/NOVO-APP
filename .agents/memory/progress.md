@@ -4,6 +4,32 @@ Last updated: 2026-05-25
 
 ## Completed
 
+### Rastreador da Teia + renderizacao incremental (2026-05-26 09:05)
+
+**Status:** implementado localmente em `main`, publicado em preview Vercel e documentado no Bruno Vault.
+
+**GitHub:** `gh pr list --state open` retornou vazio; nao havia comentarios/threads de PR para resolver.
+
+**Preview:** `https://scoutagro-hxq9vmrpw-brunolimaff-3629s-projects.vercel.app/?scoutTrace=teia`.
+
+**Mudancas principais:**
+- `utils/diagnosticLog.ts`: ativacao do trace por `?scoutTrace=teia`, persistencia em `localStorage` e desligamento por `?scoutTrace=off`.
+- `SectionalBotMessage` / `parseTeiaText`: trace de CNPJs textuais e warnings.
+- `SocietaryMap`: traceId por montagem, logs de QSA, chamadas `/api/socio-search`, payload, rejeicoes, consolidacao e renderizacao incremental por socio.
+- `SocietaryMatrix`: trace de metricas, filtros, linhas visiveis e badges visuais.
+- `/api/socio-search`: `trace?: boolean` no request e diagnostico ampliado no JSON apenas quando trace esta ativo.
+- UI: card `CNPJs encontrados`; labels curtas `QSA`, `Lateral`, `CNPJ lateral`; filtros do grafo alinhados aos pills da tabela.
+
+**Validacao:**
+- `npm run test -- tests/features/dossier/SocietaryMap.test.tsx tests/api-socio-search.test.ts tests/utils/diagnosticLog.test.ts`
+- `npm run test -- tests/features/dossier/SocietaryMap.test.tsx tests/features/dossier/societaryGraph.test.ts`
+- `npm run typecheck`
+
+**Pendencias:**
+- Testar no preview com Console e Network preservados para separar perda de inventario em fonte/API, `buildSocietaryGraph` ou filtro visual.
+- Fortalecer smoke preview para falhar quando todos os socios retornarem `companies: 0`/degradado.
+- Modularizar a Teia como boundary de dominio em ciclo posterior.
+
 ### Fechamento final PR #285 + PR #286 (2026-05-25 20:36)
 
 **Status:** ciclo fechado em `main`.

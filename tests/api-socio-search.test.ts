@@ -193,6 +193,111 @@ describe('api/socio-search', () => {
     expect(lookupCnpjMock).not.toHaveBeenCalled();
   });
 
+  it('retorna diagnostico ampliado quando trace e solicitado', async () => {
+    searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
+      {
+        name: 'E.Z.M.S. Participações Ltda',
+        cnpj: '09.567.366/0001-11',
+        role: 'Sócio-administrador',
+        sourceTitle: 'CNPJ Aberto — Elizeu Zulmar Maggi Scheffer',
+        sourceUrl: 'https://cnpjaberto.com.br/09567366000111',
+        snippet: 'Elizeu Zulmar Maggi Scheffer consta no QSA oficial da E.Z.M.S. Participações Ltda.',
+      },
+    ]);
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: '09567366000111',
+      companyName: 'E.Z.M.S. Participações Ltda',
+      qsa: [
+        {
+          name: 'Elizeu Zulmar Maggi Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Elizeu Zulmar Maggi Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04.733.767/0001-80',
+        trace: true,
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      trace: {
+        enabled: true,
+        cache: {
+          required: false,
+          configured: false,
+          status: 'miss',
+          source: 'none',
+        },
+        providers: [
+          expect.objectContaining({
+            provider: 'cnpj_aberto',
+            attempted: true,
+            returnedCount: 1,
+            acceptedCount: 1,
+          }),
+        ],
+        totals: expect.objectContaining({
+          companiesCount: 1,
+          rejectedCount: 0,
+          cnpjsFound: ['09567366000111'],
+        }),
+        rejectedByReason: {},
+      },
+    });
+  });
+
+  it('nao retorna diagnostico ampliado quando trace nao e solicitado', async () => {
+    searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
+      {
+        name: 'E.Z.M.S. Participações Ltda',
+        cnpj: '09.567.366/0001-11',
+        role: 'Sócio-administrador',
+        sourceTitle: 'CNPJ Aberto — Elizeu Zulmar Maggi Scheffer',
+        sourceUrl: 'https://cnpjaberto.com.br/09567366000111',
+        snippet: 'Elizeu Zulmar Maggi Scheffer consta no QSA oficial da E.Z.M.S. Participações Ltda.',
+      },
+    ]);
+    lookupCnpjMock.mockResolvedValueOnce({
+      cnpj: '09567366000111',
+      companyName: 'E.Z.M.S. Participações Ltda',
+      qsa: [
+        {
+          name: 'Elizeu Zulmar Maggi Scheffer',
+          role: 'Sócio-administrador',
+          source: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+    });
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler({
+      method: 'POST',
+      body: {
+        socioName: 'Elizeu Zulmar Maggi Scheffer',
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        rootCnpj: '04.733.767/0001-80',
+      },
+    } as VercelRequest, response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect((response.payload as { trace?: unknown }).trace).toBeUndefined();
+  });
+
   it('retorna empresas fortes e remove CPF completo do snippet', async () => {
     performWebSearchMock.mockResolvedValueOnce([
       'Título: Scheffer Colombia S.A.S. importações',

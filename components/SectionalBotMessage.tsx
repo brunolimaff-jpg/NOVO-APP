@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -8,6 +8,7 @@ import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
 import SocietaryMap from '../features/dossier/SocietaryMap';
 import { parseTeiaText } from '../features/dossier/teiaTextParser';
+import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../utils/diagnosticLog';
 
 interface SectionalBotMessageProps {
   message: Message;
@@ -219,6 +220,28 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
   );
+  const teiaTraceIdRef = useRef(createScoutTraceId('teia'));
+  const teiaTraceEnabled = isScoutTraceEnabled('teia');
+
+  useEffect(() => {
+    if (!teiaTraceEnabled) return;
+    if (societaryMapSectionIndex < 0 && parsedTeiaData.companies.length === 0 && parsedTeiaData.warnings.length === 0) return;
+    scoutDiag.trace('teia', 'SectionalBotMessage', 'parse textual da teia concluido', {
+      traceId: teiaTraceIdRef.current,
+      empresaAlvo,
+      cnpj,
+      hasSocietaryMapSection: societaryMapSectionIndex >= 0,
+      geminiCompaniesCount: parsedTeiaData.companies.length,
+      warnings: parsedTeiaData.warnings,
+      companies: parsedTeiaData.companies.slice(0, 30).map(company => ({
+        name: company.name,
+        cnpj: company.cnpj || company.rawCnpjLabel || null,
+        partnerName: company.partnerName,
+        relationshipScope: company.relationshipScope,
+        validationStatus: company.validationStatus,
+      })),
+    });
+  }, [cnpj, empresaAlvo, parsedTeiaData, societaryMapSectionIndex, teiaTraceEnabled]);
 
   const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
     ? message.suggestions
@@ -334,6 +357,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 empresaAlvo={empresaAlvo}
                 isDarkMode={isDarkMode}
                 geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
+                traceId={teiaTraceIdRef.current}
+                traceEnabled={teiaTraceEnabled}
               />
             ) : null}
             <MarkdownRenderer

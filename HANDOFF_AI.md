@@ -2,6 +2,8 @@
 
 Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando neste repositorio.
 
+Nota: o vault Obsidian canonico foi centralizado em `/Users/brunolima/Documents/Bruno Vault`. Referencias antigas a `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/*` foram arquivadas em `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original`; use `docs/OBSIDIAN_VAULT.md` como ponteiro local.
+
 ## Ordem de leitura
 
 1. `AGENTS.md`
@@ -16,14 +18,14 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 10. `docs/ai-context/refactor/sprints/SPRINT-11-EXECUTION.md`
 11. `docs/ai-context/refactor/03-OPEN-ITEMS.md`
 12. `docs/ai-context/refactor/06-HANDOFF.md`
-13. `docs/obsidian/00-MASTER.md` para navegacao visual (nao substitui as fontes canonicas acima)
-14. `docs/obsidian/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md` — achado atual: QSA oficial confirma sócio -> CNPJ, não CNPJ -> grupo
-15. `docs/obsidian/daily/INDEX.md` — histórico diário append-only; não sobrescrever entradas antigas
-16. `docs/obsidian/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` — 13 lições aprendidas na sessão de prompts 2026-05-24
-17. `docs/obsidian/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — lições do hotfix P0 da Teia CNPJ, incluindo PRs #279/#280/#285 e critérios de preview
-18. `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md` — fechamento atual da PR #285, validações finais, lições e pendências de reestruturação
-19. `docs/obsidian/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — status detalhado da PR #285; seções antigas preservam snapshots superados
-20. `docs/obsidian/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md` — documentação dos ciclos de tentativa de busca reversa de CNPJs por nome de sócio
+13. `docs/OBSIDIAN_VAULT.md` para navegacao visual central (nao substitui as fontes canonicas acima)
+14. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25.md` — achado atual: QSA oficial confirma sócio -> CNPJ, não CNPJ -> grupo
+15. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/daily/INDEX.md` — histórico diário append-only; não sobrescrever entradas antigas
+16. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/LICOES-APRENDIDAS-PROMPTS-2026-05-24.md` — 13 lições aprendidas na sessão de prompts 2026-05-24
+17. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24.md` — lições do hotfix P0 da Teia CNPJ, incluindo PRs #279/#280/#285 e critérios de preview
+18. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md` — fechamento atual da PR #285, validações finais, lições e pendências de reestruturação
+19. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/HANDOFF-TEIA-CNPJ-2026-05-25.md` — status detalhado da PR #285; seções antigas preservam snapshots superados
+20. `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md` — documentação dos ciclos de tentativa de busca reversa de CNPJs por nome de sócio
 
 ## Contexto minimo estavel
 
@@ -36,6 +38,21 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
+> Atualizado em 2026-05-26 09:05 — **Rastreador da Teia implementado e preview Vercel publicado.** Nao ha PR aberta no GitHub neste momento (`gh pr list --state open` retornou vazio). O diff atual esta local em `main` e convive com varias mudancas documentais preexistentes no working tree.
+
+### Atualizacao 2026-05-26 — Rastreador e fluxo incremental da Teia
+
+- Ativacao do trace: abrir preview com `?scoutTrace=teia`; desligar com `?scoutTrace=off`.
+- Trace persiste em `localStorage` e nao depende de env var/redeploy para ligar/desligar.
+- Logs novos aparecem como `[Scout360][Trace:teia]` e cobrem `SectionalBotMessage`, `SocietaryMap`, `SocietaryMatrix` e `/api/socio-search`.
+- `/api/socio-search` aceita `trace: true` e retorna diagnostico ampliado apenas nesse modo.
+- A matriz/grafo agora recebem resultados incrementalmente por socio, sem esperar a ultima chamada pendente.
+- O card principal da matriz mostra `CNPJs encontrados`; `empresas do grupo` so aparece quando houver vinculo de grupo confirmado.
+- Labels visuais foram encurtadas: `QSA`, `Lateral`, `CNPJ lateral`; filtros do grafo usam o mesmo pill visual da tabela.
+- Preview publicado: `https://scoutagro-hxq9vmrpw-brunolimaff-3629s-projects.vercel.app/?scoutTrace=teia`.
+- Validacoes: recortes `SocietaryMap`, `societaryGraph`, `api-socio-search`, `diagnosticLog`; `npm run typecheck`.
+- Documentacao central: `/Users/brunolima/Documents/Bruno Vault/10-PROJETOS/NOVO-APP.md`.
+
 > Atualizado em 2026-05-25 20:36 — **PR #285 e PR #286 foram mergeadas em `main`.** A Teia CNPJ saiu do bloqueio funcional, links inline auditaveis tambem foram fechados, e nao ha PR aberta no GitHub neste momento.
 
 ### Achado P0 atual — Teia CNPJ
@@ -44,8 +61,8 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - O CNPJ so vira `group_link` quando houver prova independente de vinculo com a raiz/grupo.
 - CNPJ lateral deve aparecer como `CNPJs laterais`; a matriz nao exibe mais coluna/badge textual de relacao lateral.
 - Proibido usar lateral como `Proprias`, `Side business`, veiculo operacional do grupo, bioinsumos, verticalizacao, enterprise ou wedge Senior.
-- Fechamento atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
-- Historico completo: `docs/obsidian/daily/INDEX.md`.
+- Fechamento atual: `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+- Historico completo: `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/daily/INDEX.md`.
 - Merges finais: #285 em `ed5c825`; #286 em `0eb2935`.
 - Validacao local final: recorte Vitest da teia (`88`), `validate-prompts.sh` (`59`), `typecheck`, `lint` com 5 warnings preexistentes, `build`; Browser local confirmou ausencia de `Outros CNPJs`, `Alertas`, `Vinculo...`, `Relação` e badge lateral na matriz.
 - Complemento pos-push: Vite proxy injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`; API via proxy local retornou `15` empresas para `GUILHERME MOGNON SCHEFFER`, `degraded: false`, todas na amostra como `partner_other_cnpj`/`rootContext: false`. Browser local confirmou `18` CNPJs laterais na matriz apos alternar `Grafo -> Tabela`.
@@ -139,7 +156,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ### Contexto historico: 7 ciclos de busca reversa (anterior)
 
-Para referencia, foram executados 7 ciclos de tentativa entre os commits `b8b9058` e `6d49b28` antes do CNPJ Aberto. Detalhamento completo em `docs/obsidian/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md`.
+Para referencia, foram executados 7 ciclos de tentativa entre os commits `b8b9058` e `6d49b28` antes do CNPJ Aberto. Detalhamento completo em `/Users/brunolima/Documents/Bruno Vault/_archive/source-vaults/2026-05-25/novo-app-docs-obsidian-original/decisions/LICOES-APRENDIDAS-BUSCA-REVERSA-2026-05-25.md`.
 
 | Ciclo | O que foi tentado | Resultado | Commit |
 |-------|-------------------|-----------|--------|

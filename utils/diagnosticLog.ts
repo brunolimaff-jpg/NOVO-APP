@@ -15,6 +15,48 @@
  */
 
 const PREFIX = '🦅 [Scout360]';
+const TRACE_STORAGE_KEY = 'scoutTrace';
+
+function normalizeTraceTarget(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized === 'off' || normalized === 'false' || normalized === '0') return null;
+  return normalized
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .join(',');
+}
+
+export function getScoutTraceTarget(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has(TRACE_STORAGE_KEY)) {
+      const target = normalizeTraceTarget(params.get(TRACE_STORAGE_KEY));
+      if (target) {
+        window.localStorage?.setItem(TRACE_STORAGE_KEY, target);
+        return target;
+      }
+      window.localStorage?.removeItem(TRACE_STORAGE_KEY);
+      return null;
+    }
+    return normalizeTraceTarget(window.localStorage?.getItem(TRACE_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+export function isScoutTraceEnabled(target: string): boolean {
+  const activeTarget = getScoutTraceTarget();
+  if (!activeTarget) return false;
+  if (activeTarget === 'all') return true;
+  return activeTarget.split(',').some(part => part === target.toLowerCase());
+}
+
+export function createScoutTraceId(target: string): string {
+  return `${target}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function isVerboseEnabled(): boolean {
   try {
@@ -84,6 +126,11 @@ export function isScoutDiagEnabled(): boolean {
 }
 
 export const scoutDiag = {
+  trace(target: string, scope: string, message: string, details?: Record<string, unknown>): void {
+    if (!isScoutTraceEnabled(target)) return;
+    console.info(`${PREFIX}[Trace:${target}][${scope}] ${message}`, safeDetails(details));
+  },
+
   /**
    * debug — só aparece em DEV ou com VITE_DEBUG_CONSOLE=true
    * Use para rastreamento fino de estado interno.

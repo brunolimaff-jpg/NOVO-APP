@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   type SocietaryCompany,
+  type SocietaryBadge,
   type SocietaryGraph,
   formatSocietaryCnpj,
 } from './societaryGraph';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 const PARTNER_MATRIX_COLORS = [
   '#7c3aed',
@@ -39,7 +41,7 @@ const CATEGORY_LABELS: Record<CompanyCategory, string> = {
   strategic: 'Estratégico',
   operation: 'Operações',
   own: 'Próprias',
-  lateral: 'CNPJs laterais',
+  lateral: 'Laterais',
 };
 
 const CATEGORY_ORDER: Record<CompanyCategory, number> = {
@@ -62,6 +64,8 @@ interface SocietaryMatrixProps {
     snippet?: string;
     reason: string;
   }>;
+  traceId?: string;
+  traceEnabled?: boolean;
 }
 
 interface ClassifiedRow {
@@ -121,6 +125,20 @@ function SummaryCard({
   );
 }
 
+function badgeTone(badge: SocietaryBadge): string {
+  if (badge === 'CNPJ lateral') return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200';
+  if (badge === 'validar' || badge === 'validar grupo') return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  if (badge === 'oficial') return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200';
+  if (badge === 'internacional') return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-200';
+  if (badge === 'holding' || badge === 'empresa em comum') return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
+  return 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400';
+}
+
+function visibleBadges(company: SocietaryCompany): SocietaryBadge[] {
+  const badges = company.badges.filter(badge => badge !== 'estimado');
+  return badges.length > 0 ? badges : company.badges;
+}
+
 const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   graph,
   cnaeMap,
@@ -129,6 +147,8 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   selectedPartnerId = null,
   onSelectPartner,
   inactiveReferences = [],
+  traceId,
+  traceEnabled = false,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | CompanyCategory>('all');
 
@@ -144,12 +164,13 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
 
   // Summary metrics
   const metrics = useMemo(() => {
+    const found = classified.length;
     const total = classified.filter(c => c.category !== 'lateral').length;
     const strategic = classified.filter(c => c.category === 'strategic').length;
     const operation = classified.filter(c => c.category === 'operation').length;
     const own = classified.filter(c => c.category === 'own').length;
     const lateral = classified.filter(c => c.category === 'lateral').length;
-    return { total, strategic, operation, own, lateral };
+    return { found, total, strategic, operation, own, lateral };
   }, [classified]);
 
   // Filtered + sorted rows (category + partner AND logic)
@@ -215,11 +236,44 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   // Partner columns
   const partnerColumns = graph.partners;
 
+  useEffect(() => {
+    if (!traceEnabled) return;
+    scoutDiag.trace('teia', 'SocietaryMatrix', 'matriz renderizada', {
+      traceId,
+      activeCategory,
+      selectedPartnerId,
+      graphCompaniesCount: graph.companies.length,
+      graphRejectedCompaniesCount: graph.rejectedCompanies.length,
+      visibleRowsCount: visibleRows.length,
+      metrics,
+      inactiveReferencesCount: inactiveReferences.length,
+      visibleRows: visibleRows.slice(0, 40).map(row => ({
+        name: row.company.name,
+        cnpj: row.company.cnpj || row.company.rawCnpjLabel || null,
+        category: row.category,
+        relationshipScope: row.company.relationshipScope,
+        validationStatus: row.company.validationStatus,
+        partnerIds: row.company.partnerIds,
+      })),
+    });
+  }, [
+    activeCategory,
+    graph.companies.length,
+    graph.rejectedCompanies.length,
+    inactiveReferences.length,
+    metrics,
+    selectedPartnerId,
+    traceEnabled,
+    traceId,
+    visibleRows,
+  ]);
+
   return (
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
       <div className="grid grid-cols-1 gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />
+        <SummaryCard label="CNPJs encontrados" value={metrics.found} isDarkMode={isDarkMode} />
+        {metrics.total > 0 && <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />}
         {metrics.strategic > 0 && <SummaryCard label="frentes estratégicas" value={metrics.strategic} isDarkMode={isDarkMode} />}
         {metrics.operation > 0 && <SummaryCard label="operações compartilhadas" value={metrics.operation} isDarkMode={isDarkMode} />}
         {metrics.own > 0 && <SummaryCard label="empresas próprias" value={metrics.own} isDarkMode={isDarkMode} />}
@@ -285,6 +339,16 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                   {/* Company name */}
                   <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
                     {row.company.name}
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {visibleBadges(row.company).map(badge => (
+                        <span
+                          key={`${row.company.id}-${badge}`}
+                          className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.04em] ${badgeTone(badge)}`}
+                        >
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
                   </td>
 
                   {/* CNPJ */}
