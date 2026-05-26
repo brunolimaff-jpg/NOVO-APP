@@ -549,8 +549,12 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
     if (isRootEstablishment(company, input.root)) {
       rejectedCompanies.push({ input: company, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
-      const cnpj = normalizeCnpj(company.cnpj || '');
-      if (cnpj && cnpj !== rootCnpj) rootBranchCnpjs.add(cnpj);
+      if (isValidCnpj(normalizedCnpj)) {
+        if (!isHeadquartersCnpj(normalizedCnpj)) rootBranchCnpjs.add(normalizedCnpj);
+      } else {
+        const nameKey = normalizeText(company.name);
+        if (nameKey) rootBranchCnpjs.add(nameKey);
+      }
       continue;
     }
 
@@ -655,8 +659,12 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       if (isRootEstablishment(geminiCandidate, input.root)) {
         rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
-        const cnpj = normalizeCnpj(geminiCandidate.cnpj || '');
-        if (cnpj && cnpj !== rootCnpj) rootBranchCnpjs.add(cnpj);
+        if (isValidCnpj(normalizedCnpj)) {
+          if (!isHeadquartersCnpj(normalizedCnpj)) rootBranchCnpjs.add(normalizedCnpj);
+        } else {
+          const nameKey = normalizeText(geminiCandidate.name);
+          if (nameKey) rootBranchCnpjs.add(nameKey);
+        }
         continue;
       }
 
