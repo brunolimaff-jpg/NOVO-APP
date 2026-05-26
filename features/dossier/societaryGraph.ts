@@ -442,7 +442,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
     && company.relationshipScope !== 'partner_other_cnpj'
     && company.validationStatus !== 'pending'
   ) badges.add('oficial');
-  if (company.confidence === 'weak' || company.confidence === 'medium') badges.add('validar');
+  if (company.confidence === 'weak') badges.add('validar');
 
   return Array.from(badges);
 }
@@ -758,8 +758,8 @@ function edgeLabel(value: string): string {
   return escapeMermaidLabel(value).replace(/\|/g, '/');
 }
 
-function rootToPartnerEdgeLabel(partner: SocietaryPartner): string {
-  if (partner.confidence === 'official') return SOCIETARY_LABEL_SOCIO_ADMIN;
+function rootToPartnerEdgeLabel(partner: SocietaryPartner): string | null {
+  if (partner.confidence === 'official') return null;
   return 'Sócio';
 }
 
@@ -773,13 +773,13 @@ function rootToCompanyEdgeLabel(company: SocietaryCompany, root: SocietaryGraph[
   return 'Vínculo ao grupo';
 }
 
-function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string {
+function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: SocietaryPartner): string | null {
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validar CNPJ';
-  if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
+  if (company.relationshipScope === 'partner_other_cnpj') return null;
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
-  if (normalizedRole.includes('administrador')) return SOCIETARY_LABEL_SOCIO_ADMIN;
-  if (company.evidenceType === 'qsa') return SOCIETARY_LABEL_SOCIO_ADMIN;
+  if (normalizedRole.includes('administrador')) return null;
+  if (company.evidenceType === 'qsa') return null;
   if (normalizedRole.includes('socio')) return 'Sócio no CNPJ';
   return describeSocietaryCompanyType(company);
 }
@@ -800,7 +800,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
   });
   const lines = [
-    'graph LR',
+    'graph TD',
     '  classDef root fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;',
     '  classDef partner fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#3b0764;',
     '  classDef selected fill:#ede9fe,stroke:#6d28d9,stroke-width:2.5px,color:#2e1065;',
@@ -814,8 +814,12 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   const edgeStyles: string[] = [];
   let edgeIndex = 0;
 
-  const addEdge = (from: string, to: string, label: string, color?: string) => {
-    lines.push(`  ${from} -- ${edgeLabel(label)} --> ${to}`);
+  const addEdge = (from: string, to: string, label: string | null, color?: string) => {
+    if (label) {
+      lines.push(`  ${from} -- ${edgeLabel(label)} --> ${to}`);
+    } else {
+      lines.push(`  ${from} --> ${to}`);
+    }
     edgeStyles.push(color ? `  linkStyle ${edgeIndex} stroke:${color},stroke-width:2.5px;` : '');
     edgeIndex += 1;
   };

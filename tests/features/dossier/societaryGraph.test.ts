@@ -170,7 +170,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Fazenda Independente LTDA');
-    expect(mermaid).toContain('guilherme -- Sócio admin --> company_12345678000195');
+    expect(mermaid).toContain('guilherme --> company_12345678000195');
     expect(mermaid).toContain('class company_12345678000195 socioAdmin;');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
   });
@@ -442,7 +442,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Agropecuária Scheffer LTDA');
-    expect(mermaid).toContain('guilherme -- Sócio admin --> company_00111222000181');
+    expect(mermaid).toContain('guilherme --> company_00111222000181');
   });
 
   it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
@@ -602,7 +602,7 @@ describe('societaryGraph', () => {
     });
 
     const mermaid = buildSocietaryMermaid(graph);
-    expect(mermaid).toContain('Root -- Sócio admin --> guilherme');
+    expect(mermaid).toContain('Root --> guilherme');
     expect(mermaid).toContain('Root -- Sócio --> inferido');
     expect(mermaid).not.toContain('Root -- Sócio admin --> inferido');
   });
@@ -630,8 +630,8 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
 
-    expect(mermaid).toMatch(/^graph LR/);
-    expect(mermaid).not.toMatch(/graph\s+(TD|TB)/);
+    expect(mermaid).toMatch(/^graph TD/);
+    expect(mermaid).not.toMatch(/graph\s+(LR|TB)/);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
     expect(mermaid).toContain('CNPJ 04.733.767/0001-80');
     expect(mermaid).toContain('Administrador Guilherme');
@@ -639,8 +639,8 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
-    expect(mermaid).toContain('Root -- Sócio admin --> guilherme');
-    expect(mermaid).toContain('guilherme -- Sócio admin --> company_scheffer_colombia_s_a_s');
+    expect(mermaid).toContain('Root --> guilherme');
+    expect(mermaid).toContain('guilherme --> company_scheffer_colombia_s_a_s');
   });
 
   it('colore arestas por socio para separar conexoes em comum', () => {
