@@ -5,6 +5,7 @@ import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
+  countPartnerCompanies,
   describeSocietaryCompanyType,
   formatSocietaryCnpj,
   SOCIETARY_LABEL_SOCIO_ADMIN,
@@ -23,6 +24,7 @@ interface SocietaryMapProps {
   empresaAlvo?: string | null;
   isDarkMode: boolean;
   geminiCnpjs?: SocietaryCompanyInput[];
+  narrativeCnpjTotal?: number | null;
   traceId?: string;
   traceEnabled?: boolean;
 }
@@ -100,15 +102,16 @@ function describeRelationshipScope(company: SocietaryCompany): string {
   return 'Empresa do grupo';
 }
 
-const filterButtonBaseClass = 'rounded-full border px-2.5 py-1 text-[0.72rem] font-bold cursor-pointer transition';
+const filterButtonBaseClass = 'rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition';
 const filterButtonActiveClass = 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300';
-const filterButtonIdleClass = 'border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
+const filterButtonIdleClass = 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
 
 const SocietaryMap: React.FC<SocietaryMapProps> = ({
   cnpj,
   empresaAlvo,
   isDarkMode,
   geminiCnpjs,
+  narrativeCnpjTotal = null,
   traceId,
   traceEnabled,
 }) => {
@@ -622,6 +625,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           rootName={rootData?.name || 'Empresa analisada'}
           selectedPartnerId={selectedPartner?.id || null}
           inactiveReferences={inactiveReferences}
+          narrativeCnpjTotal={narrativeCnpjTotal}
           traceId={traceIdRef.current}
           traceEnabled={traceActive}
           onSelectPartner={(partnerId) => {
@@ -635,7 +639,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         />
       ) : (
         <>
-          {mermaid ? <MarkdownRenderer content={`\`\`\`mermaid\n${mermaid}\n\`\`\``} isDarkMode={isDarkMode} /> : null}
+          {mermaid ? (
+            <div className="overflow-x-auto">
+              <MarkdownRenderer content={`\`\`\`mermaid\n${mermaid}\n\`\`\``} isDarkMode={isDarkMode} />
+            </div>
+          ) : null}
+          {!selectedPartner && graph && graph.partners.length > 1 ? (
+            <p className="mt-2 text-center text-[11px] text-slate-400 dark:text-slate-500">
+              Selecione um sócio para ver os CNPJs vinculados
+            </p>
+          ) : null}
 
           {selectedCompanies.length > 0 && graph ? (
             <div className="mt-3" data-testid="societary-evidence-panel">

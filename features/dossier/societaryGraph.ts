@@ -105,6 +105,12 @@ export interface BuildSocietaryGraphInput {
 
 export interface BuildSocietaryMermaidOptions {
   selectedPartnerId?: string | null;
+  /** When true, render only Root → Partner hub (no companies). Auto-true when no selectedPartnerId. */
+  overviewOnly?: boolean;
+}
+
+export function countPartnerCompanies(graph: SocietaryGraph, partnerId: string): number {
+  return graph.companies.filter(c => c.partnerIds.includes(partnerId)).length;
 }
 
 const PARTNER_EDGE_COLORS = [
@@ -681,10 +687,26 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
   };
 }
 
-function partnerLabel(partner: SocietaryPartner): string {
+function partnerLabel(partner: SocietaryPartner, cnpjCount?: number): string {
+  const countLine = cnpjCount != null && cnpjCount > 0 ? `${cnpjCount} ${cnpjCount === 1 ? 'CNPJ' : 'CNPJs'}` : '';
   return [
     `<b>${escapeMermaidLabel(firstGivenName(partner.name))}</b>`,
     partner.role ? escapeMermaidLabel(partner.role) : '',
+    countLine,
+  ].filter(Boolean).join('<br/>');
+}
+
+function companyLabelCompact(company: SocietaryCompany): string {
+  const cnpjLine = company.rawCnpjLabel
+    ? `CNPJ ${escapeMermaidLabel(company.rawCnpjLabel)}`
+    : company.cnpj
+      ? `CNPJ ${formatSocietaryCnpj(company.cnpj)}`
+      : company.country
+        ? `País ${escapeMermaidLabel(company.country)}`
+        : '';
+  return [
+    `<b>${escapeMermaidLabel(formatCompanyDisplayName(company.name))}</b>`,
+    cnpjLine,
   ].filter(Boolean).join('<br/>');
 }
 
@@ -788,6 +810,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   const selectedPartner = options.selectedPartnerId
     ? graph.partners.find(partner => partner.id === options.selectedPartnerId)
     : undefined;
+  const isOverview = options.overviewOnly ?? (!selectedPartner && graph.partners.length > 1);
   const partners = selectedPartner ? [selectedPartner] : graph.partners;
   const allPartnerIds = graph.partners.map(partner => partner.id);
   const partnerColorById = new Map(
@@ -795,7 +818,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   );
   const partnersById = new Map(graph.partners.map(partner => [partner.id, partner]));
   const visiblePartnerIds = new Set(partners.map(partner => partner.id));
-  const visibleCompanies = graph.companies.filter(company => {
+  const visibleCompanies = isOverview ? [] : graph.companies.filter(company => {
     if (!selectedPartner) return company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
     return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
   });
@@ -825,12 +848,13 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   };
 
   for (const partner of partners) {
-    lines.push(`  ${partner.id}["${partnerLabel(partner)}"]`);
+    const cnpjCount = isOverview ? countPartnerCompanies(graph, partner.id) : undefined;
+    lines.push(`  ${partner.id}["${partnerLabel(partner, cnpjCount)}"]`);
     addEdge('Root', partner.id, rootToPartnerEdgeLabel(partner), partnerColorById.get(partner.id));
   }
 
   for (const company of visibleCompanies) {
-    lines.push(`  ${company.id}["${companyLabel(company, partnersById)}"]`);
+    lines.push(`  ${company.id}["${companyLabelCompact(company)}"]`);
     if (company.rootLinked) addEdge('Root', company.id, rootToCompanyEdgeLabel(company, graph.root), '#64748b');
     for (const partnerId of company.partnerIds) {
       if (visiblePartnerIds.has(partnerId)) {

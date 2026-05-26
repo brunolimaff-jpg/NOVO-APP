@@ -21,7 +21,7 @@ describe('SocietaryMap', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('renderiza Mermaid LR com QSA e drill-down do primeiro sócio', async () => {
+  it('renderiza Mermaid TD com QSA e drill-down do primeiro sócio', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -64,8 +64,7 @@ describe('SocietaryMap', () => {
       fireEvent.click(screen.getByText("Grafo"));
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Administrador Guilherme');
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Empresa internacional');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('País CO');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('estimado');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('oficial');
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
@@ -198,8 +197,8 @@ describe('SocietaryMap', () => {
     const secondBody = JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body));
     expect(secondBody.socioName).toBe('Luciano R. Scheffer');
     expect(screen.getByRole('button', { name: /Todos/i })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.'));
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A'));
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Guilherme'));
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Luciano'));
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte societaria');
 
@@ -395,7 +394,7 @@ describe('SocietaryMap', () => {
       fireEvent.click(screen.getByText("Grafo"));
 
     await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Fazenda Independente LTDA'));
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Sócio admin');
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('CNPJ 12.345.678/0001-95');
     expect(screen.getByTestId('mermaid-content')).not.toHaveTextContent('Root -- CNPJ relacionado');
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: Sócio admin');
@@ -456,7 +455,9 @@ describe('SocietaryMap', () => {
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
     await waitFor(() => expect(screen.getByText('E.Z.M.S. Participações Ltda')).toBeInTheDocument());
-    expect(screen.getByText('CNPJs encontrados').closest('div')?.parentElement).toHaveTextContent('1');
+    expect(screen.getByTestId('societary-summary-metrics')).toBeInTheDocument();
+    expect(screen.getByTestId('summary-metric-cnpjs-no-mapa')).toHaveTextContent('1');
+    expect(screen.queryByText('frentes estratégicas')).not.toBeInTheDocument();
     expect(screen.queryByText('empresas do grupo')).not.toBeInTheDocument();
     expect(screen.queryByText('CNPJs laterais')).not.toBeInTheDocument();
     expect(screen.queryByText('Laterais')).not.toBeInTheDocument();
@@ -590,9 +591,8 @@ describe('SocietaryMap', () => {
       fireEvent.click(screen.getByText("Grafo"));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent(/Agropecu[aá]ria Norte LTDA/));
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Associacao Scheffer de Lazer');
-    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Sócio admin');
+    await waitFor(() => expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Guilherme'));
+    expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Gislayne');
 
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent(/Agropecu[aá]ria Norte LTDA/);
@@ -687,8 +687,8 @@ describe('SocietaryMap', () => {
       fireEvent.click(screen.getByText("Grafo"));
 
     await waitFor(() => {
-      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Colombia S.A.S.');
-      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Scheffer Participações S/A');
+      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Guilherme');
+      expect(screen.getByTestId('mermaid-content')).toHaveTextContent('Luciano');
     });
   });
 

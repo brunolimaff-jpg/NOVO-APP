@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
+  countPartnerCompanies,
   describeSocietaryCompanyType,
   formatBranchBadgeLabel,
   formatSocietaryCnpj,
@@ -237,7 +238,6 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('CNPJ 11.222.333/0001-44*');
-    expect(mermaid).toContain('Validação pendente');
     expect(mermaid).toContain('class company_condominio_rural_x_br evidence;');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_condominio_rural_x_br');
     expect(mermaid).not.toContain('Root -- Vínculo ao grupo --> company_condominio_rural_x_br');
@@ -569,13 +569,11 @@ describe('societaryGraph', () => {
     expect(graph.companies).toHaveLength(1);
     expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Trading');
 
-    const mermaid = buildSocietaryMermaid(graph);
+    const mermaid = buildSocietaryMermaid(graph, { overviewOnly: false });
 
     expect(mermaid).toContain('Scheffer Trading LTDA');
     expect(mermaid).toContain('CNPJ 33.003.540/0001-88');
-    expect(mermaid).toContain('Trading');
     expect(mermaid).toContain('Root -- CNPJ relacionado --> company_33003540000188');
-    expect(mermaid).not.toContain('Empresa relacionada');
     expect(mermaid).not.toContain('Comercio exterior');
   });
 
@@ -640,6 +638,96 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('carolina -- Sócio admin -->');
   });
 
+  it('overview sem socio selecionado mostra apenas hub raiz-socios sem empresas', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer Agropecuária LTDA',
+          cnpj: '00111222000181',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte oficial do grupo',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    const overview = buildSocietaryMermaid(graph);
+    expect(overview).not.toContain('company_00111222000181');
+    expect(overview).not.toContain('Scheffer Agropecuária');
+    expect(overview).toContain('Root');
+    expect(overview).toContain('guilherme');
+    expect(overview).toContain('1 CNPJ');
+  });
+
+  it('countPartnerCompanies retorna contagem correta por socio', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Empresa A LTDA',
+          cnpj: '00111222000181',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+        {
+          name: 'Empresa B LTDA',
+          cnpj: '12345678000195',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    expect(countPartnerCompanies(graph, 'guilherme')).toBe(2);
+    expect(countPartnerCompanies(graph, 'carolina')).toBe(0);
+  });
+
+  it('drill-down com socio selecionado mostra empresas dele em modo compacto', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Scheffer Agropecuária LTDA',
+          cnpj: '00111222000181',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Fonte oficial do grupo',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'group_link',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    const drillDown = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+    expect(drillDown).toContain('company_00111222000181');
+    expect(drillDown).toContain('Scheffer Agropecuária LTDA');
+    expect(drillDown).toContain('CNPJ 00.111.222/0001-81');
+  });
+
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
     const graph = buildSocietaryGraph({
       root,
@@ -666,9 +754,8 @@ describe('societaryGraph', () => {
     expect(mermaid).toMatch(/^graph TD/);
     expect(mermaid).not.toMatch(/graph\s+(LR|TB)/);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
+    expect(mermaid).toContain('País CO');
     expect(mermaid).toContain('CNPJ 04.733.767/0001-80');
-    expect(mermaid).toContain('Administrador Guilherme');
-    expect(mermaid).toContain('Empresa internacional');
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
@@ -708,7 +795,7 @@ describe('societaryGraph', () => {
       ],
     });
 
-    const mermaid = buildSocietaryMermaid(graph);
+    const mermaid = buildSocietaryMermaid(graph, { overviewOnly: false });
 
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
     expect(mermaid).toContain('linkStyle 1 stroke:#0891b2');
@@ -770,10 +857,15 @@ describe('societaryGraph', () => {
     expect(selectedMermaid).not.toContain('Scheffer Logística e Administração LTDA');
     expect(selectedMermaid).not.toContain('Empresa Raiz Sem Socio LTDA');
 
-    const allMermaid = buildSocietaryMermaid(graph);
-    expect(allMermaid).toContain('Scheffer Trading LTDA');
-    expect(allMermaid).toContain('Scheffer Logística e Administração LTDA');
-    expect(allMermaid).toContain('Empresa Raiz Sem Socio LTDA');
+    const overviewMermaid = buildSocietaryMermaid(graph);
+    expect(overviewMermaid).toContain('Guilherme');
+    expect(overviewMermaid).toContain('Carolina');
+    expect(overviewMermaid).not.toContain('Scheffer Trading LTDA');
+    expect(overviewMermaid).not.toContain('Scheffer Logística e Administração LTDA');
+
+    const carolinaMermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'carolina' });
+    expect(carolinaMermaid).toContain('Scheffer Logística e Administração LTDA');
+    expect(carolinaMermaid).not.toContain('Scheffer Trading LTDA');
   });
 
   it('nao renderiza matriz ou filiais da propria raiz como empresas relacionadas', () => {
@@ -926,11 +1018,10 @@ describe('societaryGraph', () => {
     expect(graph.companies).toHaveLength(1);
     expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding');
 
-    const mermaid = buildSocietaryMermaid(graph);
+    const mermaid = buildSocietaryMermaid(graph, { overviewOnly: false });
 
     expect(mermaid).toContain('Scheffer Logística e Administração LTDA');
     expect(mermaid).toContain('CNPJ 10.536.467/0001-04');
-    expect(mermaid).toContain('Holding');
     expect(mermaid).not.toContain('Ligada ao grupo raiz');
     expect(mermaid).not.toContain('Holding / participacoes');
   });
