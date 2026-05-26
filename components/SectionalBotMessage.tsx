@@ -215,6 +215,15 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const displayText = useMemo(() => stripUnsafeSocietarySections(cleanText), [cleanText]);
   const sections = useMemo(() => parseMarkdownSections(displayText), [displayText]);
 
+  // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
+  // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
+  // a cada render, gerando novas referências que quebram o React.memo do MarkdownRenderer
+  // e forçam o react-markdown a re-parsear o markdown completo de cada seção.
+  const sectionSourcesMap = useMemo(
+    () => sections.map(section => filterSourcesForSection(auditableSources, section.content)),
+    [sections, auditableSources],
+  );
+
   const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
   const societaryMapSectionIndex = useMemo(
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
@@ -309,7 +318,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
         const isPrimaryModule = section.level === 1 && section.kind === 'module';
 
-        const sectionSources = filterSourcesForSection(auditableSources, section.content);
+        const sectionSources = sectionSourcesMap[idx] ?? [];
 
         const framedClass = sellerSectionClass || (
           isPrimaryModule

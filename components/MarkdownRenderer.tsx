@@ -20,6 +20,12 @@ import {
   cleanFakeSourcesBlock,
 } from '../utils/linkFixer';
 
+// Module-level constants prevent new array references on every render, which would
+// bypass react-markdown's internal memoisation and force a full re-parse each render.
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS_RAW = [rehypeRaw];
+const REHYPE_PLUGINS_NONE: never[] = [];
+
 export interface GroundingSource {
   title: string;
   url: string;
@@ -315,7 +321,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return restoreMermaid(text);
   }, [content, citationMap]);
 
-  const components: NonNullable<React.ComponentProps<typeof ReactMarkdown>['components']> = {
+  // useMemo prevents a new object reference on every render. Without this, ReactMarkdown
+  // would see new props on every render and re-run the full parse/transform pipeline.
+  const components: NonNullable<React.ComponentProps<typeof ReactMarkdown>['components']> = useMemo(() => ({
     pre: ({ children }: { children: React.ReactNode }) => {
       const childNodes = React.Children.toArray(children);
       if (childNodes.some(isMermaidCodeNode)) {
@@ -531,13 +539,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     td: ({ children }: { children: React.ReactNode }) => (
       <td className="px-3 py-2 align-top leading-relaxed text-slate-800 dark:text-slate-100">{children}</td>
     ),
-  };
+  }), [isDarkMode, citationMap, titleMap]);
 
   return (
     <div className="markdown-body">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={allowRawHtml ? [rehypeRaw] : []}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={allowRawHtml ? REHYPE_PLUGINS_RAW : REHYPE_PLUGINS_NONE}
         components={components}
       >
         {processedContent}

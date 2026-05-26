@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import React, { useState } from 'react';
 import SectionalBotMessage from '../../components/SectionalBotMessage';
 import { Message, Sender } from '../../types';
+import type { AuditableSource } from '../../utils/textCleaners';
 
 vi.mock('../../components/MarkdownRenderer', () => ({
   default: ({ content }: { content: string }) => <div>{content}</div>,
@@ -296,5 +298,60 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/Resumo executivo/)).toBeInTheDocument();
     expect(screen.getByText(/Mapas Visuais/)).toBeInTheDocument();
     expect(screen.getByText(/Próxima ação/)).toBeInTheDocument();
+  });
+
+  it('não recria referências de sectionSources entre re-renders quando message e auditableSources são estáveis (regressão freeze)', () => {
+    // Garante que sectionSourcesMap usa useMemo para evitar novas refs a cada render.
+    // Sem esse memoização, React.memo(MarkdownRenderer) falha e o react-markdown
+    // re-parseia o markdown completo a cada re-render, congelando a UI.
+    const capturedRefs: AuditableSource[][] = [];
+
+    const CapturingMarkdownRenderer = ({ auditableSources }: { content: string; auditableSources?: AuditableSource[] }) => {
+      capturedRefs.push(auditableSources ?? []);
+      return <div />;
+    };
+
+    vi.doMock('../../components/MarkdownRenderer', () => ({
+      default: CapturingMarkdownRenderer,
+    }));
+
+    const message: Message = {
+      id: 'bot-freeze',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: '## Seção A\nconteudo A\n\n## Seção B\nconteudo B',
+    };
+
+    const stableSources: AuditableSource[] = [];
+
+    // Wrapper que força re-render via mudança de estado não relacionada
+    const Wrapper = () => {
+      const [tick, setTick] = useState(0);
+      return (
+        <>
+          <button onClick={() => setTick(t => t + 1)}>tick {tick}</button>
+          <SectionalBotMessage
+            message={message}
+            isDarkMode={false}
+            auditableSources={stableSources}
+          />
+        </>
+      );
+    };
+
+    const { getByRole } = render(<Wrapper />);
+
+    const firstRefs = capturedRefs.slice();
+
+    act(() => { getByRole('button').click(); });
+
+    const secondRefs = capturedRefs.slice(firstRefs.length);
+
+    // As referências do segundo render devem ser idênticas (mesmos objetos) ao primeiro.
+    // Se forem diferentes, React.memo não funcionaria e o MarkdownRenderer re-renderizaria.
+    expect(secondRefs.length).toBe(firstRefs.length);
+    for (let i = 0; i < firstRefs.length; i++) {
+      expect(secondRefs[i]).toBe(firstRefs[i]);
+    }
   });
 });
