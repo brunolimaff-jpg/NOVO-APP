@@ -41,8 +41,8 @@ Termos proibidos para lateral:
 | 2026-05-24 | #280 | MERGED | Aprofundou pesquisa da teia e preparou busca reversa por socio. |
 | 2026-05-24 | #283 | MERGED | Consolidou prompts e anti-alucinacao. |
 | 2026-05-24 | #284 | MERGED | Fechou War Room RAG anti-alucinacao. |
-| 2026-05-25 | #285 | OPEN / validada tecnicamente | Integra CNPJ Aberto e matriz societaria; P0 semantico corrigido e documentado no fechamento. |
-| 2026-05-25 | #286 | OPEN | Links inline auditaveis; trilha complementar, nao corrige o P0. |
+| 2026-05-25 | #285 | MERGED | Integra CNPJ Aberto e matriz societaria; P0 semantico corrigido e documentado no fechamento. |
+| 2026-05-25 | #286 | MERGED | Links inline auditaveis; trilha complementar, validada depois da #285. |
 
 ## Correcoes exigidas
 
@@ -72,3 +72,9 @@ Atualizacao 17:05:
 - API via proxy local da preview retornou inventario lateral nao degradado.
 - Browser local validou matriz preenchida sem coluna/badge lateral e sem secoes textuais inseguras.
 - Fechamento atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
+
+Atualizacao 20:36:
+
+- PR #285 mergeada em `main` no commit `ed5c825`.
+- PR #286 mergeada em `main` no commit `0eb2935`.
+- Nao ha PR aberta no GitHub neste momento.

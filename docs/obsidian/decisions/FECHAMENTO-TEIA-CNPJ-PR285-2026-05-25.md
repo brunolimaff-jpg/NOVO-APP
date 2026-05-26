@@ -5,7 +5,14 @@
 **Branch:** `codex/cnpj-socios-todos-cnpjs`  
 **PR:** #285  
 **HEAD validado:** `2c9a976`  
-**Status:** validada tecnicamente; pronta para merge quando o owner confirmar a janela  
+**Status:** mergeada em `main` no commit `ed5c825`; PR #286 tambem mergeada em `0eb2935`
+
+## Atualizacao 20:36 — pos-merge
+
+- PR #285 foi mergeada em `main`: `ed5c825 feat: show partner CNPJs in societary map (#285)`.
+- PR #286 foi validada, corrigida, teve threads resolvidas e foi mergeada em `main`: `0eb2935 fix: distribuir links inline no texto para maior auditoria (#286)`.
+- `gh pr list --state open` retornou lista vazia.
+- Este documento permanece como registro do fechamento da Teia; proximas mudancas devem entrar em novo ciclo de reestruturacao, nao como hotfix escondido.
 
 ## Resumo executivo
 
@@ -73,8 +80,8 @@ Termos proibidos para lateral: `Proprias`, `Side business`, `veiculo operacional
 | #280 | MERGED | Deep research da Teia; aumentou profundidade e revelou necessidade de busca reversa. |
 | #283 | MERGED | Consolidacao de prompts e anti-alucinacao. |
 | #284 | MERGED | War Room RAG anti-alucinacao. |
-| #285 | OPEN no momento desta nota | Corrige busca por socios, matriz, contrato lateral e limpeza visual. |
-| #286 | OPEN | Links inline auditaveis; validar depois da #285 para evitar conflito de narrativa. |
+| #285 | MERGED | Corrige busca por socios, matriz, contrato lateral e limpeza visual. |
+| #286 | MERGED | Links inline auditaveis; validada depois da #285 e encerrada sem PR aberta. |
 
 ## Licoes aprendidas
 
@@ -101,7 +108,6 @@ Termos proibidos para lateral: `Proprias`, `Side business`, `veiculo operacional
 
 ### P1
 
-- Validar PR #286 contra o estado pos-merge da #285.
 - Configurar `SUPABASE_SERVICE_ROLE_KEY` na Preview geral ou branch da Teia para cache persistente server-side.
 - Criar smoke de preview que falhe quando todos os socios retornarem `companies: 0` ou quando `degraded: true` sem inventario util.
 - Revalidar Scheffer em preview remoto logado quando houver janela humana, apesar do fluxo local com proxy ja ter validado API e UI.

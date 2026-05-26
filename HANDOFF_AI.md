@@ -36,7 +36,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 
 ## Estado arquitetural atual
 
-> Atualizado em 2026-05-25 17:05 — **PR #285 saiu do bloqueio funcional.** O achado P0 continua como decisao duravel, mas o fluxo atual ja valida que CNPJ lateral nao vira empresa do grupo. PR #285 esta `CLEAN` no GitHub, com checks remotos verdes e validacao local via proxy da preview.
+> Atualizado em 2026-05-25 20:36 — **PR #285 e PR #286 foram mergeadas em `main`.** A Teia CNPJ saiu do bloqueio funcional, links inline auditaveis tambem foram fechados, e nao ha PR aberta no GitHub neste momento.
 
 ### Achado P0 atual — Teia CNPJ
 
@@ -46,6 +46,7 @@ Use este arquivo como ponto de entrada rapido para qualquer nova IA trabalhando 
 - Proibido usar lateral como `Proprias`, `Side business`, veiculo operacional do grupo, bioinsumos, verticalizacao, enterprise ou wedge Senior.
 - Fechamento atual: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
 - Historico completo: `docs/obsidian/daily/INDEX.md`.
+- Merges finais: #285 em `ed5c825`; #286 em `0eb2935`.
 - Validacao local final: recorte Vitest da teia (`88`), `validate-prompts.sh` (`59`), `typecheck`, `lint` com 5 warnings preexistentes, `build`; Browser local confirmou ausencia de `Outros CNPJs`, `Alertas`, `Vinculo...`, `Relação` e badge lateral na matriz.
 - Complemento pos-push: Vite proxy injeta `x-vercel-protection-bypass` quando `VERCEL_AUTOMATION_BYPASS_SECRET` existir no `.env.local`; API via proxy local retornou `15` empresas para `GUILHERME MOGNON SCHEFFER`, `degraded: false`, todas na amostra como `partner_other_cnpj`/`rootContext: false`. Browser local confirmou `18` CNPJs laterais na matriz apos alternar `Grafo -> Tabela`.
 
@@ -151,12 +152,11 @@ Para referencia, foram executados 7 ciclos de tentativa entre os commits `b8b905
 | 7 | Gemini Search Grounding v2 (URL-only) | Zero alucinacao, nao validado na preview | 6d49b28 |
 
 ### Problemas Residuais
-1. **PR #286 precisa ser validada depois da #285** — links inline auditaveis podem ter ficado desalinhados com a narrativa limpa da Teia.
-2. **Cache persistente da Teia** — `SUPABASE_SERVICE_ROLE_KEY` ainda precisa ser configurada na Preview geral/branch para cache server-side.
-3. **Smoke de preview mais forte** — automatizar falha quando todos os socios voltarem `companies: 0` ou payload degradado sem inventario util.
-4. **Reestruturacao da Teia** — consolidar tipos/contratos de API, parser, grafo, tabela e narrativa em um boundary de dominio.
-5. **Ordenacao por coluna e painel de evidencia** — funcionalidades futuras para SocietaryMatrix.
-6. **Bundle/chunk Mermaid** — warning conhecido no build, sem bloquear a #285.
+1. **Cache persistente da Teia** — `SUPABASE_SERVICE_ROLE_KEY` ainda precisa ser configurada na Preview geral/branch para cache server-side.
+2. **Smoke de preview mais forte** — automatizar falha quando todos os socios voltarem `companies: 0` ou payload degradado sem inventario util.
+3. **Reestruturacao da Teia** — consolidar tipos/contratos de API, parser, grafo, tabela e narrativa em um boundary de dominio.
+4. **Ordenacao por coluna e painel de evidencia** — funcionalidades futuras para SocietaryMatrix.
+5. **Bundle/chunk Mermaid** — warning conhecido no build, sem bloquear a #285/#286.
 
 ## Programa de refatoracao
 
@@ -308,20 +308,18 @@ Adicionado `scoutDiag.warn/error` em todos os catches que engoliam erros:
 
 ## Proximo passo seguro
 
-1. Subir documentacao de fechamento na PR #285 e aguardar checks.
-2. Mergear PR #285 em `main`.
-3. Validar PR #286 (`codex/inline-links-auditaveis`) contra o estado pos-merge da #285.
-4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente de `/api/socio-search`.
-5. Planejar a reestruturacao da Teia CNPJ como boundary de dominio unico.
-6. Refinar heuristica lateral com dados reais de outras empresas (alem de Scheffer).
-7. Iteracoes futuras na SocietaryMatrix: ordenacao por coluna, clique na linha para expandir detalhes de evidencia.
-8. Mergear branch `codex/standardize-mermaid-maps` em `main` quando voltar ao escopo Supabase.
-9. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery.
-10. **Problemas residuais (P2) de sessoes anteriores:**
+1. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente de `/api/socio-search`.
+2. Criar smoke de preview que falhe quando todos os socios voltarem `companies: 0` ou payload degradado sem inventario util.
+3. Planejar a reestruturacao da Teia CNPJ como boundary de dominio unico.
+4. Refinar heuristica lateral com dados reais de outras empresas alem de Scheffer.
+5. Iteracoes futuras na SocietaryMatrix: ordenacao por coluna, clique na linha para expandir detalhes de evidencia.
+6. Mergear branch `codex/standardize-mermaid-maps` em `main` quando voltar ao escopo Supabase.
+7. Testar fluxo completo: registrar com `@senior.com.br` (nome+sobrenome obrigatorio) -> criar dossier -> verificar dados no dashboard Supabase -> testar sync manual -> testar email recovery.
+8. **Problemas residuais (P2) de sessoes anteriores:**
    - Entidades internacionais sem link de auditoria — "Conexao INFERIDA" sem comprovacao documental
    - Mermaid no contrato e condicional ("quando houver dados"), deveria ser obrigatorio
-10. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
-11. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
+9. Quando houver demanda, planejar Fase 3 (Sprints 13-16: Modularizacao de Prompts).
+10. Pre-requisito para Sprints 13+: golden test baseline ja criado em `tests/prompts/megaPrompts.test.ts`.
 12. Repriorizar itens deferred: `mcp-server/`, observability (Sprints 21-24).
 
 ## Entrega anterior: Sprint 11 Onda 1C WarRoom
@@ -415,7 +413,7 @@ Licao aprendida:
 
 ## Riscos residuais imediatos
 
-- **Teia CNPJ pos-merge:** validar PR #286 contra a narrativa limpa da #285.
+- **Teia CNPJ pos-merge:** PR #285 e PR #286 foram mergeadas; risco atual e regressao futura sem smoke funcional forte.
 - **Heuristica lateral sem validacao cross-company:** a regra foi validada em Scheffer, mas precisa de segundo grupo economico.
 - **SocietaryMatrix sem ordenacao ou expand:** funcionalidades de UX postergadas para iteracoes futuras.
 - Ainda nao ha extractor server-side seguro de URL/PDF para Docs RAG; nao implementar sem protecao SSRF.

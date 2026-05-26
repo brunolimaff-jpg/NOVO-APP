@@ -4,6 +4,20 @@ Last updated: 2026-05-25
 
 ## Completed
 
+### Fechamento final PR #285 + PR #286 (2026-05-25 20:36)
+
+**Status:** ciclo fechado em `main`.
+
+**Merges:**
+- PR #285: `ed5c825 feat: show partner CNPJs in societary map (#285)`.
+- PR #286: `0eb2935 fix: distribuir links inline no texto para maior auditoria (#286)`.
+
+**GitHub:** `gh pr list --state open` retornou lista vazia depois dos merges.
+
+**Documentacao:** daily log, `HANDOFF_AI.md` e memoria repo-local atualizados para registrar o fechamento e as pendencias reais do proximo ciclo.
+
+**Pendencias remanescentes:** configurar `SUPABASE_SERVICE_ROLE_KEY` na Preview, fortalecer smoke de preview da Teia, planejar reestruturacao do modulo Teia CNPJ, retomar PR #266/UX quando essa trilha voltar.
+
 ### PR #285 mergeada + PR #286 validada localmente (2026-05-25 17:35)
 
 **Merge:** PR #285 foi mergeada em `main` por squash no commit `ed5c825`.
@@ -32,7 +46,7 @@ Last updated: 2026-05-25
 - Browser local: matriz exibiu 18 CNPJs laterais apos alternar `Grafo -> Tabela`, sem coluna `Relação`, sem badge `CNPJ lateral do socio`, sem secoes textuais inseguras.
 - Gates: `validate-prompts.sh`, recorte Vitest da teia, `typecheck`, `lint` e `build` verdes; warnings conhecidos permanecem fora do escopo.
 
-**Pendencias abertas:** validar PR #286 apos merge da #285; configurar `SUPABASE_SERVICE_ROLE_KEY`; criar smoke de preview mais forte; reestruturar Teia CNPJ como modulo de dominio.
+**Pendencias abertas:** configurar `SUPABASE_SERVICE_ROLE_KEY`; criar smoke de preview mais forte; reestruturar Teia CNPJ como modulo de dominio. A validacao da PR #286 foi concluida no fechamento de 20:36.
 
 ### Achado P0 Teia CNPJ + contrato lateral (2026-05-25 16:01)
 

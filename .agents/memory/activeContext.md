@@ -18,7 +18,15 @@ Read order:
 
 ## Current operating phase
 
-**Branch: `codex/inline-links-auditaveis` — PR #285 foi mergeada em `main` (`ed5c825`). A sessao atual valida e corrige a PR #286 sobre links inline auditaveis.**
+**Branch: `main` — PR #285 (`ed5c825`) e PR #286 (`0eb2935`) foram mergeadas. Nao ha PR aberta no GitHub neste momento.**
+
+### Atualizacao 2026-05-25 20:36 — fechamento final do ciclo
+
+- PR #285 mergeada: `ed5c825 feat: show partner CNPJs in societary map (#285)`.
+- PR #286 mergeada: `0eb2935 fix: distribuir links inline no texto para maior auditoria (#286)`.
+- `gh pr list --state open` retornou lista vazia.
+- Estado local: `main` alinhada com `origin/main`, sem arquivos modificados antes desta baixa documental final.
+- Pendencias que sobram para proximo ciclo: `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview, smoke de preview mais forte para inventario vazio/degradado, reestruturacao da Teia CNPJ como modulo de dominio, PR #266/UX quando voltar para essa trilha.
 
 ### Atualizacao 2026-05-25 17:35 — pos-merge da #285 e validacao da #286
 
@@ -34,7 +42,7 @@ Read order:
 - PR #285 esta `CLEAN` no GitHub com checks remotos verdes.
 - Fonte atual do fechamento: `docs/obsidian/decisions/FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25.md`.
 - Nenhum P0 conhecido continua bloqueando a #285 depois da validacao por proxy/local.
-- Pendencias principais apos merge: validar PR #286, configurar cache persistente com `SUPABASE_SERVICE_ROLE_KEY`, criar smoke de preview mais forte e planejar reestruturacao da Teia como modulo de dominio.
+- Status superado pelo fechamento de 20:36: #285 e #286 ja foram mergeadas. Pendencias atuais sao cache persistente, smoke de preview mais forte e reestruturacao da Teia como modulo de dominio.
 
 ### Atualizacao 2026-05-25 16:45 — limpeza visual final da Teia
 
@@ -145,7 +153,6 @@ Read order:
 
 | Prioridade | Problema | Arquivo/Modulo |
 |------------|----------|----------------|
-| P1 | Validar PR #286 depois do merge da #285 | GitHub / narrativa inline |
 | P1 | Heuristica de side business pode precisar refinamento com dados reais de outras empresas | features/dossier/societaryCategories.ts |
 | P1 | `SUPABASE_SERVICE_ROLE_KEY` nao configurada na Preview — cache persistente indisponivel | Vercel env / Supabase |
 | P1 | Smoke de preview deve falhar quando todos os socios retornarem `companies: 0` ou payload degradado sem inventario util | scripts / GitHub Actions |
@@ -157,8 +164,7 @@ Read order:
 
 ## Immediate next step
 
-1. Subir este fechamento documental na PR #285.
-2. Mergear PR #285 quando checks ficarem verdes.
-3. Validar PR #286 com `gh-resolve-pr-comments` e checar pendencias/checks.
-4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel para cache persistente.
-5. Planejar a reestruturacao da Teia CNPJ como proximo ciclo.
+1. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente de `/api/socio-search`.
+2. Criar smoke de preview que falhe quando o inventario da Teia voltar vazio/degradado.
+3. Planejar a reestruturacao da Teia CNPJ como boundary de dominio unico.
+4. Retomar PR #266/UX quando essa trilha voltar para prioridade.

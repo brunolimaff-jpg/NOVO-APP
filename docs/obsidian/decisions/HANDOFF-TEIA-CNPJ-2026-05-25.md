@@ -1,10 +1,10 @@
 ---
 title: "Handoff Teia CNPJ 2026-05-25"
 type: handoff
-status: validated-pending-merge
+status: merged
 projeto: "NOVO-APP"
 data: 2026-05-25
-branch: "codex/cnpj-socios-todos-cnpjs"
+branch: "main"
 pr: 285
 tags:
   - handoff
@@ -21,6 +21,8 @@ Voltar para [[DECISIONS-Index]] | [[LICOES-APRENDIDAS-TEIA-CNPJ-2026-05-24]] | [
 ## Resumo executivo
 
 Atualizacao 2026-05-25 17:05: o estado abaixo de bloqueio foi superado. A PR #285 (`codex/cnpj-socios-todos-cnpjs`) ficou tecnicamente validada no commit `2c9a976`: GitHub `CLEAN`, checks remotos verdes, API via proxy local da preview retornando inventario lateral nao degradado e browser local mostrando matriz preenchida sem textos inseguros.
+
+Atualizacao 2026-05-25 20:36: PR #285 foi mergeada em `main` no commit `ed5c825`; PR #286 foi mergeada em `main` no commit `0eb2935`; `gh pr list --state open` retornou lista vazia.
 
 Fonte atual de fechamento: [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]].
 
@@ -124,7 +126,7 @@ Resultado:
 
 ## Estado operacional
 
-- PR #285: continua aberta em `codex/cnpj-socios-todos-cnpjs`.
+- PR #285: status historico superado; mergeada em `main` no commit `ed5c825`.
 - O arquivo solto `HANDOFF_TEIA_CNPJ_2026-05-25_0834.md` foi consolidado nesta nota e nao deve ser usado como fonte atual.
 - `BRAVE_SEARCH_API_KEY` pode continuar cadastrada na Vercel, mas o runtime nao usa mais Brave.
 - `SUPABASE_SERVICE_ROLE_KEY` ainda precisa ser configurada para Preview geral ou especificamente para `codex/cnpj-socios-todos-cnpjs` para cache persistente de `/api/socio-search`.
@@ -341,9 +343,7 @@ content-type: application/json
 
 ## Proximos passos atuais
 
-1. Subir a documentacao de fechamento na PR #285.
-2. Mergear PR #285 depois dos checks.
-3. Validar PR #286 contra o estado pos-merge.
-4. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente.
-5. Atualizar smoke de preview para falhar quando todos os 6 socios retornarem `companies: 0` ou payload degradado sem inventario util.
-6. Planejar a reestruturacao da Teia CNPJ como boundary de dominio.
+1. Configurar `SUPABASE_SERVICE_ROLE_KEY` na Vercel Preview para cache persistente.
+2. Atualizar smoke de preview para falhar quando todos os 6 socios retornarem `companies: 0` ou payload degradado sem inventario util.
+3. Planejar a reestruturacao da Teia CNPJ como boundary de dominio.
+4. Retomar PR #266/UX quando essa trilha voltar para prioridade.
