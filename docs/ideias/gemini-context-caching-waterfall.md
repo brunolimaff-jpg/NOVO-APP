@@ -17,7 +17,8 @@ Com a flag desligada (default), o waterfall mantém o comportamento anterior (sy
 
 - Cache explicit por dossiê: `SHARED_FOUNDATION_BLOCK` + contexto estático (seed, lookup CRM, Senior, teia).
 - Contexto dinâmico (accumulated text, hints) vai em `contents` de cada módulo.
-- `googleSearch` permanece por request — resultados de grounding **não** são cacheados.
+- `googleSearch` é definido no **`caches.create`** (API não permite `tools` no `generateContent` com `cachedContent`).
+- Resultados de grounding **não** são cacheados — só a definição da tool no cache.
 - TTL: **600s**; delete best-effort no `finally` do waterfall.
 - Observabilidade: `usageMetadata` propagado da API até logs `DossierModule`.
 
@@ -84,7 +85,7 @@ TTL configurado em **600s** (`WATERFALL_FOUNDATION_CACHE_TTL`) — waterfall + t
 ## Limitações v1
 
 - Escopo: waterfall modular apenas (não chat principal / investigação conversacional).
-- Grounding: tool `googleSearch` por request; resultados de busca **não** entram no cache.
+- Grounding: `googleSearch` no `caches.create`; generate com cache não envia `tools`; resultados de busca **não** entram no cache.
 - Fallback: se `createCachedContent` falhar, waterfall continua com `systemInstruction` monolítico.
 - Fora de escopo: LLMLingua, smoke Teia, alteração de conteúdo em `prompts/mega/*`.
 

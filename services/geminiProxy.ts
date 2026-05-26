@@ -43,6 +43,7 @@ interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {
   systemInstruction: string;
   ttl?: string;
   displayName?: string;
+  tools?: unknown[];
 }
 
 interface GeminiCreateCachedContentResponse {

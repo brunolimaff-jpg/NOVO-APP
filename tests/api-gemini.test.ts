@@ -338,7 +338,7 @@ describe('api/gemini handler', () => {
     expect(createCacheMock).not.toHaveBeenCalled();
   });
 
-  it('cria cached content quando foundation cache está habilitado', async () => {
+  it('cria cached content com tools quando foundation cache está habilitado', async () => {
     process.env.GEMINI_FOUNDATION_CACHE_ENABLED = '1';
     createCacheMock.mockResolvedValueOnce({
       name: 'cachedContents/test-cache',
@@ -354,6 +354,7 @@ describe('api/gemini handler', () => {
         model: 'gemini-3-flash-preview',
         systemInstruction: 'foundation + static context',
         ttl: '600s',
+        tools: [{ googleSearch: {} }],
       },
     } as VercelRequest;
 
@@ -370,6 +371,7 @@ describe('api/gemini handler', () => {
         config: expect.objectContaining({
           systemInstruction: 'foundation + static context',
           ttl: '600s',
+          tools: [{ googleSearch: {} }],
         }),
       }),
     );
@@ -416,11 +418,11 @@ describe('api/gemini handler', () => {
       expect.objectContaining({
         config: expect.objectContaining({
           cachedContent: 'cachedContents/test-cache',
-          tools: [{ googleSearch: {} }],
         }),
       }),
     );
     expect(generateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
+    expect(generateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'ok',
