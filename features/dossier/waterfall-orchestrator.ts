@@ -452,6 +452,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             signal,
           });
         } catch (error) {
+          if (isAbortLikeError(error)) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -851,7 +852,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       completeLoadingProgress();
       } finally {
-        await deleteWaterfallFoundationCache(foundationCacheName, signal);
+        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
+        await deleteWaterfallFoundationCache(foundationCacheName);
       }
     },
     [

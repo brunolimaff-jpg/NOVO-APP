@@ -423,10 +423,8 @@ describe('useDossierWaterfallOrchestrator', () => {
     });
 
     expect(createWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
-    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith(
-      'cachedContents/test-cache',
-      expect.any(AbortSignal),
-    );
+    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
+    expect(deleteWaterfallFoundationCacheMock.mock.calls[0]).toEqual(['cachedContents/test-cache']);
     expect(generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache')).toBe(true);
     expect(reconcileWaterfallPortaMock).toHaveBeenCalledWith(
       expect.objectContaining({
