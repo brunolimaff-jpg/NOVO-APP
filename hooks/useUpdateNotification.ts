@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { CHUNK_RELOAD_PENDING_KEY } from '../utils/chunkRetry';
 
 interface VersionInfo {
   version: string;
@@ -11,6 +12,7 @@ const STORAGE_KEY_SNOOZE = 'update_snooze_until';
 const STORAGE_KEY_CURRENT_VERSION = 'current_app_version';
 const CHECK_INTERVAL_DAYS = 3;
 const SNOOZE_DURATION_MS = 1 * 60 * 60 * 1000; // 1 hora
+const FOCUS_CHECK_THROTTLE_MS = 30 * 60 * 1000; // 30 min entre checks no focus
 
 export interface UpdateAvailableEvent {
   currentVersion: string;
@@ -78,9 +80,14 @@ export function useUpdateNotification() {
     return Date.now() < snoozeUntilMs;
   }, []);
 
+  const lastFocusCheckRef = useRef(0);
+
   // Verificar versão no servidor
-  const checkForUpdates = useCallback(async () => {
-    if (!shouldCheck() || isSnoozed()) return;
+  const checkForUpdates = useCallback(async (options?: { force?: boolean; ignoreSnooze?: boolean }) => {
+    const skipInterval = options?.force ?? false;
+    const skipSnooze = options?.ignoreSnooze ?? false;
+    if (!skipInterval && !shouldCheck()) return;
+    if (!skipSnooze && isSnoozed()) return;
 
     try {
       setIsChecking(true);
@@ -132,9 +139,36 @@ export function useUpdateNotification() {
     }
   }, [shouldCheck, isSnoozed]);
 
-  // Executar check no mount
+  // Executar check no mount (forçado após reload por chunk stale)
   useEffect(() => {
-    checkForUpdates();
+    let pendingChunkReload = false;
+    try {
+      pendingChunkReload =
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY) === '1';
+    } catch {
+      // sessionStorage indisponivel em contextos restritos (cross-origin iframe etc.)
+    }
+    if (pendingChunkReload) {
+      try { window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY); } catch {}
+    }
+    if (pendingChunkReload) {
+      void checkForUpdates({ force: true, ignoreSnooze: true });
+    } else {
+      void checkForUpdates();
+    }
+  }, [checkForUpdates]);
+
+  // Revalidar versão quando a aba volta ao foco (throttle 30 min)
+  useEffect(() => {
+    const onFocus = () => {
+      const now = Date.now();
+      if (now - lastFocusCheckRef.current < FOCUS_CHECK_THROTTLE_MS) return;
+      lastFocusCheckRef.current = now;
+      void checkForUpdates({ force: true });
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [checkForUpdates]);
 
   // Sincronizar entre abas via StorageEvent

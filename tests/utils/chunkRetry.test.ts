@@ -1,6 +1,20 @@
 // tests/utils/chunkRetry.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { loadWithChunkRetry } from '../../utils/chunkRetry';
+import {
+  CHUNK_RELOAD_PENDING_KEY,
+  isChunkLoadError,
+  loadWithChunkRetry,
+} from '../../utils/chunkRetry';
+
+describe('isChunkLoadError', () => {
+  it('detecta falha de import dinâmico do Vite', () => {
+    expect(isChunkLoadError(new Error('Failed to fetch dynamically imported module'))).toBe(true);
+  });
+
+  it('ignora erros genéricos', () => {
+    expect(isChunkLoadError(new Error('Network down'))).toBe(false);
+  });
+});
 
 describe('loadWithChunkRetry', () => {
   beforeEach(() => {
@@ -56,6 +70,7 @@ describe('loadWithChunkRetry', () => {
     await Promise.resolve();
 
     expect(sessionStorage.getItem('scout-chunk-reload-attempted')).toBe('1');
+    expect(sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY)).toBe('1');
     expect(reloadMock).toHaveBeenCalledOnce();
 
     // Promise should not resolve/reject (it's pending after reload trigger)

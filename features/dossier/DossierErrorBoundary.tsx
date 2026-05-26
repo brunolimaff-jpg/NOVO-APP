@@ -4,6 +4,7 @@ import {
   generateUiErrorId,
   persistUiErrorAudit,
 } from '../../utils/errorBoundaryAudit';
+import { isChunkLoadError } from '../../utils/chunkRetry';
 
 interface DossierErrorBoundaryProps {
   children: React.ReactNode;
@@ -62,6 +63,7 @@ export class DossierErrorBoundary extends React.Component<
       variant === 'overlay'
         ? 'pointer-events-auto max-w-lg'
         : 'max-w-3xl';
+    const isStaleChunk = isChunkLoadError(this.state.error);
 
     return (
       <div data-testid="dossier-error-boundary" className={shellClass}>
@@ -71,30 +73,50 @@ export class DossierErrorBoundary extends React.Component<
             isDarkMode ? 'border-amber-700/50 bg-slate-900 text-slate-100' : 'border-amber-200 bg-amber-50 text-slate-900'
           }`}
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">Dossier fallback</p>
-          <p className="mt-2 text-sm font-semibold">Nao foi possivel renderizar este bloco do dossier.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
+            {isStaleChunk ? 'Nova versão publicada' : 'Dossier fallback'}
+          </p>
+          <p className="mt-2 text-sm font-semibold">
+            {isStaleChunk
+              ? 'O app foi atualizado enquanto você usava esta aba.'
+              : 'Nao foi possivel renderizar este bloco do dossier.'}
+          </p>
           <p className={`mt-1 text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-            O restante do chat continua disponivel. Remonte apenas este trecho ou recarregue o app se o problema persistir.
+            {isStaleChunk
+              ? 'Recarregue para baixar os arquivos novos. O chat e a investigação em andamento podem continuar após o reload.'
+              : 'O restante do chat continua disponivel. Remonte apenas este trecho ou recarregue o app se o problema persistir.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={this.handleRetry}
-              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
-            >
-              Tentar novamente
-            </button>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                isDarkMode
-                  ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
-                  : 'border-slate-300 text-slate-700 hover:bg-white'
-              }`}
-            >
-              Recarregar app
-            </button>
+            {isStaleChunk ? (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+              >
+                Recarregar app
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={this.handleRetry}
+                  className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-amber-400"
+                >
+                  Tentar novamente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    isDarkMode
+                      ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                      : 'border-slate-300 text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  Recarregar app
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
-const CHUNK_RELOAD_GUARD_KEY = 'scout-chunk-reload-attempted';
+export const CHUNK_RELOAD_GUARD_KEY = 'scout-chunk-reload-attempted';
+export const CHUNK_RELOAD_PENDING_KEY = 'scout-chunk-reload-pending';
 
-function isChunkLoadError(error: unknown): boolean {
+export function isChunkLoadError(error: unknown): boolean {
   const message = String((error as { message?: string })?.message || error || '');
   return /ChunkLoadError|Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk [\d]+ failed/i.test(
     message,
@@ -22,6 +23,9 @@ export async function loadWithChunkRetry<T>(loader: () => Promise<T>): Promise<T
       const hasRetried = window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY) === '1';
       if (!hasRetried) {
         window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1');
+        window.sessionStorage.setItem(CHUNK_RELOAD_PENDING_KEY, '1');
+        // Reservado para futuro uso em analytics/telemetria de chunk errors
+        window.dispatchEvent(new CustomEvent('scout:chunk-reload'));
         window.location.reload();
         return new Promise<T>(() => {});
       }
