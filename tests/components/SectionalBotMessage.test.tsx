@@ -300,6 +300,57 @@ describe('SectionalBotMessage', () => {
     expect(screen.getByText(/Próxima ação/)).toBeInTheDocument();
   });
 
+  it('remove bloco mermaid e heading MAPA DE PODER SOCIETÁRIO do MarkdownRenderer na seção teia', () => {
+    // O SocietaryMap já renderiza o grafo interativo.
+    // O MarkdownRenderer NÃO deve receber o bloco ```mermaid``` nem o heading duplicado.
+    // O mock top-level de MarkdownRenderer renderiza o content como texto no DOM,
+    // portanto podemos verificar que ```mermaid NÃO aparece no DOM da seção teia.
+
+    const message: Message = {
+      id: 'bot-teia-strip',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '## Mapa de poder societario',
+        '',
+        'Análise da teia societária da empresa.',
+        '',
+        '### MAPA DE PODER SOCIETÁRIO',
+        '',
+        'Este diagrama representa os vínculos societários identificados.',
+        '',
+        '```mermaid',
+        'graph LR',
+        '  A["Empresa Raiz"] --> B["Filial 1"]',
+        '  A --> C["Filial 2"]',
+        '```',
+        '',
+        '### Detalhes dos sócios',
+        '',
+        'Guilherme M. Scheffer — participação majoritária.',
+      ].join('\n'),
+    };
+
+    const { container } = render(
+      <SectionalBotMessage
+        message={message}
+        isDarkMode={false}
+        empresaAlvo="Scheffer & Cia"
+        cnpj="04733767000180"
+      />,
+    );
+
+    // SocietaryMap deve ter sido renderizado
+    expect(screen.getByTestId('societary-map')).toBeInTheDocument();
+
+    // O DOM não deve conter o bloco mermaid raw (stripped antes de chegar ao MarkdownRenderer)
+    expect(container.textContent).not.toMatch(/```mermaid/i);
+    // O heading duplicado também deve ter sido removido do DOM
+    expect(container.textContent).not.toMatch(/MAPA DE PODER SOCIETÁRIO/);
+    // Conteúdo legítimo posterior ao heading deve ser preservado
+    expect(screen.getByText(/Guilherme M. Scheffer/)).toBeInTheDocument();
+  });
+
   it('não recria referências de sectionSources entre re-renders quando message e auditableSources são estáveis (regressão freeze)', () => {
     // Garante que sectionSourcesMap usa useMemo para evitar novas refs a cada render.
     // Sem esse memoização, React.memo(MarkdownRenderer) falha e o react-markdown

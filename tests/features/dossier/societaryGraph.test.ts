@@ -753,7 +753,45 @@ describe('societaryGraph', () => {
     expect(drillDown).toContain('CNPJ 00.111.222/0001-81');
   });
 
-  it('quebra empresas do socio em multiplas linhas quando ha mais de 3 CNPJs', () => {
+  it('quebra empresas do socio em subgraphs de 2 quando ha entre 3 e 6 CNPJs', () => {
+    const validCnpjs = [
+      '10111111000129',
+      '10222222000102',
+      '10333333000196',
+      '10444444000170',
+    ];
+    const companies = validCnpjs.map((cnpj, index) => ({
+      name: `Empresa Vinculada ${index + 1} LTDA`,
+      cnpj,
+      partnerName: 'Guilherme M. Scheffer',
+      sourceTitle: 'Consulta Sócio',
+      sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      snippet: 'Guilherme M. Scheffer consta como sócio administrador.',
+      confidence: 'strong' as const,
+      evidenceType: 'qsa' as const,
+      relationshipScope: 'group_link' as const,
+      rootContext: true,
+      rootCompanyName: 'Scheffer & Cia Ltda',
+      rootCnpj: '04733767000180',
+    }));
+
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies,
+    });
+
+    expect(graph.companies).toHaveLength(4);
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+
+    expect(mermaid).toMatch(/^graph TD/);
+    expect(mermaid).toContain('subgraph sg_row_0');
+    expect(mermaid).toContain('subgraph sg_row_1');
+    expect(mermaid).toContain('direction LR');
+  });
+
+  it('forca layout vertical plano quando ha mais de 6 CNPJs no drill-down', () => {
     const validCnpjs = [
       '10111111000129',
       '10222222000102',
@@ -789,10 +827,8 @@ describe('societaryGraph', () => {
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
 
     expect(mermaid).toMatch(/^graph TD/);
-    expect(mermaid).toContain('subgraph sg_row_0');
-    expect(mermaid).toContain('subgraph sg_row_1');
-    expect(mermaid).toContain('subgraph sg_row_2');
-    expect(mermaid).toContain('direction LR');
+    expect(mermaid).not.toContain('subgraph sg_row_0');
+    expect(mermaid).toContain('%% title: Empresa Vinculada 1 LTDA');
   });
 
   it('gera Mermaid sempre em LR para o socio selecionado', () => {

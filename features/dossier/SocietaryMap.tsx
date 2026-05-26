@@ -125,6 +125,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
   const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
+  const [debouncedMermaid, setDebouncedMermaid] = useState<string>('');
+  const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const mermaidDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
 
@@ -295,10 +299,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       let truncatedNotice: string | null = null;
       let degradedNotice: string | null = null;
       const batchStartedAt = performance.now();
+      const totalPartners = rootData!.partners.length;
+      if (!cancelled) setDrillProgress({ done: 0, total: totalPartners });
       trace('drill-down de socios iniciado', {
         rootName,
         rootCnpj,
-        partnersCount: rootData!.partners.length,
+        partnersCount: totalPartners,
         partners: rootData!.partners.map(partner => partner.name),
         uiCommitStrategy: 'incremental_per_partner',
       });
@@ -309,7 +315,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
 
         loadingPartnerKeysRef.current[partnerKey] = true;
-        if (!cancelled) setLoadingPartnerKey(partnerKey);
 
         try {
           const startedAt = performance.now();
@@ -367,6 +372,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             collected[partnerKey] = partnerCompanies;
             rejected.push(...partnerRejected);
             searchedPartnerKeysRef.current[partnerKey] = true;
+            const doneCount = Object.keys(collected).length;
+            setDrillProgress({ done: doneCount, total: totalPartners });
             setCompaniesByPartner(previous => ({
               ...previous,
               [partnerKey]: partnerCompanies,
@@ -401,11 +408,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           }
         } finally {
           delete loadingPartnerKeysRef.current[partnerKey];
-          if (!cancelled) setLoadingPartnerKey(null);
         }
       }
 
       if (!cancelled) {
+        setDrillProgress(null);
+        setLoadingPartnerKey(null);
         trace('drill-down de socios consolidado', {
           totalElapsedMs: Number((performance.now() - batchStartedAt).toFixed(1)),
           uiCommitStrategy: 'incremental_per_partner',
@@ -538,6 +546,21 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     return buildSocietaryMermaid(graph, { selectedPartnerId: selectedPartner?.id });
   }, [graph, selectedPartner]);
 
+  // Debounce mermaid rebuild only during active drill-down to avoid SVG flicker from
+  // rapid incremental API responses. Partner selection changes must update immediately.
+  useEffect(() => {
+    if (mermaidDebounceRef.current) clearTimeout(mermaidDebounceRef.current);
+    if (drillProgress !== null) {
+      mermaidDebounceRef.current = setTimeout(() => {
+        setDebouncedMermaid(mermaid);
+      }, 350);
+      return () => {
+        if (mermaidDebounceRef.current) clearTimeout(mermaidDebounceRef.current);
+      };
+    }
+    setDebouncedMermaid(mermaid);
+  }, [mermaid, drillProgress]);
+
   if (state === 'idle') return null;
 
   const shellClass = isDarkMode
@@ -609,8 +632,18 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         <p className="text-xs text-slate-500">Montando teia societaria...</p>
       ) : null}
 
-      {loadingPartnerKey ? (
-        <p className="mb-3 text-xs text-slate-500">Buscando conexoes do socio selecionado...</p>
+      {drillProgress && drillProgress.total > 0 ? (
+        <div className="mb-3" aria-label={`Buscando sócios: ${drillProgress.done} de ${drillProgress.total}`}>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>{drillProgress.done}/{drillProgress.total} sócios</span>
+            <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 4 }}>
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                style={{ width: `${Math.round((drillProgress.done / drillProgress.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {notice ? <p className="mb-3 text-xs text-slate-500">{notice}</p> : null}
@@ -636,12 +669,42 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         />
       ) : (
         <>
-          {mermaid ? (
+          {debouncedMermaid ? (
             <div
-              className="max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-900/30"
+              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
               data-testid="societary-mermaid-shell"
             >
-              <MarkdownRenderer content={`\`\`\`mermaid\n${mermaid}\n\`\`\``} isDarkMode={isDarkMode} />
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Diminuir zoom"
+                  onClick={() => setZoomLevel(z => Math.max(0.4, z - 0.2))}
+                  className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  aria-label="Aumentar zoom"
+                  onClick={() => setZoomLevel(z => Math.min(2.5, z + 0.2))}
+                  className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  +
+                </button>
+                {zoomLevel !== 1 ? (
+                  <button
+                    type="button"
+                    aria-label="Resetar zoom"
+                    onClick={() => setZoomLevel(1)}
+                    className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-500 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                  >
+                    {Math.round(zoomLevel * 100)}%
+                  </button>
+                ) : null}
+              </div>
+              <div style={{ zoom: zoomLevel }}>
+                <MarkdownRenderer content={`\`\`\`mermaid\n${debouncedMermaid}\n\`\`\``} isDarkMode={isDarkMode} variant="compact" />
+              </div>
             </div>
           ) : null}
           {!selectedPartner && graph && graph.partners.length > 1 ? (
