@@ -753,6 +753,48 @@ describe('societaryGraph', () => {
     expect(drillDown).toContain('CNPJ 00.111.222/0001-81');
   });
 
+  it('quebra empresas do socio em multiplas linhas quando ha mais de 3 CNPJs', () => {
+    const validCnpjs = [
+      '10111111000129',
+      '10222222000102',
+      '10333333000196',
+      '10444444000170',
+      '10555555000153',
+      '10666666000137',
+      '10777777000110',
+    ];
+    const companies = validCnpjs.map((cnpj, index) => ({
+      name: `Empresa Vinculada ${index + 1} LTDA`,
+      cnpj,
+      partnerName: 'Guilherme M. Scheffer',
+      sourceTitle: 'Consulta Sócio',
+      sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      snippet: 'Guilherme M. Scheffer consta como sócio administrador.',
+      confidence: 'strong' as const,
+      evidenceType: 'qsa' as const,
+      relationshipScope: 'group_link' as const,
+      rootContext: true,
+      rootCompanyName: 'Scheffer & Cia Ltda',
+      rootCnpj: '04733767000180',
+    }));
+
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies,
+    });
+
+    expect(graph.companies).toHaveLength(7);
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
+
+    expect(mermaid).toMatch(/^graph TD/);
+    expect(mermaid).toContain('subgraph sg_row_0');
+    expect(mermaid).toContain('subgraph sg_row_1');
+    expect(mermaid).toContain('subgraph sg_row_2');
+    expect(mermaid).toContain('direction LR');
+  });
+
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
     const graph = buildSocietaryGraph({
       root,
@@ -776,8 +818,7 @@ describe('societaryGraph', () => {
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
 
-    expect(mermaid).toMatch(/^graph TD/);
-    expect(mermaid).not.toMatch(/graph\s+(LR|TB)/);
+    expect(mermaid).toMatch(/^graph LR/);
     expect(mermaid).toContain('Scheffer Colombia S.A.S.');
     expect(mermaid).toContain('País CO');
     expect(mermaid).toContain('CNPJ 04.733.767/0001-80');

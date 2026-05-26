@@ -637,7 +637,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       ) : (
         <>
           {mermaid ? (
-            <div className="overflow-x-auto">
+            <div
+              className="max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-900/30"
+              data-testid="societary-mermaid-shell"
+            >
               <MarkdownRenderer content={`\`\`\`mermaid\n${mermaid}\n\`\`\``} isDarkMode={isDarkMode} />
             </div>
           ) : null}

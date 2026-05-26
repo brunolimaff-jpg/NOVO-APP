@@ -124,6 +124,18 @@ const PARTNER_EDGE_COLORS = [
   '#ea580c',
 ];
 
+/** Máximo de empresas por linha no grafo drill-down antes de quebrar em subgraphs. */
+export const SOCIETARY_MERMAID_COMPANIES_PER_ROW = 3;
+
+function chunkArray<T>(items: readonly T[], size: number): T[][] {
+  if (size <= 0) return [Array.from(items)];
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 function normalizeText(value: string): string {
   return (value || '')
     .normalize('NFD')
@@ -726,6 +738,8 @@ function partnerLabel(partner: SocietaryPartner, cnpjCount?: number): string {
 }
 
 function companyLabelCompact(company: SocietaryCompany): string {
+  const displayName = formatCompanyDisplayName(company.name);
+  const shortName = displayName.length > 42 ? `${displayName.slice(0, 39).trimEnd()}…` : displayName;
   const cnpjLine = company.rawCnpjLabel
     ? `CNPJ ${escapeMermaidLabel(company.rawCnpjLabel)}`
     : company.cnpj
@@ -734,7 +748,7 @@ function companyLabelCompact(company: SocietaryCompany): string {
         ? `País ${escapeMermaidLabel(company.country)}`
         : '';
   return [
-    `<b>${escapeMermaidLabel(formatCompanyDisplayName(company.name))}</b>`,
+    `<b>${escapeMermaidLabel(shortName)}</b>`,
     cnpjLine,
   ].filter(Boolean).join('<br/>');
 }
@@ -851,8 +865,15 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     if (!selectedPartner) return company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
     return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
   });
+  const useMultiRowLayout = !isOverview
+    && visibleCompanies.length > SOCIETARY_MERMAID_COMPANIES_PER_ROW;
+  const graphDirection = isOverview
+    ? 'graph TD'
+    : useMultiRowLayout
+      ? 'graph TD'
+      : 'graph LR';
   const lines = [
-    'graph TD',
+    graphDirection,
     '  classDef root fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;',
     '  classDef partner fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#3b0764;',
     '  classDef selected fill:#ede9fe,stroke:#6d28d9,stroke-width:2.5px,color:#2e1065;',
@@ -882,8 +903,7 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     addEdge('Root', partner.id, rootToPartnerEdgeLabel(partner), partnerColorById.get(partner.id));
   }
 
-  for (const company of visibleCompanies) {
-    lines.push(`  ${company.id}["${companyLabelCompact(company)}"]`);
+  const appendCompanyEdges = (company: SocietaryCompany) => {
     if (company.rootLinked) addEdge('Root', company.id, rootToCompanyEdgeLabel(company, graph.root), '#64748b');
     for (const partnerId of company.partnerIds) {
       if (visiblePartnerIds.has(partnerId)) {
@@ -894,6 +914,26 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
           partnerColorById.get(partnerId),
         );
       }
+    }
+  };
+
+  if (useMultiRowLayout) {
+    const rows = chunkArray(visibleCompanies, SOCIETARY_MERMAID_COMPANIES_PER_ROW);
+    rows.forEach((rowCompanies, rowIndex) => {
+      lines.push(`  subgraph sg_row_${rowIndex}[" "]`);
+      lines.push('    direction LR');
+      for (const company of rowCompanies) {
+        lines.push(`    ${company.id}["${companyLabelCompact(company)}"]`);
+      }
+      lines.push('  end');
+    });
+    for (const company of visibleCompanies) {
+      appendCompanyEdges(company);
+    }
+  } else {
+    for (const company of visibleCompanies) {
+      lines.push(`  ${company.id}["${companyLabelCompact(company)}"]`);
+      appendCompanyEdges(company);
     }
   }
 
