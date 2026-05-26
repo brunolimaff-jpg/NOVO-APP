@@ -174,11 +174,11 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   const metrics = useMemo(() => {
     const companies = classified.map(row => row.company);
     const cnpjsTotais = countTotalCnpjs(companies);
-    const filiais = countBranchEstablishments(companies);
+    const filiais = countBranchEstablishments(companies) + graph.rootBranchCount;
     const emComum = classified.filter(c => c.category === 'em_comum').length;
     const proprias = classified.filter(c => c.category === 'proprias').length;
     return { cnpjsTotais, filiais, em_comum: emComum, proprias };
-  }, [classified]);
+  }, [classified, graph.rootBranchCount]);
 
   const visibleRows = useMemo<ClassifiedRow[]>(() => {
     let rows = classified;

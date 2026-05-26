@@ -95,6 +95,7 @@ export interface SocietaryGraph {
   partners: SocietaryPartner[];
   companies: SocietaryCompany[];
   rejectedCompanies: RejectedSocietaryCompany[];
+  rootBranchCount: number;
 }
 
 export interface BuildSocietaryGraphInput {
@@ -512,6 +513,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
   const rejectedCompanies: RejectedSocietaryCompany[] = [];
   const companiesByKey = new Map<string, SocietaryCompany>();
+  let rootBranchCount = 0;
 
   for (const company of input.companies || []) {
     const normalizedPartnerName = normalizeText(company.partnerName);
@@ -546,6 +548,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
     if (isRootEstablishment(company, input.root)) {
       rejectedCompanies.push({ input: company, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
+      rootBranchCount++;
       continue;
     }
 
@@ -650,6 +653,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       if (isRootEstablishment(geminiCandidate, input.root)) {
         rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
+        rootBranchCount++;
         continue;
       }
 
@@ -728,6 +732,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     partners,
     companies,
     rejectedCompanies,
+    rootBranchCount,
   };
 }
 
