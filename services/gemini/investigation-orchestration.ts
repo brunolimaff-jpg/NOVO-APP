@@ -729,7 +729,6 @@ export async function generateDossierModule(
                 cachedContent: options.foundationCacheName,
                 temperature: options.temperature ?? 0.2,
                 maxOutputTokens: 8192,
-                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
               }
             : {
                 systemInstruction: finalPrompt,

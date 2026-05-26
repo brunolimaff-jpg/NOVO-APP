@@ -23,8 +23,8 @@ Cada módulo (7–9 chamadas) envia só o prompt dinâmico (specialist + accumul
 ```
 runMegaPromptWaterfall
   → buildStaticDossierContext(seed, lookup, senior, teia)
-  → createWaterfallFoundationCache (TTL 600s)
-  → loop módulos: generateDossierModule(..., foundationCacheName)
+  → createWaterfallFoundationCache (TTL 600s, tools: googleSearch no create)
+  → loop módulos: generateDossierModule(..., foundationCacheName) — generate sem tools no payload
   → reconcileWaterfallPorta (mesmo cacheName)
   → finally: deleteWaterfallFoundationCache
 ```
@@ -43,7 +43,9 @@ Logs `[Scout360][DossierModule]` com `usageMetadata` — procurar `cachedContent
 
 ## Grounding
 
-`googleSearch` continua **por request**. Resultados de busca não são persistidos no cache (regra do projeto: Search Grounding nunca cachear).
+`googleSearch` é registrado no **`createCachedContent`** (junto com foundation + contexto estático). Cada `generateContent` usa só `cachedContent` + `contents` — a API Gemini rejeita `tools` no generate quando há cache.
+
+Resultados de busca **não** são persistidos no cache (regra do projeto: Search Grounding nunca cachear). Reconciliação PORTA usa o mesmo cache e pode acionar grounding se o modelo decidir buscar.
 
 ## Arquivos principais
 
