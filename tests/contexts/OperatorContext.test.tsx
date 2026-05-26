@@ -1,21 +1,34 @@
 import React from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+const saveUserContextMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../services/storage', () => ({
+  storage: {
+    saveUserContext: saveUserContextMock,
+  },
+}));
+
 import {
   OperatorProvider,
   useOperator,
 } from '../../contexts/OperatorContext';
 
 const Probe: React.FC = () => {
-  const { name, operatorId, clearName, setName, loading } = useOperator();
+  const { name, email, operatorId, clearName, setName, registerOperator, loading } = useOperator();
 
   return (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="name">{name || 'empty'}</span>
+      <span data-testid="email">{email || 'empty'}</span>
       <span data-testid="operator-id">{operatorId || 'empty'}</span>
       <button type="button" onClick={() => setName('Bruno Lima')}>
         set-name
+      </button>
+      <button type="button" onClick={() => registerOperator('Bruno Lima', 'bruno@senior.com.br')}>
+        register-operator
       </button>
       <button type="button" onClick={() => clearName()}>
         clear-name
@@ -35,6 +48,7 @@ function renderProvider() {
 describe('OperatorProvider', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    saveUserContextMock.mockClear();
   });
 
   it('starts without a name but with a stable operator id', () => {
@@ -52,6 +66,41 @@ describe('OperatorProvider', () => {
 
     expect(screen.getByTestId('name')).toHaveTextContent('Bruno Lima');
     expect(window.localStorage.getItem('scout360:operator_name')).toBe('Bruno Lima');
+  });
+
+  it('registers name and email together and syncs user context once', () => {
+    renderProvider();
+
+    fireEvent.click(screen.getByRole('button', { name: 'register-operator' }));
+
+    const operatorId = screen.getByTestId('operator-id').textContent;
+    expect(screen.getByTestId('name')).toHaveTextContent('Bruno Lima');
+    expect(screen.getByTestId('email')).toHaveTextContent('bruno@senior.com.br');
+    expect(window.localStorage.getItem('scout360:operator_name')).toBe('Bruno Lima');
+    expect(window.localStorage.getItem('scout360:operator_email')).toBe('bruno@senior.com.br');
+    expect(saveUserContextMock).toHaveBeenCalledTimes(1);
+    expect(saveUserContextMock).toHaveBeenCalledWith({
+      operatorId,
+      name: 'Bruno Lima',
+      email: 'bruno@senior.com.br',
+    });
+  });
+
+  it('backfills saved name and email once on mount', async () => {
+    window.localStorage.setItem('scout360:operator_id', 'op_saved');
+    window.localStorage.setItem('scout360:operator_name', 'Bruno Lima');
+    window.localStorage.setItem('scout360:operator_email', 'bruno@senior.com.br');
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(saveUserContextMock).toHaveBeenCalledTimes(1);
+    });
+    expect(saveUserContextMock).toHaveBeenCalledWith({
+      operatorId: 'op_saved',
+      name: 'Bruno Lima',
+      email: 'bruno@senior.com.br',
+    });
   });
 
   it('clears only the name and preserves the operator id', () => {

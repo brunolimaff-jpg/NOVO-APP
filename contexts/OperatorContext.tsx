@@ -2,7 +2,9 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -22,6 +24,7 @@ interface OperatorContextType {
   loading: boolean;
   setName: (name: string) => void;
   setEmail: (email: string) => void;
+  registerOperator: (name: string, email: string) => void;
   clearName: () => void;
   linkToExistingOperator: (operatorId: string, name: string, email: string) => void;
 }
@@ -57,6 +60,8 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [name, setOperatorName] = useState<string>(() => getSavedOperatorName());
   const [operatorId, setOperatorId] = useState<string>(() => getOrCreateOperatorId());
   const [email, setOperatorEmail] = useState<string>(() => getSavedOperatorEmail());
+  const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
+  const didBackfillRef = useRef(false);
 
   const setName = useCallback((nextName: string) => {
     const normalizedName = nextName.trim();
@@ -67,7 +72,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Sync to Supabase if email exists
     if (email) {
-      storage.saveUserContext({ operatorId, name: normalizedName, email });
+      void storage.saveUserContext({ operatorId, name: normalizedName, email });
     }
   }, [operatorId, email]);
 
@@ -79,8 +84,33 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     setOperatorEmail(normalizedEmail);
 
     // Sync to Supabase (fire and forget)
-    storage.saveUserContext({ operatorId, name, email: normalizedEmail });
+    void storage.saveUserContext({ operatorId, name, email: normalizedEmail });
   }, [operatorId, name]);
+
+  const registerOperator = useCallback((nextName: string, nextEmail: string) => {
+    const normalizedName = nextName.trim();
+    const normalizedEmail = nextEmail.trim();
+    if (!normalizedName || !normalizedEmail) return;
+
+    storageSet(OPERATOR_NAME_KEY, normalizedName);
+    storageSet(OPERATOR_EMAIL_KEY, normalizedEmail);
+    setOperatorName(normalizedName);
+    setOperatorEmail(normalizedEmail);
+
+    void storage.saveUserContext({
+      operatorId,
+      name: normalizedName,
+      email: normalizedEmail,
+    });
+  }, [operatorId]);
+
+  useEffect(() => {
+    if (!shouldBackfillSavedProfileRef.current || didBackfillRef.current) return;
+    if (!operatorId || !name || !email) return;
+
+    didBackfillRef.current = true;
+    void storage.saveUserContext({ operatorId, name, email });
+  }, [email, name, operatorId]);
 
   const clearName = useCallback(() => {
     storageRemove(OPERATOR_NAME_KEY);
@@ -96,7 +126,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     setOperatorEmail(existingEmail);
 
     // Sync to Supabase
-    storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
+    void storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
   }, []);
 
   const value = useMemo<OperatorContextType>(
@@ -107,10 +137,11 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       loading: false,
       setName,
       setEmail,
+      registerOperator,
       clearName,
       linkToExistingOperator,
     }),
-    [clearName, email, linkToExistingOperator, name, operatorId, setEmail, setName],
+    [clearName, email, linkToExistingOperator, name, operatorId, registerOperator, setEmail, setName],
   );
 
   return (

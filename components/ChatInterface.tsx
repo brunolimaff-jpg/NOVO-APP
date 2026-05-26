@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { APP_NAME } from '../constants';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
 import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
+import { storage } from '../services/storage';
 import { Sender, type RadarAlert } from '../types';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { cleanTitle } from '../utils/textCleaners';
@@ -114,7 +115,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     name: operatorName,
     operatorId,
     setName,
-    setEmail,
+    registerOperator,
     linkToExistingOperator,
     loading: operatorLoading,
   } = useOperator();
@@ -130,8 +131,17 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
   const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
 
+  useEffect(() => {
+    if (!operatorId || !hasOperatorName) return;
+    void storage.touchUserContext(operatorId);
+  }, [hasOperatorName, operatorId]);
+
   const handleStartInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
+      if (operatorId) {
+        void storage.touchUserContext(operatorId);
+      }
+
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode, canWarRoom);
 
@@ -168,7 +178,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
       await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj);
     },
-    [mode, canWarRoom, radar, onDeepDive],
+    [mode, canWarRoom, operatorId, radar, onDeepDive],
   );
 
   const handleCopyMarkdown = useCallback(() => {
@@ -184,6 +194,14 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const handlePrefillComposer = useCallback((text: string) => {
     window.dispatchEvent(new CustomEvent('scout:prefill', { detail: { text } }));
   }, []);
+
+  const handleSendMessage = useCallback((text: string) => {
+    if (operatorId) {
+      void storage.touchUserContext(operatorId);
+    }
+
+    onSendMessage(text);
+  }, [onSendMessage, operatorId]);
 
   const theme = useMemo<ChatTheme>(
     () => ({
@@ -243,8 +261,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             if (existingOperatorId) {
               linkToExistingOperator(existingOperatorId, name, email);
             } else {
-              setName(name);
-              setEmail(email);
+              registerOperator(name, email);
             }
           }}
           onStartInvestigation={handleStartInvestigation}
@@ -264,7 +281,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           processing={processing}
           lastUserQuery={lastUserQuery}
           onStop={onStop}
-          onSendMessage={(text) => onSendMessage(text)}
+          onSendMessage={handleSendMessage}
           loadingPinnedLabel={loadingPinnedLabel}
           canDeepDive={canDeepDive}
           theme={theme}
@@ -277,7 +294,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           processing={processing}
           sessionId={currentSession?.id ?? null}
           theme={theme}
-          onSendMessage={(text) => onSendMessage(text)}
+          onSendMessage={handleSendMessage}
           onRetry={onRetry}
           onStop={onStop}
         />

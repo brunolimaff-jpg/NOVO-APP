@@ -15,6 +15,8 @@ export interface SyncOperation {
 class SyncQueue {
   private queue: SyncOperation[] = [];
   private isProcessing = false;
+  private hasLoaded = false;
+  private pendingPersist: Promise<void> = Promise.resolve();
 
   enqueue(op: SyncOperation): void {
     // Deduplicate by table+id
@@ -28,8 +30,8 @@ class SyncQueue {
       this.queue.push({ ...op, attempts: 0 });
     }
 
-    // Persist immediately so items survive browser close
-    this.persist().catch(() => {});
+    // Persist immediately so items survive browser close.
+    this.schedulePersist();
   }
 
   size(): number {
@@ -40,19 +42,51 @@ class SyncQueue {
     return [...this.queue];
   }
 
+  remove(table: string, id: string): void {
+    const nextQueue = this.queue.filter(
+      (item) => !(item.table === table && item.id === id)
+    );
+
+    if (nextQueue.length === this.queue.length) {
+      return;
+    }
+
+    this.queue = nextQueue;
+    this.schedulePersist();
+  }
+
   clear(): void {
     this.queue = [];
+    this.hasLoaded = false;
+    this.pendingPersist = Promise.resolve();
+  }
+
+  private schedulePersist(): void {
+    this.pendingPersist = this.pendingPersist
+      .catch(() => undefined)
+      .then(() => this.persist())
+      .catch((error) => {
+        console.error('[SyncQueue] Falha ao persistir fila', error);
+      });
   }
 
   async persist(): Promise<void> {
-    await set(QUEUE_KEY, this.queue);
+    await set(QUEUE_KEY, [...this.queue]);
   }
 
   async load(): Promise<SyncOperation[]> {
+    await this.pendingPersist;
+
+    if (this.hasLoaded) {
+      return this.queue;
+    }
+
     const loaded = await get<SyncOperation[]>(QUEUE_KEY);
-    if (loaded) {
+    if (loaded && this.queue.length === 0) {
       this.queue = loaded;
     }
+
+    this.hasLoaded = true;
     return this.queue;
   }
 
@@ -63,6 +97,7 @@ class SyncQueue {
     if (this.isProcessing) return;
 
     this.isProcessing = true;
+    await this.pendingPersist;
     const { maxRetries = MAX_RETRIES, backoffMs = BACKOFF_MS } = opts;
     const failed: SyncOperation[] = [];
 

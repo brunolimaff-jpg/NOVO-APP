@@ -18,6 +18,7 @@ const { operatorStateRef } = vi.hoisted(() => ({
       loading: false,
       setName: vi.fn(),
       setEmail: vi.fn(),
+      registerOperator: vi.fn(),
       clearName: vi.fn(),
       linkToExistingOperator: vi.fn(),
     },
@@ -223,6 +224,7 @@ describe('ChatInterface shell regression', () => {
       loading: false,
       setName: vi.fn(),
       setEmail: vi.fn(),
+      registerOperator: vi.fn(),
       clearName: vi.fn(),
       linkToExistingOperator: vi.fn(),
     };
@@ -262,6 +264,7 @@ describe('ChatInterface shell regression', () => {
       loading: false,
       setName: vi.fn(),
       setEmail: vi.fn(),
+      registerOperator: vi.fn(),
       clearName: vi.fn(),
       linkToExistingOperator: vi.fn(),
     };
