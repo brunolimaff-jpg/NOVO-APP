@@ -64,6 +64,11 @@ function emitSyncComplete(detail: SyncResult): void {
   window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail }));
 }
 
+function requestDossierSyncRerun(options: { pull?: boolean } = {}): void {
+  dossierAutoSyncNeedsRerun = true;
+  dossierAutoSyncShouldPull = dossierAutoSyncShouldPull || Boolean(options.pull);
+}
+
 async function executeSupabaseOperation(op: SyncOperation): Promise<void> {
   const conflictColumns: Record<string, string> = {
     user_context: 'operator_id',
@@ -675,7 +680,7 @@ export const storage = {
     let pulled = 0;
 
     if (dossierAutoSyncInFlight) {
-      dossierAutoSyncNeedsRerun = true;
+      requestDossierSyncRerun(options);
       return { pushed, pulled, errors };
     }
 
@@ -708,7 +713,7 @@ export const storage = {
         });
 
         if (!didProcess) {
-          dossierAutoSyncNeedsRerun = true;
+          requestDossierSyncRerun(options);
           return { pushed, pulled, errors };
         }
       }
@@ -742,7 +747,7 @@ export const storage = {
     } finally {
       dossierAutoSyncInFlight = false;
       if (dossierAutoSyncNeedsRerun) {
-        this.scheduleDossierSync(options);
+        this.scheduleDossierSync();
       }
     }
 

@@ -106,6 +106,38 @@ describe('syncQueue', () => {
     expect(syncQueue.peek()[0]).toMatchObject(radarOp);
   });
 
+  it('descarta retry obsoleto quando uma versao nova chega durante o processamento', async () => {
+    const staleOp: SyncOperation = {
+      table: 'dossies',
+      operation: 'upsert',
+      data: { id: 'dossier-1', title: 'old' },
+      id: 'dossier-1',
+    };
+    const freshOp: SyncOperation = {
+      table: 'dossies',
+      operation: 'upsert',
+      data: { id: 'dossier-1', title: 'new' },
+      id: 'dossier-1',
+    };
+
+    const failingExecutor = vi.fn(async () => {
+      syncQueue.enqueue(freshOp);
+      throw new Error('older operation failed');
+    });
+
+    syncQueue.enqueue(staleOp);
+
+    await syncQueue.processWhere(
+      (op) => op.table === 'dossies',
+      failingExecutor,
+      { maxRetries: 3, backoffMs: 0 }
+    );
+
+    expect(failingExecutor).toHaveBeenCalledTimes(1);
+    expect(syncQueue.size()).toBe(1);
+    expect(syncQueue.peek()[0]).toMatchObject({ ...freshOp, attempts: 0 });
+  });
+
   it('deve persistir fila no IDB', async () => {
     // Mock an IDB store: set saves, get retrieves
     const store = new Map<string, unknown>();

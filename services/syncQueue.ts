@@ -141,7 +141,13 @@ class SyncQueue {
         }
       }
     } finally {
-      this.queue = [...this.queue, ...failed];
+      const filteredFailed = failed.filter(
+        (failedOp) =>
+          !this.queue.some(
+            (queueOp) => queueOp.table === failedOp.table && queueOp.id === failedOp.id
+          )
+      );
+      this.queue = [...this.queue, ...filteredFailed];
       await this.persist();
       this.isProcessing = false;
     }

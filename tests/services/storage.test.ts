@@ -250,6 +250,64 @@ describe('storage', () => {
       })).toBe(false);
       localStorage.removeItem('scout360:operator_id');
     });
+
+    it('syncDossiers should preserve pull when a rerun is requested during in-flight sync', async () => {
+      vi.useFakeTimers();
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      localStorage.setItem('scout360:operator_id', 'operator-123');
+
+      const dossierOp = {
+        table: 'dossies',
+        operation: 'upsert' as const,
+        data: {},
+        id: 'session-1',
+      };
+      const orderMock = vi.fn().mockResolvedValue({
+        data: [{ content: mockSession }],
+        error: null,
+      });
+      const isMock = vi.fn().mockReturnValue({ order: orderMock });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
+
+      let releaseProcessing: (() => void) | undefined;
+      const processing = new Promise<void>((resolve) => {
+        releaseProcessing = resolve;
+      });
+      vi.mocked(syncQueue.processWhere).mockImplementationOnce(async () => {
+        await processing;
+        return true;
+      });
+      vi.mocked(syncQueue.peek)
+        .mockReturnValueOnce([dossierOp])
+        .mockReturnValueOnce([])
+        .mockReturnValueOnce([])
+        .mockReturnValueOnce([]);
+
+      const syncComplete = new Promise<Event>((resolve) => {
+        window.addEventListener('scout:sync-complete', resolve, { once: true });
+      });
+
+      const firstSync = storage.syncDossiers();
+      await Promise.resolve();
+
+      const skippedSync = await storage.syncDossiers({ pull: true });
+      expect(skippedSync).toEqual({ pushed: 0, pulled: 0, errors: [] });
+
+      releaseProcessing?.();
+      await firstSync;
+      await vi.advanceTimersByTimeAsync(750);
+      await syncComplete;
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
+      expect(selectMock).toHaveBeenCalledWith('content');
+      expect(eqMock).toHaveBeenCalledWith('operator_id', 'operator-123');
+      expect(isMock).toHaveBeenCalledWith('deleted_at', null);
+      expect(orderMock).toHaveBeenCalledWith('updated_at', { ascending: false });
+      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', [mockSession]);
+      localStorage.removeItem('scout360:operator_id');
+    });
   });
 
   describe('Radar', () => {
