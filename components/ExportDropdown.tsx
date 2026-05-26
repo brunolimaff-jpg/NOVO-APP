@@ -30,11 +30,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   }, [exportStatus]);
 
   useEffect(() => {
-    if (displayStatus === 'success' || displayStatus === 'error') {
+    if (open && (displayStatus === 'success' || displayStatus === 'error')) {
       const timer = setTimeout(() => setDisplayStatus('idle'), 5000);
       return () => clearTimeout(timer);
     }
-  }, [displayStatus]);
+  }, [displayStatus, open]);
 
   const close = useCallback(() => {
     setOpen(false);
