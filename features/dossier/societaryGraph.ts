@@ -513,7 +513,8 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
   const rejectedCompanies: RejectedSocietaryCompany[] = [];
   const companiesByKey = new Map<string, SocietaryCompany>();
-  let rootBranchCount = 0;
+  const rootBranchCnpjs = new Set<string>();
+  const rootCnpj = normalizeCnpj(input.root.cnpj || '');
 
   for (const company of input.companies || []) {
     const normalizedPartnerName = normalizeText(company.partnerName);
@@ -548,7 +549,8 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
     if (isRootEstablishment(company, input.root)) {
       rejectedCompanies.push({ input: company, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
-      rootBranchCount++;
+      const cnpj = normalizeCnpj(company.cnpj || '');
+      if (cnpj && cnpj !== rootCnpj) rootBranchCnpjs.add(cnpj);
       continue;
     }
 
@@ -653,7 +655,8 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       if (isRootEstablishment(geminiCandidate, input.root)) {
         rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
-        rootBranchCount++;
+        const cnpj = normalizeCnpj(geminiCandidate.cnpj || '');
+        if (cnpj && cnpj !== rootCnpj) rootBranchCnpjs.add(cnpj);
         continue;
       }
 
@@ -721,7 +724,6 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
   }
 
-  const rootCnpj = normalizeCnpj(input.root.cnpj || '');
   const companies = consolidateGroupLinkedCompanies(Array.from(companiesByKey.values()));
   return {
     root: {
@@ -732,7 +734,7 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     partners,
     companies,
     rejectedCompanies,
-    rootBranchCount,
+    rootBranchCount: rootBranchCnpjs.size,
   };
 }
 
