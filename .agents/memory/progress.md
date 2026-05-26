@@ -1,8 +1,28 @@
 # Progress
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Completed
+
+### Gemini Foundation Cache — waterfall modular (2026-05-26)
+
+**Status:** implementado; PR `feat/gemini-foundation-cache`; feature flag default off.
+
+**Escopo:**
+- `ai.caches.create` 1x por dossiê (foundation + seed/lookup/senior/teia), TTL 600s.
+- `generateContent` com `cachedContent` nos 7–9 módulos; dynamic prompt em `contents`.
+- Grounding `googleSearch` por request (resultados não cacheados).
+- Delete best-effort no `finally`; fallback para systemInstruction monolítico.
+
+**Arquivos:** `api/gemini.ts`, `services/geminiProxy.ts`, `services/gemini/foundation-cache.ts`, `investigation-orchestration.ts`, `waterfall-orchestrator.ts`, `porta-reconciliation.ts`.
+
+**Documentacao:** `docs/guias/gemini-foundation-cache.md`, `docs/ideias/gemini-context-caching-waterfall.md`, `decisions.md`.
+
+**Validacao:**
+- `npm run typecheck`
+- `npx vitest run tests/services/gemini/foundation-cache.test.ts tests/api-gemini.test.ts tests/services/investigation-orchestration.test.ts tests/features/dossier/waterfall-orchestrator.test.ts tests/features/dossier/porta-reconciliation.test.ts`
+
+**Pendencias pos-merge:** ligar flags em preview/prod; validar dossiê Scheffer; medir economia real.
 
 ### Rastreador da Teia + renderizacao incremental (2026-05-26 09:05)
 

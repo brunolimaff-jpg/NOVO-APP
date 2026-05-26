@@ -6,6 +6,8 @@ const createChatMock = vi.hoisted(() => vi.fn(() => ({
   sendMessage: sendMessageMock,
 })));
 const generateContentMock = vi.hoisted(() => vi.fn());
+const createCacheMock = vi.hoisted(() => vi.fn());
+const deleteCacheMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@google/genai', () => ({
   ThinkingLevel: {
@@ -20,6 +22,11 @@ vi.mock('@google/genai', () => ({
 
     models = {
       generateContent: generateContentMock,
+    };
+
+    caches = {
+      create: createCacheMock,
+      delete: deleteCacheMock,
     };
   },
 }));
@@ -304,5 +311,147 @@ describe('api/gemini handler', () => {
         text: 'Dossiê gerado com sucesso.',
       }),
     );
+  });
+
+  it('retorna 403 em createCachedContent quando foundation cache está desligado', async () => {
+    delete process.env.GEMINI_FOUNDATION_CACHE_ENABLED;
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'createCachedContent',
+        systemInstruction: 'foundation block',
+      },
+    } as VercelRequest;
+
+    let statusCode = 0;
+    const res = {
+      status: (code: number) => {
+        statusCode = code;
+        return { json: vi.fn() };
+      },
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+    expect(statusCode).toBe(403);
+    expect(createCacheMock).not.toHaveBeenCalled();
+  });
+
+  it('cria cached content quando foundation cache está habilitado', async () => {
+    process.env.GEMINI_FOUNDATION_CACHE_ENABLED = '1';
+    createCacheMock.mockResolvedValueOnce({
+      name: 'cachedContents/test-cache',
+      expireTime: '2026-05-26T12:10:00Z',
+      usageMetadata: { totalTokenCount: 15000 },
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'createCachedContent',
+        model: 'gemini-3-flash-preview',
+        systemInstruction: 'foundation + static context',
+        ttl: '600s',
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createCacheMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'gemini-3-flash-preview',
+        config: expect.objectContaining({
+          systemInstruction: 'foundation + static context',
+          ttl: '600s',
+        }),
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'cachedContents/test-cache',
+      }),
+    );
+  });
+
+  it('prioriza cachedContent em generateContent e retorna usageMetadata', async () => {
+    generateContentMock.mockResolvedValueOnce({
+      text: 'ok',
+      usageMetadata: {
+        cachedContentTokenCount: 12000,
+        promptTokenCount: 900,
+      },
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-3-flash-preview',
+        contents: 'dynamic prompt',
+        config: {
+          cachedContent: 'cachedContents/test-cache',
+          systemInstruction: 'nao deve ir',
+          tools: [{ googleSearch: {} }],
+        },
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(generateContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          cachedContent: 'cachedContents/test-cache',
+          tools: [{ googleSearch: {} }],
+        }),
+      }),
+    );
+    expect(generateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'ok',
+        usageMetadata: expect.objectContaining({
+          cachedContentTokenCount: 12000,
+        }),
+      }),
+    );
+  });
+
+  it('deleta cached content quando foundation cache está habilitado', async () => {
+    process.env.GEMINI_FOUNDATION_CACHE_ENABLED = '1';
+    deleteCacheMock.mockResolvedValueOnce(undefined);
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'deleteCachedContent',
+        name: 'cachedContents/test-cache',
+      },
+    } as VercelRequest;
+
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(deleteCacheMock).toHaveBeenCalledWith({ name: 'cachedContents/test-cache' });
+    expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 });

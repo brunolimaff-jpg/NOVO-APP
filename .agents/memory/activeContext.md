@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Current operating context
 
@@ -17,6 +17,14 @@ Read order:
 7. `docs/OBSIDIAN_VAULT.md` — ponteiro para o vault central; navegação visual em `/Users/brunolima/Documents/Bruno Vault/00-MASTER.md`
 
 ## Current operating phase
+
+**Atualizacao 2026-05-26 — Gemini Foundation Cache no waterfall (quick-win #1).**
+
+- PR aberta: `feat/gemini-foundation-cache` — explicit context caching por dossiê (foundation + contexto estático).
+- Flags duplas (default off): `GEMINI_FOUNDATION_CACHE_ENABLED` + `VITE_GEMINI_FOUNDATION_CACHE_ENABLED`.
+- Guia: `docs/guias/gemini-foundation-cache.md`; ideia: `docs/ideias/gemini-context-caching-waterfall.md`.
+- Validacao manual pendente pos-merge: dossiê Scheffer com flags on; logs `usageMetadata` + grounding.
+- Testes: `foundation-cache`, `api-gemini`, `waterfall-orchestrator`, `investigation-orchestration` (46 no recorte).
 
 **Atualizacao 2026-05-26 09:05 — Teia traceavel, incremental e documentada no Bruno Vault.**
 

@@ -334,3 +334,13 @@ Options considered:
 - C: Dual (escolhido) — smoke curl no CI trigger, E2E Playwright como gate de pre-merge manual
 
 Constraint: `validate:preview` requer `python3` para parse JSON (disponivel em GitHub Actions e ambientes macOS/Linux). O script nao instala dependencias — depende de `curl` e `python3` ja disponiveis no sistema.
+
+## 2026-05-26 - Gemini explicit context cache no waterfall modular
+
+Decision: usar `ai.caches.create` por investigacao (foundation + contexto estatico do dossie) e `generateContent` com `cachedContent` nos modulos 7-9x do waterfall; contexto dinamico (accumulated text, hints) fica fora do cache; tools de grounding por request.
+
+Reason: o foundation block (~15K tokens) era reenviado integralmente a cada modulo, anulando implicit cache e elevando custo/latencia. Explicit cache reduz tokens repetidos mantendo Search Grounding ativo (resultados de busca nao persistidos no cache).
+
+Constraint: feature flag dupla (`GEMINI_FOUNDATION_CACHE_ENABLED` server + `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` client); TTL 600s; delete no `finally`; fallback seguro para systemInstruction monolitico quando flag off ou create falha.
+
+Reference: `docs/ideias/gemini-context-caching-waterfall.md`

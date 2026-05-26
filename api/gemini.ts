@@ -18,6 +18,17 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     config: z.record(z.string(), z.unknown()).optional(),
   }),
   z.object({
+    action: z.literal('createCachedContent'),
+    model: z.string().min(1).max(200).optional(),
+    systemInstruction: z.string().min(1).max(500000),
+    ttl: z.string().max(32).optional(),
+    displayName: z.string().max(128).optional(),
+  }),
+  z.object({
+    action: z.literal('deleteCachedContent'),
+    name: z.string().min(1).max(512),
+  }),
+  z.object({
     action: z.literal('chatSendMessage'),
     model: z.string().min(1).max(200).optional(),
     systemInstruction: z.string().max(100000).optional(),
@@ -95,6 +106,17 @@ function applyPromptLeakShieldLocal(text: string): {
     blocked: true,
     indicators: detection.indicators,
   };
+}
+
+function isFoundationCacheEnabled(): boolean {
+  return getEnvVar('GEMINI_FOUNDATION_CACHE_ENABLED') === '1';
+}
+
+function extractUsageMetadata(response: unknown): Record<string, unknown> | undefined {
+  if (!response || typeof response !== 'object') return undefined;
+  const usageMetadata = (response as { usageMetadata?: unknown }).usageMetadata;
+  if (!usageMetadata || typeof usageMetadata !== 'object') return undefined;
+  return usageMetadata as Record<string, unknown>;
 }
 
 function extractGeminiText(response: unknown): string {
@@ -227,7 +249,11 @@ async function executeGeminiAction(
       };
 
       if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
-      if (typeof configIn.systemInstruction === 'string') genConfig.systemInstruction = configIn.systemInstruction;
+      if (typeof configIn.cachedContent === 'string') {
+        genConfig.cachedContent = configIn.cachedContent;
+      } else if (typeof configIn.systemInstruction === 'string') {
+        genConfig.systemInstruction = configIn.systemInstruction;
+      }
       if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
 
       const response = await ai.models.generateContent({
@@ -239,7 +265,39 @@ async function executeGeminiAction(
       return res.status(200).json({
         text: extractGeminiText(response),
         candidates: response.candidates || [],
+        usageMetadata: extractUsageMetadata(response),
       });
+    }
+
+    case 'createCachedContent': {
+      if (!isFoundationCacheEnabled()) {
+        return res.status(403).json({ error: 'Foundation cache disabled' });
+      }
+
+      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const cache = await ai.caches.create({
+        model,
+        config: {
+          displayName: body.displayName ?? 'scout360-waterfall-foundation',
+          systemInstruction: body.systemInstruction,
+          ttl: body.ttl ?? '600s',
+        },
+      });
+
+      return res.status(200).json({
+        name: cache.name,
+        expireTime: cache.expireTime,
+        usageMetadata: extractUsageMetadata(cache),
+      });
+    }
+
+    case 'deleteCachedContent': {
+      if (!isFoundationCacheEnabled()) {
+        return res.status(403).json({ error: 'Foundation cache disabled' });
+      }
+
+      await ai.caches.delete({ name: body.name });
+      return res.status(200).json({ ok: true });
     }
 
     case 'chatSendMessage': {

@@ -26,6 +26,9 @@ const fetchCompanyByCnpjMock = vi.hoisted(() => vi.fn());
 const runDossierBenchmarkStageMock = vi.hoisted(() => vi.fn());
 const reconcileWaterfallPortaMock = vi.hoisted(() => vi.fn());
 const ensureWaterfallScorePortaMock = vi.hoisted(() => vi.fn());
+const createWaterfallFoundationCacheMock = vi.hoisted(() => vi.fn());
+const deleteWaterfallFoundationCacheMock = vi.hoisted(() => vi.fn());
+const isFoundationCacheEnabledMock = vi.hoisted(() => vi.fn(() => false));
 const scoutDiagMock = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
@@ -79,6 +82,18 @@ vi.mock('../../../stores/chatStore', () => ({
 vi.mock('../../../utils/diagnosticLog', () => ({
   scoutDiag: scoutDiagMock,
 }));
+
+vi.mock('../../../services/gemini/foundation-cache', async () => {
+  const actual = await vi.importActual<typeof import('../../../services/gemini/foundation-cache')>(
+    '../../../services/gemini/foundation-cache',
+  );
+  return {
+    ...actual,
+    isFoundationCacheEnabled: isFoundationCacheEnabledMock,
+    createWaterfallFoundationCache: createWaterfallFoundationCacheMock,
+    deleteWaterfallFoundationCache: deleteWaterfallFoundationCacheMock,
+  };
+});
 
 type StateUpdater<T> = T | ((prev: T) => T);
 
@@ -298,6 +313,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     fetchCompanyByCnpjMock.mockRejectedValue(new Error('CNPJ lookup not mocked'));
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => `${moduleName} consolidado`);
     generateContinuityQuestionMock.mockResolvedValue(DEFAULT_SUGGESTIONS);
+    isFoundationCacheEnabledMock.mockReturnValue(false);
+    createWaterfallFoundationCacheMock.mockResolvedValue('cachedContents/test-cache');
+    deleteWaterfallFoundationCacheMock.mockResolvedValue(undefined);
     runDossierBenchmarkStageMock.mockImplementation(
       async ({ appendWaterfallChunk }: { appendWaterfallChunk: (chunk: string) => void }) => {
         appendWaterfallChunk('Benchmark consolidado');
@@ -386,6 +404,35 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.text).not.toContain('## Brief de Reunião');
     expect(finalBotMessage.text).not.toContain('**Tese da conta:**');
     expect(finalBotMessage.text).not.toContain('[[PORTA');
+  });
+
+  it('cria foundation cache uma vez, propaga cacheName aos módulos e remove no finally', async () => {
+    isFoundationCacheEnabledMock.mockReturnValue(true);
+    const score = makeScorePorta(74);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: 'Texto consolidado\n\n---\n\n[[PORTA:74:P7:O7:R6:T8:A6:PRD:NONE]]',
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(createWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
+    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith(
+      'cachedContents/test-cache',
+      expect.any(AbortSignal),
+    );
+    expect(generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache')).toBe(true);
+    expect(reconcileWaterfallPortaMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        foundationCacheName: 'cachedContents/test-cache',
+      }),
+    );
   });
 
   it('agrega fontes de grounding retornadas pelos módulos', async () => {

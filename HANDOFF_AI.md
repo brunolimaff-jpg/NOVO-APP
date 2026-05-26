@@ -36,6 +36,14 @@ Nota: o vault Obsidian canonico foi centralizado em `/Users/brunolima/Documents/
 - Integracao externa padrao de IA: nenhuma obrigatoria no repo
 - **Persistencia:** Supabase (primario) + IndexedDB (offline cache) + sync queue bidirecional
 
+### Quick-win #1 — Gemini Foundation Cache (waterfall)
+
+- **Status:** implementado (PR `feat/gemini-foundation-cache`); **default off** ate validacao em preview.
+- **Flags:** `GEMINI_FOUNDATION_CACHE_ENABLED=1` (Vercel) + `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` (build).
+- **Guia operacional:** `docs/guias/gemini-foundation-cache.md`
+- **Ideia/decisao:** `docs/ideias/gemini-context-caching-waterfall.md` + `.agents/memory/decisions.md` (2026-05-26)
+- **Validacao manual pendente:** 1 dossiê Scheffer com flags on; conferir `usageMetadata.cachedContentTokenCount` e grounding.
+
 ## Estado arquitetural atual
 
 > Atualizado em 2026-05-26 09:05 — **Rastreador da Teia implementado e preview Vercel publicado.** Nao ha PR aberta no GitHub neste momento (`gh pr list --state open` retornou vazio). O diff atual esta local em `main` e convive com varias mudancas documentais preexistentes no working tree.
