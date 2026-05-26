@@ -1,26 +1,36 @@
-import type { SocietaryCompany } from './societaryGraph';
+import type { SocietaryCompany, SocietaryPartner } from './societaryGraph';
 
-export type CompanyCategory = 'strategic' | 'operation' | 'own' | 'lateral';
+export type CompanyCategory = 'em_comum' | 'proprias';
 
-export function classifyCompany(company: SocietaryCompany): CompanyCategory {
-  // Unconfirmed/pending → lateral/pending validation, never group-owned by default
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') {
-    return 'lateral';
+const PJ_SUFFIXES = [
+  'LTDA', 'S/A', 'S.A.', 'S.A', 'CIA', 'ME', 'EPP',
+  'EIRELI', 'SLU', 'LLC', 'INC', 'CORP', 'SAS', 'SA',
+];
+
+export function isPartnerPJ(partner: SocietaryPartner): boolean {
+  if (partner.document) {
+    const digits = partner.document.replace(/\D/g, '');
+    if (digits.length >= 14) return true;
   }
-  // Partner other CNPJ → lateral: official partner link, group not confirmed
-  if (company.relationshipScope === 'partner_other_cnpj') {
-    return 'lateral';
+  const upper = partner.name.toUpperCase().trim();
+  return PJ_SUFFIXES.some(s =>
+    upper.endsWith(` ${s}`) || upper.endsWith(`.${s}`) || upper === s,
+  );
+}
+
+export function getPFPartnerIds(partners: SocietaryPartner[]): Set<string> {
+  return new Set(partners.filter(p => !isPartnerPJ(p)).map(p => p.id));
+}
+
+export function classifyCompany(
+  company: SocietaryCompany,
+  pfPartnerIds?: Set<string>,
+): CompanyCategory {
+  if (!pfPartnerIds) {
+    return company.partnerIds.length >= 2 ? 'em_comum' : 'proprias';
   }
-  // 3+ partners sharing → strategic (holding/group-level)
-  if (company.partnerIds.length >= 3) {
-    return 'strategic';
-  }
-  // 2 partners sharing → operation (shared operational)
-  if (company.partnerIds.length >= 2) {
-    return 'operation';
-  }
-  // Single partner → own
-  return 'own';
+  const pfCount = company.partnerIds.filter(id => pfPartnerIds.has(id)).length;
+  return pfCount >= 2 ? 'em_comum' : 'proprias';
 }
 
 export function isSideBusiness(company: SocietaryCompany): boolean {
@@ -29,11 +39,13 @@ export function isSideBusiness(company: SocietaryCompany): boolean {
 
 export function countByCategory(
   companies: SocietaryCompany[],
-): { total: number; strategic: number; operation: number; own: number; lateral: number } {
-  const result = { total: companies.length, strategic: 0, operation: 0, own: 0, lateral: 0 };
-  for (const c of companies) {
-    const cat = classifyCompany(c);
-    result[cat]++;
+  pfPartnerIds?: Set<string>,
+): { found: number; total: number; em_comum: number; proprias: number } {
+  const result = { found: companies.length, total: 0, em_comum: 0, proprias: 0 };
+  for (const company of companies) {
+    if (!isSideBusiness(company)) result.total += 1;
+    const category = classifyCompany(company, pfPartnerIds);
+    result[category] += 1;
   }
   return result;
 }

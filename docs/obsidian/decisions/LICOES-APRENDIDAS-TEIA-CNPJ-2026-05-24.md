@@ -29,7 +29,7 @@
 | 18 | CNPJ Aberto precisa entrar estruturado | A fonte oficial chegava como bloco textual generico e a UI/prompt promoviam lateral a grupo | Preservar `relationshipScope`, `rootContext`, `evidenceBasis` e `operationalThesisAllowed` desde a API | P0 |
 | 19 | Fonte oficial qualifica o socio, nao o grupo | `OFICIAL` em QSA foi interpretado como prova de grupo economico | Regra duravel: oficialidade qualifica `socio -> CNPJ`; `group_link` exige prova independente | P0 |
 | 20 | Cache semantico precisa de versao | Cache antigo podia continuar servindo payload com escopo errado | Bump de cache sempre que mudar significado de campo, nao so shape de JSON | P1 |
-| 21 | UI nao deve renderizar ruido que parece evidencia | Coluna/badge `CNPJ lateral do socio` e textos de alerta davam peso indevido a lateral | Mostrar `CNPJs laterais` como metrica/filtro e esconder narrativa textual insegura | P1 |
+| 21 | UI nao deve renderizar ruido que parece evidencia | Coluna/badge `CNPJ lateral do socio` e textos de alerta davam peso indevido a lateral | Usar rotulo **Sócio admin** no grafo/evidencias, badge premium de filiais (`branchCount`), badges semânticos (`holding`, `internacional`, `oficial`, `validar`) — sem metrica/filtro "CNPJs laterais" | P1 |
 | 22 | Componentes estruturados devem substituir tabelas do modelo | A tabela textual `Outros CNPJs...` competia com SocietaryMatrix e continha entradas duvidosas | Filtrar secoes textuais inseguras e deixar a matriz ser a fonte visual | P1 |
 | 23 | Proximo passo e modulo de dominio | Hotfixes pontuais espalharam regra em API, parser, prompt, grafo e UI | Criar boundary unico para tipos, normalizacao, escopos e validadores da Teia CNPJ | P1 |
 

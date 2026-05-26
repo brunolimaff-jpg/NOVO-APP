@@ -3,8 +3,18 @@ import {
   type SocietaryCompany,
   type SocietaryBadge,
   type SocietaryGraph,
+  countCompanyFilials,
+  formatBranchBadgeLabel,
   formatSocietaryCnpj,
+  getDisplayBadges,
+  hasCompanyFilials,
 } from './societaryGraph';
+import {
+  type CompanyCategory,
+  classifyCompany,
+  getPFPartnerIds,
+  isSideBusiness,
+} from './societaryCategories';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 const PARTNER_MATRIX_COLORS = [
@@ -23,32 +33,14 @@ function firstGivenName(fullName: string): string {
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
-type CompanyCategory = 'strategic' | 'operation' | 'own' | 'lateral';
-
-function classifyCompany(company: SocietaryCompany, _totalPartners: number): CompanyCategory {
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'lateral';
-  if (company.relationshipScope === 'partner_other_cnpj') return 'lateral';
-  if (company.partnerIds.length >= 3) return 'strategic';
-  if (company.partnerIds.length >= 2) return 'operation';
-  return 'own';
-}
-
-function isSideBusiness(company: SocietaryCompany): boolean {
-  return company.relationshipScope === 'partner_other_cnpj';
-}
-
 const CATEGORY_LABELS: Record<CompanyCategory, string> = {
-  strategic: 'Estratégico',
-  operation: 'Operações',
-  own: 'Próprias',
-  lateral: 'Laterais',
+  em_comum: 'Em comum',
+  proprias: 'Próprias',
 };
 
 const CATEGORY_ORDER: Record<CompanyCategory, number> = {
-  strategic: 0,
-  operation: 1,
-  own: 2,
-  lateral: 3,
+  em_comum: 0,
+  proprias: 1,
 };
 
 interface SocietaryMatrixProps {
@@ -98,45 +90,62 @@ function FilterButton({
   );
 }
 
-function SummaryCard({
-  label,
+function SummaryMetric({
   value,
-  isDarkMode,
+  label,
+  testId,
 }: {
-  label: string;
   value: number;
-  isDarkMode: boolean;
+  label: string;
+  testId: string;
 }) {
   return (
     <div
-      className={`rounded-lg border p-4 ${
-        isDarkMode
-          ? 'border-slate-700 bg-slate-800/50'
-          : 'border-slate-200 bg-slate-50'
-      }`}
+      className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center"
+      data-testid={testId}
     >
-      <strong className="block text-[1.15rem] text-slate-900 dark:text-slate-100">
+      <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
         {value}
       </strong>
-      <span className="text-[0.78rem] text-slate-500 dark:text-slate-400">
+      <span className="max-w-[8.5rem] text-[0.75rem] font-medium leading-snug text-slate-500 dark:text-slate-400">
         {label}
       </span>
     </div>
   );
 }
 
+function countBranchEstablishments(companies: SocietaryCompany[]): number {
+  return companies.reduce((sum, company) => sum + countCompanyFilials(company), 0);
+}
+
+function countTotalCnpjs(companies: SocietaryCompany[]): number {
+  return companies.reduce((sum, company) => sum + (company.branchCount || 1), 0);
+}
+
 function badgeTone(badge: SocietaryBadge): string {
-  if (badge === 'CNPJ lateral') return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200';
-  if (badge === 'validar' || badge === 'validar grupo') return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  if (badge === 'validar') return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
   if (badge === 'oficial') return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200';
   if (badge === 'internacional') return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-200';
-  if (badge === 'holding' || badge === 'empresa em comum') return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
+  if (badge === 'holding') return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
   return 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400';
 }
 
-function visibleBadges(company: SocietaryCompany): SocietaryBadge[] {
-  const badges = company.badges.filter(badge => badge !== 'estimado');
-  return badges.length > 0 ? badges : company.badges;
+function BranchPremiumBadge({ company }: { company: SocietaryCompany }) {
+  if (!hasCompanyFilials(company)) return null;
+  const label = formatBranchBadgeLabel(company);
+  if (!label) return null;
+
+  return (
+    <span
+      data-testid="branch-premium-badge"
+      className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.62rem] font-semibold tracking-[0.02em] text-sky-800 dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
+    >
+      <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+        <path d="M8 1.5a.5.5 0 0 1 .354.146l6 6A.5.5 0 0 1 14 8h-1v5.5a.5.5 0 0 1-.5.5h-3v-3.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5V14h-3a.5.5 0 0 1-.5-.5V8H2a.5.5 0 0 1-.354-.854l6-6A.5.5 0 0 1 8 1.5z" />
+      </svg>
+      {label}
+    </span>
+  );
 }
 
 const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
@@ -152,28 +161,25 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | CompanyCategory>('all');
 
-  // Classify each company
+  const pfPartnerIds = useMemo(() => getPFPartnerIds(graph.partners), [graph.partners]);
+
   const classified = useMemo<ClassifiedRow[]>(() => {
-    const totalPartners = graph.partners.length;
     return graph.companies.map(company => ({
       company,
-      category: classifyCompany(company, totalPartners),
+      category: classifyCompany(company, pfPartnerIds),
       side: isSideBusiness(company),
     }));
-  }, [graph.companies]);
+  }, [graph.companies, pfPartnerIds]);
 
-  // Summary metrics
   const metrics = useMemo(() => {
-    const found = classified.length;
-    const total = classified.filter(c => c.category !== 'lateral').length;
-    const strategic = classified.filter(c => c.category === 'strategic').length;
-    const operation = classified.filter(c => c.category === 'operation').length;
-    const own = classified.filter(c => c.category === 'own').length;
-    const lateral = classified.filter(c => c.category === 'lateral').length;
-    return { found, total, strategic, operation, own, lateral };
+    const companies = classified.map(row => row.company);
+    const cnpjsTotais = countTotalCnpjs(companies);
+    const filiais = countBranchEstablishments(companies);
+    const emComum = classified.filter(c => c.category === 'em_comum').length;
+    const proprias = classified.filter(c => c.category === 'proprias').length;
+    return { cnpjsTotais, filiais, em_comum: emComum, proprias };
   }, [classified]);
 
-  // Filtered + sorted rows (category + partner AND logic)
   const visibleRows = useMemo<ClassifiedRow[]>(() => {
     let rows = classified;
     if (activeCategory !== 'all') {
@@ -185,7 +191,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return [...rows].sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]);
   }, [classified, activeCategory, selectedPartnerId]);
 
-  // Partner index-based color map
   const partnerColors = useMemo(() => {
     const map = new Map<string, string>();
     graph.partners.forEach((p, i) =>
@@ -194,7 +199,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return map;
   }, [graph.partners]);
 
-  // CNAE lookup with fallback keys
   function getCnaeLabel(company: SocietaryCompany): string {
     const candidates: string[] = [];
     if (company.cnpj) candidates.push(company.cnpj);
@@ -209,7 +213,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return '—';
   }
 
-  // Filter handlers
   const isAllActive = activeCategory === 'all' && selectedPartnerId == null;
 
   function handleClearFilters() {
@@ -228,12 +231,10 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     onSelectPartner?.(newId);
   }
 
-  // Shell style
   const shellClass = isDarkMode
     ? 'border-slate-700 bg-slate-900/60 text-slate-100'
     : 'border-slate-200 bg-white text-slate-900';
 
-  // Partner columns
   const partnerColumns = graph.partners;
 
   useEffect(() => {
@@ -271,13 +272,15 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   return (
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
-      <div className="grid grid-cols-1 gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="CNPJs encontrados" value={metrics.found} isDarkMode={isDarkMode} />
-        {metrics.total > 0 && <SummaryCard label="empresas do grupo" value={metrics.total} isDarkMode={isDarkMode} />}
-        {metrics.strategic > 0 && <SummaryCard label="frentes estratégicas" value={metrics.strategic} isDarkMode={isDarkMode} />}
-        {metrics.operation > 0 && <SummaryCard label="operações compartilhadas" value={metrics.operation} isDarkMode={isDarkMode} />}
-        {metrics.own > 0 && <SummaryCard label="empresas próprias" value={metrics.own} isDarkMode={isDarkMode} />}
-        {metrics.lateral > 0 && <SummaryCard label="CNPJs laterais" value={metrics.lateral} isDarkMode={isDarkMode} />}
+      <div
+        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-4 dark:border-slate-700"
+        aria-label="Resumo da teia societária"
+        data-testid="societary-summary-metrics"
+      >
+        <SummaryMetric value={metrics.cnpjsTotais} label="CNPJs no mapa" testId="summary-metric-cnpjs-no-mapa" />
+        <SummaryMetric value={metrics.filiais} label="Filiais" testId="summary-metric-filiais" />
+        <SummaryMetric value={metrics.em_comum} label="Em comum" testId="summary-metric-em-comum" />
+        <SummaryMetric value={metrics.proprias} label="Próprias" testId="summary-metric-proprias" />
       </div>
 
       {/* ============ Filter toolbar ============ */}
@@ -285,7 +288,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         <FilterButton isActive={isAllActive} onClick={handleClearFilters}>
           Todos
         </FilterButton>
-        {(['strategic', 'operation', 'own', 'lateral'] as const).filter(cat => metrics[cat] > 0).map(cat => (
+        {(['em_comum', 'proprias'] as const).filter(cat => metrics[cat] > 0).map(cat => (
           <FilterButton
             key={cat}
             isActive={activeCategory === cat}
@@ -294,6 +297,9 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
             {CATEGORY_LABELS[cat]}
           </FilterButton>
         ))}
+
+        <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden />
+
         {graph.partners.map(partner => (
           <FilterButton
             key={partner.id}
@@ -340,7 +346,8 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                   <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
                     {row.company.name}
                     <div className="mt-1.5 flex flex-wrap gap-1">
-                      {visibleBadges(row.company).map(badge => (
+                      <BranchPremiumBadge company={row.company} />
+                      {getDisplayBadges(row.company).map(badge => (
                         <span
                           key={`${row.company.id}-${badge}`}
                           className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.04em] ${badgeTone(badge)}`}

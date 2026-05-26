@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseTeiaText } from '../../../features/dossier/teiaTextParser';
+import { parseNarrativeCnpjTotal, parseTeiaText } from '../../../features/dossier/teiaTextParser';
 
 describe('teiaTextParser', () => {
   it('extrai tabela mestre e vincula empresa ao socio mesmo em secoes separadas', () => {
@@ -211,5 +211,23 @@ describe('teiaTextParser', () => {
         rootContext: true,
       }),
     ]);
+  });
+});
+
+describe('parseNarrativeCnpjTotal', () => {
+  it('extrai total da visao geral com fonte documental', () => {
+    const text = [
+      '**Visao Geral do Grupo Economico Real**',
+      '- **Total de CNPJs identificados com fonte:** 38 (incluindo filiais)',
+    ].join('\n');
+    expect(parseNarrativeCnpjTotal(text)).toBe(38);
+  });
+
+  it('extrai total legado "mapeados"', () => {
+    expect(parseNarrativeCnpjTotal('* **Total de CNPJs mapeados:** 12')).toBe(12);
+  });
+
+  it('retorna null quando nao ha total narrativo', () => {
+    expect(parseNarrativeCnpjTotal('## Tabela Mestre de CNPJs')).toBeNull();
   });
 });

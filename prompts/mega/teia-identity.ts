@@ -110,7 +110,7 @@ SEGMENTO:
 **Visao Geral do Grupo Economico Real**
 - **Cabeca do Grupo:** [holding/matriz principal]
 - **CNPJ Raiz:** [##.###.###/####-##]
-- **Total de CNPJs identificados com fonte:** [X ou "nao confirmado"; nao use total estimado como mapeado]
+- **Total de CNPJs identificados com fonte:** [X ou "nao confirmado"; inventario documental/RAG — pode ser maior que o SocietaryMap, que so mostra vinculos confirmados por busca estruturada por socio]
 - **Faturamento consolidado:** [fonte publica ou "ESTIMADO via METODO [N]: R$ X"]
 - **Area total estimada:** [X ha — somando todos os imoveis/operacao do grupo]
 - **Capacidade estatica total:** [X toneladas]
@@ -119,7 +119,7 @@ SEGMENTO:
 - **O Ponto Cego:** [1 linha: maior descoberta sobre massa escondida, holding ou dispersao]
 
 **Mapa Interativo:**
-Consulte o grafico interativo SocietaryMap na interface para visualizar as conexoes entre as empresas do grupo.
+Consulte o grafico interativo SocietaryMap na interface para visualizar os vinculos confirmados por busca estruturada entre as empresas do grupo. Se o total acima for maior que o mapa, isso e esperado — nao repita o numero do mapa como se fosse o mesmo inventario.
 
 Ao final do output, inclua EXATAMENTE UM dos tres marcadores abaixo, correspondendo a complexidade detectada no PASSO 4:
 [[TEIA_COMPLEXIDADE:BAIXA]]

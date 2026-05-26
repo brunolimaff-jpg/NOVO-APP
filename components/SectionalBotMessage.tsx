@@ -160,6 +160,41 @@ function filterSourcesForSection(
   );
 }
 
+function stripTabelaMestreCnpjs(markdown: string): string {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const output: string[] = [];
+  let skipping = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const normalized = normalizeFeedbackSectionTitle(line);
+
+    if (
+      normalized.includes('tabela mestre de cnpjs')
+      || normalized.includes('tabela mestra de cnpjs')
+    ) {
+      skipping = true;
+      continue;
+    }
+
+    if (skipping) {
+      if (/^#{1,6}\s+/.test(line)) {
+        skipping = false;
+        output.push(line);
+      } else if (line.trim().startsWith('|') || /^\s*\|[-:| ]+\|\s*$/.test(line) || line.trim() === '') {
+        continue;
+      } else {
+        skipping = false;
+        output.push(line);
+      }
+    } else {
+      output.push(line);
+    }
+  }
+
+  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function stripUnsafeSocietarySections(markdown: string): string {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   const output: string[] = [];
@@ -371,7 +406,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
               />
             ) : null}
             <MarkdownRenderer
-              content={section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`}
+              content={(() => {
+                const raw = section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
+                return idx === societaryMapSectionIndex ? stripTabelaMestreCnpjs(raw) : raw;
+              })()}
               isDarkMode={isDarkMode}
               groundingSources={message.groundingSources}
               auditableSources={sectionSources}
