@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { normalizeCnpj } from '../../utils/cnpj';
@@ -126,13 +126,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
 
-  function trace(message: string, details?: Record<string, unknown>): void {
+  const trace = useCallback((message: string, details?: Record<string, unknown>): void => {
     if (!traceActive) return;
     scoutDiag.trace('teia', 'SocietaryMap', message, {
       traceId: traceIdRef.current,
       ...details,
     });
-  }
+  }, [traceActive]);
 
   useEffect(() => {
     if (!cnpj) {
@@ -273,7 +273,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [cnpj, empresaAlvo, geminiCnpjs]);
+  }, [cnpj, empresaAlvo, geminiCnpjs, trace]);
 
   useEffect(() => {
     setIsEvidenceOpen(false);
@@ -432,7 +432,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [rootData]);
+  }, [rootData, trace, traceActive]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
@@ -471,7 +471,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         rootLinked: company.rootLinked,
       })),
     });
-  }, [graph, traceActive]);
+  }, [graph, trace, traceActive]);
 
   useEffect(() => {
     if (!graph) return;

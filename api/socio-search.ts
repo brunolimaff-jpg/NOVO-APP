@@ -353,7 +353,13 @@ async function setPersistentCached(key: string, payload: SocioSearchResponse): P
 }
 
 
-function splitSearchBlocks(content: string): Array<{ title: string; url: string; snippet: string }> {
+interface SearchBlock {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+function splitSearchBlocks(content: string): SearchBlock[] {
   return (content || '')
     .split(/\n---\n?/)
     .map(block => {
@@ -768,8 +774,8 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
     companies.push(company);
   };
 
-  const processContentBlocks = async (content: string) => {
-    for (const block of splitSearchBlocks(content)) {
+  const processContentBlocks = async (blocks: SearchBlock[]) => {
+    for (const block of blocks) {
       if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
         if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
         else if (companies.length > 0) markTruncated('deadline');
@@ -1047,10 +1053,11 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
     queriesRun.push('consultasocio.com/direct');
     const before = snapshotCounts();
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);
-    const blockCount = consultasocioContent ? splitSearchBlocks(consultasocioContent).length : 0;
+    const consultasocioBlocks = consultasocioContent ? splitSearchBlocks(consultasocioContent) : [];
+    const blockCount = consultasocioBlocks.length;
     if (consultasocioContent && !/Nenhum resultado encontrado/i.test(consultasocioContent)) {
       scoutDiag.info('SocioSearch', 'consultasocio.com retornou resultados, processando');
-      await processContentBlocks(consultasocioContent);
+      await processContentBlocks(consultasocioBlocks);
       traceProvider({
         provider: 'consultasocio',
         attempted: true,
@@ -1121,8 +1128,9 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
       continue;
     }
 
-    const blockCount = splitSearchBlocks(content).length;
-    await processContentBlocks(content);
+    const blocks = splitSearchBlocks(content);
+    const blockCount = blocks.length;
+    await processContentBlocks(blocks);
     traceProvider({
       provider: 'web_search',
       query,
