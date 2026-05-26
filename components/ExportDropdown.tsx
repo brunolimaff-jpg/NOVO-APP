@@ -18,11 +18,23 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   exportStatus,
 }) => {
   const [open, setOpen] = useState(false);
+  const [displayStatus, setDisplayStatus] = useState(exportStatus);
   const focusIndexRef = useRef(-1);
   const ref = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuId = 'export-dropdown-menu';
   const menuItemsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    setDisplayStatus(exportStatus);
+  }, [exportStatus]);
+
+  useEffect(() => {
+    if (open && (displayStatus === 'success' || displayStatus === 'error')) {
+      const timer = setTimeout(() => setDisplayStatus('idle'), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [displayStatus, open]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -143,7 +155,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
               isDarkMode ? 'bg-emerald-800/50 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
             }`}>HT</span>
             <div>
-              <p className="font-medium">HTML navegável</p>
+              <p className="font-medium">HTML navegável <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-emerald-800/30 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>Recomendado</span></p>
               <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Relatório completo no browser</p>
             </div>
           </button>
@@ -236,13 +248,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             </div>
           </button>
 
-          {exportStatus !== 'idle' && (
+          {displayStatus !== 'idle' && (
             <div role="status" aria-live="polite" className={`mx-3 mb-2 mt-1 rounded-lg px-3 py-2 text-xs ${
-              exportStatus === 'error'
+              displayStatus === 'error'
                 ? isDarkMode
                   ? 'bg-red-900/30 text-red-300'
                   : 'bg-red-50 text-red-700'
-                : exportStatus === 'success'
+                : displayStatus === 'success'
                   ? isDarkMode
                     ? 'bg-emerald-900/30 text-emerald-300'
                     : 'bg-emerald-50 text-emerald-700'
@@ -250,9 +262,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                     ? 'bg-blue-900/30 text-blue-300'
                     : 'bg-blue-50 text-blue-700'
             }`}>
-              {exportStatus === 'loading' && 'Preparando exportação...'}
-              {exportStatus === 'success' && 'Exportação concluída.'}
-              {exportStatus === 'error' && 'Falha ao exportar.'}
+              {displayStatus === 'loading' && 'Preparando exportação...'}
+              {displayStatus === 'success' && 'Exportação concluída.'}
+              {displayStatus === 'error' && 'Falha ao exportar.'}
             </div>
           )}
         </div>
