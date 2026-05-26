@@ -14,9 +14,10 @@ export function isSideBusiness(company: SocietaryCompany): boolean {
 
 export function countByCategory(
   companies: SocietaryCompany[],
-): { total: number; strategic: number; operation: number; own: number } {
-  const result = { total: companies.length, strategic: 0, operation: 0, own: 0 };
+): { found: number; total: number; strategic: number; operation: number; own: number } {
+  const result = { found: companies.length, total: 0, strategic: 0, operation: 0, own: 0 };
   for (const company of companies) {
+    if (!isSideBusiness(company)) result.total += 1;
     const category = classifyCompany(company);
     result[category] += 1;
   }

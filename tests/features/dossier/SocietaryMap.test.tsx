@@ -456,6 +456,8 @@ describe('SocietaryMap', () => {
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
     await waitFor(() => expect(screen.getByText('E.Z.M.S. Participações Ltda')).toBeInTheDocument());
+    expect(screen.getByText('CNPJs encontrados').closest('div')?.parentElement).toHaveTextContent('1');
+    expect(screen.queryByText('empresas do grupo')).not.toBeInTheDocument();
     expect(screen.queryByText('CNPJs laterais')).not.toBeInTheDocument();
     expect(screen.queryByText('Laterais')).not.toBeInTheDocument();
     expect(screen.queryByText('Relação')).not.toBeInTheDocument();

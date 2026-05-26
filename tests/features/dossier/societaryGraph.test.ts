@@ -607,6 +607,39 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('Root -- Sócio admin --> inferido');
   });
 
+  it('rotula socio comum com evidencia QSA como Socio no CNPJ na aresta', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners: [
+        {
+          id: 'carolina',
+          name: 'Carolina M. Scheffer',
+          role: 'Sócia',
+          sourceTitle: 'BrasilAPI',
+          confidence: 'official',
+        },
+      ],
+      companies: [
+        {
+          name: 'Empresa Grupo LTDA',
+          cnpj: '00111222000181',
+          partnerName: 'Carolina M. Scheffer',
+          role: 'Sócia',
+          sourceTitle: 'Fonte societária',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: true,
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      ],
+    });
+
+    const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'carolina' });
+    expect(mermaid).toContain('carolina -- Sócio no CNPJ --> company_00111222000181');
+    expect(mermaid).not.toContain('carolina -- Sócio admin -->');
+  });
+
   it('gera Mermaid sempre em LR para o socio selecionado', () => {
     const graph = buildSocietaryGraph({
       root,

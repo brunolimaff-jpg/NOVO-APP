@@ -779,8 +779,8 @@ function partnerToCompanyEdgeLabel(company: SocietaryCompany, partner?: Societar
   const role = partner?.role || company.role || '';
   const normalizedRole = normalizeText(role);
   if (normalizedRole.includes('administrador')) return null;
+  if (/socio|socia/.test(normalizedRole)) return 'Sócio no CNPJ';
   if (company.evidenceType === 'qsa') return null;
-  if (normalizedRole.includes('socio')) return 'Sócio no CNPJ';
   return describeSocietaryCompanyType(company);
 }
 

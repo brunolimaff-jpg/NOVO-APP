@@ -7,6 +7,11 @@ import {
   formatSocietaryCnpj,
   getDisplayBadges,
 } from './societaryGraph';
+import {
+  type CompanyCategory,
+  classifyCompany,
+  isSideBusiness,
+} from './societaryCategories';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 const PARTNER_MATRIX_COLORS = [
@@ -23,18 +28,6 @@ const PARTNER_MATRIX_COLORS = [
 function firstGivenName(fullName: string): string {
   const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
-}
-
-type CompanyCategory = 'strategic' | 'operation' | 'own';
-
-function classifyCompany(company: SocietaryCompany): CompanyCategory {
-  if (company.partnerIds.length >= 3) return 'strategic';
-  if (company.partnerIds.length >= 2) return 'operation';
-  return 'own';
-}
-
-function isSideBusiness(company: SocietaryCompany): boolean {
-  return company.relationshipScope === 'partner_other_cnpj';
 }
 
 const CATEGORY_LABELS: Record<CompanyCategory, string> = {
@@ -176,7 +169,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     const strategic = classified.filter(c => c.category === 'strategic').length;
     const operation = classified.filter(c => c.category === 'operation').length;
     const own = classified.filter(c => c.category === 'own').length;
-    const total = strategic + operation + own;
+    const total = classified.filter(c => !c.side).length;
     return { found, total, strategic, operation, own };
   }, [classified]);
 
