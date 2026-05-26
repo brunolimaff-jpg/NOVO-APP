@@ -37,11 +37,15 @@ interface MarkdownRendererProps {
   groundingSources?: GroundingSource[];
   auditableSources?: AuditableSource[];
   allowRawHtml?: boolean;
+  /** "compact" suppresses the "Inteligência Estratégica" header in Mermaid charts */
+  variant?: 'default' | 'compact';
 }
 
 interface MermaidProps {
   chart: string;
   isDarkMode?: boolean;
+  /** "compact" skips the "Inteligência Estratégica" header (use inside SocietaryMap) */
+  variant?: 'default' | 'compact';
 }
 
 function isMermaidCodeNode(node: React.ReactNode): boolean {
@@ -86,6 +90,9 @@ function normalizeCitationArtifacts(input: string): string {
 let mermaidSingleton: typeof import('mermaid')['default'] | null = null;
 let mermaidTheme: string | null = null;
 
+/** Module-level SVG cache: key = sanitizedChart + "::" + themeKey */
+const mermaidSvgCache = new Map<string, string>();
+
 async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')['default']> {
   const themeKey = isDarkMode ? 'dark' : 'light';
   const mod = await loadWithChunkRetry(() => import('mermaid'));
@@ -109,7 +116,7 @@ async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')
         clusterBorder: isDarkMode ? '#475569' : '#cbd5e1',
         defaultLinkColor: isDarkMode ? '#94a3b8' : '#475569',
         textColor: isDarkMode ? '#f8fafc' : '#0f172a',
-        fontSize: '11px',
+        fontSize: '13px',
         edgeLabelBackground: isDarkMode ? '#1e293b' : '#ffffff',
       },
       // strict: bloqueia click injection e outras execuções JS arbitrárias em diagramas
@@ -126,12 +133,16 @@ type MermaidWithParse = typeof import('mermaid')['default'] & {
   parse?: (chart: string) => Promise<unknown> | unknown;
 };
 
-const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
-  const [svg, setSvg] = useState<string>('');
+const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'default' }) => {
+  const themeKey = isDarkMode ? 'dark' : 'light';
+  const sanitizedChart = useMemo(() => sanitizeMermaidCode(chart), [chart]);
+  const cacheKey = `${sanitizedChart}::${themeKey}`;
+
+  const [svg, setSvg] = useState<string>(() => mermaidSvgCache.get(cacheKey) ?? '');
   const [error, setError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  // Stable render ID per component instance — never changes to avoid duplicate DOM ids
   const idRef = useRef<string>(`mermaid-${Math.random().toString(36).substring(2, 9)}`);
-  const sanitizedChart = useMemo(() => sanitizeMermaidCode(chart), [chart]);
   const fallbackChart = useMemo(() => getDisplayableMermaidCode(chart), [chart]);
 
   useEffect(() => {
@@ -141,17 +152,22 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
       return;
     }
 
+    // Hit cache first — avoids flicker on Virtuoso remount
+    const cached = mermaidSvgCache.get(cacheKey);
+    if (cached) {
+      setSvg(cached);
+      setError(null);
+      return;
+    }
+
+    if (!sanitizedChart) {
+      setError('Bloco Mermaid invalido ou incompleto.');
+      return;
+    }
+
     let cancelled = false;
 
     const initMermaid = async () => {
-      if (!sanitizedChart) {
-        if (!cancelled) {
-          setSvg('');
-          setError('Bloco Mermaid invalido ou incompleto.');
-        }
-        return;
-      }
-
       try {
         const mermaid = (await getMermaid(isDarkMode ?? false)) as MermaidWithParse;
         if (typeof mermaid.parse === 'function') {
@@ -159,11 +175,19 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
         }
 
         const { svg: rendered } = await mermaid.render(idRef.current, sanitizedChart);
+
+        // Remove temporary render container that mermaid injects into the body
+        const tempEl = document.getElementById(idRef.current);
+        tempEl?.remove();
+        // Also clean up any lingering dmermaid-* nodes
+        document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
+
         if (isMermaidRenderErrorOutput(rendered)) {
           throw new Error('Mermaid retornou um SVG de erro sintático');
         }
 
         if (!cancelled) {
+          mermaidSvgCache.set(cacheKey, rendered);
           setSvg(rendered);
           setError(null);
           setShowDetails(false);
@@ -171,7 +195,6 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
       } catch (err: unknown) {
         if (!cancelled) {
           const typedError = err as { str?: string; message?: string };
-          setSvg('');
           setError(typedError?.str || typedError?.message || 'Falha ao renderizar diagrama');
         }
       }
@@ -181,7 +204,7 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
     return () => {
       cancelled = true;
     };
-  }, [chart, isDarkMode, sanitizedChart]);
+  }, [cacheKey, chart, isDarkMode, sanitizedChart]);
 
   if (error) {
     return (
@@ -213,11 +236,30 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode }) => {
     );
   }
 
-  if (!svg) return null;
+  // Keep previous SVG visible while reloading instead of flashing null
+  if (!svg) {
+    return (
+      <div
+        className={`my-4 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 ${variant === 'compact' ? '' : 'my-8 rounded-[2rem]'}`}
+        aria-hidden
+      >
+        <div className="h-40 rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </div>
+    );
+  }
+
+  if (variant === 'compact') {
+    return (
+      <div
+        className="mermaid-chart overflow-x-auto p-2"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    );
+  }
 
   return (
-    <div className="my-8 overflow-hidden rounded-[2rem] border border-slate-200/60 bg-gradient-to-br from-white to-slate-50/50 shadow-lg shadow-slate-200/20 backdrop-blur-md dark:border-slate-800/60 dark:from-slate-900/80 dark:to-slate-950/80 dark:shadow-black/20">
-      <div className="flex items-center gap-2 border-b border-slate-200/40 bg-slate-50/40 px-6 py-3.5 dark:border-slate-800/40 dark:bg-slate-900/40">
+    <div className="my-8 overflow-hidden rounded-[2rem] border border-slate-200/60 bg-white shadow-lg shadow-slate-200/20 dark:border-slate-800/60 dark:bg-slate-900 dark:shadow-black/20">
+      <div className="flex items-center gap-2 border-b border-slate-200/40 bg-slate-50 px-6 py-3.5 dark:border-slate-800/40 dark:bg-slate-900/60">
         <div className="flex h-1.5 w-1.5 items-center justify-center rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
         <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
           Inteligência Estratégica
@@ -240,6 +282,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   // Manter false por padrão para prevenir XSS via conteúdo gerado por IA.
   // Se true for necessário, usar DOMPurify antes de passar o conteúdo.
   allowRawHtml = false,
+  variant = 'default',
 }) => {
   const resolvedSources = useMemo(
     () =>
@@ -343,7 +386,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
       if (isMermaid) {
         const chart = String(children).replace(/\n$/, '').trim();
-        return <MermaidChart chart={chart} isDarkMode={isDarkMode} />;
+        return <MermaidChart chart={chart} isDarkMode={isDarkMode} variant={variant} />;
       }
 
       return (
@@ -539,7 +582,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     td: ({ children }: { children: React.ReactNode }) => (
       <td className="px-3 py-2 align-top leading-relaxed text-slate-800 dark:text-slate-100">{children}</td>
     ),
-  }), [isDarkMode, citationMap, titleMap]);
+  }), [isDarkMode, citationMap, titleMap, variant]);
 
   return (
     <div className="markdown-body">

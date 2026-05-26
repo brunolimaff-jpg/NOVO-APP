@@ -125,7 +125,10 @@ const PARTNER_EDGE_COLORS = [
 ];
 
 /** Máximo de empresas por linha no grafo drill-down antes de quebrar em subgraphs. */
-export const SOCIETARY_MERMAID_COMPANIES_PER_ROW = 3;
+export const SOCIETARY_MERMAID_COMPANIES_PER_ROW = 2;
+
+/** Threshold para forçar layout vertical (graph TD) sem subgraph LR. */
+const SOCIETARY_MERMAID_VERTICAL_THRESHOLD = 6;
 
 function chunkArray<T>(items: readonly T[], size: number): T[][] {
   if (size <= 0) return [Array.from(items)];
@@ -866,12 +869,13 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
   });
   const useMultiRowLayout = !isOverview
-    && visibleCompanies.length > SOCIETARY_MERMAID_COMPANIES_PER_ROW;
-  const graphDirection = isOverview
+    && visibleCompanies.length > SOCIETARY_MERMAID_COMPANIES_PER_ROW
+    && visibleCompanies.length <= SOCIETARY_MERMAID_VERTICAL_THRESHOLD;
+  // Force plain vertical TD for large graphs to avoid subgraph crowding
+  const useVerticalLayout = !isOverview && visibleCompanies.length > SOCIETARY_MERMAID_VERTICAL_THRESHOLD;
+  const graphDirection = isOverview || useMultiRowLayout || useVerticalLayout
     ? 'graph TD'
-    : useMultiRowLayout
-      ? 'graph TD'
-      : 'graph LR';
+    : 'graph LR';
   const lines = [
     graphDirection,
     '  classDef root fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;',
@@ -917,7 +921,18 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
     }
   };
 
-  if (useMultiRowLayout) {
+  if (useVerticalLayout) {
+    // Large graph: flat TD — no subgraphs to avoid visual crowding
+    for (const company of visibleCompanies) {
+      const fullName = formatCompanyDisplayName(company.name);
+      const cnpjText = company.cnpj ? ` (${formatSocietaryCnpj(company.cnpj)})` : '';
+      lines.push(`  ${company.id}["${companyLabelCompact(company)}"]:::tooltip`);
+      // tooltip via title attribute isn't natively supported in Mermaid SVG but we
+      // encode full name as a comment for future tooling; compact label is kept short
+      lines.push(`  %% title: ${fullName}${cnpjText}`);
+      appendCompanyEdges(company);
+    }
+  } else if (useMultiRowLayout) {
     const rows = chunkArray(visibleCompanies, SOCIETARY_MERMAID_COMPANIES_PER_ROW);
     rows.forEach((rowCompanies, rowIndex) => {
       lines.push(`  subgraph sg_row_${rowIndex}[" "]`);

@@ -95,6 +95,15 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
 
+  // Use larger overscan when any bot message looks like a dossier (long text) to
+  // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
+  const virtuosoOverscan = useMemo(() => {
+    const hasDossier = safeMessages.some(
+      m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000,
+    );
+    return hasDossier ? 1400 : 400;
+  }, [safeMessages]);
+
   const handleDeleteWithUndo = useCallback(
     (messageId: string) => {
       if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
@@ -303,7 +312,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               itemContent={itemContent}
               // UX contract: never auto-scroll the main chat timeline on new messages.
               followOutput={false}
-              increaseViewportBy={{ top: 400, bottom: 400 }}
+              increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
               style={{ height: '100%' }}
               components={{
