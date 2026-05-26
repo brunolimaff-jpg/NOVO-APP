@@ -4,7 +4,14 @@
 import { get, set } from 'idb-keyval';
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 import { syncQueue } from './syncQueue';
+import type { SyncOperation } from './syncQueue';
 import type { ChatSession } from '../types';
+
+interface SyncResult {
+  pushed: number;
+  pulled: number;
+  errors: string[];
+}
 
 // ===================================================================
 // IDB KEYS (same as existing to preserve data)
@@ -20,8 +27,13 @@ const IDB_KEYS = {
 } as const;
 
 const USER_CONTEXT_TOUCH_DEBOUNCE_MS = 60_000;
+const DOSSIER_AUTO_SYNC_DEBOUNCE_MS = 750;
 const userContextTouchTimestamps = new Map<string, number>();
 let backgroundSyncInFlight = false;
+let dossierAutoSyncInFlight = false;
+let dossierAutoSyncNeedsRerun = false;
+let dossierAutoSyncShouldPull = false;
+let dossierAutoSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ===================================================================
 // HELPERS
@@ -41,6 +53,46 @@ async function getLocalSessions(): Promise<ChatSession[]> {
 
 async function setLocalSessions(sessions: ChatSession[]): Promise<void> {
   await set(IDB_KEYS.SESSIONS, sessions);
+}
+
+function isDossierOperation(op: SyncOperation): boolean {
+  return op.table === 'dossies';
+}
+
+function emitSyncComplete(detail: SyncResult): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail }));
+}
+
+function requestDossierSyncRerun(options: { pull?: boolean } = {}): void {
+  dossierAutoSyncNeedsRerun = true;
+  dossierAutoSyncShouldPull = dossierAutoSyncShouldPull || Boolean(options.pull);
+}
+
+async function executeSupabaseOperation(op: SyncOperation): Promise<void> {
+  const conflictColumns: Record<string, string> = {
+    user_context: 'operator_id',
+    radar_configs: 'operator_id',
+    favorites: 'operator_id,cnpj',
+    radar_alerts: 'operator_id',
+  };
+
+  const { table, operation, data } = op;
+
+  if (operation === 'upsert') {
+    const onConflict = conflictColumns[table];
+    const { error } = await supabase!.from(table).upsert(
+      data,
+      onConflict ? { onConflict } : undefined
+    );
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  if (operation === 'delete' && op.id) {
+    const { error } = await supabase!.from(table).delete().eq('id', op.id);
+    if (error) throw new Error(error.message);
+  }
 }
 
 // ===================================================================
@@ -123,6 +175,8 @@ export const storage = {
       },
       id: session.id,
     });
+
+    this.scheduleDossierSync();
   },
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
@@ -153,11 +207,13 @@ export const storage = {
       });
     }
 
+    this.scheduleDossierSync();
   },
 
   async deleteDossier(id: string): Promise<void> {
     // Remove from local sessions
     const sessions = await getLocalSessions();
+    const deletedSession = sessions.find((s) => s.id === id);
     const filtered = sessions.filter((s) => s.id !== id);
     await setLocalSessions(filtered);
 
@@ -171,11 +227,24 @@ export const storage = {
       data: {
         id,
         operator_id: operatorId,
+        ...(deletedSession
+          ? {
+              title: deletedSession.title,
+              empresa_alvo: deletedSession.empresaAlvo,
+              cnpj: deletedSession.cnpj,
+              modo_principal: deletedSession.modoPrincipal,
+              score_oportunidade: deletedSession.scoreOportunidade,
+              resumo_dossie: deletedSession.resumoDossie,
+              content: deletedSession as unknown as Record<string, unknown>,
+            }
+          : {}),
         deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
       id,
     });
 
+    this.scheduleDossierSync();
   },
 
   // ===================================================================
@@ -577,6 +646,114 @@ export const storage = {
     await syncQueue.persist();
   },
 
+  scheduleDossierSync(options: { pull?: boolean } = {}): void {
+    if (!isSupabaseAvailable() || !getOperatorId()) {
+      return;
+    }
+
+    dossierAutoSyncShouldPull = dossierAutoSyncShouldPull || Boolean(options.pull);
+
+    if (dossierAutoSyncTimer) {
+      clearTimeout(dossierAutoSyncTimer);
+    }
+
+    dossierAutoSyncTimer = setTimeout(() => {
+      dossierAutoSyncTimer = null;
+      const shouldPull = dossierAutoSyncShouldPull;
+      dossierAutoSyncShouldPull = false;
+
+      void this.syncDossiers({ pull: shouldPull })
+        .then((result: SyncResult) => {
+          if (result.pushed > 0 || result.pulled > 0 || result.errors.length > 0) {
+            emitSyncComplete(result);
+          }
+        })
+        .catch((error: unknown) => {
+          console.warn('storage.scheduleDossierSync: erro no sync de dossies', error);
+        });
+    }, DOSSIER_AUTO_SYNC_DEBOUNCE_MS);
+  },
+
+  async syncDossiers(options: { pull?: boolean } = {}): Promise<SyncResult> {
+    const errors: string[] = [];
+    let pushed = 0;
+    let pulled = 0;
+
+    if (dossierAutoSyncInFlight) {
+      requestDossierSyncRerun(options);
+      return { pushed, pulled, errors };
+    }
+
+    if (!isSupabaseAvailable()) {
+      return { pushed, pulled, errors: ['Supabase indisponivel'] };
+    }
+
+    const operatorId = getOperatorId();
+    if (!operatorId) {
+      return { pushed, pulled, errors: ['Operador nao registrado'] };
+    }
+
+    dossierAutoSyncInFlight = true;
+    dossierAutoSyncNeedsRerun = false;
+
+    try {
+      await syncQueue.load();
+      const pendingBefore = syncQueue.peek().filter(isDossierOperation).length;
+      let failedPushes = 0;
+
+      if (pendingBefore > 0) {
+        const didProcess = await syncQueue.processWhere(isDossierOperation, async (op) => {
+          try {
+            await executeSupabaseOperation(op);
+            pushed += 1;
+          } catch (error) {
+            failedPushes += 1;
+            throw error;
+          }
+        });
+
+        if (!didProcess) {
+          requestDossierSyncRerun(options);
+          return { pushed, pulled, errors };
+        }
+      }
+
+      const pendingAfter = syncQueue.peek().filter(isDossierOperation).length;
+
+      if (failedPushes > 0) {
+        errors.push(`${failedPushes} dossie(s) falharam no envio`);
+      }
+
+      if (options.pull && pendingAfter === 0) {
+        try {
+          const { data, error } = await supabase!
+            .from('dossies')
+            .select('content')
+            .eq('operator_id', operatorId)
+            .is('deleted_at', null)
+            .order('updated_at', { ascending: false });
+
+          if (error) {
+            errors.push('Erro ao baixar dossies');
+          } else if (data) {
+            const sessions = data.map((row: { content: ChatSession }) => row.content);
+            await setLocalSessions(sessions);
+            pulled = sessions.length;
+          }
+        } catch (e) {
+          errors.push('Falha ao baixar dossies: ' + (e instanceof Error ? e.message : String(e)));
+        }
+      }
+    } finally {
+      dossierAutoSyncInFlight = false;
+      if (dossierAutoSyncNeedsRerun) {
+        this.scheduleDossierSync();
+      }
+    }
+
+    return { pushed, pulled, errors };
+  },
+
   scheduleBackgroundSync(): void {
     if (backgroundSyncInFlight || !isSupabaseAvailable()) {
       return;
@@ -584,6 +761,12 @@ export const storage = {
 
     backgroundSyncInFlight = true;
     void this.processSyncQueue()
+      .then(() => this.syncDossiers({ pull: true }))
+      .then((result: SyncResult) => {
+        if (result.pushed > 0 || result.pulled > 0 || result.errors.length > 0) {
+          emitSyncComplete(result);
+        }
+      })
       .catch((error: unknown) => {
         console.warn('storage.scheduleBackgroundSync: erro no sync em background', error);
       })
@@ -604,33 +787,8 @@ export const storage = {
       return;
     }
 
-    // Tables with unique constraints on non-PK columns need explicit onConflict
-    const conflictColumns: Record<string, string> = {
-      user_context: 'operator_id',
-      radar_configs: 'operator_id',
-      favorites: 'operator_id,cnpj',
-      radar_alerts: 'operator_id',
-    };
-
     // Process all operations with Supabase executor
-    await syncQueue.processAll(async (op) => {
-      const { table, operation, data } = op;
-
-      if (operation === 'upsert') {
-        const onConflict = conflictColumns[table];
-        const { error } = await supabase!.from(table).upsert(
-          data,
-          onConflict ? { onConflict } : undefined
-        );
-        if (error) throw new Error(error.message);
-      } else if (operation === 'delete') {
-        const id = op.id;
-        if (id) {
-          const { error } = await supabase!.from(table).delete().eq('id', id);
-          if (error) throw new Error(error.message);
-        }
-      }
-    });
+    await syncQueue.processAll(executeSupabaseOperation);
   },
 
   // ===================================================================
