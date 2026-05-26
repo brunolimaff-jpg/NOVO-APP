@@ -423,16 +423,31 @@ describe('useDossierWaterfallOrchestrator', () => {
     });
 
     expect(createWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
-    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith(
-      'cachedContents/test-cache',
-      expect.any(AbortSignal),
-    );
+    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
+    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith('cachedContents/test-cache');
     expect(generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache')).toBe(true);
     expect(reconcileWaterfallPortaMock).toHaveBeenCalledWith(
       expect.objectContaining({
         foundationCacheName: 'cachedContents/test-cache',
       }),
     );
+  });
+
+  it('propaga abort quando a criação do foundation cache é cancelada', async () => {
+    isFoundationCacheEnabledMock.mockReturnValue(true);
+    const abortError = createAbortError();
+    createWaterfallFoundationCacheMock.mockRejectedValueOnce(abortError);
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await expect(
+      act(async () => {
+        await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+      }),
+    ).rejects.toBe(abortError);
+
+    expect(deleteWaterfallFoundationCacheMock).not.toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
   });
 
   it('agrega fontes de grounding retornadas pelos módulos', async () => {

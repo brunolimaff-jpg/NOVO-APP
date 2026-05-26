@@ -128,5 +128,6 @@ describe('investigation-orchestration', () => {
       undefined,
     );
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
   });
 });

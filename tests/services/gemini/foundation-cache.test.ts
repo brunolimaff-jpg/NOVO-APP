@@ -24,6 +24,7 @@ import {
   deleteWaterfallFoundationCache,
   joinDossierExtraContext,
   WATERFALL_FOUNDATION_CACHE_TTL,
+  WATERFALL_FOUNDATION_CACHE_TOOLS,
 } from '../../../services/gemini/foundation-cache';
 
 describe('foundation-cache', () => {
@@ -77,6 +78,7 @@ describe('foundation-cache', () => {
         systemInstruction: 'foundation\n\nstatic',
         ttl: WATERFALL_FOUNDATION_CACHE_TTL,
         displayName: 'scout360-waterfall-foundation',
+        tools: [...WATERFALL_FOUNDATION_CACHE_TOOLS],
       }),
       undefined,
     );

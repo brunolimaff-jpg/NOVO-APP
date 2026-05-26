@@ -63,6 +63,7 @@ npm run lint
 - Avoid empty catches.
 - Prefer typed solutions over `any`.
 - Do not revert unrelated local changes.
+- **Merge guard**: NEVER run `gh pr merge` or any PR merge/squash/auto-merge unless the user's message contains the word **MERGE** (case-insensitive). Push branch and open/edit PR are allowed without it. When uncertain, ask: "Confirma com MERGE se quiser mergear."
 
 
 <claude-mem-context>

@@ -4,6 +4,8 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 
 export const WATERFALL_FOUNDATION_CACHE_TTL = '600s';
 
+export const WATERFALL_FOUNDATION_CACHE_TOOLS = [{ googleSearch: {} }] as const;
+
 export interface StaticDossierContextInput {
   dossierSeedContext: string;
   waterfallLookupContext: string;
@@ -71,6 +73,7 @@ export async function createWaterfallFoundationCache(args: {
       systemInstruction,
       ttl: WATERFALL_FOUNDATION_CACHE_TTL,
       displayName: 'scout360-waterfall-foundation',
+      tools: [...WATERFALL_FOUNDATION_CACHE_TOOLS],
     },
     args.signal,
   );

@@ -23,6 +23,7 @@ const GeminiRequestSchema = z.discriminatedUnion('action', [
     systemInstruction: z.string().min(1).max(500000),
     ttl: z.string().max(32).optional(),
     displayName: z.string().max(128).optional(),
+    tools: z.array(z.record(z.string(), z.unknown())).optional(),
   }),
   z.object({
     action: z.literal('deleteCachedContent'),
@@ -251,10 +252,22 @@ async function executeGeminiAction(
       if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
       if (typeof configIn.cachedContent === 'string') {
         genConfig.cachedContent = configIn.cachedContent;
-      } else if (typeof configIn.systemInstruction === 'string') {
-        genConfig.systemInstruction = configIn.systemInstruction;
+        if (configIn.systemInstruction !== undefined) {
+          console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
+        }
+        if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
+          console.warn('[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
+        }
+        if (configIn.toolConfig !== undefined) {
+          console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
+        }
+      } else {
+        if (typeof configIn.systemInstruction === 'string') {
+          genConfig.systemInstruction = configIn.systemInstruction;
+        }
+        if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
+        if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
       }
-      if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
 
       const response = await ai.models.generateContent({
         model,
@@ -275,13 +288,17 @@ async function executeGeminiAction(
       }
 
       const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const cacheConfig: Record<string, unknown> = {
+        displayName: body.displayName ?? 'scout360-waterfall-foundation',
+        systemInstruction: body.systemInstruction,
+        ttl: body.ttl ?? '600s',
+      };
+      if (Array.isArray(body.tools) && body.tools.length > 0) {
+        cacheConfig.tools = body.tools;
+      }
       const cache = await ai.caches.create({
         model,
-        config: {
-          displayName: body.displayName ?? 'scout360-waterfall-foundation',
-          systemInstruction: body.systemInstruction,
-          ttl: body.ttl ?? '600s',
-        },
+        config: cacheConfig,
       });
 
       return res.status(200).json({
