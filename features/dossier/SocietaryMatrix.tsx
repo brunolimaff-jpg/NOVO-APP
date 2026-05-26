@@ -277,7 +277,19 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         aria-label="Resumo da teia societária"
         data-testid="societary-summary-metrics"
       >
-        <SummaryMetric value={metrics.cnpjsTotais} label="CNPJs no mapa" testId="summary-metric-cnpjs-no-mapa" />
+        <div
+          className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center"
+          data-testid="summary-metric-cnpjs-no-mapa"
+        >
+          <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
+            {visibleRows.length}
+          </strong>
+          <span className="max-w-[8.5rem] text-[0.75rem] font-medium leading-snug text-slate-500 dark:text-slate-400">
+            {metrics.filiais > 0
+              ? `${visibleRows.length} matrizes + ${metrics.filiais} filiais`
+              : `${visibleRows.length} matrizes`}
+          </span>
+        </div>
         <SummaryMetric value={metrics.filiais} label="Filiais" testId="summary-metric-filiais" />
         <SummaryMetric value={metrics.em_comum} label="Em comum" testId="summary-metric-em-comum" />
         <SummaryMetric value={metrics.proprias} label="Próprias" testId="summary-metric-proprias" />
