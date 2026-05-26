@@ -102,17 +102,25 @@ vi.mock('../features/chat/feedback-actions', () => ({
 vi.mock('../contexts/OperatorContext', () => ({
   useOperator: () => ({
     name: 'Bruno',
+    email: 'bruno@senior.com.br',
     operatorId: 'op-1',
     loading: false,
     setName: vi.fn(),
+    setEmail: vi.fn(),
+    registerOperator: vi.fn(),
     clearName: vi.fn(),
+    linkToExistingOperator: vi.fn(),
   }),
   useMaybeOperator: () => ({
     name: 'Bruno',
+    email: 'bruno@senior.com.br',
     operatorId: 'op-1',
     loading: false,
     setName: vi.fn(),
+    setEmail: vi.fn(),
+    registerOperator: vi.fn(),
     clearName: vi.fn(),
+    linkToExistingOperator: vi.fn(),
   }),
 }));
 

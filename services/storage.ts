@@ -19,6 +19,10 @@ const IDB_KEYS = {
   EXTRACT_CACHE_PREFIX: 'ext-cache-',
 } as const;
 
+const USER_CONTEXT_TOUCH_DEBOUNCE_MS = 60_000;
+const userContextTouchTimestamps = new Map<string, number>();
+let backgroundSyncInFlight = false;
+
 // ===================================================================
 // HELPERS
 // ===================================================================
@@ -300,22 +304,73 @@ export const storage = {
   // ===================================================================
 
   async saveUserContext(data: { operatorId: string; name: string; email: string }): Promise<void> {
-    // SyncQueue only (no local IDB, just goes to Supabase)
     const operatorId = data.operatorId;
     if (!operatorId) return; // Local-only until registered
+
+    const payload = {
+      operator_id: data.operatorId,
+      display_name: data.name,
+      email: data.email,
+      last_seen: new Date().toISOString(),
+    };
+
+    if (isSupabaseAvailable()) {
+      try {
+        const { error } = await supabase!
+          .from('user_context')
+          .upsert(payload, { onConflict: 'operator_id' });
+
+        if (!error) {
+          syncQueue.remove('user_context', operatorId);
+          return;
+        }
+
+        console.warn('storage.saveUserContext: upsert remoto falhou, mantendo retry', error);
+      } catch (error) {
+        console.warn('storage.saveUserContext: erro remoto, mantendo retry', error);
+      }
+    }
 
     syncQueue.enqueue({
       table: 'user_context',
       operation: 'upsert',
-      data: {
-        operator_id: data.operatorId,
-        display_name: data.name,
-        email: data.email,
-        last_seen: new Date().toISOString(),
-      },
+      data: payload,
       id: data.operatorId,
     });
 
+  },
+
+  async touchUserContext(operatorId: string): Promise<void> {
+    if (!operatorId || !isSupabaseAvailable()) return;
+
+    const now = Date.now();
+    const lastTouch = userContextTouchTimestamps.get(operatorId) ?? 0;
+    if (now - lastTouch < USER_CONTEXT_TOUCH_DEBOUNCE_MS) {
+      return;
+    }
+
+    userContextTouchTimestamps.set(operatorId, now);
+
+    try {
+      const { data, error } = await supabase!
+        .from('user_context')
+        .select('operator_id')
+        .eq('operator_id', operatorId)
+        .maybeSingle();
+
+      if (error || !data) return;
+
+      const { error: updateError } = await supabase!
+        .from('user_context')
+        .update({ last_seen: new Date().toISOString() })
+        .eq('operator_id', operatorId);
+
+      if (updateError) {
+        console.warn('storage.touchUserContext: last_seen remoto falhou', updateError);
+      }
+    } catch (error) {
+      console.warn('storage.touchUserContext: erro remoto ao atualizar last_seen', error);
+    }
   },
 
   // ===================================================================
@@ -528,6 +583,21 @@ export const storage = {
   async resetSyncQueue(): Promise<void> {
     syncQueue.clear();
     await syncQueue.persist();
+  },
+
+  scheduleBackgroundSync(): void {
+    if (backgroundSyncInFlight || !isSupabaseAvailable()) {
+      return;
+    }
+
+    backgroundSyncInFlight = true;
+    void this.processSyncQueue()
+      .catch((error: unknown) => {
+        console.warn('storage.scheduleBackgroundSync: erro no sync em background', error);
+      })
+      .finally(() => {
+        backgroundSyncInFlight = false;
+      });
   },
 
   async processSyncQueue(): Promise<void> {

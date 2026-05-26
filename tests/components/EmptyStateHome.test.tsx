@@ -12,7 +12,17 @@ const { fetchCompanyByCnpjMock, validateCityInStateMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../contexts/OperatorContext', () => ({
-  useOperator: () => ({ name: 'Bruno', operatorId: 'op-1', loading: false, setName: vi.fn(), clearName: vi.fn() }),
+  useOperator: () => ({
+    name: 'Bruno',
+    email: 'bruno@senior.com.br',
+    operatorId: 'op-1',
+    loading: false,
+    setName: vi.fn(),
+    setEmail: vi.fn(),
+    registerOperator: vi.fn(),
+    clearName: vi.fn(),
+    linkToExistingOperator: vi.fn(),
+  }),
 }));
 
 vi.mock('../../services/brasilApiService', () => ({

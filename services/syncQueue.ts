@@ -40,6 +40,19 @@ class SyncQueue {
     return [...this.queue];
   }
 
+  remove(table: string, id: string): void {
+    const nextQueue = this.queue.filter(
+      (item) => !(item.table === table && item.id === id)
+    );
+
+    if (nextQueue.length === this.queue.length) {
+      return;
+    }
+
+    this.queue = nextQueue;
+    this.persist().catch(() => {});
+  }
+
   clear(): void {
     this.queue = [];
   }

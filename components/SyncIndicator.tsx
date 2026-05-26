@@ -21,6 +21,18 @@ export function SyncIndicator() {
     return () => clearInterval(interval);
   }, [refresh]);
 
+  useEffect(() => {
+    storage.scheduleBackgroundSync();
+
+    const handleOnline = () => {
+      storage.scheduleBackgroundSync();
+      refresh();
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [refresh]);
+
   const handleSync = useCallback(async () => {
     if (syncing) return;
     setSyncing(true);

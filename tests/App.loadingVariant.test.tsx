@@ -101,17 +101,25 @@ vi.mock('../components/InstallPrompt', () => ({
 vi.mock('../contexts/OperatorContext', () => ({
   useOperator: () => ({
     name: 'Bruno Lima',
+    email: 'bruno@senior.com.br',
     operatorId: 'op-1',
     loading: false,
     setName: vi.fn(),
+    setEmail: vi.fn(),
+    registerOperator: vi.fn(),
     clearName: vi.fn(),
+    linkToExistingOperator: vi.fn(),
   }),
   useMaybeOperator: () => ({
     name: 'Bruno Lima',
+    email: 'bruno@senior.com.br',
     operatorId: 'op-1',
     loading: false,
     setName: vi.fn(),
+    setEmail: vi.fn(),
+    registerOperator: vi.fn(),
     clearName: vi.fn(),
+    linkToExistingOperator: vi.fn(),
   }),
 }));
 

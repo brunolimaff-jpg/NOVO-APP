@@ -2,7 +2,15 @@
 // Tests for unified storage layer (Supabase + IDB offline)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { storage } from '../../services/storage';
+
+const supabaseMock = vi.hoisted(() => ({
+  from: vi.fn(),
+  upsert: vi.fn(),
+  select: vi.fn(),
+  update: vi.fn(),
+  eq: vi.fn(),
+  maybeSingle: vi.fn(),
+}));
 
 // Mock idb-keyval
 vi.mock('idb-keyval', () => ({
@@ -12,7 +20,9 @@ vi.mock('idb-keyval', () => ({
 
 // Mock supabaseClient
 vi.mock('../../lib/supabaseClient', () => ({
-  supabase: null,
+  supabase: {
+    from: supabaseMock.from,
+  },
   isSupabaseAvailable: vi.fn(() => false),
 }));
 
@@ -20,12 +30,14 @@ vi.mock('../../lib/supabaseClient', () => ({
 vi.mock('../../services/syncQueue', () => ({
   syncQueue: {
     enqueue: vi.fn(),
+    remove: vi.fn(),
     size: vi.fn(() => 0),
     load: vi.fn(async () => []),
     processAll: vi.fn(),
   },
 }));
 
+import { storage } from '../../services/storage';
 import { get, set } from 'idb-keyval';
 import { isSupabaseAvailable } from '../../lib/supabaseClient';
 import { syncQueue } from '../../services/syncQueue';
@@ -47,6 +59,13 @@ describe('storage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isSupabaseAvailable).mockReturnValue(false);
+    supabaseMock.from.mockReset();
+    supabaseMock.upsert.mockReset();
+    supabaseMock.select.mockReset();
+    supabaseMock.update.mockReset();
+    supabaseMock.eq.mockReset();
+    supabaseMock.maybeSingle.mockReset();
   });
 
   describe('getOperatorId', () => {
@@ -326,13 +345,74 @@ describe('storage', () => {
   });
 
   describe('User Context', () => {
-    it('saveUserContext should enqueue sync only', async () => {
+    it('saveUserContext should upsert immediately when Supabase is available', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
       await storage.saveUserContext({
         operatorId: 'operator-123',
         name: 'Test Operator',
         email: 'test@example.com',
       });
 
+      expect(supabaseMock.from).toHaveBeenCalledWith('user_context');
+      expect(supabaseMock.upsert).toHaveBeenCalledWith({
+        operator_id: 'operator-123',
+        display_name: 'Test Operator',
+        email: 'test@example.com',
+        last_seen: expect.any(String),
+      }, { onConflict: 'operator_id' });
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('saveUserContext should keep retry queued when remote upsert fails', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      supabaseMock.upsert.mockResolvedValue({ error: { message: 'RLS denied' } });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveUserContext({
+        operatorId: 'operator-123',
+        name: 'Test Operator',
+        email: 'test@example.com',
+      });
+
+      expect(supabaseMock.upsert).toHaveBeenCalled();
+      expect(syncQueue.enqueue).toHaveBeenCalledWith({
+        table: 'user_context',
+        operation: 'upsert',
+        data: expect.objectContaining({
+          operator_id: 'operator-123',
+          display_name: 'Test Operator',
+          email: 'test@example.com',
+        }),
+        id: 'operator-123',
+      });
+    });
+
+    it('saveUserContext should remove pending retry after remote success', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveUserContext({
+        operatorId: 'operator-123',
+        name: 'Test Operator',
+        email: 'test@example.com',
+      });
+
+      expect(syncQueue.remove).toHaveBeenCalledWith('user_context', 'operator-123');
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('saveUserContext should enqueue when Supabase is unavailable', async () => {
+      await storage.saveUserContext({
+        operatorId: 'operator-123',
+        name: 'Test Operator',
+        email: 'test@example.com',
+      });
+
+      expect(supabaseMock.from).not.toHaveBeenCalled();
       expect(syncQueue.enqueue).toHaveBeenCalled();
       expect(set).not.toHaveBeenCalled();
     });
@@ -344,6 +424,40 @@ describe('storage', () => {
         email: 'test@example.com',
       });
 
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('touchUserContext should update only last_seen for an existing user', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      const updateEq = vi.fn().mockResolvedValue({ error: null });
+      supabaseMock.maybeSingle.mockResolvedValue({ data: { operator_id: 'operator-123' }, error: null });
+      supabaseMock.eq.mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
+      supabaseMock.select.mockReturnValue({ eq: supabaseMock.eq });
+      supabaseMock.update.mockReturnValue({ eq: updateEq });
+      supabaseMock.from
+        .mockReturnValueOnce({ select: supabaseMock.select })
+        .mockReturnValueOnce({ update: supabaseMock.update });
+
+      await storage.touchUserContext('operator-123');
+
+      expect(supabaseMock.from).toHaveBeenNthCalledWith(1, 'user_context');
+      expect(supabaseMock.select).toHaveBeenCalledWith('operator_id');
+      expect(supabaseMock.update).toHaveBeenCalledWith({ last_seen: expect.any(String) });
+      expect(updateEq).toHaveBeenCalledWith('operator_id', 'operator-123');
+      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('touchUserContext should skip when no user_context row exists', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+      supabaseMock.maybeSingle.mockResolvedValue({ data: null, error: null });
+      supabaseMock.eq.mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
+      supabaseMock.select.mockReturnValue({ eq: supabaseMock.eq });
+      supabaseMock.from.mockReturnValue({ select: supabaseMock.select });
+
+      await storage.touchUserContext('operator-missing');
+
+      expect(supabaseMock.select).toHaveBeenCalledWith('operator_id');
+      expect(supabaseMock.update).not.toHaveBeenCalled();
       expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });

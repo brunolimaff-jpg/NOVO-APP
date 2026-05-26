@@ -25,6 +25,29 @@ describe('syncQueue', () => {
     expect(syncQueue.size()).toBe(1);
   });
 
+  it('deve remover item especifico por tabela e id', () => {
+    const userContextOp: SyncOperation = {
+      table: 'user_context',
+      operation: 'upsert',
+      data: { operator_id: 'operator-123' },
+      id: 'operator-123',
+    };
+    const dossierOp: SyncOperation = {
+      table: 'dossies',
+      operation: 'upsert',
+      data: { id: 'dossier-1' },
+      id: 'dossier-1',
+    };
+
+    syncQueue.enqueue(userContextOp);
+    syncQueue.enqueue(dossierOp);
+
+    syncQueue.remove('user_context', 'operator-123');
+
+    expect(syncQueue.size()).toBe(1);
+    expect(syncQueue.peek()[0]).toMatchObject(dossierOp);
+  });
+
   it('deve processar fila e esvaziar', async () => {
     const op1: SyncOperation = {
       table: 'companies',
