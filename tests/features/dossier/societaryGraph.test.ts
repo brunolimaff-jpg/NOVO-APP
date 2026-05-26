@@ -161,14 +161,14 @@ describe('societaryGraph', () => {
       rootLinked: false,
       partnerIds: ['guilherme'],
     });
-    expect(graph.companies[0].badges).toContain('CNPJ lateral do sócio');
+    expect(graph.companies[0].badges).toContain('CNPJ lateral');
     expect(graph.companies[0].badges).toContain('validar grupo');
     expect(graph.companies[0].badges).not.toContain('oficial');
-    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('CNPJ lateral do sócio');
+    expect(describeSocietaryCompanyType(graph.companies[0])).toBe('CNPJ lateral');
 
     const mermaid = buildSocietaryMermaid(graph, { selectedPartnerId: 'guilherme' });
     expect(mermaid).toContain('Fazenda Independente LTDA');
-    expect(mermaid).toContain('guilherme -- CNPJ lateral do sócio --> company_12345678000195');
+    expect(mermaid).toContain('guilherme -- Lateral --> company_12345678000195');
     expect(mermaid).toContain('class company_12345678000195 lateral;');
     expect(mermaid).not.toContain('Root -- CNPJ relacionado --> company_12345678000195');
   });
@@ -364,7 +364,7 @@ describe('societaryGraph', () => {
       branchCount: 2,
       branchCnpjs: ['12345678000195', '12345678000276'],
     });
-    expect(graph.companies[0].badges).not.toContain('CNPJ lateral do sócio');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral');
   });
 
   it('rejeita nome de empresa truncado sem identidade real', () => {
@@ -513,7 +513,7 @@ describe('societaryGraph', () => {
       rootContext: true,
     });
     expect(graph.companies[0].badges).toContain('oficial');
-    expect(graph.companies[0].badges).not.toContain('CNPJ lateral do sócio');
+    expect(graph.companies[0].badges).not.toContain('CNPJ lateral');
   });
 
   it('rejeita empresas Gemini sem CNPJ valido para nao criar no visual por inferencia textual', () => {
@@ -608,7 +608,7 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('estimado');
     expect(mermaid).not.toContain('oficial');
     expect(mermaid).toContain('linkStyle 0 stroke:#7c3aed');
-    expect(mermaid).toContain('Root -- QSA da matriz --> guilherme');
+    expect(mermaid).toContain('Root -- QSA --> guilherme');
     expect(mermaid).toContain('guilherme -- Administra CNPJ --> company_scheffer_colombia_s_a_s');
   });
 

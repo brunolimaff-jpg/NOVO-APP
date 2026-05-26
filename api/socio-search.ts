@@ -74,12 +74,48 @@ interface SocioSearchDiagnostics {
   truncatedReason?: 'company_limit' | 'deadline';
 }
 
+interface SocioSearchTraceProvider {
+  provider: SocioSearchSourceProvider;
+  query?: string;
+  attempted: boolean;
+  returnedCount: number;
+  acceptedCount: number;
+  rejectedCount: number;
+  reason?: string;
+}
+
+interface SocioSearchTraceDiagnostics {
+  enabled: true;
+  cache?: {
+    required: boolean;
+    configured: boolean;
+    status: 'hit' | 'miss' | 'unavailable';
+    source: SocioSearchCacheSource;
+  };
+  providers: SocioSearchTraceProvider[];
+  totals: {
+    companiesCount: number;
+    rejectedCount: number;
+    pagesFetched: number;
+    cnpjsEnriched: number;
+    cnpjsFound: string[];
+    queriesRun: string[];
+    degraded: boolean;
+    truncated: boolean;
+    truncatedReason?: SocioSearchDiagnostics['truncatedReason'];
+    searchNoResultCount: number;
+    searchFailureCount: number;
+  };
+  rejectedByReason: Record<string, number>;
+}
+
 interface SocioSearchResponse {
   companies: SocioSearchCompany[];
   rejected: RejectedSocioSearchResult[];
   degraded: boolean;
   cached: boolean;
   diagnostics?: SocioSearchDiagnostics;
+  trace?: SocioSearchTraceDiagnostics;
 }
 
 type PersistentCacheRead =
@@ -91,6 +127,7 @@ const RequestSchema = z.object({
   socioName: z.string().min(3).max(160),
   rootCompanyName: z.string().min(2).max(180),
   rootCnpj: z.string().optional().default(''),
+  trace: z.boolean().optional().default(false),
 });
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -123,6 +160,51 @@ function buildPersistentCacheId(key: string): string {
   return `socio-search:${key}`;
 }
 
+function stripTrace(payload: SocioSearchResponse): SocioSearchResponse {
+  const { trace: _trace, ...rest } = payload;
+  return rest;
+}
+
+function countRejectedByReason(rejected: RejectedSocioSearchResult[]): Record<string, number> {
+  return rejected.reduce<Record<string, number>>((acc, item) => {
+    acc[item.reason] = (acc[item.reason] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function buildTraceTotals(payload: SocioSearchResponse): SocioSearchTraceDiagnostics['totals'] {
+  return {
+    companiesCount: payload.companies.length,
+    rejectedCount: payload.rejected.length,
+    pagesFetched: payload.diagnostics?.pagesFetched || 0,
+    cnpjsEnriched: payload.diagnostics?.cnpjsEnriched || 0,
+    cnpjsFound: [],
+    queriesRun: payload.diagnostics?.queriesRun || [],
+    degraded: payload.degraded,
+    truncated: Boolean(payload.diagnostics?.truncated),
+    truncatedReason: payload.diagnostics?.truncatedReason,
+    searchNoResultCount: payload.diagnostics?.searchNoResultCount || 0,
+    searchFailureCount: payload.diagnostics?.searchFailureCount || 0,
+  };
+}
+
+function withTraceCache(
+  payload: SocioSearchResponse,
+  cache: NonNullable<SocioSearchTraceDiagnostics['cache']>,
+): SocioSearchResponse {
+  const cleanPayload = stripTrace(payload);
+  return {
+    ...cleanPayload,
+    trace: {
+      enabled: true,
+      cache,
+      providers: payload.trace?.providers || [],
+      totals: payload.trace?.totals || buildTraceTotals(cleanPayload),
+      rejectedByReason: payload.trace?.rejectedByReason || countRejectedByReason(cleanPayload.rejected),
+    },
+  };
+}
+
 function getSupabaseCacheConfig(): { url: string; key: string } | null {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -150,14 +232,15 @@ function getMemoryCached(key: string): SocioSearchResponse | null {
     cache.delete(key);
     return null;
   }
+  const payload = stripTrace(entry.payload);
   return {
-    ...entry.payload,
+    ...payload,
     cached: true,
     diagnostics: {
-      ...entry.payload.diagnostics,
-      queriesRun: entry.payload.diagnostics?.queriesRun || [],
-      pagesFetched: entry.payload.diagnostics?.pagesFetched || 0,
-      rejectedCount: entry.payload.diagnostics?.rejectedCount || entry.payload.rejected.length,
+      ...payload.diagnostics,
+      queriesRun: payload.diagnostics?.queriesRun || [],
+      pagesFetched: payload.diagnostics?.pagesFetched || 0,
+      rejectedCount: payload.diagnostics?.rejectedCount || payload.rejected.length,
       cacheSource: 'memory',
     },
   };
@@ -168,7 +251,7 @@ function setMemoryCached(key: string, payload: SocioSearchResponse): void {
     const oldest = cache.keys().next().value;
     if (oldest) cache.delete(oldest);
   }
-  cache.set(key, { payload: { ...payload, cached: false }, expiresAt: Date.now() + CACHE_TTL_MS });
+  cache.set(key, { payload: { ...stripTrace(payload), cached: false }, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
 async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
@@ -202,16 +285,17 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
       return { status: 'miss' };
     }
 
+    const cleanPayload = stripTrace(payload);
     return {
       status: 'hit',
       payload: {
-        ...payload,
+        ...cleanPayload,
         cached: true,
         diagnostics: {
-          ...payload.diagnostics,
-          queriesRun: payload.diagnostics?.queriesRun || [],
-          pagesFetched: payload.diagnostics?.pagesFetched || 0,
-          rejectedCount: payload.diagnostics?.rejectedCount || payload.rejected.length,
+          ...cleanPayload.diagnostics,
+          queriesRun: cleanPayload.diagnostics?.queriesRun || [],
+          pagesFetched: cleanPayload.diagnostics?.pagesFetched || 0,
+          rejectedCount: cleanPayload.diagnostics?.rejectedCount || cleanPayload.rejected.length,
           cacheSource: 'persistent',
         },
       },
@@ -245,7 +329,7 @@ async function writePersistentCacheRecord(recordId: string, payload: SocioSearch
       body: JSON.stringify({
         id: recordId,
         operator_id: SUPABASE_CACHE_OPERATOR_ID,
-        result: { ...payload, cached: false },
+        result: { ...stripTrace(payload), cached: false },
         expires_at: new Date(Date.now() + ttlMs).toISOString(),
         synced_at: new Date().toISOString(),
       }),
@@ -269,7 +353,13 @@ async function setPersistentCached(key: string, payload: SocioSearchResponse): P
 }
 
 
-function splitSearchBlocks(content: string): Array<{ title: string; url: string; snippet: string }> {
+interface SearchBlock {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+function splitSearchBlocks(content: string): SearchBlock[] {
   return (content || '')
     .split(/\n---\n?/)
     .map(block => {
@@ -640,9 +730,10 @@ function officialQsaIncludesSocio(qsa: Array<{ name?: string }> | undefined, soc
   return qsa.some(partner => nameTokensMatchStrictly(partner.name || '', socioName));
 }
 
-async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSearchResponse> {
+async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = false): Promise<SocioSearchResponse> {
   const companies: SocioSearchCompany[] = [];
   const rejected: RejectedSocioSearchResult[] = [];
+  const providersTrace: SocioSearchTraceProvider[] = [];
   const seen = new Set<string>();
   const queries = buildQueries(params.socioName, params.rootCompanyName);
   const queriesRun: string[] = [];
@@ -665,6 +756,16 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     degraded = true;
   };
 
+  const snapshotCounts = () => ({
+    companies: companies.length,
+    rejected: rejected.length,
+  });
+
+  const traceProvider = (provider: SocioSearchTraceProvider): void => {
+    if (!traceEnabled) return;
+    providersTrace.push(provider);
+  };
+
   const addCompany = (company: SocioSearchCompany) => {
     const cnpj = normalizeCnpj(company.cnpj || '');
     const key = isValidCnpj(cnpj) ? `cnpj:${cnpj}` : `name:${normalizeText(company.name)}:${company.country || 'BR'}`;
@@ -673,8 +774,8 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
     companies.push(company);
   };
 
-  const processContentBlocks = async (content: string) => {
-    for (const block of splitSearchBlocks(content)) {
+  const processContentBlocks = async (blocks: SearchBlock[]) => {
+    for (const block of blocks) {
       if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
         if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
         else if (companies.length > 0) markTruncated('deadline');
@@ -920,28 +1021,71 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
 
   if (socioIsPessoaFisica && hasSearchBudget()) {
     queriesRun.push('cnpjaberto.com/companies_by_owner');
+    const before = snapshotCounts();
     const cnpjAbertoCompanies = await searchCnpjAbertoCompanies(params.socioName);
     if (cnpjAbertoCompanies?.length) {
       cnpjAbertoStructuredReturned = true;
       scoutDiag.info('SocioSearch', 'CNPJ Aberto retornou resultados estruturados, processando');
       await processCnpjAbertoCompanies(cnpjAbertoCompanies);
+      traceProvider({
+        provider: 'cnpj_aberto',
+        attempted: true,
+        returnedCount: cnpjAbertoCompanies.length,
+        acceptedCount: companies.length - before.companies,
+        rejectedCount: rejected.length - before.rejected,
+      });
     } else {
       searchFailureCount += 1;
       degraded = true;
       scoutDiag.warn('SocioSearch', 'CNPJ Aberto indisponivel, fallback para consultasocio.com');
+      traceProvider({
+        provider: 'cnpj_aberto',
+        attempted: true,
+        returnedCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        reason: 'empty_or_unavailable',
+      });
     }
   }
 
   if (!cnpjAbertoStructuredReturned && socioIsPessoaFisica && companies.length === 0 && hasSearchBudget()) {
     queriesRun.push('consultasocio.com/direct');
+    const before = snapshotCounts();
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);
+    const consultasocioBlocks = consultasocioContent ? splitSearchBlocks(consultasocioContent) : [];
+    const blockCount = consultasocioBlocks.length;
     if (consultasocioContent && !/Nenhum resultado encontrado/i.test(consultasocioContent)) {
       scoutDiag.info('SocioSearch', 'consultasocio.com retornou resultados, processando');
-      await processContentBlocks(consultasocioContent);
+      await processContentBlocks(consultasocioBlocks);
+      traceProvider({
+        provider: 'consultasocio',
+        attempted: true,
+        returnedCount: blockCount,
+        acceptedCount: companies.length - before.companies,
+        rejectedCount: rejected.length - before.rejected,
+      });
     } else if (!consultasocioContent) {
       searchFailureCount += 1;
       degraded = true;
       scoutDiag.warn('SocioSearch', 'consultasocio.com falhou, fallback para DDG');
+      traceProvider({
+        provider: 'consultasocio',
+        attempted: true,
+        returnedCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        reason: 'empty_or_unavailable',
+      });
+    } else {
+      traceProvider({
+        provider: 'consultasocio',
+        attempted: true,
+        returnedCount: blockCount,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        reason: 'no_result',
+      });
     }
   }
 
@@ -953,22 +1097,51 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
       break;
     }
     queriesRun.push(query);
+    const before = snapshotCounts();
     const content = await performWebSearch(query, { count: 10 });
     if (!content) {
       searchFailureCount += 1;
       degraded = true;
+      traceProvider({
+        provider: 'web_search',
+        query,
+        attempted: true,
+        returnedCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        reason: 'failure',
+      });
       continue;
     }
     if (/Nenhum resultado encontrado/i.test(content)) {
       searchNoResultCount += 1;
       degraded = true;
+      traceProvider({
+        provider: 'web_search',
+        query,
+        attempted: true,
+        returnedCount: 0,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        reason: 'no_result',
+      });
       continue;
     }
 
-    await processContentBlocks(content);
+    const blocks = splitSearchBlocks(content);
+    const blockCount = blocks.length;
+    await processContentBlocks(blocks);
+    traceProvider({
+      provider: 'web_search',
+      query,
+      attempted: true,
+      returnedCount: blockCount,
+      acceptedCount: companies.length - before.companies,
+      rejectedCount: rejected.length - before.rejected,
+    });
   }
 
-  return {
+  const payload: SocioSearchResponse = {
     companies,
     rejected,
     degraded: companies.length === 0 ? degraded : truncated,
@@ -986,6 +1159,29 @@ async function runSearch(params: z.infer<typeof RequestSchema>): Promise<SocioSe
       truncatedReason,
     },
   };
+
+  if (traceEnabled) {
+    payload.trace = {
+      enabled: true,
+      providers: providersTrace,
+      totals: {
+        companiesCount: companies.length,
+        rejectedCount: rejected.length,
+        pagesFetched,
+        cnpjsEnriched,
+        cnpjsFound: Array.from(cnpjsFound).slice(0, 100),
+        queriesRun,
+        degraded: payload.degraded,
+        truncated,
+        truncatedReason,
+        searchNoResultCount,
+        searchFailureCount,
+      },
+      rejectedByReason: countRejectedByReason(rejected),
+    };
+  }
+
+  return payload;
 }
 
 export const config = { runtime: 'nodejs' };
@@ -1003,28 +1199,62 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const cacheKey = buildCacheKey(parsed.data.rootCnpj, parsed.data.rootCompanyName, parsed.data.socioName);
   const persistentCacheRequired = requiresPersistentCache();
   const hasPersistentConfig = Boolean(getSupabaseCacheConfig());
+  const wantsTrace = parsed.data.trace;
+  let cacheTraceStatus: NonNullable<SocioSearchTraceDiagnostics['cache']>['status'] = 'miss';
+  let cacheTraceSource: SocioSearchCacheSource = 'none';
 
   if (!persistentCacheRequired && !hasPersistentConfig) {
     const cached = getMemoryCached(cacheKey);
-    if (cached) return res.status(200).json(cached);
+    if (cached) {
+      const payload = wantsTrace
+        ? withTraceCache(cached, {
+          required: persistentCacheRequired,
+          configured: hasPersistentConfig,
+          status: 'hit',
+          source: 'memory',
+        })
+        : cached;
+      return res.status(200).json(payload);
+    }
   } else {
     const persistentCached = await getPersistentCached(cacheKey);
     if (persistentCached.status === 'hit') {
       setMemoryCached(cacheKey, persistentCached.payload);
-      return res.status(200).json(persistentCached.payload);
+      const payload = wantsTrace
+        ? withTraceCache(persistentCached.payload, {
+          required: persistentCacheRequired,
+          configured: hasPersistentConfig,
+          status: 'hit',
+          source: 'persistent',
+        })
+        : persistentCached.payload;
+      return res.status(200).json(payload);
     }
+    cacheTraceStatus = persistentCached.status === 'unavailable' ? 'unavailable' : 'miss';
     if (persistentCacheRequired && !hasPersistentConfig) {
+      cacheTraceStatus = 'unavailable';
       scoutDiag.warn('SocioSearch', 'cache persistente nao configurado; usando cache volatil', {
         socioName: parsed.data.socioName,
         rootCompanyName: parsed.data.rootCompanyName,
       });
     }
     const memoryCached = getMemoryCached(cacheKey);
-    if (memoryCached) return res.status(200).json(memoryCached);
+    if (memoryCached) {
+      const payload = wantsTrace
+        ? withTraceCache(memoryCached, {
+          required: persistentCacheRequired,
+          configured: hasPersistentConfig,
+          status: 'hit',
+          source: 'memory',
+        })
+        : memoryCached;
+      return res.status(200).json(payload);
+    }
+    cacheTraceSource = persistentCached.status === 'unavailable' ? 'none' : cacheTraceSource;
   }
 
   try {
-    const payload = await runSearch(parsed.data);
+    const payload = await runSearch(parsed.data, wantsTrace);
     setMemoryCached(cacheKey, payload);
 
     if (hasPersistentConfig) {
@@ -1037,19 +1267,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    return res.status(200).json(payload);
+    const responsePayload = wantsTrace
+      ? withTraceCache(payload, {
+        required: persistentCacheRequired,
+        configured: hasPersistentConfig,
+        status: cacheTraceStatus,
+        source: cacheTraceSource,
+      })
+      : stripTrace(payload);
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha no drill-down de socio', {
       socioName: parsed.data.socioName,
       rootCompanyName: parsed.data.rootCompanyName,
       message: error instanceof Error ? error.message : String(error),
     });
-    return res.status(200).json({
+    const fallbackPayload: SocioSearchResponse & { detail: string } = {
       companies: [],
       rejected: [],
       degraded: true,
       cached: false,
+      diagnostics: {
+        queriesRun: [],
+        pagesFetched: 0,
+        cacheSource: 'none',
+        rejectedCount: 0,
+        searchFailureCount: 1,
+      },
       detail: 'Busca societaria indisponivel no momento.',
-    });
+    };
+    return res.status(200).json(wantsTrace
+      ? withTraceCache(fallbackPayload, {
+        required: persistentCacheRequired,
+        configured: hasPersistentConfig,
+        status: cacheTraceStatus,
+        source: cacheTraceSource,
+      })
+      : fallbackPayload);
   }
 }

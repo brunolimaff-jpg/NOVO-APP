@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { normalizeCnpj } from '../../utils/cnpj';
@@ -15,12 +15,15 @@ import {
 import { lookupCnpj, type CnpjResult } from '../../lib/cnpjLookup';
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
+import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
 
 interface SocietaryMapProps {
   cnpj?: string | null;
   empresaAlvo?: string | null;
   isDarkMode: boolean;
   geminiCnpjs?: SocietaryCompanyInput[];
+  traceId?: string;
+  traceEnabled?: boolean;
 }
 
 interface SocioSearchResponse {
@@ -32,7 +35,9 @@ interface SocioSearchResponse {
     truncated?: boolean;
     totalCnpjsFound?: number;
     truncatedReason?: string;
+    [key: string]: unknown;
   };
+  trace?: Record<string, unknown>;
 }
 
 interface RejectedSocioSearchResult {
@@ -68,6 +73,14 @@ function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCom
   return Object.values(companiesByPartner).flat();
 }
 
+function countCompaniesByScope(companies: SocietaryCompany[]): Record<string, number> {
+  return companies.reduce<Record<string, number>>((acc, company) => {
+    const scope = company.relationshipScope || 'group_link';
+    acc[scope] = (acc[scope] || 0) + 1;
+    return acc;
+  }, {});
+}
+
 function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
   const partners = company.partnerIds
     .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
@@ -81,12 +94,23 @@ function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGrap
 }
 
 function describeRelationshipScope(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral do sócio';
+  if (company.relationshipScope === 'partner_other_cnpj') return 'CNPJ lateral';
   if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
   return 'Empresa do grupo';
 }
 
-const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMode, geminiCnpjs }) => {
+const filterButtonBaseClass = 'rounded-full border px-2.5 py-1 text-[0.72rem] font-bold cursor-pointer transition';
+const filterButtonActiveClass = 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300';
+const filterButtonIdleClass = 'border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
+
+const SocietaryMap: React.FC<SocietaryMapProps> = ({
+  cnpj,
+  empresaAlvo,
+  isDarkMode,
+  geminiCnpjs,
+  traceId,
+  traceEnabled,
+}) => {
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
@@ -99,9 +123,20 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
   const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
+  const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
+  const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
+
+  const trace = useCallback((message: string, details?: Record<string, unknown>): void => {
+    if (!traceActive) return;
+    scoutDiag.trace('teia', 'SocietaryMap', message, {
+      traceId: traceIdRef.current,
+      ...details,
+    });
+  }, [traceActive]);
 
   useEffect(() => {
     if (!cnpj) {
+      trace('sem CNPJ para montar teia', { empresaAlvo });
       setState('empty');
       setRootData(null);
       setCompaniesByPartner({});
@@ -140,8 +175,22 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             sourceTitle: partner.source,
             confidence: partner.confidence,
           }));
-      } catch {
-        // BrasilAPI falhou — tenta usar dados do Gemini
+        trace('QSA recebido da empresa raiz', {
+          rootCnpj: normalizeCnpj(companyCnpj || lookupCnpj),
+          companyName,
+          partnersCount: partners.length,
+          partners: partners.map(partner => ({
+            name: partner.name,
+            normalizedKey: normalizePartnerKey(partner.name),
+            role: partner.role,
+            confidence: partner.confidence,
+          })),
+        });
+      } catch (error) {
+        trace('lookup da empresa raiz falhou; avaliando fallback Gemini', {
+          cnpj: lookupCnpj,
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
 
       if (partners.length === 0 && geminiCnpjs && geminiCnpjs.length > 0) {
@@ -158,6 +207,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
         }
         if (geminiPartners.size > 0) {
           partners = [...geminiPartners.values()];
+          trace('fallback Gemini gerou socios para a teia', {
+            partnersCount: partners.length,
+            geminiCompaniesCount: geminiCnpjs.length,
+          });
           if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
         } else {
           partners = [{
@@ -165,11 +218,18 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             sourceTitle: 'Gemini — Teia Societária',
             confidence: 'weak',
           }];
+          trace('fallback Gemini sem socios explicitos; usando socio sintetico', {
+            geminiCompaniesCount: geminiCnpjs.length,
+          });
           if (!cancelled) setNotice('Mapa montado com dados do Gemini. Validacao via QSA pendente.');
         }
       }
 
       if (partners.length === 0) {
+        trace('teia sem socios apos lookup e fallback', {
+          cnpj: lookupCnpj,
+          geminiCompaniesCount: geminiCnpjs?.length || 0,
+        });
         if (!cancelled) {
           setRootData(null);
           setCompaniesByPartner({});
@@ -186,6 +246,11 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       }
 
       if (!cancelled) {
+        trace('raiz pronta para drill-down de socios', {
+          rootCnpj: normalizeCnpj(companyCnpj || ''),
+          companyName,
+          partnersCount: partners.length,
+        });
         setRootData({
           cnpj: normalizeCnpj(companyCnpj || ''),
           name: companyName,
@@ -208,7 +273,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       cancelled = true;
       controller.abort();
     };
-  }, [cnpj, empresaAlvo, geminiCnpjs]);
+  }, [cnpj, empresaAlvo, geminiCnpjs, trace]);
 
   useEffect(() => {
     setIsEvidenceOpen(false);
@@ -227,15 +292,32 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       const rejected: RejectedSocioSearchResult[] = [];
       let truncatedNotice: string | null = null;
       let degradedNotice: string | null = null;
+      const batchStartedAt = performance.now();
+      trace('drill-down de socios iniciado', {
+        rootName,
+        rootCnpj,
+        partnersCount: rootData!.partners.length,
+        partners: rootData!.partners.map(partner => partner.name),
+        uiCommitStrategy: 'incremental_per_partner',
+      });
 
-      for (const partner of rootData!.partners) {
+      for (const [partnerIndex, partner] of rootData!.partners.entries()) {
         if (cancelled) return;
         const partnerKey = normalizePartnerKey(partner.name);
         if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
 
         loadingPartnerKeysRef.current[partnerKey] = true;
+        if (!cancelled) setLoadingPartnerKey(partnerKey);
 
         try {
+          const startedAt = performance.now();
+          trace('socio-search iniciado', {
+            partnerName: partner.name,
+            partnerKey,
+            partnerIndex: partnerIndex + 1,
+            partnersTotal: rootData!.partners.length,
+            remainingPartnersAfterThis: rootData!.partners.length - partnerIndex - 1,
+          });
           const response = await fetch('/api/socio-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -243,31 +325,99 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
               socioName: partner.name,
               rootCompanyName: rootName,
               rootCnpj,
+              trace: traceActive || undefined,
             }),
             signal: controller.signal,
           });
           const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
+          const elapsedMs = Number((performance.now() - startedAt).toFixed(1));
+          trace('socio-search payload recebido', {
+            partnerName: partner.name,
+            partnerKey,
+            status: response.status,
+            ok: response.ok,
+            elapsedMs,
+            batchElapsedMs: Number((performance.now() - batchStartedAt).toFixed(1)),
+            uiCommitStrategy: 'incremental_per_partner',
+            companiesCount: payload.companies?.length || 0,
+            rejectedCount: payload.rejected?.length || 0,
+            degraded: payload.degraded,
+            cached: payload.cached,
+            diagnostics: payload.diagnostics,
+            trace: payload.trace,
+            companies: (payload.companies || []).slice(0, 30).map(company => ({
+              name: company.name,
+              cnpj: company.cnpj || company.rawCnpjLabel || null,
+              partnerName: company.partnerName,
+              relationshipScope: company.relationshipScope,
+              validationStatus: company.validationStatus,
+              sourceTitle: company.sourceTitle,
+            })),
+            rejected: (payload.rejected || []).slice(0, 30).map(item => ({
+              sourceTitle: item.sourceTitle,
+              reason: item.reason,
+            })),
+          });
 
           if (!cancelled) {
-            collected[partnerKey] = payload.companies || [];
-            rejected.push(...(payload.rejected || []));
+            const partnerCompanies = payload.companies || [];
+            const partnerRejected = payload.rejected || [];
+            collected[partnerKey] = partnerCompanies;
+            rejected.push(...partnerRejected);
             searchedPartnerKeysRef.current[partnerKey] = true;
+            setCompaniesByPartner(previous => ({
+              ...previous,
+              [partnerKey]: partnerCompanies,
+            }));
+            if (partnerRejected.length > 0) {
+              setRejectedReferences(previous => [...previous, ...partnerRejected]);
+            }
+            trace('resultado parcial aplicado na UI', {
+              partnerName: partner.name,
+              partnerKey,
+              partnersCompleted: Object.keys(collected).length,
+              partnersTotal: rootData!.partners.length,
+              companiesCount: partnerCompanies.length,
+              totalCompaniesSoFar: collectPartnerCompanies(collected).length,
+              rejectedCount: partnerRejected.length,
+              uiCommitStrategy: 'incremental_per_partner',
+            });
             if (payload.diagnostics?.truncated) {
               truncatedNotice = 'Busca societaria retornou inventario parcial; valide fontes para CNPJs adicionais.';
             } else if (payload.degraded && payload.companies?.length === 0) {
               degradedNotice = 'Busca societaria degradada; mapa usa dados parciais.';
             }
           }
-        } catch {
+        } catch (error) {
+          trace('socio-search falhou no frontend', {
+            partnerName: partner.name,
+            partnerKey,
+            message: error instanceof Error ? error.message : String(error),
+          });
           if (!cancelled) {
             searchedPartnerKeysRef.current[partnerKey] = true;
           }
         } finally {
           delete loadingPartnerKeysRef.current[partnerKey];
+          if (!cancelled) setLoadingPartnerKey(null);
         }
       }
 
       if (!cancelled) {
+        trace('drill-down de socios consolidado', {
+          totalElapsedMs: Number((performance.now() - batchStartedAt).toFixed(1)),
+          uiCommitStrategy: 'incremental_per_partner',
+          partnersSearched: Object.keys(collected).length,
+          totalCompanies: collectPartnerCompanies(collected).length,
+          companiesByPartner: Object.fromEntries(
+            Object.entries(collected).map(([key, companies]) => [key, companies.length]),
+          ),
+          rejectedCount: rejected.length,
+          rejectedReasons: rejected.reduce<Record<string, number>>((acc, item) => {
+            acc[item.reason] = (acc[item.reason] || 0) + 1;
+            return acc;
+          }, {}),
+        });
         setCompaniesByPartner(collected);
         setRejectedReferences(rejected);
         setLoadingPartnerKey(null);
@@ -282,7 +432,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       cancelled = true;
       controller.abort();
     };
-  }, [rootData]);
+  }, [rootData, trace, traceActive]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
@@ -300,6 +450,28 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
       companies: collectPartnerCompanies(companiesByPartner),
     }, enrichedGemini);
   }, [rootData, companiesByPartner, geminiCnpjs]);
+
+  useEffect(() => {
+    if (!graph || !traceActive) return;
+    trace('grafo consolidado', {
+      partnersCount: graph.partners.length,
+      renderedCompaniesCount: graph.companies.length,
+      renderedByScope: countCompaniesByScope(graph.companies),
+      rejectedCompaniesCount: graph.rejectedCompanies.length,
+      rejectedCompaniesByReason: graph.rejectedCompanies.reduce<Record<string, number>>((acc, item) => {
+        acc[item.reason] = (acc[item.reason] || 0) + 1;
+        return acc;
+      }, {}),
+      companies: graph.companies.slice(0, 40).map(company => ({
+        name: company.name,
+        cnpj: company.cnpj || company.rawCnpjLabel || null,
+        relationshipScope: company.relationshipScope,
+        validationStatus: company.validationStatus,
+        partnerIds: company.partnerIds,
+        rootLinked: company.rootLinked,
+      })),
+    });
+  }, [graph, trace, traceActive]);
 
   useEffect(() => {
     if (!graph) return;
@@ -405,10 +577,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
             <button
               type="button"
               onClick={() => setSelectedPartnerName(undefined)}
-              className={`rounded-md border px-2 py-1 text-[11px] font-semibold transition ${
+              className={`${filterButtonBaseClass} ${
                 !selectedPartner
-                  ? 'border-violet-500 bg-violet-50 text-violet-800'
-                  : 'border-slate-200 bg-white text-slate-600'
+                  ? filterButtonActiveClass
+                  : filterButtonIdleClass
               }`}
             >
               Todos
@@ -418,10 +590,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
                 key={partner.id}
                 type="button"
                 onClick={() => setSelectedPartnerName(partner.name)}
-                className={`rounded-md border px-2 py-1 text-[11px] font-semibold transition ${
+                className={`${filterButtonBaseClass} ${
                   selectedPartner?.id === partner.id
-                    ? 'border-violet-500 bg-violet-50 text-violet-800'
-                    : 'border-slate-200 bg-white text-slate-600'
+                    ? filterButtonActiveClass
+                    : filterButtonIdleClass
                 }`}
               >
                 {firstGivenName(partner.name)}
@@ -449,6 +621,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({ cnpj, empresaAlvo, isDarkMo
           rootName={rootData?.name || 'Empresa analisada'}
           selectedPartnerId={selectedPartner?.id || null}
           inactiveReferences={inactiveReferences}
+          traceId={traceIdRef.current}
+          traceEnabled={traceActive}
           onSelectPartner={(partnerId) => {
             if (partnerId) {
               const partner = graph.partners.find(p => p.id === partnerId);

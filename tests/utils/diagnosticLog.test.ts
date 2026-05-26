@@ -1,6 +1,12 @@
 // tests/utils/diagnosticLog.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { scoutDiag, isScoutDiagEnabled } from '../../utils/diagnosticLog';
+import {
+  scoutDiag,
+  createScoutTraceId,
+  getScoutTraceTarget,
+  isScoutDiagEnabled,
+  isScoutTraceEnabled,
+} from '../../utils/diagnosticLog';
 
 vi.mock('../../utils/diagnosticLog', async () => {
   // Use the actual module but intercept import.meta.env
@@ -17,6 +23,8 @@ describe('scoutDiag', () => {
   };
 
   beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
     consoleSpy = {
       debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
       info: vi.spyOn(console, 'info').mockImplementation(() => {}),
@@ -121,6 +129,42 @@ describe('scoutDiag', () => {
     it('retorna boolean', () => {
       const result = isScoutDiagEnabled();
       expect(typeof result).toBe('boolean');
+    });
+  });
+
+  describe('trace opt-in por URL/localStorage', () => {
+    it('ativa por query param e persiste no localStorage', () => {
+      window.history.replaceState(null, '', '/?scoutTrace=teia');
+
+      expect(getScoutTraceTarget()).toBe('teia');
+      expect(window.localStorage.getItem('scoutTrace')).toBe('teia');
+      expect(isScoutTraceEnabled('teia')).toBe(true);
+      expect(isScoutTraceEnabled('outra-coisa')).toBe(false);
+    });
+
+    it('desliga por scoutTrace=off e limpa localStorage', () => {
+      window.localStorage.setItem('scoutTrace', 'teia');
+      window.history.replaceState(null, '', '/?scoutTrace=off');
+
+      expect(getScoutTraceTarget()).toBeNull();
+      expect(window.localStorage.getItem('scoutTrace')).toBeNull();
+      expect(isScoutTraceEnabled('teia')).toBe(false);
+    });
+
+    it('loga trace apenas quando o alvo esta ativo', () => {
+      scoutDiag.trace('teia', 'Scope', 'sem log');
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+
+      window.localStorage.setItem('scoutTrace', 'teia');
+      scoutDiag.trace('teia', 'Scope', 'com log', { traceId: 'trace-1' });
+
+      expect(consoleSpy.info).toHaveBeenCalledOnce();
+      expect(consoleSpy.info.mock.calls[0][0]).toContain('[Trace:teia][Scope]');
+      expect(consoleSpy.info.mock.calls[0][0]).toContain('com log');
+    });
+
+    it('gera traceId com prefixo do alvo', () => {
+      expect(createScoutTraceId('teia')).toMatch(/^teia-[a-z0-9]+-[a-z0-9]+$/);
     });
   });
 });
