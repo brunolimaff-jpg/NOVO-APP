@@ -3,9 +3,11 @@ import {
   type SocietaryCompany,
   type SocietaryBadge,
   type SocietaryGraph,
+  countCompanyFilials,
   formatBranchBadgeLabel,
   formatSocietaryCnpj,
   getDisplayBadges,
+  hasCompanyFilials,
 } from './societaryGraph';
 import {
   type CompanyCategory,
@@ -56,7 +58,6 @@ interface SocietaryMatrixProps {
   }>;
   traceId?: string;
   traceEnabled?: boolean;
-  narrativeCnpjTotal?: number | null;
 }
 
 interface ClassifiedRow {
@@ -92,16 +93,21 @@ function FilterButton({
 function SummaryMetric({
   value,
   label,
+  testId,
 }: {
   value: number;
   label: string;
+  testId: string;
 }) {
   return (
-    <div className="min-w-[7.5rem] text-center" data-testid={`summary-metric-${label.toLowerCase().replace(/\s+/g, '-')}`}>
-      <strong className="block text-[1.35rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
+    <div
+      className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center"
+      data-testid={testId}
+    >
+      <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
         {value}
       </strong>
-      <span className="mt-1.5 block text-[0.72rem] font-medium uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">
+      <span className="max-w-[8.5rem] text-[0.75rem] font-medium leading-snug text-slate-500 dark:text-slate-400">
         {label}
       </span>
     </div>
@@ -109,7 +115,7 @@ function SummaryMetric({
 }
 
 function countBranchEstablishments(companies: SocietaryCompany[]): number {
-  return companies.reduce((sum, company) => sum + Math.max(0, (company.branchCount || 1) - 1), 0);
+  return companies.reduce((sum, company) => sum + countCompanyFilials(company), 0);
 }
 
 function countTotalCnpjs(companies: SocietaryCompany[]): number {
@@ -125,16 +131,17 @@ function badgeTone(badge: SocietaryBadge): string {
 }
 
 function BranchPremiumBadge({ company }: { company: SocietaryCompany }) {
+  if (!hasCompanyFilials(company)) return null;
   const label = formatBranchBadgeLabel(company);
   if (!label) return null;
 
   return (
     <span
       data-testid="branch-premium-badge"
-      className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-100 px-2 py-0.5 text-[0.62rem] font-semibold tracking-[0.02em] text-amber-950 shadow-sm dark:border-amber-500/50 dark:from-amber-950/60 dark:via-amber-900/40 dark:to-amber-950/30 dark:text-amber-100"
+      className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.62rem] font-semibold tracking-[0.02em] text-sky-800 dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
     >
-      <svg className="h-3 w-3 shrink-0 opacity-90" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-        <path d="M2 14V6l6-4 6 4v8H9v-4H7v4H2zm2-6.5V12h2V8h4v4h2V7.5L8 5 4 7.5z" />
+      <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+        <path d="M8 1.5a.5.5 0 0 1 .354.146l6 6A.5.5 0 0 1 14 8h-1v5.5a.5.5 0 0 1-.5.5h-3v-3.5a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 0-.5.5V14h-3a.5.5 0 0 1-.5-.5V8H2a.5.5 0 0 1-.354-.854l6-6A.5.5 0 0 1 8 1.5z" />
       </svg>
       {label}
     </span>
@@ -151,7 +158,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   inactiveReferences = [],
   traceId,
   traceEnabled = false,
-  narrativeCnpjTotal = null,
 }) => {
   const [activeCategory, setActiveCategory] = useState<'all' | CompanyCategory>('all');
 
@@ -267,29 +273,15 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
       <div
-        className="mb-5 flex flex-wrap items-start justify-center gap-x-10 gap-y-4 border-b border-slate-200 pb-5 dark:border-slate-700"
+        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-4 dark:border-slate-700"
         aria-label="Resumo da teia societária"
         data-testid="societary-summary-metrics"
       >
-        <SummaryMetric value={metrics.cnpjsTotais} label="CNPJs no mapa" />
-        <SummaryMetric value={metrics.filiais} label="Filiais" />
-        <SummaryMetric value={metrics.em_comum} label="Em comum" />
-        <SummaryMetric value={metrics.proprias} label="Próprias" />
+        <SummaryMetric value={metrics.cnpjsTotais} label="CNPJs no mapa" testId="summary-metric-cnpjs-no-mapa" />
+        <SummaryMetric value={metrics.filiais} label="Filiais" testId="summary-metric-filiais" />
+        <SummaryMetric value={metrics.em_comum} label="Em comum" testId="summary-metric-em-comum" />
+        <SummaryMetric value={metrics.proprias} label="Próprias" testId="summary-metric-proprias" />
       </div>
-
-      {narrativeCnpjTotal != null && narrativeCnpjTotal !== metrics.cnpjsTotais ? (
-        <div
-          className="mb-5 rounded-lg border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-[0.78rem] leading-relaxed text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100"
-          data-testid="societary-count-disclaimer"
-          role="note"
-        >
-          O resumo textual acima cita{' '}
-          <strong>{narrativeCnpjTotal} CNPJs</strong> com fonte documental. Este mapa mostra{' '}
-          <strong>{metrics.cnpjsTotais}</strong> vínculos confirmados pela busca estruturada por sócio
-          (CNPJ Aberto). A diferença pode incluir filiais citadas no relatório, veículos ainda em validação
-          ou busca parcial/truncada.
-        </div>
-      ) : null}
 
       {/* ============ Filter toolbar ============ */}
       <div className="flex flex-wrap items-center gap-2.5 mb-5" aria-label="Filtros da tabela societária">

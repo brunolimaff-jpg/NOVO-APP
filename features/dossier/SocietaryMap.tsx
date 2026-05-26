@@ -24,7 +24,6 @@ interface SocietaryMapProps {
   empresaAlvo?: string | null;
   isDarkMode: boolean;
   geminiCnpjs?: SocietaryCompanyInput[];
-  narrativeCnpjTotal?: number | null;
   traceId?: string;
   traceEnabled?: boolean;
 }
@@ -111,7 +110,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   empresaAlvo,
   isDarkMode,
   geminiCnpjs,
-  narrativeCnpjTotal = null,
   traceId,
   traceEnabled,
 }) => {
@@ -625,7 +623,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           rootName={rootData?.name || 'Empresa analisada'}
           selectedPartnerId={selectedPartner?.id || null}
           inactiveReferences={inactiveReferences}
-          narrativeCnpjTotal={narrativeCnpjTotal}
           traceId={traceIdRef.current}
           traceEnabled={traceActive}
           onSelectPartner={(partnerId) => {

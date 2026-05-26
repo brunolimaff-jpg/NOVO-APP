@@ -7,7 +7,7 @@ import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
 import SocietaryMap from '../features/dossier/SocietaryMap';
-import { parseNarrativeCnpjTotal, parseTeiaText } from '../features/dossier/teiaTextParser';
+import { parseTeiaText } from '../features/dossier/teiaTextParser';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../utils/diagnosticLog';
 
 interface SectionalBotMessageProps {
@@ -264,11 +264,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
   );
-  const narrativeCnpjTotal = useMemo(() => {
-    const teiaSection = societaryMapSectionIndex >= 0 ? sections[societaryMapSectionIndex] : null;
-    const scopedText = teiaSection ? `${teiaSection.title}\n${teiaSection.content}` : cleanText;
-    return parseNarrativeCnpjTotal(scopedText);
-  }, [cleanText, sections, societaryMapSectionIndex]);
   const teiaTraceIdRef = useRef(createScoutTraceId('teia'));
   const teiaTraceEnabled = isScoutTraceEnabled('teia');
 
@@ -406,7 +401,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 empresaAlvo={empresaAlvo}
                 isDarkMode={isDarkMode}
                 geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
-                narrativeCnpjTotal={narrativeCnpjTotal}
                 traceId={teiaTraceIdRef.current}
                 traceEnabled={teiaTraceEnabled}
               />

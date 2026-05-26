@@ -272,7 +272,7 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('11111111000111');
   });
 
-  it('mantem CNPJs distintos do socio quando compartilham radical mas nao sao grupo raiz', () => {
+  it('consolida filiais do mesmo radical CNPJ mesmo em escopo de socio admin', () => {
     const graph = buildSocietaryGraph({
       root,
       partners,
@@ -304,8 +304,9 @@ describe('societaryGraph', () => {
       ],
     });
 
-    expect(graph.companies).toHaveLength(2);
-    expect(graph.companies.map(company => company.cnpj)).toEqual(['09567366000111', '09567366000200']);
+    expect(graph.companies).toHaveLength(1);
+    expect(graph.companies[0].branchCount).toBe(2);
+    expect(graph.companies[0].cnpj).toBe('09567366000111');
   });
 
   it('promove CNPJ duplicado para grupo quando evidencia posterior comprova vinculo forte', () => {
@@ -367,7 +368,31 @@ describe('societaryGraph', () => {
       branchCnpjs: ['12345678000195', '12345678000276'],
     });
     expect(graph.companies[0].badges).not.toContain('CNPJ lateral' as never);
-    expect(formatBranchBadgeLabel(graph.companies[0])).toBe('Matriz + 1 filial');
+    expect(formatBranchBadgeLabel(graph.companies[0])).toBe('Matriz · 1 filial');
+  });
+
+  it('nao gera badge de filiais quando ha apenas um estabelecimento', () => {
+    const graph = buildSocietaryGraph({
+      root,
+      partners,
+      companies: [
+        {
+          name: 'Empresa Unica LTDA',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Consulta Sócio',
+          sourceUrl: 'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          snippet: 'Guilherme M. Scheffer consta como sócio.',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    });
+
+    expect(graph.companies).toHaveLength(1);
+    expect(formatBranchBadgeLabel(graph.companies[0])).toBeNull();
   });
 
   it('rejeita nome de empresa truncado sem identidade real', () => {

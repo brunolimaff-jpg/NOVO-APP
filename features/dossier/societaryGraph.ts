@@ -219,14 +219,30 @@ export function isHeadquartersCnpj(cnpj?: string): boolean {
   return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
 }
 
-export function formatBranchBadgeLabel(company: Pick<SocietaryCompany, 'branchCount' | 'cnpj'>): string | null {
-  const count = company.branchCount || 0;
-  if (count <= 1) return null;
-  const branches = count - 1;
+export function countCompanyFilials(
+  company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>,
+): number {
+  const listed = (company.branchCnpjs ?? []).filter(cnpj => isValidCnpj(normalizeCnpj(cnpj))).length;
+  const establishments = listed > 0 ? listed : (company.branchCount ?? 1);
+  if (establishments <= 1) return 0;
+  return establishments - 1;
+}
+
+export function hasCompanyFilials(
+  company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>,
+): boolean {
+  return countCompanyFilials(company) > 0;
+}
+
+export function formatBranchBadgeLabel(
+  company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs' | 'cnpj'>,
+): string | null {
+  if (!hasCompanyFilials(company)) return null;
+  const filiais = countCompanyFilials(company);
   if (isHeadquartersCnpj(company.cnpj)) {
-    return `Matriz + ${branches} ${branches === 1 ? 'filial' : 'filiais'}`;
+    return `Matriz · ${filiais} ${filiais === 1 ? 'filial' : 'filiais'}`;
   }
-  return `${count} filiais consolidadas`;
+  return `${filiais} ${filiais === 1 ? 'filial' : 'filiais'}`;
 }
 
 export function getDisplayBadges(company: SocietaryCompany): SocietaryBadge[] {
@@ -315,6 +331,15 @@ function findCompanyByExactCnpj(companiesByKey: Map<string, SocietaryCompany>, c
   return Array.from(companiesByKey.values()).find(company => company.cnpj === cnpj);
 }
 
+function findCompanyByCnpjRadical(companiesByKey: Map<string, SocietaryCompany>, cnpj: string): SocietaryCompany | undefined {
+  if (!isValidCnpj(cnpj)) return undefined;
+  const radical = cnpj.slice(0, 8);
+  return Array.from(companiesByKey.values()).find(company => {
+    const companyCnpj = normalizeCnpj(company.cnpj || '');
+    return isValidCnpj(companyCnpj) && companyCnpj.slice(0, 8) === radical;
+  });
+}
+
 function mergeCompanyRecords(target: SocietaryCompany, source: SocietaryCompany): void {
   for (const partnerId of source.partnerIds) {
     if (!target.partnerIds.includes(partnerId)) target.partnerIds.push(partnerId);
@@ -374,11 +399,11 @@ function consolidateGroupLinkedCompanies(companies: SocietaryCompany[]): Societa
 
   for (const company of companies) {
     const cnpj = normalizeCnpj(company.cnpj || '');
-    const key = company.relationshipScope === 'partner_other_cnpj'
-      || company.relationshipScope === 'unconfirmed'
-      || !isValidCnpj(cnpj)
+    const key = company.relationshipScope === 'unconfirmed' && !isValidCnpj(cnpj)
       ? company.id
-      : `cnpj-root:${cnpj.slice(0, 8)}`;
+      : isValidCnpj(cnpj)
+        ? `cnpj-root:${cnpj.slice(0, 8)}`
+        : company.id;
     const existing = companiesByScopeKey.get(key);
     if (existing) {
       mergeCompanyRecords(existing, company);
@@ -520,7 +545,9 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
 
     const key = buildCompanyKey(company);
-    const existing = companiesByKey.get(key) || findCompanyByExactCnpj(companiesByKey, normalizedCnpj);
+    const existing = companiesByKey.get(key)
+      || findCompanyByExactCnpj(companiesByKey, normalizedCnpj)
+      || findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
     if (existing) {
       if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
       if (relationshipScope === 'group_link') existing.rootLinked = true;
@@ -621,7 +648,9 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       let merged = false;
       if (hasValidCnpj) {
         const existingKey = buildCompanyKey(geminiCandidate);
-        const existing = companiesByKey.get(existingKey) || findCompanyByExactCnpj(companiesByKey, normalizedCnpj);
+        const existing = companiesByKey.get(existingKey)
+          || findCompanyByExactCnpj(companiesByKey, normalizedCnpj)
+          || findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
         if (existing) {
           if (!isHeadquartersCnpj(existing.cnpj) || isHeadquartersCnpj(normalizedCnpj)) {
             existing.name = geminiCandidate.name.trim();
