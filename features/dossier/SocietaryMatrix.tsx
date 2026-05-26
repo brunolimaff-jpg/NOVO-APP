@@ -171,15 +171,6 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     }));
   }, [graph.companies, pfPartnerIds]);
 
-  const metrics = useMemo(() => {
-    const companies = classified.map(row => row.company);
-    const cnpjsTotais = countTotalCnpjs(companies);
-    const filiais = countBranchEstablishments(companies) + graph.rootBranchCount;
-    const emComum = classified.filter(c => c.category === 'em_comum').length;
-    const proprias = classified.filter(c => c.category === 'proprias').length;
-    return { cnpjsTotais, filiais, em_comum: emComum, proprias };
-  }, [classified, graph.rootBranchCount]);
-
   const visibleRows = useMemo<ClassifiedRow[]>(() => {
     let rows = classified;
     if (activeCategory !== 'all') {
@@ -190,6 +181,15 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     }
     return [...rows].sort((a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]);
   }, [classified, activeCategory, selectedPartnerId]);
+
+  const metrics = useMemo(() => {
+    const companies = visibleRows.map(row => row.company);
+    const cnpjsTotais = countTotalCnpjs(companies) + graph.rootBranchCount;
+    const filiais = countBranchEstablishments(companies) + graph.rootBranchCount;
+    const emComum = visibleRows.filter(c => c.category === 'em_comum').length;
+    const proprias = visibleRows.filter(c => c.category === 'proprias').length;
+    return { cnpjsTotais, filiais, em_comum: emComum, proprias };
+  }, [visibleRows, graph.rootBranchCount]);
 
   const partnerColors = useMemo(() => {
     const map = new Map<string, string>();
