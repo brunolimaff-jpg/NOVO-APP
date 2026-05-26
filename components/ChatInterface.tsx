@@ -96,8 +96,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onToggleTheme,
   onToggleMessageSources,
   exportStatus,
-  exportError,
-  onOpenFollowUpModal,
   canAccessIntegrityCheck = true,
   canDeepDive = false,
   canWarRoom = false,
@@ -110,7 +108,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onDeepDive,
   radar,
 }) => {
-  const { mode, setMode } = useMode();
+  const { mode } = useMode();
   const {
     name: operatorName,
     operatorId,
@@ -246,6 +244,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       avatarUrl={null}
       onOpenSettings={() => setShowSettings(true)}
       onClearOperator={onClearOperator}
+      onExportPDF={onExportPDF}
+      onExportConversation={onExportConversation}
+      onCopyMarkdown={handleCopyMarkdown}
+      exportStatus={exportStatus}
       timeline={
         <MessageTimeline
           currentSession={currentSession}
@@ -304,17 +306,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           showSettings={showSettings}
           operatorName={operatorName}
           onUpdateOperatorName={setName}
-          mode={mode}
-          onSetMode={setMode}
           isDarkMode={isDarkMode}
           onToggleTheme={onToggleTheme}
-          onExportPDF={onExportPDF}
-          onExportConversation={onExportConversation}
-          onCopyMarkdown={handleCopyMarkdown}
-          onScheduleFollowUp={onOpenFollowUpModal}
           onClearOperator={onClearOperator}
-          exportStatus={exportStatus}
-          exportError={exportError}
           canAccessIntegrityCheck={canAccessIntegrityCheck}
           onCloseSettings={() => setShowSettings(false)}
           showWarRoom={showWarRoom}

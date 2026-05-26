@@ -1,7 +1,5 @@
 import React from 'react';
-import { ChatMode } from '../../constants';
 import { loadWithChunkRetry } from '../../utils/chunkRetry';
-import type { ExportFormat, ReportType } from '../../types';
 import SuspenseWithError from '../SuspenseWithError';
 import type { RadarProps } from './contracts';
 
@@ -16,17 +14,9 @@ interface ChatPanelsProps {
   showSettings: boolean;
   operatorName: string;
   onUpdateOperatorName: (name: string) => void;
-  mode: ChatMode;
-  onSetMode: (mode: ChatMode) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
-  onExportPDF: () => void;
-  onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
-  onCopyMarkdown: () => void;
-  onScheduleFollowUp: () => void;
   onClearOperator?: () => void;
-  exportStatus: 'idle' | 'loading' | 'success' | 'error';
-  exportError?: string | null;
   canAccessIntegrityCheck?: boolean;
   onCloseSettings: () => void;
   showWarRoom: boolean;
@@ -44,17 +34,9 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
   showSettings,
   operatorName,
   onUpdateOperatorName,
-  mode,
-  onSetMode,
   isDarkMode,
   onToggleTheme,
-  onExportPDF,
-  onExportConversation,
-  onCopyMarkdown,
-  onScheduleFollowUp,
   onClearOperator,
-  exportStatus,
-  exportError,
   canAccessIntegrityCheck = true,
   onCloseSettings,
   showWarRoom,
@@ -75,18 +57,10 @@ const ChatPanels: React.FC<ChatPanelsProps> = ({
             isOpen={showSettings}
             operatorName={operatorName}
             onUpdateOperatorName={onUpdateOperatorName}
-            mode={mode}
-            onSetMode={onSetMode}
             isDarkMode={isDarkMode}
             onToggleTheme={onToggleTheme}
-            onExportPDF={onExportPDF}
-            onExportConversation={onExportConversation}
-            onCopyMarkdown={onCopyMarkdown}
-            onScheduleFollowUp={onScheduleFollowUp}
             onClearOperator={onClearOperator}
             onClose={onCloseSettings}
-            exportStatus={exportStatus}
-            exportError={exportError}
             canAccessIntegrityCheck={canAccessIntegrityCheck}
           />
         </SuspenseWithError>

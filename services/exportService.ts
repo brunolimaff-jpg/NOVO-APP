@@ -12,7 +12,7 @@ import {
   generateExecutiveSummary,
   normalizeMermaidBlocks,
 } from '../utils/reportUtils';
-import { openPrintReportWindow } from '../utils/printExport';
+import { buildPrintReportHtml, openPrintReportWindow } from '../utils/printExport';
 import { type ChatSession, type ExportFormat, type Message, type ReportType } from '../types';
 
 interface ExportConversationFile {
@@ -59,6 +59,23 @@ export function buildExportConversationFile(
       filename: `${filename}.doc`,
       content: simpleMarkdownToHtml(contentMarkdown, session.title),
       mimeType: 'application/msword',
+    };
+  }
+
+  if (format === 'html') {
+    const { allLinks } = collectFullReport(session.messages);
+    const empresa = cleanTitle(extractCompanyName(session.title));
+    const now = new Date();
+    const metaLine = `${now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
+    return {
+      filename: `${filename}.html`,
+      content: buildPrintReportHtml({
+        title: empresa,
+        subtitle: metaLine,
+        content: contentMarkdown,
+        sources: allLinks.map(link => ({ title: link.title || link.url, url: link.url })),
+      }),
+      mimeType: 'text/html;charset=utf-8',
     };
   }
 

@@ -23,7 +23,7 @@ export interface FeedbackSubmissionOptions {
   metadata?: Record<string, unknown>;
 }
 
-export type ExportFormat = 'md' | 'pdf' | 'doc';
+export type ExportFormat = 'md' | 'pdf' | 'doc' | 'html';
 
 export type ReportType = 'executive' | 'full' | 'tech';
 

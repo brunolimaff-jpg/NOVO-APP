@@ -1,7 +1,8 @@
 import React, { useCallback, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { loadWithChunkRetry } from '../../utils/chunkRetry';
-import type { ChatSession } from '../../types';
+import type { ChatSession, ExportFormat, ReportType } from '../../types';
+import ExportDropdown from '../ExportDropdown';
 import SessionsSidebar from '../SessionsSidebar';
 import { SyncIndicator } from '../SyncIndicator';
 import Tooltip from '../Tooltip';
@@ -30,6 +31,10 @@ interface ChatShellProps {
   avatarUrl: string | null;
   onOpenSettings: () => void;
   onClearOperator: () => void;
+  onExportPDF: () => void;
+  onExportConversation?: (format: ExportFormat, reportType: ReportType) => void;
+  onCopyMarkdown: () => void;
+  exportStatus: 'idle' | 'loading' | 'success' | 'error';
   timeline: ReactNode;
   composer: ReactNode;
   panels?: ReactNode;
@@ -55,6 +60,10 @@ const ChatShell: React.FC<ChatShellProps> = ({
   avatarUrl,
   onOpenSettings,
   onClearOperator,
+  onExportPDF,
+  onExportConversation,
+  onCopyMarkdown,
+  exportStatus,
   timeline,
   composer,
   panels,
@@ -171,6 +180,14 @@ const ChatShell: React.FC<ChatShellProps> = ({
                 </motion.button>
               </Tooltip>
             )}
+
+            <ExportDropdown
+              isDarkMode={isDarkMode}
+              onExportPDF={onExportPDF}
+              onExportConversation={onExportConversation}
+              onCopyMarkdown={onCopyMarkdown}
+              exportStatus={exportStatus}
+            />
 
 <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
               <button
