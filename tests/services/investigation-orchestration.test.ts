@@ -102,4 +102,31 @@ describe('investigation-orchestration', () => {
     expect(result).not.toContain('Módulo retido');
     expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Tech Stack');
   });
+
+  it('usa cachedContent e dynamic prompt quando foundationCacheName está definido', async () => {
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: 'Módulo cacheado',
+      usageMetadata: { cachedContentTokenCount: 12000, promptTokenCount: 900 },
+    });
+
+    await generateDossierModule(
+      'Operação / Cadeia de Valor',
+      'SCHEFFER & CIA LTDA',
+      'foundation block',
+      'specialist block',
+      'extra context',
+      { foundationCacheName: 'cachedContents/test-cache' },
+    );
+
+    expect(proxyGenerateContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contents: expect.stringContaining('specialist block'),
+        config: expect.objectContaining({
+          cachedContent: 'cachedContents/test-cache',
+        }),
+      }),
+      undefined,
+    );
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
+  });
 });

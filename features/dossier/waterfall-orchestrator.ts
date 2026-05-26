@@ -13,6 +13,14 @@ import {
   SHARED_FOUNDATION_BLOCK,
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
+import {
+  buildDynamicDossierContext,
+  buildStaticDossierContext,
+  createWaterfallFoundationCache,
+  deleteWaterfallFoundationCache,
+  isFoundationCacheEnabled,
+  joinDossierExtraContext,
+} from '../../services/gemini/foundation-cache';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../../services/ragService';
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
@@ -428,6 +436,47 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         signal,
       });
 
+      const staticDossierContext = buildStaticDossierContext({
+        dossierSeedContext,
+        waterfallLookupContext,
+        seniorEvidenceContext,
+        teiaResearchText: teiaResearchContext.text,
+      });
+
+      let foundationCacheName: string | undefined;
+      if (isFoundationCacheEnabled()) {
+        try {
+          foundationCacheName = await createWaterfallFoundationCache({
+            foundationBlock: SHARED_FOUNDATION_BLOCK,
+            staticContext: staticDossierContext,
+            signal,
+          });
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
+            sessionId,
+            company: resolvedMegaCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      const buildModuleExtraContext = (accumulatedTextSnapshot: string, contextHint = '') => {
+        const dynamicContext = buildDynamicDossierContext(
+          contextHint,
+          accumulatedTextSnapshot,
+          WATERFALL_CONTEXT_WINDOW_CHARS,
+        );
+        if (foundationCacheName) return dynamicContext;
+        return joinDossierExtraContext(staticDossierContext, dynamicContext);
+      };
+
+      const sharedDossierModuleOptions = {
+        useGrounding: true as const,
+        onGroundingSources: appendGroundingSources,
+        onVerificationStatus: rememberVerificationStatus,
+        ...(foundationCacheName ? { foundationCacheName } : {}),
+      };
+
       const appendWaterfallChunk = (chunk: string) => {
         const normalizedChunk = chunk.trim();
         if (!normalizedChunk) return;
@@ -484,24 +533,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           resolvedMegaCompany || 'Empresa',
           SHARED_FOUNDATION_BLOCK,
           module.prompt,
-          [
-            dossierSeedContext,
-            waterfallLookupContext,
-            seniorEvidenceContext,
-            teiaResearchContext.text,
-            contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
-            accumulatedTextSnapshot
-              ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
-              : '',
-          ]
-            .filter(Boolean)
-            .join('\n\n'),
+          buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
           {
             signal,
             timeoutMs,
-            useGrounding: true,
-            onGroundingSources: appendGroundingSources,
-            onVerificationStatus: rememberVerificationStatus,
+            ...sharedDossierModuleOptions,
           },
         );
 
@@ -514,24 +550,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             resolvedMegaCompany || 'Empresa',
             SHARED_FOUNDATION_BLOCK,
             PROMPT_TEIA_IDENTITY_MODULE,
-            [
-              dossierSeedContext,
-              waterfallLookupContext,
-              seniorEvidenceContext,
-              teiaResearchContext.text,
-              accumulatedText
-                ? `Contexto anterior consolidado:\n${accumulatedText.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
-                : '',
-            ]
-              .filter(Boolean)
-              .join('\n\n'),
+            buildModuleExtraContext(accumulatedText),
             {
               signal,
               timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
-              useGrounding: true,
               temperature: 0.1,
-              onGroundingSources: appendGroundingSources,
-              onVerificationStatus: rememberVerificationStatus,
+              ...sharedDossierModuleOptions,
             },
           );
         } catch (identityError) {
@@ -594,24 +618,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               resolvedMegaCompany || 'Empresa',
               SHARED_FOUNDATION_BLOCK,
               PROMPT_TEIA_DEEP_MODULE,
-              [
-                dossierSeedContext,
-                waterfallLookupContext,
-                seniorEvidenceContext,
-                teiaResearchContext.text,
-                combinedTeiaText
-                  ? `Contexto anterior consolidado:\n${combinedTeiaText.slice(-WATERFALL_CONTEXT_WINDOW_CHARS)}`
-                  : '',
-              ]
-                .filter(Boolean)
-                .join('\n\n'),
+              buildModuleExtraContext(combinedTeiaText),
               {
                 signal,
                 timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
-                useGrounding: true,
                 temperature: 0.1,
-                onGroundingSources: appendGroundingSources,
-                onVerificationStatus: rememberVerificationStatus,
+                ...sharedDossierModuleOptions,
               },
             );
             combinedTeiaText += '\n\n---\n\n' + deepResult;
@@ -643,6 +655,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return validatedText;
       };
 
+      try {
       if (isFirstInteraction) {
         resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES);
       } else {
@@ -724,6 +737,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         dossierSeedContext,
         waterfallLookupContext,
         seniorEvidenceContext,
+        staticDossierContext,
+        foundationCacheName,
         accumulatedText,
         modulesByName,
         runWaterfallModule,
@@ -835,6 +850,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       });
 
       completeLoadingProgress();
+      } finally {
+        await deleteWaterfallFoundationCache(foundationCacheName, signal);
+      }
     },
     [
       advanceLoadingProgress,

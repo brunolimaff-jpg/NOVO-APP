@@ -1,6 +1,6 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 
-type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health';
+type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
 
 interface GeminiApiBaseRequest {
   action: GeminiApiAction;
@@ -34,6 +34,30 @@ interface GeminiHealthRequest extends GeminiApiBaseRequest {
 interface GeminiGenerateResponse {
   text: string;
   candidates?: unknown[];
+  usageMetadata?: Record<string, unknown>;
+}
+
+interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {
+  action: 'createCachedContent';
+  model: string;
+  systemInstruction: string;
+  ttl?: string;
+  displayName?: string;
+}
+
+interface GeminiCreateCachedContentResponse {
+  name?: string;
+  expireTime?: string;
+  usageMetadata?: Record<string, unknown>;
+}
+
+interface GeminiDeleteCachedContentRequest extends GeminiApiBaseRequest {
+  action: 'deleteCachedContent';
+  name: string;
+}
+
+interface GeminiDeleteCachedContentResponse {
+  ok: boolean;
 }
 
 export interface GeminiChatResponse {
@@ -88,7 +112,7 @@ export function resolveGeminiApiEndpoint(
 
 async function callGeminiApi<TResponse>(
   endpoint: string,
-  payload: GeminiGenerateRequest | GeminiChatRequest | GeminiHealthRequest | Record<string, unknown>,
+  payload: GeminiGenerateRequest | GeminiChatRequest | GeminiHealthRequest | GeminiCreateCachedContentRequest | GeminiDeleteCachedContentRequest | Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<TResponse> {
   const controller = new AbortController();
@@ -149,6 +173,28 @@ export async function proxyGenerateContent(
 ): Promise<GeminiGenerateResponse> {
   // endpoint resolvido lazy — sem const de módulo
   return callGeminiApi<GeminiGenerateResponse>(resolveGeminiApiEndpoint(), { action: 'generateContent', ...params }, signal);
+}
+
+export async function proxyCreateCachedContent(
+  params: Omit<GeminiCreateCachedContentRequest, 'action'>,
+  signal?: AbortSignal,
+): Promise<GeminiCreateCachedContentResponse> {
+  return callGeminiApi<GeminiCreateCachedContentResponse>(
+    resolveGeminiApiEndpoint(),
+    { action: 'createCachedContent', ...params },
+    signal,
+  );
+}
+
+export async function proxyDeleteCachedContent(
+  params: Omit<GeminiDeleteCachedContentRequest, 'action'>,
+  signal?: AbortSignal,
+): Promise<GeminiDeleteCachedContentResponse> {
+  return callGeminiApi<GeminiDeleteCachedContentResponse>(
+    resolveGeminiApiEndpoint(),
+    { action: 'deleteCachedContent', ...params },
+    signal,
+  );
 }
 
 export async function proxyChatSendMessage(

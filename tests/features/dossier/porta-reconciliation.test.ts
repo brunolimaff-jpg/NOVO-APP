@@ -85,6 +85,7 @@ Texto consolidado sem marcador explícito.
         dossierSeedContext: '',
         waterfallLookupContext: '',
         seniorEvidenceContext: '',
+        staticDossierContext: '',
         accumulatedText: 'Texto com [[PORTA_FEED_P:7:HA:1:CNPJS:1:FAT:NA]] parcial.',
         modulesByName: new Map(),
         runWaterfallModule: vi.fn(),

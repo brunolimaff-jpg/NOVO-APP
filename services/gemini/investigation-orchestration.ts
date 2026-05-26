@@ -685,8 +685,14 @@ export async function generateDossierModule(
   options: DossierModuleOptions = {},
 ): Promise<string> {
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
-  const finalPrompt = `${foundationBlock}\n\n${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`;
-  const promptChars = finalPrompt.length;
+  const usesFoundationCache = Boolean(options.foundationCacheName);
+  const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
+  const finalPrompt = usesFoundationCache
+    ? dynamicPrompt
+    : `${foundationBlock}\n\n${dynamicPrompt}`;
+  const promptChars = usesFoundationCache
+    ? dynamicPrompt.length
+    : `${foundationBlock}\n\n${dynamicPrompt}`.length;
   const startedAt = Date.now();
 
   scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
@@ -696,6 +702,7 @@ export async function generateDossierModule(
     specialistChars: specialistPrompt.length,
     extraContextChars: extraContext.length,
     promptChars,
+    foundationCacheName: options.foundationCacheName ?? null,
   });
   if (promptChars > 80000) {
     scoutDiag.warn('DossierModule', 'módulo especializado com prompt elevado', {
@@ -705,19 +712,31 @@ export async function generateDossierModule(
     });
   }
 
+  const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
+  const contents = usesFoundationCache
+    ? `${userTask}\n\n${dynamicPrompt}`
+    : userTask;
+
   const response = await runWithStepTimeout(
     `DossierModule:${moduleName}`,
     stepSignal =>
       proxyGenerateContent(
         {
           model: STABLE_RESEARCH_MODEL_ID,
-          contents: `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`,
-          config: {
-            systemInstruction: finalPrompt,
-            temperature: options.temperature ?? 0.2,
-            maxOutputTokens: 8192,
-            tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
-          },
+          contents,
+          config: usesFoundationCache
+            ? {
+                cachedContent: options.foundationCacheName,
+                temperature: options.temperature ?? 0.2,
+                maxOutputTokens: 8192,
+                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
+              }
+            : {
+                systemInstruction: finalPrompt,
+                temperature: options.temperature ?? 0.2,
+                maxOutputTokens: 8192,
+                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
+              },
         },
         stepSignal,
       ),
@@ -763,6 +782,14 @@ export async function generateDossierModule(
     options.onGroundingSources?.(groundingSources, moduleName);
   }
   options.onVerificationStatus?.(verificationStatus, moduleName);
+  if (response.usageMetadata) {
+    scoutDiag.info?.('DossierModule', 'usage metadata', {
+      moduleName,
+      empresaAlvo,
+      foundationCacheName: options.foundationCacheName ?? null,
+      usageMetadata: response.usageMetadata,
+    });
+  }
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,

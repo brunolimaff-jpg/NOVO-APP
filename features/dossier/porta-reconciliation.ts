@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { SHARED_FOUNDATION_BLOCK } from '../../prompts/megaPrompts';
 import { generateDossierModule } from '../../services/geminiService';
+import { joinDossierExtraContext } from '../../services/gemini/foundation-cache';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';
@@ -48,6 +49,8 @@ export interface ReconcileWaterfallPortaArgs {
   dossierSeedContext: string;
   waterfallLookupContext: string;
   seniorEvidenceContext: string;
+  staticDossierContext: string;
+  foundationCacheName?: string;
   accumulatedText: string;
   modulesByName: Map<string, DossierWaterfallModule>;
   runWaterfallModule: RunWaterfallModule;
@@ -116,6 +119,8 @@ export async function reconcileWaterfallPorta({
   dossierSeedContext,
   waterfallLookupContext,
   seniorEvidenceContext,
+  staticDossierContext,
+  foundationCacheName,
   accumulatedText,
   modulesByName,
   runWaterfallModule,
@@ -204,16 +209,20 @@ export async function reconcileWaterfallPorta({
         resolvedMegaCompany || 'Empresa',
         SHARED_FOUNDATION_BLOCK,
         buildPortaReconciliationPrompt(waterfallPortaResolution.missingDimensions),
-        [
-          dossierSeedContext,
-          waterfallLookupContext,
-          seniorEvidenceContext,
-          `Contexto consolidado da rodada:\n${nextAccumulatedText.slice(-PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS)}`,
-          `Dimensões pendentes para emissão de markers: ${waterfallPortaResolution.missingDimensions.join(', ')}`,
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
-        { signal, timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS },
+        joinDossierExtraContext(
+          foundationCacheName ? '' : staticDossierContext,
+          [
+            `Contexto consolidado da rodada:\n${nextAccumulatedText.slice(-PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS)}`,
+            `Dimensões pendentes para emissão de markers: ${waterfallPortaResolution.missingDimensions.join(', ')}`,
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
+        ),
+        {
+          signal,
+          timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          ...(foundationCacheName ? { foundationCacheName } : {}),
+        },
       );
 
       appendWaterfallChunk(reconciliationChunk);

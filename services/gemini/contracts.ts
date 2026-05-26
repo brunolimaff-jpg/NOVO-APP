@@ -27,6 +27,8 @@ export interface DossierModuleOptions {
   useGrounding?: boolean;
   onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
   onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
+  /** Explicit Gemini context cache name for the waterfall foundation + static dossier context. */
+  foundationCacheName?: string;
 }
 
 export interface SpotterExtractedData {
