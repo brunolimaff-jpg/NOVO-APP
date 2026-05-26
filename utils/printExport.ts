@@ -169,6 +169,7 @@ export function renderMarkdownForPrint(markdown: string): string {
 
     const bullet = trimmed.match(/^[-*]\s+(.+)$/);
     if (bullet) {
+      if (orderedList && listItems.length > 0) flushList();
       orderedList = false;
       listItems.push(`<li>${renderInlineMarkdown(bullet[1])}</li>`);
       continue;
@@ -176,6 +177,7 @@ export function renderMarkdownForPrint(markdown: string): string {
 
     const numbered = trimmed.match(/^(\d+)\.\s+(.+)$/);
     if (numbered) {
+      if (!orderedList && listItems.length > 0) flushList();
       orderedList = true;
       listItems.push(`<li>${renderInlineMarkdown(numbered[2])}</li>`);
       continue;
@@ -613,7 +615,7 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
 <body>
   <div class="report">
     <nav class="print-bar">
-      <button class="btn-secondary" onclick="document.execCommand('selectAll')">Selecionar tudo</button>
+      <button class="btn-secondary" onclick="var r=document.createRange();r.selectNodeContents(document.querySelector('.report')||document.body);var s=window.getSelection();if(s){s.removeAllRanges();s.addRange(r)}">Selecionar tudo</button>
       <button class="btn-primary" onclick="window.print()">Salvar como PDF</button>
     </nav>
 

@@ -48,18 +48,26 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        const prev = focusIndexRef.current;
-        const next = prev + 1 >= menuItemsRef.current.length ? 0 : prev + 1;
+        const items = menuItemsRef.current;
+        let next = focusIndexRef.current;
+        for (let attempt = 0; attempt < items.length; attempt++) {
+          next = next + 1 >= items.length ? 0 : next + 1;
+          if (items[next] && !items[next]?.disabled) break;
+        }
         focusIndexRef.current = next;
-        menuItemsRef.current[next]?.focus();
+        items[next]?.focus();
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        const prev = focusIndexRef.current;
-        const next = prev - 1 < 0 ? menuItemsRef.current.length - 1 : prev - 1;
+        const items = menuItemsRef.current;
+        let next = focusIndexRef.current;
+        for (let attempt = 0; attempt < items.length; attempt++) {
+          next = next - 1 < 0 ? items.length - 1 : next - 1;
+          if (items[next] && !items[next]?.disabled) break;
+        }
         focusIndexRef.current = next;
-        menuItemsRef.current[next]?.focus();
+        items[next]?.focus();
       }
     };
     document.addEventListener('keydown', handler);
@@ -110,13 +118,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           }`}
           role="menu"
         >
-          <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${
+          <div role="presentation" className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${
             isDarkMode ? 'text-gray-500' : 'text-gray-400'
           }`}>
             Exportar dossiê
           </div>
 
-          <div className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
+          <div role="separator" className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
 
           <button
             ref={el => { menuItemsRef.current[0] = el; }}
@@ -203,7 +211,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             </div>
           </button>
 
-          <div className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
+          <div role="separator" className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
 
           <button
             ref={el => { menuItemsRef.current[4] = el; }}
@@ -229,7 +237,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           </button>
 
           {exportStatus !== 'idle' && (
-            <div className={`mx-3 mb-2 mt-1 rounded-lg px-3 py-2 text-xs ${
+            <div role="status" aria-live="polite" className={`mx-3 mb-2 mt-1 rounded-lg px-3 py-2 text-xs ${
               exportStatus === 'error'
                 ? isDarkMode
                   ? 'bg-red-900/30 text-red-300'
