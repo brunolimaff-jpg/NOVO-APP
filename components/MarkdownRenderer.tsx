@@ -6,7 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { stripPortaMarkers } from '../utils/porta';
 import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
-import { verifiedSourcesToPool } from '../utils/dossierSourcePool';
+import { coerceGroundingSources, verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { stripTeiaHypothesisLegend } from '../utils/teiaLegend';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
@@ -293,22 +293,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   allowRawHtml = false,
   variant = 'default',
 }) => {
+  const resolvedGroundingSources = useMemo(
+    () => coerceGroundingSources(groundingSources),
+    [groundingSources],
+  );
+
   const integrityBase = useMemo(() => {
     if (!content) return '';
-    const sourcePool = verifiedSourcesToPool(
-      (groundingSources || []).map(source => ({ title: source.title, url: source.url })),
-    );
+    const sourcePool = verifiedSourcesToPool(resolvedGroundingSources);
     let text = normalizeMermaidBlocks(stripPortaMarkers(content));
     text = stripTeiaHypothesisLegend(text);
     return applyDossierLinkIntegrity(text, { allowedPool: sourcePool });
-  }, [content, groundingSources]);
+  }, [content, resolvedGroundingSources]);
 
   const resolvedSources = useMemo(
     () =>
       auditableSources && auditableSources.length > 0
         ? auditableSources
-        : buildAuditableSources(integrityBase, groundingSources),
-    [auditableSources, integrityBase, groundingSources],
+        : buildAuditableSources(integrityBase, resolvedGroundingSources),
+    [auditableSources, integrityBase, resolvedGroundingSources],
   );
 
   const citationMap = useMemo(() => {

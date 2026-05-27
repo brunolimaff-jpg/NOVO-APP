@@ -11,7 +11,7 @@ import MessageActionsBar from './MessageActionsBar';
 import { DeepDiveTopics } from './DeepDiveTopics';
 import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
 import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
-import { verifiedSourcesToPool } from '../utils/dossierSourcePool';
+import { coerceGroundingSources, verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
 
@@ -89,17 +89,16 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
   const displayScore = isBot ? msg.scorePorta : undefined;
+  const groundingSources = useMemo(
+    () => coerceGroundingSources(msg.groundingSources),
+    [msg.groundingSources],
+  );
+
   const auditableSources = useMemo<AuditableSource[]>(() => {
-    const pool = verifiedSourcesToPool(
-      (msg.groundingSources || []).map(source => ({
-        title: source.title,
-        url: source.url,
-        verification: source.verification,
-      })),
-    );
+    const pool = verifiedSourcesToPool(groundingSources);
     const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
-    return buildAuditableSources(cleaned, msg.groundingSources || []);
-  }, [msg.text, msg.groundingSources]);
+    return buildAuditableSources(cleaned, groundingSources);
+  }, [msg.text, groundingSources]);
 
   const citedInTextSources = useMemo(
     () => auditableSources.filter(source => source.sourceTypes.includes('inline_citation')),
@@ -121,7 +120,9 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
-  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
+  const hasSubstantiveText = Boolean(msg.text && msg.text.trim().length > 200);
+  const showHeroLoading =
+    isBot && msg.isThinking && loadingVariant === 'hero' && !hasSubstantiveText;
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
   let content: React.ReactNode;
 
