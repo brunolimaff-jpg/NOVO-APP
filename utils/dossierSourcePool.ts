@@ -1,4 +1,5 @@
 import type { VerifiedSource } from './webVerification';
+import { normalizeSourceUrl } from './textCleaners';
 
 export interface DossierSourceRef {
   title: string;
@@ -8,8 +9,7 @@ export interface DossierSourceRef {
 }
 
 export function normalizeDossierSourceUrl(url: string): string {
-  const raw = (url || '').trim().replace(/\/+$/, '');
-  return raw;
+  return normalizeSourceUrl(url);
 }
 
 export function mergeDossierSourceRefs(

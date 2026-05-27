@@ -54,7 +54,7 @@ function renumberUrgencySectionLinks(text: string): string {
 
   const start = headingMatch.index + headingMatch[0].length;
   const rest = text.slice(start);
-  const nextHeading = rest.search(/\n##\s+/);
+  const nextHeading = rest.search(/\n#+\s+/);
   const end = nextHeading === -1 ? text.length : start + nextHeading;
   const before = text.slice(0, start);
   const section = text.slice(start, end);
@@ -92,7 +92,7 @@ export function applyDossierLinkIntegrity(
         ? findPoolReplacement(options.allowedPool, linkText)
         : null;
       if (replacement && !isFakeUrl(replacement) && isUrlAllowed(replacement, allowedNormalized)) {
-        const numLabel = /^\[?\d+\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
+        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
         return `[${numLabel}](${replacement})`;
       }
       return `**${linkText.trim()}** *(sem fonte URL verificável)*`;
@@ -103,7 +103,7 @@ export function applyDossierLinkIntegrity(
         ? findPoolReplacement(options.allowedPool, linkText)
         : null;
       if (replacement && isUrlAllowed(replacement, allowedNormalized)) {
-        const numLabel = /^\[?\d+\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
+        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
         return `[${numLabel}](${replacement})`;
       }
       return `**${linkText.trim()}** *(sem fonte URL verificável)*`;
