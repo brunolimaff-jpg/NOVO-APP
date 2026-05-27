@@ -1,51 +1,25 @@
-# Handoff -- NOVO-APP (entrada rapida)
+# Handoff Técnico — [NOVO-APP] — 27/05/2026
 
-**Narrativa / licoes / sessoes:** Bruno Vault -> `docs/OBSIDIAN_VAULT.md`  
-**Boot completo:** `AGENTS.md` (ordem de leitura)  
-**Sessao atual:** `docs/handoffs/2026-05-27-dossier-link-integrity-pr301.md`
+## 🎯 Objetivo da Próxima Sessão
+PR #302 pronta para merge. Decidir entre merge manual ou esperar validação adicional.
 
-## Estado agora (2026-05-27 — PR #301 aberta)
+## 🛠️ Estado Atual
+- **PR #302 PRONTA PARA MERGE:** `perf/dossier-link-integrity-and-memo`
+  - Deploy Vercel verde (preview OK)
+  - 3 review comments do Gemini resolvidos
+  - Estado: OPEN, CLEAN merge state
+  - Commits: `8cdc326` (perf O(1) + React.memo), `7f098e8` (review comments + freeze 95%), `f3679b7` (tela branca)
 
-| Item | Valor |
-|------|--------|
-| Projeto | Senior Scout 360 — React 19, Vite, Gemini, Pinecone, Supabase |
-| Branch ativa | `fix/dossier-link-integrity-fontes` |
-| PR #301 | **ABERTA** — integridade links + fontes completas no dossiê |
-| Main | `22cc0b1` (PR #300 mergeada) |
-| CI PR #301 | Verde (último push: `b3af760`) |
+## 🔵 Lições Aprendidas (PR #302)
+1. `useMemo` para strings primitivas é desnecessário — React compara `===` em deps de useEffect. Concatenação de string é suficiente.
+2. Títulos de fonte com < 3 chars geram falsos positivos em matching por substring — validar tamanho mínimo.
+3. JSDoc em `buildPoolLookupMap()` atualizado: lookup é O(N) por link (percorre chaves), mas evita `new URL()` no loop.
 
-## PR #301 — integridade de links + fontes
+## 📋 Pendências
+- [ ] **MERGE** da PR #302 (requer token MERGE explícito ou merge manual)
+- [ ] Branch residual `fix/dossier-link-integrity-fontes` (10 commits não mergeados em `main`) — decidir destino
 
-**Objetivo:** zero link fake; rodapé `## 📚 Fontes` (citadas + consultadas); pool no prompt; fallback web não aborta módulo.  
-**URL:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/301  
-**Handoff:** `docs/handoffs/2026-05-27-dossier-link-integrity-pr301.md`
-
-### Commits na PR
-
-- `2c6e40b` — feature core (integrity, footer, prompts, waterfall)
-- `a7d56ff` — review + testes MessageActionsBar
-- `b3af760` — fix tela branca Scheffer
-
-### Pendente local (não pushado)
-
-UX waterfall: preview do dossiê durante geração, overlay hero some com stream, timeout link-status — ver diff em `App.tsx`, `waterfall-orchestrator.ts`, `ChatInterface.tsx`.
-
-### Smoke / produção
-
-- **Produção** (`scoutagro.vercel.app`) ≠ PR — ainda código antigo de fallback.
-- Teste usuário: LoadingSmart longo + `open-web-search` degradado (env Brave).
-- Após push pendente: smoke preview Scheffer CNPJ `04733767000180`.
-
-## Comandos
-
-```bash
-npm run dev
-npm test
-npm run typecheck
-gh pr checks 301
-```
-
-## Regras criticas
-
-- Merge guard: token **MERGE** obrigatorio
-- Fachadas congeladas; prompts em `prompts/`; CNPJ antes de IA
+## 📎 Links e Caminhos
+- **PR #302:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/302
+- **dossierLinkIntegrity.ts:** `utils/dossierLinkIntegrity.ts`
+- **LoadingSmart.tsx:** `components/LoadingSmart.tsx`
