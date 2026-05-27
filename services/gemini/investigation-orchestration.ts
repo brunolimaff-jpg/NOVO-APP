@@ -300,7 +300,8 @@ export async function sendMessageToGemini(
 
   // Helper para racear uma promise contra AbortSignal
   const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
-    if (!sig || sig.aborted) return promise;
+    if (!sig) return promise;
+    if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
     return new Promise<T>((resolve, reject) => {
       const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
       sig.addEventListener('abort', onAbort, { once: true });
@@ -448,7 +449,8 @@ export async function sendMessageToGemini(
   if (isMegaPromptMessage) {
     emitDossieStatus(onStatus, 'concorrentes');
     try {
-      concorrentesContext = await withAbortSignal(Promise.resolve(getContextoConcorrentesRegionais(empresaAlvo || userMessage)), signal);
+      if (signal?.aborted) throw new DOMException('The operation was aborted', 'AbortError');
+      concorrentesContext = getContextoConcorrentesRegionais(empresaAlvo || userMessage);
     } catch (error: unknown) {
       scoutDiag.warn('Concorrentes', 'falha ao montar contexto regional', {
         error: error instanceof Error ? error.message : String(error),

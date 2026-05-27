@@ -434,7 +434,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       // Helper para racear uma promise contra AbortSignal
       const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
-        if (!sig || sig.aborted) return promise;
+        if (!sig) return promise;
+        if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
         return new Promise<T>((resolve, reject) => {
           const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
           sig.addEventListener('abort', onAbort, { once: true });
@@ -787,6 +788,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let reconciledText: string = accumulatedText;
       let waterfallPortaResolution: PortaScoreResolution | null = null;
       let portaIntegrityHold = false;
+      let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
       try {
         const result = await Promise.race([
@@ -806,9 +808,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             optionalStepFailures,
             setFailureCount,
           }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('PORTA reconciliation timeout')), PORTA_RECONCILIATION_TIMEOUT_MS),
-          ),
+          new Promise<never>((_, reject) => {
+            portaTimeoutId = setTimeout(() => reject(new Error('PORTA reconciliation timeout')), PORTA_RECONCILIATION_TIMEOUT_MS);
+          }),
         ]);
         reconciledText = result.accumulatedText;
         waterfallPortaResolution = result.resolution;
@@ -822,6 +824,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         optionalStepFailures.add('porta-reconciliation');
         setFailureCount((prev: number) => prev + 1);
         portaIntegrityHold = true;
+      } finally {
+        if (portaTimeoutId) clearTimeout(portaTimeoutId);
       }
       accumulatedText = reconciledText;
 
