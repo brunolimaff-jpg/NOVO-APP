@@ -91,11 +91,13 @@ if (!rootElement) {
   throw new Error('Could not find root element to mount to');
 }
 
-// Em ambiente de desenvolvimento, desregistra Service Workers antigos para evitar
-// que assets em cache contaminem o ambiente local.
+// Desregistra Service Workers antigos e limpa cache em TODOS os ambientes.
+// Em previews do Vercel, o alias da branch é fixo — o SW do deploy anterior
+// serve assets cacheados velhos, sem nossas correções. Safari ignora SW.
+// Só mantemos o SW em PWA instalado (standalone/display-mode).
 if (typeof window !== 'undefined') {
-  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  if (import.meta.env.DEV || isLocalHost) {
+  const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches;
+  if (!isStandalone) {
     void navigator.serviceWorker?.getRegistrations?.().then((registrations) => {
       registrations.forEach((r) => void r.unregister());
     });
