@@ -114,6 +114,18 @@ export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
         ? `${pending} pendente${pending > 1 ? 's' : ''}`
         : 'Em dia';
 
+  const tooltip = syncing
+    ? 'Sincronizando dados com a nuvem…'
+    : lastResult === 'Erro'
+      ? 'Falha ao sincronizar — toque para tentar novamente'
+      : lastResult === 'Falhou'
+        ? 'Sincronização falhou — toque para tentar novamente'
+      : lastResult
+        ? `Sincronizado: ${lastResult}`
+        : hasPending
+          ? `${pending} alteração${pending > 1 ? 'ões' : ''} local pendente — toque para enviar`
+          : 'Nuvem em dia — toque para sincronizar';
+
   const ariaLabel = `Nuvem · ${statusText}`;
 
   const colorClasses = syncing
@@ -138,7 +150,7 @@ export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
       onClick={handleSync}
       disabled={syncing}
       aria-label={ariaLabel}
-      title={statusText}
+      title={tooltip}
       className={`relative flex items-center justify-center rounded-lg p-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-wait disabled:opacity-60 ${colorClasses}`}
     >
       {syncing ? (

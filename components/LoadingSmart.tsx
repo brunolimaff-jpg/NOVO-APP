@@ -101,7 +101,7 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
 
 function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boolean }) {
   const visualWidth = Math.max(percent, 3);
-  const label = percent < 5 ? 'Preparando análise...' : `${percent}%`;
+  const label = `${percent}%`;
   return (
     <div className={`rounded-xl px-4 py-3 ${
       isDarkMode ? 'bg-slate-800/80 border border-emerald-500/15' : 'bg-emerald-50 border border-emerald-200'
@@ -109,7 +109,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Andamento</span>
         <span className={`text-sm font-bold tabular-nums transition-all duration-500 ${
-          percent < 5 ? (isDarkMode ? 'text-slate-500' : 'text-slate-400') : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')
+          isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
         }`}>{label}</span>
       </div>
       <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>
@@ -142,6 +142,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
   const stepTimestampsRef = useRef<Record<string, number>>({});
+  const phaseStartedAtRef = useRef<number>(0);
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
   const insightRequestIdRef = useRef(0);
@@ -214,6 +215,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       queuedStageKeysRef.current = new Set();
       lastRevealTimeRef.current = 0;
       stepTimestampsRef.current = {};
+      phaseStartedAtRef.current = 0;
       if (revealTimerRef.current) {
         clearTimeout(revealTimerRef.current);
         revealTimerRef.current = null;
@@ -265,11 +267,13 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             queuedStageKeysRef.current.delete(nextKey);
           }
           lastRevealTimeRef.current = Date.now();
+          const phaseDuration = elapsedTime - phaseStartedAtRef.current;
+          phaseStartedAtRef.current = elapsedTime;
           setDisplayedCompleted(prev => {
             if (!nextKey) return prev;
             if (displayedStageKeysRef.current.has(nextKey)) return prev;
             displayedStageKeysRef.current.add(nextKey);
-            stepTimestampsRef.current[next] = elapsedTime;
+            stepTimestampsRef.current[next] = phaseDuration > 0 ? phaseDuration : 0;
             return [...prev, next];
           });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
