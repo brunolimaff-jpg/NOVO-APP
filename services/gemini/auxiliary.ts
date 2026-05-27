@@ -508,11 +508,14 @@ export async function generateContinuityQuestion(
     prompt: string,
     attempt: 'primary' | 'retry' | 'novelty_retry',
   ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
-    const response = await proxyGenerateContent({
-      model: ROUTER_MODEL_ID,
-      contents: prompt,
-      config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt, responseMimeType: 'application/json' },
-    });
+    const response = await proxyGenerateContent(
+      {
+        model: ROUTER_MODEL_ID,
+        contents: prompt,
+        config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt, responseMimeType: 'application/json' },
+      },
+      AbortSignal.timeout(15000),
+    );
 
     const raw = (response.text || '').trim();
     const parsed = parseContinuityQuestions(raw);

@@ -21,8 +21,9 @@ function isUrlAllowed(url: string, allowedNormalized: Set<string>): boolean {
 
 /**
  * Pré-constrói um mapa de lookup (título prefixo → URL, hostname → URL)
- * a partir do pool de fontes. Iteração única O(n) no pool; cada lookup
- * subsequente é O(1) no Map, em vez de O(n) a cada chamada.
+ * a partir do pool de fontes. Iteração única O(n) no pool;
+ * cada lookup percorre chaves do Map com lower.includes(key), evitando
+ * chamadas custosas a new URL() dentro do loop de substituição.
  */
 export function buildPoolLookupMap(
   allowedPool: DossierSourceRef[],
@@ -30,7 +31,7 @@ export function buildPoolLookupMap(
   const map = new Map<string, string>();
   for (const source of allowedPool) {
     const title = (source.title || '').toLowerCase().trim();
-    if (title) {
+    if (title && title.length >= 3) {
       const prefix = title.slice(0, Math.min(12, title.length));
       if (!map.has(prefix)) map.set(prefix, source.url);
     }
@@ -40,13 +41,13 @@ export function buildPoolLookupMap(
     } catch {
       // Fonte sem URL parseável; segue sem host para matching.
     }
-    if (host && !map.has(host)) map.set(host, source.url);
+    if (host && host.length >= 3 && !map.has(host)) map.set(host, source.url);
   }
   return map;
 }
 
 /**
- * Lookup O(1) no mapa pré-construído. Retorna a URL encontrada ou fallbackUrl.
+ * Lookup no mapa pré-construído. Retorna a URL encontrada ou fallbackUrl.
  */
 function findPoolReplacement(
   lookupMap: Map<string, string>,

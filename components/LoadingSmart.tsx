@@ -176,10 +176,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   );
 
   /** Chave estável para dependências de useEffect que recebem arrays mutáveis de props */
-  const processingKey = useMemo(
-    () => `${processing?.stage || ''}::${(processing?.completedStages || []).join(',')}::${processing?.failureCount ?? 0}`,
-    [processing?.stage, processing?.completedStages, processing?.failureCount],
-  );
+  const processingKey = `${processing?.stage || ''}::${(processing?.completedStages || []).join(',')}::${(processing?.failureCount ?? 0)}`;
 
   const normalizeSourceLabel = useCallback((label: string): string =>
     label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(), []);
