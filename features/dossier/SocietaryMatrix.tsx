@@ -148,6 +148,75 @@ function BranchPremiumBadge({ company }: { company: SocietaryCompany }) {
   );
 }
 
+interface TableRowProps {
+  row: ClassifiedRow;
+  partnerColumns: SocietaryGraph['partners'];
+  partnerColors: Map<string, string>;
+  cnaeLabel: string;
+}
+
+const TableRow = React.memo(({ row, partnerColumns, partnerColors, cnaeLabel }: TableRowProps) => (
+  <tr className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+  >
+    <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
+      {row.company.name}
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        <BranchPremiumBadge company={row.company} />
+        {getDisplayBadges(row.company).map(badge => (
+          <span
+            key={`${row.company.id}-${badge}`}
+            className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.04em] ${badgeTone(badge)}`}
+          >
+            {badge}
+          </span>
+        ))}
+      </div>
+    </td>
+    <td className="font-mono text-[0.72rem] text-slate-600 dark:text-slate-400 whitespace-nowrap px-3 py-4">
+      {row.company.cnpj ? formatSocietaryCnpj(row.company.cnpj) : '—'}
+    </td>
+    <td className="text-[0.72rem] leading-relaxed text-slate-500 dark:text-slate-400 text-left max-w-[260px] px-3 py-4">
+      {cnaeLabel}
+    </td>
+    {partnerColumns.map(partner => {
+      const isConnected = row.company.partnerIds.includes(partner.id);
+      if (!isConnected) {
+        return (
+          <td key={partner.id} className="px-3 py-4 text-center">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-slate-300 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-600">
+              -
+            </span>
+          </td>
+        );
+      }
+      const color = partnerColors.get(partner.id) ?? '#94a3b8';
+      const initial = firstGivenName(partner.name).charAt(0).toUpperCase();
+      if (row.side) {
+        return (
+          <td key={partner.id} className="px-3 py-4 text-center">
+            <span
+              style={{ borderColor: color, color }}
+              className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black bg-white dark:bg-slate-800 border-2 border-dashed"
+            >
+              {initial}
+            </span>
+          </td>
+        );
+      }
+      return (
+        <td key={partner.id} className="px-3 py-4 text-center">
+          <span
+            style={{ backgroundColor: color }}
+            className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-white"
+          >
+            {initial}
+          </span>
+        </td>
+      );
+    })}
+  </tr>
+));
+
 const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   graph,
   cnaeMap,
@@ -199,19 +268,26 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     return map;
   }, [graph.partners]);
 
-  function getCnaeLabel(company: SocietaryCompany): string {
-    const candidates: string[] = [];
-    if (company.cnpj) candidates.push(company.cnpj);
-    candidates.push(formatSocietaryCnpj(company.cnpj));
-    candidates.push(company.id);
-    for (const key of candidates) {
-      const entry = cnaeMap[key];
-      if (entry) {
-        return `${entry.cnae} — ${entry.cnaeDescricao}`;
+  const cnaeLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of classified) {
+      const company = row.company;
+      const candidates: string[] = [];
+      if (company.cnpj) candidates.push(company.cnpj);
+      candidates.push(formatSocietaryCnpj(company.cnpj));
+      candidates.push(company.id);
+      let label = '—';
+      for (const key of candidates) {
+        const entry = cnaeMap[key];
+        if (entry) {
+          label = `${entry.cnae} — ${entry.cnaeDescricao}`;
+          break;
+        }
       }
+      map.set(company.id, label);
     }
-    return '—';
-  }
+    return map;
+  }, [classified, cnaeMap]);
 
   const isAllActive = activeCategory === 'all' && selectedPartnerId == null;
 
@@ -350,74 +426,13 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
               </tr>
             ) : (
               visibleRows.map(row => (
-                <tr
+                <TableRow
                   key={row.company.id}
-                  className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                >
-                  {/* Company name */}
-                  <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
-                    {row.company.name}
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      <BranchPremiumBadge company={row.company} />
-                      {getDisplayBadges(row.company).map(badge => (
-                        <span
-                          key={`${row.company.id}-${badge}`}
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.04em] ${badgeTone(badge)}`}
-                        >
-                          {badge}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-
-                  {/* CNPJ */}
-                  <td className="font-mono text-[0.72rem] text-slate-600 dark:text-slate-400 whitespace-nowrap px-3 py-4">
-                    {row.company.cnpj ? formatSocietaryCnpj(row.company.cnpj) : '—'}
-                  </td>
-
-                  {/* CNAE */}
-                  <td className="text-[0.72rem] leading-relaxed text-slate-500 dark:text-slate-400 text-left max-w-[260px] px-3 py-4">
-                    {getCnaeLabel(row.company)}
-                  </td>
-
-                  {/* Partner dots */}
-                  {partnerColumns.map(partner => {
-                    const isConnected = row.company.partnerIds.includes(partner.id);
-                    if (!isConnected) {
-                      return (
-                        <td key={partner.id} className="px-3 py-4 text-center">
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-slate-300 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-600">
-                            -
-                          </span>
-                        </td>
-                      );
-                    }
-                    const color = partnerColors.get(partner.id) ?? '#94a3b8';
-                    const initial = firstGivenName(partner.name).charAt(0).toUpperCase();
-                    if (row.side) {
-                      return (
-                        <td key={partner.id} className="px-3 py-4 text-center">
-                          <span
-                            style={{ borderColor: color, color }}
-                            className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black bg-white dark:bg-slate-800 border-2 border-dashed"
-                          >
-                            {initial}
-                          </span>
-                        </td>
-                      );
-                    }
-                    return (
-                      <td key={partner.id} className="px-3 py-4">
-                        <span
-                          style={{ backgroundColor: color }}
-                          className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-white"
-                        >
-                          {initial}
-                        </span>
-                      </td>
-                    );
-                  })}
-                </tr>
+                  row={row}
+                  partnerColumns={partnerColumns}
+                  partnerColors={partnerColors}
+                  cnaeLabel={cnaeLabels.get(row.company.id) ?? '—'}
+                />
               ))
             )}
           </tbody>
