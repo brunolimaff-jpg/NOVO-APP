@@ -77,8 +77,7 @@ A complexidade determina se a analise prossegue para o modulo de profundidade.
 
 REFERENCIA AO MAPA VISUAL:
 - Nao gere Mermaid. Nao desenhe grafos.
-- Ao final da visao geral, inclua a frase:
-  "Consulte o grafico interativo SocietaryMap na interface para visualizar as conexoes entre as empresas do grupo."
+- NAO mencione o SocietaryMap no output. O mapa ja esta visivel na interface.
 </instructions>
 
 <scoring_scales>
@@ -117,9 +116,6 @@ SEGMENTO:
 - **Segmento inferido:** [PRD/AGI/COP] — Justificativa: [lista de verticais]
 - **Nivel de Complexidade Societaria:** [BAIXO/MEDIO/ALTO]
 - **O Ponto Cego:** [1 linha: maior descoberta sobre massa escondida, holding ou dispersao]
-
-**Mapa Interativo:**
-Consulte o grafico interativo SocietaryMap na interface para visualizar os vinculos confirmados por busca estruturada entre as empresas do grupo. Se o total acima for maior que o mapa, isso e esperado — nao repita o numero do mapa como se fosse o mesmo inventario.
 
 Ao final do output, inclua EXATAMENTE UM dos tres marcadores abaixo, correspondendo a complexidade detectada no PASSO 4:
 [[TEIA_COMPLEXIDADE:BAIXA]]

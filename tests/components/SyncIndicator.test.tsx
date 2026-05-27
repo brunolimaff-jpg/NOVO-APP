@@ -28,20 +28,19 @@ describe('SyncIndicator', () => {
     vi.useRealTimers();
   });
 
-  it('mostra estado de nuvem em dia com texto claro', () => {
-    render(<SyncIndicator />);
+  it('mostra nuvem em dia sem badge', () => {
+    render(<SyncIndicator isDarkMode={false} />);
 
-    expect(screen.getByRole('button', { name: /nuvem em dia/i })).toBeInTheDocument();
-    expect(screen.getByText('Nuvem')).toBeInTheDocument();
-    expect(screen.getByText('Em dia')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /nuvem · em dia/i })).toBeInTheDocument();
+    expect(screen.queryByText('Nuvem')).not.toBeInTheDocument();
   });
 
-  it('mostra quantidade pendente em linguagem direta', () => {
+  it('mostra badge com contagem pendente', () => {
     getSyncQueueSizeMock.mockReturnValue(2);
 
-    render(<SyncIndicator />);
+    render(<SyncIndicator isDarkMode={false} />);
 
-    expect(screen.getByRole('button', { name: /nuvem 2 pendentes/i })).toBeInTheDocument();
-    expect(screen.getByText('2 pendentes')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /nuvem · 2 pendentes/i })).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 });

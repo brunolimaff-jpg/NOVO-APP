@@ -209,7 +209,7 @@ const ChatShell: React.FC<ChatShellProps> = ({
               </button>
             </Tooltip>
 
-            <SyncIndicator />
+            <SyncIndicator isDarkMode={isDarkMode} />
 
             <UserMenu
               isDarkMode={isDarkMode}
