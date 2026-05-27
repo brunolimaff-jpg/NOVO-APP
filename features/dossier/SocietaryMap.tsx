@@ -124,6 +124,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const searchedPartnerKeysRef = useRef<Record<string, boolean>>({});
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
+  const failedCnaeRef = useRef<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
   const [debouncedMermaid, setDebouncedMermaid] = useState<string>('');
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
@@ -461,6 +462,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     }, enrichedGemini);
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
+  const handleSelectPartner = useCallback((partnerId: string | null) => {
+    if (!graph) return;
+    if (partnerId) {
+      const partner = graph.partners.find(p => p.id === partnerId);
+      setSelectedPartnerName(partner?.name);
+    } else {
+      setSelectedPartnerName(undefined);
+    }
+  }, [graph]);
+
   useEffect(() => {
     if (!graph || !traceActive) return;
     trace('grafo consolidado', {
@@ -488,7 +499,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
     const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))];
-    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj]);
+    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj));
 
     if (pending.length === 0) return;
 
@@ -512,11 +523,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               cnae: cnpjData.cnae || cnpjData.cnaeDescricao || '',
               cnaeDescricao: cnpjData.cnaeDescricao || cnpjData.cnae || '',
             };
+          } else {
+            failedCnaeRef.current.add(batch[j]);
           }
         }
       }
 
-      if (!cancelled) {
+      if (!cancelled && Object.keys(results).length > 0) {
         setCnaeMap(prev => ({ ...prev, ...results }));
       }
     }
@@ -658,20 +671,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           inactiveReferences={inactiveReferences}
           traceId={traceIdRef.current}
           traceEnabled={traceActive}
-          onSelectPartner={(partnerId) => {
-            if (partnerId) {
-              const partner = graph.partners.find(p => p.id === partnerId);
-              setSelectedPartnerName(partner?.name);
-            } else {
-              setSelectedPartnerName(undefined);
-            }
-          }}
+          onSelectPartner={handleSelectPartner}
         />
       ) : (
         <>
           {debouncedMermaid ? (
             <div
-              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 select-text dark:border-slate-700 dark:bg-slate-900"
               data-testid="societary-mermaid-shell"
             >
               <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
@@ -766,4 +772,4 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   );
 };
 
-export default SocietaryMap;
+export default React.memo(SocietaryMap);

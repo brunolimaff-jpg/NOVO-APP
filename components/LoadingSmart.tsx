@@ -101,7 +101,7 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
 
 function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boolean }) {
   const visualWidth = Math.max(percent, 3);
-  const label = percent < 5 ? 'Preparando análise...' : `${percent}%`;
+  const label = `${percent}%`;
   return (
     <div className={`rounded-xl px-4 py-3 ${
       isDarkMode ? 'bg-slate-800/80 border border-emerald-500/15' : 'bg-emerald-50 border border-emerald-200'
@@ -109,7 +109,7 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
       <div className="flex items-center justify-between mb-2">
         <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Andamento</span>
         <span className={`text-sm font-bold tabular-nums transition-all duration-500 ${
-          percent < 5 ? (isDarkMode ? 'text-slate-500' : 'text-slate-400') : (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')
+          isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
         }`}>{label}</span>
       </div>
       <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>

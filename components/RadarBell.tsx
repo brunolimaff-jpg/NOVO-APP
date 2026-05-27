@@ -26,12 +26,12 @@ const RadarBell: React.FC<RadarBellProps> = ({ unreadCount, isScanning, onClick,
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex items-center justify-center rounded-lg p-2.5 transition-all duration-200 ${colorClasses}`}
+      className={`relative flex items-center justify-center rounded-lg p-2 transition-all duration-200 ${colorClasses}`}
       title={isScanning ? 'Radar varrendo...' : `Radar Setorial${hasUnread ? ' (novos alertas)' : ''}`}
     >
       {/* Sino Icon */}
       <svg
-        className={`w-6 h-6 flex-none ${hasUnread && !isScanning ? 'animate-bell-shake' : ''}`}
+        className={`w-5 h-5 flex-none ${hasUnread && !isScanning ? 'animate-bell-shake' : ''}`}
         viewBox="0 0 24 24"
         fill={hasUnread ? 'currentColor' : 'none'}
         stroke={hasUnread ? 'none' : 'currentColor'}
@@ -51,7 +51,7 @@ const RadarBell: React.FC<RadarBellProps> = ({ unreadCount, isScanning, onClick,
 
       {/* Ponto de Status (Dot) - Substitui o número */}
       {hasUnread && (
-        <span className="absolute top-2 right-2.5 flex h-3 w-3">
+        <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
           <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDarkMode ? 'bg-amber-400' : 'bg-amber-500'}`}></span>
           <span className={`relative inline-flex rounded-full h-3 w-3 border-2 ${isDarkMode ? 'bg-amber-500 border-gray-900' : 'bg-amber-600 border-white'}`}></span>
         </span>

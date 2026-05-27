@@ -200,8 +200,15 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
       if (cells.length < 2) continue;
 
       const rawCnpj = cnpjCol >= 0 && cnpjCol < cells.length ? cells[cnpjCol] : '';
-      const name = nameCol >= 0 && nameCol < cells.length ? cells[nameCol] : '';
-      if (!name || name === '-') continue;
+      const rawName = nameCol >= 0 && nameCol < cells.length ? cells[nameCol] : '';
+      if (!rawName || rawName === '-') continue;
+
+      const rawNameClean = rawName.replace(/\*\*/g, '').trim();
+      const branchMatch = rawNameClean.match(/(\d+)\s*filiais?\b/i);
+      const branchCount = branchMatch
+        ? parseInt(branchMatch[1], 10) + 1  // +1 inclui a matriz
+        : undefined;
+      const name = rawNameClean.replace(/\s*\d+\s*filiais?\s*/i, '').trim();
 
       const parsedCnpj = parseCnpjLabel(rawCnpj);
       const cnpjNote = rawCnpj.trim().toUpperCase();
@@ -241,6 +248,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
         rawCnpjLabel: parsedCnpj.rawCnpjLabel,
         partnerName,
         role: relation || undefined,
+        branchCount,
         sourceTitle: fonteCol >= 0 && cells[fonteCol]?.trim()
           ? cells[fonteCol].trim()
           : 'Gemini — Tabela CNPJs',

@@ -63,7 +63,7 @@ describe('LoadingSmart (variante hero)', () => {
       vi.advanceTimersByTime(1500);
     });
 
-    expect(screen.getAllByText(/14%/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/21%/i).length).toBeGreaterThan(0);
   });
 
   it('não mantém a última etapa pendente quando todas já foram concluídas', async () => {
@@ -202,7 +202,7 @@ describe('LoadingSmart (variante hero)', () => {
       vi.advanceTimersByTime(3500);
     });
 
-    expect(screen.getAllByText(/14%/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/21%/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/29%/i)).not.toBeInTheDocument();
   });
 
