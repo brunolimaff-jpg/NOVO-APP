@@ -79,7 +79,7 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-2.5 py-1 text-[0.72rem] font-bold cursor-pointer transition ${
+      className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition ${
         isActive
           ? 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300'
           : 'border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -165,7 +165,7 @@ const TableRow = React.memo(({ row, partnerColumns, partnerColors, cnaeLabel }: 
         {getDisplayBadges(row.company).map(badge => (
           <span
             key={`${row.company.id}-${badge}`}
-            className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.04em] ${badgeTone(badge)}`}
+            className={`inline-flex rounded-full border px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.04em] shadow-sm ${badgeTone(badge)}`}
           >
             {badge}
           </span>
@@ -349,24 +349,12 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
       <div
-        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-3 dark:border-slate-700"
+        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-4 dark:border-slate-700"
         aria-label="Resumo da teia societária"
         data-testid="societary-summary-metrics"
       >
-        <div
-          className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center"
-          data-testid="summary-metric-cnpjs-no-mapa"
-        >
-          <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
-            {visibleRows.length}
-            {metrics.filiais > 0 && (
-              <span className="text-[1rem] font-medium text-slate-400 dark:text-slate-500"> + {metrics.filiais}</span>
-            )}
-          </strong>
-          <span className="max-w-[8.5rem] text-[0.75rem] font-medium leading-snug text-slate-500 dark:text-slate-400">
-            {metrics.filiais > 0 ? 'matrizes + filiais' : 'matrizes'}
-          </span>
-        </div>
+        <SummaryMetric value={visibleRows.length} label="Matrizes" testId="summary-metric-matrizes" />
+        <SummaryMetric value={metrics.filiais} label="Filiais" testId="summary-metric-filiais" />
         <SummaryMetric value={metrics.em_comum} label="Em comum" testId="summary-metric-em-comum" />
         <SummaryMetric value={metrics.proprias} label="Próprias" testId="summary-metric-proprias" />
       </div>

@@ -456,7 +456,7 @@ describe('SocietaryMap', () => {
 
     await waitFor(() => expect(screen.getByText('E.Z.M.S. Participações Ltda')).toBeInTheDocument());
     expect(screen.getByTestId('societary-summary-metrics')).toBeInTheDocument();
-    expect(screen.getByTestId('summary-metric-cnpjs-no-mapa')).toHaveTextContent('1');
+    expect(screen.getByTestId('summary-metric-matrizes')).toHaveTextContent('1');
     expect(screen.queryByTestId('branch-premium-badge')).not.toBeInTheDocument();
     expect(screen.queryByText('frentes estratégicas')).not.toBeInTheDocument();
     expect(screen.queryByText('empresas do grupo')).not.toBeInTheDocument();
