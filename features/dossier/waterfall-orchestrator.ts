@@ -585,7 +585,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let identityResult: string;
 
         try {
-          replaceLoadingProgressStage('Mapeando teia societária (identidade)...', MODULAR_DOSSIER_TOTAL_STAGES);
           identityResult = await generateDossierModule(
             'Teia Societaria — Identidade',
             resolvedMegaCompany || 'Empresa',
@@ -650,11 +649,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         const strippedIdentity = identityResult.replace(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi, '').trim();
 
+        appendWaterfallChunk(strippedIdentity);
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[1], MODULAR_DOSSIER_TOTAL_STAGES);
+
         let combinedTeiaText = strippedIdentity;
+        let deepOnlyText = '';
 
         if (complexity === 'MEDIA' || complexity === 'ALTA') {
           try {
-            replaceLoadingProgressStage('Aprofundando teia societária...', MODULAR_DOSSIER_TOTAL_STAGES);
             const deepResult = await generateDossierModule(
               'Teia Societaria — Profundidade',
               resolvedMegaCompany || 'Empresa',
@@ -668,6 +670,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 ...sharedDossierModuleOptions,
               },
             );
+            deepOnlyText = deepResult;
             combinedTeiaText += '\n\n---\n\n' + deepResult;
           } catch (deepError) {
             if (isAbortLikeError(deepError)) throw deepError;
@@ -681,7 +684,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        const { text: validatedText, warnings } = validateTeiaCnpjsOutput(
+        const { warnings } = validateTeiaCnpjsOutput(
           combinedTeiaText,
           [waterfallLookupContext, dossierSeedContext, teiaResearchContext.text].join('\n'),
         );
@@ -694,7 +697,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
-        return validatedText;
+        return deepOnlyText;
       };
 
       try {
