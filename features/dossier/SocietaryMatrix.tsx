@@ -273,7 +273,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
     <section className={`rounded-xl border p-6 shadow-sm ${shellClass}`}>
       {/* ============ Summary row ============ */}
       <div
-        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-4 dark:border-slate-700"
+        className="mb-5 grid grid-cols-2 gap-3 border-b border-slate-200 pb-5 sm:grid-cols-3 dark:border-slate-700"
         aria-label="Resumo da teia societária"
         data-testid="societary-summary-metrics"
       >
@@ -283,14 +283,14 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         >
           <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
             {visibleRows.length}
+            {metrics.filiais > 0 && (
+              <span className="text-[1rem] font-medium text-slate-400 dark:text-slate-500"> + {metrics.filiais}</span>
+            )}
           </strong>
           <span className="max-w-[8.5rem] text-[0.75rem] font-medium leading-snug text-slate-500 dark:text-slate-400">
-            {metrics.filiais > 0
-              ? `${visibleRows.length} matrizes + ${metrics.filiais} filiais`
-              : `${visibleRows.length} matrizes`}
+            {metrics.filiais > 0 ? 'matrizes + filiais' : 'matrizes'}
           </span>
         </div>
-        <SummaryMetric value={metrics.filiais} label="Filiais" testId="summary-metric-filiais" />
         <SummaryMetric value={metrics.em_comum} label="Em comum" testId="summary-metric-em-comum" />
         <SummaryMetric value={metrics.proprias} label="Próprias" testId="summary-metric-proprias" />
       </div>
@@ -332,7 +332,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
               <th className="px-3 py-3">CNPJ</th>
               <th className="text-left px-3 py-3">CNAE</th>
               {partnerColumns.map(partner => (
-                <th key={partner.id} className="px-3 py-3">
+                <th key={partner.id} className="px-3 py-3 text-center">
                   {firstGivenName(partner.name)}
                 </th>
               ))}
@@ -385,7 +385,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                     const isConnected = row.company.partnerIds.includes(partner.id);
                     if (!isConnected) {
                       return (
-                        <td key={partner.id} className="px-3 py-4">
+                        <td key={partner.id} className="px-3 py-4 text-center">
                           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black text-slate-300 dark:text-slate-600 border border-dashed border-slate-300 dark:border-slate-600">
                             -
                           </span>
@@ -396,7 +396,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                     const initial = firstGivenName(partner.name).charAt(0).toUpperCase();
                     if (row.side) {
                       return (
-                        <td key={partner.id} className="px-3 py-4">
+                        <td key={partner.id} className="px-3 py-4 text-center">
                           <span
                             style={{ borderColor: color, color }}
                             className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[0.65rem] font-black bg-white dark:bg-slate-800 border-2 border-dashed"
