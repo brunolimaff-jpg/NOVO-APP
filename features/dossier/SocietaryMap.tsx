@@ -462,6 +462,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     }, enrichedGemini);
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
+  const handleSelectPartner = useCallback((partnerId: string | null) => {
+    if (!graph) return;
+    if (partnerId) {
+      const partner = graph.partners.find(p => p.id === partnerId);
+      setSelectedPartnerName(partner?.name);
+    } else {
+      setSelectedPartnerName(undefined);
+    }
+  }, [graph]);
+
   useEffect(() => {
     if (!graph || !traceActive) return;
     trace('grafo consolidado', {
@@ -661,14 +671,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           inactiveReferences={inactiveReferences}
           traceId={traceIdRef.current}
           traceEnabled={traceActive}
-          onSelectPartner={(partnerId) => {
-            if (partnerId) {
-              const partner = graph.partners.find(p => p.id === partnerId);
-              setSelectedPartnerName(partner?.name);
-            } else {
-              setSelectedPartnerName(undefined);
-            }
-          }}
+          onSelectPartner={handleSelectPartner}
         />
       ) : (
         <>
@@ -769,4 +772,4 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   );
 };
 
-export default SocietaryMap;
+export default React.memo(SocietaryMap);
