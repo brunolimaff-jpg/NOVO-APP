@@ -3,6 +3,7 @@ import {
   resolveDeepDiveRequestKind,
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
+  shouldShowHeroLoadingOverlay,
 } from '../../utils/loadingVariant';
 
 describe('loadingVariant flow rules', () => {
@@ -63,5 +64,24 @@ describe('loadingVariant flow rules', () => {
         hasConsolidatedBotResponse: true,
       }),
     ).toBe('hero');
+  });
+});
+
+describe('shouldShowHeroLoadingOverlay', () => {
+  it('mostra overlay hero enquanto isLoading e variant hero', () => {
+    expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
+  });
+
+  it('esconde overlay quando loading terminou', () => {
+    expect(shouldShowHeroLoadingOverlay(false, 'hero')).toBe(false);
+  });
+
+  it('esconde overlay em follow-up inline', () => {
+    expect(shouldShowHeroLoadingOverlay(true, 'inline')).toBe(false);
+  });
+
+  it('mantém overlay mesmo com preview parcial do waterfall (>200 chars)', () => {
+    // Regressão PR #301: gate antigo escondia hero ao flushWaterfallPreview.
+    expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
   });
 });

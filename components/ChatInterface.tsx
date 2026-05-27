@@ -7,6 +7,7 @@ import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
 import { Sender, type RadarAlert } from '../types';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { shouldShowHeroLoadingOverlay } from '../utils/loadingVariant';
 import { cleanTitle } from '../utils/textCleaners';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
@@ -127,12 +128,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
-  const hasSubstantiveMessages = safeMessages.some(message => {
-    const textLength = String(message.text || '').trim().length;
-    return textLength > 200 || (!message.isThinking && textLength > 0);
-  });
-  const shouldSuspendVirtualizedList =
-    isLoading && loadingVariant === 'hero' && !hasSubstantiveMessages;
+  const shouldSuspendVirtualizedList = shouldShowHeroLoadingOverlay(
+    isLoading,
+    loadingVariant ?? 'hero',
+  );
 
   useEffect(() => {
     if (!operatorId || !hasOperatorName) return;

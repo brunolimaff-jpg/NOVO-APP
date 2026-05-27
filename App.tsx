@@ -19,6 +19,7 @@ import { useMigrationNotice } from './hooks/useMigrationNotice';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
+import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 
 // Lazy-loaded — não críticos para a primeira paint
 const LoadingSmart = React.lazy(() =>
@@ -146,13 +147,10 @@ const App: React.FC = () => {
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const showFullscreenLoadingSmart = useMemo(() => {
-    if (!isLoading || loadingVariant !== 'hero') return false;
-    const hasPartialDossierStream = allMessages.some(
-      message => message.isThinking && (message.text?.trim().length ?? 0) > 200,
-    );
-    return !hasPartialDossierStream;
-  }, [allMessages, isLoading, loadingVariant]);
+  const showFullscreenLoadingSmart = useMemo(
+    () => shouldShowHeroLoadingOverlay(isLoading, loadingVariant),
+    [isLoading, loadingVariant],
+  );
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();

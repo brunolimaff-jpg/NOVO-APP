@@ -30,3 +30,11 @@ export function resolvePlaceholderLoadingVariant({
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {
   return hasCompletedBotResponse ? 'deep_dive' : 'default';
 }
+
+/** Hero overlay + Virtuoso suspend: permanece até `isLoading` false, mesmo com preview parcial do waterfall. */
+export function shouldShowHeroLoadingOverlay(
+  isLoading: boolean,
+  loadingVariant: LoadingVariant,
+): boolean {
+  return isLoading && loadingVariant === 'hero';
+}
