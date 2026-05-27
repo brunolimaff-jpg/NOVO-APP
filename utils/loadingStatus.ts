@@ -128,7 +128,7 @@ function matchCategory(status: string): { key: StatusPhaseKey; extra?: string } 
     const rawCompany = s.replace(/^Buscando histórico de\s*/i, '').replace(/\.{0,3}\s*$/, '').trim();
     return { key: 'deepResearch', extra: rawCompany };
   }
-  if (/^(Auditando referências|Mapeando benchmarks|Cruzando referências de mercado)/i.test(s))   return { key: 'benchmark' };
+  if (/^(Auditando referências|Mapeando benchmarks|Cruzando referências de mercado|Reunindo referências)/i.test(s))   return { key: 'benchmark' };
   if (/^(Consultando inteligência Senior|Consultando bases de conhecimento|Consultando inteligência interna)/i.test(s)) return { key: 'knowledgeBase' };
   if (/^base RAG/i.test(s)) return { key: 'rag' };
   if (/^(Processando em motores de inferência tática|Consultando modelo analítico|Consultando modelo de IA|Processando no modelo)/i.test(s)) return { key: 'model' };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   getInvestigations,
   subscribe,
@@ -114,7 +114,7 @@ function EmptyState() {
 // ================================================================
 // COMPONENTE PRINCIPAL
 // ================================================================
-export default function InvestigationDashboard({
+const InvestigationDashboard = React.memo(function InvestigationDashboard({
   onClose,
   onSelectEmpresa,
 }: {
@@ -361,4 +361,6 @@ export default function InvestigationDashboard({
       </div>
     </div>
   );
-}
+});
+
+export default InvestigationDashboard;

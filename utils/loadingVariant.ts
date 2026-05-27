@@ -44,5 +44,8 @@ export function shouldSuspendHeroMessageTimeline(
   loadingVariant: LoadingVariant | undefined,
   hasRenderableBotMessage: boolean,
 ): boolean {
-  return shouldShowHeroLoadingOverlay(isLoading, loadingVariant) && !hasRenderableBotMessage;
+  // Se não está carregando, NUNCA suspender o timeline — a timeline é o conteúdo real.
+  // Isso evita tela branca quando loadingVariant fica residual ('hero') após o waterfall.
+  if (!isLoading) return false;
+  return loadingVariant === 'hero' && !hasRenderableBotMessage;
 }
