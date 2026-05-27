@@ -124,6 +124,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const searchedPartnerKeysRef = useRef<Record<string, boolean>>({});
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
+  const failedCnaeRef = useRef<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
   const [debouncedMermaid, setDebouncedMermaid] = useState<string>('');
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
@@ -488,7 +489,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
     const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))];
-    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj]);
+    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj));
 
     if (pending.length === 0) return;
 
@@ -512,11 +513,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               cnae: cnpjData.cnae || cnpjData.cnaeDescricao || '',
               cnaeDescricao: cnpjData.cnaeDescricao || cnpjData.cnae || '',
             };
+          } else {
+            failedCnaeRef.current.add(batch[j]);
           }
         }
       }
 
-      if (!cancelled) {
+      if (!cancelled && Object.keys(results).length > 0) {
         setCnaeMap(prev => ({ ...prev, ...results }));
       }
     }
