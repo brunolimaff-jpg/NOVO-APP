@@ -13,7 +13,7 @@ describe('loadingSmartViewModel', () => {
       },
     });
 
-    expect(viewModel.percent).toBe(14);
+    expect(viewModel.percent).toBe(21);
     expect(viewModel.completedCount).toBe(1);
     expect(viewModel.currentRich.label).toBe('Mapeando operação e cadeia de valor...');
     expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Finalizando cards de auditoria...');
@@ -65,7 +65,7 @@ describe('loadingSmartViewModel', () => {
       },
     });
 
-    expect(viewModel.percent).toBe(29);
+    expect(viewModel.percent).toBe(36);
     expect(viewModel.completedStageKeys.size).toBe(2);
   });
 
@@ -81,7 +81,7 @@ describe('loadingSmartViewModel', () => {
     });
 
     expect(viewModel.shouldAppendCurrentStage).toBe(false);
-    expect(viewModel.percent).toBe(17);
+    expect(viewModel.percent).toBe(25);
     expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toEqual([
       'Preparando dados internos...',
       'Consultando endpoint interno customizado...',
@@ -98,7 +98,7 @@ describe('loadingSmartViewModel', () => {
       },
     });
 
-    expect(viewModel.percent).toBe(8);
+    expect(viewModel.percent).toBe(13);
   });
 
   it('normaliza labels equivalentes para evitar duplicação visual', () => {
