@@ -828,7 +828,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         waterfallGroundingSources,
         sessionSourcePool,
       );
-      const waterfallFinalText = finalized.text;
+      const waterfallFinalText = finalized.text || accumulatedText || `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
       const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
         status => status === 'fallback_verified',
       ) || waterfallGroundingSources.some(source => source.verification === 'fallback');
