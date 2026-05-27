@@ -86,7 +86,6 @@ Regras:
 - Se uma fonte citar um total maior que os CNPJs identificados individualmente, declare como "total indicado pela fonte", nao como "mapeado".
 - CNPJ oficial/validado: escreva sem asterisco.
 - CNPJ inferido, textual ou nao confirmado em fonte oficial: pode virar linha, mas DEVE usar asterisco no CNPJ, no formato ##.###.###/####-##*.
-- Adicione nota obrigatoria: "* = hipótese a validar, não confirmado em fonte oficial".
 - Se nao houver nem numero textual, escreva "CNPJ NAO CONFIRMADO" em vez de inventar.
 - CNPJ de fonte oficial (QSA, BrasilAPI): cite a fonte e marque como OFICIAL.
 - CNPJ de busca reversa (consultasocio.com) sem validacao oficial: marque como INFERIDA com asterisco e nota "validar".

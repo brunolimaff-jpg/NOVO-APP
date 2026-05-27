@@ -541,6 +541,7 @@ describe('societaryGraph', () => {
       rootContext: true,
     });
     expect(graph.companies[0].badges).toContain('oficial');
+    expect(getDisplayBadges(graph.companies[0])).not.toContain('oficial');
     expect(graph.companies[0].badges).not.toContain('CNPJ lateral');
   });
 

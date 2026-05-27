@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
@@ -19,6 +19,7 @@ import { useMigrationNotice } from './hooks/useMigrationNotice';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
+import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 
 // Lazy-loaded — não críticos para a primeira paint
 const LoadingSmart = React.lazy(() =>
@@ -145,6 +146,11 @@ const App: React.FC = () => {
     remoteSaveStatus,
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const showFullscreenLoadingSmart = useMemo(
+    () => shouldShowHeroLoadingOverlay(isLoading, loadingVariant),
+    [isLoading, loadingVariant],
+  );
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
@@ -545,7 +551,7 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {isLoading && loadingVariant === 'hero' && (
+      {showFullscreenLoadingSmart && (
         <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
           <React.Suspense fallback={<HeroLoadingChunkFallback isDarkMode={isDarkMode} />}>
             <LoadingSmart

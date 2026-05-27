@@ -141,6 +141,8 @@ Regras de distribuição inline (OBRIGATÓRIAS):
 3. Um card de auditoria sem URL inline na Evidência é considerado INCOMPLETO.
 4. Cada seção principal deve conter pelo menos 2-3 links inline espalhados em parágrafos diferentes daquela seção.
 5. NÃO concentre [[1]](url1), [[2]](url2) no mesmo parágrafo — distribua pelas seções.
+6. Use SOMENTE URLs listadas em [FONTES DISPONIVEIS PARA CITACAO] quando esse bloco estiver no contexto.
+7. URLs consultadas pela IA mas nao citadas inline devem aparecer no rodape Fontes (secao consultadas).
 </citation_protocol>
 
 <research_breadth_protocol>

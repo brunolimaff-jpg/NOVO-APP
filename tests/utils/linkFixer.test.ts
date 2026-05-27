@@ -178,6 +178,24 @@ describe('deduplicateSourcesBlock', () => {
     expect(result).toContain('- Complementar https://example.com/complementar');
   });
 
+  it('nao altera rodape gerado ## 📚 Fontes', () => {
+    const text = [
+      'Corpo com [Site](https://example.com/page).',
+      '',
+      '## 📚 Fontes',
+      '',
+      '### Citadas no dossiê',
+      '',
+      '1. [Site](https://example.com/page)',
+      '',
+      '### Consultadas pela IA (não citadas inline)',
+      '',
+      '- [Outra](https://example.com/outra) — grounding',
+    ].join('\n');
+
+    expect(deduplicateSourcesBlock(text)).toBe(text);
+  });
+
   it('preserva titulo quando remove URL falsa do bloco de fontes', () => {
     isFakeUrlMock.mockImplementation(url => url.includes('fake'));
     const text = [

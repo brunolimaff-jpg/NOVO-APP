@@ -108,6 +108,11 @@ export function fixFakeLinksHTML(html: string): string {
 export function deduplicateSourcesBlock(text: string): string {
   if (!text) return text;
 
+  // Rodapé gerado pelo pipeline (## 📚 Fontes) já separa citadas vs consultadas — não deduplicar.
+  if (/\n##\s*📚\s*Fontes\s*\n/i.test(text)) {
+    return text;
+  }
+
   // 1. Encontra o bloco "Fontes" ao final
   const sourcesMatch = text.match(/(\n\*?\*?(?:Fontes?|Referências?|Sources?)[\s\S]*$)/i);
   if (!sourcesMatch) return text;

@@ -1,11 +1,13 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
+import {
+  MODULAR_DOSSIER_CONSOLIDATION_STAGE,
+  MODULAR_DOSSIER_STAGES,
+} from '../../constants/loadingStages';
 import {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
-  PROMPT_RH_SINDICATOS_GOD_MODE,
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_TEIA_IDENTITY_MODULE,
@@ -40,6 +42,13 @@ import {
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
 import { extractPromotableInlineSources, type VerifiedSource } from '../../utils/webVerification';
+import {
+  formatAvailableSourcesForPrompt,
+  mergeDossierSourceRefs,
+  verifiedSourcesToPool,
+  type DossierSourceRef,
+} from '../../utils/dossierSourcePool';
+import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -60,7 +69,7 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
-const MAX_INLINE_SOURCES_TO_VALIDATE = 10;
+const MAX_INLINE_SOURCES_TO_VALIDATE = 40;
 const FIRST_MODULE_INDEX = 0;
 
 type TeiaComplexity = 'BAIXA' | 'MEDIA' | 'ALTA';
@@ -73,6 +82,7 @@ interface TeiaResearchContext {
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
+  setLoadingVariant?: (variant: 'hero' | 'inline') => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
   resetLoadingProgress: (
     stage?: string,
@@ -237,6 +247,7 @@ async function validateInlineSourcesForPromotion(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
+      signal: AbortSignal.timeout(25_000),
     });
     if (!response.ok) return [];
 
@@ -370,6 +381,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     options.setFailureCount ?? chatStore?.setFailureCount,
     'setFailureCount',
   );
+  const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
 
   const runMegaPromptWaterfall = useCallback(
     async ({
@@ -395,7 +407,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallGroundingSources: VerifiedSource[] = [];
       const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
 
-      const appendGroundingSources = (sources: VerifiedSource[]) => {
+      let sessionSourcePool: DossierSourceRef[] = [];
+
+      const appendGroundingSources = (sources: VerifiedSource[], moduleName = '') => {
         for (const source of sources) {
           const normalizedUrl = source.url?.trim().replace(/\/+$/, '');
           if (!normalizedUrl) continue;
@@ -407,6 +421,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
           }
         }
+        sessionSourcePool = mergeDossierSourceRefs(
+          sessionSourcePool,
+          verifiedSourcesToPool(sources, moduleName || undefined),
+        );
       };
 
       const rememberVerificationStatus = (status: WebVerificationStatus, moduleName: string) => {
@@ -468,8 +486,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           accumulatedTextSnapshot,
           WATERFALL_CONTEXT_WINDOW_CHARS,
         );
-        if (foundationCacheName) return dynamicContext;
-        return joinDossierExtraContext(staticDossierContext, dynamicContext);
+        const sourcesBlock = formatAvailableSourcesForPrompt(sessionSourcePool);
+        if (foundationCacheName) return `${dynamicContext}${sourcesBlock}`;
+        return `${joinDossierExtraContext(staticDossierContext, dynamicContext)}${sourcesBlock}`;
       };
 
       const sharedDossierModuleOptions = {
@@ -479,10 +498,29 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ...(foundationCacheName ? { foundationCacheName } : {}),
       };
 
+      const WATERFALL_PREVIEW_MIN_CHARS = 200;
+
+      const flushWaterfallPreview = () => {
+        if (accumulatedText.trim().length < WATERFALL_PREVIEW_MIN_CHARS) return;
+        updateSessionById(sessionId, session => ({
+          ...session,
+          messages: session.messages.map(message =>
+            message.id === botMessageId
+              ? {
+                  ...message,
+                  text: accumulatedText,
+                  isThinking: true,
+                }
+              : message,
+          ),
+        }));
+      };
+
       const appendWaterfallChunk = (chunk: string) => {
         const normalizedChunk = chunk.trim();
         if (!normalizedChunk) return;
         accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
+        flushWaterfallPreview();
       };
 
       const modules: DossierWaterfallModule[] = [
@@ -611,6 +649,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         const strippedIdentity = identityResult.replace(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi, '').trim();
 
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[1], MODULAR_DOSSIER_TOTAL_STAGES);
+
         let combinedTeiaText = strippedIdentity;
 
         if (complexity === 'MEDIA' || complexity === 'ALTA') {
@@ -629,6 +669,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               },
             );
             combinedTeiaText += '\n\n---\n\n' + deepResult;
+            advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
           } catch (deepError) {
             if (isAbortLikeError(deepError)) throw deepError;
             optionalStepFailures.add('Teia Societaria — Profundidade');
@@ -771,12 +812,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
-      const waterfallFinalText = waterfallNarrativeBase;
+      let waterfallPrepared = waterfallNarrativeBase;
       const promotedInlineSources = await validateInlineSourcesForPromotion(
-        waterfallFinalText,
+        waterfallPrepared,
         waterfallGroundingSources,
       );
-      appendGroundingSources(promotedInlineSources);
+      appendGroundingSources(promotedInlineSources, 'Promoção inline');
+
+      if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
+        waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
+      }
+
+      const finalized = finalizeDossierMarkdown(
+        waterfallPrepared,
+        waterfallGroundingSources,
+        sessionSourcePool,
+      );
+      const waterfallFinalText = finalized.text;
       const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
         status => status === 'fallback_verified',
       ) || waterfallGroundingSources.some(source => source.verification === 'fallback');
@@ -825,6 +877,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         { contextText: waterfallFinalText },
       );
 
+      replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
+
       let sessionToPersist: ChatSession | null = null;
       updateSessionById(sessionId, session => {
         const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
@@ -854,11 +908,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return nextSession;
       });
 
-      if (sessionToPersist) {
-        await storage.saveDossier(sessionToPersist);
-      }
-
       completeLoadingProgress();
+
+      if (sessionToPersist) {
+        try {
+          await storage.saveDossier(sessionToPersist);
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+            sessionId,
+            company: resolvedMegaCompany || normalizedCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
       } finally {
         // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
         await deleteWaterfallFoundationCache(foundationCacheName);
@@ -872,6 +934,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       resetLoadingProgress,
       resolvedOperatorName,
       setFailureCount,
+      setLoadingVariant,
       updateSessionById,
     ],
   );

@@ -169,13 +169,14 @@ async function runDossierWebFallback(
       }
       if (sources.length >= 5) break;
       if (result?.degraded) {
-        scoutDiag.warn('DossierModule', 'fallback open-web-search degradado; interrompendo novas tentativas do módulo', {
+        scoutDiag.warn('DossierModule', 'fallback open-web-search degradado; tentando proxima query', {
           moduleName,
           empresaAlvo,
           query,
           detail: result.detail,
+          partialSources: sources.length,
         });
-        break;
+        continue;
       }
     } catch (error) {
       scoutDiag.warn('DossierModule', 'fallback open-web-search falhou', {

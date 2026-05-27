@@ -146,6 +146,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     'resetLoadingProgress',
   );
   const setIsLoading = requireDependency(options.setIsLoading ?? chatStore?.setIsLoading, 'setIsLoading');
+  const setLoadingPinnedLabel = chatStore?.setLoadingPinnedLabel;
 
   const resetSessionUI = useCallback(() => {
     setVisibleCount(PAGE_SIZE);
@@ -190,7 +191,14 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
-      if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+      if (isLoading) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+        setIsLoading(false);
+        setLoadingPinnedLabel?.(null);
+      }
 
       setCurrentSessionId(sessionId);
       resetSessionUI();
@@ -205,7 +213,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
         }
       }
     },
-    [abortControllerRef, isLoading, resetSessionUI, sessions, setCurrentSessionId, updateSessionById],
+    [
+      abortControllerRef,
+      isLoading,
+      resetSessionUI,
+      sessions,
+      setCurrentSessionId,
+      setIsLoading,
+      setLoadingPinnedLabel,
+      updateSessionById,
+    ],
   );
 
   const handleDeleteSession = useCallback(

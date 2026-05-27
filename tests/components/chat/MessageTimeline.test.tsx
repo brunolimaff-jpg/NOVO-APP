@@ -220,11 +220,12 @@ describe('MessageTimeline', () => {
     });
   });
 
-  it('suspende a viewport virtualizada durante o loading hero', () => {
+  it('suspende a viewport virtualizada durante o loading hero sem mensagens substantivas', () => {
     render(
       <MessageTimeline
         {...buildProps({
           shouldSuspendVirtualizedList: true,
+          messages: [],
         })}
       />,
     );

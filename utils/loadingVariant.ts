@@ -30,3 +30,19 @@ export function resolvePlaceholderLoadingVariant({
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {
   return hasCompletedBotResponse ? 'deep_dive' : 'default';
 }
+
+/** Hero overlay: permanece até `isLoading` false, mesmo com preview parcial do waterfall. */
+export function shouldShowHeroLoadingOverlay(
+  isLoading: boolean,
+  loadingVariant: LoadingVariant | undefined,
+): boolean {
+  return isLoading && loadingVariant === 'hero';
+}
+
+export function shouldSuspendHeroMessageTimeline(
+  isLoading: boolean,
+  loadingVariant: LoadingVariant | undefined,
+  hasRenderableBotMessage: boolean,
+): boolean {
+  return shouldShowHeroLoadingOverlay(isLoading, loadingVariant) && !hasRenderableBotMessage;
+}

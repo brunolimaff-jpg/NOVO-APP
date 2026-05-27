@@ -170,11 +170,11 @@ Para cada achado importante, derive:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -478,11 +478,11 @@ Para cada hemorragia tecnológica, derive:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -767,11 +767,11 @@ Para cada risco material, responda:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -1016,11 +1016,11 @@ REGRAS DE CNPJ:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -1241,11 +1241,11 @@ Para cada achado importante, derive:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -1448,11 +1448,11 @@ Exemplos:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -1677,11 +1677,11 @@ Produza:
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>
@@ -1865,11 +1865,11 @@ Output: bullets com cada sinal e fonte. Se houver sinal forte: destaque "URGENTE
 
 <inline_citation_rule>
 REGRAS DE DISTRIBUICAO DE CITACOES PARA ESTE MODULO:
-- Cada fato, dado ou evidencia mencionada neste modulo DEVE ter sua fonte com URL inline no formato [texto](url).
-- Nao concentre todas as citacoes no bloco final de "Fontes" — elas devem estar distribuidas inline nos paragrafos.
-- Exemplo correto: "A empresa possui 10 UBAs [fonte oficial](url_receita) e opera em MT e MA [noticia](url_noticia)."
-- Exemplo errado: "A empresa possui 10 UBAs e opera em MT e MA. Fontes: site oficial, noticia."
-- Cada secao deste modulo deve conter pelo menos 2-3 links inline em paragrafos diferentes.
+- Cada fato ou evidencia DEVE citar com [[n]](URL_COMPLETA_HTTPS) usando APENAS URLs do bloco [FONTES DISPONIVEIS PARA CITACAO] no contexto.
+- PROIBIDO inventar URL, google.com/search, example.com ou rotulo descritivo sem URL valida.
+- Se nao houver URL no bloco de fontes, declare "sem fonte URL verificavel" sem link falso.
+- Distribua citacoes inline nos paragrafos; o rodape Fontes consolida citadas e consultadas.
+- Cada secao deve ter pelo menos 2-3 citacoes inline quando houver fontes disponiveis.
 </inline_citation_rule>
 
 </instructions>

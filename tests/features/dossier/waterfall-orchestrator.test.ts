@@ -1,6 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MODULAR_DOSSIER_STAGES } from '../../../constants/loadingStages';
+import {
+  MODULAR_DOSSIER_CONSOLIDATION_STAGE,
+  MODULAR_DOSSIER_STAGES,
+} from '../../../constants/loadingStages';
 import { useDossierWaterfallOrchestrator } from '../../../features/dossier/waterfall-orchestrator';
 import type { LookupResponse } from '../../../services/clientLookupService';
 import {
@@ -396,6 +399,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[5], 7);
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[6], 7);
+    expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_CONSOLIDATION_STAGE, 7);
     expect(harness.completeLoadingProgress).toHaveBeenCalledTimes(1);
     expect(finalSession.scoreOportunidade).toBe(74);
     expect(finalBotMessage.isThinking).toBe(false);
@@ -843,7 +847,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const finalBotMessage = getBotMessage(harness);
 
-    expect(harness.updateSessionById).toHaveBeenCalledTimes(1);
+    expect(harness.updateSessionById.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(finalBotMessage.isThinking).toBe(false);
     expect(finalBotMessage.scorePorta?.score).toBe(70);
     expect(finalBotMessage.suggestions).toHaveLength(4);

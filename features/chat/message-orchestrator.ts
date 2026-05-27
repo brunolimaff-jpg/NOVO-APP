@@ -292,6 +292,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isFirstInteraction,
             sessionCnpjDigits,
           });
+          completeLoadingProgress();
           return;
         }
 

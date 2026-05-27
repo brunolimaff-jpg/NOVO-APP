@@ -11,7 +11,7 @@ export type SocietaryBadge =
 
 export const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
 
-const DISPLAY_BADGE_ORDER: SocietaryBadge[] = ['holding', 'internacional', 'oficial', 'validar'];
+const DISPLAY_BADGE_ORDER: SocietaryBadge[] = ['holding', 'internacional', 'validar'];
 
 export interface SocietaryRootInput {
   cnpj?: string | null;

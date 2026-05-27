@@ -20,15 +20,15 @@ function renderBar(props: Partial<React.ComponentProps<typeof MessageActionsBar>
 }
 
 describe('MessageActionsBar', () => {
-  it('mostra fontes verificadas separadas de links citados', () => {
+  it('mostra contagem unificada de fontes verificadas e links citados', () => {
     renderBar({ verifiedSourcesCount: 2, citedLinksCount: 3 });
-    expect(screen.getByText('Fontes (2)')).toBeInTheDocument();
-    expect(screen.queryByText('Links (3)')).not.toBeInTheDocument();
+    expect(screen.getByText('Fontes (5)')).toBeInTheDocument();
+    expect(screen.queryByText(/Links \(\d+\)/)).not.toBeInTheDocument();
   });
 
-  it('mostra links citados quando nao ha fontes verificadas', () => {
+  it('mostra fontes quando so ha links citados', () => {
     renderBar({ verifiedSourcesCount: 0, citedLinksCount: 3 });
-    expect(screen.getByText('Links (3)')).toBeInTheDocument();
+    expect(screen.getByText('Fontes (3)')).toBeInTheDocument();
   });
 
   it('mostra pergunta comercial e mantem like em um clique', () => {

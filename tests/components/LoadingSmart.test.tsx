@@ -99,6 +99,31 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.queryByText(/próxima etapa/i)).not.toBeInTheDocument();
   });
 
+  it('mostra contador de segundos em cada etapa (concluída, ativa e pendente)', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Mapeando operação e cadeia de valor...',
+          completedStages: ['Mapeando conta real e teia societária...'],
+          totalStages: 7,
+          failureCount: 0,
+        }}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    const timers = screen.getAllByText(/\d+s|\d+m \d+s/);
+    expect(timers.length).toBeGreaterThanOrEqual(7);
+  });
+
   it('mostra a análise em execução com etapas enxutas e sem emoji', async () => {
     render(
       <LoadingSmart

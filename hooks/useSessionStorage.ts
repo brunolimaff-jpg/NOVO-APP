@@ -6,6 +6,12 @@ import { mergeChatSessions } from '../utils/mergeChatSessions';
 
 const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 
+interface SyncCompleteDetail {
+  pushed?: number;
+  pulled?: number;
+  errors?: unknown[];
+}
+
 export function useSessionStorage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -79,7 +85,10 @@ export function useSessionStorage() {
 
   // Reload sessions from IDB after sync pulls data from Supabase
   useEffect(() => {
-    const handleSyncComplete = () => {
+    const handleSyncComplete = (event: Event) => {
+      const detail = (event as CustomEvent<SyncCompleteDetail>).detail;
+      if (!detail || (detail.pulled ?? 0) <= 0) return;
+
       loadSessions().then((loaded) => {
         setSessions(prev => mergeChatSessions(prev, loaded));
         setIsInitialized(true);

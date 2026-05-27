@@ -144,6 +144,23 @@ describe('useSessionManager session controller', () => {
     expect(options.setCurrentSessionId).toHaveBeenCalledWith('s2');
   });
 
+  it('handleSelectSession limpa isLoading ao trocar de sessão durante geração', async () => {
+    const abort = new AbortController();
+    const abortSpy = vi.spyOn(abort, 'abort');
+    const options = makeOptions({
+      isLoading: true,
+      abortControllerRef: makeRef<AbortController | null>(abort),
+    });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    await act(async () => {
+      await result.current.handleSelectSession('s2');
+    });
+
+    expect(abortSpy).toHaveBeenCalled();
+    expect(options.setIsLoading).toHaveBeenCalledWith(false);
+  });
+
   it('handleSelectSession carrega sessão remota quando não há mensagens', async () => {
     const remoteSession = makeSession('s1', 'Sessão Remota', true);
     getRemoteSessionMock.mockResolvedValue(remoteSession);

@@ -65,10 +65,9 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const activeBg = isDarkMode ? 'bg-slate-700/50' : 'bg-slate-200';
   const borderColor = isDarkMode ? 'border-slate-700/50' : 'border-slate-200';
   const totalSourcesCount = verifiedSourcesCount + citedLinksCount;
-  const sourcesLabel = verifiedSourcesCount > 0
-    ? `Fontes (${verifiedSourcesCount})`
-    : citedLinksCount > 0
-      ? `Links (${citedLinksCount})`
+  const sourcesLabel =
+    totalSourcesCount > 0
+      ? `Fontes (${totalSourcesCount})`
       : 'Fontes';
 
   const handleCopy = async () => {
@@ -219,7 +218,11 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
                 ? 'opacity-50 cursor-not-allowed'
                 : `${hoverColor} hover:${activeBg}`
             } ${isSourcesVisible ? `${activeBg} text-emerald-500` : ''}`}
-            title={verifiedSourcesCount > 0 ? 'Ver fontes verificadas' : citedLinksCount > 0 ? 'Ver links citados no texto' : 'Nenhuma fonte citada'}
+            title={
+              totalSourcesCount > 0
+                ? 'Ver fontes citadas e consultadas pela IA'
+                : 'Nenhuma fonte citada'
+            }
           >
             <span>📚</span>
             <span className="hidden sm:inline">{sourcesLabel}</span>
