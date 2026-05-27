@@ -257,6 +257,33 @@ describe('ChatInterface shell regression', () => {
     expect(screen.queryByRole('button', { name: /abrir ajuda do scout/i })).not.toBeInTheDocument();
   });
 
+  it('nao volta para empty-state-home quando a sessao tem dossiê no timeline (regressao sync)', async () => {
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      buildMessage('m2', Sender.Bot, 'Dossiê completo com mapa societário'),
+    ];
+    const session = buildSession(messages);
+    session.empresaAlvo = 'Scheffer & Cia';
+    session.title = 'Scheffer & Cia';
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: session,
+          sessions: [session],
+          messages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId('empty-state-home')).not.toBeInTheDocument();
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('message-row-1')).toHaveTextContent('Dossiê completo com mapa societário');
+    });
+  });
+
   it('bloqueia a home e mostra o gate de nome quando nao existe operador local', () => {
     operatorStateRef.current = {
       name: '',

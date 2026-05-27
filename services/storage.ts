@@ -6,6 +6,7 @@ import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 import { syncQueue } from './syncQueue';
 import type { SyncOperation } from './syncQueue';
 import type { ChatSession } from '../types';
+import { mergeChatSessions } from '../utils/mergeChatSessions';
 
 interface SyncResult {
   pushed: number;
@@ -34,6 +35,7 @@ let dossierAutoSyncInFlight = false;
 let dossierAutoSyncNeedsRerun = false;
 let dossierAutoSyncShouldPull = false;
 let dossierAutoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let dossierGenerationActive = false;
 
 // ===================================================================
 // HELPERS
@@ -53,6 +55,18 @@ async function getLocalSessions(): Promise<ChatSession[]> {
 
 async function setLocalSessions(sessions: ChatSession[]): Promise<void> {
   await set(IDB_KEYS.SESSIONS, sessions);
+}
+
+async function mergeIncomingSessionsIntoLocal(incoming: ChatSession[]): Promise<ChatSession[]> {
+  const local = await getLocalSessions();
+  const merged = mergeChatSessions(local, incoming);
+  await setLocalSessions(merged);
+  return merged;
+}
+
+function canPullDossiersFromRemote(): boolean {
+  if (dossierGenerationActive) return false;
+  return syncQueue.peek().filter(isDossierOperation).length === 0;
 }
 
 function isDossierOperation(op: SyncOperation): boolean {
@@ -121,12 +135,13 @@ export const storage = {
         // Fire and forget background refresh
         (async () => {
           try {
+            if (!canPullDossiersFromRemote()) return;
             const { data } = await query;
             if (data && data.length > 0) {
-              const sessions = data.map(
-                (row: { content: ChatSession }) => row.content
+              const remoteSessions = data.map(
+                (row: { content: ChatSession }) => row.content,
               );
-              await setLocalSessions(sessions);
+              await mergeIncomingSessionsIntoLocal(remoteSessions);
             }
           } catch {
             // Silently ignore errors in background refresh
@@ -724,7 +739,7 @@ export const storage = {
         errors.push(`${failedPushes} dossie(s) falharam no envio`);
       }
 
-      if (options.pull && pendingAfter === 0) {
+      if (options.pull && pendingAfter === 0 && canPullDossiersFromRemote()) {
         try {
           const { data, error } = await supabase!
             .from('dossies')
@@ -737,7 +752,7 @@ export const storage = {
             errors.push('Erro ao baixar dossies');
           } else if (data) {
             const sessions = data.map((row: { content: ChatSession }) => row.content);
-            await setLocalSessions(sessions);
+            await mergeIncomingSessionsIntoLocal(sessions);
             pulled = sessions.length;
           }
         } catch (e) {
@@ -820,24 +835,26 @@ export const storage = {
       errors.push(`${pendingAfter} itens falharam no envio`);
     }
 
-    // 2. Pull: download dossiers from Supabase
-    try {
-      const { data, error } = await supabase!
-        .from('dossies')
-        .select('content')
-        .eq('operator_id', operatorId)
-        .is('deleted_at', null)
-        .order('updated_at', { ascending: false });
+    // 2. Pull: download dossiers from Supabase (merge — never replace local messages with stale remote)
+    if (canPullDossiersFromRemote()) {
+      try {
+        const { data, error } = await supabase!
+          .from('dossies')
+          .select('content')
+          .eq('operator_id', operatorId)
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false });
 
-      if (error) {
-        errors.push('Erro ao baixar dossies');
-      } else if (data) {
-        const sessions = data.map((row: { content: ChatSession }) => row.content);
-        await setLocalSessions(sessions);
-        pulled += sessions.length;
+        if (error) {
+          errors.push('Erro ao baixar dossies');
+        } else if (data) {
+          const sessions = data.map((row: { content: ChatSession }) => row.content);
+          await mergeIncomingSessionsIntoLocal(sessions);
+          pulled += sessions.length;
+        }
+      } catch (e) {
+        errors.push('Falha ao baixar dossies: ' + (e instanceof Error ? e.message : String(e)));
       }
-    } catch (e) {
-      errors.push('Falha ao baixar dossies: ' + (e instanceof Error ? e.message : String(e)));
     }
 
     // 3. Pull: download radar alerts
@@ -859,5 +876,9 @@ export const storage = {
     }
 
     return { pushed, pulled, errors };
+  },
+
+  setDossierGenerationActive(active: boolean): void {
+    dossierGenerationActive = active;
   },
 };

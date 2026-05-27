@@ -255,6 +255,8 @@ describe('storage', () => {
       vi.useFakeTimers();
       vi.mocked(isSupabaseAvailable).mockReturnValue(true);
       localStorage.setItem('scout360:operator_id', 'operator-123');
+      vi.mocked(get).mockResolvedValue([]);
+      vi.mocked(set).mockResolvedValue(undefined);
 
       const dossierOp = {
         table: 'dossies',

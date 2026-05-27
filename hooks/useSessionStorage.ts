@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { storage } from '../services/storage';
 import { ChatSession } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
+import { mergeChatSessions } from '../utils/mergeChatSessions';
 
 const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 
@@ -80,7 +81,7 @@ export function useSessionStorage() {
   useEffect(() => {
     const handleSyncComplete = () => {
       loadSessions().then((loaded) => {
-        setSessions(loaded);
+        setSessions(prev => mergeChatSessions(prev, loaded));
         setIsInitialized(true);
       });
     };
