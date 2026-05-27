@@ -649,11 +649,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         const strippedIdentity = identityResult.replace(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi, '').trim();
 
-        appendWaterfallChunk(strippedIdentity);
         advanceLoadingProgress(MODULAR_DOSSIER_STAGES[1], MODULAR_DOSSIER_TOTAL_STAGES);
 
         let combinedTeiaText = strippedIdentity;
-        let deepOnlyText = '';
 
         if (complexity === 'MEDIA' || complexity === 'ALTA') {
           try {
@@ -670,8 +668,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 ...sharedDossierModuleOptions,
               },
             );
-            deepOnlyText = deepResult;
             combinedTeiaText += '\n\n---\n\n' + deepResult;
+            advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
           } catch (deepError) {
             if (isAbortLikeError(deepError)) throw deepError;
             optionalStepFailures.add('Teia Societaria — Profundidade');
@@ -684,7 +682,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        const { warnings } = validateTeiaCnpjsOutput(
+        const { text: validatedText, warnings } = validateTeiaCnpjsOutput(
           combinedTeiaText,
           [waterfallLookupContext, dossierSeedContext, teiaResearchContext.text].join('\n'),
         );
@@ -697,7 +695,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
-        return deepOnlyText;
+        return validatedText;
       };
 
       try {
