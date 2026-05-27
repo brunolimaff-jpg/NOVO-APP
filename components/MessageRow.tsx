@@ -52,10 +52,13 @@ interface MessageRowProps {
   data: MessageRowData;
 }
 
+interface MessageRowBodyProps {
+  index: number;
+  msg: Message;
+  data: MessageRowData;
+}
 
-
-const MessageRow = memo(({ index, data }: MessageRowProps) => {
-  if (!data) return null;
+const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const {
     messages,
     isLoading,
@@ -80,10 +83,6 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
     empresaAlvo,
     cnpj,
   } = data;
-
-  if (!messages || !Array.isArray(messages)) return null;
-  const msg = messages[index];
-  if (!msg) return null;
 
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
@@ -344,6 +343,17 @@ const MessageRow = memo(({ index, data }: MessageRowProps) => {
   }
 
   return <div className="pb-3 px-2 md:px-6 lg:px-8">{content}</div>;
+});
+
+MessageRowBody.displayName = 'MessageRowBody';
+
+const MessageRow = memo(({ index, data }: MessageRowProps) => {
+  if (!data) return null;
+  const { messages } = data;
+  if (!messages || !Array.isArray(messages)) return null;
+  const msg = messages[index];
+  if (!msg) return null;
+  return <MessageRowBody index={index} msg={msg} data={data} />;
 });
 
 MessageRow.displayName = 'MessageRow';

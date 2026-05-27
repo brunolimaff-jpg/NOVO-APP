@@ -294,6 +294,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   );
 
   const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
+  const geminiCnpjsForMap = useMemo(() => {
+    if (parsedTeiaData.companies.length === 0) return undefined;
+    return parsedTeiaData.companies;
+  }, [cleanText, parsedTeiaData.companies.length]);
   const societaryMapSectionIndex = useMemo(
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
@@ -434,7 +438,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                 cnpj={cnpj}
                 empresaAlvo={empresaAlvo}
                 isDarkMode={isDarkMode}
-                geminiCnpjs={parsedTeiaData.companies.length > 0 ? parsedTeiaData.companies : undefined}
+                geminiCnpjs={geminiCnpjsForMap}
                 traceId={teiaTraceIdRef.current}
                 traceEnabled={teiaTraceEnabled}
               />

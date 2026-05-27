@@ -34,6 +34,7 @@ const scoutDiagMock = vi.hoisted(() => ({
   error: vi.fn(),
   info: vi.fn(),
 }));
+const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -77,6 +78,12 @@ vi.mock('../../../features/dossier/porta-reconciliation', () => ({
 
 vi.mock('../../../stores/chatStore', () => ({
   useMaybeChatStore: () => undefined,
+}));
+
+vi.mock('../../../services/storage', () => ({
+  storage: {
+    saveDossier: saveDossierMock,
+  },
 }));
 
 vi.mock('../../../utils/diagnosticLog', () => ({

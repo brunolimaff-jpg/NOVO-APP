@@ -3,6 +3,7 @@ import { ChatSession } from '../types';
 import { listRemoteSessions } from '../services/sessionRemoteStore';
 import { LOOKUP_URL } from '../services/apiConfig';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { mergeChatSessions } from '../utils/mergeChatSessions';
 
 interface UseAppInitializationOptions {
   loadSessions: () => Promise<ChatSession[]>;
@@ -54,25 +55,7 @@ export function useAppInitialization({
         .then(remoteList => {
           if (cancelled) return;
           if (remoteList.length === 0) return;
-          setSessions(current => {
-            const sessionMap = new Map<string, ChatSession>();
-            current.forEach(s => sessionMap.set(s.id, s));
-            remoteList.forEach(r => {
-              const existing = sessionMap.get(r.id);
-              if (existing) {
-                sessionMap.set(r.id, {
-                  ...existing,
-                  ...r,
-                  messages: existing.messages.length > 0 ? existing.messages : [],
-                });
-              } else {
-                sessionMap.set(r.id, r);
-              }
-            });
-            return Array.from(sessionMap.values()).sort(
-              (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-            );
-          });
+          setSessions(current => mergeChatSessions(current, remoteList));
           // Only update selected session if user hasn't started interacting
           setCurrentSessionId(prev => {
             if (prev) return prev;

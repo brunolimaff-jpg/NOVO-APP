@@ -26,6 +26,7 @@ import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../../servic
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
+import { storage } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
@@ -824,9 +825,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         { contextText: waterfallFinalText },
       );
 
+      let sessionToPersist: ChatSession | null = null;
       updateSessionById(sessionId, session => {
         const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
-        return {
+        const nextSession: ChatSession = {
           ...session,
           empresaAlvo: finalCompany || session.empresaAlvo,
           scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
@@ -848,7 +850,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               : message,
           ),
         };
+        sessionToPersist = nextSession;
+        return nextSession;
       });
+
+      if (sessionToPersist) {
+        await storage.saveDossier(sessionToPersist);
+      }
 
       completeLoadingProgress();
       } finally {

@@ -10,21 +10,31 @@ vi.mock('idb-keyval', () => ({
   set: idbSetMock,
 }));
 
-import { useSessionStorage } from '../../hooks/useSessionStorage';
-import { ChatSession } from '../../types';
+const getDossiersMock = vi.hoisted(() => vi.fn());
+const saveAllDossiersMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-function makeSession(id: string, title: string): ChatSession {
+vi.mock('../../services/storage', () => ({
+  storage: {
+    getDossiers: getDossiersMock,
+    saveAllDossiers: saveAllDossiersMock,
+  },
+}));
+
+import { useSessionStorage } from '../../hooks/useSessionStorage';
+import { ChatSession, Sender } from '../../types';
+
+function makeSession(id: string, title: string, messages: ChatSession['messages'] = []): ChatSession {
   return {
     id,
     title,
-    empresaAlvo: null,
+    empresaAlvo: title,
     cnpj: null,
     modoPrincipal: null,
     scoreOportunidade: null,
     resumoDossie: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messages: [],
+    createdAt: '2026-05-26T10:00:00.000Z',
+    updatedAt: '2026-05-26T10:00:00.000Z',
+    messages,
   };
 }
 
@@ -34,6 +44,7 @@ describe('useSessionStorage', () => {
     window.localStorage.clear();
     idbGetMock.mockResolvedValue(undefined);
     idbSetMock.mockResolvedValue(undefined);
+    getDossiersMock.mockResolvedValue([]);
   });
 
   it('inicializa com sessions vazia e isInitialized false', () => {
@@ -50,7 +61,7 @@ describe('useSessionStorage', () => {
 
   it('loadSessions carrega sessions do IndexedDB quando disponível', async () => {
     const storedSessions = [makeSession('s1', 'Fazenda Alpha')];
-    idbGetMock.mockResolvedValue(storedSessions);
+    getDossiersMock.mockResolvedValue(storedSessions);
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
@@ -60,7 +71,7 @@ describe('useSessionStorage', () => {
   });
 
   it('loadSessions usa localStorage como fallback quando IDB falha', async () => {
-    idbGetMock.mockRejectedValue(new Error('IDB unavailable'));
+    getDossiersMock.mockRejectedValue(new Error('IDB unavailable'));
     const storedSessions = [makeSession('s2', 'Cooperativa Beta')];
     window.localStorage.setItem('scout360_sessions_v1', JSON.stringify(storedSessions));
 
@@ -83,7 +94,7 @@ describe('useSessionStorage', () => {
         },
       ],
     };
-    idbGetMock.mockResolvedValue([sessionWithMarkers]);
+    getDossiersMock.mockResolvedValue([sessionWithMarkers]);
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
@@ -99,7 +110,7 @@ describe('useSessionStorage', () => {
         { id: 'm1', sender: 'user', text: 'Olá', timestamp: dateStr },
       ],
     };
-    idbGetMock.mockResolvedValue([sessionWithStringTimestamp]);
+    getDossiersMock.mockResolvedValue([sessionWithStringTimestamp]);
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
@@ -121,7 +132,7 @@ describe('useSessionStorage', () => {
     });
 
     await waitFor(() => {
-      expect(idbSetMock).toHaveBeenCalled();
+      expect(saveAllDossiersMock).toHaveBeenCalled();
     });
   });
 
@@ -140,12 +151,43 @@ describe('useSessionStorage', () => {
   });
 
   it('loadSessions retorna array vazio para localStorage com JSON inválido', async () => {
-    idbGetMock.mockRejectedValue(new Error('IDB unavailable'));
+    getDossiersMock.mockRejectedValue(new Error('IDB unavailable'));
     window.localStorage.setItem('scout360_sessions_v1', 'JSON_INVALIDO{{{');
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
 
     expect(sessions).toEqual([]);
+  });
+
+  it('scout:sync-complete preserva messages locais quando reload traz sessão stale sem texto', async () => {
+    const localWithDossier = makeSession('scheffer-1', 'Scheffer & Cia', [
+      {
+        id: 'bot-1',
+        sender: Sender.Bot,
+        text: 'Dossiê completo da Scheffer com teia societária',
+        timestamp: new Date('2026-05-26T11:00:00.000Z'),
+      },
+    ]);
+    const staleRemote = makeSession('scheffer-1', 'Scheffer & Cia', []);
+    staleRemote.updatedAt = '2026-05-26T12:00:00.000Z';
+
+    getDossiersMock.mockResolvedValue([staleRemote]);
+
+    const { result } = renderHook(() => useSessionStorage());
+
+    act(() => {
+      result.current.setIsInitialized(true);
+      result.current.setSessions([localWithDossier]);
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail: { pushed: 0, pulled: 1, errors: [] } }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.sessions[0]?.messages).toHaveLength(1);
+      expect(result.current.sessions[0]?.messages[0]?.text).toContain('Dossiê completo');
+    });
   });
 });
