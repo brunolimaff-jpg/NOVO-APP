@@ -157,8 +157,9 @@ ${'```'}
 - **Próximo passo:** [ação concreta]
 
 ## ⏰ Sinais de Urgência
-- [evento concreto: novo CFO, autuação, expansão, safra recorde]
-- Se não houver: "Sem sinal de urgência — abordagem consultiva."
+- Ate 3 bullets; cada um com [[n]](URL_REAL_DO_BLOCO_FONTES_DISPONIVEIS) ao final.
+- Se nao houver URL verificavel para o sinal, texto sem link (nao inventar href).
+- Se nenhum sinal forte: "Sem sinal de urgência — abordagem consultiva."
 
 [[PORTA_FEED_P_PROXY:FUNC:[TOTAL_FUNCIONARIOS]]]
 [[PORTA_FEED_R_TRAB:[NOTA]:PASSIVOS:[LISTA]]]

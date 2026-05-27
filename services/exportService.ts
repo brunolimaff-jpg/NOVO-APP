@@ -8,6 +8,7 @@ import { sanitizeSensitivePersonalData } from '../utils/privacy';
 import { scoutDiag } from '../utils/diagnosticLog';
 import {
   collectFullReport,
+  collectFullReportAuditableSources,
   detectInconsistencies,
   generateExecutiveSummary,
   normalizeMermaidBlocks,
@@ -64,6 +65,7 @@ export function buildExportConversationFile(
 
   if (format === 'html') {
     const { allLinks } = collectFullReport(session.messages);
+    const auditableSources = collectFullReportAuditableSources(session.messages);
     const empresa = cleanTitle(extractCompanyName(session.title));
     const now = new Date();
     const metaLine = `${now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} · ${sections.length} seção${sections.length !== 1 ? 'ões' : ''}`;
@@ -74,6 +76,7 @@ export function buildExportConversationFile(
         subtitle: metaLine,
         content: contentMarkdown,
         sources: allLinks.map(link => ({ title: link.title || link.url, url: link.url })),
+        auditableSources,
       }),
       mimeType: 'text/html;charset=utf-8',
     };
@@ -100,6 +103,7 @@ export function openDossierPrintReport(messages: Message[], sessionTitle?: strin
     throw new Error('Nenhuma mensagem para exportar.');
   }
   const { text: fullText, sections, allLinks } = collectFullReport(messages);
+  const auditableSources = collectFullReportAuditableSources(messages);
   if (!fullText || fullText.length < 100) {
     throw new Error('Nenhum dossiê para exportar.');
   }
@@ -119,6 +123,7 @@ export function openDossierPrintReport(messages: Message[], sessionTitle?: strin
     subtitle: metaLine,
     content: finalText,
     sources: allLinks.map(link => ({ title: link.title || link.url, url: link.url })),
+    auditableSources,
   });
 }
 

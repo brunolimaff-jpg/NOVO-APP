@@ -40,6 +40,13 @@ import {
   extractClienteSeniorData,
 } from '../../utils/seniorEvidence';
 import { extractPromotableInlineSources, type VerifiedSource } from '../../utils/webVerification';
+import {
+  formatAvailableSourcesForPrompt,
+  mergeDossierSourceRefs,
+  verifiedSourcesToPool,
+  type DossierSourceRef,
+} from '../../utils/dossierSourcePool';
+import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -60,7 +67,7 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
-const MAX_INLINE_SOURCES_TO_VALIDATE = 10;
+const MAX_INLINE_SOURCES_TO_VALIDATE = 40;
 const FIRST_MODULE_INDEX = 0;
 
 type TeiaComplexity = 'BAIXA' | 'MEDIA' | 'ALTA';
@@ -395,7 +402,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallGroundingSources: VerifiedSource[] = [];
       const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
 
-      const appendGroundingSources = (sources: VerifiedSource[]) => {
+      let sessionSourcePool: DossierSourceRef[] = [];
+
+      const appendGroundingSources = (sources: VerifiedSource[], moduleName = '') => {
         for (const source of sources) {
           const normalizedUrl = source.url?.trim().replace(/\/+$/, '');
           if (!normalizedUrl) continue;
@@ -407,6 +416,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
           }
         }
+        sessionSourcePool = mergeDossierSourceRefs(
+          sessionSourcePool,
+          verifiedSourcesToPool(sources, moduleName || undefined),
+        );
       };
 
       const rememberVerificationStatus = (status: WebVerificationStatus, moduleName: string) => {
@@ -468,8 +481,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           accumulatedTextSnapshot,
           WATERFALL_CONTEXT_WINDOW_CHARS,
         );
-        if (foundationCacheName) return dynamicContext;
-        return joinDossierExtraContext(staticDossierContext, dynamicContext);
+        const sourcesBlock = formatAvailableSourcesForPrompt(sessionSourcePool);
+        if (foundationCacheName) return `${dynamicContext}${sourcesBlock}`;
+        return `${joinDossierExtraContext(staticDossierContext, dynamicContext)}${sourcesBlock}`;
       };
 
       const sharedDossierModuleOptions = {
@@ -771,12 +785,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
         waterfallClienteSeniorData,
       );
-      const waterfallFinalText = waterfallNarrativeBase;
+      let waterfallPrepared = waterfallNarrativeBase;
       const promotedInlineSources = await validateInlineSourcesForPromotion(
-        waterfallFinalText,
+        waterfallPrepared,
         waterfallGroundingSources,
       );
-      appendGroundingSources(promotedInlineSources);
+      appendGroundingSources(promotedInlineSources, 'Promoção inline');
+
+      if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
+        waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
+      }
+
+      const finalized = finalizeDossierMarkdown(
+        waterfallPrepared,
+        waterfallGroundingSources,
+        sessionSourcePool,
+      );
+      const waterfallFinalText = finalized.text;
       const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
         status => status === 'fallback_verified',
       ) || waterfallGroundingSources.some(source => source.verification === 'fallback');

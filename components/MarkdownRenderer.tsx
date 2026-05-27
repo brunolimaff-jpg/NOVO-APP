@@ -5,6 +5,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { stripPortaMarkers } from '../utils/porta';
+import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
+import { verifiedSourcesToPool } from '../utils/dossierSourcePool';
+import { stripTeiaHypothesisLegend } from '../utils/teiaLegend';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { loadWithChunkRetry } from '../utils/chunkRetry';
 import {
@@ -290,12 +293,22 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   allowRawHtml = false,
   variant = 'default',
 }) => {
+  const integrityBase = useMemo(() => {
+    if (!content) return '';
+    const sourcePool = verifiedSourcesToPool(
+      (groundingSources || []).map(source => ({ title: source.title, url: source.url })),
+    );
+    let text = normalizeMermaidBlocks(stripPortaMarkers(content));
+    text = stripTeiaHypothesisLegend(text);
+    return applyDossierLinkIntegrity(text, { allowedPool: sourcePool });
+  }, [content, groundingSources]);
+
   const resolvedSources = useMemo(
     () =>
       auditableSources && auditableSources.length > 0
         ? auditableSources
-        : buildAuditableSources(content, groundingSources),
-    [auditableSources, content, groundingSources],
+        : buildAuditableSources(integrityBase, groundingSources),
+    [auditableSources, integrityBase, groundingSources],
   );
 
   const citationMap = useMemo(() => {
@@ -321,7 +334,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const processedContent = useMemo(() => {
     if (!content) return '';
 
-    let text = normalizeMermaidBlocks(stripPortaMarkers(content));
+    let text = integrityBase || '';
     const preservedMermaidBlocks: string[] = [];
 
     const preserveMermaid = (input: string): string =>
@@ -368,7 +381,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     );
 
     return restoreMermaid(text);
-  }, [content, citationMap]);
+  }, [content, citationMap, groundingSources, integrityBase]);
 
   // useMemo prevents a new object reference on every render. Without this, ReactMarkdown
   // would see new props on every render and re-run the full parse/transform pipeline.

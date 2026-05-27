@@ -1,5 +1,5 @@
 import { extractValidLinks } from './linkFixer';
-import { formatSourcesForExport, SourceRef } from './textCleaners';
+import { formatAuditableSourcesForExport, formatSourcesForExport, SourceRef, type AuditableSource } from './textCleaners';
 import { fixFakeLinksHTML } from './linkFixer';
 import { APP_NAME } from '../constants';
 import {
@@ -11,7 +11,11 @@ import {
 } from './porta';
 import { sanitizeSensitivePersonalData } from './privacy';
 
-export function convertMarkdownToHTML(md: string, includeSources: boolean = true): string {
+export function convertMarkdownToHTML(
+  md: string,
+  includeSources: boolean = true,
+  auditableSources?: AuditableSource[],
+): string {
   const safeMarkdown = sanitizeSensitivePersonalData(md);
   const allLinks = extractValidLinks(safeMarkdown);
   const markdownHttpLinkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g;
@@ -75,9 +79,14 @@ export function convertMarkdownToHTML(md: string, includeSources: boolean = true
     return '<blockquote>' + content + '</blockquote>';
   });
   html = html.replace(/<p><hr><\/p>/g, '<hr>');
-  if (includeSources && allLinks.length > 0) {
-    const sources: SourceRef[] = allLinks.map((l, i) => ({ id: `src-${i}`, ...l }));
-    html += formatSourcesForExport(sources);
+  const hasGeneratedFooter = /\n##\s*📚\s*Fontes\s*\n/i.test(safeMarkdown);
+  if (includeSources && !hasGeneratedFooter) {
+    if (auditableSources && auditableSources.length > 0) {
+      html += formatAuditableSourcesForExport(auditableSources);
+    } else if (allLinks.length > 0) {
+      const sources: SourceRef[] = allLinks.map((l, i) => ({ id: `src-${i}`, ...l }));
+      html += formatSourcesForExport(sources);
+    }
   }
   return '<p>' + portaHtml + html + '</p>';
 }

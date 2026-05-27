@@ -3,12 +3,14 @@ import { getDisplayableMermaidCode, normalizeMermaidBlocks } from './mermaid';
 import { stripPortaMarkers } from './porta';
 import { sanitizeSensitivePersonalData } from './privacy';
 import { REPORT_CSS } from './printExport.css';
+import { formatAuditableSourcesForExport, type AuditableSource } from './textCleaners';
 
 export interface PrintReportOptions {
   title: string;
   subtitle?: string;
   content: string;
   sources?: Array<{ title?: string; url: string }>;
+  auditableSources?: AuditableSource[];
 }
 
 const EMOJI_AND_SYMBOLS_REGEX = /[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
@@ -204,14 +206,22 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
   const subtitle = sanitizeVisibleText(options.subtitle || '');
   const appName = sanitizeVisibleText(APP_NAME) || 'Senior Scout 360';
   const body = renderMarkdownForPrint(options.content);
-  const sourceRows = (options.sources || [])
-    .map(source => ({ ...source, url: sanitizeUrl(source.url) }))
-    .filter(source => source.url)
-    .map((source, index) => {
-      const label = sanitizeVisibleText(source.title || source.url);
-      return `<li><span class="source-num">${String(index + 1).padStart(2, '0')}</span><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></li>`;
-    })
-    .join('');
+  const hasGeneratedFooter = /\n##\s*📚\s*Fontes\s*\n/i.test(options.content || '');
+  const auditableSourcesHtml =
+    !hasGeneratedFooter && options.auditableSources?.length
+      ? formatAuditableSourcesForExport(options.auditableSources)
+      : '';
+  const sourceRows =
+    !hasGeneratedFooter && !auditableSourcesHtml
+      ? (options.sources || [])
+          .map(source => ({ ...source, url: sanitizeUrl(source.url) }))
+          .filter(source => source.url)
+          .map((source, index) => {
+            const label = sanitizeVisibleText(source.title || source.url);
+            return `<li><span class="source-num">${String(index + 1).padStart(2, '0')}</span><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></li>`;
+          })
+          .join('')
+      : '';
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -240,7 +250,7 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
 
     <main class="content">
       ${body}
-      ${sourceRows ? `<section class="sources"><h2>Fontes e Referências</h2><ul class="sources-list">${sourceRows}</ul></section>` : ''}
+      ${auditableSourcesHtml || (sourceRows ? `<section class="sources"><h2>Fontes e Referências</h2><ul class="sources-list">${sourceRows}</ul></section>` : '')}
     </main>
 
     <footer class="report-footer">

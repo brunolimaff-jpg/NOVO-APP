@@ -253,7 +253,11 @@ export interface SourceRef {
   verification?: 'grounding' | 'fallback';
 }
 
-export type AuditableSourceType = 'inline_citation' | 'grounding_consulted' | 'inferred_without_url';
+export type AuditableSourceType =
+  | 'inline_citation'
+  | 'grounding_consulted'
+  | 'consulted_not_cited'
+  | 'inferred_without_url';
 
 export interface AuditableSource {
   key: string;
@@ -406,6 +410,10 @@ function pushUniqueContext(target: string[], context: string): void {
  * - links consultados via grounding (quando vierem separados)
  * - menções inferidas sem URL explícita
  */
+function stripDossierSourcesFooterForInlineScan(text: string): string {
+  return (text || '').replace(/\n##\s*📚\s*Fontes\s*\n[\s\S]*$/i, '').trimEnd();
+}
+
 export function buildAuditableSources(
   text: string,
   groundingSources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }> = []
@@ -413,10 +421,12 @@ export function buildAuditableSources(
   const items: AuditableSource[] = [];
   const byUrl = new Map<string, AuditableSource>();
   const byTitleNoUrl = new Map<string, AuditableSource>();
+  const bodyForInline = stripDossierSourcesFooterForInlineScan(text);
   let citationIndex = 1;
   let match: RegExpExecArray | null;
 
-  while ((match = MARKDOWN_LINK_REGEX.exec(text || '')) !== null) {
+  MARKDOWN_LINK_REGEX.lastIndex = 0;
+  while ((match = MARKDOWN_LINK_REGEX.exec(bodyForInline)) !== null) {
     const rawTitle = (match[1] || '').trim();
     const rawUrl = (match[2] || '').trim();
     if (!rawUrl) continue;
@@ -443,12 +453,13 @@ export function buildAuditableSources(
       if (!source.title && rawTitle) source.title = rawTitle;
     }
 
-    pushUniqueContext(source.contexts, extractUsageContext(text, match.index));
+    pushUniqueContext(source.contexts, extractUsageContext(bodyForInline, match.index));
   }
 
   // Captura URLs "cruas" no texto para não perder fontes que não vieram em markdown.
   const RAW_URL_REGEX = /https?:\/\/[^\s<>"')\]]+/gi;
-  while ((match = RAW_URL_REGEX.exec(text || '')) !== null) {
+  RAW_URL_REGEX.lastIndex = 0;
+  while ((match = RAW_URL_REGEX.exec(bodyForInline)) !== null) {
     const rawUrl = (match[0] || '').trim();
     if (!rawUrl) continue;
     const normalizedUrl = normalizeSourceUrl(rawUrl);
@@ -479,15 +490,15 @@ export function buildAuditableSources(
       source.sourceTypes.push('inline_citation');
     }
 
-    pushUniqueContext(source.contexts, extractUsageContext(text, match.index));
+    pushUniqueContext(source.contexts, extractUsageContext(bodyForInline, match.index));
   }
 
   for (const g of groundingSources || []) {
     const title = (g?.title || '').trim();
     const url = (g?.url || '').trim();
     const sourceContext = g?.verification === 'fallback'
-      ? 'Fonte consultada pelo fallback web.'
-      : 'Fonte consultada pelo mecanismo de grounding.';
+      ? 'Fonte consultada pelo fallback web (não citada inline).'
+      : 'Fonte consultada pelo mecanismo de grounding (não citada inline).';
     if (!url) continue;
     const normalizedUrl = normalizeSourceUrl(url);
     const displayUrl = normalizedUrl || url;
@@ -495,11 +506,11 @@ export function buildAuditableSources(
     let source = byUrl.get(normalizedUrl);
     if (!source) {
       source = {
-        key: normalizedUrl || `grounding-${citationIndex}`,
-        citationIndex: citationIndex++,
+        key: normalizedUrl || `consulted-${citationIndex}`,
+        citationIndex: null,
         title: title || displayUrl,
         url: displayUrl,
-        sourceTypes: ['grounding_consulted'],
+        sourceTypes: ['consulted_not_cited'],
         contexts: [sourceContext],
         requiresManualValidation: false,
       };
@@ -508,11 +519,16 @@ export function buildAuditableSources(
       continue;
     }
 
-    if (!source.sourceTypes.includes('grounding_consulted')) {
-      source.sourceTypes.push('grounding_consulted');
+    if (source.sourceTypes.includes('inline_citation')) {
+      if (!source.sourceTypes.includes('grounding_consulted')) {
+        source.sourceTypes.push('grounding_consulted');
+      }
+      pushUniqueContext(source.contexts, 'Também consultada via grounding/fallback.');
+    } else if (!source.sourceTypes.includes('consulted_not_cited')) {
+      source.sourceTypes.push('consulted_not_cited');
+      pushUniqueContext(source.contexts, sourceContext);
     }
     if (!source.title && title) source.title = title;
-    pushUniqueContext(source.contexts, sourceContext);
   }
 
   const inferredRegex = /\*\*([^*]+)\*\*\s*\*\[\s*fonte não disponível\s*\]\*/gi;
@@ -551,6 +567,49 @@ export function removeSourcesBlock(text: string): string {
 /**
  * Formata lista de fontes para inclusão no PDF/DOC.
  */
+export function formatAuditableSourcesForExport(sources: AuditableSource[]): string {
+  if (!sources?.length) return '';
+
+  const cited = sources.filter(
+    source =>
+      source.url &&
+      source.sourceTypes.includes('inline_citation') &&
+      !source.sourceTypes.includes('inferred_without_url'),
+  );
+  const consulted = sources.filter(
+    source => source.url && source.sourceTypes.includes('consulted_not_cited'),
+  );
+
+  const renderList = (items: AuditableSource[], ordered: boolean): string => {
+    if (!items.length) return '';
+    const rows = items
+      .map((source, index) => {
+        const label = source.title || source.url;
+        const prefix = ordered ? `${source.citationIndex ?? index + 1}. ` : '- ';
+        return `<li>${prefix}<a href="${source.url}" target="_blank">${label}</a></li>`;
+      })
+      .join('\n');
+    return `<ul style="list-style: ${ordered ? 'decimal' : 'disc'}; padding-left: 20px; font-size: 11px; color: #475569;">${rows}</ul>`;
+  };
+
+  const citedHtml = cited.length
+    ? `<h3 style="color:#064e3b;font-size:13px;margin:12px 0 6px;">Citadas no dossiê</h3>${renderList(cited, true)}`
+    : '';
+  const consultedHtml = consulted.length
+    ? `<h3 style="color:#064e3b;font-size:13px;margin:12px 0 6px;">Consultadas pela IA (não citadas inline)</h3>${renderList(consulted, false)}`
+    : '';
+
+  if (!citedHtml && !consultedHtml) return '';
+
+  return `
+    <div class="sources-section" style="margin-top: 24px; padding-top: 16px; border-top: 2px solid #059669;">
+      <h2 style="color: #064e3b; font-size: 14px; font-weight: 700; margin-bottom: 10px;">📚 Fontes</h2>
+      ${citedHtml}
+      ${consultedHtml}
+    </div>
+  `;
+}
+
 export function formatSourcesForExport(sources: SourceRef[]): string {
   if (!sources || sources.length === 0) return '';
   

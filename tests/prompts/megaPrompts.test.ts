@@ -120,7 +120,7 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ_LATERAL_SOCIO');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('##.###.###/####-##*');
-    expect(PROMPT_TEIA_DEEP_MODULE).toContain('* = hipótese a validar');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('* = hipótese a validar');
 
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('CNPJ / Tipo');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');
@@ -251,75 +251,75 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 43400,
-          "lines": 1034,
-          "sha256": "bb98bdbf7ccb26df2f99d454175ac7ac9542b46334bc691c457edfcf2f90c50d",
+          "length": 43717,
+          "lines": 1037,
+          "sha256": "9a49b8acf031e31fea34e3ba1b6a5cf1daf7f9f9f76a6f1ac207fb9efab72c30",
         },
         {
           "label": "specialist-1",
-          "length": 14018,
+          "length": 13988,
           "lines": 310,
-          "sha256": "c21a33c2430578bf69b2890b230a897eaa3eb47d72511c8599f77257a6720a49",
+          "sha256": "08a6020fdb0e241badeec7baad36637116abafc20be9e307826e08ea583855a6",
         },
         {
           "label": "specialist-2",
-          "length": 11440,
+          "length": 11410,
           "lines": 303,
-          "sha256": "06772c628c5fdf523347679550606c9a35d5dd04400dbc2730b12511e94be28d",
+          "sha256": "86ca64bb481ef420ac588e687fe3e1ede7b52aee6e814d9f8da1ce820f34157e",
         },
         {
           "label": "specialist-3",
-          "length": 8690,
+          "length": 8660,
           "lines": 242,
-          "sha256": "8b8ea45317d049bb7530cf21b2f8fca05757f5a9365ccc27013c9cc7ae2bfbb6",
+          "sha256": "fd5c64eb8d792211582de3857011f6a7a2d81ef21f7a4dae566e3f7a4917ec02",
         },
         {
           "label": "specialist-4",
-          "length": 9474,
+          "length": 9444,
           "lines": 255,
-          "sha256": "818eb30b08cf43234104be04361992b479e379aa69a46b73700dfd2f36b1d03e",
+          "sha256": "9125f8eca80b6f0eed8f43655ba195c3ed52028e96426e3a3d8e8c2064c30278",
         },
         {
           "label": "specialist-5",
-          "length": 6910,
+          "length": 6880,
           "lines": 204,
-          "sha256": "bb2400b45b4475ed39bfc5ee2578c2c4f2b86b61b4a11b979e566a1a7eb8a201",
+          "sha256": "b7172ac6af797db405d7f8d856dce1fc71a7dd69197bad8e4d6936795f675afa",
         },
         {
           "label": "specialist-6",
-          "length": 7575,
+          "length": 7545,
           "lines": 198,
-          "sha256": "3178184b5457ccdd9ad247da3f65a794ac7fb084b979d92e1a16ad43a17ac1ff",
+          "sha256": "660a3b4132104e2e842af5fa211da31f1d678d78b3947f5b0c0fd413f0ea8d07",
         },
         {
           "label": "specialist-7",
-          "length": 8433,
+          "length": 8403,
           "lines": 237,
-          "sha256": "831fcf25b95289a753fc6003aee14ce2f5e846a1d949b321ca3aa5b66cd2050b",
+          "sha256": "ad17c59034cc71924051b5b39368f40aa4477afa2865888f9939d72d92d311bb",
         },
         {
           "label": "specialist-8",
-          "length": 8458,
+          "length": 8428,
           "lines": 157,
-          "sha256": "e543876d2251acc24e34232b7795b36fa3d1b2e54ade1de8d8b7b3711d99c2d7",
+          "sha256": "f9e6ab8286e4f50279738831877d17290e97b04510b4812b21f02a959428b963",
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 110467,
-          "lines": 2734,
-          "sha256": "f05ac0ef0fd597f13dab9cdab68af5a1cf9d7e1651e93f02aad8d43148e84cce",
+          "length": 110574,
+          "lines": 2737,
+          "sha256": "11b5b33482575fec037901eacb7e1979cb6337397e2c682b8d61b4bb934195b6",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 119368,
-          "lines": 2993,
-          "sha256": "689b39bd13c261066a00e0acbb3fb6353758e64d26cbeca214d14ed027162089",
+          "length": 119445,
+          "lines": 2996,
+          "sha256": "e5bc14e2b5a4f15e78bf97165ce32644350b6f6c6fe44c83982e8da102966886",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 110941,
-          "lines": 2754,
-          "sha256": "88f89c3935c000b518d12a5f9ce2a9f1ed5cc33b1e098de575ec81856e279812",
+          "length": 111048,
+          "lines": 2757,
+          "sha256": "331788191b407e13c847f2a8c6bc2f0ea71d877f763d37699314986d63f68e79",
         },
       ]
     `);

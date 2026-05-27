@@ -10,6 +10,8 @@ import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
 import { DeepDiveTopics } from './DeepDiveTopics';
 import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
+import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
+import { verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
 
@@ -87,16 +89,33 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
   const displayScore = isBot ? msg.scorePorta : undefined;
-  const auditableSources = useMemo<AuditableSource[]>(
-    () => buildAuditableSources(msg.text || '', msg.groundingSources || []),
-    [msg.text, msg.groundingSources],
-  );
-  const verifiedSources = useMemo(
-    () => auditableSources.filter(source => source.sourceTypes.includes('grounding_consulted')),
+  const auditableSources = useMemo<AuditableSource[]>(() => {
+    const pool = verifiedSourcesToPool(
+      (msg.groundingSources || []).map(source => ({
+        title: source.title,
+        url: source.url,
+        verification: source.verification,
+      })),
+    );
+    const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
+    return buildAuditableSources(cleaned, msg.groundingSources || []);
+  }, [msg.text, msg.groundingSources]);
+
+  const citedInTextSources = useMemo(
+    () => auditableSources.filter(source => source.sourceTypes.includes('inline_citation')),
     [auditableSources],
   );
-  const citedSources = useMemo(
-    () => auditableSources.filter(source => !source.sourceTypes.includes('grounding_consulted')),
+  const consultedNotCitedSources = useMemo(
+    () =>
+      auditableSources.filter(
+        source =>
+          source.sourceTypes.includes('consulted_not_cited') &&
+          !source.sourceTypes.includes('inline_citation'),
+      ),
+    [auditableSources],
+  );
+  const inferredSources = useMemo(
+    () => auditableSources.filter(source => source.sourceTypes.includes('inferred_without_url')),
     [auditableSources],
   );
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
@@ -158,7 +177,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
       </div>
     );
   } else {
-    const sourcesCount = verifiedSources.length + citedSources.length;
+    const sourcesCount = citedInTextSources.length + consultedNotCitedSources.length + inferredSources.length;
 
     content = (
       <div
@@ -222,8 +241,8 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
               {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && <DeepDiveTopics onSelectTopic={onDeepDive} />}
               <MessageActionsBar
                 content={msg.text}
-                verifiedSourcesCount={verifiedSources.length}
-                citedLinksCount={citedSources.length}
+                verifiedSourcesCount={consultedNotCitedSources.length}
+                citedLinksCount={citedInTextSources.length}
                 currentFeedback={msg.feedback}
                 onFeedback={fb => onFeedback(msg.id, fb)}
                 onSubmitFeedback={(fb, comment, content, options) => onSendFeedback(msg.id, fb, comment, content, options)}
@@ -234,8 +253,9 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
               {msg.isSourcesOpen && sourcesCount > 0 && (
                 <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                   {[
-                    { label: 'Fontes verificadas', items: verifiedSources },
-                    { label: 'Links citados no texto', items: citedSources },
+                    { label: 'Citadas no texto', items: citedInTextSources },
+                    { label: 'Consultadas pela IA (não citadas)', items: consultedNotCitedSources },
+                    { label: 'Inferidas sem URL', items: inferredSources },
                   ].flatMap(group => group.items.length > 0 ? [(
                     <div key={group.label} className="mb-3 last:mb-0">
                       <p

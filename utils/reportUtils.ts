@@ -1,6 +1,6 @@
 import { Message, Sender, type ClienteSeniorData } from '../types';
 import { parseMarkdownSections } from './sectionParser';
-import { extractAllLinksFromMarkdown, SourceRef } from './textCleaners';
+import { buildAuditableSources, extractAllLinksFromMarkdown, SourceRef, type AuditableSource } from './textCleaners';
 import { normalizeMermaidBlocks } from './mermaid';
 
 export { normalizeMermaidBlocks } from './mermaid';
@@ -53,6 +53,23 @@ export function collectFullReport(messages: Message[]): { text: string; sections
     }
   }
   return { text: sections.join('\n\n'), sections, allLinks };
+}
+
+export function collectFullReportAuditableSources(messages: Message[]): AuditableSource[] {
+  const { text } = collectFullReport(messages);
+  if (!text) return [];
+
+  const groundingSources = messages
+    .filter(message => message.sender === Sender.Bot)
+    .flatMap(message =>
+      (message.groundingSources || []).map(source => ({
+        title: source.title || source.url,
+        url: source.url,
+        verification: source.verification,
+      })),
+    );
+
+  return buildAuditableSources(text, groundingSources);
 }
 
 const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
