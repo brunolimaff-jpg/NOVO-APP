@@ -160,6 +160,43 @@ describe('useSessionStorage', () => {
     expect(sessions).toEqual([]);
   });
 
+  it('scout:sync-complete push-only não recarrega sessões nem regrava o estado', async () => {
+    const localWithDossier = makeSession('scheffer-push', 'Scheffer & Cia', [
+      {
+        id: 'bot-push',
+        sender: Sender.Bot,
+        text: 'Dossiê completo já renderizado',
+        timestamp: new Date('2026-05-26T11:00:00.000Z'),
+      },
+    ]);
+
+    const { result } = renderHook(() => useSessionStorage());
+
+    act(() => {
+      result.current.setIsInitialized(true);
+      result.current.setSessions([localWithDossier]);
+    });
+
+    await waitFor(() => {
+      expect(saveAllDossiersMock).toHaveBeenCalled();
+    });
+
+    const loadsBeforePushOnlyEvent = getDossiersMock.mock.calls.length;
+    saveAllDossiersMock.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail: { pushed: 1, pulled: 0, errors: [] } }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(getDossiersMock).toHaveBeenCalledTimes(loadsBeforePushOnlyEvent);
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+    expect(result.current.sessions[0]?.messages[0]?.text).toContain('Dossiê completo');
+  });
+
   it('scout:sync-complete preserva messages locais quando reload traz sessão stale sem texto', async () => {
     const localWithDossier = makeSession('scheffer-1', 'Scheffer & Cia', [
       {

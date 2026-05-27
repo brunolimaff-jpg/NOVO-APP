@@ -1,6 +1,9 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
+import {
+  MODULAR_DOSSIER_CONSOLIDATION_STAGE,
+  MODULAR_DOSSIER_STAGES,
+} from '../../constants/loadingStages';
 import {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
@@ -874,6 +877,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         { contextText: waterfallFinalText },
       );
 
+      replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
+
       let sessionToPersist: ChatSession | null = null;
       updateSessionById(sessionId, session => {
         const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
@@ -903,11 +908,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return nextSession;
       });
 
-      if (sessionToPersist) {
-        await storage.saveDossier(sessionToPersist);
-      }
-
       completeLoadingProgress();
+
+      if (sessionToPersist) {
+        try {
+          await storage.saveDossier(sessionToPersist);
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+            sessionId,
+            company: resolvedMegaCompany || normalizedCompany || null,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
       } finally {
         // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
         await deleteWaterfallFoundationCache(foundationCacheName);

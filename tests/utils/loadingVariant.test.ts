@@ -4,6 +4,7 @@ import {
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
   shouldShowHeroLoadingOverlay,
+  shouldSuspendHeroMessageTimeline,
 } from '../../utils/loadingVariant';
 
 describe('loadingVariant flow rules', () => {
@@ -83,5 +84,16 @@ describe('shouldShowHeroLoadingOverlay', () => {
   it('mantém overlay mesmo com preview parcial do waterfall (>200 chars)', () => {
     // Regressão PR #301: gate antigo escondia hero ao flushWaterfallPreview.
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
+  });
+});
+
+describe('shouldSuspendHeroMessageTimeline', () => {
+  it('suspende a timeline enquanto o hero está carregando sem resposta renderizável', () => {
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
+  });
+
+  it('mantém o overlay, mas libera a timeline quando o dossiê final já existe', () => {
+    expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
   });
 });

@@ -26,11 +26,11 @@ function findPoolReplacement(
   const lower = linkText.toLowerCase();
   for (const source of allowedPool) {
     const title = (source.title || '').toLowerCase();
-    let host = '';
+    let host: string | null = null;
     try {
       host = new URL(source.url).hostname.replace(/^www\./i, '').toLowerCase();
     } catch {
-      host = '';
+      // Fonte sem URL parseável; segue sem host para matching.
     }
     if (title && lower.includes(title.slice(0, Math.min(12, title.length)))) return source.url;
     if (host && lower.includes(host)) return source.url;

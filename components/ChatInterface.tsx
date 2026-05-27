@@ -9,6 +9,7 @@ import { Sender, type RadarAlert } from '../types';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 import { cleanTitle } from '../utils/textCleaners';
+import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
 import Composer from './chat/Composer';
@@ -128,7 +129,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
-  const shouldSuspendVirtualizedList = isLoading && loadingVariant === 'hero';
+  const hasRenderableBotMessage = safeMessages.some(
+    message =>
+      message.sender === Sender.Bot &&
+      !message.isThinking &&
+      !message.isError &&
+      Boolean(String(message.text || '').trim()),
+  );
+  const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
+    isLoading,
+    loadingVariant,
+    hasRenderableBotMessage,
+  );
 
   useEffect(() => {
     if (!operatorId || !hasOperatorName) return;
