@@ -142,7 +142,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
   const stepTimestampsRef = useRef<Record<string, number>>({});
-  const phaseStartedAtRef = useRef<number>(0);
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
   const insightRequestIdRef = useRef(0);
@@ -215,7 +214,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       queuedStageKeysRef.current = new Set();
       lastRevealTimeRef.current = 0;
       stepTimestampsRef.current = {};
-      phaseStartedAtRef.current = 0;
       if (revealTimerRef.current) {
         clearTimeout(revealTimerRef.current);
         revealTimerRef.current = null;
@@ -267,13 +265,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             queuedStageKeysRef.current.delete(nextKey);
           }
           lastRevealTimeRef.current = Date.now();
-          const phaseDuration = elapsedTime - phaseStartedAtRef.current;
-          phaseStartedAtRef.current = elapsedTime;
           setDisplayedCompleted(prev => {
             if (!nextKey) return prev;
             if (displayedStageKeysRef.current.has(nextKey)) return prev;
             displayedStageKeysRef.current.add(nextKey);
-            stepTimestampsRef.current[next] = phaseDuration > 0 ? phaseDuration : 0;
+            stepTimestampsRef.current[next] = elapsedTime;
             return [...prev, next];
           });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
