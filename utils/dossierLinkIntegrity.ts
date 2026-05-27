@@ -19,23 +19,46 @@ function isUrlAllowed(url: string, allowedNormalized: Set<string>): boolean {
   return allowedNormalized.has(normalized);
 }
 
-function findPoolReplacement(
+/**
+ * Pré-constrói um mapa de lookup (título prefixo → URL, hostname → URL)
+ * a partir do pool de fontes. Iteração única O(n) no pool; cada lookup
+ * subsequente é O(1) no Map, em vez de O(n) a cada chamada.
+ */
+export function buildPoolLookupMap(
   allowedPool: DossierSourceRef[],
-  linkText: string,
-): string | null {
-  const lower = linkText.toLowerCase();
+): Map<string, string> {
+  const map = new Map<string, string>();
   for (const source of allowedPool) {
-    const title = (source.title || '').toLowerCase();
+    const title = (source.title || '').toLowerCase().trim();
+    if (title) {
+      const prefix = title.slice(0, Math.min(12, title.length));
+      if (!map.has(prefix)) map.set(prefix, source.url);
+    }
     let host: string | null = null;
     try {
       host = new URL(source.url).hostname.replace(/^www\./i, '').toLowerCase();
     } catch {
       // Fonte sem URL parseável; segue sem host para matching.
     }
-    if (title && lower.includes(title.slice(0, Math.min(12, title.length)))) return source.url;
-    if (host && lower.includes(host)) return source.url;
+    if (host && !map.has(host)) map.set(host, source.url);
   }
-  return allowedPool[0]?.url ?? null;
+  return map;
+}
+
+/**
+ * Lookup O(1) no mapa pré-construído. Retorna a URL encontrada ou fallbackUrl.
+ */
+function findPoolReplacement(
+  lookupMap: Map<string, string>,
+  linkText: string,
+  fallbackUrl: string | null,
+): string | null {
+  const lower = linkText.toLowerCase();
+  // Tenta match por hostname (mais específico)
+  for (const [key, url] of lookupMap) {
+    if (lower.includes(key)) return url;
+  }
+  return fallbackUrl;
 }
 
 export function normalizeDoubleBracketCitations(input: string): string {
@@ -81,6 +104,11 @@ export function applyDossierLinkIntegrity(
       .filter(Boolean),
   );
 
+  const poolLookupMap = options.allowedPool?.length
+    ? buildPoolLookupMap(options.allowedPool)
+    : new Map<string, string>();
+  const poolFallbackUrl = options.allowedPool?.[0]?.url ?? null;
+
   let text = stripGeneratedSourcesFooter(rawText);
   text = stripTeiaHypothesisLegend(text);
   text = normalizeDoubleBracketCitations(text);
@@ -88,8 +116,8 @@ export function applyDossierLinkIntegrity(
   text = text.replace(MARKDOWN_LINK_REGEX, (match, linkText, url) => {
     const trimmedUrl = (url || '').trim();
     if (!trimmedUrl || isFakeUrl(trimmedUrl)) {
-      const replacement = options.allowedPool?.length
-        ? findPoolReplacement(options.allowedPool, linkText)
+      const replacement = poolLookupMap.size > 0
+        ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl)
         : null;
       if (replacement && !isFakeUrl(replacement) && isUrlAllowed(replacement, allowedNormalized)) {
         const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
@@ -99,8 +127,8 @@ export function applyDossierLinkIntegrity(
     }
 
     if (!isUrlAllowed(trimmedUrl, allowedNormalized)) {
-      const replacement = options.allowedPool?.length
-        ? findPoolReplacement(options.allowedPool, linkText)
+      const replacement = poolLookupMap.size > 0
+        ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl)
         : null;
       if (replacement && isUrlAllowed(replacement, allowedNormalized)) {
         const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
@@ -124,7 +152,7 @@ export function collectInlineNormalizedUrls(text: string): Set<string> {
   if (!text) return urls;
 
   const body = stripGeneratedSourcesFooter(text);
-  const matches = body.matchAll(new RegExp(MARKDOWN_LINK_REGEX.source, MARKDOWN_LINK_REGEX.flags));
+  const matches = body.matchAll(MARKDOWN_LINK_REGEX);
   for (const match of matches) {
     const normalized = normalizeSourceUrl(match[2] || '');
     if (normalized) urls.add(normalized);

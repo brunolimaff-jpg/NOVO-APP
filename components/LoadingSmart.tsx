@@ -122,9 +122,9 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
 
 /* ── Main component ──────────────────────────────────────────────────── */
 
-const LoadingSmart: React.FC<LoadingSmartProps> = ({
+const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(function LoadingSmart({
   isLoading, mode: _mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
-}) => {
+}) {
   const [currentInsight, setCurrentInsight] = useState<string>(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
   );
@@ -173,6 +173,12 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const loadingContextKey = useMemo(
     () => `${isLoading ? 'loading' : 'idle'}::${(empresaAlvo || '').trim()}::${(searchQuery || '').trim()}`,
     [empresaAlvo, isLoading, searchQuery],
+  );
+
+  /** Chave estável para dependências de useEffect que recebem arrays mutáveis de props */
+  const processingKey = useMemo(
+    () => `${processing?.stage || ''}::${(processing?.completedStages || []).join(',')}::${processing?.failureCount ?? 0}`,
+    [processing?.stage, processing?.completedStages, processing?.failureCount],
   );
 
   const normalizeSourceLabel = useCallback((label: string): string =>
@@ -284,7 +290,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     };
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
-  }, [isLoading, processing?.completedStages, processing?.stage]);
+  }, [isLoading, processingKey]);
 
   // ── 1c. Cronômetro por etapa (início, duração final, tick na etapa ativa) ──
   useEffect(() => {
@@ -306,7 +312,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       stageStartedAtRef.current[stageKey] = startedAt;
       stageDurationsRef.current[stageKey] = Math.max(0, elapsedTime - startedAt);
     }
-  }, [elapsedTime, isLoading, processing?.completedStages, processing?.stage]);
+  }, [elapsedTime, isLoading, processingKey]);
 
   useEffect(() => () => {
     if (revealTimerRef.current) {
@@ -543,6 +549,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       {ReactDOM.createPortal(overlay, document.body)}
     </>
   );
-};
+});
 
 export default LoadingSmart;
