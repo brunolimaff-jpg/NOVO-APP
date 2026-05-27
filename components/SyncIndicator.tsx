@@ -34,7 +34,8 @@ export function SyncIndicator() {
   }, []);
 
   const refresh = useCallback(() => {
-    setPending(storage.getSyncQueueSize());
+    const size = storage.getSyncQueueSize();
+    setPending(prev => (prev !== size ? size : prev));
   }, []);
 
   const showTemporaryResult = useCallback((result: string) => {
