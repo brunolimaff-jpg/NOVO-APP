@@ -8,15 +8,56 @@ interface LoadingStepsListProps {
   currentStageKey: string;
   currentRichLabel: string;
   shouldAppendCurrentStage: boolean;
-  stepTimestamps: Record<string, number>;
+  stageDurationsMs: Record<string, number>;
+  stageStartedAtMs: Record<string, number>;
+  elapsedTimeMs: number;
   getStageKey: (label: string) => string;
   formatElapsed: (ms: number) => string;
 }
 
+function getStageElapsedMs(
+  stepKey: string,
+  isCompleted: boolean,
+  isCurrent: boolean,
+  stageDurationsMs: Record<string, number>,
+  stageStartedAtMs: Record<string, number>,
+  elapsedTimeMs: number,
+): number | null {
+  if (isCompleted) {
+    const duration = stageDurationsMs[stepKey];
+    return duration !== undefined ? duration : null;
+  }
+  if (isCurrent) {
+    const startedAt = stageStartedAtMs[stepKey];
+    return startedAt !== undefined ? Math.max(0, elapsedTimeMs - startedAt) : 0;
+  }
+  return 0;
+}
+
+const StepTimer: React.FC<{
+  isDarkMode: boolean;
+  isCurrent: boolean;
+  elapsedMs: number | null;
+  formatElapsed: (ms: number) => string;
+}> = ({ isDarkMode, isCurrent, elapsedMs, formatElapsed }) => {
+  if (elapsedMs === null) return null;
+  return (
+    <span
+      className={`text-xs font-mono flex-shrink-0 tabular-nums ${
+        isCurrent
+          ? (isDarkMode ? 'text-emerald-400/90' : 'text-emerald-600')
+          : (isDarkMode ? 'text-slate-600' : 'text-slate-400')
+      }`}
+    >
+      {formatElapsed(elapsedMs)}
+    </span>
+  );
+};
+
 export const LoadingStepsList: React.FC<LoadingStepsListProps> = React.memo(({
   isDarkMode, visiblePlannedStages, completedStageKeys, currentStageKey,
-  currentRichLabel, shouldAppendCurrentStage, stepTimestamps, getStageKey,
-  formatElapsed,
+  currentRichLabel, shouldAppendCurrentStage, stageDurationsMs, stageStartedAtMs,
+  elapsedTimeMs, getStageKey, formatElapsed,
 }) => (
   <div className="flex min-w-0 flex-col">
     <h2 className={`text-xs md:text-sm font-bold uppercase tracking-wider mb-3 ${
@@ -28,6 +69,14 @@ export const LoadingStepsList: React.FC<LoadingStepsListProps> = React.memo(({
         const stepKey = getStageKey(step.label);
         const isCompleted = completedStageKeys.has(stepKey);
         const isCurrent = !isCompleted && stepKey === currentStageKey;
+        const stepElapsedMs = getStageElapsedMs(
+          stepKey,
+          isCompleted,
+          isCurrent,
+          stageDurationsMs,
+          stageStartedAtMs,
+          elapsedTimeMs,
+        );
 
         return (
           <div key={`${stepKey || 'step'}-${i}`} className={`flex items-center gap-3 ${isCompleted ? 'animate-fade-in' : ''}`}>
@@ -47,13 +96,12 @@ export const LoadingStepsList: React.FC<LoadingStepsListProps> = React.memo(({
             }`}>
               {step.label}
             </span>
-            {isCompleted && stepTimestamps[step.label] !== undefined ? (
-              <span className={`text-xs font-mono flex-shrink-0 tabular-nums ${
-                isDarkMode ? 'text-slate-600' : 'text-slate-300'
-              }`}>
-                +{formatElapsed(stepTimestamps[step.label])}
-              </span>
-            ) : null}
+            <StepTimer
+              isDarkMode={isDarkMode}
+              isCurrent={isCurrent}
+              elapsedMs={stepElapsedMs}
+              formatElapsed={formatElapsed}
+            />
           </div>
         );
       })}
@@ -66,6 +114,19 @@ export const LoadingStepsList: React.FC<LoadingStepsListProps> = React.memo(({
           }`}>
             {currentRichLabel}
           </span>
+          <StepTimer
+            isDarkMode={isDarkMode}
+            isCurrent
+            elapsedMs={getStageElapsedMs(
+              currentStageKey,
+              false,
+              true,
+              stageDurationsMs,
+              stageStartedAtMs,
+              elapsedTimeMs,
+            )}
+            formatElapsed={formatElapsed}
+          />
         </div>
       ) : null}
     </div>

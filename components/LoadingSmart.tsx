@@ -141,7 +141,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
   const queueRef = useRef<string[]>([]);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
-  const stepTimestampsRef = useRef<Record<string, number>>({});
+  const stageStartedAtRef = useRef<Record<string, number>>({});
+  const stageDurationsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
   const insightRequestIdRef = useRef(0);
@@ -213,7 +214,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
       displayedStageKeysRef.current = new Set();
       queuedStageKeysRef.current = new Set();
       lastRevealTimeRef.current = 0;
-      stepTimestampsRef.current = {};
+      stageStartedAtRef.current = {};
+      stageDurationsRef.current = {};
       if (revealTimerRef.current) {
         clearTimeout(revealTimerRef.current);
         revealTimerRef.current = null;
@@ -269,7 +271,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             if (!nextKey) return prev;
             if (displayedStageKeysRef.current.has(nextKey)) return prev;
             displayedStageKeysRef.current.add(nextKey);
-            stepTimestampsRef.current[next] = elapsedTime;
+            const startedAt = stageStartedAtRef.current[nextKey];
+            if (startedAt !== undefined && stageDurationsRef.current[nextKey] === undefined) {
+              stageDurationsRef.current[nextKey] = Math.max(0, elapsedTime - startedAt);
+            }
             return [...prev, next];
           });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
@@ -280,6 +285,28 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
     return () => { /* intentionally not clearing */ };
   }, [isLoading, processing?.completedStages, processing?.stage]);
+
+  // ── 1c. Cronômetro por etapa (início, duração final, tick na etapa ativa) ──
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const realCurrent =
+      stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() ||
+      'Preparando análise...';
+    const currentKey = getLoadingStageIdentity(realCurrent);
+    if (currentKey && stageStartedAtRef.current[currentKey] === undefined) {
+      stageStartedAtRef.current[currentKey] = elapsedTime;
+    }
+
+    for (const stage of processing?.completedStages || []) {
+      const stageKey = getLoadingStageIdentity(stripInternalMarkers(stage).trim());
+      if (!stageKey || stageDurationsRef.current[stageKey] !== undefined) continue;
+
+      const startedAt = stageStartedAtRef.current[stageKey] ?? 0;
+      stageStartedAtRef.current[stageKey] = startedAt;
+      stageDurationsRef.current[stageKey] = Math.max(0, elapsedTime - startedAt);
+    }
+  }, [elapsedTime, isLoading, processing?.completedStages, processing?.stage]);
 
   useEffect(() => () => {
     if (revealTimerRef.current) {
@@ -479,7 +506,9 @@ const LoadingSmart: React.FC<LoadingSmartProps> = ({
             currentStageKey={currentStageKey}
             currentRichLabel={currentRich.label}
             shouldAppendCurrentStage={shouldAppendCurrentStage}
-            stepTimestamps={stepTimestampsRef.current}
+            stageDurationsMs={stageDurationsRef.current}
+            stageStartedAtMs={stageStartedAtRef.current}
+            elapsedTimeMs={elapsedTime}
             getStageKey={getLoadingStageIdentity}
             formatElapsed={formatElapsed}
           />
