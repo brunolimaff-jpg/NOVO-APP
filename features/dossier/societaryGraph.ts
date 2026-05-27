@@ -36,6 +36,8 @@ export interface SocietaryCompanyInput {
   country?: string | null;
   partnerName: string;
   role?: string;
+  branchCount?: number;
+  branchCnpjs?: string[];
   sourceTitle?: string;
   sourceUrl?: string;
   snippet?: string;
@@ -239,7 +241,7 @@ export function countCompanyFilials(
   company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>,
 ): number {
   const listed = (company.branchCnpjs ?? []).filter(cnpj => isValidCnpj(normalizeCnpj(cnpj))).length;
-  const establishments = listed > 0 ? listed : (company.branchCount ?? 1);
+  const establishments = Math.max(listed, company.branchCount ?? 1);
   if (establishments <= 1) return 0;
   return establishments - 1;
 }
@@ -271,6 +273,12 @@ function mergeBranchData(existing: SocietaryCompany, incoming: SocietaryCompanyI
 
   const cnpjs = new Set(existing.branchCnpjs || (existing.cnpj ? [existing.cnpj] : []));
   cnpjs.add(normalizedCnpj);
+  if (incoming.branchCnpjs?.length) {
+    for (const branchCnpj of incoming.branchCnpjs) {
+      const normalized = normalizeCnpj(branchCnpj);
+      if (isValidCnpj(normalized)) cnpjs.add(normalized);
+    }
+  }
   existing.branchCnpjs = Array.from(cnpjs).sort((a, b) => {
     if (isHeadquartersCnpj(a)) return -1;
     if (isHeadquartersCnpj(b)) return 1;
@@ -598,8 +606,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       name: company.name.trim(),
       cnpj: isValidCnpj(normalizedCnpj) ? normalizedCnpj : undefined,
       rawCnpjLabel: company.rawCnpjLabel?.trim() || undefined,
-      branchCount: isValidCnpj(normalizedCnpj) ? 1 : undefined,
-      branchCnpjs: isValidCnpj(normalizedCnpj) ? [normalizedCnpj] : undefined,
+      branchCount: isValidCnpj(normalizedCnpj) ? (company.branchCount || 1) : undefined,
+      branchCnpjs: isValidCnpj(normalizedCnpj)
+        ? (company.branchCnpjs?.length ? company.branchCnpjs : [normalizedCnpj])
+        : undefined,
       country: company.country?.trim().toUpperCase() || undefined,
       role: company.role?.trim() || undefined,
       sourceTitle: company.sourceTitle?.trim() || undefined,
@@ -710,8 +720,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           name: geminiCandidate.name.trim(),
           cnpj: hasValidCnpj ? normalizedCnpj : undefined,
           rawCnpjLabel: geminiCandidate.rawCnpjLabel?.trim() || undefined,
-          branchCount: hasValidCnpj ? 1 : undefined,
-          branchCnpjs: hasValidCnpj ? [normalizedCnpj] : undefined,
+          branchCount: hasValidCnpj ? (geminiCandidate.branchCount || 1) : undefined,
+          branchCnpjs: hasValidCnpj
+            ? (geminiCandidate.branchCnpjs?.length ? geminiCandidate.branchCnpjs : [normalizedCnpj])
+            : undefined,
           country: geminiCandidate.country?.trim().toUpperCase() || undefined,
           role: geminiCandidate.role?.trim() || undefined,
           sourceTitle: geminiCandidate.sourceTitle?.trim() || undefined,
