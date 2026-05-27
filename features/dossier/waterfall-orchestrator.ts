@@ -80,6 +80,7 @@ interface TeiaResearchContext {
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
+  setLoadingVariant?: (variant: 'hero' | 'inline') => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
   resetLoadingProgress: (
     stage?: string,
@@ -244,6 +245,7 @@ async function validateInlineSourcesForPromotion(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
+      signal: AbortSignal.timeout(25_000),
     });
     if (!response.ok) return [];
 
@@ -377,6 +379,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     options.setFailureCount ?? chatStore?.setFailureCount,
     'setFailureCount',
   );
+  const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
 
   const runMegaPromptWaterfall = useCallback(
     async ({
@@ -493,10 +496,31 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ...(foundationCacheName ? { foundationCacheName } : {}),
       };
 
+      const WATERFALL_PREVIEW_MIN_CHARS = 200;
+
+      const flushWaterfallPreview = () => {
+        if (accumulatedText.trim().length < WATERFALL_PREVIEW_MIN_CHARS) return;
+        setLoadingVariant?.('inline');
+        updateSessionById(sessionId, session => ({
+          ...session,
+          messages: session.messages.map(message =>
+            message.id === botMessageId
+              ? {
+                  ...message,
+                  text: accumulatedText,
+                  isThinking: true,
+                  loadingVariant: 'inline',
+                }
+              : message,
+          ),
+        }));
+      };
+
       const appendWaterfallChunk = (chunk: string) => {
         const normalizedChunk = chunk.trim();
         if (!normalizedChunk) return;
         accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
+        flushWaterfallPreview();
       };
 
       const modules: DossierWaterfallModule[] = [
@@ -561,6 +585,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let identityResult: string;
 
         try {
+          replaceLoadingProgressStage('Mapeando teia societária (identidade)...', MODULAR_DOSSIER_TOTAL_STAGES);
           identityResult = await generateDossierModule(
             'Teia Societaria — Identidade',
             resolvedMegaCompany || 'Empresa',
@@ -629,6 +654,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         if (complexity === 'MEDIA' || complexity === 'ALTA') {
           try {
+            replaceLoadingProgressStage('Aprofundando teia societária...', MODULAR_DOSSIER_TOTAL_STAGES);
             const deepResult = await generateDossierModule(
               'Teia Societaria — Profundidade',
               resolvedMegaCompany || 'Empresa',
@@ -897,6 +923,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       resetLoadingProgress,
       resolvedOperatorName,
       setFailureCount,
+      setLoadingVariant,
       updateSessionById,
     ],
   );

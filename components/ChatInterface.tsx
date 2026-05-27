@@ -127,9 +127,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
-  const hasSubstantiveMessages = safeMessages.some(
-    message => !message.isThinking && String(message.text || '').trim().length > 0,
-  );
+  const hasSubstantiveMessages = safeMessages.some(message => {
+    const textLength = String(message.text || '').trim().length;
+    return textLength > 200 || (!message.isThinking && textLength > 0);
+  });
   const shouldSuspendVirtualizedList =
     isLoading && loadingVariant === 'hero' && !hasSubstantiveMessages;
 

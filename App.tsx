@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
@@ -145,6 +145,14 @@ const App: React.FC = () => {
     remoteSaveStatus,
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const showFullscreenLoadingSmart = useMemo(() => {
+    if (!isLoading || loadingVariant !== 'hero') return false;
+    const hasPartialDossierStream = allMessages.some(
+      message => message.isThinking && (message.text?.trim().length ?? 0) > 200,
+    );
+    return !hasPartialDossierStream;
+  }, [allMessages, isLoading, loadingVariant]);
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
@@ -545,7 +553,7 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {isLoading && loadingVariant === 'hero' && (
+      {showFullscreenLoadingSmart && (
         <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
           <React.Suspense fallback={<HeroLoadingChunkFallback isDarkMode={isDarkMode} />}>
             <LoadingSmart

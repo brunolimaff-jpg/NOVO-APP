@@ -843,7 +843,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const finalBotMessage = getBotMessage(harness);
 
-    expect(harness.updateSessionById).toHaveBeenCalledTimes(1);
+    expect(harness.updateSessionById.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(finalBotMessage.isThinking).toBe(false);
     expect(finalBotMessage.scorePorta?.score).toBe(70);
     expect(finalBotMessage.suggestions).toHaveLength(4);
