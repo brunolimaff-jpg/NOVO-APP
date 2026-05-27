@@ -89,4 +89,23 @@ describe('mergeChatSessions', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0].id).toBe('local-only');
   });
+
+  it('prefere createdAt remoto válido quando local é inválido', () => {
+    const local = makeSession({
+      id: 's1',
+      createdAt: '',
+      updatedAt: '2026-05-26T12:00:00.000Z',
+      messages: [{ id: 'm1', sender: Sender.Bot, text: 'Dossiê local', timestamp: new Date() }],
+    });
+    const remote = makeSession({
+      id: 's1',
+      createdAt: '2026-05-20T08:00:00.000Z',
+      updatedAt: '2026-05-26T11:00:00.000Z',
+      messages: [],
+    });
+
+    const merged = mergeChatSessions([local], [remote]);
+    expect(merged[0].createdAt).toBe('2026-05-20T08:00:00.000Z');
+    expect(merged[0].messages).toHaveLength(1);
+  });
 });

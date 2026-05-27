@@ -15,6 +15,17 @@ function hasSubstantiveMessages(messages: Message[] | undefined): boolean {
   });
 }
 
+function pickCreatedAt(local: ChatSession, remote: ChatSession): string {
+  const localCreatedTs = parseUpdatedAt(local.createdAt);
+  const remoteCreatedTs = parseUpdatedAt(remote.createdAt);
+  if (localCreatedTs > 0 && remoteCreatedTs > 0) {
+    return localCreatedTs <= remoteCreatedTs ? local.createdAt : remote.createdAt;
+  }
+  if (localCreatedTs > 0) return local.createdAt;
+  if (remoteCreatedTs > 0) return remote.createdAt;
+  return local.createdAt || remote.createdAt;
+}
+
 function pickMessages(local: Message[] | undefined, remote: Message[] | undefined): Message[] {
   const localMessages = local ?? [];
   const remoteMessages = remote ?? [];
@@ -46,9 +57,7 @@ function mergeSessionPair(local: ChatSession, remote: ChatSession): ChatSession 
     scoreOportunidade: base.scoreOportunidade ?? other.scoreOportunidade,
     resumoDossie: base.resumoDossie?.trim() ? base.resumoDossie : other.resumoDossie,
     companyContext: base.companyContext?.trim() ? base.companyContext : other.companyContext,
-    createdAt: parseUpdatedAt(local.createdAt) <= parseUpdatedAt(remote.createdAt)
-      ? local.createdAt
-      : remote.createdAt,
+    createdAt: pickCreatedAt(local, remote),
     updatedAt: localTs >= remoteTs ? local.updatedAt : remote.updatedAt,
     messages: pickMessages(local.messages, remote.messages),
   };
