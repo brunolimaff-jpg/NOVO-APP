@@ -7,7 +7,9 @@
     "api/gerar-dossie.ts": {
       "maxDuration": 300
     },
-
+    "api/open-web-search.ts": {
+      "maxDuration": 60
+    },
     "api/radar-scan.ts": {
       "maxDuration": 120
     },

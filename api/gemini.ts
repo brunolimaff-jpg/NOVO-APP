@@ -382,7 +382,7 @@ async function executeGeminiAction(
         chatSession = chatData.chat;
 
         // Loop para processar Function Calls (suporta múltiplas chamadas e encadeamento)
-        let maxIterations = 5;
+        let maxIterations = 3;
         while (response.functionCalls && response.functionCalls.length > 0 && maxIterations > 0) {
           maxIterations--;
           console.warn(`[Gemini] Turno de Function Call (${response.functionCalls.length} chamadas)`);
@@ -438,7 +438,11 @@ async function executeGeminiAction(
             const sendFunctionResponses = chatSession.sendMessage as unknown as (
               message: typeof functionResponses,
             ) => Promise<typeof response>;
-            response = await sendFunctionResponses(functionResponses);
+            response = await withTimeout(
+              sendFunctionResponses(functionResponses),
+              CHAT_TIMEOUT_MS,
+              'function-call-response',
+            );
           } else {
             break; // Nenhuma chamada reconhecida
           }

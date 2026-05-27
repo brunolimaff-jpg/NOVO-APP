@@ -333,6 +333,18 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           { contextText: responseText },
         );
 
+        // Guard: resposta vazia do Gemini não deve gerar card invisível
+        const fallbackText = '*Sem resposta do assistente.*';
+        const finalResponseText =
+          responseText && responseText.trim().length > 0 ? responseText : fallbackText;
+
+        if (finalResponseText === fallbackText) {
+          scoutDiag.warn('MessageOrchestrator', 'Gemini retornou texto vazio — usando fallback', {
+            sessionId,
+            company: normalizedCompany || hintedCompany || null,
+          });
+        }
+
         if (activeGenerationRef.current[sessionId] !== botMessageId) return;
 
         updateSessionById(sessionId, session => {
@@ -352,7 +364,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
               message.id === botMessageId
                 ? {
                     ...message,
-                    text: responseText,
+                    text: finalResponseText,
                     groundingSources: sources as { title: string; url: string }[] | undefined,
                     webVerificationStatus,
                     groundingUsed: webVerificationStatus && webVerificationStatus !== 'not_applicable'
@@ -371,18 +383,19 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         });
         completeLoadingProgress();
 
-        if (!investigationLogged && responseText.length > 500) {
+        if (!investigationLogged && finalResponseText.length > 500) {
           setInvestigationLogged(true);
           fetch(BACKEND_URL, {
             method: 'POST',
             redirect: 'follow',
+            signal: AbortSignal.timeout(15_000),
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({
               action: 'logInvestigation',
               vendedor: resolvedOperatorName,
               empresa: normalizedCompany || cleanTitle(extractCompanyName(safeVisibleText)),
               modo: mode || '',
-              resumo: responseText.substring(0, 200),
+              resumo: finalResponseText.substring(0, 200),
             }),
           }).catch((err: unknown) => {
             scoutDiag.warn('RemoteLog', 'logInvestigation falhou (Apps Script)', {
@@ -428,6 +441,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }));
       } finally {
         setIsLoading(false);
+        setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
       }

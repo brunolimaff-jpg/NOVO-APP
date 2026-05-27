@@ -312,7 +312,10 @@ export async function sendMessageToGemini(
     });
   };
 
-  if (signal?.aborted) throw new Error('AbortError');
+  if (signal?.aborted) {
+    const abortErr = new DOMException('The operation was aborted', 'AbortError');
+    throw abortErr;
+  }
   emitDossieStatus(onStatus, 'intent');
   emitDossieStatus(onStatus, 'complexity');
 

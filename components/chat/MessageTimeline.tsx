@@ -155,7 +155,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
     const viewport = messagesViewportRef.current;
     if (!viewport) {
-      setIsMessagesViewportReady(true);
+      // Container ainda não existe no DOM — não marca como ready.
+      // O emergency timer (180ms) ou o ResizeObserver vão resolver quando o elemento aparecer.
       return;
     }
 
