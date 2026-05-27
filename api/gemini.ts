@@ -402,7 +402,8 @@ async function executeGeminiAction(
                 const toolResponse = await fetch(`${origin}/api/open-web-search`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(args)
+                  body: JSON.stringify(args),
+                  signal: AbortSignal.timeout(30_000),
                 });
                 const toolResult = await toolResponse.json().catch(() => null);
                 if (!toolResponse.ok) {

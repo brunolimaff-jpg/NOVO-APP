@@ -298,6 +298,19 @@ export async function sendMessageToGemini(
 
   void nomeVendedor;
 
+  // Helper para racear uma promise contra AbortSignal
+  const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
+    if (!sig || sig.aborted) return promise;
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
+      sig.addEventListener('abort', onAbort, { once: true });
+      promise.then(
+        v => { sig.removeEventListener('abort', onAbort); resolve(v); },
+        e => { sig.removeEventListener('abort', onAbort); reject(e); }
+      );
+    });
+  };
+
   if (signal?.aborted) throw new Error('AbortError');
   emitDossieStatus(onStatus, 'intent');
   emitDossieStatus(onStatus, 'complexity');
@@ -353,7 +366,7 @@ export async function sendMessageToGemini(
       target: String(targetCompanyForLookup).slice(0, 80),
     });
     try {
-      const lookupPromises: Promise<unknown>[] = [lookupCliente(targetCompanyForLookup)];
+      const lookupPromises: Promise<unknown>[] = [withAbortSignal(lookupCliente(targetCompanyForLookup), signal)];
       const cleanCnpj = cnpjDetected || '';
       if (cleanCnpj.length === 14) {
         // TODO: A API /api/comex atual usa um mock determinístico para simular exportadores.
@@ -418,8 +431,8 @@ export async function sendMessageToGemini(
     emitDossieStatus(onStatus, 'rag');
     try {
       const [pinecone, docs] = await Promise.all([
-        buscarContextoPinecone(userMessage, empresaAlvo || ''),
-        buscarContextoDocsPinecone(userMessage),
+        withAbortSignal(buscarContextoPinecone(userMessage, empresaAlvo || ''), signal),
+        withAbortSignal(buscarContextoDocsPinecone(userMessage), signal),
       ]);
       ragContext = pinecone.context;
       ragDocsContext = docs.context;
@@ -435,7 +448,7 @@ export async function sendMessageToGemini(
   if (isMegaPromptMessage) {
     emitDossieStatus(onStatus, 'concorrentes');
     try {
-      concorrentesContext = await getContextoConcorrentesRegionais(empresaAlvo || userMessage);
+      concorrentesContext = await withAbortSignal(Promise.resolve(getContextoConcorrentesRegionais(empresaAlvo || userMessage)), signal);
     } catch (error: unknown) {
       scoutDiag.warn('Concorrentes', 'falha ao montar contexto regional', {
         error: error instanceof Error ? error.message : String(error),

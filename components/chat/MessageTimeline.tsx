@@ -205,7 +205,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [showInitialHome, shouldSuspendVirtualizedList, safeMessages.length]);
+  }, [showInitialHome, shouldSuspendVirtualizedList]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -301,7 +301,12 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
       ) : shouldSuspendVirtualizedList ? (
-        <div className="h-full min-h-0 w-full" data-testid="messages-viewport-suspended" />
+        <div className="h-full min-h-0 w-full flex items-center justify-center" data-testid="messages-viewport-suspended">
+          <div className="flex flex-col items-center gap-3">
+            <div className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`} />
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Preparando investigação...</p>
+          </div>
+        </div>
       ) : (
         <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
           {isMessagesViewportReady ? (
@@ -331,7 +336,9 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               }}
             />
           ) : (
-            <div className="h-full w-full" data-testid="messages-viewport-placeholder" />
+            <div className="h-full w-full flex items-center justify-center" data-testid="messages-viewport-placeholder">
+              <div className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`} />
+            </div>
           )}
         </div>
       )}
