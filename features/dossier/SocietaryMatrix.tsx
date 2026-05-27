@@ -436,4 +436,4 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   );
 };
 
-export default SocietaryMatrix;
+export default React.memo(SocietaryMatrix);

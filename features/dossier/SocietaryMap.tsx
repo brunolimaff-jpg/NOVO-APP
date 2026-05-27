@@ -671,7 +671,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         <>
           {debouncedMermaid ? (
             <div
-              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 select-text dark:border-slate-700 dark:bg-slate-900"
               data-testid="societary-mermaid-shell"
             >
               <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
