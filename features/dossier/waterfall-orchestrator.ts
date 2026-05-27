@@ -500,7 +500,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       const flushWaterfallPreview = () => {
         if (accumulatedText.trim().length < WATERFALL_PREVIEW_MIN_CHARS) return;
-        setLoadingVariant?.('inline');
         updateSessionById(sessionId, session => ({
           ...session,
           messages: session.messages.map(message =>
@@ -509,7 +508,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   ...message,
                   text: accumulatedText,
                   isThinking: true,
-                  loadingVariant: 'inline',
                 }
               : message,
           ),
