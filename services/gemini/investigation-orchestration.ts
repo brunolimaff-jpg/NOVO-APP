@@ -837,20 +837,5 @@ export async function getIsolatedBenchmark(
 
   if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';
 
-  const benchmarkPrompt = formatarBenchmarkParaPrompt(benchmarkResult as BenchmarkResponse, empresaAlvo);
-
-  const response = await proxyGenerateContent(
-    {
-      model: TACTICAL_MODEL_ID,
-      contents: `Sua tarefa é formatar Referências de Mercado Estratégicas para a empresa: ${empresaAlvo}.
-Use EXCLUSIVAMENTE os dados abaixo:
-${benchmarkPrompt}
-
-Diretriz: Crie um bloco de alto impacto para o final do dossiê, listando cases similares atendidos pela Senior.`,
-      config: { temperature: 0.1 },
-    },
-    options.signal,
-  );
-
-  return applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo }).text;
+  return formatarBenchmarkParaPrompt(benchmarkResult as BenchmarkResponse, empresaAlvo);
 }
