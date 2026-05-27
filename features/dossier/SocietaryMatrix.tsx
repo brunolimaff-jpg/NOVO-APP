@@ -124,7 +124,6 @@ function countTotalCnpjs(companies: SocietaryCompany[]): number {
 
 function badgeTone(badge: SocietaryBadge): string {
   if (badge === 'validar') return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
-  if (badge === 'oficial') return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200';
   if (badge === 'internacional') return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-200';
   if (badge === 'holding') return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
   return 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400';
