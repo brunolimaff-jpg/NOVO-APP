@@ -1,7 +1,9 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { setSecurityHeaders } from './_security-headers.js';
-
-export const config = { runtime: 'nodejs' };
+/**
+ * serverDiagnostics.ts — Lógica server-side de sanitização e insert no Supabase.
+ *
+ * IMPORTADO exclusivamente por api/gemini.ts (action 'recordDiagnostics').
+ * NÃO importar no frontend — este módulo usa process.env diretamente.
+ */
 
 interface DiagnosticEvent {
   at: string;
@@ -34,7 +36,7 @@ const ALLOWED_FIELDS = new Set([
 
 const MAX_PAYLOAD_DEPTH = 4;
 const MAX_STRING_LENGTH = 2000;
-const MAX_EVENTS_PER_BATCH = 100;
+export const MAX_EVENTS_PER_BATCH = 100;
 
 function sanitizeString(value: string, maxLen: number = MAX_STRING_LENGTH): string {
   return String(value).slice(0, maxLen);
@@ -52,7 +54,6 @@ function sanitizePayload(obj: unknown, depth: number = 0): unknown {
     const result: Record<string, unknown> = {};
     const keys = Object.keys(obj as Record<string, unknown>).slice(0, 30);
     for (const key of keys) {
-      // Block sensitive keys
       const lower = key.toLowerCase();
       if (
         lower.includes('token') || lower.includes('key') || lower.includes('secret') ||
@@ -71,25 +72,22 @@ function sanitizePayload(obj: unknown, depth: number = 0): unknown {
 
 function sanitizeEvent(event: DiagnosticEvent): Record<string, unknown> {
   const clean: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(event)) {
     if (!ALLOWED_FIELDS.has(key)) continue;
     if (value === undefined || value === null) continue;
     clean[key] = sanitizePayload(value);
   }
-
   return clean;
 }
 
 function getSupabaseConfig(): { url: string; key: string } | null {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!url || !key) return null;
   return { url: url.replace(/\/+$/g, ''), key };
 }
 
-async function insertBatch(
+export async function insertDiagnosticsBatch(
   batch: DiagnosticBatch,
   events: DiagnosticEvent[],
 ): Promise<{ inserted: number; error?: string }> {
@@ -134,59 +132,4 @@ async function insertBatch(
   } catch (err) {
     return { inserted: 0, error: err instanceof Error ? err.message : String(err) };
   }
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setSecurityHeaders(res);
-
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const origin = req.headers.origin ?? '';
-  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
-  const allowedOrigins = [
-    process.env.ALLOWED_ORIGIN,
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-    'https://scoutagro.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ].filter(Boolean) as string[];
-
-  if (allowedOrigins.includes(origin) || isVercelPreview) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-
-  let body: DiagnosticBatch;
-  try {
-    body = req.body as DiagnosticBatch;
-  } catch {
-    return res.status(400).json({ error: 'Invalid JSON body' });
-  }
-
-  if (!body || !Array.isArray(body.events) || body.events.length === 0) {
-    return res.status(400).json({ error: 'Missing or empty events array' });
-  }
-
-  if (!body.runId) {
-    return res.status(400).json({ error: 'Missing runId' });
-  }
-
-  const events = body.events.slice(0, MAX_EVENTS_PER_BATCH);
-
-  const result = await insertBatch(body, events);
-
-  if (result.error && result.error === 'Supabase not configured') {
-    return res.status(200).json({ inserted: 0, degraded: true, reason: result.error });
-  }
-
-  return res.status(result.error ? 500 : 200).json(result);
 }

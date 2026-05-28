@@ -164,14 +164,19 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     'runMegaPromptWaterfall',
   );
 
+  let cleanupPostCompletion: (() => void) | null = null;
+
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
    * Cada check captura estado do DOM, overlays, composer e viewport.
+   * Retorna função de cancelamento para limpar timers pendentes.
    */
-  function schedulePostCompletionChecks(sessionId: string): void {
+  function schedulePostCompletionChecks(sessionId: string): () => void {
     const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    const timerIds: ReturnType<typeof setTimeout>[] = [];
+
     for (const delay of delays) {
-      setTimeout(() => {
+      const id = setTimeout(() => {
         try {
           const bodyText = document.body?.innerText || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
@@ -194,7 +199,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           });
         } catch { /* non-critical DOM check */ }
       }, delay);
+      timerIds.push(id);
     }
+
+    return () => timerIds.forEach(id => clearTimeout(id));
   }
 
   const processMessage = useCallback(
@@ -494,9 +502,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
+        const isAbort = !abortControllerRef.current;
+
         scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
           sessionId,
           requestKind: resolvedRequestKind,
+          isAbort,
         });
 
         setIsLoading(false);
@@ -504,12 +515,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
 
-        // Flush imediato dos diagnósticos — garante que eventos após o finally
-        // cheguem ao Supabase mesmo se a UI travar em seguida.
-        flushDiagnosticsNow('processMessage:finally');
+        if (!isAbort) {
+          // Flush imediato dos diagnósticos — garante que eventos após o finally
+          // cheguem ao Supabase mesmo se a UI travar em seguida.
+          flushDiagnosticsNow('processMessage:finally');
+        }
+
+        // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
+        if (cleanupPostCompletion) cleanupPostCompletion();
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        schedulePostCompletionChecks(sessionId);
+        cleanupPostCompletion = schedulePostCompletionChecks(sessionId);
       }
     },
     [

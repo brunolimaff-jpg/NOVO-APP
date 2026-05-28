@@ -12,8 +12,8 @@
  *
  * DIAGNÓSTICO PERSISTENTE (Supabase):
  *   Ativar: VITE_SCOUT_DIAGNOSTICS_ENABLED=true ou localStorage.SCOUT_DIAG_ENABLED='1'
- *   Cada evento do scoutDiag é enviado em batch para /api/diagnostics → Supabase scout_diagnostics.
- *   Se /api/diagnostics falhar, eventos são salvos em localStorage para retry.
+ *   Cada evento do scoutDiag é enviado em batch para /api/gemini (action: recordDiagnostics) → Supabase scout_diagnostics.
+ *   Se a API falhar, eventos são salvos em localStorage para retry.
  */
 
 const PREFIX = '\u{1F985} [Scout360]';
@@ -145,10 +145,11 @@ async function flushToServer(_reason: string): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DIAG_FLUSH_TIMEOUT_MS);
 
-    const response = await fetch('/api/diagnostics', {
+    const response = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        action: 'recordDiagnostics',
         runId: getDiagnosticsRunId(),
         sessionId: diagSessionId,
         operatorId: getOperatorId(),
@@ -158,7 +159,6 @@ async function flushToServer(_reason: string): Promise<void> {
         events,
       }),
       signal: controller.signal,
-      keepalive: true,
     });
 
     clearTimeout(timeout);
@@ -170,6 +170,13 @@ async function flushToServer(_reason: string): Promise<void> {
     saveToLocalStorageFallback(events);
   } finally {
     diagFlushing = false;
+    // Reagenda se novos eventos chegaram durante o flush
+    if (getBuffer().length > 0 && !diagFlushTimer) {
+      diagFlushTimer = setTimeout(() => {
+        diagFlushTimer = null;
+        void flushToServer('drain');
+      }, DIAG_FLUSH_INTERVAL_MS);
+    }
   }
 }
 

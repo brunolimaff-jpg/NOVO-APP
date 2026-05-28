@@ -2,6 +2,7 @@ import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/ge
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { setSecurityHeaders } from './_security-headers.js';
+import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -484,6 +485,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── recordDiagnostics: early return antes de qualquer validação Gemini ──
+  if (req.body?.action === 'recordDiagnostics') {
+    const body = req.body as {
+      runId?: string;
+      sessionId?: string;
+      operatorId?: string;
+      environment?: string;
+      appVersion?: string;
+      route?: string;
+      userAgent?: string;
+      events?: unknown[];
+    };
+
+    if (!body.runId || !Array.isArray(body.events) || body.events.length === 0) {
+      return res.status(400).json({ error: 'Missing runId or events' });
+    }
+
+    const events = body.events.slice(0, MAX_EVENTS_PER_BATCH) as unknown as Parameters<typeof insertDiagnosticsBatch>[1];
+
+    const result = await insertDiagnosticsBatch(
+      {
+        runId: body.runId,
+        sessionId: body.sessionId,
+        operatorId: body.operatorId,
+        environment: body.environment,
+        appVersion: body.appVersion,
+        route: body.route,
+        userAgent: body.userAgent,
+        events,
+      },
+      events,
+    );
+
+    if (result.error && result.error === 'Supabase not configured') {
+      return res.status(200).json({ inserted: 0, degraded: true, reason: result.error });
+    }
+
+    return res.status(result.error ? 500 : 200).json(result);
   }
 
   try {
