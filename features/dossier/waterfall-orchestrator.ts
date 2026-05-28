@@ -979,8 +979,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
       }
       } finally {
-        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
-        await deleteWaterfallFoundationCache(foundationCacheName);
+        // Fire-and-forget: cache expira sozinho via TTL. Não pode bloquear o encerramento visual.
+        Promise.race([
+          deleteWaterfallFoundationCache(foundationCacheName),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000)),
+        ]).catch(() => {
+          scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro (background)', { cacheName: foundationCacheName });
+        });
       }
     },
     [

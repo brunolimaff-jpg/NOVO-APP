@@ -221,12 +221,13 @@ export interface OpenWebSearchResponse {
   detail?: string;
 }
 
-export async function executeOpenWebSearchTool(query: string, url?: string): Promise<OpenWebSearchResponse> {
+export async function executeOpenWebSearchTool(query: string, url?: string, signal?: AbortSignal): Promise<OpenWebSearchResponse> {
   const endpoint = import.meta.env.VITE_OPEN_WEB_SEARCH_URL || "/api/open-web-search";
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, url })
+    body: JSON.stringify({ query, url }),
+    signal: signal ?? AbortSignal.timeout(25000),
   });
   if (!response.ok) {
     throw new Error(`OpenWebSearch failed: ${response.status}`);
