@@ -61,6 +61,7 @@ interface MessageRowBodyProps {
 }
 
 const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
+  const renderStart = performance.now();
   const {
     messages,
     isLoading,
@@ -95,9 +96,12 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   );
 
   const auditableSources = useMemo<AuditableSource[]>(() => {
+    console.time('⏱ auditableSources');
     const pool = verifiedSourcesToPool(groundingSources);
     const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
-    return buildAuditableSources(cleaned, groundingSources);
+    const result = buildAuditableSources(cleaned, groundingSources);
+    console.timeEnd('⏱ auditableSources');
+    return result;
   }, [msg.text, groundingSources]);
 
   const citedInTextSources = useMemo(
@@ -363,6 +367,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     );
   }
 
+  console.log(`⏱ MessageRowBody render sync [${msg.id.slice(0, 8)}] sender=${msg.sender} textLen=${msg.text?.length ?? 0}: ${(performance.now() - renderStart).toFixed(0)}ms`);
   return <div className="pb-3 px-2 md:px-6 lg:px-8">{content}</div>;
 });
 

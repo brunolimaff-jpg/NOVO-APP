@@ -280,9 +280,24 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 }) => {
   const content = message.text || "";
 
-  const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
-  const displayText = useMemo(() => stripUnsafeSocietarySections(cleanText), [cleanText]);
-  const sections = useMemo(() => parseMarkdownSections(displayText), [displayText]);
+  const { cleanText, options: parsedOptions } = useMemo(() => {
+    console.time('⏱ parseSmartOptions');
+    const result = parseSmartOptions(content);
+    console.timeEnd('⏱ parseSmartOptions');
+    return result;
+  }, [content]);
+  const displayText = useMemo(() => {
+    console.time('⏱ stripUnsafeSocietarySections');
+    const result = stripUnsafeSocietarySections(cleanText);
+    console.timeEnd('⏱ stripUnsafeSocietarySections');
+    return result;
+  }, [cleanText]);
+  const sections = useMemo(() => {
+    console.time('⏱ parseMarkdownSections');
+    const result = parseMarkdownSections(displayText);
+    console.timeEnd('⏱ parseMarkdownSections');
+    return result;
+  }, [displayText]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
@@ -293,7 +308,12 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     [sections, auditableSources],
   );
 
-  const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
+  const parsedTeiaData = useMemo(() => {
+    console.time('⏱ parseTeiaText');
+    const result = parseTeiaText(cleanText);
+    console.timeEnd('⏱ parseTeiaText');
+    return result;
+  }, [cleanText]);
   const geminiCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
