@@ -52,6 +52,7 @@ let diagRunId: string | null = null;
 let diagSessionId: string | null = null;
 let diagFlushTimer: ReturnType<typeof setTimeout> | null = null;
 let diagFlushing = false;
+let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getDiagnosticsRunId(): string {
   if (!diagRunId) {
@@ -358,6 +359,57 @@ export function setupVisibilityTracking(): void {
     document.addEventListener('freeze', handleFreeze);
     document.addEventListener('resume', handleResume);
   }
+}
+
+// ── Heartbeat ────────────────────────────────────────────────────────
+
+export function setupHeartbeat(): () => void {
+  if (typeof window === 'undefined') return () => {};
+
+  const tick = () => {
+    if (!isDiagnosticsEnabled()) return;
+    const buffer = getBuffer();
+    pushToBuffer({
+      at: new Date().toISOString(),
+      t: performance.now(),
+      runId: getDiagnosticsRunId(),
+      sessionId: diagSessionId || undefined,
+      area: 'Diagnostic',
+      event: 'heartbeat',
+      severity: 'info',
+      payload: {
+        bufferLen: buffer.length,
+        elapsed: performance.now(),
+        url: location.pathname,
+      },
+    });
+    flushDiagnosticsNow('heartbeat');
+  };
+
+  heartbeatIntervalId = setInterval(tick, 30_000);
+
+  const cleanup = () => {
+    if (heartbeatIntervalId !== null) {
+      clearInterval(heartbeatIntervalId);
+      heartbeatIntervalId = null;
+    }
+  };
+
+  const handlePageHide = () => cleanup();
+  const handleFreeze = () => cleanup();
+
+  window.addEventListener('pagehide', handlePageHide);
+  if ('onfreeze' in document) {
+    document.addEventListener('freeze', handleFreeze);
+  }
+
+  return () => {
+    cleanup();
+    window.removeEventListener('pagehide', handlePageHide);
+    if ('onfreeze' in document) {
+      document.removeEventListener('freeze', handleFreeze);
+    }
+  };
 }
 
 // ── Scout trace ────────────────────────────────────────────────────

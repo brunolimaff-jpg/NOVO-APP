@@ -240,6 +240,31 @@ async function executeGeminiAction(
     case 'generateContent': {
       const model = body.model ?? DEFAULT_GEMINI_MODEL;
       const contents = body.contents;
+
+      // ── Server-side watermark: extrai nome do modulo das contents ──
+      const contentsStr = typeof contents === 'string' ? contents
+        : Array.isArray(contents)
+          ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
+          : '';
+      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
+      const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
+      const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+      if (srvModuleName) {
+        void insertDiagnosticsBatch(
+          { runId: srvRunId, route: '/api/gemini', events: [] },
+          [{
+            at: new Date().toISOString(),
+            t: Date.now(),
+            runId: srvRunId,
+            area: 'ServerWaterfall',
+            event: 'module:start',
+            severity: 'info',
+            payload: { module: srvModuleName, model },
+          }],
+        );
+      }
+
       if (!contents) {
         return res.status(400).json({ error: 'Missing contents' });
       }
@@ -275,6 +300,21 @@ async function executeGeminiAction(
         contents,
         config: genConfig,
       });
+
+      if (srvModuleName) {
+        void insertDiagnosticsBatch(
+          { runId: srvRunId, route: '/api/gemini', events: [] },
+          [{
+            at: new Date().toISOString(),
+            t: Date.now(),
+            runId: srvRunId,
+            area: 'ServerWaterfall',
+            event: 'module:end',
+            severity: 'info',
+            payload: { module: srvModuleName, model },
+          }],
+        );
+      }
 
       return res.status(200).json({
         text: extractGeminiText(response),

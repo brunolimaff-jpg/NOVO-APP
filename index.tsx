@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
 import { DossierStoreProvider } from './stores/dossierStore';
-import { flushDiagnosticsNow, setupVisibilityTracking } from './utils/diagnosticLog';
+import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './utils/diagnosticLog';
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
@@ -133,6 +133,9 @@ if (typeof window !== 'undefined') {
 
   // ── Visibility tracking: monitora hidden/visible, pagehide, pageshow, freeze/resume ──
   setupVisibilityTracking();
+
+  // ── Heartbeat de diagnostico a cada 30s ──
+  setupHeartbeat();
 }
 
 const root = createRoot(rootElement);
