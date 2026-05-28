@@ -113,9 +113,10 @@ export async function performGeminiSearch(
     apiKey: string,
     options: GeminiSearchOptions = {},
 ): Promise<string | null> {
+    const t0 = Date.now();
     const { maxPages = 3, pageTimeoutMs = 5000 } = options;
     const searchText = buildGeminiSearchPrompt(query, options.searchPrompt);
-    scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
+    scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch API call START (t+0ms)`);
 
     try {
         const response = await fetch(
@@ -134,6 +135,8 @@ export async function performGeminiSearch(
             },
         );
 
+        scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch API response status=${response.status} (t+${Date.now() - t0}ms)`);
+
         if (!response.ok) {
             scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
             return null;
@@ -150,6 +153,8 @@ export async function performGeminiSearch(
         const candidate = data?.candidates?.[0];
         const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
         const aiText = candidate?.content?.parts?.[0]?.text || '';
+
+        scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch parse OK, chunks=${groundingChunks.length} (t+${Date.now() - t0}ms)`);
 
         const urlResults: Array<{ title: string; url: string }> = [];
         const seenUrls = new Set<string>();
@@ -178,6 +183,7 @@ export async function performGeminiSearch(
             if (!isValidPublicUrl(url)) continue;
 
             try {
+                const tPage = Date.now();
                 const pageResponse = await fetch(url, {
                     headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
                     signal: AbortSignal.timeout(pageTimeoutMs),
@@ -191,6 +197,8 @@ export async function performGeminiSearch(
 
                 if (!pageText) continue;
 
+                scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch page[${i}] OK (t+${Date.now() - t0}ms, fetch:${Date.now() - tPage}ms)`);
+
                 results.push(
                     `Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`,
                 );
@@ -200,17 +208,17 @@ export async function performGeminiSearch(
         }
 
         if (results.length > 0) {
-            scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
+            scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch TOTAL: ${Date.now() - t0}ms (${results.length} paginas extraidas)`);
             return results.join('\n');
         }
 
         const fallback = urlResults.map(({ title, url }, index) =>
             `Título: ${title}\nURL: ${url}\nResumo: ${index === 0 && aiText ? aiText.slice(0, 6000) : 'Consulte a URL para mais informacoes.'}\n---`,
         ).join('\n');
-        scoutDiag.info('DocumentExtractor', `Gemini Search: ${urlResults.length} URLs retornadas (sem extracao de pagina)`);
+        scoutDiag.info('DocumentExtractor', `[timing] GeminiSearch TOTAL: ${Date.now() - t0}ms (${urlResults.length} URLs sem extracao)`);
         return fallback || null;
     } catch (error) {
-        scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
+        scoutDiag.warn('DocumentExtractor', `[timing] GeminiSearch FAIL (t+${Date.now() - t0}ms)`, {
             message: error instanceof Error ? error.message : String(error),
         });
         return null;
@@ -223,24 +231,34 @@ export async function performGeminiSearch(
  * Aceita searchPrompt opcional para personalizar a busca Gemini.
  */
 export async function performWebSearch(query: string, options: { count?: number; searchPrompt?: string } = {}): Promise<string | null> {
+    const t0 = Date.now();
     const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
     if (apiKey) {
+        scoutDiag.info('DocumentExtractor', `[timing] Gemini Search START (t+0ms)`);
         const result = await performGeminiSearch(query, apiKey, {
             searchPrompt: options.searchPrompt,
         });
-        if (result) return result;
-        scoutDiag.info('DocumentExtractor', 'Gemini Search indisponivel, fallback para DuckDuckGo/backup');
+        scoutDiag.info('DocumentExtractor', `[timing] Gemini Search END (t+${Date.now() - t0}ms)`, { hasResult: !!result });
+        if (result) {
+            scoutDiag.info('DocumentExtractor', `[timing] performWebSearch TOTAL: ${Date.now() - t0}ms (Gemini OK)`);
+            return result;
+        }
+        scoutDiag.info('DocumentExtractor', `[timing] Gemini Search indisponivel, fallback DDG (t+${Date.now() - t0}ms)`);
     }
-    return performDuckDuckGoSearch(query, apiKey);
+    const result = await performDuckDuckGoSearch(query, apiKey);
+    scoutDiag.info('DocumentExtractor', `[timing] performWebSearch TOTAL: ${Date.now() - t0}ms (DDG: ${result ? 'OK' : 'null'})`);
+    return result;
 }
 
 async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Promise<string | null> {
+    const t0 = Date.now();
     const cheerio = await import('cheerio');
     const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     const ddgTimeout = 8000;
 
     const ddgEndpoints = [
         {
+            name: 'DDG-HTML',
             url: 'https://html.duckduckgo.com/html/',
             selectors: {
                 container: '.web-result',
@@ -249,6 +267,7 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
             },
         },
         {
+            name: 'DDG-Lite',
             url: 'https://lite.duckduckgo.com/lite/',
             selectors: {
                 container: null as string | null,
@@ -260,7 +279,8 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
     ];
 
     for (const endpoint of ddgEndpoints) {
-        scoutDiag.info('DocumentExtractor', `Buscando DuckDuckGo (${endpoint.url}): ${query}`);
+        const tStep = Date.now();
+        scoutDiag.info('DocumentExtractor', `[timing] ${endpoint.name} START (t+${tStep - t0}ms)`);
 
         try {
             const response = await fetch(endpoint.url, {
@@ -273,9 +293,13 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
                 signal: AbortSignal.timeout(ddgTimeout),
             });
 
+            scoutDiag.info('DocumentExtractor', `[timing] ${endpoint.name} fetch OK status=${response.status} (t+${Date.now() - t0}ms)`);
+
             if (!response.ok) continue;
 
             const html = await response.text();
+            scoutDiag.info('DocumentExtractor', `[timing] ${endpoint.name} html recebido ${html.length} chars (t+${Date.now() - t0}ms)`);
+
             if (html.length < 200) continue;
 
             const $ = cheerio.load(html);
@@ -298,21 +322,34 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
                 results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
             });
 
-            if (results.length > 0) return results.join('\n');
-        } catch {
+            if (results.length > 0) {
+                scoutDiag.info('DocumentExtractor', `[timing] ${endpoint.name} OK ${results.length} resultados (t+${Date.now() - t0}ms)`);
+                return results.join('\n');
+            }
+            scoutDiag.info('DocumentExtractor', `[timing] ${endpoint.name} sem resultados, cai pro proximo (t+${Date.now() - t0}ms)`);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            scoutDiag.warn('DocumentExtractor', `[timing] ${endpoint.name} FAIL (t+${Date.now() - t0}ms): ${msg}`);
             continue;
         }
     }
 
     if (geminiApiKey) {
+        const tSumm = Date.now();
+        scoutDiag.info('DocumentExtractor', `[timing] Gemini-summary START (t+${tSumm - t0}ms)`);
         try {
             const text = await fetchGeminiSummaryOnly(query, geminiApiKey);
-            if (text) return text;
+            if (text) {
+                scoutDiag.info('DocumentExtractor', `[timing] Gemini-summary OK (t+${Date.now() - t0}ms)`);
+                return text;
+            }
+            scoutDiag.info('DocumentExtractor', `[timing] Gemini-summary null (t+${Date.now() - t0}ms)`);
         } catch {
-            scoutDiag.warn('DocumentExtractor', 'Gemini summary fallback falhou');
+            scoutDiag.warn('DocumentExtractor', `[timing] Gemini-summary FAIL (t+${Date.now() - t0}ms)`);
         }
     }
 
+    scoutDiag.info('DocumentExtractor', `[timing] performDuckDuckGoSearch TOTAL: ${Date.now() - t0}ms → null`);
     return null;
 }
 
