@@ -980,12 +980,25 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       }
       } finally {
         // Fire-and-forget: cache expira sozinho via TTL. Não pode bloquear o encerramento visual.
-        Promise.race([
-          deleteWaterfallFoundationCache(foundationCacheName),
-          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000)),
-        ]).catch(() => {
-          scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro (background)', { cacheName: foundationCacheName });
-        });
+        if (foundationCacheName) {
+          let timeoutId: ReturnType<typeof setTimeout> | undefined;
+          const timeoutPromise = new Promise<void>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000);
+          });
+          Promise.race([
+            deleteWaterfallFoundationCache(foundationCacheName),
+            timeoutPromise,
+          ])
+            .catch((err) => {
+              scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro (background)', {
+                cacheName: foundationCacheName,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            })
+            .finally(() => {
+              if (timeoutId !== undefined) clearTimeout(timeoutId);
+            });
+        }
       }
     },
     [
