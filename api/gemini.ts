@@ -2,6 +2,7 @@ import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/ge
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { setSecurityHeaders } from './_security-headers.js';
+import { scoutDiag } from '../utils/diagnosticLog.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -274,6 +275,24 @@ async function executeGeminiAction(
         contents,
         config: genConfig,
       });
+
+      const groundingChunks =
+        response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const hasTools = Array.isArray(genConfig.tools) && genConfig.tools.length > 0;
+      const usesCache = typeof genConfig.cachedContent === 'string';
+      if (hasTools && !usesCache && groundingChunks.length === 0) {
+        scoutDiag.warn('GeminiProxy', 'generateContent: grounding ativado mas sem groundingChunks na resposta', {
+          model,
+          hasTools,
+          usesCache,
+          contentLength: extractGeminiText(response).length,
+        });
+      } else if (groundingChunks.length > 0) {
+        scoutDiag.info('GeminiProxy', 'generateContent: grounding ok', {
+          model,
+          chunks: groundingChunks.length,
+        });
+      }
 
       return res.status(200).json({
         text: extractGeminiText(response),

@@ -86,12 +86,31 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
     return result.value || '';
 }
 
+export interface GeminiSearchOptions {
+    searchPrompt?: string;
+    maxPages?: number;
+    pageTimeoutMs?: number;
+}
+
+const DEFAULT_SEARCH_PROMPT = 'Search the web for current, factual information about the query. Prioritize official sources, news articles, and institutional websites.';
+
+function buildGeminiSearchPrompt(query: string, searchPrompt?: string): string {
+    if (searchPrompt) return searchPrompt;
+    return `${DEFAULT_SEARCH_PROMPT}\n\nQuery: ${query}`;
+}
+
 /**
- * Usa Gemini Search Grounding APENAS para encontrar URLs relevantes.
- * Os CNPJs sao extraidos diretamente do scraping dessas URLs — zero alucinacao.
- * Retorna no formato Título/URL/Resumo/--- compatível com splitSearchBlocks().
+ * Usa Gemini Search Grounding para encontrar URLs relevantes e extrair conteudo.
+ * Aceita prompt customizado para buscas genericas ou especificas.
+ * Retorna no formato Título/URL/Resumo/--- compativel com splitSearchBlocks().
  */
-export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
+export async function performGeminiSearch(
+    query: string,
+    apiKey: string,
+    options: GeminiSearchOptions = {},
+): Promise<string | null> {
+    const { maxPages = 5, pageTimeoutMs = 8000 } = options;
+    const searchText = buildGeminiSearchPrompt(query, options.searchPrompt);
     scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
 
     try {
@@ -102,15 +121,13 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{
-                        parts: [{
-                            text: `Find web pages listing Brazilian companies where "${query}" appears as a partner, shareholder, or administrator. Focus on consultasocio.com, econodata.com.br, cnpj.ws, casadosdados.com.br, and similar Brazilian corporate registry sites.`
-                        }]
+                        parts: [{ text: searchText }],
                     }],
                     tools: [{ google_search: {} }],
-                    generationConfig: { temperature: 0, maxOutputTokens: 256 },
+                    generationConfig: { temperature: 0, maxOutputTokens: 8192 },
                 }),
                 signal: AbortSignal.timeout(30000),
-            }
+            },
         );
 
         if (!response.ok) {
@@ -120,33 +137,45 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
         const data = await response.json() as {
             candidates?: Array<{
+                content?: { parts?: Array<{ text?: string }> };
                 groundingMetadata?: {
                     groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
                 };
             }>;
         };
-        const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
-        const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
+        const candidate = data?.candidates?.[0];
+        const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+        const aiText = candidate?.content?.parts?.[0]?.text || '';
 
-        if (groundingChunks.length === 0) {
+        const urlResults: Array<{ title: string; url: string }> = [];
+        const seenUrls = new Set<string>();
+
+        for (const chunk of groundingChunks) {
+            const url = chunk?.web?.uri || '';
+            const title = chunk?.web?.title || '';
+            if (!url || seenUrls.has(url)) continue;
+            seenUrls.add(url);
+            urlResults.push({ title, url });
+        }
+
+        if (urlResults.length === 0) {
             scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
+            if (aiText.trim()) return aiText;
             return null;
         }
 
         const cheerio = await import('cheerio');
         const results: string[] = [];
-        const urlSet = new Set<string>();
+        const hasValidUrl = /^https?:\/\//i;
 
-        for (const chunk of groundingChunks) {
-            const url = chunk?.web?.uri || '';
-            const title = chunk?.web?.title || '';
-            if (!url || urlSet.has(url) || !isValidPublicUrl(url)) continue;
-            urlSet.add(url);
+        for (let i = 0; i < urlResults.length && i < maxPages; i++) {
+            const { title, url } = urlResults[i];
+            if (!hasValidUrl.test(url)) continue;
 
             try {
                 const pageResponse = await fetch(url, {
                     headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
-                    signal: AbortSignal.timeout(8000),
+                    signal: AbortSignal.timeout(pageTimeoutMs),
                 });
 
                 if (!pageResponse.ok) continue;
@@ -158,15 +187,21 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
                 if (!pageText) continue;
 
                 results.push(
-                    `Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`
+                    `Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`,
                 );
             } catch {
                 continue;
             }
         }
 
-        scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
-        return results.length > 0 ? results.join('\n') : null;
+        if (results.length > 0) {
+            scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
+            return results.join('\n');
+        }
+
+        const fallback = urlResults.map(({ title, url }) => `Título: ${title}\nURL: ${url}\nResumo: ${aiText ? aiText.slice(0, 6000) : 'Consulte a URL para mais informacoes.'}\n---`).join('\n');
+        scoutDiag.info('DocumentExtractor', `Gemini Search: ${urlResults.length} URLs retornadas (sem extracao de pagina)`);
+        return fallback || null;
     } catch (error) {
         scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
             message: error instanceof Error ? error.message : String(error),
@@ -177,62 +212,134 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
 /**
  * Realiza busca web via Gemini Search Grounding (se API key disponivel)
- * ou fallback para DuckDuckGo Lite (POST).
+ * ou fallback para DuckDuckGo Lite/HTML (POST).
+ * Aceita searchPrompt opcional para personalizar a busca Gemini.
  */
-export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
-    // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
+export async function performWebSearch(query: string, options: { count?: number; searchPrompt?: string } = {}): Promise<string | null> {
     const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
     if (apiKey) {
-        const result = await performGeminiSearch(query, apiKey);
+        const result = await performGeminiSearch(query, apiKey, {
+            searchPrompt: options.searchPrompt,
+        });
         if (result) return result;
-        scoutDiag.info('DocumentExtractor', 'Gemini indisponivel, fallback para DuckDuckGo');
+        scoutDiag.info('DocumentExtractor', 'Gemini Search indisponivel, fallback para DuckDuckGo/backup');
     }
-    // Fallback para DuckDuckGo
-    return performDuckDuckGoSearch(query);
+    return performDuckDuckGoSearch(query, apiKey);
 }
 
-async function performDuckDuckGoSearch(query: string): Promise<string | null> {
+async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Promise<string | null> {
     const cheerio = await import('cheerio');
-    scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (POST): ${query}`);
+    const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
-    try {
-        const response = await fetch('https://lite.duckduckgo.com/lite/', {
-            method: 'POST',
-            headers: {
-                'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0',
-                'Content-Type': 'application/x-www-form-urlencoded',
+    const endpoints = [
+        {
+            url: 'https://html.duckduckgo.com/html/',
+            selectors: {
+                container: '.web-result',
+                link: '.result__a',
+                snippet: '.result__snippet',
             },
-            body: `q=${encodeURIComponent(query)}`,
-            signal: AbortSignal.timeout(15000),
-        });
+        },
+        {
+            url: 'https://lite.duckduckgo.com/lite/',
+            selectors: {
+                container: null as string | null,
+                link: '.result-link',
+                snippet: '.result-snippet',
+            },
+            isLite: true,
+        },
+    ];
 
-        if (!response.ok) throw new Error(`Search failed: ${response.status}`);
+    for (const endpoint of endpoints) {
+        scoutDiag.info('DocumentExtractor', `Buscando DuckDuckGo (${endpoint.url}): ${query}`);
 
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        const results: string[] = [];
+        try {
+            const response = await fetch(endpoint.url, {
+                method: 'POST',
+                headers: {
+                    'User-Agent': userAgent,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `q=${encodeURIComponent(query)}`,
+                signal: AbortSignal.timeout(15000),
+            });
 
-        if (typeof process !== 'undefined' && process.memoryUsage) {
-            const memory = process.memoryUsage();
-            scoutDiag.info('DocumentExtractor', `Memória RAM: ${Math.round(memory.heapUsed / 1024 / 1024)}MB / ${Math.round(memory.rss / 1024 / 1024)}MB`);
+            if (!response.ok) continue;
+
+            const html = await response.text();
+
+            if (html.length < 200) continue;
+
+            const $ = cheerio.load(html);
+            const results: string[] = [];
+
+            if (typeof process !== 'undefined' && process.memoryUsage) {
+                const memory = process.memoryUsage();
+                scoutDiag.info('DocumentExtractor', `Memoria RAM: ${Math.round(memory.heapUsed / 1024 / 1024)}MB / ${Math.round(memory.rss / 1024 / 1024)}MB`);
+            }
+
+            if ('isLite' in endpoint && endpoint.isLite) {
+                $(endpoint.selectors.link).each((i, el) => {
+                    if (i >= 5) return;
+                    const title = $(el).text().trim();
+                    let url = $(el).attr('href') || '#';
+                    if (url.startsWith('//')) url = 'https:' + url;
+                    const snippet = $(el).closest('tr').next().find(endpoint.selectors.snippet).text().trim();
+                    results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+                });
+            } else {
+                $(endpoint.selectors.link).each((i, el) => {
+                    if (i >= 5) return;
+                    const title = $(el).text().trim();
+                    let url = $(el).attr('href') || '#';
+                    if (url.startsWith('//')) url = 'https:' + url;
+                    const snippet = $(el).closest(endpoint.selectors.container || '').find(endpoint.selectors.snippet).text().trim();
+                    results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+                });
+            }
+
+            if (results.length > 0) return results.join('\n');
+        } catch {
+            continue;
         }
-
-        $('.result-link').each((i, el) => {
-            if (i >= 5) return;
-            const title = $(el).text().trim();
-            let url = $(el).attr('href') || '#';
-
-            if (url.startsWith('//')) url = 'https:' + url;
-
-            const snippet = $(el).closest('tr').next().find('.result-snippet').text().trim();
-            results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
-        });
-
-        return results.join('\n') || 'Nenhum resultado encontrado.';
-    } catch (error) {
-        scoutDiag.error('DocumentExtractor', 'Erro na busca DuckDuckGo', error);
-        return null;
     }
+
+    if (geminiApiKey) {
+        try {
+            const text = await fetchGeminiSummaryOnly(query, geminiApiKey);
+            if (text) return text;
+        } catch {
+            scoutDiag.warn('DocumentExtractor', 'Gemini summary fallback falhou');
+        }
+    }
+
+    return null;
+}
+
+async function fetchGeminiSummaryOnly(query: string, apiKey: string): Promise<string | null> {
+    const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: `Provide a concise factual summary about: ${query}. Include key details, dates, and numbers if available.` }] }],
+                generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+            }),
+            signal: AbortSignal.timeout(20000),
+        },
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json() as {
+        candidates?: Array<{
+            content?: { parts?: Array<{ text?: string }> };
+        }>;
+    };
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text ? `Titulo: ${query}\nURL: (busca Gemini)\nResumo: ${text}\n---` : null;
 }
 
 /**
