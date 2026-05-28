@@ -974,17 +974,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
       }
       } finally {
-        // Delete do cache com timeout de 15s: se travar, não pode segurar o overlay.
-        scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache iniciou', { cacheName: foundationCacheName });
-        try {
-          await Promise.race([
-            deleteWaterfallFoundationCache(foundationCacheName),
-            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000)),
-          ]);
-          scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache concluído', { cacheName: foundationCacheName });
-        } catch {
-          scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro', { cacheName: foundationCacheName });
-        }
+        // Fire-and-forget: cache expira sozinho via TTL. Não pode bloquear o encerramento visual.
+        scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache iniciou (background)', { cacheName: foundationCacheName });
+        Promise.race([
+          deleteWaterfallFoundationCache(foundationCacheName),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000)),
+        ]).then(() => {
+          scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache concluído (background)', { cacheName: foundationCacheName });
+        }).catch(() => {
+          scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro (background)', { cacheName: foundationCacheName });
+        });
       }
     },
     [
