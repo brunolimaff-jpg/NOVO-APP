@@ -10,12 +10,201 @@
  * Como ativar logs completos em homologação/produção:
  *   Adicione na Vercel: VITE_VERBOSE_LOGS=true
  *
- * Como ver timers de performance no DevTools:
- *   Adicione na Vercel: VITE_DEBUG_CONSOLE=true
+ * DIAGNÓSTICO PERSISTENTE (Supabase):
+ *   Ativar: VITE_SCOUT_DIAGNOSTICS_ENABLED=true ou localStorage.SCOUT_DIAG_ENABLED='1'
+ *   Cada evento do scoutDiag é enviado em batch para /api/diagnostics → Supabase scout_diagnostics.
+ *   Se /api/diagnostics falhar, eventos são salvos em localStorage para retry.
  */
 
-const PREFIX = '🦅 [Scout360]';
+const PREFIX = '\u{1F985} [Scout360]';
 const TRACE_STORAGE_KEY = 'scoutTrace';
+const DIAG_BUFFER_KEY = '__SCOUT_DIAG_HISTORY__';
+const DIAG_LOCALSTORAGE_KEY = 'scout_diag_fallback';
+const DIAG_LOCALSTORAGE_MAX_KEYS = 5;
+const DIAG_FLUSH_INTERVAL_MS = 5_000;
+const DIAG_FLUSH_BATCH_SIZE = 10;
+const DIAG_FLUSH_TIMEOUT_MS = 3_000;
+
+// ── Buffer global ──────────────────────────────────────────────────
+
+interface DiagEntry {
+  at: string;
+  t: number;
+  runId: string;
+  sessionId?: string;
+  area: string;
+  event: string;
+  severity: string;
+  elapsedMs?: number;
+  payload?: Record<string, unknown>;
+}
+
+declare global {
+  interface Window {
+    [DIAG_BUFFER_KEY]?: DiagEntry[];
+    __SCOUT_DUMP_DIAG__?: () => DiagEntry[];
+    __SCOUT_FLUSH_DIAG__?: (reason: string) => void;
+  }
+}
+
+let diagRunId: string | null = null;
+let diagSessionId: string | null = null;
+let diagFlushTimer: ReturnType<typeof setTimeout> | null = null;
+let diagFlushing = false;
+
+function getDiagnosticsRunId(): string {
+  if (!diagRunId) {
+    diagRunId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+  return diagRunId;
+}
+
+export function setDiagnosticsSessionId(sessionId: string): void {
+  diagSessionId = sessionId;
+}
+
+function isDiagnosticsEnabled(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+
+    // Env var tem precedência: se explicitamente definida, ela decide
+    const envValue = typeof process !== 'undefined' && process.env
+      ? process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED
+      : (import.meta as any).env?.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+
+    if (envValue === 'true') return true;
+    if (envValue === 'false') return false;
+
+    // Se env var não está definida, localStorage pode ativar (útil em previews)
+    return window.localStorage?.getItem('SCOUT_DIAG_ENABLED') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function getOperatorId(): string | null {
+  try {
+    return window.localStorage?.getItem('scout360:operator_id') || null;
+  } catch {
+    return null;
+  }
+}
+
+function getBuffer(): DiagEntry[] {
+  if (typeof window === 'undefined') return [];
+  if (!window[DIAG_BUFFER_KEY]) {
+    window[DIAG_BUFFER_KEY] = [];
+  }
+  return window[DIAG_BUFFER_KEY]!;
+}
+
+function pushToBuffer(entry: DiagEntry): void {
+  if (!isDiagnosticsEnabled()) return;
+  const buffer = getBuffer();
+  buffer.push(entry);
+
+  // Keep max 500 events in memory
+  if (buffer.length > 500) {
+    buffer.splice(0, buffer.length - 500);
+  }
+
+  // Save a copy to localStorage as emergency fallback
+  try {
+    const recent = buffer.slice(-50);
+    window.localStorage?.setItem(DIAG_LOCALSTORAGE_KEY, JSON.stringify(recent));
+  } catch { /* quota exceeded, ignore */ }
+
+  // Flush immediately on errors
+  if (entry.severity === 'error') {
+    scheduleFlush('error');
+  }
+
+  // Flush on batch size
+  if (buffer.length % DIAG_FLUSH_BATCH_SIZE === 0) {
+    scheduleFlush('batch');
+  }
+}
+
+function scheduleFlush(reason: string): void {
+  if (diagFlushTimer) return; // already scheduled
+  diagFlushTimer = setTimeout(() => {
+    diagFlushTimer = null;
+    void flushToServer(reason);
+  }, reason === 'error' || reason === 'immediate' ? 0 : DIAG_FLUSH_INTERVAL_MS);
+}
+
+async function flushToServer(_reason: string): Promise<void> {
+  if (diagFlushing) return;
+  const buffer = getBuffer();
+  if (buffer.length === 0) return;
+
+  diagFlushing = true;
+  const events = buffer.splice(0, buffer.length);
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DIAG_FLUSH_TIMEOUT_MS);
+
+    const response = await fetch('/api/diagnostics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        runId: getDiagnosticsRunId(),
+        sessionId: diagSessionId,
+        operatorId: getOperatorId(),
+        environment: (import.meta as any).env?.MODE || 'unknown',
+        route: window.location?.pathname || '',
+        userAgent: navigator.userAgent || '',
+        events,
+      }),
+      signal: controller.signal,
+      keepalive: true,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      saveToLocalStorageFallback(events);
+    }
+  } catch {
+    saveToLocalStorageFallback(events);
+  } finally {
+    diagFlushing = false;
+  }
+}
+
+function saveToLocalStorageFallback(events: DiagEntry[]): void {
+  try {
+    const ls = window.localStorage;
+    if (!ls) return;
+
+    const key = `${DIAG_LOCALSTORAGE_KEY}_${Date.now()}`;
+    ls.setItem(key, JSON.stringify(events.slice(-50)));
+
+    // Prune old fallback keys — keep only the most recent N
+    const fallbackKeys: string[] = [];
+    for (let i = 0; i < ls.length; i++) {
+      const k = ls.key(i);
+      if (k?.startsWith(DIAG_LOCALSTORAGE_KEY)) {
+        fallbackKeys.push(k);
+      }
+    }
+    fallbackKeys.sort(); // oldest first (timestamps sort lexicographically)
+    while (fallbackKeys.length > DIAG_LOCALSTORAGE_MAX_KEYS) {
+      ls.removeItem(fallbackKeys.shift()!);
+    }
+  } catch { /* ignore */ }
+}
+
+export function flushDiagnosticsNow(reason: string): void {
+  if (diagFlushTimer) {
+    clearTimeout(diagFlushTimer);
+    diagFlushTimer = null;
+  }
+  void flushToServer(reason);
+}
+
+// ── Scout trace ────────────────────────────────────────────────────
 
 function normalizeTraceTarget(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -58,16 +247,17 @@ export function createScoutTraceId(target: string): string {
   return `${target}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// ── Verbose gate ───────────────────────────────────────────────────
+
 function isVerboseEnabled(): boolean {
   try {
-    // No Vercel/Node usar process.env, no Vite/Browser usar import.meta.env
-    const isDev = typeof process !== 'undefined' && process.env ? 
-                  process.env.NODE_ENV === 'development' : 
-                  (import.meta as any).env?.DEV === true;
+    const isDev = typeof process !== 'undefined' && process.env
+      ? process.env.NODE_ENV === 'development'
+      : (import.meta as any).env?.DEV === true;
 
-    const verbose = typeof process !== 'undefined' && process.env ?
-                    process.env.VITE_VERBOSE_LOGS === 'true' || process.env.VITE_DEBUG_CONSOLE === 'true' :
-                    (import.meta as any).env?.VITE_VERBOSE_LOGS === 'true' || (import.meta as any).env?.VITE_DEBUG_CONSOLE === 'true';
+    const verbose = typeof process !== 'undefined' && process.env
+      ? process.env.VITE_VERBOSE_LOGS === 'true' || process.env.VITE_DEBUG_CONSOLE === 'true'
+      : (import.meta as any).env?.VITE_VERBOSE_LOGS === 'true' || (import.meta as any).env?.VITE_DEBUG_CONSOLE === 'true';
 
     return isDev || verbose;
   } catch {
@@ -91,12 +281,8 @@ function safeDetails(details: Record<string, unknown> | undefined): unknown {
   }
 }
 
-/**
- * Timer de performance. Uso:
- *   const t = scoutDiag.startTimer('GeminiService', 'generateDossie');
- *   t.end({ chars: 1200 });
- *   t.fail(new Error('timeout'));
- */
+// ── Timer ──────────────────────────────────────────────────────────
+
 function startTimer(scope: string, label: string) {
   const start = performance.now();
   if (isVerboseEnabled()) {
@@ -111,7 +297,6 @@ function startTimer(scope: string, label: string) {
     },
     fail(err: unknown): void {
       const ms = (performance.now() - start).toFixed(1);
-      // fail sempre loga como error (visível em produção)
       console.error(
         `${PREFIX}[${scope}] ✖ ${label} falhou em ${ms}ms`,
         err instanceof Error ? { name: err.name, message: err.message } : err,
@@ -120,59 +305,80 @@ function startTimer(scope: string, label: string) {
   };
 }
 
-/** Alias de compatibilidade legado */
+// ── scoutDiag ──────────────────────────────────────────────────────
+
 export function isScoutDiagEnabled(): boolean {
   return isVerboseEnabled();
+}
+
+function diagEntry(
+  area: string,
+  event: string,
+  severity: string,
+  payload?: Record<string, unknown>,
+): void {
+  if (!isDiagnosticsEnabled()) return;
+  pushToBuffer({
+    at: new Date().toISOString(),
+    t: performance.now(),
+    runId: getDiagnosticsRunId(),
+    sessionId: diagSessionId || undefined,
+    area,
+    event,
+    severity,
+    payload,
+  });
 }
 
 export const scoutDiag = {
   trace(target: string, scope: string, message: string, details?: Record<string, unknown>): void {
     if (!isScoutTraceEnabled(target)) return;
-    console.info(`${PREFIX}[Trace:${target}][${scope}] ${message}`, safeDetails(details));
+    const entry = `${PREFIX}[Trace:${target}][${scope}] ${message}`;
+    console.info(entry, safeDetails(details));
+    diagEntry(scope, message, 'debug', { traceTarget: target, ...details });
   },
 
-  /**
-   * debug — só aparece em DEV ou com VITE_DEBUG_CONSOLE=true
-   * Use para rastreamento fino de estado interno.
-   */
   debug(scope: string, message: string, details?: Record<string, unknown>): void {
     if (!isVerboseEnabled()) return;
     console.debug(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    diagEntry(scope, message, 'debug', details);
   },
 
-  /**
-   * info — só aparece em DEV ou com VITE_VERBOSE_LOGS=true
-   * Use para milestones de fluxo (lookup concluído, RAG retornou N chunks, etc.)
-   */
   info(scope: string, message: string, details?: Record<string, unknown>): void {
     if (!isVerboseEnabled()) return;
     console.info(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    diagEntry(scope, message, 'info', details);
   },
 
-  /**
-   * warn — SEMPRE aparece em produção
-   * Use para degradações esperadas (fallback ativado, API lenta, dado ausente).
-   */
   warn(scope: string, message: string, details?: Record<string, unknown>): void {
     console.warn(`${PREFIX}[${scope}] ⚠ ${message}`, safeDetails(details));
+    diagEntry(scope, message, 'warn', details);
   },
 
-  /**
-   * error — SEMPRE aparece em produção
-   * Use para falhas reais que impactam o usuário.
-   */
   error(scope: string, message: string, details?: Record<string, unknown>): void {
     console.error(`${PREFIX}[${scope}] ✖ ${message}`, safeDetails(details));
+    diagEntry(scope, message, 'error', details);
   },
 
-  /**
-   * startTimer — mede performance de operações assíncronas.
-   * end() só loga em verbose; fail() sempre loga como error.
-   *
-   * Exemplo:
-   *   const t = scoutDiag.startTimer('GeminiService', 'generateDossie → Senior Sistemas');
-   *   try { await ...; t.end({ model }); }
-   *   catch(err) { t.fail(err); throw err; }
-   */
   startTimer,
 };
+
+// ── Dump helpers ───────────────────────────────────────────────────
+
+if (typeof window !== 'undefined') {
+  window.__SCOUT_DUMP_DIAG__ = () => {
+    const buffer = getBuffer();
+    console.table(buffer.slice(-50).map(e => ({
+      area: e.area,
+      event: e.event,
+      severity: e.severity,
+      elapsedMs: e.elapsedMs,
+      t: e.t,
+    })));
+    return [...buffer];
+  };
+
+  window.__SCOUT_FLUSH_DIAG__ = (reason: string) => {
+    flushDiagnosticsNow(reason);
+  };
+}

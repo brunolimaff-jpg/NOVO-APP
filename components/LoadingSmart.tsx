@@ -467,6 +467,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   // ── Fullscreen overlay ──
   const overlay = (
     <div
+      data-testid="loading-smart-overlay"
+      data-loading-variant={loadingVariant}
+      data-visible={isVisible}
+      data-fading-out={isFadingOut}
+      data-loading-context-key={loadingContextKey}
       className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain animate-overlay-enter ${
         isDarkMode ? 'bg-slate-950/95 text-slate-100' : 'bg-white/95 text-slate-800'
       } ${isFadingOut && !isLoading ? 'opacity-0 transition-opacity duration-400' : ''}`}

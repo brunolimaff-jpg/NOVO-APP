@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
 import { DossierStoreProvider } from './stores/dossierStore';
+import { flushDiagnosticsNow } from './utils/diagnosticLog';
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
@@ -105,6 +106,30 @@ if (typeof window !== 'undefined') {
       keys.forEach((k) => void window.caches.delete(k));
     });
   }
+}
+
+// ── Global error listeners — enviam stack + flush imediato dos diagnósticos ──
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    const { message, filename, lineno, colno, error } = event;
+    console.error('[Scout360][GlobalError] uncaught error', {
+      message,
+      filename,
+      lineno,
+      colno,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    flushDiagnosticsNow('global-error');
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    console.error('[Scout360][GlobalError] unhandled rejection', {
+      message: reason instanceof Error ? reason.message : String(reason),
+      stack: reason instanceof Error ? reason.stack : undefined,
+    });
+    flushDiagnosticsNow('unhandled-rejection');
+  });
 }
 
 const root = createRoot(rootElement);

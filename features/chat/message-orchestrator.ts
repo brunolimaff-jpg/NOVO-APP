@@ -12,7 +12,7 @@ import {
   type Message,
   type RunMegaPromptWaterfallArgs,
 } from '../../types';
-import { scoutDiag } from '../../utils/diagnosticLog';
+import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { extractCompanyName } from '../../utils/companyNameExtractor';
 import { cleanTitle, sanitizeLoadingContextText } from '../../utils/textCleaners';
@@ -164,6 +164,39 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     'runMegaPromptWaterfall',
   );
 
+  /**
+   * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
+   * Cada check captura estado do DOM, overlays, composer e viewport.
+   */
+  function schedulePostCompletionChecks(sessionId: string): void {
+    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    for (const delay of delays) {
+      setTimeout(() => {
+        try {
+          const bodyText = document.body?.innerText || '';
+          const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
+          const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
+          const composer = document.querySelector('[data-testid="composer-input"]');
+          const scroller = document.querySelector('[data-virtuoso-scroller]');
+
+          scoutDiag.info('PostCompletion', `check:${delay}ms`, {
+            sessionId,
+            bodyLen: bodyText.length,
+            containsDossie: /dossi[eê]/i.test(bodyText),
+            containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),
+            loadingOverlayExists: Boolean(loadingOverlay),
+            botMessageCount: botMessages.length,
+            botTextMaxLen: Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).innerText?.length || 0)),
+            composerDisabled: (composer as HTMLInputElement)?.disabled || false,
+            scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
+            documentReadyState: document.readyState,
+            activeElement: document.activeElement?.tagName || '',
+          });
+        } catch { /* non-critical DOM check */ }
+      }, delay);
+    }
+  }
+
   const processMessage = useCallback(
     async (
       text: string,
@@ -186,6 +219,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       setLoadingVariant(resolvedLoadingVariant);
       setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
       setIsLoading(true);
+      setDiagnosticsSessionId(sessionId);
+
+      scoutDiag.info('MessageOrchestrator', 'processMessage:start', {
+        sessionId,
+        requestKind: resolvedRequestKind,
+        loadingVariant: resolvedLoadingVariant,
+        textLen: text.length,
+      });
 
       const isFirstInteraction = Boolean(options?.isFirstInteraction);
       const isShortRound = Boolean(options?.isFollowUp || options?.isDeepDive);
@@ -280,6 +321,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
         if (isMegaPrompt) {
+          scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
+            sessionId,
+            company: normalizedCompany,
+          });
           await runMegaPromptWaterfall({
             sessionId,
             text,
@@ -293,6 +338,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             sessionCnpjDigits,
           });
           completeLoadingProgress();
+          scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
+            sessionId,
+          });
           return;
         }
 
@@ -404,6 +452,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           });
         }
       } catch (error: unknown) {
+        scoutDiag.warn('MessageOrchestrator', 'processMessage:catch', {
+          sessionId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          isAbort: isAbortLikeError(error),
+        });
+
         if (isAbortLikeError(error)) {
           setSessions(prev =>
             prev.map(session =>
@@ -440,10 +494,22 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
+        scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
+          sessionId,
+          requestKind: resolvedRequestKind,
+        });
+
         setIsLoading(false);
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
+
+        // Flush imediato dos diagnósticos — garante que eventos após o finally
+        // cheguem ao Supabase mesmo se a UI travar em seguida.
+        flushDiagnosticsNow('processMessage:finally');
+
+        // Agenda checks pós-finalização para monitorar DOM/composer/overlays
+        schedulePostCompletionChecks(sessionId);
       }
     },
     [

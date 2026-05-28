@@ -1,4 +1,5 @@
-import React, { memo, useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { scoutDiag } from '../utils/diagnosticLog';
 import { Message, Sender, AppError, Feedback, FeedbackSubmissionOptions } from '../types';
 import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
@@ -124,6 +125,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const showHeroLoading =
     isBot && msg.isThinking && loadingVariant === 'hero' && !hasSubstantiveText;
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
+  const contentRef = useRef<HTMLDivElement | null>(null);
   let content: React.ReactNode;
 
   useEffect(() => {
@@ -139,6 +141,28 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
       cancelled = true;
     };
   }, [auditableSources, msg.isSourcesOpen]);
+
+  // Mede dimensões do nó DOM real após commit, apenas para diagnóstico
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !msg.text) return;
+    const rect = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    scoutDiag.info('MessageRow', 'commit:dimensions', {
+      messageId: msg.id?.slice(0, 8),
+      sender: msg.sender,
+      textLen: msg.text.length,
+      rectW: Math.round(rect.width),
+      rectH: Math.round(rect.height),
+      offsetH: el.offsetHeight,
+      scrollH: el.scrollHeight,
+      clientH: el.clientHeight,
+      display: cs.display,
+      visibility: cs.visibility,
+      opacity: cs.opacity,
+      overflow: cs.overflow,
+    });
+  }, [msg.text, msg.id, msg.sender]);
 
   if (showHeroLoading) {
     // Hero loading lives in App.tsx via the fullscreen LoadingSmart overlay.
@@ -182,6 +206,10 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
     content = (
       <div
+        data-testid="message-row"
+        data-message-id={msg.id}
+        data-sender={msg.sender}
+        data-text-length={msg.text?.length ?? 0}
         className={`flex ${
           isBot ? 'justify-start' : 'justify-end'
         } animate-fade-in group/msg items-start gap-1.5 transition-opacity duration-300 ${
@@ -203,6 +231,13 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
           </button>
         )}
         <div
+          ref={contentRef}
+          {...(isBot ? {
+            'data-testid': 'bot-message-content',
+            'data-message-id': msg.id,
+            'data-sender': 'bot',
+            'data-text-length': msg.text?.length ?? 0,
+          } : {})}
           className={`rounded-2xl p-4 shadow-sm relative ${
             isBot
               ? `${isDarkMode ? 'bg-slate-900' : 'bg-white'} border ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'} px-3 md:px-5 py-3 md:py-4 w-full min-w-0 overflow-hidden`
