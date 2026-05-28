@@ -9,6 +9,7 @@ import HelpCenterFloating from '../HelpCenterFloating';
 import MessageRow, { type MessageRowData } from '../MessageRow';
 import { parseSmartOptions } from '../SmartOptions';
 import type { ChatTheme, RadarProps, StartInvestigationPayload } from './contracts';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 interface MessageTimelineProps {
   currentSession: ChatSession | null;
@@ -148,6 +149,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   );
 
   useEffect(() => {
+    scoutDiag.info('MessageTimeline', 'viewport readiness check', {
+      showInitialHome,
+      shouldSuspendVirtualizedList,
+      safeMessagesCount: safeMessages.length,
+      hasViewportRef: Boolean(messagesViewportRef.current),
+    });
+
     if (showInitialHome || shouldSuspendVirtualizedList) {
       setIsMessagesViewportReady(false);
       return;
@@ -155,8 +163,10 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
     const viewport = messagesViewportRef.current;
     if (!viewport) {
-      // Container ainda não existe no DOM — não marca como ready.
-      // O emergency timer (180ms) ou o ResizeObserver vão resolver quando o elemento aparecer.
+      scoutDiag.warn('MessageTimeline', 'viewport ref ausente — aguardando emergency timer', {
+        showInitialHome,
+        shouldSuspendVirtualizedList,
+      });
       return;
     }
 
@@ -169,12 +179,26 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = () => {
       if (!cancelled) {
+        const valid = hasValidSize();
+        scoutDiag.info('MessageTimeline', 'viewport marked ready', {
+          hasValidSize: valid,
+          clientHeight: viewport.clientHeight,
+          clientWidth: viewport.clientWidth,
+        });
         setIsMessagesViewportReady(true);
       }
     };
 
     setIsMessagesViewportReady(false);
-    emergencyTimer = window.setTimeout(markReady, 180);
+    emergencyTimer = window.setTimeout(() => {
+      if (!hasValidSize()) {
+        scoutDiag.warn('MessageTimeline', 'emergency timer disparou sem dimensão válida', {
+          clientHeight: viewport.clientHeight,
+          clientWidth: viewport.clientWidth,
+        });
+      }
+      markReady();
+    }, 180);
 
     if (hasValidSize()) {
       markReady();

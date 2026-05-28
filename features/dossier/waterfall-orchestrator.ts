@@ -918,6 +918,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
+      scoutDiag.info('ModularDossier', 'finalizando waterfall — antes do updateSessionById', {
+        sessionId,
+        company: resolvedMegaCompany || normalizedCompany || null,
+        accumulatedTextLength: accumulatedText.length,
+        botMessageId,
+      });
+
       let sessionToPersist: ChatSession | null = null;
       updateSessionById(sessionId, session => {
         const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
@@ -947,11 +954,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return nextSession;
       });
 
+      scoutDiag.info('ModularDossier', 'completeLoadingProgress chamado', {
+        sessionId,
+        company: resolvedMegaCompany || normalizedCompany || null,
+      });
       completeLoadingProgress();
 
       if (sessionToPersist) {
+        scoutDiag.info('ModularDossier', 'saveDossier iniciou', { sessionId });
         try {
           await storage.saveDossier(sessionToPersist);
+          scoutDiag.info('ModularDossier', 'saveDossier concluído', { sessionId });
         } catch (error) {
           scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
             sessionId,
@@ -962,7 +975,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       }
       } finally {
         // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
+        scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache iniciou', { cacheName: foundationCacheName });
         await deleteWaterfallFoundationCache(foundationCacheName);
+        scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache concluído', { cacheName: foundationCacheName });
       }
     },
     [

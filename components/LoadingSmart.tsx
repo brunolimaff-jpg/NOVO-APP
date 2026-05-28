@@ -9,6 +9,7 @@ import {
   LOADING_STAGE_ORDER_BY_KEY,
 } from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
+import { scoutDiag } from '../utils/diagnosticLog';
 import { ClockIcon, StepSpinner } from './LoadingShared';
 import { LoadingOverlayHeader } from './LoadingOverlayHeader';
 import { LoadingStepsList } from './LoadingStepsList';
@@ -135,6 +136,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const [confirmStop, setConfirmStop] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const curiositiesRef = useRef<string[]>([]);
   const [displayedCompleted, setDisplayedCompleted] = useState<string[]>([]);
   const [displayedCurrent, setDisplayedCurrent] = useState<string>('Preparando análise...');
@@ -318,6 +320,16 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     }
   }, []);
 
+  // ── Portal mount/unmount trace ──
+  useEffect(() => {
+    if (!isVisible) return;
+    scoutDiag.info('LoadingSmart', 'portal montado no DOM', { loadingVariant, loadingContextKey });
+    return () => {
+      scoutDiag.info('LoadingSmart', 'portal DESMONTADO do DOM', { loadingVariant, loadingContextKey });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible]);
+
   useEffect(() => {
     insightRequestIdRef.current += 1;
     clearInsightTimer();
@@ -396,17 +408,25 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   // ── 4. Visibility control ──
   useEffect(() => {
     if (isLoading) {
+      scoutDiag.info('LoadingSmart', 'visibility: show', { loadingContextKey, loadingVariant });
+      if (fadeoutTimerRef.current) { clearTimeout(fadeoutTimerRef.current); fadeoutTimerRef.current = null; }
       setIsVisible(true); setIsFadingOut(false); setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
     } else {
+      scoutDiag.info('LoadingSmart', 'visibility: fadeout iniciado', { loadingContextKey, loadingVariant });
       clearInsightTimer();
       setIsFadingOut(true);
-      setTimeout(() => setIsVisible(false), FADE_DURATION);
+      fadeoutTimerRef.current = setTimeout(() => {
+        scoutDiag.info('LoadingSmart', 'visibility: hide após fadeout');
+        setIsVisible(false);
+        fadeoutTimerRef.current = null;
+      }, FADE_DURATION);
     }
     return () => {
       clearInsightTimer();
+      if (fadeoutTimerRef.current) { clearTimeout(fadeoutTimerRef.current); fadeoutTimerRef.current = null; }
     };
-  }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey]);
+  }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey, loadingVariant]);
 
   const handleRequestStop = useCallback(() => setConfirmStop(true), []);
   const handleCancelStop = useCallback(() => setConfirmStop(false), []);
@@ -467,6 +487,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   // ── Fullscreen overlay ──
   const overlay = (
     <div
+      data-testid="loading-smart-overlay"
       className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto overscroll-contain animate-overlay-enter ${
         isDarkMode ? 'bg-slate-950/95 text-slate-100' : 'bg-white/95 text-slate-800'
       } ${isFadingOut && !isLoading ? 'opacity-0 transition-opacity duration-400' : ''}`}

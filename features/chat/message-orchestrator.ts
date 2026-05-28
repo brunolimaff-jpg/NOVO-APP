@@ -440,6 +440,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
+        scoutDiag.info('MessageOrchestrator', 'finally: desligando loading', {
+          sessionId,
+          requestKind,
+          loadingVariant: resolveLoadingVariant({ requestKind: resolvedRequestKind ?? 'default', isFollowUp: options?.isFollowUp }),
+          hasSessions: sessionsRef.current.length,
+        });
         setIsLoading(false);
         setRequestKind('default');
         setLoadingPinnedLabel(null);
