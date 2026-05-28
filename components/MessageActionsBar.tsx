@@ -6,6 +6,7 @@ import { FEEDBACK_REASONS } from '../constants';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 import { openPrintReportWindow } from '../utils/printExport';
 import { sanitizeSensitivePersonalData } from '../utils/privacy';
+import { trackOperatorEvent } from '../services/operatorTracking';
 
 interface MessageActionsBarProps {
   content: string;
@@ -128,6 +129,14 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   };
 
   const handleShare = async () => {
+    const operatorId = localStorage.getItem('scout360:operator_id') || '';
+
+    trackOperatorEvent('dossier_shared', {
+      operatorId,
+      email: localStorage.getItem('scout360:operator_email') || undefined,
+      entityType: 'message',
+    });
+
     if (navigator.share) {
       try {
         await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: sanitizeSensitivePersonalData(content) });

@@ -30,6 +30,7 @@ import {
   resolveHintedCompany,
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
+import { trackOperatorEvent } from '../../services/operatorTracking';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -80,6 +81,8 @@ export interface UseChatMessageOrchestratorOptions {
   investigationLogged: boolean;
   setInvestigationLogged: Dispatch<SetStateAction<boolean>>;
   runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<void>;
+  operatorId?: string;
+  email?: string;
 }
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
@@ -163,6 +166,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     options.runMegaPromptWaterfall,
     'runMegaPromptWaterfall',
   );
+  const operatorId = options.operatorId ?? '';
+  const email = options.email ?? '';
 
   let cleanupPostCompletion: (() => void) | null = null;
 
@@ -320,6 +325,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       );
       setVisibleCount(prev => prev + 1);
 
+      let isWaterfall = false;
+
       try {
         const normalizedUpperText = text
           .normalize('NFD')
@@ -327,8 +334,18 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           .toUpperCase();
         const isMegaPrompt =
           normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
-
         if (isMegaPrompt) {
+          isWaterfall = true;
+
+          trackOperatorEvent('dossier_started', {
+            operatorId,
+            email,
+            entityType: 'session',
+            entityId: sessionId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
+          });
+
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
             company: normalizedCompany,
@@ -346,6 +363,16 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             sessionCnpjDigits,
           });
           completeLoadingProgress();
+
+          trackOperatorEvent('dossier_completed', {
+            operatorId,
+            email,
+            entityType: 'session',
+            entityId: sessionId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
+          });
+
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
           });
@@ -485,6 +512,20 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
 
         if (activeGenerationRef.current[sessionId] !== botMessageId) return;
+
+        if (isWaterfall) {
+          trackOperatorEvent('dossier_failed', {
+            operatorId,
+            email,
+            entityType: 'session',
+            entityId: sessionId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
+            metadata: {
+              errorMessage: error instanceof Error ? error.message : String(error),
+            },
+          });
+        }
 
         const appError = normalizeAppError(error as Error);
         updateSessionById(sessionId, session => ({

@@ -7,6 +7,7 @@ import { syncQueue } from './syncQueue';
 import type { SyncOperation } from './syncQueue';
 import type { ChatSession } from '../types';
 import { mergeChatSessions } from '../utils/mergeChatSessions';
+import { trackOperatorEvent } from './operatorTracking';
 
 interface SyncResult {
   pushed: number;
@@ -391,10 +392,12 @@ export const storage = {
     const operatorId = data.operatorId;
     if (!operatorId) return; // Local-only until registered
 
+    const emailNormalized = data.email?.toLowerCase().trim() || '';
     const payload = {
       operator_id: data.operatorId,
       display_name: data.name,
       email: data.email,
+      email_normalized: emailNormalized,
       last_seen: new Date().toISOString(),
     };
 
@@ -456,10 +459,13 @@ export const storage = {
   async findUserByEmail(email: string): Promise<{ operatorId: string; displayName: string } | null> {
     if (!isSupabaseAvailable()) return null;
 
+    const emailNormalized = email?.toLowerCase().trim() || '';
+    if (!emailNormalized) return null;
+
     const { data, error } = await supabase!
       .from('user_context')
       .select('operator_id, display_name')
-      .eq('email', email)
+      .eq('email_normalized', emailNormalized)
       .maybeSingle();
 
     if (error || !data) return null;
@@ -605,6 +611,15 @@ export const storage = {
       console.error('[Storage] Failed to share dossier:', error);
       return null;
     }
+
+    trackOperatorEvent('dossier_shared', {
+      operatorId,
+      email: localStorage.getItem('scout360:operator_email') || undefined,
+      entityType: 'shared_dossier',
+      entityId: dossierId,
+      companyCnpj: dossier.cnpj || undefined,
+      companyName: dossier.empresaAlvo || undefined,
+    });
 
     return token;
   },

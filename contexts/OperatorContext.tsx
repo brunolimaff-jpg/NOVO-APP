@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { storageGet, storageRemove, storageSet } from '../utils/idbStorage';
 import { storage } from '../services/storage';
+import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 
 export interface OperatorProfile {
   operatorId: string;
@@ -62,6 +63,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [email, setOperatorEmail] = useState<string>(() => getSavedOperatorEmail());
   const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
   const didBackfillRef = useRef(false);
+  const didTrackAppOpenRef = useRef(false);
 
   const setName = useCallback((nextName: string) => {
     const normalizedName = nextName.trim();
@@ -102,6 +104,17 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       name: normalizedName,
       email: normalizedEmail,
     });
+
+    // Tracking
+    if (!didTrackAppOpenRef.current) {
+      didTrackAppOpenRef.current = true;
+      initSessionTracking(operatorId, normalizedEmail);
+    }
+    trackOperatorEvent('operator_registered', {
+      operatorId,
+      email: normalizedEmail,
+    });
+
     storage.scheduleDossierSync({ pull: true });
   }, [operatorId]);
 
@@ -111,7 +124,31 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     didBackfillRef.current = true;
     void storage.saveUserContext({ operatorId, name, email });
+
+    // Tracking de sessaoo — dispara apenas 1x por montagem do provider
+    if (!didTrackAppOpenRef.current) {
+      didTrackAppOpenRef.current = true;
+      initSessionTracking(operatorId, email);
+    }
   }, [email, name, operatorId]);
+
+  // Listeners de encerramento de sessaoo
+  useEffect(() => {
+    const handlePageHide = () => endOperatorSession('pagehide');
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        endOperatorSession('visibility_hidden');
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   const clearName = useCallback(() => {
     storageRemove(OPERATOR_NAME_KEY);
@@ -128,6 +165,13 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Sync to Supabase
     void storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
+
+    // Tracking (se ainda nao disparou nesta sessao)
+    if (!didTrackAppOpenRef.current) {
+      didTrackAppOpenRef.current = true;
+      initSessionTracking(existingOperatorId, existingEmail);
+    }
+
     storage.scheduleDossierSync({ pull: true });
   }, []);
 

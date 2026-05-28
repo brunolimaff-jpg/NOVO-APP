@@ -99,7 +99,7 @@ function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): bool
 }
 
 const App: React.FC = () => {
-  const { name: operatorName, operatorId, clearName } = useOperator();
+  const { name: operatorName, operatorId, email, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -233,6 +233,8 @@ const App: React.FC = () => {
     canUseLookup,
     toast,
     runMegaPromptWaterfall: dossierWaterfall.runMegaPromptWaterfall,
+    operatorId,
+    email,
   });
 
   const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string, cnpj?: string | null) => {

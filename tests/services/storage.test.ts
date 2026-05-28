@@ -469,6 +469,7 @@ describe('storage', () => {
         operator_id: 'operator-123',
         display_name: 'Test Operator',
         email: 'test@example.com',
+        email_normalized: 'test@example.com',
         last_seen: expect.any(String),
       }, { onConflict: 'operator_id' });
       expect(syncQueue.enqueue).not.toHaveBeenCalled();

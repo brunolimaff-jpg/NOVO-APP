@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeOperator } from '../../contexts/OperatorContext';
 import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
+import { trackOperatorEvent } from '../../services/operatorTracking';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
 import type { ChatSession } from '../../types';
@@ -98,6 +99,7 @@ export function useSessionRemoteSave(options: UseSessionRemoteSaveOptions = {}) 
 export function useSessionManager(options: Partial<UseSessionManagerOptions> = {}) {
   const chatStore = useMaybeChatStore();
   const dossierStore = useMaybeDossierStore();
+  const operator = useMaybeOperator();
 
   const sessions = options.sessions ?? chatStore?.sessions ?? [];
   const setSessions = requireDependency(options.setSessions ?? chatStore?.setSessions, 'setSessions');
@@ -203,6 +205,17 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       setCurrentSessionId(sessionId);
       resetSessionUI();
       const targetSession = sessions.find(session => session.id === sessionId);
+
+      if (operator?.operatorId) {
+        trackOperatorEvent('dossier_opened', {
+          operatorId: operator.operatorId,
+          email: operator.email,
+          entityType: 'session',
+          entityId: sessionId,
+          companyCnpj: targetSession?.cnpj || undefined,
+          companyName: targetSession?.empresaAlvo || undefined,
+        });
+      }
 
       if (targetSession && targetSession.messages.length === 0) {
         try {
