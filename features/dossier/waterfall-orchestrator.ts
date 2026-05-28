@@ -974,10 +974,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
       }
       } finally {
-        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
+        // Delete do cache com timeout de 15s: se travar, não pode segurar o overlay.
         scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache iniciou', { cacheName: foundationCacheName });
-        await deleteWaterfallFoundationCache(foundationCacheName);
-        scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache concluído', { cacheName: foundationCacheName });
+        try {
+          await Promise.race([
+            deleteWaterfallFoundationCache(foundationCacheName),
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error('CACHE_DELETE_TIMEOUT')), 15_000)),
+          ]);
+          scoutDiag.info('ModularDossier', 'deleteWaterfallFoundationCache concluído', { cacheName: foundationCacheName });
+        } catch {
+          scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache ignorado por timeout/erro', { cacheName: foundationCacheName });
+        }
       }
     },
     [
