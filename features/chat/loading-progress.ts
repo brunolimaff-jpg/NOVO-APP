@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   finalizeLoadingProgress,
   startIncrementalLoadingProgress,
   transitionLoadingProgress,
 } from '../../utils/loadingStatus';
 import type { LoadingVariant, RequestKind } from '../../utils/loadingVariant';
+import { updateVisibilityState } from '../../utils/diagnosticLog';
 
 interface LoadingProgressState {
   stage: string;
@@ -41,6 +42,15 @@ export function useChatLoadingProgress() {
     completedStages: [],
     totalStages: undefined,
   });
+
+  // Sincroniza estado do loading para listeners de visibilidade (fora do ciclo React)
+  useEffect(() => {
+    updateVisibilityState({
+      isLoading,
+      loadingVariant,
+      requestKind,
+    });
+  }, [isLoading, loadingVariant, requestKind]);
 
   const commitLoadingProgress = useCallback((nextState: CommitLoadingProgressInput) => {
     const updated = {

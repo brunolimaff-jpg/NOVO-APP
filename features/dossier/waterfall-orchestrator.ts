@@ -600,6 +600,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let identityResult: string;
 
         try {
+          const identityStart = performance.now();
           identityResult = await generateDossierModule(
             'Teia Societaria — Identidade',
             resolvedMegaCompany || 'Empresa',
@@ -613,6 +614,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ...sharedDossierModuleOptions,
             },
           );
+          const identityElapsed = performance.now() - identityStart;
+          scoutDiag.info('Waterfall', 'module:complete', { module: 'Teia Societaria — Identidade', elapsedMs: identityElapsed });
+          if (identityElapsed > 60_000) {
+            scoutDiag.warn('Waterfall', 'module:deadline', { module: 'Teia Societaria — Identidade', elapsedMs: identityElapsed });
+          }
         } catch (identityError) {
           if (isAbortLikeError(identityError)) throw identityError;
 
@@ -670,6 +676,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         if (complexity === 'MEDIA' || complexity === 'ALTA') {
           try {
+            const deepStart = performance.now();
             const deepResult = await generateDossierModule(
               'Teia Societaria — Profundidade',
               resolvedMegaCompany || 'Empresa',
@@ -683,6 +690,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 ...sharedDossierModuleOptions,
               },
             );
+            const deepElapsed = performance.now() - deepStart;
+            scoutDiag.info('Waterfall', 'module:complete', { module: 'Teia Societaria — Profundidade', elapsedMs: deepElapsed });
+            if (deepElapsed > 60_000) {
+              scoutDiag.warn('Waterfall', 'module:deadline', { module: 'Teia Societaria — Profundidade', elapsedMs: deepElapsed });
+            }
             combinedTeiaText += '\n\n---\n\n' + deepResult;
             advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
           } catch (deepError) {
@@ -740,7 +752,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           if (index === FIRST_MODULE_INDEX) {
             moduleResult = await runTeiaSocietariaOrchestration();
           } else {
+            const modStart = performance.now();
             moduleResult = await runWaterfallModule(module, accumulatedText);
+            const modElapsed = performance.now() - modStart;
+            scoutDiag.info('Waterfall', 'module:complete', { module: module.name, elapsedMs: modElapsed });
+            if (modElapsed > 60_000) {
+              scoutDiag.warn('Waterfall', 'module:deadline', { module: module.name, elapsedMs: modElapsed });
+            }
           }
           appendWaterfallChunk(moduleResult);
           optionalStepFailures.delete(module.name);

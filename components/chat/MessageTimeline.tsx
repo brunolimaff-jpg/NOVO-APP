@@ -1,3 +1,4 @@
+import { scoutDiag } from '../../utils/diagnosticLog';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
@@ -120,6 +121,37 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     return () => {
       if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
     };
+  }, []);
+
+  // ── Virtuoso diagnostic mount/unmount ──
+  useEffect(() => {
+    if (!isMessagesViewportReady) return;
+    const viewport = messagesViewportRef.current;
+    scoutDiag.info('Virtuoso', 'virtuoso:mount', {
+      viewportWidth: viewport?.clientWidth ?? 0,
+      viewportHeight: viewport?.clientHeight ?? 0,
+      totalItems: safeMessages.length,
+      overscan: virtuosoOverscan,
+    });
+    return () => {
+      scoutDiag.info('Virtuoso', 'virtuoso:unmount', {
+        totalItems: safeMessages.length,
+      });
+    };
+  }, [isMessagesViewportReady]);
+
+  const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
+    scoutDiag.info('Virtuoso', 'virtuoso:itemsRendered', {
+      firstIndex: range.startIndex,
+      lastIndex: range.endIndex,
+      totalItems: safeMessages.length,
+    });
+  }, [safeMessages.length]);
+
+  const handleAtBottomChange = useCallback((atBottom: boolean) => {
+    scoutDiag.info('Virtuoso', 'virtuoso:atBottomStateChange', {
+      atBottom,
+    });
   }, []);
 
   const lastBotWithSuggestionsIndex = useMemo(
@@ -309,7 +341,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           </div>
         </div>
       ) : (
-        <div ref={messagesViewportRef} className="h-full min-h-0 w-full">
+        <div ref={messagesViewportRef} className="h-full min-h-0 w-full" data-scout-virtuoso="timeline">
           {isMessagesViewportReady ? (
             <Virtuoso
               ref={virtuosoRef}
@@ -320,6 +352,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               followOutput={false}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
+              rangeChanged={handleRangeChanged}
+              atBottomStateChange={handleAtBottomChange}
               style={{ height: '100%' }}
               components={{
                 Header: () =>
