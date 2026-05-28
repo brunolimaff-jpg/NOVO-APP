@@ -53,6 +53,7 @@ import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
+import type { PortaScoreResolution } from '../../utils/porta';
 import {
   ensureWaterfallScorePorta,
   reconcileWaterfallPorta,
@@ -431,9 +432,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         waterfallVerificationStatuses.set(moduleName, status);
       };
 
+      // Helper para racear uma promise contra AbortSignal
+      const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
+        if (!sig) return promise;
+        if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
+        return new Promise<T>((resolve, reject) => {
+          const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
+          sig.addEventListener('abort', onAbort, { once: true });
+          promise.then(
+            v => { sig.removeEventListener('abort', onAbort); resolve(v); },
+            e => { sig.removeEventListener('abort', onAbort); reject(e); }
+          );
+        });
+      };
+
       if (lookupTarget) {
         try {
-          const clienteData = await lookupCliente(lookupTarget);
+          const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
           waterfallLookupContext = formatarParaPrompt(clienteData);
           waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
         } catch (error) {
@@ -768,26 +783,50 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
       }
 
-      const {
-        accumulatedText: reconciledText,
-        resolution: waterfallPortaResolution,
-        portaIntegrityHold,
-      } = await reconcileWaterfallPorta({
-        sessionId,
-        signal,
-        resolvedMegaCompany,
-        sessionCnpjDigits,
-        dossierSeedContext,
-        waterfallLookupContext,
-        seniorEvidenceContext,
-        staticDossierContext,
-        foundationCacheName,
-        accumulatedText,
-        modulesByName,
-        runWaterfallModule,
-        optionalStepFailures,
-        setFailureCount,
-      });
+      const PORTA_RECONCILIATION_TIMEOUT_MS = 120_000;
+
+      let reconciledText: string = accumulatedText;
+      let waterfallPortaResolution: PortaScoreResolution | null = null;
+      let portaIntegrityHold = false;
+      let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+      try {
+        const result = await Promise.race([
+          reconcileWaterfallPorta({
+            sessionId,
+            signal,
+            resolvedMegaCompany,
+            sessionCnpjDigits,
+            dossierSeedContext,
+            waterfallLookupContext,
+            seniorEvidenceContext,
+            staticDossierContext,
+            foundationCacheName,
+            accumulatedText,
+            modulesByName,
+            runWaterfallModule,
+            optionalStepFailures,
+            setFailureCount,
+          }),
+          new Promise<never>((_, reject) => {
+            portaTimeoutId = setTimeout(() => reject(new Error('PORTA reconciliation timeout')), PORTA_RECONCILIATION_TIMEOUT_MS);
+          }),
+        ]);
+        reconciledText = result.accumulatedText;
+        waterfallPortaResolution = result.resolution;
+        portaIntegrityHold = result.portaIntegrityHold;
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        scoutDiag.warn('ModularDossier', 'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado', {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        optionalStepFailures.add('porta-reconciliation');
+        setFailureCount((prev: number) => prev + 1);
+        portaIntegrityHold = true;
+      } finally {
+        if (portaTimeoutId) clearTimeout(portaTimeoutId);
+      }
       accumulatedText = reconciledText;
 
       if (optionalStepFailures.size > 0) {
@@ -798,7 +837,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         setFailureCount(0);
       }
 
-      const waterfallScorePorta = portaIntegrityHold
+      const waterfallScorePorta = portaIntegrityHold || !waterfallPortaResolution
         ? null
         : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
       const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();

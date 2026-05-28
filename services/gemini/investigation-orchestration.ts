@@ -298,7 +298,24 @@ export async function sendMessageToGemini(
 
   void nomeVendedor;
 
-  if (signal?.aborted) throw new Error('AbortError');
+  // Helper para racear uma promise contra AbortSignal
+  const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
+    if (!sig) return promise;
+    if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
+      sig.addEventListener('abort', onAbort, { once: true });
+      promise.then(
+        v => { sig.removeEventListener('abort', onAbort); resolve(v); },
+        e => { sig.removeEventListener('abort', onAbort); reject(e); }
+      );
+    });
+  };
+
+  if (signal?.aborted) {
+    const abortErr = new DOMException('The operation was aborted', 'AbortError');
+    throw abortErr;
+  }
   emitDossieStatus(onStatus, 'intent');
   emitDossieStatus(onStatus, 'complexity');
 
@@ -353,7 +370,7 @@ export async function sendMessageToGemini(
       target: String(targetCompanyForLookup).slice(0, 80),
     });
     try {
-      const lookupPromises: Promise<unknown>[] = [lookupCliente(targetCompanyForLookup)];
+      const lookupPromises: Promise<unknown>[] = [withAbortSignal(lookupCliente(targetCompanyForLookup), signal)];
       const cleanCnpj = cnpjDetected || '';
       if (cleanCnpj.length === 14) {
         // TODO: A API /api/comex atual usa um mock determinístico para simular exportadores.
@@ -418,8 +435,8 @@ export async function sendMessageToGemini(
     emitDossieStatus(onStatus, 'rag');
     try {
       const [pinecone, docs] = await Promise.all([
-        buscarContextoPinecone(userMessage, empresaAlvo || ''),
-        buscarContextoDocsPinecone(userMessage),
+        withAbortSignal(buscarContextoPinecone(userMessage, empresaAlvo || ''), signal),
+        withAbortSignal(buscarContextoDocsPinecone(userMessage), signal),
       ]);
       ragContext = pinecone.context;
       ragDocsContext = docs.context;
@@ -435,7 +452,8 @@ export async function sendMessageToGemini(
   if (isMegaPromptMessage) {
     emitDossieStatus(onStatus, 'concorrentes');
     try {
-      concorrentesContext = await getContextoConcorrentesRegionais(empresaAlvo || userMessage);
+      if (signal?.aborted) throw new DOMException('The operation was aborted', 'AbortError');
+      concorrentesContext = getContextoConcorrentesRegionais(empresaAlvo || userMessage);
     } catch (error: unknown) {
       scoutDiag.warn('Concorrentes', 'falha ao montar contexto regional', {
         error: error instanceof Error ? error.message : String(error),
@@ -822,20 +840,5 @@ export async function getIsolatedBenchmark(
 
   if (!benchmarkResult || !benchmarkResult.ok || !benchmarkResult.results?.length) return '';
 
-  const benchmarkPrompt = formatarBenchmarkParaPrompt(benchmarkResult as BenchmarkResponse, empresaAlvo);
-
-  const response = await proxyGenerateContent(
-    {
-      model: TACTICAL_MODEL_ID,
-      contents: `Sua tarefa é formatar Referências de Mercado Estratégicas para a empresa: ${empresaAlvo}.
-Use EXCLUSIVAMENTE os dados abaixo:
-${benchmarkPrompt}
-
-Diretriz: Crie um bloco de alto impacto para o final do dossiê, listando cases similares atendidos pela Senior.`,
-      config: { temperature: 0.1 },
-    },
-    options.signal,
-  );
-
-  return applyPromptLeakShield(response.text || '', { companyHint: empresaAlvo }).text;
+  return formatarBenchmarkParaPrompt(benchmarkResult as BenchmarkResponse, empresaAlvo);
 }

@@ -1,6 +1,26 @@
 # Decisions
 
-Last updated: 2026-05-25
+Last updated: 2026-05-27
+
+## 2026-05-27 - PR #302: React.memo + lookup O(1) + processingKey string concat
+
+Decision: `dossierLinkIntegrity.ts` usa `buildPoolLookupMap()` com Map lookup (prefixo título → URL, hostname → URL) pré-construído em vez de O(n) scan por link. `LoadingSmart.tsx` usa `React.memo` e `processingKey` como concatenação direta de string (não useMemo). Títulos de fonte com < 3 chars filtrados para evitar falsos positivos.
+
+Reason: matching por substring em pool cumulativo gera falsos positivos com chaves curtas (ex: "de", "a"). `useMemo` para strings primitivas é desnecessário — React compara `===` em deps de useEffect. Lookup pré-construído evita `new URL()` no loop de integridade.
+
+Contract: `buildPoolLookupMap()` valida `title.length >= 3` e `host.length >= 3`; `processingKey` é string concatenada estável para useEffect; `React.memo` aplicado onde re-renders eram identificados como hotspots.
+
+Refs: PR #302, `utils/dossierLinkIntegrity.ts`, `components/LoadingSmart.tsx`.
+
+## 2026-05-27 - PR #301: Pool de fontes cumulativo + pipeline idempotente + 3 categorias de fontes
+
+Decision: `sessionSourcePool` acumula `DossierSourceRef[]` entre modulos do waterfall e injeta como `[FONTES DISPONIVEIS PARA CITACAO]` no extraContext. `finalizeDossierMarkdown` roda uma vez ao final (idempotente): integridade -> auditoria -> rodape. Fontes em 3 categorias: `inline_citation`, `consulted_not_cited`, `inferred_without_url`. Fallback `continue` em vez de `break`.
+
+Reason: grounding retorna 0 URLs frequentemente; pool cumulativo evita que modulos inventem links. Pipeline unico no final evita duplicacao. 3 categorias dao transparencia ao usuario.
+
+Contract: `mergeDossierSourceRefs` cumulativo; `finalizeDossierMarkdown` chamado uma vez no fim do waterfall; `shouldSuspendHeroMessageTimeline` separa overlay de suspensao; fonte inferida nunca aparece como citada.
+
+Refs: vault `30-DECISOES/FECHAMENTO-LINKS-FONTES-PR301-2026-05-27.md`, vault `20-SESSOES/2026-05/2026-05-27T14-00-00-dossier-link-integrity-fontes-pr301.md`, `utils/dossierFinalize.ts`, `utils/dossierSourcePool.ts`, `utils/dossierLinkIntegrity.ts`.
 
 ## 2026-05-25 - P0 Teia CNPJ: QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo
 

@@ -378,14 +378,14 @@ describe('sendMessageToGemini — cenários de erro', () => {
     const controller = new AbortController();
     controller.abort();
 
-    // geminiService lança `new Error('AbortError')` — message='AbortError', name='Error'
+    // geminiService lança DOMException com name='AbortError'
     await expect(
       sendMessageToGemini('Analise a Fazenda X', [], 'system instruction', {
         signal: controller.signal,
         onText: vi.fn(),
         onStatus: vi.fn(),
       }),
-    ).rejects.toMatchObject({ message: 'AbortError' });
+    ).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('propaga erro de rede quando o proxy falha', async () => {
