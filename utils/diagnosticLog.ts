@@ -20,6 +20,7 @@ const PREFIX = '\u{1F985} [Scout360]';
 const TRACE_STORAGE_KEY = 'scoutTrace';
 const DIAG_BUFFER_KEY = '__SCOUT_DIAG_HISTORY__';
 const DIAG_LOCALSTORAGE_KEY = 'scout_diag_fallback';
+const DIAG_VISIBILITY_KEY = 'scout_diag_visibility';
 const DIAG_LOCALSTORAGE_MAX_KEYS = 5;
 const DIAG_FLUSH_INTERVAL_MS = 5_000;
 const DIAG_FLUSH_BATCH_SIZE = 10;
@@ -133,8 +134,8 @@ function scheduleFlush(reason: string): void {
   }, reason === 'error' || reason === 'immediate' ? 0 : DIAG_FLUSH_INTERVAL_MS);
 }
 
-async function flushToServer(_reason: string): Promise<void> {
-  if (diagFlushing) return;
+async function flushToServer(_reason: string, force = false): Promise<void> {
+  if (diagFlushing && !force) return;
   const buffer = getBuffer();
   if (buffer.length === 0) return;
 
@@ -203,12 +204,160 @@ function saveToLocalStorageFallback(events: DiagEntry[]): void {
   } catch { /* ignore */ }
 }
 
-export function flushDiagnosticsNow(reason: string): void {
+export function flushDiagnosticsNow(reason: string, force = false): void {
   if (diagFlushTimer) {
     clearTimeout(diagFlushTimer);
     diagFlushTimer = null;
   }
-  void flushToServer(reason);
+  void flushToServer(reason, force);
+}
+
+// ── Visibility tracking ─────────────────────────────────────────────
+
+interface VisibilityState {
+  isLoading: boolean;
+  loadingVariant: string;
+  requestKind: string;
+}
+
+const visibilityState: VisibilityState = {
+  isLoading: false,
+  loadingVariant: 'hero',
+  requestKind: 'default',
+};
+
+let visibilityHiddenAt: number | null = null;
+let visibilityTrackingSetup = false;
+
+export function updateVisibilityState(patch: Partial<VisibilityState>): void {
+  Object.assign(visibilityState, patch);
+}
+
+/**
+ * Atualiza o timestamp de hidden para agora — usado quando pagehide/freeze
+ * disparam sem um visibilitychange:hidden prévio (ex: Safari mobile).
+ */
+function ensureHiddenAt(): void {
+  if (visibilityHiddenAt === null && document.visibilityState === 'hidden') {
+    visibilityHiddenAt = Date.now();
+  }
+}
+
+function buildVisibilityPayload(extra?: Record<string, unknown>): Record<string, unknown> {
+  // textContent evita reflow forçado do innerText — não considera CSS,
+  // mas para checagem de presença de "Dossiê" no DOM é suficiente
+  const bodyText = document.body?.textContent || '';
+  return {
+    visibilityState: document.visibilityState,
+    isLoading: visibilityState.isLoading,
+    loadingVariant: visibilityState.loadingVariant,
+    requestKind: visibilityState.requestKind,
+    bodyLen: bodyText.length,
+    containsDossie: /dossi[eê]/i.test(bodyText),
+    containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),
+    ...extra,
+  };
+}
+
+function pushVisibilityEvent(
+  event: string,
+  severity: 'info' | 'warn',
+  extra?: Record<string, unknown>,
+): void {
+  if (!isDiagnosticsEnabled()) return;
+  pushToBuffer({
+    at: new Date().toISOString(),
+    t: performance.now(),
+    runId: getDiagnosticsRunId(),
+    sessionId: diagSessionId || undefined,
+    area: 'Visibility',
+    event,
+    severity,
+    payload: buildVisibilityPayload(extra),
+  });
+
+  // Salva evento de visibilidade em chave dedicada no localStorage
+  // para sobreviver a descarte de tab (pagehide/freeze)
+  try {
+    const ls = window.localStorage;
+    if (ls) {
+      const existing = JSON.parse(ls.getItem(DIAG_VISIBILITY_KEY) || '[]');
+      existing.push({
+        at: new Date().toISOString(),
+        t: Math.round(performance.now()),
+        event,
+        visibilityState: document.visibilityState,
+        isLoading: visibilityState.isLoading,
+        hiddenDurationMs: extra?.hiddenDurationMs ?? null,
+      });
+      ls.setItem(DIAG_VISIBILITY_KEY, JSON.stringify(existing.slice(-20)));
+    }
+  } catch { /* ignore */ }
+}
+
+export function setupVisibilityTracking(): void {
+  if (typeof window === 'undefined' || visibilityTrackingSetup) return;
+  visibilityTrackingSetup = true;
+
+  const handleVisibilityChange = (): void => {
+    const now = Date.now();
+    const hidden = document.visibilityState === 'hidden';
+
+    if (hidden) {
+      visibilityHiddenAt = now;
+      pushVisibilityEvent('visibility:hidden', 'info', {
+        hiddenAt: now,
+      });
+    } else {
+      pushVisibilityEvent('visibility:visible', 'info', {
+        hiddenDurationMs: visibilityHiddenAt ? now - visibilityHiddenAt : undefined,
+      });
+      visibilityHiddenAt = null;
+    }
+
+    flushDiagnosticsNow('visibility-change');
+  };
+
+  const handlePageHide = (event: PageTransitionEvent): void => {
+    ensureHiddenAt();
+    pushVisibilityEvent('pagehide', 'warn', {
+      persisted: event.persisted,
+      hiddenDurationMs: visibilityHiddenAt ? Date.now() - visibilityHiddenAt : undefined,
+    });
+    flushDiagnosticsNow('pagehide', true);
+  };
+
+  const handlePageShow = (event: PageTransitionEvent): void => {
+    pushVisibilityEvent('pageshow', 'info', {
+      persisted: event.persisted,
+      hiddenDurationMs: visibilityHiddenAt ? Date.now() - visibilityHiddenAt : undefined,
+    });
+    visibilityHiddenAt = null;
+    flushDiagnosticsNow('pageshow');
+  };
+
+  const handleFreeze = (): void => {
+    ensureHiddenAt();
+    pushVisibilityEvent('freeze', 'warn');
+    flushDiagnosticsNow('freeze', true);
+  };
+
+  const handleResume = (): void => {
+    pushVisibilityEvent('resume', 'info', {
+      hiddenDurationMs: visibilityHiddenAt ? Date.now() - visibilityHiddenAt : undefined,
+    });
+    visibilityHiddenAt = null;
+    flushDiagnosticsNow('resume');
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pagehide', handlePageHide);
+  window.addEventListener('pageshow', handlePageShow);
+
+  if ('onfreeze' in document) {
+    document.addEventListener('freeze', handleFreeze);
+    document.addEventListener('resume', handleResume);
+  }
 }
 
 // ── Scout trace ────────────────────────────────────────────────────
