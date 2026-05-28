@@ -1,40 +1,20 @@
 # Active Context
 
-Last updated: 2026-05-27 (PR #302 pronta para merge)
+Last updated: 2026-05-28 (PR #306 mergeada, PR #307 fechada, investigacao tela branca CONCLUIDA com causa raiz confirmada)
 
 ## Boot
-
 1. Bruno Vault: `00-MASTER.md` -> `MOC-Licoes.md` -> `10-PROJETOS/NOVO-APP.md`
 2. `HANDOFF_AI.md` -> este arquivo -> `progress.md`
-3. Vault sessao: `20-SESSOES/2026-05/2026-05-27T14-00-00-dossier-link-integrity-fontes-pr301.md`
 
 ## Fase atual
+**Pendencias pos-PR #307** — PR #307 fechada como "too polluted" (commits de debug poluiram historico). Investigacao de tela branca CONCLUIDA com causa raiz confirmada: `https://html.duckduckgo.com/html/` bloqueado por IPs Vercel -> timeout runtime -> 504 Gateway Timeout. Correcao: remover DDG HTML da cascata, manter apenas Lite + Gemini summary.
 
-**PR #302 PRONTA PARA MERGE** — `perf/dossier-link-integrity-and-memo`
+Patches uteis de #307 (cascata, fadeoutTimerRef, cache delete, scoutDiag) precisam ser reaplicados em nova PR limpa.
 
-### Entregue na PR
-
-| Commit | Resumo |
-|--------|--------|
-| `8cdc326` | perf: otimiza dossierLinkIntegrity com lookup O(1) e adiciona React.memo |
-| `7f098e8` | fix: resolve 3 review comments da PR #302 + causa raiz do freeze 95% |
-| `f3679b7` | fix: previne tela branca apos geracao do dossier |
-
-### Otimizacoes
-- `dossierLinkIntegrity.ts`: `buildPoolLookupMap()` pré-constrói Map lookup (prefixo título → URL, hostname → URL)
-- `LoadingSmart.tsx`: `React.memo`, `processingKey` como concatenação de string (não useMemo)
-- `InvestigationDashboard.tsx`: `React.memo` para evitar re-renders
-- `shouldSuspendVirtualizedList`: comparação explícita `=== 'hero'` (removida coerção `?? 'hero'`)
-- Fix tela branca: libera timeline sob overlay quando dossier final já existe
-
-### Review comments resolvidos (Gemini Code Assist)
-1. Falsos positivos com chaves curtas: `title.length >= 3` e `host.length >= 3` no `buildPoolLookupMap`
-2. useMemo desnecessário: trocado por concatenação direta de string em `processingKey`
-3. Comentário O(1) vs O(N): JSDoc atualizado para refletir que lookup é O(N) por link
+## Proximo passo
+Criar nova branch a partir de main com apenas os patches uteis de #307, excluindo o endpoint DDG HTML. Testar preview.
 
 ## Ponteiros
-
-- PR #302: https://github.com/brunolimaff-jpg/NOVO-APP/pull/302
-- `utils/dossierLinkIntegrity.ts`, `components/LoadingSmart.tsx`
+- PR #307: https://github.com/brunolimaff-jpg/NOVO-APP/pull/307 (CLOSED)
+- Investigacao completa: `docs/obsidian/decisions/INVESTIGACAO-TELA-BRANCA-PR307-2026-05-28.md`
 - `HANDOFF_AI.md`
-- `CALIBER_LEARNINGS.md`

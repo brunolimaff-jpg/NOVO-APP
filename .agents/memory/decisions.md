@@ -1,6 +1,16 @@
 # Decisions
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28T23:00
+
+## 2026-05-27 - Obsidian Graph: Color group para lições aprendidas
+
+Decision: `.obsidian/graph.json` configurado com color group `[type:licoes-aprendidas]` (cor laranja `#f59e0b`). `nodeSizeMultiplier` ajustado para 1.8. `docs/obsidian/OBSIDIAN-README.md` documenta o contrato frontmatter. Agente `doc-handoff` atualizado com regras da camada Obsidian.
+
+Reason: Marlus queria que "Lições Aprendidas" tivesse destaque visual maior no Graph do Obsidian. A query `[type:licoes-aprendidas]` casa com 4 notas em `docs/obsidian/decisions/` que agora têm esse type no frontmatter.
+
+Contract: Toda nova nota de lição em `docs/obsidian/decisions/` DEVE incluir `type: licoes-aprendidas` no frontmatter. Guia canônico: `docs/obsidian/OBSIDIAN-README.md`.
+
+Refs: `.obsidian/graph.json`, `docs/obsidian/OBSIDIAN-README.md`, `~/.claude/agents/doc-handoff.md`.
 
 ## 2026-05-27 - PR #302: React.memo + lookup O(1) + processingKey string concat
 
@@ -364,3 +374,62 @@ Reason: o foundation block (~15K tokens) era reenviado integralmente a cada modu
 Constraint: feature flag dupla (`GEMINI_FOUNDATION_CACHE_ENABLED` server + `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` client); TTL 600s; delete no `finally`; fallback seguro para systemInstruction monolitico quando flag off ou create falha.
 
 Reference: `docs/ideias/gemini-context-caching-waterfall.md`
+
+## 2026-05-28 - Diagnostico persistente no Supabase (PR #306)
+
+Decision: criar tabela `scout_diagnostics` no Supabase e instrumentar todo o ciclo de vida do dossier com buffer global (`window.__SCOUT_DIAG_HISTORY__`), flush batch (5s ou 10 eventos) e flush imediato em erro. Incorporar endpoint como action (`recordDiagnostics`) em `api/gemini.ts` existente (early return antes da validacao Gemini) em vez de criar nova serverless function.
+
+Reason: bugs de longa duracao (overlay orfao, tela branca) eram impossiveis de diagnosticar porque o console morria junto com a pagina. Um buffer em memoria + flush para Supabase + fallback localStorage e a diferenca entre diagnosticar em horas vs dias. Incorporar em `api/gemini.ts` evita estourar o limite de 12 serverless functions do Vercel Hobby.
+
+Contract: env var `VITE_SCOUT_DIAGNOSTICS_ENABLED` tem precedencia sobre localStorage; `keepalive: true` nao pode ser usado com `AbortSignal` (conflito); localStorage com limite de 5 keys + pruning; timers de diagnostico devem sempre retornar cleanup function; `force=true` para pagehide/freeze bypassa `diagFlushing`.
+
+Refs: PR #306, `utils/diagnosticLog.ts`, `utils/serverDiagnostics.ts`, `api/gemini.ts`.
+
+## 2026-05-28 - Visibility tracking multi-event (PR #306)
+
+Decision: usar 6 listeners de visibilidade (visibilitychange, pagehide, pageshow, freeze, resume) + `updateVisibilityState()` sincronizado via useEffect no hook de loading, com `textContent` em vez de `innerText` (evita reflow forcado). Chave `scout_diag_visibility` no localStorage sobrevive a descarte de tab. `ensureHiddenAt()` cobre Safari mobile (pagehide sem visibilitychange previo).
+
+Reason: um unico listener de visibilitychange nao cobre todos os cenarios de descarte de tab (especialmente Safari mobile e freeze/resume). A chave no localStorage permite detectar que a tab foi descartada mesmo que o flush de rede nao tenha completado.
+
+Contract: `textContent` em vez de `innerText`; `ensureHiddenAt()` com fallback para Safari; `force=true` em eventos criticos; sem alteracao de logica de negocio (fire-and-forget).
+
+Refs: PR #306, `utils/setupVisibilityTracking.ts`.
+
+## 2026-05-28 - Heartbeat + deadline + watermark + Virtuoso (PR #306)
+
+Decision: `setupHeartbeat()` com setInterval 30s flushando heartbeat (bufferLen, elapsed, url); per-module deadline de 60s no waterfall-orchestrator com warn; server-side watermark module:start/module:end via `insertDiagnosticsBatch` em `api/gemini.ts`; instrumentacao Virtuoso (mount/unmount, itemsRendered, atBottomStateChange) em `MessageTimeline.tsx`.
+
+Reason: heartbeat detecta tabs abandonadas; deadline identifica modulos lentos (Riscos & Compliance com 146s); watermark server-side correlaciona eventos do cliente com processamento no servidor; Virtuoso tracking detecta se a lista virtualizada esta renderizando corretamente apos o loading.
+
+Refs: PR #306, `utils/setupHeartbeat.ts`, `waterfall-orchestrator.ts`, `MessageTimeline.tsx`.
+
+## 2026-05-28 - PR #304 e #305 fechadas como superseded, consolidacao em #307
+
+Decision: fechar PR #304 e PR #305 como superseded. Extrair apenas os patches validados de cada uma e consolidar em uma nova PR #307 (`fix/consolidated-grounding-loading-fixes`).
+
+Reason: ambas as PRs continham alteracoes validas misturadas com regressoes (remocao de Grafo/Mermaid no SocietaryMap, `it.skip` em 10 testes, `console.log` em hot paths). Consolidar permite revisar e mergear os patches bons sem as regressoes.
+
+Contract: PR #307 contem 6 arquivos: documentExtractor.ts (cascata DDG HTML->Lite->Gemini), api/gemini.ts (scoutDiag grounding), geminiProxy.ts (signal timeout 25s), LoadingSmart.tsx (fadeoutTimerRef + else if guard + scoutDiag), waterfall-orchestrator.ts (fire-and-forget cache delete), MessageTimeline.tsx (viewport readiness scoutDiag).
+
+Refs: PR #304, PR #305, PR #307.
+
+## 2026-05-28 - PR #307 fechada como too polluted, investigacao concluida com causa raiz confirmada
+
+Decision: fechar PR #307 (`fix/consolidated-grounding-loading-fixes`) como "too polluted" — os 2 commits de debug (93573c6, 3bb4a17) poluiram o historico com instrumentacao de timing nao essencial. Os patches uteis de #304/#305 (6 arquivos) serao reaplicados em PRs limpas futuras. A investigacao de tela branca foi concluida com causa raiz confirmada.
+
+Cause (confirmed): o endpoint `https://html.duckduckgo.com/html/` introduzido em `performDuckDuckGoSearch` e intermitentemente bloqueado para IPs de datacenter da Vercel. Quando bloqueado, o TCP connect fica pendurado e o `AbortSignal.timeout(8000)` pode nao abortar efetivamente na runtime Vercel. A funcao acumula timeouts da cascata (Gemini 30s + HTML hang + Lite 8s + summary 20s) e estoura o `maxDuration: 60`, resultando em 504 Gateway Timeout da runtime Vercel.
+
+Evidence:
+- Vercel runtime logs: 4 ocorrencias de 504 em `/api/open-web-search`
+- Vercel runtime logs: 2 ocorrencias de 200 na mesma rota (bug intermitente)
+- Console: `grounding habilitado sem fontes retornadas` para multiplos modulos
+- Console: `module:deadline` aos 60s
+- curl local: DDG HTML e Lite respondem em <0.5s (HTTP 202) — bloqueio e especifico de IPs Vercel
+- Handler tem try/catch que sempre retorna 200 — o 504 so pode vir de timeout da runtime
+- 5 hipoteses descartadas com evidencia de refutacao (LoadingSmart, MessageTimeline, waterfall, geminiProxy)
+
+Recommended fix (not applied): remover o endpoint DDG HTML da cascata em `performDuckDuckGoSearch`, mantendo apenas DDG Lite (8s) -> Gemini summary (20s). O Lite ja funcionava em main.
+
+Contract: PR #307 nao sera reaberta. Patches uteis (cascata sem DDG HTML, fadeoutTimerRef, fire-and-forget cache delete, scoutDiag grounding) serao reaplicados em PRs independentes.
+
+Refs: PR #307, Vercel runtime logs, `docs/obsidian/decisions/INVESTIGACAO-TELA-BRANCA-PR307-2026-05-28.md`.

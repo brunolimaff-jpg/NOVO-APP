@@ -49,7 +49,10 @@ Voltar para [[00-MASTER]].
 
 ## Decisoes recentes
 
-- [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]] — 2026-05-25 — fechamento da PR #285, validações finais, lições aprendidas e pendências de reestruturação
+- [[LICOES-APRENDIDAS-REVIEW-60PRS-2026-05-28]] — 2026-05-28 — Revisao sistematica de 60 PRs (#239-#306) identificou 10 licoes de alta confiança nao documentadas (AbortSignal, cache sem limite, import.meta.env, Promise.all, any em catch, regex sem ancora, console.warn semantico, Rules of Hooks, console.error em teste, mock de Promise)
+- [[INVESTIGACAO-TELA-BRANCA-PR307-2026-05-28]] — 2026-05-28 — Investigacao de tela branca CONCLUIDA. Causa raiz: DDG HTML bloqueado por IPs Vercel -> 504 Gateway Timeout. PR #307 fechada como "too polluted".
+- [[LICOES-APRENDIDAS-DIAGNOSTICO-PERSISTENTE-2026-05-28]] — 2026-05-28 — Licoes do diagnostico persistente PR #306
+- [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]] — 2026-05-25 — fechamento da PR #285, validacoes finais, licoes aprendidas e pendencias de reestruturacao
 - [[ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25]] — 2026-05-25 — QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo; decisao duravel da Teia CNPJ
 - [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints
 - [[TEIA-SOCIETARIA-ENRIQUECIMENTO]] — 2026-05-23 — Componente visual de estrutura societaria com drill-down
