@@ -178,7 +178,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     for (const delay of delays) {
       const id = setTimeout(() => {
         try {
-          const bodyText = document.body?.innerText || '';
+          const bodyText = document.body?.textContent || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
           const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
           const composer = document.querySelector('[data-testid="composer-input"]');
@@ -191,7 +191,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),
             loadingOverlayExists: Boolean(loadingOverlay),
             botMessageCount: botMessages.length,
-            botTextMaxLen: Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).innerText?.length || 0)),
+            botTextMaxLen: Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0)),
             composerDisabled: (composer as HTMLInputElement)?.disabled || false,
             scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
             documentReadyState: document.readyState,

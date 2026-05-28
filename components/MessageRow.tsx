@@ -146,22 +146,27 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   useEffect(() => {
     const el = contentRef.current;
     if (!el || !msg.text) return;
-    const rect = el.getBoundingClientRect();
-    const cs = getComputedStyle(el);
-    scoutDiag.info('MessageRow', 'commit:dimensions', {
-      messageId: msg.id?.slice(0, 8),
-      sender: msg.sender,
-      textLen: msg.text.length,
-      rectW: Math.round(rect.width),
-      rectH: Math.round(rect.height),
-      offsetH: el.offsetHeight,
-      scrollH: el.scrollHeight,
-      clientH: el.clientHeight,
-      display: cs.display,
-      visibility: cs.visibility,
-      opacity: cs.opacity,
-      overflow: cs.overflow,
+
+    const handle = requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      scoutDiag.info('MessageRow', 'commit:dimensions', {
+        messageId: msg.id?.slice(0, 8),
+        sender: msg.sender,
+        textLen: msg.text.length,
+        rectW: Math.round(rect.width),
+        rectH: Math.round(rect.height),
+        offsetH: el.offsetHeight,
+        scrollH: el.scrollHeight,
+        clientH: el.clientHeight,
+        display: cs.display,
+        visibility: cs.visibility,
+        opacity: cs.opacity,
+        overflow: cs.overflow,
+      });
     });
+
+    return () => cancelAnimationFrame(handle);
   }, [msg.text, msg.id, msg.sender]);
 
   if (showHeroLoading) {

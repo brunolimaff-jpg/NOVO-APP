@@ -128,11 +128,20 @@ function pushToBuffer(entry: DiagEntry): void {
 }
 
 function scheduleFlush(reason: string): void {
+  const isImmediate = reason === 'error' || reason === 'immediate';
+  if (isImmediate) {
+    if (diagFlushTimer) {
+      clearTimeout(diagFlushTimer);
+      diagFlushTimer = null;
+    }
+    void flushToServer(reason);
+    return;
+  }
   if (diagFlushTimer) return; // already scheduled
   diagFlushTimer = setTimeout(() => {
     diagFlushTimer = null;
     void flushToServer(reason);
-  }, reason === 'error' || reason === 'immediate' ? 0 : DIAG_FLUSH_INTERVAL_MS);
+  }, DIAG_FLUSH_INTERVAL_MS);
 }
 
 async function flushToServer(_reason: string, force = false): Promise<void> {
@@ -534,7 +543,7 @@ function diagEntry(
     area,
     event,
     severity,
-    payload,
+    payload: payload ? safeDetails(payload) as Record<string, unknown> : undefined,
   });
 }
 
