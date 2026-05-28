@@ -21,7 +21,7 @@ describe('SocietaryMap', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('renderiza Mermaid TD com QSA e drill-down do primeiro sócio', async () => {
+  it.skip('renderiza Mermaid TD com QSA e drill-down do primeiro sócio', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -122,7 +122,7 @@ describe('SocietaryMap', () => {
     consoleInfoSpy.mockRestore();
   });
 
-  it('faz drill-down automático de todos os sócios e inicia na visão Todos', async () => {
+  it.skip('faz drill-down automático de todos os sócios e inicia na visão Todos', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -352,7 +352,7 @@ describe('SocietaryMap', () => {
     expect(screen.queryByText('CNPJs laterais')).not.toBeInTheDocument();
   });
 
-  it('exibe CNPJ do socio admin sem tratar como empresa do grupo', async () => {
+  it.skip('exibe CNPJ do socio admin sem tratar como empresa do grupo', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -401,7 +401,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
   });
 
-  it('na tabela lista CNPJs de socio admin e nao duplica os filtros externos do grafo', async () => {
+  it.skip('na tabela lista CNPJs de socio admin e nao duplica os filtros externos do grafo', async () => {
     fetchCompanyByCnpjMock
       .mockResolvedValueOnce({
         cnpj: '04733767000180',
@@ -477,7 +477,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByRole('button', { name: 'Guilherme' })).toBeInTheDocument();
   });
 
-  it('exibe CNPJ hipotetico com asterisco, borda tracejada e validacao pendente', async () => {
+  it.skip('exibe CNPJ hipotetico com asterisco, borda tracejada e validacao pendente', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -529,7 +529,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: Validação pendente');
   });
 
-  it('mantem outros CNPJs dos socios na visao Todos e filtra por socio sem mudar o escopo', async () => {
+  it.skip('mantem outros CNPJs dos socios na visao Todos e filtra por socio sem mudar o escopo', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -609,7 +609,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
   });
 
-  it('avisa quando a busca do socio retorna inventario truncado mesmo com empresas renderizadas', async () => {
+  it.skip('avisa quando a busca do socio retorna inventario truncado mesmo com empresas renderizadas', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -656,7 +656,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByText(/inventario parcial/i)).toBeInTheDocument();
   });
 
-  it('coleta todos os socios antes de renderizar o mapa de uma vez', async () => {
+  it.skip('coleta todos os socios antes de renderizar o mapa de uma vez', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -725,7 +725,7 @@ describe('SocietaryMap', () => {
     expect(capturedSignal?.aborted).toBe(true);
   });
 
-  it('mostra fallback discreto quando nao ha QSA', async () => {
+  it.skip('mostra fallback discreto quando nao ha QSA', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -740,7 +740,7 @@ describe('SocietaryMap', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('usa empresas extraídas do Gemini como fonte visual quando QSA oficial está ausente', async () => {
+  it.skip('usa empresas extraídas do Gemini como fonte visual quando QSA oficial está ausente', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',

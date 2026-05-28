@@ -288,12 +288,12 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
                     try {
                         const uddg = new URLSearchParams(url.substring(url.indexOf('?'))).get('uddg');
                         if (uddg) url = uddg;
-                    } catch {}
+                    } catch { /* uddg parse falhou — URL original prevalece */ }
                 }
                 const snippet = ('isLite' in endpoint && endpoint.isLite)
                     ? $(el).closest('tr').next().find(endpoint.selectors.snippet).text().trim()
                     : $(el).closest(endpoint.selectors.container || '').find(endpoint.selectors.snippet).text().trim();
-                results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+                results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
             });
 
             if (results.length > 0) return results.join('\n');
@@ -336,7 +336,7 @@ async function fetchGeminiSummaryOnly(query: string, apiKey: string): Promise<st
         }>;
     };
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? `Titulo: ${query}\nURL: (busca Gemini)\nResumo: ${text}\n---` : null;
+    return text ? `Título: ${query}\nURL: (busca Gemini)\nResumo: ${text}\n---` : null;
 }
 
 /**
@@ -382,7 +382,7 @@ export async function searchConsultasocioDirect(socioName: string): Promise<stri
 
             const response = await fetch(pageUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
-                signal: AbortSignal.timeout(10000),
+            signal: AbortSignal.timeout(30000),
             });
 
             if (!response.ok) {
