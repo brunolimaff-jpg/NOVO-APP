@@ -78,6 +78,16 @@ async function performResilientSearch(query: string): Promise<{
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    const t0 = Date.now();
+    const timingSteps: Array<{ step: string; elapsedMs: number }> = [];
+
+    function recordStep(step: string): number {
+        const elapsed = Date.now() - t0;
+        timingSteps.push({ step, elapsedMs: elapsed });
+        return elapsed;
+    }
+
+    recordStep('handler:start');
     setSecurityHeaders(res);
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -91,8 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { query, url } = parsed.data;
         const searchQuery = query || url || '';
-
-        scoutDiag.info('OpenWebSearch', 'Iniciando operação', { query: searchQuery, url });
+        recordStep('parse:done');
 
         let content = '';
         let sources: OpenWebSearchSource[] = [];
@@ -103,27 +112,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (url) {
             if (!isValidPublicUrl(url)) {
-                scoutDiag.warn('OpenWebSearch', `URL bloqueada por segurança: ${url}`);
-                return res.status(403).json({ error: 'Forbidden: Restricted URL' });
+                recordStep('url:blocked');
+                return res.status(403).json({ error: 'Forbidden: Restricted URL', timingMs: Date.now() - t0, timingSteps });
             }
 
             try {
-                scoutDiag.info('OpenWebSearch', `Extraindo: ${url}`);
+                recordStep('url:fetch:start');
                 const response = await fetch(url, {
                     headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
                     signal: AbortSignal.timeout(10000)
                 });
 
+                recordStep('url:fetch:done');
                 if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
 
                 const html = await response.text();
+                recordStep('url:html:received');
                 content = await extractHtml(html);
+                recordStep('url:extract:done');
                 source = 'OpenWebSearch/URL';
                 sources = [{ title: url, url, provider: 'url' }];
                 providerStatus = [];
             } catch (err) {
+                recordStep('url:fetch:failed');
                 const message = err instanceof Error ? err.message : String(err);
-                scoutDiag.warn('OpenWebSearch', `Falha na URL ${url}, tentando busca...`, { error: message });
                 const searchResult = await performResilientSearch(searchQuery);
                 content = searchResult.content;
                 sources = searchResult.sources;
@@ -131,9 +143,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 degraded = Boolean(searchResult.degraded);
                 detail = searchResult.detail;
                 providerStatus = searchResult.providerStatus;
+                recordStep('url:fallback:done');
             }
         } else {
+            recordStep('search:start');
             const searchResult = await performResilientSearch(searchQuery);
+            recordStep('search:done');
             content = searchResult.content;
             sources = searchResult.sources;
             source = searchResult.source;
@@ -142,6 +157,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             providerStatus = searchResult.providerStatus;
         }
 
+        const totalMs = Date.now() - t0;
+        recordStep('handler:end');
+
         return res.status(200).json({
             content,
             source,
@@ -149,18 +167,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             degraded,
             detail,
             providerStatus,
+            timingMs: totalMs,
+            timingSteps,
         });
 
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        scoutDiag.error('OpenWebSearch', 'Falha crítica', { error: message });
+        const totalMs = Date.now() - t0;
+        recordStep('handler:crash');
         return res.status(200).json({
             content: '',
             source: 'OpenWebSearch/Degraded',
             sources: [],
             degraded: true,
-            detail: message,
+            detail: `${message} (handler elapsed: ${totalMs}ms)`,
             providerStatus: [{ provider: 'duckduckgo', ok: false, reason: 'unknown' }],
+            timingMs: totalMs,
+            timingSteps,
         });
     }
 }
