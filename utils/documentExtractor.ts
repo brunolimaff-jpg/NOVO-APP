@@ -95,7 +95,11 @@ export interface GeminiSearchOptions {
 const DEFAULT_SEARCH_PROMPT = 'Search the web for current, factual information about the query. Prioritize official sources, news articles, and institutional websites.';
 
 function buildGeminiSearchPrompt(query: string, searchPrompt?: string): string {
-    if (searchPrompt) return searchPrompt;
+    if (searchPrompt) {
+        return searchPrompt.includes('{query}')
+            ? searchPrompt.replace('{query}', query)
+            : `${searchPrompt}\n\nQuery: ${query}`;
+    }
     return `${DEFAULT_SEARCH_PROMPT}\n\nQuery: ${query}`;
 }
 
@@ -109,7 +113,7 @@ export async function performGeminiSearch(
     apiKey: string,
     options: GeminiSearchOptions = {},
 ): Promise<string | null> {
-    const { maxPages = 5, pageTimeoutMs = 8000 } = options;
+    const { maxPages = 3, pageTimeoutMs = 5000 } = options;
     const searchText = buildGeminiSearchPrompt(query, options.searchPrompt);
     scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
 
@@ -126,7 +130,7 @@ export async function performGeminiSearch(
                     tools: [{ google_search: {} }],
                     generationConfig: { temperature: 0, maxOutputTokens: 8192 },
                 }),
-                signal: AbortSignal.timeout(30000),
+            signal: AbortSignal.timeout(10000),
             },
         );
 
@@ -160,17 +164,18 @@ export async function performGeminiSearch(
 
         if (urlResults.length === 0) {
             scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
-            if (aiText.trim()) return aiText;
+            if (aiText.trim()) {
+                return `Título: Resumo da Busca\nURL: (busca Gemini)\nResumo: ${aiText}\n---`;
+            }
             return null;
         }
 
         const cheerio = await import('cheerio');
         const results: string[] = [];
-        const hasValidUrl = /^https?:\/\//i;
 
         for (let i = 0; i < urlResults.length && i < maxPages; i++) {
             const { title, url } = urlResults[i];
-            if (!hasValidUrl.test(url)) continue;
+            if (!isValidPublicUrl(url)) continue;
 
             try {
                 const pageResponse = await fetch(url, {
@@ -199,7 +204,7 @@ export async function performGeminiSearch(
             return results.join('\n');
         }
 
-        const fallback = urlResults.map(({ title, url }) => `Título: ${title}\nURL: ${url}\nResumo: ${aiText ? aiText.slice(0, 6000) : 'Consulte a URL para mais informacoes.'}\n---`).join('\n');
+        const fallback = urlResults.map(({ title, url }, index) => `Título: ${title}\nURL: ${url}\nResumo: ${index === 0 && aiText ? aiText.slice(0, 6000) : 'Consulte a URL para mais informacoes.'}\n---`).join('\n');
         scoutDiag.info('DocumentExtractor', `Gemini Search: ${urlResults.length} URLs retornadas (sem extracao de pagina)`);
         return fallback || null;
     } catch (error) {
@@ -230,8 +235,9 @@ export async function performWebSearch(query: string, options: { count?: number;
 async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Promise<string | null> {
     const cheerio = await import('cheerio');
     const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    const ddgTimeout = 8000;
 
-    const endpoints = [
+    const ddgEndpoints = [
         {
             url: 'https://html.duckduckgo.com/html/',
             selectors: {
@@ -251,7 +257,7 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
         },
     ];
 
-    for (const endpoint of endpoints) {
+    for (const endpoint of ddgEndpoints) {
         scoutDiag.info('DocumentExtractor', `Buscando DuckDuckGo (${endpoint.url}): ${query}`);
 
         try {
@@ -262,42 +268,33 @@ async function performDuckDuckGoSearch(query: string, geminiApiKey?: string): Pr
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: `q=${encodeURIComponent(query)}`,
-                signal: AbortSignal.timeout(15000),
+                signal: AbortSignal.timeout(ddgTimeout),
             });
 
             if (!response.ok) continue;
 
             const html = await response.text();
-
             if (html.length < 200) continue;
 
             const $ = cheerio.load(html);
             const results: string[] = [];
 
-            if (typeof process !== 'undefined' && process.memoryUsage) {
-                const memory = process.memoryUsage();
-                scoutDiag.info('DocumentExtractor', `Memoria RAM: ${Math.round(memory.heapUsed / 1024 / 1024)}MB / ${Math.round(memory.rss / 1024 / 1024)}MB`);
-            }
-
-            if ('isLite' in endpoint && endpoint.isLite) {
-                $(endpoint.selectors.link).each((i, el) => {
-                    if (i >= 5) return;
-                    const title = $(el).text().trim();
-                    let url = $(el).attr('href') || '#';
-                    if (url.startsWith('//')) url = 'https:' + url;
-                    const snippet = $(el).closest('tr').next().find(endpoint.selectors.snippet).text().trim();
-                    results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
-                });
-            } else {
-                $(endpoint.selectors.link).each((i, el) => {
-                    if (i >= 5) return;
-                    const title = $(el).text().trim();
-                    let url = $(el).attr('href') || '#';
-                    if (url.startsWith('//')) url = 'https:' + url;
-                    const snippet = $(el).closest(endpoint.selectors.container || '').find(endpoint.selectors.snippet).text().trim();
-                    results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
-                });
-            }
+            $(endpoint.selectors.link).each((i, el) => {
+                if (i >= 5) return;
+                const title = $(el).text().trim();
+                let url = $(el).attr('href') || '#';
+                if (url.startsWith('//')) url = 'https:' + url;
+                if (url.includes('uddg=')) {
+                    try {
+                        const uddg = new URLSearchParams(url.substring(url.indexOf('?'))).get('uddg');
+                        if (uddg) url = uddg;
+                    } catch {}
+                }
+                const snippet = ('isLite' in endpoint && endpoint.isLite)
+                    ? $(el).closest('tr').next().find(endpoint.selectors.snippet).text().trim()
+                    : $(el).closest(endpoint.selectors.container || '').find(endpoint.selectors.snippet).text().trim();
+                results.push(`Titulo: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
+            });
 
             if (results.length > 0) return results.join('\n');
         } catch {
