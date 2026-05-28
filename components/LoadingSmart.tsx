@@ -412,7 +412,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       if (fadeoutTimerRef.current) { clearTimeout(fadeoutTimerRef.current); fadeoutTimerRef.current = null; }
       setIsVisible(true); setIsFadingOut(false); setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
-    } else {
+    } else if (isVisible) {
       scoutDiag.info('LoadingSmart', 'visibility: fadeout iniciado', { loadingContextKey, loadingVariant });
       clearInsightTimer();
       setIsFadingOut(true);
@@ -426,6 +426,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       clearInsightTimer();
       if (fadeoutTimerRef.current) { clearTimeout(fadeoutTimerRef.current); fadeoutTimerRef.current = null; }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey, loadingVariant]);
 
   const handleRequestStop = useCallback(() => setConfirmStop(true), []);
