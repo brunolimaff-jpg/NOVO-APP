@@ -140,6 +140,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   useEffect(() => {
     const handleCompleted = (event: Event) => {
       const detail = (event as CustomEvent).detail;
+      if (!detail || typeof detail !== 'object' || !('dossierId' in detail)) return;
       completedDossierSessionRef.current = detail.dossierId;
       if (detail.dossierId === currentSessionIdRef.current) {
         setCompletedDossier(detail);
@@ -150,7 +151,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, []);
 
   useEffect(() => {
-    if (currentSession?.id && currentSession.id !== completedDossierSessionRef.current) {
+    const currentId = currentSession?.id ?? null;
+    if (currentId !== completedDossierSessionRef.current) {
       setCompletedDossier(null);
     }
   }, [currentSession?.id]);

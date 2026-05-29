@@ -37,6 +37,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const [copyLinkState, setCopyLinkState] = useState<'idle' | 'copied'>('idle');
   const [downloadError, setDownloadError] = useState(false);
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [comment, setComment] = useState('');
@@ -145,12 +146,15 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
   const handleCopyLink = async () => {
     const safeContent = sanitizeSensitivePersonalData(content);
-    const url = window.location.href;
+    const isPublicPage = window.location.pathname.startsWith('/dossie/');
+    const text = isPublicPage
+      ? `${safeContent.substring(0, 120)}...\n\n${window.location.href}`
+      : safeContent.substring(0, 200);
     try {
-      await navigator.clipboard.writeText(`${safeContent.substring(0, 120)}...\n\n${url}`);
-      setCopyState('copied');
+      await navigator.clipboard.writeText(text);
+      setCopyLinkState('copied');
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
+      copyTimerRef.current = setTimeout(() => setCopyLinkState('idle'), 3000);
     } catch {
       handleCopy();
     }
@@ -210,17 +214,17 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${hoverColor} hover:${activeBg}`}
             title="Copiar link da página"
           >
-            <span>📋</span>
-            <span className="hidden sm:inline">Copiar link</span>
+            <span>{copyLinkState === 'copied' ? '✅' : '📋'}</span>
+            <span className="hidden sm:inline">{copyLinkState === 'copied' ? 'Link copiado' : 'Copiar link'}</span>
           </button>
 
           <button
             onClick={handleDownload}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${hoverColor} hover:${activeBg}`}
-            title="Baixar HTML"
+            title="Visualizar para Impressão / PDF"
           >
             <span>📕</span>
-            <span className="hidden sm:inline">HTML</span>
+            <span className="hidden sm:inline">Imprimir</span>
           </button>
           {downloadError && (
             <span role="alert" className="text-[10px] text-red-400 animate-fade-in">
