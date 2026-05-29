@@ -39,7 +39,7 @@ export function normalizeAppError(
   // Extrai status HTTP do formato "Gemini proxy failed (XXX): ..." (geminiProxy.ts)
   const proxyStatusMatch = rawMessage.match(/Gemini proxy failed \((\d{3})\)/);
   // Extrai status HTTP de JSON inline: {"code":"500"} ou "code": 500
-  const jsonStatusMatch = rawMessage.match(/"code"\s*:\s*(\d{3})/);
+  const jsonStatusMatch = rawMessage.match(/"code"\s*:\s*"?(\d{3})"?/);
   const status =
     explicitStatus ||
     (proxyStatusMatch ? Number(proxyStatusMatch[1]) : 0) ||
