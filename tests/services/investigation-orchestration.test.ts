@@ -56,15 +56,7 @@ describe('investigation-orchestration', () => {
     expect(result).toContain('[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]');
   });
 
-  it('aciona fallback web quando grounding nao retorna fontes', async () => {
-    executeOpenWebSearchToolMock.mockResolvedValueOnce({
-      content: [
-        'Título: Fonte pública',
-        'URL: https://example.com/piccini',
-        'Resumo: Grupo Piccini produtor rural',
-        '---',
-      ].join('\n'),
-    });
+  it('marca como unverified quando grounding nao retorna fontes (sem fallback web)', async () => {
     const onGroundingSources = vi.fn();
     const onVerificationStatus = vi.fn();
 
@@ -78,12 +70,8 @@ describe('investigation-orchestration', () => {
     );
 
     expect(result).toContain('Conclusão parcial');
-    expect(executeOpenWebSearchToolMock).toHaveBeenCalled();
-    expect(onGroundingSources).toHaveBeenCalledWith(
-      [expect.objectContaining({ url: 'https://example.com/piccini', verification: 'fallback' })],
-      'Riscos & Compliance',
-    );
-    expect(onVerificationStatus).toHaveBeenCalledWith('fallback_verified', 'Riscos & Compliance');
+    expect(executeOpenWebSearchToolMock).not.toHaveBeenCalled();
+    expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Riscos & Compliance');
   });
 
   it('preserva módulo como não verificado quando grounding e fallback não retornam fontes', async () => {
