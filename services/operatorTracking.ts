@@ -214,7 +214,10 @@ export function trackOperatorEvent(eventName: OperatorEventName, payload: Operat
   if (!isSupabaseAvailable() || !payload.operatorId) return;
 
   const emailNormalized = payload.email?.toLowerCase().trim() || '';
-  const sessionId = payload.sessionId || getCurrentSessionId();
+  // SEMPRE usa a sessao de tracking do operador (getCurrentSessionId).
+  // NUNCA usa payload.sessionId — callers passam o sessionId do chat, nao da sessao de tracking,
+  // o que causa FK violation (operator_events.session_id referencia operator_sessions.id).
+  const sessionId = getCurrentSessionId();
   const safeMetadata = sanitizeMetadata(payload.metadata);
 
   ff(

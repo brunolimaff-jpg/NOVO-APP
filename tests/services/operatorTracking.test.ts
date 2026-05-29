@@ -114,7 +114,9 @@ describe('operatorTracking', () => {
       expect(inserted?.session_id).toBe('sess_abc123');
     });
 
-    it('deve usar sessionId do payload quando fornecido', () => {
+    it('deve ignorar sessionId do payload e usar o sessionStorage (getCurrentSessionId)', () => {
+      sessionStorage.setItem('scout:current_session_id', 'sess_da_storage');
+
       trackOperatorEvent('dossier_shared', {
         operatorId: 'op_test123',
         sessionId: 'sess_custom',
@@ -123,7 +125,7 @@ describe('operatorTracking', () => {
       expect(mockInsert).toHaveBeenCalled();
       const callArgs = mockInsert.mock.calls[0] as unknown[];
       const inserted = callArgs[0] as Record<string, unknown> | undefined;
-      expect(inserted?.session_id).toBe('sess_custom');
+      expect(inserted?.session_id).toBe('sess_da_storage');
     });
 
     it('deve sanitizar metadata removendo chaves sensiveis', () => {
