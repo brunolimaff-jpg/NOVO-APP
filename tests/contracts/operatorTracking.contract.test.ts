@@ -7,12 +7,19 @@ const mockUpsert = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => vo
 const mockUpdate = vi.hoisted(() =>
   vi.fn(() => ({ eq: vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })) })),
 );
+const mockMaybeSingle = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: { id: 'existing-session-id' } })));
+const mockSelect = vi.hoisted(() =>
+  vi.fn(() => ({
+    eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })),
+  })),
+);
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(() => ({
     insert: mockInsert,
     upsert: mockUpsert,
     update: mockUpdate,
+    select: mockSelect,
   })),
 }));
 
@@ -120,10 +127,15 @@ describe('operatorTracking contract — payload insert real', () => {
     mockInsert.mockReturnValue({ then: (fn: (v: unknown) => void) => fn({ error: null }) });
     mockUpsert.mockReturnValue({ then: (fn: (v: unknown) => void) => fn({ error: null }) });
     mockUpdate.mockReturnValue({ eq: vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })) });
+    mockMaybeSingle.mockReturnValue(Promise.resolve({ data: { id: 'existing-session-id' } }));
+    mockSelect.mockReturnValue({
+      eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })),
+    });
     supabaseMock.from.mockReturnValue({
       insert: mockInsert,
       upsert: mockUpsert,
       update: mockUpdate,
+      select: mockSelect,
     } as unknown as ReturnType<typeof supabaseMock.from>);
   });
 
@@ -148,14 +160,19 @@ describe('operatorTracking contract — payload insert real', () => {
     expect(mockUpsert).toHaveBeenCalled();
   });
 
-  it('startOperatorSession faz upsert na primeira chamada e touch na reentrada', () => {
+  it('startOperatorSession faz upsert na primeira chamada e touch na reentrada', async () => {
     startOperatorSession('op_test');
+    // Aguarda o await interno do upsert resolver
+    await new Promise(r => setTimeout(r, 0));
 
     expect(supabaseMock.from).toHaveBeenCalledWith('operator_sessions');
     expect(mockUpsert).toHaveBeenCalledTimes(1);
 
-    // Segunda chamada: sessionStorage ja tem ID → touchOperatorSession (update, nao upsert)
+    // Segunda chamada: sessionStorage ja tem ID → select verifica existencia → touchOperatorSession (update)
     startOperatorSession('op_test');
+    // Aguarda o await interno do select + touch resolver
+    await new Promise(r => setTimeout(r, 0));
+
     // upsert nao e chamado novamente — so update (touch)
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     expect(mockUpdate).toHaveBeenCalled();
