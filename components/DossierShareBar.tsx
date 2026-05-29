@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface DossierShareBarProps {
   dossierId: string;
@@ -8,17 +8,29 @@ interface DossierShareBarProps {
 export function DossierShareBar({ dossierId, companyName }: DossierShareBarProps) {
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
 
   const handleCopyLink = useCallback(async () => {
-    const { storage } = await import('../services/storage');
-    const token = await storage.shareDossier(dossierId);
-    if (!token) return;
+    try {
+      const { storage } = await import('../services/storage');
+      const token = await storage.shareDossier(dossierId);
+      if (!token) return;
 
-    const url = `${window.location.origin}/dossie/${token}`;
-    setShareUrl(url);
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+      const url = `${window.location.origin}/dossie/${token}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Silencioso: permissão negada ou falha de rede não deve quebrar a UI
+    }
   }, [dossierId]);
 
   const handleShareTeams = useCallback(() => {
@@ -29,9 +41,7 @@ export function DossierShareBar({ dossierId, companyName }: DossierShareBarProps
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-      <span className="text-sm font-medium text-green-800 dark:text-green-200 flex-1">
-        Dossiê concluído
-      </span>
+      <span className="text-sm font-medium text-green-800 dark:text-green-200 flex-1">Dossiê concluído</span>
 
       <button
         onClick={handleCopyLink}
@@ -39,7 +49,13 @@ export function DossierShareBar({ dossierId, companyName }: DossierShareBarProps
       >
         {copied ? (
           <>
-            <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-4 h-4 text-green-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
             Copiado
@@ -47,7 +63,11 @@ export function DossierShareBar({ dossierId, companyName }: DossierShareBarProps
         ) : (
           <>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
             </svg>
             Copiar link
           </>

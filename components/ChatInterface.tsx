@@ -138,6 +138,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     return () => window.removeEventListener('dossier:completed', handleCompleted);
   }, []);
 
+  useEffect(() => {
+    setCompletedDossier(null);
+  }, [currentSession?.id]);
+
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
@@ -239,19 +243,31 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const handleNewResearchOverride = useCallback(async () => {
     const payload = pendingPayloadRef.current;
+    const oldDossier = duplicateDossier;
     if (!payload) return;
-    setDuplicateDossier(null);
-    pendingPayloadRef.current = null;
-    if (duplicateDossier) {
-      await storage.deleteDossier(duplicateDossier.id);
+
+    try {
+      await executeInvestigation(payload);
+
+      if (oldDossier) {
+        await storage.deleteDossier(oldDossier.id);
+      }
+
+      trackOperatorEvent('dossier_override', {
+        operatorId: operatorId || '',
+        previousDossierId: oldDossier?.id,
+        entityType: 'dossier',
+        companyName: payload.companyName,
+      });
+    } catch (error) {
+      scoutDiag.warn('ChatInterface', 'Falha ao sobrescrever dossiê', {
+        previousDossierId: oldDossier?.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setDuplicateDossier(null);
+      pendingPayloadRef.current = null;
     }
-    await executeInvestigation(payload);
-    trackOperatorEvent('dossier_override', {
-      operatorId: operatorId || '',
-      previousDossierId: duplicateDossier?.id,
-      entityType: 'dossier',
-      companyName: payload.companyName,
-    });
   }, [duplicateDossier, executeInvestigation, operatorId]);
 
   const handleCopyMarkdown = useCallback(() => {
