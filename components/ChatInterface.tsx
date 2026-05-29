@@ -11,6 +11,7 @@ import { scoutDiag } from '../utils/diagnosticLog';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
+import { DossierShareBar } from './DossierShareBar';
 
 import { cleanTitle } from '../utils/textCleaners';
 import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
@@ -124,6 +125,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
+  const [completedDossier, setCompletedDossier] = useState<{
+    dossierId: string;
+    companyName: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleCompleted = (event: Event) => {
+      setCompletedDossier((event as CustomEvent).detail);
+    };
+    window.addEventListener('dossier:completed', handleCompleted);
+    return () => window.removeEventListener('dossier:completed', handleCompleted);
+  }, []);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
@@ -442,6 +455,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             pendingPayloadRef.current = null;
           }}
         />
+      )}
+      {completedDossier && (
+        <DossierShareBar dossierId={completedDossier.dossierId} companyName={completedDossier.companyName} />
       )}
     </>
   );
