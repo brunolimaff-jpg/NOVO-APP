@@ -15,7 +15,9 @@ export type OperatorEventName =
   | 'dossier_completed'
   | 'dossier_failed'
   | 'dossier_opened'
-  | 'dossier_shared';
+  | 'dossier_shared'
+  | 'dossier_reopened'
+  | 'dossier_override';
 
 export interface OperatorEventPayload {
   operatorId: string;
@@ -26,6 +28,8 @@ export interface OperatorEventPayload {
   companyCnpj?: string;
   companyName?: string;
   route?: string;
+  previousDossierId?: string;
+  shareChannel?: string;
   metadata?: Record<string, unknown>;
 }
 

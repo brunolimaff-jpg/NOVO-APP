@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { APP_NAME } from '../constants';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
@@ -8,6 +8,9 @@ import { storage } from '../services/storage';
 import { Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
+import { trackOperatorEvent } from '../services/operatorTracking';
+import { DuplicateDossierModal } from './DuplicateDossierModal';
 
 import { cleanTitle } from '../utils/textCleaners';
 import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
@@ -119,6 +122,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
+  const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
+  const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
@@ -142,12 +147,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     void storage.touchUserContext(operatorId);
   }, [hasOperatorName, operatorId]);
 
-  const handleStartInvestigation = useCallback(
+  const executeInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
-      if (operatorId) {
-        void storage.touchUserContext(operatorId);
-      }
-
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode, canWarRoom);
 
@@ -184,8 +185,61 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
       await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj);
     },
-    [mode, canWarRoom, operatorId, radar, onDeepDive],
+    [mode, canWarRoom, onDeepDive, radar],
   );
+
+  const handleStartInvestigation = useCallback(
+    async (payload: StartInvestigationPayload) => {
+      if (operatorId) {
+        void storage.touchUserContext(operatorId);
+      }
+
+      if (payload.cnpj || payload.companyName) {
+        const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
+        if (existing) {
+          pendingPayloadRef.current = payload;
+          setDuplicateDossier(existing);
+          return;
+        }
+      }
+
+      await executeInvestigation(payload);
+    },
+    [operatorId, executeInvestigation],
+  );
+
+  const handleAccessExistingDossier = useCallback(async () => {
+    if (!duplicateDossier || !operatorId) return;
+    const dossier = await storage.getDossier(duplicateDossier.id);
+    if (dossier) {
+      onSelectSession(duplicateDossier.id);
+    }
+    setDuplicateDossier(null);
+    pendingPayloadRef.current = null;
+    trackOperatorEvent('dossier_reopened', {
+      operatorId,
+      entityId: duplicateDossier.id,
+      entityType: 'dossier',
+      companyName: duplicateDossier.empresaAlvo,
+    });
+  }, [duplicateDossier, operatorId, onSelectSession]);
+
+  const handleNewResearchOverride = useCallback(async () => {
+    const payload = pendingPayloadRef.current;
+    if (!payload) return;
+    setDuplicateDossier(null);
+    pendingPayloadRef.current = null;
+    if (duplicateDossier) {
+      await storage.deleteDossier(duplicateDossier.id);
+    }
+    await executeInvestigation(payload);
+    trackOperatorEvent('dossier_override', {
+      operatorId: operatorId || '',
+      previousDossierId: duplicateDossier?.id,
+      entityType: 'dossier',
+      companyName: payload.companyName,
+    });
+  }, [duplicateDossier, executeInvestigation, operatorId]);
 
   const handleCopyMarkdown = useCallback(() => {
     const text = safeMessages
@@ -258,124 +312,138 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }
 
   return (
-    <ChatShell
-      sessions={sessions}
-      currentSessionId={currentSession?.id ?? null}
-      onSelectSession={onSelectSession}
-      onNewSession={onNewSession}
-      onDeleteSession={onDeleteSession}
-      isSidebarOpen={isSidebarOpen}
-      onToggleSidebar={onToggleSidebar}
-      isDarkMode={isDarkMode}
-      theme={theme}
-      displayTitle={displayTitle}
-      radar={radar}
-      onOpenRadarPanel={() => setShowRadarPanel(true)}
-      canWarRoom={canWarRoom}
-      onOpenWarRoom={() => setShowWarRoom(true)}
-      onToggleTheme={onToggleTheme}
-      displayName={displayName}
-      avatarUrl={null}
-      onOpenSettings={() => setShowSettings(true)}
-      onClearOperator={onClearOperator}
-      onExportPDF={onExportPDF}
-      onExportConversation={onExportConversation}
-      onCopyMarkdown={handleCopyMarkdown}
-      exportStatus={exportStatus}
-      timeline={
-        <div data-testid="chat-main-panel" className="flex flex-1 min-h-0 overflow-hidden">
-          {showEmptyStateFallback ? (
-            <div
-              data-testid="empty-state"
-              className={`flex flex-1 items-center justify-center p-6 ${isDarkMode ? 'bg-slate-950 text-slate-400' : 'bg-slate-50 text-slate-500'}`}
-            >
-              <div className="text-center max-w-sm">
-                <p className="text-sm font-medium">Nenhum conteúdo disponível</p>
-                <p className="text-xs mt-2 opacity-60">
-                  O painel está vazio. Tente recarregar a página ou iniciar uma nova investigação.
-                </p>
+    <>
+      <ChatShell
+        sessions={sessions}
+        currentSessionId={currentSession?.id ?? null}
+        onSelectSession={onSelectSession}
+        onNewSession={onNewSession}
+        onDeleteSession={onDeleteSession}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={onToggleSidebar}
+        isDarkMode={isDarkMode}
+        theme={theme}
+        displayTitle={displayTitle}
+        radar={radar}
+        onOpenRadarPanel={() => setShowRadarPanel(true)}
+        canWarRoom={canWarRoom}
+        onOpenWarRoom={() => setShowWarRoom(true)}
+        onToggleTheme={onToggleTheme}
+        displayName={displayName}
+        avatarUrl={null}
+        onOpenSettings={() => setShowSettings(true)}
+        onClearOperator={onClearOperator}
+        onExportPDF={onExportPDF}
+        onExportConversation={onExportConversation}
+        onCopyMarkdown={handleCopyMarkdown}
+        exportStatus={exportStatus}
+        timeline={
+          <div data-testid="chat-main-panel" className="flex flex-1 min-h-0 overflow-hidden">
+            {showEmptyStateFallback ? (
+              <div
+                data-testid="empty-state"
+                className={`flex flex-1 items-center justify-center p-6 ${isDarkMode ? 'bg-slate-950 text-slate-400' : 'bg-slate-50 text-slate-500'}`}
+              >
+                <div className="text-center max-w-sm">
+                  <p className="text-sm font-medium">Nenhum conteúdo disponível</p>
+                  <p className="text-xs mt-2 opacity-60">
+                    O painel está vazio. Tente recarregar a página ou iniciar uma nova investigação.
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <MessageTimeline
-              currentSession={currentSession}
-              messages={safeMessages}
-              isLoading={isLoading}
-              hasMore={hasMore}
-              isDarkMode={isDarkMode}
-              mode={mode}
-              showOperatorGate={showOperatorGate}
-              showInitialHome={showInitialHome}
-              shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
-              onConfirmOperatorName={(name, email, existingOperatorId) => {
-                if (existingOperatorId) {
-                  linkToExistingOperator(existingOperatorId, name, email);
-                } else {
-                  registerOperator(name, email);
-                }
-              }}
-              onStartInvestigation={handleStartInvestigation}
-              radar={radar}
-              onOpenRadarPanel={() => setShowRadarPanel(true)}
-              onLoadMore={onLoadMore}
-              onRetry={onRetry}
-              onDeleteMessage={onDeleteMessage}
-              onReportError={onReportError}
-              onFeedback={onFeedback}
-              onSendFeedback={onSendFeedback}
-              onToggleMessageSources={onToggleMessageSources}
-              onDeepDive={onDeepDive}
-              onRegenerateSuggestions={onRegenerateSuggestions}
-              onPrefillComposer={handlePrefillComposer}
-              operatorId={operatorId}
-              processing={processing}
-              lastUserQuery={lastUserQuery}
-              onStop={onStop}
-              onSendMessage={handleSendMessage}
-              loadingPinnedLabel={loadingPinnedLabel}
-              canDeepDive={canDeepDive}
-              theme={theme}
-            />
-          )}
-        </div>
-      }
-      composer={
-        <Composer
-          isHidden={showInitialHome || showOperatorGate}
-          isLoading={isLoading}
-          processing={processing}
-          sessionId={currentSession?.id ?? null}
-          theme={theme}
-          onSendMessage={handleSendMessage}
-          onRetry={onRetry}
-          onStop={onStop}
-        />
-      }
-      panels={
-        <ChatPanels
-          showSettings={showSettings}
-          operatorName={operatorName}
-          onUpdateOperatorName={setName}
-          isDarkMode={isDarkMode}
-          onToggleTheme={onToggleTheme}
-          onClearOperator={onClearOperator}
-          canAccessIntegrityCheck={canAccessIntegrityCheck}
-          onCloseSettings={() => setShowSettings(false)}
-          showWarRoom={showWarRoom}
-          canWarRoom={canWarRoom}
-          onCloseWarRoom={() => setShowWarRoom(false)}
-          showRadarPanel={showRadarPanel}
-          radar={radar}
-          onOpenRadarSettings={() => {
-            setShowRadarPanel(false);
-            setShowRadarSettings(true);
+            ) : (
+              <MessageTimeline
+                currentSession={currentSession}
+                messages={safeMessages}
+                isLoading={isLoading}
+                hasMore={hasMore}
+                isDarkMode={isDarkMode}
+                mode={mode}
+                showOperatorGate={showOperatorGate}
+                showInitialHome={showInitialHome}
+                shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+                onConfirmOperatorName={(name, email, existingOperatorId) => {
+                  if (existingOperatorId) {
+                    linkToExistingOperator(existingOperatorId, name, email);
+                  } else {
+                    registerOperator(name, email);
+                  }
+                }}
+                onStartInvestigation={handleStartInvestigation}
+                radar={radar}
+                onOpenRadarPanel={() => setShowRadarPanel(true)}
+                onLoadMore={onLoadMore}
+                onRetry={onRetry}
+                onDeleteMessage={onDeleteMessage}
+                onReportError={onReportError}
+                onFeedback={onFeedback}
+                onSendFeedback={onSendFeedback}
+                onToggleMessageSources={onToggleMessageSources}
+                onDeepDive={onDeepDive}
+                onRegenerateSuggestions={onRegenerateSuggestions}
+                onPrefillComposer={handlePrefillComposer}
+                operatorId={operatorId}
+                processing={processing}
+                lastUserQuery={lastUserQuery}
+                onStop={onStop}
+                onSendMessage={handleSendMessage}
+                loadingPinnedLabel={loadingPinnedLabel}
+                canDeepDive={canDeepDive}
+                theme={theme}
+              />
+            )}
+          </div>
+        }
+        composer={
+          <Composer
+            isHidden={showInitialHome || showOperatorGate}
+            isLoading={isLoading}
+            processing={processing}
+            sessionId={currentSession?.id ?? null}
+            theme={theme}
+            onSendMessage={handleSendMessage}
+            onRetry={onRetry}
+            onStop={onStop}
+          />
+        }
+        panels={
+          <ChatPanels
+            showSettings={showSettings}
+            operatorName={operatorName}
+            onUpdateOperatorName={setName}
+            isDarkMode={isDarkMode}
+            onToggleTheme={onToggleTheme}
+            onClearOperator={onClearOperator}
+            canAccessIntegrityCheck={canAccessIntegrityCheck}
+            onCloseSettings={() => setShowSettings(false)}
+            showWarRoom={showWarRoom}
+            canWarRoom={canWarRoom}
+            onCloseWarRoom={() => setShowWarRoom(false)}
+            showRadarPanel={showRadarPanel}
+            radar={radar}
+            onOpenRadarSettings={() => {
+              setShowRadarPanel(false);
+              setShowRadarSettings(true);
+            }}
+            onCloseRadarPanel={() => setShowRadarPanel(false)}
+            showRadarSettings={showRadarSettings}
+            onCloseRadarSettings={() => setShowRadarSettings(false)}
+          />
+        }
+      />
+      {duplicateDossier && pendingPayloadRef.current && (
+        <DuplicateDossierModal
+          existing={duplicateDossier}
+          companyName={pendingPayloadRef.current.companyName}
+          onAccessExisting={handleAccessExistingDossier}
+          onNewResearch={handleNewResearchOverride}
+          onDismiss={() => {
+            setDuplicateDossier(null);
+            pendingPayloadRef.current = null;
           }}
-          onCloseRadarPanel={() => setShowRadarPanel(false)}
-          showRadarSettings={showRadarSettings}
-          onCloseRadarSettings={() => setShowRadarSettings(false)}
         />
-      }
-    />
+      )}
+    </>
   );
 };
 
