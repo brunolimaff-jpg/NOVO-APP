@@ -70,6 +70,8 @@ export interface UseChatMessageOrchestratorOptions {
   investigationLogged: boolean;
   setInvestigationLogged: Dispatch<SetStateAction<boolean>>;
   runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<void>;
+  operatorId?: string;
+  email?: string;
 }
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
