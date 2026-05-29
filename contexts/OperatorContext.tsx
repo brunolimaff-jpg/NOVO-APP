@@ -143,17 +143,13 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [email, name, operatorId]);
 
-  // Listeners de encerramento de sessao — pagehide (fechar tab) + visibilitychange:hidden (minimizar)
+  // Listener de encerramento de sessao — apenas pagehide (fechar tab)
+  // NOTA: visibilitychange NAO encerra sessao — trocar de aba nao deve quebrar metricas
   useEffect(() => {
     const handlePageHide = () => endOperatorSession('pagehide');
-    const handleVisibilityHidden = () => {
-      if (document.visibilityState === 'hidden') endOperatorSession('visibility_hidden');
-    };
     window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('visibilitychange', handleVisibilityHidden);
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
-      document.removeEventListener('visibilitychange', handleVisibilityHidden);
     };
   }, []);
 
