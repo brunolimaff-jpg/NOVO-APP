@@ -449,6 +449,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 loadingPinnedLabel={loadingPinnedLabel}
                 canDeepDive={canDeepDive}
                 theme={theme}
+                dossierId={completedDossier?.dossierId}
               />
             )}
           </div>

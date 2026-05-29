@@ -7,6 +7,7 @@ import { openPrintReportWindow } from '../utils/printExport';
 import { sanitizeSensitivePersonalData } from '../utils/privacy';
 import { trackOperatorEvent } from '../services/operatorTracking';
 import { useMaybeOperator } from '../contexts/OperatorContext';
+import { storage } from '../services/storage';
 
 interface MessageActionsBarProps {
   content: string;
@@ -18,6 +19,7 @@ interface MessageActionsBarProps {
   onToggleSources: () => void;
   isSourcesVisible: boolean;
   isDarkMode: boolean;
+  dossierId?: string;
 }
 
 // ============================================================
@@ -33,6 +35,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   onToggleSources,
   isSourcesVisible,
   isDarkMode,
+  dossierId,
 }) => {
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -149,7 +152,14 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const handleCopyLink = async () => {
     const safeContent = sanitizeSensitivePersonalData(content);
     const snippet = safeContent.substring(0, 120);
-    const text = `${snippet}...\n\n${window.location.href}`;
+
+    // Se estamos num contexto de dossie, gera link dedicado /dossie/<token>
+    let url = window.location.href;
+    if (dossierId) {
+      const token = await storage.shareDossier(dossierId);
+      if (token) url = `${window.location.origin}/dossie/${token}`;
+    }
+    const text = `${snippet}...\n\n${url}`;
 
     const onSuccess = () => {
       setCopyLinkState('copied');

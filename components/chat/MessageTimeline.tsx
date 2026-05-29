@@ -54,6 +54,7 @@ interface MessageTimelineProps {
   loadingPinnedLabel?: string | null;
   canDeepDive: boolean;
   theme: ChatTheme;
+  dossierId?: string;
 }
 
 const MessageTimeline: React.FC<MessageTimelineProps> = ({
@@ -88,6 +89,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   loadingPinnedLabel,
   canDeepDive,
   theme,
+  dossierId,
 }) => {
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -276,6 +278,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       empresaAlvo: currentSession?.empresaAlvo || null,
       cnpj: currentSession?.cnpj || null,
       loadingPinnedLabel,
+      dossierId,
     }),
     [
       safeMessages,
@@ -304,6 +307,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       currentSession?.empresaAlvo,
       currentSession?.cnpj,
       loadingPinnedLabel,
+      dossierId,
     ],
   );
 

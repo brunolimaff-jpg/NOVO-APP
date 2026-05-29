@@ -41,6 +41,7 @@ export interface MessageRowData {
   setInput: (text: string) => void;
   sessionId?: string;
   userId?: string;
+  dossierId?: string;
   processing?: { stage?: string; completedStages?: string[]; failureCount?: number; totalStages?: number };
   lastUserQuery?: string;
   onStop?: () => void;
@@ -290,6 +291,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
                   onToggleSources={() => onToggleMessageSources(msg.id)}
                   isSourcesVisible={!!msg.isSourcesOpen}
                   isDarkMode={isDarkMode}
+                  dossierId={data.dossierId}
                 />
                 {msg.isSourcesOpen && sourcesCount > 0 && (
                   <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
