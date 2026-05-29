@@ -1,6 +1,6 @@
 # Decisions
 
-Last updated: 2026-05-27
+Last updated: 2026-05-29 17:30
 
 ## 2026-05-27 - PR #302: React.memo + lookup O(1) + processingKey string concat
 
@@ -392,3 +392,19 @@ Reason: o foundation block (~15K tokens) era reenviado integralmente a cada modu
 Constraint: feature flag dupla (`GEMINI_FOUNDATION_CACHE_ENABLED` server + `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` client); TTL 600s; delete no `finally`; fallback seguro para systemInstruction monolitico quando flag off ou create falha.
 
 Reference: `docs/ideias/gemini-context-caching-waterfall.md`
+
+## 2026-05-29 - Code review max-effort deve preceder merge de branches com +500 linhas (APLICADO)
+
+Decision: realizar code review multi-angulo (9 angulos: tipos, null-safety, async, lifecycle, lado-efeito, consistencia dados, seguranca, performance, acessibilidade) com consolidacao pos-review (65 brutos -> 15 findings) antes de abrir PR de branches com +500 linhas.
+
+Reason: o review encontrou 3 P0 que teriam ido para PR sem deteccao. A consolidacao de findings evitou que 50 itens de baixo valor poluissem a fila de correcao. O custo do review e baixo comparado ao risco de merge com P0 de seguranca ou arquiteturais.
+
+Refs: branch `feat/dossier-lifecycle`, vault `2026-05-29T17-30-00-code-review-dossier-lifecycle-pr313.md`.
+
+## 2026-05-29 - PR #313 precisa de rebase antes do merge (APLICADO)
+
+Decision: PR #313 (`fix/remove-web-search-fallback`) esta com MergeStateStatus: DIRTY e precisa de `git rebase main` antes do merge. Nao mergear com DIRTY.
+
+Reason: o rebase evita conflito de merge e mantem historia linear. O merge state DIRTY indica que a branch divergiu da base e o GitHub nao consegue fazer fast-forward.
+
+Refs: PR #313, branch `fix/remove-web-search-fallback`.
