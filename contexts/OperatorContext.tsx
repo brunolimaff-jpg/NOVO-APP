@@ -114,15 +114,19 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         })
         .catch(() => {});
 
-      // Tracking
+      // Tracking — initSessionTracking DEVE terminar antes de eventos
+      // para evitar FK violation entre operator_events e operator_sessions
       if (!didTrackAppOpenRef.current) {
         didTrackAppOpenRef.current = true;
-        void initSessionTracking(operatorId, normalizedEmail).catch(() => {});
+        initSessionTracking(operatorId, normalizedEmail)
+          .then(() => {
+            trackOperatorEvent('operator_registered', {
+              operatorId,
+              email: normalizedEmail,
+            });
+          })
+          .catch(() => {});
       }
-      trackOperatorEvent('operator_registered', {
-        operatorId,
-        email: normalizedEmail,
-      });
 
       storage.scheduleDossierSync({ pull: true });
     },
