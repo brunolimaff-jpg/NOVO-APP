@@ -34,8 +34,16 @@ export function normalizeAppError(
   }
 
   const rawMessage = typeof errorLike.message === 'string' ? errorLike.message : String(error);
+  const explicitStatus =
+    typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0;
+  // Extrai status HTTP do formato "Gemini proxy failed (XXX): ..." (geminiProxy.ts)
+  const proxyStatusMatch = rawMessage.match(/Gemini proxy failed \((\d{3})\)/);
+  // Extrai status HTTP de JSON inline: {"code":"500"} ou "code": 500
+  const jsonStatusMatch = rawMessage.match(/"code"\s*:\s*"?(\d{3})"?/);
   const status =
-    typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0; // Tenta capturar status HTTP ou código gRPC
+    explicitStatus ||
+    (proxyStatusMatch ? Number(proxyStatusMatch[1]) : 0) ||
+    (jsonStatusMatch ? Number(jsonStatusMatch[1]) : 0);
 
   let code: ErrorCode = 'UNKNOWN';
   let friendlyMessage = defaultMessage;
