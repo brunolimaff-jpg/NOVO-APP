@@ -18,7 +18,7 @@ import {
 import { getContextoConcorrentesRegionais, type CompetitorDetection } from '../competitorService';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
-import { buildSocioRuralInstructionContext, buildSocioRuralSearchQueries } from '../../utils/socioRuralResearch';
+import { buildSocioRuralInstructionContext } from '../../utils/socioRuralResearch';
 import { deriveVerificationStatusFromSources } from '../../utils/webVerification';
 import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../ragService';
 import {
