@@ -41,4 +41,4 @@ The model has 7 phases: **INTAKE - DECOMPOSE - DISCOVER - PLAN - EXECUTE - VERIF
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/superhuman)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/superhuman)_

@@ -13,6 +13,7 @@ The `.superhuman/board.md` file is the single source of truth for a Superhuman e
 ```
 
 The `.superhuman/` directory may also contain:
+
 - `board.md` - the main board file (always present)
 - Historical boards renamed to `board-{timestamp}.md` (if running multiple sessions)
 
@@ -23,16 +24,16 @@ The `.superhuman/` directory may also contain:
 ```yaml
 ---
 id: sh-{timestamp}
-title: "{brief description of the overall task}"
+title: '{brief description of the overall task}'
 status: intake | decomposing | discovering | planning | executing | verifying | converged | completed | abandoned
-created: "{ISO 8601 timestamp}"
-updated: "{ISO 8601 timestamp}"
+created: '{ISO 8601 timestamp}'
+updated: '{ISO 8601 timestamp}'
 git_tracked: true | false
-total_tasks: {N}
-completed_tasks: {N}
-failed_tasks: {N}
-current_wave: {N}
-total_waves: {N}
+total_tasks: { N }
+completed_tasks: { N }
+failed_tasks: { N }
+current_wave: { N }
+total_waves: { N }
 ---
 ```
 
@@ -66,11 +67,11 @@ The board is organized into sections that correspond to the 7 phases. Each secti
 
 ### Sub-tasks
 
-| ID | Title | Type | Size | Dependencies | Wave | Status |
-|----|-------|------|------|-------------|------|--------|
-| SH-001 | {title} | code | S | - | 1 | done |
-| SH-002 | {title} | code | M | SH-001 | 2 | in-progress |
-| SH-003 | {title} | test | S | SH-002 | 3 | pending |
+| ID     | Title   | Type | Size | Dependencies | Wave | Status      |
+| ------ | ------- | ---- | ---- | ------------ | ---- | ----------- |
+| SH-001 | {title} | code | S    | -            | 1    | done        |
+| SH-002 | {title} | code | M    | SH-001       | 2    | in-progress |
+| SH-003 | {title} | test | S    | SH-002       | 3    | pending     |
 
 ### Dependency Graph
 
@@ -91,6 +92,7 @@ Each sub-task gets its own subsection that grows as phases complete:
 ## Tasks
 
 ### SH-001: {title}
+
 - **Type**: code | test | docs | infra | config
 - **Size**: S | M
 - **Dependencies**: none | [SH-XXX, SH-YYY]
@@ -98,7 +100,9 @@ Each sub-task gets its own subsection that grows as phases complete:
 - **Status**: {current status}
 
 #### Research Notes
+
 {populated during DISCOVER phase}
+
 - Key files: {list of relevant files}
 - Reusable code: {functions/utilities to reuse}
 - Patterns: {conventions observed}
@@ -106,7 +110,9 @@ Each sub-task gets its own subsection that grows as phases complete:
 - External docs: {URLs referenced}
 
 #### Execution Plan
+
 {populated during PLAN phase}
+
 - Files to create: {list}
 - Files to modify: {list}
 - Test files: {list}
@@ -119,7 +125,9 @@ Each sub-task gets its own subsection that grows as phases complete:
   - {test case 2}
 
 #### Verification
+
 {populated during VERIFY phase}
+
 - Status: PASS | FAIL
 - Tests: {passed}/{total} ({new} new)
 - Lint: clean | {issues}
@@ -135,6 +143,7 @@ Each sub-task gets its own subsection that grows as phases complete:
 ## Execution Log
 
 ### Wave 1 - {timestamp}
+
 - Started: {timestamp}
 - Tasks: SH-001, SH-002
 - Agents: 2 parallel
@@ -142,6 +151,7 @@ Each sub-task gets its own subsection that grows as phases complete:
 - Result: all passed | {N} failed
 
 ### Wave 2 - {timestamp}
+
 - Started: {timestamp}
 - Tasks: SH-003
 - Agents: 1 serial
@@ -155,32 +165,39 @@ Each sub-task gets its own subsection that grows as phases complete:
 ## Convergence Summary
 
 ### Files Changed
-| File | Action | Lines |
-|------|--------|-------|
-| src/models/user.ts | created | +45 |
-| src/api/auth.ts | created | +120 |
-| src/api/auth.test.ts | created | +85 |
+
+| File                   | Action   | Lines   |
+| ---------------------- | -------- | ------- |
+| src/models/user.ts     | created  | +45     |
+| src/api/auth.ts        | created  | +120    |
+| src/api/auth.test.ts   | created  | +85     |
 | src/middleware/auth.ts | modified | +30, -5 |
 
 ### Tests Added
+
 - Total new tests: {N}
 - Test files: {list}
 - Coverage: {percentage if available}
 
 ### Key Decisions
+
 - {decision 1 and why}
 - {decision 2 and why}
 
 ### Deferred Work
+
 - {anything not completed and why}
 - {follow-up tasks suggested}
 
 ### Suggested Commit Message
 ```
+
 {emoji} {type}: {subject}
 
 {body with summary of changes}
+
 ```
+
 ```
 
 ---
@@ -188,6 +205,7 @@ Each sub-task gets its own subsection that grows as phases complete:
 ## Status Transitions
 
 ### Board-Level Status
+
 ```
 intake --> decomposing --> discovering --> planning --> executing --> verifying --> converged --> completed
                                                                                       |
@@ -195,6 +213,7 @@ intake --> decomposing --> discovering --> planning --> executing --> verifying 
 ```
 
 ### Task-Level Status
+
 ```
 pending --> researching --> planned --> in-progress --> verifying --> done
                                           |                |
@@ -203,17 +222,17 @@ pending --> researching --> planned --> in-progress --> verifying --> done
 
 ### Valid Transitions
 
-| From | To | Trigger |
-|------|-----|---------|
-| pending | researching | DISCOVER phase starts for this task |
-| researching | planned | Research complete, plan written |
-| planned | in-progress | EXECUTE phase starts for this task |
-| in-progress | verifying | Implementation complete, running checks |
-| in-progress | blocked | Dependency failed or external blocker |
-| verifying | done | All verification signals pass |
-| verifying | failed | Verification failed after max retries |
-| blocked | in-progress | Blocker resolved |
-| failed | in-progress | User intervention or revised approach |
+| From        | To          | Trigger                                 |
+| ----------- | ----------- | --------------------------------------- |
+| pending     | researching | DISCOVER phase starts for this task     |
+| researching | planned     | Research complete, plan written         |
+| planned     | in-progress | EXECUTE phase starts for this task      |
+| in-progress | verifying   | Implementation complete, running checks |
+| in-progress | blocked     | Dependency failed or external blocker   |
+| verifying   | done        | All verification signals pass           |
+| verifying   | failed      | Verification failed after max retries   |
+| blocked     | in-progress | Blocker resolved                        |
+| failed      | in-progress | User intervention or revised approach   |
 
 ---
 
@@ -231,7 +250,9 @@ When starting a new session and a `.superhuman/board.md` exists:
 5. **Update the board** with a "Resumed at {timestamp}" entry in the execution log
 
 ### Resume Detection
+
 At the start of any Superhuman invocation:
+
 1. Check if `.superhuman/board.md` exists
 2. If yes, ask the user: "Found an existing Superhuman board. Resume it or start fresh?"
 3. If resuming, load the board and continue from where it left off

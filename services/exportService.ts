@@ -50,7 +50,9 @@ export function buildExportConversationFile(
       ? executiveSummary
       : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`,
   );
-  const safeTitle = cleanTitle(session.title).replace(/[^a-z0-9]/gi, '_').substring(0, 50);
+  const safeTitle = cleanTitle(session.title)
+    .replace(/[^a-z0-9]/gi, '_')
+    .substring(0, 50);
   const dateStr = new Date().toISOString().slice(0, 10);
   const reportSuffix = reportType === 'executive' ? 'EXEC' : reportType === 'tech' ? 'FICHA' : 'DOSSIE';
   const filename = `SeniorScout_${safeTitle}_${reportSuffix}_${dateStr}`;
@@ -89,11 +91,7 @@ export function buildExportConversationFile(
   };
 }
 
-export function downloadConversationExport(
-  session: ChatSession,
-  format: ExportFormat,
-  reportType: ReportType,
-): void {
+export function downloadConversationExport(session: ChatSession, format: ExportFormat, reportType: ReportType): void {
   const file = buildExportConversationFile(session, format, reportType);
   downloadFile(file.filename, file.content, file.mimeType);
 }
@@ -111,7 +109,9 @@ export function openDossierPrintReport(messages: Message[], sessionTitle?: strin
   const inconsistenciesSection = detectInconsistencies(sections);
   const normalizedFullText = normalizeMermaidBlocks(fullText);
   const executiveSummary = generateExecutiveSummary(normalizedFullText, sections, inconsistenciesSection);
-  const finalText = sanitizeSensitivePersonalData(`${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`);
+  const finalText = sanitizeSensitivePersonalData(
+    `${executiveSummary}\n\n---\n\n${normalizedFullText}${inconsistenciesSection}`,
+  );
   const empresa = cleanTitle(extractCompanyName(sessionTitle));
   const now = new Date();
   const dataStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });

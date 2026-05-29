@@ -1,30 +1,22 @@
 const MERMAID_START_PATTERN =
   /(graph\s+(?:TB|TD|LR|RL|BT)?|flowchart\s+(?:TB|TD|LR|RL|BT)?|sequenceDiagram|gantt|classDiagram|stateDiagram-v2?|erDiagram|journey|pie|quadrantChart|gitGraph)/i;
-const MERMAID_EDGE_PATTERN =
-  /(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~)/;
-const MERMAID_RENDER_ERROR_PATTERN =
-  /syntax error in text|parse error|error parsing|lexical error/i;
+const MERMAID_EDGE_PATTERN = /(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~)/;
+const MERMAID_RENDER_ERROR_PATTERN = /syntax error in text|parse error|error parsing|lexical error/i;
 
 // Mermaid v10 does not support rx/ry (or other CSS geometry props) inside classDef.
 // stroke-dasharray with space-separated values (e.g. "5 5") also causes a SPACE token
 // parse error in Mermaid's jison grammar — the space is tokenized as SPACE token between
 // two NODE_STRING tokens, producing an unexpected token error. We normalize to comma-separated.
 function removeUnsupportedClassDefProps(input: string): string {
-  return input.replace(
-    /^(\s*classDef\s+\w+\s+)([^\n;]+)/gm,
-    (_full, prefix: string, props: string) => {
-      const cleaned = props
-        // Remove rx/ry (unsupported geometry attributes)
-        .replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, '')
-        // Normalize stroke-dasharray: N N -> stroke-dasharray:N,N (space between
-        // number values is a SPACE token in the jison grammar and causes parse errors)
-        .replace(
-          /(stroke-dasharray:\s*)(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/gi,
-          '$1$2,$3',
-        );
-      return prefix + cleaned;
-    },
-  );
+  return input.replace(/^(\s*classDef\s+\w+\s+)([^\n;]+)/gm, (_full, prefix: string, props: string) => {
+    const cleaned = props
+      // Remove rx/ry (unsupported geometry attributes)
+      .replace(/,\s*(?:rx|ry)\s*:[^,;]*/gi, '')
+      // Normalize stroke-dasharray: N N -> stroke-dasharray:N,N (space between
+      // number values is a SPACE token in the jison grammar and causes parse errors)
+      .replace(/(stroke-dasharray:\s*)(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/gi, '$1$2,$3');
+    return prefix + cleaned;
+  });
 }
 
 function normalizeLegacyInlineClassSyntax(input: string): string {
@@ -73,10 +65,7 @@ function splitCollapsedStatements(input: string): string {
   let result = input.replace(/;(?!\n)\s*(?=classDef|class|style|click|subgraph)/gi, ';\n');
 
   // Split when 2+ spaces precede an edge statement (existing rule)
-  result = result.replace(
-    /([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g,
-    '$1\n',
-  );
+  result = result.replace(/([^\n])\s{2,}(?=[A-Za-z][\w-]*\s*(?:-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~))/g, '$1\n');
 
   // Split after ] (end of a node label) when a new edge-producing statement follows
   // with 0-1 spaces and NO preceding newline. This handles collapsed AI output like:
@@ -89,10 +78,7 @@ function splitCollapsedStatements(input: string): string {
 
   // Also split when two node definitions are immediately adjacent (NodeId[...]  NodeId[)
   // regardless of how many spaces separate them on the same line
-  result = result.replace(
-    /(\])[^\S\n]*(?=[A-Za-z][\w-]*\[)/g,
-    '$1\n',
-  );
+  result = result.replace(/(\])[^\S\n]*(?=[A-Za-z][\w-]*\[)/g, '$1\n');
 
   return result;
 }
@@ -128,8 +114,8 @@ function materializeBareEdgeTargets(input: string): string {
   const EDGE_OPS = '-->|==>|-.->|---|===|==|--o|o--|x--|--x|~~~';
   const EDGE_RE = new RegExp(
     `^(\\s*[A-Za-z][\\w-]*\\s*(?:${EDGE_OPS})\\s+)` + // prefix: "  NodeId -.-> "
-    `([^"\\[({|\\n][^\\n;]*)` +                         // bare text (not starting with " [ ( { |)
-    `(\\s*)$`,                                           // trailing whitespace
+      `([^"\\[({|\\n][^\\n;]*)` + // bare text (not starting with " [ ( { |)
+      `(\\s*)$`, // trailing whitespace
     'gm',
   );
 
@@ -160,19 +146,16 @@ function materializeQuotedEdgeTargets(input: string): string {
 }
 
 function quoteLooseSubgraphLabels(input: string): string {
-  return input.replace(
-    /^(\s*subgraph\s+)([^"'\n[\]{]+?)(\s*)$/gm,
-    (full, prefix, label, suffix) => {
-      const trimmed = label.trim();
-      if (!trimmed) return full;
-      // If label contains special chars that require quoting, wrap in double-quotes
-      // Special chars: spaces, parentheses, brackets, slashes, backslashes, percent, colon
-      if (/[\s()[\]/\\%:]/.test(trimmed)) {
-        return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
-      }
-      return full;
-    },
-  );
+  return input.replace(/^(\s*subgraph\s+)([^"'\n[\]{]+?)(\s*)$/gm, (full, prefix, label, suffix) => {
+    const trimmed = label.trim();
+    if (!trimmed) return full;
+    // If label contains special chars that require quoting, wrap in double-quotes
+    // Special chars: spaces, parentheses, brackets, slashes, backslashes, percent, colon
+    if (/[\s()[\]/\\%:]/.test(trimmed)) {
+      return `${prefix}"${trimmed.replace(/"/g, "'")}"${suffix}`;
+    }
+    return full;
+  });
 }
 
 // Mermaid v10 jison grammar treats (, ), {, }, /, | as separate tokens (PS, PE, BRKT,
@@ -184,44 +167,35 @@ function quoteNodeLabels(input: string): string {
   // Matches: NodeId[label text] where label is NOT already double-quoted
   // Special chars that must trigger quoting: ( ) { } / | \
   // Already-quoted labels (NodeId["text"]) are skipped by the negative lookahead.
-  return input.replace(
-    /\b([A-Za-z][\w-]*)\[(?!")([^\]\n]+)\]/g,
-    (_full, nodeId: string, label: string) => {
-      if (/[(){}|/\\]/.test(label)) {
-        const safeLabel = label.trim().replace(/"/g, "'");
-        return `${nodeId}["${safeLabel}"]`;
-      }
-      return _full;
-    },
-  );
+  return input.replace(/\b([A-Za-z][\w-]*)\[(?!")([^\]\n]+)\]/g, (_full, nodeId: string, label: string) => {
+    if (/[(){}|/\\]/.test(label)) {
+      const safeLabel = label.trim().replace(/"/g, "'");
+      return `${nodeId}["${safeLabel}"]`;
+    }
+    return _full;
+  });
 }
 
 // Same as quoteNodeLabels but for round-bracket () and curly-bracket {} node shapes.
 // E.g. `D(Integração / Manual)` — the `/` inside round brackets triggers a tokenizer error.
 function quoteRoundAndCurlyLabels(input: string): string {
   // Round brackets: NodeId(label with special)
-  let result = input.replace(
-    /\b([A-Za-z][\w-]*)\((?!")([^)\n]+)\)/g,
-    (_full, nodeId: string, label: string) => {
-      if (/[/\\|{}]/.test(label)) {
-        const safeLabel = label.trim().replace(/"/g, "'");
-        return `${nodeId}("${safeLabel}")`;
-      }
-      return _full;
-    },
-  );
+  let result = input.replace(/\b([A-Za-z][\w-]*)\((?!")([^)\n]+)\)/g, (_full, nodeId: string, label: string) => {
+    if (/[/\\|{}]/.test(label)) {
+      const safeLabel = label.trim().replace(/"/g, "'");
+      return `${nodeId}("${safeLabel}")`;
+    }
+    return _full;
+  });
 
   // Curly brackets: NodeId{label with special}
-  result = result.replace(
-    /\b([A-Za-z][\w-]*)\{(?!")([^}\n]+)\}/g,
-    (_full, nodeId: string, label: string) => {
-      if (/[/\\|()]/.test(label)) {
-        const safeLabel = label.trim().replace(/"/g, "'");
-        return `${nodeId}{"${safeLabel}"}`;
-      }
-      return _full;
-    },
-  );
+  result = result.replace(/\b([A-Za-z][\w-]*)\{(?!")([^}\n]+)\}/g, (_full, nodeId: string, label: string) => {
+    if (/[/\\|()]/.test(label)) {
+      const safeLabel = label.trim().replace(/"/g, "'");
+      return `${nodeId}{"${safeLabel}"}`;
+    }
+    return _full;
+  });
 
   return result;
 }
@@ -230,16 +204,13 @@ function quoteRoundAndCurlyLabels(input: string): string {
 // the ( inside a |...| context can still trigger PS token depending on lex state.
 // Fix: wrap the label in double-quotes: |"label with (parens)"|
 function quotePipeEdgeLabelSpecialChars(input: string): string {
-  return input.replace(
-    /\|([^|\n"]+)\|/g,
-    (_full, label: string) => {
-      if (/[(){}]/.test(label)) {
-        const safeLabel = label.trim().replace(/"/g, "'");
-        return `|"${safeLabel}"|`;
-      }
-      return _full;
-    },
-  );
+  return input.replace(/\|([^|\n"]+)\|/g, (_full, label: string) => {
+    if (/[(){}]/.test(label)) {
+      const safeLabel = label.trim().replace(/"/g, "'");
+      return `|"${safeLabel}"|`;
+    }
+    return _full;
+  });
 }
 
 export function normalizeMermaidBlocks(markdown: string): string {
@@ -259,24 +230,19 @@ export function normalizeMermaidBlocks(markdown: string): string {
 function fixClassStatements(input: string): string {
   // Fix class statements with invalid node IDs (starting with numbers or special chars)
   // E.g., "class 1A danger;" -> "class _1A danger;"
-  return input.replace(
-    /^(\s*class\s+)([^;\s]+)((?:\s+[^;]+)?;?\s*)$/gm,
-    (full, prefix, nodeId, suffix) => {
-      // If nodeId starts with a digit or has invalid chars, prefix with underscore
-      if (/^[0-9]/.test(nodeId)) {
-        return `${prefix}_${nodeId}${suffix}`;
-      }
-      return full;
-    },
-  );
+  return input.replace(/^(\s*class\s+)([^;\s]+)((?:\s+[^;]+)?;?\s*)$/gm, (full, prefix, nodeId, suffix) => {
+    // If nodeId starts with a digit or has invalid chars, prefix with underscore
+    if (/^[0-9]/.test(nodeId)) {
+      return `${prefix}_${nodeId}${suffix}`;
+    }
+    return full;
+  });
 }
 
 export function sanitizeMermaidCode(input: string): string {
   if (!input) return '';
 
-  let code = removeUnsupportedClassDefProps(
-    normalizeInlineMermaidClasses(normalizeMermaidText(input)),
-  )
+  let code = removeUnsupportedClassDefProps(normalizeInlineMermaidClasses(normalizeMermaidText(input)))
     .replace(/[\t ]+$/gm, '')
     .replace(/^[^a-zA-Z]+/, '')
     .trim();

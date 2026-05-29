@@ -57,22 +57,14 @@ export default [
     rules: {
       ...tsPlugin.configs.recommended.rules,
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': [
-        'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       ...sharedRules,
     },
   },
 
   // Scripts de manutenção e testes usam console/mocks de forma intencional.
   {
-    files: [
-      'scripts/**/*.{ts,js,cjs,mjs}',
-      'tests/**/*.{ts,tsx}',
-      'vite.config.ts',
-      'utils/diagnosticLog.ts',
-    ],
+    files: ['scripts/**/*.{ts,js,cjs,mjs}', 'tests/**/*.{ts,tsx}', 'vite.config.ts', 'utils/diagnosticLog.ts'],
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off',

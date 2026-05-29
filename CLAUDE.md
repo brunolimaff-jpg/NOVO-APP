@@ -40,6 +40,9 @@ npm run lint       # ESLint
 7. **Validar CNPJ antes de chamadas IA**
 8. **Framework PORTA**: 5 dimensões (Porte, Operação, Retorno, Tecnologia, Adoção) — temp 0.1
 9. **Trava de agentes**: NUNCA commitar, fazer push, merge, ou modificar estado do repositório enquanto houver agentes de planejamento (planner), validação (validator) ou revisão (reviewer) em execução. Sempre aguardar TODOS terminarem via `<task-notification>` e pedir confirmação explícita do usuário antes de qualquer ação de git. "Finaliza" não dispensa aguardar agentes.
+10. **Trava de acúmulo de commits**: Máximo **7 commits** locais sem push/PR. Ao atingir 5, warning automático (`scripts/check-branch-health.sh`). Ao atingir 8, commit bloqueado. Abra PR cedo — PR pequeno = review rápido. Use `BRANCH_HEALTH_SKIP=1` apenas com justificativa documentada.
+11. **Push diário obrigatório**: Ao final de cada sessão, commits devem estar pushados ou em PR aberta. Nunca encerrar sessão com +5 commits locais sem PR.
+12. **Checkpoint de branch**: A cada 5 commits, rodar `git log main..HEAD --oneline` e verificar se já não é hora de abrir PR.
 
 ## Agent Dispatch
 

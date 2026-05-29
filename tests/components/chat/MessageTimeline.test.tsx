@@ -60,7 +60,11 @@ vi.mock('../../../components/MessageRow', () => ({
 }));
 
 vi.mock('../../../components/GreetingWelcomeScreen', () => ({
-  default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void }) => (
+  default: ({
+    onConfirmOperator,
+  }: {
+    onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void;
+  }) => (
     <div data-testid="greeting-screen">
       <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno.lima@senior.com.br')}>
         confirm-name
@@ -70,7 +74,16 @@ vi.mock('../../../components/GreetingWelcomeScreen', () => ({
 }));
 
 vi.mock('../../../components/EmptyStateHome', () => ({
-  default: ({ onStartInvestigation }: { onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => Promise<void> }) => (
+  default: ({
+    onStartInvestigation,
+  }: {
+    onStartInvestigation: (payload: {
+      companyName: string;
+      cnpj: string | null;
+      city: string;
+      state: string;
+    }) => Promise<void>;
+  }) => (
     <div data-testid="empty-state-home">
       <button
         type="button"
@@ -130,7 +143,9 @@ function buildSession(messages: Message[]): ChatSession {
   };
 }
 
-function buildProps(overrides: Partial<React.ComponentProps<typeof MessageTimeline>> = {}): React.ComponentProps<typeof MessageTimeline> {
+function buildProps(
+  overrides: Partial<React.ComponentProps<typeof MessageTimeline>> = {},
+): React.ComponentProps<typeof MessageTimeline> {
   const messages = [
     buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
     buildMessage('m2', Sender.Bot, 'Resumo inicial'),
@@ -282,10 +297,7 @@ describe('MessageTimeline', () => {
 
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
 
-      const nextMessages = [
-        ...initialMessages,
-        buildMessage('m3', Sender.Bot, 'Nova resposta sem auto scroll'),
-      ];
+      const nextMessages = [...initialMessages, buildMessage('m3', Sender.Bot, 'Nova resposta sem auto scroll')];
 
       rerender(
         <MessageTimeline

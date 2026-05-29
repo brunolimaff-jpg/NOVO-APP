@@ -2,14 +2,7 @@
   "version": 1,
   "root": "docs/obsidian",
   "master_note": "docs/obsidian/00-MASTER.md",
-  "required_frontmatter": [
-    "type",
-    "area",
-    "status",
-    "source_of_truth",
-    "last_reviewed",
-    "tags"
-  ],
+  "required_frontmatter": ["type", "area", "status", "source_of_truth", "last_reviewed", "tags"],
   "required_notes": [
     {
       "path": "docs/obsidian/00-MASTER.md",
@@ -31,20 +24,11 @@
     },
     {
       "path": "docs/obsidian/OBSIDIAN-README.md",
-      "required_links": [
-        "[[00-MASTER]]",
-        "[[META-Contract]]",
-        "[[ROADMAP-Overview]]",
-        "[[DECISIONS-Index]]"
-      ]
+      "required_links": ["[[00-MASTER]]", "[[META-Contract]]", "[[ROADMAP-Overview]]", "[[DECISIONS-Index]]"]
     },
     {
       "path": "docs/obsidian/_meta/META-Contract.md",
-      "required_links": [
-        "[[00-MASTER]]",
-        "[[OBSIDIAN-README]]",
-        "[[DECISIONS-Index]]"
-      ]
+      "required_links": ["[[00-MASTER]]", "[[OBSIDIAN-README]]", "[[DECISIONS-Index]]"]
     },
     {
       "path": "docs/obsidian/architecture/ARCH-App-Orchestration.md",
@@ -93,12 +77,7 @@
     },
     {
       "path": "docs/obsidian/architecture/ARCH-Tests-Quality.md",
-      "required_links": [
-        "[[00-MASTER]]",
-        "[[ARCH-Chat-Experience]]",
-        "[[ARCH-Serverless-RAG]]",
-        "[[ROADMAP-Overview]]"
-      ]
+      "required_links": ["[[00-MASTER]]", "[[ARCH-Chat-Experience]]", "[[ARCH-Serverless-RAG]]", "[[ROADMAP-Overview]]"]
     },
     {
       "path": "docs/obsidian/roadmap/ROADMAP-Overview.md",
@@ -130,12 +109,7 @@
     },
     {
       "path": "docs/obsidian/roadmap/ROADMAP-Proximos-Blocos.md",
-      "required_links": [
-        "[[00-MASTER]]",
-        "[[ROADMAP-Overview]]",
-        "[[ARCH-Services-Gemini]]",
-        "[[ARCH-Serverless-RAG]]"
-      ]
+      "required_links": ["[[00-MASTER]]", "[[ROADMAP-Overview]]", "[[ARCH-Services-Gemini]]", "[[ARCH-Serverless-RAG]]"]
     },
     {
       "path": "docs/obsidian/decisions/DECISIONS-Index.md",

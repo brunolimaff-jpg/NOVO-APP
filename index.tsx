@@ -21,9 +21,7 @@ const OPTIONAL_ENV_VARS: Array<{ key: string; label: string }> = [
 ];
 
 function getMissingVars(vars: typeof REQUIRED_ENV_VARS): string[] {
-  return vars
-    .filter(({ key }) => !import.meta.env[key])
-    .map(({ label }) => label);
+  return vars.filter(({ key }) => !import.meta.env[key]).map(({ label }) => label);
 }
 
 const missingRequired = getMissingVars(REQUIRED_ENV_VARS);
@@ -64,16 +62,11 @@ if (missingRequired.length > 0) {
       </div>
     `;
   }
-  throw new Error(
-    `[Scout Boot] Variáveis obrigatórias ausentes: ${missingRequired.join(', ')}`,
-  );
+  throw new Error(`[Scout Boot] Variáveis obrigatórias ausentes: ${missingRequired.join(', ')}`);
 }
 
 if (missingOptional.length > 0 && import.meta.env.DEV) {
-  console.warn(
-    '[Scout Boot] Variáveis opcionais não configuradas (funcionalidades degradadas):',
-    missingOptional,
-  );
+  console.warn('[Scout Boot] Variáveis opcionais não configuradas (funcionalidades degradadas):', missingOptional);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -99,18 +92,18 @@ if (!rootElement) {
 if (typeof window !== 'undefined') {
   const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches;
   if (!isStandalone) {
-    void navigator.serviceWorker?.getRegistrations?.().then((registrations) => {
-      registrations.forEach((r) => void r.unregister());
+    void navigator.serviceWorker?.getRegistrations?.().then(registrations => {
+      registrations.forEach(r => void r.unregister());
     });
-    void window.caches?.keys?.().then((keys) => {
-      keys.forEach((k) => void window.caches.delete(k));
+    void window.caches?.keys?.().then(keys => {
+      keys.forEach(k => void window.caches.delete(k));
     });
   }
 }
 
 // ── Global error listeners — enviam stack + flush imediato dos diagnósticos ──
 if (typeof window !== 'undefined') {
-  window.addEventListener('error', (event) => {
+  window.addEventListener('error', event => {
     const { message, filename, lineno, colno, error } = event;
     console.error('[Scout360][GlobalError] uncaught error', {
       message,
@@ -122,7 +115,7 @@ if (typeof window !== 'undefined') {
     flushDiagnosticsNow('global-error');
   });
 
-  window.addEventListener('unhandledrejection', (event) => {
+  window.addEventListener('unhandledrejection', event => {
     const reason = event.reason;
     console.error('[Scout360][GlobalError] unhandled rejection', {
       message: reason instanceof Error ? reason.message : String(reason),

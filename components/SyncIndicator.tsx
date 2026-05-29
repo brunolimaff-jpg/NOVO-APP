@@ -120,11 +120,11 @@ export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
       ? 'Falha ao sincronizar — toque para tentar novamente'
       : lastResult === 'Falhou'
         ? 'Sincronização falhou — toque para tentar novamente'
-      : lastResult
-        ? `Sincronizado: ${lastResult}`
-        : hasPending
-          ? `${pending} alteração${pending > 1 ? 'ões' : ''} local pendente — toque para enviar`
-          : 'Nuvem em dia — toque para sincronizar';
+        : lastResult
+          ? `Sincronizado: ${lastResult}`
+          : hasPending
+            ? `${pending} alteração${pending > 1 ? 'ões' : ''} local pendente — toque para enviar`
+            : 'Nuvem em dia — toque para sincronizar';
 
   const ariaLabel = `Nuvem · ${statusText}`;
 

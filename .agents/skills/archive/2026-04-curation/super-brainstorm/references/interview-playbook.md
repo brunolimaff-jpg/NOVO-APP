@@ -74,86 +74,92 @@ The key insight: by the time you reach `notifications > notify on reply`, you ha
 ## Question Banks by Project Type
 
 ### Feature Development
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | What is the feature and what user problem does it solve? | Root purpose | Always ask first |
-| 2 | Who is the target user? Are there different user roles involved? | Scope actors | If multi-role system |
-| 3 | What is the expected user flow from start to finish? | Map the journey | Always |
-| 4 | What existing features does this interact with? | Dependency map | If not greenfield |
-| 5 | What does the happy path look like? Walk me through it. | Core behavior | Always |
-| 6 | What happens when things go wrong? (network failure, invalid input, missing data) | Error handling | Always |
-| 7 | Are there any performance requirements? (response time, data volume) | Non-functional reqs | If data-heavy |
-| 8 | Is this feature behind a flag or always-on? | Rollout strategy | If production system |
-| 9 | What is explicitly out of scope for this version? | Prevent scope creep | Always |
-| 10 | How will we know this feature is working correctly in production? | Observability | If production system |
+
+| #   | Question                                                                          | Purpose             | Depth Trigger        |
+| --- | --------------------------------------------------------------------------------- | ------------------- | -------------------- |
+| 1   | What is the feature and what user problem does it solve?                          | Root purpose        | Always ask first     |
+| 2   | Who is the target user? Are there different user roles involved?                  | Scope actors        | If multi-role system |
+| 3   | What is the expected user flow from start to finish?                              | Map the journey     | Always               |
+| 4   | What existing features does this interact with?                                   | Dependency map      | If not greenfield    |
+| 5   | What does the happy path look like? Walk me through it.                           | Core behavior       | Always               |
+| 6   | What happens when things go wrong? (network failure, invalid input, missing data) | Error handling      | Always               |
+| 7   | Are there any performance requirements? (response time, data volume)              | Non-functional reqs | If data-heavy        |
+| 8   | Is this feature behind a flag or always-on?                                       | Rollout strategy    | If production system |
+| 9   | What is explicitly out of scope for this version?                                 | Prevent scope creep | Always               |
+| 10  | How will we know this feature is working correctly in production?                 | Observability       | If production system |
 
 ### System Design / Architecture
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | What is the system's primary responsibility? One sentence. | Core abstraction | Always |
-| 2 | What are the inputs and outputs? | Boundary definition | Always |
-| 3 | What are the throughput and latency requirements? | Scale constraints | Always |
-| 4 | What is the data model? What are the core entities and relationships? | Data layer | Always |
-| 5 | How does data flow through the system? | Architecture pattern | Always |
-| 6 | What are the failure modes? What happens when each dependency is down? | Resilience | Always |
-| 7 | What consistency guarantees are needed? (eventual vs strong) | Data integrity | If distributed |
-| 8 | What are the security boundaries? Who can access what? | Auth/authz model | Always |
-| 9 | How will this be deployed and scaled? | Infrastructure | If production |
-| 10 | What existing systems does this replace or integrate with? | Migration/integration | If not greenfield |
+
+| #   | Question                                                               | Purpose               | Depth Trigger     |
+| --- | ---------------------------------------------------------------------- | --------------------- | ----------------- |
+| 1   | What is the system's primary responsibility? One sentence.             | Core abstraction      | Always            |
+| 2   | What are the inputs and outputs?                                       | Boundary definition   | Always            |
+| 3   | What are the throughput and latency requirements?                      | Scale constraints     | Always            |
+| 4   | What is the data model? What are the core entities and relationships?  | Data layer            | Always            |
+| 5   | How does data flow through the system?                                 | Architecture pattern  | Always            |
+| 6   | What are the failure modes? What happens when each dependency is down? | Resilience            | Always            |
+| 7   | What consistency guarantees are needed? (eventual vs strong)           | Data integrity        | If distributed    |
+| 8   | What are the security boundaries? Who can access what?                 | Auth/authz model      | Always            |
+| 9   | How will this be deployed and scaled?                                  | Infrastructure        | If production     |
+| 10  | What existing systems does this replace or integrate with?             | Migration/integration | If not greenfield |
 
 ### Refactoring
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | What is the specific pain point with the current code? | Root cause | Always |
-| 2 | What does the ideal end state look like? | Target architecture | Always |
-| 3 | What is the blast radius? How many files, modules, consumers? | Risk assessment | Always |
-| 4 | Is there test coverage for the code being refactored? | Safety net check | Always |
-| 5 | Can this be done incrementally, or is it all-or-nothing? | Strategy | If blast radius > 5 files |
-| 6 | Are there downstream consumers or public APIs affected? | Breaking changes | If library/shared code |
-| 7 | What is the rollback plan if the refactor introduces regressions? | Safety | If production code |
-| 8 | Are there performance characteristics that must be preserved? | Regression prevention | If performance-sensitive |
+
+| #   | Question                                                          | Purpose               | Depth Trigger             |
+| --- | ----------------------------------------------------------------- | --------------------- | ------------------------- |
+| 1   | What is the specific pain point with the current code?            | Root cause            | Always                    |
+| 2   | What does the ideal end state look like?                          | Target architecture   | Always                    |
+| 3   | What is the blast radius? How many files, modules, consumers?     | Risk assessment       | Always                    |
+| 4   | Is there test coverage for the code being refactored?             | Safety net check      | Always                    |
+| 5   | Can this be done incrementally, or is it all-or-nothing?          | Strategy              | If blast radius > 5 files |
+| 6   | Are there downstream consumers or public APIs affected?           | Breaking changes      | If library/shared code    |
+| 7   | What is the rollback plan if the refactor introduces regressions? | Safety                | If production code        |
+| 8   | Are there performance characteristics that must be preserved?     | Regression prevention | If performance-sensitive  |
 
 ### Greenfield Projects
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | What problem does this project solve? Who has this problem? | Problem/user fit | Always |
-| 2 | What are the 3-5 core features for v1? No more. | Scope discipline | Always |
-| 3 | What is the tech stack? Any hard constraints? | Foundation | Always |
-| 4 | Are there reference implementations, competitors, or designs to study? | Prior art | Always |
-| 5 | What does the data model look like at a high level? | Core entities | Always |
-| 6 | How will users authenticate and what are their roles? | Auth model | If multi-user |
-| 7 | What third-party services or APIs are needed? | External deps | If integrations exist |
-| 8 | What is the deployment target? (Vercel, AWS, self-hosted, etc.) | Infrastructure | Always |
-| 9 | What is the testing strategy? (unit, integration, e2e) | Quality gates | Always |
-| 10 | What is the priority order? If you could only ship one feature, which? | Prioritization | Always |
+
+| #   | Question                                                               | Purpose          | Depth Trigger         |
+| --- | ---------------------------------------------------------------------- | ---------------- | --------------------- |
+| 1   | What problem does this project solve? Who has this problem?            | Problem/user fit | Always                |
+| 2   | What are the 3-5 core features for v1? No more.                        | Scope discipline | Always                |
+| 3   | What is the tech stack? Any hard constraints?                          | Foundation       | Always                |
+| 4   | Are there reference implementations, competitors, or designs to study? | Prior art        | Always                |
+| 5   | What does the data model look like at a high level?                    | Core entities    | Always                |
+| 6   | How will users authenticate and what are their roles?                  | Auth model       | If multi-user         |
+| 7   | What third-party services or APIs are needed?                          | External deps    | If integrations exist |
+| 8   | What is the deployment target? (Vercel, AWS, self-hosted, etc.)        | Infrastructure   | Always                |
+| 9   | What is the testing strategy? (unit, integration, e2e)                 | Quality gates    | Always                |
+| 10  | What is the priority order? If you could only ship one feature, which? | Prioritization   | Always                |
 
 ### API Design
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | Who are the consumers of this API? (frontend, mobile, third-party, internal) | Audience | Always |
-| 2 | REST, GraphQL, gRPC, or something else? Why? | Protocol | Always |
-| 3 | What are the core resources/entities? | Domain model | Always |
-| 4 | What operations are needed on each resource? (CRUD? Custom actions?) | Endpoints | Always |
-| 5 | What are the authentication and authorization requirements? | Security | Always |
-| 6 | What is the pagination strategy? (cursor, offset, keyset) | Data access pattern | If list endpoints exist |
-| 7 | What is the error response format? | Developer experience | Always |
-| 8 | What are the rate limiting requirements? | Abuse prevention | If public API |
-| 9 | Is versioning needed? What strategy? (URL, header, content negotiation) | Evolution | If long-lived API |
-| 10 | What is the expected payload size and response time? | Performance | If high-traffic |
+
+| #   | Question                                                                     | Purpose              | Depth Trigger           |
+| --- | ---------------------------------------------------------------------------- | -------------------- | ----------------------- |
+| 1   | Who are the consumers of this API? (frontend, mobile, third-party, internal) | Audience             | Always                  |
+| 2   | REST, GraphQL, gRPC, or something else? Why?                                 | Protocol             | Always                  |
+| 3   | What are the core resources/entities?                                        | Domain model         | Always                  |
+| 4   | What operations are needed on each resource? (CRUD? Custom actions?)         | Endpoints            | Always                  |
+| 5   | What are the authentication and authorization requirements?                  | Security             | Always                  |
+| 6   | What is the pagination strategy? (cursor, offset, keyset)                    | Data access pattern  | If list endpoints exist |
+| 7   | What is the error response format?                                           | Developer experience | Always                  |
+| 8   | What are the rate limiting requirements?                                     | Abuse prevention     | If public API           |
+| 9   | Is versioning needed? What strategy? (URL, header, content negotiation)      | Evolution            | If long-lived API       |
+| 10  | What is the expected payload size and response time?                         | Performance          | If high-traffic         |
 
 ### UI/UX Features
-| # | Question | Purpose | Depth Trigger |
-|---|----------|---------|---------------|
-| 1 | What is the user trying to accomplish? Describe the goal, not the widget. | User intent | Always |
-| 2 | Is there a design/mockup/wireframe? Link or describe it. | Visual spec | Always |
-| 3 | What is the interaction model? (click, drag, keyboard, touch) | Input methods | Always |
-| 4 | What are the states? (empty, loading, error, partial, complete) | State coverage | Always |
-| 5 | How does this behave on different screen sizes? | Responsiveness | If web/mobile |
-| 6 | What accessibility requirements exist? (keyboard nav, screen reader, contrast) | A11y | Always |
-| 7 | What animations or transitions are expected? | Motion design | If interactive |
-| 8 | What existing component library or design system should be used? | Consistency | If not greenfield |
-| 9 | What is the data source? How is state managed? | Data binding | Always |
-| 10 | What happens at the boundaries? (0 items, 1000 items, very long text) | Edge cases | Always |
+
+| #   | Question                                                                       | Purpose        | Depth Trigger     |
+| --- | ------------------------------------------------------------------------------ | -------------- | ----------------- |
+| 1   | What is the user trying to accomplish? Describe the goal, not the widget.      | User intent    | Always            |
+| 2   | Is there a design/mockup/wireframe? Link or describe it.                       | Visual spec    | Always            |
+| 3   | What is the interaction model? (click, drag, keyboard, touch)                  | Input methods  | Always            |
+| 4   | What are the states? (empty, loading, error, partial, complete)                | State coverage | Always            |
+| 5   | How does this behave on different screen sizes?                                | Responsiveness | If web/mobile     |
+| 6   | What accessibility requirements exist? (keyboard nav, screen reader, contrast) | A11y           | Always            |
+| 7   | What animations or transitions are expected?                                   | Motion design  | If interactive    |
+| 8   | What existing component library or design system should be used?               | Consistency    | If not greenfield |
+| 9   | What is the data source? How is state managed?                                 | Data binding   | Always            |
+| 10  | What happens at the boundaries? (0 items, 1000 items, very long text)          | Edge cases     | Always            |
 
 ---
 
@@ -163,23 +169,23 @@ Before asking the user a question, check whether the codebase already has the an
 
 ### What to Search Before Asking
 
-| Before Asking About | Search For | Where to Look |
-|---|---|---|
-| Database / ORM | `package.json` deps (prisma, typeorm, sequelize, mongoose, drizzle), config files | `package.json`, `*.config.*`, `prisma/schema.prisma`, `drizzle.config.*` |
-| Authentication | Auth middleware, JWT libraries, session config, auth routes | `middleware/auth*`, `lib/auth*`, `**/passport*`, `package.json` (next-auth, clerk, passport) |
-| Testing framework | Test config, existing test files, test scripts | `jest.config*`, `vitest.config*`, `.mocharc*`, `cypress.config*`, `package.json` scripts |
-| State management | Store files, context providers, state libraries | `**/store/**`, `**/context/**`, `package.json` (redux, zustand, jotai, mobx) |
-| API patterns | Route files, handler patterns, middleware chain | `**/routes/**`, `**/api/**`, `**/handlers/**`, `**/controllers/**` |
-| Styling approach | CSS config, style files, component patterns | `tailwind.config*`, `postcss.config*`, `*.module.css`, `styled-components` in deps |
-| Component library | UI library deps, shared component directory | `package.json` (shadcn, radix, chakra, MUI), `**/components/ui/**` |
-| Deployment | CI/CD config, Dockerfiles, deploy scripts | `.github/workflows/*`, `Dockerfile`, `docker-compose*`, `vercel.json`, `netlify.toml` |
-| Linting / formatting | Lint config, prettier config, editor config | `.eslintrc*`, `.prettierrc*`, `biome.json`, `.editorconfig` |
-| Monorepo structure | Workspace config, package directories | `pnpm-workspace.yaml`, `lerna.json`, `turbo.json`, `packages/`, `apps/` |
-| Environment variables | Env files, env validation, env usage | `.env.example`, `.env.local`, `**/env.*`, `process.env` usage in code |
-| Error handling | Error classes, error middleware, error boundaries | `**/errors/**`, `**/middleware/error*`, `**/ErrorBoundary*` |
-| Logging | Logger setup, logging library | `**/logger*`, `package.json` (winston, pino, bunyan) |
-| Caching | Cache config, Redis/Memcached setup | `**/cache*`, `package.json` (redis, ioredis), `**/redis*` |
-| File structure conventions | Existing module organization | Top-level directories, barrel exports (`index.ts`), naming patterns |
+| Before Asking About        | Search For                                                                        | Where to Look                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Database / ORM             | `package.json` deps (prisma, typeorm, sequelize, mongoose, drizzle), config files | `package.json`, `*.config.*`, `prisma/schema.prisma`, `drizzle.config.*`                     |
+| Authentication             | Auth middleware, JWT libraries, session config, auth routes                       | `middleware/auth*`, `lib/auth*`, `**/passport*`, `package.json` (next-auth, clerk, passport) |
+| Testing framework          | Test config, existing test files, test scripts                                    | `jest.config*`, `vitest.config*`, `.mocharc*`, `cypress.config*`, `package.json` scripts     |
+| State management           | Store files, context providers, state libraries                                   | `**/store/**`, `**/context/**`, `package.json` (redux, zustand, jotai, mobx)                 |
+| API patterns               | Route files, handler patterns, middleware chain                                   | `**/routes/**`, `**/api/**`, `**/handlers/**`, `**/controllers/**`                           |
+| Styling approach           | CSS config, style files, component patterns                                       | `tailwind.config*`, `postcss.config*`, `*.module.css`, `styled-components` in deps           |
+| Component library          | UI library deps, shared component directory                                       | `package.json` (shadcn, radix, chakra, MUI), `**/components/ui/**`                           |
+| Deployment                 | CI/CD config, Dockerfiles, deploy scripts                                         | `.github/workflows/*`, `Dockerfile`, `docker-compose*`, `vercel.json`, `netlify.toml`        |
+| Linting / formatting       | Lint config, prettier config, editor config                                       | `.eslintrc*`, `.prettierrc*`, `biome.json`, `.editorconfig`                                  |
+| Monorepo structure         | Workspace config, package directories                                             | `pnpm-workspace.yaml`, `lerna.json`, `turbo.json`, `packages/`, `apps/`                      |
+| Environment variables      | Env files, env validation, env usage                                              | `.env.example`, `.env.local`, `**/env.*`, `process.env` usage in code                        |
+| Error handling             | Error classes, error middleware, error boundaries                                 | `**/errors/**`, `**/middleware/error*`, `**/ErrorBoundary*`                                  |
+| Logging                    | Logger setup, logging library                                                     | `**/logger*`, `package.json` (winston, pino, bunyan)                                         |
+| Caching                    | Cache config, Redis/Memcached setup                                               | `**/cache*`, `package.json` (redis, ioredis), `**/redis*`                                    |
+| File structure conventions | Existing module organization                                                      | Top-level directories, barrel exports (`index.ts`), naming patterns                          |
 
 ### Intelligence-First Protocol
 
@@ -195,12 +201,12 @@ For every question you are about to ask, run this check:
 
 ### Multiple Choice vs Open-Ended
 
-| Use Multiple Choice When | Use Open-Ended When |
-|---|---|
-| There are 2-4 well-known options | The answer space is unbounded |
-| You want to anchor the user on realistic choices | You want to discover requirements you haven't thought of |
+| Use Multiple Choice When                                 | Use Open-Ended When                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------- |
+| There are 2-4 well-known options                         | The answer space is unbounded                                 |
+| You want to anchor the user on realistic choices         | You want to discover requirements you haven't thought of      |
 | The user is non-technical and might not know terminology | The user is the domain expert and you need their mental model |
-| Speed matters - reduce back-and-forth | Depth matters - you need their full reasoning |
+| Speed matters - reduce back-and-forth                    | Depth matters - you need their full reasoning                 |
 
 **Examples:**
 
@@ -211,18 +217,20 @@ For every question you are about to ask, run this check:
 
 A question is too broad if the user would need more than 3 sentences to answer it well. Split it.
 
-| Too Broad | Better |
-|---|---|
+| Too Broad                                  | Better                                                                                                                                                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | "How should the notification system work?" | "Should notifications be in-app only, email only, or both?" followed by "For in-app notifications, should they appear as a badge, a dropdown, or a full page?" |
-| "What are the security requirements?" | "Who should be able to access this resource?" followed by "Do we need rate limiting on this endpoint?" |
-| "How should errors be handled?" | "When the API returns a 4xx error, what should the user see?" followed by "Should we retry on network failures? How many times?" |
+| "What are the security requirements?"      | "Who should be able to access this resource?" followed by "Do we need rate limiting on this endpoint?"                                                         |
+| "How should errors be handled?"            | "When the API returns a 4xx error, what should the user see?" followed by "Should we retry on network failures? How many times?"                               |
 
 ### When to Merge vs Split Questions
 
 **Merge** when two questions are so tightly coupled that answering one without the other is meaningless:
+
 - "Should comments support threading, and if so, what is the max nesting depth?" (threading yes/no and depth are inseparable)
 
 **Split** when a question bundles independent decisions:
+
 - Bad: "Should we use WebSockets for real-time updates and Redis for caching?"
 - Good: Ask about real-time transport separately from caching strategy.
 
@@ -240,18 +248,18 @@ A question is too broad if the user would need more than 3 sentences to answer i
 
 Users say what they want. They rarely say what they need. Watch for these patterns and surface the hidden requirements.
 
-| User Says | Hidden Requirements |
-|---|---|
-| "Add notifications" | Delivery channel (in-app, email, push), read/unread state, notification preferences, quiet hours, batch/digest mode, notification center UI |
-| "Make it real-time" | WebSocket infrastructure, reconnection logic, optimistic updates, conflict resolution, offline handling, connection state UI |
-| "Add user roles" | Permission model, role assignment UI, role hierarchy, inheritance rules, admin override, audit logging |
-| "Support file uploads" | Max file size, allowed formats, virus scanning, storage backend (S3, local), progress indicator, resume on failure, thumbnail generation |
-| "Add a dashboard" | Data aggregation, refresh interval, date range filtering, export capability, empty state, loading skeletons, responsive layout |
-| "Make it work offline" | Sync strategy, conflict resolution, storage limits, cache invalidation, sync status indicator, queue management |
-| "Add search" | Full-text vs exact match, indexing strategy, debounce, highlighting, filters/facets, empty results state, typo tolerance, pagination |
-| "Support multiple languages" | i18n framework, string extraction, RTL support, date/number formatting, language detection, translation workflow, fallback language |
-| "Add an API" | Authentication, rate limiting, versioning, documentation, error format, pagination, CORS, request validation, response caching |
-| "Add logging" | Log levels, structured vs unstructured, rotation policy, PII redaction, correlation IDs, alerting thresholds, log aggregation |
+| User Says                    | Hidden Requirements                                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Add notifications"          | Delivery channel (in-app, email, push), read/unread state, notification preferences, quiet hours, batch/digest mode, notification center UI |
+| "Make it real-time"          | WebSocket infrastructure, reconnection logic, optimistic updates, conflict resolution, offline handling, connection state UI                |
+| "Add user roles"             | Permission model, role assignment UI, role hierarchy, inheritance rules, admin override, audit logging                                      |
+| "Support file uploads"       | Max file size, allowed formats, virus scanning, storage backend (S3, local), progress indicator, resume on failure, thumbnail generation    |
+| "Add a dashboard"            | Data aggregation, refresh interval, date range filtering, export capability, empty state, loading skeletons, responsive layout              |
+| "Make it work offline"       | Sync strategy, conflict resolution, storage limits, cache invalidation, sync status indicator, queue management                             |
+| "Add search"                 | Full-text vs exact match, indexing strategy, debounce, highlighting, filters/facets, empty results state, typo tolerance, pagination        |
+| "Support multiple languages" | i18n framework, string extraction, RTL support, date/number formatting, language detection, translation workflow, fallback language         |
+| "Add an API"                 | Authentication, rate limiting, versioning, documentation, error format, pagination, CORS, request validation, response caching              |
+| "Add logging"                | Log levels, structured vs unstructured, rotation policy, PII redaction, correlation IDs, alerting thresholds, log aggregation               |
 
 ### The Extraction Protocol
 
@@ -395,10 +403,12 @@ These are the most common mistakes during a design interview. Each one wastes th
 ### 4. Accepting Vague Answers Without Follow-Up
 
 **Wrong**:
+
 - User: "It should handle errors gracefully."
 - Agent: "Got it." (moves on)
 
 **Right**:
+
 - User: "It should handle errors gracefully."
 - Agent: "Can you give me an example? When a notification fails to deliver, should we: (a) silently retry, (b) show an error toast to the user, or (c) log it and move on?"
 

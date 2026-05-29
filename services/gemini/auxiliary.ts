@@ -36,10 +36,7 @@ As perguntas aparecem como botoes clicaveis para o vendedor. Elas precisam ajuda
 </example>
 `;
 
-export async function generateLoadingCuriosities(
-  loadingContext: string,
-  searchQuery: string,
-): Promise<string[]> {
+export async function generateLoadingCuriosities(loadingContext: string, searchQuery: string): Promise<string[]> {
   const safeContext = sanitizeLoadingContextText(loadingContext || '');
   const fallback = buildLoadingCuriositiesFallback(safeContext);
   const querySample = (searchQuery || '').slice(0, 240);
@@ -174,13 +171,13 @@ export async function generateContinuityQuestion(
   const contextCorpus = `${normalizedCompany}\n${recentMessages}`.toLowerCase();
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
-  const noveltyConstraint =
-    shouldPrioritizeNovelty
-      ? 'MODO NOVIDADE: priorize perguntas realmente novas e com angulos diferentes das anteriores.'
-      : '';
-  const exclusionConstraint = normalizedExcludedSuggestions.length > 0
-    ? `PERGUNTAS BLOQUEADAS (NAO pode repetir):\n${normalizedExcludedSuggestions.map(item => `- ${item}`).join('\n')}`
+  const noveltyConstraint = shouldPrioritizeNovelty
+    ? 'MODO NOVIDADE: priorize perguntas realmente novas e com angulos diferentes das anteriores.'
     : '';
+  const exclusionConstraint =
+    normalizedExcludedSuggestions.length > 0
+      ? `PERGUNTAS BLOQUEADAS (NAO pode repetir):\n${normalizedExcludedSuggestions.map(item => `- ${item}`).join('\n')}`
+      : '';
   const basePrompt = [
     '<task>Gere 4 perguntas de continuidade para uma conversa comercial.</task>',
     '<context>',
@@ -249,7 +246,8 @@ export async function generateContinuityQuestion(
     },
     {
       id: 'ops',
-      detect: /(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o)/gi,
+      detect:
+        /(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o)/gi,
       prompts: [
         `Onde ${companyReference} perde previsibilidade hoje porque o dado crítico chega tarde ou desencontrado?`,
         `Qual gargalo operacional em ${companyReference} já foi normalizado e continua destruindo margem sem virar prioridade?`,
@@ -327,7 +325,12 @@ export async function generateContinuityQuestion(
     if (/^(responda|retorne|array json|json)/i.test(candidate)) return false;
     if (/^\s*(?:\[|{)/.test(candidate)) return false;
     if (!isBusinessSellerContinuityQuestion(candidate)) return false;
-    if (genericQuestionRegex.test(candidate) && !leverageSignalRegex.test(candidate) && !sniperSignalRegex.test(candidate)) return false;
+    if (
+      genericQuestionRegex.test(candidate) &&
+      !leverageSignalRegex.test(candidate) &&
+      !sniperSignalRegex.test(candidate)
+    )
+      return false;
     return true;
   };
 
@@ -340,9 +343,7 @@ export async function generateContinuityQuestion(
       .trim();
   };
   const blockedQuestionKeys = new Set(
-    normalizedExcludedSuggestions
-      .map(item => buildQuestionDedupeKey(item))
-      .filter(Boolean),
+    normalizedExcludedSuggestions.map(item => buildQuestionDedupeKey(item)).filter(Boolean),
   );
 
   const mergeUniqueQuestions = (base: string[], incoming: string[]): string[] => {
@@ -351,7 +352,8 @@ export async function generateContinuityQuestion(
     for (const item of incoming) {
       const candidate = normalizeQuestionCandidate(item);
       const key = buildQuestionDedupeKey(candidate);
-      if (!candidate || !key || blockedQuestionKeys.has(key) || seen.has(key) || !isValidQuestionCandidate(candidate)) continue;
+      if (!candidate || !key || blockedQuestionKeys.has(key) || seen.has(key) || !isValidQuestionCandidate(candidate))
+        continue;
       seen.add(key);
       merged.push(candidate);
     }
@@ -457,11 +459,7 @@ export async function generateContinuityQuestion(
       .map(line => normalizeQuestionCandidate(line))
       .filter(line => isValidQuestionCandidate(line));
 
-    const sentenceCandidates = Array.from(
-      raw
-        .replace(/\s+/g, ' ')
-        .matchAll(/([A-ZÀ-Ú0-9][^?]{10,220}\?)/gi),
-    )
+    const sentenceCandidates = Array.from(raw.replace(/\s+/g, ' ').matchAll(/([A-ZÀ-Ú0-9][^?]{10,220}\?)/gi))
       .map(match => normalizeQuestionCandidate(match[1]))
       .filter(line => isValidQuestionCandidate(line));
 
@@ -474,7 +472,10 @@ export async function generateContinuityQuestion(
     const rawTrimmed = (raw || '').trim();
     if (!rawTrimmed) return { questions: [], stageHits };
 
-    const fenced = rawTrimmed.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const fenced = rawTrimmed
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
     const direct = parseQuestionArray(fenced);
     if (direct.length > 0) {
       questions = mergeUniqueQuestions(questions, direct);
@@ -512,7 +513,12 @@ export async function generateContinuityQuestion(
       {
         model: ROUTER_MODEL_ID,
         contents: prompt,
-        config: { temperature: 0.8, maxOutputTokens: 900, systemInstruction: systemPrompt, responseMimeType: 'application/json' },
+        config: {
+          temperature: 0.8,
+          maxOutputTokens: 900,
+          systemInstruction: systemPrompt,
+          responseMimeType: 'application/json',
+        },
       },
       AbortSignal.timeout(15000),
     );
@@ -582,10 +588,12 @@ export async function generateContinuityQuestion(
 
   if (collectedQuestions.length < CONTINUITY_TARGET) {
     const beforeFallbackCount = collectedQuestions.length;
-    collectedQuestions = orderByQuality(ensureContinuitySuggestions(collectedQuestions, normalizedCompany, {
-      contextText: recentMessages,
-      avoidSuggestions: normalizedExcludedSuggestions,
-    }));
+    collectedQuestions = orderByQuality(
+      ensureContinuitySuggestions(collectedQuestions, normalizedCompany, {
+        contextText: recentMessages,
+        avoidSuggestions: normalizedExcludedSuggestions,
+      }),
+    );
     scoutDiag.warn('ContinuityQuestion', 'fallback premium acionado para completar sugestões', {
       company: empresaAlvo || null,
       beforeFallbackCount,

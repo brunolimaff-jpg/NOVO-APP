@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  buildUiErrorReport,
-  generateUiErrorId,
-  persistUiErrorAudit,
-} from '../../utils/errorBoundaryAudit';
+import { buildUiErrorReport, generateUiErrorId, persistUiErrorAudit } from '../../utils/errorBoundaryAudit';
 import { isChunkLoadError } from '../../utils/chunkRetry';
 
 interface DossierErrorBoundaryProps {
@@ -19,10 +15,7 @@ interface DossierErrorBoundaryState {
   errorId: string;
 }
 
-export class DossierErrorBoundary extends React.Component<
-  DossierErrorBoundaryProps,
-  DossierErrorBoundaryState
-> {
+export class DossierErrorBoundary extends React.Component<DossierErrorBoundaryProps, DossierErrorBoundaryState> {
   constructor(props: DossierErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, componentStack: '', errorId: '' };
@@ -50,19 +43,14 @@ export class DossierErrorBoundary extends React.Component<
 
   render() {
     if (!this.state.hasError) {
-      return this.props.children;
+      return <div data-testid="dossier-content">{this.props.children}</div>;
     }
 
     const isDarkMode = this.props.isDarkMode ?? false;
     const variant = this.props.variant ?? 'inline';
     const shellClass =
-      variant === 'overlay'
-        ? 'fixed inset-4 z-[95] flex items-center justify-center pointer-events-none'
-        : 'w-full';
-    const cardClass =
-      variant === 'overlay'
-        ? 'pointer-events-auto max-w-lg'
-        : 'max-w-3xl';
+      variant === 'overlay' ? 'fixed inset-4 z-[95] flex items-center justify-center pointer-events-none' : 'w-full';
+    const cardClass = variant === 'overlay' ? 'pointer-events-auto max-w-lg' : 'max-w-3xl';
     const isStaleChunk = isChunkLoadError(this.state.error);
 
     return (
@@ -70,7 +58,9 @@ export class DossierErrorBoundary extends React.Component<
         <div
           role="alert"
           className={`${cardClass} rounded-2xl border px-4 py-4 shadow-lg ${
-            isDarkMode ? 'border-amber-700/50 bg-slate-900 text-slate-100' : 'border-amber-200 bg-amber-50 text-slate-900'
+            isDarkMode
+              ? 'border-amber-700/50 bg-slate-900 text-slate-100'
+              : 'border-amber-200 bg-amber-50 text-slate-900'
           }`}
         >
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">

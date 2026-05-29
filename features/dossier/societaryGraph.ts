@@ -3,11 +3,7 @@ import { isValidCnpj, normalizeCnpj } from '../../utils/cnpj';
 export type SocietaryConfidence = 'official' | 'strong' | 'medium' | 'weak';
 export type SocietaryEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'institutional';
 export type SocietaryRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'unconfirmed';
-export type SocietaryBadge =
-  | 'holding'
-  | 'oficial'
-  | 'internacional'
-  | 'validar';
+export type SocietaryBadge = 'holding' | 'oficial' | 'internacional' | 'validar';
 
 export const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
 
@@ -116,16 +112,7 @@ export function countPartnerCompanies(graph: SocietaryGraph, partnerId: string):
   return graph.companies.filter(c => c.partnerIds.includes(partnerId)).length;
 }
 
-const PARTNER_EDGE_COLORS = [
-  '#7c3aed',
-  '#0891b2',
-  '#dc2626',
-  '#ca8a04',
-  '#16a34a',
-  '#db2777',
-  '#4f46e5',
-  '#ea580c',
-];
+const PARTNER_EDGE_COLORS = ['#7c3aed', '#0891b2', '#dc2626', '#ca8a04', '#16a34a', '#db2777', '#4f46e5', '#ea580c'];
 
 /** Máximo de empresas por linha no grafo drill-down antes de quebrar em subgraphs. */
 export const SOCIETARY_MERMAID_COMPANIES_PER_ROW = 2;
@@ -157,11 +144,7 @@ function toId(prefix: string, value: string): string {
 }
 
 function escapeMermaidLabel(value: string): string {
-  return (value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return (value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function titleCaseName(value: string): string {
@@ -183,9 +166,7 @@ function titleCaseName(value: string): string {
 function formatCompanyDisplayName(value: string): string {
   let name = value.trim();
   if (name === name.toUpperCase()) name = titleCaseName(name);
-  name = name
-    .replace(/\bAgropecuaria\b/gi, 'Agropecuária')
-    .replace(/\bLtda\b/g, 'LTDA');
+  name = name.replace(/\bAgropecuaria\b/gi, 'Agropecuária').replace(/\bLtda\b/g, 'LTDA');
   return name;
 }
 
@@ -237,18 +218,14 @@ export function isHeadquartersCnpj(cnpj?: string): boolean {
   return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
 }
 
-export function countCompanyFilials(
-  company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>,
-): number {
+export function countCompanyFilials(company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>): number {
   const listed = (company.branchCnpjs ?? []).filter(cnpj => isValidCnpj(normalizeCnpj(cnpj))).length;
   const establishments = Math.max(listed, company.branchCount ?? 1);
   if (establishments <= 1) return 0;
   return establishments - 1;
 }
 
-export function hasCompanyFilials(
-  company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>,
-): boolean {
+export function hasCompanyFilials(company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>): boolean {
   return countCompanyFilials(company) > 0;
 }
 
@@ -339,23 +316,33 @@ function relationshipScopeRank(scope?: SocietaryRelationshipScope): number {
   }
 }
 
-function companyEvidenceRank(company: Pick<SocietaryCompanyInput, 'confidence' | 'evidenceType' | 'relationshipScope' | 'rootContext'>): number {
-  return confidenceRank(company.confidence) * 1000
-    + evidenceTypeRank(company.evidenceType) * 100
-    + relationshipScopeRank(company.relationshipScope) * 10
-    + (company.rootContext ? 1 : 0);
+function companyEvidenceRank(
+  company: Pick<SocietaryCompanyInput, 'confidence' | 'evidenceType' | 'relationshipScope' | 'rootContext'>,
+): number {
+  return (
+    confidenceRank(company.confidence) * 1000 +
+    evidenceTypeRank(company.evidenceType) * 100 +
+    relationshipScopeRank(company.relationshipScope) * 10 +
+    (company.rootContext ? 1 : 0)
+  );
 }
 
 function shouldPromoteEvidence(existing: SocietaryCompany, incoming: SocietaryCompanyInput): boolean {
   return companyEvidenceRank(incoming) > companyEvidenceRank(existing);
 }
 
-function findCompanyByExactCnpj(companiesByKey: Map<string, SocietaryCompany>, cnpj: string): SocietaryCompany | undefined {
+function findCompanyByExactCnpj(
+  companiesByKey: Map<string, SocietaryCompany>,
+  cnpj: string,
+): SocietaryCompany | undefined {
   if (!isValidCnpj(cnpj)) return undefined;
   return Array.from(companiesByKey.values()).find(company => company.cnpj === cnpj);
 }
 
-function findCompanyByCnpjRadical(companiesByKey: Map<string, SocietaryCompany>, cnpj: string): SocietaryCompany | undefined {
+function findCompanyByCnpjRadical(
+  companiesByKey: Map<string, SocietaryCompany>,
+  cnpj: string,
+): SocietaryCompany | undefined {
   if (!isValidCnpj(cnpj)) return undefined;
   const radical = cnpj.slice(0, 8);
   return Array.from(companiesByKey.values()).find(company => {
@@ -386,10 +373,7 @@ function mergeCompanyRecords(target: SocietaryCompany, source: SocietaryCompany)
     target.rawCnpjLabel = source.rawCnpjLabel || target.rawCnpjLabel;
   }
 
-  const cnpjs = new Set([
-    ...(target.branchCnpjs || []),
-    ...(source.branchCnpjs || []),
-  ]);
+  const cnpjs = new Set([...(target.branchCnpjs || []), ...(source.branchCnpjs || [])]);
   if (source.cnpj) cnpjs.add(source.cnpj);
   if (target.cnpj) cnpjs.add(target.cnpj);
 
@@ -423,11 +407,12 @@ function consolidateGroupLinkedCompanies(companies: SocietaryCompany[]): Societa
 
   for (const company of companies) {
     const cnpj = normalizeCnpj(company.cnpj || '');
-    const key = company.relationshipScope === 'unconfirmed' && !isValidCnpj(cnpj)
-      ? company.id
-      : isValidCnpj(cnpj)
-        ? `cnpj-root:${cnpj.slice(0, 8)}`
-        : company.id;
+    const key =
+      company.relationshipScope === 'unconfirmed' && !isValidCnpj(cnpj)
+        ? company.id
+        : isValidCnpj(cnpj)
+          ? `cnpj-root:${cnpj.slice(0, 8)}`
+          : company.id;
     const existing = companiesByScopeKey.get(key);
     if (existing) {
       mergeCompanyRecords(existing, company);
@@ -444,8 +429,9 @@ function hasGroupContext(company: SocietaryCompanyInput, root: SocietaryRootInpu
   const companyRootCnpj = normalizeCnpj(company.rootCnpj || '');
   const rootName = normalizeText(root.name);
   const companyRootName = normalizeText(company.rootCompanyName || '');
-  const metadataMatchesRoot = (isValidCnpj(rootCnpj) && companyRootCnpj === rootCnpj)
-    || Boolean(rootName && companyRootName && companyRootName === rootName);
+  const metadataMatchesRoot =
+    (isValidCnpj(rootCnpj) && companyRootCnpj === rootCnpj) ||
+    Boolean(rootName && companyRootName && companyRootName === rootName);
 
   return company.rootContext === true && metadataMatchesRoot;
 }
@@ -492,17 +478,21 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
   if (/colombia|colômbia/i.test(company.name)) badges.add('internacional');
   if (role.includes('holding') || role.includes('participa') || role.includes('invest')) badges.add('holding');
   if (
-    (company.evidenceType === 'registry' || company.evidenceType === 'qsa')
-    && company.relationshipScope !== 'unconfirmed'
-    && company.relationshipScope !== 'partner_other_cnpj'
-    && company.validationStatus !== 'pending'
-  ) badges.add('oficial');
+    (company.evidenceType === 'registry' || company.evidenceType === 'qsa') &&
+    company.relationshipScope !== 'unconfirmed' &&
+    company.relationshipScope !== 'partner_other_cnpj' &&
+    company.validationStatus !== 'pending'
+  )
+    badges.add('oficial');
   if (company.confidence === 'weak') badges.add('validar');
 
   return Array.from(badges);
 }
 
-export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs?: SocietaryCompanyInput[]): SocietaryGraph {
+export function buildSocietaryGraph(
+  input: BuildSocietaryGraphInput,
+  geminiCnpjs?: SocietaryCompanyInput[],
+): SocietaryGraph {
   const partners: SocietaryPartner[] = input.partners
     .filter(partner => partner.name.trim())
     .map(partner => ({
@@ -541,12 +531,18 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
 
     if (relationshipScope === 'partner_other_cnpj' && !partner) {
-      rejectedCompanies.push({ input: company, reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.' });
+      rejectedCompanies.push({
+        input: company,
+        reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.',
+      });
       continue;
     }
 
     if (relationshipScope === 'unconfirmed' && !partner && company.rootContext !== true) {
-      rejectedCompanies.push({ input: company, reason: 'CNPJ pendente sem socio ou contexto confirmado para renderizar.' });
+      rejectedCompanies.push({
+        input: company,
+        reason: 'CNPJ pendente sem socio ou contexto confirmado para renderizar.',
+      });
       continue;
     }
 
@@ -556,7 +552,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
 
     if (isRootEstablishment(company, input.root)) {
-      rejectedCompanies.push({ input: company, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
+      rejectedCompanies.push({
+        input: company,
+        reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.',
+      });
       if (isValidCnpj(normalizedCnpj)) {
         if (!isHeadquartersCnpj(normalizedCnpj)) rootBranchCnpjs.add(normalizedCnpj);
       } else {
@@ -577,9 +576,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
     }
 
     const key = buildCompanyKey(company);
-    const existing = companiesByKey.get(key)
-      || findCompanyByExactCnpj(companiesByKey, normalizedCnpj)
-      || findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
+    const existing =
+      companiesByKey.get(key) ||
+      findCompanyByExactCnpj(companiesByKey, normalizedCnpj) ||
+      findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
     if (existing) {
       if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
       if (relationshipScope === 'group_link') existing.rootLinked = true;
@@ -606,9 +606,11 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       name: company.name.trim(),
       cnpj: isValidCnpj(normalizedCnpj) ? normalizedCnpj : undefined,
       rawCnpjLabel: company.rawCnpjLabel?.trim() || undefined,
-      branchCount: isValidCnpj(normalizedCnpj) ? (company.branchCount || 1) : undefined,
+      branchCount: isValidCnpj(normalizedCnpj) ? company.branchCount || 1 : undefined,
       branchCnpjs: isValidCnpj(normalizedCnpj)
-        ? (company.branchCnpjs?.length ? company.branchCnpjs : [normalizedCnpj])
+        ? company.branchCnpjs?.length
+          ? company.branchCnpjs
+          : [normalizedCnpj]
         : undefined,
       country: company.country?.trim().toUpperCase() || undefined,
       role: company.role?.trim() || undefined,
@@ -636,12 +638,12 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
 
       const geminiCandidate: SocietaryCompanyInput = {
         ...geminiCompany,
-        rootCompanyName: geminiCompany.rootContext === true
-          ? geminiCompany.rootCompanyName || input.root.name
-          : geminiCompany.rootCompanyName,
-        rootCnpj: geminiCompany.rootContext === true
-          ? geminiCompany.rootCnpj || input.root.cnpj
-          : geminiCompany.rootCnpj,
+        rootCompanyName:
+          geminiCompany.rootContext === true
+            ? geminiCompany.rootCompanyName || input.root.name
+            : geminiCompany.rootCompanyName,
+        rootCnpj:
+          geminiCompany.rootContext === true ? geminiCompany.rootCnpj || input.root.cnpj : geminiCompany.rootCnpj,
       };
 
       if (!hasMeaningfulCompanyName(geminiCandidate.name)) {
@@ -658,17 +660,26 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       const relationshipScope = geminiCandidate.relationshipScope || 'group_link';
       const partner = partnerByName.get(normalizeText(geminiCandidate.partnerName || ''));
       if (relationshipScope === 'partner_other_cnpj' && !partner) {
-        rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.' });
+        rejectedCompanies.push({
+          input: geminiCandidate,
+          reason: 'CNPJ lateral do socio sem socio confirmado para conectar empresa.',
+        });
         continue;
       }
 
       if (relationshipScope === 'unconfirmed' && !partner && geminiCandidate.rootContext !== true) {
-        rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ pendente sem socio ou contexto confirmado para renderizar.' });
+        rejectedCompanies.push({
+          input: geminiCandidate,
+          reason: 'CNPJ pendente sem socio ou contexto confirmado para renderizar.',
+        });
         continue;
       }
 
       if (isRootEstablishment(geminiCandidate, input.root)) {
-        rejectedCompanies.push({ input: geminiCandidate, reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.' });
+        rejectedCompanies.push({
+          input: geminiCandidate,
+          reason: 'CNPJ da propria matriz ou filial da raiz; nao renderizado como empresa relacionada.',
+        });
         if (isValidCnpj(normalizedCnpj)) {
           if (!isHeadquartersCnpj(normalizedCnpj)) rootBranchCnpjs.add(normalizedCnpj);
         } else {
@@ -679,7 +690,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       }
 
       if (!hasEnoughGeminiEvidence(geminiCandidate, input.root)) {
-        rejectedCompanies.push({ input: geminiCandidate, reason: 'Empresa Gemini sem CNPJ valido ou evidencia suficiente.' });
+        rejectedCompanies.push({
+          input: geminiCandidate,
+          reason: 'Empresa Gemini sem CNPJ valido ou evidencia suficiente.',
+        });
         continue;
       }
 
@@ -688,9 +702,10 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
       let merged = false;
       if (hasValidCnpj) {
         const existingKey = buildCompanyKey(geminiCandidate);
-        const existing = companiesByKey.get(existingKey)
-          || findCompanyByExactCnpj(companiesByKey, normalizedCnpj)
-          || findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
+        const existing =
+          companiesByKey.get(existingKey) ||
+          findCompanyByExactCnpj(companiesByKey, normalizedCnpj) ||
+          findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
         if (existing) {
           if (!isHeadquartersCnpj(existing.cnpj) || isHeadquartersCnpj(normalizedCnpj)) {
             existing.name = geminiCandidate.name.trim();
@@ -720,9 +735,11 @@ export function buildSocietaryGraph(input: BuildSocietaryGraphInput, geminiCnpjs
           name: geminiCandidate.name.trim(),
           cnpj: hasValidCnpj ? normalizedCnpj : undefined,
           rawCnpjLabel: geminiCandidate.rawCnpjLabel?.trim() || undefined,
-          branchCount: hasValidCnpj ? (geminiCandidate.branchCount || 1) : undefined,
+          branchCount: hasValidCnpj ? geminiCandidate.branchCount || 1 : undefined,
           branchCnpjs: hasValidCnpj
-            ? (geminiCandidate.branchCnpjs?.length ? geminiCandidate.branchCnpjs : [normalizedCnpj])
+            ? geminiCandidate.branchCnpjs?.length
+              ? geminiCandidate.branchCnpjs
+              : [normalizedCnpj]
             : undefined,
           country: geminiCandidate.country?.trim().toUpperCase() || undefined,
           role: geminiCandidate.role?.trim() || undefined,
@@ -764,7 +781,9 @@ function partnerLabel(partner: SocietaryPartner, cnpjCount?: number): string {
     `<b>${escapeMermaidLabel(firstGivenName(partner.name))}</b>`,
     partner.role ? escapeMermaidLabel(partner.role) : '',
     countLine,
-  ].filter(Boolean).join('<br/>');
+  ]
+    .filter(Boolean)
+    .join('<br/>');
 }
 
 function companyLabelCompact(company: SocietaryCompany): string {
@@ -777,10 +796,7 @@ function companyLabelCompact(company: SocietaryCompany): string {
       : company.country
         ? `País ${escapeMermaidLabel(company.country)}`
         : '';
-  return [
-    `<b>${escapeMermaidLabel(shortName)}</b>`,
-    cnpjLine,
-  ].filter(Boolean).join('<br/>');
+  return [`<b>${escapeMermaidLabel(shortName)}</b>`, cnpjLine].filter(Boolean).join('<br/>');
 }
 
 function partnerAdminRoleLabel(company: SocietaryCompany): string {
@@ -791,7 +807,8 @@ function partnerAdminRoleLabel(company: SocietaryCompany): string {
 }
 
 export function describeSocietaryCompanyType(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
+  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending')
+    return 'Validação pendente';
   if (company.relationshipScope === 'partner_other_cnpj') return partnerAdminRoleLabel(company);
   const role = normalizeText(`${company.role || ''} ${company.name}`);
   const country = (company.country || 'BR').toUpperCase();
@@ -802,17 +819,20 @@ export function describeSocietaryCompanyType(company: SocietaryCompany): string 
   }
   if (country && country !== 'BR') return 'Empresa internacional';
   if (
-    role.includes('holding')
-    || role.includes('holdings')
-    || role.includes('participa')
-    || role.includes('invest')
-    || role.includes('6462')
-    || role.includes('64 62')
-  ) return 'Holding';
-  if (role.includes('cultivo') || role.includes('soja') || role.includes('algodao') || role.includes('milho')) return 'Produção agrícola';
+    role.includes('holding') ||
+    role.includes('holdings') ||
+    role.includes('participa') ||
+    role.includes('invest') ||
+    role.includes('6462') ||
+    role.includes('64 62')
+  )
+    return 'Holding';
+  if (role.includes('cultivo') || role.includes('soja') || role.includes('algodao') || role.includes('milho'))
+    return 'Produção agrícola';
   if (role.includes('semente')) return 'Sementes';
   if (role.includes('armaz') || role.includes('armazen')) return 'Armazenagem';
-  if (role.includes('trading') || role.includes('trade') || role.includes('exporta') || role.includes('importa')) return 'Trading';
+  if (role.includes('trading') || role.includes('trade') || role.includes('exporta') || role.includes('importa'))
+    return 'Trading';
   if (role.includes('logistica') || role.includes('transp')) return 'Logistica';
   if (role.includes('bio') || role.includes('industrial')) return 'Industrial';
   if (company.cnpj && !isHeadquartersCnpj(company.cnpj)) return 'Filial operacional';
@@ -846,7 +866,9 @@ function companyLabel(company: SocietaryCompany, partnersById: Map<string, Socie
     cnpjLine,
     ownerLine ? escapeMermaidLabel(ownerLine) : '',
     escapeMermaidLabel(describeSocietaryCompanyType(company)),
-  ].filter(Boolean).join('<br/>');
+  ]
+    .filter(Boolean)
+    .join('<br/>');
 }
 
 function edgeLabel(value: string): string {
@@ -891,18 +913,20 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
   );
   const partnersById = new Map(graph.partners.map(partner => [partner.id, partner]));
   const visiblePartnerIds = new Set(partners.map(partner => partner.id));
-  const visibleCompanies = isOverview ? [] : graph.companies.filter(company => {
-    if (!selectedPartner) return company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
-    return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
-  });
-  const useMultiRowLayout = !isOverview
-    && visibleCompanies.length > SOCIETARY_MERMAID_COMPANIES_PER_ROW
-    && visibleCompanies.length <= SOCIETARY_MERMAID_VERTICAL_THRESHOLD;
+  const visibleCompanies = isOverview
+    ? []
+    : graph.companies.filter(company => {
+        if (!selectedPartner)
+          return company.rootLinked || company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
+        return company.partnerIds.some(partnerId => visiblePartnerIds.has(partnerId));
+      });
+  const useMultiRowLayout =
+    !isOverview &&
+    visibleCompanies.length > SOCIETARY_MERMAID_COMPANIES_PER_ROW &&
+    visibleCompanies.length <= SOCIETARY_MERMAID_VERTICAL_THRESHOLD;
   // Force plain vertical TD for large graphs to avoid subgraph crowding
   const useVerticalLayout = !isOverview && visibleCompanies.length > SOCIETARY_MERMAID_VERTICAL_THRESHOLD;
-  const graphDirection = isOverview || useMultiRowLayout || useVerticalLayout
-    ? 'graph TD'
-    : 'graph LR';
+  const graphDirection = isOverview || useMultiRowLayout || useVerticalLayout ? 'graph TD' : 'graph LR';
   const lines = [
     graphDirection,
     '  classDef root fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a;',
@@ -981,16 +1005,19 @@ export function buildSocietaryMermaid(graph: SocietaryGraph, options: BuildSocie
 
   lines.push('', '  class Root root;');
   for (const partner of partners) {
-    lines.push(`  class ${partner.id} ${selectedPartner && partner.id === selectedPartner.id ? 'selected' : 'partner'};`);
+    lines.push(
+      `  class ${partner.id} ${selectedPartner && partner.id === selectedPartner.id ? 'selected' : 'partner'};`,
+    );
   }
   for (const company of visibleCompanies) {
-    const className = company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending'
-      ? 'evidence'
-      : company.relationshipScope === 'partner_other_cnpj'
-        ? 'socioAdmin'
-        : company.badges.includes('internacional')
-          ? 'international'
-          : 'company';
+    const className =
+      company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending'
+        ? 'evidence'
+        : company.relationshipScope === 'partner_other_cnpj'
+          ? 'socioAdmin'
+          : company.badges.includes('internacional')
+            ? 'international'
+            : 'company';
     lines.push(`  class ${company.id} ${className};`);
   }
   const nonEmptyEdgeStyles = edgeStyles.filter(Boolean);

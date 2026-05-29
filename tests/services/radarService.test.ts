@@ -1,11 +1,6 @@
 // tests/services/radarService.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  RadarScanError,
-  buildCategoryPrompt,
-  generateAlertId,
-  fetchRadarAlerts,
-} from '../../services/radarService';
+import { RadarScanError, buildCategoryPrompt, generateAlertId, fetchRadarAlerts } from '../../services/radarService';
 import type { RadarConfig } from '../../types';
 
 const DEFAULT_CONFIG: RadarConfig = {

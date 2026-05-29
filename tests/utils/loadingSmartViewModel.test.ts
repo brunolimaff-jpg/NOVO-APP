@@ -30,7 +30,9 @@ describe('loadingSmartViewModel', () => {
     });
 
     expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Consultando inteligência Senior...');
-    expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain('Materializando recomendações práticas...');
+    expect(viewModel.visiblePlannedStages.map(stage => stage.label)).toContain(
+      'Materializando recomendações práticas...',
+    );
   });
 
   it('mantém o percentual alinhado às etapas reais mesmo quando há fila visual pendente', () => {
@@ -57,10 +59,7 @@ describe('loadingSmartViewModel', () => {
       displayedCurrent: 'Verificando pressões e compliance...',
       pendingInQueue: 0,
       processing: {
-        completedStages: [
-          'Mapeando conta real e teia societária...',
-          'Mapeando operação e cadeia de valor...',
-        ],
+        completedStages: ['Mapeando conta real e teia societária...', 'Mapeando operação e cadeia de valor...'],
         totalStages: 7,
       },
     });

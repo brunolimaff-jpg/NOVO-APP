@@ -1,8 +1,8 @@
-import { readFileSync, existsSync } from "node:fs";
-import path from "node:path";
+import { readFileSync, existsSync } from 'node:fs';
+import path from 'node:path';
 
 const repoRoot = process.cwd();
-const manifestPath = path.join(repoRoot, "docs/obsidian/_meta/manifest.json");
+const manifestPath = path.join(repoRoot, 'docs/obsidian/_meta/manifest.json');
 
 function fail(message) {
   console.error(`[obsidian-check] ${message}`);
@@ -31,15 +31,15 @@ function main() {
     process.exit(1);
   }
 
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   const errors = [];
 
   if (!Array.isArray(manifest.required_frontmatter) || manifest.required_frontmatter.length === 0) {
-    errors.push("manifesto sem required_frontmatter");
+    errors.push('manifesto sem required_frontmatter');
   }
 
   if (!Array.isArray(manifest.required_notes) || manifest.required_notes.length === 0) {
-    errors.push("manifesto sem required_notes");
+    errors.push('manifesto sem required_notes');
   }
 
   for (const note of manifest.required_notes || []) {
@@ -50,7 +50,7 @@ function main() {
       continue;
     }
 
-    const content = readFileSync(notePath, "utf8");
+    const content = readFileSync(notePath, 'utf8');
     const frontmatter = parseFrontmatter(content);
 
     if (!frontmatter) {
@@ -64,7 +64,7 @@ function main() {
       }
     }
 
-    if (note.path !== manifest.master_note && !content.includes("[[00-MASTER]]")) {
+    if (note.path !== manifest.master_note && !content.includes('[[00-MASTER]]')) {
       errors.push(`backlink para [[00-MASTER]] ausente em ${note.path}`);
     }
 

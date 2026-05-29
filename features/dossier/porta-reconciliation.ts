@@ -65,9 +65,7 @@ export interface ReconcileWaterfallPortaResult {
 }
 
 export function resolveModuleNamesForMissingDimensions(missingDimensions: PortaDimension[]): string[] {
-  return Array.from(
-    new Set(missingDimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])),
-  );
+  return Array.from(new Set(missingDimensions.flatMap(dimension => PORTA_DIMENSION_MODULE_MAP[dimension] || [])));
 }
 
 export function buildPortaReconciliationPrompt(missingDimensions: PortaDimension[]): string {
@@ -95,10 +93,7 @@ ${requiredTemplates}
 `.trim();
 }
 
-export function ensureWaterfallScorePorta(
-  content: string,
-  currentResolution: PortaScoreResolution,
-): ScorePortaData {
+export function ensureWaterfallScorePorta(content: string, currentResolution: PortaScoreResolution): ScorePortaData {
   if (currentResolution.score) return currentResolution.score;
 
   const resolvedAgain = resolvePortaScore(content);
@@ -247,11 +242,15 @@ export async function reconcileWaterfallPorta({
   if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
     portaIntegrityHold = shouldHoldWaterfallScoreForIntegrity(waterfallPortaResolution);
     if (portaIntegrityHold) {
-      scoutDiag.error('ModularDossier', 'integridade PORTA comprometida — dimensões ausentes após retries e reconciliação', {
-        sessionId,
-        company: resolvedMegaCompany || null,
-        missingDimensions: waterfallPortaResolution.missingDimensions,
-      });
+      scoutDiag.error(
+        'ModularDossier',
+        'integridade PORTA comprometida — dimensões ausentes após retries e reconciliação',
+        {
+          sessionId,
+          company: resolvedMegaCompany || null,
+          missingDimensions: waterfallPortaResolution.missingDimensions,
+        },
+      );
     }
   }
 

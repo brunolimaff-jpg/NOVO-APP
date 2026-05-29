@@ -1,10 +1,10 @@
 ---
-title: "Handoff Teia CNPJ 2026-05-25"
+title: 'Handoff Teia CNPJ 2026-05-25'
 type: handoff
 status: merged
-projeto: "NOVO-APP"
+projeto: 'NOVO-APP'
 data: 2026-05-25
-branch: "main"
+branch: 'main'
 pr: 285
 tags:
   - handoff
@@ -96,13 +96,13 @@ Bruno decidiu remover Brave do runtime.
 
 ## Contrato atual da Teia CNPJ
 
-| Caso | Como deve aparecer | Como deve se comportar |
-|---|---|---|
-| CNPJ oficial/validado | `##.###.###/####-##` | Pode ter evidencia forte conforme fonte/QSA |
+| Caso                                           | Como deve aparecer    | Como deve se comportar                             |
+| ---------------------------------------------- | --------------------- | -------------------------------------------------- |
+| CNPJ oficial/validado                          | `##.###.###/####-##`  | Pode ter evidencia forte conforme fonte/QSA        |
 | CNPJ inferido ou textual sem validacao oficial | `##.###.###/####-##*` | `unconfirmed`, `pending`, fraco, Mermaid tracejado |
-| CNPJ invalido sem `*` | Nao aparece | Parser/API/grafo rejeitam |
-| CNPJ lateral do socio confirmado | `partner_other_cnpj` | Aresta `Socio -> CNPJ`, sem aresta raiz |
-| Grupo economico comprovado | `group_link` | Pode ter aresta `Root -> CNPJ` |
+| CNPJ invalido sem `*`                          | Nao aparece           | Parser/API/grafo rejeitam                          |
+| CNPJ lateral do socio confirmado               | `partner_other_cnpj`  | Aresta `Socio -> CNPJ`, sem aresta raiz            |
+| Grupo economico comprovado                     | `group_link`          | Pode ter aresta `Root -> CNPJ`                     |
 
 Regra central: CNPJ com `*` pode virar linha de dossie, mas nao prova grupo, controle, QSA, nem relacao oficial.
 
@@ -190,14 +190,14 @@ Conclusao: remover Brave resolveu a dependencia/erro 402, mas DuckDuckGo-only na
 
 Falhou para todos os 6 socios:
 
-| Socio | Status | Empresas | Degraded | Pages fetched | Cache | Falhas de busca |
-|---|---:|---:|---|---:|---|---:|
-| `GILLIARD ANTONIO SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
-| `ELIZEU ZULMAR MAGGI SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
-| `GUILHERME MOGNON SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
-| `GISLAYNE RAFAELA SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
-| `SCHEFFER PARTICIPACOES S/A` | 200 | 0 | true | 0 | memory | 6 |
-| `CAROLINA MOGNON SCHEFFER` | 200 | 0 | true | 0 | memory | 6 |
+| Socio                          | Status | Empresas | Degraded | Pages fetched | Cache  | Falhas de busca |
+| ------------------------------ | -----: | -------: | -------- | ------------: | ------ | --------------: |
+| `GILLIARD ANTONIO SCHEFFER`    |    200 |        0 | true     |             0 | memory |               6 |
+| `ELIZEU ZULMAR MAGGI SCHEFFER` |    200 |        0 | true     |             0 | memory |               6 |
+| `GUILHERME MOGNON SCHEFFER`    |    200 |        0 | true     |             0 | memory |               6 |
+| `GISLAYNE RAFAELA SCHEFFER`    |    200 |        0 | true     |             0 | memory |               6 |
+| `SCHEFFER PARTICIPACOES S/A`   |    200 |        0 | true     |             0 | memory |               6 |
+| `CAROLINA MOGNON SCHEFFER`     |    200 |        0 | true     |             0 | memory |               6 |
 
 Diagnostico comum:
 
@@ -214,17 +214,17 @@ Conclusao: a API agora diagnostica melhor a falha, mas ainda nao resolve a profu
 
 ## O que ja foi tentado e nao resolveu
 
-| Tentativa | O que melhorou | Por que nao resolveu ainda |
-|---|---|---|
-| Separar `group_link`, `partner_other_cnpj` e `unconfirmed` | Evitou tratar CNPJ lateral como grupo economico | Nao cria fonte de dados; se a busca vem vazia, o inventario continua vazio |
-| Bloquear CNPJ invalido por digito verificador | Reduziu risco de CNPJ inventado oficial | Nao aumenta cobertura de pesquisa por socio |
-| Permitir CNPJ hipotetico com `*` | Atende regra do Bruno: pode virar linha, mas marcado | So funciona quando existe fonte textual; a preview nao esta encontrando texto |
-| Mermaid tracejado para `unconfirmed` | Visualmente separa hipotese de oficial | Nao aparece se `/api/socio-search` nao encontra nada |
-| Rejeitar `Cia Ltda` e nomes sem identidade real | Evita lixo visual no mapa | Corrige qualidade do dado encontrado, nao a ausencia de dado |
-| Remover Brave e usar DuckDuckGo-only | Removeu dependencia do `BRAVE_SEARCH_API_KEY` e o erro Brave 402 | DuckDuckGo Lite retorna `empty_result` na preview para as queries testadas |
-| Diagnosticar `searchFailureCount` vs `searchNoResultCount` | Ficou claro que e falha/degradacao de busca, nao ausencia confirmada | Diagnostico nao e dado; o produto continua sem profundidade |
-| Checks remotos e Smoke Preview | Garante build/test/deploy basico | Smoke atual nao falha quando o resultado societario vem vazio |
-| Validacoes unitarias de parser/grafo/API | Protegem contratos locais e anti-alucinacao | Testes mockados nao provam que o provedor publico entrega resultados reais |
+| Tentativa                                                  | O que melhorou                                                       | Por que nao resolveu ainda                                                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Separar `group_link`, `partner_other_cnpj` e `unconfirmed` | Evitou tratar CNPJ lateral como grupo economico                      | Nao cria fonte de dados; se a busca vem vazia, o inventario continua vazio    |
+| Bloquear CNPJ invalido por digito verificador              | Reduziu risco de CNPJ inventado oficial                              | Nao aumenta cobertura de pesquisa por socio                                   |
+| Permitir CNPJ hipotetico com `*`                           | Atende regra do Bruno: pode virar linha, mas marcado                 | So funciona quando existe fonte textual; a preview nao esta encontrando texto |
+| Mermaid tracejado para `unconfirmed`                       | Visualmente separa hipotese de oficial                               | Nao aparece se `/api/socio-search` nao encontra nada                          |
+| Rejeitar `Cia Ltda` e nomes sem identidade real            | Evita lixo visual no mapa                                            | Corrige qualidade do dado encontrado, nao a ausencia de dado                  |
+| Remover Brave e usar DuckDuckGo-only                       | Removeu dependencia do `BRAVE_SEARCH_API_KEY` e o erro Brave 402     | DuckDuckGo Lite retorna `empty_result` na preview para as queries testadas    |
+| Diagnosticar `searchFailureCount` vs `searchNoResultCount` | Ficou claro que e falha/degradacao de busca, nao ausencia confirmada | Diagnostico nao e dado; o produto continua sem profundidade                   |
+| Checks remotos e Smoke Preview                             | Garante build/test/deploy basico                                     | Smoke atual nao falha quando o resultado societario vem vazio                 |
+| Validacoes unitarias de parser/grafo/API                   | Protegem contratos locais e anti-alucinacao                          | Testes mockados nao provam que o provedor publico entrega resultados reais    |
 
 ## Decisao de merge historica
 

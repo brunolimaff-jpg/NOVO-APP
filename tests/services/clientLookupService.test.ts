@@ -72,8 +72,26 @@ describe('clientLookupService', () => {
     it('returns encontrado:true when any variant finds the client', async () => {
       // "Agro Comercial" (após strip "Grupo") gera 3 variantes: full, p1="Agro", strongest="Comercial"
       const mockFound = {
-        ok: true, encontrado: true, total: 1, query: 'Agro Comercial',
-        results: [{ grupo: 'Agro Comercial', razoes_sociais: [], linhas_produto: [], familias_presentes: ['ERP'], modulos_por_familia: {}, gaps_crosssell: [], total_modulos: 5, eh_cliente_senior: true, tem_gatec: false, tem_erp: true, tem_hcm: false, tem_logistica: false }],
+        ok: true,
+        encontrado: true,
+        total: 1,
+        query: 'Agro Comercial',
+        results: [
+          {
+            grupo: 'Agro Comercial',
+            razoes_sociais: [],
+            linhas_produto: [],
+            familias_presentes: ['ERP'],
+            modulos_por_familia: {},
+            gaps_crosssell: [],
+            total_modulos: 5,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: true,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
       };
       const mockNotFound = { ok: true, encontrado: false, total: 0, query: 'other', results: [] };
 
@@ -293,20 +311,22 @@ describe('clientLookupService', () => {
         query: 'Scheffer',
         encontrado: true,
         total: 1,
-        results: [{
-          grupo: 'Grupo Scheffer',
-          razoes_sociais: [],
-          linhas_produto: [],
-          familias_presentes: ['ERP', 'GATec'],
-          modulos_por_familia: { ERP: ['Financeiro', 'Fiscal'], GATec: ['Agrícola'] },
-          gaps_crosssell: ['HCM'],
-          total_modulos: 8,
-          eh_cliente_senior: true,
-          tem_gatec: true,
-          tem_erp: true,
-          tem_hcm: false,
-          tem_logistica: false,
-        }],
+        results: [
+          {
+            grupo: 'Grupo Scheffer',
+            razoes_sociais: [],
+            linhas_produto: [],
+            familias_presentes: ['ERP', 'GATec'],
+            modulos_por_familia: { ERP: ['Financeiro', 'Fiscal'], GATec: ['Agrícola'] },
+            gaps_crosssell: ['HCM'],
+            total_modulos: 8,
+            eh_cliente_senior: true,
+            tem_gatec: true,
+            tem_erp: true,
+            tem_hcm: false,
+            tem_logistica: false,
+          },
+        ],
       });
       expect(result).toContain('Grupo Scheffer');
       expect(result).toContain('8');
@@ -321,21 +341,23 @@ describe('clientLookupService', () => {
         query: 'Bom Futuro Agricola',
         encontrado: true,
         total: 83,
-        results: [{
-          grupo: 'Bom Futuro Agricola Holding',
-          razoes_sociais: ['Bom Futuro Agricola Participacoes Ltda'],
-          linhas_produto: [],
-          familias_presentes: ['Acesso'],
-          modulos_por_familia: { Acesso: ['Ronda'] },
-          gaps_crosssell: ['ERP'],
-          total_modulos: 1,
-          eh_cliente_senior: true,
-          tem_gatec: false,
-          tem_erp: false,
-          tem_hcm: false,
-          tem_logistica: false,
-          matchType: 'partial',
-        }],
+        results: [
+          {
+            grupo: 'Bom Futuro Agricola Holding',
+            razoes_sociais: ['Bom Futuro Agricola Participacoes Ltda'],
+            linhas_produto: [],
+            familias_presentes: ['Acesso'],
+            modulos_por_familia: { Acesso: ['Ronda'] },
+            gaps_crosssell: ['ERP'],
+            total_modulos: 1,
+            eh_cliente_senior: true,
+            tem_gatec: false,
+            tem_erp: false,
+            tem_hcm: false,
+            tem_logistica: false,
+            matchType: 'partial',
+          },
+        ],
       });
 
       expect(result).toContain('POSSÍVEL MATCH');

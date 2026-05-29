@@ -12,11 +12,11 @@ Not every decision deserves a multi-approach breakdown. Use this decision framew
 
 ### Decision Framework
 
-| Scenario | What to Do | Example |
-|---|---|---|
-| **Genuine fork** - multiple viable paths with meaningful trade-offs | Propose 2-3 approaches with explicit trade-offs | "Auth: NextAuth vs Clerk vs custom JWT" |
-| **Clear winner** - one approach is obviously better | Present it directly, explain why alternatives were dismissed | "Use TypeScript - the project already uses it everywhere" |
-| **Constraint-driven** - requirements narrow it to one option | State the constraint and the single approach | "Must use PostgreSQL per company policy" |
+| Scenario                                                            | What to Do                                                   | Example                                                   |
+| ------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------- |
+| **Genuine fork** - multiple viable paths with meaningful trade-offs | Propose 2-3 approaches with explicit trade-offs              | "Auth: NextAuth vs Clerk vs custom JWT"                   |
+| **Clear winner** - one approach is obviously better                 | Present it directly, explain why alternatives were dismissed | "Use TypeScript - the project already uses it everywhere" |
+| **Constraint-driven** - requirements narrow it to one option        | State the constraint and the single approach                 | "Must use PostgreSQL per company policy"                  |
 
 ### How to Tell Which Scenario You Are In
 
@@ -89,16 +89,16 @@ I considered [alternative 1] but dismissed it because [reason].
 
 When comparing approaches, evaluate them against these dimensions. You do not need all of them - pick the 3-5 most relevant to the decision at hand.
 
-| Dimension | What to Compare | Questions to Ask |
-|---|---|---|
-| **Complexity** | Implementation effort and cognitive load | How many moving parts? How hard is it to reason about? |
-| **Performance** | Runtime speed, memory, bundle size | Does the performance difference matter at this scale? |
-| **Maintainability** | Long-term cost of ownership | Can a new team member understand this in 30 minutes? |
-| **Testing difficulty** | How hard it is to write and maintain tests | Can we test this without complex mocking or infrastructure? |
-| **Migration risk** | Risk of breaking existing functionality | What is the blast radius if something goes wrong? |
-| **Team familiarity** | How well the team knows the technology | Will this require a learning curve that slows delivery? |
-| **Time to implement** | Calendar time from start to working feature | What is the fastest path to a working solution? |
-| **Reversibility** | How easy it is to undo the decision | If this turns out to be wrong, can we switch without a rewrite? |
+| Dimension              | What to Compare                             | Questions to Ask                                                |
+| ---------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| **Complexity**         | Implementation effort and cognitive load    | How many moving parts? How hard is it to reason about?          |
+| **Performance**        | Runtime speed, memory, bundle size          | Does the performance difference matter at this scale?           |
+| **Maintainability**    | Long-term cost of ownership                 | Can a new team member understand this in 30 minutes?            |
+| **Testing difficulty** | How hard it is to write and maintain tests  | Can we test this without complex mocking or infrastructure?     |
+| **Migration risk**     | Risk of breaking existing functionality     | What is the blast radius if something goes wrong?               |
+| **Team familiarity**   | How well the team knows the technology      | Will this require a learning curve that slows delivery?         |
+| **Time to implement**  | Calendar time from start to working feature | What is the fastest path to a working solution?                 |
+| **Reversibility**      | How easy it is to undo the decision         | If this turns out to be wrong, can we switch without a rewrite? |
 
 ### Weighting by Project Phase
 
@@ -116,14 +116,14 @@ Large requests often hide multiple independent projects. Breaking them apart lea
 
 A request should be decomposed if it has **2 or more** of these signals:
 
-| Signal | Example |
-|---|---|
-| Multiple independent subsystems | "Build a platform with chat, billing, and analytics" |
-| Different user personas | "Admin dashboard and customer-facing storefront" |
-| Separate data stores or schemas | "User database and event log and file storage" |
-| Different deployment targets | "Web app, mobile API, and CLI tool" |
-| Independent release cycles | "Auth can ship before billing is ready" |
-| Different tech stacks within the request | "React frontend and Python ML pipeline" |
+| Signal                                   | Example                                              |
+| ---------------------------------------- | ---------------------------------------------------- |
+| Multiple independent subsystems          | "Build a platform with chat, billing, and analytics" |
+| Different user personas                  | "Admin dashboard and customer-facing storefront"     |
+| Separate data stores or schemas          | "User database and event log and file storage"       |
+| Different deployment targets             | "Web app, mobile API, and CLI tool"                  |
+| Independent release cycles               | "Auth can ship before billing is ready"              |
+| Different tech stacks within the request | "React frontend and Python ML pipeline"              |
 
 ### How to Identify Sub-Project Boundaries
 
@@ -145,12 +145,12 @@ Once you have sub-projects, order them by:
 
 **Step 1 - Identify sub-projects:**
 
-| Sub-Project | Core Entities | Data Store | Ships Alone? |
-|---|---|---|---|
-| User & Auth | User, Session, Role | Users DB | Yes |
-| Chat | Message, Conversation, Participant | Messages DB | Yes (after User & Auth) |
-| Billing | Subscription, Invoice, Payment | Billing DB | Yes (after User & Auth) |
-| Analytics | Event, Metric, Dashboard | Events DB / warehouse | Yes (after User & Auth) |
+| Sub-Project | Core Entities                      | Data Store            | Ships Alone?            |
+| ----------- | ---------------------------------- | --------------------- | ----------------------- |
+| User & Auth | User, Session, Role                | Users DB              | Yes                     |
+| Chat        | Message, Conversation, Participant | Messages DB           | Yes (after User & Auth) |
+| Billing     | Subscription, Invoice, Payment     | Billing DB            | Yes (after User & Auth) |
+| Analytics   | Event, Metric, Dashboard           | Events DB / warehouse | Yes (after User & Auth) |
 
 **Step 2 - Determine build order:**
 
@@ -162,6 +162,7 @@ Phase 4:  Cross-cutting (admin dashboard, notification preferences, onboarding f
 ```
 
 **Step 3 - Validate boundaries:**
+
 - Chat and Billing both depend on User & Auth but not on each other - confirmed independent.
 - Analytics consumes events from Chat and Billing - confirmed it must come after.
 - Admin dashboard aggregates data from all three - confirmed it is last.

@@ -125,8 +125,8 @@ describe('Integracao Supabase Sync', () => {
     await storage.saveAllDossiers(sessions);
     const loaded = await storage.getDossiers();
     expect(loaded.length).toBeGreaterThanOrEqual(2);
-    expect(loaded.some((s) => s.id === 'int-test-3a')).toBe(true);
-    expect(loaded.some((s) => s.id === 'int-test-3b')).toBe(true);
+    expect(loaded.some(s => s.id === 'int-test-3a')).toBe(true);
+    expect(loaded.some(s => s.id === 'int-test-3b')).toBe(true);
   });
 
   it('deve fazer soft delete de dossie', async () => {

@@ -65,7 +65,6 @@ npm run lint
 - Do not revert unrelated local changes.
 - **Merge guard**: NEVER run `gh pr merge` or any PR merge/squash/auto-merge unless the user's message contains the word **MERGE** (case-insensitive). Push branch and open/edit PR are allowed without it. When uncertain, ask: "Confirma com MERGE se quiser mergear."
 
-
 <claude-mem-context>
 # Memory Context
 
@@ -78,6 +77,7 @@ Fetch details: get_observations([IDs]) | Search: mem-search skill
 Stats: 50 obs (20,299t read) | 3,007,685t work | 99% savings
 
 ### May 16, 2026
+
 26218 5:05p 🔵 Status da branch refactor/wave-0-1-cleanup e diff com origin/main
 26237 " 🔵 Identificação de usos das funções de extração e busca web
 26196 " 🔵 Arquivo de estratégia de teste arquivado não encontrado

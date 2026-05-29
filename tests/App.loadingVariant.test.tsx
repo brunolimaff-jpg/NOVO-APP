@@ -5,25 +5,20 @@ import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
 
-const {
-  deepDiveErrorRef,
-  deepDiveAccessRef,
-  sendMessageToGeminiMock,
-  generateDossierModuleMock,
-  setSessionsMock,
-} = vi.hoisted(() => ({
-  deepDiveErrorRef: { current: null as unknown },
-  deepDiveAccessRef: { current: true },
-  sendMessageToGeminiMock: vi.fn(async () => ({
-    text: 'Resposta consolidada',
-    sources: [],
-    suggestions: [],
-    scorePorta: null,
-    ghostReason: null,
-  })),
-  generateDossierModuleMock: vi.fn(),
-  setSessionsMock: vi.fn(),
-}));
+const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToGeminiMock, generateDossierModuleMock, setSessionsMock } =
+  vi.hoisted(() => ({
+    deepDiveErrorRef: { current: null as unknown },
+    deepDiveAccessRef: { current: true },
+    sendMessageToGeminiMock: vi.fn(async () => ({
+      text: 'Resposta consolidada',
+      sources: [],
+      suggestions: [],
+      scorePorta: null,
+      ghostReason: null,
+    })),
+    generateDossierModuleMock: vi.fn(),
+    setSessionsMock: vi.fn(),
+  }));
 
 vi.mock('../components/ChatInterface', () => ({
   default: (props: {

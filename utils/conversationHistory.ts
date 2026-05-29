@@ -54,9 +54,8 @@ export function searchHistory(query: string): ConversationEntry[] {
   const history = getConversationHistory();
   const lowerQuery = query.toLowerCase();
 
-  return history.filter(entry =>
-    entry.query.toLowerCase().includes(lowerQuery) ||
-    entry.response.toLowerCase().includes(lowerQuery)
+  return history.filter(
+    entry => entry.query.toLowerCase().includes(lowerQuery) || entry.response.toLowerCase().includes(lowerQuery),
   );
 }
 

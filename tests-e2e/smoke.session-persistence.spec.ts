@@ -189,7 +189,7 @@ async function openInvestigation(page: Page) {
 
   await expect(page.getByTestId('chat-input')).toBeVisible({ timeout: 20000 });
   await expect(page.getByText('Fluxo determinístico do dossiê').first()).toBeVisible({ timeout: 20000 });
-  await expect(page.getByTestId('chat-send-button')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('send-message-button')).toBeVisible({ timeout: 20000 });
 }
 
 async function readPersistedSessionCount(page: Page): Promise<number> {
@@ -200,7 +200,7 @@ async function readPersistedSessionCount(page: Page): Promise<number> {
 async function readPersistedSessionsSnapshot(page: Page): Promise<PersistedSessionSnapshot[]> {
   return page.evaluate(
     ({ databaseName, storeName, storageKey }) =>
-      new Promise<PersistedSessionSnapshot[]>((resolve) => {
+      new Promise<PersistedSessionSnapshot[]>(resolve => {
         const request = indexedDB.open(databaseName);
 
         request.onerror = () => resolve([]);
@@ -235,9 +235,7 @@ async function readPersistedSessionsSnapshot(page: Page): Promise<PersistedSessi
               value.map((session: { title?: string | null; messages?: Array<{ text?: string | null }> }) => ({
                 title: session.title || null,
                 messages: Array.isArray(session.messages)
-                  ? session.messages
-                      .map(message => (message?.text || '').trim())
-                      .filter(Boolean)
+                  ? session.messages.map(message => (message?.text || '').trim()).filter(Boolean)
                   : [],
               })),
             );
@@ -281,16 +279,14 @@ test.describe('Scout smoke - session persistence', () => {
     await openInvestigation(page);
 
     const chatInput = page.getByTestId('chat-input');
-    const chatSendButton = page.getByTestId('chat-send-button');
+    const chatSendButton = page.getByTestId('send-message-button');
 
     await chatInput.fill('Qual frente exige atenção imediata?');
     await expect(chatInput).toHaveValue('Qual frente exige atenção imediata?');
     await expect(chatSendButton).toBeEnabled();
     await chatSendButton.click();
 
-    await expect
-      .poll(async () => readPersistedSessionCount(page), { timeout: 15000 })
-      .toBeGreaterThan(0);
+    await expect.poll(async () => readPersistedSessionCount(page), { timeout: 15000 }).toBeGreaterThan(0);
     await expectPersistedFollowUp(page);
 
     await page.reload();

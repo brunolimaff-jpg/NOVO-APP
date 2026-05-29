@@ -45,4 +45,4 @@ quality before publishing to a registry.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/skill-audit)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/skill-audit)_

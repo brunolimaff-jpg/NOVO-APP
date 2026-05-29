@@ -10,16 +10,16 @@ Varredura somente-leitura com 3 agentes em paralelo (reviewer, vercel:ai-archite
 
 ### 1. 9+ `catch {}` vazios — engolem erro sem log, fallback ou feedback visual
 
-| Arquivo | Linha(s) | Contexto |
-|---------|----------|----------|
-| `services/gemini/recovery.ts` | 8, 20, 56, 66 | debugRecovery, isRecoveryDebugEnabled, shouldRecoverOpenQuestionByJudge, trackOpenQuestionRecoveryAttempt |
-| `services/gemini/investigation-orchestration.ts` | 612 | `onCompetitor` — callback nunca chamado se detecção de concorrente lançar exceção |
-| `api/open-web-search.ts` | 61 | `getEnvVar()` — se `process` for undefined, retorna undefined sem aviso |
-| `services/gemini/auxiliary.ts` | 76, 86, 342 | Fallback de modelo flash, parse de JSON |
-| `features/dossier/waterfall-orchestrator.ts` | 103 | `validateInlineSourcesForPromotion` |
-| `services/competitorService.ts` | 92 | Erro silenciado |
-| `services/sessionRemoteStore.ts` | 62 | Erro silenciado |
-| `services/exportService.ts` | 149 | Erro silenciado |
+| Arquivo                                          | Linha(s)      | Contexto                                                                                                  |
+| ------------------------------------------------ | ------------- | --------------------------------------------------------------------------------------------------------- |
+| `services/gemini/recovery.ts`                    | 8, 20, 56, 66 | debugRecovery, isRecoveryDebugEnabled, shouldRecoverOpenQuestionByJudge, trackOpenQuestionRecoveryAttempt |
+| `services/gemini/investigation-orchestration.ts` | 612           | `onCompetitor` — callback nunca chamado se detecção de concorrente lançar exceção                         |
+| `api/open-web-search.ts`                         | 61            | `getEnvVar()` — se `process` for undefined, retorna undefined sem aviso                                   |
+| `services/gemini/auxiliary.ts`                   | 76, 86, 342   | Fallback de modelo flash, parse de JSON                                                                   |
+| `features/dossier/waterfall-orchestrator.ts`     | 103           | `validateInlineSourcesForPromotion`                                                                       |
+| `services/competitorService.ts`                  | 92            | Erro silenciado                                                                                           |
+| `services/sessionRemoteStore.ts`                 | 62            | Erro silenciado                                                                                           |
+| `services/exportService.ts`                      | 149           | Erro silenciado                                                                                           |
 
 **Regra violada**: "ZERO catch vazio — sempre: log + fallback + feedback visual ao usuário"
 
@@ -52,6 +52,7 @@ Varredura somente-leitura com 3 agentes em paralelo (reviewer, vercel:ai-archite
 ### 6. Prompt Leak Shield duplicado
 
 Duas implementações com lógicas diferentes:
+
 - `api/gemini.ts:43-97` — `applyPromptLeakShieldLocal` com regex hardcoded (`HARD_PROMPT_LEAK_PATTERNS`, `SOFT_PROMPT_LEAK_PATTERNS`)
 - `utils/textCleaners.ts` — `applyPromptLeakShield` com outro conjunto de padrões
 
@@ -62,6 +63,7 @@ Um texto que passa por um pode ser bloqueado pelo outro. Comportamento imprevis�
 Regra: "0.1 para outputs factuais (Score PORTA, dados empresa), 0.7 para texto criativo (táticas)"
 
 Realidade:
+
 - `api/gemini.ts:262`: 0.1 (high thinking) ou 0.15 (low thinking) — ambos < 0.7 para criativo
 - `investigation-orchestration.ts:694`: `generateDossierModule` → 0.2
 - `investigation-orchestration.ts:785`: `getIsolatedBenchmark` → 0.1
@@ -76,6 +78,7 @@ Realidade:
 Regra: "Cache tipado: dossiê = 24h, CNPJ = 7d"
 
 Realidade:
+
 - `clientLookupService.ts`: Cache permanente (sessão toda) para empresas encontradas. Cache de 30s para não-encontradas. Nenhum segue 7d.
 - **Não existe cache de dossiê com 24h de TTL**
 - `war-room/retrieval.ts`: Cache de docs Pinecone com 2min de TTL (`Map` em memória) — OK para seu contexto
@@ -85,6 +88,7 @@ Realidade:
 Regra: "Timeout 30s + retry 3x com backoff exponencial e jitter"
 
 Realidade:
+
 - `investigation-orchestration.ts:526`: `withAutoRetry` → maxRetries=5, baseDelayMs=2000 (potencial 62s total)
 - `investigation-orchestration.ts:552`: Fallback sem grounding → maxRetries=4, baseDelayMs=2000 (~30s adicional)
 - `war-room/query.ts:150`: maxRetries=2, baseDelayMs=700, maxDelayMs=3000 (~4s total)
@@ -125,6 +129,7 @@ Importado em 6 componentes (ScorePorta, ClienteSeniorScore, Tooltip, StatusIndic
 Regra: "Todo prompt vive em `prompts/` — versionado, nunca inline no componente"
 
 Infrações:
+
 - `services/gemini/auxiliary.ts:8-22` — `CONTINUITY_SYSTEM` (string longa)
 - `services/war-room/prompting.ts:5-71` — `SYSTEM_PROMPTS` com 4 prompts grandes
 - `services/gemini/status.ts:1-26` — Mensagens de status são prompts de UX inline
@@ -157,18 +162,18 @@ Os prompts em `prompts/mega/` estão corretos (3479 linhas bem organizadas).
 
 ### 23. `any` sem justificativa — ~27 ocorrências
 
-| Arquivo | Linha(s) |
-|---------|----------|
-| `api/gemini.ts` | 101 (`globalThis as any`), 255 (`openWebSearchTool as any`), 281-282 (`let response: any`) |
-| `api/radar-scan.ts` | 200, 319, 322, 427 |
-| `components/SystemHealthCheck.tsx` | 66-208 (7x `catch (error: any)`) |
-| `services/clientLookupService.ts` | 88, 111, 449, 489, 590, 596 |
-| `components/CRMDetail.tsx` | 244 (`const data: any`) |
-| `components/WarRoom.tsx` | 196 |
-| `utils/retry.ts` | 43 |
-| `utils/documentExtractor.ts` | 195 |
-| `utils/errorHelpers.ts` | 9, 106 |
-| `api/extract-content.ts` | 45 |
+| Arquivo                            | Linha(s)                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| `api/gemini.ts`                    | 101 (`globalThis as any`), 255 (`openWebSearchTool as any`), 281-282 (`let response: any`) |
+| `api/radar-scan.ts`                | 200, 319, 322, 427                                                                         |
+| `components/SystemHealthCheck.tsx` | 66-208 (7x `catch (error: any)`)                                                           |
+| `services/clientLookupService.ts`  | 88, 111, 449, 489, 590, 596                                                                |
+| `components/CRMDetail.tsx`         | 244 (`const data: any`)                                                                    |
+| `components/WarRoom.tsx`           | 196                                                                                        |
+| `utils/retry.ts`                   | 43                                                                                         |
+| `utils/documentExtractor.ts`       | 195                                                                                        |
+| `utils/errorHelpers.ts`            | 9, 106                                                                                     |
+| `api/extract-content.ts`           | 45                                                                                         |
 
 **CRMDetail.tsx:244** é particularmente perigoso: `const data: any = await resp.json().catch(() => null)` — se API retornar HTML (erro 502), `data.id` causa TypeError.
 
@@ -212,13 +217,13 @@ ScorePorta, SectionalBotMessage, ClienteSeniorScore em `MessageRow.tsx:193-196` 
 
 ## Resumo Numérico
 
-| Severidade | Contagem | Principais categorias |
-|---|---|---|
-| P0 | 3 | Catch vazio, perda IDB, recovery silencioso |
-| P1 | 11 | Streaming quebrado, memo inútil, temperatura errada, cache sem TTL, retry inconsistente, score null sem alerta, feedback inacabado, componente gigante, re-render cascata, thread-safety |
-| P2 | 9 | Bundle inchado, prompts inline, mock em prod, proxy duplicado, Virtuoso impreciso, lazy sem skeleton, feature inacabada, stub vazio, `any` sem justificativa |
-| P3 | 4 | Sem React.memo, useEffect no-op, console.log, optional chaining |
-| **Total** | **27** |
+| Severidade | Contagem | Principais categorias                                                                                                                                                                    |
+| ---------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0         | 3        | Catch vazio, perda IDB, recovery silencioso                                                                                                                                              |
+| P1         | 11       | Streaming quebrado, memo inútil, temperatura errada, cache sem TTL, retry inconsistente, score null sem alerta, feedback inacabado, componente gigante, re-render cascata, thread-safety |
+| P2         | 9        | Bundle inchado, prompts inline, mock em prod, proxy duplicado, Virtuoso impreciso, lazy sem skeleton, feature inacabada, stub vazio, `any` sem justificativa                             |
+| P3         | 4        | Sem React.memo, useEffect no-op, console.log, optional chaining                                                                                                                          |
+| **Total**  | **27**   |
 
 ---
 

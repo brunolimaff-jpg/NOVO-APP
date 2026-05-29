@@ -106,9 +106,7 @@ describe('useSessionStorage', () => {
     const dateStr = '2025-01-15T10:00:00.000Z';
     const sessionWithStringTimestamp = {
       ...makeSession('s4', 'Empresa D'),
-      messages: [
-        { id: 'm1', sender: 'user', text: 'Olá', timestamp: dateStr },
-      ],
+      messages: [{ id: 'm1', sender: 'user', text: 'Olá', timestamp: dateStr }],
     };
     getDossiersMock.mockResolvedValue([sessionWithStringTimestamp]);
 

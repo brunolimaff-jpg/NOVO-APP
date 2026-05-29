@@ -95,10 +95,7 @@ describe('syncQueue', () => {
     syncQueue.enqueue(dossierOp);
     syncQueue.enqueue(radarOp);
 
-    await syncQueue.processWhere(
-      (op) => op.table === 'dossies',
-      mockExecutor
-    );
+    await syncQueue.processWhere(op => op.table === 'dossies', mockExecutor);
 
     expect(mockExecutor).toHaveBeenCalledTimes(1);
     expect(mockExecutor).toHaveBeenCalledWith(expect.objectContaining(dossierOp));
@@ -127,11 +124,7 @@ describe('syncQueue', () => {
 
     syncQueue.enqueue(staleOp);
 
-    await syncQueue.processWhere(
-      (op) => op.table === 'dossies',
-      failingExecutor,
-      { maxRetries: 3, backoffMs: 0 }
-    );
+    await syncQueue.processWhere(op => op.table === 'dossies', failingExecutor, { maxRetries: 3, backoffMs: 0 });
 
     expect(failingExecutor).toHaveBeenCalledTimes(1);
     expect(syncQueue.size()).toBe(1);
@@ -156,11 +149,9 @@ describe('syncQueue', () => {
     syncQueue.enqueue(op);
 
     // Enqueue now persists automatically (microtask). Wait for microtask to drain.
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
 
-    expect(set).toHaveBeenCalledWith('scout360_sync_queue', [
-      { ...op, attempts: 0 },
-    ]);
+    expect(set).toHaveBeenCalledWith('scout360_sync_queue', [{ ...op, attempts: 0 }]);
 
     const loaded = await syncQueue.load();
     expect(loaded).toHaveLength(1);
@@ -171,16 +162,16 @@ describe('syncQueue', () => {
   it('nao deve sobrescrever fila em memoria com snapshot antigo do IDB', async () => {
     let resolvePersist: (() => void) | undefined;
     let persistStarted: (() => void) | undefined;
-    const persistStartedPromise = new Promise<void>((resolve) => {
+    const persistStartedPromise = new Promise<void>(resolve => {
       persistStarted = resolve;
     });
 
     vi.mocked(set).mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
+        new Promise<void>(resolve => {
           resolvePersist = resolve;
           persistStarted?.();
-        })
+        }),
     );
     vi.mocked(get).mockResolvedValue([]);
 

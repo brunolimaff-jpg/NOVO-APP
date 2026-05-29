@@ -34,11 +34,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
         onUpdate();
       }, 1000);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Erro ao salvar histórico'
-      );
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar histórico');
       setIsExporting(false);
     }
   };
@@ -63,9 +59,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
       {/* Modal */}
       <div
         className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl shadow-2xl z-50 transform transition-all duration-300 animate-scale-in ${
-          isDarkMode
-            ? 'bg-gray-900 border border-gray-700'
-            : 'bg-white border border-gray-200'
+          isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
         }`}
         role="dialog"
         aria-labelledby="update-title"
@@ -73,27 +67,14 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
       >
         {/* Header */}
         <div
-          className={`flex items-center gap-3 p-6 border-b ${
-            isDarkMode
-              ? 'border-gray-700/50'
-              : 'border-gray-200'
-          }`}
+          className={`flex items-center gap-3 p-6 border-b ${isDarkMode ? 'border-gray-700/50' : 'border-gray-200'}`}
         >
           <span className="text-3xl">✅</span>
           <div>
-            <h2
-              id="update-title"
-              className={`text-lg font-bold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}
-            >
+            <h2 id="update-title" className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Nova versão disponível
             </h2>
-            <p
-              className={`text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Uma atualização está pronta para instalar
             </p>
           </div>
@@ -113,35 +94,17 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
         {/* Body */}
         <div className={`p-6 space-y-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
           {/* Version Info */}
-          <div
-            className={`rounded-xl p-4 space-y-2 ${
-              isDarkMode
-                ? 'bg-gray-800/50'
-                : 'bg-gray-50'
-            }`}
-          >
+          <div className={`rounded-xl p-4 space-y-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between">
-              <span
-                className={`text-sm font-medium ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}
-              >
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Versão atual:
               </span>
-              <span
-                className={`text-sm font-bold ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                }`}
-              >
+              <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-900'}`}>
                 {currentVersion || 'desconhecida'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span
-                className={`text-sm font-medium ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}
-              >
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Nova versão:
               </span>
               <span
@@ -155,42 +118,23 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
           {/* Warning */}
           <div
             className={`rounded-xl p-4 flex gap-3 ${
-              isDarkMode
-                ? 'bg-orange-900/20 border border-orange-700/30'
-                : 'bg-orange-50 border border-orange-200'
+              isDarkMode ? 'bg-orange-900/20 border border-orange-700/30' : 'bg-orange-50 border border-orange-200'
             }`}
           >
             <span className="text-xl flex-shrink-0 mt-1">⚠️</span>
             <div>
-              <p
-                className={`text-sm font-medium ${
-                  isDarkMode
-                    ? 'text-orange-300'
-                    : 'text-orange-900'
-                }`}
-              >
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>
                 Histórico será limpo
               </p>
-              <p
-                className={`text-xs mt-1 ${
-                  isDarkMode
-                    ? 'text-orange-400/80'
-                    : 'text-orange-700'
-                }`}
-              >
-                Ao atualizar, seu histórico local será removido. Clique em "Salvar Histórico" para fazer backup antes de continuar.
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-orange-400/80' : 'text-orange-700'}`}>
+                Ao atualizar, seu histórico local será removido. Clique em "Salvar Histórico" para fazer backup antes de
+                continuar.
               </p>
             </div>
           </div>
 
           {/* Help Text */}
-          <p
-            className={`text-xs text-center ${
-              isDarkMode
-                ? 'text-gray-500'
-                : 'text-gray-500'
-            }`}
-          >
+          <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
             💡 Você pode restaurar o histórico depois pelas Configurações
           </p>
         </div>
@@ -198,9 +142,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
         {/* Footer with Actions */}
         <div
           className={`flex gap-3 p-6 border-t ${
-            isDarkMode
-              ? 'border-gray-700/50 bg-gray-900/50'
-              : 'border-gray-200 bg-gray-50/50'
+            isDarkMode ? 'border-gray-700/50 bg-gray-900/50' : 'border-gray-200 bg-gray-50/50'
           }`}
         >
           <button
@@ -230,9 +172,7 @@ export const UpdateNotificationModal: React.FC<UpdateNotificationModalProps> = (
                 Salvando...
               </>
             ) : (
-              <>
-                📥 Salvar Histórico
-              </>
+              <>📥 Salvar Histórico</>
             )}
           </button>
 

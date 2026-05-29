@@ -8,7 +8,16 @@ interface HelpCenterFloatingProps {
 const HELP_PANEL_ID = 'scout-help-center-panel';
 
 const HelpIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <circle cx="12" cy="12" r="9" />
     <path d="M9.75 9.5a2.25 2.25 0 114.12 1.25c-.78.86-1.87 1.2-1.87 2.5" />
     <path d="M12 17h.01" />
@@ -16,7 +25,16 @@ const HelpIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
   </svg>
@@ -63,7 +81,9 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
           aria-labelledby="scout-help-center-title"
           className={`fixed inset-x-4 bottom-36 max-h-[min(620px,calc(100dvh-12rem))] overflow-hidden rounded-lg border sm:left-auto sm:right-6 sm:bottom-44 sm:w-[420px] ${panelClass}`}
         >
-          <div className={`flex items-start justify-between gap-4 border-b px-4 py-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div
+            className={`flex items-start justify-between gap-4 border-b px-4 py-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}
+          >
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
                 Ajuda do Scout
@@ -111,7 +131,10 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
                       </span>
                     </button>
                     {isExpanded && (
-                      <div id={answerId} className={`mt-1 rounded-md border px-3 py-3 text-sm leading-relaxed ${answerClass}`}>
+                      <div
+                        id={answerId}
+                        className={`mt-1 rounded-md border px-3 py-3 text-sm leading-relaxed ${answerClass}`}
+                      >
                         {faq.answer}
                       </div>
                     )}

@@ -64,19 +64,23 @@ describe('SessionsSidebar', () => {
   });
 
   it('extrai nome do título com padrão [empresa]', () => {
-    const sessions = [makeSession({
-      title: 'dossiê completo de [Agropecuária Nova Era]',
-      empresaAlvo: null,
-    })];
+    const sessions = [
+      makeSession({
+        title: 'dossiê completo de [Agropecuária Nova Era]',
+        empresaAlvo: null,
+      }),
+    ];
     render(<SessionsSidebar {...defaultProps} sessions={sessions} />);
     expect(screen.getByText('Agropecuária Nova Era')).toBeInTheDocument();
   });
 
   it('remove prefixo "investigar" do título', () => {
-    const sessions = [makeSession({
-      title: 'investigar Cooperativa Sul',
-      empresaAlvo: null,
-    })];
+    const sessions = [
+      makeSession({
+        title: 'investigar Cooperativa Sul',
+        empresaAlvo: null,
+      }),
+    ];
     render(<SessionsSidebar {...defaultProps} sessions={sessions} />);
     expect(screen.getByText('Cooperativa Sul')).toBeInTheDocument();
   });
@@ -140,9 +144,7 @@ describe('SessionsSidebar', () => {
       makeSession({ id: 'active', empresaAlvo: 'Ativa', updatedAt: new Date('2024-03-01').toISOString() }),
       makeSession({ id: 'other', empresaAlvo: 'Outra', updatedAt: new Date('2024-02-01').toISOString() }),
     ];
-    const { container } = render(
-      <SessionsSidebar {...defaultProps} sessions={sessions} currentSessionId="active" />,
-    );
+    const { container } = render(<SessionsSidebar {...defaultProps} sessions={sessions} currentSessionId="active" />);
     // Active session element should have the active background class
     const activeEl = container.querySelector('[class*="bg-emerald-500"]');
     expect(activeEl).toBeTruthy();

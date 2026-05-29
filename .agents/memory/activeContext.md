@@ -1,40 +1,60 @@
 # Active Context
 
-Last updated: 2026-05-27 (PR #302 pronta para merge)
+Last updated: 2026-05-28 23:59 (automacoes .claude/ + trava commits + code review max-effort + plano merge)
 
 ## Boot
 
 1. Bruno Vault: `00-MASTER.md` -> `MOC-Licoes.md` -> `10-PROJETOS/NOVO-APP.md`
 2. `HANDOFF_AI.md` -> este arquivo -> `progress.md`
-3. Vault sessao: `20-SESSOES/2026-05/2026-05-27T14-00-00-dossier-link-integrity-fontes-pr301.md`
 
 ## Fase atual
 
-**PR #302 PRONTA PARA MERGE** — `perf/dossier-link-integrity-and-memo`
+**Branch `feat/operator-tracking-supabase`** — 21 commits, working tree modificada.
+PR #309 aberta mas desatualizada.
+**Proximo passo: commitar working tree + soft reset + 3 commits tematicos + push force-with-lease + atualizar PR.**
 
-### Entregue na PR
+### Infraestrutura criada nesta sessao
 
-| Commit | Resumo |
-|--------|--------|
-| `8cdc326` | perf: otimiza dossierLinkIntegrity com lookup O(1) e adiciona React.memo |
-| `7f098e8` | fix: resolve 3 review comments da PR #302 + causa raiz do freeze 95% |
-| `f3679b7` | fix: previne tela branca apos geracao do dossier |
+| Item                   | Arquivos                                                  |
+| ---------------------- | --------------------------------------------------------- |
+| .claude/ settings.json | Hooks Prettier, bloqueio .env/lock, git commit guard      |
+| Skills                 | validate-gates, supabase-migration                        |
+| Agents                 | security-reviewer, pr-gate-runner                         |
+| Trava commits          | `scripts/check-branch-health.sh` (5-warn, 8-block)        |
+| CLAUDE.md regras 10-12 | Max 7 commits, push diario, checkpoint 5                  |
+| Plano merge            | `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md` |
 
-### Otimizacoes
-- `dossierLinkIntegrity.ts`: `buildPoolLookupMap()` pré-constrói Map lookup (prefixo título → URL, hostname → URL)
-- `LoadingSmart.tsx`: `React.memo`, `processingKey` como concatenação de string (não useMemo)
-- `InvestigationDashboard.tsx`: `React.memo` para evitar re-renders
-- `shouldSuspendVirtualizedList`: comparação explícita `=== 'hero'` (removida coerção `?? 'hero'`)
-- Fix tela branca: libera timeline sob overlay quando dossier final já existe
+### Code review max-effort (18 findings)
 
-### Review comments resolvidos (Gemini Code Assist)
-1. Falsos positivos com chaves curtas: `title.length >= 3` e `host.length >= 3` no `buildPoolLookupMap`
-2. useMemo desnecessário: trocado por concatenação direta de string em `processingKey`
-3. Comentário O(1) vs O(N): JSDoc atualizado para refletir que lookup é O(N) por link
+| Severidade | Total | Status                                          |
+| ---------- | ----- | ----------------------------------------------- |
+| P0         | 2     | Documentados (withTimeout AbortSignal ignorado) |
+| P1         | 4     | Documentados                                    |
+| P2         | 12    | Documentados                                    |
+
+**Bug critico:** `api/gemini.ts:416` — `withTimeout` nao propaga AbortSignal para `chat.sendMessage`.  
+**Bug critico:** `api/gemini.ts:491` — `sendFunctionResponses` sem AbortSignal.
+
+### Validacao
+
+- `tsc --noEmit`: limpo
+- `npm test`: 142/142 files, 1242/1242 testes (100%)
+- `npm run test:contracts`: 3/3 files, 45/45 testes (100%)
+
+## Proximo passo
+
+Comitar working tree; seguir plano em `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`:
+
+1. Backup branch
+2. Commitar docs + automacoes
+3. Soft reset -> 3 commits (tracking, diagnostico, qualidade)
+4. Push force-with-lease
+5. Atualizar PR #309
+6. **Corrigir P0:** withTimeout propagar AbortSignal para chat.sendMessage
 
 ## Ponteiros
 
-- PR #302: https://github.com/brunolimaff-jpg/NOVO-APP/pull/302
-- `utils/dossierLinkIntegrity.ts`, `components/LoadingSmart.tsx`
 - `HANDOFF_AI.md`
+- Plano merge: `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`
+- Vault: `2026-05-28T23-59-00-automacoes-claude-code-trava-commits.md`
 - `CALIBER_LEARNINGS.md`

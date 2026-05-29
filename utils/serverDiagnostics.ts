@@ -29,9 +29,20 @@ interface DiagnosticBatch {
 }
 
 const ALLOWED_FIELDS = new Set([
-  'at', 't', 'runId', 'sessionId', 'area', 'event', 'severity',
-  'elapsedMs', 'payload', 'operatorId', 'environment', 'appVersion',
-  'route', 'userAgent',
+  'at',
+  't',
+  'runId',
+  'sessionId',
+  'area',
+  'event',
+  'severity',
+  'elapsedMs',
+  'payload',
+  'operatorId',
+  'environment',
+  'appVersion',
+  'route',
+  'userAgent',
 ]);
 
 const MAX_PAYLOAD_DEPTH = 4;
@@ -56,10 +67,17 @@ function sanitizePayload(obj: unknown, depth: number = 0): unknown {
     for (const key of keys) {
       const lower = key.toLowerCase();
       if (
-        lower.includes('token') || lower.includes('key') || lower.includes('secret') ||
-        lower.includes('password') || lower.includes('auth') || lower.includes('credential') ||
-        lower.includes('prompt') || lower.includes('response') || lower.includes('content') ||
-        lower.includes('text') || lower.includes('body')
+        lower.includes('token') ||
+        lower.includes('key') ||
+        lower.includes('secret') ||
+        lower.includes('password') ||
+        lower.includes('auth') ||
+        lower.includes('credential') ||
+        lower.includes('prompt') ||
+        lower.includes('response') ||
+        lower.includes('content') ||
+        lower.includes('text') ||
+        lower.includes('body')
       ) {
         continue;
       }

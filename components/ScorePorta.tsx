@@ -38,7 +38,7 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
   },
 };
 
-  const ScorePorta: React.FC<ScorePortaProps> = (scoreData = {} as ScorePortaProps) => {
+const ScorePorta: React.FC<ScorePortaProps> = (scoreData = {} as ScorePortaProps) => {
   const {
     score = 0,
     p = 0,
@@ -67,24 +67,24 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
 
   const validFlags = normalizePortaFlags(flags ?? []).filter(flag => flag in PORTA_FLAG_META);
   const values: Record<string, number> = { p, o, r, t, a };
-  const justificativasObj: Record<string, string> = { 
+  const justificativasObj: Record<string, string> = {
     p: scoreData.justificativas?.P || '',
     o: scoreData.justificativas?.O || '',
     r: scoreData.justificativas?.R || '',
     t: scoreData.justificativas?.T || '',
-    a: scoreData.justificativas?.A || ''
+    a: scoreData.justificativas?.A || '',
   };
 
   const activeExplanation = useMemo(() => {
     if (!activePillar) return null;
-    
+
     const defaultExp = PILLAR_EXPLANATIONS[activePillar];
     const justification = justificativasObj[activePillar];
-    
+
     return {
       title: defaultExp.title,
       text: justification || defaultExp.text,
-      isCustom: !!justification
+      isCustom: !!justification,
     };
   }, [activePillar, justificativasObj]);
 
@@ -257,7 +257,14 @@ const PILLAR_EXPLANATIONS: Record<string, { title: string; text: string }> = {
             border: activeExplanation.isCustom ? `1px solid ${barColor}40` : `1px solid ${subtleBorder}`,
           }}
         >
-          <div style={{ fontSize: '12px', fontWeight: 700, color: activeExplanation.isCustom ? barColor : valueColor, marginBottom: '4px' }}>
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: activeExplanation.isCustom ? barColor : valueColor,
+              marginBottom: '4px',
+            }}
+          >
             {activeExplanation.title}
           </div>
           <div style={{ fontSize: '11px', color: activeExplanation.isCustom ? valueColor : labelColor }}>

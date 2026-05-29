@@ -20,7 +20,8 @@ vi.mock('@pinecone-database/pinecone', () => ({
   },
 }));
 
-const NO_DOCS_SIGNAL = '[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
+const NO_DOCS_SIGNAL =
+  '[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
 
 type ApiPayload = {
   context?: string;
@@ -126,7 +127,6 @@ describe('api/docs-rag handler', () => {
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toBe(NO_DOCS_SIGNAL);
-
   });
 
   it('inclui match forte com texto indexado e preserva fonte', async () => {
@@ -167,7 +167,6 @@ describe('api/docs-rag handler', () => {
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toBe(NO_DOCS_SIGNAL);
-
   });
 
   it('mantém aviso conservador para match forte sem texto quando há outro match textual', async () => {

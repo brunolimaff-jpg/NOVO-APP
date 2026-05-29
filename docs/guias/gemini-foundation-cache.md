@@ -11,10 +11,10 @@ Cada módulo (7–9 chamadas) envia só o prompt dinâmico (specialist + accumul
 
 ## Flags (default: desligado)
 
-| Camada | Variável | Onde configurar |
-|--------|----------|-----------------|
-| API Vercel | `GEMINI_FOUNDATION_CACHE_ENABLED=1` | Project Settings → Environment Variables |
-| Build Vite | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` | Mesmo projeto ou `.env.local` em dev |
+| Camada     | Variável                                 | Onde configurar                          |
+| ---------- | ---------------------------------------- | ---------------------------------------- |
+| API Vercel | `GEMINI_FOUNDATION_CACHE_ENABLED=1`      | Project Settings → Environment Variables |
+| Build Vite | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` | Mesmo projeto ou `.env.local` em dev     |
 
 **Ambas** precisam estar `1` para o fluxo completo funcionar. Sem a flag server, `createCachedContent` retorna 403. Sem a flag client, o waterfall não tenta criar cache.
 
@@ -49,14 +49,14 @@ Resultados de busca **não** são persistidos no cache (regra do projeto: Search
 
 ## Arquivos principais
 
-| Arquivo | Papel |
-|---------|-------|
-| `api/gemini.ts` | Actions `createCachedContent`, `deleteCachedContent`; `generateContent` com `cachedContent` |
-| `services/geminiProxy.ts` | Proxy cliente |
-| `services/gemini/foundation-cache.ts` | Helper de domínio |
-| `services/gemini/investigation-orchestration.ts` | Split cached vs dynamic em `generateDossierModule` |
-| `features/dossier/waterfall-orchestrator.ts` | Orquestração create/use/delete |
-| `features/dossier/porta-reconciliation.ts` | Reconciliação PORTA com cache opcional |
+| Arquivo                                          | Papel                                                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `api/gemini.ts`                                  | Actions `createCachedContent`, `deleteCachedContent`; `generateContent` com `cachedContent` |
+| `services/geminiProxy.ts`                        | Proxy cliente                                                                               |
+| `services/gemini/foundation-cache.ts`            | Helper de domínio                                                                           |
+| `services/gemini/investigation-orchestration.ts` | Split cached vs dynamic em `generateDossierModule`                                          |
+| `features/dossier/waterfall-orchestrator.ts`     | Orquestração create/use/delete                                                              |
+| `features/dossier/porta-reconciliation.ts`       | Reconciliação PORTA com cache opcional                                                      |
 
 ## Validação manual recomendada
 

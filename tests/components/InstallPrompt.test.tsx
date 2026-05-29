@@ -42,10 +42,7 @@ describe('InstallPrompt', () => {
 
     expect(installApp).toHaveBeenCalledTimes(1);
     expect(dismissInstallPrompt).toHaveBeenCalledTimes(1);
-    expect(addEventListenerSpy).not.toHaveBeenCalledWith(
-      'beforeinstallprompt',
-      expect.any(Function),
-    );
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith('beforeinstallprompt', expect.any(Function));
   });
 
   it('não renderiza quando o hook informa que o prompt está oculto', () => {

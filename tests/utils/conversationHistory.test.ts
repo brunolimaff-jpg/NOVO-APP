@@ -1,11 +1,6 @@
 // tests/utils/conversationHistory.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  saveConversation,
-  getConversationHistory,
-  searchHistory,
-  clearHistory,
-} from '../../utils/conversationHistory';
+import { saveConversation, getConversationHistory, searchHistory, clearHistory } from '../../utils/conversationHistory';
 
 describe('conversationHistory', () => {
   beforeEach(() => {

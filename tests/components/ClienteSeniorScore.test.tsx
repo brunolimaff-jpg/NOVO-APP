@@ -10,9 +10,9 @@ const mockData = {
   familias: ['ERP', 'HCM'],
   totalModulos: 12,
   modulosPorFamilia: {
-    'ERP': ['Financeiro', 'Compras'],
-    'HCM': ['Folha', 'Ponto']
-  }
+    ERP: ['Financeiro', 'Compras'],
+    HCM: ['Folha', 'Ponto'],
+  },
 };
 
 describe('ClienteSeniorScore', () => {
@@ -29,7 +29,9 @@ describe('ClienteSeniorScore', () => {
   });
 
   it('renderiza null quando o match não é exato', () => {
-    const { container } = render(<ClienteSeniorScore data={{ ...mockData, matchType: 'partial', encontrado: false }} />);
+    const { container } = render(
+      <ClienteSeniorScore data={{ ...mockData, matchType: 'partial', encontrado: false }} />,
+    );
     expect(container.firstChild).toBeNull();
   });
 

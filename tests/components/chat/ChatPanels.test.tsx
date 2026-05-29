@@ -83,7 +83,9 @@ function buildRadar(): RadarProps {
   };
 }
 
-function buildProps(overrides: Partial<React.ComponentProps<typeof ChatPanels>> = {}): React.ComponentProps<typeof ChatPanels> {
+function buildProps(
+  overrides: Partial<React.ComponentProps<typeof ChatPanels>> = {},
+): React.ComponentProps<typeof ChatPanels> {
   return {
     showSettings: false,
     operatorName: 'Bruno Lima',

@@ -428,7 +428,8 @@ describe('societaryGraph', () => {
           name: 'Scheffer Colombia S.A.S.',
           country: 'CO',
           partnerName: 'Guilherme M. Scheffer',
-          sourceUrl: 'https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+          sourceUrl:
+            'https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
           sourceTitle: 'Veritrade',
           snippet: 'SCHEFFER & CIA LTDA exportou para SCHEFFER COLOMBIA S.A.S.',
           confidence: 'strong',
@@ -446,21 +447,24 @@ describe('societaryGraph', () => {
   });
 
   it('conecta empresas vindas apenas do Gemini ao sócio correspondente', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [],
-    }, [
+    const graph = buildSocietaryGraph(
       {
-        name: 'Agropecuaria Scheffer Ltda',
-        cnpj: '00.111.222/0001-81',
-        partnerName: 'Guilherme M. Scheffer',
-        sourceTitle: 'Gemini — Tabela Mestre',
-        confidence: 'strong',
-        evidenceType: 'qsa',
-        rootContext: true,
+        root,
+        partners,
+        companies: [],
       },
-    ]);
+      [
+        {
+          name: 'Agropecuaria Scheffer Ltda',
+          cnpj: '00.111.222/0001-81',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Gemini — Tabela Mestre',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: true,
+        },
+      ],
+    );
 
     expect(graph.companies).toHaveLength(1);
     expect(graph.companies[0].partnerIds).toEqual(['guilherme']);
@@ -471,22 +475,25 @@ describe('societaryGraph', () => {
   });
 
   it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [],
-    }, [
+    const graph = buildSocietaryGraph(
       {
-        name: 'Fazenda Independente LTDA',
-        cnpj: '12.345.678/0001-95',
-        partnerName: 'Guilherme M. Scheffer',
-        sourceTitle: 'Gemini — Outros CNPJs do sócio',
-        confidence: 'medium',
-        evidenceType: 'registry',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
+        root,
+        partners,
+        companies: [],
       },
-    ]);
+      [
+        {
+          name: 'Fazenda Independente LTDA',
+          cnpj: '12.345.678/0001-95',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          confidence: 'medium',
+          evidenceType: 'registry',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    );
 
     expect(graph.companies).toHaveLength(1);
     expect(graph.companies[0]).toMatchObject({
@@ -501,37 +508,40 @@ describe('societaryGraph', () => {
   });
 
   it('nao deixa Gemini rebaixar evidencia oficial ja confirmada pela API', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [
+    const graph = buildSocietaryGraph(
+      {
+        root,
+        partners,
+        companies: [
+          {
+            name: 'Agropecuaria Scheffer Ltda',
+            cnpj: '00.111.222/0001-81',
+            partnerName: 'Guilherme M. Scheffer',
+            sourceTitle: 'BrasilAPI QSA',
+            sourceUrl: 'https://brasilapi.com.br/api/cnpj/v1/00111222000181',
+            snippet: 'QSA oficial confirma Guilherme M. Scheffer.',
+            confidence: 'strong',
+            evidenceType: 'qsa',
+            relationshipScope: 'group_link',
+            rootContext: true,
+            rootCompanyName: 'Scheffer & Cia Ltda',
+            rootCnpj: '04733767000180',
+          },
+        ],
+      },
+      [
         {
           name: 'Agropecuaria Scheffer Ltda',
           cnpj: '00.111.222/0001-81',
           partnerName: 'Guilherme M. Scheffer',
-          sourceTitle: 'BrasilAPI QSA',
-          sourceUrl: 'https://brasilapi.com.br/api/cnpj/v1/00111222000181',
-          snippet: 'QSA oficial confirma Guilherme M. Scheffer.',
-          confidence: 'strong',
-          evidenceType: 'qsa',
-          relationshipScope: 'group_link',
-          rootContext: true,
-          rootCompanyName: 'Scheffer & Cia Ltda',
-          rootCnpj: '04733767000180',
+          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          confidence: 'medium',
+          evidenceType: 'registry',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
         },
       ],
-    }, [
-      {
-        name: 'Agropecuaria Scheffer Ltda',
-        cnpj: '00.111.222/0001-81',
-        partnerName: 'Guilherme M. Scheffer',
-        sourceTitle: 'Gemini — Outros CNPJs do sócio',
-        confidence: 'medium',
-        evidenceType: 'registry',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      },
-    ]);
+    );
 
     expect(graph.companies).toHaveLength(1);
     expect(graph.companies[0]).toMatchObject({
@@ -546,21 +556,24 @@ describe('societaryGraph', () => {
   });
 
   it('rejeita empresas Gemini sem CNPJ valido para nao criar no visual por inferencia textual', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [],
-    }, [
+    const graph = buildSocietaryGraph(
       {
-        name: 'Scheffer Colombia S.A.S.',
-        country: 'CO',
-        partnerName: '',
-        sourceTitle: 'Gemini — Internacional',
-        confidence: 'strong',
-        evidenceType: 'web',
-        rootContext: true,
+        root,
+        partners,
+        companies: [],
       },
-    ]);
+      [
+        {
+          name: 'Scheffer Colombia S.A.S.',
+          country: 'CO',
+          partnerName: '',
+          sourceTitle: 'Gemini — Internacional',
+          confidence: 'strong',
+          evidenceType: 'web',
+          rootContext: true,
+        },
+      ],
+    );
 
     expect(graph.companies).toHaveLength(0);
     expect(graph.rejectedCompanies).toHaveLength(1);
@@ -755,12 +768,7 @@ describe('societaryGraph', () => {
   });
 
   it('quebra empresas do socio em subgraphs de 2 quando ha entre 3 e 6 CNPJs', () => {
-    const validCnpjs = [
-      '10111111000129',
-      '10222222000102',
-      '10333333000196',
-      '10444444000170',
-    ];
+    const validCnpjs = ['10111111000129', '10222222000102', '10333333000196', '10444444000170'];
     const companies = validCnpjs.map((cnpj, index) => ({
       name: `Empresa Vinculada ${index + 1} LTDA`,
       cnpj,
@@ -1053,22 +1061,25 @@ describe('societaryGraph', () => {
   });
 
   it('rejeita Gemini que tenta recriar a propria raiz como outro CNPJ do socio', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [],
-    }, [
+    const graph = buildSocietaryGraph(
       {
-        name: 'Scheffer & Cia LTDA',
-        cnpj: '04.733.767/0001-80',
-        partnerName: 'Guilherme M. Scheffer',
-        sourceTitle: 'Gemini — Outros CNPJs do sócio',
-        confidence: 'medium',
-        evidenceType: 'registry',
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
+        root,
+        partners,
+        companies: [],
       },
-    ]);
+      [
+        {
+          name: 'Scheffer & Cia LTDA',
+          cnpj: '04.733.767/0001-80',
+          partnerName: 'Guilherme M. Scheffer',
+          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          confidence: 'medium',
+          evidenceType: 'registry',
+          relationshipScope: 'partner_other_cnpj',
+          rootContext: false,
+        },
+      ],
+    );
 
     expect(graph.companies).toHaveLength(0);
     expect(graph.rejectedCompanies).toHaveLength(1);
@@ -1101,22 +1112,25 @@ describe('societaryGraph', () => {
   });
 
   it('usa CNAE ou papel principal para classificar empresa raiz sem socios no rótulo', () => {
-    const graph = buildSocietaryGraph({
-      root,
-      partners,
-      companies: [],
-    }, [
+    const graph = buildSocietaryGraph(
       {
-        name: 'Scheffer Logística e Administração LTDA',
-        cnpj: '10.536.467/0001-04',
-        partnerName: '',
-        role: '64.62-0-00 Holdings de instituições não-financeiras',
-        sourceTitle: 'Receita Federal',
-        confidence: 'strong',
-        evidenceType: 'qsa',
-        rootContext: true,
+        root,
+        partners,
+        companies: [],
       },
-    ]);
+      [
+        {
+          name: 'Scheffer Logística e Administração LTDA',
+          cnpj: '10.536.467/0001-04',
+          partnerName: '',
+          role: '64.62-0-00 Holdings de instituições não-financeiras',
+          sourceTitle: 'Receita Federal',
+          confidence: 'strong',
+          evidenceType: 'qsa',
+          rootContext: true,
+        },
+      ],
+    );
 
     expect(graph.companies).toHaveLength(1);
     expect(describeSocietaryCompanyType(graph.companies[0])).toBe('Holding');

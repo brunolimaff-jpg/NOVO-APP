@@ -92,8 +92,7 @@ test('cannot register duplicate email', async () => {
   repo.seed(buildUser({ email: 'alice@example.com' }));
 
   const service = new UserService(repo);
-  await expect(service.register({ email: 'alice@example.com', name: 'Bob' }))
-    .rejects.toThrow(DuplicateEmailError);
+  await expect(service.register({ email: 'alice@example.com', name: 'Bob' })).rejects.toThrow(DuplicateEmailError);
 });
 ```
 
@@ -114,12 +113,12 @@ inputs and expected outputs.
 describe('calculateShippingCost', () => {
   test.each([
     // [orderTotal, membershipTier, expectedCost]
-    [10,  'free',    5.99],  // low value, no membership
-    [50,  'free',    5.99],  // below free-shipping threshold
-    [100, 'free',    0],     // meets free-shipping threshold
-    [10,  'silver',  2.99],  // silver discount
-    [10,  'gold',    0],     // gold members always free
-    [200, 'gold',    0],     // gold members - high value
+    [10, 'free', 5.99], // low value, no membership
+    [50, 'free', 5.99], // below free-shipping threshold
+    [100, 'free', 0], // meets free-shipping threshold
+    [10, 'silver', 2.99], // silver discount
+    [10, 'gold', 0], // gold members always free
+    [200, 'gold', 0], // gold members - high value
   ])('order of $%i with %s tier → $%f shipping', (total, tier, expected) => {
     const order = buildOrder({ total, membershipTier: tier });
     expect(calculateShippingCost(order)).toBe(expected);
@@ -190,18 +189,18 @@ handles TTL/expiry.
 
 When testing any function with inputs, cover these categories systematically:
 
-| Category | Examples |
-|---|---|
-| **Happy path** | Typical valid input producing expected output |
-| **Empty / zero** | `""`, `0`, `[]`, `null`, `undefined` |
-| **Minimum valid** | `1`, one-character string, single-element array |
-| **Maximum valid** | Max integer, 255-char string, large array |
-| **Just below boundary** | `limit - 1` |
-| **At boundary** | Exactly `limit` |
-| **Just above boundary** | `limit + 1` |
-| **Negative** | `-1`, `-Infinity` |
-| **Type coercion** | `"1"` vs `1`, `true` vs `1` (for loosely typed languages) |
-| **Special chars** | `null bytes`, `\n`, SQL injection strings, Unicode |
+| Category                | Examples                                                  |
+| ----------------------- | --------------------------------------------------------- |
+| **Happy path**          | Typical valid input producing expected output             |
+| **Empty / zero**        | `""`, `0`, `[]`, `null`, `undefined`                      |
+| **Minimum valid**       | `1`, one-character string, single-element array           |
+| **Maximum valid**       | Max integer, 255-char string, large array                 |
+| **Just below boundary** | `limit - 1`                                               |
+| **At boundary**         | Exactly `limit`                                           |
+| **Just above boundary** | `limit + 1`                                               |
+| **Negative**            | `-1`, `-Infinity`                                         |
+| **Type coercion**       | `"1"` vs `1`, `true` vs `1` (for loosely typed languages) |
+| **Special chars**       | `null bytes`, `\n`, SQL injection strings, Unicode        |
 
 Not every function needs all categories - pick the ones that are plausible
 failure modes for the specific function.
@@ -283,6 +282,7 @@ describe('user-service API contract', () => {
 ```
 
 Key rules:
+
 - Use `like()` matchers, not exact values - contracts test shape not data
 - Only assert on fields the consumer actually uses
 - Both teams run the pact verification in CI; `can-i-deploy` blocks mismatches
@@ -297,22 +297,35 @@ individually but fail when run together due to ordering effects.
 **Patterns:**
 
 **For databases - transaction rollback:**
+
 ```typescript
 let db: Database;
-beforeAll(async () => { db = await connectTestDb(); });
-beforeEach(async () => { await db.query('BEGIN'); });
-afterEach(async () => { await db.query('ROLLBACK'); });
-afterAll(async () => { await db.disconnect(); });
+beforeAll(async () => {
+  db = await connectTestDb();
+});
+beforeEach(async () => {
+  await db.query('BEGIN');
+});
+afterEach(async () => {
+  await db.query('ROLLBACK');
+});
+afterAll(async () => {
+  await db.disconnect();
+});
 ```
 
 **For shared module state - explicit reset:**
+
 ```typescript
 // Singleton that accumulates state
 let cache: Map<string, unknown>;
-beforeEach(() => { cache = new Map(); });
+beforeEach(() => {
+  cache = new Map();
+});
 ```
 
 **For global HTTP mocks (MSW):**
+
 ```typescript
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers()); // remove per-test overrides

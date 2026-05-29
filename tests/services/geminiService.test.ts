@@ -71,7 +71,11 @@ import { Sender } from '../../types';
 function expectStrongContinuitySet(result: string[]) {
   expect(result).toHaveLength(4);
   expect(result.every(item => item.endsWith('?'))).toBe(true);
-  expect(result.some(item => /margem|perda|risco|gargalo|trav|retrabalho|custo|press[aã]o|diretoria|integra[cç][aã]o/i.test(item))).toBe(true);
+  expect(
+    result.some(item =>
+      /margem|perda|risco|gargalo|trav|retrabalho|custo|press[aã]o|diretoria|integra[cç][aã]o/i.test(item),
+    ),
+  ).toBe(true);
 }
 
 const LEGACY_ACME_FALLBACK_SUGGESTIONS = [
@@ -638,14 +642,10 @@ describe('generateContinuityQuestion novelty mode', () => {
         ]),
       })
       .mockResolvedValueOnce({
-        text: JSON.stringify([
-          'Onde a margem vaza no fechamento mensal?',
-        ]),
+        text: JSON.stringify(['Onde a margem vaza no fechamento mensal?']),
       })
       .mockResolvedValueOnce({
-        text: JSON.stringify([
-          'Qual decisao executiva ainda fica sem dado confiavel no fechamento?',
-        ]),
+        text: JSON.stringify(['Qual decisao executiva ainda fica sem dado confiavel no fechamento?']),
       });
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno', {

@@ -15,10 +15,7 @@ const DEFAULT_MODEL = 'gemini-3-flash-preview';
 const FETCH_TIMEOUT_MS = 12_000;
 const GEMINI_TIMEOUT_MS = 25_000;
 
-const VALID_CATEGORIES = [
-  'concorrentes', 'regulatorio', 'mercado', 'ma_expansao',
-  'agro_tech', 'rh_trabalho',
-] as const;
+const VALID_CATEGORIES = ['concorrentes', 'regulatorio', 'mercado', 'ma_expansao', 'agro_tech', 'rh_trabalho'] as const;
 
 const RequestSchema = z.object({
   categories: z.array(z.enum(VALID_CATEGORIES)).min(1).max(6),
@@ -74,12 +71,28 @@ interface FeedSource {
 
 const RSS_FEEDS: FeedSource[] = [
   { url: 'https://www.canalrural.com.br/feed/', name: 'Canal Rural', categories: ['mercado', 'ma_expansao'] },
-  { url: 'https://www.noticiasagricolas.com.br/rss/ultimas-noticias.xml', name: 'Notícias Agrícolas', categories: ['mercado', 'concorrentes'] },
-  { url: 'https://www.agrolink.com.br/rss/', name: 'Agrolink', categories: ['regulatorio', 'mercado', 'agro_tech', 'rh_trabalho'] },
+  {
+    url: 'https://www.noticiasagricolas.com.br/rss/ultimas-noticias.xml',
+    name: 'Notícias Agrícolas',
+    categories: ['mercado', 'concorrentes'],
+  },
+  {
+    url: 'https://www.agrolink.com.br/rss/',
+    name: 'Agrolink',
+    categories: ['regulatorio', 'mercado', 'agro_tech', 'rh_trabalho'],
+  },
   { url: 'https://tiinside.com.br/feed/', name: 'TI Inside', categories: ['concorrentes', 'agro_tech'] },
   { url: 'https://www.infomoney.com.br/feed/', name: 'InfoMoney', categories: ['mercado', 'ma_expansao'] },
-  { url: 'https://revistagloborural.globo.com/rss.xml', name: 'Globo Rural', categories: ['mercado', 'regulatorio', 'ma_expansao', 'agro_tech', 'rh_trabalho'] },
-  { url: 'https://valor.globo.com/agronegocios/rss', name: 'Valor Agro', categories: ['mercado', 'ma_expansao', 'concorrentes', 'agro_tech'] },
+  {
+    url: 'https://revistagloborural.globo.com/rss.xml',
+    name: 'Globo Rural',
+    categories: ['mercado', 'regulatorio', 'ma_expansao', 'agro_tech', 'rh_trabalho'],
+  },
+  {
+    url: 'https://valor.globo.com/agronegocios/rss',
+    name: 'Valor Agro',
+    categories: ['mercado', 'ma_expansao', 'concorrentes', 'agro_tech'],
+  },
 ];
 
 // ===================================================================
@@ -145,7 +158,7 @@ async function fetchWithTimeout(url: string, ms: number): Promise<string> {
       signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; ScoutRadar/1.0)',
-        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        Accept: 'application/rss+xml, application/xml, text/xml, */*',
       },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -174,9 +187,9 @@ async function fetchGoogleNewsRSS(queries: string[]): Promise<RSSItem[]> {
 async function fetchFixedRSSFeeds(category: string): Promise<RSSItem[]> {
   const relevantFeeds = RSS_FEEDS.filter(f => f.categories.includes(category));
   const allItems: RSSItem[] = [];
-  
+
   await Promise.allSettled(
-    relevantFeeds.map(async (feed) => {
+    relevantFeeds.map(async feed => {
       try {
         const xml = await fetchWithTimeout(feed.url, FETCH_TIMEOUT_MS);
         const items = parseRSSXml(xml, feed.name);
@@ -186,7 +199,7 @@ async function fetchFixedRSSFeeds(category: string): Promise<RSSItem[]> {
       }
     }),
   );
-  
+
   return allItems;
 }
 
@@ -214,18 +227,22 @@ async function summarizeWithGemini(
   // Limit to top 15 to save tokens
   const batch = unique.slice(0, 15);
 
-  const articleList = batch.map((item, i) =>
-    `[ID: ${i + 1}]
+  const articleList = batch
+    .map(
+      (item, i) =>
+        `[ID: ${i + 1}]
 TÍTULO: ${item.title}
 DESCRIÇÃO: ${item.description}
 FONTE: ${item.sourceName}
-DATA: ${item.pubDate || 'N/D'}`
-  ).join('\n\n');
+DATA: ${item.pubDate || 'N/D'}`,
+    )
+    .join('\n\n');
 
-  const estadoCtx = estados.length > 0
-    ? `\nFOCO REGIONAL: Priorize artigos relevantes para os estados: ${estados.join(', ')}.
+  const estadoCtx =
+    estados.length > 0
+      ? `\nFOCO REGIONAL: Priorize artigos relevantes para os estados: ${estados.join(', ')}.
 IMPORTANTE: Notícias que tenham impacto no Brasil TODO (nacional) são ALTAMENTE relevantes e NÃO devem ser filtradas, mesmo que o foco regional esteja ativo.`
-    : '';
+      : '';
 
   const prompt = `Você é um analista de inteligência de mercado agro.
 Analise os artigos abaixo e selecione os 5 MAIS RELEVANTES para a categoria "${category}".
@@ -303,7 +320,7 @@ function hashId(title: string, url: string): string {
   const raw = `${(title || '').toLowerCase().trim()}|${(url || '').toLowerCase().trim()}`;
   let h = 0;
   for (let i = 0; i < raw.length; i++) {
-    h = ((h << 5) - h) + raw.charCodeAt(i);
+    h = (h << 5) - h + raw.charCodeAt(i);
     h |= 0;
   }
   return `radar_${Math.abs(h).toString(36)}`;
@@ -318,7 +335,12 @@ function parseDate(dateStr: string): string {
   }
 }
 
-function parseAlerts(text: string, category: RadarCategory, scannedAt: string, originalItems?: RSSItem[]): RadarAlert[] {
+function parseAlerts(
+  text: string,
+  category: RadarCategory,
+  scannedAt: string,
+  originalItems?: RSSItem[],
+): RadarAlert[] {
   if (text.includes('NENHUM_RESULTADO')) return [];
 
   const alerts: RadarAlert[] = [];
@@ -344,23 +366,20 @@ function parseAlerts(text: string, category: RadarCategory, scannedAt: string, o
     const estadoRaw = getField('ESTADO');
 
     // Recuperar dados originais se o ID bater (garante URL íntegra)
-    const originalItem =
-      originalItems && !isNaN(idRef) && originalItems[idRef - 1]
-        ? originalItems[idRef - 1]
-        : null;
+    const originalItem = originalItems && !isNaN(idRef) && originalItems[idRef - 1] ? originalItems[idRef - 1] : null;
     const sourceUrl = originalItem?.link || '#';
     const sourceName = originalItem?.sourceName || 'Fonte';
 
     if (!title || title.length < 5) continue;
 
     const relevance = ['alta', 'media', 'baixa'].includes(relevanceRaw)
-      ? relevanceRaw as RadarAlert['relevance']
+      ? (relevanceRaw as RadarAlert['relevance'])
       : 'media';
     const impacto = ['oportunidade', 'ameaca', 'vulnerabilidade', 'neutro'].includes(impactoRaw)
-      ? impactoRaw as NonNullable<RadarAlert['impacto']>
+      ? (impactoRaw as NonNullable<RadarAlert['impacto']>)
       : 'neutro';
     const estagio = ['fato_consumado', 'sinal_fraco'].includes(estagioRaw)
-      ? estagioRaw as NonNullable<RadarAlert['estagio']>
+      ? (estagioRaw as NonNullable<RadarAlert['estagio']>)
       : 'fato_consumado';
 
     alerts.push({
@@ -399,9 +418,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
     }
 
-    const body = req.method === 'GET'
-      ? { categories: [...VALID_CATEGORIES], estados: [] }
-      : req.body;
+    const body = req.method === 'GET' ? { categories: [...VALID_CATEGORIES], estados: [] } : req.body;
 
     const parsed = RequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -414,7 +431,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Fase 1: Buscar RSS em PARALELO (Google News + feeds fixos)
     const results = await Promise.allSettled(
-      categories.map(async (category) => {
+      categories.map(async category => {
         const queries = CATEGORY_QUERIES[category] || [];
 
         // Buscar de ambas as fontes em paralelo
@@ -424,7 +441,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ]);
 
         const allItems = [...googleNewsItems, ...fixedFeedItems];
-        console.warn(`[RADAR] ${category}: ${googleNewsItems.length} Google News + ${fixedFeedItems.length} RSS = ${allItems.length} total items`);
+        console.warn(
+          `[RADAR] ${category}: ${googleNewsItems.length} Google News + ${fixedFeedItems.length} RSS = ${allItems.length} total items`,
+        );
 
         if (allItems.length === 0) {
           console.warn(`[RADAR] No RSS items found for ${category}`);
@@ -467,8 +486,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Cross-category dedup by normalized title
     const seenTitles = new Set<string>();
     const allAlerts = rawAlerts.filter(alert => {
-      const key = (alert.title || '').toLowerCase().trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+      const key = (alert.title || '')
+        .toLowerCase()
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // remove accents
         .replace(/[^a-z0-9\s]/g, '')
         .replace(/\s+/g, ' ')
         .slice(0, 80);
@@ -480,16 +502,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let metaInsight = null;
     if (allAlerts.length > 0) {
       try {
-        const topTitles = allAlerts.slice(0, 10).map(a => `- [${a.category}] ${a.title}`).join('\n');
+        const topTitles = allAlerts
+          .slice(0, 10)
+          .map(a => `- [${a.category}] ${a.title}`)
+          .join('\n');
         const insightPrompt = `Você é um analista estratégico C-Level.
 Com base nestas manchetes mais relevantes do dia, escreva um parágrafo (máximo 300 caracteres) sintetizando o cenário estratégico cruzando essas informações. Seja direto e insight-driven, sem introduções.
 
 MANCHETES:
 ${topTitles}`;
-        
+
         const insightChat = ai.chats.create({
           model: DEFAULT_MODEL,
-          config: { temperature: 0.3, maxOutputTokens: 200 }
+          config: { temperature: 0.3, maxOutputTokens: 200 },
         });
         const insightRes = await insightChat.sendMessage({ message: insightPrompt });
         metaInsight = insightRes.text?.trim() || null;

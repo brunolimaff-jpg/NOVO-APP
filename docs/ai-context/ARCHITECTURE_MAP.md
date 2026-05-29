@@ -7,16 +7,16 @@
 
 ## Arquivos raiz
 
-| Arquivo | Funcao | Status |
-|---|---|---|
-| `index.tsx` | bootstrap React com providers globais | estavel |
-| `App.tsx` | hotspot principal de orquestracao e wiring global | em reducao controlada |
-| `types.ts` | contratos centrais do produto, incluindo Radar | estavel |
-| `constants.ts` | fachada publica de constantes/prompts principais | estavel |
-| `vite.config.ts` | configuracao de build e aliases | estavel |
-| `vercel.json` | runtime SPA + funcoes serverless | estavel |
-| `eslint.config.js` | baseline de lint | estavel |
-| `mobile-responsive.css` | regras mobile legadas fora de `index.css` | debito aberto |
+| Arquivo                 | Funcao                                            | Status                |
+| ----------------------- | ------------------------------------------------- | --------------------- |
+| `index.tsx`             | bootstrap React com providers globais             | estavel               |
+| `App.tsx`               | hotspot principal de orquestracao e wiring global | em reducao controlada |
+| `types.ts`              | contratos centrais do produto, incluindo Radar    | estavel               |
+| `constants.ts`          | fachada publica de constantes/prompts principais  | estavel               |
+| `vite.config.ts`        | configuracao de build e aliases                   | estavel               |
+| `vercel.json`           | runtime SPA + funcoes serverless                  | estavel               |
+| `eslint.config.js`      | baseline de lint                                  | estavel               |
+| `mobile-responsive.css` | regras mobile legadas fora de `index.css`         | debito aberto         |
 
 ## Componentes e features de UI
 
@@ -71,15 +71,15 @@
 
 ## Hooks
 
-| Hook | Funcao | Status |
-|---|---|---|
-| `useAppInitialization.ts` | bootstrap local da aplicacao | ativo |
-| `useSessionManager.ts` | CRUD de sessoes | ativo |
-| `useSessionStorage.ts` | persistencia local de sessoes | ativo |
-| `useRadar.ts` | facade de compatibilidade; runtime em `features/radar/useRadar.ts` | ativo |
-| `useOffline.ts` | conectividade | ativo |
-| `useToast.ts` | notificacoes | ativo |
-| `useTheme.ts` | preferencia visual | ativo |
+| Hook                      | Funcao                                                             | Status |
+| ------------------------- | ------------------------------------------------------------------ | ------ |
+| `useAppInitialization.ts` | bootstrap local da aplicacao                                       | ativo  |
+| `useSessionManager.ts`    | CRUD de sessoes                                                    | ativo  |
+| `useSessionStorage.ts`    | persistencia local de sessoes                                      | ativo  |
+| `useRadar.ts`             | facade de compatibilidade; runtime em `features/radar/useRadar.ts` | ativo  |
+| `useOffline.ts`           | conectividade                                                      | ativo  |
+| `useToast.ts`             | notificacoes                                                       | ativo  |
+| `useTheme.ts`             | preferencia visual                                                 | ativo  |
 
 Observacao:
 
@@ -88,17 +88,17 @@ Observacao:
 
 ## Camada de services
 
-| Modulo | Papel |
-|---|---|
-| `services/geminiService.ts` | fachada publica da camada Gemini |
-| `services/gemini/` | implementacao interna de investigacao, PORTA, fontes, recovery e runtime |
-| `services/warRoomService.ts` | fachada publica do War Room |
-| `services/war-room/` | implementacao interna modular do War Room |
-| `services/ragService.ts` | RAG interno e documental |
-| `services/radarService.ts` | facade de compatibilidade para `features/radar/service.ts` |
-| `services/sessionRemoteStore.ts` | sync remoto de sessoes |
-| `services/feedbackRemoteStore.ts` | sync remoto de feedback |
-| `services/apiConfig.ts` | env/config tipado e links Senior reexportados |
+| Modulo                            | Papel                                                                    |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `services/geminiService.ts`       | fachada publica da camada Gemini                                         |
+| `services/gemini/`                | implementacao interna de investigacao, PORTA, fontes, recovery e runtime |
+| `services/warRoomService.ts`      | fachada publica do War Room                                              |
+| `services/war-room/`              | implementacao interna modular do War Room                                |
+| `services/ragService.ts`          | RAG interno e documental                                                 |
+| `services/radarService.ts`        | facade de compatibilidade para `features/radar/service.ts`               |
+| `services/sessionRemoteStore.ts`  | sync remoto de sessoes                                                   |
+| `services/feedbackRemoteStore.ts` | sync remoto de feedback                                                  |
+| `services/apiConfig.ts`           | env/config tipado e links Senior reexportados                            |
 
 ## Estado e boundaries
 

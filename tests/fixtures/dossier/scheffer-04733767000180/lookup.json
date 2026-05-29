@@ -1,40 +1,19 @@
 ﻿{
-    "query":  "Scheffer \u0026 CIA LTDA",
-    "encontrado":  true,
-    "results":  [
-                    {
-                        "razoes_sociais":  [
-                                               "Scheffer \u0026 CIA LTDA",
-                                               "Grupo Scheffer"
-                                           ],
-                        "familias_presentes":  [
-                                                   "GAtec",
-                                                   "Senior ERP",
-                                                   "Senior HCM",
-                                                   "Commerce Log"
-                                               ],
-                        "grupo":  "Scheffer \u0026 CIA LTDA",
-                        "matchType":  "exact",
-                        "modulos_por_familia":  {
-                                                    "Commerce Log":  [
-                                                                         "TMS/WMS"
-                                                                     ],
-                                                    "Senior HCM":  [
-                                                                       "Folha",
-                                                                       "SST",
-                                                                       "Desempenho"
-                                                                   ],
-                                                    "Senior ERP":  [
-                                                                       "Sapiens"
-                                                                   ],
-                                                    "GAtec":  [
-                                                                  "Gestão Agrícola",
-                                                                  "Frota",
-                                                                  "Manutenção",
-                                                                  "BI"
-                                                              ]
-                                                },
-                        "total_modulos":  74
-                    }
-                ]
+  "query": "Scheffer \u0026 CIA LTDA",
+  "encontrado": true,
+  "results": [
+    {
+      "razoes_sociais": ["Scheffer \u0026 CIA LTDA", "Grupo Scheffer"],
+      "familias_presentes": ["GAtec", "Senior ERP", "Senior HCM", "Commerce Log"],
+      "grupo": "Scheffer \u0026 CIA LTDA",
+      "matchType": "exact",
+      "modulos_por_familia": {
+        "Commerce Log": ["TMS/WMS"],
+        "Senior HCM": ["Folha", "SST", "Desempenho"],
+        "Senior ERP": ["Sapiens"],
+        "GAtec": ["Gestão Agrícola", "Frota", "Manutenção", "BI"]
+      },
+      "total_modulos": 74
+    }
+  ]
 }

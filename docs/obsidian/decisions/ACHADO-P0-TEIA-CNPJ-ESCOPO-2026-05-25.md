@@ -1,3 +1,10 @@
+---
+type: achado
+tags:
+  - achado
+  - teia-cnpj
+---
+
 # Achado P0 - Teia CNPJ: Escopo de grupo vs CNPJ lateral
 
 **Data:** 2026-05-25  
@@ -13,11 +20,11 @@ Um CNPJ onde o socio aparece deve ser `partner_other_cnpj` ate existir prova ind
 
 ## Contrato semantico
 
-| Escopo | Quando usar | Pode sustentar tese comercial? |
-|--------|-------------|--------------------------------|
-| `group_link` | Mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo | Sim, se a evidencia for forte e citada |
+| Escopo               | Quando usar                                                                                 | Pode sustentar tese comercial?                |
+| -------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `group_link`         | Mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo                | Sim, se a evidencia for forte e citada        |
 | `partner_other_cnpj` | QSA/CNPJ Aberto/Receita confirma que o socio aparece no CNPJ, mas grupo nao esta confirmado | Nao; serve para pergunta de reuniao/validacao |
-| `unconfirmed` | CNPJ textual, com `*`, invalido, inconsistente ou sem validacao oficial | Nao; apenas pendencia de validacao |
+| `unconfirmed`        | CNPJ textual, com `*`, invalido, inconsistente ou sem validacao oficial                     | Nao; apenas pendencia de validacao            |
 
 Labels finais de produto:
 
@@ -35,14 +42,14 @@ Termos proibidos para lateral:
 
 ## Timeline
 
-| Data | PR | Estado | Papel na linha do tempo |
-|------|----|--------|-------------------------|
-| 2026-05-23 | #279 | MERGED | Criou Teia Societaria Tipo 5 com Mermaid LR e drill-down por socio. |
-| 2026-05-24 | #280 | MERGED | Aprofundou pesquisa da teia e preparou busca reversa por socio. |
-| 2026-05-24 | #283 | MERGED | Consolidou prompts e anti-alucinacao. |
-| 2026-05-24 | #284 | MERGED | Fechou War Room RAG anti-alucinacao. |
+| Data       | PR   | Estado | Papel na linha do tempo                                                                      |
+| ---------- | ---- | ------ | -------------------------------------------------------------------------------------------- |
+| 2026-05-23 | #279 | MERGED | Criou Teia Societaria Tipo 5 com Mermaid LR e drill-down por socio.                          |
+| 2026-05-24 | #280 | MERGED | Aprofundou pesquisa da teia e preparou busca reversa por socio.                              |
+| 2026-05-24 | #283 | MERGED | Consolidou prompts e anti-alucinacao.                                                        |
+| 2026-05-24 | #284 | MERGED | Fechou War Room RAG anti-alucinacao.                                                         |
 | 2026-05-25 | #285 | MERGED | Integra CNPJ Aberto e matriz societaria; P0 semantico corrigido e documentado no fechamento. |
-| 2026-05-25 | #286 | MERGED | Links inline auditaveis; trilha complementar, validada depois da #285. |
+| 2026-05-25 | #286 | MERGED | Links inline auditaveis; trilha complementar, validada depois da #285.                       |
 
 ## Correcoes exigidas
 

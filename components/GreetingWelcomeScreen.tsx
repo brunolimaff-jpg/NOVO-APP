@@ -50,19 +50,23 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
     if (!isEmailValid) return;
     const emailToCheck = trimmedEmail;
     setCheckingEmail(true);
-    storage.findUserByEmail(emailToCheck).then((found) => {
-      if (emailToCheck === trimmedEmail) {
-        setExistingUser(found);
-      }
-    }).catch(() => {
-      if (emailToCheck === trimmedEmail) {
-        setExistingUser(null);
-      }
-    }).finally(() => {
-      if (emailToCheck === trimmedEmail) {
-        setCheckingEmail(false);
-      }
-    });
+    storage
+      .findUserByEmail(emailToCheck)
+      .then(found => {
+        if (emailToCheck === trimmedEmail) {
+          setExistingUser(found);
+        }
+      })
+      .catch(() => {
+        if (emailToCheck === trimmedEmail) {
+          setExistingUser(null);
+        }
+      })
+      .finally(() => {
+        if (emailToCheck === trimmedEmail) {
+          setCheckingEmail(false);
+        }
+      });
   }, [isEmailValid, trimmedEmail]);
 
   useEffect(() => {
@@ -85,11 +89,12 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
   const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-600';
   const cardBg = isDarkMode ? 'bg-slate-900/80' : 'bg-white';
   const cardBorder = isDarkMode ? 'border-slate-700/80' : 'border-slate-200';
-  const getInputClass = (hasError: boolean) => `w-full rounded-md border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-600 ${
-    isDarkMode
-      ? 'border-slate-600 bg-slate-950/50 text-slate-100 placeholder:text-slate-500'
-      : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400'
-  } ${hasError ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}`;
+  const getInputClass = (hasError: boolean) =>
+    `w-full rounded-md border px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-600 ${
+      isDarkMode
+        ? 'border-slate-600 bg-slate-950/50 text-slate-100 placeholder:text-slate-500'
+        : 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400'
+    } ${hasError ? 'border-red-500 focus:ring-red-500/25 focus:border-red-500' : ''}`;
 
   return (
     <div className={`animate-fade-in flex min-h-full w-full flex-col items-center justify-center ${pageBg}`}>
@@ -107,9 +112,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
         <h1 className="text-4xl font-bold tracking-tight text-emerald-400 dark:text-emerald-300 md:text-5xl">
           {greeting}!
         </h1>
-        <p className={`mt-3 text-lg font-medium ${textPrimary}`}>
-          Inteligência de campo para fechar negócios no Agro.
-        </p>
+        <p className={`mt-3 text-lg font-medium ${textPrimary}`}>Inteligência de campo para fechar negócios no Agro.</p>
         <p className={`mt-1 text-sm ${textSecondary}`}>
           Seu nome e email para salvar seus dossiês e acessá-los em qualquer dispositivo.
         </p>
@@ -122,7 +125,9 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
           <div
             className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
           >
-            <h2 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+            <h2
+              className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}
+            >
               Quem está na missão?
             </h2>
           </div>
@@ -162,10 +167,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
               <div className="space-y-4">
                 {/* Campo Nome */}
                 <div className="space-y-1">
-                  <label
-                    htmlFor="greeting-name-input"
-                    className={`block text-sm font-medium ${textPrimary}`}
-                  >
+                  <label htmlFor="greeting-name-input" className={`block text-sm font-medium ${textPrimary}`}>
                     Seu nome
                   </label>
                   <input
@@ -175,7 +177,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                     autoFocus
                     autoComplete="name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={e => setName(e.target.value)}
                     onBlur={() => setTouched(true)}
                     onKeyDown={handleKeyDown}
                     placeholder="Nome e sobrenome"
@@ -194,10 +196,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
 
                 {/* Campo Email */}
                 <div className="space-y-1">
-                  <label
-                    htmlFor="greeting-email-input"
-                    className={`block text-sm font-medium ${textPrimary}`}
-                  >
+                  <label htmlFor="greeting-email-input" className={`block text-sm font-medium ${textPrimary}`}>
                     Seu email
                   </label>
                   <input
@@ -206,7 +205,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                     type="email"
                     autoComplete="email"
                     value={email}
-                    onChange={(e) => {
+                    onChange={e => {
                       setEmail(e.target.value);
                       if (existingUser) setExistingUser(null);
                     }}
@@ -227,9 +226,7 @@ const GreetingWelcomeScreen: React.FC<GreetingWelcomeScreenProps> = ({ isDarkMod
                       </p>
                     )}
                     {checkingEmail && (
-                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                        Verificando email...
-                      </p>
+                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Verificando email...</p>
                     )}
                   </div>
                 </div>

@@ -89,17 +89,18 @@ If the board is marked `completed`, ask the user whether to start a new Superhum
 **Before INTAKE begins**, automatically detect the project's conventions by scanning for key files. This grounds all subsequent phases in reality rather than assumptions.
 
 ### Auto-detect Checklist
-| Signal | Files to Check |
-|---|---|
-| **Package manager** | `package-lock.json` (npm), `yarn.lock` (yarn), `pnpm-lock.yaml` (pnpm), `bun.lockb` (bun), `Cargo.lock` (cargo), `go.sum` (go) |
-| **Language/Runtime** | `tsconfig.json` (TypeScript), `pyproject.toml` / `setup.py` (Python), `go.mod` (Go), `Cargo.toml` (Rust) |
-| **Test runner** | `jest.config.*`, `vitest.config.*`, `pytest.ini`, `.mocharc.*`, test directory patterns |
-| **Linter/Formatter** | `.eslintrc.*`, `eslint.config.*`, `.prettierrc.*`, `ruff.toml`, `.golangci.yml` |
-| **Build system** | `Makefile`, `webpack.config.*`, `vite.config.*`, `next.config.*`, `turbo.json` |
-| **CI/CD** | `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile` |
-| **Available scripts** | `scripts` section of `package.json`, `Makefile` targets |
-| **Directory conventions** | `src/`, `lib/`, `app/`, `tests/`, `__tests__/`, `spec/` |
-| **Codedocs** | `docs/.codedocs.json`, `documentation/.codedocs.json`, or any `.codedocs.json` in the repo |
+
+| Signal                    | Files to Check                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Package manager**       | `package-lock.json` (npm), `yarn.lock` (yarn), `pnpm-lock.yaml` (pnpm), `bun.lockb` (bun), `Cargo.lock` (cargo), `go.sum` (go) |
+| **Language/Runtime**      | `tsconfig.json` (TypeScript), `pyproject.toml` / `setup.py` (Python), `go.mod` (Go), `Cargo.toml` (Rust)                       |
+| **Test runner**           | `jest.config.*`, `vitest.config.*`, `pytest.ini`, `.mocharc.*`, test directory patterns                                        |
+| **Linter/Formatter**      | `.eslintrc.*`, `eslint.config.*`, `.prettierrc.*`, `ruff.toml`, `.golangci.yml`                                                |
+| **Build system**          | `Makefile`, `webpack.config.*`, `vite.config.*`, `next.config.*`, `turbo.json`                                                 |
+| **CI/CD**                 | `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`                                                                          |
+| **Available scripts**     | `scripts` section of `package.json`, `Makefile` targets                                                                        |
+| **Directory conventions** | `src/`, `lib/`, `app/`, `tests/`, `__tests__/`, `spec/`                                                                        |
+| **Codedocs**              | `docs/.codedocs.json`, `documentation/.codedocs.json`, or any `.codedocs.json` in the repo                                     |
 
 ### Codedocs Detection
 
@@ -108,6 +109,7 @@ If a `.codedocs.json` manifest is found, the repo has structured codedocs output
 When codedocs is available, read `docs/OVERVIEW.md` and `docs/GETTING_STARTED.md` immediately during convention detection and append their key facts (tech stack, module map, entry points, dev commands) to the `## Project Conventions` section of the board. This front-loads context that would otherwise require separate codebase exploration in DISCOVER.
 
 ### Output
+
 Write the detected conventions to the board under a `## Project Conventions` section. Reference these conventions in every subsequent phase - particularly PLAN and the Mandatory Tail Tasks verification step.
 
 ---
@@ -115,6 +117,7 @@ Write the detected conventions to the board under a `## Project Conventions` sec
 ## When to Use This Skill
 
 **Use Superhuman when:**
+
 - Multi-step feature development touching 3+ files or components
 - User says "build this end-to-end" or "plan and execute this"
 - User says "break this into tasks" or "sprint plan this"
@@ -123,6 +126,7 @@ Write the detected conventions to the board under a `## Project Conventions` sec
 - Complex bug fixes that span multiple systems
 
 **Do NOT use Superhuman when:**
+
 - Single-file bug fixes or typo corrections
 - Quick questions or code explanations
 - Tasks the user wants to do manually with your guidance
@@ -133,18 +137,23 @@ Write the detected conventions to the board under a `## Project Conventions` sec
 ## Key Principles
 
 ### 1. Dependency-First Decomposition
+
 Every task is a node in a directed acyclic graph (DAG), not a flat list. Dependencies between tasks are explicit. This prevents merge conflicts, ordering bugs, and wasted work.
 
 ### 2. Wave-Based Parallelism
+
 Tasks at the same depth in the dependency graph form a "wave". All tasks in a wave execute simultaneously via parallel agents. Waves execute in serial order. This maximizes throughput while respecting dependencies.
 
 ### 3. Test-First Verification
+
 Every sub-task writes tests before implementation. A task is only "done" when its tests pass. No exceptions for "simple" changes - tests are the proof of correctness.
 
 ### 4. Persistent State
+
 All progress is tracked in `.superhuman/board.md` in the project root. This file survives across sessions, enabling resume, audit, and handoff. The user chooses during INTAKE whether the board is git-tracked or gitignored.
 
 ### 5. Interactive Intake
+
 Never assume. Scale questioning depth to task complexity - simple tasks get 3 questions, complex ones get 8-10. Extract requirements, constraints, and success criteria before writing a single line of code.
 
 ---
@@ -161,15 +170,19 @@ INTAKE --> DECOMPOSE --> DISCOVER --> PLAN --> EXECUTE --> VERIFY --> CONVERGE
 ```
 
 ### Task Graph
+
 A directed acyclic graph (DAG) where each node is a sub-task and edges represent dependencies. Tasks with no unresolved dependencies can execute in parallel. See `references/dependency-graph-patterns.md`.
 
 ### Execution Waves
+
 Groups of independent tasks assigned to the same depth level in the DAG. Wave 1 runs first (all tasks in parallel), then Wave 2 (all tasks in parallel), and so on. See `references/wave-execution.md`.
 
 ### Board
+
 The `.superhuman/board.md` file is the single source of truth. It contains the intake summary, task graph, wave assignments, per-task status, research notes, plans, and verification results. See `references/board-format.md`.
 
 ### Sub-task Lifecycle
+
 ```
 pending --> researching --> planned --> in-progress --> verifying --> done
                                            |                |
@@ -183,20 +196,24 @@ pending --> researching --> planned --> in-progress --> verifying --> done
 The intake phase gathers all context needed to decompose the task. Scale depth based on complexity.
 
 ### Complexity Detection
+
 - **Simple** (single component, clear scope): 3 questions
 - **Medium** (multi-component, some ambiguity): 5 questions
 - **Complex** (cross-cutting, greenfield, migration): 8-10 questions
 
 ### Core Questions (always ask)
+
 1. **Problem Statement**: What exactly needs to be built or changed? What triggered this work?
 2. **Success Criteria**: How will we know this is done? What does "working" look like?
 3. **Constraints**: Are there existing patterns, libraries, or conventions we must follow?
 
 ### Extended Questions (medium + complex)
+
 4. **Existing Code**: Is there related code already in the repo? Should we extend it or build fresh?
 5. **Dependencies**: Does this depend on external APIs, services, or other in-progress work?
 
 ### Deep Questions (complex only)
+
 6. **Edge Cases**: What are the known edge cases or failure modes?
 7. **Testing Strategy**: Are there existing test patterns? Integration vs unit preference?
 8. **Rollout**: Any migration steps, feature flags, or backwards compatibility needs?
@@ -204,9 +221,11 @@ The intake phase gathers all context needed to decompose the task. Scale depth b
 10. **Priority**: Which parts are most critical? What can be deferred if needed?
 
 ### Board Persistence Question (always ask)
+
 Ask: "Should the `.superhuman/` board be git-tracked (audit trail, resume across machines) or gitignored (local working state)?"
 
 ### Output
+
 Write the intake summary to `.superhuman/board.md` with all answers captured. See `references/intake-playbook.md` for the full question bank organized by task type.
 
 ---
@@ -216,7 +235,9 @@ Write the intake summary to `.superhuman/board.md` with all answers captured. Se
 Break the intake into atomic sub-tasks and build the dependency graph.
 
 ### Sub-task Anatomy
+
 Each sub-task must have:
+
 - **ID**: Sequential identifier (e.g., `SH-001`)
 - **Title**: Clear, action-oriented (e.g., "Create user authentication middleware")
 - **Description**: 2-3 sentences on what this task does
@@ -225,6 +246,7 @@ Each sub-task must have:
 - **Dependencies**: List of task IDs this depends on (e.g., `[SH-001, SH-003]`)
 
 ### Decomposition Rules
+
 1. Every task should be S or M complexity. If L, decompose further
 2. Test tasks are separate from implementation tasks
 3. Infrastructure/config tasks come before code that depends on them
@@ -234,7 +256,9 @@ Each sub-task must have:
 7. Apply the complexity budget (see below)
 
 ### Complexity Budget
+
 After decomposition, sanity-check total scope before proceeding:
+
 - Count the total number of tasks by complexity: S (small), M (medium), L (large)
 - If any L tasks remain, decompose them further - L tasks are not allowed
 - If total estimated scope exceeds **15 M-equivalent tasks** (where 1 L = 3 M, 1 S = 0.5 M), flag to the user that scope may be too large for a single Superhuman session
@@ -242,9 +266,11 @@ After decomposition, sanity-check total scope before proceeding:
 - The user can override and proceed, but they must explicitly acknowledge the scope
 
 ### Mandatory Tail Tasks
+
 Every Superhuman task graph must include these three tasks as the final tasks, in this order:
 
 **Third-to-last task: Self Code Review**
+
 - **Type**: `review`
 - **Title**: "Self code review of all changes"
 - **Description**: Run a structured code review of all changes made across every completed sub-task using the `code-review-mastery` methodology. Get the full diff of all changes since the rollback point. Execute the review pyramid bottom-up: Security > Correctness > Performance > Design > Readability > Convention > Testing. Classify each finding as `[MAJOR]` or `[MINOR]`. Fix all `[MAJOR]` findings immediately and address reasonable `[MINOR]` findings. Re-run the review after fixes to confirm no new issues were introduced. Only proceed when no `[MAJOR]` findings remain.
@@ -252,6 +278,7 @@ Every Superhuman task graph must include these three tasks as the final tasks, i
 - **Acceptance Criteria**: Zero `[MAJOR]` findings remaining after fixes. All `[MINOR]` findings documented on the board (fixed or explicitly deferred).
 
 **Second-to-last task: Requirements Validation**
+
 - **Type**: `verify`
 - **Title**: "Validate changes against original requirements"
 - **Description**: Review all changes made across every completed sub-task and compare them against the original user prompt and intake summary. Verify that every requirement, success criterion, and constraint from INTAKE is satisfied. If any requirement is unmet or the implementation deviates from what was asked, flag the gaps and loop back to EXECUTE to address them. Do NOT proceed to the final task until all requirements are confirmed met.
@@ -259,6 +286,7 @@ Every Superhuman task graph must include these three tasks as the final tasks, i
 - **Acceptance Criteria**: Every success criterion from INTAKE is demonstrably satisfied. If gaps are found, reiterate until they are resolved.
 
 **Last task: Full Project Verification**
+
 - **Type**: `verify`
 - **Title**: "Run full project verification suite"
 - **Description**: Run all available verification checks in the repo, in order. Use the project's package manager scripts (check `package.json`, `Makefile`, `pyproject.toml`, etc.) - never invoke tools directly. Skip any that are not configured in the project - only run what exists:
@@ -270,21 +298,26 @@ Every Superhuman task graph must include these three tasks as the final tasks, i
 - **Acceptance Criteria**: All available checks pass. If any check fails, fix the issues and re-run until green. Do not mark the board as complete until every available check passes.
 
 ### Build the DAG
+
 1. List all sub-tasks
 2. For each task, identify which other tasks must complete first
 3. Draw edges from dependencies to dependents
 4. Verify no cycles exist (it's a DAG, not a general graph)
 
 ### Assign Waves
+
 Group tasks by depth level in the DAG:
+
 - **Wave 1**: Tasks with zero dependencies (roots of the DAG)
 - **Wave 2**: Tasks whose dependencies are all in Wave 1
 - **Wave N**: Tasks whose dependencies are all in Waves 1 through N-1
 
 ### Present for Approval
+
 Generate an ASCII dependency graph and wave assignment table. Present to the user and wait for explicit approval before proceeding.
 
 Example output:
+
 ```
 Task Graph:
   SH-001 [config: Init project structure]
@@ -329,6 +362,7 @@ Update the board with the full task graph and wave assignments. See `references/
 Research each sub-task before planning implementation. This phase is parallelizable per wave.
 
 ### Per Sub-task Research
+
 For each sub-task, investigate in this order - docs first, source second:
 
 1. **Codedocs Lookup** (if `codedocs_available: true` on the board)
@@ -356,12 +390,15 @@ For each sub-task, investigate in this order - docs first, source second:
    - Note any assumptions that need validation
 
 ### Execution Strategy
+
 - Launch parallel Explore agents for all tasks in Wave 1 simultaneously
 - Once Wave 1 research completes, launch Wave 2 research, and so on
 - Each agent writes its findings to the board under the respective task
 
 ### Output
+
 Append research notes to each sub-task on the board:
+
 - Key files identified
 - Reusable code/patterns found
 - Risks and unknowns flagged
@@ -374,6 +411,7 @@ Append research notes to each sub-task on the board:
 Create a detailed execution plan for each sub-task based on research findings.
 
 ### Per Sub-task Plan
+
 For each sub-task, specify:
 
 1. **Files to Create/Modify**: Exact file paths
@@ -386,12 +424,14 @@ For each sub-task, specify:
    - Error handling tests
 
 ### Planning Rules
+
 1. Tests are always planned before implementation
 2. Each plan must reference specific reusable code found in DISCOVER
 3. Plans must respect the project's existing conventions (naming, structure, patterns)
 4. If a plan reveals a missing dependency, update the task graph (re-approve with user)
 
 ### Output
+
 Update each sub-task on the board with its execution plan. The board now contains everything an agent needs to execute the task independently.
 
 ---
@@ -401,13 +441,16 @@ Update each sub-task on the board with its execution plan. The board now contain
 Execute tasks wave by wave. Within each wave, spin up parallel agents for independent tasks.
 
 ### Pre-Execution Snapshot
+
 Before executing the first wave, create a git safety net:
+
 1. Ensure all current changes are committed or stashed
 2. Record the current commit hash on the board under `## Rollback Point`
 3. If execution goes catastrophically wrong (build broken after max retries, critical files corrupted), the user can `git reset --hard` to this commit
 4. Remind the user of the rollback point hash when flagging unrecoverable failures
 
 ### Wave Execution Loop
+
 ```
 for each wave in [Wave 1, Wave 2, ..., Wave N]:
   for each task in wave (in parallel):
@@ -421,7 +464,9 @@ for each wave in [Wave 1, Wave 2, ..., Wave N]:
 ```
 
 ### Agent Context Handoff Format
+
 Each parallel agent receives a standardized prompt with these sections:
+
 ```
 ## Task: {SH-XXX} - {Title}
 
@@ -451,9 +496,11 @@ Each parallel agent receives a standardized prompt with these sections:
 ```
 
 ### Wave Boundary Checks
+
 After all tasks in a wave complete, before proceeding to the next wave:
 
 **1. Conflict Resolution**
+
 - Check if any two agents in the wave modified the same file
 - If conflicts exist: review both changes, merge them intelligently (prefer the change that better satisfies its task's acceptance criteria), and verify the merged result
 - If conflicts cannot be auto-resolved: flag to the user with both versions and let them decide
@@ -461,6 +508,7 @@ After all tasks in a wave complete, before proceeding to the next wave:
 
 **2. Progress Report**
 Print a compact status table after each wave:
+
 ```
 Wave 2 Complete (3/6 waves done)
 -----------------------------------------
@@ -478,6 +526,7 @@ Wave 2 Complete (3/6 waves done)
 ```
 
 ### Scope Creep Guard
+
 During EXECUTE, agents may discover additional work needed ("oh, this also needs X"). Handle scope creep strictly:
 
 1. **Blocking discovery** (can't complete the current task without it): Add a new task to the DAG, assign it to the current or next wave, and flag the change to the user on the board. Continue with other tasks in the wave.
@@ -485,14 +534,18 @@ During EXECUTE, agents may discover additional work needed ("oh, this also needs
 3. **Never silently expand scope** - every addition to the DAG must be visible on the board and flagged in the next progress report.
 
 ### Handling Blocked Tasks
+
 If a task cannot proceed:
+
 1. Mark it as `blocked` on the board with a reason
 2. Continue with non-blocked tasks in the same wave
 3. After the wave completes, reassess blocked tasks
 4. If the blocker is resolved, add the task to the next wave
 
 ### Handling Failures
+
 If an agent fails to complete a task:
+
 1. Capture the error/failure reason on the board
 2. Attempt one retry with adjusted approach
 3. If retry fails, mark as `failed` and flag for user attention with the rollback point hash
@@ -507,19 +560,24 @@ See `references/wave-execution.md` for detailed agent orchestration patterns.
 Every sub-task must prove it works before closing.
 
 ### Per-Task Verification
+
 For each completed sub-task, run:
+
 1. **Tests**: Run the task's test suite - all tests must pass
 2. **Lint**: Run the project's linter on modified files
 3. **Type Check**: Run type checker if applicable (TypeScript, mypy, etc.)
 4. **Build**: Verify the project still builds
 
 ### Integration Verification
+
 After each wave completes:
+
 1. Run tests for tasks that depend on this wave's output
 2. Check for conflicts between parallel tasks (file conflicts, API mismatches)
 3. Run the full test suite if available
 
 ### Verification Loop
+
 ```
 if all checks pass:
   mark task as "done"
@@ -533,7 +591,9 @@ else:
 ```
 
 ### Output
+
 Update each sub-task on the board with a verification report:
+
 - Tests: pass/fail (with details on failures)
 - Lint: clean/issues
 - Type check: pass/fail
@@ -548,6 +608,7 @@ See `references/verification-framework.md` for the full verification protocol.
 Merge all work and close out the board.
 
 ### Steps
+
 1. **Merge**: If using worktrees or branches, merge all work into the target branch
 2. **Full Test Suite**: Run the complete project test suite
 3. **Documentation**: Update any docs that were part of the task scope
@@ -560,7 +621,9 @@ Merge all work and close out the board.
 6. **Suggest Commit**: Propose a commit message summarizing the work
 
 ### Board Finalization
+
 The completed board serves as an audit trail:
+
 - Full history of all 7 phases
 - Every sub-task with its research, plan, and verification
 - Timeline of execution
@@ -584,24 +647,24 @@ The completed board serves as an audit trail:
 
 ## Anti-Patterns and Common Mistakes
 
-| Anti-Pattern | Better Approach |
-|---|---|
-| Skipping intake for "obvious" tasks | Even simple tasks benefit from 3 intake questions - assumptions kill projects |
-| Flat task lists without dependencies | Always model as a DAG - hidden dependencies cause merge conflicts and ordering bugs |
-| Executing without user approval of the graph | Always present the wave plan and get explicit approval before any execution |
-| Skipping TDD for "simple" changes | Tests are verification proof, not optional extras - write them first, always |
-| Massive sub-tasks (L+ complexity) | Decompose further until all tasks are S or M - large tasks hide complexity |
-| Not persisting board state | Always write to `.superhuman/board.md` - it enables resume, audit, and handoff |
-| Over-decomposing into 20+ micro-tasks | Aim for 5-15 tasks - too many creates overhead that defeats the purpose |
-| Ignoring research phase | DISCOVER prevents rework - 10 minutes of research saves hours of wrong implementation |
-| Sequential execution when parallelism is possible | Always check the DAG for parallel opportunities - that's the whole point of Superhuman |
-| Silently absorbing scope creep during EXECUTE | Flag blocking additions on the board; defer non-blocking discoveries to the Deferred Work section |
-| Starting fresh when a board already exists | Detect existing boards, display status, and resume from last incomplete wave |
-| Assuming project conventions without checking | Always run Codebase Convention Detection before INTAKE - read `package.json`, config files, directory structure |
-| No rollback plan before execution | Record the git commit hash before Wave 1 starts - offer rollback if things go sideways |
-| Parallel agents modifying the same file without reconciliation | Run conflict resolution checks at every wave boundary before proceeding |
-| Skipping self code review before verification | Verification catches build/test failures but not code quality issues - review catches bugs, security issues, and design problems that tests miss |
-| Ignoring `docs/` when it exists | Reading raw source files when codedocs output is available wastes context window and misses curated architecture context - always check for `.codedocs.json` during Convention Detection and use docs-first in DISCOVER |
+| Anti-Pattern                                                   | Better Approach                                                                                                                                                                                                         |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skipping intake for "obvious" tasks                            | Even simple tasks benefit from 3 intake questions - assumptions kill projects                                                                                                                                           |
+| Flat task lists without dependencies                           | Always model as a DAG - hidden dependencies cause merge conflicts and ordering bugs                                                                                                                                     |
+| Executing without user approval of the graph                   | Always present the wave plan and get explicit approval before any execution                                                                                                                                             |
+| Skipping TDD for "simple" changes                              | Tests are verification proof, not optional extras - write them first, always                                                                                                                                            |
+| Massive sub-tasks (L+ complexity)                              | Decompose further until all tasks are S or M - large tasks hide complexity                                                                                                                                              |
+| Not persisting board state                                     | Always write to `.superhuman/board.md` - it enables resume, audit, and handoff                                                                                                                                          |
+| Over-decomposing into 20+ micro-tasks                          | Aim for 5-15 tasks - too many creates overhead that defeats the purpose                                                                                                                                                 |
+| Ignoring research phase                                        | DISCOVER prevents rework - 10 minutes of research saves hours of wrong implementation                                                                                                                                   |
+| Sequential execution when parallelism is possible              | Always check the DAG for parallel opportunities - that's the whole point of Superhuman                                                                                                                                  |
+| Silently absorbing scope creep during EXECUTE                  | Flag blocking additions on the board; defer non-blocking discoveries to the Deferred Work section                                                                                                                       |
+| Starting fresh when a board already exists                     | Detect existing boards, display status, and resume from last incomplete wave                                                                                                                                            |
+| Assuming project conventions without checking                  | Always run Codebase Convention Detection before INTAKE - read `package.json`, config files, directory structure                                                                                                         |
+| No rollback plan before execution                              | Record the git commit hash before Wave 1 starts - offer rollback if things go sideways                                                                                                                                  |
+| Parallel agents modifying the same file without reconciliation | Run conflict resolution checks at every wave boundary before proceeding                                                                                                                                                 |
+| Skipping self code review before verification                  | Verification catches build/test failures but not code quality issues - review catches bugs, security issues, and design problems that tests miss                                                                        |
+| Ignoring `docs/` when it exists                                | Reading raw source files when codedocs output is available wastes context window and misses curated architecture context - always check for `.codedocs.json` during Convention Detection and use docs-first in DISCOVER |
 
 ---
 
@@ -620,7 +683,9 @@ For detailed guidance on specific phases, load these reference files:
 ## Companion check
 
 > On first activation of this skill in a conversation: check which companion skills are installed by running `ls ~/.claude/skills/ ~/.agent/skills/ ~/.agents/skills/ .claude/skills/ .agent/skills/ .agents/skills/ 2>/dev/null`. Compare the results against the `recommended_skills` field in this file's frontmatter. For any that are missing, mention them once and offer to install:
+>
 > ```
 > npx skills add AbsolutelySkilled/AbsolutelySkilled --skill <name>
 > ```
+>
 > Skip entirely if `recommended_skills` is empty or all companions are already installed.

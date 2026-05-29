@@ -10,7 +10,7 @@ if (!rawBaseUrl) {
 const baseUrl = rawBaseUrl.replace(/\/$/, '');
 const routes = (process.env.SMOKE_ROUTES || '/,/login,/dashboard')
   .split(',')
-  .map((route) => route.trim())
+  .map(route => route.trim())
   .filter(Boolean);
 
 const requestTimeoutMs = Number(process.env.SMOKE_TIMEOUT_MS || 15000);
@@ -84,25 +84,24 @@ async function run() {
 
   console.log(`\n🔎 Smoke test em: ${baseUrl}`);
   for (const check of checks) {
-    const pass =
-      check.name.includes('/api/link-status')
-        ? check.status === 200
-        : check.ok && check.status >= 200 && check.status < 400;
+    const pass = check.name.includes('/api/link-status')
+      ? check.status === 200
+      : check.ok && check.status >= 200 && check.status < 400;
 
     if (!pass) hasFailure = true;
 
     const icon = pass ? '✅' : '❌';
     const details = check.error ? ` | erro: ${check.error}` : '';
     console.log(
-      `${icon} ${check.name} -> ${check.target} | recebido: ${check.status} | esperado: ${check.expected}${details}`
+      `${icon} ${check.name} -> ${check.target} | recebido: ${check.status} | esperado: ${check.expected}${details}`,
     );
   }
 
   if (hasFailure) {
-    const looksLikeProtectedPreview = checks.length > 0 && checks.every((check) => check.status === 401);
+    const looksLikeProtectedPreview = checks.length > 0 && checks.every(check => check.status === 401);
     if (allowProtectedSkip && !vercelAutomationBypassSecret && looksLikeProtectedPreview) {
       console.warn(
-        '\n⚠️ Preview protegido retornou 401 e VERCEL_AUTOMATION_BYPASS_SECRET não está configurado. Smoke ignorado.'
+        '\n⚠️ Preview protegido retornou 401 e VERCEL_AUTOMATION_BYPASS_SECRET não está configurado. Smoke ignorado.',
       );
       return;
     }

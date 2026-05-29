@@ -15,6 +15,7 @@ ou mudancas locais.
 O componente `EmptyStateHome.tsx` tem 337 linhas. A maioria é conteúdo estático de onboarding que aparece **toda vez** que o chat está vazio. O resultado é uma tela longa que o usuário rola antes de conseguir digitar.
 
 Problemas concretos:
+
 - **Heading duplicado**: "💡 Arsenal de Sugestões" aparece em duas seções distintas (linhas 197 e 222)
 - **Card PORTA**: ~60 linhas de JSX de documentação metodológica — aparece em toda sessão nova
 - **"Como funciona" + "Limites da Plataforma"**: conteúdo tutorial/guardrail, não acionável
@@ -24,14 +25,14 @@ Problemas concretos:
 
 ## O que REMOVER
 
-| Seção | Linhas | Motivo |
-|---|---|---|
-| Card PORTA completo | 134–193 | Onboarding pesado repetido em todo empty state |
+| Seção                                           | Linhas  | Motivo                                          |
+| ----------------------------------------------- | ------- | ----------------------------------------------- |
+| Card PORTA completo                             | 134–193 | Onboarding pesado repetido em todo empty state  |
 | Segunda seção "Arsenal de Sugestões" (God Mode) | 219–245 | Heading duplicado; quickActions já cobre o caso |
-| "Como funciona o OSINT" | 247–268 | Tutorial estático, não acionável |
-| "Limites da Plataforma" | 270–323 | Disclaimer — não pertence à área de trabalho |
-| Array `steps` | 80–100 | Alimenta apenas a seção removida |
-| Objeto `suggestionCategories` | 61–78 | Alimenta apenas a seção removida |
+| "Como funciona o OSINT"                         | 247–268 | Tutorial estático, não acionável                |
+| "Limites da Plataforma"                         | 270–323 | Disclaimer — não pertence à área de trabalho    |
+| Array `steps`                                   | 80–100  | Alimenta apenas a seção removida                |
+| Objeto `suggestionCategories`                   | 61–78   | Alimenta apenas a seção removida                |
 
 ---
 
@@ -64,12 +65,12 @@ Tokens que sobrevivem (8):
 
 ## Resultado esperado
 
-| Métrica | Antes | Depois |
-|---|---|---|
-| Linhas do componente | 337 | ~120 |
-| Tokens no `theme` | 18 | 8 |
-| Seções visuais | 7 | 3 (header + ações + footer) |
-| Prop `onSendMessage` usada? | Nunca | Removida |
+| Métrica                     | Antes | Depois                      |
+| --------------------------- | ----- | --------------------------- |
+| Linhas do componente        | 337   | ~120                        |
+| Tokens no `theme`           | 18    | 8                           |
+| Seções visuais              | 7     | 3 (header + ações + footer) |
+| Prop `onSendMessage` usada? | Nunca | Removida                    |
 
 ---
 

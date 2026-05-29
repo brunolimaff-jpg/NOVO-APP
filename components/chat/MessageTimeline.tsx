@@ -99,9 +99,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   // Use larger overscan when any bot message looks like a dossier (long text) to
   // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
   const virtuosoOverscan = useMemo(() => {
-    const hasDossier = safeMessages.some(
-      m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000,
-    );
+    const hasDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000);
     return hasDossier ? 1400 : 400;
   }, [safeMessages]);
 
@@ -140,13 +138,16 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     };
   }, [isMessagesViewportReady]);
 
-  const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
-    scoutDiag.info('Virtuoso', 'virtuoso:itemsRendered', {
-      firstIndex: range.startIndex,
-      lastIndex: range.endIndex,
-      totalItems: safeMessages.length,
-    });
-  }, [safeMessages.length]);
+  const handleRangeChanged = useCallback(
+    (range: { startIndex: number; endIndex: number }) => {
+      scoutDiag.info('Virtuoso', 'virtuoso:itemsRendered', {
+        firstIndex: range.startIndex,
+        lastIndex: range.endIndex,
+        totalItems: safeMessages.length,
+      });
+    },
+    [safeMessages.length],
+  );
 
   const handleAtBottomChange = useCallback((atBottom: boolean) => {
     scoutDiag.info('Virtuoso', 'virtuoso:atBottomStateChange', {
@@ -245,7 +246,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     lastBotWithSuggestionsIndex !== undefined &&
     lastUserIndex !== undefined &&
     lastUserIndex > lastBotWithSuggestionsIndex
-      ? safeMessages[lastBotWithSuggestionsIndex]?.id ?? null
+      ? (safeMessages[lastBotWithSuggestionsIndex]?.id ?? null)
       : null;
 
   const itemData = useMemo<MessageRowData>(
@@ -306,19 +307,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     ],
   );
 
-  const itemContent = useCallback(
-    (index: number) => <MessageRow index={index} data={itemData} />,
-    [itemData],
-  );
+  const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
   return (
     <div className="flex-1 min-h-0 relative">
       {showOperatorGate ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-          <GreetingWelcomeScreen
-            isDarkMode={isDarkMode}
-            onConfirmOperator={onConfirmOperatorName}
-          />
+          <GreetingWelcomeScreen isDarkMode={isDarkMode} onConfirmOperator={onConfirmOperatorName} />
         </div>
       ) : showInitialHome ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
@@ -334,10 +329,17 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
       ) : shouldSuspendVirtualizedList ? (
-        <div className="h-full min-h-0 w-full flex items-center justify-center" data-testid="messages-viewport-suspended">
+        <div
+          className="h-full min-h-0 w-full flex items-center justify-center"
+          data-testid="messages-viewport-suspended"
+        >
           <div className="flex flex-col items-center gap-3">
-            <div className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`} />
-            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Preparando investigação...</p>
+            <div
+              className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
+            />
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Preparando investigação...
+            </p>
           </div>
         </div>
       ) : (
@@ -372,7 +374,9 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center" data-testid="messages-viewport-placeholder">
-              <div className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`} />
+              <div
+                className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
+              />
             </div>
           )}
         </div>

@@ -19,11 +19,11 @@ const feedbackBuffer: MessageFeedback[] = [];
  */
 export function recordFeedback(entry: MessageFeedback) {
   feedbackBuffer.push(entry);
-  
+
   // TODO: Enviar para Apps Script / Google Sheets via POST
   // const GOOGLE_SCRIPT_URL = "SEU_ENDPOINT_AQUI";
   // fetch(GOOGLE_SCRIPT_URL, { method: "POST", body: JSON.stringify(entry) ... })
-  
+
   scoutDiag.info('Feedback', 'feedback registrado no buffer local', {
     messageId: entry.messageId,
     feedbackType: entry.feedbackType,

@@ -67,13 +67,15 @@ function makeGeminiResult(overrides: Partial<Awaited<ReturnType<typeof sendMessa
   };
 }
 
-function makeHarness(overrides: {
-  sessions?: ChatSession[];
-  currentSessionId?: string | null;
-  requestKind?: RequestKind;
-  investigationLogged?: boolean;
-  lastAction?: LastAction | null;
-} = {}) {
+function makeHarness(
+  overrides: {
+    sessions?: ChatSession[];
+    currentSessionId?: string | null;
+    requestKind?: RequestKind;
+    investigationLogged?: boolean;
+    lastAction?: LastAction | null;
+  } = {},
+) {
   const state = {
     sessions: overrides.sessions ?? [],
     currentSessionId: overrides.currentSessionId ?? null,
@@ -88,7 +90,7 @@ function makeHarness(overrides: {
   };
 
   const sessionsRef = { current: state.sessions };
-  const lastActionRef = { current: overrides.lastAction ?? null as LastAction | null };
+  const lastActionRef = { current: overrides.lastAction ?? (null as LastAction | null) };
   const abortControllerRef = { current: null as AbortController | null };
   const activeGenerationRef = { current: {} as Record<string, string> };
   const setSessions = vi.fn((next: ChatSession[] | ((prev: ChatSession[]) => ChatSession[])) => {
@@ -199,7 +201,7 @@ describe('useChatMessageOrchestrator', () => {
     vi.clearAllMocks();
     uuidv4Mock.mockReset();
     sendMessageToGeminiMock.mockReset();
-    global.fetch = vi.fn(async () => ({ ok: true } as Response)) as unknown as typeof fetch;
+    global.fetch = vi.fn(async () => ({ ok: true }) as Response) as unknown as typeof fetch;
   });
 
   afterEach(() => {
@@ -258,10 +260,7 @@ describe('useChatMessageOrchestrator', () => {
 
     expect(sendMessageToGeminiMock).toHaveBeenCalledWith(
       'Qual o risco agora?',
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'user-1' }),
-        expect.objectContaining({ id: 'bot-1' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ id: 'user-1' }), expect.objectContaining({ id: 'bot-1' })]),
       'SYSTEM',
       expect.objectContaining({ sessionId: 'session-1', isFollowUp: true }),
       true,

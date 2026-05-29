@@ -32,10 +32,7 @@ describe('LoadingSmart (variante hero)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     generateLoadingCuriositiesMock.mockReset();
-    generateLoadingCuriositiesMock.mockResolvedValue([
-      'Insight 1',
-      'Insight 2',
-    ]);
+    generateLoadingCuriositiesMock.mockResolvedValue(['Insight 1', 'Insight 2']);
   });
 
   afterEach(() => {
@@ -162,10 +159,7 @@ describe('LoadingSmart (variante hero)', () => {
         isDarkMode={false}
         processing={{
           stage: 'Verificando pressões e compliance...',
-          completedStages: [
-            'Mapeando conta real e teia societária...',
-            'Mapeando operação e cadeia de valor...',
-          ],
+          completedStages: ['Mapeando conta real e teia societária...', 'Mapeando operação e cadeia de valor...'],
           totalStages: 7,
           failureCount: 0,
         }}
@@ -291,13 +285,13 @@ describe('LoadingSmart (variante hero)', () => {
       />,
     );
 
-    expect(
-      screen.getByText(/Prévia do dossiê da Grupo Scheffer: organizando sinais seguros/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Prévia do dossiê da Grupo Scheffer: organizando sinais seguros/i)).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
 
     await act(async () => {
-      firstRequest.resolve(["Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor."]);
+      firstRequest.resolve([
+        "Desconstruindo a teia societária da HART'S - ALIMENTOS NATURAIS LTDA para calibrar o Score PORTA contra o setor.",
+      ]);
       await Promise.resolve();
     });
   });
@@ -306,9 +300,7 @@ describe('LoadingSmart (variante hero)', () => {
     const firstRequest = createDeferred<string[]>();
     const secondRequest = createDeferred<string[]>();
 
-    generateLoadingCuriositiesMock
-      .mockReturnValueOnce(firstRequest.promise)
-      .mockReturnValueOnce(secondRequest.promise);
+    generateLoadingCuriositiesMock.mockReturnValueOnce(firstRequest.promise).mockReturnValueOnce(secondRequest.promise);
 
     const { rerender } = render(
       <LoadingSmart
@@ -350,9 +342,7 @@ describe('LoadingSmart (variante hero)', () => {
       await Promise.resolve();
     });
 
-    expect(
-      screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i)).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
 
     await act(async () => {
@@ -363,9 +353,7 @@ describe('LoadingSmart (variante hero)', () => {
       await Promise.resolve();
     });
 
-    expect(
-      screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Grupo Scheffer mostra sinal a validar sobre controle operacional/i)).toBeInTheDocument();
     expect(screen.queryByText(/HART'S - ALIMENTOS NATURAIS LTDA/i)).not.toBeInTheDocument();
   });
 });

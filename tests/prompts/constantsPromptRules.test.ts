@@ -30,7 +30,9 @@ describe('BASE_SYSTEM_PROMPT critical investigation rules', () => {
     expect(BASE_SYSTEM_PROMPT).toContain('**COP (Cooperativa)** — Verificar PRIMEIRO:');
     expect(BASE_SYSTEM_PROMPT).toContain('**AGI (Agroindústria/Conglomerado)** — Verificar SEGUNDO:');
     expect(BASE_SYSTEM_PROMPT).toContain('### REGRA DE FATURAMENTO (CRÍTICO):');
-    expect(BASE_SYSTEM_PROMPT).toContain('Faturamento não divulgado publicamente. Estimativa baseada em [método]: R$ X - Y.');
+    expect(BASE_SYSTEM_PROMPT).toContain(
+      'Faturamento não divulgado publicamente. Estimativa baseada em [método]: R$ X - Y.',
+    );
   });
 
   it('includes the new territorial, logistics and legacy-system search rules', () => {

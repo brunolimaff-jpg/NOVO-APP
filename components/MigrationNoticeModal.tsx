@@ -8,11 +8,7 @@ interface MigrationNoticeModalProps {
   onDismiss: () => void;
 }
 
-export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
-  isDarkMode,
-  isOpen,
-  onDismiss,
-}) => {
+export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({ isDarkMode, isOpen, onDismiss }) => {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -24,9 +20,7 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
       await exportSessionsAsJSON();
       toast.success('Histórico exportado com sucesso!');
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Erro ao exportar histórico'
-      );
+      toast.error(error instanceof Error ? error.message : 'Erro ao exportar histórico');
     } finally {
       setIsExporting(false);
     }
@@ -48,9 +42,7 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
       {/* Modal */}
       <div
         className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl shadow-2xl z-50 transform transition-all duration-300 animate-scale-in ${
-          isDarkMode
-            ? 'bg-gray-900 border border-gray-700'
-            : 'bg-white border border-gray-200'
+          isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
         }`}
         role="dialog"
         aria-labelledby="migration-title"
@@ -58,25 +50,14 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
       >
         {/* Header */}
         <div
-          className={`flex items-center gap-3 p-6 border-b ${
-            isDarkMode ? 'border-gray-700/50' : 'border-gray-200'
-          }`}
+          className={`flex items-center gap-3 p-6 border-b ${isDarkMode ? 'border-gray-700/50' : 'border-gray-200'}`}
         >
           <span className="text-3xl">☁️</span>
           <div>
-            <h2
-              id="migration-title"
-              className={`text-lg font-bold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}
-            >
+            <h2 id="migration-title" className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Agora seus dados ficam salvos na nuvem!
             </h2>
-            <p
-              className={`text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Nova versão com banco de dados integrado
             </p>
           </div>
@@ -87,25 +68,15 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
           {/* Good news */}
           <div
             className={`rounded-xl p-4 flex gap-3 ${
-              isDarkMode
-                ? 'bg-emerald-900/20 border border-emerald-700/30'
-                : 'bg-emerald-50 border border-emerald-200'
+              isDarkMode ? 'bg-emerald-900/20 border border-emerald-700/30' : 'bg-emerald-50 border border-emerald-200'
             }`}
           >
             <span className="text-xl flex-shrink-0 mt-1">🔒</span>
             <div>
-              <p
-                className={`text-sm font-medium ${
-                  isDarkMode ? 'text-emerald-300' : 'text-emerald-900'
-                }`}
-              >
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-900'}`}>
                 Seus novos dossiês serão sincronizados automaticamente
               </p>
-              <p
-                className={`text-xs mt-1 ${
-                  isDarkMode ? 'text-emerald-400/80' : 'text-emerald-700'
-                }`}
-              >
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-emerald-400/80' : 'text-emerald-700'}`}>
                 Acesse de qualquer navegador, mesmo offline. Seus dados estão seguros e disponíveis.
               </p>
             </div>
@@ -114,37 +85,23 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
           {/* Warning about old data */}
           <div
             className={`rounded-xl p-4 flex gap-3 ${
-              isDarkMode
-                ? 'bg-orange-900/20 border border-orange-700/30'
-                : 'bg-orange-50 border border-orange-200'
+              isDarkMode ? 'bg-orange-900/20 border border-orange-700/30' : 'bg-orange-50 border border-orange-200'
             }`}
           >
             <span className="text-xl flex-shrink-0 mt-1">⚠️</span>
             <div>
-              <p
-                className={`text-sm font-medium ${
-                  isDarkMode ? 'text-orange-300' : 'text-orange-900'
-                }`}
-              >
+              <p className={`text-sm font-medium ${isDarkMode ? 'text-orange-300' : 'text-orange-900'}`}>
                 Pesquisas anteriores ficam no navegador
               </p>
-              <p
-                className={`text-xs mt-1 ${
-                  isDarkMode ? 'text-orange-400/80' : 'text-orange-700'
-                }`}
-              >
-                Como não havia banco de dados antes, suas pesquisas antigas não podem ser migradas
-                automaticamente. Exporte seu histórico se quiser guardá-lo.
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-orange-400/80' : 'text-orange-700'}`}>
+                Como não havia banco de dados antes, suas pesquisas antigas não podem ser migradas automaticamente.
+                Exporte seu histórico se quiser guardá-lo.
               </p>
             </div>
           </div>
 
           {/* Help Text */}
-          <p
-            className={`text-xs text-center ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-500'
-            }`}
-          >
+          <p className={`text-xs text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
             💡 Novas pesquisas já vão direto para o banco seguro
           </p>
         </div>
@@ -152,9 +109,7 @@ export const MigrationNoticeModal: React.FC<MigrationNoticeModalProps> = ({
         {/* Footer */}
         <div
           className={`flex gap-3 p-6 border-t ${
-            isDarkMode
-              ? 'border-gray-700/50 bg-gray-900/50'
-              : 'border-gray-200 bg-gray-50/50'
+            isDarkMode ? 'border-gray-700/50 bg-gray-900/50' : 'border-gray-200 bg-gray-50/50'
           }`}
         >
           <button

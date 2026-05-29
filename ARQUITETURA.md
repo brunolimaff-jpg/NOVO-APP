@@ -131,16 +131,16 @@ A camada de persistencia foi migrada para uma arquitetura offline-first com Supa
 
 8 tabelas no schema `public` do Supabase:
 
-| Tabela | Finalidade |
-|--------|-----------|
-| `user_context` | Contexto do operador (email, preferencias, estado) |
-| `dossies` | Dossies gerados por operador |
-| `radar_alerts` | Alertas do Radar de Mercado |
-| `radar_configs` | Configuracoes de monitoramento do Radar |
-| `extract_cache` | Cache de extracao de conteudo |
-| `audit_log` | Log de auditoria de operacoes |
-| `favorites` | Itens favoritados pelo operador |
-| `shared_dossiers` | Dossies compartilhados entre operadores |
+| Tabela            | Finalidade                                         |
+| ----------------- | -------------------------------------------------- |
+| `user_context`    | Contexto do operador (email, preferencias, estado) |
+| `dossies`         | Dossies gerados por operador                       |
+| `radar_alerts`    | Alertas do Radar de Mercado                        |
+| `radar_configs`   | Configuracoes de monitoramento do Radar            |
+| `extract_cache`   | Cache de extracao de conteudo                      |
+| `audit_log`       | Log de auditoria de operacoes                      |
+| `favorites`       | Itens favoritados pelo operador                    |
+| `shared_dossiers` | Dossies compartilhados entre operadores            |
 
 ### Fluxo offline-first
 
@@ -214,13 +214,13 @@ Continuam centralizados em `types.ts`, incluindo:
 
 > Para o rastreamento vivo de riscos e warnings, consulte `docs/ai-context/refactor/03-OPEN-ITEMS.md`.
 
-| Item | Status | Observacao |
-|---|---|---|
-| `App.tsx` ainda e hotspot | em reducao | Sprint 9 reduziu shell; Sprint 10 trocou Radar para import de feature |
-| `mobile-responsive.css` separado de `index.css` | aberto | segue como OI-045 |
-| backlog de warnings do `npm run lint` | aberto | baseline atual varia por sprint; ver `03-OPEN-ITEMS.md` |
-| warning de chunking em `utils/idbStorage.ts` | aceito | segue como OI-003 |
-| componentes visuais do Radar ainda em `components/` | aberto | runtime ja esta em `features/radar`; UI pode ser movida em fatia futura |
+| Item                                                | Status     | Observacao                                                              |
+| --------------------------------------------------- | ---------- | ----------------------------------------------------------------------- |
+| `App.tsx` ainda e hotspot                           | em reducao | Sprint 9 reduziu shell; Sprint 10 trocou Radar para import de feature   |
+| `mobile-responsive.css` separado de `index.css`     | aberto     | segue como OI-045                                                       |
+| backlog de warnings do `npm run lint`               | aberto     | baseline atual varia por sprint; ver `03-OPEN-ITEMS.md`                 |
+| warning de chunking em `utils/idbStorage.ts`        | aceito     | segue como OI-003                                                       |
+| componentes visuais do Radar ainda em `components/` | aberto     | runtime ja esta em `features/radar`; UI pode ser movida em fatia futura |
 
 ## 9. Programa de refatoracao
 

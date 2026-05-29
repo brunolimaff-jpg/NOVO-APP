@@ -20,9 +20,7 @@ class SyncQueue {
 
   enqueue(op: SyncOperation): void {
     // Deduplicate by table+id
-    const existingIndex = this.queue.findIndex(
-      (item) => item.table === op.table && item.id === op.id
-    );
+    const existingIndex = this.queue.findIndex(item => item.table === op.table && item.id === op.id);
 
     if (existingIndex !== -1) {
       this.queue[existingIndex] = { ...op, attempts: 0 };
@@ -43,9 +41,7 @@ class SyncQueue {
   }
 
   remove(table: string, id: string): void {
-    const nextQueue = this.queue.filter(
-      (item) => !(item.table === table && item.id === id)
-    );
+    const nextQueue = this.queue.filter(item => !(item.table === table && item.id === id));
 
     if (nextQueue.length === this.queue.length) {
       return;
@@ -65,7 +61,7 @@ class SyncQueue {
     this.pendingPersist = this.pendingPersist
       .catch(() => undefined)
       .then(() => this.persist())
-      .catch((error) => {
+      .catch(error => {
         console.error('[SyncQueue] Falha ao persistir fila', error);
       });
   }
@@ -92,7 +88,7 @@ class SyncQueue {
 
   async processAll(
     executor: (op: SyncOperation) => Promise<void>,
-    opts: { maxRetries?: number; backoffMs?: number } = {}
+    opts: { maxRetries?: number; backoffMs?: number } = {},
   ): Promise<void> {
     await this.processWhere(() => true, executor, opts);
   }
@@ -100,7 +96,7 @@ class SyncQueue {
   async processWhere(
     predicate: (op: SyncOperation) => boolean,
     executor: (op: SyncOperation) => Promise<void>,
-    opts: { maxRetries?: number; backoffMs?: number } = {}
+    opts: { maxRetries?: number; backoffMs?: number } = {},
   ): Promise<boolean> {
     if (this.isProcessing) return false;
 
@@ -131,21 +127,15 @@ class SyncQueue {
         } catch (err) {
           if (attempt < maxRetries) {
             failed.push({ ...op, attempts: attempt + 1 });
-            await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+            await new Promise(r => setTimeout(r, backoffMs * (attempt + 1)));
           } else {
-            console.error(
-              `[SyncQueue] Falha definitiva para ${op.table}:${op.id}`,
-              err
-            );
+            console.error(`[SyncQueue] Falha definitiva para ${op.table}:${op.id}`, err);
           }
         }
       }
     } finally {
       const filteredFailed = failed.filter(
-        (failedOp) =>
-          !this.queue.some(
-            (queueOp) => queueOp.table === failedOp.table && queueOp.id === failedOp.id
-          )
+        failedOp => !this.queue.some(queueOp => queueOp.table === failedOp.table && queueOp.id === failedOp.id),
       );
       this.queue = [...this.queue, ...filteredFailed];
       await this.persist();

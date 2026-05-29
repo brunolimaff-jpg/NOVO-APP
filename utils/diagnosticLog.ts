@@ -70,9 +70,10 @@ function isDiagnosticsEnabled(): boolean {
     if (typeof window === 'undefined') return false;
 
     // Env var tem precedência: se explicitamente definida, ela decide
-    const envValue = typeof process !== 'undefined' && process.env
-      ? process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED
-      : (import.meta as any).env?.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+    const envValue =
+      typeof process !== 'undefined' && process.env
+        ? process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED
+        : (import.meta as any).env?.VITE_SCOUT_DIAGNOSTICS_ENABLED;
 
     if (envValue === 'true') return true;
     if (envValue === 'false') return false;
@@ -114,7 +115,9 @@ function pushToBuffer(entry: DiagEntry): void {
   try {
     const recent = buffer.slice(-50);
     window.localStorage?.setItem(DIAG_LOCALSTORAGE_KEY, JSON.stringify(recent));
-  } catch { /* quota exceeded, ignore */ }
+  } catch {
+    /* quota exceeded, ignore */
+  }
 
   // Flush immediately on errors
   if (entry.severity === 'error') {
@@ -211,7 +214,9 @@ function saveToLocalStorageFallback(events: DiagEntry[]): void {
     while (fallbackKeys.length > DIAG_LOCALSTORAGE_MAX_KEYS) {
       ls.removeItem(fallbackKeys.shift()!);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function flushDiagnosticsNow(reason: string, force = false): void {
@@ -269,11 +274,7 @@ function buildVisibilityPayload(extra?: Record<string, unknown>): Record<string,
   };
 }
 
-function pushVisibilityEvent(
-  event: string,
-  severity: 'info' | 'warn',
-  extra?: Record<string, unknown>,
-): void {
+function pushVisibilityEvent(event: string, severity: 'info' | 'warn', extra?: Record<string, unknown>): void {
   if (!isDiagnosticsEnabled()) return;
   pushToBuffer({
     at: new Date().toISOString(),
@@ -302,7 +303,9 @@ function pushVisibilityEvent(
       });
       ls.setItem(DIAG_VISIBILITY_KEY, JSON.stringify(existing.slice(-20)));
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function setupVisibilityTracking(): void {
@@ -468,13 +471,16 @@ export function createScoutTraceId(target: string): string {
 
 function isVerboseEnabled(): boolean {
   try {
-    const isDev = typeof process !== 'undefined' && process.env
-      ? process.env.NODE_ENV === 'development'
-      : (import.meta as any).env?.DEV === true;
+    const isDev =
+      typeof process !== 'undefined' && process.env
+        ? process.env.NODE_ENV === 'development'
+        : (import.meta as any).env?.DEV === true;
 
-    const verbose = typeof process !== 'undefined' && process.env
-      ? process.env.VITE_VERBOSE_LOGS === 'true' || process.env.VITE_DEBUG_CONSOLE === 'true'
-      : (import.meta as any).env?.VITE_VERBOSE_LOGS === 'true' || (import.meta as any).env?.VITE_DEBUG_CONSOLE === 'true';
+    const verbose =
+      typeof process !== 'undefined' && process.env
+        ? process.env.VITE_VERBOSE_LOGS === 'true' || process.env.VITE_DEBUG_CONSOLE === 'true'
+        : (import.meta as any).env?.VITE_VERBOSE_LOGS === 'true' ||
+          (import.meta as any).env?.VITE_DEBUG_CONSOLE === 'true';
 
     return isDev || verbose;
   } catch {
@@ -528,12 +534,7 @@ export function isScoutDiagEnabled(): boolean {
   return isVerboseEnabled();
 }
 
-function diagEntry(
-  area: string,
-  event: string,
-  severity: string,
-  payload?: Record<string, unknown>,
-): void {
+function diagEntry(area: string, event: string, severity: string, payload?: Record<string, unknown>): void {
   if (!isDiagnosticsEnabled()) return;
   pushToBuffer({
     at: new Date().toISOString(),
@@ -543,7 +544,7 @@ function diagEntry(
     area,
     event,
     severity,
-    payload: payload ? safeDetails(payload) as Record<string, unknown> : undefined,
+    payload: payload ? (safeDetails(payload) as Record<string, unknown>) : undefined,
   });
 }
 
@@ -585,13 +586,15 @@ export const scoutDiag = {
 if (typeof window !== 'undefined') {
   window.__SCOUT_DUMP_DIAG__ = () => {
     const buffer = getBuffer();
-    console.table(buffer.slice(-50).map(e => ({
-      area: e.area,
-      event: e.event,
-      severity: e.severity,
-      elapsedMs: e.elapsedMs,
-      t: e.t,
-    })));
+    console.table(
+      buffer.slice(-50).map(e => ({
+        area: e.area,
+        event: e.event,
+        severity: e.severity,
+        elapsedMs: e.elapsedMs,
+        t: e.t,
+      })),
+    );
     return [...buffer];
   };
 

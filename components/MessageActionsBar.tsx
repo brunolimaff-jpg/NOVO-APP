@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Tooltip from './Tooltip';
 import { Feedback, FeedbackReason, FeedbackSubmissionOptions } from '../types';
@@ -6,6 +5,8 @@ import { FEEDBACK_REASONS } from '../constants';
 import { normalizeMermaidBlocks } from '../utils/reportUtils';
 import { openPrintReportWindow } from '../utils/printExport';
 import { sanitizeSensitivePersonalData } from '../utils/privacy';
+import { trackOperatorEvent } from '../services/operatorTracking';
+import { useMaybeOperator } from '../contexts/OperatorContext';
 
 interface MessageActionsBarProps {
   content: string;
@@ -13,12 +14,7 @@ interface MessageActionsBarProps {
   citedLinksCount: number;
   currentFeedback?: Feedback;
   onFeedback: (type: Feedback) => void;
-  onSubmitFeedback: (
-    type: Feedback,
-    comment: string,
-    content: string,
-    options?: FeedbackSubmissionOptions,
-  ) => void;
+  onSubmitFeedback: (type: Feedback, comment: string, content: string, options?: FeedbackSubmissionOptions) => void;
   onToggleSources: () => void;
   isSourcesVisible: boolean;
   isDarkMode: boolean;
@@ -65,10 +61,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   const activeBg = isDarkMode ? 'bg-slate-700/50' : 'bg-slate-200';
   const borderColor = isDarkMode ? 'border-slate-700/50' : 'border-slate-200';
   const totalSourcesCount = verifiedSourcesCount + citedLinksCount;
-  const sourcesLabel =
-    totalSourcesCount > 0
-      ? `Fontes (${totalSourcesCount})`
-      : 'Fontes';
+  const sourcesLabel = totalSourcesCount > 0 ? `Fontes (${totalSourcesCount})` : 'Fontes';
 
   const handleCopy = async () => {
     const safeContent = sanitizeSensitivePersonalData(content);
@@ -127,7 +120,18 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     }
   };
 
+  const operator = useMaybeOperator();
+
   const handleShare = async () => {
+    const operatorId = operator?.operatorId || '';
+    const operatorEmail = operator?.email;
+
+    trackOperatorEvent('dossier_shared', {
+      operatorId,
+      email: operatorEmail || undefined,
+      entityType: 'message',
+    });
+
     if (navigator.share) {
       try {
         await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: sanitizeSensitivePersonalData(content) });
@@ -198,7 +202,9 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             <span className="hidden sm:inline">PDF</span>
           </button>
           {downloadError && (
-            <span role="alert" className="text-[10px] text-red-400 animate-fade-in">Erro ao gerar PDF</span>
+            <span role="alert" className="text-[10px] text-red-400 animate-fade-in">
+              Erro ao gerar PDF
+            </span>
           )}
 
           <button
@@ -214,15 +220,9 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
             onClick={onToggleSources}
             disabled={totalSourcesCount === 0}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${
-              totalSourcesCount === 0
-                ? 'opacity-50 cursor-not-allowed'
-                : `${hoverColor} hover:${activeBg}`
+              totalSourcesCount === 0 ? 'opacity-50 cursor-not-allowed' : `${hoverColor} hover:${activeBg}`
             } ${isSourcesVisible ? `${activeBg} text-emerald-500` : ''}`}
-            title={
-              totalSourcesCount > 0
-                ? 'Ver fontes citadas e consultadas pela IA'
-                : 'Nenhuma fonte citada'
-            }
+            title={totalSourcesCount > 0 ? 'Ver fontes citadas e consultadas pela IA' : 'Nenhuma fonte citada'}
           >
             <span>📚</span>
             <span className="hidden sm:inline">{sourcesLabel}</span>
@@ -231,18 +231,12 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
         <div className="flex items-center gap-1">
           {feedbackSubmitted === 'up' && (
-            <span className="text-[10px] text-emerald-500 mr-1 animate-fade-in">
-              {texts.successLike}
-            </span>
+            <span className="text-[10px] text-emerald-500 mr-1 animate-fade-in">{texts.successLike}</span>
           )}
           {feedbackSubmitted === 'down' && (
-            <span className="text-[10px] text-red-400 mr-1 animate-fade-in">
-              {texts.successDislike}
-            </span>
+            <span className="text-[10px] text-red-400 mr-1 animate-fade-in">{texts.successDislike}</span>
           )}
-          <span className={`text-[11px] mr-1 ${textColor}`}>
-            {texts.prompt}
-          </span>
+          <span className={`text-[11px] mr-1 ${textColor}`}>{texts.prompt}</span>
           <button
             onClick={handleLike}
             disabled={feedbackSubmitted === 'up'}
@@ -275,9 +269,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       {showCommentBox && (
         <div
           className={`p-3 rounded-lg text-xs animate-slide-in ${
-            isDarkMode
-              ? 'bg-slate-800/80 border border-slate-700'
-              : 'bg-slate-50 border border-slate-200'
+            isDarkMode ? 'bg-slate-800/80 border border-slate-700' : 'bg-slate-50 border border-slate-200'
           }`}
         >
           <p className={`mb-2 font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -308,7 +300,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
           </div>
           <textarea
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={e => setComment(e.target.value)}
             placeholder="Comentário opcional para dar contexto comercial."
             className={`w-full p-2 rounded mb-2 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
               isDarkMode

@@ -126,13 +126,15 @@ describe('useChatFeedbackActions', () => {
       });
     });
 
-    expect(sendFeedbackRemoteMock).toHaveBeenCalledWith(expect.objectContaining({
-      sectionKey: 'resumo_1',
-      sectionTitle: 'Resumo executivo',
-      scope: 'section',
-      reason: 'not_actionable',
-      metadata: { source: 'section_feedback' },
-    }));
+    expect(sendFeedbackRemoteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionKey: 'resumo_1',
+        sectionTitle: 'Resumo executivo',
+        scope: 'section',
+        reason: 'not_actionable',
+        metadata: { source: 'section_feedback' },
+      }),
+    );
   });
 
   it('registra erro quando o envio remoto de feedback falha', async () => {

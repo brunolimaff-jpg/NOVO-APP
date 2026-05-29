@@ -15,17 +15,17 @@ Sprint 10 move o runtime do Radar para `features/radar/*` sem alterar comportame
 
 ## Escopo desta PR
 
-| Bloco | Ação | Arquivos |
-|---|---|---|
-| Runtime | Mover hook para a feature | `features/radar/useRadar.ts` |
-| Runtime | Mover service para a feature | `features/radar/service.ts` |
-| Compat | Manter facade antiga do hook | `hooks/useRadar.ts` |
-| Compat | Manter facade antiga do service | `services/radarService.ts` |
-| Barrel | Exportar hook, service, tipos e constantes | `features/radar/index.ts` |
-| App | Importar Radar pelo boundary | `App.tsx` |
-| Guardrail | Bloquear novos imports legados em produção | `tests/architecture/radarBoundaryImportGuard.test.ts` |
-| Docs | Atualizar handoff, board, arquitetura e memória | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*` |
-| Review | Resolver comentarios Gemini Code Assist | `features/radar/useRadar.ts`, `tests/hooks/useRadar.test.ts` |
+| Bloco     | Ação                                            | Arquivos                                                          |
+| --------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| Runtime   | Mover hook para a feature                       | `features/radar/useRadar.ts`                                      |
+| Runtime   | Mover service para a feature                    | `features/radar/service.ts`                                       |
+| Compat    | Manter facade antiga do hook                    | `hooks/useRadar.ts`                                               |
+| Compat    | Manter facade antiga do service                 | `services/radarService.ts`                                        |
+| Barrel    | Exportar hook, service, tipos e constantes      | `features/radar/index.ts`                                         |
+| App       | Importar Radar pelo boundary                    | `App.tsx`                                                         |
+| Guardrail | Bloquear novos imports legados em produção      | `tests/architecture/radarBoundaryImportGuard.test.ts`             |
+| Docs      | Atualizar handoff, board, arquitetura e memória | `HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*` |
+| Review    | Resolver comentarios Gemini Code Assist         | `features/radar/useRadar.ts`, `tests/hooks/useRadar.test.ts`      |
 
 ## Fora de escopo
 

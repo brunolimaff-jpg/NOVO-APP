@@ -7,10 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const PINECONE_API_KEY =
-  process.env.PINECONE_DOCS_KEY ||
-  process.env.PINECONE_API_KEY ||
-  process.env.VITE_PINECONE_KEY ||
-  '';
+  process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY || '';
 
 const MAIN_INDEX = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 const ORPHAN_INDEX = 'documentacao';
@@ -97,7 +94,9 @@ async function deduplicateNamespace() {
     }
   } catch (error: any) {
     console.error(`❌ Erro ao listar registros: ${error.message}`);
-    console.error('   (listPaginated pode não estar disponível neste índice — necessário upgrade para serverless com paginação)');
+    console.error(
+      '   (listPaginated pode não estar disponível neste índice — necessário upgrade para serverless com paginação)',
+    );
   }
 }
 

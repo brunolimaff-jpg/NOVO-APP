@@ -1,10 +1,4 @@
-import {
-  ClienteSeniorData,
-  Message,
-  ScorePortaData,
-  Sender,
-  WebVerificationStatus,
-} from '../../types';
+import { ClienteSeniorData, Message, ScorePortaData, Sender, WebVerificationStatus } from '../../types';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { parsePortaMarkerV2 } from '../../utils/porta';
 import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
@@ -24,10 +18,7 @@ import {
 import { getContextoConcorrentesRegionais, type CompetitorDetection } from '../competitorService';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
-import {
-  buildSocioRuralInstructionContext,
-  buildSocioRuralSearchQueries,
-} from '../../utils/socioRuralResearch';
+import { buildSocioRuralInstructionContext, buildSocioRuralSearchQueries } from '../../utils/socioRuralResearch';
 import type { VerifiedSource } from '../../utils/webVerification';
 import { deriveVerificationStatusFromSources } from '../../utils/webVerification';
 import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../ragService';
@@ -45,12 +36,22 @@ import { STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID, selectMainChatModelId } fr
 import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
-import { getDeepDiveSource, isDeepDiveMessage, isMegaPromptRequest, runWithStepTimeout, buildConversationHistory, type DeepDiveSource } from './runtime';
+import {
+  getDeepDiveSource,
+  isDeepDiveMessage,
+  isMegaPromptRequest,
+  runWithStepTimeout,
+  buildConversationHistory,
+  type DeepDiveSource,
+} from './runtime';
 import { sanitizeStreamText, isValidEmpresaParaBenchmark } from './sanitization';
 import { normalizeGroundingSources } from './sources';
 import { emitDossieStatus } from './status';
 
-function shouldEmitDeepDiveStatus(userMessage: string, label: 'corporate' | 'tech' | 'compliance' | 'rh' | 'logistica'): boolean {
+function shouldEmitDeepDiveStatus(
+  userMessage: string,
+  label: 'corporate' | 'tech' | 'compliance' | 'rh' | 'logistica',
+): boolean {
   if (label === 'corporate') return userMessage.includes('TEIA SOCIETÁRIA') || userMessage.includes('M&A');
   if (label === 'tech') return userMessage.includes('ARQUITETURA DE TI') || userMessage.includes('Tech');
   if (label === 'compliance') return userMessage.includes('COMPLIANCE') || userMessage.includes('RISCOS');
@@ -212,7 +213,9 @@ function buildExtraContext(params: {
     ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}` : '',
     concorrentesContext ? `\n[CONCORRENTES]\n${concorrentesContext}` : '',
     portaContext ? `\n[PORTA STATE]\n${portaContext}` : '',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function initializePortaState(params: {
@@ -299,15 +302,21 @@ export async function sendMessageToGemini(
   void nomeVendedor;
 
   // Helper para racear uma promise contra AbortSignal
-  const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
+  const withAbortSignal = <T>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
     if (!sig) return promise;
     if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
     return new Promise<T>((resolve, reject) => {
       const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
       sig.addEventListener('abort', onAbort, { once: true });
       promise.then(
-        v => { sig.removeEventListener('abort', onAbort); resolve(v); },
-        e => { sig.removeEventListener('abort', onAbort); reject(e); }
+        v => {
+          sig.removeEventListener('abort', onAbort);
+          resolve(v);
+        },
+        e => {
+          sig.removeEventListener('abort', onAbort);
+          reject(e);
+        },
       );
     });
   };
@@ -342,9 +351,9 @@ export async function sendMessageToGemini(
   const hasActiveContextHint = !!empresaAlvo || !!cnpjDetected || isMegaPromptMessage;
 
   if (!empresaAlvo && isMegaPromptMessage) {
-    const nameFromMegaprompt = userMessage.match(
-      /dossi[eê]\s+completo\s+de\s+\[?([A-ZÀ-Úa-zà-ú][^\]\n]{2,80})\]?/i,
-    )?.[1]?.trim();
+    const nameFromMegaprompt = userMessage
+      .match(/dossi[eê]\s+completo\s+de\s+\[?([A-ZÀ-Úa-zà-ú][^\]\n]{2,80})\]?/i)?.[1]
+      ?.trim();
     if (nameFromMegaprompt && isValidEmpresaParaBenchmark(nameFromMegaprompt)) {
       empresaAlvo = nameFromMegaprompt;
       scoutDiag.info?.('EmpresaAlvo', 'extraído do megaprompt na 1ª passada', { empresaAlvo });
@@ -359,7 +368,9 @@ export async function sendMessageToGemini(
       .reverse()
       .find(message => message.sender === Sender.User && message.text?.includes('DOSSIÊ'));
     if (previousTargetMessage) {
-      const nameMatch = previousTargetMessage.text.match(/(?:DOSSIÊ|DOSSIE)\s+(?:COMPLETO\s+)?(?:DE\s+)?\[?([A-ZÀ-Ú][^\]\n]{2,60})\]?/i);
+      const nameMatch = previousTargetMessage.text.match(
+        /(?:DOSSIÊ|DOSSIE)\s+(?:COMPLETO\s+)?(?:DE\s+)?\[?([A-ZÀ-Ú][^\]\n]{2,60})\]?/i,
+      );
       if (nameMatch?.[1]) targetCompanyForLookup = nameMatch[1].trim();
     }
   }
@@ -385,8 +396,7 @@ export async function sendMessageToGemini(
         });
       } else if (results[0].value) {
         clienteData = results[0].value as LookupResponse;
-        const resolvedCompanyName =
-          clienteData?.results?.[0]?.grupo?.trim() || clienteData?.query?.trim() || null;
+        const resolvedCompanyName = clienteData?.results?.[0]?.grupo?.trim() || clienteData?.query?.trim() || null;
         if (resolvedCompanyName && !empresaAlvo) empresaAlvo = resolvedCompanyName;
 
         if (clienteData?.error) {
@@ -594,11 +604,7 @@ export async function sendMessageToGemini(
   }
 
   finalText = sanitizeSensitivePersonalData(sanitizeStreamText(response.text || ''));
-  finalText = enforceSeniorEvidenceConstraints(
-    finalText,
-    empresaAlvo || hintedCompany || '',
-    clienteSeniorData,
-  );
+  finalText = enforceSeniorEvidenceConstraints(finalText, empresaAlvo || hintedCompany || '', clienteSeniorData);
   const leakShieldResult = applyPromptLeakShield(finalText, {
     companyHint: empresaAlvo || hintedCompany || '',
   });
@@ -706,12 +712,8 @@ export async function generateDossierModule(
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
   const usesFoundationCache = Boolean(options.foundationCacheName);
   const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
-  const finalPrompt = usesFoundationCache
-    ? dynamicPrompt
-    : `${foundationBlock}\n\n${dynamicPrompt}`;
-  const promptChars = usesFoundationCache
-    ? dynamicPrompt.length
-    : `${foundationBlock}\n\n${dynamicPrompt}`.length;
+  const finalPrompt = usesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
+  const promptChars = usesFoundationCache ? dynamicPrompt.length : `${foundationBlock}\n\n${dynamicPrompt}`.length;
   const startedAt = Date.now();
 
   scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
@@ -732,9 +734,7 @@ export async function generateDossierModule(
   }
 
   const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
-  const contents = usesFoundationCache
-    ? `${userTask}\n\n${dynamicPrompt}`
-    : userTask;
+  const contents = usesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
 
   const response = await runWithStepTimeout(
     `DossierModule:${moduleName}`,
@@ -829,11 +829,10 @@ export async function getIsolatedBenchmark(
   const benchmarkResult = await runWithStepTimeout(
     `Benchmark:Isolated:${empresaAlvo}`,
     stepSignal =>
-      withAutoRetry(
-        'Benchmark:Isolated',
-        () => benchmarkClientes(empresaAlvo),
-        { maxRetries: 3, abortSignal: stepSignal },
-      ),
+      withAutoRetry('Benchmark:Isolated', () => benchmarkClientes(empresaAlvo), {
+        maxRetries: 3,
+        abortSignal: stepSignal,
+      }),
     options.signal,
     options.timeoutMs,
   );

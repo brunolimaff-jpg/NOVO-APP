@@ -17,9 +17,11 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('detecta TOTVS a partir de resposta do Gemini', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      'SISTEMA_DETECTADO: TOTVS Protheus\nFABRICANTE: TOTVS\nREVENDA_LOCAL: TOTVS Direto\nNIVEL_AMEACA: alto\nCONFIANCA: alta\nFONTES: linkedin.com/vaga-totvs\nEVIDENCIA: Vaga de analista Protheus no LinkedIn',
-    );
+    const mockGemini = vi
+      .fn()
+      .mockResolvedValue(
+        'SISTEMA_DETECTADO: TOTVS Protheus\nFABRICANTE: TOTVS\nREVENDA_LOCAL: TOTVS Direto\nNIVEL_AMEACA: alto\nCONFIANCA: alta\nFONTES: linkedin.com/vaga-totvs\nEVIDENCIA: Vaga de analista Protheus no LinkedIn',
+      );
 
     const result = await detectCompetitorFromContext('Agroindústria Alpha', 'SP', mockGemini);
     expect(result.encontrado).toBe(true);
@@ -30,9 +32,7 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('retorna encontrado=false quando sistema é DESCONHECIDO', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      'SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma',
-    );
+    const mockGemini = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
 
     const result = await detectCompetitorFromContext('Fazenda Mistério', undefined, mockGemini);
     expect(result.encontrado).toBe(false);
@@ -46,9 +46,11 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('detecta SAP a partir de resposta do Gemini', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      'SISTEMA_DETECTADO: SAP S/4HANA\nFABRICANTE: SAP\nREVENDA_LOCAL: Accenture SP\nNIVEL_AMEACA: alto\nCONFIANCA: media\nFONTES: site-empresa.com.br\nEVIDENCIA: Menção a SAP no site',
-    );
+    const mockGemini = vi
+      .fn()
+      .mockResolvedValue(
+        'SISTEMA_DETECTADO: SAP S/4HANA\nFABRICANTE: SAP\nREVENDA_LOCAL: Accenture SP\nNIVEL_AMEACA: alto\nCONFIANCA: media\nFONTES: site-empresa.com.br\nEVIDENCIA: Menção a SAP no site',
+      );
 
     const result = await detectCompetitorFromContext('Grupo XYZ', 'MG', mockGemini);
     expect(result.encontrado).toBe(true);
@@ -56,9 +58,7 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('passa o estado para o prompt de busca', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      'SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma',
-    );
+    const mockGemini = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
 
     await detectCompetitorFromContext('Empresa MT', 'MT', mockGemini);
     const calledPrompt = mockGemini.mock.calls[0][0] as string;
@@ -112,11 +112,13 @@ describe('pullCompetitorProfile', () => {
   });
 
   it('extrai o primeiro JSON completo sem regex gulosa', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      `Trecho inicial [ 'a' ] e texto ]\n` +
-        `{"playStoreRating":4.1,"pontosFracos":["Lentidão"]}\n` +
-        `{"playStoreRating":1.1,"pontosFracos":["Ignorar"]}`,
-    );
+    const mockGemini = vi
+      .fn()
+      .mockResolvedValue(
+        `Trecho inicial [ 'a' ] e texto ]\n` +
+          `{"playStoreRating":4.1,"pontosFracos":["Lentidão"]}\n` +
+          `{"playStoreRating":1.1,"pontosFracos":["Ignorar"]}`,
+      );
 
     const result = await pullCompetitorProfile('totvs', mockGemini);
     if (result) {
@@ -169,10 +171,12 @@ describe('generatePricingIntel', () => {
   });
 
   it('aceita array JSON e usa o primeiro objeto válido', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
-      `Resposta:\n` +
-        `[{"faixaPrecoUsuario":"R$ 900-1.500","modeloLicenca":"SaaS","confianca":"alta","fontes":["fonte-a"]}]`,
-    );
+    const mockGemini = vi
+      .fn()
+      .mockResolvedValue(
+        `Resposta:\n` +
+          `[{"faixaPrecoUsuario":"R$ 900-1.500","modeloLicenca":"SaaS","confianca":"alta","fontes":["fonte-a"]}]`,
+      );
     const result = await generatePricingIntel('totvs', 'medio', mockGemini);
     if (result) {
       expect(result.faixaPrecoUsuario).toBe('R$ 900-1.500');

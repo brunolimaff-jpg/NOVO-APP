@@ -63,8 +63,12 @@ const InlineTypingResponse = memo(({ isDarkMode, stage }: InlineTypingResponsePr
       </div>
 
       <div className="space-y-1.5" aria-hidden="true">
-        <div className={`h-1.5 rounded-full w-4/5 motion-safe:animate-pulse ${isDarkMode ? 'bg-slate-700/45' : 'bg-slate-200/80'}`} />
-        <div className={`h-1.5 rounded-full w-2/3 motion-safe:animate-pulse ${isDarkMode ? 'bg-slate-700/35' : 'bg-slate-200/70'}`} />
+        <div
+          className={`h-1.5 rounded-full w-4/5 motion-safe:animate-pulse ${isDarkMode ? 'bg-slate-700/45' : 'bg-slate-200/80'}`}
+        />
+        <div
+          className={`h-1.5 rounded-full w-2/3 motion-safe:animate-pulse ${isDarkMode ? 'bg-slate-700/35' : 'bg-slate-200/70'}`}
+        />
       </div>
     </div>
   );

@@ -6,9 +6,11 @@ const scoutDiagMock = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 const supabaseInsertMock = vi.hoisted(() => vi.fn());
-const supabaseFromMock = vi.hoisted(() => vi.fn(() => ({
-  insert: supabaseInsertMock,
-})));
+const supabaseFromMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    insert: supabaseInsertMock,
+  })),
+);
 const isSupabaseAvailableMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../utils/diagnosticLog', () => ({
@@ -99,14 +101,16 @@ describe('sendFeedbackRemote', () => {
   });
 
   it('envia payload completo com scope section e reason', async () => {
-    await sendFeedbackRemote(makePayload({
-      type: 'dislike',
-      scope: 'section',
-      sectionKey: 'resumo_1',
-      sectionTitle: 'Resumo executivo',
-      reason: 'no_evidence',
-      metadata: { source: 'section_feedback' },
-    }));
+    await sendFeedbackRemote(
+      makePayload({
+        type: 'dislike',
+        scope: 'section',
+        sectionKey: 'resumo_1',
+        sectionTitle: 'Resumo executivo',
+        reason: 'no_evidence',
+        metadata: { source: 'section_feedback' },
+      }),
+    );
 
     expect(supabaseInsertMock).toHaveBeenCalledWith({
       feedback_id: 'fb-001',

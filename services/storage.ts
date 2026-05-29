@@ -7,6 +7,7 @@ import { syncQueue } from './syncQueue';
 import type { SyncOperation } from './syncQueue';
 import type { ChatSession } from '../types';
 import { mergeChatSessions } from '../utils/mergeChatSessions';
+import { trackOperatorEvent } from './operatorTracking';
 
 interface SyncResult {
   pushed: number;
@@ -95,10 +96,7 @@ async function executeSupabaseOperation(op: SyncOperation): Promise<void> {
 
   if (operation === 'upsert') {
     const onConflict = conflictColumns[table];
-    const { error } = await supabase!.from(table).upsert(
-      data,
-      onConflict ? { onConflict } : undefined
-    );
+    const { error } = await supabase!.from(table).upsert(data, onConflict ? { onConflict } : undefined);
     if (error) throw new Error(error.message);
     return;
   }
@@ -126,11 +124,7 @@ export const storage = {
     if (isSupabaseAvailable()) {
       const operatorId = getOperatorId();
       if (operatorId) {
-        const query = supabase!
-          .from('dossies')
-          .select('*')
-          .eq('operator_id', operatorId)
-          .is('deleted_at', null);
+        const query = supabase!.from('dossies').select('*').eq('operator_id', operatorId).is('deleted_at', null);
 
         // Fire and forget background refresh
         (async () => {
@@ -138,9 +132,7 @@ export const storage = {
             if (!canPullDossiersFromRemote()) return;
             const { data } = await query;
             if (data && data.length > 0) {
-              const remoteSessions = data.map(
-                (row: { content: ChatSession }) => row.content,
-              );
+              const remoteSessions = data.map((row: { content: ChatSession }) => row.content);
               await mergeIncomingSessionsIntoLocal(remoteSessions);
             }
           } catch {
@@ -155,13 +147,13 @@ export const storage = {
 
   async getDossier(id: string): Promise<ChatSession | null> {
     const sessions = await getLocalSessions();
-    return sessions.find((s) => s.id === id) || null;
+    return sessions.find(s => s.id === id) || null;
   },
 
   async saveDossier(session: ChatSession): Promise<void> {
     // Save to IDB immediately (instant)
     const sessions = await getLocalSessions();
-    const existingIndex = sessions.findIndex((s) => s.id === session.id);
+    const existingIndex = sessions.findIndex(s => s.id === session.id);
     if (existingIndex >= 0) {
       sessions[existingIndex] = session;
     } else {
@@ -228,8 +220,8 @@ export const storage = {
   async deleteDossier(id: string): Promise<void> {
     // Remove from local sessions
     const sessions = await getLocalSessions();
-    const deletedSession = sessions.find((s) => s.id === id);
-    const filtered = sessions.filter((s) => s.id !== id);
+    const deletedSession = sessions.find(s => s.id === id);
+    const filtered = sessions.filter(s => s.id !== id);
     await setLocalSessions(filtered);
 
     // Enqueue soft delete via syncQueue
@@ -286,7 +278,6 @@ export const storage = {
       data: { alert_data: alerts, operator_id: operatorId },
       id: 'alerts', // Bulk operation
     });
-
   },
 
   async getRadarConfig(): Promise<unknown | null> {
@@ -309,7 +300,6 @@ export const storage = {
       data: { config, operator_id: operatorId },
       id: 'config', // Single config per operator
     });
-
   },
 
   async getRadarLastScan(): Promise<number | null> {
@@ -346,9 +336,7 @@ export const storage = {
 
   async getExtractCache(cacheKey: string): Promise<{ result: unknown; timestamp: number } | null> {
     try {
-      const result = await get<{ result: unknown; timestamp: number }>(
-        IDB_KEYS.EXTRACT_CACHE_PREFIX + cacheKey
-      );
+      const result = await get<{ result: unknown; timestamp: number }>(IDB_KEYS.EXTRACT_CACHE_PREFIX + cacheKey);
       return result ?? null;
     } catch {
       return null;
@@ -380,7 +368,6 @@ export const storage = {
       },
       id: cacheKey,
     });
-
   },
 
   // ===================================================================
@@ -391,18 +378,18 @@ export const storage = {
     const operatorId = data.operatorId;
     if (!operatorId) return; // Local-only until registered
 
+    const emailNormalized = data.email?.toLowerCase().trim() || '';
     const payload = {
       operator_id: data.operatorId,
       display_name: data.name,
       email: data.email,
+      email_normalized: emailNormalized,
       last_seen: new Date().toISOString(),
     };
 
     if (isSupabaseAvailable()) {
       try {
-        const { error } = await supabase!
-          .from('user_context')
-          .upsert(payload, { onConflict: 'operator_id' });
+        const { error } = await supabase!.from('user_context').upsert(payload, { onConflict: 'operator_id' });
 
         if (!error) {
           syncQueue.remove('user_context', operatorId);
@@ -421,7 +408,6 @@ export const storage = {
       data: payload,
       id: data.operatorId,
     });
-
   },
 
   async touchUserContext(operatorId: string): Promise<void> {
@@ -456,10 +442,13 @@ export const storage = {
   async findUserByEmail(email: string): Promise<{ operatorId: string; displayName: string } | null> {
     if (!isSupabaseAvailable()) return null;
 
+    const emailNormalized = email?.toLowerCase().trim() || '';
+    if (!emailNormalized) return null;
+
     const { data, error } = await supabase!
       .from('user_context')
       .select('operator_id, display_name')
-      .eq('email', email)
+      .eq('email_normalized', emailNormalized)
       .maybeSingle();
 
     if (error || !data) return null;
@@ -478,23 +467,21 @@ export const storage = {
     action: string,
     targetType?: string,
     targetId?: string,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void> {
     // Direct Supabase insert (fire and forget, no queue)
     if (isSupabaseAvailable()) {
       const operatorId = getOperatorId();
       if (!operatorId) return; // Local-only until registered
 
-      void supabase!
-        .from('audit_log')
-        .insert({
-          action,
-          target_type: targetType,
-          target_id: targetId,
-          metadata,
-          operator_id: operatorId,
-          created_at: new Date().toISOString(),
-        });
+      void supabase!.from('audit_log').insert({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        metadata,
+        operator_id: operatorId,
+        created_at: new Date().toISOString(),
+      });
     }
   },
 
@@ -513,36 +500,29 @@ export const storage = {
       return [];
     }
 
-    const { data } = await supabase!
-      .from('favorites')
-      .select('*')
-      .eq('operator_id', operatorId);
+    const { data } = await supabase!.from('favorites').select('*').eq('operator_id', operatorId);
 
     return data || [];
   },
 
-  async addFavorite(
-    cnpj: string,
-    companyName: string,
-    reason?: string,
-    dossierId?: string
-  ): Promise<void> {
+  async addFavorite(cnpj: string, companyName: string, reason?: string, dossierId?: string): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) {
       return;
     }
 
     // Supabase upsert with onConflict to prevent duplicates
-    void supabase!
-      .from('favorites')
-      .upsert({
+    void supabase!.from('favorites').upsert(
+      {
         operator_id: operatorId,
         cnpj,
         company_name: companyName,
         reason,
         dossier_id: dossierId,
         created_at: new Date().toISOString(),
-      }, { onConflict: 'operator_id,cnpj' });
+      },
+      { onConflict: 'operator_id,cnpj' },
+    );
 
     // Log audit
     await this.logAudit('favorite_added', 'dossier', dossierId, {
@@ -558,11 +538,7 @@ export const storage = {
       return;
     }
 
-    void supabase!
-      .from('favorites')
-      .delete()
-      .eq('operator_id', operatorId)
-      .eq('cnpj', cnpj);
+    void supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj);
 
     // Log audit
     await this.logAudit('favorite_removed', 'dossier', undefined, { cnpj });
@@ -605,6 +581,15 @@ export const storage = {
       console.error('[Storage] Failed to share dossier:', error);
       return null;
     }
+
+    trackOperatorEvent('dossier_shared', {
+      operatorId,
+      email: localStorage.getItem('scout360:operator_email') || undefined,
+      entityType: 'shared_dossier',
+      entityId: dossierId,
+      companyCnpj: dossier.cnpj || undefined,
+      companyName: dossier.empresaAlvo || undefined,
+    });
 
     return token;
   },
@@ -650,7 +635,7 @@ export const storage = {
   },
 
   getSyncQueueItems(): { table: string; operation: string }[] {
-    return syncQueue.peek().map((op) => ({
+    return syncQueue.peek().map(op => ({
       table: op.table,
       operation: op.operation,
     }));
@@ -717,7 +702,7 @@ export const storage = {
       let failedPushes = 0;
 
       if (pendingBefore > 0) {
-        const didProcess = await syncQueue.processWhere(isDossierOperation, async (op) => {
+        const didProcess = await syncQueue.processWhere(isDossierOperation, async op => {
           try {
             await executeSupabaseOperation(op);
             pushed += 1;
@@ -814,7 +799,7 @@ export const storage = {
     const errors: string[] = [];
     // eslint-disable-next-line no-useless-assignment -- early returns use this value
     let pushed = 0;
-     
+
     let pulled = 0;
 
     if (!isSupabaseAvailable()) {

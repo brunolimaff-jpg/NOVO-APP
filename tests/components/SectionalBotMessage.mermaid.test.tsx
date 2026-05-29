@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import SectionalBotMessage from '../../components/SectionalBotMessage';
 import { Sender, type Message } from '../../types';
 
-const mockMermaidRender = vi.hoisted(() => vi.fn().mockResolvedValue({ svg: '<svg data-testid="mermaid-svg">ok</svg>' }));
+const mockMermaidRender = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ svg: '<svg data-testid="mermaid-svg">ok</svg>' }),
+);
 const mockMermaidInitialize = vi.hoisted(() => vi.fn());
 const mockMermaidParse = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 

@@ -43,7 +43,7 @@ describe('MVP feature gating UI', () => {
         onToggleTheme={vi.fn()}
         onClearOperator={vi.fn()}
         canAccessIntegrityCheck={false}
-      />
+      />,
     );
 
     expect(screen.queryByText('Teste de Integridade')).not.toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('MVP feature gating UI', () => {
         isOpen={true}
         onCloseMobile={vi.fn()}
         isDarkMode={true}
-      />
+      />,
     );
 
     expect(screen.queryByTitle('Abrir Kanban CRM')).not.toBeInTheDocument();

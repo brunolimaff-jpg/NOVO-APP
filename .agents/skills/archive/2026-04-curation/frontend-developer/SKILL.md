@@ -38,6 +38,7 @@ platform is the foundation.
 ## When to use this skill
 
 Trigger this skill when the user:
+
 - Asks to build, review, or optimize frontend UI code (HTML, CSS, JS/TS)
 - Wants to improve web performance or Core Web Vitals scores
 - Needs an accessibility audit or WCAG compliance guidance
@@ -48,6 +49,7 @@ Trigger this skill when the user:
 - Needs to optimize images, fonts, or bundle size
 
 Do NOT trigger this skill for:
+
 - Backend-only code with no frontend implications
 - DevOps, CI/CD, or infrastructure work unrelated to frontend delivery
 
@@ -90,6 +92,7 @@ The mental model for good frontend work is layered:
 Evaluate a page or component for performance issues. Start with measurable data, not hunches.
 
 **Checklist:**
+
 - Run Lighthouse and note LCP (< 2.5s), INP (< 200ms), CLS (< 0.1)
 - Check the network waterfall for render-blocking resources
 - Audit bundle size - look for unused code, large dependencies, missing code splitting
@@ -104,6 +107,7 @@ Evaluate a page or component for performance issues. Start with measurable data,
 Evaluate code for WCAG 2.2 AA compliance. Automated tools catch ~30% of issues - manual review is essential.
 
 **Checklist:**
+
 - Run axe-core or Lighthouse a11y audit for automated checks
 - Verify semantic HTML - are `<nav>`, `<main>`, `<button>`, `<label>` used correctly?
 - Tab through the entire UI - is every interactive element reachable and operable?
@@ -144,6 +148,7 @@ Design component structure for a feature or page. Apply these heuristics:
 Use the platform's full power before reaching for JS-based solutions.
 
 **Decision guide:**
+
 - Layout -> CSS Grid (2D) or Flexbox (1D)
 - Responsive -> Container queries for component-level, media queries for page-level
 - Theming -> Custom properties + `light-dark()` + `color-mix()`
@@ -158,12 +163,14 @@ Use the platform's full power before reaching for JS-based solutions.
 Design a test suite that catches bugs without slowing down development.
 
 **The frontend testing trophy (most value in the middle):**
+
 - **Static analysis** (base): TypeScript + ESLint catch type errors and common bugs
 - **Unit tests** (small): Pure functions, utilities, data transformations
 - **Integration tests** (large - most value): Render a component, interact like a user, assert the result
 - **E2E tests** (top): Critical user flows only - signup, checkout, core workflows
 
 **Rules:**
+
 - Query by `role` and `name`, not by test ID or CSS class
 - Assert what users see, not internal state
 - Mock the network (use MSW), not the components
@@ -197,19 +204,19 @@ Build resilient UIs that work across conditions.
 
 ## Anti-patterns / common mistakes
 
-| Mistake | Why it's wrong | What to do instead |
-|---|---|---|
-| Div soup | Loses all semantic meaning, breaks a11y, hurts SEO | Use `<nav>`, `<main>`, `<article>`, `<button>`, `<section>` |
-| ARIA abuse | Adding `role="button"` to a `<div>` when `<button>` exists | Use native HTML elements first - they have built-in semantics, focus, and keyboard support |
-| Performance theater | Lazy loading everything without measuring impact | Measure with Lighthouse/CrUX first, optimize the actual bottleneck |
-| Testing implementation | Tests break on refactor, coupled to internal state | Test behavior - what the user sees and does, not how the code works |
-| Premature abstraction | Shared component after 2 occurrences | Wait for the third use case, then extract with the real pattern visible |
-| CSS avoidance | Runtime JS for styling that CSS handles natively | Modern CSS covers layout, theming, responsive design, and most animations |
-| Ignoring the network | No loading/error states, assumes instant responses | Every async operation needs loading, error, and empty states |
-| Bundle blindness | Never checking what ships to users | Audit bundle regularly, set performance budgets, check before adding deps |
-| A11y as afterthought | Bolting on accessibility at the end | Build accessible from the start - semantic HTML, keyboard nav, ARIA where needed |
-| Overengineering state | Global state for everything | Use local state by default, URL params for shareable state, server cache for API data |
-| Emojis as UI icons | Render inconsistently across OS/browsers, unstyled, break a11y and theming | Use SVG icon libraries: Lucide React, React Icons, Heroicons, Phosphor, or Font Awesome |
+| Mistake                | Why it's wrong                                                             | What to do instead                                                                         |
+| ---------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Div soup               | Loses all semantic meaning, breaks a11y, hurts SEO                         | Use `<nav>`, `<main>`, `<article>`, `<button>`, `<section>`                                |
+| ARIA abuse             | Adding `role="button"` to a `<div>` when `<button>` exists                 | Use native HTML elements first - they have built-in semantics, focus, and keyboard support |
+| Performance theater    | Lazy loading everything without measuring impact                           | Measure with Lighthouse/CrUX first, optimize the actual bottleneck                         |
+| Testing implementation | Tests break on refactor, coupled to internal state                         | Test behavior - what the user sees and does, not how the code works                        |
+| Premature abstraction  | Shared component after 2 occurrences                                       | Wait for the third use case, then extract with the real pattern visible                    |
+| CSS avoidance          | Runtime JS for styling that CSS handles natively                           | Modern CSS covers layout, theming, responsive design, and most animations                  |
+| Ignoring the network   | No loading/error states, assumes instant responses                         | Every async operation needs loading, error, and empty states                               |
+| Bundle blindness       | Never checking what ships to users                                         | Audit bundle regularly, set performance budgets, check before adding deps                  |
+| A11y as afterthought   | Bolting on accessibility at the end                                        | Build accessible from the start - semantic HTML, keyboard nav, ARIA where needed           |
+| Overengineering state  | Global state for everything                                                | Use local state by default, URL params for shareable state, server cache for API data      |
+| Emojis as UI icons     | Render inconsistently across OS/browsers, unstyled, break a11y and theming | Use SVG icon libraries: Lucide React, React Icons, Heroicons, Phosphor, or Font Awesome    |
 
 ---
 
@@ -245,7 +252,9 @@ Only load a reference file when the current task requires that depth - they are 
 ## Companion check
 
 > On first activation of this skill in a conversation: check which companion skills are installed by running `ls ~/.claude/skills/ ~/.agent/skills/ ~/.agents/skills/ .claude/skills/ .agent/skills/ .agents/skills/ 2>/dev/null`. Compare the results against the `recommended_skills` field in this file's frontmatter. For any that are missing, mention them once and offer to install:
+>
 > ```
 > npx skills add AbsolutelySkilled/AbsolutelySkilled --skill <name>
 > ```
+>
 > Skip entirely if `recommended_skills` is empty or all companions are already installed.

@@ -13,9 +13,7 @@
 
 import { useEffect, type ElementType } from 'react';
 import type { ErrorContext } from '../utils/friendlyErrorMessage';
-import {
-  getFriendlyErrorMessage,
-} from '../utils/friendlyErrorMessage';
+import { getFriendlyErrorMessage } from '../utils/friendlyErrorMessage';
 
 type IconProps = {
   className?: string;
@@ -27,24 +25,14 @@ const IconBase = ({ className, symbol, label }: IconProps & { symbol: string; la
   </span>
 );
 
-const WifiOff = ({ className }: IconProps) => (
-  <IconBase className={className} symbol="📡" label="Sem conexão" />
-);
-const Clock3 = ({ className }: IconProps) => (
-  <IconBase className={className} symbol="⏱️" label="Tempo esgotado" />
-);
+const WifiOff = ({ className }: IconProps) => <IconBase className={className} symbol="📡" label="Sem conexão" />;
+const Clock3 = ({ className }: IconProps) => <IconBase className={className} symbol="⏱️" label="Tempo esgotado" />;
 const ShieldAlert = ({ className }: IconProps) => (
   <IconBase className={className} symbol="🛡️" label="Acesso bloqueado" />
 );
-const XCircle = ({ className }: IconProps) => (
-  <IconBase className={className} symbol="❌" label="Erro" />
-);
-const AlertTriangle = ({ className }: IconProps) => (
-  <IconBase className={className} symbol="⚠️" label="Alerta" />
-);
-const X = ({ className }: IconProps) => (
-  <IconBase className={className} symbol="✖️" label="Fechar" />
-);
+const XCircle = ({ className }: IconProps) => <IconBase className={className} symbol="❌" label="Erro" />;
+const AlertTriangle = ({ className }: IconProps) => <IconBase className={className} symbol="⚠️" label="Alerta" />;
+const X = ({ className }: IconProps) => <IconBase className={className} symbol="✖️" label="Fechar" />;
 
 export interface ErrorToastProps {
   /** Erro bruto (Error, string ou null). Null = toast oculto. */
@@ -61,31 +49,18 @@ type ToastVariant = 'network' | 'timeout' | 'quota' | 'auth' | 'default';
 
 function detectVariant(error: unknown): ToastVariant {
   const msg =
-    error instanceof Error
-      ? error.message.toLowerCase()
-      : typeof error === 'string'
-      ? error.toLowerCase()
-      : '';
+    error instanceof Error ? error.message.toLowerCase() : typeof error === 'string' ? error.toLowerCase() : '';
 
-  if (['fetch', 'network', 'failed to fetch', 'net::'].some(p => msg.includes(p)))
-    return 'network';
-  if (['timeout', 'timed out', 'deadline', 'aborted'].some(p => msg.includes(p)))
-    return 'timeout';
-  if (['429', 'quota', 'rate limit', 'resource_exhausted', 'too many requests'].some(p =>
-    msg.includes(p)
-  ))
+  if (['fetch', 'network', 'failed to fetch', 'net::'].some(p => msg.includes(p))) return 'network';
+  if (['timeout', 'timed out', 'deadline', 'aborted'].some(p => msg.includes(p))) return 'timeout';
+  if (['429', 'quota', 'rate limit', 'resource_exhausted', 'too many requests'].some(p => msg.includes(p)))
     return 'quota';
-  if (['401', '403', 'unauthorized', 'forbidden', 'api key', 'invalid_api_key'].some(p =>
-    msg.includes(p)
-  ))
+  if (['401', '403', 'unauthorized', 'forbidden', 'api key', 'invalid_api_key'].some(p => msg.includes(p)))
     return 'auth';
   return 'default';
 }
 
-const VARIANT_CONFIG: Record<
-  ToastVariant,
-  { icon: ElementType; wrapperClass: string; iconClass: string }
-> = {
+const VARIANT_CONFIG: Record<ToastVariant, { icon: ElementType; wrapperClass: string; iconClass: string }> = {
   network: {
     icon: WifiOff,
     wrapperClass:
@@ -112,18 +87,12 @@ const VARIANT_CONFIG: Record<
   },
   default: {
     icon: XCircle,
-    wrapperClass:
-      'border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
+    wrapperClass: 'border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
     iconClass: 'text-red-600 dark:text-red-400',
   },
 };
 
-export const ErrorToast = ({
-  error,
-  context = 'generic',
-  onClose,
-  autoDismissMs = 5000,
-}: ErrorToastProps) => {
+export const ErrorToast = ({ error, context = 'generic', onClose, autoDismissMs = 5000 }: ErrorToastProps) => {
   useEffect(() => {
     if (!error || autoDismissMs === 0) return;
 
@@ -159,9 +128,7 @@ export const ErrorToast = ({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-5">{title}</p>
           <p className="mt-0.5 text-sm leading-5 opacity-90">{detail}</p>
-          {canRetry && (
-            <p className="mt-1 text-xs opacity-60">Você pode tentar novamente.</p>
-          )}
+          {canRetry && <p className="mt-1 text-xs opacity-60">Você pode tentar novamente.</p>}
         </div>
 
         {/* Dismiss */}

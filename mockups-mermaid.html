@@ -1,136 +1,490 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grupo Scheffer — Matriz Societária</title>
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #f8fafc; color: #1e293b; font-family: system-ui, sans-serif; padding: 2rem; min-height: 100vh; }
-    .page { display: grid; gap: 1rem; max-width: 1280px; margin: 0 auto; }
-    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1.25rem; margin: 0 auto; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .card h2 { font-size: 1rem; font-weight: 700; color: #065f46; }
-    .card .sub { font-size: 0.78rem; color: #94a3b8; margin-bottom: 1rem; }
-    .matrix-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.875rem; }
-    .filter-btn { border: 1px solid #cbd5e1; background: #fff; color: #475569; border-radius: 999px; padding: 0.35rem 0.65rem; font-size: 0.72rem; font-weight: 700; cursor: pointer; }
-    .filter-btn.is-active { border-color: #059669; background: #ecfdf5; color: #065f46; }
-    .matrix-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
-    .matrix { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 0.78rem; }
-    .matrix th, .matrix td { border-bottom: 1px solid #e2e8f0; padding: 0.55rem 0.65rem; text-align: center; }
-    .matrix th { position: sticky; top: 0; z-index: 1; background: #f8fafc; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .matrix .company { text-align: left; min-width: 180px; font-weight: 700; color: #0f172a; }
-    .matrix .category-cell { text-align: left; width: 110px; }
-    .matrix .cnpj { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.7rem; color: #475569; white-space: nowrap; }
-    .matrix .cnae { font-size: 0.7rem; color: #64748b; max-width: 200px; text-align: left; }
-    .matrix tbody tr:hover { background: #f8fafc; }
-    .matrix tbody tr.is-muted { opacity: 0.24; }
-    .category-pill { display: inline-flex; align-items: center; height: 22px; border-radius: 999px; padding: 0 0.55rem; font-size: 0.68rem; font-weight: 800; }
-    .category-pill.strategic { background: #eef2ff; color: #3730a3; }
-    .category-pill.operation { background: #ecfdf5; color: #047857; }
-    .category-pill.own { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
-    .person-dot { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 999px; color: #fff; font-size: 0.65rem; font-weight: 900; }
-    .person-dot.empty { background: transparent; color: #cbd5e1; border: 1px dashed #cbd5e1; }
-    .person-dot.side { background: #fff; border: 2px dashed currentColor; }
-    .person-dot.elizeu { background: #7c3aed; color: #fff; }
-    .person-dot.elizeu.side { background: #fff; color: #7c3aed; }
-    .person-dot.guilherme { background: #0891b2; color: #fff; }
-    .person-dot.guilherme.side { background: #fff; color: #0891b2; }
-    .person-dot.gislayne { background: #a855f7; color: #fff; }
-    .person-dot.gilliard { background: #d97706; color: #fff; }
-    .person-dot.carolina { background: #db2777; color: #fff; }
-    .summary-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.875rem; }
-    .metric { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.7rem 0.8rem; background: #fbfdff; }
-    .metric strong { display: block; font-size: 1.15rem; color: #0f172a; }
-    .metric span { font-size: 0.7rem; color: #64748b; }
-    .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #64748b; }
-    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.3rem; vertical-align: middle; }
-    .legend-dash { display: inline-block; width: 14px; height: 0; border-top: 2px dashed #94a3b8; margin-right: 0.3rem; vertical-align: middle; }
-  </style>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grupo Scheffer — Matriz Societária</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #f8fafc;
+        color: #1e293b;
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        min-height: 100vh;
+      }
+      .page {
+        display: grid;
+        gap: 1rem;
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin: 0 auto;
+        width: 100%;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      }
+      .card h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #065f46;
+      }
+      .card .sub {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        margin-bottom: 1rem;
+      }
+      .matrix-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.875rem;
+      }
+      .filter-btn {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: #475569;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .filter-btn.is-active {
+        border-color: #059669;
+        background: #ecfdf5;
+        color: #065f46;
+      }
+      .matrix-wrap {
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+      }
+      .matrix {
+        width: 100%;
+        min-width: 940px;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+      }
+      .matrix th,
+      .matrix td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.55rem 0.65rem;
+        text-align: center;
+      }
+      .matrix th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .matrix .company {
+        text-align: left;
+        min-width: 180px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .matrix .category-cell {
+        text-align: left;
+        width: 110px;
+      }
+      .matrix .cnpj {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.7rem;
+        color: #475569;
+        white-space: nowrap;
+      }
+      .matrix .cnae {
+        font-size: 0.7rem;
+        color: #64748b;
+        max-width: 200px;
+        text-align: left;
+      }
+      .matrix tbody tr:hover {
+        background: #f8fafc;
+      }
+      .matrix tbody tr.is-muted {
+        opacity: 0.24;
+      }
+      .category-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        border-radius: 999px;
+        padding: 0 0.55rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+      }
+      .category-pill.strategic {
+        background: #eef2ff;
+        color: #3730a3;
+      }
+      .category-pill.operation {
+        background: #ecfdf5;
+        color: #047857;
+      }
+      .category-pill.own {
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+      }
+      .person-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 900;
+      }
+      .person-dot.empty {
+        background: transparent;
+        color: #cbd5e1;
+        border: 1px dashed #cbd5e1;
+      }
+      .person-dot.side {
+        background: #fff;
+        border: 2px dashed currentColor;
+      }
+      .person-dot.elizeu {
+        background: #7c3aed;
+        color: #fff;
+      }
+      .person-dot.elizeu.side {
+        background: #fff;
+        color: #7c3aed;
+      }
+      .person-dot.guilherme {
+        background: #0891b2;
+        color: #fff;
+      }
+      .person-dot.guilherme.side {
+        background: #fff;
+        color: #0891b2;
+      }
+      .person-dot.gislayne {
+        background: #a855f7;
+        color: #fff;
+      }
+      .person-dot.gilliard {
+        background: #d97706;
+        color: #fff;
+      }
+      .person-dot.carolina {
+        background: #db2777;
+        color: #fff;
+      }
+      .summary-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 0.875rem;
+      }
+      .metric {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 0.7rem 0.8rem;
+        background: #fbfdff;
+      }
+      .metric strong {
+        display: block;
+        font-size: 1.15rem;
+        color: #0f172a;
+      }
+      .metric span {
+        font-size: 0.7rem;
+        color: #64748b;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .legend-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 0.3rem;
+        vertical-align: middle;
+      }
+      .legend-dash {
+        display: inline-block;
+        width: 14px;
+        height: 0;
+        border-top: 2px dashed #94a3b8;
+        margin-right: 0.3rem;
+        vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="card">
+        <h2>Grupo Scheffer — Matriz societária compacta</h2>
+        <p class="sub">SCHEFFER &amp; CIA LTDA · leitura por empresa, categoria e sócios ligados</p>
 
-<main class="page">
-<div class="card">
-  <h2>Grupo Scheffer — Matriz societária compacta</h2>
-  <p class="sub">SCHEFFER &amp; CIA LTDA · leitura por empresa, categoria e sócios ligados</p>
+        <div class="summary-row">
+          <div class="metric"><strong>16</strong><span>empresas mapeadas</span></div>
+          <div class="metric"><strong>4</strong><span>frentes estratégicas</span></div>
+          <div class="metric"><strong>4</strong><span>operações compartilhadas</span></div>
+          <div class="metric"><strong>8</strong><span>empresas próprias</span></div>
+        </div>
 
-  <div class="summary-row">
-    <div class="metric"><strong>16</strong><span>empresas mapeadas</span></div>
-    <div class="metric"><strong>4</strong><span>frentes estratégicas</span></div>
-    <div class="metric"><strong>4</strong><span>operações compartilhadas</span></div>
-    <div class="metric"><strong>8</strong><span>empresas próprias</span></div>
-  </div>
+        <div class="matrix-toolbar" aria-label="Filtros da matriz societária">
+          <button class="filter-btn is-active" type="button" data-filter="all">Todos</button>
+          <button class="filter-btn" type="button" data-filter="strategic">Estratégico</button>
+          <button class="filter-btn" type="button" data-filter="operation">Operações</button>
+          <button class="filter-btn" type="button" data-filter="own">Próprias</button>
+          <button class="filter-btn" type="button" data-filter="elizeu">Elizeu</button>
+          <button class="filter-btn" type="button" data-filter="guilherme">Guilherme</button>
+          <button class="filter-btn" type="button" data-filter="gislayne">Gislayne</button>
+          <button class="filter-btn" type="button" data-filter="gilliard">Gilliard</button>
+          <button class="filter-btn" type="button" data-filter="carolina">Carolina</button>
+        </div>
 
-  <div class="matrix-toolbar" aria-label="Filtros da matriz societária">
-    <button class="filter-btn is-active" type="button" data-filter="all">Todos</button>
-    <button class="filter-btn" type="button" data-filter="strategic">Estratégico</button>
-    <button class="filter-btn" type="button" data-filter="operation">Operações</button>
-    <button class="filter-btn" type="button" data-filter="own">Próprias</button>
-    <button class="filter-btn" type="button" data-filter="elizeu">Elizeu</button>
-    <button class="filter-btn" type="button" data-filter="guilherme">Guilherme</button>
-    <button class="filter-btn" type="button" data-filter="gislayne">Gislayne</button>
-    <button class="filter-btn" type="button" data-filter="gilliard">Gilliard</button>
-    <button class="filter-btn" type="button" data-filter="carolina">Carolina</button>
-  </div>
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th class="company">Empresa</th>
+                <th class="category-cell">Grupo</th>
+                <th>CNPJ</th>
+                <th>CNAE</th>
+                <th>Elizeu</th>
+                <th>Guilherme</th>
+                <th>Gislayne</th>
+                <th>Gilliard</th>
+                <th>Carolina</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-tags="strategic elizeu guilherme gislayne gilliard">
+                <td class="company">Scheffer Participações</td>
+                <td class="category-cell"><span class="category-pill strategic">Estratégico</span></td>
+                <td class="cnpj">11.021.773/0001-70</td>
+                <td class="cnae">6462000 — Holdings</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="strategic elizeu guilherme gislayne gilliard">
+                <td class="company">Gestora Intangíveis</td>
+                <td class="category-cell"><span class="category-pill strategic">Estratégico</span></td>
+                <td class="cnpj">36.659.054/0001-00</td>
+                <td class="cnae">7740300 — Gestão de ativos intangíveis</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="strategic elizeu guilherme gislayne gilliard">
+                <td class="company">Armazéns Gerais</td>
+                <td class="category-cell"><span class="category-pill strategic">Estratégico</span></td>
+                <td class="cnpj">20.482.604/0001-29</td>
+                <td class="cnae">5211701 — Armazéns gerais</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="strategic elizeu carolina">
+                <td class="company">Comercial Atacadista</td>
+                <td class="category-cell"><span class="category-pill strategic">Estratégico</span></td>
+                <td class="cnpj">37.098.891/0001-70</td>
+                <td class="cnae">4622200 — Comércio atacadista de soja</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="operation elizeu guilherme gislayne gilliard carolina">
+                <td class="company">Scheffer Locação</td>
+                <td class="category-cell"><span class="category-pill operation">Operações</span></td>
+                <td class="cnpj">36.633.427/0001-74</td>
+                <td class="cnae">6810202 — Aluguel de imóveis próprios</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="operation elizeu guilherme gislayne gilliard carolina">
+                <td class="company">Scheffer Biodenfensivos</td>
+                <td class="category-cell"><span class="category-pill operation">Operações</span></td>
+                <td class="cnpj">35.794.217/0001-03</td>
+                <td class="cnae">2051700 — Defensivos agrícolas</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="operation elizeu guilherme gislayne gilliard carolina">
+                <td class="company">Agropecuária Scheffer</td>
+                <td class="category-cell"><span class="category-pill operation">Operações</span></td>
+                <td class="cnpj">09.567.366/0001-11</td>
+                <td class="cnae">0115600 — Cultivo de soja</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="operation elizeu guilherme gislayne gilliard carolina">
+                <td class="company">Viso Mineração</td>
+                <td class="category-cell"><span class="category-pill operation">Operações</span></td>
+                <td class="cnpj">38.132.093/0001-80</td>
+                <td class="cnae">2013402 — Adubos e fertilizantes</td>
+                <td><span class="person-dot elizeu">E</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="own carolina">
+                <td class="company">Atelier Carolina</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">29.154.919/0001-11</td>
+                <td class="cnae">3101200 — Móveis de madeira</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot carolina">C</span></td>
+              </tr>
+              <tr data-tags="own guilherme">
+                <td class="company">Cooperbio</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">08.306.244/0001-09</td>
+                <td class="cnae">1932200 — Biocombustíveis</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own guilherme">
+                <td class="company">Red House Escola</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">49.708.260/0001-05</td>
+                <td class="cnae">8512100 — Educação infantil</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot guilherme side">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own guilherme">
+                <td class="company">Tree Hub Florestal</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">36.633.350/0001-32</td>
+                <td class="cnae">0230600 — Apoio prod. florestal</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot guilherme side">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own guilherme">
+                <td class="company">GMS Empreendimentos</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">29.165.739/0001-35</td>
+                <td class="cnae">6462000 — Holdings</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot guilherme">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own gislayne">
+                <td class="company">GRS Empreendimentos</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">26.856.733/0001-16</td>
+                <td class="cnae">6462000 — Holdings</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot gislayne">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own gilliard">
+                <td class="company">GAS Empreendimentos</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">29.166.326/0001-75</td>
+                <td class="cnae">6462000 — Holdings</td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot gilliard">G</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+              <tr data-tags="own elizeu">
+                <td class="company">Agropecuária EZS</td>
+                <td class="category-cell"><span class="category-pill own">Próprias</span></td>
+                <td class="cnpj">57.551.892/0001-36</td>
+                <td class="cnae">0115600 — Cultivo de soja</td>
+                <td><span class="person-dot elizeu side">E</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+                <td><span class="person-dot empty">-</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-  <div class="matrix-wrap">
-    <table class="matrix">
-      <thead>
-        <tr>
-          <th class="company">Empresa</th>
-          <th class="category-cell">Grupo</th>
-          <th>CNPJ</th>
-          <th>CNAE</th>
-          <th>Elizeu</th>
-          <th>Guilherme</th>
-          <th>Gislayne</th>
-          <th>Gilliard</th>
-          <th>Carolina</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr data-tags="strategic elizeu guilherme gislayne gilliard"><td class="company">Scheffer Participações</td><td class="category-cell"><span class="category-pill strategic">Estratégico</span></td><td class="cnpj">11.021.773/0001-70</td><td class="cnae">6462000 — Holdings</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="strategic elizeu guilherme gislayne gilliard"><td class="company">Gestora Intangíveis</td><td class="category-cell"><span class="category-pill strategic">Estratégico</span></td><td class="cnpj">36.659.054/0001-00</td><td class="cnae">7740300 — Gestão de ativos intangíveis</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="strategic elizeu guilherme gislayne gilliard"><td class="company">Armazéns Gerais</td><td class="category-cell"><span class="category-pill strategic">Estratégico</span></td><td class="cnpj">20.482.604/0001-29</td><td class="cnae">5211701 — Armazéns gerais</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="strategic elizeu carolina"><td class="company">Comercial Atacadista</td><td class="category-cell"><span class="category-pill strategic">Estratégico</span></td><td class="cnpj">37.098.891/0001-70</td><td class="cnae">4622200 — Comércio atacadista de soja</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="operation elizeu guilherme gislayne gilliard carolina"><td class="company">Scheffer Locação</td><td class="category-cell"><span class="category-pill operation">Operações</span></td><td class="cnpj">36.633.427/0001-74</td><td class="cnae">6810202 — Aluguel de imóveis próprios</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="operation elizeu guilherme gislayne gilliard carolina"><td class="company">Scheffer Biodenfensivos</td><td class="category-cell"><span class="category-pill operation">Operações</span></td><td class="cnpj">35.794.217/0001-03</td><td class="cnae">2051700 — Defensivos agrícolas</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="operation elizeu guilherme gislayne gilliard carolina"><td class="company">Agropecuária Scheffer</td><td class="category-cell"><span class="category-pill operation">Operações</span></td><td class="cnpj">09.567.366/0001-11</td><td class="cnae">0115600 — Cultivo de soja</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="operation elizeu guilherme gislayne gilliard carolina"><td class="company">Viso Mineração</td><td class="category-cell"><span class="category-pill operation">Operações</span></td><td class="cnpj">38.132.093/0001-80</td><td class="cnae">2013402 — Adubos e fertilizantes</td><td><span class="person-dot elizeu">E</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="own carolina"><td class="company">Atelier Carolina</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">29.154.919/0001-11</td><td class="cnae">3101200 — Móveis de madeira</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot carolina">C</span></td></tr>
-        <tr data-tags="own guilherme"><td class="company">Cooperbio</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">08.306.244/0001-09</td><td class="cnae">1932200 — Biocombustíveis</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own guilherme"><td class="company">Red House Escola</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">49.708.260/0001-05</td><td class="cnae">8512100 — Educação infantil</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot guilherme side">G</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own guilherme"><td class="company">Tree Hub Florestal</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">36.633.350/0001-32</td><td class="cnae">0230600 — Apoio prod. florestal</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot guilherme side">G</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own guilherme"><td class="company">GMS Empreendimentos</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">29.165.739/0001-35</td><td class="cnae">6462000 — Holdings</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot guilherme">G</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own gislayne"><td class="company">GRS Empreendimentos</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">26.856.733/0001-16</td><td class="cnae">6462000 — Holdings</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot gislayne">G</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own gilliard"><td class="company">GAS Empreendimentos</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">29.166.326/0001-75</td><td class="cnae">6462000 — Holdings</td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot gilliard">G</span></td><td><span class="person-dot empty">-</span></td></tr>
-        <tr data-tags="own elizeu"><td class="company">Agropecuária EZS</td><td class="category-cell"><span class="category-pill own">Próprias</span></td><td class="cnpj">57.551.892/0001-36</td><td class="cnae">0115600 — Cultivo de soja</td><td><span class="person-dot elizeu side">E</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td><td><span class="person-dot empty">-</span></td></tr>
-      </tbody>
-    </table>
-  </div>
+        <div class="legend">
+          <span><span class="legend-dot" style="background: #7c3aed"></span> Elizeu</span>
+          <span><span class="legend-dot" style="background: #0891b2"></span> Guilherme</span>
+          <span><span class="legend-dot" style="background: #a855f7"></span> Gislayne</span>
+          <span><span class="legend-dot" style="background: #d97706"></span> Gilliard</span>
+          <span><span class="legend-dot" style="background: #db2777"></span> Carolina</span>
+          <span><span class="legend-dash"></span> Side business</span>
+        </div>
+      </div>
 
-  <div class="legend">
-    <span><span class="legend-dot" style="background:#7c3aed;"></span> Elizeu</span>
-    <span><span class="legend-dot" style="background:#0891b2;"></span> Guilherme</span>
-    <span><span class="legend-dot" style="background:#a855f7;"></span> Gislayne</span>
-    <span><span class="legend-dot" style="background:#d97706;"></span> Gilliard</span>
-    <span><span class="legend-dot" style="background:#db2777;"></span> Carolina</span>
-    <span><span class="legend-dash"></span> Side business</span>
-  </div>
-</div>
-
-<script>
-  document.querySelectorAll('.filter-btn').forEach((button) => {
-    button.addEventListener('click', () => {
-      const filter = button.dataset.filter;
-      document.querySelectorAll('.filter-btn').forEach((item) => item.classList.toggle('is-active', item === button));
-      document.querySelectorAll('.matrix tbody tr').forEach((row) => {
-        const tags = row.dataset.tags || '';
-        row.classList.toggle('is-muted', filter !== 'all' && !tags.includes(filter));
-      });
-    });
-  });
-</script>
-</main>
-</body>
+      <script>
+        document.querySelectorAll('.filter-btn').forEach(button => {
+          button.addEventListener('click', () => {
+            const filter = button.dataset.filter;
+            document
+              .querySelectorAll('.filter-btn')
+              .forEach(item => item.classList.toggle('is-active', item === button));
+            document.querySelectorAll('.matrix tbody tr').forEach(row => {
+              const tags = row.dataset.tags || '';
+              row.classList.toggle('is-muted', filter !== 'all' && !tags.includes(filter));
+            });
+          });
+        });
+      </script>
+    </main>
+  </body>
 </html>

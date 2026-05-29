@@ -111,7 +111,7 @@ export interface CompetitorDetection {
   revendaLocal?: string;
   confianca?: 'alta' | 'media' | 'baixa';
   fontes?: string[];
-  raw?: string;          // texto bruto retornado pelo Gemini
+  raw?: string; // texto bruto retornado pelo Gemini
   detected?: boolean;
   names?: string[];
 }
@@ -125,7 +125,7 @@ export interface CompetitorProfile {
   playStoreUltimaAtualizacao?: string;
   appStoreRating?: number;
   reclamacoesTop?: string[];
-  novidadesRecentes?: string[];        // lançamentos dos últimos 90 dias
+  novidadesRecentes?: string[]; // lançamentos dos últimos 90 dias
   revendaRegional?: string;
   estimativaPreco?: string;
   pontosFracos?: string[];
@@ -136,8 +136,8 @@ export interface CompetitorProfile {
 export interface PricingIntel {
   competitorId: string;
   nomeERP: string;
-  faixaPrecoUsuario?: string;          // ex: "R$ 800-1.500/usr/mês"
-  modeloLicenca?: string;              // SaaS | Licença Perpétua | Híbrido
+  faixaPrecoUsuario?: string; // ex: "R$ 800-1.500/usr/mês"
+  modeloLicenca?: string; // SaaS | Licença Perpétua | Híbrido
   custoImplantacaoEstimado?: string;
   prazoImplantacaoMedio?: string;
   fontes: string[];
@@ -152,11 +152,13 @@ export interface PricingIntel {
 function buildDetectPrompt(nomeEmpresa: string, estado?: string): string {
   const safeName = safeCompanyName(nomeEmpresa);
   const revendasEstado = estado ? getRevendasPorEstado(estado) : [];
-  const revendasCtx = revendasEstado.length > 0
-    ? `\n\nREVENDAS ATIVAS EM ${estado}:\n` + revendasEstado.map(r =>
-        `- ${r.concorrente}: ${r.revenda.nome} (${r.revenda.cidades_chave.join(', ')})`
-      ).join('\n')
-    : '';
+  const revendasCtx =
+    revendasEstado.length > 0
+      ? `\n\nREVENDAS ATIVAS EM ${estado}:\n` +
+        revendasEstado
+          .map(r => `- ${r.concorrente}: ${r.revenda.nome} (${r.revenda.cidades_chave.join(', ')})`)
+          .join('\n')
+      : '';
 
   return `
 Você é um analista de inteligência competitiva. Pesquise AGORA, usando busca na web, qual sistema ERP ou software de gestão a empresa <company_name>${safeName}</company_name> utiliza atualmente.
@@ -239,7 +241,10 @@ RESPONDA no formato JSON abaixo:
 `;
 }
 
-function buildPricingPrompt(concorrente: Concorrente, porteEmpresa: 'pequeno' | 'medio' | 'grande' | 'enterprise'): string {
+function buildPricingPrompt(
+  concorrente: Concorrente,
+  porteEmpresa: 'pequeno' | 'medio' | 'grande' | 'enterprise',
+): string {
   const { nome, fabricante } = concorrente;
 
   return `
@@ -301,7 +306,7 @@ Se não encontrar dados confiáveis, retorne os campos como null e confianca com
 export async function detectCompetitorFromContext(
   nomeEmpresa: string,
   estado?: string,
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>
+  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<CompetitorDetection> {
   if (!callGeminiDeepSearch) {
     return { encontrado: false };
@@ -321,15 +326,17 @@ export async function detectCompetitorFromContext(
     const confianca = get('CONFIANCA') as 'alta' | 'media' | 'baixa';
     const revenda = get('REVENDA_LOCAL');
     const ameaca = get('NIVEL_AMEACA') as 'alto' | 'medio' | 'baixo';
-    const fontes = get('FONTES').split(',').map(f => f.trim()).filter(Boolean);
+    const fontes = get('FONTES')
+      .split(',')
+      .map(f => f.trim())
+      .filter(Boolean);
 
     if (!sistema || sistema === 'DESCONHECIDO') {
       return { encontrado: false, raw };
     }
 
-    const match = CONCORRENTES.find(c =>
-      sistema.toLowerCase().includes(c.nome.toLowerCase()) ||
-      c.nome.toLowerCase().includes(sistema.toLowerCase())
+    const match = CONCORRENTES.find(
+      c => sistema.toLowerCase().includes(c.nome.toLowerCase()) || c.nome.toLowerCase().includes(sistema.toLowerCase()),
     );
 
     return {
@@ -354,7 +361,7 @@ export async function detectCompetitorFromContext(
  */
 export async function pullCompetitorProfile(
   competitorId: string,
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>
+  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<CompetitorProfile | null> {
   const concorrente = getConcorrente(competitorId);
   if (!concorrente || !callGeminiDeepSearch) return null;
@@ -382,7 +389,7 @@ export async function pullCompetitorProfile(
 export async function generatePricingIntel(
   competitorId: string,
   porteEmpresa: 'pequeno' | 'medio' | 'grande' | 'enterprise',
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>
+  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<PricingIntel | null> {
   const concorrente = getConcorrente(competitorId);
   if (!concorrente || !callGeminiDeepSearch) return null;
@@ -400,8 +407,7 @@ export async function generatePricingIntel(
         modeloLicenca: typeof data.modeloLicenca === 'string' ? data.modeloLicenca : undefined,
         custoImplantacaoEstimado:
           typeof data.custoImplantacaoEstimado === 'string' ? data.custoImplantacaoEstimado : undefined,
-        prazoImplantacaoMedio:
-          typeof data.prazoImplantacaoMedio === 'string' ? data.prazoImplantacaoMedio : undefined,
+        prazoImplantacaoMedio: typeof data.prazoImplantacaoMedio === 'string' ? data.prazoImplantacaoMedio : undefined,
         fontes: Array.isArray(data.fontes)
           ? data.fontes.filter((value): value is string => typeof value === 'string')
           : [],
@@ -449,12 +455,12 @@ export function formatarDeteccaoParaPrompt(detection: CompetitorDetection): stri
 export function formatarProfileParaUI(profile: CompetitorProfile): string {
   if (!profile) return '';
 
-  const linhas: string[] = [
-    `**${profile.nomeERP}** — Perfil atualizado`,
-  ];
+  const linhas: string[] = [`**${profile.nomeERP}** — Perfil atualizado`];
 
   if (profile.playStoreRating) {
-    linhas.push(`📱 Play Store: ★ ${profile.playStoreRating} (${profile.playStoreReviews || '?'} avaliações) — ${profile.playStoreUltimaAtualizacao || 'data não encontrada'}`);
+    linhas.push(
+      `📱 Play Store: ★ ${profile.playStoreRating} (${profile.playStoreReviews || '?'} avaliações) — ${profile.playStoreUltimaAtualizacao || 'data não encontrada'}`,
+    );
   }
   if (profile.appStoreRating) {
     linhas.push(`🍎 App Store: ★ ${profile.appStoreRating}`);
@@ -476,8 +482,9 @@ export function getContextoConcorrentesRegionais(uf: string): string {
   const revendas = getRevendasPorEstado(uf);
   if (!revendas.length) return '';
 
-  const linhas = revendas.map(r =>
-    `- ${r.concorrente}: ${r.revenda.nome} (${r.revenda.cidades_chave.join(', ')}) — ${r.revenda.especialidade.join(', ')}`
+  const linhas = revendas.map(
+    r =>
+      `- ${r.concorrente}: ${r.revenda.nome} (${r.revenda.cidades_chave.join(', ')}) — ${r.revenda.especialidade.join(', ')}`,
   );
 
   return `

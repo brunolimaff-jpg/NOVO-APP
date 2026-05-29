@@ -3,10 +3,7 @@ import { stripGeneratedSourcesFooter } from './dossierLinkIntegrity';
 
 export const DOSSIER_SOURCES_FOOTER_HEADING = '## 📚 Fontes';
 
-export function appendDossierSourcesFooter(
-  bodyMarkdown: string,
-  sources: AuditableSource[],
-): string {
+export function appendDossierSourcesFooter(bodyMarkdown: string, sources: AuditableSource[]): string {
   const body = stripGeneratedSourcesFooter(bodyMarkdown).trimEnd();
   const cited = sources.filter(
     source =>
@@ -14,9 +11,7 @@ export function appendDossierSourcesFooter(
       source.sourceTypes.includes('inline_citation') &&
       !source.sourceTypes.includes('inferred_without_url'),
   );
-  const consultedNotCited = sources.filter(
-    source => source.url && source.sourceTypes.includes('consulted_not_cited'),
-  );
+  const consultedNotCited = sources.filter(source => source.url && source.sourceTypes.includes('consulted_not_cited'));
 
   if (cited.length === 0 && consultedNotCited.length === 0) {
     return body;

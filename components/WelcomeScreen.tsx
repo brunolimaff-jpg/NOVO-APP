@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 
 interface WelcomeScreenProps {
@@ -9,15 +8,14 @@ interface WelcomeScreenProps {
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill, userName, isDarkMode }) => {
-  
   // Random generic greeting for guests (stable per component mount)
   const [randomGreeting] = useState(() => {
     const greetings = [
-      "E aí, parceiro! Qual empresa a gente vai fuçar hoje?",
-      "Bora, comandante! Qual alvo vamos investigar?",
-      "Pronto pra ação! Qual empresa quer desvendar hoje?",
-      "Salve, bandeirante! Quem é o alvo da vez?",
-      "Tamo on! Manda o nome da empresa que eu faço o resto.",
+      'E aí, parceiro! Qual empresa a gente vai fuçar hoje?',
+      'Bora, comandante! Qual alvo vamos investigar?',
+      'Pronto pra ação! Qual empresa quer desvendar hoje?',
+      'Salve, bandeirante! Quem é o alvo da vez?',
+      'Tamo on! Manda o nome da empresa que eu faço o resto.',
     ];
     return greetings[Math.floor(Math.random() * greetings.length)];
   });
@@ -25,34 +23,52 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
   // Determine which greeting to use
   // We double check against "Sair" here just in case, though ChatInterface handles extraction.
   const hasValidName = userName && userName !== 'Sair' && userName.trim().length > 0;
-  
-  const displayGreeting = hasValidName 
-    ? `E aí, ${userName}! Qual empresa a gente vai fuçar hoje?`
-    : randomGreeting;
+
+  const displayGreeting = hasValidName ? `E aí, ${userName}! Qual empresa a gente vai fuçar hoje?` : randomGreeting;
 
   // Comandos rápidos clicáveis
   const quickActions = [
-    { icon: "🔍", label: "Investigar", desc: "Dossiê completo", prompt: "Investigar a empresa " },
-    { icon: "🔄", label: "Cross-sell", desc: "O que mais vender", prompt: "O que consigo vender de cross na " },
-    { icon: "⚔️", label: "Competitivo", desc: "Ganhar da concorrência", prompt: "Estou concorrendo contra a TOTVS na empresa " },
-    { icon: "📡", label: "Radar", desc: "Panorama do setor", prompt: "Me dá o radar do setor de " },
-    { icon: "🔔", label: "Alertas", desc: "O que mudou", prompt: "Verificar alertas e novidades da " },
+    { icon: '🔍', label: 'Investigar', desc: 'Dossiê completo', prompt: 'Investigar a empresa ' },
+    { icon: '🔄', label: 'Cross-sell', desc: 'O que mais vender', prompt: 'O que consigo vender de cross na ' },
+    {
+      icon: '⚔️',
+      label: 'Competitivo',
+      desc: 'Ganhar da concorrência',
+      prompt: 'Estou concorrendo contra a TOTVS na empresa ',
+    },
+    { icon: '📡', label: 'Radar', desc: 'Panorama do setor', prompt: 'Me dá o radar do setor de ' },
+    { icon: '🔔', label: 'Alertas', desc: 'O que mudou', prompt: 'Verificar alertas e novidades da ' },
   ];
 
   // Exemplos prontos (clica e envia direto)
   const examples = [
-    { icon: "🤠", text: "Levanta a capivara completa do Grupo Scheffer" },
-    { icon: "💸", text: "Estou concorrendo contra a TOTVS na Polato Sementes pra vender ERP" },
-    { icon: "🔄", text: "O que consigo vender de cross na Jequitibá Agro?" },
-    { icon: "⚡", text: "Blitz da SLC Agrícola, tenho reunião em 10 min" },
+    { icon: '🤠', text: 'Levanta a capivara completa do Grupo Scheffer' },
+    { icon: '💸', text: 'Estou concorrendo contra a TOTVS na Polato Sementes pra vender ERP' },
+    { icon: '🔄', text: 'O que consigo vender de cross na Jequitibá Agro?' },
+    { icon: '⚡', text: 'Blitz da SLC Agrícola, tenho reunião em 10 min' },
   ];
 
   // Tutorial
   const steps = [
-    { num: "1", icon: "💬", title: "Fala a empresa", desc: "Nome, CNPJ ou descreve a situação. Pode ser coloquial." },
-    { num: "2", icon: "🔎", title: "Scout investiga", desc: "Puxa dados fiscais, societários, tech stack, concorrência e cruza com a base Senior." },
-    { num: "3", icon: "🎯", title: "Você recebe o dossiê", desc: "Score de oportunidade, gaps de cross-sell, argumentos e script de abordagem." },
-    { num: "4", icon: "🔬", title: "Aprofunda o que quiser", desc: "Use os botões de drill-down ou pergunte em texto livre." },
+    { num: '1', icon: '💬', title: 'Fala a empresa', desc: 'Nome, CNPJ ou descreve a situação. Pode ser coloquial.' },
+    {
+      num: '2',
+      icon: '🔎',
+      title: 'Scout investiga',
+      desc: 'Puxa dados fiscais, societários, tech stack, concorrência e cruza com a base Senior.',
+    },
+    {
+      num: '3',
+      icon: '🎯',
+      title: 'Você recebe o dossiê',
+      desc: 'Score de oportunidade, gaps de cross-sell, argumentos e script de abordagem.',
+    },
+    {
+      num: '4',
+      icon: '🔬',
+      title: 'Aprofunda o que quiser',
+      desc: 'Use os botões de drill-down ou pergunte em texto livre.',
+    },
   ];
 
   const theme = {
@@ -77,19 +93,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
   return (
     <div className="flex-1 overflow-auto animate-fade-in custom-scrollbar">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🎯</div>
-          <h1 className={`text-2xl font-bold mb-1 ${theme.textPrimary}`}>
-            🦅 Senior Scout 360
-          </h1>
-          <p className={`${theme.textSecondary} text-sm`}>
-            Inteligência comercial que transforma dados em vendas
-          </p>
-          <p className="text-green-500 font-medium text-sm mt-2">
-            {displayGreeting}
-          </p>
+          <h1 className={`text-2xl font-bold mb-1 ${theme.textPrimary}`}>🦅 Senior Scout 360</h1>
+          <p className={`${theme.textSecondary} text-sm`}>Inteligência comercial que transforma dados em vendas</p>
+          <p className="text-green-500 font-medium text-sm mt-2">{displayGreeting}</p>
         </div>
 
         {/* Arsenal de Sugestões */}
@@ -98,7 +107,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
             💡 Arsenal de Sugestões
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {quickActions.map((action) => (
+            {quickActions.map(action => (
               <button
                 key={action.label}
                 onClick={() => onPreFill(action.prompt)}
@@ -137,15 +146,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
 
         {/* Mini Tutorial */}
         <div className="mb-8">
-          <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 px-1 ${theme.heading}`}>
-            📖 Como funciona
-          </h2>
+          <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 px-1 ${theme.heading}`}>📖 Como funciona</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {steps.map((step) => (
-              <div
-                key={step.num}
-                className={`${theme.tutorialBg} border ${theme.tutorialBorder} rounded-xl p-3`}
-              >
+            {steps.map(step => (
+              <div key={step.num} className={`${theme.tutorialBg} border ${theme.tutorialBorder} rounded-xl p-3`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
                     {step.num}
@@ -196,10 +200,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
           <br />
           Desenvolvido por Bruno Lima — Senior Sistemas — Cuiabá, MT
         </div>
-
       </div>
     </div>
   );
-}
+};
 
 export default WelcomeScreen;

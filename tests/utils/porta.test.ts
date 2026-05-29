@@ -45,18 +45,20 @@ describe('PORTA helpers', () => {
   });
 
   it('removes the visible PORTA feed block while preserving the narrative above it', () => {
-    const cleaned = stripPortaMarkers([
-      'Texto principal do módulo.',
-      '',
-      '### 📊 BLOCO DE FEEDS PORTA',
-      '',
-      '**Dimensão O — Cadeia de Valor:**',
-      '- Nota O sugerida: 9',
-      '[[PORTA_FEED_O:9:ELOS:Plantio,Armazenagem]]',
-      '',
-      '# Próximo módulo',
-      'Continua aqui.',
-    ].join('\n'));
+    const cleaned = stripPortaMarkers(
+      [
+        'Texto principal do módulo.',
+        '',
+        '### 📊 BLOCO DE FEEDS PORTA',
+        '',
+        '**Dimensão O — Cadeia de Valor:**',
+        '- Nota O sugerida: 9',
+        '[[PORTA_FEED_O:9:ELOS:Plantio,Armazenagem]]',
+        '',
+        '# Próximo módulo',
+        'Continua aqui.',
+      ].join('\n'),
+    );
 
     expect(cleaned).toContain('Texto principal do módulo.');
     expect(cleaned).toContain('# Próximo módulo');

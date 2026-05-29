@@ -42,7 +42,7 @@ describe('warRoomService', () => {
     const { queryWarRoom } = await import('../../services/warRoomService');
 
     const history = Array.from({ length: 12 }).map((_, i) => ({
-      role: i % 2 === 0 ? 'user' as const : 'model' as const,
+      role: i % 2 === 0 ? ('user' as const) : ('model' as const),
       text: i === 0 ? 'OLD_MARKER should disappear' : `Mensagem ${i}`,
     }));
 
@@ -57,14 +57,16 @@ describe('warRoomService', () => {
   it('skips malformed source URLs without failing whole response', async () => {
     generateContentMock.mockResolvedValue({
       text: 'OK',
-      candidates: [{
-        groundingMetadata: {
-          groundingChunks: [
-            { web: { uri: 'ht!tp://invalid uri', title: 'Bad' } },
-            { web: { uri: 'https://example.com/docs', title: 'Good' } },
-          ]
-        }
-      }],
+      candidates: [
+        {
+          groundingMetadata: {
+            groundingChunks: [
+              { web: { uri: 'ht!tp://invalid uri', title: 'Bad' } },
+              { web: { uri: 'https://example.com/docs', title: 'Good' } },
+            ],
+          },
+        },
+      ],
     });
 
     const { queryWarRoom } = await import('../../services/warRoomService');
@@ -80,9 +82,9 @@ describe('warRoomService', () => {
     const statuses: string[] = [];
     const { queryWarRoom } = await import('../../services/warRoomService');
 
-    const result = await queryWarRoom('tech', 'Explique integração NFe', [], '', (s) => statuses.push(s));
+    const result = await queryWarRoom('tech', 'Explique integração NFe', [], '', s => statuses.push(s));
 
-    expect(statuses.some((s) => s.includes('Pinecone indisponível'))).toBe(true);
+    expect(statuses.some(s => s.includes('Pinecone indisponível'))).toBe(true);
     expect(result.text).toContain('Aviso: o contexto do Pinecone');
   });
 
@@ -135,7 +137,9 @@ describe('warRoomService', () => {
 
     await queryWarRoom('tech', 'não é melhor usar o fercus para custo?', [], '', undefined);
 
-    expect(buscarDocsMock.mock.calls.some((call) => String(call[0]).includes('fercus gestão de custos gerenciais'))).toBe(true);
+    expect(buscarDocsMock.mock.calls.some(call => String(call[0]).includes('fercus gestão de custos gerenciais'))).toBe(
+      true,
+    );
     const payload = generateContentMock.mock.calls[0][0];
     const prompt = payload.contents[0].parts[0].text as string;
     expect(prompt).toContain('FOCO DE RESPOSTA (FERCUS)');
@@ -145,11 +149,13 @@ describe('warRoomService', () => {
   });
 
   it('injects fercus official reference when retrieval misses it', async () => {
-    buscarDocsMock.mockResolvedValue([
-      '### ERP: Custos Gerenciais',
-      'Descrição genérica sobre custos no ERP.',
-      '(Fonte: https://documentacao.senior.com.br/erp/custos-gerenciais)',
-    ].join('\n'));
+    buscarDocsMock.mockResolvedValue(
+      [
+        '### ERP: Custos Gerenciais',
+        'Descrição genérica sobre custos no ERP.',
+        '(Fonte: https://documentacao.senior.com.br/erp/custos-gerenciais)',
+      ].join('\n'),
+    );
     generateContentMock.mockResolvedValue(emptyResponse);
     const { queryWarRoom } = await import('../../services/warRoomService');
 
@@ -180,18 +186,22 @@ describe('warRoomService', () => {
 
     await queryWarRoom('tech', 'como funciona a gestão agrícola da gatec?', [], '', undefined);
 
-    expect(buscarDocsMock.mock.calls.some((call) => String(call[0]).includes('simplefarm manual do usuário agrícola'))).toBe(true);
+    expect(
+      buscarDocsMock.mock.calls.some(call => String(call[0]).includes('simplefarm manual do usuário agrícola')),
+    ).toBe(true);
     const payload = generateContentMock.mock.calls[0][0];
     const prompt = payload.contents[0].parts[0].text as string;
     expect(prompt).toContain('manual-do-usuario/agricola');
   });
 
   it('prioritizes ERP Banking references on benchmark banking questions', async () => {
-    buscarDocsMock.mockResolvedValue([
-      '### ERP Banking: Conciliação Bancária',
-      'Fluxo de conciliação bancária no sistema.',
-      '(Fonte: https://documentacao.senior.com.br/banking/conciliacao)',
-    ].join('\n'));
+    buscarDocsMock.mockResolvedValue(
+      [
+        '### ERP Banking: Conciliação Bancária',
+        'Fluxo de conciliação bancária no sistema.',
+        '(Fonte: https://documentacao.senior.com.br/banking/conciliacao)',
+      ].join('\n'),
+    );
     buscarBaseMock.mockResolvedValue('');
     generateContentMock.mockResolvedValue(emptyResponse);
     const { queryWarRoom } = await import('../../services/warRoomService');
@@ -199,7 +209,7 @@ describe('warRoomService', () => {
     await queryWarRoom('benchmark', 'compare senior vs totvs na integração bancária (cnab)', [], 'TOTVS', undefined);
 
     expect(
-      buscarDocsMock.mock.calls.some((call) => String(call[0]).toLowerCase().includes('erp banking integração bancária')),
+      buscarDocsMock.mock.calls.some(call => String(call[0]).toLowerCase().includes('erp banking integração bancária')),
     ).toBe(true);
     const payload = generateContentMock.mock.calls[0][0];
     const prompt = payload.contents[0].parts[0].text as string;
@@ -209,9 +219,7 @@ describe('warRoomService', () => {
   });
 
   it('retries transient model errors and succeeds', async () => {
-    generateContentMock
-      .mockRejectedValueOnce(new Error('503 overloaded'))
-      .mockResolvedValueOnce(emptyResponse);
+    generateContentMock.mockRejectedValueOnce(new Error('503 overloaded')).mockResolvedValueOnce(emptyResponse);
 
     const { queryWarRoom } = await import('../../services/warRoomService');
     const result = await queryWarRoom('killscript', 'contra SAP', [], 'SAP', undefined);

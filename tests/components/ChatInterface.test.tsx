@@ -60,7 +60,13 @@ vi.mock('react-virtuoso', async () => {
 });
 
 vi.mock('../../components/MessageRow', () => ({
-  default: ({ index, data }: { index: number; data: { messages: Message[]; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean } }) => {
+  default: ({
+    index,
+    data,
+  }: {
+    index: number;
+    data: { messages: Message[]; onDeepDive?: (display: string, hidden: string) => Promise<void>; isLoading?: boolean };
+  }) => {
     const message = data.messages[index];
 
     return (
@@ -73,10 +79,7 @@ vi.mock('../../components/MessageRow', () => ({
           <span data-testid={`loading-smart-hero-${index}`}>loading-smart-hero</span>
         ) : null}
         {message.sender === 'bot' && !message.isThinking && !data.isLoading && data.onDeepDive ? (
-          <button
-            type="button"
-            onClick={() => data.onDeepDive?.('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH')}
-          >
+          <button type="button" onClick={() => data.onDeepDive?.('Dossiê completo: Tech Stack', 'HIDDEN_PROMPT_TECH')}>
             deep-dive-row-{index}
           </button>
         ) : null}
@@ -111,7 +114,11 @@ vi.mock('../../components/UserMenu', () => ({
 }));
 
 vi.mock('../../components/EmptyStateHome', () => ({
-  default: ({ onStartInvestigation }: { onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => void }) => (
+  default: ({
+    onStartInvestigation,
+  }: {
+    onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => void;
+  }) => (
     <div data-testid="empty-state-home">
       <button
         type="button"
@@ -135,7 +142,11 @@ vi.mock('../../components/SyncIndicator', () => ({
 }));
 
 vi.mock('../../components/GreetingWelcomeScreen', () => ({
-  default: ({ onConfirmOperator }: { onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void }) => (
+  default: ({
+    onConfirmOperator,
+  }: {
+    onConfirmOperator: (name: string, email: string, existingOperatorId?: string) => void;
+  }) => (
     <div data-testid="greeting-screen">
       <button type="button" onClick={() => onConfirmOperator('Bruno Lima', 'bruno.lima@senior.com.br')}>
         confirm-name
@@ -172,7 +183,9 @@ function buildSession(messages: Message[]): ChatSession {
   };
 }
 
-function buildProps(overrides: Partial<React.ComponentProps<typeof ChatInterface>> = {}): React.ComponentProps<typeof ChatInterface> {
+function buildProps(
+  overrides: Partial<React.ComponentProps<typeof ChatInterface>> = {},
+): React.ComponentProps<typeof ChatInterface> {
   return {
     currentSession: null,
     sessions: [],
@@ -385,7 +398,6 @@ describe('ChatInterface shell regression', () => {
     expect(screen.getByTestId('chat-war-room-icon')).toBeInTheDocument();
     expect(warRoomButton.querySelector('.animate-ping')).toBeNull();
   });
-
 
   it('cobre 2ª mensagem na mesma sessão com loading inline e sem hero na tela bonita', async () => {
     const firstRoundMessages = [

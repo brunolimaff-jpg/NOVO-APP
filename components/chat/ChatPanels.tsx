@@ -3,9 +3,7 @@ import { loadWithChunkRetry } from '../../utils/chunkRetry';
 import SuspenseWithError from '../SuspenseWithError';
 import type { RadarProps } from './contracts';
 
-const SettingsDrawer = React.lazy(() =>
-  loadWithChunkRetry(() => import('../SettingsDrawer')),
-);
+const SettingsDrawer = React.lazy(() => loadWithChunkRetry(() => import('../SettingsDrawer')));
 const WarRoom = React.lazy(() => loadWithChunkRetry(() => import('../WarRoom')));
 const RadarPanel = React.lazy(() => loadWithChunkRetry(() => import('../RadarPanel')));
 const RadarSettings = React.lazy(() => loadWithChunkRetry(() => import('../RadarSettings')));

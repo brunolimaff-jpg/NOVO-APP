@@ -1,4 +1,4 @@
-"use no memo";
+'use no memo';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -61,7 +61,8 @@ function extractNodeText(node: React.ReactNode): string {
   if (node == null || typeof node === 'boolean') return '';
   if (typeof node === 'string' || typeof node === 'number') return String(node);
   if (Array.isArray(node)) return node.map(extractNodeText).join('');
-  if (React.isValidElement(node)) return extractNodeText((node as React.ReactElement<{ children?: React.ReactNode }>).props.children);
+  if (React.isValidElement(node))
+    return extractNodeText((node as React.ReactElement<{ children?: React.ReactNode }>).props.children);
   return '';
 }
 
@@ -76,27 +77,23 @@ function isCitationOnlyLabel(value: string): boolean {
 
 function normalizeCitationArtifacts(input: string): string {
   if (!input) return '';
-  return input
-    // Remove numeric plain reference artifacts that often follow generated
-    // source links in tables, e.g. `[1.4](url) [4]`.
-    .replace(
-      /(\[\d+(?:\.\d+)?\]\(https?:\/\/(?:[^\s()]+|\([^\s()]*\))+\))(?:\s+\[\d+(?:\.\d+)?\])+/gi,
-      '$1',
-    )
-    // Collapse repeated numeric markdown citations that point to the same URL.
-    .replace(
-      /(\[\d+(?:\.\d+)?\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\))(?:\s+\[\d+(?:\.\d+)?\]\(\2\))+/gi,
-      '$1',
-    );
+  return (
+    input
+      // Remove numeric plain reference artifacts that often follow generated
+      // source links in tables, e.g. `[1.4](url) [4]`.
+      .replace(/(\[\d+(?:\.\d+)?\]\(https?:\/\/(?:[^\s()]+|\([^\s()]*\))+\))(?:\s+\[\d+(?:\.\d+)?\])+/gi, '$1')
+      // Collapse repeated numeric markdown citations that point to the same URL.
+      .replace(/(\[\d+(?:\.\d+)?\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\))(?:\s+\[\d+(?:\.\d+)?\]\(\2\))+/gi, '$1')
+  );
 }
 
-let mermaidSingleton: typeof import('mermaid')['default'] | null = null;
+let mermaidSingleton: (typeof import('mermaid'))['default'] | null = null;
 let mermaidTheme: string | null = null;
 
 /** Module-level SVG cache: key = sanitizedChart + "::" + themeKey */
 const mermaidSvgCache = new Map<string, string>();
 
-async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')['default']> {
+async function getMermaid(isDarkMode: boolean): Promise<(typeof import('mermaid'))['default']> {
   const themeKey = isDarkMode ? 'dark' : 'light';
   const mod = await loadWithChunkRetry(() => import('mermaid'));
   const mermaid = mod.default;
@@ -132,7 +129,7 @@ async function getMermaid(isDarkMode: boolean): Promise<typeof import('mermaid')
   return mermaid;
 }
 
-type MermaidWithParse = typeof import('mermaid')['default'] & {
+type MermaidWithParse = (typeof import('mermaid'))['default'] & {
   parse?: (chart: string) => Promise<unknown> | unknown;
 };
 
@@ -258,12 +255,7 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'de
   }
 
   if (variant === 'compact') {
-    return (
-      <div
-        className="mermaid-chart overflow-x-auto p-2"
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
-    );
+    return <div className="mermaid-chart overflow-x-auto p-2" dangerouslySetInnerHTML={{ __html: svg }} />;
   }
 
   return (
@@ -293,10 +285,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   allowRawHtml = false,
   variant = 'default',
 }) => {
-  const resolvedGroundingSources = useMemo(
-    () => coerceGroundingSources(groundingSources),
-    [groundingSources],
-  );
+  const resolvedGroundingSources = useMemo(() => coerceGroundingSources(groundingSources), [groundingSources]);
 
   const integrityBase = useMemo(() => {
     if (!content) return '';
@@ -360,14 +349,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // Converte <a href="...">texto</a> HTML bruto para markdown [texto](url).
     // Necessário porque allowRawHtml=false (XSS prevention) desabilita rehypeRaw,
     // então HTML de resultados de pesquisa não seria renderizado como link.
-    text = text.replace(
-      /<a\s+(?:[^>]*?\s+)?href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi,
-      (_match, url, linkText) => {
-        const trimmedText = linkText.trim();
-        if (!trimmedText || !url.trim()) return _match;
-        return `[${trimmedText}](${url.trim()})`;
-      },
-    );
+    text = text.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi, (_match, url, linkText) => {
+      const trimmedText = linkText.trim();
+      if (!trimmedText || !url.trim()) return _match;
+      return `[${trimmedText}](${url.trim()})`;
+    });
 
     text = text.replace(
       /\[(🟢|🟡|🟠|🔴)\s*(?:Fonte oficial|Não confirmado|Evidência forte|Suspeito)?[\s-–:]*([^\]\n]+?)\]/gi,
@@ -388,223 +374,253 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   // useMemo prevents a new object reference on every render. Without this, ReactMarkdown
   // would see new props on every render and re-run the full parse/transform pipeline.
-  const components: NonNullable<React.ComponentProps<typeof ReactMarkdown>['components']> = useMemo(() => ({
-    pre: ({ children }: { children: React.ReactNode }) => {
-      const childNodes = React.Children.toArray(children);
-      if (childNodes.some(isMermaidCodeNode)) {
-        return <div className="my-4">{children}</div>;
-      }
+  const components: NonNullable<React.ComponentProps<typeof ReactMarkdown>['components']> = useMemo(
+    () => ({
+      pre: ({ children }: { children: React.ReactNode }) => {
+        const childNodes = React.Children.toArray(children);
+        if (childNodes.some(isMermaidCodeNode)) {
+          return <div className="my-4">{children}</div>;
+        }
 
-      return (
-        <pre className="my-4 overflow-x-auto rounded-xl bg-slate-950 px-4 py-3 text-[0.78rem] leading-relaxed text-slate-100 dark:bg-slate-950/90">
-          {children}
-        </pre>
-      );
-    },
-
-    code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode }) => {
-      const langMatch = /language-(\w+)/.exec(className || '');
-      const isMermaid = !inline && langMatch && langMatch[1] === 'mermaid';
-
-      if (isMermaid) {
-        const chart = String(children).replace(/\n$/, '').trim();
-        return <MermaidChart chart={chart} isDarkMode={isDarkMode} variant={variant} />;
-      }
-
-      return (
-        <code
-          className={
-            'font-mono text-[0.75rem] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-900/60 ' +
-            'text-emerald-700 dark:text-emerald-300 ' +
-            (className || '')
-          }
-          {...props}
-        >
-          {children}
-        </code>
-      );
-    },
-
-    a: ({ href, children, className, title, ...props }: { href?: string; children: React.ReactNode; className?: string; title?: string }) => {
-      if (!href) return <>{children}</>;
-
-      if (className === 'citation-link') {
         return (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
-            title={title}
+          <pre className="my-4 overflow-x-auto rounded-xl bg-slate-950 px-4 py-3 text-[0.78rem] leading-relaxed text-slate-100 dark:bg-slate-950/90">
+            {children}
+          </pre>
+        );
+      },
+
+      code: ({
+        inline,
+        className,
+        children,
+        ...props
+      }: {
+        inline?: boolean;
+        className?: string;
+        children: React.ReactNode;
+      }) => {
+        const langMatch = /language-(\w+)/.exec(className || '');
+        const isMermaid = !inline && langMatch && langMatch[1] === 'mermaid';
+
+        if (isMermaid) {
+          const chart = String(children).replace(/\n$/, '').trim();
+          return <MermaidChart chart={chart} isDarkMode={isDarkMode} variant={variant} />;
+        }
+
+        return (
+          <code
+            className={
+              'font-mono text-[0.75rem] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-900/60 ' +
+              'text-emerald-700 dark:text-emerald-300 ' +
+              (className || '')
+            }
             {...props}
           >
             {children}
-          </a>
+          </code>
         );
-      }
+      },
 
-      const textContent = extractNodeText(children);
-      const cleanText = textContent.trim();
-      const isBadgeMatch = textContent.match(/^(🟢|🟡|🟠|🔴)/);
-      const citationIndex = citationMap.get(normalizeSourceUrl(href));
-      const isCitationLabel = isCitationOnlyLabel(cleanText);
-      const isDomainLike = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(cleanText);
-      const isLongLinkLabel = cleanText.length > 36 || /https?:\/\//i.test(cleanText);
+      a: ({
+        href,
+        children,
+        className,
+        title,
+        ...props
+      }: {
+        href?: string;
+        children: React.ReactNode;
+        className?: string;
+        title?: string;
+      }) => {
+        if (!href) return <>{children}</>;
 
-      if (isBadgeMatch) {
-        const displayDomain = href.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-        return (
-          <sup className="ml-0.5">
+        if (className === 'citation-link') {
+          return (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+              title={title}
+              {...props}
+            >
+              {children}
+            </a>
+          );
+        }
+
+        const textContent = extractNodeText(children);
+        const cleanText = textContent.trim();
+        const isBadgeMatch = textContent.match(/^(🟢|🟡|🟠|🔴)/);
+        const citationIndex = citationMap.get(normalizeSourceUrl(href));
+        const isCitationLabel = isCitationOnlyLabel(cleanText);
+        const isDomainLike = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?$/i.test(cleanText);
+        const isLongLinkLabel = cleanText.length > 36 || /https?:\/\//i.test(cleanText);
+
+        if (isBadgeMatch) {
+          const displayDomain = href.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+          return (
+            <sup className="ml-0.5">
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+                title={titleMap.get(normalizeSourceUrl(href)) || displayDomain}
+                {...props}
+              >
+                [{citationIndex ?? '?'}]
+              </a>
+            </sup>
+          );
+        }
+
+        if (citationIndex && (isDomainLike || isLongLinkLabel)) {
+          return (
+            <sup className="ml-0.5">
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+                title={titleMap.get(normalizeSourceUrl(href)) || cleanText || href}
+                {...props}
+              >
+                [{citationIndex}]
+              </a>
+            </sup>
+          );
+        }
+
+        if (citationIndex && isCitationLabel) {
+          return (
+            <sup className="ml-0.5">
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+                title={titleMap.get(normalizeSourceUrl(href)) || href}
+                {...props}
+              >
+                [{citationIndex}]
+              </a>
+            </sup>
+          );
+        }
+
+        if (!citationIndex && isDomainLike) {
+          const displayDomain = cleanText.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 visited:text-purple-600 hover:underline dark:text-blue-400 dark:visited:text-purple-400"
               title={titleMap.get(normalizeSourceUrl(href)) || displayDomain}
               {...props}
             >
-              [{citationIndex ?? '?'}]
+              {displayDomain} ↗
             </a>
-          </sup>
-        );
-      }
+          );
+        }
 
-      if (citationIndex && (isDomainLike || isLongLinkLabel)) {
+        const isAlreadyCitation = isCitationOnlyLabel(textContent);
+
         return (
-          <sup className="ml-0.5">
+          <span className="inline-flex items-baseline">
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
-              title={titleMap.get(normalizeSourceUrl(href)) || cleanText || href}
-              {...props}
-            >
-              [{citationIndex}]
-            </a>
-          </sup>
-        );
-      }
-
-      if (citationIndex && isCitationLabel) {
-        return (
-          <sup className="ml-0.5">
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-blue-600 visited:text-purple-600 hover:text-blue-800 hover:underline no-underline dark:text-blue-400 dark:visited:text-purple-400 dark:hover:text-blue-300"
+              className="break-words text-blue-600 visited:text-purple-600 transition-colors hover:underline dark:text-blue-400 dark:visited:text-purple-400"
               title={titleMap.get(normalizeSourceUrl(href)) || href}
               {...props}
             >
-              [{citationIndex}]
+              {children} ↗
             </a>
-          </sup>
+            {citationIndex && !isAlreadyCitation ? (
+              <sup className="ml-0.5 text-[10px] font-bold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400">
+                [{citationIndex}]
+              </sup>
+            ) : null}
+          </span>
         );
-      }
+      },
 
-      if (!citationIndex && isDomainLike) {
-        const displayDomain = cleanText.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-        return (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 visited:text-purple-600 hover:underline dark:text-blue-400 dark:visited:text-purple-400" title={titleMap.get(normalizeSourceUrl(href)) || displayDomain} {...props}>
-            {displayDomain} ↗
-          </a>
-        );
-      }
-
-      const isAlreadyCitation = isCitationOnlyLabel(textContent);
-
-      return (
-        <span className="inline-flex items-baseline">
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-words text-blue-600 visited:text-purple-600 transition-colors hover:underline dark:text-blue-400 dark:visited:text-purple-400"
-            title={titleMap.get(normalizeSourceUrl(href)) || href}
-            {...props}
-          >
-            {children} ↗
-          </a>
-          {citationIndex && !isAlreadyCitation ? (
-            <sup className="ml-0.5 text-[10px] font-bold text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400">
-              [{citationIndex}]
-            </sup>
-          ) : null}
-        </span>
-      );
-    },
-
-    sup: ({ children }: { children: React.ReactNode }) => <sup className="ml-0.5">{children}</sup>,
-    p: ({ children }: { children: React.ReactNode }) => (
-      <p className="mb-2 last:mb-0 text-sm leading-relaxed text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
-        {children}
-      </p>
-    ),
-    ul: ({ children }: { children: React.ReactNode }) => (
-      <ul className="mb-2 list-disc space-y-1 pl-5 text-sm text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
-        {children}
-      </ul>
-    ),
-    ol: ({ children }: { children: React.ReactNode }) => (
-      <ol className="mb-2 list-decimal space-y-1 pl-5 text-sm text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
-        {children}
-      </ol>
-    ),
-    li: ({ children }: { children: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
-    h1: ({ children }: { children: React.ReactNode }) => (
-      <h1 className="mb-4 border-b border-slate-200/80 pb-3 text-lg font-black tracking-tight text-slate-900 dark:border-slate-800 dark:text-white md:text-[1.45rem]">
-        {children}
-      </h1>
-    ),
-    h2: ({ children }: { children: React.ReactNode }) => (
-      <h2 className="mt-6 mb-3 flex items-start gap-2 border-b border-emerald-100 pb-2 text-base font-black tracking-tight text-slate-900 dark:border-emerald-900/60 dark:text-slate-50 md:text-lg">
-        <span className="mt-1 h-4 w-1.5 shrink-0 rounded-full bg-emerald-500/80" />
-        <span className="block leading-snug">{children}</span>
-      </h2>
-    ),
-    h3: ({ children }: { children: React.ReactNode }) =>
-      isHiddenSupportHeading(children) ? null : (
-        <h3 className="mt-5 mb-2 flex items-start gap-2 text-[0.95rem] font-extrabold text-slate-900 dark:text-slate-50 md:text-[1rem]">
-          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+      sup: ({ children }: { children: React.ReactNode }) => <sup className="ml-0.5">{children}</sup>,
+      p: ({ children }: { children: React.ReactNode }) => (
+        <p className="mb-2 last:mb-0 text-sm leading-relaxed text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
+          {children}
+        </p>
+      ),
+      ul: ({ children }: { children: React.ReactNode }) => (
+        <ul className="mb-2 list-disc space-y-1 pl-5 text-sm text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
+          {children}
+        </ul>
+      ),
+      ol: ({ children }: { children: React.ReactNode }) => (
+        <ol className="mb-2 list-decimal space-y-1 pl-5 text-sm text-slate-800 dark:text-slate-100 md:text-[0.95rem]">
+          {children}
+        </ol>
+      ),
+      li: ({ children }: { children: React.ReactNode }) => <li className="leading-relaxed">{children}</li>,
+      h1: ({ children }: { children: React.ReactNode }) => (
+        <h1 className="mb-4 border-b border-slate-200/80 pb-3 text-lg font-black tracking-tight text-slate-900 dark:border-slate-800 dark:text-white md:text-[1.45rem]">
+          {children}
+        </h1>
+      ),
+      h2: ({ children }: { children: React.ReactNode }) => (
+        <h2 className="mt-6 mb-3 flex items-start gap-2 border-b border-emerald-100 pb-2 text-base font-black tracking-tight text-slate-900 dark:border-emerald-900/60 dark:text-slate-50 md:text-lg">
+          <span className="mt-1 h-4 w-1.5 shrink-0 rounded-full bg-emerald-500/80" />
           <span className="block leading-snug">{children}</span>
-        </h3>
+        </h2>
       ),
-    hr: () => <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />,
-    h4: ({ children }: { children: React.ReactNode }) =>
-      isHiddenSupportHeading(children) ? null : (
-        <h4 className="mt-2 mb-1 text-[0.9rem] font-bold text-slate-900 dark:text-slate-50">{children}</h4>
+      h3: ({ children }: { children: React.ReactNode }) =>
+        isHiddenSupportHeading(children) ? null : (
+          <h3 className="mt-5 mb-2 flex items-start gap-2 text-[0.95rem] font-extrabold text-slate-900 dark:text-slate-50 md:text-[1rem]">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+            <span className="block leading-snug">{children}</span>
+          </h3>
+        ),
+      hr: () => <hr className="my-6 border-t-2 border-slate-100 dark:border-slate-800" />,
+      h4: ({ children }: { children: React.ReactNode }) =>
+        isHiddenSupportHeading(children) ? null : (
+          <h4 className="mt-2 mb-1 text-[0.9rem] font-bold text-slate-900 dark:text-slate-50">{children}</h4>
+        ),
+      blockquote: ({ children }: { children: React.ReactNode }) => (
+        <blockquote className="my-2 rounded-r-md border-l-4 border-emerald-400/80 bg-emerald-50/50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/70 dark:bg-emerald-900/20 dark:text-emerald-100 md:text-[0.9rem]">
+          {children}
+        </blockquote>
       ),
-    blockquote: ({ children }: { children: React.ReactNode }) => (
-      <blockquote className="my-2 rounded-r-md border-l-4 border-emerald-400/80 bg-emerald-50/50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/70 dark:bg-emerald-900/20 dark:text-emerald-100 md:text-[0.9rem]">
-        {children}
-      </blockquote>
-    ),
-    table: ({ children }: { children: React.ReactNode }) => (
-      <div className="my-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700/80">
-        <table className="w-full min-w-[720px] border-collapse text-sm md:text-[0.92rem]">{children}</table>
-      </div>
-    ),
-    thead: ({ children }: { children: React.ReactNode }) => (
-      <thead className="bg-slate-100 text-slate-900 dark:bg-slate-800/80 dark:text-slate-100">{children}</thead>
-    ),
-    tbody: ({ children }: { children: React.ReactNode }) => (
-      <tbody className="divide-y divide-slate-200 dark:divide-slate-700/70">{children}</tbody>
-    ),
-    tr: ({ children }: { children: React.ReactNode }) => (
-      <tr className="odd:bg-white even:bg-slate-50/70 hover:bg-emerald-50/70 dark:odd:bg-slate-900/20 dark:even:bg-slate-900/45 dark:hover:bg-emerald-900/20">
-        {children}
-      </tr>
-    ),
-    th: ({ children }: { children: React.ReactNode }) => (
-      <th className="border-b border-slate-200 px-3 py-2 text-left align-top font-bold tracking-wide whitespace-nowrap dark:border-slate-700/80">
-        {children}
-      </th>
-    ),
-    td: ({ children }: { children: React.ReactNode }) => (
-      <td className="px-3 py-2 align-top leading-relaxed text-slate-800 dark:text-slate-100">{children}</td>
-    ),
-  }), [isDarkMode, citationMap, titleMap, variant]);
+      table: ({ children }: { children: React.ReactNode }) => (
+        <div className="my-3 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700/80">
+          <table className="w-full min-w-[720px] border-collapse text-sm md:text-[0.92rem]">{children}</table>
+        </div>
+      ),
+      thead: ({ children }: { children: React.ReactNode }) => (
+        <thead className="bg-slate-100 text-slate-900 dark:bg-slate-800/80 dark:text-slate-100">{children}</thead>
+      ),
+      tbody: ({ children }: { children: React.ReactNode }) => (
+        <tbody className="divide-y divide-slate-200 dark:divide-slate-700/70">{children}</tbody>
+      ),
+      tr: ({ children }: { children: React.ReactNode }) => (
+        <tr className="odd:bg-white even:bg-slate-50/70 hover:bg-emerald-50/70 dark:odd:bg-slate-900/20 dark:even:bg-slate-900/45 dark:hover:bg-emerald-900/20">
+          {children}
+        </tr>
+      ),
+      th: ({ children }: { children: React.ReactNode }) => (
+        <th className="border-b border-slate-200 px-3 py-2 text-left align-top font-bold tracking-wide whitespace-nowrap dark:border-slate-700/80">
+          {children}
+        </th>
+      ),
+      td: ({ children }: { children: React.ReactNode }) => (
+        <td className="px-3 py-2 align-top leading-relaxed text-slate-800 dark:text-slate-100">{children}</td>
+      ),
+    }),
+    [isDarkMode, citationMap, titleMap, variant],
+  );
 
   return (
     <div className="markdown-body">

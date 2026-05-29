@@ -16,10 +16,13 @@ describe('ragService', () => {
     const result = await buscarContextoPinecone('test query');
     expect(result.context).toBe('Some RAG context');
     expect(result.failed).toBe(false);
-    expect(fetch).toHaveBeenCalledWith('/api/rag', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ query: 'test query' }),
-    }));
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/rag',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ query: 'test query' }),
+      }),
+    );
   });
 
   it('buscarContextoPinecone returns empty and failed=true on non-ok response', async () => {

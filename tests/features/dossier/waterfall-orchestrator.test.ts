@@ -1,9 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  MODULAR_DOSSIER_CONSOLIDATION_STAGE,
-  MODULAR_DOSSIER_STAGES,
-} from '../../../constants/loadingStages';
+import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../../constants/loadingStages';
 import { useDossierWaterfallOrchestrator } from '../../../features/dossier/waterfall-orchestrator';
 import type { LookupResponse } from '../../../services/clientLookupService';
 import {
@@ -171,10 +168,7 @@ function makeScorePorta(score = 72): ScorePortaData {
   };
 }
 
-function makeResolution(
-  score: ScorePortaData | null,
-  missingDimensions: PortaDimension[] = [],
-): PortaScoreResolution {
+function makeResolution(score: ScorePortaData | null, missingDimensions: PortaDimension[] = []): PortaScoreResolution {
   return {
     score,
     source: score ? 'marker' : 'none',
@@ -232,22 +226,22 @@ function makeRunArgs(overrides: Partial<RunMegaPromptWaterfallArgs> = {}): RunMe
   };
 }
 
-function makeHarness(overrides: {
-  canUseLookup?: boolean;
-  sessionScore?: number | null;
-  messages?: Message[];
-} = {}) {
+function makeHarness(
+  overrides: {
+    canUseLookup?: boolean;
+    sessionScore?: number | null;
+    messages?: Message[];
+  } = {},
+) {
   const state = {
     failureCount: 0,
     sessions: [
       makeSession({
         scoreOportunidade: overrides.sessionScore ?? null,
-        messages:
-          overrides.messages ??
-          [
-            makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem de abertura' }),
-            makeMessage({ id: 'bot-1', sender: Sender.Bot, text: '', isThinking: true }),
-          ],
+        messages: overrides.messages ?? [
+          makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem de abertura' }),
+          makeMessage({ id: 'bot-1', sender: Sender.Bot, text: '', isThinking: true }),
+        ],
       }),
     ],
   };
@@ -392,11 +386,10 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.stringContaining('[[PORTA:74'),
       makeResolution(score),
     );
-    expect(harness.resetLoadingProgress).toHaveBeenCalledWith(
-      MODULAR_DOSSIER_STAGES[0],
-      7,
-      { incremental: true, keepHistory: 4 },
-    );
+    expect(harness.resetLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[0], 7, {
+      incremental: true,
+      keepHistory: 4,
+    });
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[5], 7);
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[6], 7);
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_CONSOLIDATION_STAGE, 7);
@@ -436,7 +429,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(createWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
     expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
     expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith('cachedContents/test-cache');
-    expect(generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache')).toBe(true);
+    expect(
+      generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache'),
+    ).toBe(true);
     expect(reconcileWaterfallPortaMock).toHaveBeenCalledWith(
       expect.objectContaining({
         foundationCacheName: 'cachedContents/test-cache',
@@ -464,14 +459,30 @@ describe('useDossierWaterfallOrchestrator', () => {
   it('agrega fontes de grounding retornadas pelos módulos', async () => {
     const score = makeScorePorta(74);
     generateDossierModuleMock.mockImplementation(
-      async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
-        onGroundingSources?: (sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>, moduleName: string) => void;
-        onVerificationStatus?: (status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable', moduleName: string) => void;
-      }) => {
+      async (
+        moduleName: string,
+        _empresa: string,
+        _foundation: string,
+        _prompt: string,
+        _extra: string,
+        options?: {
+          onGroundingSources?: (
+            sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>,
+            moduleName: string,
+          ) => void;
+          onVerificationStatus?: (
+            status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable',
+            moduleName: string,
+          ) => void;
+        },
+      ) => {
         options?.onGroundingSources?.(
           [
             { title: `${moduleName} fonte`, url: 'https://example.com/fonte/' },
-            { title: 'BNDES', url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi/' },
+            {
+              title: 'BNDES',
+              url: 'https://agenciadenoticias.bndes.gov.br/centro-oeste/BNDES-financia-usina-de-etanol-de-milho-em-Mato-Grosso-com-R%24-1-bi/',
+            },
           ],
           moduleName,
         );
@@ -480,11 +491,9 @@ describe('useDossierWaterfallOrchestrator', () => {
       },
     );
     reconcileWaterfallPortaMock.mockResolvedValue({
-      accumulatedText: [
-        'Porte / Teia Societária consolidado',
-        '---',
-        '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]',
-      ].join('\n\n'),
+      accumulatedText: ['Porte / Teia Societária consolidado', '---', '[[PORTA:74:P7:O8:R7:T7:A6:AGI:NONE]]'].join(
+        '\n\n',
+      ),
       resolution: makeResolution(score),
       portaIntegrityHold: false,
     });
@@ -526,9 +535,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       companyName: 'Acme Agro Ltda',
       city: 'Sapezal',
       state: 'MT',
-      qsa: [
-        { name: 'Maria Acme', role: 'Sócia-administradora', source: 'BrasilAPI', confidence: 'official' },
-      ],
+      qsa: [{ name: 'Maria Acme', role: 'Sócia-administradora', source: 'BrasilAPI', confidence: 'official' }],
     });
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
       if (moduleName === 'Teia Societaria — Identidade') {
@@ -637,10 +644,23 @@ describe('useDossierWaterfallOrchestrator', () => {
   it('marca dossiê como fallback_verified quando módulo usa fallback web', async () => {
     const score = makeScorePorta(74);
     generateDossierModuleMock.mockImplementation(
-      async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
-        onGroundingSources?: (sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>, moduleName: string) => void;
-        onVerificationStatus?: (status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable', moduleName: string) => void;
-      }) => {
+      async (
+        moduleName: string,
+        _empresa: string,
+        _foundation: string,
+        _prompt: string,
+        _extra: string,
+        options?: {
+          onGroundingSources?: (
+            sources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>,
+            moduleName: string,
+          ) => void;
+          onVerificationStatus?: (
+            status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable',
+            moduleName: string,
+          ) => void;
+        },
+      ) => {
         options?.onGroundingSources?.(
           [{ title: 'Fallback público', url: 'https://example.com/fallback', verification: 'fallback' }],
           moduleName,
@@ -669,12 +689,24 @@ describe('useDossierWaterfallOrchestrator', () => {
 
   it('promove link público validado do texto para fonte verificada fallback', async () => {
     const score = makeScorePorta(74);
-    generateDossierModuleMock.mockImplementation(async (moduleName: string, _empresa: string, _foundation: string, _prompt: string, _extra: string, options?: {
-      onVerificationStatus?: (status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable', moduleName: string) => void;
-    }) => {
-      options?.onVerificationStatus?.('unverified', moduleName);
-      return `${moduleName} consolidado`;
-    });
+    generateDossierModuleMock.mockImplementation(
+      async (
+        moduleName: string,
+        _empresa: string,
+        _foundation: string,
+        _prompt: string,
+        _extra: string,
+        options?: {
+          onVerificationStatus?: (
+            status: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable',
+            moduleName: string,
+          ) => void;
+        },
+      ) => {
+        options?.onVerificationStatus?.('unverified', moduleName);
+        return `${moduleName} consolidado`;
+      },
+    );
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: [
         'Resumo com fonte [BNDES](https://www.bndes.gov.br/noticia?utm_source=google).',
@@ -684,14 +716,17 @@ describe('useDossierWaterfallOrchestrator', () => {
       portaIntegrityHold: false,
     });
     ensureWaterfallScorePortaMock.mockReturnValue(score);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        results: {
-          'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
-        },
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: {
+            'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
+          },
+        }),
       }),
-    }));
+    );
 
     const harness = makeHarness({ canUseLookup: false });
 
@@ -731,9 +766,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     const harness = makeHarness({ canUseLookup: false });
 
     await act(async () => {
-      await harness.result.current.runMegaPromptWaterfall(
-        makeRunArgs({ isFirstInteraction: true }),
-      );
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ isFirstInteraction: true }));
     });
 
     const finalBotMessage = getBotMessage(harness);
@@ -854,8 +887,10 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.suggestions?.[0]).toContain('Acme Agro');
     expect(finalBotMessage.suggestions?.every(suggestion => suggestion.endsWith('?'))).toBe(true);
     expect(finalBotMessage.suggestions).not.toEqual(LEGACY_ACME_FALLBACK_SUGGESTIONS);
-    expect(finalBotMessage.suggestions?.some(suggestion =>
-      /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
-    )).toBe(true);
+    expect(
+      finalBotMessage.suggestions?.some(suggestion =>
+        /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
+      ),
+    ).toBe(true);
   });
 });

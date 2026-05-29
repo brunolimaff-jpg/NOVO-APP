@@ -1,9 +1,4 @@
-export type {
-  BrasilUF,
-  RadarAlert,
-  RadarCategory,
-  RadarConfig,
-} from '../../types';
+export type { BrasilUF, RadarAlert, RadarCategory, RadarConfig } from '../../types';
 
 export {
   BRASIL_UFS,

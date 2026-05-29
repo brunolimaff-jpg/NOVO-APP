@@ -12,20 +12,20 @@ Entrega curta entre Sprint 9 e Sprint 10 para alinhar a fonte de verdade pós-PR
 
 ## Inventário e decisão
 
-| Item | Estado | Decisão |
-|---|---|---|
-| Docs/memória ainda tratavam PR `#254` como aberta | Stale | Atualizar canônicos nesta onda |
-| `refactor/code-quality` com mudanças locais | Escopo paralelo | Não misturar; usar como insumo/backlog |
-| `phase2-code-quality.md` externo | Plano útil, números stale | Reescopar em PRs menores |
-| Auditoria `09-CODEBASE-EXPLORATION` | Snapshot útil, não canônico bruto | Curar achados reais no backlog |
-| PORTA parcial sem score | Bug funcional provável | Corrigir agora |
-| Logs cliente com payload sensível | Risco real em serviços cliente | Migrar agora com truncamento |
-| `/api/open-web-search` 500 no preview | Crash serverless confirmado em Vercel | Corrigir na PR `#255` antes de merge |
-| Botão excluir mensagem com escape Unicode cru | Bug visual confirmado no preview (`\uD83D\uDDD1\uFE0F`) | Corrigido no hotfix OI-066 |
-| Radar runtime fora do boundary | Dívida arquitetural real | Sprint 10 |
-| `LoadingSmart`, `WarRoom` (Mini CRM/`CRMDetail` removido na Onda 0.5) grandes | Dívida real | Sprint 11 com testes primeiro |
-| PWA/chunking/lint warnings | Hardening | Sprint 12 |
-| Performance/bundle hypotheses | Sem medição suficiente | Só com profiling/bundle analyze |
+| Item                                                                          | Estado                                                  | Decisão                                |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------- |
+| Docs/memória ainda tratavam PR `#254` como aberta                             | Stale                                                   | Atualizar canônicos nesta onda         |
+| `refactor/code-quality` com mudanças locais                                   | Escopo paralelo                                         | Não misturar; usar como insumo/backlog |
+| `phase2-code-quality.md` externo                                              | Plano útil, números stale                               | Reescopar em PRs menores               |
+| Auditoria `09-CODEBASE-EXPLORATION`                                           | Snapshot útil, não canônico bruto                       | Curar achados reais no backlog         |
+| PORTA parcial sem score                                                       | Bug funcional provável                                  | Corrigir agora                         |
+| Logs cliente com payload sensível                                             | Risco real em serviços cliente                          | Migrar agora com truncamento           |
+| `/api/open-web-search` 500 no preview                                         | Crash serverless confirmado em Vercel                   | Corrigir na PR `#255` antes de merge   |
+| Botão excluir mensagem com escape Unicode cru                                 | Bug visual confirmado no preview (`\uD83D\uDDD1\uFE0F`) | Corrigido no hotfix OI-066             |
+| Radar runtime fora do boundary                                                | Dívida arquitetural real                                | Sprint 10                              |
+| `LoadingSmart`, `WarRoom` (Mini CRM/`CRMDetail` removido na Onda 0.5) grandes | Dívida real                                             | Sprint 11 com testes primeiro          |
+| PWA/chunking/lint warnings                                                    | Hardening                                               | Sprint 12                              |
+| Performance/bundle hypotheses                                                 | Sem medição suficiente                                  | Só com profiling/bundle analyze        |
 
 ## Escopo implementável
 

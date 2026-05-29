@@ -31,26 +31,22 @@ describe('brasilApiService helpers', () => {
   });
 
   it('returns company data from the /api/cnpj proxy', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: async () => JSON.stringify({
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () =>
+        JSON.stringify({
           cnpj: '04252011000110',
           companyName: 'Empresa Exemplo',
           city: 'Cuiabá',
           state: 'MT',
         }),
-      } as Response);
+    } as Response);
 
     const result = await fetchCompanyByCnpj('04.252.011/0001-10');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('api/cnpj?cnpj=04252011000110'),
-      expect.anything(),
-    );
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('api/cnpj?cnpj=04252011000110'), expect.anything());
     expect(result.companyName).toBe('Empresa Exemplo');
     expect(result.city).toBe('Cuiabá');
     expect(result.state).toBe('MT');
@@ -61,21 +57,22 @@ describe('brasilApiService helpers', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: async () => JSON.stringify({
-        cnpj: '04252011000110',
-        companyName: 'Empresa Exemplo',
-        city: 'Cuiabá',
-        state: 'MT',
-        qsa: [
-          {
-            name: 'Maria Exemplo',
-            role: 'Sócia-Administradora',
-            document: '***.123.456-**',
-            source: 'BrasilAPI',
-            confidence: 'official',
-          },
-        ],
-      }),
+      text: async () =>
+        JSON.stringify({
+          cnpj: '04252011000110',
+          companyName: 'Empresa Exemplo',
+          city: 'Cuiabá',
+          state: 'MT',
+          qsa: [
+            {
+              name: 'Maria Exemplo',
+              role: 'Sócia-Administradora',
+              document: '***.123.456-**',
+              source: 'BrasilAPI',
+              confidence: 'official',
+            },
+          ],
+        }),
     } as Response);
 
     const result = await fetchCompanyByCnpj('04.252.011/0001-10');
@@ -96,12 +93,13 @@ describe('brasilApiService helpers', () => {
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
-      text: async () => JSON.stringify({
-        cnpj: '04252011000110',
-        companyName: 'Empresa Exemplo',
-        city: 'Cuiabá',
-        state: 'MT',
-      }),
+      text: async () =>
+        JSON.stringify({
+          cnpj: '04252011000110',
+          companyName: 'Empresa Exemplo',
+          city: 'Cuiabá',
+          state: 'MT',
+        }),
     } as Response);
 
     const result = await fetchCompanyByCnpj('04.252.011/0001-10');

@@ -8,13 +8,13 @@ interface ClienteSeniorScoreProps {
 }
 
 const FAMILIA_ICONS: Record<string, string> = {
-  'GATec': '🌾',
-  'ERP': '💼',
-  'HCM': '👥',
-  'Logística': '🚛',
-  'Acesso': '🔐',
-  'Plataforma': '📚',
-  'Hypnobox': '🏠'
+  GATec: '🌾',
+  ERP: '💼',
+  HCM: '👥',
+  Logística: '🚛',
+  Acesso: '🔐',
+  Plataforma: '📚',
+  Hypnobox: '🏠',
 };
 
 const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMode = true }) => {
@@ -136,13 +136,23 @@ const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMod
             border: `1px solid ${subtleBorder}`,
           }}
         >
-          <div style={{ fontSize: '12px', fontWeight: 700, color: barColor, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: barColor,
+              marginBottom: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
             <span>{FAMILIA_ICONS[activeFamily] || '📦'}</span>
             Módulos contratados - {activeFamily}
           </div>
           <div style={{ fontSize: '12px', color: valueColor, lineHeight: 1.5 }}>
-            {Array.isArray(data.modulosPorFamilia[activeFamily]) 
-              ? data.modulosPorFamilia[activeFamily].join(' • ') 
+            {Array.isArray(data.modulosPorFamilia[activeFamily])
+              ? data.modulosPorFamilia[activeFamily].join(' • ')
               : data.modulosPorFamilia[activeFamily]}
           </div>
         </motion.div>

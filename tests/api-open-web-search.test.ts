@@ -54,10 +54,13 @@ describe('api/open-web-search', () => {
     const { default: handler } = await import('../api/open-web-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: { query: 'Grupo Piccini RRP Energia Tapurah' },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini RRP Energia Tapurah' },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -65,9 +68,7 @@ describe('api/open-web-search', () => {
       source: 'OpenWebSearch/DuckDuckGo',
       degraded: false,
       sources: [],
-      providerStatus: [
-        { provider: 'duckduckgo', ok: true },
-      ],
+      providerStatus: [{ provider: 'duckduckgo', ok: true }],
     });
     expect(fetch).not.toHaveBeenCalled();
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
@@ -79,10 +80,13 @@ describe('api/open-web-search', () => {
     const { default: handler } = await import('../api/open-web-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: { query: 'consulta sem resultado' },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'consulta sem resultado' },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -101,10 +105,13 @@ describe('api/open-web-search', () => {
     const { default: handler } = await import('../api/open-web-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: { url: 'https://example.com/page' },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: { url: 'https://example.com/page' },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -125,10 +132,13 @@ describe('api/open-web-search', () => {
     const { default: handler } = await import('../api/open-web-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {},
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {},
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
@@ -141,10 +151,13 @@ describe('api/open-web-search', () => {
     const { default: handler } = await import('../api/open-web-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: { query: 'Grupo Piccini' },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini' },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -152,9 +165,7 @@ describe('api/open-web-search', () => {
       source: 'OpenWebSearch/DdgDegraded',
       degraded: true,
       detail: 'Search failed: 503',
-      providerStatus: [
-        { provider: 'duckduckgo', ok: false, reason: 'unknown' },
-      ],
+      providerStatus: [{ provider: 'duckduckgo', ok: false, reason: 'unknown' }],
     });
   });
 });

@@ -1,9 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  MODULAR_DOSSIER_CONSOLIDATION_STAGE,
-  MODULAR_DOSSIER_STAGES,
-} from '../../constants/loadingStages';
+import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
 import {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
@@ -85,11 +82,7 @@ export interface UseDossierWaterfallOrchestratorOptions {
   resolvedOperatorName: string;
   setLoadingVariant?: (variant: 'hero' | 'inline') => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
-  resetLoadingProgress: (
-    stage?: string,
-    totalStages?: number,
-    options?: ResetLoadingProgressOptions,
-  ) => void;
+  resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
   replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
   completeLoadingProgress: () => void;
@@ -120,7 +113,9 @@ function hasHoldingSignal(value: string): boolean {
 }
 
 function hasInternationalSignal(value: string): boolean {
-  return /colombia|colômbia|s\.?a\.?s\.?|nit|filial no exterior|subsidi[aá]ria no exterior|registro estrangeiro/i.test(value || '');
+  return /colombia|colômbia|s\.?a\.?s\.?|nit|filial no exterior|subsidi[aá]ria no exterior|registro estrangeiro/i.test(
+    value || '',
+  );
 }
 
 function deriveObjectiveComplexity(params: {
@@ -160,14 +155,18 @@ async function buildTeiaResearchContext(params: {
         return `- ${partnerText}`;
       });
 
-      blocks.push([
-        '[QSA OFICIAL]',
-        `Empresa: ${companyData.companyName}`,
-        `CNPJ raiz: ${companyData.cnpj}`,
-        companyData.cnaeDescricao ? `CNAE principal: ${companyData.cnaeDescricao}` : '',
-        `Sócios confirmados: ${qsaCount}`,
-        qsaLines.join('\n'),
-      ].filter(Boolean).join('\n'));
+      blocks.push(
+        [
+          '[QSA OFICIAL]',
+          `Empresa: ${companyData.companyName}`,
+          `CNPJ raiz: ${companyData.cnpj}`,
+          companyData.cnaeDescricao ? `CNAE principal: ${companyData.cnaeDescricao}` : '',
+          `Sócios confirmados: ${qsaCount}`,
+          qsaLines.join('\n'),
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      );
     } catch (error) {
       scoutDiag.warn('TeiaSocietaria', 'falha ao buscar QSA oficial para contexto do waterfall', {
         company,
@@ -252,7 +251,7 @@ async function validateInlineSourcesForPromotion(
     });
     if (!response.ok) return [];
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       results?: Record<string, { status?: string }>;
     };
     const results = data?.results || {};
@@ -281,14 +280,10 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
 
   try {
     const cnpjPattern = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
-    const foundCnpjs = [...new Set(
-      (generatedText.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')),
-    )];
+    const foundCnpjs = [...new Set((generatedText.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')))];
 
     if (foundCnpjs.length > 0) {
-      const knownCnpjs = [...new Set(
-        (knownContext.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')),
-      )];
+      const knownCnpjs = [...new Set((knownContext.match(cnpjPattern) || []).map((c: string) => c.replace(/\D/g, '')))];
       const knownSet = new Set(knownCnpjs);
       const knownRoots = new Set(knownCnpjs.map((c: string) => c.slice(0, 8)));
 
@@ -302,18 +297,28 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
       }
 
       if (unconfirmedRoots.length > 0 && unconfirmedRoots.length <= 3) {
-        warnings.push(
-          `🔍 CNPJs com raiz nao confirmada: ${unconfirmedRoots.join(', ')}.`,
-        );
+        warnings.push(`🔍 CNPJs com raiz nao confirmada: ${unconfirmedRoots.join(', ')}.`);
       }
     }
 
     const internationalPatterns = [
-      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (S\.?A\.?S\.?)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'S.A.S. (Colômbia/França)' },
+      {
+        regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (S\.?A\.?S\.?)(?!\s*(Brasil|BR|CNPJ))/gi,
+        label: 'S.A.S. (Colômbia/França)',
+      },
       { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ B\.?V\.?(?!\s*(Brasil|BR|CNPJ))/gi, label: 'B.V. (Holanda)' },
-      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (GmbH|G\.m\.b\.H\.)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'GmbH (Alemanha)' },
-      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Inc\.?|LLC|Corp\.?)(?!\s*(Brasil|BR|CNPJ))/gi, label: 'Inc./LLC (EUA)' },
-      { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Ltd\.?|Limited)(?!\s*(Brasil|BR|CNPJ|LTDA|Ltda))/gi, label: 'Ltd. (UK/Hong Kong)' },
+      {
+        regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (GmbH|G\.m\.b\.H\.)(?!\s*(Brasil|BR|CNPJ))/gi,
+        label: 'GmbH (Alemanha)',
+      },
+      {
+        regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Inc\.?|LLC|Corp\.?)(?!\s*(Brasil|BR|CNPJ))/gi,
+        label: 'Inc./LLC (EUA)',
+      },
+      {
+        regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ (Ltd\.?|Limited)(?!\s*(Brasil|BR|CNPJ|LTDA|Ltda))/gi,
+        label: 'Ltd. (UK/Hong Kong)',
+      },
       { regex: /\b[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+ S\.?L\.?(?!\s*(Brasil|BR|CNPJ))/gi, label: 'S.L. (Espanha)' },
     ];
 
@@ -334,21 +339,25 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
 
     if (foundInternational.size > 0) {
       const names = [...foundInternational].join(', ');
-      const labels = [...new Set(
-        [...foundInternational].map(name => {
-          for (const { regex, label } of internationalPatterns) {
-            regex.lastIndex = 0;
-            if (regex.test(name)) return label;
-          }
-          return 'Internacional';
-        }),
-      )].join('; ');
+      const labels = [
+        ...new Set(
+          [...foundInternational].map(name => {
+            for (const { regex, label } of internationalPatterns) {
+              regex.lastIndex = 0;
+              if (regex.test(name)) return label;
+            }
+            return 'Internacional';
+          }),
+        ),
+      ].join('; ');
       warnings.push(
         `🌐 Entidade(s) internacional(is) detectada(s) sem CNPJ: ${names} (${labels}). Conexoes internacionais exigem comprovacao documental (registro estrangeiro, socio comum com CPF, ou fonte oficial com URL). Se nao houver evidencia concreta, a conexao e INFERIDA e nao deve ser tratada como fato.`,
       );
     }
   } catch (err) {
-    warnings.push(`⚠️ Validação CNPJ: erro ao processar CNPJs gerados: ${err instanceof Error ? err.message : String(err)}`);
+    warnings.push(
+      `⚠️ Validação CNPJ: erro ao processar CNPJs gerados: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   return { text: generatedText, warnings };
@@ -378,10 +387,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     options.completeLoadingProgress ?? chatStore?.completeLoadingProgress,
     'completeLoadingProgress',
   );
-  const setFailureCount = requireDependency(
-    options.setFailureCount ?? chatStore?.setFailureCount,
-    'setFailureCount',
-  );
+  const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
 
   const runMegaPromptWaterfall = useCallback(
@@ -433,15 +439,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       };
 
       // Helper para racear uma promise contra AbortSignal
-      const withAbortSignal = <T,>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
+      const withAbortSignal = <T>(promise: Promise<T>, sig?: AbortSignal): Promise<T> => {
         if (!sig) return promise;
         if (sig.aborted) return Promise.reject(new DOMException('The operation was aborted', 'AbortError'));
         return new Promise<T>((resolve, reject) => {
           const onAbort = () => reject(new DOMException('The operation was aborted', 'AbortError'));
           sig.addEventListener('abort', onAbort, { once: true });
           promise.then(
-            v => { sig.removeEventListener('abort', onAbort); resolve(v); },
-            e => { sig.removeEventListener('abort', onAbort); reject(e); }
+            v => {
+              sig.removeEventListener('abort', onAbort);
+              resolve(v);
+            },
+            e => {
+              sig.removeEventListener('abort', onAbort);
+              reject(e);
+            },
           );
         });
       };
@@ -615,9 +627,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             },
           );
           const identityElapsed = performance.now() - identityStart;
-          scoutDiag.info('Waterfall', 'module:complete', { module: 'Teia Societaria — Identidade', elapsedMs: identityElapsed });
+          scoutDiag.info('Waterfall', 'module:complete', {
+            module: 'Teia Societaria — Identidade',
+            elapsedMs: identityElapsed,
+          });
           if (identityElapsed > 60_000) {
-            scoutDiag.warn('Waterfall', 'module:deadline', { module: 'Teia Societaria — Identidade', elapsedMs: identityElapsed });
+            scoutDiag.warn('Waterfall', 'module:deadline', {
+              module: 'Teia Societaria — Identidade',
+              elapsedMs: identityElapsed,
+            });
           }
         } catch (identityError) {
           if (isAbortLikeError(identityError)) throw identityError;
@@ -633,12 +651,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         const allMatches = [...identityResult.matchAll(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi)];
-        const detectedLevels = allMatches.map(m => m[1]?.toUpperCase()).filter(Boolean) as Array<'BAIXA' | 'MEDIA' | 'ALTA'>;
+        const detectedLevels = allMatches.map(m => m[1]?.toUpperCase()).filter(Boolean) as Array<
+          'BAIXA' | 'MEDIA' | 'ALTA'
+        >;
 
-        let complexity: TeiaComplexity = detectedLevels.includes('ALTA') ? 'ALTA'
-          : detectedLevels.includes('MEDIA') ? 'MEDIA'
-          : detectedLevels.includes('BAIXA') ? 'BAIXA'
-          : 'BAIXA';
+        let complexity: TeiaComplexity = detectedLevels.includes('ALTA')
+          ? 'ALTA'
+          : detectedLevels.includes('MEDIA')
+            ? 'MEDIA'
+            : detectedLevels.includes('BAIXA')
+              ? 'BAIXA'
+              : 'BAIXA';
 
         if (detectedLevels.length === 0) {
           scoutDiag.warn('TeiaSocietaria', 'marcador de complexidade ausente na saida do modulo 1a — usando BAIXA', {
@@ -655,10 +678,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
-        if (
-          teiaResearchContext.objectiveComplexity
-          && (detectedLevels.length === 0 || complexity === 'BAIXA')
-        ) {
+        if (teiaResearchContext.objectiveComplexity && (detectedLevels.length === 0 || complexity === 'BAIXA')) {
           complexity = teiaResearchContext.objectiveComplexity;
           scoutDiag.warn('TeiaSocietaria', 'complexidade ajustada por evidencia objetiva da teia', {
             sessionId,
@@ -691,9 +711,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               },
             );
             const deepElapsed = performance.now() - deepStart;
-            scoutDiag.info('Waterfall', 'module:complete', { module: 'Teia Societaria — Profundidade', elapsedMs: deepElapsed });
+            scoutDiag.info('Waterfall', 'module:complete', {
+              module: 'Teia Societaria — Profundidade',
+              elapsedMs: deepElapsed,
+            });
             if (deepElapsed > 60_000) {
-              scoutDiag.warn('Waterfall', 'module:deadline', { module: 'Teia Societaria — Profundidade', elapsedMs: deepElapsed });
+              scoutDiag.warn('Waterfall', 'module:deadline', {
+                module: 'Teia Societaria — Profundidade',
+                elapsedMs: deepElapsed,
+              });
             }
             combinedTeiaText += '\n\n---\n\n' + deepResult;
             advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
@@ -726,258 +752,271 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       };
 
       try {
-      if (isFirstInteraction) {
-        resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES);
-      } else {
-        resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES, {
-          incremental: true,
-          keepHistory: 4,
-        });
-      }
-
-      for (let index = 0; index < modules.length; index += 1) {
-        if (signal.aborted) break;
-
-        const module = modules[index];
-        if (index > 0) {
-          if (previousStageCompleted) {
-            advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
-          } else {
-            replaceLoadingProgressStage(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
-          }
+        if (isFirstInteraction) {
+          resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES, {
+            incremental: true,
+            keepHistory: 4,
+          });
         }
 
-        try {
-          let moduleResult: string;
-          if (index === FIRST_MODULE_INDEX) {
-            moduleResult = await runTeiaSocietariaOrchestration();
-          } else {
-            const modStart = performance.now();
-            moduleResult = await runWaterfallModule(module, accumulatedText);
-            const modElapsed = performance.now() - modStart;
-            scoutDiag.info('Waterfall', 'module:complete', { module: module.name, elapsedMs: modElapsed });
-            if (modElapsed > 60_000) {
-              scoutDiag.warn('Waterfall', 'module:deadline', { module: module.name, elapsedMs: modElapsed });
+        for (let index = 0; index < modules.length; index += 1) {
+          if (signal.aborted) break;
+
+          const module = modules[index];
+          if (index > 0) {
+            if (previousStageCompleted) {
+              advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
+            } else {
+              replaceLoadingProgressStage(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
             }
           }
-          appendWaterfallChunk(moduleResult);
-          optionalStepFailures.delete(module.name);
-          previousStageCompleted = true;
-          setFailureCount(0);
-        } catch (error) {
-          if (isAbortLikeError(error)) throw error;
-          if (!module.optional) throw error;
 
-          previousStageCompleted = false;
-          optionalStepFailures.add(module.name);
-          setFailureCount(count => count + 1);
-          scoutDiag.warn('ModularDossier', 'módulo opcional falhou e será ignorado', {
+          try {
+            let moduleResult: string;
+            if (index === FIRST_MODULE_INDEX) {
+              moduleResult = await runTeiaSocietariaOrchestration();
+            } else {
+              const modStart = performance.now();
+              moduleResult = await runWaterfallModule(module, accumulatedText);
+              const modElapsed = performance.now() - modStart;
+              scoutDiag.info('Waterfall', 'module:complete', { module: module.name, elapsedMs: modElapsed });
+              if (modElapsed > 60_000) {
+                scoutDiag.warn('Waterfall', 'module:deadline', { module: module.name, elapsedMs: modElapsed });
+              }
+            }
+            appendWaterfallChunk(moduleResult);
+            optionalStepFailures.delete(module.name);
+            previousStageCompleted = true;
+            setFailureCount(0);
+          } catch (error) {
+            if (isAbortLikeError(error)) throw error;
+            if (!module.optional) throw error;
+
+            previousStageCompleted = false;
+            optionalStepFailures.add(module.name);
+            setFailureCount(count => count + 1);
+            scoutDiag.warn('ModularDossier', 'módulo opcional falhou e será ignorado', {
+              sessionId,
+              company: resolvedMegaCompany || null,
+              moduleName: module.name,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        if (previousStageCompleted) {
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
+        }
+
+        const benchmarkCompleted = await runDossierBenchmarkStage({
+          sessionId,
+          company: resolvedMegaCompany,
+          signal,
+          appendWaterfallChunk,
+          optionalStepFailures,
+          setFailureCount,
+        });
+
+        if (benchmarkCompleted) {
+          advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
+        } else {
+          replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
+        }
+
+        const PORTA_RECONCILIATION_TIMEOUT_MS = 120_000;
+
+        let reconciledText: string = accumulatedText;
+        let waterfallPortaResolution: PortaScoreResolution | null = null;
+        let portaIntegrityHold = false;
+        let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+        try {
+          const result = await Promise.race([
+            reconcileWaterfallPorta({
+              sessionId,
+              signal,
+              resolvedMegaCompany,
+              sessionCnpjDigits,
+              dossierSeedContext,
+              waterfallLookupContext,
+              seniorEvidenceContext,
+              staticDossierContext,
+              foundationCacheName,
+              accumulatedText,
+              modulesByName,
+              runWaterfallModule,
+              optionalStepFailures,
+              setFailureCount,
+            }),
+            new Promise<never>((_, reject) => {
+              portaTimeoutId = setTimeout(
+                () => reject(new Error('PORTA reconciliation timeout')),
+                PORTA_RECONCILIATION_TIMEOUT_MS,
+              );
+            }),
+          ]);
+          reconciledText = result.accumulatedText;
+          waterfallPortaResolution = result.resolution;
+          portaIntegrityHold = result.portaIntegrityHold;
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          scoutDiag.warn(
+            'ModularDossier',
+            'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
+            {
+              sessionId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+          optionalStepFailures.add('porta-reconciliation');
+          setFailureCount((prev: number) => prev + 1);
+          portaIntegrityHold = true;
+        } finally {
+          if (portaTimeoutId) clearTimeout(portaTimeoutId);
+        }
+        accumulatedText = reconciledText;
+
+        if (optionalStepFailures.size > 0) {
+          appendWaterfallChunk(
+            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
+          );
+        } else {
+          setFailureCount(0);
+        }
+
+        const waterfallScorePorta =
+          portaIntegrityHold || !waterfallPortaResolution
+            ? null
+            : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
+        const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
+        const waterfallConstrainedText = sanitizeSensitivePersonalData(
+          enforceSeniorEvidenceConstraints(
+            waterfallCleanText,
+            resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+            waterfallClienteSeniorData,
+          ),
+        );
+        const waterfallNarrativeBase = appendSeniorEvidenceNote(
+          waterfallConstrainedText,
+          resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          waterfallClienteSeniorData,
+        );
+        let waterfallPrepared = waterfallNarrativeBase;
+        const promotedInlineSources = await validateInlineSourcesForPromotion(
+          waterfallPrepared,
+          waterfallGroundingSources,
+        );
+        appendGroundingSources(promotedInlineSources, 'Promoção inline');
+
+        if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
+          waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
+        }
+
+        const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        const waterfallFinalText =
+          finalized.text ||
+          accumulatedText ||
+          `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        const hasFallbackVerified =
+          Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
+          waterfallGroundingSources.some(source => source.verification === 'fallback');
+        const hasUnverified = Array.from(waterfallVerificationStatuses.values()).some(
+          status => status === 'unverified',
+        );
+        const webVerificationStatus: WebVerificationStatus =
+          waterfallGroundingSources.length > 0
+            ? hasFallbackVerified
+              ? 'fallback_verified'
+              : 'verified'
+            : hasUnverified
+              ? 'unverified'
+              : 'not_applicable';
+
+        let waterfallSuggestions: string[] = [];
+        try {
+          waterfallSuggestions = await generateContinuityQuestion(
+            [
+              ...historyToPass,
+              {
+                id: uuidv4(),
+                sender: Sender.User,
+                text: safeVisibleText,
+                timestamp: new Date(),
+              },
+              {
+                id: uuidv4(),
+                sender: Sender.Bot,
+                text: waterfallFinalText,
+                timestamp: new Date(),
+                clienteSeniorData: waterfallClienteSeniorData,
+              },
+            ],
+            resolvedMegaCompany || null,
+            resolvedOperatorName,
+          );
+        } catch (error) {
+          scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
-            moduleName: module.name,
             error: error instanceof Error ? error.message : String(error),
           });
         }
-      }
 
-      if (previousStageCompleted) {
-        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
-      } else {
-        replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
-      }
-
-      const benchmarkCompleted = await runDossierBenchmarkStage({
-        sessionId,
-        company: resolvedMegaCompany,
-        signal,
-        appendWaterfallChunk,
-        optionalStepFailures,
-        setFailureCount,
-      });
-
-      if (benchmarkCompleted) {
-        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
-      } else {
-        replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
-      }
-
-      const PORTA_RECONCILIATION_TIMEOUT_MS = 120_000;
-
-      let reconciledText: string = accumulatedText;
-      let waterfallPortaResolution: PortaScoreResolution | null = null;
-      let portaIntegrityHold = false;
-      let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
-
-      try {
-        const result = await Promise.race([
-          reconcileWaterfallPorta({
-            sessionId,
-            signal,
-            resolvedMegaCompany,
-            sessionCnpjDigits,
-            dossierSeedContext,
-            waterfallLookupContext,
-            seniorEvidenceContext,
-            staticDossierContext,
-            foundationCacheName,
-            accumulatedText,
-            modulesByName,
-            runWaterfallModule,
-            optionalStepFailures,
-            setFailureCount,
-          }),
-          new Promise<never>((_, reject) => {
-            portaTimeoutId = setTimeout(() => reject(new Error('PORTA reconciliation timeout')), PORTA_RECONCILIATION_TIMEOUT_MS);
-          }),
-        ]);
-        reconciledText = result.accumulatedText;
-        waterfallPortaResolution = result.resolution;
-        portaIntegrityHold = result.portaIntegrityHold;
-      } catch (error) {
-        if (signal?.aborted) throw error;
-        scoutDiag.warn('ModularDossier', 'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado', {
-          sessionId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        optionalStepFailures.add('porta-reconciliation');
-        setFailureCount((prev: number) => prev + 1);
-        portaIntegrityHold = true;
-      } finally {
-        if (portaTimeoutId) clearTimeout(portaTimeoutId);
-      }
-      accumulatedText = reconciledText;
-
-      if (optionalStepFailures.size > 0) {
-        appendWaterfallChunk(
-          `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
+        waterfallSuggestions = ensureContinuitySuggestions(
+          waterfallSuggestions,
+          resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
+          { contextText: waterfallFinalText },
         );
-      } else {
-        setFailureCount(0);
-      }
 
-      const waterfallScorePorta = portaIntegrityHold || !waterfallPortaResolution
-        ? null
-        : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
-      const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
-      const waterfallConstrainedText = sanitizeSensitivePersonalData(enforceSeniorEvidenceConstraints(
-        waterfallCleanText,
-        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
-        waterfallClienteSeniorData,
-      ));
-      const waterfallNarrativeBase = appendSeniorEvidenceNote(
-        waterfallConstrainedText,
-        resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
-        waterfallClienteSeniorData,
-      );
-      let waterfallPrepared = waterfallNarrativeBase;
-      const promotedInlineSources = await validateInlineSourcesForPromotion(
-        waterfallPrepared,
-        waterfallGroundingSources,
-      );
-      appendGroundingSources(promotedInlineSources, 'Promoção inline');
+        replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
-      if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
-        waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
-      }
-
-      const finalized = finalizeDossierMarkdown(
-        waterfallPrepared,
-        waterfallGroundingSources,
-        sessionSourcePool,
-      );
-      const waterfallFinalText = finalized.text || accumulatedText || `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
-      const hasFallbackVerified = Array.from(waterfallVerificationStatuses.values()).some(
-        status => status === 'fallback_verified',
-      ) || waterfallGroundingSources.some(source => source.verification === 'fallback');
-      const hasUnverified = Array.from(waterfallVerificationStatuses.values()).some(status => status === 'unverified');
-      const webVerificationStatus: WebVerificationStatus = waterfallGroundingSources.length > 0
-        ? hasFallbackVerified
-          ? 'fallback_verified'
-          : 'verified'
-        : hasUnverified
-          ? 'unverified'
-          : 'not_applicable';
-
-      let waterfallSuggestions: string[] = [];
-      try {
-        waterfallSuggestions = await generateContinuityQuestion(
-          [
-            ...historyToPass,
-            {
-              id: uuidv4(),
-              sender: Sender.User,
-              text: safeVisibleText,
-              timestamp: new Date(),
-            },
-            {
-              id: uuidv4(),
-              sender: Sender.Bot,
-              text: waterfallFinalText,
-              timestamp: new Date(),
-              clienteSeniorData: waterfallClienteSeniorData,
-            },
-          ],
-          resolvedMegaCompany || null,
-          resolvedOperatorName,
-        );
-      } catch (error) {
-        scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
-          sessionId,
-          company: resolvedMegaCompany || null,
-          error: error instanceof Error ? error.message : String(error),
+        let sessionToPersist: ChatSession | null = null;
+        updateSessionById(sessionId, session => {
+          const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
+          const nextSession: ChatSession = {
+            ...session,
+            empresaAlvo: finalCompany || session.empresaAlvo,
+            scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
+            messages: session.messages.map(message =>
+              message.id === botMessageId
+                ? {
+                    ...message,
+                    text: waterfallFinalText,
+                    scorePorta: waterfallScorePorta ?? undefined,
+                    clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                    webVerificationStatus,
+                    groundingUsed:
+                      webVerificationStatus === 'not_applicable'
+                        ? undefined
+                        : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
+                    suggestions: waterfallSuggestions,
+                    isThinking: false,
+                  }
+                : message,
+            ),
+          };
+          sessionToPersist = nextSession;
+          return nextSession;
         });
-      }
 
-      waterfallSuggestions = ensureContinuitySuggestions(
-        waterfallSuggestions,
-        resolvedMegaCompany || normalizedCompany || waterfallClienteSeniorData?.grupo || null,
-        { contextText: waterfallFinalText },
-      );
+        completeLoadingProgress();
 
-      replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
-
-      let sessionToPersist: ChatSession | null = null;
-      updateSessionById(sessionId, session => {
-        const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
-        const nextSession: ChatSession = {
-          ...session,
-          empresaAlvo: finalCompany || session.empresaAlvo,
-          scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
-          messages: session.messages.map(message =>
-            message.id === botMessageId
-              ? {
-                  ...message,
-                  text: waterfallFinalText,
-                  scorePorta: waterfallScorePorta ?? undefined,
-                  clienteSeniorData: waterfallClienteSeniorData || undefined,
-                  groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
-                  webVerificationStatus,
-                  groundingUsed: webVerificationStatus === 'not_applicable'
-                    ? undefined
-                    : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                  suggestions: waterfallSuggestions,
-                  isThinking: false,
-                }
-              : message,
-          ),
-        };
-        sessionToPersist = nextSession;
-        return nextSession;
-      });
-
-      completeLoadingProgress();
-
-      if (sessionToPersist) {
-        try {
-          await storage.saveDossier(sessionToPersist);
-        } catch (error) {
-          scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-            sessionId,
-            company: resolvedMegaCompany || normalizedCompany || null,
-            error: error instanceof Error ? error.message : String(error),
-          });
+        if (sessionToPersist) {
+          try {
+            await storage.saveDossier(sessionToPersist);
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+              sessionId,
+              company: resolvedMegaCompany || normalizedCompany || null,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
-      }
       } finally {
         // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
         await deleteWaterfallFoundationCache(foundationCacheName);

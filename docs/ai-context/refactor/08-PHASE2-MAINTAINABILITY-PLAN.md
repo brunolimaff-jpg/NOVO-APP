@@ -33,14 +33,14 @@ Boundaries ja estabilizadas:
 
 ## 3. Matriz de hotspots e ajustes necessarios
 
-| Hotspot | Sinal atual | Risco de manutencao | Ajustes alvo | Padroes de refactor |
-|---|---|---|---|---|
-| `App.tsx` | `724` linhas, `44` imports | acoplamento de composicao e wiring centralizado | reduzir orchestration local e criar fronteiras de app shell | `Extract Class/Module`, `Move Function`, `Introduce Facade` |
-| Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto | não reintroduzir; preservar CRM interno Senior em evidências | remoção de feature sem valor atual |
-| `components/LoadingSmart.tsx` | `704` linhas | timeline, modelo e render acoplados | separar fases de preparacao de dados e render | `Extract Method`, `Split Phase`, `Replace Magic Number with Constant` |
-| `components/WarRoom.tsx` | `513` linhas | complexidade local de UI ainda alta | continuar extracao de blocos visuais e objetos de parametros | `Extract Component`, `Introduce Parameter Object` |
-| Radar runtime fora do boundary | `hooks/useRadar.ts` (`248`) + `services/radarService.ts` (`200`) + wiring no `App.tsx` | runtime do Radar ainda fora de `features/radar/*` | mover orquestracao para o boundary oficial mantendo compatibilidade | `Move Method`, `Extract Module`, `Facade over orchestration` |
-| Debt operacional | OI-003, OI-004, OI-005 | ruido de build/test/lint reduz sinal de regressao | hardening de baseline e fechamento de warnings prioritarios | hardening incremental + cleanup dedicado |
+| Hotspot                                     | Sinal atual                                                                            | Risco de manutencao                                          | Ajustes alvo                                                        | Padroes de refactor                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `App.tsx`                                   | `724` linhas, `44` imports                                                             | acoplamento de composicao e wiring centralizado              | reduzir orchestration local e criar fronteiras de app shell         | `Extract Class/Module`, `Move Function`, `Introduce Facade`           |
+| Mini CRM local / `components/CRMDetail.tsx` | removido por decisão de produto                                                        | não reintroduzir; preservar CRM interno Senior em evidências | remoção de feature sem valor atual                                  |
+| `components/LoadingSmart.tsx`               | `704` linhas                                                                           | timeline, modelo e render acoplados                          | separar fases de preparacao de dados e render                       | `Extract Method`, `Split Phase`, `Replace Magic Number with Constant` |
+| `components/WarRoom.tsx`                    | `513` linhas                                                                           | complexidade local de UI ainda alta                          | continuar extracao de blocos visuais e objetos de parametros        | `Extract Component`, `Introduce Parameter Object`                     |
+| Radar runtime fora do boundary              | `hooks/useRadar.ts` (`248`) + `services/radarService.ts` (`200`) + wiring no `App.tsx` | runtime do Radar ainda fora de `features/radar/*`            | mover orquestracao para o boundary oficial mantendo compatibilidade | `Move Method`, `Extract Module`, `Facade over orchestration`          |
+| Debt operacional                            | OI-003, OI-004, OI-005                                                                 | ruido de build/test/lint reduz sinal de regressao            | hardening de baseline e fechamento de warnings prioritarios         | hardening incremental + cleanup dedicado                              |
 
 ## 4. Plano de sprints da nova fase (4 sprints curtas)
 

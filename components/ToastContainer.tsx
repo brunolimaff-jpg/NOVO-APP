@@ -28,7 +28,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) =>
 
   return (
     <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
-      {toasts.map((t) => (
+      {toasts.map(t => (
         <div
           key={t.id}
           className={`pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium animate-fade-in max-w-xs ${STYLES[t.type]}`}

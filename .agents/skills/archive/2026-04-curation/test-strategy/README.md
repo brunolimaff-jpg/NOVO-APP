@@ -41,4 +41,4 @@ low maintenance cost.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/test-strategy)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/test-strategy)_

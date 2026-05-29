@@ -43,4 +43,4 @@ as a retrofit.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/observability)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/observability)_

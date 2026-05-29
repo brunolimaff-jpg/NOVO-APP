@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  buildUiErrorReport,
-  generateUiErrorId,
-  persistUiErrorAudit,
-} from '../../utils/errorBoundaryAudit';
+import { buildUiErrorReport, generateUiErrorId, persistUiErrorAudit } from '../../utils/errorBoundaryAudit';
 
 interface ChatErrorBoundaryProps {
   children: React.ReactNode;
@@ -52,7 +48,7 @@ export class ChatErrorBoundary extends React.Component<ChatErrorBoundaryProps, C
 
     return (
       <div
-        data-testid="chat-error-boundary"
+        data-testid="controlled-error"
         className={`flex h-full min-h-0 items-center justify-center p-6 ${
           isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
         }`}

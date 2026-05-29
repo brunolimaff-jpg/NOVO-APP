@@ -20,14 +20,13 @@ interface FollowUpModalProps {
 }
 
 const formatICSDate = (date: Date): string =>
-  date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z$/, 'Z');
 
 const escapeICSText = (text: string): string =>
-  text
-    .replace(/\\/g, '\\\\')
-    .replace(/\n/g, '\\n')
-    .replace(/,/g, '\\,')
-    .replace(/;/g, '\\;');
+  text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 
 const buildEventWindow = (daysAhead: number) => {
   const start = new Date();
@@ -58,14 +57,14 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   const targetName = rawTargetName.length > 80 ? `${rawTargetName.slice(0, 77)}...` : rawTargetName;
   const { start, end } = buildEventWindow(followUpDias);
   const subject = `Follow-up 🦅 Senior Scout 360 | ${targetName}`;
-  const notes = followUpNotas.trim()
-    ? `Notas: ${followUpNotas.trim()}`
-    : 'Sem notas adicionais.';
+  const notes = followUpNotas.trim() ? `Notas: ${followUpNotas.trim()}` : 'Sem notas adicionais.';
   const description = [
     `Lembrete de follow-up para ${targetName}.`,
     notes,
     emailTo.trim() ? `Email de lembrete: ${emailTo.trim()}` : '',
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const handleDownloadInvite = (): boolean => {
     try {
@@ -172,14 +171,14 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           <input
             type="email"
             value={emailTo}
-            onChange={(e) => onEmailToChange(e.target.value)}
+            onChange={e => onEmailToChange(e.target.value)}
             placeholder="Seu email para lembrete"
             className="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700/50 text-white text-sm mb-3 focus:outline-none focus:border-emerald-500"
           />
           <input
             type="text"
             value={followUpNotas}
-            onChange={(e) => onNotasChange(e.target.value)}
+            onChange={e => onNotasChange(e.target.value)}
             placeholder="Notas (opcional)"
             className="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700/50 text-white text-sm mb-3 focus:outline-none focus:border-emerald-500"
           />
