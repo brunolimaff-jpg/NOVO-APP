@@ -1,79 +1,67 @@
-# Handoff Tecnico — [NOVO-APP] — 28/05/2026 (fim de sessao)
+# Handoff Tecnico — [NOVO-APP] — 29/05/2026 (fim de sessao)
 
 ## Objetivo da Proxima Sessao
 
-Branch `feat/operator-tracking-supabase` com **21 commits**, working tree **modificada** (~15 arquivos).
-PR #309 aberta mas desatualizada.
-**Proximo passo: commitar working tree, unificar em 3 commits tematicos via soft reset, push force-with-lease e atualizar PR #309.**
+Branch `feat/dossier-tracking-events` (PR #312) **MERGEADA** em main (squash, commit `c35b45b`).
+Branch `feat/crm-supabase-migration` com WIP existente.
+Main local desatualizada — git pull pendente.
+
+**Proximo passo: Fazer git pull origin main, deletar branch local feat/dossier-tracking-events, e definir proxima prioridade: (A) corrigir P0 withTimeout no api/gemini.ts ou (B) iniciar CRM Supabase migration.**
 
 ## Estado Atual
 
-- **Branch:** `feat/operator-tracking-supabase`
-- **Ultimo commit:** `6cdea53` — fix: aplica findings do code review max-effort
-- **Sync com remote:** Pushado, mas working tree tem modificacoes novas
-- **Diferenca de main:** 21 commits ahead
-- **142 test files, 1242 tests, 0 falhas**
-- **3 contract files, 45 tests, 0 falhas**
-- **Typecheck:** limpo
-- **Working tree:** modificada (`.claude/`, `CLAUDE.md`, `HANDOFF_AI.md`, `.agents/memory/*`, `CALIBER_LEARNINGS.md`, `scripts/check-branch-health.sh`, `docs/superpowers/plans/`, `n.md`)
-- **Untracked:** `.claude/`, `scripts/check-branch-health.sh`, `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`, `n.md` (deletar)
+- **Branch (local):** `feat/dossier-tracking-events` (pode deletar — ja mergeada)
+- **Main local:** desatualizada (falta commit `c35b45b` do origin)
+- **Ultimo commit em origin/main:** `c35b45b` — squash merge dos 3 commits da PR #312
+- **Sync com remote:** Main local atrasada, branch local pronta para delecao
+- **Testes:** 142 test files, 1242 tests, 0 falhas (ultima execucao conhecida)
+- **Working tree:** limpa (2 untracked: planos de CRM migration e dossier-lifecycle)
+- **Branch `feat/crm-supabase-migration`:** WIP com stashed changes
 
-## O que foi feito nesta sessao (23:00-23:59)
+## O que foi feito
 
-### 1. Infraestrutura de automacao (.claude/)
+### PR #312 mergeada — trackOperatorEvent (3 commits squashed)
 
-- **settings.json:** hooks PreToolUse (bloqueio .env/lock, git commit guard via check-branch-health.sh) e PostToolUse (Prettier auto-format .ts/.tsx)
-- **Skills:** validate-gates, supabase-migration
-- **Agents:** security-reviewer, pr-gate-runner
-- **.mcp.json:** supabase, playwright, context7, github MCP configs
+- 3 eventos de dossie: dossier_started, dossier_completed, dossier_failed
+- `trackOperatorEvent()` fire-and-forget via Supabase `operator_events`
+- Dossie falho registrado com `{ metadata: { errorMessage } }`
+- Nunca bloqueia a UI
 
-### 2. Trava de acumulo de commits
+### Bug corrigido: stale closure no dependency array
 
-- `scripts/check-branch-health.sh`: 0-5 silencioso, 6-7 warning, 8+ bloqueia commit
-- `CLAUDE.md`: +3 regras (trava max 7 commits, push diario, checkpoint a cada 5)
+- `operatorId`/`operatorEmail` adicionados ao array de dependencias do `useCallback` do `processMessage`
 
-### 3. Code review max-effort (9 angulos)
+### Bug corrigido: LoadingSmart travado no preview Vercel
 
-Rodado `/code-review --max` com 9 angulos paralelos. **18 findings** (2 P0, 4 P1, 12 P2).
+**Sintoma:** loading permanecia em "Reunindo referencias e sinais de mercado..." sem concluir.
+**Causa raiz:** Camadas aninhadas de retry no benchmark:
 
-**Bugs criticos P0 encontrados (nao corrigidos, documentados):**
+- Timeout de 45s + withAutoRetry 3x + retry interno do benchmarkClientes + cold-start retry
+- Total acumulado: ate ~277s no pior caso
+  **Fixes:**
+- `MODULAR_BENCHMARK_TIMEOUT_MS`: 45000 -> 20000
+- `maxRetries` no `withAutoRetry` do benchmark: 3 -> 1
+- `completeLoadingProgress()` no finally do `processMessage` como safety net
 
-1. `api/gemini.ts:416` — `withTimeout` cria AbortController interno mas **nao propaga** o signal para `chat.sendMessage`. Chamada real roda sem timeout.
-2. `api/gemini.ts:491` — `sendFunctionResponses` chamado sem AbortSignal. Timeout de 120s e ineficaz.
+### Licoes aprendidas (4 principais)
 
-### 4. Plano de merge
-
-`docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`:
-Estrategia: backup branch -> soft reset -> 3 commits (tracking, diagnostico, qualidade) -> push force-with-lease -> PR #309
+1. **Timeout aninhado engana**: Camadas de retry acumulam delay. Etapa opcional = timeout curto + 1 tentativa.
+2. **Fire-and-forget = silencioso**: Correto para tracking, mas falhas sao invisiveis.
+3. **completeLoadingProgress() no finally**: Reseta estado interno do loading. Sem isso, proximo request herda estado zumbi.
+4. **Preview deploy > teste unitario**: Travamento so apareceu no preview Vercel. Testes unitarios nao cobrem comportamento real de rede.
 
 ## Riscos Tecnicos Residuais
 
-1. **RLS policies com USING(true)** — sem auth.uid() disponivel. Intencional (app interno).
-2. **Promise.race no waterfall sem abort do signal** — timeout rejeita promise mas nao aborta fetch interno.
-3. **FK session_id TEXT vs integer** — `operator_events.session_id` integer FK; UUID eliminaria risco de collision.
-4. **withTimeout + AbortSignal desacoplado** — criar controller nao aborta a operacao real. Bug P0 documentado, precisa corrigir antes de fechar PR.
-
-## Plano de merge (proximo passo)
-
-Ver `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`:
-
-1. Backup `backup/operator-tracking-21-commits`
-2. Commitar working tree (docs + automacoes + findings)
-3. Soft reset para main
-4. 3 commits: Tracking, Diagnostico, Qualidade e Automacao
-5. Push force-with-lease
-6. Atualizar PR #309
-
-## Infra
-
-- Chromium auto-install via `pretest:e2e` + `scripts/ensure-playwright.sh`
-- `validate:ci` — typecheck + unit + contracts (sem E2E)
-- `.claude/` com hooks, skills, agents versionados
+1. **P0 withTimeout (api/gemini.ts:416 e :491):** `withTimeout` cria AbortController mas nao propaga signal para `chat.sendMessage()` nem `sendFunctionResponses()`. Documentado, nao corrigido. **Afeta TODA chamada Gemini com timeout.**
+2. **RLS policies com USING(true)** — sem auth.uid(). Intencional (app interno), aceitavel.
+3. **FK session_id integer vs UUID** — `operator_events.session_id` integer FK; UUID eliminaria risco de colisao.
+4. **Main local desatualizada** — git pull necessario antes de nova branch.
 
 ## Links
 
-- **Branch:** `feat/operator-tracking-supabase`
-- **Vault sessao:** `Bruno Vault/20-SESSOES/2026-05/2026-05-28T23-59-00-automacoes-claude-code-trava-commits.md`
-- **Plano merge:** `docs/superpowers/plans/2026-05-28-unificar-branch-pr.md`
-- **Spec testes:** `docs/superpowers/specs/2026-05-28-test-anti-regression-design.md`
-- **PR #309:** esperando merge
+- **Branch (fechada):** `feat/dossier-tracking-events`
+- **PR #312 (merged):** https://github.com/brunolimaff-jpg/NOVO-APP/pull/312
+- **Merge commit:** `c35b45b`
+- **Vault sessao:** `Bruno Vault/20-SESSOES/2026-05/2026-05-29T15-30-00-fechamento-pr312-dossier-tracking-events.md`
+- **Sessao PR #312 abertura:** `Bruno Vault/20-SESSOES/2026-05/2026-05-29T15-00-00-fechamento-pr311-pr312-supabase-cleanup.md`
+- **Plano CRM:** `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`

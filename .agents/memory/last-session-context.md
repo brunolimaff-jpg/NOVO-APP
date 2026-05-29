@@ -1,59 +1,54 @@
 # Last Session Context
 
-Saved: 2026-05-28
+Saved: 2026-05-29
 
 ## Git
 
-Branch: `feat/operator-tracking-supabase` | HEAD: `15379b0` | 21 commits ahead of main (7 novos nesta sessao)
-Nenhum commit pushado para origin.
+Branch: `feat/dossier-tracking-events` (pode deletar — ja mergeada em main)
+Main local: desatualizada (falta commit `c35b45b` do origin)
+3 commits na branch, todos squashed no commit `c35b45b` em origin/main
+PR #312 mergeada em 2026-05-29T15:23:22Z
 
 ## Resumo da sessao
 
-Code review completo em 61 arquivos da branch `feat/operator-tracking-supabase`, foco em APIs degradadas, fluxos quebrados e falhas silenciosas. 22 problemas encontrados (3 P0, 7 P1, 12 P2). **7 commits aplicados corrigindo 10 bugs** (8 P1 + 1 P2 bonus + 1 P1 documentado do Composer).
+PR #312 (dossier-tracking-events) mergeada em main. Branch fechada. LoadingSmart benchmark bug descoberto no preview Vercel e corrigido. 4 licoes aprendidas documentadas.
 
-### 7 commits
+### Commits da branch
 
-| Commit    | Escopo                    | Bug                                                                                             |
-| --------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
-| `718ff20` | operatorTracking.ts       | ff() console.warn, touchOperatorSession ended_at, initSessionTracking async (race condition FK) |
-| `3cd37ce` | OperatorContext.tsx       | 8 void promises com .catch()                                                                    |
-| `9137a3c` | waterfall-orchestrator.ts | finally try/catch cache deletion                                                                |
-| `d0f1980` | api/gemini.ts             | withTimeout AbortController, generateContent timeout 120s                                       |
-| `d2a3a13` | serverDiagnostics.ts      | AbortSignal.timeout fetch Supabase                                                              |
-| `7700cfd` | diagnosticLog.ts          | setupVisibilityTracking retorna cleanup                                                         |
-| `15379b0` | App.tsx                   | toast Deep Dive bloqueado, useRef export timeout                                                |
+| Commit    | Escopo                           | Descricao                          |
+| --------- | -------------------------------- | ---------------------------------- |
+| `828dfce` | message-orchestrator             | trackOperatorEvent fire-and-forget |
+| `fd344a1` | message-orchestrator             | Fix stale closure deps array       |
+| `e67adf2` | benchmark + message-orchestrator | Fix timeout + safety net           |
 
-### 5 code-review findings NAO aplicados (working tree)
+### Bugs corrigidos
 
-1. **P0** `components/chat/Composer.tsx` — data-testid com espaco
-2. **P1** `features/chat/message-orchestrator.ts` — deps array stale closure
-3. **P1** `tests-e2e/controlled-error-state.spec.ts` — boundary nunca renderiza
-4. **P1** `services/storage.ts` — migration ordering dependency
-5. **P1** `components/ChatInterface.tsx` — classifyPanelState hardcoded false
+1. Stale closure: operatorId/email ausentes do deps array
+2. LoadingSmart travado: timeout aninhado no benchmark
+
+### Bug NAO corrigido (P0 pendente)
+
+- withTimeout (api/gemini.ts:416 e :491) — AbortController criado mas signal nao propagado
 
 ## Decisoes arquiteturais novas
 
-1. **finally try/catch obrigatorio** para operacoes de cleanup secundarias
-2. **void promise sempre .catch()** quando caller nao faz await
-3. **AbortController** em vez de Promise.race puro para timeouts
-4. **AbortSignal.timeout()** built-in para fetch Supabase
-5. **setupVisibilityTracking retorna cleanup** — listener sempre com removeListener
-6. **Toast para bloqueio** — feedback visual melhor que silencio
-7. **useRef para setTimeout** — timerId armazenado para cleanup no unmount
+1. **Benchmark timeout reduzido (45s -> 20s)** — etapa opcional com timeout curto + 1 retry
+2. **completeLoadingProgress() no finally** — safety net contra estado zumbi de loading
+3. **Fire-and-forget para trackOperatorEvent** — mantido como padrao, nao bloqueia UI
 
 ## Estado do codigo
 
-- 142 test files, 1242 testes passando, 0 falhas
-- typecheck limpo
-- 21 commits, nenhum pushado
-- 7 arquivos com mudancas nao commitadas (5 code-review findings + docs)
+- Working tree limpa (2 untracked: planos)
+- Main local desatualizada
+- Branch `feat/crm-supabase-migration` com WIP
 
 ## Riscos residuais
 
-1. RLS policies com USING(true) — sem auth.uid(), aceitavel para app interno
-2. Promise.race no waterfall sem abort signal — timeout nao aborta fetch interno
-3. FK session_id integer vs TEXT — UUID TEXT seria mais seguro que auto-increment
+1. P0 withTimeout — afeta toda chamada Gemini com timeout
+2. RLS USING(true) — aceitavel para app interno
+3. FK session_id integer — risco de colisao vs UUID
+4. Main local stale — precisa git pull
 
 ## Recuperacao
 
-Proxima sessao: `HANDOFF_AI.md` -> `activeContext.md` -> `progress.md` -> aplicar 5 code-review findings pendentes OU pushar commits e abrir PR.
+Proxima sessao: `HANDOFF_AI.md` -> `activeContext.md` -> `progress.md` -> git pull origin main -> deletar branch local -> definir prioridade (P0 vs CRM migration).
