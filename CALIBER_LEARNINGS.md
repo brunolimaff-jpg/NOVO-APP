@@ -45,6 +45,30 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
 - **Preview Vercel revela bugs de rede que testes nao pegam** [testing, deploy, vercel]
   Travamento do LoadingSmart so apareceu no preview Vercel. Testes unitarios nao cobrem comportamento real de HTTP (benchmark lento, cold-start). Preview deploy e gate obrigatorio antes de merge.
 
+- **Evento + cleanup no mesmo ciclo destroi estado** [react, useEffect, evento]
+  useEffect cleanup que limpa `completedDossier` roda antes da proxima render, mas se o event listener esta no mesmo ciclo, o cleanup executa antes do consumo. O componente nunca ve o estado.
+
+- **Catch silencioso em consulta cria duplicata no Supabase** [supabase, catch, duplicata]
+  `findExistingDossier` retorna `null` no catch. O caller interpreta null como "nao existe" e cria novo registro. Nunca usar `return null` em catch de funcao de consulta sem log ou fallback.
+
+- **Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
+  `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossie existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
+
+- **Componente condicional sem `key` causa estado stale** [react, key, componente]
+  `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossie anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
+
+- **Code review max-effort exige consolidacao pos-review** [code-review, qualidade]
+  65 findings brutos precisam ser filtrados e agrupados. Sem consolidacao, a fila de correcao fica poluida com ruido. Findings repetidos (mesmo bug em arquivos diferentes) devem ser deduplicados antes de apresentar.
+
+- **cnpjDigits guard aceita CPF (11 digitos)** [validacao, cnpj, cpf]
+  `>= 11` aceita CPF. Validacao de CNPJ deve ser `=== 14`, nunca `>= 11`.
+
+- **window.open sem noreferrer vaza token** [seguranca, compartilhamento]
+  URL de compartilhamento pode conter params sensiveis. `window.open(url)` exige `noopener,noreferrer`.
+
+- **CustomEvent sem tipo compartilhado quebra listener** [eventos, typescript, manutencao]
+  Strings de evento como `dossier:completed` sao literais sem constante. Um typo quebra o listener silenciosamente. Todo CustomEvent deve ter seu tipo em `types.ts`.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber após sessões de agente._

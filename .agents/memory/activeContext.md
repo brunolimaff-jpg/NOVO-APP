@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-29 15:30 (PR #312 mergeada)
+Last updated: 2026-05-29 18:30 (Resolucao merge conflict + PR #314 aberta)
 
 ## Boot
 
@@ -9,22 +9,31 @@ Last updated: 2026-05-29 15:30 (PR #312 mergeada)
 
 ## Fase atual
 
-**PR #312 mergeada.** Branch `feat/dossier-tracking-events` fechada.
-Main local desatualizada (git pull pendente).
-Branch `feat/crm-supabase-migration` com WIP existente.
-**Proximo passo: git pull origin main + deletar branch local + definir prioridade (P0 withTimeout vs CRM migration).**
+**Resolucao merge conflict PR #313 concluida. PR #314 dossier-lifecycle aberta. Ambos os PRs aguardando CI/revisao.**
 
-### PR #312 — dossier-tracking-events
+### PR #313 — fix/remove-web-search-fallback
 
-| Item                                  | Status                        |
-| ------------------------------------- | ----------------------------- |
-| Branch `feat/dossier-tracking-events` | **MERGED** (commit `c35b45b`) |
-| trackOperatorEvent fire-and-forget    | Em producao                   |
-| Bug stale closure (deps array)        | Corrigido (commit `fd344a1`)  |
-| Bug LoadingSmart travado benchmark    | Corrigido (commit `e67adf2`)  |
-| Local main desatualizada              | Pendente (git pull)           |
+| Item                      | Status                      |
+| ------------------------- | --------------------------- |
+| Branch remota             | Pushada                     |
+| PR #313 aberta            | Aberta                      |
+| Merge conflict resolvido  | CONCLUIDO (2 conflitos)     |
+| Gemini Code Assist review | Resolvido (6c7ef13)         |
+| MergeStateStatus          | **MERGEABLE** (CI pendente) |
 
-### Pendencias da sessao anterior (PR #309 merge)
+### PR #314 — feat/dossier-lifecycle (10 commits)
+
+| Item                            | Status                          |
+| ------------------------------- | ------------------------------- |
+| Trava CNPJ duplicado            | Implementado (0415e40)          |
+| Modal dossie duplicado          | Implementado (6e64e57)          |
+| findExistingDossier             | Implementado (e276d9f)          |
+| DossierShareBar + link Teams    | Implementado (9f5d32b, 626f97d) |
+| Code review (65 -> 15 findings) | CONCLUIDO                       |
+| PR #314 aberta                  | Aberta                          |
+| 3 P0 corrigidos                 | Pendente                        |
+
+### Pendencias de sessoes anteriores
 
 | Item                                                      | Status                          |
 | --------------------------------------------------------- | ------------------------------- |
@@ -32,26 +41,19 @@ Branch `feat/crm-supabase-migration` com WIP existente.
 | Unique constraint `email_normalized` no Supabase          | Pendente                        |
 | Branch residual `fix/gemini-billing-error-classification` | Verificar                       |
 
-### Validacao
-
-- `tsc --noEmit`: limpo (ultima execucao conhecida)
-- `npm test`: 142/142 files, 1242/1242 testes (100%)
-- Preview Vercel: travamento benchmark corrigido, loading funciona
-
 ## Proximo passo
 
-1. `git pull origin main` para sincronizar main local
-2. `git branch -d feat/dossier-tracking-events` (branch ja mergeada)
-3. Definir prioridade:
-   - **Opcao A:** Corrigir P0 withTimeout + AbortSignal (api/gemini.ts:416, :491)
-   - **Opcao B:** Iniciar CRM Supabase migration (plano em `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`)
-4. Rodar `git log main..HEAD --oneline` em qualquer branch nova a cada 5 commits
+1. Aguardar CI da PR #313 (Build, Tests, Typecheck, Dossier Golden)
+2. Se verde: mergear PR #313 e acompanhar deploy (verificar tela branca)
+3. Corrigir 3 P0 + 2 P1 do code review na PR #314
+4. Submeter nova revisao da PR #314
 
 ## Ponteiros
 
 - `HANDOFF_AI.md`
-- Vault: `2026-05-29T15-30-00-fechamento-pr312-dossier-tracking-events.md`
-- Vault (abertura PR #312): `2026-05-29T15-00-00-fechamento-pr311-pr312-supabase-cleanup.md`
-- Plano CRM: `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`
-- P0 withTimeout: `30-DECISOES/ACHADO-P0-WITHTIMEOUT-ABORTSIGNAL-2026-05-28.md`
+- PR #313: https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
+- PR #314: https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
+- Vault: `2026-05-29T18-30-00-resolucao-merge-conflict-pr313-pr314.md`
 - `CALIBER_LEARNINGS.md`
+- `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`
+- `docs/superpowers/plans/2026-05-29-dossier-lifecycle.md`

@@ -4,7 +4,7 @@ import { parsePortaMarkerV2 } from '../../utils/porta';
 import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
 import { applyPromptLeakShield } from '../../utils/textCleaners';
 import { withAutoRetry } from '../../utils/retry';
-import { executeOpenWebSearchTool, proxyChatSendMessage, proxyGenerateContent } from '../geminiProxy';
+import { proxyChatSendMessage, proxyGenerateContent } from '../geminiProxy';
 import {
   benchmarkClientes,
   formatarBenchmarkParaPrompt,
@@ -18,8 +18,7 @@ import {
 import { getContextoConcorrentesRegionais, type CompetitorDetection } from '../competitorService';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
-import { buildSocioRuralInstructionContext, buildSocioRuralSearchQueries } from '../../utils/socioRuralResearch';
-import type { VerifiedSource } from '../../utils/webVerification';
+import { buildSocioRuralInstructionContext } from '../../utils/socioRuralResearch';
 import { deriveVerificationStatusFromSources } from '../../utils/webVerification';
 import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../ragService';
 import {
@@ -69,128 +68,6 @@ A mensagem atual e uma pergunta dentro de uma investigacao ja aberta.
 - Seja curto e acionavel: 1 a 3 bullets ou um paragrafo direto costumam bastar.
 - Se a pergunta estiver ambigua ou o historico compacto nao trouxer base suficiente, pergunte ao usuario antes de inferir.
 `;
-
-function extractSourcesFromOpenWebSearchContent(content: string): VerifiedSource[] {
-  const out: VerifiedSource[] = [];
-  const seen = new Set<string>();
-  const urlRegex = /URL:\s*(https?:\/\/[^\s\n]+)/gi;
-  const titleRegex = /Título:\s*([^\n]+)/i;
-  const blocks = (content || '').split(/\n---\n?/);
-
-  for (const block of blocks) {
-    const title = block.match(titleRegex)?.[1]?.trim();
-    let match: RegExpExecArray | null;
-    while ((match = urlRegex.exec(block)) !== null) {
-      const url = match[1].trim().replace(/[),.;]+$/g, '');
-      if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
-      seen.add(url);
-      out.push({ title: title || url, url, verification: 'fallback' });
-    }
-  }
-
-  return out;
-}
-
-function normalizeOpenWebSearchSources(sources: unknown): VerifiedSource[] {
-  if (!Array.isArray(sources)) return [];
-  const out: VerifiedSource[] = [];
-  const seen = new Set<string>();
-
-  for (const item of sources) {
-    const source = item as { title?: unknown; url?: unknown };
-    const url = typeof source.url === 'string' ? source.url.trim().replace(/\/+$/, '') : '';
-    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
-    seen.add(url);
-    out.push({
-      title: (typeof source.title === 'string' && source.title.trim()) || url,
-      url,
-      verification: 'fallback',
-    });
-  }
-
-  return out;
-}
-
-function buildDossierFallbackQueries(moduleName: string, empresaAlvo: string, extraContext: string): string[] {
-  const company = empresaAlvo.trim();
-  if (!company) return [];
-
-  const baseByModule: Record<string, string[]> = {
-    'Raio-X Operacional': [
-      `"${company}" ("unidade" OR "fazenda" OR "usina" OR "armazém" OR "capacidade" OR "hectares")`,
-      `"${company}" ("produção" OR "algodão" OR "milho" OR "etanol" OR "energia" OR "Tapurah")`,
-    ],
-    'Tech Stack': [
-      `"${company}" ("ERP" OR "Senior" OR "Sapiens" OR "HCM" OR "GAtec" OR "sistema")`,
-      `"${company}" ("tecnologia" OR "software" OR "integração" OR "gestão")`,
-    ],
-    'Riscos & Compliance': [
-      `"${company}" ("ICMS" OR "FUNRURAL" OR "LCDPR" OR "execução fiscal" OR "MPT" OR "IBAMA")`,
-      `"${company}" ("dívida ativa" OR "autuação" OR "licença ambiental" OR "embargo")`,
-    ],
-    'Estratégia & Expansão': [
-      `"${company}" ("BNDES" OR "financiamento" OR "expansão" OR "nova planta" OR "aquisição")`,
-      `"${company}" ("investimento" OR "usina" OR "energia" OR "joint venture")`,
-    ],
-    'RH & Decisores': [
-      `"${company}" ("colaboradores" OR "funcionários" OR "diretor" OR "CEO" OR "sócio")`,
-      `"${company}" ("LinkedIn" OR "gestor" OR "administrador" OR "QSA")`,
-    ],
-  };
-
-  const socioQueries = /societ|compliance|riscos|decisores|rh/i.test(moduleName)
-    ? buildSocioRuralSearchQueries(company, extraContext)
-    : [];
-
-  return Array.from(new Set([...(baseByModule[moduleName] || [`"${company}"`]), ...socioQueries])).slice(0, 6);
-}
-
-async function runDossierWebFallback(
-  moduleName: string,
-  empresaAlvo: string,
-  extraContext: string,
-): Promise<VerifiedSource[]> {
-  const queries = buildDossierFallbackQueries(moduleName, empresaAlvo, extraContext);
-  const sources: VerifiedSource[] = [];
-  const seen = new Set<string>();
-
-  for (const query of queries) {
-    try {
-      const result = await executeOpenWebSearchTool(query);
-      const content = typeof result?.content === 'string' ? result.content : '';
-      const resultSources = [
-        ...normalizeOpenWebSearchSources(result?.sources),
-        ...extractSourcesFromOpenWebSearchContent(content),
-      ];
-      for (const source of resultSources) {
-        const normalized = source.url.trim().replace(/\/+$/, '');
-        if (!normalized || seen.has(normalized)) continue;
-        seen.add(normalized);
-        sources.push({ ...source, url: normalized });
-      }
-      if (sources.length >= 5) break;
-      if (result?.degraded) {
-        scoutDiag.warn('DossierModule', 'fallback open-web-search degradado; tentando proxima query', {
-          moduleName,
-          empresaAlvo,
-          query,
-          detail: result.detail,
-          partialSources: sources.length,
-        });
-        continue;
-      }
-    } catch (error) {
-      scoutDiag.warn('DossierModule', 'fallback open-web-search falhou', {
-        moduleName,
-        empresaAlvo,
-        query,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return sources;
-}
 
 function buildExtraContext(params: {
   clienteData: LookupResponse | null;
@@ -783,17 +660,11 @@ export async function generateDossierModule(
   );
 
   if (groundingSources.length === 0 && options.useGrounding) {
-    scoutDiag.warn('DossierModule', 'grounding habilitado sem fontes retornadas; acionando fallback web', {
+    scoutDiag.info?.('DossierModule', 'grounding sem fontes; marcando como unverified', {
       moduleName,
       empresaAlvo,
     });
-    const fallbackSources = await runDossierWebFallback(moduleName, empresaAlvo, extraContext);
-    if (fallbackSources.length > 0) {
-      groundingSources = fallbackSources;
-      verificationStatus = 'fallback_verified';
-    } else {
-      verificationStatus = 'unverified';
-    }
+    verificationStatus = 'unverified';
   }
 
   if (groundingSources.length > 0) {
