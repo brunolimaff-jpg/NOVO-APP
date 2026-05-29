@@ -23,6 +23,10 @@
       "destination": "/api/$1"
     },
     {
+      "source": "/dossie/(.*)",
+      "destination": "/api/dossie?token=$1"
+    },
+    {
       "source": "/((?!api/|.*\\..*).*)",
       "destination": "/index.html"
     }

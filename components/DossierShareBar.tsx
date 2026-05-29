@@ -28,8 +28,8 @@ export function DossierShareBar({ dossierId, companyName }: DossierShareBarProps
       setCopied(true);
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // Silencioso: permissão negada ou falha de rede não deve quebrar a UI
+    } catch (err) {
+      console.warn('[DossierShareBar] Falha ao compartilhar:', err);
     }
   }, [dossierId]);
 
