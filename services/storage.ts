@@ -589,6 +589,7 @@ export const storage = {
       entityId: dossierId,
       companyCnpj: dossier.cnpj || undefined,
       companyName: dossier.empresaAlvo || undefined,
+      shareChannel: 'link',
     });
 
     return token;
