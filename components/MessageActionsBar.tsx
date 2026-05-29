@@ -132,14 +132,26 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
       entityType: 'message',
     });
 
-    if (navigator.share) {
+    if (navigator.share && window.isSecureContext) {
       try {
         await navigator.share({ title: '🦅 Senior Scout 360 — Dossiê', text: sanitizeSensitivePersonalData(content) });
-      } catch (err) {
-        console.warn('MessageActionsBar: Web Share API failed, usando clipboard fallback', err);
+      } catch {
         handleCopy();
       }
     } else {
+      handleCopy();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const safeContent = sanitizeSensitivePersonalData(content);
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(`${safeContent.substring(0, 120)}...\n\n${url}`);
+      setCopyState('copied');
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyState('idle'), 3000);
+    } catch {
       handleCopy();
     }
   };
@@ -194,12 +206,21 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
           </button>
 
           <button
+            onClick={handleCopyLink}
+            className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${hoverColor} hover:${activeBg}`}
+            title="Copiar link da página"
+          >
+            <span>📋</span>
+            <span className="hidden sm:inline">Copiar link</span>
+          </button>
+
+          <button
             onClick={handleDownload}
             className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-all ${hoverColor} hover:${activeBg}`}
-            title="Baixar PDF premium"
+            title="Baixar HTML"
           >
             <span>📕</span>
-            <span className="hidden sm:inline">PDF</span>
+            <span className="hidden sm:inline">HTML</span>
           </button>
           {downloadError && (
             <span role="alert" className="text-[10px] text-red-400 animate-fade-in">

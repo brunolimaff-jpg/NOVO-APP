@@ -1010,15 +1010,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const dossier = sessionToPersist as ChatSession;
           try {
             await storage.saveDossier(dossier);
-            window.dispatchEvent(
-              new CustomEvent('dossier:completed', {
-                detail: {
-                  dossierId: dossier.id,
-                  companyName: resolvedMegaCompany || normalizedCompany || '',
-                  cnpj: dossier.cnpj,
-                },
-              }),
-            );
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
               sessionId,
@@ -1026,6 +1017,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               error: error instanceof Error ? error.message : String(error),
             });
           }
+          window.dispatchEvent(
+            new CustomEvent('dossier:completed', {
+              detail: {
+                dossierId: dossier.id,
+                companyName: resolvedMegaCompany || normalizedCompany || '',
+                cnpj: dossier.cnpj,
+              },
+            }),
+          );
         }
       } finally {
         // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
