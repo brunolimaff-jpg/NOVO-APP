@@ -53,11 +53,12 @@ export const waterfallTrace = {
     trace('module:start', { module_name: name, status: 'started' });
   },
 
-  moduleEnd(name: string, elapsedMs: number, ok: boolean) {
+  moduleEnd(name: string, elapsedMs: number, ok: boolean, errorDetail?: string) {
     trace('module:end', {
       module_name: name,
       status: ok ? 'success' : 'failed',
       elapsed_ms: elapsedMs,
+      ...(errorDetail ? { detail: { error: errorDetail } } : {}),
     });
   },
 

@@ -619,7 +619,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallTrace.moduleEnd(module.name, Math.round(performance.now() - modStart), true);
           return result;
         } catch (err) {
-          waterfallTrace.moduleEnd(module.name, Math.round(performance.now() - modStart), false);
+          const errMsg = err instanceof Error ? err.message : String(err);
+          waterfallTrace.moduleEnd(module.name, Math.round(performance.now() - modStart), false, errMsg);
           throw err;
         }
       };
@@ -1031,10 +1032,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           try {
             await storage.saveDossier(dossier);
           } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            waterfallTrace.error({ step: 'saveDossier', error: errMsg });
             scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
               sessionId,
               company: resolvedMegaCompany || normalizedCompany || null,
-              error: error instanceof Error ? error.message : String(error),
+              error: errMsg,
             });
           }
           window.dispatchEvent(
