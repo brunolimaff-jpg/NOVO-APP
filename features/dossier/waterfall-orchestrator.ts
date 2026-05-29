@@ -32,6 +32,7 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 import { stripPortaMarkers } from '../../utils/porta';
 import { normalizeCnpj } from '../../utils/cnpj';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
+import { initWaterfallTrace, waterfallTrace } from '../../utils/waterfallLogger';
 import {
   appendSeniorEvidenceNote,
   buildSeniorEvidenceContext,
@@ -403,11 +404,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       isFirstInteraction,
       sessionCnpjDigits,
     }: RunMegaPromptWaterfallArgs) => {
+      const waterfallStartTime = performance.now();
+
       let accumulatedText = '';
       let previousStageCompleted = false;
       const optionalStepFailures = new Set<string>();
       const dossierSeedContext = buildDossierSeedContext(text);
       const resolvedMegaCompany = normalizedCompany || hintedCompany || '';
+
+      initWaterfallTrace(sessionId, resolvedOperatorName, resolvedMegaCompany);
+      waterfallTrace.start();
       const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
       let waterfallLookupContext = '';
       let waterfallClienteSeniorData: ClienteSeniorData | undefined;
@@ -594,25 +600,36 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         accumulatedTextSnapshot,
         contextHint = '',
         timeoutMs = module.timeoutMs,
-      ) =>
-        generateDossierModule(
-          module.name,
-          resolvedMegaCompany || 'Empresa',
-          SHARED_FOUNDATION_BLOCK,
-          module.prompt,
-          buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
-          {
-            signal,
-            timeoutMs,
-            ...sharedDossierModuleOptions,
-          },
-        );
+      ) => {
+        const modStart = performance.now();
+        waterfallTrace.moduleStart(module.name);
+        try {
+          const result = await generateDossierModule(
+            module.name,
+            resolvedMegaCompany || 'Empresa',
+            SHARED_FOUNDATION_BLOCK,
+            module.prompt,
+            buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
+            {
+              signal,
+              timeoutMs,
+              ...sharedDossierModuleOptions,
+            },
+          );
+          waterfallTrace.moduleEnd(module.name, Math.round(performance.now() - modStart), true);
+          return result;
+        } catch (err) {
+          waterfallTrace.moduleEnd(module.name, Math.round(performance.now() - modStart), false);
+          throw err;
+        }
+      };
 
       const runTeiaSocietariaOrchestration = async (): Promise<string> => {
         let identityResult: string;
 
         try {
           const identityStart = performance.now();
+          waterfallTrace.moduleStart('Teia Societaria - Identidade');
           identityResult = await generateDossierModule(
             'Teia Societaria — Identidade',
             resolvedMegaCompany || 'Empresa',
@@ -627,6 +644,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             },
           );
           const identityElapsed = performance.now() - identityStart;
+          waterfallTrace.moduleEnd('Teia Societaria - Identidade', Math.round(identityElapsed), true);
           scoutDiag.info('Waterfall', 'module:complete', {
             module: 'Teia Societaria — Identidade',
             elapsedMs: identityElapsed,
@@ -1004,6 +1022,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           return nextSession;
         });
 
+        const waterfallElapsed = Math.round(performance.now() - waterfallStartTime);
+        waterfallTrace.end(waterfallElapsed);
         completeLoadingProgress();
 
         if (sessionToPersist) {
