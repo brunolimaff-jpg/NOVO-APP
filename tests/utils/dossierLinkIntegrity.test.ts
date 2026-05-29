@@ -23,11 +23,9 @@ describe('dossierLinkIntegrity', () => {
   });
 
   it('renumera links na secao Sinais de Urgencia', () => {
-    const input = [
-      '## ⏰ Sinais de Urgência',
-      '- Item [a](https://a.com/1) e [b](https://b.com/2)',
-      '## Outra',
-    ].join('\n');
+    const input = ['## ⏰ Sinais de Urgência', '- Item [a](https://a.com/1) e [b](https://b.com/2)', '## Outra'].join(
+      '\n',
+    );
     const out = applyDossierLinkIntegrity(input, { allowedPool: [] });
     expect(out).toContain('[1](https://a.com/1)');
     expect(out).toContain('[2](https://b.com/2)');

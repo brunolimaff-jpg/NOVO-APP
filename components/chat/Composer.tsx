@@ -68,9 +68,7 @@ const Composer: React.FC<ComposerProps> = ({
       completedStagesIsArray: Array.isArray(processing.completedStages),
       failureCountType: typeof processing.failureCount,
       totalStagesType: typeof processing.totalStages,
-      isMalformed:
-        typeof processing.stage !== 'string' ||
-        !Array.isArray(processing.completedStages),
+      isMalformed: typeof processing.stage !== 'string' || !Array.isArray(processing.completedStages),
     };
   }, [processing]);
 
@@ -123,11 +121,7 @@ const Composer: React.FC<ComposerProps> = ({
     if (malformedProcessingSignatureRef.current === signature) return;
 
     malformedProcessingSignatureRef.current = signature;
-    scoutDiag.warn(
-      'ChatInterface',
-      'processing payload malformado no indicador inferior',
-      logPayload,
-    );
+    scoutDiag.warn('ChatInterface', 'processing payload malformado no indicador inferior', logPayload);
   }, [processingInfo, sessionId]);
 
   const handleSend = () => {
@@ -167,9 +161,7 @@ const Composer: React.FC<ComposerProps> = ({
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span>{processingInfo.label}</span>
-          {processingInfo.detailText ? (
-            <span className="opacity-80">{processingInfo.detailText}</span>
-          ) : null}
+          {processingInfo.detailText ? <span className="opacity-80">{processingInfo.detailText}</span> : null}
         </div>
       )}
 
@@ -196,13 +188,13 @@ const Composer: React.FC<ComposerProps> = ({
         </div>
       )}
 
-      <div className="p-3 flex items-end gap-2">
+      <div data-testid="message-input" className="p-3 flex items-end gap-2">
         <div className="flex-1 relative">
           <textarea
             data-testid="chat-input"
             ref={textareaRef}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={event => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isLoading ? 'Gerando resposta...' : 'Digite sua mensagem...'}
             disabled={isLoading}
@@ -230,7 +222,7 @@ const Composer: React.FC<ComposerProps> = ({
         ) : (
           <Tooltip label="Enviar mensagem" position="top">
             <button
-              data-testid="chat-send-button"
+              data-testid="send-message-button"
               type="button"
               onClick={handleSend}
               disabled={!input.trim()}

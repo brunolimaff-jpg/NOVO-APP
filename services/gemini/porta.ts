@@ -32,10 +32,16 @@ function clampFeedValue(value: number): number {
   return Math.min(10, Math.max(0, value));
 }
 
-function parseFeedPairs(raw: string | undefined): { subScores?: Record<string, number>; metadata?: Record<string, string> } {
+function parseFeedPairs(raw: string | undefined): {
+  subScores?: Record<string, number>;
+  metadata?: Record<string, string>;
+} {
   const extras = normalizeFeedToken(raw);
   if (!extras) return {};
-  const pieces = extras.split(':').map(part => part.trim()).filter(Boolean);
+  const pieces = extras
+    .split(':')
+    .map(part => part.trim())
+    .filter(Boolean);
   if (pieces.length < 2) return {};
   const subScores: Record<string, number> = {};
   const metadata: Record<string, string> = {};
@@ -80,7 +86,8 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     });
   }
 
-  const tFeedRegex = /\[\[PORTA_FEED_T:(?:\[)?(\d+)(?:\])?:T1:(?:\[)?(\d+)(?:\])?:T2:(?:\[)?(\d+)(?:\])?:T3:(?:\[)?(\d+)(?:\])?(?::STACK:(?:\[)?([^\]]+)(?:\])?)?]]/g;
+  const tFeedRegex =
+    /\[\[PORTA_FEED_T:(?:\[)?(\d+)(?:\])?:T1:(?:\[)?(\d+)(?:\])?:T2:(?:\[)?(\d+)(?:\])?:T3:(?:\[)?(\d+)(?:\])?(?::STACK:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = tFeedRegex.exec(content)) !== null) {
     const tFinal = clampFeedValue(Number.parseInt(match[1], 10));
     const t1 = clampFeedValue(Number.parseInt(match[2], 10));
@@ -97,7 +104,8 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     });
   }
 
-  const aFeedRegex = /\[\[PORTA_FEED_A:(?:\[)?(\d+)(?:\])?:A1:(?:\[)?(\d+)(?:\])?:A2:(?:\[)?(\d+)(?:\])?(?::GERACAO:(?:\[)?([^\]]+)(?:\])?)?]]/g;
+  const aFeedRegex =
+    /\[\[PORTA_FEED_A:(?:\[)?(\d+)(?:\])?:A1:(?:\[)?(\d+)(?:\])?:A2:(?:\[)?(\d+)(?:\])?(?::GERACAO:(?:\[)?([^\]]+)(?:\])?)?]]/g;
   while ((match = aFeedRegex.exec(content)) !== null) {
     const aFinal = clampFeedValue(Number.parseInt(match[1], 10));
     const a1 = clampFeedValue(Number.parseInt(match[2], 10));
@@ -113,7 +121,8 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     });
   }
 
-  const pFeedRegex = /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
+  const pFeedRegex =
+    /\[\[PORTA_FEED_P:(?:\[)?(\d+)(?:\])?(?::HA:(?:\[)?([^\]:]*)\]?)?(?::CNPJS:(?:\[)?([^\]:]*)\]?)?(?::FAT:(?:\[)?([^\]]*)\]?)?]]/g;
   while ((match = pFeedRegex.exec(content)) !== null) {
     const pFinal = clampFeedValue(Number.parseInt(match[1], 10));
     const metadata: Record<string, string> = {};
@@ -168,7 +177,8 @@ export function parsePortaFeeds(content: string, source: string): ParsedPortaFee
     });
   }
 
-  const tradFlagRegex = /\[\[PORTA_FLAG:TRAD:(?:\[)?(SIM|NAO|NÃO)(?:\])?:NATUREZA:(?:\[)?(PRODUCAO|TRADING|MISTA)(?:\])?]]/g;
+  const tradFlagRegex =
+    /\[\[PORTA_FLAG:TRAD:(?:\[)?(SIM|NAO|NÃO)(?:\])?:NATUREZA:(?:\[)?(PRODUCAO|TRADING|MISTA)(?:\])?]]/g;
   while ((match = tradFlagRegex.exec(content)) !== null) {
     result.flags = result.flags.filter(flag => flag.flag !== 'TRAD');
     result.flags.push({

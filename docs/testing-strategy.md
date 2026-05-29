@@ -38,6 +38,7 @@ Esta estratégia define o objetivo de cada suíte dentro de `tests/` para manter
 - Arquivos com JSX/TSX: `*.test.tsx`
 
 Exemplos:
+
 - `priceCalculator.test.ts`
 - `LeadCard.test.tsx`
 
@@ -54,14 +55,14 @@ Modelo recomendado:
 ```ts
 it('deve aplicar desconto para cliente premium', () => {
   // Arrange
-  const order = buildOrder({ isPremium: true, total: 100 })
+  const order = buildOrder({ isPremium: true, total: 100 });
 
   // Act
-  const result = applyDiscount(order)
+  const result = applyDiscount(order);
 
   // Assert
-  expect(result.finalTotal).toBe(90)
-})
+  expect(result.finalTotal).toBe(90);
+});
 ```
 
 ---

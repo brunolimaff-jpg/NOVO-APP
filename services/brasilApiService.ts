@@ -20,14 +20,13 @@ export interface CityValidationResult {
   isValid: boolean;
 }
 
-const LOCAL_DEV_CNPJ_API_ENDPOINT = ((import.meta.env.VITE_CNPJ_PROXY_URL as string | undefined) || '').replace(/\/$/, '');
+const LOCAL_DEV_CNPJ_API_ENDPOINT = ((import.meta.env.VITE_CNPJ_PROXY_URL as string | undefined) || '').replace(
+  /\/$/,
+  '',
+);
 
 function normalizeText(value: string): string {
-  return (value || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  return (value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number, signal?: AbortSignal): Promise<T> {
@@ -67,7 +66,8 @@ async function fetchJsonWithTimeout<T>(url: string, timeoutMs: number, signal?: 
       return JSON.parse(rawBody) as T;
     } catch {
       const isHtmlDocument = contentType.includes('text/html') || /^\s*<!doctype html/i.test(rawBody);
-      const isLocalDevHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      const isLocalDevHost =
+        typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
       if (isHtmlDocument && isLocalDevHost && url.includes('/api/cnpj')) {
         throw new Error('Local dev sem proxy para /api/cnpj. Rode via vercel dev ou configure VITE_CNPJ_PROXY_URL.');
@@ -153,7 +153,11 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
   }
 }
 
-export async function validateCityInState(cityValue: string, ufValue: string, signal?: AbortSignal): Promise<CityValidationResult> {
+export async function validateCityInState(
+  cityValue: string,
+  ufValue: string,
+  signal?: AbortSignal,
+): Promise<CityValidationResult> {
   const normalizedState = (ufValue || '').trim().toUpperCase();
   const city = (cityValue || '').trim();
   if (city.length < 2 || normalizedState.length !== 2) {

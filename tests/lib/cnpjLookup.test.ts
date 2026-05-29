@@ -19,8 +19,8 @@ describe('cnpjLookup qsa mapping', () => {
   });
 
   it('normalizes BrasilAPI qsa partners from primary source', async () => {
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
         razao_social: 'Empresa Exemplo LTDA',
         municipio: 'Cuiabá',
         uf: 'mt',
@@ -33,7 +33,8 @@ describe('cnpjLookup qsa mapping', () => {
             documento_socio: '***.123.456-**',
           },
         ],
-      }));
+      }),
+    );
 
     const result = await lookupCnpj('11.111.111/0001-11');
 
@@ -51,20 +52,22 @@ describe('cnpjLookup qsa mapping', () => {
   it('maps CNPJ.ws socios when BrasilAPI fails first', async () => {
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse({}, 404))
-      .mockResolvedValueOnce(jsonResponse({
-      razao_social: 'Empresa CNPJ WS',
-      estabelecimento: {
-        cidade: { nome: 'Sorriso' },
-        estado: { sigla: 'MT' },
-      },
-      socios: [
-        {
-          nome: 'João Exemplo',
-          qualificacao_socio: { descricao: 'Administrador' },
-          cpf_cnpj_socio: '***.987.654-**',
-        },
-      ],
-    }));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          razao_social: 'Empresa CNPJ WS',
+          estabelecimento: {
+            cidade: { nome: 'Sorriso' },
+            estado: { sigla: 'MT' },
+          },
+          socios: [
+            {
+              nome: 'João Exemplo',
+              qualificacao_socio: { descricao: 'Administrador' },
+              cpf_cnpj_socio: '***.987.654-**',
+            },
+          ],
+        }),
+      );
 
     const result = await lookupCnpj('22.222.222/0001-22');
 

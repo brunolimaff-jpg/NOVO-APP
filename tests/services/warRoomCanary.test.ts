@@ -113,8 +113,8 @@ describe('warRoom canary flow', () => {
       await queryWarRoom('tech', c.query, [], '', undefined);
       const payload = generateContentMock.mock.calls[0][0];
       const prompt = String(payload.contents[0].parts[0].text || '');
-      const okHave = c.mustHave.every((token) => prompt.includes(token));
-      const okNot = c.mustNotHave.every((token) => !prompt.includes(token));
+      const okHave = c.mustHave.every(token => prompt.includes(token));
+      const okNot = c.mustNotHave.every(token => !prompt.includes(token));
       if (okHave && okNot) {
         hits += 1;
       } else {

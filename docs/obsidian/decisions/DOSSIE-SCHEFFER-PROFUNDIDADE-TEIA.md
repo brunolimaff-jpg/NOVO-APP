@@ -71,10 +71,12 @@ Apos revisao de design, a abordagem de prompt unico foi substituida por sub-modu
 ### Modulo 1a — Identidade (obrigatorio, temp 0.1)
 
 **Cobertura:**
+
 1. Visao geral do grupo economico real (cabeca, CNPJ raiz, total CNPJs, area, faturamento, segmento)
-4. Referencia ao SocietaryMap (sem gerar Mermaid — o componente visual e responsavel)
+2. Referencia ao SocietaryMap (sem gerar Mermaid — o componente visual e responsavel)
 
 **Gateway de complexidade embutido:**
+
 - `[[TEIA_COMPLEXIDADE:BAIXA]]` — ≤3 CNPJs E ≤2 socios E sem holding
 - `[[TEIA_COMPLEXIDADE:MEDIA]]` — 4-8 CNPJs OU socios multiplos OU holding simples
 - `[[TEIA_COMPLEXIDADE:ALTA]]` — 9+ CNPJs OU holdings em cascata OU operacao internacional
@@ -85,13 +87,10 @@ Apos revisao de design, a abordagem de prompt unico foi substituida por sub-modu
 
 So executa se complexidade MEDIA ou ALTA.
 
-**Cobertura:**
-2. Tabela mestre de CNPJs
-3. QSA e poder societario
-5. Sinais de enterprise invisivel
-6. Implicacao comercial
+**Cobertura:** 2. Tabela mestre de CNPJs 3. QSA e poder societario 5. Sinais de enterprise invisivel 6. Implicacao comercial
 
 **Regras de busca:**
+
 - Exaustao: maximo 2 niveis de profundidade
 - Comprovacao de conexao: mesmo CNPJ raiz (8 digitos) OU socio comum com CPF/qualificacao OU endereco fiscal + CNAE. Nome parecido NAO e suficiente.
 - Fontes internacionais: mesma hierarquia, declarar idioma e confianca
@@ -102,12 +101,12 @@ So executa se complexidade MEDIA ou ALTA.
 
 ### Matriz de responsabilidades
 
-| Artefato | Faz | Nao faz |
-|----------|-----|---------|
-| SocietaryMap.tsx | UNICO grafo visual (Mermaid LR) | Analise, texto |
-| Prompt modulo 1a | Analise textual (itens 1+4) | Mermaid (referencia o grafo) |
-| Prompt modulo 1b | Profundidade (itens 2,3,5,6) | Mermaid |
-| PROMPT_RADAR_EXPANSAO_GOD_MODE | Fallback se 1a falhar | Nao chamado na rota normal |
+| Artefato                       | Faz                             | Nao faz                      |
+| ------------------------------ | ------------------------------- | ---------------------------- |
+| SocietaryMap.tsx               | UNICO grafo visual (Mermaid LR) | Analise, texto               |
+| Prompt modulo 1a               | Analise textual (itens 1+4)     | Mermaid (referencia o grafo) |
+| Prompt modulo 1b               | Profundidade (itens 2,3,5,6)    | Mermaid                      |
+| PROMPT_RADAR_EXPANSAO_GOD_MODE | Fallback se 1a falhar           | Nao chamado na rota normal   |
 
 ### Contornos para alucinacao CNPJ (3 camadas)
 
@@ -246,19 +245,19 @@ Esse mapa e gerado exclusivamente pelo `SocietaryMap`. Os modulos 1a/1b nao gera
 - Empresas conectadas por drill-down exibem fonte e confianca.
 - CNPJs onde o socio aparece, mas sem prova de grupo economico, aparecem como "Outro CNPJ do socio" e nao recebem aresta direta da raiz.
 - Homonimos nao entram como conexao visual.
-- >30% de CNPJs nao confirmados geram alerta no dossie.
+- > 30% de CNPJs nao confirmados geram alerta no dossie.
 - Se module 1a falhar, fallback para PROMPT_RADAR_EXPANSAO_GOD_MODE.
 - `npm run typecheck`, recorte Vitest afetado e `npm run docs:obsidian:check` passam antes de PR.
 
 ## Riscos
 
-| Risco | Mitigacao |
-|---|---|
-| Prompt 1a + 1b grande e caro | 1a e enxuto (~8K tokens), 1b so executa se necessario |
-| LLM inventar empresa | Prioridade de fonte e regra de nao conectar sem evidencia |
-| Gateway de complexidade falhar | Fallback para PROMPT_RADAR_EXPANSAO_GOD_MODE |
-| Dependencia de scraping | Cache persistente obrigatorio em producao |
-| Casos menores ficarem inflados | 1a entrega apenas visao geral; 1b nao executa em BAIXA |
+| Risco                          | Mitigacao                                                 |
+| ------------------------------ | --------------------------------------------------------- |
+| Prompt 1a + 1b grande e caro   | 1a e enxuto (~8K tokens), 1b so executa se necessario     |
+| LLM inventar empresa           | Prioridade de fonte e regra de nao conectar sem evidencia |
+| Gateway de complexidade falhar | Fallback para PROMPT_RADAR_EXPANSAO_GOD_MODE              |
+| Dependencia de scraping        | Cache persistente obrigatorio em producao                 |
+| Casos menores ficarem inflados | 1a entrega apenas visao geral; 1b nao executa em BAIXA    |
 
 ## Proximo passo
 

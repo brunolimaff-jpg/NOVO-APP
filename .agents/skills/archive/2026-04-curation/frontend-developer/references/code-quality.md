@@ -7,30 +7,35 @@
 A senior engineer reviews code across multiple dimensions simultaneously. Not just "does it work?"
 
 **Correctness:**
+
 - Does it handle edge cases? (empty arrays, null/undefined, 0, empty string, network failure)
 - Are async operations handled correctly? (loading state, error state, race conditions)
 - Is state mutation avoided where it shouldn't happen?
 - Are event listeners and subscriptions cleaned up?
 
 **Readability:**
+
 - Can you understand what this code does in 30 seconds without the author explaining?
 - Are names meaningful at the right level of abstraction?
 - Is the code structured to minimize surprise - does it do what it looks like it does?
-- Are there comments explaining *why*, not just *what*?
+- Are there comments explaining _why_, not just _what_?
 
 **Performance:**
+
 - Are there unnecessary re-renders or recalculations on every render?
 - Are large lists virtualized?
 - Are heavy computations deferred or moved off the main thread?
 - Does any synchronous work block the UI?
 
 **Accessibility:**
+
 - Do interactive elements have accessible names?
 - Is the focus order logical?
 - Do dynamic changes announce to screen readers (live regions)?
 - Can everything be done with keyboard alone?
 
 **Security:**
+
 - Is user-supplied content rendered as HTML anywhere? (`innerHTML`, `dangerouslySetInnerHTML`)
 - Are authentication checks done server-side (not just hidden in the UI)?
 - Are sensitive values exposed in source, logs, or URL params?
@@ -66,6 +71,7 @@ const OrderStatus = {
 **Long parameter list** - a function with 4+ parameters is usually doing too much or passing too much context. Group related parameters into an options object. Consider whether the function should be split.
 
 **Boolean parameter flags** - a `boolean` argument that changes fundamental behavior is a sign of two functions merged into one:
+
 ```js
 // Bad
 function fetchUser(id, includeDeleted) { ... }
@@ -80,42 +86,48 @@ function fetchDeletedUser(id) { ... }
 ## TypeScript Patterns
 
 **Discriminated unions** over type assertions - model state machines explicitly:
+
 ```ts
 // Bad - overlapping optional fields, runtime confusion
 type RequestState = {
-  loading?: boolean
-  data?: User
-  error?: Error
-}
+  loading?: boolean;
+  data?: User;
+  error?: Error;
+};
 
 // Good - each state is unambiguous
 type RequestState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; data: User }
-  | { status: 'error'; error: Error }
+  | { status: 'error'; error: Error };
 
 // Exhaustive handling with discriminated unions
 switch (state.status) {
-  case 'success': return state.data.name // TypeScript knows data exists here
-  case 'error': return state.error.message // TypeScript knows error exists here
+  case 'success':
+    return state.data.name; // TypeScript knows data exists here
+  case 'error':
+    return state.error.message; // TypeScript knows error exists here
 }
 ```
 
 **Const assertions** - preserve literal types instead of widening:
+
 ```ts
-const DIRECTIONS = ['north', 'south', 'east', 'west'] as const
-type Direction = typeof DIRECTIONS[number] // 'north' | 'south' | 'east' | 'west'
+const DIRECTIONS = ['north', 'south', 'east', 'west'] as const;
+type Direction = (typeof DIRECTIONS)[number]; // 'north' | 'south' | 'east' | 'west'
 ```
 
 **Template literal types** - type-safe string composition:
+
 ```ts
-type EventName = `on${Capitalize<string>}`
-type CSSProperty = `--${string}` // CSS custom property
-type ApiRoute = `/api/${string}`
+type EventName = `on${Capitalize<string>}`;
+type CSSProperty = `--${string}`; // CSS custom property
+type ApiRoute = `/api/${string}`;
 ```
 
 **Branded types** - prevent accidentally mixing semantically different primitives:
+
 ```ts
 type UserId = string & { readonly _brand: 'UserId' }
 type ProductId = string & { readonly _brand: 'ProductId' }
@@ -127,11 +139,12 @@ getUser(productId) // TypeScript error - wrong brand
 ```
 
 **`satisfies` operator** - validate a value matches a type without widening it:
+
 ```ts
 const palette = {
   red: [255, 0, 0],
   blue: '#0000ff',
-} satisfies Record<string, string | number[]>
+} satisfies Record<string, string | number[]>;
 // palette.red is still number[], not string | number[]
 // satisfies validates without losing specificity
 ```
@@ -143,6 +156,7 @@ const palette = {
 ## Clean Code Principles for Frontend
 
 **Naming conventions:**
+
 - Event handlers passed as props: `onX` (`onClick`, `onSubmit`, `onUserSelect`)
 - Event handler implementations: `handleX` (`handleClick`, `handleSubmit`)
 - Boolean variables: `is`, `has`, `should`, `can` (`isLoading`, `hasError`, `shouldRedirect`)
@@ -151,6 +165,7 @@ const palette = {
 - Avoid abbreviations except universally understood ones (`id`, `url`, `api`, `db`, `i` in loops)
 
 **File organization:**
+
 ```
 components/
   Button/
@@ -167,6 +182,7 @@ components/
 **Function length** - if a function doesn't fit on one screen, look for natural extraction points. Named sub-functions communicate intent better than comments.
 
 **Early returns** reduce nesting and make the happy path clear:
+
 ```js
 // Bad - arrow-head anti-pattern
 function processOrder(order) {
@@ -181,9 +197,9 @@ function processOrder(order) {
 
 // Good - guard clauses
 function processOrder(order) {
-  if (!order) return
-  if (order.items.length === 0) return
-  if (order.status !== 'pending') return
+  if (!order) return;
+  if (order.items.length === 0) return;
+  if (order.status !== 'pending') return;
   // actual logic at the top level
 }
 ```
@@ -193,6 +209,7 @@ function processOrder(order) {
 ## Linting Philosophy
 
 **Lint for bugs, not style.** Style is solved by formatters (Prettier). Use ESLint to catch:
+
 - Potential runtime errors (`no-undef`, `no-unused-vars`, `eqeqeq`)
 - Accessibility violations (`jsx-a11y` rules)
 - Security issues (`no-eval`, `no-implied-eval`)
@@ -200,6 +217,7 @@ function processOrder(order) {
 - Rule-of-hooks violations (for React codebases)
 
 **Start from recommended configs** and add rules deliberately:
+
 ```js
 // A reasonable baseline
 {
@@ -220,19 +238,20 @@ function processOrder(order) {
 ## Security in the Frontend
 
 **XSS prevention:**
+
 - Never set `innerHTML` with user-supplied content
 - Framework templating systems escape by default - don't bypass them
 - `dangerouslySetInnerHTML` (React) or `v-html` (Vue) require sanitization first - use DOMPurify
 
 ```js
 // Bad - XSS vector
-element.innerHTML = userProvidedContent
+element.innerHTML = userProvidedContent;
 
 // Good - use safe DOM APIs
-element.textContent = userProvidedContent
+element.textContent = userProvidedContent;
 
 // If HTML is required, sanitize first
-element.innerHTML = DOMPurify.sanitize(userProvidedContent)
+element.innerHTML = DOMPurify.sanitize(userProvidedContent);
 ```
 
 **Content Security Policy (CSP)** - HTTP header that restricts what sources scripts, styles, and media can load from. Prevents injected scripts from executing. Implement at the server level, not in JavaScript.
@@ -244,6 +263,7 @@ element.innerHTML = DOMPurify.sanitize(userProvidedContent)
 **Never trust the frontend** for authorization. Every permission check must be enforced on the server. Frontend checks are UX, not security.
 
 **Avoid exposing sensitive data in:**
+
 - URL query parameters (appear in server logs, browser history, referer headers)
 - `console.log` in production builds (readable in DevTools)
 - Client-accessible local storage for auth tokens (prefer `HttpOnly` cookies)
@@ -255,25 +275,27 @@ element.innerHTML = DOMPurify.sanitize(userProvidedContent)
 **Error boundaries** - wrap top-level sections in error boundaries. Components fail; the page shouldn't.
 
 **Global error handlers:**
+
 ```js
-window.addEventListener('unhandledrejection', (event) => {
-  reportError(event.reason)
-})
-window.addEventListener('error', (event) => {
-  reportError(event.error)
-})
+window.addEventListener('unhandledrejection', event => {
+  reportError(event.reason);
+});
+window.addEventListener('error', event => {
+  reportError(event.error);
+});
 ```
 
 **User-facing error messages** - separate what you log from what you show:
+
 ```js
 try {
-  await submitOrder(cart)
+  await submitOrder(cart);
 } catch (error) {
   // Log technical details for debugging
-  logger.error('Order submission failed', { error, cart })
+  logger.error('Order submission failed', { error, cart });
 
   // Show human-readable message to user
-  setErrorMessage("We couldn't place your order. Please try again or contact support.")
+  setErrorMessage("We couldn't place your order. Please try again or contact support.");
 }
 ```
 
@@ -286,21 +308,23 @@ Never expose stack traces, internal IDs, or technical error messages to users.
 ## Performance Code Patterns
 
 **Avoiding layout thrashing** - interleaving DOM reads and writes forces multiple reflows:
+
 ```js
 // Bad - read, write, read, write = multiple reflows
 elements.forEach(el => {
-  const height = el.offsetHeight // read (forces reflow)
-  el.style.height = height + 10 + 'px' // write
-})
+  const height = el.offsetHeight; // read (forces reflow)
+  el.style.height = height + 10 + 'px'; // write
+});
 
 // Good - batch reads then writes
-const heights = elements.map(el => el.offsetHeight) // all reads
+const heights = elements.map(el => el.offsetHeight); // all reads
 elements.forEach((el, i) => {
-  el.style.height = heights[i] + 10 + 'px' // all writes
-})
+  el.style.height = heights[i] + 10 + 'px'; // all writes
+});
 ```
 
 **Debounce vs throttle:**
+
 - `debounce` - delay execution until N ms after the last call. Use for search-as-you-type, window resize handlers.
 - `throttle` - execute at most once per N ms. Use for scroll handlers, mousemove, real-time position tracking.
 
@@ -310,9 +334,9 @@ elements.forEach((el, i) => {
 
 ```js
 // Main thread stays responsive
-const worker = new Worker('./heavy-computation.js')
-worker.postMessage({ data: largeDataset })
-worker.onmessage = (e) => setResult(e.data)
+const worker = new Worker('./heavy-computation.js');
+worker.postMessage({ data: largeDataset });
+worker.onmessage = e => setResult(e.data);
 ```
 
 **`requestAnimationFrame`** for any animation or visual update tied to rendering - ensures updates happen at the browser's next paint cycle, preventing jank.
@@ -322,6 +346,7 @@ worker.onmessage = (e) => setResult(e.data)
 ## Dependency Hygiene
 
 **Before adding a dependency:**
+
 1. Check bundle impact with bundlephobia.com
 2. Verify it's actively maintained (last commit, open issues, npm downloads)
 3. Check for a simpler native alternative (is a library really needed for this?)
@@ -330,10 +355,12 @@ worker.onmessage = (e) => setResult(e.data)
 **Micro-package problem** - packages that do one trivial thing (`is-even`, `left-pad`) add supply chain risk with no value. Write the 3-line utility yourself.
 
 **Auditing:**
+
 - Run `npm audit` in CI, fail on high/critical vulnerabilities
 - Review the lockfile in PRs - dependency additions should be intentional
 
 **Lockfile hygiene:**
+
 - Always commit lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`)
 - Unexplained lockfile churn in a PR (hundreds of lines changed) is a red flag - investigate why
 
@@ -342,6 +369,7 @@ worker.onmessage = (e) => setResult(e.data)
 ## Git Workflow for Frontend
 
 **Meaningful commits** - each commit should represent one logical change. The message should complete the sentence "This commit will...":
+
 ```
 feat: add keyboard navigation to Dropdown component
 fix: prevent cart total from showing NaN when quantity is empty
@@ -351,6 +379,7 @@ refactor: extract useFormValidation hook from CheckoutForm
 **Feature flags for WIP** - don't block a long-running feature on a branch for weeks. Merge incrementally behind a flag. Reduces merge conflicts and keeps main releasable.
 
 **Branch naming:**
+
 ```
 feat/user-profile-redesign
 fix/checkout-npe-on-empty-cart
@@ -359,12 +388,14 @@ chore/upgrade-typescript-5
 ```
 
 **PR size guidelines:**
+
 - Aim for under 400 lines changed per PR (excluding generated files, lockfiles)
 - Large PRs are reviewed worse - reviewers lose context and miss bugs
 - If a PR is large, add a description that walks through the structure
 - Split refactoring PRs from feature PRs - mixing them hides intent
 
 **What goes in a PR description:**
+
 - What changed and why (not just "updated X")
 - How to test it manually
 - Screenshots or recordings for visual changes

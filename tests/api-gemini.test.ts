@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const sendMessageMock = vi.hoisted(() => vi.fn());
-const createChatMock = vi.hoisted(() => vi.fn(() => ({
-  sendMessage: sendMessageMock,
-})));
+const createChatMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    sendMessage: sendMessageMock,
+  })),
+);
 const generateContentMock = vi.hoisted(() => vi.fn());
 const createCacheMock = vi.hoisted(() => vi.fn());
 const deleteCacheMock = vi.hoisted(() => vi.fn());

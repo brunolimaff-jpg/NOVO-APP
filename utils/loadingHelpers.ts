@@ -1,4 +1,4 @@
-import { ChatMode } from "../constants";
+import { ChatMode } from '../constants';
 
 export type Pillar = 'GATEC' | 'ERP' | 'HCM' | 'INTEGRACAO' | 'CONCILIACAO' | 'GERAL';
 
@@ -44,49 +44,49 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 const SHARED_FACTS = [
-  "A Senior Sistemas atende mais de 13.000 grupos econômicos em 6 setores econômicos.",
-  "O Brasil é um dos maiores polos globais de agronegócio e tecnologia aplicada ao campo.",
-  "Empresas com integração entre operação, financeiro e pessoas tendem a reduzir retrabalho.",
-  "O ERP Senior consolida múltiplos CNPJs de um grupo em uma única visão contábil.",
-  "O HCM Senior gerencia contratos sazonais com apoio a admissão e desligamento em lote.",
-  "Rastreabilidade e disciplina operacional aceleram auditoria, expansão e negociação comercial.",
+  'A Senior Sistemas atende mais de 13.000 grupos econômicos em 6 setores econômicos.',
+  'O Brasil é um dos maiores polos globais de agronegócio e tecnologia aplicada ao campo.',
+  'Empresas com integração entre operação, financeiro e pessoas tendem a reduzir retrabalho.',
+  'O ERP Senior consolida múltiplos CNPJs de um grupo em uma única visão contábil.',
+  'O HCM Senior gerencia contratos sazonais com apoio a admissão e desligamento em lote.',
+  'Rastreabilidade e disciplina operacional aceleram auditoria, expansão e negociação comercial.',
 ].map(cleanFactPrefix);
 
 const PILLAR_INSIGHTS: Record<Pillar, string[]> = {
   GATEC: shuffleArray([
-    "Mapeando rotina de campo, talhões e rastreabilidade agrícola...",
-    "Verificando sinais de mecanização, produtividade e gestão agrícola...",
-    "Cruzando indicadores de safra, operação e capacidade de execução...",
+    'Mapeando rotina de campo, talhões e rastreabilidade agrícola...',
+    'Verificando sinais de mecanização, produtividade e gestão agrícola...',
+    'Cruzando indicadores de safra, operação e capacidade de execução...',
     ...SHARED_FACTS,
   ]),
   ERP: shuffleArray([
-    "Consultando sinais fiscais, financeiros e de maturidade de gestão...",
-    "Verificando obrigações acessórias, integração e consistência operacional...",
-    "Analisando estrutura de backoffice, compras, estoque e faturamento...",
+    'Consultando sinais fiscais, financeiros e de maturidade de gestão...',
+    'Verificando obrigações acessórias, integração e consistência operacional...',
+    'Analisando estrutura de backoffice, compras, estoque e faturamento...',
     ...SHARED_FACTS,
   ]),
   HCM: shuffleArray([
-    "Estimando estrutura de pessoas, segurança e processos trabalhistas...",
-    "Mapeando sinais de RH, lideranças e disciplina de rotina operacional...",
-    "Verificando contexto de folha, sindicatos e gestão de equipes...",
+    'Estimando estrutura de pessoas, segurança e processos trabalhistas...',
+    'Mapeando sinais de RH, lideranças e disciplina de rotina operacional...',
+    'Verificando contexto de folha, sindicatos e gestão de equipes...',
     ...SHARED_FACTS,
   ]),
   INTEGRACAO: shuffleArray([
-    "Avaliando conectividade, APIs, automação e fluxo de dados...",
-    "Cruzando sinais de maturidade digital e integração entre sistemas...",
-    "Verificando gargalos entre operação, financeiro e plataformas externas...",
+    'Avaliando conectividade, APIs, automação e fluxo de dados...',
+    'Cruzando sinais de maturidade digital e integração entre sistemas...',
+    'Verificando gargalos entre operação, financeiro e plataformas externas...',
     ...SHARED_FACTS,
   ]),
   CONCILIACAO: shuffleArray([
-    "Analisando logística, armazenagem, expedição e referências de mercado...",
-    "Mapeando gargalos de supply, transporte e sincronismo operacional...",
-    "Verificando consistência entre capacidade instalada e ritmo de execução...",
+    'Analisando logística, armazenagem, expedição e referências de mercado...',
+    'Mapeando gargalos de supply, transporte e sincronismo operacional...',
+    'Verificando consistência entre capacidade instalada e ritmo de execução...',
     ...SHARED_FACTS,
   ]),
   GERAL: shuffleArray([
-    "Ligando o radar e consolidando contexto da conta...",
-    "Buscando sinais públicos para reduzir incerteza comercial...",
-    "Cruzando histórico, contexto cadastral e referências externas...",
+    'Ligando o radar e consolidando contexto da conta...',
+    'Buscando sinais públicos para reduzir incerteza comercial...',
+    'Cruzando histórico, contexto cadastral e referências externas...',
     ...SHARED_FACTS,
   ]),
 };
@@ -103,10 +103,13 @@ export const INSIGHTS: Record<Pillar, InsightDatabase> = {
 function detectPillarFromStage(stage: string): Pillar {
   const s = stage.toLowerCase();
 
-  if (s.match(/field|farm|crop|harvest|planting|machine|campo|lavoura|safra|plantio|colheita|rastreabil/)) return 'GATEC';
-  if (s.match(/fiscal|tax|accounting|finance|procurement|stock|inventory|contabil|financeiro|imposto|compra|estoque/)) return 'ERP';
+  if (s.match(/field|farm|crop|harvest|planting|machine|campo|lavoura|safra|plantio|colheita|rastreabil/))
+    return 'GATEC';
+  if (s.match(/fiscal|tax|accounting|finance|procurement|stock|inventory|contabil|financeiro|imposto|compra|estoque/))
+    return 'ERP';
   if (s.match(/hr|people|employee|workforce|payroll|rh|gente|folha|ponto|colaborador|trabalhista/)) return 'HCM';
-  if (s.match(/integration|api|connect|platform|fintech|bank|integracao|plataforma|banco|flow|bpm|ged/)) return 'INTEGRACAO';
+  if (s.match(/integration|api|connect|platform|fintech|bank|integracao|plataforma|banco|flow|bpm|ged/))
+    return 'INTEGRACAO';
   if (s.match(/logistics|wms|tms|freight|delivery|supply|logistica|frete|transporte|escoamento/)) return 'CONCILIACAO';
 
   return 'GERAL';
@@ -119,10 +122,10 @@ export function getInsightPool(mode: ChatMode, stage?: string): string[] {
 
 export function getLongWaitMessages(_mode: ChatMode): string[] {
   return [
-    "A análise está profunda. Buscando dados específicos...",
-    "Cruzando referências para manter a consistência da investigação...",
-    "Consultando múltiplas fontes para reduzir ruído e ambiguidade...",
-    "Estruturando o dossiê antes da síntese final...",
+    'A análise está profunda. Buscando dados específicos...',
+    'Cruzando referências para manter a consistência da investigação...',
+    'Consultando múltiplas fontes para reduzir ruído e ambiguidade...',
+    'Estruturando o dossiê antes da síntese final...',
   ];
 }
 

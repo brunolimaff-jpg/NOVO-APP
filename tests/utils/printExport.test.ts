@@ -24,17 +24,13 @@ describe('printExport', () => {
   });
 
   it('preserva links markdown com query string no HTML impresso', () => {
-    const html = renderMarkdownForPrint(
-      '[Fonte BNDES](https://example.com/noticia?empresa=piccini&fonte=bndes)',
-    );
+    const html = renderMarkdownForPrint('[Fonte BNDES](https://example.com/noticia?empresa=piccini&fonte=bndes)');
 
     expect(html).toContain('href="https://example.com/noticia?empresa=piccini&amp;fonte=bndes"');
   });
 
   it('preserva links markdown com parênteses na URL', () => {
-    const html = renderMarkdownForPrint(
-      '[Verbete](https://pt.wikipedia.org/wiki/Lucas_do_Rio_Verde_(Mato_Grosso))',
-    );
+    const html = renderMarkdownForPrint('[Verbete](https://pt.wikipedia.org/wiki/Lucas_do_Rio_Verde_(Mato_Grosso))');
 
     expect(html).toContain('href="https://pt.wikipedia.org/wiki/Lucas_do_Rio_Verde_(Mato_Grosso)"');
     expect(html).not.toContain('(Mato_Grosso))</p>');

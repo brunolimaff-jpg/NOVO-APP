@@ -17,12 +17,7 @@ function normalizeRagQuery(query: string): string {
   return normalized.slice(0, RAG_QUERY_MAX_CHARS);
 }
 
-async function fetchRagContext(
-  endpoint: string,
-  label: string,
-  query: string,
-  namespace?: string,
-): Promise<RagResult> {
+async function fetchRagContext(endpoint: string, label: string, query: string, namespace?: string): Promise<RagResult> {
   const attempt = async (): Promise<RagResult> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), RAG_FETCH_TIMEOUT_MS);
@@ -52,7 +47,6 @@ async function fetchRagContext(
         return { context: '', failed: true };
       }
       return { context, failed: false };
-
     } catch (error: unknown) {
       if (error instanceof Error && error.name === 'AbortError') {
         scoutDiag.warn(label, `timeout ${RAG_FETCH_TIMEOUT_MS / 1000}s — continuando sem RAG`, { endpoint });

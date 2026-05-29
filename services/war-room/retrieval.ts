@@ -56,7 +56,7 @@ export async function validateStaticUrls(): Promise<void> {
   const uniqueUrls = [...new Set(urls)];
 
   await Promise.allSettled(
-    uniqueUrls.map(async (url) => {
+    uniqueUrls.map(async url => {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
@@ -176,8 +176,8 @@ async function getGlobalContextCached(query: string): Promise<string> {
 
 export function mergeDocContexts(contexts: string[]): string {
   const blocks = contexts
-    .flatMap((ctx) => ctx.split(/\n\n---\n\n/g))
-    .map((block) => block.trim())
+    .flatMap(ctx => ctx.split(/\n\n---\n\n/g))
+    .map(block => block.trim())
     .filter(Boolean);
 
   const seen = new Set<string>();
@@ -195,7 +195,7 @@ export function filterDocsForProcessoAgricola(context: string): string {
   if (!context.trim()) return context;
 
   const blocks = context.split(/\n\n---\n\n/g);
-  const kept = blocks.filter((block) => {
+  const kept = blocks.filter(block => {
     const lower = block.toLowerCase();
     const isIntegracaoBlock =
       lower.includes('integracao gatec') ||
@@ -227,7 +227,7 @@ export function filterNoisyDocsContext(
   if (!context.trim()) return context;
 
   const blocks = context.split(/\n\n---\n\n/g);
-  const kept = blocks.filter((block) => {
+  const kept = blocks.filter(block => {
     const lower = block.toLowerCase();
 
     if (lower.includes('404 - página não encontrada') || lower.includes('404 - pagina nao encontrada')) {
@@ -263,7 +263,7 @@ export function prioritizeBlocksByKeywords(context: string, keywords: string[]):
   if (!context.trim() || keywords.length === 0) return context;
 
   const blocks = context.split(/\n\n---\n\n/g).filter(Boolean);
-  const scored = blocks.map((block) => {
+  const scored = blocks.map(block => {
     const lower = block.toLowerCase();
     const score = keywords.reduce(
       (accumulator, keyword) => (lower.includes(keyword.toLowerCase()) ? accumulator + 1 : accumulator),
@@ -274,11 +274,11 @@ export function prioritizeBlocksByKeywords(context: string, keywords: string[]):
   });
 
   scored.sort((a, b) => b.score - a.score);
-  return trimText(scored.map((item) => item.block).join('\n\n---\n\n'), MAX_DOCS_CHARS);
+  return trimText(scored.map(item => item.block).join('\n\n---\n\n'), MAX_DOCS_CHARS);
 }
 
 function pickFulfilledValues(results: SettledStringResult[], onRejected: (reason: unknown) => void): string[] {
-  return results.flatMap((result) => {
+  return results.flatMap(result => {
     if (result.status === 'fulfilled') {
       return result.value ? [result.value] : [];
     }
@@ -327,21 +327,17 @@ export async function loadWarRoomDocsContext(
       );
     }
     if (flags.wantsBanking) {
-      queries.unshift(
-        `${message} ERP Banking integração bancária pagamentos eletrônicos CNAB TED ACH contas a pagar`,
-      );
+      queries.unshift(`${message} ERP Banking integração bancária pagamentos eletrônicos CNAB TED ACH contas a pagar`);
     }
 
     const docsNamespaces =
-      mode === 'benchmark'
-        ? [DEFAULT_DOCS_NAMESPACE, COMPETITOR_DOCS_NAMESPACE]
-        : [DEFAULT_DOCS_NAMESPACE];
+      mode === 'benchmark' ? [DEFAULT_DOCS_NAMESPACE, COMPETITOR_DOCS_NAMESPACE] : [DEFAULT_DOCS_NAMESPACE];
 
     const [docsContextsSettled, globalContextsSettled] = await Promise.all([
       Promise.allSettled(
-        queries.flatMap((query) => docsNamespaces.map((namespace) => getDocsContextCached(query, namespace))),
+        queries.flatMap(query => docsNamespaces.map(namespace => getDocsContextCached(query, namespace))),
       ),
-      Promise.allSettled(queries.map((query) => getGlobalContextCached(query))),
+      Promise.allSettled(queries.map(query => getGlobalContextCached(query))),
     ]);
 
     let hadRagFailure = false;

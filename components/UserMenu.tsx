@@ -53,9 +53,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
     ? 'bg-slate-900 border border-slate-700 shadow-xl'
     : 'bg-white border border-slate-200 shadow-lg';
 
-  const itemClass = isDarkMode
-    ? 'text-slate-200 hover:bg-slate-800'
-    : 'text-slate-800 hover:bg-slate-100';
+  const itemClass = isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-800 hover:bg-slate-100';
 
   return (
     <div className="relative flex-shrink-0" ref={rootRef}>
@@ -70,11 +68,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
         title={label}
       >
         {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt=""
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-600/40"
-          />
+          <img src={avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-600/40" />
         ) : (
           <span
             className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ring-2 ring-emerald-600/50 ${
@@ -91,16 +85,11 @@ const UserMenu: React.FC<UserMenuProps> = ({
         >
           {label}
         </span>
-        <span className={`text-[10px] pr-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-          ▾
-        </span>
+        <span className={`text-[10px] pr-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>▾</span>
       </button>
 
       {open && (
-        <div
-          role="menu"
-          className={`absolute right-0 z-50 mt-1 min-w-[200px] rounded-lg py-1 ${panelClass}`}
-        >
+        <div role="menu" className={`absolute right-0 z-50 mt-1 min-w-[200px] rounded-lg py-1 ${panelClass}`}>
           <button
             type="button"
             role="menuitem"

@@ -31,13 +31,14 @@ cd ~/Documents/NOVO-APP
 ✅ Inicia `npm run dev` (Vite)  
 ✅ Aguarda o servidor ficar pronto  
 ✅ Abre automaticamente o navegador  
-✅ Mostra feedback visual colorido  
+✅ Mostra feedback visual colorido
 
 ---
 
 ## 🛑 Parar o Servidor
 
 **No Terminal:**
+
 ```bash
 Ctrl + C
 ```
@@ -101,12 +102,12 @@ npm install
 
 ## 📊 Comparação: Local vs Vercel Deploy
 
-| | Local | Vercel |
-|---|---|---|
-| **Tempo de reload** | ~200ms (HMR) | ~30-60s (build+deploy) |
-| **Iteração UX** | ⚡ Instantâneo | ⏳ Lento |
-| **Debugging** | 🔍 DevTools local | 🌐 Remote |
-| **Ambiente** | Dev (sem auth real) | Produção |
+|                     | Local               | Vercel                 |
+| ------------------- | ------------------- | ---------------------- |
+| **Tempo de reload** | ~200ms (HMR)        | ~30-60s (build+deploy) |
+| **Iteração UX**     | ⚡ Instantâneo      | ⏳ Lento               |
+| **Debugging**       | 🔍 DevTools local   | 🌐 Remote              |
+| **Ambiente**        | Dev (sem auth real) | Produção               |
 
 **Use local para desenvolvimento rápido!**
 
@@ -124,6 +125,7 @@ npm install
 ## 📞 Logs
 
 Se algo der errado, o log está em:
+
 ```
 /tmp/vite-dev.log
 ```

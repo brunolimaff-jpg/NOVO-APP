@@ -27,13 +27,7 @@ describe('parseMarkdownSections', () => {
   });
 
   it('parseia múltiplas seções', () => {
-    const md = [
-      '## 🔍 Seção 1',
-      'Conteúdo da seção 1.',
-      '',
-      '## 📊 Seção 2',
-      'Conteúdo da seção 2.',
-    ].join('\n');
+    const md = ['## 🔍 Seção 1', 'Conteúdo da seção 1.', '', '## 📊 Seção 2', 'Conteúdo da seção 2.'].join('\n');
 
     const sections = parseMarkdownSections(md);
     expect(sections.length).toBeGreaterThanOrEqual(2);

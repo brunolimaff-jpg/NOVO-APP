@@ -138,6 +138,7 @@ digraph super_brainstorm {
 Before asking the user a single question, build comprehensive project awareness.
 
 **Mandatory reads (if they exist):**
+
 - `docs/` directory - read README.md first, then scan all files
 - `README.md` at project root
 - `CLAUDE.md` / `.claude/` configuration
@@ -148,6 +149,7 @@ Before asking the user a single question, build comprehensive project awareness.
 - Project structure overview (top-level directories)
 
 **What you're looking for:**
+
 - Existing patterns, conventions, and architectural decisions
 - Tech stack and dependencies
 - Testing patterns and CI setup
@@ -164,11 +166,13 @@ relevant to the task at hand. Do NOT dump a file listing - synthesize what matte
 **Before asking ANY question, check if the codebase already answers it.**
 
 This is the core differentiator. The AI must:
+
 1. Identify what it needs to know to make the next design decision
 2. Search the codebase for the answer (grep, glob, read relevant files)
 3. Only ask the user if the code genuinely cannot answer the question
 
 **Examples:**
+
 - "What database are you using?" - DON'T ASK. Check package.json, config files, existing code.
 - "How do you handle authentication?" - DON'T ASK. Search for auth middleware, JWT usage, session handling.
 - "What testing framework?" - DON'T ASK. Check test files, config, package.json.
@@ -176,6 +180,7 @@ This is the core differentiator. The AI must:
 - "Should this be real-time or batch?" - ASK. This is a product decision the codebase can't resolve.
 
 When you DO find the answer in the codebase, tell the user what you found:
+
 > "I see you're using Prisma with PostgreSQL (from `prisma/schema.prisma`). I'll design around that."
 
 This builds confidence and saves the user from answering questions they already answered in code.
@@ -188,6 +193,7 @@ Before diving into detailed questions, assess scope.
 
 **If the request describes multiple independent subsystems** (e.g., "build a platform
 with chat, file storage, billing, and analytics"):
+
 - Flag this immediately
 - Help decompose into sub-projects: what are the independent pieces, how do they
   relate, what order should they be built?
@@ -204,6 +210,7 @@ This is the heart of the skill. Walk down every branch of the design tree,
 resolving dependencies between decisions one by one.
 
 **Rules:**
+
 - **Use the `AskUserQuestion` tool for every question** - this is a built-in Claude
   Code tool that pauses execution and waits for the user's response. Use it for
   every interview question, every section approval, and every decision point. Never
@@ -226,6 +233,7 @@ resolving dependencies between decisions one by one.
   explore it.
 
 **What to interview about:**
+
 - Purpose and success criteria
 - User/consumer personas
 - Data model and relationships
@@ -262,6 +270,7 @@ Only propose multiple approaches when there is a genuine design fork.
 **When the answer is obvious:**
 Present the single approach with reasoning. Briefly mention why you dismissed
 alternatives:
+
 > "Given your existing Express + Prisma stack and the read-heavy access pattern,
 > a new Prisma model with a cached read path is the clear approach. A separate
 > microservice would add complexity without benefit at this scale, and a raw SQL
@@ -269,6 +278,7 @@ alternatives:
 
 **When there's a genuine fork:**
 Present each option with:
+
 - What it is (1-2 sentences)
 - Pros and cons
 - When you'd pick it
@@ -281,6 +291,7 @@ Present each option with:
 Once the design tree is fully resolved, present the design section by section.
 
 **Rules:**
+
 - Scale each section to its complexity: a few sentences if straightforward, up to
   200-300 words if nuanced
 - Ask after each section whether it looks right so far
@@ -289,12 +300,14 @@ Once the design tree is fully resolved, present the design section by section.
 - Reference existing codebase patterns you're building on
 
 **Design for isolation and clarity:**
+
 - Break the system into smaller units with one clear purpose each
 - Well-defined interfaces between units
 - Each unit should be understandable and testable independently
 - For each unit: what does it do, how do you use it, what does it depend on?
 
 **Working in existing codebases:**
+
 - Follow existing patterns. Don't fight the codebase.
 - Where existing code has problems that affect the work (e.g., a file that's grown
   too large, unclear boundaries), include targeted improvements as part of the
@@ -410,21 +423,21 @@ Let the user decide the next step. Do not auto-invoke any skill.
 
 ## Anti-Patterns and Common Mistakes
 
-| Anti-Pattern | Better Approach |
-|---|---|
-| Asking questions the codebase can answer | Search code first - check configs, existing patterns, test files before every question |
-| Batching multiple questions in one message | One question at a time, always. Break complex topics into sequential questions |
-| Printing questions as plain text output | Always use the `AskUserQuestion` tool to ask - it blocks until the user responds |
-| Skipping docs/ and README before starting | Always read all available documentation before the first question |
-| Proposing fake alternatives when the answer is obvious | Present the single right answer with rationale; only show options at genuine forks |
-| Accepting vague answers without follow-up | Dig deeper - "what do you mean by that?" is always valid |
-| Asking about implementation before purpose | Always resolve "why" and "what" before "how" |
-| Not exploring error/edge case branches | Every design tree has an error handling branch - walk it |
-| Jumping to code before spec approval | Hard gate: no code, no scaffolding, no implementation until spec is approved |
-| Presenting options without a (Recommended) marker | Every option set must have a clear recommendation with rationale |
-| Using normal thinking when ultrathink is required | Ultrathink on every decision, every question, every proposal - no exceptions |
-| Decomposing too late | Flag multi-system scope immediately, don't spend 10 questions refining details of an unscoped project |
-| Auto-invoking the next skill without asking | Flexible exit - always let the user choose what happens after spec approval |
+| Anti-Pattern                                           | Better Approach                                                                                       |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Asking questions the codebase can answer               | Search code first - check configs, existing patterns, test files before every question                |
+| Batching multiple questions in one message             | One question at a time, always. Break complex topics into sequential questions                        |
+| Printing questions as plain text output                | Always use the `AskUserQuestion` tool to ask - it blocks until the user responds                      |
+| Skipping docs/ and README before starting              | Always read all available documentation before the first question                                     |
+| Proposing fake alternatives when the answer is obvious | Present the single right answer with rationale; only show options at genuine forks                    |
+| Accepting vague answers without follow-up              | Dig deeper - "what do you mean by that?" is always valid                                              |
+| Asking about implementation before purpose             | Always resolve "why" and "what" before "how"                                                          |
+| Not exploring error/edge case branches                 | Every design tree has an error handling branch - walk it                                              |
+| Jumping to code before spec approval                   | Hard gate: no code, no scaffolding, no implementation until spec is approved                          |
+| Presenting options without a (Recommended) marker      | Every option set must have a clear recommendation with rationale                                      |
+| Using normal thinking when ultrathink is required      | Ultrathink on every decision, every question, every proposal - no exceptions                          |
+| Decomposing too late                                   | Flag multi-system scope immediately, don't spend 10 questions refining details of an unscoped project |
+| Auto-invoking the next skill without asking            | Flexible exit - always let the user choose what happens after spec approval                           |
 
 ---
 
@@ -443,7 +456,9 @@ Only load a references file if the current phase requires it - they are long and
 ## Companion check
 
 > On first activation of this skill in a conversation: check which companion skills are installed by running `ls ~/.claude/skills/ ~/.agent/skills/ ~/.agents/skills/ .claude/skills/ .agent/skills/ .agents/skills/ 2>/dev/null`. Compare the results against the `recommended_skills` field in this file's frontmatter. For any that are missing, mention them once and offer to install:
+>
 > ```
 > npx skills add AbsolutelySkilled/AbsolutelySkilled --skill <name>
 > ```
+>
 > Skip entirely if `recommended_skills` is empty or all companions are already installed.

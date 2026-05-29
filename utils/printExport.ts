@@ -84,7 +84,10 @@ function renderTable(lines: string[], startIndex: number): { html: string; nextI
 
   const headerHtml = header.map(cell => `<th>${renderInlineMarkdown(cell)}</th>`).join('');
   const rowsHtml = rows
-    .map((row, ri) => `<tr class="${ri % 2 === 0 ? 'row-even' : 'row-odd'}">${row.map(cell => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`)
+    .map(
+      (row, ri) =>
+        `<tr class="${ri % 2 === 0 ? 'row-even' : 'row-odd'}">${row.map(cell => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`,
+    )
     .join('');
 
   return {
@@ -128,9 +131,9 @@ export function renderMarkdownForPrint(markdown: string): string {
         const displayableCode = getDisplayableMermaidCode(code);
         blocks.push(
           `<div class="diagram-container">` +
-          `<div class="diagram-label">Diagrama</div>` +
-          `<pre class="mermaid">${escapeHtml(displayableCode)}</pre>` +
-          `</div>`,
+            `<div class="diagram-label">Diagrama</div>` +
+            `<pre class="mermaid">${escapeHtml(displayableCode)}</pre>` +
+            `</div>`,
         );
       } else {
         blocks.push(`<pre><code>${escapeHtml(code)}</code></pre>`);

@@ -40,9 +40,7 @@ function getStandaloneStatus(): boolean {
   if (typeof window === 'undefined') return false;
 
   const nav = navigator as Navigator & { standalone?: boolean };
-  const mediaQuery = typeof window.matchMedia === 'function'
-    ? window.matchMedia('(display-mode: standalone)')
-    : null;
+  const mediaQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)') : null;
 
   return mediaQuery?.matches === true || nav.standalone === true;
 }
@@ -62,9 +60,7 @@ function initializePWAStore(): void {
   isInitialized = true;
   setPWAState({ isInstalled: getStandaloneStatus() });
 
-  const mediaQuery = typeof window.matchMedia === 'function'
-    ? window.matchMedia('(display-mode: standalone)')
-    : null;
+  const mediaQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)') : null;
 
   const handleDisplayModeChange = (event: MediaQueryListEvent) => {
     setPWAState({ isInstalled: event.matches });

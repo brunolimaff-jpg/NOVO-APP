@@ -11,12 +11,7 @@ vi.mock('../../services/apiConfig', () => ({
   FAKE_DOMAINS: FAKE_DOMAINS_MOCK,
 }));
 
-import {
-  deduplicateSourcesBlock,
-  fixFakeLinks,
-  fixFakeLinksHTML,
-  extractValidLinks,
-} from '../../utils/linkFixer';
+import { deduplicateSourcesBlock, fixFakeLinks, fixFakeLinksHTML, extractValidLinks } from '../../utils/linkFixer';
 
 describe('fixFakeLinks', () => {
   beforeEach(() => {

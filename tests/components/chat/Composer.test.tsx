@@ -17,7 +17,9 @@ const theme: ChatTheme = {
   btnSecondary: 'bg-slate-800 text-slate-200 border border-slate-700',
 };
 
-function buildProps(overrides: Partial<React.ComponentProps<typeof Composer>> = {}): React.ComponentProps<typeof Composer> {
+function buildProps(
+  overrides: Partial<React.ComponentProps<typeof Composer>> = {},
+): React.ComponentProps<typeof Composer> {
   return {
     isHidden: false,
     isLoading: false,
@@ -65,7 +67,7 @@ describe('Composer', () => {
 
     expect(screen.getByLabelText('Campo de mensagem')).toBeDisabled();
     expect(screen.getByTestId('chat-stop-button')).toBeInTheDocument();
-    expect(screen.queryByTestId('chat-send-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('send-message-button')).not.toBeInTheDocument();
   });
 
   it('abre o aviso de retry quando o usuario interrompe a geracao', () => {

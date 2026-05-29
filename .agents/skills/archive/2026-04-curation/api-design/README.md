@@ -43,4 +43,4 @@ authentication patterns.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/api-design)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/api-design)_

@@ -1,21 +1,33 @@
 // services/clientLookupService.ts
 // CORRIGIDO: Timeout + Retry para App Script + Cache condicional com TTL para cold start
 
-import { LOOKUP_URL } from "./apiConfig";
-import { CONCORRENTES } from "./competitors";
-import { MatchType } from "../types";
-import { scoutDiag } from "../utils/diagnosticLog";
+import { LOOKUP_URL } from './apiConfig';
+import { CONCORRENTES } from './competitors';
+import { MatchType } from '../types';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 // Deriva termos-raiz a partir dos IDs dos concorrentes cadastrados (ex: 'totvs_protheus' → 'totvs')
 // + termos extras (própria empresa, produtos e marcas próprias)
 const _concorrentesSet = new Set<string>([
-  'senior',                                          // própria empresa
-  ...CONCORRENTES.map(c => c.id.split('_')[0]),      // sap, totvs, sankhya, chb, siagri, benner, lg, viasoft, unisystem
-  'protheus', 'microsiga', 'datasul',                // produtos TOTVS antigos
-  'oracle', 'microsoft', 'linx',                     // outros players
+  'senior', // própria empresa
+  ...CONCORRENTES.map(c => c.id.split('_')[0]), // sap, totvs, sankhya, chb, siagri, benner, lg, viasoft, unisystem
+  'protheus',
+  'microsiga',
+  'datasul', // produtos TOTVS antigos
+  'oracle',
+  'microsoft',
+  'linx', // outros players
   // Produtos/marcas da própria Senior — evita que perguntas técnicas sejam tratadas como prospecção
-  'erp', 'sapiens', 'hcm', 'gatec', 'gestão', 'gestao',
-  'ronda', 'rubi', 'vetorh', 'erpx',
+  'erp',
+  'sapiens',
+  'hcm',
+  'gatec',
+  'gestão',
+  'gestao',
+  'ronda',
+  'rubi',
+  'vetorh',
+  'erpx',
 ]);
 
 /**
@@ -24,15 +36,32 @@ const _concorrentesSet = new Set<string>([
  * Verifica TODAS as palavras da string, não apenas a primeira.
  */
 export function isConcorrenteOuPropria(empresa: string): boolean {
-  const words = empresa.toLowerCase().trim().split(/[\s,]+/);
+  const words = empresa
+    .toLowerCase()
+    .trim()
+    .split(/[\s,]+/);
   return words.some(w => _concorrentesSet.has(w));
 }
 
 // Prefixos comuns que geram muitos falsos positivos se buscados sozinhos
 const _genericPrefixes = new Set([
-  'fundacao', 'fundação', 'instituto', 'cooperativa', 'cia', 'companhia',
-  'grupo', 'usina', 'fazenda', 'centro', 'associacao', 'associaçao', 'associaçâo',
-  'servico', 'serviço', 'brasil', 'brasileira'
+  'fundacao',
+  'fundação',
+  'instituto',
+  'cooperativa',
+  'cia',
+  'companhia',
+  'grupo',
+  'usina',
+  'fazenda',
+  'centro',
+  'associacao',
+  'associaçao',
+  'associaçâo',
+  'servico',
+  'serviço',
+  'brasil',
+  'brasileira',
 ]);
 
 const LOOKUP_API_URL = LOOKUP_URL;
@@ -104,7 +133,7 @@ async function fetchWithTimeout(url: string, timeout: number = TIMEOUT_MS): Prom
     const response = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -221,12 +250,14 @@ function getRelevantLookupTokens(value: string): string[] {
   const normalized = normalizeLookupText(value);
   if (!normalized) return [];
 
-  return [...new Set(
-    normalized
-      .split(' ')
-      .map(token => token.trim())
-      .filter(token => token.length > 1 && !LOOKUP_TOKEN_STOPWORDS.has(token)),
-  )];
+  return [
+    ...new Set(
+      normalized
+        .split(' ')
+        .map(token => token.trim())
+        .filter(token => token.length > 1 && !LOOKUP_TOKEN_STOPWORDS.has(token)),
+    ),
+  ];
 }
 
 function isGenericLookupPrefixToken(value: string): boolean {
@@ -286,10 +317,8 @@ function getBestLookupCandidateMetrics(result: ClienteResult, fullQuery: string)
     // Multi-token queries can use .includes() because multiple tokens provide
     // sufficient discrimination (e.g. "TOTVS SISTEMAS" in "TOTVS SISTEMAS LTDA").
     const exactPhrase =
-      !!queryNormalized && (
-        normalizedLabel === queryNormalized ||
-        (queryTokens.length >= 2 && normalizedLabel.includes(queryNormalized))
-      );
+      !!queryNormalized &&
+      (normalizedLabel === queryNormalized || (queryTokens.length >= 2 && normalizedLabel.includes(queryNormalized)));
     const matchedAllTokens = queryTokens.length > 0 && matchedTokenCount === queryTokens.length;
 
     let matchType: MatchType = 'broad';
@@ -325,7 +354,12 @@ function getBestLookupCandidateMetrics(result: ClienteResult, fullQuery: string)
   );
 }
 
-function rankLookupResponse(response: LookupResponse, fullQuery: string, variant: string, variantIndex: number): RankedLookupResponse {
+function rankLookupResponse(
+  response: LookupResponse,
+  fullQuery: string,
+  variant: string,
+  variantIndex: number,
+): RankedLookupResponse {
   if (!response.encontrado || !response.results?.length) {
     return {
       response,
@@ -387,10 +421,10 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   }
 
   const nomeLimpo = stripLookupNoise(nomeEmpresa)
-    .replace(/,\s*/g, ' ')   // vírgula vira espaço ("SENIOR, TOTVS" → "SENIOR TOTVS")
+    .replace(/,\s*/g, ' ') // vírgula vira espaço ("SENIOR, TOTVS" → "SENIOR TOTVS")
     .replace(/[.;:!?]+$/, '')
     .trim()
-    .replace(/\s+/g, ' ');   // normaliza espaços múltiplos
+    .replace(/\s+/g, ' '); // normaliza espaços múltiplos
 
   const cacheKey = normalizeCacheKey(nomeEmpresa);
 
@@ -430,20 +464,16 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
   }
 
   try {
-    const p1 = nomeLimpo.includes(' ')
-      ? nomeLimpo.split(/\s+/).filter(p => p.length > 2)[0] ?? null
-      : null;
-    
+    const p1 = nomeLimpo.includes(' ') ? (nomeLimpo.split(/\s+/).filter(p => p.length > 2)[0] ?? null) : null;
+
     // Se p1 for um prefixo genérico (ex: "FUNDACAO"), não usamos como variante de busca isolada
     const isP1Generic = p1 ? isGenericLookupPrefixToken(p1) : false;
 
     const words = nomeLimpo.split(/\s+/).filter(w => w.length > 3);
-    
+
     // Pick the longest word that is NOT a generic prefix
     const nonGenericWords = words.filter(w => !isGenericLookupPrefixToken(w));
-    const strongest = nonGenericWords.length > 0
-      ? [...nonGenericWords].sort((a, b) => b.length - a.length)[0]
-      : null;
+    const strongest = nonGenericWords.length > 0 ? [...nonGenericWords].sort((a, b) => b.length - a.length)[0] : null;
 
     const variants: string[] = [nomeLimpo];
     if (p1 && p1 !== nomeLimpo && !isP1Generic) variants.push(p1);
@@ -496,7 +526,7 @@ export async function lookupCliente(nomeEmpresa: string): Promise<LookupResponse
 
     return data;
   } catch (err: unknown) {
-    scoutDiag.error("Lookup", "exceção em lookupCliente", {
+    scoutDiag.error('Lookup', 'exceção em lookupCliente', {
       query: nomeEmpresa.slice(0, 120),
       error: errorMessage(err),
     });
@@ -510,7 +540,7 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
   try {
     const resp = await fetchWithRetry(url);
     if (!resp.ok) {
-      scoutDiag.warn("Lookup", "HTTP não OK na planilha (Apps Script)", {
+      scoutDiag.warn('Lookup', 'HTTP não OK na planilha (Apps Script)', {
         query: query.slice(0, 80),
         status: resp.status,
       });
@@ -527,8 +557,8 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
     try {
       return JSON.parse(text);
     } catch {
-      const err = "JSON parse error";
-      scoutDiag.warn("Lookup", "resposta não é JSON válido", {
+      const err = 'JSON parse error';
+      scoutDiag.warn('Lookup', 'resposta não é JSON válido', {
         query: query.slice(0, 80),
         preview: text.slice(0, 120),
       });
@@ -536,7 +566,7 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
     }
   } catch (err: unknown) {
     const message = errorMessage(err);
-    scoutDiag.warn("Lookup", "fetchLookup falhou", {
+    scoutDiag.warn('Lookup', 'fetchLookup falhou', {
       query: query.slice(0, 80),
       error: message,
     });
@@ -546,9 +576,11 @@ async function fetchLookup(query: string): Promise<LookupResponse> {
 
 export function formatarParaPrompt(lookup: LookupResponse): string {
   if (!lookup?.ok || !lookup.encontrado || !lookup.results?.length) {
-    return `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n` +
+    return (
+      `\n\n---\n## 🔍 BASE INTERNA SENIOR\n**Status:** Empresa "${lookup?.query || ''}" NÃO encontrada na base de clientes Senior.\n` +
       `**Implicação:** Provável prospect novo (não é cliente atual).\n` +
-      `**💡 Validação recomendada:** Confirme no Atlas da Oportunidade ou Cosulta Cliente antes de assumir como prospect.\n---\n`;
+      `**💡 Validação recomendada:** Confirme no Atlas da Oportunidade ou Cosulta Cliente antes de assumir como prospect.\n---\n`
+    );
   }
 
   const r = lookup.results[0];
@@ -558,13 +590,15 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
   // Match NÃO exato: NÃO incluir dados detalhados de CRM para evitar que o modelo
   // atribua informações de um cliente a outro (ex: confundir "Pampa" com "Pampafoods").
   if (!isExact) {
-    return `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟡 POSSÍVEL MATCH — NÃO USAR COMO CONFIRMAÇÃO]\n` +
+    return (
+      `\n\n---\n## 🔍 BASE INTERNA SENIOR [🟡 POSSÍVEL MATCH — NÃO USAR COMO CONFIRMAÇÃO]\n` +
       `**⚠️ ATENÇÃO:** A busca por "${lookup.query}" retornou "${r.grupo}".\n` +
       `**NÃO** são a mesma empresa. Estes dados NÃO devem ser usados como evidência de contratação Senior.\n` +
       `**Instrução para o modelo:** Trate "${lookup.query}" como PROSPECT (não cliente). ` +
       `Não mencione módulos, gaps ou soluções Senior.\n` +
       `**💡 Validação recomendada:** Consulte o Atlas da Oportunidade ou Cosulta Cliente para confirmar ` +
-      `se há vínculo real com a Senior antes de qualquer abordagem.\n---\n`;
+      `se há vínculo real com a Senior antes de qualquer abordagem.\n---\n`
+    );
   }
 
   // Match EXATO: incluir dados completos com segurança
@@ -575,22 +609,30 @@ export function formatarParaPrompt(lookup: LookupResponse): string {
 
   md += `### Soluções Senior contratadas:\n`;
   if (r.modulos_por_familia) {
-    const icons: Record<string, string> = { "GATec": "🌾", "ERP": "💼", "HCM": "👥", "Logística": "🚛", "Acesso": "🔐", "Plataforma": "📚", "Hypnobox": "🏠" };
+    const icons: Record<string, string> = {
+      GATec: '🌾',
+      ERP: '💼',
+      HCM: '👥',
+      Logística: '🚛',
+      Acesso: '🔐',
+      Plataforma: '📚',
+      Hypnobox: '🏠',
+    };
     for (const [fam, mods] of Object.entries(r.modulos_por_familia)) {
-      if (fam === "Infra" || fam === "Outros") continue;
-      md += `${icons[fam] || "📦"} **${fam}:** ${Array.isArray(mods) ? mods.join(", ") : mods}\n`;
+      if (fam === 'Infra' || fam === 'Outros') continue;
+      md += `${icons[fam] || '📦'} **${fam}:** ${Array.isArray(mods) ? mods.join(', ') : mods}\n`;
     }
   }
 
   if (r.gaps_crosssell?.length) {
     md += `\n### ⚡ GAPS — Oportunidade de cross-sell:\n`;
     const dicas: Record<string, string> = {
-      "GATec": "SEM gestão agrícola Senior — oportunidade QUENTE se for agro",
-      "ERP": "SEM ERP Senior — possível consolidação",
-      "HCM": "SEM gestão de pessoas Senior — verificar porte",
-      "Logística": "SEM WMS/TMS Senior — verificar operação",
-      "Acesso": "SEM Ronda/controle de acesso",
-      "Plataforma": "SEM Konviva/Painel"
+      GATec: 'SEM gestão agrícola Senior — oportunidade QUENTE se for agro',
+      ERP: 'SEM ERP Senior — possível consolidação',
+      HCM: 'SEM gestão de pessoas Senior — verificar porte',
+      Logística: 'SEM WMS/TMS Senior — verificar operação',
+      Acesso: 'SEM Ronda/controle de acesso',
+      Plataforma: 'SEM Konviva/Painel',
     };
     for (const gap of r.gaps_crosssell) {
       md += `- **${gap}:** ${dicas[gap] || `Não possui ${gap}`}\n`;
@@ -621,7 +663,7 @@ export async function benchmarkClientes(keywords: string | string[]): Promise<Be
   const attemptParse = async (): Promise<BenchmarkResponse> => {
     const resp = await fetchWithRetry(url);
     if (!resp.ok) {
-      scoutDiag.warn("Benchmark", "HTTP não OK no benchmark", { status: resp.status, kw: kw.slice(0, 80) });
+      scoutDiag.warn('Benchmark', 'HTTP não OK no benchmark', { status: resp.status, kw: kw.slice(0, 80) });
       return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: `HTTP ${resp.status}` };
     }
     const text = await resp.text();
@@ -629,30 +671,30 @@ export async function benchmarkClientes(keywords: string | string[]): Promise<Be
       return JSON.parse(text);
     } catch {
       // Sinal de cold start — Apps Script retornou HTML em vez de JSON
-      scoutDiag.warn("Benchmark", "JSON parse falhou (possível cold start) — aguardando retry", {
+      scoutDiag.warn('Benchmark', 'JSON parse falhou (possível cold start) — aguardando retry', {
         kw: kw.slice(0, 80),
         preview: text.slice(0, 120),
       });
-      throw new Error("JSON_PARSE_FAILED");
+      throw new Error('JSON_PARSE_FAILED');
     }
   };
 
   try {
     return await attemptParse();
   } catch (firstErr: unknown) {
-    if (errorMessage(firstErr) === "JSON_PARSE_FAILED") {
+    if (errorMessage(firstErr) === 'JSON_PARSE_FAILED') {
       // Cold start detectado — aguarda o Apps Script aquecer e tenta uma vez mais
       await new Promise(resolve => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
       try {
         return await attemptParse();
       } catch (retryErr: unknown) {
-        scoutDiag.error("Benchmark", "benchmark falhou após retry de cold start", {
+        scoutDiag.error('Benchmark', 'benchmark falhou após retry de cold start', {
           error: errorMessage(retryErr),
         });
         return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(retryErr) };
       }
     }
-    scoutDiag.error("Benchmark", "exceção em benchmarkClientes", { error: errorMessage(firstErr) });
+    scoutDiag.error('Benchmark', 'exceção em benchmarkClientes', { error: errorMessage(firstErr) });
     return { ok: false, mode: 'benchmark', keywords, total: 0, results: [], error: String(firstErr) };
   }
 }
@@ -660,9 +702,10 @@ export async function benchmarkClientes(keywords: string | string[]): Promise<Be
 export function formatarBenchmarkParaPrompt(bench: BenchmarkResponse, _empresaAlvo: string): string {
   if (!bench?.ok || !bench.results?.length) {
     // FIX: fallback visual informativo ao invés de bloco vazio silencioso
-    const motivo = bench?.error === 'JSON_PARSE_FAILED'
-      ? 'Benchmark sendo processado — tente novamente em instantes.'
-      : 'Nenhum cliente Senior encontrado com operação similar.';
+    const motivo =
+      bench?.error === 'JSON_PARSE_FAILED'
+        ? 'Benchmark sendo processado — tente novamente em instantes.'
+        : 'Nenhum cliente Senior encontrado com operação similar.';
     return `\n\n---\n## 🏷️ BENCHMARK SENIOR\n_${motivo}_\n---\n`;
   }
 
@@ -691,7 +734,7 @@ export function formatarComexParaPrompt(comexData: ComexPromptData): string {
   if (comexData.principaisNCMs && comexData.principaisNCMs.length > 0) {
     md += `**Principais Produtos (NCM):** ${comexData.principaisNCMs.join(', ')}\n`;
   }
-  
+
   md += `\n**⚠️ INSTRUÇÃO (SCORE PORTA):** \n- A presença deste dado de exportação CONFIRMADA oficial do MDIC **AUMENTA A NOTA DA DIMENSÃO O (Operação)**. Considere a complexidade logística e aduaneira na análise.\n- É OBRIGATÓRIO recomendar o módulo **Commerce Log** na Fase 8 como fit perfeito para essa operação de exportação. Se os produtos envolverem grãos/commodities, recomendar também o **OneClick**.\n---\n`;
 
   return md;

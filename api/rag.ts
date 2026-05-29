@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const embeddingResponse = await ai.models.embedContent({
       model: 'gemini-embedding-001',
       contents: query,
-      config: { taskType: 'RETRIEVAL_QUERY' }
+      config: { taskType: 'RETRIEVAL_QUERY' },
     });
 
     const queryVector = embeddingResponse.embeddings?.[0]?.values;
@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const results = await queryTarget.query({
       vector: queryVector,
       topK: 8,
-      includeMetadata: true
+      includeMetadata: true,
     });
 
     const context = results.matches
@@ -99,7 +99,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .join('\n\n---\n\n');
 
     return res.status(200).json({ context });
-
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('RAG error:', message);

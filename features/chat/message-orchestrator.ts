@@ -25,6 +25,7 @@ import {
   resolveHintedCompany,
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
+import { trackOperatorEvent } from '../../services/operatorTracking';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -71,6 +72,8 @@ export interface UseChatMessageOrchestratorOptions {
   investigationLogged: boolean;
   setInvestigationLogged: Dispatch<SetStateAction<boolean>>;
   runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<void>;
+  operatorId?: string;
+  email?: string;
 }
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
@@ -108,6 +111,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   const systemInstruction = options.systemInstruction ?? modeContext?.systemInstruction ?? '';
   const mode = options.mode ?? modeContext?.mode ?? null;
   const resolvedOperatorName = requireDependency(options.resolvedOperatorName, 'resolvedOperatorName');
+  const operatorId = options.operatorId ?? '';
+  const operatorEmail = options.email ?? '';
   const canUseLookup = options.canUseLookup ?? false;
   const requestKind = options.requestKind ?? chatStore?.requestKind ?? 'default';
   const setRequestKind = requireDependency(options.setRequestKind ?? chatStore?.setRequestKind, 'setRequestKind');
@@ -297,17 +302,26 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       );
       setVisibleCount(prev => prev + 1);
 
-      try {
-        const normalizedUpperText = text
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toUpperCase();
-        const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
+      const normalizedUpperText = text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
+      try {
         if (isMegaPrompt) {
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
             company: normalizedCompany,
+          });
+          trackOperatorEvent('dossier_started', {
+            operatorId,
+            email: operatorEmail || undefined,
+            sessionId,
+            entityType: 'session',
+            entityId: botMessageId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
           });
           await runMegaPromptWaterfall({
             sessionId,
@@ -322,6 +336,15 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             sessionCnpjDigits,
           });
           completeLoadingProgress();
+          trackOperatorEvent('dossier_completed', {
+            operatorId,
+            email: operatorEmail || undefined,
+            sessionId,
+            entityType: 'session',
+            entityId: botMessageId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
+          });
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
           });
@@ -465,6 +488,19 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
         if (activeGenerationRef.current[sessionId] !== botMessageId) return;
 
+        if (isMegaPrompt) {
+          trackOperatorEvent('dossier_failed', {
+            operatorId,
+            email: operatorEmail || undefined,
+            sessionId,
+            entityType: 'session',
+            entityId: botMessageId,
+            companyCnpj: sessionCnpjDigits || undefined,
+            companyName: normalizedCompany || undefined,
+            metadata: { errorMessage: error instanceof Error ? error.message : String(error) },
+          });
+        }
+
         const appError = normalizeAppError(error as Error);
         updateSessionById(sessionId, session => ({
           ...session,
@@ -490,6 +526,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         });
 
         setIsLoading(false);
+        completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
@@ -529,6 +566,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       setLoadingPinnedLabel,
       setLoadingVariant,
       setRequestKind,
+      operatorId,
+      operatorEmail,
       setSessions,
       setVisibleCount,
       systemInstruction,

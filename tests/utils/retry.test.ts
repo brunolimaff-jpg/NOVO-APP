@@ -20,9 +20,7 @@ describe('withAutoRetry', () => {
 
   it('retenta para erros transientes (NETWORK) e retorna na segunda tentativa', async () => {
     const networkError = new TypeError('fetch failed');
-    const action = vi.fn()
-      .mockRejectedValueOnce(networkError)
-      .mockResolvedValue('recovered');
+    const action = vi.fn().mockRejectedValueOnce(networkError).mockResolvedValue('recovered');
 
     const promise = withAutoRetry('test', action, { maxRetries: 3, baseDelayMs: 10, jitter: false });
     // Avança timers para o backoff entre tentativas
@@ -79,9 +77,7 @@ describe('withAutoRetry', () => {
 
   it('retenta para erro 429 (RATE_LIMIT) e recupera', async () => {
     const rateLimitError = { message: '429 quota exhausted', status: 429 };
-    const action = vi.fn()
-      .mockRejectedValueOnce(rateLimitError)
-      .mockResolvedValue('ok after backoff');
+    const action = vi.fn().mockRejectedValueOnce(rateLimitError).mockResolvedValue('ok after backoff');
 
     const promise = withAutoRetry('test', action, { maxRetries: 3, baseDelayMs: 10, jitter: false });
     await vi.runAllTimersAsync();
@@ -92,7 +88,8 @@ describe('withAutoRetry', () => {
 
   it('retenta para MODEL_OVERLOADED (503)', async () => {
     const overloadedError = { message: 'Service overloaded', status: 503 };
-    const action = vi.fn()
+    const action = vi
+      .fn()
       .mockRejectedValueOnce(overloadedError)
       .mockRejectedValueOnce(overloadedError)
       .mockResolvedValue('ok');

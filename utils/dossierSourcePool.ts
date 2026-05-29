@@ -30,8 +30,7 @@ export function coerceGroundingSources(raw: unknown): GroundingSourceLike[] {
     return {
       title: title || url,
       url,
-      verification:
-        verification === 'grounding' || verification === 'fallback' ? verification : undefined,
+      verification: verification === 'grounding' || verification === 'fallback' ? verification : undefined,
     };
   };
 
@@ -104,12 +103,7 @@ export function formatAvailableSourcesForPrompt(pool: DossierSourceRef[]): strin
     return `${index + 1}. ${label} — ${source.url}${origin}`;
   });
 
-  return [
-    '',
-    '[FONTES DISPONIVEIS PARA CITACAO — use SOMENTE estas URLs em [[n]](url)]',
-    ...lines,
-    '',
-  ].join('\n');
+  return ['', '[FONTES DISPONIVEIS PARA CITACAO — use SOMENTE estas URLs em [[n]](url)]', ...lines, ''].join('\n');
 }
 
 export function poolToGroundingPayload(

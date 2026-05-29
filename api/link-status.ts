@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await Promise.all(
     sanitized.map(async (url: string) => {
       results[url] = await checkUrl(url);
-    })
+    }),
   );
 
   return res.status(200).json({ results });

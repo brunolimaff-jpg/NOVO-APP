@@ -11,15 +11,15 @@ Nesta iteração, a resposta técnica passou a obedecer uma regra simples: ou el
 
 ### O que foi fechado nesta entrega
 
-| Frente | Área | Resultado |
-|---|---|---|
-| A | Prompt técnico | Removida a permissão de usar conhecimento próprio quando a doc não cobre a pergunta. |
-| B | Hardening de RAG | Threshold elevado para `0.6`, `topK` ampliado e corte final menor para reduzir contexto fraco. |
-| C | Validação de domínio | Apenas chunks com URL de `documentacao.senior.com.br` entram no contexto oficial. |
-| D | Fallback seguro | Quando não há contexto suficiente, o War Room recusa responder a pergunta e sugere reformulações. |
-| E | Google Search | `googleSearch` desligado em todos os modos do War Room. |
-| F | Separação de fontes | O modo `tech` deixou de consultar `/api/rag`; a base global não participa mais das respostas técnicas. |
-| G | Continuidade | Placeholder visível de `concorrentes` e roadmap explícito para a próxima fase. |
+| Frente | Área                 | Resultado                                                                                              |
+| ------ | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| A      | Prompt técnico       | Removida a permissão de usar conhecimento próprio quando a doc não cobre a pergunta.                   |
+| B      | Hardening de RAG     | Threshold elevado para `0.6`, `topK` ampliado e corte final menor para reduzir contexto fraco.         |
+| C      | Validação de domínio | Apenas chunks com URL de `documentacao.senior.com.br` entram no contexto oficial.                      |
+| D      | Fallback seguro      | Quando não há contexto suficiente, o War Room recusa responder a pergunta e sugere reformulações.      |
+| E      | Google Search        | `googleSearch` desligado em todos os modos do War Room.                                                |
+| F      | Separação de fontes  | O modo `tech` deixou de consultar `/api/rag`; a base global não participa mais das respostas técnicas. |
+| G      | Continuidade         | Placeholder visível de `concorrentes` e roadmap explícito para a próxima fase.                         |
 
 ### Contratos e configuração
 

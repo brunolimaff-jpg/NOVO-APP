@@ -220,9 +220,9 @@ function requiresPersistentCache(): boolean {
 function isSocioSearchResponse(value: unknown): value is SocioSearchResponse {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<SocioSearchResponse>;
-  return Array.isArray(candidate.companies)
-    && Array.isArray(candidate.rejected)
-    && typeof candidate.degraded === 'boolean';
+  return (
+    Array.isArray(candidate.companies) && Array.isArray(candidate.rejected) && typeof candidate.degraded === 'boolean'
+  );
 }
 
 function getMemoryCached(key: string): SocioSearchResponse | null {
@@ -277,7 +277,7 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
       return { status: 'unavailable' };
     }
 
-    const rows = await response.json() as Array<{ result?: unknown }>;
+    const rows = (await response.json()) as Array<{ result?: unknown }>;
     const payload = rows[0]?.result;
     if (!payload) return { status: 'miss' };
     if (!isSocioSearchResponse(payload)) return { status: 'unavailable' };
@@ -308,7 +308,11 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
   }
 }
 
-async function writePersistentCacheRecord(recordId: string, payload: SocioSearchResponse, ttlMs: number): Promise<boolean> {
+async function writePersistentCacheRecord(
+  recordId: string,
+  payload: SocioSearchResponse,
+  ttlMs: number,
+): Promise<boolean> {
   const config = getSupabaseCacheConfig();
   if (!config) {
     if (process.env.NODE_ENV !== 'test') {
@@ -352,7 +356,6 @@ async function setPersistentCached(key: string, payload: SocioSearchResponse): P
   return writePersistentCacheRecord(buildPersistentCacheId(key), payload, CACHE_TTL_MS);
 }
 
-
 interface SearchBlock {
   title: string;
   url: string;
@@ -364,7 +367,11 @@ function splitSearchBlocks(content: string): SearchBlock[] {
     .split(/\n---\n?/)
     .map(block => {
       const title = block.match(/Título:\s*([^\n]+)/i)?.[1]?.trim() || '';
-      const url = block.match(/URL:\s*(https?:\/\/[^\s\n]+)/i)?.[1]?.trim().replace(/[),.;]+$/g, '') || '';
+      const url =
+        block
+          .match(/URL:\s*(https?:\/\/[^\s\n]+)/i)?.[1]
+          ?.trim()
+          .replace(/[),.;]+$/g, '') || '';
       const snippet = block.match(/Resumo:\s*([\s\S]+)/i)?.[1]?.trim() || '';
       return { title, url, snippet: sanitizeSensitivePersonalData(snippet) };
     })
@@ -502,18 +509,30 @@ function inferCompanyNameForCnpj(cnpj: string, title: string, snippet: string): 
 
   const before = text.slice(Math.max(0, match.index - 260), match.index).trim();
   const previousMatch = matchIndex > 0 ? matches[matchIndex - 1] : null;
-  const localBefore = text.slice(previousMatch ? previousMatch.index + previousMatch.raw.length : 0, match.index).trim();
-  const localNameMatches = [...localBefore.matchAll(/([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/gi)];
+  const localBefore = text
+    .slice(previousMatch ? previousMatch.index + previousMatch.raw.length : 0, match.index)
+    .trim();
+  const localNameMatches = [
+    ...localBefore.matchAll(
+      /([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/gi,
+    ),
+  ];
   const localName = localNameMatches.at(-1)?.[1];
   if (localName) return inferredNameOrCnpjFallback(localName, cnpj);
 
-  const reasonName = before.match(/raz[aã]o social\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9&.\s-]{2,100}?(?:LTDA|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/i)?.[1];
+  const reasonName = before.match(
+    /raz[aã]o social\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9&.\s-]{2,100}?(?:LTDA|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))/i,
+  )?.[1];
   if (reasonName) return inferredNameOrCnpjFallback(reasonName, cnpj);
 
-  const companyBeforeCnpj = before.match(/([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))\s*(?:ativa|inativa|opera|com|,|;|-)?$/i)?.[1];
+  const companyBeforeCnpj = before.match(
+    /([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100}?(?:LTDA|Ltda|S\/A|S\.A\.|S\.A\.S\.|EIRELI|ME))\s*(?:ativa|inativa|opera|com|,|;|-)?$/i,
+  )?.[1];
   if (companyBeforeCnpj) return inferredNameOrCnpjFallback(companyBeforeCnpj, cnpj);
 
-  const listedName = before.match(/empresas? em que [^:]{0,80}:\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100})$/i)?.[1];
+  const listedName = before.match(
+    /empresas? em que [^:]{0,80}:\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç0-9&.\s-]{2,100})$/i,
+  )?.[1];
   if (listedName) return inferredNameOrCnpjFallback(listedName, cnpj);
 
   return inferredNameOrCnpjFallback(inferCompanyName(title, snippet), cnpj);
@@ -533,9 +552,7 @@ async function fetchCandidatePage(url: string): Promise<string> {
     if (contentType && !contentType.includes('text/html') && !contentType.includes('text/plain')) return '';
 
     const body = await response.text();
-    const extracted = contentType.includes('text/plain')
-      ? body
-      : await extractHtml(body, PAGE_EXTRACT_LIMIT);
+    const extracted = contentType.includes('text/plain') ? body : await extractHtml(body, PAGE_EXTRACT_LIMIT);
     return sanitizeSensitivePersonalData(extracted).slice(0, PAGE_EXTRACT_LIMIT);
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha ao abrir pagina candidata', {
@@ -550,7 +567,9 @@ function inferCompanyName(title: string, snippet: string): string {
   const text = `${title} ${snippet}`;
   if (/scheffer\s+colombia\s+s\.?a\.?s\.?/i.test(text)) return 'Scheffer Colombia S.A.S.';
 
-  const sas = text.match(/\b([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç&.\s-]{2,80}\b(?:S\.?A\.?S\.?|S\/A|LTDA|Ltda|S\.A\.))\b/);
+  const sas = text.match(
+    /\b([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç&.\s-]{2,80}\b(?:S\.?A\.?S\.?|S\/A|LTDA|Ltda|S\.A\.))\b/,
+  );
   if (sas?.[1]) return sas[1].replace(/\s+/g, ' ').trim();
 
   return title
@@ -588,12 +607,19 @@ function scoreEvidence(params: {
 } {
   const haystack = normalizeText(`${params.title} ${params.snippet} ${params.url}`);
   const digitHaystack = `${params.title} ${params.snippet} ${params.url}`.replace(/\D/g, '');
-  const socioParts = normalizeText(params.socioName).split(/\s+/).filter(part => part.length > 2);
+  const socioParts = normalizeText(params.socioName)
+    .split(/\s+/)
+    .filter(part => part.length > 2);
   const socioPartSet = new Set(socioParts);
   const normalizedRootName = normalizeText(params.rootCompanyName);
   const rootParts = normalizedRootName
     .split(/\s+/)
-    .filter(part => part.length > 2 && !socioPartSet.has(part) && !['ltda', 'cia', 'sa', 's/a', 'saa', 'agro', 'agricola'].includes(part));
+    .filter(
+      part =>
+        part.length > 2 &&
+        !socioPartSet.has(part) &&
+        !['ltda', 'cia', 'sa', 's/a', 'saa', 'agro', 'agricola'].includes(part),
+    );
   const rootCnpj = normalizeCnpj(params.rootCnpj);
 
   const socioHitCount = socioParts.filter(part => haystack.includes(part)).length;
@@ -606,8 +632,9 @@ function scoreEvidence(params: {
   const negativeConnection = /sem conexao|nao conectado|homonimo/.test(haystack);
   const groupContextHit = rootHit || cnpjHit;
   const hasValidCnpj = (params.cnpjs || []).some(cnpj => isValidCnpj(cnpj));
-  const registryContext = /consultasocio|cnpj|qsa|societ|socio|sócio|administrador|quadro/.test(haystack)
-    || /consultasocio|cnpj|receita/i.test(params.url);
+  const registryContext =
+    /consultasocio|cnpj|qsa|societ|socio|sócio|administrador|quadro/.test(haystack) ||
+    /consultasocio|cnpj|receita/i.test(params.url);
 
   if (negativeConnection) {
     return {
@@ -644,12 +671,19 @@ function scoreEvidence(params: {
 
 function sourceLooksSocioCentric(title: string, snippet: string, url: string, socioName: string): boolean {
   const haystack = normalizeText(`${title} ${snippet} ${url}`);
-  const socioParts = normalizeText(socioName).split(/\s+/).filter(part => part.length > 2);
+  const socioParts = normalizeText(socioName)
+    .split(/\s+/)
+    .filter(part => part.length > 2);
   const socioHitCount = socioParts.filter(part => haystack.includes(part)).length;
   const socioHit = socioHitCount >= Math.min(2, socioParts.length);
-  return /consultasocio\.com\/q\/sa/i.test(url)
-    || /econodata\.com\.br\/consulta-empresa|econodata\.com\.br\/consulta-socio/i.test(url)
-    || (socioHit && /empresas em que|socio administrador|sócio administrador|quadro societario|quadro societário|consta como socio|consta como sócio/.test(haystack));
+  return (
+    /consultasocio\.com\/q\/sa/i.test(url) ||
+    /econodata\.com\.br\/consulta-empresa|econodata\.com\.br\/consulta-socio/i.test(url) ||
+    (socioHit &&
+      /empresas em que|socio administrador|sócio administrador|quadro societario|quadro societário|consta como socio|consta como sócio/.test(
+        haystack,
+      ))
+  );
 }
 
 function scopeForEnrichedCnpj(params: {
@@ -668,8 +702,8 @@ function scopeForEnrichedCnpj(params: {
   }
 
   if (
-    params.evidence.relationshipScope === 'group_link'
-    && sourceLooksSocioCentric(params.title, params.snippet, params.url, params.socioName)
+    params.evidence.relationshipScope === 'group_link' &&
+    sourceLooksSocioCentric(params.title, params.snippet, params.url, params.socioName)
   ) {
     return { relationshipScope: 'partner_other_cnpj', rootContext: false };
   }
@@ -717,7 +751,8 @@ function nameTokensMatchStrictly(candidateName: string, socioName: string): bool
   if (socioSignificantTokens.length <= 2) {
     const firstIndex = matchedIndexes[0];
     const lastIndex = matchedIndexes[matchedIndexes.length - 1];
-    const middleTokens = candidateTokens.slice(firstIndex + 1, lastIndex)
+    const middleTokens = candidateTokens
+      .slice(firstIndex + 1, lastIndex)
       .filter(token => !socioSignificantTokens.includes(token));
     return middleTokens.every(token => socioInitials.has(token.charAt(0)));
   }
@@ -795,16 +830,12 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
         cnpjs: blockCnpjs,
       });
 
-      const shouldFetchPage = pagesFetched < PAGE_FETCH_LIMIT
-        && hasSearchBudget()
-        && (
-          blockCnpjs.length === 0
-          || sourceLooksSocioCentric(block.title, snippet, block.url, params.socioName)
-        )
-        && (
-          initialEvidence.confidence !== 'strong'
-          || /cnpj|qsa|societ|s[oó]cio|participa|holding|quadro/i.test(`${block.title} ${snippet} ${block.url}`)
-        );
+      const shouldFetchPage =
+        pagesFetched < PAGE_FETCH_LIMIT &&
+        hasSearchBudget() &&
+        (blockCnpjs.length === 0 || sourceLooksSocioCentric(block.title, snippet, block.url, params.socioName)) &&
+        (initialEvidence.confidence !== 'strong' ||
+          /cnpj|qsa|societ|s[oó]cio|participa|holding|quadro/i.test(`${block.title} ${snippet} ${block.url}`));
 
       if (shouldFetchPage) {
         pagesFetched += 1;
@@ -859,51 +890,52 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
         });
         const remainingMs = remainingSearchBudget();
         const canTryOfficialLookup = cnpjLookupAttempts < MAX_CNPJ_LOOKUPS && remainingMs >= 1_000;
-        if (canTryOfficialLookup) try {
-          cnpjLookupAttempts += 1;
-          const official = await lookupCnpj(cnpj, {
-            timeoutMs: Math.min(CNPJ_LOOKUP_TIMEOUT_MS, Math.max(1_000, remainingMs - 500)),
-            maxSources: 1,
-          });
-          cnpjsEnriched += 1;
-          const qsaConfirmsSocio = officialQsaIncludesSocio(official.qsa, params.socioName);
-          if (qsaConfirmsSocio === false) {
+        if (canTryOfficialLookup)
+          try {
+            cnpjLookupAttempts += 1;
+            const official = await lookupCnpj(cnpj, {
+              timeoutMs: Math.min(CNPJ_LOOKUP_TIMEOUT_MS, Math.max(1_000, remainingMs - 500)),
+              maxSources: 1,
+            });
+            cnpjsEnriched += 1;
+            const qsaConfirmsSocio = officialQsaIncludesSocio(official.qsa, params.socioName);
+            if (qsaConfirmsSocio === false) {
+              enrichedAnyCnpj = true;
+              rejected.push({
+                sourceTitle: block.title,
+                sourceUrl: block.url,
+                snippet,
+                reason: `QSA oficial nao confirma o socio ${params.socioName} neste CNPJ.`,
+              });
+              continue;
+            }
             enrichedAnyCnpj = true;
-            rejected.push({
+            const inferredName = inferCompanyNameForCnpj(cnpj, block.title, snippet);
+            const officialName = official.companyName?.trim() || '';
+            addCompany({
+              name: hasMeaningfulInferredCompanyName(officialName) ? officialName : inferredName,
+              cnpj,
+              partnerName: params.socioName,
               sourceTitle: block.title,
               sourceUrl: block.url,
               snippet,
-              reason: `QSA oficial nao confirma o socio ${params.socioName} neste CNPJ.`,
+              confidence: qsaConfirmsSocio === true ? 'strong' : 'medium',
+              evidenceType: qsaConfirmsSocio === true ? 'qsa' : 'registry',
+              relationshipScope: scopedRelationship.relationshipScope,
+              rootContext: scopedRelationship.rootContext,
+              rootCompanyName: params.rootCompanyName,
+              rootCnpj: rootCnpjLocal || undefined,
+              role: official.cnaeDescricao || official.cnae,
+              sourceDepth: 'cnpj_lookup',
             });
             continue;
+          } catch (error) {
+            scoutDiag.warn('SocioSearch', 'falha ao enriquecer CNPJ encontrado', {
+              cnpj,
+              url: block.url,
+              message: error instanceof Error ? error.message : String(error),
+            });
           }
-          enrichedAnyCnpj = true;
-          const inferredName = inferCompanyNameForCnpj(cnpj, block.title, snippet);
-          const officialName = official.companyName?.trim() || '';
-          addCompany({
-            name: hasMeaningfulInferredCompanyName(officialName) ? officialName : inferredName,
-            cnpj,
-            partnerName: params.socioName,
-            sourceTitle: block.title,
-            sourceUrl: block.url,
-            snippet,
-            confidence: qsaConfirmsSocio === true ? 'strong' : 'medium',
-            evidenceType: qsaConfirmsSocio === true ? 'qsa' : 'registry',
-            relationshipScope: scopedRelationship.relationshipScope,
-            rootContext: scopedRelationship.rootContext,
-            rootCompanyName: params.rootCompanyName,
-            rootCnpj: rootCnpjLocal || undefined,
-            role: official.cnaeDescricao || official.cnae,
-            sourceDepth: 'cnpj_lookup',
-          });
-          continue;
-        } catch (error) {
-          scoutDiag.warn('SocioSearch', 'falha ao enriquecer CNPJ encontrado', {
-            cnpj,
-            url: block.url,
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
 
         enrichedAnyCnpj = true;
         addCompany({
@@ -1005,14 +1037,16 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
         }
       }
 
-      addCompany(buildCnpjAbertoCompany({
-        candidate,
-        official,
-        qsaConfirmsSocio,
-        socioName: params.socioName,
-        rootCompanyName: params.rootCompanyName,
-        rootCnpj: params.rootCnpj,
-      }));
+      addCompany(
+        buildCnpjAbertoCompany({
+          candidate,
+          official,
+          qsaConfirmsSocio,
+          socioName: params.socioName,
+          rootCompanyName: params.rootCompanyName,
+          rootCnpj: params.rootCnpj,
+        }),
+      );
     }
   };
 
@@ -1089,57 +1123,58 @@ async function runSearch(params: z.infer<typeof RequestSchema>, traceEnabled = f
     }
   }
 
-  if (!cnpjAbertoStructuredReturned) for (const query of queries) {
-    if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
-      if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
-      else if (companies.length > 0) markTruncated('deadline');
-      else degraded = true;
-      break;
-    }
-    queriesRun.push(query);
-    const before = snapshotCounts();
-    const content = await performWebSearch(query, { count: 10 });
-    if (!content) {
-      searchFailureCount += 1;
-      degraded = true;
-      traceProvider({
-        provider: 'web_search',
-        query,
-        attempted: true,
-        returnedCount: 0,
-        acceptedCount: 0,
-        rejectedCount: 0,
-        reason: 'failure',
-      });
-      continue;
-    }
-    if (/Nenhum resultado encontrado/i.test(content)) {
-      searchNoResultCount += 1;
-      degraded = true;
-      traceProvider({
-        provider: 'web_search',
-        query,
-        attempted: true,
-        returnedCount: 0,
-        acceptedCount: 0,
-        rejectedCount: 0,
-        reason: 'no_result',
-      });
-      continue;
-    }
+  if (!cnpjAbertoStructuredReturned)
+    for (const query of queries) {
+      if (!hasSearchBudget() || companies.length >= MAX_COMPANIES) {
+        if (companies.length >= MAX_COMPANIES) markTruncated('company_limit');
+        else if (companies.length > 0) markTruncated('deadline');
+        else degraded = true;
+        break;
+      }
+      queriesRun.push(query);
+      const before = snapshotCounts();
+      const content = await performWebSearch(query, { count: 10 });
+      if (!content) {
+        searchFailureCount += 1;
+        degraded = true;
+        traceProvider({
+          provider: 'web_search',
+          query,
+          attempted: true,
+          returnedCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          reason: 'failure',
+        });
+        continue;
+      }
+      if (/Nenhum resultado encontrado/i.test(content)) {
+        searchNoResultCount += 1;
+        degraded = true;
+        traceProvider({
+          provider: 'web_search',
+          query,
+          attempted: true,
+          returnedCount: 0,
+          acceptedCount: 0,
+          rejectedCount: 0,
+          reason: 'no_result',
+        });
+        continue;
+      }
 
-    const blocks = splitSearchBlocks(content);
-    const blockCount = blocks.length;
-    await processContentBlocks(blocks);
-    traceProvider({
-      provider: 'web_search',
-      query,
-      attempted: true,
-      returnedCount: blockCount,
-      acceptedCount: companies.length - before.companies,
-      rejectedCount: rejected.length - before.rejected,
-    });
-  }
+      const blocks = splitSearchBlocks(content);
+      const blockCount = blocks.length;
+      await processContentBlocks(blocks);
+      traceProvider({
+        provider: 'web_search',
+        query,
+        attempted: true,
+        returnedCount: blockCount,
+        acceptedCount: companies.length - before.companies,
+        rejectedCount: rejected.length - before.rejected,
+      });
+    }
 
   const payload: SocioSearchResponse = {
     companies,
@@ -1208,11 +1243,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (cached) {
       const payload = wantsTrace
         ? withTraceCache(cached, {
-          required: persistentCacheRequired,
-          configured: hasPersistentConfig,
-          status: 'hit',
-          source: 'memory',
-        })
+            required: persistentCacheRequired,
+            configured: hasPersistentConfig,
+            status: 'hit',
+            source: 'memory',
+          })
         : cached;
       return res.status(200).json(payload);
     }
@@ -1222,11 +1257,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       setMemoryCached(cacheKey, persistentCached.payload);
       const payload = wantsTrace
         ? withTraceCache(persistentCached.payload, {
-          required: persistentCacheRequired,
-          configured: hasPersistentConfig,
-          status: 'hit',
-          source: 'persistent',
-        })
+            required: persistentCacheRequired,
+            configured: hasPersistentConfig,
+            status: 'hit',
+            source: 'persistent',
+          })
         : persistentCached.payload;
       return res.status(200).json(payload);
     }
@@ -1242,11 +1277,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (memoryCached) {
       const payload = wantsTrace
         ? withTraceCache(memoryCached, {
-          required: persistentCacheRequired,
-          configured: hasPersistentConfig,
-          status: 'hit',
-          source: 'memory',
-        })
+            required: persistentCacheRequired,
+            configured: hasPersistentConfig,
+            status: 'hit',
+            source: 'memory',
+          })
         : memoryCached;
       return res.status(200).json(payload);
     }
@@ -1260,20 +1295,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (hasPersistentConfig) {
       const persisted = await setPersistentCached(cacheKey, payload);
       if (!persisted) {
-        scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para gravacao; resultado servido via cache volatil', {
-          socioName: parsed.data.socioName,
-          rootCompanyName: parsed.data.rootCompanyName,
-        });
+        scoutDiag.warn(
+          'SocioSearch',
+          'cache persistente indisponivel para gravacao; resultado servido via cache volatil',
+          {
+            socioName: parsed.data.socioName,
+            rootCompanyName: parsed.data.rootCompanyName,
+          },
+        );
       }
     }
 
     const responsePayload = wantsTrace
       ? withTraceCache(payload, {
-        required: persistentCacheRequired,
-        configured: hasPersistentConfig,
-        status: cacheTraceStatus,
-        source: cacheTraceSource,
-      })
+          required: persistentCacheRequired,
+          configured: hasPersistentConfig,
+          status: cacheTraceStatus,
+          source: cacheTraceSource,
+        })
       : stripTrace(payload);
 
     return res.status(200).json(responsePayload);
@@ -1297,13 +1336,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       detail: 'Busca societaria indisponivel no momento.',
     };
-    return res.status(200).json(wantsTrace
-      ? withTraceCache(fallbackPayload, {
-        required: persistentCacheRequired,
-        configured: hasPersistentConfig,
-        status: cacheTraceStatus,
-        source: cacheTraceSource,
-      })
-      : fallbackPayload);
+    return res.status(200).json(
+      wantsTrace
+        ? withTraceCache(fallbackPayload, {
+            required: persistentCacheRequired,
+            configured: hasPersistentConfig,
+            status: cacheTraceStatus,
+            source: cacheTraceSource,
+          })
+        : fallbackPayload,
+    );
   }
 }

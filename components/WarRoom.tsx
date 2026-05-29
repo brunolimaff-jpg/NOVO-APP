@@ -78,15 +78,12 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
 
   useEffect(() => {
     const urls = Array.from(
-      new Set(
-        Object.values(messageSourcesMap)
-          .flatMap((sources) => sources.map((s) => s.url).filter(Boolean) as string[])
-      )
+      new Set(Object.values(messageSourcesMap).flatMap(sources => sources.map(s => s.url).filter(Boolean) as string[])),
     );
     if (urls.length === 0) return;
 
     let cancelled = false;
-    fetchLinkStatuses(urls).then((results) => {
+    fetchLinkStatuses(urls).then(results => {
       if (!cancelled) setLinkStatuses(results);
     });
     return () => {
@@ -94,89 +91,90 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
     };
   }, [messageSourcesMap]);
 
-  const submitMessage = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
-    if (isBlockedIntent(text)) {
-      const userMsg: WRMessage = { id: Date.now().toString(), role: 'user', mode: 'tech', text };
-      const blockedReply: WRMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        mode: 'tech',
-        text: 'Essa frente está temporariamente bloqueada. **Em breve** liberaremos esse recurso no War Room.',
-      };
+  const submitMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isLoading) return;
+      if (isBlockedIntent(text)) {
+        const userMsg: WRMessage = { id: Date.now().toString(), role: 'user', mode: 'tech', text };
+        const blockedReply: WRMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'model',
+          mode: 'tech',
+          text: 'Essa frente está temporariamente bloqueada. **Em breve** liberaremos esse recurso no War Room.',
+        };
+        setInput('');
+        setIsSidebarOpen(false);
+        setMessages(prev => [...prev, userMsg, blockedReply]);
+        return;
+      }
+
+      const resolvedMode = resolveWarRoomIntent(text);
+      setLastRoute(resolvedMode);
+      const inferredTarget = extractCompetitorFromMessage(text);
+      const target = resolvedMode === 'benchmark' ? inferredTarget || (defaultCompetitorTarget || '').trim() : '';
+
       setInput('');
       setIsSidebarOpen(false);
-      setMessages((prev) => [...prev, userMsg, blockedReply]);
-      return;
-    }
+      const userMsg: WRMessage = { id: Date.now().toString(), role: 'user', mode: resolvedMode, text };
+      const botId = (Date.now() + 1).toString();
+      const loadingMsg: WRMessage = { id: botId, role: 'model', mode: resolvedMode, text: '', isLoading: true };
 
-    const resolvedMode = resolveWarRoomIntent(text);
-    setLastRoute(resolvedMode);
-    const inferredTarget = extractCompetitorFromMessage(text);
-    const target = resolvedMode === 'benchmark'
-      ? inferredTarget || (defaultCompetitorTarget || '').trim()
-      : '';
+      setMessages(prev => [...prev, userMsg, loadingMsg]);
+      setIsLoading(true);
+      setStatus('Preparando...');
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    setInput('');
-    setIsSidebarOpen(false);
-    const userMsg: WRMessage = { id: Date.now().toString(), role: 'user', mode: resolvedMode, text };
-    const botId = (Date.now() + 1).toString();
-    const loadingMsg: WRMessage = { id: botId, role: 'model', mode: resolvedMode, text: '', isLoading: true };
+      try {
+        const history = messages.filter(m => !m.isLoading && !m.isError).map(m => ({ role: m.role, text: m.text }));
+        const requestTimeoutMs = resolvedMode === 'benchmark' ? 120000 : 90000;
 
-    setMessages((prev) => [...prev, userMsg, loadingMsg]);
-    setIsLoading(true);
-    setStatus('Preparando...');
-    const controller = new AbortController();
-    abortRef.current = controller;
+        const result = await queryWarRoom(resolvedMode, text, history, target, setStatus, {
+          signal: controller.signal,
+          timeoutMs: requestTimeoutMs,
+        });
+        setQueryCount(prev => prev + 1);
 
-    try {
-      const history = messages
-        .filter(m => !m.isLoading && !m.isError)
-        .map(m => ({ role: m.role, text: m.text }));
-      const requestTimeoutMs = resolvedMode === 'benchmark' ? 120000 : 90000;
-
-      const result = await queryWarRoom(resolvedMode, text, history, target, setStatus, {
-        signal: controller.signal,
-        timeoutMs: requestTimeoutMs,
-      });
-      setQueryCount(prev => prev + 1);
-
-      setMessages((prev) => prev.map((m) =>
-        m.id === botId
-          ? {
-            ...m,
-            text: result.text,
-            sources: result.sources,
-            isLoading: false,
-            isError: Boolean(result.isError),
-            retryable: result.retryable,
-            technicalDetails: result.technicalDetails,
-          }
-          : m
-      ));
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro de conexão';
-      const technicalDetails = err instanceof Error
-        ? err.stack || err.message
-        : 'Falha sem stack disponível.';
-      setMessages((prev) => prev.map((m) =>
-        m.id === botId
-          ? {
-            ...m,
-            text: `⚠️ ${errorMessage}`,
-            isError: true,
-            isLoading: false,
-            retryable: true,
-            technicalDetails,
-          }
-          : m
-      ));
-    } finally {
-      setIsLoading(false);
-      setStatus('');
-      abortRef.current = null;
-    }
-  }, [defaultCompetitorTarget, isLoading, messages]);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === botId
+              ? {
+                  ...m,
+                  text: result.text,
+                  sources: result.sources,
+                  isLoading: false,
+                  isError: Boolean(result.isError),
+                  retryable: result.retryable,
+                  technicalDetails: result.technicalDetails,
+                }
+              : m,
+          ),
+        );
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro de conexão';
+        const technicalDetails = err instanceof Error ? err.stack || err.message : 'Falha sem stack disponível.';
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === botId
+              ? {
+                  ...m,
+                  text: `⚠️ ${errorMessage}`,
+                  isError: true,
+                  isLoading: false,
+                  retryable: true,
+                  technicalDetails,
+                }
+              : m,
+          ),
+        );
+      } finally {
+        setIsLoading(false);
+        setStatus('');
+        abortRef.current = null;
+      }
+    },
+    [defaultCompetitorTarget, isLoading, messages],
+  );
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -184,17 +182,23 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
     await submitMessage(text);
   }, [input, isLoading, submitMessage]);
 
-  const resendFromFailedMessage = useCallback((failedMessageId: string) => {
-    if (isLoading) return;
-    const failedIndex = messages.findIndex((m) => m.id === failedMessageId);
-    if (failedIndex <= 0) return;
-    const userMsg = [...messages.slice(0, failedIndex)].reverse().find((m) => m.role === 'user');
-    if (!userMsg) return;
-    void submitMessage(userMsg.text);
-  }, [isLoading, messages, submitMessage]);
+  const resendFromFailedMessage = useCallback(
+    (failedMessageId: string) => {
+      if (isLoading) return;
+      const failedIndex = messages.findIndex(m => m.id === failedMessageId);
+      if (failedIndex <= 0) return;
+      const userMsg = [...messages.slice(0, failedIndex)].reverse().find(m => m.role === 'user');
+      if (!userMsg) return;
+      void submitMessage(userMsg.text);
+    },
+    [isLoading, messages, submitMessage],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   if (!isOpen) return null;
@@ -231,7 +235,9 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
         />
 
         {copyFeedback && (
-          <div className={`mx-3 sm:mx-5 mt-2 text-[11px] rounded-lg px-3 py-2 ${dk ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}>
+          <div
+            className={`mx-3 sm:mx-5 mt-2 text-[11px] rounded-lg px-3 py-2 ${dk ? 'bg-slate-900 text-slate-300' : 'bg-slate-100 text-slate-700'}`}
+          >
             {copyFeedback}
           </div>
         )}
@@ -241,7 +247,7 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
             <WarRoomEmptyState
               cfg={cfg}
               suggestions={UNIFIED_SUGGESTIONS}
-              onSelectSuggestion={(hint) => {
+              onSelectSuggestion={hint => {
                 setInput(hint);
                 inputRef.current?.focus();
               }}
@@ -260,7 +266,9 @@ export default function WarRoom({ isOpen, onClose, isDarkMode, defaultCompetitor
             messageSourcesMap={messageSourcesMap}
             onCopy={copyToClipboard}
             onRetry={resendFromFailedMessage}
-            onToggleErrorDetails={(messageId) => setExpandedErrorId((current) => current === messageId ? null : messageId)}
+            onToggleErrorDetails={messageId =>
+              setExpandedErrorId(current => (current === messageId ? null : messageId))
+            }
             status={status}
             t={t}
             accent={accent}

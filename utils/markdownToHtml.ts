@@ -1,5 +1,10 @@
 import { extractValidLinks } from './linkFixer';
-import { formatAuditableSourcesForExport, formatSourcesForExport, SourceRef, type AuditableSource } from './textCleaners';
+import {
+  formatAuditableSourcesForExport,
+  formatSourcesForExport,
+  SourceRef,
+  type AuditableSource,
+} from './textCleaners';
 import { fixFakeLinksHTML } from './linkFixer';
 import { APP_NAME } from '../constants';
 import {

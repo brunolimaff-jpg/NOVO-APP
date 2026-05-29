@@ -9,6 +9,7 @@ This reference covers how to decompose tasks into dependency graphs, common patt
 ## Identifying Dependencies
 
 A task B depends on task A if:
+
 - B needs code/files that A creates
 - B extends or modifies A's output
 - B tests functionality that A implements
@@ -16,12 +17,15 @@ A task B depends on task A if:
 - B configures infrastructure that A requires
 
 A task B does NOT depend on A if:
+
 - They modify different files with no shared interfaces
 - They implement independent features
 - They can be tested in isolation
 
 ### Dependency Checklist
+
 For each pair of tasks, ask:
+
 1. Does task B need any file that task A creates? -> dependency
 2. Does task B import or use any function/type that task A defines? -> dependency
 3. Does task B test code that task A writes? -> dependency
@@ -32,15 +36,20 @@ For each pair of tasks, ask:
 ## Common DAG Patterns
 
 ### Linear Chain
+
 One task after another. No parallelism possible.
+
 ```
 SH-001 --> SH-002 --> SH-003 --> SH-004
 ```
+
 **When it occurs**: Sequential migrations, step-by-step setup
 **Waves**: Each task is its own wave (worst case for parallelism)
 
 ### Fan-Out
+
 One task fans out to many independent tasks.
+
 ```
             +---> SH-002
             |
@@ -48,11 +57,14 @@ SH-001 ----+---> SH-003
             |
             +---> SH-004
 ```
+
 **When it occurs**: After initial setup, multiple independent features branch off
 **Waves**: Wave 1 = SH-001, Wave 2 = SH-002 + SH-003 + SH-004
 
 ### Fan-In
+
 Many independent tasks converge to one.
+
 ```
 SH-001 ---+
            |
@@ -60,11 +72,14 @@ SH-002 ---+---> SH-004
            |
 SH-003 ---+
 ```
+
 **When it occurs**: Integration testing after parallel implementation
 **Waves**: Wave 1 = SH-001 + SH-002 + SH-003, Wave 2 = SH-004
 
 ### Diamond
+
 Fan-out followed by fan-in.
+
 ```
             +---> SH-002 ---+
             |                |
@@ -74,21 +89,27 @@ SH-001 ----+                +---> SH-005
             |                |
             +---> SH-004 ---+
 ```
+
 **When it occurs**: Setup -> parallel features -> integration
 **Waves**: Wave 1 = SH-001, Wave 2 = SH-002 + SH-003 + SH-004, Wave 3 = SH-005
 
 ### Independent Clusters
+
 Multiple disconnected sub-graphs that can run entirely in parallel.
+
 ```
 Cluster A:  SH-001 --> SH-002
 Cluster B:  SH-003 --> SH-004 --> SH-005
 Cluster C:  SH-006
 ```
+
 **When it occurs**: Unrelated features being built simultaneously
 **Waves**: Wave 1 = SH-001 + SH-003 + SH-006, Wave 2 = SH-002 + SH-004, Wave 3 = SH-005
 
 ### Layered Architecture
+
 Tasks organized by architectural layers.
+
 ```
 Layer 1 (infra):    SH-001, SH-002
 Layer 2 (data):     SH-003, SH-004    (depend on Layer 1)
@@ -96,6 +117,7 @@ Layer 3 (logic):    SH-005, SH-006    (depend on Layer 2)
 Layer 4 (UI):       SH-007, SH-008    (depend on Layer 3)
 Layer 5 (tests):    SH-009, SH-010    (depend on Layer 4)
 ```
+
 **When it occurs**: Full-stack feature development
 **Waves**: One wave per layer
 
@@ -122,6 +144,7 @@ function assignWaves(tasks):
 ```
 
 ### Rules
+
 1. Tasks with no dependencies are always Wave 1
 2. A task's wave = max(wave of its dependencies) + 1
 3. All tasks in the same wave can execute in parallel
@@ -129,6 +152,7 @@ function assignWaves(tasks):
 5. If a wave has only 1 task, it still counts as a wave (serial execution)
 
 ### Optimization
+
 - If two tasks are in the same wave but modify the same file, move one to a later wave to prevent conflicts
 - If a wave has more tasks than available parallel agents, split it into sub-waves
 
@@ -137,6 +161,7 @@ function assignWaves(tasks):
 ## ASCII Graph Rendering Format
 
 ### Conventions
+
 - `-->` for dependency edges (A --> B means "B depends on A")
 - `+` for branch points
 - `|` for vertical connections
@@ -144,6 +169,7 @@ function assignWaves(tasks):
 - Include task type and title in brackets
 
 ### Standard Format
+
 ```
 Task Graph:
   SH-001 [type: title]
@@ -156,6 +182,7 @@ Task Graph:
 ```
 
 ### With Wave Annotations
+
 ```
 Task Graph:
   [W1] SH-001 [config: Init project structure]
@@ -179,6 +206,7 @@ Wave Summary:
 ### Task: "Add a commenting system to blog posts"
 
 **Sub-tasks identified:**
+
 - SH-001: Create Comment database model and migration (config, S)
 - SH-002: Create Comment API endpoints - CRUD (code, M)
 - SH-003: Create CommentList UI component (code, M)
@@ -190,6 +218,7 @@ Wave Summary:
 - SH-009: Update API documentation (docs, S)
 
 **Dependencies:**
+
 - SH-002 depends on SH-001 (needs the model)
 - SH-003 depends on nothing (can use mock data)
 - SH-004 depends on nothing (can use mock data)
@@ -200,6 +229,7 @@ Wave Summary:
 - SH-009 depends on SH-002 (documents the API)
 
 **Graph:**
+
 ```
   SH-001 [config: Comment model + migration]
     |
@@ -220,6 +250,7 @@ Wave Summary:
 ```
 
 **Wave Assignment:**
+
 ```
   Wave 1 (3 tasks): SH-001, SH-003, SH-004    [parallel]
   Wave 2 (1 task):  SH-002                      [serial - needs SH-001]

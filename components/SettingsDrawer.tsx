@@ -74,9 +74,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       setLastExportDate(dateStr);
       toast.success('Histórico exportado com sucesso!');
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Erro ao exportar histórico'
-      );
+      toast.error(error instanceof Error ? error.message : 'Erro ao exportar histórico');
     } finally {
       setIsExporting(false);
     }
@@ -101,9 +99,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         fileInputRef.current.value = '';
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Erro ao ler arquivo'
-      );
+      toast.error(error instanceof Error ? error.message : 'Erro ao ler arquivo');
       setIsImporting(false);
 
       // Limpar input
@@ -147,18 +143,17 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
       />
 
       {/* Drawer lateral direito */}
-      <div className={`fixed right-0 top-0 h-full w-80 md:w-96 border-l z-50 overflow-y-auto shadow-2xl transform transition-transform duration-300 animate-slide-in ${
-        isDarkMode
-          ? 'bg-gray-900 border-gray-700/50'
-          : 'bg-white border-gray-200'
-      }`}>
-
+      <div
+        className={`fixed right-0 top-0 h-full w-80 md:w-96 border-l z-50 overflow-y-auto shadow-2xl transform transition-transform duration-300 animate-slide-in ${
+          isDarkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'
+        }`}
+      >
         {/* Header do painel */}
-        <div className={`flex items-center justify-between p-5 border-b sticky top-0 backdrop-blur-md z-10 ${
-          isDarkMode
-            ? 'border-gray-700/50 bg-gray-900/95'
-            : 'border-gray-200 bg-white/95'
-        }`}>
+        <div
+          className={`flex items-center justify-between p-5 border-b sticky top-0 backdrop-blur-md z-10 ${
+            isDarkMode ? 'border-gray-700/50 bg-gray-900/95' : 'border-gray-200 bg-white/95'
+          }`}
+        >
           <h2 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             <span>⚙️</span> Configurações
           </h2>
@@ -177,19 +172,24 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
         </div>
 
         <div className="p-5 space-y-8">
-
           {/* ===== PERFIL ===== */}
           <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Perfil</h3>
+            <h3
+              className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+            >
+              Perfil
+            </h3>
 
             <div className="space-y-2">
-              <label className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Como quer ser chamado?</label>
+              <label className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Como quer ser chamado?
+              </label>
               <input
                 type="text"
                 value={localName}
-                onChange={(e) => setLocalName(e.target.value)}
+                onChange={e => setLocalName(e.target.value)}
                 onBlur={commitName}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter') {
                     e.currentTarget.blur();
                   }
@@ -209,14 +209,22 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
           {/* ===== APARÊNCIA ===== */}
           <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Aparência</h3>
+            <h3
+              className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+            >
+              Aparência
+            </h3>
 
-            <div className={`flex items-center justify-between p-4 rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-gray-50 border-gray-200'}`}>
+            <div
+              className={`flex items-center justify-between p-4 rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-gray-50 border-gray-200'}`}
+            >
               <div className="flex items-center gap-3">
                 <span className="text-xl">{isDarkMode ? '🌙' : '☀️'}</span>
                 <div>
                   <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Tema Escuro</p>
-                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{isDarkMode ? 'Ativado' : 'Desativado'}</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {isDarkMode ? 'Ativado' : 'Desativado'}
+                  </p>
                 </div>
               </div>
               <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="left">
@@ -226,9 +234,11 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                     isDarkMode ? 'bg-emerald-600' : 'bg-gray-600'
                   }`}
                 >
-                  <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${
-                    isDarkMode ? 'translate-x-6' : 'translate-x-0'
-                  }`} />
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                      isDarkMode ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
                 </button>
               </Tooltip>
             </div>
@@ -236,13 +246,21 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
           {/* ===== BACKUP & RESTAURAÇÃO ===== */}
           <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Backup & Restauração</h3>
+            <h3
+              className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+            >
+              Backup & Restauração
+            </h3>
 
             <div className="space-y-4">
               {/* Seção EXPORTAR */}
-              <div className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-blue-50 border-blue-200'}`}>
+              <div
+                className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-blue-50 border-blue-200'}`}
+              >
                 <div>
-                  <p className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                  <p
+                    className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-blue-300' : 'text-blue-900'}`}
+                  >
                     <span>📥</span> Exportar Histórico
                   </p>
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -258,8 +276,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                       : isDarkMode
-                      ? 'bg-blue-700 text-white hover:bg-blue-600'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                        ? 'bg-blue-700 text-white hover:bg-blue-600'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
                   {isExporting ? (
@@ -279,9 +297,13 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
               </div>
 
               {/* Seção IMPORTAR */}
-              <div className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-purple-50 border-purple-200'}`}>
+              <div
+                className={`rounded-xl p-4 space-y-3 border ${isDarkMode ? 'bg-gray-800/30 border-gray-700/30' : 'bg-purple-50 border-purple-200'}`}
+              >
                 <div>
-                  <p className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                  <p
+                    className={`text-sm font-bold flex items-center gap-2 ${isDarkMode ? 'text-purple-300' : 'text-purple-900'}`}
+                  >
                     <span>📤</span> Restaurar Histórico
                   </p>
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -297,8 +319,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                         ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                         : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                       : isDarkMode
-                      ? 'bg-purple-700 text-white hover:bg-purple-600'
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                        ? 'bg-purple-700 text-white hover:bg-purple-600'
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
                 >
                   {isImporting ? (
@@ -332,29 +354,41 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
 
           {/* ===== AÇÕES ===== */}
           <section>
-            <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Ações</h3>
+            <h3
+              className={`text-xs font-bold uppercase tracking-wider mb-3 ml-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+            >
+              Ações
+            </h3>
 
             <div className="space-y-2">
               {canInstall && (
                 <button
                   onClick={installApp}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-emerald-500/40 ${
-                    isDarkMode
-                      ? 'bg-emerald-900/20 hover:bg-emerald-900/40'
-                      : 'bg-emerald-50 hover:bg-emerald-100'
+                    isDarkMode ? 'bg-emerald-900/20 hover:bg-emerald-900/40' : 'bg-emerald-50 hover:bg-emerald-100'
                   }`}
                 >
-                  <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-emerald-800/60' : 'bg-emerald-200'}`}>📲</span>
+                  <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-emerald-800/60' : 'bg-emerald-200'}`}>
+                    📲
+                  </span>
                   <div>
-                    <p className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-800'}`}>Instalar aplicativo</p>
-                    <p className={`text-xs ${isDarkMode ? 'text-emerald-500' : 'text-emerald-600'}`}>Adicionar à tela inicial</p>
+                    <p className={`text-sm font-medium ${isDarkMode ? 'text-emerald-300' : 'text-emerald-800'}`}>
+                      Instalar aplicativo
+                    </p>
+                    <p className={`text-xs ${isDarkMode ? 'text-emerald-500' : 'text-emerald-600'}`}>
+                      Adicionar à tela inicial
+                    </p>
                   </div>
                 </button>
               )}
               {isInstalled && (
-                <div className={`flex items-center gap-3 p-3 rounded-xl border ${isDarkMode ? 'border-emerald-700/30 bg-emerald-900/10' : 'border-emerald-200 bg-emerald-50'}`}>
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-xl border ${isDarkMode ? 'border-emerald-700/30 bg-emerald-900/10' : 'border-emerald-200 bg-emerald-50'}`}
+                >
                   <span className="text-lg">✅</span>
-                  <p className={`text-xs ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>App instalado na tela inicial</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                    App instalado na tela inicial
+                  </p>
                 </div>
               )}
 
@@ -362,15 +396,17 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 <button
                   onClick={() => setShowHealthCheck(true)}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-blue-500/40 ${
-                    isDarkMode
-                      ? 'bg-blue-900/20 hover:bg-blue-900/40'
-                      : 'bg-blue-50 hover:bg-blue-100'
+                    isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40' : 'bg-blue-50 hover:bg-blue-100'
                   }`}
                 >
                   <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-blue-800/60' : 'bg-blue-200'}`}>🔧</span>
                   <div>
-                    <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>Teste de Integridade</p>
-                    <p className={`text-xs ${isDarkMode ? 'text-blue-500' : 'text-blue-600'}`}>Verificar sistema completo</p>
+                    <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
+                      Teste de Integridade
+                    </p>
+                    <p className={`text-xs ${isDarkMode ? 'text-blue-500' : 'text-blue-600'}`}>
+                      Verificar sistema completo
+                    </p>
                   </div>
                 </button>
               )}
@@ -381,15 +417,15 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                   onClearOperator?.();
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-red-500/40 ${
-                  isDarkMode
-                    ? 'bg-red-900/20 hover:bg-red-900/40'
-                    : 'bg-red-50 hover:bg-red-100'
+                  isDarkMode ? 'bg-red-900/20 hover:bg-red-900/40' : 'bg-red-50 hover:bg-red-100'
                 }`}
               >
                 <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-red-800/60' : 'bg-red-200'}`}>🚪</span>
                 <div>
                   <p className={`text-sm font-medium ${isDarkMode ? 'text-red-300' : 'text-red-800'}`}>Trocar nome</p>
-                  <p className={`text-xs ${isDarkMode ? 'text-red-500' : 'text-red-600'}`}>Limpar nome salvo e voltar para a tela inicial</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-red-500' : 'text-red-600'}`}>
+                    Limpar nome salvo e voltar para a tela inicial
+                  </p>
                 </div>
               </button>
             </div>
@@ -398,21 +434,21 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           {/* ===== SOBRE ===== */}
           <section>
             <div className={`text-center pt-6 border-t ${isDarkMode ? 'border-gray-700/30' : 'border-gray-200'}`}>
-              <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>🦅 Senior Scout 360 · v{version}</p>
-              <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>Inteligência Comercial para Agronegócio</p>
+              <p className={`text-xs font-bold ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                🦅 Senior Scout 360 · v{version}
+              </p>
+              <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                Inteligência Comercial para Agronegócio
+              </p>
             </div>
           </section>
-
         </div>
       </div>
 
       {/* Modal de Teste de Integridade */}
       {showHealthCheck && canAccessIntegrityCheck && (
         <React.Suspense fallback={null}>
-          <SystemHealthCheck
-            isDarkMode={isDarkMode}
-            onClose={() => setShowHealthCheck(false)}
-          />
+          <SystemHealthCheck isDarkMode={isDarkMode} onClose={() => setShowHealthCheck(false)} />
         </React.Suspense>
       )}
 
@@ -425,9 +461,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           />
           <div
             className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-2xl shadow-2xl z-50 ${
-              isDarkMode
-                ? 'bg-gray-900 border border-gray-700'
-                : 'bg-white border border-gray-200'
+              isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
             }`}
             role="dialog"
             aria-modal="true"
@@ -439,34 +473,24 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
             >
               <span className="text-3xl">⚠️</span>
               <div>
-                <h2
-                  className={`text-lg font-bold ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}
-                >
+                <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Restaurar Histórico?
                 </h2>
               </div>
             </div>
 
             <div className={`p-6 space-y-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-              <p
-                className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-              >
+              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 O arquivo contém <strong>{importSessionCount} sessões</strong>.
               </p>
-              <p
-                className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-              >
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Isso vai carregar as sessões para sua área de trabalho. Pode levar alguns segundos.
               </p>
             </div>
 
             <div
               className={`flex gap-3 p-6 border-t ${
-                isDarkMode
-                  ? 'border-gray-700/50 bg-gray-900/50'
-                  : 'border-gray-200 bg-gray-50/50'
+                isDarkMode ? 'border-gray-700/50 bg-gray-900/50' : 'border-gray-200 bg-gray-50/50'
               }`}
             >
               <button

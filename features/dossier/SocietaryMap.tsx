@@ -86,24 +86,25 @@ function countCompaniesByScope(companies: SocietaryCompany[]): Record<string, nu
 function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
   const partners = company.partnerIds
     .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
-    .filter((partner): partner is typeof graph.partners[number] => Boolean(partner));
+    .filter((partner): partner is (typeof graph.partners)[number] => Boolean(partner));
 
   if (partners.length === 0) return 'Sem sócio identificado';
 
-  return partners
-    .map(partner => [partner.name, partner.role].filter(Boolean).join(' - '))
-    .join(' / ');
+  return partners.map(partner => [partner.name, partner.role].filter(Boolean).join(' - ')).join(' / ');
 }
 
 function describeRelationshipScope(company: SocietaryCompany): string {
   if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending') return 'Validação pendente';
+  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending')
+    return 'Validação pendente';
   return 'Empresa do grupo';
 }
 
 const filterButtonBaseClass = 'rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition';
-const filterButtonActiveClass = 'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300';
-const filterButtonIdleClass = 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
+const filterButtonActiveClass =
+  'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300';
+const filterButtonIdleClass =
+  'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
 
 const SocietaryMap: React.FC<SocietaryMapProps> = ({
   cnpj,
@@ -133,13 +134,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
 
-  const trace = useCallback((message: string, details?: Record<string, unknown>): void => {
-    if (!traceActive) return;
-    scoutDiag.trace('teia', 'SocietaryMap', message, {
-      traceId: traceIdRef.current,
-      ...details,
-    });
-  }, [traceActive]);
+  const trace = useCallback(
+    (message: string, details?: Record<string, unknown>): void => {
+      if (!traceActive) return;
+      scoutDiag.trace('teia', 'SocietaryMap', message, {
+        traceId: traceIdRef.current,
+        ...details,
+      });
+    },
+    [traceActive],
+  );
 
   useEffect(() => {
     if (!cnpj) {
@@ -220,11 +224,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           });
           if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
         } else {
-          partners = [{
-            name: 'Grupo Econômico (Gemini)',
-            sourceTitle: 'Gemini — Teia Societária',
-            confidence: 'weak',
-          }];
+          partners = [
+            {
+              name: 'Grupo Econômico (Gemini)',
+              sourceTitle: 'Gemini — Teia Societária',
+              confidence: 'weak',
+            },
+          ];
           trace('fallback Gemini sem socios explicitos; usando socio sintetico', {
             geminiCompaniesCount: geminiCnpjs.length,
           });
@@ -337,7 +343,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             }),
             signal: controller.signal,
           });
-          const payload = response.ok ? (await response.json()) as SocioSearchResponse : { companies: [], degraded: true };
+          const payload = response.ok
+            ? ((await response.json()) as SocioSearchResponse)
+            : { companies: [], degraded: true };
           const elapsedMs = Number((performance.now() - startedAt).toFixed(1));
           trace('socio-search payload recebido', {
             partnerName: partner.name,
@@ -447,30 +455,37 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
   const graph = useMemo(() => {
     if (!rootData) return null;
-    const isSyntheticFallback = rootData.partners.length === 1
-      && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
-    const enrichedGemini = isSyntheticFallback && geminiCnpjs
-      ? geminiCnpjs.map(c => c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' })
-      : geminiCnpjs;
-    return buildSocietaryGraph({
-      root: {
-        cnpj: rootData.cnpj,
-        name: rootData.name,
+    const isSyntheticFallback =
+      rootData.partners.length === 1 && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
+    const enrichedGemini =
+      isSyntheticFallback && geminiCnpjs
+        ? geminiCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
+        : geminiCnpjs;
+    return buildSocietaryGraph(
+      {
+        root: {
+          cnpj: rootData.cnpj,
+          name: rootData.name,
+        },
+        partners: rootData.partners,
+        companies: collectPartnerCompanies(companiesByPartner),
       },
-      partners: rootData.partners,
-      companies: collectPartnerCompanies(companiesByPartner),
-    }, enrichedGemini);
+      enrichedGemini,
+    );
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
-  const handleSelectPartner = useCallback((partnerId: string | null) => {
-    if (!graph) return;
-    if (partnerId) {
-      const partner = graph.partners.find(p => p.id === partnerId);
-      setSelectedPartnerName(partner?.name);
-    } else {
-      setSelectedPartnerName(undefined);
-    }
-  }, [graph]);
+  const handleSelectPartner = useCallback(
+    (partnerId: string | null) => {
+      if (!graph) return;
+      if (partnerId) {
+        const partner = graph.partners.find(p => p.id === partnerId);
+        setSelectedPartnerName(partner?.name);
+      } else {
+        setSelectedPartnerName(undefined);
+      }
+    },
+    [graph],
+  );
 
   useEffect(() => {
     if (!graph || !traceActive) return;
@@ -535,7 +550,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     }
 
     enrich();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [graph, cnaeMap]);
 
   const selectedPartner = useMemo(() => {
@@ -616,9 +633,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               type="button"
               onClick={() => setSelectedPartnerName(undefined)}
               className={`${filterButtonBaseClass} ${
-                !selectedPartner
-                  ? filterButtonActiveClass
-                  : filterButtonIdleClass
+                !selectedPartner ? filterButtonActiveClass : filterButtonIdleClass
               }`}
             >
               Todos
@@ -629,9 +644,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                 type="button"
                 onClick={() => setSelectedPartnerName(partner.name)}
                 className={`${filterButtonBaseClass} ${
-                  selectedPartner?.id === partner.id
-                    ? filterButtonActiveClass
-                    : filterButtonIdleClass
+                  selectedPartner?.id === partner.id ? filterButtonActiveClass : filterButtonIdleClass
                 }`}
               >
                 {firstGivenName(partner.name)}
@@ -641,14 +654,14 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         ) : null}
       </div>
 
-      {state === 'loading' ? (
-        <p className="text-xs text-slate-500">Montando teia societaria...</p>
-      ) : null}
+      {state === 'loading' ? <p className="text-xs text-slate-500">Montando teia societaria...</p> : null}
 
       {drillProgress && drillProgress.total > 0 ? (
         <div className="mb-3" aria-label={`Buscando sócios: ${drillProgress.done} de ${drillProgress.total}`}>
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>{drillProgress.done}/{drillProgress.total} sócios</span>
+            <span>
+              {drillProgress.done}/{drillProgress.total} sócios
+            </span>
             <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 4 }}>
               <div
                 className="h-full rounded-full bg-emerald-500 transition-all duration-300"
@@ -709,7 +722,11 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                 ) : null}
               </div>
               <div style={{ zoom: zoomLevel }}>
-                <MarkdownRenderer content={`\`\`\`mermaid\n${debouncedMermaid}\n\`\`\``} isDarkMode={isDarkMode} variant="compact" />
+                <MarkdownRenderer
+                  content={`\`\`\`mermaid\n${debouncedMermaid}\n\`\`\``}
+                  isDarkMode={isDarkMode}
+                  variant="compact"
+                />
               </div>
             </div>
           ) : null}
@@ -746,28 +763,31 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                       <p className="mt-1 text-[11px] text-slate-600">
                         Sócio/admin: {describeEvidencePartner(company, graph)}
                       </p>
-                      <p className="mt-1 text-[11px] text-slate-600">
-                        Escopo: {describeRelationshipScope(company)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-slate-600">
-                        Tipo: {describeSocietaryCompanyType(company)}
-                  </p>
-                  {company.sourceUrl ? (
-                    <a className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline" href={company.sourceUrl} target="_blank" rel="noreferrer">
-                      {company.sourceTitle || company.sourceUrl}
-                    </a>
-                  ) : company.sourceTitle ? (
-                    <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
-                  ) : null}
-                  {company.snippet ? <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p> : null}
-                </article>
-              ))}
+                      <p className="mt-1 text-[11px] text-slate-600">Escopo: {describeRelationshipScope(company)}</p>
+                      <p className="mt-1 text-[11px] text-slate-600">Tipo: {describeSocietaryCompanyType(company)}</p>
+                      {company.sourceUrl ? (
+                        <a
+                          className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline"
+                          href={company.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {company.sourceTitle || company.sourceUrl}
+                        </a>
+                      ) : company.sourceTitle ? (
+                        <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
+                      ) : null}
+                      {company.snippet ? (
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
-        </div>
-      ) : null}
-  </>
-)}
+        </>
+      )}
     </section>
   );
 };

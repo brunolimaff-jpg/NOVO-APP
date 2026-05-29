@@ -32,4 +32,4 @@ npx skills add AbsolutelySkilled/AbsolutelySkilled --skill super-brainstorm
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/super-brainstorm)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/super-brainstorm)_

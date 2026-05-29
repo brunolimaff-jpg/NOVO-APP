@@ -14,7 +14,8 @@ const BLOCKED_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
     reason: 'prompt_injection',
   },
   {
-    pattern: /\b(api key|chave|token|senha|secret|segredo|env|vari[aá]vel de ambiente|c[oó]digo|codigo|reposit[oó]rio)\b/i,
+    pattern:
+      /\b(api key|chave|token|senha|secret|segredo|env|vari[aá]vel de ambiente|c[oó]digo|codigo|reposit[oó]rio)\b/i,
     reason: 'sensitive_or_code_request',
   },
   {

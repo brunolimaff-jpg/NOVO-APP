@@ -30,9 +30,11 @@ O parser retornava `{ companies: [], warnings: [] }` sem nenhum warning — as e
 ### Regra derivada
 
 **Sempre normalizar texto antes de comparar com regex em JavaScript:**
+
 ```typescript
 const normalized = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 ```
+
 Usar `normalize('NFD')` + remover combining marks + `toLowerCase()` em vez de confiar no `i` flag.
 
 ### Impacto
@@ -64,6 +66,7 @@ Passamos horas diagnosticando por que o `/api/socio-search` retornava `degraded:
 ### Regra derivada
 
 **Antes de qualquer evolucao de codigo, verificar:**
+
 1. Que APIs, chaves e recursos JA temos configurados? (`vercel env ls`, Supabase tables, etc.)
 2. Esses recursos estao sendo usados pelo codigo atual? (`grep` pela env var no codigo)
 3. Se nao estao sendo usados: por que? E o caminho mais curto.
@@ -204,6 +207,7 @@ O Gemini (Modulos 1a/1b) produz analise textual riquissima (tabela CNPJ, QSA), m
 ### Status
 
 Plano arquitetural criado (P3: sinergia texto-mapa), mas implementacao pendente:
+
 - P3.1: Prop `geminiCnpjs` no SocietaryMap
 - P3.6: Parseador de tabela markdown para extrair CNPJs do texto do Gemini
 
@@ -216,6 +220,7 @@ Plano arquitetural criado (P3: sinergia texto-mapa), mas implementacao pendente:
 ## Registro
 
 Esta licao foi registrada em:
+
 - `.agents/memory/decisions.md` -- entrada `2026-05-23 -- Licao Aprendida`
 - `docs/obsidian/decisions/LICOES-APRENDIDAS.md` (este documento)
 - `docs/obsidian/decisions/LATEST-DECISIONS.md` -- feed automatico
@@ -227,17 +232,20 @@ Esta licao foi registrada em:
 ---
 
 ---
+
 type: licoes-aprendidas
 area: processo
 data: 2026-05-23
 sessao: teia-societaria-tipo5
 tags:
-  - licao
-  - worktree
-  - retrabalho
-  - commit
-  - gate
-  - agente
+
+- licao
+- worktree
+- retrabalho
+- commit
+- gate
+- agente
+
 ---
 
 # Licoes Aprendidas — Worktree sem Commit = Retrabalho
@@ -256,14 +264,14 @@ Sessão de implementação da Teia Societária Tipo 5 (PR #279). O fluxo envolve
 
 ## Linha do Tempo do Retrabalho
 
-| Etapa | O que aconteceu | Problema |
-|-------|----------------|----------|
-| Implementer | Trabalhou no worktree, declarou "all steps complete", typecheck verde, 903 testes | Não commitou as alterações |
-| Merge | `git merge codex/teia-societaria-tipo5` trouxe 3 commits originais da PR | 12 arquivos do implementer não vieram |
-| Teste | Usuário rodou `localhost:3000`, dossiê sem profundidade | Código simplesmente não existia |
-| Debug | Ciclo extra de diagnóstico para descobrir que era ausência de arquivo, não bug | ~15min perdidos |
-| Cópia manual | `cp` de 12 arquivos do worktree para a branch atual | ~10min |
-| Ajustes | Import paths quebrados (`tests/api/` → `tests/`), tipo `temperature` ausente em `DossierModuleOptions` | ~5min |
+| Etapa        | O que aconteceu                                                                                        | Problema                              |
+| ------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| Implementer  | Trabalhou no worktree, declarou "all steps complete", typecheck verde, 903 testes                      | Não commitou as alterações            |
+| Merge        | `git merge codex/teia-societaria-tipo5` trouxe 3 commits originais da PR                               | 12 arquivos do implementer não vieram |
+| Teste        | Usuário rodou `localhost:3000`, dossiê sem profundidade                                                | Código simplesmente não existia       |
+| Debug        | Ciclo extra de diagnóstico para descobrir que era ausência de arquivo, não bug                         | ~15min perdidos                       |
+| Cópia manual | `cp` de 12 arquivos do worktree para a branch atual                                                    | ~10min                                |
+| Ajustes      | Import paths quebrados (`tests/api/` → `tests/`), tipo `temperature` ausente em `DossierModuleOptions` | ~5min                                 |
 
 **Custo total do retrabalho: ~30min + quebra de confiança no agente.**
 
@@ -274,11 +282,13 @@ O agente implementer trabalhou em worktree isolado (`isolation: "worktree"`) e *
 ## Arquivos Afetados
 
 ### Criados (não existiam na branch após merge)
+
 - `prompts/mega/teia-identity.ts` (142 linhas)
 - `prompts/mega/teia-deep.ts` (206 linhas)
 - `docs/obsidian/decisions/DOSSIE-SCHEFFER-PROFUNDIDADE-TEIA.md`
 
 ### Modificados (versão da PR #279 veio sem as alterações do implementer)
+
 - `features/dossier/waterfall-orchestrator.ts` — `runTeiaSocietariaOrchestration`
 - `prompts/mega/specialist-prompts.ts` — regra CNPJ
 - `prompts/megaPrompts.ts` — exports `PROMPT_TEIA_IDENTITY_MODULE` e `PROMPT_TEIA_DEEP_MODULE`
@@ -332,6 +342,7 @@ grep -r "<funcao-esperada>" <arquivos-modificados-esperados>
 ## Registro
 
 Esta lição foi registrada em:
+
 - `.agents/memory/decisions.md` — entrada `2026-05-23 — Lição Aprendida`
 - `docs/obsidian/decisions/LICOES-APRENDIDAS.md` (este documento)
 - `docs/obsidian/decisions/LATEST-DECISIONS.md` — feed automático

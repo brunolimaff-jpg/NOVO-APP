@@ -42,9 +42,7 @@ export const ModeProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const systemInstruction = OPERACAO_PROMPT;
 
   return (
-    <ModeContext.Provider value={{ mode, setMode, toggleMode, systemInstruction }}>
-      {children}
-    </ModeContext.Provider>
+    <ModeContext.Provider value={{ mode, setMode, toggleMode, systemInstruction }}>{children}</ModeContext.Provider>
   );
 };
 

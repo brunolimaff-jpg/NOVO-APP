@@ -49,16 +49,16 @@ The repo now includes a versioned Obsidian documentation layer under [`docs/obsi
 
 ## Core docs
 
-| Document | Purpose |
-|---|---|
-| [`AGENTS.md`](./AGENTS.md) | Primary repo instructions |
-| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md) | Fast onboarding |
-| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md) | Allowed skills and environment policy |
-| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md) | Obsidian graph entrypoint for architecture + roadmap |
-| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md) | Vault usage and maintenance contract |
-| [`HANDOFF_AI.md`](./HANDOFF_AI.md) | Stable entrypoint for AI handoff |
-| [`ARQUITETURA.md`](./ARQUITETURA.md) | Technical architecture |
-| [`docs/ai-context/refactor/00-README.md`](./docs/ai-context/refactor/00-README.md) | Refactor program context |
+| Document                                                                           | Purpose                                              |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [`AGENTS.md`](./AGENTS.md)                                                         | Primary repo instructions                            |
+| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)                               | Fast onboarding                                      |
+| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md)                         | Allowed skills and environment policy                |
+| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md)                       | Obsidian graph entrypoint for architecture + roadmap |
+| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md)           | Vault usage and maintenance contract                 |
+| [`HANDOFF_AI.md`](./HANDOFF_AI.md)                                                 | Stable entrypoint for AI handoff                     |
+| [`ARQUITETURA.md`](./ARQUITETURA.md)                                               | Technical architecture                               |
+| [`docs/ai-context/refactor/00-README.md`](./docs/ai-context/refactor/00-README.md) | Refactor program context                             |
 
 ## CI and delivery
 

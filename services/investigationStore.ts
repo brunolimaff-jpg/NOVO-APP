@@ -20,13 +20,11 @@ let investigationsStore: Investigation[] = [];
 let listeners: Array<() => void> = [];
 
 function notifyListeners(): void {
-  listeners.forEach((fn) => fn());
+  listeners.forEach(fn => fn());
 }
 
 export function addInvestigation(inv: Investigation): void {
-  const idx = investigationsStore.findIndex(
-    (i) => i.empresa.toUpperCase() === inv.empresa.toUpperCase()
-  );
+  const idx = investigationsStore.findIndex(i => i.empresa.toUpperCase() === inv.empresa.toUpperCase());
   if (idx >= 0) {
     investigationsStore[idx] = { ...inv, id: investigationsStore[idx].id };
   } else {
@@ -42,6 +40,6 @@ export function getInvestigations(): Investigation[] {
 export function subscribe(fn: () => void): () => void {
   listeners.push(fn);
   return () => {
-    listeners = listeners.filter((l) => l !== fn);
+    listeners = listeners.filter(l => l !== fn);
   };
 }

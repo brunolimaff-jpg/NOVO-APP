@@ -30,9 +30,33 @@ interface PreviewDemoPayload {
 }
 
 const VALID_UFS = new Set([
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
-  'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
-  'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ]);
 
 const BULLETS: string[] = [
@@ -61,13 +85,13 @@ function getPreviewDemoPayload(): PreviewDemoPayload | null {
 
 const IMPACTO_BADGE: Record<string, { label: string; cls: string }> = {
   oportunidade: { label: 'OPORTUNIDADE', cls: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' },
-  ameaca:       { label: 'AMEAÇA',        cls: 'bg-red-500/20 text-red-700 dark:text-red-300' },
+  ameaca: { label: 'AMEAÇA', cls: 'bg-red-500/20 text-red-700 dark:text-red-300' },
   vulnerabilidade: { label: 'VULNERABILIDADE', cls: 'bg-amber-500/20 text-amber-700 dark:text-amber-300' },
-  neutro:       { label: 'NEUTRO',        cls: 'bg-slate-500/15 text-slate-600 dark:text-slate-400' },
+  neutro: { label: 'NEUTRO', cls: 'bg-slate-500/15 text-slate-600 dark:text-slate-400' },
 };
 
 const RELEVANCE_BARS: Record<string, { label: string; bars: number; cls: string }> = {
-  alta:  { label: 'ALTA',  bars: 3, cls: 'text-red-500 dark:text-red-400' },
+  alta: { label: 'ALTA', bars: 3, cls: 'text-red-500 dark:text-red-400' },
   media: { label: 'MÉDIA', bars: 2, cls: 'text-amber-500 dark:text-amber-400' },
   baixa: { label: 'BAIXA', bars: 1, cls: 'text-slate-500 dark:text-slate-400' },
 };
@@ -101,9 +125,12 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   const badge = IMPACTO_BADGE[impacto] ?? IMPACTO_BADGE.neutro;
   const rel = RELEVANCE_BARS[alert.relevance] ?? RELEVANCE_BARS.baixa;
   const catIcon = RADAR_CATEGORY_ICONS[alert.category] ?? '📡';
-  const actionLabel = alert.sourceUrl && alert.sourceUrl !== '#' ? 'LER NOTÍCIA' : (ACTION_LABEL[impacto] ?? 'Ver mais');
+  const actionLabel =
+    alert.sourceUrl && alert.sourceUrl !== '#' ? 'LER NOTÍCIA' : (ACTION_LABEL[impacto] ?? 'Ver mais');
 
-  const cardBg = isDarkMode ? 'bg-slate-900/80 border-slate-700/60 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-500/50';
+  const cardBg = isDarkMode
+    ? 'bg-slate-900/80 border-slate-700/60 hover:border-emerald-500/50'
+    : 'bg-white border-slate-200 hover:border-emerald-500/50';
   const textTitle = isDarkMode ? 'text-slate-100' : 'text-slate-900';
   const textBody = isDarkMode ? 'text-slate-400' : 'text-slate-600';
   const textMeta = isDarkMode ? 'text-slate-500' : 'text-slate-500';
@@ -111,15 +138,16 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   // Limpeza profunda do resumo de qualquer lixo HTML que possa ter vindo da IA ou do RSS
   const cleanSummaryRaw = (alert.summary || '')
     .replace(/&lt;[^&]*&gt;/g, '') // remove &lt;a ...&gt;
-    .replace(/<[^>]*>/g, '')      // remove <a ...>
+    .replace(/<[^>]*>/g, '') // remove <a ...>
     .replace(/&amp;[a-z0-9#]+;/gi, '') // remove entidades
     .trim();
 
   // Tenta remover o nome da fonte se ele estiver grudado no final do resumo (comum em RSS do Google)
   const sourceName = alert.sourceName || '';
-  const cleanSummary = cleanSummaryRaw && sourceName 
-    ? cleanSummaryRaw.replace(new RegExp(`${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), '').trim()
-    : cleanSummaryRaw;
+  const cleanSummary =
+    cleanSummaryRaw && sourceName
+      ? cleanSummaryRaw.replace(new RegExp(`${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), '').trim()
+      : cleanSummaryRaw;
 
   const handleCardClick = () => {
     if (alert.sourceUrl && alert.sourceUrl !== '#') {
@@ -130,7 +158,7 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   };
 
   return (
-    <div 
+    <div
       className={`flex flex-col rounded-xl border ${cardBg} overflow-hidden transition-all hover:shadow-lg cursor-pointer group`}
       onClick={handleCardClick}
     >
@@ -148,7 +176,9 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
 
       <div className="flex-1 px-4 pb-3">
         <div className="flex items-start justify-between gap-1">
-          <p className={`text-sm font-semibold leading-snug group-hover:text-emerald-500 transition-colors ${textTitle}`}>
+          <p
+            className={`text-sm font-semibold leading-snug group-hover:text-emerald-500 transition-colors ${textTitle}`}
+          >
             {alert.title}
           </p>
           <span className="text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs">↗</span>
@@ -156,10 +186,16 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
         <p className={`mt-1.5 text-xs leading-relaxed line-clamp-3 ${textBody}`}>{cleanSummary}</p>
       </div>
 
-      <div className={`flex items-center justify-between gap-2 border-t px-4 py-3 ${isDarkMode ? 'border-slate-700/60' : 'border-slate-100'}`}>
+      <div
+        className={`flex items-center justify-between gap-2 border-t px-4 py-3 ${isDarkMode ? 'border-slate-700/60' : 'border-slate-100'}`}
+      >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className="text-[11px]">{catIcon}</span>
-          <span className={`truncate text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-slate-300' : 'text-slate-900'}`}>{sourceName}</span>
+          <span
+            className={`truncate text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-slate-300' : 'text-slate-900'}`}
+          >
+            {sourceName}
+          </span>
           <span className={`text-[10px] ${textMeta}`}>·</span>
           <span className={`shrink-0 text-[10px] font-semibold ${textMeta}`}>{timeAgoHome(alert.publishedAt)}</span>
         </div>
@@ -178,7 +214,15 @@ const RadarCard: React.FC<RadarCardProps> = ({ alert, isDarkMode, onOpenRadar })
   );
 };
 
-const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigation, isDarkMode, radarAlerts, radarIsScanning, onForceScan, onOpenRadar }) => {
+const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
+  mode,
+  onStartInvestigation,
+  isDarkMode,
+  radarAlerts,
+  radarIsScanning,
+  onForceScan,
+  onOpenRadar,
+}) => {
   const { name: operatorName } = useOperator();
 
   const timeGreeting = getTimeGreeting();
@@ -207,9 +251,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   // Campos preenchidos manualmente pelo usuário NÃO são limpos ao clicar "Alterar".
   const filledByCnpj = useRef({ companyName: false, city: false, state: false });
 
-  const pageBg = isDarkMode
-    ? 'bg-slate-950'
-    : 'bg-slate-50/90';
+  const pageBg = isDarkMode ? 'bg-slate-950' : 'bg-slate-50/90';
   const textPrimary = isDarkMode ? 'text-white' : 'text-slate-900';
   const textSecondary = isDarkMode ? 'text-slate-400' : 'text-slate-600';
   const textMuted = isDarkMode ? 'text-slate-500' : 'text-slate-500';
@@ -321,16 +363,13 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
   // radarAlerts === undefined  → Radar não configurado ainda
   // radarAlerts definido       → Radar ativo (pode estar varrendo ou com/sem dados)
   const radarConfigured = radarAlerts !== undefined;
-  const radarScanning   = radarConfigured && !!radarIsScanning && radarAlerts.length === 0;
-  const radarEmpty      = radarConfigured && !radarIsScanning && radarAlerts.length === 0;
-  const radarHasData    = radarConfigured && radarAlerts.length > 0;
+  const radarScanning = radarConfigured && !!radarIsScanning && radarAlerts.length === 0;
+  const radarEmpty = radarConfigured && !radarIsScanning && radarAlerts.length === 0;
+  const radarHasData = radarConfigured && radarAlerts.length > 0;
 
   return (
     <div className={`animate-fade-in min-h-full w-full ${pageBg}`}>
-      <div
-        className="h-0.5 w-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-500"
-        aria-hidden
-      />
+      <div className="h-0.5 w-full bg-gradient-to-r from-emerald-800 via-emerald-600 to-teal-500" aria-hidden />
 
       <div className="mx-auto max-w-5xl px-4 py-8 md:py-10 lg:px-8 lg:py-12">
         <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-12">
@@ -340,9 +379,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
               Nova investigação
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <h1 className={`text-2xl font-bold tracking-tight md:text-3xl ${textPrimary}`}>
-                {modeMeta.label}
-              </h1>
+              <h1 className={`text-2xl font-bold tracking-tight md:text-3xl ${textPrimary}`}>{modeMeta.label}</h1>
               <span
                 className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                   isDarkMode
@@ -374,12 +411,8 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
               <div
                 className={`border-b px-5 py-4 ${isDarkMode ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-slate-50/80'}`}
               >
-                <h2 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>
-                  Dados do alvo
-                </h2>
-                <p className={`mt-1 text-sm ${textSecondary}`}>
-                  Empresa e localização são suficientes para começar.
-                </p>
+                <h2 className={`text-xs font-bold uppercase tracking-wider ${textMuted}`}>Dados do alvo</h2>
+                <p className={`mt-1 text-sm ${textSecondary}`}>Empresa e localização são suficientes para começar.</p>
               </div>
 
               <div className="space-y-4 p-5 md:p-6">
@@ -426,9 +459,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                         <span className="font-mono font-semibold">{formatCnpj(cnpjInput)}</span>
                         <span
                           className={`ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                            isDarkMode
-                              ? 'bg-emerald-900/60 text-emerald-400'
-                              : 'bg-emerald-100 text-emerald-700'
+                            isDarkMode ? 'bg-emerald-900/60 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
                           Validado
@@ -497,9 +528,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <span className="mt-0.5 text-sm shrink-0">
-                          {cnpjStatus.startsWith('✓') ? '✓' : '⚠️'}
-                        </span>
+                        <span className="mt-0.5 text-sm shrink-0">{cnpjStatus.startsWith('✓') ? '✓' : '⚠️'}</span>
                         <p className="text-[11px] leading-relaxed">{cnpjStatus}</p>
                       </div>
                     </div>
@@ -619,7 +648,9 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50'
                   }`}
                 >
-                  <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>↻</span>
+                  <span className={radarIsScanning ? 'animate-spin inline-block' : ''} aria-hidden>
+                    ↻
+                  </span>
                   {radarIsScanning ? 'Varrendo…' : 'Varrer agora'}
                 </button>
               </div>
@@ -630,9 +661,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
           {!radarConfigured && (
             <div
               className={`flex flex-col items-center rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
-                isDarkMode
-                  ? 'border-slate-700/60 bg-slate-900/40'
-                  : 'border-slate-200 bg-slate-50/60'
+                isDarkMode ? 'border-slate-700/60 bg-slate-900/40' : 'border-slate-200 bg-slate-50/60'
               }`}
             >
               {/* Ícone com ping animado */}
@@ -646,12 +675,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                 />
               </div>
 
-              <h3 className={`text-base font-bold ${textPrimary}`}>
-                Radar Setorial não configurado
-              </h3>
+              <h3 className={`text-base font-bold ${textPrimary}`}>Radar Setorial não configurado</h3>
               <p className={`mt-2 max-w-xs text-sm leading-relaxed ${textSecondary}`}>
-                Configure temas, culturas e regiões de interesse para receber
-                inteligência de mercado automaticamente — antes da concorrência.
+                Configure temas, culturas e regiões de interesse para receber inteligência de mercado automaticamente —
+                antes da concorrência.
               </p>
 
               {/* Bullets de valor do Radar */}
@@ -662,10 +689,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
                   'Sinais integrados ao Dossiê da investigação',
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2">
-                    <span
-                      className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
-                      aria-hidden
-                    />
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
                     {item}
                   </li>
                 ))}
@@ -689,14 +713,15 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
 
           {/* ── ESTADO 2: Radar configurado, varrendo, sem dados ainda ─────── */}
           {radarScanning && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Carregando sinais do radar">
+            <div
+              className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+              aria-label="Carregando sinais do radar"
+            >
               {[1, 2, 3].map(i => (
                 <div
                   key={i}
                   className={`h-48 animate-pulse rounded-xl border ${
-                    isDarkMode
-                      ? 'border-slate-700/60 bg-slate-900/60'
-                      : 'border-slate-200 bg-slate-100/80'
+                    isDarkMode ? 'border-slate-700/60 bg-slate-900/60' : 'border-slate-200 bg-slate-100/80'
                   }`}
                   aria-hidden
                 />
@@ -708,14 +733,10 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
           {radarEmpty && (
             <div
               className={`rounded-xl border px-6 py-10 text-center ${
-                isDarkMode
-                  ? 'border-slate-700/60 bg-slate-900/40'
-                  : 'border-slate-200 bg-slate-50/60'
+                isDarkMode ? 'border-slate-700/60 bg-slate-900/40' : 'border-slate-200 bg-slate-50/60'
               }`}
             >
-              <p className={`text-sm font-medium ${textMuted}`}>
-                Nenhum sinal relevante detectado no momento.
-              </p>
+              <p className={`text-sm font-medium ${textMuted}`}>Nenhum sinal relevante detectado no momento.</p>
               <p className={`mt-1 text-xs ${textMuted}`}>
                 O Radar varre automaticamente. Clique em "Varrer agora" para forçar uma nova leitura.
               </p>
@@ -726,12 +747,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({ mode, onStartInvestigat
           {radarHasData && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {radarAlerts.slice(0, 6).map(alert => (
-                <RadarCard
-                  key={alert.id}
-                  alert={alert}
-                  isDarkMode={isDarkMode}
-                  onOpenRadar={onOpenRadar}
-                />
+                <RadarCard key={alert.id} alert={alert} isDarkMode={isDarkMode} onOpenRadar={onOpenRadar} />
               ))}
             </div>
           )}

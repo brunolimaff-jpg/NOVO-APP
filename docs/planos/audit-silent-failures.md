@@ -11,11 +11,11 @@
 
 ## Criterios de Classificacao
 
-| Prioridade | Definicao |
-|------------|-----------|
-| **P0** | Operacao criticas que falham sem nenhum log, sem feedback ao usuario, e podem causar perda de dados ou comportamento incorreto silencioso |
-| **P1** | Falha silenciosa degrada a experiencia (ex: fallback gracioso sem log), mas nao corrompe dados. Deveria ter scoutDiag.warn |
-| **P2** | Aceitavel por design (IDB indisponivel, clipboard fallback, localStorage privado, parse de URL com fallback explicito, funcoes debug) |
+| Prioridade | Definicao                                                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **P0**     | Operacao criticas que falham sem nenhum log, sem feedback ao usuario, e podem causar perda de dados ou comportamento incorreto silencioso |
+| **P1**     | Falha silenciosa degrada a experiencia (ex: fallback gracioso sem log), mas nao corrompe dados. Deveria ter scoutDiag.warn                |
+| **P2**     | Aceitavel por design (IDB indisponivel, clipboard fallback, localStorage privado, parse de URL com fallback explicito, funcoes debug)     |
 
 ---
 
@@ -32,6 +32,7 @@
 **Contexto:** Detecta concorrente no texto final do dossie. Se `isConcorrenteOuPropria()` lanca excecao, a deteccao e engolida sem nenhum rastro. O usuario pode receber um dossie sobre concorrente sem saber.
 
 **Sugestao:**
+
 ```ts
     } catch (error) {
       scoutDiag.error('Investigation', 'Falha em isConcorrenteOuPropria', {
@@ -45,10 +46,26 @@
 ### 2. `features/radar/useRadar.ts:104-117` (4 persist functions)
 
 ```ts
-    try { await set(IDB_ALERTS_KEY, data); } catch { /* IDB unavailable */ }
-    try { await set(IDB_CONFIG_KEY, data); } catch { /* IDB unavailable */ }
-    try { await set(IDB_LAST_SCAN_KEY, ts); } catch { /* IDB unavailable */ }
-    try { await set(IDB_META_INSIGHT_KEY, insight); } catch { /* IDB unavailable */ }
+try {
+  await set(IDB_ALERTS_KEY, data);
+} catch {
+  /* IDB unavailable */
+}
+try {
+  await set(IDB_CONFIG_KEY, data);
+} catch {
+  /* IDB unavailable */
+}
+try {
+  await set(IDB_LAST_SCAN_KEY, ts);
+} catch {
+  /* IDB unavailable */
+}
+try {
+  await set(IDB_META_INSIGHT_KEY, insight);
+} catch {
+  /* IDB unavailable */
+}
 ```
 
 **Contexto:** Quando o usuario configura o Radar e executa varreduras, as preferencias e alertas sao persistidos em IndexedDB. Se o IDB falhar (storage cheio, corrompido, Safari privado), o usuario nunca sabe. A interface mostra os alertas normalmente, mas apos recarregar a pagina, tudo desaparece. Perda total de configuracao + alertas acumulados sem nenhum aviso.
@@ -58,9 +75,11 @@
 **Sugestao:** Adicionar `scoutDiag.warn` em cada catch. Alternativamente, consolidar em uma funcao unica com log centralizado.
 
 ```ts
-    try { await set(IDB_ALERTS_KEY, data); } catch {
-      scoutDiag.warn('Radar', 'Falha ao persistir alertas em IDB');
-    }
+try {
+  await set(IDB_ALERTS_KEY, data);
+} catch {
+  scoutDiag.warn('Radar', 'Falha ao persistir alertas em IDB');
+}
 ```
 
 ---
@@ -76,6 +95,7 @@
 **Contexto:** Carregamento inicial do Radar. Se o IDB esta disponivel mas corrompido, ou se o parse do JSON salvo falha, todas as configuracoes e alertas salvos sao perdidos silenciosamente. O usuario comeca do zero sem saber.
 
 **Sugestao:**
+
 ```ts
       } catch (err) {
         scoutDiag.warn('Radar', 'Falha ao carregar dados iniciais do IDB (usando defaults)', {
@@ -98,6 +118,7 @@
 **Contexto:** Se o localStorage tem dados corrompidos (ex: versao antiga do formato), `JSON.parse` lanca excecao e o historico inteiro do usuario e perdido sem aviso. Nenhuma tentativa de recuperacao ou fallback.
 
 **Sugestao:**
+
 ```ts
   } catch (err) {
     console.warn('[ConversationHistory] Historico corrompido, iniciando novo:', err);
@@ -119,6 +140,7 @@
 **Contexto:** `fetchLinkStatuses` e chamado para validar links antes de exibi-los como verificados. Se a API `link-status` falha (rede, servico indisponivel, 5xx), o retorno `{}` faz com que todos os links parecam `unknown` ou `valid`. O usuario ve links "verificados" que nao foram verificados.
 
 **Sugestao:**
+
 ```ts
   } catch (err) {
     scoutDiag.warn('LinkValidation', 'Falha ao consultar /api/link-status', {
@@ -142,6 +164,7 @@
 **Contexto:** A funcao que valida URLs candidatas para o dossie chamando `/api/link-status` retorna `[]` silenciosamente em qualquer erro. Os sources do dossie ficam vazios e o usuario nao ve fontes verificadas. Nenhuma indicacao de que a verificacao falhou.
 
 **Sugestao:**
+
 ```ts
   } catch (err) {
     scoutDiag.warn('ModularDossier', 'Falha ao filtrar URLs validas', {
@@ -165,6 +188,7 @@
 **Contexto:** `parseFirstJsonObject` tenta fazer `JSON.parse` em um chunk de texto. Se falha, retorna `null`. Os callers (`pullCompetitorProfile`, `generatePricingIntel`) recebem `null` e continuam — o concorrente simplesmente nao aparece. Se o erro for por formato inesperado da API Gemini, deveria logar.
 
 **Sugestao:**
+
 ```ts
   } catch (err) {
     scoutDiag.warn('Competitor', 'Falha ao parsear JSON do concorrente', {
@@ -269,18 +293,18 @@ A linha 150 de loadingCuriosities retorna fallback sem log. Vale o mesmo diagnos
 
 ### Categorias de aceitacao
 
-| Categoria | Exemplos | Quantidade |
-|-----------|----------|------------|
-| **Clipboard fallback** | SectionalBotMessage, WarRoom, ErrorBoundary, MessageActionsBar | ~6 |
-| **IDB/locaStorage intencional** | idbStorage (documentado), useSessionStorage (fallback para localStorage), diagnosticLog | ~10 |
-| **URL parse com fallback** | webVerification, textCleaners, documentExtractor (isValidPublicUrl), apiConfig (isFakeDomain) | ~10 |
-| **Debug/metrics tracking** | recovery.ts debugRecovery, trackOpenQuestionRecoveryAttempt | ~4 |
-| **Erro com rethrow** | sessionRemoteStore (parseJsonObject), brasilApiService (parse error rethrows) | ~5 |
-| **Erro com scoutDiag.error/warn** | Dossier waterfall, PORTA reconciliation, CompetitorService, useRadar scan, ChatInterface, InvestigationOrchestration, WarRoom retrieval, ExtractContentService, ragService, feedbackRemoteStore | ~30 |
-| **Erro com console.error/warn** | sessionExport, downloadHelpers, useSessionStorage, conversationHistory (save), useUpdateNotification, SettingsDrawer, FeedbackSection, ChatInterface, EmptyStateHome | ~15 |
-| **Erro com toast/feedback visual** | MessageActionsBar (share fallback), WarRoom (copy feedback), SystemHealthCheck (updateTest), FollowUpModal (retorna false) | ~7 |
-| **Fallback gracioso + log** | extractContentService (cache), brasilApiService (IBGE), clientLookupService (cold start) | ~10 |
-| **Chunk retry com reload** | loadWithChunkRetry (reloads page) | ~1 |
+| Categoria                          | Exemplos                                                                                                                                                                                        | Quantidade |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **Clipboard fallback**             | SectionalBotMessage, WarRoom, ErrorBoundary, MessageActionsBar                                                                                                                                  | ~6         |
+| **IDB/locaStorage intencional**    | idbStorage (documentado), useSessionStorage (fallback para localStorage), diagnosticLog                                                                                                         | ~10        |
+| **URL parse com fallback**         | webVerification, textCleaners, documentExtractor (isValidPublicUrl), apiConfig (isFakeDomain)                                                                                                   | ~10        |
+| **Debug/metrics tracking**         | recovery.ts debugRecovery, trackOpenQuestionRecoveryAttempt                                                                                                                                     | ~4         |
+| **Erro com rethrow**               | sessionRemoteStore (parseJsonObject), brasilApiService (parse error rethrows)                                                                                                                   | ~5         |
+| **Erro com scoutDiag.error/warn**  | Dossier waterfall, PORTA reconciliation, CompetitorService, useRadar scan, ChatInterface, InvestigationOrchestration, WarRoom retrieval, ExtractContentService, ragService, feedbackRemoteStore | ~30        |
+| **Erro com console.error/warn**    | sessionExport, downloadHelpers, useSessionStorage, conversationHistory (save), useUpdateNotification, SettingsDrawer, FeedbackSection, ChatInterface, EmptyStateHome                            | ~15        |
+| **Erro com toast/feedback visual** | MessageActionsBar (share fallback), WarRoom (copy feedback), SystemHealthCheck (updateTest), FollowUpModal (retorna false)                                                                      | ~7         |
+| **Fallback gracioso + log**        | extractContentService (cache), brasilApiService (IBGE), clientLookupService (cold start)                                                                                                        | ~10        |
+| **Chunk retry com reload**         | loadWithChunkRetry (reloads page)                                                                                                                                                               | ~1         |
 
 ### Exemplares — bem tratados
 
@@ -298,38 +322,38 @@ Diversos catch blocks no projeto sao modelos de como tratar erros graciosamente:
 
 ### Por directory
 
-| Diretorio | Total | P0 | P1 | P2 |
-|-----------|-------|----|----|----|
-| `services/` | 44 | 2 | 7 | 35 |
-| `utils/` | 25 | 1 | 2 | 22 |
-| `components/` | 17 | 0 | 1 | 16 |
-| `features/` | 14 | 3 | 1 | 10 |
-| `hooks/` | 7 | 0 | 1 | 6 |
-| `api/` | 12 | 0 | 0 | 12 |
-| `contexts/` | 2 | 0 | 0 | 2 |
-| `scripts/` | 4 | 0 | 0 | 4 |
-| `lib/` | 1 | 0 | 0 | 1 |
+| Diretorio     | Total | P0  | P1  | P2  |
+| ------------- | ----- | --- | --- | --- |
+| `services/`   | 44    | 2   | 7   | 35  |
+| `utils/`      | 25    | 1   | 2   | 22  |
+| `components/` | 17    | 0   | 1   | 16  |
+| `features/`   | 14    | 3   | 1   | 10  |
+| `hooks/`      | 7     | 0   | 1   | 6   |
+| `api/`        | 12    | 0   | 0   | 12  |
+| `contexts/`   | 2     | 0   | 0   | 2   |
+| `scripts/`    | 4     | 0   | 0   | 4   |
+| `lib/`        | 1     | 0   | 0   | 1   |
 
 ### Por tipo de catch
 
-| Tipo | Quantidade |
-|------|------------|
-| `catch {` (sem parametro) | 60 |
-| `catch (e/err/error)` com log | 50 |
-| `catch (e/err/error)` sem log | 10 |
-| `.catch(() => {})` | 4 |
-| `.catch((err) => { ... log })` | 4 |
+| Tipo                           | Quantidade |
+| ------------------------------ | ---------- |
+| `catch {` (sem parametro)      | 60         |
+| `catch (e/err/error)` com log  | 50         |
+| `catch (e/err/error)` sem log  | 10         |
+| `.catch(() => {})`             | 4          |
+| `.catch((err) => { ... log })` | 4          |
 
 ### Por tipo de tratamento
 
-| Tratamento | Quantidade |
-|------------|------------|
-| `scoutDiag.warn` | 20 |
-| `scoutDiag.error` | 12 |
-| `console.error` | 12 |
-| `console.warn` | 6 |
-| `toast.error` | 6 |
-| Nenhum (silencioso total) | 72 |
+| Tratamento                | Quantidade |
+| ------------------------- | ---------- |
+| `scoutDiag.warn`          | 20         |
+| `scoutDiag.error`         | 12         |
+| `console.error`           | 12         |
+| `console.warn`            | 6          |
+| `toast.error`             | 6          |
+| Nenhum (silencioso total) | 72         |
 
 ---
 
@@ -354,10 +378,13 @@ As 4 funcoes de persistencia do Radar (`persistAlerts`, `persistConfig`, `persis
 ### 5. Nao misturar `catch {` com corpo na mesma linha
 
 Diversos catch blocks comecam na mesma linha do fechamento do try:
+
 ```ts
 } catch {
 ```
+
 Isso dificulta a leitura e a adicao de logs. Separar em linhas:
+
 ```ts
 } catch (err) {
   scoutDiag.warn(...);
@@ -372,16 +399,16 @@ Isso dificulta a leitura e a adicao de logs. Separar em linhas:
 
 ## Resumo dos P0
 
-| # | Arquivo | Linha | Problema |
-|---|---------|-------|----------|
-| 1 | `services/gemini/investigation-orchestration.ts` | 631 | Deteccao de concorrente engolida sem rastro |
-| 2 | `features/radar/useRadar.ts` | 104-117 | 4 persist functions: perda de config sem aviso |
-| 3 | `features/radar/useRadar.ts` | 138-140 | Carregamento inicial: perda de dados sem aviso |
-| 4 | `utils/conversationHistory.ts` | 42-44 | Historico corrompido: dados perdidos sem aviso |
-| 5 | `utils/linkValidation.ts` | 26-28 | Links parecem verificados sem terem sido |
-| 6 | `features/dossier/waterfall-orchestrator.ts` | 102-104 | Fontes do dossie somem sem aviso |
-| 7 | `services/competitorService.ts` | 92-94 | Deteccao de concorrente retorna null sem log |
+| #   | Arquivo                                          | Linha   | Problema                                       |
+| --- | ------------------------------------------------ | ------- | ---------------------------------------------- |
+| 1   | `services/gemini/investigation-orchestration.ts` | 631     | Deteccao de concorrente engolida sem rastro    |
+| 2   | `features/radar/useRadar.ts`                     | 104-117 | 4 persist functions: perda de config sem aviso |
+| 3   | `features/radar/useRadar.ts`                     | 138-140 | Carregamento inicial: perda de dados sem aviso |
+| 4   | `utils/conversationHistory.ts`                   | 42-44   | Historico corrompido: dados perdidos sem aviso |
+| 5   | `utils/linkValidation.ts`                        | 26-28   | Links parecem verificados sem terem sido       |
+| 6   | `features/dossier/waterfall-orchestrator.ts`     | 102-104 | Fontes do dossie somem sem aviso               |
+| 7   | `services/competitorService.ts`                  | 92-94   | Deteccao de concorrente retorna null sem log   |
 
 ---
 
-*Audit gerado em 2026-05-22. Ferramentas: grep + leitura contextual de 40+ arquivos fonte.*
+_Audit gerado em 2026-05-22. Ferramentas: grep + leitura contextual de 40+ arquivos fonte._

@@ -38,7 +38,10 @@ export function collectFullReport(messages: Message[]): { text: string; sections
     const botIndex = messages.indexOf(botMessages[i]);
     let userQuestion = '';
     for (let j = botIndex - 1; j >= 0; j--) {
-      if (messages[j].sender === Sender.User) { userQuestion = messages[j].text; break; }
+      if (messages[j].sender === Sender.User) {
+        userQuestion = messages[j].text;
+        break;
+      }
     }
     if (botText.length > 50) {
       const sectionHeader = userQuestion
@@ -48,7 +51,11 @@ export function collectFullReport(messages: Message[]): { text: string; sections
       const sectionLinks = extractAllLinksFromMarkdown(botText);
       sectionLinks.forEach(link => pushSourceUnique(allLinks, link));
       (botMessages[i].groundingSources || []).forEach(source =>
-        pushSourceUnique(allLinks, { id: `grnd-${i}-${allLinks.length}`, title: source.title || source.url, url: source.url }),
+        pushSourceUnique(allLinks, {
+          id: `grnd-${i}-${allLinks.length}`,
+          title: source.title || source.url,
+          url: source.url,
+        }),
       );
     }
   }
@@ -233,7 +240,11 @@ function summarizePainPoint(rawText: string): string {
   if (/\b(compliance|fiscal|auditoria|esocial|sst|multa|autu)\b/.test(normalized)) {
     return 'uma frente de compliance com impacto operacional direto';
   }
-  if (/\b(planilha|manual|integracao manual|camadas logisticas paralelas|dependencias laterais|legado|retaguarda)\b/.test(normalized)) {
+  if (
+    /\b(planilha|manual|integracao manual|camadas logisticas paralelas|dependencias laterais|legado|retaguarda)\b/.test(
+      normalized,
+    )
+  ) {
     return 'uma fricção operacional ainda sustentada por controles paralelos';
   }
   if (/\b(decisor|cadeia de comando|orcamento|orçamento|janela)\b/.test(normalized)) {
@@ -267,23 +278,22 @@ function collectEvidenceCandidates(modules: Array<{ title: string; content: stri
   return candidates;
 }
 
-function detectUrgencyNarrative(
-  candidates: EvidenceCandidate[],
-  primaryGap: string,
-  foundSeniorBase: boolean,
-): string {
+function detectUrgencyNarrative(candidates: EvidenceCandidate[], primaryGap: string, foundSeniorBase: boolean): string {
   const realTriggerRules: Array<{ regex: RegExp; build: (evidence: string) => string }> = [
     {
       regex: /\b(expans|capex|investimento|planta|unidade|aquisicao|fusao)\b/,
-      build: evidence => `A urgência vem de ${evidence}, um gatilho concreto para discutir controle antes que essa borda ganhe mais peso na operação.`,
+      build: evidence =>
+        `A urgência vem de ${evidence}, um gatilho concreto para discutir controle antes que essa borda ganhe mais peso na operação.`,
     },
     {
       regex: /\b(compliance|fiscal|auditoria|esocial|sst|multa|autu)\b/,
-      build: evidence => `A urgência vem de ${evidence}, um sinal de pressão regulatória que tende a encarecer rápido quando fica fora da conversa.`,
+      build: evidence =>
+        `A urgência vem de ${evidence}, um sinal de pressão regulatória que tende a encarecer rápido quando fica fora da conversa.`,
     },
     {
       regex: /\b(safra|plantio|colheita|orcamento|orçamento|budget)\b/,
-      build: evidence => `A urgência vem de ${evidence}, o que abre uma janela prática para discutir padronização sem recorrer a senso artificial de urgência.`,
+      build: evidence =>
+        `A urgência vem de ${evidence}, o que abre uma janela prática para discutir padronização sem recorrer a senso artificial de urgência.`,
     },
   ];
 
@@ -454,9 +464,16 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
   });
 
   const metricPatterns = [
-    { label: 'Faturamento/Receita', regex: /(?:faturamento|receita)[^:\n]*:?\s*(R?\$?\s*\d[\d.,]*(?:\s*(?:mil|mi|milhão|milhões|bi|bilhão|bilhões|tri|trilhão|trilhões))?)/gi },
+    {
+      label: 'Faturamento/Receita',
+      regex:
+        /(?:faturamento|receita)[^:\n]*:?\s*(R?\$?\s*\d[\d.,]*(?:\s*(?:mil|mi|milhão|milhões|bi|bilhão|bilhões|tri|trilhão|trilhões))?)/gi,
+    },
     { label: 'Área (ha)', regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:hectares|ha)\b)/gi },
-    { label: 'Funcionários', regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:funcionários|colaboradores|empregados)\b)/gi },
+    {
+      label: 'Funcionários',
+      regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:funcionários|colaboradores|empregados)\b)/gi,
+    },
     { label: 'Unidades/Fábricas', regex: /(\d[\d.,]*\s*(?:unidades|filiais|fábricas|plantas|usinas)\b)/gi },
   ] as const;
 
@@ -470,8 +487,7 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
     .join('\n');
 
   const mermaidBlocks =
-    (sourceText.match(/```mermaid[\s\S]*?```/gi) || []).length +
-    (fullText.match(MERMAID_JSON_PATTERN) || []).length;
+    (sourceText.match(/```mermaid[\s\S]*?```/gi) || []).length + (fullText.match(MERMAID_JSON_PATTERN) || []).length;
 
   const inconsistencyNote = inconsistenciesSection
     ? '- **Validação obrigatória:** foram detectadas inconsistências entre seções; os pontos marcados como "precisa validar" devem ser confirmados antes de uso comercial.'
@@ -502,9 +518,16 @@ export function detectInconsistencies(sections: string[]): string {
   if (sections.length < 2) return '';
   const inconsistencies = new Set<string>();
   const patterns = [
-    { label: 'Faturamento/Receita', regex: /(?:faturamento|receita)[^:\n]*:?\s*(R?\$?\s*\d[\d.,]*(?:\s*(?:mil|mi|milhão|milhões|bi|bilhão|bilhões|tri|trilhão|trilhões))?)/gi },
+    {
+      label: 'Faturamento/Receita',
+      regex:
+        /(?:faturamento|receita)[^:\n]*:?\s*(R?\$?\s*\d[\d.,]*(?:\s*(?:mil|mi|milhão|milhões|bi|bilhão|bilhões|tri|trilhão|trilhões))?)/gi,
+    },
     { label: 'Área/Hectares', regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:hectares|ha)\b)/gi },
-    { label: 'Funcionários', regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:funcionários|colaboradores|empregados)\b)/gi },
+    {
+      label: 'Funcionários',
+      regex: /(\d[\d.,]*\s*(?:mil|mi|milhão|milhões)?\s*(?:funcionários|colaboradores|empregados)\b)/gi,
+    },
     { label: 'Unidades', regex: /(\d[\d.,]*\s*(?:unidades|filiais|fábricas|plantas|usinas)\b)/gi },
   ];
 
@@ -518,11 +541,11 @@ export function detectInconsistencies(sections: string[]): string {
       const drillMatches = collectMetricValues(drilldown, regex);
       if (mainMatches.length > 0 && drillMatches.length > 0) {
         const overlap = drillMatches.some(dr =>
-          mainMatches.some(main => normalizeComparableValue(main) === normalizeComparableValue(dr))
+          mainMatches.some(main => normalizeComparableValue(main) === normalizeComparableValue(dr)),
         );
         if (!overlap) {
           inconsistencies.add(
-            `**${label}:** dossiê principal traz *${mainMatches[0]}* e aprofundamento traz *${drillMatches[0]}* — **precisa validar** qual valor está correto e mais atualizado.`
+            `**${label}:** dossiê principal traz *${mainMatches[0]}* e aprofundamento traz *${drillMatches[0]}* — **precisa validar** qual valor está correto e mais atualizado.`,
           );
         }
       }
@@ -530,7 +553,12 @@ export function detectInconsistencies(sections: string[]): string {
   }
 
   if (inconsistencies.size === 0) return '';
-  return '\n\n---\n\n## ⚠️ INCONSISTÊNCIAS DETECTADAS\n\n' +
+  return (
+    '\n\n---\n\n## ⚠️ INCONSISTÊNCIAS DETECTADAS\n\n' +
     '> Os dados abaixo apareceram com valores diferentes entre o dossiê principal e os aprofundamentos. Todos os itens estão marcados com "**precisa validar**" e devem ser confirmados antes de uso em proposta comercial.\n\n' +
-    Array.from(inconsistencies).map((inc, i) => `${i + 1}. ${inc}`).join('\n') + '\n';
+    Array.from(inconsistencies)
+      .map((inc, i) => `${i + 1}. ${inc}`)
+      .join('\n') +
+    '\n'
+  );
 }

@@ -142,9 +142,7 @@
       "description": "Runs mechanical pre-scan script for binary checks",
       "prompt": "Audit skills/example-skill",
       "type": "explanation",
-      "assertions": [
-        { "type": "contains", "value": "audit.py" }
-      ]
+      "assertions": [{ "type": "contains", "value": "audit.py" }]
     },
     {
       "id": "reference-load-threat-model",

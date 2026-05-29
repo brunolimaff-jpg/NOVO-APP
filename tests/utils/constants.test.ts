@@ -1,12 +1,6 @@
 // tests/utils/constants.test.ts
 import { describe, it, expect } from 'vitest';
-import {
-  APP_NAME,
-  APP_VERSION,
-  DEFAULT_MODE,
-  MODE_LABELS,
-  NOME_VENDEDOR_PLACEHOLDER,
-} from '../../constants';
+import { APP_NAME, APP_VERSION, DEFAULT_MODE, MODE_LABELS, NOME_VENDEDOR_PLACEHOLDER } from '../../constants';
 import { OPERACAO_PROMPT } from '../../prompts/systemPrompts';
 import type { ChatMode } from '../../constants';
 

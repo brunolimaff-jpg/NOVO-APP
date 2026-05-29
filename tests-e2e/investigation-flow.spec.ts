@@ -12,7 +12,7 @@ test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
     await expect(page.locator('text=Pronto para iniciar a investigação')).toBeVisible();
 
     // 3. Opcional: Se houver modal de login/bypass, ele deve ser tratado aqui.
-    // Como o projeto tem 'useClickBypass', assumimos que o clique na área secreta 
+    // Como o projeto tem 'useClickBypass', assumimos que o clique na área secreta
     // ou o login do Clerk já foram ou podem ser simulados.
     // Para simplificar, vamos interagir diretamente com o input de chat.
 

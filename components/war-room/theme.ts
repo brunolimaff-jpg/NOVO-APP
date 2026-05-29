@@ -27,15 +27,18 @@ export function getWarRoomTheme(isDarkMode: boolean) {
     cardSub: dk ? 'text-slate-500' : 'text-slate-400',
     srcBg: dk ? 'bg-slate-800/60 hover:bg-slate-700/60' : 'bg-slate-100 hover:bg-slate-200',
     srcTxt: dk ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700',
-    btnClear: dk ? 'text-slate-400 hover:text-white border-slate-700/50 hover:border-slate-600'
+    btnClear: dk
+      ? 'text-slate-400 hover:text-white border-slate-700/50 hover:border-slate-600'
       : 'text-slate-500 hover:text-slate-800 border-slate-300 hover:border-slate-400',
-    btnCopy: dk ? 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+    btnCopy: dk
+      ? 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
       : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50',
     loadDot: dk ? 'bg-slate-400' : 'bg-slate-500',
     loadTxt: dk ? 'text-slate-400' : 'text-slate-500',
     hintBdr: dk ? 'border-slate-800/40' : 'border-slate-200',
     hintTxt: dk ? 'text-slate-300' : 'text-slate-600',
-    closeTxt: dk ? 'text-red-500/60 hover:text-red-400 hover:bg-red-500/10'
+    closeTxt: dk
+      ? 'text-red-500/60 hover:text-red-400 hover:bg-red-500/10'
       : 'text-red-400 hover:text-red-600 hover:bg-red-100',
     srcBdr: dk ? 'border-slate-700/30' : 'border-slate-200',
     srcLabel: dk ? 'text-slate-500' : 'text-slate-400',

@@ -111,12 +111,7 @@ describe('queryWarRoom', () => {
 
   it('calls Gemini API in tech mode with RAG context', async () => {
     const { queryWarRoom } = await import('../../../services/war-room/query');
-    const result = await queryWarRoom(
-      'tech',
-      'Como funciona o modulo de compras?',
-      [],
-      '',
-    );
+    const result = await queryWarRoom('tech', 'Como funciona o modulo de compras?', [], '');
 
     expect(proxyGerarDossieMock).toHaveBeenCalledTimes(1);
     expect(result.text).toContain('Resposta tecnica');
@@ -161,9 +156,7 @@ describe('queryWarRoom', () => {
 
     const callArgs = proxyGerarDossieMock.mock.calls[0][0];
     expect(callArgs.config.tools).toBeDefined();
-    expect(callArgs.config.tools).toContainEqual(
-      expect.objectContaining({ googleSearch: {} }),
-    );
+    expect(callArgs.config.tools).toContainEqual(expect.objectContaining({ googleSearch: {} }));
   });
 
   it('does NOT include googleSearch tool for tech mode', async () => {
@@ -205,9 +198,7 @@ describe('queryWarRoom', () => {
     const onStatus = vi.fn();
     await queryWarRoom('tech', 'Como funciona?', [], '', onStatus);
 
-    expect(onStatus).toHaveBeenCalledWith(
-      expect.stringContaining('Gerando resposta técnica'),
-    );
+    expect(onStatus).toHaveBeenCalledWith(expect.stringContaining('Gerando resposta técnica'));
   });
 
   it('calls enforceBankingAnchors when banking flag is active', async () => {
@@ -248,14 +239,7 @@ describe('queryWarRoom', () => {
     abortController.abort();
 
     const { queryWarRoom } = await import('../../../services/war-room/query');
-    const result = await queryWarRoom(
-      'tech',
-      'Como funciona?',
-      [],
-      '',
-      undefined,
-      { signal: abortController.signal },
-    );
+    const result = await queryWarRoom('tech', 'Como funciona?', [], '', undefined, { signal: abortController.signal });
 
     expect(result.isError).toBe(true);
     expect(result.text).toContain('cancelada');

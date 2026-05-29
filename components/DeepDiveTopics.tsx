@@ -191,9 +191,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
             </span>
             Deep Dives
           </div>
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-            Investigações cirúrgicas por frente
-          </h3>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Investigações cirúrgicas por frente</h3>
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
           Escolha uma frente para aprofundar com máxima densidade analítica, foco comercial e rigor forense.

@@ -12,6 +12,30 @@ Contract: `buildPoolLookupMap()` valida `title.length >= 3` e `host.length >= 3`
 
 Refs: PR #302, `utils/dossierLinkIntegrity.ts`, `components/LoadingSmart.tsx`.
 
+## 2026-05-29 - Benchmark timeout reduzido para etapa opcional (APLICADO)
+
+Decision: `MODULAR_BENCHMARK_TIMEOUT_MS` reduzido de 45000 para 20000. `maxRetries` no `withAutoRetry` do benchmark: 3 -> 1.
+
+Reason: benchmark e etapa opcional, mas timeout de 45s + 3 retries + cold-start retry acumulava ate ~277s no pior caso, travando o LoadingSmart. Etapa opcional merece timeout curto + 1 tentativa.
+
+Refs: `features/dossier/benchmark/`, commit `e67adf2`.
+
+## 2026-05-29 - completeLoadingProgress() no finally como safety net (APLICADO)
+
+Decision: adicionar `completeLoadingProgress()` no finally do `processMessage` ao lado de `setIsLoading(false)`.
+
+Reason: sem resetar o estado interno do LoadingSmart, o proximo request do chat podia herdar estado zumbi e nunca mostrar progresso. O finally ja garantia `setIsLoading(false)` mas nao resetava o progress tracker interno.
+
+Refs: `features/chat/message-orchestrator.ts`, commit `e67adf2`.
+
+## 2026-05-29 - trackOperatorEvent fire-and-forget mantido (APLICADO)
+
+Decision: `trackOperatorEvent` usa fire-and-forget (`void promise.catch(() => {})`) e nunca bloqueia a UI.
+
+Reason: eventos de tracking nao sao criticos para o fluxo do usuario. Se o tracking falha, o usuario nao deve perceber. O padrao fire-and-forget com catch silencioso e o correto para eventos nao-criticos.
+
+Refs: `features/chat/message-orchestrator.ts`, commit `828dfce`.
+
 ## 2026-05-27 - PR #301: Pool de fontes cumulativo + pipeline idempotente + 3 categorias de fontes
 
 Decision: `sessionSourcePool` acumula `DossierSourceRef[]` entre modulos do waterfall e injeta como `[FONTES DISPONIVEIS PARA CITACAO]` no extraContext. `finalizeDossierMarkdown` roda uma vez ao final (idempotente): integridade -> auditoria -> rodape. Fontes em 3 categorias: `inline_citation`, `consulted_not_cited`, `inferred_without_url`. Fallback `continue` em vez de `break`.
@@ -205,6 +229,7 @@ Decision: migrar armazenamento persistente de IndexedDB/localStorage para Supaba
 Reason: dados de operadores (dossies, radar alerts, configuracoes) precisam sobreviver a limpeza de cache do navegador e serem acessiveis de qualquer dispositivo. Supabase oferece schema SQL, RLS por linha, tempo real e planos gratuitos que cobrem o volume atual. A escolha de conexao direta (sem serverless API layer) reduz latencia e custo de operacao.
 
 Options considered:
+
 - A: Supabase direto do browser (escolhido) — menor latencia, sem custo de serverless, sem camada extra
 - B: Serverless functions como proxy — maior seguranca percebida, mas adiciona latencia e custo Vercel
 - C: Firebase Firestore — alternativa valida, mas exigiria outro provider alem do Supabase para SQL queries
@@ -232,6 +257,7 @@ Decision: o browser conecta-se diretamente ao Supabase via anon key, sem passar 
 Reason: adicionar uma camada serverless entre browser e Supabase aumenta latencia, dobra o custo de execucao (Vercel + Supabase) e nao adiciona seguranca real porque o RLS do Supabase ja isola dados por operator_id. A anon key e restrita por RLS e grants especificos. Esta abordagem e a mais simples, mais rapida e mais barata.
 
 Options considered:
+
 - A: Conexao direta (escolhida) — simples, rapida, barata
 - B: Serverless proxy (rejeitada) — mais complexa, mais cara, sem ganho real de seguranca
 - C: Hibrido (algumas operacoes diretas, outras via serverless) — complexidade desnecessaria
@@ -329,6 +355,7 @@ Constraint: sempre que criar um novo modulo de prompt, verificar DUAS vezes o ma
 Decision: adicionar 4 protocolos de anti-alucinacao em formato XML nos prompts: `<anti_fabrication_rules>`, `<refusal_protocol>`, `<evidence_scope_protocol>`, `<fact_vs_inference_examples>`.
 
 Reason: durante a sessao, foram encontrados CNPJs ficticios nos prompts, "Safra 2024" em 2026, e Evermat como exemplo real que o Gemini poderia repetir em respostas sobre outras empresas. Os protocolos XML forcam o modelo a:
+
 1. Nao fabricar CNPJs ou dados financeiros
 2. Recusar responder quando nao tiver dados suficientes
 3. Limitar escopo a evidencias concretas
@@ -349,6 +376,7 @@ Decision: manter duas ferramentas de validacao para o fluxo CNPJ — `scripts/va
 Reason: curl smoke roda em segundos e e ideal para CI/pre-merge (valida que a rota serverless responde e o JSON tem o formato esperado, sem depender de browser). Playwright E2E valida o fluxo completo com interacao real (preenchimento de formulario, clique, renderizacao de dossie), mas leva 2-3 minutos e depende de Gemini rodando. Ter ambas cobre os cenarios: smoke rapido falha primeiro (feedback em segundos), E2E confirma antes do merge.
 
 Options considered:
+
 - A: Apenas Playwright (rejeitado) — valida fluxo completo mas e lento para smoke rapido em CI
 - B: Apenas curl (rejeitado) — rapido mas nao captura erros de interacao frontend
 - C: Dual (escolhido) — smoke curl no CI trigger, E2E Playwright como gate de pre-merge manual

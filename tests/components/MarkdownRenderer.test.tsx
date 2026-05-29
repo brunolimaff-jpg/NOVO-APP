@@ -6,10 +6,7 @@ import { buildAuditableSources } from '../../utils/textCleaners';
 describe('MarkdownRenderer', () => {
   it('converts raw HTML links to markdown links for rendering', () => {
     const { container } = render(
-      <MarkdownRenderer
-        content={'Texto <a href="https://www.senior.com.br/">clique</a> final'}
-        allowRawHtml={false}
-      />
+      <MarkdownRenderer content={'Texto <a href="https://www.senior.com.br/">clique</a> final'} allowRawHtml={false} />,
     );
 
     const link = container.querySelector('a[href="https://www.senior.com.br/"]');
@@ -20,10 +17,7 @@ describe('MarkdownRenderer', () => {
 
   it('does not render non-link raw HTML when allowRawHtml is false', () => {
     const { container } = render(
-      <MarkdownRenderer
-        content={'Texto <script>alert(1)</script> final'}
-        allowRawHtml={false}
-      />
+      <MarkdownRenderer content={'Texto <script>alert(1)</script> final'} allowRawHtml={false} />,
     );
 
     expect(container.querySelector('script')).toBeNull();
@@ -40,7 +34,7 @@ describe('MarkdownRenderer', () => {
     const content = '[Fonte A](https://www.senior.com.br/a) e [Fonte B](https://www.senior.com.br/b)';
     const auditableSources = buildAuditableSources(content, []);
     const { container } = render(
-      <MarkdownRenderer content={content} allowRawHtml={false} auditableSources={auditableSources} />
+      <MarkdownRenderer content={content} allowRawHtml={false} auditableSources={auditableSources} />,
     );
 
     expect(container.textContent).toContain('[1]');
@@ -53,7 +47,7 @@ describe('MarkdownRenderer', () => {
       { title: 'BNDES', url: 'https://www.bndes.gov.br/noticia', verification: 'grounding' },
     ]);
     const { container } = render(
-      <MarkdownRenderer content={content} allowRawHtml={false} auditableSources={auditableSources} />
+      <MarkdownRenderer content={content} allowRawHtml={false} auditableSources={auditableSources} />,
     );
 
     expect(container.textContent).toContain('90k ha');
@@ -64,12 +58,7 @@ describe('MarkdownRenderer', () => {
   });
 
   it('oculta o bloco visual de BLOCO DE FEEDS PORTA inteiro como proteção de render', () => {
-    render(
-      <MarkdownRenderer
-        content={'### 📊 BLOCO DE FEEDS PORTA\n\n- Nota O sugerida: 9'}
-        allowRawHtml={false}
-      />
-    );
+    render(<MarkdownRenderer content={'### 📊 BLOCO DE FEEDS PORTA\n\n- Nota O sugerida: 9'} allowRawHtml={false} />);
 
     expect(screen.queryByText(/BLOCO DE FEEDS PORTA/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Nota O sugerida: 9/i)).not.toBeInTheDocument();

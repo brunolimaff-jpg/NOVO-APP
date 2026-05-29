@@ -30,12 +30,12 @@ export function parseSmartOptions(text?: string): { cleanText: string; options: 
         .map(line => line.trim())
         .filter(line => /^[*+\-•]\s/.test(line) || /^\d+\./.test(line))
         .map(line => {
-            const clean = line
-                .replace(/^[*+•\d.-]+\s*/, '')
-                .replace(/^"|"$|^'|'$/g, '')
-                .replace(/\*+$/, '')
-                .trim();
-            return cleanSuggestionText(clean);
+          const clean = line
+            .replace(/^[*+•\d.-]+\s*/, '')
+            .replace(/^"|"$|^'|'$/g, '')
+            .replace(/\*+$/, '')
+            .trim();
+          return cleanSuggestionText(clean);
         })
         .filter(line => line.length > 0)
         .slice(0, 4);
@@ -49,11 +49,11 @@ export function parseSmartOptions(text?: string): { cleanText: string; options: 
   return { cleanText: text, options: [] };
 }
 
-const SmartOptions: React.FC<SmartOptionsProps> = ({ 
-  options, 
+const SmartOptions: React.FC<SmartOptionsProps> = ({
+  options,
   onPreFillInput,
   isRegenerating = false,
-  onRegenerate
+  onRegenerate,
 }) => {
   if (!options || options.length === 0) return null;
 
@@ -64,8 +64,8 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
           💡 Sugestões
         </span>
         {onRegenerate && (
-          <button 
-            onClick={(e) => {
+          <button
+            onClick={e => {
               e.stopPropagation();
               onRegenerate();
             }}
@@ -77,7 +77,7 @@ const SmartOptions: React.FC<SmartOptionsProps> = ({
           </button>
         )}
       </div>
-      
+
       {/* Grid flexível: mobile 1 coluna, tablet 2, desktop 2-3 */}
       <div className="grid w-full min-w-0 grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
         {options.map((option, idx) => (

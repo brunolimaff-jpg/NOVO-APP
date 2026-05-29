@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
@@ -9,9 +9,7 @@ import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
-import {
-  useChatMessageOrchestrator,
-} from './features/chat/message-orchestrator';
+import { useChatMessageOrchestrator } from './features/chat/message-orchestrator';
 import DossierErrorBoundary from './features/dossier/DossierErrorBoundary';
 import { useDossierWaterfallOrchestrator } from './features/dossier/waterfall-orchestrator';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
@@ -22,18 +20,12 @@ import { loadWithChunkRetry } from './utils/chunkRetry';
 import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 
 // Lazy-loaded — não críticos para a primeira paint
-const LoadingSmart = React.lazy(() =>
-  loadWithChunkRetry(() => import('./components/LoadingSmart')),
-);
+const LoadingSmart = React.lazy(() => loadWithChunkRetry(() => import('./components/LoadingSmart')));
 const EmailModal = React.lazy(() =>
-  loadWithChunkRetry(() =>
-    import('./components/EmailModal').then(m => ({ default: m.EmailModal })),
-  ),
+  loadWithChunkRetry(() => import('./components/EmailModal').then(m => ({ default: m.EmailModal }))),
 );
 const FollowUpModal = React.lazy(() =>
-  loadWithChunkRetry(() =>
-    import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal })),
-  ),
+  loadWithChunkRetry(() => import('./components/FollowUpModal').then(m => ({ default: m.FollowUpModal }))),
 );
 const UpdateNotificationModal = React.lazy(() =>
   loadWithChunkRetry(() =>
@@ -55,9 +47,7 @@ function HeroLoadingChunkFallback({ isDarkMode }: { isDarkMode: boolean }) {
     >
       <div
         className={`w-10 h-10 border-4 rounded-full animate-spin ${
-          isDarkMode
-            ? 'border-emerald-500/20 border-t-emerald-500'
-            : 'border-emerald-600/20 border-t-emerald-600'
+          isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'
         }`}
       />
     </div>
@@ -66,10 +56,7 @@ function HeroLoadingChunkFallback({ isDarkMode }: { isDarkMode: boolean }) {
 import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
-import {
-  ExportFormat,
-  ReportType,
-} from './types';
+import { ExportFormat, ReportType } from './types';
 import { generateContinuityQuestion } from './services/geminiService';
 
 import { APP_NAME } from './constants';
@@ -79,17 +66,13 @@ import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
 import { downloadConversationExport, openDossierPrintReport } from './services/exportService';
 import FooterCredits from './components/FooterCredits';
-import {
-  useChatStore,
-} from './stores/chatStore';
-import {
-  useDossierStore,
-} from './stores/dossierStore';
+import { useChatStore } from './stores/chatStore';
+import { useDossierStore } from './stores/dossierStore';
 
 // --- INJETADO ANALYTICS AQUI ---
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from '@vercel/analytics/react';
 // --- INJETADO SPEED INSIGHTS AQUI ---
-import { SpeedInsights } from "@vercel/speed-insights/react";
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const PAGE_SIZE = 20;
 
@@ -99,7 +82,7 @@ function isTopicDeepDiveDisplayMessage(displayMessage: string | undefined): bool
 }
 
 const App: React.FC = () => {
-  const { name: operatorName, operatorId, clearName } = useOperator();
+  const { name: operatorName, operatorId, email, clearName } = useOperator();
   const { mode, systemInstruction } = useMode();
   const { isOnline, wasOffline, clearWasOffline } = useOffline();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -179,16 +162,11 @@ const App: React.FC = () => {
     operatorId,
     operatorName: resolvedOperatorName,
   });
-  const {
-    handleReportError,
-    handleFeedback,
-    handleSendFeedback,
-    handleSectionFeedback,
-    handleToggleMessageSources,
-  } = useChatFeedbackActions({
-    operatorId,
-    operatorName,
-  });
+  const { handleReportError, handleFeedback, handleSendFeedback, handleSectionFeedback, handleToggleMessageSources } =
+    useChatFeedbackActions({
+      operatorId,
+      operatorName,
+    });
 
   useEffect(() => {
     document.title = APP_NAME;
@@ -233,9 +211,16 @@ const App: React.FC = () => {
     canUseLookup,
     toast,
     runMegaPromptWaterfall: dossierWaterfall.runMegaPromptWaterfall,
+    operatorId,
+    email,
   });
 
-  const handleDeepDive = async (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string, cnpj?: string | null) => {
+  const handleDeepDive = async (
+    displayMessage: string,
+    hiddenPrompt: string,
+    forcedCompanyName?: string,
+    cnpj?: string | null,
+  ) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
     const isTopicDeepDive = isTopicDeepDiveDisplayMessage(displayMessage);
@@ -244,6 +229,7 @@ const App: React.FC = () => {
         sessionId: currentSessionId,
         displayMessage,
       });
+      toast.error('Função Deep Dive não está disponível para seu perfil.');
       return;
     }
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
@@ -304,14 +290,16 @@ const App: React.FC = () => {
     const nomeVendedor = resolvedOperatorName;
     const oldSuggestions = Array.isArray(targetMessage.suggestions)
       ? targetMessage.suggestions
-        .filter((item): item is string => typeof item === 'string')
-        .map(item => item.trim())
-        .filter(Boolean)
+          .filter((item): item is string => typeof item === 'string')
+          .map(item => item.trim())
+          .filter(Boolean)
       : [];
 
     updateSessionById(sessionId, session => ({
       ...session,
-      messages: (session.messages || []).map(msg => (msg.id === messageId ? { ...msg, isRegeneratingSuggestions: true } : msg)),
+      messages: (session.messages || []).map(msg =>
+        msg.id === messageId ? { ...msg, isRegeneratingSuggestions: true } : msg,
+      ),
     }));
     try {
       const newSuggestions = await generateContinuityQuestion(
@@ -356,7 +344,9 @@ const App: React.FC = () => {
     try {
       const opened = openDossierPrintReport(allMessages, currentSession?.title);
       if (!opened) {
-        toast.error('Não foi possível abrir a visualização de impressão. Verifique se o navegador bloqueou a nova janela.');
+        toast.error(
+          'Não foi possível abrir a visualização de impressão. Verifique se o navegador bloqueou a nova janela.',
+        );
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao gerar PDF. Tente novamente.';
@@ -364,14 +354,17 @@ const App: React.FC = () => {
     }
   }
 
+  const exportTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleExportConversation = async (format: ExportFormat, reportType: ReportType) => {
     if (!currentSession) return;
+    if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
     setExportStatus('loading');
     setExportError(null);
     try {
       downloadConversationExport(currentSession, format, reportType);
       setExportStatus('success');
-      setTimeout(() => setExportStatus('idle'), 3000);
+      exportTimeoutRef.current = setTimeout(() => setExportStatus('idle'), 3000);
     } catch (error: unknown) {
       setExportError(error instanceof Error ? error.message : 'Falha ao gerar o arquivo.');
       setExportStatus('error');
@@ -422,18 +415,19 @@ const App: React.FC = () => {
       )}
 
       <div
+        data-testid="app-shell"
         className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ChatErrorBoundary isDarkMode={isDarkMode}>
             <ChatInterface
-            currentSession={currentSession}
-            sessions={sessions}
-            onNewSession={handleNewSession}
-            onSelectSession={handleSelectSession}
-            onDeleteSession={handleDeleteSession}
-            isSidebarOpen={isSidebarOpen}
-              onToggleSidebar={() => setIsSidebarOpen((previous) => !previous)}
+              currentSession={currentSession}
+              sessions={sessions}
+              onNewSession={handleNewSession}
+              onSelectSession={handleSelectSession}
+              onDeleteSession={handleDeleteSession}
+              isSidebarOpen={isSidebarOpen}
+              onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
               messages={allMessages.slice(-visibleCount)}
               isLoading={isLoading}
               hasMore={allMessages.length > visibleCount}
@@ -577,7 +571,7 @@ const App: React.FC = () => {
 
       <InstallPrompt />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      
+
       {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
       <Analytics />
       {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}

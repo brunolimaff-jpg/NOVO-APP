@@ -28,7 +28,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           <input
             type="email"
             value={emailTo}
-            onChange={(e) => onEmailToChange(e.target.value)}
+            onChange={e => onEmailToChange(e.target.value)}
             placeholder="Email do destinatário"
             className="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700/50 text-white text-sm focus:outline-none focus:border-emerald-500"
             autoFocus
@@ -36,7 +36,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           <input
             type="text"
             value={emailSubject}
-            onChange={(e) => onEmailSubjectChange(e.target.value)}
+            onChange={e => onEmailSubjectChange(e.target.value)}
             placeholder="Assunto"
             className="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700/50 text-white text-sm focus:outline-none focus:border-emerald-500"
           />

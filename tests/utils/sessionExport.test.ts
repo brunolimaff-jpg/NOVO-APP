@@ -93,14 +93,18 @@ describe('sessionExport', () => {
 
   it('importa sessões para o storage v2 como JSON', async () => {
     const session = makeSession({ id: 'imported-session' });
-    const file = new File([
-      JSON.stringify({
-        version: '1.0',
-        exportDate: '2024-01-03T00:00:00.000Z',
-        sessionCount: 1,
-        sessions: [session],
-      }),
-    ], 'backup.json', { type: 'application/json' });
+    const file = new File(
+      [
+        JSON.stringify({
+          version: '1.0',
+          exportDate: '2024-01-03T00:00:00.000Z',
+          sessionCount: 1,
+          sessions: [session],
+        }),
+      ],
+      'backup.json',
+      { type: 'application/json' },
+    );
 
     await expect(importSessionsFromJSON(file)).resolves.toMatchObject({
       sessionCount: 1,
@@ -120,14 +124,18 @@ describe('sessionExport', () => {
     });
     const restoreStorage = replaceWindowLocalStorage(storage);
 
-    const file = new File([
-      JSON.stringify({
-        version: '1.0',
-        exportDate: '2024-01-03T00:00:00.000Z',
-        sessionCount: 1,
-        sessions: [session],
-      }),
-    ], 'backup.json', { type: 'application/json' });
+    const file = new File(
+      [
+        JSON.stringify({
+          version: '1.0',
+          exportDate: '2024-01-03T00:00:00.000Z',
+          sessionCount: 1,
+          sessions: [session],
+        }),
+      ],
+      'backup.json',
+      { type: 'application/json' },
+    );
 
     try {
       await expect(importSessionsFromJSON(file)).resolves.toMatchObject({

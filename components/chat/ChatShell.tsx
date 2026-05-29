@@ -80,26 +80,31 @@ const ChatShell: React.FC<ChatShellProps> = ({
 
   return (
     <div data-testid="messages-scroller" className={`flex flex-1 min-h-0 overflow-hidden ${theme.bg}`}>
-      <SessionsSidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSelectSession={(sessionId) => {
-          onSelectSession(sessionId);
-          closeSidebarOnMobile();
-        }}
-        onNewSession={onNewSession}
-        onDeleteSession={onDeleteSession}
-        isOpen={isSidebarOpen}
-        onCloseMobile={closeSidebarOnMobile}
-        isDarkMode={isDarkMode}
-        searchTerm={sessionSearchTerm}
-        onSearchChange={setSessionSearchTerm}
-        showSearchField
-        toggleButtonRef={sidebarToggleRef}
-      />
+      <div data-testid="session-sidebar">
+        <SessionsSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          onSelectSession={sessionId => {
+            onSelectSession(sessionId);
+            closeSidebarOnMobile();
+          }}
+          onNewSession={onNewSession}
+          onDeleteSession={onDeleteSession}
+          isOpen={isSidebarOpen}
+          onCloseMobile={closeSidebarOnMobile}
+          isDarkMode={isDarkMode}
+          searchTerm={sessionSearchTerm}
+          onSearchChange={setSessionSearchTerm}
+          showSearchField
+          toggleButtonRef={sidebarToggleRef}
+        />
+      </div>
 
       <main data-testid="chat-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}>
+        <header
+          data-testid="app-header"
+          className={`flex items-center justify-between px-3 py-2 border-b flex-none ${theme.surface} ${theme.border}`}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <Tooltip label={isSidebarOpen ? 'Fechar painel lateral' : 'Abrir painel lateral'} position="bottom">
               <button
@@ -122,14 +127,21 @@ const ChatShell: React.FC<ChatShellProps> = ({
               </button>
             </Tooltip>
 
-            <div className="flex items-center gap-2 min-w-0">
-              <span data-testid="chat-header-breadcrumb-home" className={`text-sm font-semibold ${currentSessionId ? 'cursor-pointer hover:opacity-75 transition-opacity' : ''} ${theme.textPrimary}`} onClick={() => currentSessionId && onNewSession()}>
+            <div data-testid="app-breadcrumb" className="flex items-center gap-2 min-w-0">
+              <span
+                data-testid="chat-header-breadcrumb-home"
+                className={`text-sm font-semibold ${currentSessionId ? 'cursor-pointer hover:opacity-75 transition-opacity' : ''} ${theme.textPrimary}`}
+                onClick={() => currentSessionId && onNewSession()}
+              >
                 Scout 360
               </span>
               {currentSessionId && (
                 <>
                   <span className={`text-sm ${theme.textSecondary}`}>→</span>
-                  <span data-testid="chat-header-breadcrumb-session" className={`text-sm font-semibold truncate ${theme.textPrimary}`}>
+                  <span
+                    data-testid="chat-header-breadcrumb-session"
+                    className={`text-sm font-semibold truncate ${theme.textPrimary}`}
+                  >
                     {displayTitle}
                   </span>
                 </>
@@ -165,9 +177,11 @@ const ChatShell: React.FC<ChatShellProps> = ({
                   title="War Room"
                   aria-label="Abrir War Room"
                 >
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
-                    isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
-                  }`} />
+                  <div
+                    className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
+                      isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
+                    }`}
+                  />
                   <div className="relative flex items-center justify-center">
                     <img
                       data-testid="chat-war-room-icon"
@@ -189,7 +203,7 @@ const ChatShell: React.FC<ChatShellProps> = ({
               exportStatus={exportStatus}
             />
 
-<Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
+            <Tooltip label={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'} position="bottom">
               <button
                 data-testid="chat-theme-toggle"
                 type="button"
@@ -199,11 +213,21 @@ const ChatShell: React.FC<ChatShellProps> = ({
               >
                 {isDarkMode ? (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
                   </svg>
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                    />
                   </svg>
                 )}
               </button>

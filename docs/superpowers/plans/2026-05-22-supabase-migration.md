@@ -14,25 +14,26 @@
 
 ## Arquivos Criados/Modificados
 
-| Acao | Arquivo | Responsabilidade |
-|------|---------|-----------------|
-| Create | `lib/supabaseClient.ts` | Cliente Supabase browser (anon key) |
-| Create | `services/storage.ts` | Interface unificada de storage (Supabase + IDB) |
-| Create | `services/syncQueue.ts` | Fila offline com retry automatico |
-| Create | `tests/services/storage.test.ts` | Testes do storage |
-| Create | `tests/services/syncQueue.test.ts` | Testes da fila de sync |
-| Modify | `hooks/useSessionStorage.ts` | Trocar idb-keyval por storage.ts |
-| Modify | `features/radar/useRadar.ts` | Trocar idb-keyval por storage.ts |
-| Modify | `services/extractContentService.ts` | Trocar idb-keyval por storage.ts |
-| Modify | `contexts/OperatorContext.tsx` | Adicionar campo email + salvar no Supabase |
-| Modify | `.env.example` | Adicionar vars Supabase |
-| Modify | `package.json` | Adicionar @supabase/supabase-js |
+| Acao   | Arquivo                             | Responsabilidade                                |
+| ------ | ----------------------------------- | ----------------------------------------------- |
+| Create | `lib/supabaseClient.ts`             | Cliente Supabase browser (anon key)             |
+| Create | `services/storage.ts`               | Interface unificada de storage (Supabase + IDB) |
+| Create | `services/syncQueue.ts`             | Fila offline com retry automatico               |
+| Create | `tests/services/storage.test.ts`    | Testes do storage                               |
+| Create | `tests/services/syncQueue.test.ts`  | Testes da fila de sync                          |
+| Modify | `hooks/useSessionStorage.ts`        | Trocar idb-keyval por storage.ts                |
+| Modify | `features/radar/useRadar.ts`        | Trocar idb-keyval por storage.ts                |
+| Modify | `services/extractContentService.ts` | Trocar idb-keyval por storage.ts                |
+| Modify | `contexts/OperatorContext.tsx`      | Adicionar campo email + salvar no Supabase      |
+| Modify | `.env.example`                      | Adicionar vars Supabase                         |
+| Modify | `package.json`                      | Adicionar @supabase/supabase-js                 |
 
 ---
 
 ## Task 1: Setup Supabase — Projeto + Dependencias
 
 **Files:**
+
 - Modify: `package.json`
 - Modify: `.env.example`
 - Create: `lib/supabaseClient.ts`
@@ -70,9 +71,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('[Supabase] Variaveis de ambiente ausentes. Storage remoto desativado.');
 }
 
-export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export function isSupabaseAvailable(): boolean {
   return supabase !== null;
@@ -82,6 +81,7 @@ export function isSupabaseAvailable(): boolean {
 - [ ] **Step 4: Criar projeto Supabase no dashboard**
 
 Acao manual:
+
 1. Acessar https://supabase.com/dashboard
 2. Criar novo projeto (nome: `scout360`, regiao: sao-paulo)
 3. Anotar `Project URL` e `anon public` key
@@ -99,6 +99,7 @@ git commit -m "feat: add Supabase client and env vars"
 ## Task 2: Schema Supabase — Tabelas + RLS
 
 **Files:**
+
 - Nenhum arquivo local (SQL executado no Supabase Dashboard → SQL Editor)
 
 - [ ] **Step 1: Criar tabelas no SQL Editor do Supabase**
@@ -299,6 +300,7 @@ git commit -m "docs: add Supabase schema SQL for reference"
 ## Task 3: Sync Queue — Fila Offline
 
 **Files:**
+
 - Create: `services/syncQueue.ts`
 - Create: `tests/services/syncQueue.test.ts`
 
@@ -378,9 +380,7 @@ class SyncQueue {
   private queue: SyncOperation[] = [];
 
   enqueue(op: SyncOperation): void {
-    const existing = this.queue.findIndex(
-      (q) => q.table === op.table && q.id === op.id && op.id !== undefined
-    );
+    const existing = this.queue.findIndex(q => q.table === op.table && q.id === op.id && op.id !== undefined);
     if (existing >= 0) {
       this.queue[existing] = { ...op, attempts: 0 };
     } else {
@@ -415,7 +415,7 @@ class SyncQueue {
 
   async processAll(
     executor: (op: SyncOperation) => Promise<void>,
-    opts: { maxRetries?: number; backoffMs?: number } = {}
+    opts: { maxRetries?: number; backoffMs?: number } = {},
   ): Promise<void> {
     const { maxRetries = MAX_RETRIES, backoffMs = BACKOFF_MS } = opts;
     const failed: SyncOperation[] = [];
@@ -428,7 +428,7 @@ class SyncQueue {
         const attempts = (op.attempts ?? 0) + 1;
         if (attempts < maxRetries) {
           failed.push({ ...op, attempts });
-          await new Promise((r) => setTimeout(r, backoffMs * attempts));
+          await new Promise(r => setTimeout(r, backoffMs * attempts));
         } else {
           console.error(`[SyncQueue] Falha definitiva para ${op.table}:${op.id}`, err);
         }
@@ -460,6 +460,7 @@ git commit -m "feat: add offline sync queue with retry and IDB persistence"
 ## Task 4: Storage — Interface Unificada
 
 **Files:**
+
 - Create: `services/storage.ts`
 - Create: `tests/services/storage.test.ts`
 
@@ -631,13 +632,13 @@ const storage = {
 
   async getDossier(id: string): Promise<ChatSession | null> {
     const sessions = await getLocalSessions();
-    return sessions.find((s) => s.id === id) ?? null;
+    return sessions.find(s => s.id === id) ?? null;
   },
 
   async saveDossier(session: ChatSession): Promise<void> {
     // 1. Salvar localmente (instantaneo)
     const sessions = await getLocalSessions();
-    const idx = sessions.findIndex((s) => s.id === session.id);
+    const idx = sessions.findIndex(s => s.id === session.id);
     if (idx >= 0) {
       sessions[idx] = session;
     } else {
@@ -668,7 +669,7 @@ const storage = {
   async deleteDossier(id: string): Promise<void> {
     // Soft delete local + Supabase
     const sessions = await getLocalSessions();
-    const filtered = sessions.filter((s) => s.id !== id);
+    const filtered = sessions.filter(s => s.id !== id);
     await setLocalSessions(filtered);
 
     syncQueue.enqueue({
@@ -775,15 +776,24 @@ const storage = {
 
   // --- Audit Log ---
 
-  async logAudit(action: string, targetType?: string, targetId?: string, metadata?: Record<string, unknown>): Promise<void> {
+  async logAudit(
+    action: string,
+    targetType?: string,
+    targetId?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
     if (!isSupabaseAvailable()) return;
-    supabase?.from('audit_log').insert({
-      operator_id: getOperatorId(),
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      metadata: metadata ?? {},
-    }).then(() => {}).catch(() => {});
+    supabase
+      ?.from('audit_log')
+      .insert({
+        operator_id: getOperatorId(),
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        metadata: metadata ?? {},
+      })
+      .then(() => {})
+      .catch(() => {});
   },
 
   // --- Favorites ---
@@ -810,11 +820,7 @@ const storage = {
   },
 
   async removeFavorite(cnpj: string): Promise<void> {
-    await supabase!
-      .from('favorites')
-      .delete()
-      .eq('operator_id', getOperatorId()!)
-      .eq('cnpj', cnpj);
+    await supabase!.from('favorites').delete().eq('operator_id', getOperatorId()!).eq('cnpj', cnpj);
   },
 
   // --- Shared Dossiers ---
@@ -860,7 +866,7 @@ const storage = {
     if (!isSupabaseAvailable()) return;
     await syncQueue.load();
 
-    await syncQueue.processAll(async (op) => {
+    await syncQueue.processAll(async op => {
       const { table, operation, data } = op;
       if (operation === 'upsert') {
         const { error } = await supabase!.from(table).upsert(data);
@@ -893,6 +899,7 @@ git commit -m "feat: add unified storage layer with Supabase + IDB offline"
 ## Task 5: Migrar useSessionStorage (Dossies)
 
 **Files:**
+
 - Modify: `hooks/useSessionStorage.ts`
 
 - [ ] **Step 1: Substituir imports idb-keyval por storage**
@@ -963,6 +970,7 @@ git commit -m "feat: migrate useSessionStorage from idb-keyval to storage.ts"
 ## Task 6: Migrar useRadar (Radar)
 
 **Files:**
+
 - Modify: `features/radar/useRadar.ts`
 
 - [ ] **Step 1: Substituir imports**
@@ -981,16 +989,16 @@ import { storage } from '../../services/storage';
 
 Mapeamento direto:
 
-| Antes (idb-keyval) | Depois (storage) |
-|--------------------|--------------------|
-| `get<RadarAlert[]>(IDB_ALERTS_KEY)` | `storage.getRadarAlerts()` |
-| `get<RadarConfig>(IDB_CONFIG_KEY)` | `storage.getRadarConfig()` |
-| `get<number>(IDB_LAST_SCAN_KEY)` | `storage.getRadarLastScan()` |
-| `get<string \| null>(IDB_META_INSIGHT_KEY)` | `storage.getRadarMetaInsight()` |
-| `set(IDB_ALERTS_KEY, data)` | `storage.saveRadarAlerts(data)` |
-| `set(IDB_CONFIG_KEY, data)` | `storage.saveRadarConfig(data)` |
-| `set(IDB_LAST_SCAN_KEY, ts)` | `storage.saveRadarLastScan(ts)` |
-| `set(IDB_META_INSIGHT_KEY, insight)` | `storage.saveRadarMetaInsight(insight)` |
+| Antes (idb-keyval)                          | Depois (storage)                        |
+| ------------------------------------------- | --------------------------------------- |
+| `get<RadarAlert[]>(IDB_ALERTS_KEY)`         | `storage.getRadarAlerts()`              |
+| `get<RadarConfig>(IDB_CONFIG_KEY)`          | `storage.getRadarConfig()`              |
+| `get<number>(IDB_LAST_SCAN_KEY)`            | `storage.getRadarLastScan()`            |
+| `get<string \| null>(IDB_META_INSIGHT_KEY)` | `storage.getRadarMetaInsight()`         |
+| `set(IDB_ALERTS_KEY, data)`                 | `storage.saveRadarAlerts(data)`         |
+| `set(IDB_CONFIG_KEY, data)`                 | `storage.saveRadarConfig(data)`         |
+| `set(IDB_LAST_SCAN_KEY, ts)`                | `storage.saveRadarLastScan(ts)`         |
+| `set(IDB_META_INSIGHT_KEY, insight)`        | `storage.saveRadarMetaInsight(insight)` |
 
 Remover constantes de IDB keys (agora estao dentro do storage).
 
@@ -1014,6 +1022,7 @@ git commit -m "feat: migrate useRadar from idb-keyval to storage.ts"
 ## Task 7: Migrar extractContentService (Cache)
 
 **Files:**
+
 - Modify: `services/extractContentService.ts`
 
 - [ ] **Step 1: Substituir imports**
@@ -1030,10 +1039,10 @@ import { storage } from './storage';
 
 - [ ] **Step 2: Substituir chamadas**
 
-| Antes | Depois |
-|-------|--------|
-| `get<{ result: ExtractResult; timestamp: number }>(dbKey)` | `storage.getExtractCache(cacheKey)` |
-| `set(dbKey, { result, timestamp: Date.now() })` | `storage.saveExtractCache(cacheKey, result)` |
+| Antes                                                      | Depois                                       |
+| ---------------------------------------------------------- | -------------------------------------------- |
+| `get<{ result: ExtractResult; timestamp: number }>(dbKey)` | `storage.getExtractCache(cacheKey)`          |
+| `set(dbKey, { result, timestamp: Date.now() })`            | `storage.saveExtractCache(cacheKey, result)` |
 
 Remover `DB_PREFIX` e `CACHE_TTL` (agora o storage gerencia).
 
@@ -1056,6 +1065,7 @@ git commit -m "feat: migrate extractContentService from idb-keyval to storage.ts
 ## Task 8: Cadastro Simples (Nome + Email)
 
 **Files:**
+
 - Modify: `contexts/OperatorContext.tsx`
 
 - [ ] **Step 1: Adicionar campo email ao OperatorContext**
@@ -1118,6 +1128,7 @@ git commit -m "feat: add email field to operator registration with Supabase sync
 ## Task 9: Sync Indicator (Badge Visual)
 
 **Files:**
+
 - Create: `components/SyncIndicator.tsx`
 - Modify: componente de layout que contem o header/status bar
 
@@ -1197,6 +1208,7 @@ git commit -m "feat: add sync status indicator badge"
 ## Task 10: Integration Test — Cenario Offline/Online
 
 **Files:**
+
 - Create: `tests/integration/supabase-sync.test.ts`
 
 - [ ] **Step 1: Escrever teste de integracao**

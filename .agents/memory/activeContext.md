@@ -1,40 +1,57 @@
 # Active Context
 
-Last updated: 2026-05-27 (PR #302 pronta para merge)
+Last updated: 2026-05-29 15:30 (PR #312 mergeada)
 
 ## Boot
 
 1. Bruno Vault: `00-MASTER.md` -> `MOC-Licoes.md` -> `10-PROJETOS/NOVO-APP.md`
 2. `HANDOFF_AI.md` -> este arquivo -> `progress.md`
-3. Vault sessao: `20-SESSOES/2026-05/2026-05-27T14-00-00-dossier-link-integrity-fontes-pr301.md`
 
 ## Fase atual
 
-**PR #302 PRONTA PARA MERGE** — `perf/dossier-link-integrity-and-memo`
+**PR #312 mergeada.** Branch `feat/dossier-tracking-events` fechada.
+Main local desatualizada (git pull pendente).
+Branch `feat/crm-supabase-migration` com WIP existente.
+**Proximo passo: git pull origin main + deletar branch local + definir prioridade (P0 withTimeout vs CRM migration).**
 
-### Entregue na PR
+### PR #312 — dossier-tracking-events
 
-| Commit | Resumo |
-|--------|--------|
-| `8cdc326` | perf: otimiza dossierLinkIntegrity com lookup O(1) e adiciona React.memo |
-| `7f098e8` | fix: resolve 3 review comments da PR #302 + causa raiz do freeze 95% |
-| `f3679b7` | fix: previne tela branca apos geracao do dossier |
+| Item                                  | Status                        |
+| ------------------------------------- | ----------------------------- |
+| Branch `feat/dossier-tracking-events` | **MERGED** (commit `c35b45b`) |
+| trackOperatorEvent fire-and-forget    | Em producao                   |
+| Bug stale closure (deps array)        | Corrigido (commit `fd344a1`)  |
+| Bug LoadingSmart travado benchmark    | Corrigido (commit `e67adf2`)  |
+| Local main desatualizada              | Pendente (git pull)           |
 
-### Otimizacoes
-- `dossierLinkIntegrity.ts`: `buildPoolLookupMap()` pré-constrói Map lookup (prefixo título → URL, hostname → URL)
-- `LoadingSmart.tsx`: `React.memo`, `processingKey` como concatenação de string (não useMemo)
-- `InvestigationDashboard.tsx`: `React.memo` para evitar re-renders
-- `shouldSuspendVirtualizedList`: comparação explícita `=== 'hero'` (removida coerção `?? 'hero'`)
-- Fix tela branca: libera timeline sob overlay quando dossier final já existe
+### Pendencias da sessao anterior (PR #309 merge)
 
-### Review comments resolvidos (Gemini Code Assist)
-1. Falsos positivos com chaves curtas: `title.length >= 3` e `host.length >= 3` no `buildPoolLookupMap`
-2. useMemo desnecessário: trocado por concatenação direta de string em `processingKey`
-3. Comentário O(1) vs O(N): JSDoc atualizado para refletir que lookup é O(N) por link
+| Item                                                      | Status                          |
+| --------------------------------------------------------- | ------------------------------- |
+| P0 withTimeout AbortSignal (api/gemini.ts:416, :491)      | **NAO CORRIGIDO** — documentado |
+| Unique constraint `email_normalized` no Supabase          | Pendente                        |
+| Branch residual `fix/gemini-billing-error-classification` | Verificar                       |
+
+### Validacao
+
+- `tsc --noEmit`: limpo (ultima execucao conhecida)
+- `npm test`: 142/142 files, 1242/1242 testes (100%)
+- Preview Vercel: travamento benchmark corrigido, loading funciona
+
+## Proximo passo
+
+1. `git pull origin main` para sincronizar main local
+2. `git branch -d feat/dossier-tracking-events` (branch ja mergeada)
+3. Definir prioridade:
+   - **Opcao A:** Corrigir P0 withTimeout + AbortSignal (api/gemini.ts:416, :491)
+   - **Opcao B:** Iniciar CRM Supabase migration (plano em `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`)
+4. Rodar `git log main..HEAD --oneline` em qualquer branch nova a cada 5 commits
 
 ## Ponteiros
 
-- PR #302: https://github.com/brunolimaff-jpg/NOVO-APP/pull/302
-- `utils/dossierLinkIntegrity.ts`, `components/LoadingSmart.tsx`
 - `HANDOFF_AI.md`
+- Vault: `2026-05-29T15-30-00-fechamento-pr312-dossier-tracking-events.md`
+- Vault (abertura PR #312): `2026-05-29T15-00-00-fechamento-pr311-pr312-supabase-cleanup.md`
+- Plano CRM: `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`
+- P0 withTimeout: `30-DECISOES/ACHADO-P0-WITHTIMEOUT-ABORTSIGNAL-2026-05-28.md`
 - `CALIBER_LEARNINGS.md`

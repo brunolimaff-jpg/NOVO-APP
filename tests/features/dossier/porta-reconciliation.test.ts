@@ -66,11 +66,13 @@ describe('porta-reconciliation', () => {
     const unresolved = `
 Texto consolidado sem marcador explícito.
 `;
-    expect(() => ensureWaterfallScorePorta(unresolved, {
-      score: null,
-      source: 'none',
-      missingDimensions: ['P', 'O', 'R', 'T', 'A'],
-    })).toThrow('Score PORTA não pôde ser consolidado após todas as tentativas.');
+    expect(() =>
+      ensureWaterfallScorePorta(unresolved, {
+        score: null,
+        source: 'none',
+        missingDimensions: ['P', 'O', 'R', 'T', 'A'],
+      }),
+    ).toThrow('Score PORTA não pôde ser consolidado após todas as tentativas.');
   });
 
   it('não transforma falha parcial de PORTA em hold de integridade', async () => {
@@ -105,7 +107,11 @@ Texto consolidado sem marcador explícito.
     expect(ensuredEmpty.every(item => item.endsWith('?'))).toBe(true);
     expect(ensuredEmpty.some(item => /Scheffer/i.test(item))).toBe(true);
     expect(ensuredEmpty).not.toEqual(legacyFallbackSuggestions);
-    expect(ensuredEmpty.some(item => /decis[aã]o|investimento|dinheiro|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
+    expect(
+      ensuredEmpty.some(item =>
+        /decis[aã]o|investimento|dinheiro|margem|custo|risco|diretoria|or[cç]amento/i.test(item),
+      ),
+    ).toBe(true);
 
     const ensuredPartial = ensureContinuitySuggestions(['Qual risco operacional já está escalando?'], 'Scheffer', {
       contextText,
@@ -134,7 +140,8 @@ Texto consolidado sem marcador explícito.
       ],
       'Scheffer',
       {
-        contextText: 'A conta tem pressão de margem, crescimento da operação, logística manual e decisão de investimento em aberto.',
+        contextText:
+          'A conta tem pressão de margem, crescimento da operação, logística manual e decisão de investimento em aberto.',
       },
     );
 

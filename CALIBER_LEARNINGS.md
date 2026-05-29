@@ -33,6 +33,20 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
 - `?? 'hero'` em `loadingVariant`: coerção de `undefined` para valor padrão ignora semântica do nulo; comparar explicitamente com `=== 'hero'`
 - `useMemo` para strings primitivas: desnecessário e mais complexo que concatenação direta de string — React já compara `===` em deps de useEffect
 
+- **Benchmark timeout reduzido para 20s** [performance, benchmark, timeout]
+  `MODULAR_BENCHMARK_TIMEOUT_MS` de 45000 para 20000. Benchmark e etapa opcional — timeout curto evita travamento do loading.
+
+- **completeLoadingProgress() no finally** [loading, react, safe]
+  `setIsLoading(false)` no finally nao basta: o progress tracker interno do LoadingSmart precisa ser resetado com `completeLoadingProgress()`. Sem isso, o proximo request herda estado zumbi.
+
+- **Timeout aninhado multiplica tempo real** [api, timeout, anti-pattern]
+  Camadas de retry (fetchWithRetry 3x, cold-start, withAutoRetry 3x) acumulam delay mesmo com timeout externo. Cada camada adiciona seu proprio tempo de execucao. Para etapas opcionais, 1 tentativa com timeout curto e melhor que multiplos retries.
+
+- **Preview Vercel revela bugs de rede que testes nao pegam** [testing, deploy, vercel]
+  Travamento do LoadingSmart so apareceu no preview Vercel. Testes unitarios nao cobrem comportamento real de HTTP (benchmark lento, cold-start). Preview deploy e gate obrigatorio antes de merge.
+
 <!-- caliber:managed:learnings -->
+
 _Atualizado automaticamente pelo Caliber após sessões de agente._
+
 <!-- /caliber:managed:learnings -->

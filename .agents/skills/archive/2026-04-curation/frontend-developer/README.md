@@ -43,4 +43,4 @@ platform is the foundation.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/frontend-developer)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/frontend-developer)_

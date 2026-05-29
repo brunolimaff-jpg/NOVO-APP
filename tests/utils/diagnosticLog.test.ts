@@ -55,10 +55,7 @@ describe('scoutDiag', () => {
 
     it('serializa details com safeDetails', () => {
       scoutDiag.warn('Scope', 'msg', { count: 42 });
-      expect(consoleSpy.warn).toHaveBeenCalledWith(
-        expect.stringContaining('[Scope]'),
-        expect.anything(),
-      );
+      expect(consoleSpy.warn).toHaveBeenCalledWith(expect.stringContaining('[Scope]'), expect.anything());
     });
 
     it('serializa Error dentro de details', () => {

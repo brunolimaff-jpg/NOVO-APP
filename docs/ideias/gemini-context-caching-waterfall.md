@@ -6,10 +6,10 @@
 
 ## Ativação
 
-| Ambiente | Variável | Valor |
-|----------|----------|-------|
-| Serverless (`api/gemini.ts`) | `GEMINI_FOUNDATION_CACHE_ENABLED` | `1` |
-| Frontend (waterfall) | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` | `1` |
+| Ambiente                     | Variável                               | Valor |
+| ---------------------------- | -------------------------------------- | ----- |
+| Serverless (`api/gemini.ts`) | `GEMINI_FOUNDATION_CACHE_ENABLED`      | `1`   |
+| Frontend (waterfall)         | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` | `1`   |
 
 Com a flag desligada (default), o waterfall mantém o comportamento anterior (systemInstruction monolítico).
 
@@ -63,11 +63,11 @@ Redução total: ~70% nos tokens repetidos
 
 ### Preço do Cache (Gemini)
 
-| Operação | Preço (Flash) |
-|----------|--------------|
-| Cache write | $0.075/1M tokens |
-| Cache hit | $0.01875/1M tokens (25% do preço cheio) |
-| Armazenamento | $0.25/1M tokens/hora |
+| Operação      | Preço (Flash)                           |
+| ------------- | --------------------------------------- |
+| Cache write   | $0.075/1M tokens                        |
+| Cache hit     | $0.01875/1M tokens (25% do preço cheio) |
+| Armazenamento | $0.25/1M tokens/hora                    |
 
 Para 15K tokens cacheados por 1 hora: ~$0.00375 de armazenamento.
 
@@ -97,13 +97,14 @@ TTL configurado em **600s** (`WATERFALL_FOUNDATION_CACHE_TTL`) — waterfall + t
 
 ## Ganho
 
-| Cenário | Tokens/dossiê | Custo/dossiê (Flash) |
-|---------|--------------|---------------------|
-| Hoje | 109K | $0.0082 |
-| Com cache | 109K (mas 105K com 75% desconto) | ~$0.0032 |
-| **Redução** | — | **-61%** |
+| Cenário     | Tokens/dossiê                    | Custo/dossiê (Flash) |
+| ----------- | -------------------------------- | -------------------- |
+| Hoje        | 109K                             | $0.0082              |
+| Com cache   | 109K (mas 105K com 75% desconto) | ~$0.0032             |
+| **Redução** | —                                | **-61%**             |
 
 Se escalar pra 500 dossiês/dia (Demand Intelligence):
+
 - Hoje: ~$4.10/dia → $90/mês
 - Com cache: ~$1.60/dia → $35/mês
 - **Economia: $55/mês**

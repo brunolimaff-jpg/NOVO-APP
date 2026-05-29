@@ -3,6 +3,7 @@
 Data da validação: 2026-03-20
 
 Escopo auditado:
+
 - `.agents/skills/api-design`
 - `.agents/skills/clean-code`
 - `.agents/skills/codedocs`
@@ -28,6 +29,7 @@ Comando executado (pre-scan mecânico):
 - Baixo: alguns (`oversized-reference` e `oversized-skill-md`)
 
 Status operacional adotado:
+
 - **Permitido com exceções registradas** (não bloqueante).
 
 ## Achados e decisão
@@ -35,28 +37,34 @@ Status operacional adotado:
 ### 1) Alto: `encoded-content` em `api-design/SKILL.md` (linha 195)
 
 Evidência:
+
 - `'422': { $ref: '#/components/responses/UnprocessableEntity' }`
 
 Conclusão:
+
 - **Falso positivo** do detector heurístico (trecho de OpenAPI, não payload codificado).
 - Sem ação bloqueante.
 
 ### 2) Médios: `phantom-dependency` em `recommended_skills`
 
 Padrão observado:
+
 - Dependências recomendadas não instaladas localmente (ex.: `code-review-mastery`, `system-design`, `agile-scrum`, `sentry`).
 
 Conclusão:
+
 - Tratar como lacuna de cobertura opcional, não como comprometimento direto.
 - Ação sugerida: instalar companions conforme necessidade real do fluxo.
 
 ### 3) Baixos: tamanho de referências/arquivo principal
 
 Padrão observado:
+
 - Alguns `references/*.md` com > 400 linhas.
 - `superhuman/SKILL.md` com > 500 linhas.
 
 Conclusão:
+
 - Risco de contexto/performance, sem impacto imediato de segurança.
 - Sem bloqueio.
 

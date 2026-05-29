@@ -44,9 +44,7 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, isComplete, i
         >
           {isComplete ? '✅' : icon}
         </motion.span>
-        <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-slate-700'}`}>
-          {status}
-        </span>
+        <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-slate-700'}`}>{status}</span>
         {!isComplete && (
           <motion.div
             animate={{ opacity: [0.5, 1, 0.5] }}
@@ -70,10 +68,10 @@ interface InvestigationProgressProps {
   isDarkMode?: boolean;
 }
 
-export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({ 
-  statuses, 
+export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
+  statuses,
   currentStatus,
-  isDarkMode = true 
+  isDarkMode = true,
 }) => {
   const allSteps = [
     'Consultando base de clientes',
@@ -88,10 +86,12 @@ export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
   ];
 
   return (
-    <div className={`
+    <div
+      className={`
       flex items-center gap-1 p-2 rounded-lg overflow-x-auto
       ${isDarkMode ? 'bg-slate-800/50' : 'bg-slate-100'}
-    `}>
+    `}
+    >
       {allSteps.map((step, index) => {
         const isComplete = statuses.includes(step);
         const isCurrent = currentStatus === step;
@@ -107,9 +107,13 @@ export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
               flex items-center gap-1 px-2 py-1 rounded text-[10px] whitespace-nowrap
               ${isComplete ? 'bg-green-500/20 text-green-400' : ''}
               ${isCurrent ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500' : ''}
-              ${!isComplete && !isCurrent 
-                ? isDarkMode ? 'bg-slate-700/50 text-gray-500' : 'bg-slate-200 text-slate-400' 
-                : ''}
+              ${
+                !isComplete && !isCurrent
+                  ? isDarkMode
+                    ? 'bg-slate-700/50 text-gray-500'
+                    : 'bg-slate-200 text-slate-400'
+                  : ''
+              }
             `}
           >
             <span>{isComplete ? '✓' : icon}</span>

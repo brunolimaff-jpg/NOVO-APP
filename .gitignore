@@ -29,9 +29,14 @@ dist-ssr
 
 # Local agent/cursor artifacts
 .cursor/
+.kilo/
+.playwright-mcp/
 
 # Local presentation/export artifacts
 NOVO-APP/
+
+# Backup artifacts
+backup/
 
 # TokenMiser cache
 .tokenmiser/

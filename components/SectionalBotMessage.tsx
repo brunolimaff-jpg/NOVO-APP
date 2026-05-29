@@ -71,7 +71,13 @@ const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isD
     >
       {copied ? (
         <>
-          <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <svg
+            className="w-3.5 h-3.5 text-emerald-500"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           <span className="text-emerald-500">Copiado!</span>
@@ -128,9 +134,11 @@ function shouldShowSectionFeedback(title: string): boolean {
 function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | null): boolean {
   if (!cnpj) return false;
   const normalized = normalizeFeedbackSectionTitle(`${title}\n${content}`);
-  return normalized.includes('teia societaria')
-    || normalized.includes('mapa de poder societario')
-    || normalized.includes('mapa do poder societario');
+  return (
+    normalized.includes('teia societaria') ||
+    normalized.includes('mapa de poder societario') ||
+    normalized.includes('mapa do poder societario')
+  );
 }
 
 /**
@@ -140,10 +148,7 @@ function shouldShowSocietaryMap(title: string, content: string, cnpj?: string | 
  * Fallback seguro: se qualquer fonte tiver `contexts` vazio, retorna
  * todas as fontes (comportamento original).
  */
-function filterSourcesForSection(
-  sources: AuditableSource[],
-  sectionContent: string,
-): AuditableSource[] {
+function filterSourcesForSection(sources: AuditableSource[], sectionContent: string): AuditableSource[] {
   if (!sources || sources.length === 0) return [];
   if (!sectionContent) return sources;
 
@@ -177,10 +182,7 @@ function stripSocietaryMapDuplicates(markdown: string): string {
   for (const line of lines) {
     const normalized = normalizeFeedbackSectionTitle(line);
     if (/^#{1,6}\s+/.test(line)) {
-      if (
-        normalized.includes('mapa de poder societario')
-        || normalized.includes('mapa do poder societario')
-      ) {
+      if (normalized.includes('mapa de poder societario') || normalized.includes('mapa do poder societario')) {
         skipping = true;
         continue;
       }
@@ -191,7 +193,10 @@ function stripSocietaryMapDuplicates(markdown: string): string {
     if (!skipping) output.push(line);
   }
 
-  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return output
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function stripTabelaMestreCnpjs(markdown: string): string {
@@ -203,10 +208,7 @@ function stripTabelaMestreCnpjs(markdown: string): string {
     const line = lines[i];
     const normalized = normalizeFeedbackSectionTitle(line);
 
-    if (
-      normalized.includes('tabela mestre de cnpjs')
-      || normalized.includes('tabela mestra de cnpjs')
-    ) {
+    if (normalized.includes('tabela mestre de cnpjs') || normalized.includes('tabela mestra de cnpjs')) {
       skipping = true;
       continue;
     }
@@ -226,7 +228,10 @@ function stripTabelaMestreCnpjs(markdown: string): string {
     }
   }
 
-  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return output
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function stripUnsafeSocietarySections(markdown: string): string {
@@ -250,8 +255,8 @@ function stripUnsafeSocietarySections(markdown: string): string {
       }
 
       if (
-        normalizedTitle.includes('outros cnpjs onde o socio aparece')
-        || normalizedTitle.includes('alertas de validacao societaria')
+        normalizedTitle.includes('outros cnpjs onde o socio aparece') ||
+        normalizedTitle.includes('alertas de validacao societaria')
       ) {
         skippingLevel = level;
         continue;
@@ -262,7 +267,10 @@ function stripUnsafeSocietarySections(markdown: string): string {
     output.push(line);
   }
 
-  return output.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return output
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
@@ -276,9 +284,9 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   hideSuggestions = false,
   empresaAlvo,
   cnpj,
-  auditableSources = []
+  auditableSources = [],
 }) => {
-  const content = message.text || "";
+  const content = message.text || '';
 
   const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
   const displayText = useMemo(() => stripUnsafeSocietarySections(cleanText), [cleanText]);
@@ -307,7 +315,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   useEffect(() => {
     if (!teiaTraceEnabled) return;
-    if (societaryMapSectionIndex < 0 && parsedTeiaData.companies.length === 0 && parsedTeiaData.warnings.length === 0) return;
+    if (societaryMapSectionIndex < 0 && parsedTeiaData.companies.length === 0 && parsedTeiaData.warnings.length === 0)
+      return;
     scoutDiag.trace('teia', 'SectionalBotMessage', 'parse textual da teia concluido', {
       traceId: teiaTraceIdRef.current,
       empresaAlvo,
@@ -325,9 +334,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     });
   }, [cnpj, empresaAlvo, parsedTeiaData, societaryMapSectionIndex, teiaTraceEnabled]);
 
-  const activeOptions = Array.isArray(message.suggestions) && message.suggestions.length > 0
-    ? message.suggestions
-    : parsedOptions;
+  const activeOptions =
+    Array.isArray(message.suggestions) && message.suggestions.length > 0 ? message.suggestions : parsedOptions;
 
   const processedOptions = useMemo(() => {
     if (!Array.isArray(activeOptions) || activeOptions.length === 0) return [];
@@ -337,7 +345,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         .replace(/\[NOME DA EMPRESA\]/gi, empresaAlvo)
         .replace(/\[Nome da Empresa\]/gi, empresaAlvo)
         .replace(/\[Empresa\]/gi, empresaAlvo)
-        .replace(/\[NOME DO GRUPO \/ EMPRESA ALVO\]/gi, empresaAlvo)
+        .replace(/\[NOME DO GRUPO \/ EMPRESA ALVO\]/gi, empresaAlvo),
     );
   }, [activeOptions, empresaAlvo]);
 
@@ -393,88 +401,108 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
         const sectionSources = sectionSourcesMap[idx] ?? [];
 
-        const framedClass = sellerSectionClass || (
-          isPrimaryModule
+        const framedClass =
+          sellerSectionClass ||
+          (isPrimaryModule
             ? isDarkMode
               ? 'rounded-2xl border border-slate-800/80 bg-slate-900/50 shadow-sm'
               : 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm'
-            : ''
-        );
+            : '');
 
         return (
-        <div
-          key={section.key}
-          data-section-kind={sellerSectionKind}
-          className={`section-block group relative ${framedClass}`}
-        >
-          {isPrimaryModule && (
-            <div className={`flex items-center justify-between gap-3 px-4 pt-4 pb-1 md:px-5 ${
-              isDarkMode ? 'border-slate-800/70' : 'border-slate-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
-                  isDarkMode
-                    ? 'bg-emerald-500/10 text-emerald-300'
-                    : 'bg-emerald-50 text-emerald-700'
-                }`}>
-                  Módulo {sections.slice(0, idx + 1).filter(item => item.level === 1 && item.kind === 'module').length}
-                </span>
+          <div
+            key={section.key}
+            data-section-kind={sellerSectionKind}
+            className={`section-block group relative ${framedClass}`}
+          >
+            {isPrimaryModule && (
+              <div
+                className={`flex items-center justify-between gap-3 px-4 pt-4 pb-1 md:px-5 ${
+                  isDarkMode ? 'border-slate-800/70' : 'border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                      isDarkMode ? 'bg-emerald-500/10 text-emerald-300' : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    Módulo{' '}
+                    {sections.slice(0, idx + 1).filter(item => item.level === 1 && item.kind === 'module').length}
+                  </span>
+                </div>
               </div>
+            )}
+            <div
+              className={
+                isPrimaryModule || sellerSectionKind !== 'default'
+                  ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5'
+                  : 'section-content'
+              }
+            >
+              {sectionSources.length > 0 && (
+                <div
+                  className={`flex items-center justify-end gap-1.5 mb-2 text-[10px] font-medium uppercase tracking-wider ${
+                    isDarkMode ? 'text-slate-500' : 'text-slate-400'
+                  }`}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                    />
+                  </svg>
+                  <span>
+                    {sectionSources.length} fonte{sectionSources.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+              {idx === societaryMapSectionIndex ? (
+                <SocietaryMap
+                  cnpj={cnpj}
+                  empresaAlvo={empresaAlvo}
+                  isDarkMode={isDarkMode}
+                  geminiCnpjs={geminiCnpjsForMap}
+                  traceId={teiaTraceIdRef.current}
+                  traceEnabled={teiaTraceEnabled}
+                />
+              ) : null}
+              <MarkdownRenderer
+                content={(() => {
+                  const raw =
+                    section.key === 'intro'
+                      ? section.content
+                      : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
+                  if (idx === societaryMapSectionIndex) {
+                    return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
+                  }
+                  // Strip mermaid/duplicate-heading from sub-sections that also match
+                  // the societary map pattern (e.g. ### MAPA DE PODER SOCIETÁRIO split
+                  // by parseMarkdownSections as a separate section entry)
+                  if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
+                    return stripSocietaryMapDuplicates(raw);
+                  }
+                  return raw;
+                })()}
+                isDarkMode={isDarkMode}
+                groundingSources={message.groundingSources}
+                auditableSources={sectionSources}
+              />
+              {sessionId && shouldShowSectionFeedback(section.title) && (
+                <FeedbackSection
+                  sectionKey={section.key}
+                  sectionTitle={section.title}
+                  sectionContent={section.content}
+                  sessionId={sessionId}
+                  messageId={message.id}
+                  userId={userId}
+                  isDarkMode={isDarkMode}
+                  mode={mode}
+                />
+              )}
             </div>
-          )}
-          <div className={isPrimaryModule || sellerSectionKind !== 'default' ? 'section-content px-4 pb-4 pt-3 md:px-5 md:pb-5' : 'section-content'}>
-            {sectionSources.length > 0 && (
-              <div className={`flex items-center justify-end gap-1.5 mb-2 text-[10px] font-medium uppercase tracking-wider ${
-                isDarkMode ? 'text-slate-500' : 'text-slate-400'
-              }`}>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                <span>{sectionSources.length} fonte{sectionSources.length !== 1 ? 's' : ''}</span>
-              </div>
-            )}
-            {idx === societaryMapSectionIndex ? (
-              <SocietaryMap
-                cnpj={cnpj}
-                empresaAlvo={empresaAlvo}
-                isDarkMode={isDarkMode}
-                geminiCnpjs={geminiCnpjsForMap}
-                traceId={teiaTraceIdRef.current}
-                traceEnabled={teiaTraceEnabled}
-              />
-            ) : null}
-            <MarkdownRenderer
-              content={(() => {
-                const raw = section.key === 'intro' ? section.content : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
-                if (idx === societaryMapSectionIndex) {
-                  return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
-                }
-                // Strip mermaid/duplicate-heading from sub-sections that also match
-                // the societary map pattern (e.g. ### MAPA DE PODER SOCIETÁRIO split
-                // by parseMarkdownSections as a separate section entry)
-                if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
-                  return stripSocietaryMapDuplicates(raw);
-                }
-                return raw;
-              })()}
-              isDarkMode={isDarkMode}
-              groundingSources={message.groundingSources}
-              auditableSources={sectionSources}
-            />
-            {sessionId && shouldShowSectionFeedback(section.title) && (
-              <FeedbackSection
-                sectionKey={section.key}
-                sectionTitle={section.title}
-                sectionContent={section.content}
-                sessionId={sessionId}
-                messageId={message.id}
-                userId={userId}
-                isDarkMode={isDarkMode}
-                mode={mode}
-              />
-            )}
           </div>
-        </div>
         );
       })}
 

@@ -1,7 +1,4 @@
-import type {
-  InvestigationBuildOptions,
-  InvestigationPayload,
-} from './contracts';
+import type { InvestigationBuildOptions, InvestigationPayload } from './contracts';
 import {
   SHARED_ABSENCE_SEMANTICS_BLOCK,
   SHARED_ANTI_R_INFLATION_RULES_BLOCK,
@@ -28,8 +25,7 @@ import {
 
 const safe = (value?: string) => (value && value.trim() ? value.trim() : 'N/D');
 
-const normalizeAliases = (aliases?: string[]) =>
-  (aliases || []).map(a => a.trim()).filter(Boolean);
+const normalizeAliases = (aliases?: string[]) => (aliases || []).map(a => a.trim()).filter(Boolean);
 
 const buildContextLine = (payload: InvestigationPayload) => {
   const aliases = normalizeAliases(payload.aliases);
@@ -287,7 +283,7 @@ export function buildLegacyCompatibleHiddenPrompt(payload: {
     // '---',
     // PROMPT_ORCAMENTO_JANELA_GOD_MODE,
     '---',
-    PROMPT_CAMINHO_DE_VENDA,  // ÚLTIMO: síntese comercial de todos os anteriores
+    PROMPT_CAMINHO_DE_VENDA, // ÚLTIMO: síntese comercial de todos os anteriores
   ].join('\n\n');
 }
 

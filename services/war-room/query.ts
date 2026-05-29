@@ -20,11 +20,7 @@ function makeAbortError(): Error {
   return error;
 }
 
-function runWithTimeoutAndSignal<T>(
-  task: () => Promise<T>,
-  timeoutMs: number,
-  signal?: AbortSignal,
-): Promise<T> {
+function runWithTimeoutAndSignal<T>(task: () => Promise<T>, timeoutMs: number, signal?: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     if (signal?.aborted) {
       reject(makeAbortError());
@@ -54,13 +50,13 @@ function runWithTimeoutAndSignal<T>(
     signal?.addEventListener('abort', onAbort, { once: true });
 
     task()
-      .then((value) => {
+      .then(value => {
         if (settled) return;
         settled = true;
         cleanup();
         resolve(value);
       })
-      .catch((error) => {
+      .catch(error => {
         if (settled) return;
         settled = true;
         cleanup();

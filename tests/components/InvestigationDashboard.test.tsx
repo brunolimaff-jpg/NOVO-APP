@@ -14,8 +14,8 @@ vi.mock('../../services/investigationStore', () => ({
       isCliente: false,
       familias: ['ERP'],
       gaps: [],
-      resumo: 'Empresa quente'
-    }
+      resumo: 'Empresa quente',
+    },
   ]),
   subscribe: vi.fn().mockReturnValue(() => {}),
   addInvestigation: vi.fn(),
@@ -25,9 +25,9 @@ describe('InvestigationDashboard', () => {
   it('renderiza o painel com a lista de investigações', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    
+
     render(<InvestigationDashboard onSelectEmpresa={onSelect} onClose={onClose} />);
-    
+
     expect(screen.getByText(/Meu Painel/i)).toBeTruthy();
     expect(screen.getByText(/Fazenda Modelo/i)).toBeTruthy();
   });
@@ -35,12 +35,12 @@ describe('InvestigationDashboard', () => {
   it('chama onSelectEmpresa ao clicar em um item', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    
+
     render(<InvestigationDashboard onSelectEmpresa={onSelect} onClose={onClose} />);
-    
+
     const item = screen.getByText(/Fazenda Modelo/i);
     fireEvent.click(item);
-    
+
     expect(onSelect).toHaveBeenCalledWith('Fazenda Modelo');
     expect(onClose).toHaveBeenCalled();
   });
@@ -48,12 +48,12 @@ describe('InvestigationDashboard', () => {
   it('chama onClose ao clicar no botão fechar', () => {
     const onSelect = vi.fn();
     const onClose = vi.fn();
-    
+
     render(<InvestigationDashboard onSelectEmpresa={onSelect} onClose={onClose} />);
-    
+
     const closeBtn = screen.getByLabelText(/Fechar painel/i);
     fireEvent.click(closeBtn);
-    
+
     expect(onClose).toHaveBeenCalled();
   });
 });

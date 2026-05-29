@@ -63,7 +63,9 @@ export function enforceBankingAnchors(text: string): string {
   const hasBankingMention = /\berp banking\b/i.test(output);
   const hasBankingLinks = /integracao-erp-banking|#banking\/banking\.htm/i.test(output);
   const hasCanonicalMapping =
-    /erp banking da senior|pagamento eletr[oô]nico abrangente|registro online de t[ií]tulos e boletos via api/i.test(output);
+    /erp banking da senior|pagamento eletr[oô]nico abrangente|registro online de t[ií]tulos e boletos via api/i.test(
+      output,
+    );
   const hasCanonicalSection = /###\s*mapeamento can[oô]nico:\s*erp banking vs totvs/i.test(output);
 
   if (!hasCanonicalSection || !hasBankingMention || !hasBankingLinks || !hasCanonicalMapping) {

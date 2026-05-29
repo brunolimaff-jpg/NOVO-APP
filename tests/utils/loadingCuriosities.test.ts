@@ -6,11 +6,11 @@ describe('loadingCuriosities', () => {
 
   it('fallback com empresa mantém foco na conta alvo, setor e ângulo Senior', () => {
     const lines = buildLoadingCuriositiesFallback('Coprosoja');
-    expect(lines.some((line) => line.toLowerCase().includes('coprosoja'))).toBe(true);
-    expect(lines.some((line) => line.toLowerCase().includes('senior sistemas'))).toBe(false);
-    expect(lines.some((line) => /setor|regi[aã]o|margem|log[ií]stica/i.test(line))).toBe(true);
-    expect(lines.some((line) => /senior|controle|produtividade|decis[aã]o com dados/i.test(line))).toBe(true);
-    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some(line => line.toLowerCase().includes('coprosoja'))).toBe(true);
+    expect(lines.some(line => line.toLowerCase().includes('senior sistemas'))).toBe(false);
+    expect(lines.some(line => /setor|regi[aã]o|margem|log[ií]stica/i.test(line))).toBe(true);
+    expect(lines.some(line => /senior|controle|produtividade|decis[aã]o com dados/i.test(line))).toBe(true);
+    expect(lines.some(line => forbiddenTone.test(line))).toBe(false);
   });
 
   it('parseia resposta estruturada com foco em empresa, setor/região e Senior', () => {
@@ -22,17 +22,17 @@ describe('loadingCuriosities', () => {
     });
     const lines = parseLoadingCuriosities(raw, 'Coprosoja');
     expect(lines[0]).toContain('Coprosoja');
-    expect(lines.some((line) => line.toLowerCase().includes('agro'))).toBe(true);
-    expect(lines.some((line) => line.toLowerCase().includes('regional'))).toBe(true);
-    expect(lines.some((line) => line.toLowerCase().includes('senior'))).toBe(true);
+    expect(lines.some(line => line.toLowerCase().includes('agro'))).toBe(true);
+    expect(lines.some(line => line.toLowerCase().includes('regional'))).toBe(true);
+    expect(lines.some(line => line.toLowerCase().includes('senior'))).toBe(true);
   });
 
   it('quando JSON vem inválido, usa fallback robusto', () => {
     const lines = parseLoadingCuriosities('texto livre inválido', 'Grupo Scheffer');
     expect(lines.length).toBeGreaterThan(0);
-    expect(lines.some((line) => line.toLowerCase().includes('grupo scheffer'))).toBe(true);
-    expect(lines.some((line) => /hip[oó]teses comerciais|pontos de valida[cç][aã]o/i.test(line))).toBe(true);
-    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some(line => line.toLowerCase().includes('grupo scheffer'))).toBe(true);
+    expect(lines.some(line => /hip[oó]teses comerciais|pontos de valida[cç][aã]o/i.test(line))).toBe(true);
+    expect(lines.some(line => forbiddenTone.test(line))).toBe(false);
   });
 
   it('filtra textos internos de prompt e protocolo do loading', () => {
@@ -45,23 +45,23 @@ describe('loadingCuriosities', () => {
       setor: ['O agro em MT segue com sinais de expansão em armazenagem.'],
     });
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
-    expect(lines.some((line) => line.includes('INVESTIGACAO_COMPLETA_INTEGRADA'))).toBe(false);
-    expect(lines.some((line) => line.toLowerCase().includes('protocolo de investigação forense'))).toBe(false);
-    expect(lines.some((line) => line.includes('Grupo Scheffer'))).toBe(true);
+    expect(lines.some(line => line.includes('INVESTIGACAO_COMPLETA_INTEGRADA'))).toBe(false);
+    expect(lines.some(line => line.toLowerCase().includes('protocolo de investigação forense'))).toBe(false);
+    expect(lines.some(line => line.includes('Grupo Scheffer'))).toBe(true);
   });
 
   it('preserva linhas longas de processo com contexto da empresa e remove status genérico', () => {
     const raw = JSON.stringify({
       empresa: [
         'Cruzando Grupo Scheffer com benchmarks operacionais para identificar lacunas de gestão...',
-        'Grupo Scheffer reforça controle logístico em MT para ganhar previsibilidade.'
+        'Grupo Scheffer reforça controle logístico em MT para ganhar previsibilidade.',
       ],
-      setor: ['Consultando inteligência interna...']
+      setor: ['Consultando inteligência interna...'],
     });
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
-    expect(lines.some((line) => /cruzando grupo scheffer/i.test(line))).toBe(true);
-    expect(lines.some((line) => /consultando inteligência interna/i.test(line))).toBe(false);
-    expect(lines.some((line) => /grupo scheffer reforça controle logístico/i.test(line))).toBe(true);
+    expect(lines.some(line => /cruzando grupo scheffer/i.test(line))).toBe(true);
+    expect(lines.some(line => /consultando inteligência interna/i.test(line))).toBe(false);
+    expect(lines.some(line => /grupo scheffer reforça controle logístico/i.test(line))).toBe(true);
   });
 
   it('descarta linhas que citam explicitamente outra empresa e preserva itens genéricos', () => {
@@ -72,10 +72,10 @@ describe('loadingCuriosities', () => {
 
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
 
-    expect(lines.some((line) => /hart/i.test(line))).toBe(false);
-    expect(lines.some((line) => /senior/i.test(line))).toBe(true);
-    expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
-    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some(line => /hart/i.test(line))).toBe(false);
+    expect(lines.some(line => /senior/i.test(line))).toBe(true);
+    expect(lines.some(line => /grupo scheffer/i.test(line))).toBe(true);
+    expect(lines.some(line => forbiddenTone.test(line))).toBe(false);
   });
 
   it('cai para fallback da empresa atual quando todas as curiosidades estruturadas estão contaminadas', () => {
@@ -88,9 +88,9 @@ describe('loadingCuriosities', () => {
 
     const lines = parseLoadingCuriosities(raw, 'Grupo Scheffer');
 
-    expect(lines.some((line) => /hart/i.test(line))).toBe(false);
-    expect(lines.some((line) => /grupo scheffer/i.test(line))).toBe(true);
-    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some(line => /hart/i.test(line))).toBe(false);
+    expect(lines.some(line => /grupo scheffer/i.test(line))).toBe(true);
+    expect(lines.some(line => forbiddenTone.test(line))).toBe(false);
   });
 
   it('bloqueia frases agressivas e preserva sinais comerciais seguros', () => {
@@ -105,8 +105,8 @@ describe('loadingCuriosities', () => {
 
     const lines = parseLoadingCuriosities(raw, 'Coprosoja');
 
-    expect(lines.some((line) => forbiddenTone.test(line))).toBe(false);
-    expect(lines.some((line) => /sinal a validar/i.test(line))).toBe(true);
-    expect(lines.some((line) => /ângulo senior/i.test(line))).toBe(true);
+    expect(lines.some(line => forbiddenTone.test(line))).toBe(false);
+    expect(lines.some(line => /sinal a validar/i.test(line))).toBe(true);
+    expect(lines.some(line => /ângulo senior/i.test(line))).toBe(true);
   });
 });

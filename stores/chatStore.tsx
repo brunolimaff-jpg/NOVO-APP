@@ -113,33 +113,21 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     storage.setDossierGenerationActive(loading.isLoading);
   }, [loading.isLoading]);
 
-  const setCurrentSessionId = useCallback<Dispatch<SetStateAction<string | null>>>(
-    next => {
-      dispatch({ type: 'set_current_session_id', payload: next });
-    },
-    [],
-  );
+  const setCurrentSessionId = useCallback<Dispatch<SetStateAction<string | null>>>(next => {
+    dispatch({ type: 'set_current_session_id', payload: next });
+  }, []);
 
-  const setVisibleCount = useCallback<Dispatch<SetStateAction<number>>>(
-    next => {
-      dispatch({ type: 'set_visible_count', payload: next });
-    },
-    [],
-  );
+  const setVisibleCount = useCallback<Dispatch<SetStateAction<number>>>(next => {
+    dispatch({ type: 'set_visible_count', payload: next });
+  }, []);
 
-  const setLastQuery = useCallback<Dispatch<SetStateAction<string>>>(
-    next => {
-      dispatch({ type: 'set_last_query', payload: next });
-    },
-    [],
-  );
+  const setLastQuery = useCallback<Dispatch<SetStateAction<string>>>(next => {
+    dispatch({ type: 'set_last_query', payload: next });
+  }, []);
 
-  const setInvestigationLogged = useCallback<Dispatch<SetStateAction<boolean>>>(
-    next => {
-      dispatch({ type: 'set_investigation_logged', payload: next });
-    },
-    [],
-  );
+  const setInvestigationLogged = useCallback<Dispatch<SetStateAction<boolean>>>(next => {
+    dispatch({ type: 'set_investigation_logged', payload: next });
+  }, []);
 
   const updateSessionById = useCallback(
     (sessionId: string, updater: (session: ChatSession) => ChatSession) => {

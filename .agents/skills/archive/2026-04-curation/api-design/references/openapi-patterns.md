@@ -17,16 +17,16 @@ once, reference it everywhere with `$ref`.
 
 ```yaml
 components:
-  schemas:       # Data shapes (request bodies, response objects, enums)
-  responses:     # Reusable HTTP response definitions
-  parameters:    # Reusable path/query/header parameters
+  schemas: # Data shapes (request bodies, response objects, enums)
+  responses: # Reusable HTTP response definitions
+  parameters: # Reusable path/query/header parameters
   requestBodies: # Reusable request body definitions
-  headers:       # Reusable response headers
+  headers: # Reusable response headers
   securitySchemes: # Auth method definitions
-  links:         # Hypermedia links between operations
-  callbacks:     # Webhook/callback definitions
-  pathItems:     # Reusable full path items (OpenAPI 3.1 only)
-  examples:      # Named example values for parameters and schemas
+  links: # Hypermedia links between operations
+  callbacks: # Webhook/callback definitions
+  pathItems: # Reusable full path items (OpenAPI 3.1 only)
+  examples: # Named example values for parameters and schemas
 ```
 
 ---
@@ -62,10 +62,10 @@ components:
         id:
           type: string
           format: uuid
-          readOnly: true   # present in responses, ignored in requests
+          readOnly: true # present in responses, ignored in requests
         password:
           type: string
-          writeOnly: true  # accepted in requests, never returned
+          writeOnly: true # accepted in requests, never returned
         email:
           type: string
           format: email
@@ -101,7 +101,7 @@ components:
           required: [hasMore]
           properties:
             nextCursor:
-              type: [string, "null"]
+              type: [string, 'null']
               description: Opaque base64url cursor. Pass as ?cursor= to get the next page.
             hasMore:
               type: boolean
@@ -134,8 +134,8 @@ components:
       discriminator:
         propertyName: type
         mapping:
-          card:   '#/components/schemas/CardPayment'
-          bank:   '#/components/schemas/BankPayment'
+          card: '#/components/schemas/CardPayment'
+          bank: '#/components/schemas/BankPayment'
           wallet: '#/components/schemas/WalletPayment'
       properties:
         type:
@@ -188,7 +188,6 @@ or per-operation.
 ```yaml
 components:
   securitySchemes:
-
     # API Key - simplest, server-to-server
     apiKeyHeader:
       type: apiKey
@@ -209,14 +208,14 @@ components:
           authorizationUrl: https://auth.example.com/oauth/authorize
           tokenUrl: https://auth.example.com/oauth/token
           scopes:
-            articles:read:  Read articles
+            articles:read: Read articles
             articles:write: Create and update articles
-            admin:          Full administrative access
+            admin: Full administrative access
 
         clientCredentials:
           tokenUrl: https://auth.example.com/oauth/token
           scopes:
-            service:read:  Read-only service account access
+            service:read: Read-only service account access
             service:write: Write service account access
 
     # OpenID Connect
@@ -473,7 +472,7 @@ components:
           description: >
             A URI reference identifying the specific occurrence (e.g. trace ID path).
           example: /requests/01HXYZ1234ABCD
-      additionalProperties: true  # extension fields allowed per RFC 7807
+      additionalProperties: true # extension fields allowed per RFC 7807
 ```
 
 ---

@@ -3,9 +3,7 @@ import { isMermaidRenderErrorOutput, sanitizeMermaidCode } from '../../utils/mer
 
 describe('mermaid helpers', () => {
   it('separa statements colapsados na mesma linha e codifica labels com parênteses', () => {
-    const result = sanitizeMermaidCode(
-      'graph TD\nC ==> D[Armazenagem (Silos)]    D ==> E[Expedição]',
-    );
+    const result = sanitizeMermaidCode('graph TD\nC ==> D[Armazenagem (Silos)]    D ==> E[Expedição]');
 
     // quoteNodeLabels wraps labels with () in double-quotes to avoid PS/PE token errors
     expect(result).toContain('C ==> D["Armazenagem (Silos)"]');
@@ -13,9 +11,7 @@ describe('mermaid helpers', () => {
   });
 
   it('materializa targets textuais em nós válidos', () => {
-    const result = sanitizeMermaidCode(
-      'graph TD\nFrotaRast -.-> "Integração manual/visão parcial"',
-    );
+    const result = sanitizeMermaidCode('graph TD\nFrotaRast -.-> "Integração manual/visão parcial"');
 
     expect(result).toContain('FrotaRast -.-> mermaid_note_1["Integração manual/visão parcial"]');
   });
@@ -30,9 +26,7 @@ describe('mermaid helpers', () => {
 
 describe('inline class normalization', () => {
   it('normaliza classe inline legada com :: para evitar parse error', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA["ALIMENTOS MASSON Ltda."]::companyA --> B["Dados"]',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA["ALIMENTOS MASSON Ltda."]::companyA --> B["Dados"]');
     expect(result).toContain('A["ALIMENTOS MASSON Ltda."] --> B["Dados"]');
     expect(result).toContain('class A companyA;');
   });
@@ -40,23 +34,17 @@ describe('inline class normalization', () => {
 
 describe('materializeBareEdgeTargets', () => {
   it('converte texto bare após -.-> em nó sintético', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nB -.-> Consolidação Manual / Integração',
-    );
+    const result = sanitizeMermaidCode('graph LR\nB -.-> Consolidação Manual / Integração');
     expect(result).toMatch(/B -.-> mermaid_bare_1\["Consolidação Manual \/ Integração"\]/);
   });
 
   it('converte texto bare após --> em nó sintético', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA --> Gestão de Estoque Centralizada',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA --> Gestão de Estoque Centralizada');
     expect(result).toMatch(/A --> mermaid_bare_1\["Gestão de Estoque Centralizada"\]/);
   });
 
   it('converte texto bare após ==> em nó sintético', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nX ==> Fluxo Principal de Dados',
-    );
+    const result = sanitizeMermaidCode('graph LR\nX ==> Fluxo Principal de Dados');
     expect(result).toMatch(/X ==> mermaid_bare_1\["Fluxo Principal de Dados"\]/);
   });
 
@@ -73,88 +61,66 @@ describe('materializeBareEdgeTargets', () => {
   });
 
   it('lida com múltiplos bare targets em linhas separadas', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA -.-> Integração Manual\nB ==> Consolidação Fiscal',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA -.-> Integração Manual\nB ==> Consolidação Fiscal');
     expect(result).toContain('mermaid_bare_1["Integração Manual"]');
     expect(result).toContain('mermaid_bare_2["Consolidação Fiscal"]');
   });
 
   it('lida com caracteres acentuados em texto bare', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA --> Operação / Manutenção',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA --> Operação / Manutenção');
     expect(result).toMatch(/mermaid_bare_1\["Operação \/ Manutenção"\]/);
   });
 });
 
 describe('quoteRoundAndCurlyLabels', () => {
   it('quota labels round-bracket contendo /', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA(Entrada/Saída) --> B',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA(Entrada/Saída) --> B');
     expect(result).toContain('A("Entrada/Saída")');
   });
 
   it('quota labels curly-bracket contendo ()', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA{Decisão (sim/não)} --> B',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA{Decisão (sim/não)} --> B');
     expect(result).toContain('A{"Decisão (sim/não)"}');
   });
 
   it('NÃO quota labels round-bracket limpos', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA(Label Simples) --> B',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA(Label Simples) --> B');
     expect(result).toContain('A(Label Simples)');
   });
 });
 
 describe('pipeline de sanitização integrado', () => {
   it('lida com collapsed statement + bare edge target', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA[ERP] ==> B[Fiscal]    B -.-> Consolidação Manual',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA[ERP] ==> B[Fiscal]    B -.-> Consolidação Manual');
     expect(result).toContain('A[ERP] ==> B[Fiscal]');
     expect(result).toContain('mermaid_bare_1["Consolidação Manual"]');
   });
 
   it('lida com colon edge label + bare target', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA --> B: fluxo de dados\nC -.-> Integração Manual / Parcial',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA --> B: fluxo de dados\nC -.-> Integração Manual / Parcial');
     expect(result).toContain('A -- fluxo de dados --> B');
     expect(result).toContain('mermaid_bare_1["Integração Manual / Parcial"]');
   });
 
   it('fecha label quotado antes da aresta quando a IA omite colchete', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA["Fiscal/Planilha" -.-> B["Armazenagem (Kepler Weber)"]',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA["Fiscal/Planilha" -.-> B["Armazenagem (Kepler Weber)"]');
 
     expect(result).toContain('A["Fiscal/Planilha"] -.-> B["Armazenagem (Kepler Weber)"]');
   });
 
   it('strip emojis do código mermaid', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\n🏭 A --> B',
-    );
+    const result = sanitizeMermaidCode('graph LR\n🏭 A --> B');
     expect(result).toContain('A --> B');
     expect(result).not.toMatch(/🏭/);
   });
 
   it('preserva subgraph com label entre aspas', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nsubgraph "Área Fiscal"\nA --> B\nend',
-    );
+    const result = sanitizeMermaidCode('graph LR\nsubgraph "Área Fiscal"\nA --> B\nend');
     expect(result).toContain('subgraph "Área Fiscal"');
   });
 
   it('quota subgraph labels contendo parênteses (fix parse error PS)', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nsubgraph Sistemas Senior (Existente)\nA --> B\nend',
-    );
+    const result = sanitizeMermaidCode('graph LR\nsubgraph Sistemas Senior (Existente)\nA --> B\nend');
     // O label contém espaços e parênteses, deve ser quotado para evitar "got 'PS'" error
     expect(result).toContain('subgraph "Sistemas Senior (Existente)"');
   });
@@ -167,34 +133,26 @@ describe('pipeline de sanitização integrado', () => {
   });
 
   it('quota pipe edge label com parênteses', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA -->|integração (manual)| B',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA -->|integração (manual)| B');
     expect(result).toContain('|"integração (manual)"|');
   });
 });
 
 describe('fixClassStatements', () => {
   it('corrige class statements com IDs começando com números', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA --> B\nclass 1A danger;',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA --> B\nclass 1A danger;');
     expect(result).toContain('class _1A danger;');
   });
 
   it('preserva class statements com IDs válidos', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA --> B\nclass A danger;',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA --> B\nclass A danger;');
     expect(result).toContain('class A danger;');
   });
 });
 
 describe('edge cases adversariais', () => {
   it('lida com aspas duplas em bare target (substitui por simples)', () => {
-    const result = sanitizeMermaidCode(
-      'graph LR\nA -.-> Sistema "legado" manual',
-    );
+    const result = sanitizeMermaidCode('graph LR\nA -.-> Sistema "legado" manual');
     expect(result).toMatch(/mermaid_bare_1\["Sistema 'legado' manual"\]/);
   });
 

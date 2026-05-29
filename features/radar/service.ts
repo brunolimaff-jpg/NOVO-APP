@@ -53,16 +53,32 @@ export interface RadarScanResult {
 // ===================================================================
 
 const CONCORRENTES_NOMES = [
-  'SAP', 'TOTVS', 'Protheus', 'Sankhya', 'SIAGRI', 'CHB Sistemas',
-  'Benner', 'LG Sistemas', 'Viasoft', 'Korp', 'Unisystem', 'Uniplus',
-  'Senior Sistemas', 'GAtec', 'SimpleFarm', 'Aegro', 'Solinftec',
-  'Aliare', 'Agrotitan', 'Oracle', 'Datasul',
+  'SAP',
+  'TOTVS',
+  'Protheus',
+  'Sankhya',
+  'SIAGRI',
+  'CHB Sistemas',
+  'Benner',
+  'LG Sistemas',
+  'Viasoft',
+  'Korp',
+  'Unisystem',
+  'Uniplus',
+  'Senior Sistemas',
+  'GAtec',
+  'SimpleFarm',
+  'Aegro',
+  'Solinftec',
+  'Aliare',
+  'Agrotitan',
+  'Oracle',
+  'Datasul',
 ];
 
 export function buildCategoryPrompt(category: RadarCategory, estados: string[]): string {
-  const estadoCtx = estados.length > 0
-    ? `\nFOCO REGIONAL: Priorize notícias relevantes para os estados: ${estados.join(', ')}.`
-    : '';
+  const estadoCtx =
+    estados.length > 0 ? `\nFOCO REGIONAL: Priorize notícias relevantes para os estados: ${estados.join(', ')}.` : '';
 
   const base = `Você é um Head de Inteligência de Mercado especializado em agronegócio brasileiro e tecnologia para o campo.
 Pesquise AGORA as notícias e movimentos mais recentes (últimos 7 dias) usando busca na web.
@@ -137,7 +153,7 @@ export function generateAlertId(title: string, sourceUrl: string): string {
   let hash = 0;
   for (let i = 0; i < raw.length; i++) {
     const char = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash |= 0;
   }
   return `radar_${Math.abs(hash).toString(36)}`;

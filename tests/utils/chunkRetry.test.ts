@@ -1,10 +1,6 @@
 // tests/utils/chunkRetry.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  CHUNK_RELOAD_PENDING_KEY,
-  isChunkLoadError,
-  loadWithChunkRetry,
-} from '../../utils/chunkRetry';
+import { CHUNK_RELOAD_PENDING_KEY, isChunkLoadError, loadWithChunkRetry } from '../../utils/chunkRetry';
 
 describe('isChunkLoadError', () => {
   it('detecta falha de import dinâmico do Vite', () => {
@@ -75,7 +71,13 @@ describe('loadWithChunkRetry', () => {
 
     // Promise should not resolve/reject (it's pending after reload trigger)
     let settled = false;
-    promise.then(() => { settled = true; }).catch(() => { settled = true; });
+    promise
+      .then(() => {
+        settled = true;
+      })
+      .catch(() => {
+        settled = true;
+      });
     await new Promise(r => setTimeout(r, 50));
     expect(settled).toBe(false);
   });

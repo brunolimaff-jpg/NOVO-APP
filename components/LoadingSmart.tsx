@@ -19,11 +19,11 @@ const INSIGHT_CYCLE_MS = 12000;
 const STEP_REVEAL_DELAY_MS = 1200;
 const STEP_REVEAL_MIN_MS = 800;
 const SOURCE_LINKS: Record<string, string> = {
-  ibge:    'https://www.ibge.gov.br/',
-  conab:   'https://www.conab.gov.br/',
+  ibge: 'https://www.ibge.gov.br/',
+  conab: 'https://www.conab.gov.br/',
   embrapa: 'https://www.embrapa.br/',
-  senior:  'https://www.senior.com.br/',
-  gatec:   'https://www.gatec.com.br/',
+  senior: 'https://www.senior.com.br/',
+  gatec: 'https://www.gatec.com.br/',
 };
 
 // EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
@@ -70,26 +70,46 @@ function RadarAnimation({ isDarkMode }: { isDarkMode: boolean }) {
     <div className="flex items-center justify-center">
       <div
         className={`relative h-40 w-40 rounded-full sm:h-48 sm:w-48 md:h-56 md:w-56 lg:h-64 lg:w-64 ${bgOuter} overflow-hidden`}
-        style={{ boxShadow: isDarkMode ? '0 0 40px rgba(52,211,153,0.08), inset 0 0 30px rgba(52,211,153,0.05)' : '0 0 30px rgba(5,150,105,0.06)' }}
+        style={{
+          boxShadow: isDarkMode
+            ? '0 0 40px rgba(52,211,153,0.08), inset 0 0 30px rgba(52,211,153,0.05)'
+            : '0 0 30px rgba(5,150,105,0.06)',
+        }}
       >
         {[0.33, 0.66, 1].map((scale, i) => (
-          <div key={i} className={`absolute border ${ringColor} rounded-full`}
-            style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, top: `${(1 - scale) * 50}%`, left: `${(1 - scale) * 50}%` }} />
+          <div
+            key={i}
+            className={`absolute border ${ringColor} rounded-full`}
+            style={{
+              width: `${scale * 100}%`,
+              height: `${scale * 100}%`,
+              top: `${(1 - scale) * 50}%`,
+              left: `${(1 - scale) * 50}%`,
+            }}
+          />
         ))}
         <div className={`absolute top-0 bottom-0 left-1/2 w-px ${lineColor}`} />
         <div className={`absolute left-0 right-0 top-1/2 h-px ${lineColor}`} />
-        <div className="absolute inset-0 animate-radar-sweep" style={{
-          background: isDarkMode
-            ? 'conic-gradient(from 0deg, transparent 0deg, rgba(52,211,153,0.25) 0deg, rgba(52,211,153,0.08) 40deg, transparent 60deg)'
-            : 'conic-gradient(from 0deg, transparent 0deg, rgba(5,150,105,0.2) 0deg, rgba(5,150,105,0.05) 40deg, transparent 60deg)',
-          borderRadius: '50%',
-        }} />
+        <div
+          className="absolute inset-0 animate-radar-sweep"
+          style={{
+            background: isDarkMode
+              ? 'conic-gradient(from 0deg, transparent 0deg, rgba(52,211,153,0.25) 0deg, rgba(52,211,153,0.08) 40deg, transparent 60deg)'
+              : 'conic-gradient(from 0deg, transparent 0deg, rgba(5,150,105,0.2) 0deg, rgba(5,150,105,0.05) 40deg, transparent 60deg)',
+            borderRadius: '50%',
+          }}
+        />
         <div className="absolute inset-[15%] animate-radar-ring">
-          <div className={`w-full h-full rounded-full border ${isDarkMode ? 'border-emerald-400/20' : 'border-emerald-500/15'}`} />
+          <div
+            className={`w-full h-full rounded-full border ${isDarkMode ? 'border-emerald-400/20' : 'border-emerald-500/15'}`}
+          />
         </div>
         {blips.map((pos, i) => (
-          <div key={i} className={`absolute w-2 h-2 rounded-full animate-radar-blip ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`}
-            style={{ top: pos.top, left: pos.left, animationDelay: pos.delay }} />
+          <div
+            key={i}
+            className={`absolute w-2 h-2 rounded-full animate-radar-blip ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`}
+            style={{ top: pos.top, left: pos.left, animationDelay: pos.delay }}
+          />
         ))}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className={`w-5 h-5 rounded-full animate-radar-pulse ${orbGlow}`} />
@@ -103,18 +123,30 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
   const visualWidth = Math.max(percent, 3);
   const label = `${percent}%`;
   return (
-    <div className={`rounded-xl px-4 py-3 ${
-      isDarkMode ? 'bg-slate-800/80 border border-emerald-500/15' : 'bg-emerald-50 border border-emerald-200'
-    }`}>
+    <div
+      className={`rounded-xl px-4 py-3 ${
+        isDarkMode ? 'bg-slate-800/80 border border-emerald-500/15' : 'bg-emerald-50 border border-emerald-200'
+      }`}
+    >
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Andamento</span>
-        <span className={`text-sm font-bold tabular-nums transition-all duration-500 ${
-          isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-        }`}>{label}</span>
+        <span
+          className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
+        >
+          Andamento
+        </span>
+        <span
+          className={`text-sm font-bold tabular-nums transition-all duration-500 ${
+            isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+          }`}
+        >
+          {label}
+        </span>
       </div>
       <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>
-        <div className={`h-full rounded-full transition-all duration-700 ease-out ${isDarkMode ? 'bg-emerald-500' : 'bg-emerald-600'}`}
-          style={{ width: `${visualWidth}%` }} />
+        <div
+          className={`h-full rounded-full transition-all duration-700 ease-out ${isDarkMode ? 'bg-emerald-500' : 'bg-emerald-600'}`}
+          style={{ width: `${visualWidth}%` }}
+        />
       </div>
     </div>
   );
@@ -123,7 +155,15 @@ function ProgressBar({ percent, isDarkMode }: { percent: number; isDarkMode: boo
 /* ── Main component ──────────────────────────────────────────────────── */
 
 const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(function LoadingSmart({
-  isLoading, mode: _mode, isDarkMode, loadingVariant = 'hero', fixedStatusLine, onStop, processing, searchQuery, empresaAlvo,
+  isLoading,
+  mode: _mode,
+  isDarkMode,
+  loadingVariant = 'hero',
+  fixedStatusLine,
+  onStop,
+  processing,
+  searchQuery,
+  empresaAlvo,
 }) {
   const [currentInsight, setCurrentInsight] = useState<string>(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
@@ -149,7 +189,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
-    const cleanQuery = query.trim().replace(/[.]{2,}$/g, '').replace(/\s+/g, ' ');
+    const cleanQuery = query
+      .trim()
+      .replace(/[.]{2,}$/g, '')
+      .replace(/\s+/g, ' ');
     const deepDiveMatch = cleanQuery.match(/Dossi[eê]\s+completo\s+de\s+\[([^\]]+)\]/i);
     if (deepDiveMatch?.[1]) return deepDiveMatch[1].trim();
     const cadastroMatch = cleanQuery.match(/Contexto\s+cadastral\s+obrigat[oó]rio:\s*Empresa=([^;]+);/i);
@@ -167,19 +210,33 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
   const companyFocus = (empresaAlvo || extractCompanyFromQuery(searchQuery)).trim();
   const safeContext = companyFocus.trim();
-  const safeSearchQuery = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
+  const safeSearchQuery = useMemo(
+    () => sanitizeLoadingContextText(searchQuery || '', companyFocus),
+    [searchQuery, companyFocus],
+  );
   const loadingContext = (safeContext || safeSearchQuery).trim();
-  const sanitizedQueryForCuriosities = useMemo(() => sanitizeLoadingContextText(searchQuery || '', companyFocus), [searchQuery, companyFocus]);
+  const sanitizedQueryForCuriosities = useMemo(
+    () => sanitizeLoadingContextText(searchQuery || '', companyFocus),
+    [searchQuery, companyFocus],
+  );
   const loadingContextKey = useMemo(
     () => `${isLoading ? 'loading' : 'idle'}::${(empresaAlvo || '').trim()}::${(searchQuery || '').trim()}`,
     [empresaAlvo, isLoading, searchQuery],
   );
 
   /** Chave estável para dependências de useEffect que recebem arrays mutáveis de props */
-  const processingKey = `${processing?.stage || ''}::${(processing?.completedStages || []).join(',')}::${(processing?.failureCount ?? 0)}`;
+  const processingKey = `${processing?.stage || ''}::${(processing?.completedStages || []).join(',')}::${processing?.failureCount ?? 0}`;
 
-  const normalizeSourceLabel = useCallback((label: string): string =>
-    label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(), []);
+  const normalizeSourceLabel = useCallback(
+    (label: string): string =>
+      label
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s]/g, '')
+        .trim(),
+    [],
+  );
 
   const clearInsightTimer = useCallback(() => {
     if (timerRef.current) {
@@ -188,21 +245,43 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     }
   }, []);
 
-  const renderInsight = useCallback((insight: string): React.ReactNode => {
-    const sourceMatch = insight.match(/^(.*?)(?:\s+[—-]\s*Fonte:\s*)(.+)$/i);
-    if (!sourceMatch) return insight;
-    const prefix = sourceMatch[1].trim();
-    const sourceLabel = sourceMatch[2].trim().replace(/[.)]+$/, '');
-    const sourceUrl = SOURCE_LINKS[normalizeSourceLabel(sourceLabel)];
-    if (!sourceUrl) return insight;
-    return (<>{prefix}{' — '}Fonte:{' '}<a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 transition-opacity">{sourceLabel}</a></>);
-  }, [normalizeSourceLabel]);
+  const renderInsight = useCallback(
+    (insight: string): React.ReactNode => {
+      const sourceMatch = insight.match(/^(.*?)(?:\s+[—-]\s*Fonte:\s*)(.+)$/i);
+      if (!sourceMatch) return insight;
+      const prefix = sourceMatch[1].trim();
+      const sourceLabel = sourceMatch[2].trim().replace(/[.)]+$/, '');
+      const sourceUrl = SOURCE_LINKS[normalizeSourceLabel(sourceLabel)];
+      if (!sourceUrl) return insight;
+      return (
+        <>
+          {prefix}
+          {' — '}Fonte:{' '}
+          <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:opacity-80 transition-opacity"
+          >
+            {sourceLabel}
+          </a>
+        </>
+      );
+    },
+    [normalizeSourceLabel],
+  );
 
-  const buildFallbackCuriosities = useCallback((context: string): string[] => buildLoadingCuriositiesFallback(context), []);
+  const buildFallbackCuriosities = useCallback(
+    (context: string): string[] => buildLoadingCuriositiesFallback(context),
+    [],
+  );
 
   // ── 1. Timer ──
   useEffect(() => {
-    if (!isLoading) { setElapsedTime(0); return; }
+    if (!isLoading) {
+      setElapsedTime(0);
+      return;
+    }
     const startTime = Date.now();
     const interval = setInterval(() => setElapsedTime(Date.now() - startTime), 1000);
     return () => clearInterval(interval);
@@ -225,18 +304,13 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       }
       return;
     }
-    const realCompleted = (processing?.completedStages || [])
-      .map(s => stripInternalMarkers(s).trim())
-      .filter(Boolean);
-    const realCurrent = stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
+    const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s).trim()).filter(Boolean);
+    const realCurrent =
+      stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
     const newStages: Array<{ label: string; key: string }> = [];
     for (const stage of realCompleted) {
       const stageKey = getLoadingStageIdentity(stage);
-      if (
-        !stageKey ||
-        displayedStageKeysRef.current.has(stageKey) ||
-        queuedStageKeysRef.current.has(stageKey)
-      ) {
+      if (!stageKey || displayedStageKeysRef.current.has(stageKey) || queuedStageKeysRef.current.has(stageKey)) {
         continue;
       }
       newStages.push({ label: stage, key: stageKey });
@@ -282,11 +356,15 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
           });
           if (queueRef.current.length > 0) revealTimerRef.current = setTimeout(revealNext, STEP_REVEAL_DELAY_MS);
           else revealTimerRef.current = null;
-        } else { revealTimerRef.current = null; }
+        } else {
+          revealTimerRef.current = null;
+        }
       }, delay);
     };
     if (queueRef.current.length > 0 && !revealTimerRef.current) revealNext();
-    return () => { /* intentionally not clearing */ };
+    return () => {
+      /* intentionally not clearing */
+    };
   }, [isLoading, processingKey]);
 
   // ── 1c. Cronômetro por etapa (início, duração final, tick na etapa ativa) ──
@@ -294,8 +372,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     if (!isLoading) return;
 
     const realCurrent =
-      stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() ||
-      'Preparando análise...';
+      stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
     const currentKey = getLoadingStageIdentity(realCurrent);
     if (currentKey && stageStartedAtRef.current[currentKey] === undefined) {
       stageStartedAtRef.current[currentKey] = elapsedTime;
@@ -311,12 +388,15 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     }
   }, [elapsedTime, isLoading, processingKey]);
 
-  useEffect(() => () => {
-    if (revealTimerRef.current) {
-      clearTimeout(revealTimerRef.current);
-      revealTimerRef.current = null;
-    }
-  }, []);
+  useEffect(
+    () => () => {
+      if (revealTimerRef.current) {
+        clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     insightRequestIdRef.current += 1;
@@ -380,23 +460,31 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   }, [buildFallbackCuriosities, isLoading, loadingContext, sanitizedQueryForCuriosities]);
 
   // ── 3. Auto-cycle curiosities ──
-  const goToInsight = useCallback((index: number) => {
-    clearInsightTimer();
-    setIsFadingOut(true);
-    timerRef.current = setTimeout(() => {
-      const total = curiositiesRef.current.length || 1;
-      const safeIndex = ((index % total) + total) % total;
-      setActiveInsightIndex(safeIndex);
-      setCurrentInsight(curiositiesRef.current[safeIndex] ?? 'Curiosidade: empresas que monitoram rotina operacional com consistência aceleram decisões comerciais.');
-      setIsFadingOut(false);
-      timerRef.current = setTimeout(() => goToInsight(safeIndex + 1), INSIGHT_CYCLE_MS);
-    }, FADE_DURATION);
-  }, [clearInsightTimer]);
+  const goToInsight = useCallback(
+    (index: number) => {
+      clearInsightTimer();
+      setIsFadingOut(true);
+      timerRef.current = setTimeout(() => {
+        const total = curiositiesRef.current.length || 1;
+        const safeIndex = ((index % total) + total) % total;
+        setActiveInsightIndex(safeIndex);
+        setCurrentInsight(
+          curiositiesRef.current[safeIndex] ??
+            'Curiosidade: empresas que monitoram rotina operacional com consistência aceleram decisões comerciais.',
+        );
+        setIsFadingOut(false);
+        timerRef.current = setTimeout(() => goToInsight(safeIndex + 1), INSIGHT_CYCLE_MS);
+      }, FADE_DURATION);
+    },
+    [clearInsightTimer],
+  );
 
   // ── 4. Visibility control ──
   useEffect(() => {
     if (isLoading) {
-      setIsVisible(true); setIsFadingOut(false); setConfirmStop(false);
+      setIsVisible(true);
+      setIsFadingOut(false);
+      setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
     } else {
       clearInsightTimer();
@@ -436,16 +524,23 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
   // ── Inline placeholder ──
   const inlinePlaceholder = (
-    <div className={`flex flex-col gap-2 rounded-xl p-3 ${
-      isDarkMode ? 'bg-slate-800/60 border border-emerald-500/10' : 'bg-emerald-50/50 border border-emerald-100'
-    }`}>
+    <div
+      className={`flex flex-col gap-2 rounded-xl p-3 ${
+        isDarkMode ? 'bg-slate-800/60 border border-emerald-500/10' : 'bg-emerald-50/50 border border-emerald-100'
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-500'}`} />
-          <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Investigação em andamento...</span>
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            Investigação em andamento...
+          </span>
         </div>
-        <span className={`flex items-center gap-1 text-xs font-mono ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-          <ClockIcon className="w-3.5 h-3.5" />{elapsed}
+        <span
+          className={`flex items-center gap-1 text-xs font-mono ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}
+        >
+          <ClockIcon className="w-3.5 h-3.5" />
+          {elapsed}
         </span>
       </div>
       {fixedStatusLine ? (
@@ -455,11 +550,17 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       ) : null}
       <div className="flex items-center gap-3">
         <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-emerald-100'}`}>
-          <div className={`h-full rounded-full transition-all duration-700 ${isDarkMode ? 'bg-emerald-500' : 'bg-emerald-600'}`}
-            style={{ width: `${Math.max(percent, 3)}%` }} />
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${isDarkMode ? 'bg-emerald-500' : 'bg-emerald-600'}`}
+            style={{ width: `${Math.max(percent, 3)}%` }}
+          />
         </div>
-        <span className={`text-xs font-semibold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>{percent}%</span>
-        <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>{completedCount} etapa{completedCount !== 1 ? 's' : ''}</span>
+        <span className={`text-xs font-semibold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          {percent}%
+        </span>
+        <span className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
+          {completedCount} etapa{completedCount !== 1 ? 's' : ''}
+        </span>
       </div>
     </div>
   );
@@ -491,12 +592,20 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-3 md:py-6">
         <div className={`flex flex-col items-center gap-2 mb-3 w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <StepSpinner isDarkMode={isDarkMode} />
-          <h2 className={`${isIncremental ? 'text-base md:text-xl' : 'text-base sm:text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
-            isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-          }`}>{currentRich.label}</h2>
-          <p className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
-            isDarkMode ? 'text-slate-500' : 'text-slate-400'
-          }`}>Análise em execução</p>
+          <h2
+            className={`${isIncremental ? 'text-base md:text-xl' : 'text-base sm:text-lg md:text-3xl'} font-black tracking-tight text-center line-clamp-2 ${
+              isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+            }`}
+          >
+            {currentRich.label}
+          </h2>
+          <p
+            className={`${isIncremental ? 'text-[11px] md:text-xs' : 'text-xs md:text-sm'} font-bold uppercase tracking-widest text-center ${
+              isDarkMode ? 'text-slate-500' : 'text-slate-400'
+            }`}
+          >
+            Análise em execução
+          </p>
         </div>
         <div className={`w-full ${isIncremental ? 'max-w-xl' : 'max-w-2xl'}`}>
           <ProgressBar percent={percent} isDarkMode={isDarkMode} />
@@ -505,8 +614,9 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
       {/* ── Two-column: Steps + Radar ── */}
       <div className="flex-1 px-4 pb-3 md:px-8 md:pb-4">
-        <div className={`mx-auto grid grid-cols-1 items-start gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl md:grid-cols-1' : 'max-w-5xl md:grid-cols-2'}`}>
-
+        <div
+          className={`mx-auto grid grid-cols-1 items-start gap-4 md:gap-10 ${isIncremental ? 'max-w-3xl md:grid-cols-1' : 'max-w-5xl md:grid-cols-2'}`}
+        >
           <LoadingStepsList
             isDarkMode={isDarkMode}
             visiblePlannedStages={visiblePlannedStages}

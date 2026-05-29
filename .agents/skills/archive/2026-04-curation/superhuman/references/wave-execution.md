@@ -39,17 +39,21 @@ Agent 3: Execute SH-004 (Config files)
 Use `isolation: "worktree"` when tasks in the same wave might touch overlapping files. Each agent gets an isolated copy of the repo. Changes are merged back after the wave completes.
 
 **When to use worktrees:**
+
 - Two tasks in the same wave modify the same directory
 - Tasks create files with potential naming conflicts
 - Complex refactors where intermediate states might conflict
 
 **When NOT to use worktrees:**
+
 - Tasks touch completely different directories
 - Simple additions with no overlap
 - The overhead of merging isn't worth the isolation
 
 ### Other Platforms (Adaptable)
+
 The wave model works with any agent system that supports:
+
 - Spawning multiple independent execution contexts
 - Waiting for all contexts to complete
 - Collecting results from each context
@@ -97,6 +101,7 @@ Each agent receives a structured prompt derived from the board. Use this templat
 **For `code` tasks**: Use the full TDD template above.
 
 **For `test` tasks**: Skip the "write tests first" step - the task IS writing tests.
+
 ```
 ### Instructions
 1. Write comprehensive tests for: {what_is_being_tested}
@@ -106,6 +111,7 @@ Each agent receives a structured prompt derived from the board. Use this templat
 ```
 
 **For `docs` tasks**: No TDD, focus on accuracy.
+
 ```
 ### Instructions
 1. Review the code/API that needs documentation
@@ -115,6 +121,7 @@ Each agent receives a structured prompt derived from the board. Use this templat
 ```
 
 **For `config`/`infra` tasks**: Verify by running the tool/build.
+
 ```
 ### Instructions
 1. Create/modify configuration files as planned
@@ -127,6 +134,7 @@ Each agent receives a structured prompt derived from the board. Use this templat
 ## Handling Blocked Tasks
 
 ### What Causes Blocks
+
 - A dependency task failed and its output isn't available
 - An external service is unavailable during DISCOVER
 - The planned approach turns out to be infeasible during EXECUTE
@@ -147,7 +155,9 @@ When a task is blocked:
 ```
 
 ### Dynamic Re-Waving
+
 If blocked tasks need to be rescheduled:
+
 1. Remove the blocked task from its current wave
 2. Recalculate its earliest possible wave based on resolved dependencies
 3. Insert it into the appropriate wave
@@ -159,14 +169,14 @@ If blocked tasks need to be rescheduled:
 
 ### Failure Categories
 
-| Category | Action | Max Retries |
-|----------|--------|-------------|
-| Test failure (code bug) | Fix the code, re-run tests | 2 |
-| Lint/type error | Fix the issue, re-run check | 2 |
-| Build failure | Investigate root cause, fix | 1 |
-| Agent crash/timeout | Restart agent with same prompt | 1 |
-| Merge conflict | Resolve conflict, re-verify | 1 |
-| Fundamental approach failure | Revise plan, flag for user | 0 (needs user input) |
+| Category                     | Action                         | Max Retries          |
+| ---------------------------- | ------------------------------ | -------------------- |
+| Test failure (code bug)      | Fix the code, re-run tests     | 2                    |
+| Lint/type error              | Fix the issue, re-run check    | 2                    |
+| Build failure                | Investigate root cause, fix    | 1                    |
+| Agent crash/timeout          | Restart agent with same prompt | 1                    |
+| Merge conflict               | Resolve conflict, re-verify    | 1                    |
+| Fundamental approach failure | Revise plan, flag for user     | 0 (needs user input) |
 
 ### Retry Protocol
 
@@ -186,7 +196,9 @@ When a task fails:
 ```
 
 ### Cascade Failure Prevention
+
 If a Wave N task fails and Wave N+1 tasks depend on it:
+
 1. Mark dependent tasks as "blocked" (not "failed")
 2. Execute non-dependent tasks in Wave N+1 normally
 3. If the failed task is eventually fixed (via retry or user intervention), unblock and execute dependents
@@ -204,6 +216,7 @@ After all tasks in a wave complete:
 5. **Combined Tests**: Run the test suite for all tasks in the wave
 
 If conflicts are detected:
+
 1. Identify which tasks conflict
 2. Determine priority (earlier task ID wins by default)
 3. Resolve the conflict
@@ -214,16 +227,19 @@ If conflicts are detected:
 ## Performance Guidelines
 
 ### Optimal Wave Size
+
 - **1-3 tasks per wave**: Efficient, low coordination overhead
 - **4-6 tasks per wave**: Good parallelism, manageable verification
 - **7+ tasks per wave**: Consider splitting into sub-waves to reduce blast radius of failures
 
 ### Agent Resource Management
+
 - Each parallel agent consumes context window and compute
 - For resource-constrained environments, limit concurrent agents to 3-4
 - Use `run_in_background: true` for independent tasks that don't block your next action
 
 ### When to Skip Parallelism
+
 - Wave has only 1 task (obvious)
 - All tasks in the wave modify the same file (serialize to prevent conflicts)
 - Tasks have implicit dependencies not captured in the DAG (rare, indicates decomposition issue)

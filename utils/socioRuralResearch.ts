@@ -47,7 +47,8 @@ function cleanPersonName(value: string): string {
 export function extractPotentialSocioNames(text: string): string[] {
   if (!text) return [];
   const names: string[] = [];
-  const rolePattern = /(?:s[oó]ci[oa]|administrador(?:a)?|diretor(?:a)?|fundador(?:a)?|qsa)\s*(?:administrador(?:a)?|controlador(?:a)?|rural)?\s*[:\-–—]?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][\wÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç'.-]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][\wÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç'.-]+){1,5})/g;
+  const rolePattern =
+    /(?:s[oó]ci[oa]|administrador(?:a)?|diretor(?:a)?|fundador(?:a)?|qsa)\s*(?:administrador(?:a)?|controlador(?:a)?|rural)?\s*[:\-–—]?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][\wÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç'.-]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][\wÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç'.-]+){1,5})/g;
   let match: RegExpExecArray | null;
   while ((match = rolePattern.exec(text)) !== null) {
     const name = cleanPersonName(match[1]);

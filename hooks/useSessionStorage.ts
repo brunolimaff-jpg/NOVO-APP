@@ -23,9 +23,9 @@ export function useSessionStorage() {
 
   const loadSessions = useCallback(async (): Promise<ChatSession[]> => {
     const sanitizeLoadedSessions = (loaded: ChatSession[]): ChatSession[] =>
-      loaded.map((session) => ({
+      loaded.map(session => ({
         ...session,
-        messages: (session.messages || []).map((message) => ({
+        messages: (session.messages || []).map(message => ({
           ...message,
           text: stripInternalMarkers(String(message.text || '')),
           timestamp: new Date(message.timestamp),
@@ -45,7 +45,7 @@ export function useSessionStorage() {
         const parsed = JSON.parse(raw);
         const localSessions = parsed.map((s: Record<string, unknown>) => ({
           ...s,
-          messages: ((s.messages as Array<Record<string, unknown>>) || []).map((m) => ({
+          messages: ((s.messages as Array<Record<string, unknown>>) || []).map(m => ({
             ...m,
             text: stripInternalMarkers(String(m.text || '')),
             timestamp: new Date(m.timestamp as string),
@@ -89,7 +89,7 @@ export function useSessionStorage() {
       const detail = (event as CustomEvent<SyncCompleteDetail>).detail;
       if (!detail || (detail.pulled ?? 0) <= 0) return;
 
-      loadSessions().then((loaded) => {
+      loadSessions().then(loaded => {
         setSessions(prev => mergeChatSessions(prev, loaded));
         setIsInitialized(true);
       });

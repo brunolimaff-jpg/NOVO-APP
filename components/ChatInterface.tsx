@@ -6,6 +6,7 @@ import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaP
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
 import { Sender, type RadarAlert } from '../types';
+import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 import { cleanTitle } from '../utils/textCleaners';
@@ -13,11 +14,7 @@ import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
 import Composer from './chat/Composer';
-import type {
-  ChatTheme,
-  ExtendedChatInterfaceProps,
-  StartInvestigationPayload,
-} from './chat/contracts';
+import type { ChatTheme, ExtendedChatInterfaceProps, StartInvestigationPayload } from './chat/contracts';
 import MessageTimeline from './chat/MessageTimeline';
 
 export type { RadarProps } from './chat/contracts';
@@ -51,13 +48,11 @@ const shouldIncludeBudgetPrompt = (
 const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
   if (!radar) return '';
 
-  const topAlerts = (radar.alerts || [])
-    .slice(0, 3)
-    .map((alert: RadarAlert, index) => {
-      const title = alert.title?.trim() || `Alerta ${index + 1}`;
-      const detail = alert.summary?.trim() || 'Sem detalhe adicional';
-      return `- ${title}: ${detail}`;
-    });
+  const topAlerts = (radar.alerts || []).slice(0, 3).map((alert: RadarAlert, index) => {
+    const title = alert.title?.trim() || `Alerta ${index + 1}`;
+    const detail = alert.summary?.trim() || 'Sem detalhe adicional';
+    return `- ${title}: ${detail}`;
+  });
 
   return [
     '<radar_context>',
@@ -194,8 +189,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const handleCopyMarkdown = useCallback(() => {
     const text = safeMessages
-      .filter((message) => !message.isError && !message.isThinking)
-      .map((message) => `**${message.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${message.text}`)
+      .filter(message => !message.isError && !message.isThinking)
+      .map(message => `**${message.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${message.text}`)
       .join('\n\n---\n\n')
       .replace(/\[\[PORTA:[^\]]+\]\]/g, '');
 
@@ -206,13 +201,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     window.dispatchEvent(new CustomEvent('scout:prefill', { detail: { text } }));
   }, []);
 
-  const handleSendMessage = useCallback((text: string) => {
-    if (operatorId) {
-      void storage.touchUserContext(operatorId);
-    }
+  const handleSendMessage = useCallback(
+    (text: string) => {
+      if (operatorId) {
+        void storage.touchUserContext(operatorId);
+      }
 
-    onSendMessage(text);
-  }, [onSendMessage, operatorId]);
+      onSendMessage(text);
+    },
+    [onSendMessage, operatorId],
+  );
 
   const theme = useMemo<ChatTheme>(
     () => ({
@@ -235,6 +233,29 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
   const displayName = operatorName.trim() || 'Operador';
+
+  const hasActiveSession = currentSession !== null && currentSession !== undefined;
+  const hasErrorInMessages = safeMessages.some(msg => Boolean(msg.isError));
+  const hasDossierContent = Boolean(currentSession?.resumoDossie);
+  const panelState = classifyPanelState({
+    messages: safeMessages,
+    hasDossierContent,
+    isLoading,
+    hasError: hasErrorInMessages,
+  });
+
+  const showEmptyStateFallback = panelState === 'empty' && hasActiveSession && !showInitialHome;
+
+  if (showEmptyStateFallback) {
+    scoutDiag.warn('EmptyStateFallback', 'sessão ativa sem conteúdo renderizável', {
+      activeSessionId: currentSession?.id ?? 'unknown',
+      activeCompanyName: currentSession?.empresaAlvo ?? currentSession?.title ?? 'unknown',
+      messagesLength: safeMessages.length,
+      hasDossierContent,
+      isLoading,
+      route: typeof window !== 'undefined' ? window.location.pathname : 'ssr',
+    });
+  }
 
   return (
     <ChatShell
@@ -262,45 +283,61 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       onCopyMarkdown={handleCopyMarkdown}
       exportStatus={exportStatus}
       timeline={
-        <MessageTimeline
-          currentSession={currentSession}
-          messages={safeMessages}
-          isLoading={isLoading}
-          hasMore={hasMore}
-          isDarkMode={isDarkMode}
-          mode={mode}
-          showOperatorGate={showOperatorGate}
-          showInitialHome={showInitialHome}
-          shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
-          onConfirmOperatorName={(name, email, existingOperatorId) => {
-            if (existingOperatorId) {
-              linkToExistingOperator(existingOperatorId, name, email);
-            } else {
-              registerOperator(name, email);
-            }
-          }}
-          onStartInvestigation={handleStartInvestigation}
-          radar={radar}
-          onOpenRadarPanel={() => setShowRadarPanel(true)}
-          onLoadMore={onLoadMore}
-          onRetry={onRetry}
-          onDeleteMessage={onDeleteMessage}
-          onReportError={onReportError}
-          onFeedback={onFeedback}
-          onSendFeedback={onSendFeedback}
-          onToggleMessageSources={onToggleMessageSources}
-          onDeepDive={onDeepDive}
-          onRegenerateSuggestions={onRegenerateSuggestions}
-          onPrefillComposer={handlePrefillComposer}
-          operatorId={operatorId}
-          processing={processing}
-          lastUserQuery={lastUserQuery}
-          onStop={onStop}
-          onSendMessage={handleSendMessage}
-          loadingPinnedLabel={loadingPinnedLabel}
-          canDeepDive={canDeepDive}
-          theme={theme}
-        />
+        <div data-testid="chat-main-panel" className="flex flex-1 min-h-0 overflow-hidden">
+          {showEmptyStateFallback ? (
+            <div
+              data-testid="empty-state"
+              className={`flex flex-1 items-center justify-center p-6 ${isDarkMode ? 'bg-slate-950 text-slate-400' : 'bg-slate-50 text-slate-500'}`}
+            >
+              <div className="text-center max-w-sm">
+                <p className="text-sm font-medium">Nenhum conteúdo disponível</p>
+                <p className="text-xs mt-2 opacity-60">
+                  O painel está vazio. Tente recarregar a página ou iniciar uma nova investigação.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <MessageTimeline
+              currentSession={currentSession}
+              messages={safeMessages}
+              isLoading={isLoading}
+              hasMore={hasMore}
+              isDarkMode={isDarkMode}
+              mode={mode}
+              showOperatorGate={showOperatorGate}
+              showInitialHome={showInitialHome}
+              shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+              onConfirmOperatorName={(name, email, existingOperatorId) => {
+                if (existingOperatorId) {
+                  linkToExistingOperator(existingOperatorId, name, email);
+                } else {
+                  registerOperator(name, email);
+                }
+              }}
+              onStartInvestigation={handleStartInvestigation}
+              radar={radar}
+              onOpenRadarPanel={() => setShowRadarPanel(true)}
+              onLoadMore={onLoadMore}
+              onRetry={onRetry}
+              onDeleteMessage={onDeleteMessage}
+              onReportError={onReportError}
+              onFeedback={onFeedback}
+              onSendFeedback={onSendFeedback}
+              onToggleMessageSources={onToggleMessageSources}
+              onDeepDive={onDeepDive}
+              onRegenerateSuggestions={onRegenerateSuggestions}
+              onPrefillComposer={handlePrefillComposer}
+              operatorId={operatorId}
+              processing={processing}
+              lastUserQuery={lastUserQuery}
+              onStop={onStop}
+              onSendMessage={handleSendMessage}
+              loadingPinnedLabel={loadingPinnedLabel}
+              canDeepDive={canDeepDive}
+              theme={theme}
+            />
+          )}
+        </div>
       }
       composer={
         <Composer

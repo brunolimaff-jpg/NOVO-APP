@@ -3,7 +3,7 @@ import { buildHistorySnippet, trimText } from './history';
 import type { WarRoomIntentFlags, WarRoomMessage, WarRoomMode } from './contracts';
 
 const SYSTEM_PROMPTS: Record<WarRoomMode, (target: string) => string> = {
-  tech: (_target) => `Você é o Especialista Técnico Sênior da Senior Sistemas.
+  tech: _target => `Você é o Especialista Técnico Sênior da Senior Sistemas.
 
 MISSÃO ÚNICA: Responder dúvidas técnicas sobre ERP Senior, módulos, processos, integrações e arquitetura.
 
@@ -18,7 +18,7 @@ REGRAS ABSOLUTAS:
 7. Escreva em português brasileiro, tom técnico e consultivo.
 8. Use markdown com headers, listas e tabelas para organizar o conteúdo.`,
 
-  killscript: (target) => `Você é Estrategista Comercial da Senior Sistemas.
+  killscript: target => `Você é Estrategista Comercial da Senior Sistemas.
 
 MISSÃO: Gerar scripts de venda táticos DEFENDENDO A SENIOR contra ${target}.
 
@@ -36,7 +36,7 @@ ESTRUTURA OBRIGATÓRIA:
 
 REGRAS: Tom agressivo mas profissional. Dados concretos. Português BR. SEMPRE DEFENDA A SENIOR!`,
 
-  benchmark: (target) => `Você é Analista Comparativo de ERPs trabalhando para a Senior Sistemas.
+  benchmark: target => `Você é Analista Comparativo de ERPs trabalhando para a Senior Sistemas.
 
 MISSÃO: Comparativo técnico detalhado mostrando VANTAGENS DA SENIOR sobre ${target}.
 
@@ -51,7 +51,7 @@ FORMATO OBRIGATÓRIO:
 
 REGRAS: Dados reais. Honesto quando ${target} tiver vantagem, MAS sempre mostre o contraponto técnico da Senior com linguagem objetiva. Português BR.`,
 
-  objections: (target) => `Você é Consultor de Vendas da Senior Sistemas especialista em rebater objeções.
+  objections: target => `Você é Consultor de Vendas da Senior Sistemas especialista em rebater objeções.
 
 MISSÃO: Rebater objeções DO CLIENTE que favorecem ${target}, DEFENDENDO A SENIOR.
 
@@ -82,13 +82,7 @@ export function getWarRoomSystemPrompt(mode: WarRoomMode, target: string): strin
   return SYSTEM_PROMPTS[mode](target);
 }
 
-export function buildWarRoomPrompt({
-  mode,
-  message,
-  history,
-  docsContext,
-  flags,
-}: BuildWarRoomPromptArgs): string {
+export function buildWarRoomPrompt({ mode, message, history, docsContext, flags }: BuildWarRoomPromptArgs): string {
   let fullPrompt = '';
 
   fullPrompt += buildHistorySnippet(history);

@@ -25,12 +25,24 @@ const FAKE_SOURCE_HOSTS = [
 ];
 
 function normalizeSourceCandidateUrl(url: string): string {
-  const raw = (url || '').trim().replace(/^<|>$/g, '').replace(/[),.;:!?]+$/g, '');
+  const raw = (url || '')
+    .trim()
+    .replace(/^<|>$/g, '')
+    .replace(/[),.;:!?]+$/g, '');
   if (!raw) return '';
 
   try {
     const parsed = new URL(raw);
-    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content', 'gclid', 'fbclid'];
+    const trackingParams = [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_id',
+      'utm_term',
+      'utm_content',
+      'gclid',
+      'fbclid',
+    ];
     trackingParams.forEach(param => parsed.searchParams.delete(param));
     const query = parsed.searchParams.toString();
     const pathname = parsed.pathname.replace(/\/+$/, '');

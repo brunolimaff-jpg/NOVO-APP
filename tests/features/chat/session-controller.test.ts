@@ -23,9 +23,7 @@ function makeSession(id: string, title: string, hasMessages = false): ChatSessio
     resumoDossie: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    messages: hasMessages
-      ? [{ id: 'm1', sender: Sender.User, text: 'Msg', timestamp: new Date() }]
-      : [],
+    messages: hasMessages ? [{ id: 'm1', sender: Sender.User, text: 'Msg', timestamp: new Date() }] : [],
   };
 }
 

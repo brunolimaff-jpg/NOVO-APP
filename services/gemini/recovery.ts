@@ -27,7 +27,9 @@ function isRecoveryDebugEnabled(): boolean {
 
 export function looksLikeMissedOpenQuestionAnswer(text: string): boolean {
   if (!text) return false;
-  return /((seu|sua)?\s*comando(\s+atual)?\s+veio\s+(vazi[ao]|em\s+branco)|comando\s+de\s+busca\s+veio\s+vazio|(sua\s+)?mensagem(\s+atual)?\s+veio\s+(vazi[ao]|em\s+branco)|sem\s+direcionamento(\s+espec[ií]fico)?|(digite|mande)\s+sua\s+d[uú]vida\s+espec[ií]fica|n[aã]o\s+enviou\s+um\s+novo\s+comando|radar\s+est[aá]\s+em\s+stand-?by|basta\s+mandar\s+o\s+nome\s+da\s+pr[oó]xima\s+empresa|n[aã]o\s+continha\s+texto\s+v[aá]lido|apenas\s+pontua[cç][õo]es|somente\s+pontua[cç][õo]es|n[aã]o\s+recebi\s+um\s+comando\s+claro|n[aã]o\s+ficou\s+claro\s+o\s+pedido|faltou\s+um\s+comando\s+claro|n[aã]o\s+conteve\s+uma\s+pergunta\s+clara|n[aã]o\s+continha\s+uma\s+pergunta\s+clara|n[aã]o\s+havia\s+uma\s+pergunta\s+clara|n[aã]o\s+entendi\s+o\s+que\s+voc[eê]\s+quis\s+(pedir|solicitar))/i.test(text);
+  return /((seu|sua)?\s*comando(\s+atual)?\s+veio\s+(vazi[ao]|em\s+branco)|comando\s+de\s+busca\s+veio\s+vazio|(sua\s+)?mensagem(\s+atual)?\s+veio\s+(vazi[ao]|em\s+branco)|sem\s+direcionamento(\s+espec[ií]fico)?|(digite|mande)\s+sua\s+d[uú]vida\s+espec[ií]fica|n[aã]o\s+enviou\s+um\s+novo\s+comando|radar\s+est[aá]\s+em\s+stand-?by|basta\s+mandar\s+o\s+nome\s+da\s+pr[oó]xima\s+empresa|n[aã]o\s+continha\s+texto\s+v[aá]lido|apenas\s+pontua[cç][õo]es|somente\s+pontua[cç][õo]es|n[aã]o\s+recebi\s+um\s+comando\s+claro|n[aã]o\s+ficou\s+claro\s+o\s+pedido|faltou\s+um\s+comando\s+claro|n[aã]o\s+conteve\s+uma\s+pergunta\s+clara|n[aã]o\s+continha\s+uma\s+pergunta\s+clara|n[aã]o\s+havia\s+uma\s+pergunta\s+clara|n[aã]o\s+entendi\s+o\s+que\s+voc[eê]\s+quis\s+(pedir|solicitar))/i.test(
+    text,
+  );
 }
 
 export async function shouldRecoverOpenQuestionByJudge(

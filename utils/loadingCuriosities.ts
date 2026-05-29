@@ -1,8 +1,11 @@
 const MAX_ITEMS = 8;
 const SAFE_GENERIC_BRANDS = new Set(['senior', 'sistemas', 'gatec', 'scout']);
-const COMPANY_MARKER_PATTERN = /\b(?:ltda|s\/a|sa|cia|cooperativa|fazenda|usina|holding|agropecuaria|agroindustrial|industria|alimentos)\b/i;
-const COMPANY_SPECIFIC_PATTERN = /\b(?:teia societ[aá]ria|per[ií]metro fiscal|pegada de mercado|footprint de mercado|rastreando a|auditando .* da|desconstruindo .* da)\b/i;
-const UNSAFE_CURIOSITY_PATTERN = /\b(?:infiltrando|desconstruindo|expondo|segredos?|ocultos?|intelig[êe]ncia de guerra|1 em cada 4|score porta)\b/i;
+const COMPANY_MARKER_PATTERN =
+  /\b(?:ltda|s\/a|sa|cia|cooperativa|fazenda|usina|holding|agropecuaria|agroindustrial|industria|alimentos)\b/i;
+const COMPANY_SPECIFIC_PATTERN =
+  /\b(?:teia societ[aá]ria|per[ií]metro fiscal|pegada de mercado|footprint de mercado|rastreando a|auditando .* da|desconstruindo .* da)\b/i;
+const UNSAFE_CURIOSITY_PATTERN =
+  /\b(?:infiltrando|desconstruindo|expondo|segredos?|ocultos?|intelig[êe]ncia de guerra|1 em cada 4|score porta)\b/i;
 
 function sanitizeLoadingContext(value: string): string {
   const text = value.replace(/\s+/g, ' ').trim();
@@ -32,17 +35,14 @@ function mentionsDifferentCompany(line: string, expectedCompany: string): boolea
   if (!normalizedLine || !normalizedCompany) return false;
   if (normalizedLine.includes(normalizedCompany)) return false;
 
-  const companyTokens = normalizedCompany
-    .split(' ')
-    .filter(token => token.length > 2);
+  const companyTokens = normalizedCompany.split(' ').filter(token => token.length > 2);
 
   if (companyTokens.some(token => normalizedLine.includes(token))) return false;
 
   const lineTokens = normalizedLine.split(' ').filter(Boolean);
   const hasSafeGenericBrand = lineTokens.some(token => SAFE_GENERIC_BRANDS.has(token));
   const looksCompanySpecific =
-    COMPANY_MARKER_PATTERN.test(normalizedLine) ||
-    COMPANY_SPECIFIC_PATTERN.test(normalizedLine);
+    COMPANY_MARKER_PATTERN.test(normalizedLine) || COMPANY_SPECIFIC_PATTERN.test(normalizedLine);
 
   return looksCompanySpecific && !hasSafeGenericBrand;
 }
@@ -51,11 +51,11 @@ function toLines(value: unknown, expectedCompany = '', strictCompanyMatch = fals
   if (!Array.isArray(value)) return [];
 
   const sanitizeLine = (line: string): string => line.replace(/\s+/g, ' ').trim();
-  const isStatusLikeLine = (line: string): boolean => (
-    (/^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando)\b/i.test(line) && line.length < 65) ||
+  const isStatusLikeLine = (line: string): boolean =>
+    (/^(buscando|consultando|cruzando|mapeando|analisando|gerando|montando|preparando)\b/i.test(line) &&
+      line.length < 65) ||
     /^(passo|fase)\s+\d+/i.test(line) ||
-    /(em andamento|investiga[cç][aã]o em andamento)/i.test(line)
-  );
+    /(em andamento|investiga[cç][aã]o em andamento)/i.test(line);
   const isUnsafeLine = (line: string): boolean => {
     const text = line.toLowerCase();
     return (
@@ -75,11 +75,11 @@ function toLines(value: unknown, expectedCompany = '', strictCompanyMatch = fals
   };
 
   return value
-    .map((item) => (typeof item === 'string' ? sanitizeLine(item) : ''))
-    .filter((item) => item.length > 10 && item.length <= 220)
-    .filter((item) => !isStatusLikeLine(item))
-    .filter((item) => !isUnsafeLine(item))
-    .filter((item) => {
+    .map(item => (typeof item === 'string' ? sanitizeLine(item) : ''))
+    .filter(item => item.length > 10 && item.length <= 220)
+    .filter(item => !isStatusLikeLine(item))
+    .filter(item => !isUnsafeLine(item))
+    .filter(item => {
       if (!expectedCompany) return true;
       if (!mentionsDifferentCompany(item, expectedCompany)) {
         if (!strictCompanyMatch) return true;
@@ -90,9 +90,9 @@ function toLines(value: unknown, expectedCompany = '', strictCompanyMatch = fals
 }
 
 function interleaveGroups(groups: string[][], limit = MAX_ITEMS): string[] {
-  const buckets = groups.map((group) => [...group]);
+  const buckets = groups.map(group => [...group]);
   const out: string[] = [];
-  while (out.length < limit && buckets.some((bucket) => bucket.length > 0)) {
+  while (out.length < limit && buckets.some(bucket => bucket.length > 0)) {
     for (const bucket of buckets) {
       const next = bucket.shift();
       if (next && !out.includes(next)) out.push(next);

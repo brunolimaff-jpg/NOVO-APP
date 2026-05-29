@@ -80,9 +80,7 @@ function hasObservedStage(candidate: readonly string[], observedKeys: Set<string
 }
 
 function getDeclaredTotalStages(totalStages?: number): number | null {
-  return typeof totalStages === 'number' && Number.isFinite(totalStages) && totalStages > 0
-    ? totalStages
-    : null;
+  return typeof totalStages === 'number' && Number.isFinite(totalStages) && totalStages > 0 ? totalStages : null;
 }
 
 export function buildLoadingSmartViewModel({
@@ -122,7 +120,7 @@ export function buildLoadingSmartViewModel({
       completedStageKeys.add(stepKey);
     }
   } else {
-    realCompletedStageKeys.forEach((key) => completedStageKeys.add(key));
+    realCompletedStageKeys.forEach(key => completedStageKeys.add(key));
   }
 
   const currentStageKey = getLoadingStageIdentity(displayedCurrent);
@@ -144,15 +142,15 @@ export function buildLoadingSmartViewModel({
     if (currentPlannedIndex >= 0) {
       visiblePlannedIndices.add(currentPlannedIndex);
       const nextPlannedIndex = plannedRich.findIndex(
-        (step, index) =>
-          index > currentPlannedIndex &&
-          !completedStageKeys.has(getLoadingStageIdentity(step.label)),
+        (step, index) => index > currentPlannedIndex && !completedStageKeys.has(getLoadingStageIdentity(step.label)),
       );
       if (nextPlannedIndex >= 0) {
         visiblePlannedIndices.add(nextPlannedIndex);
       }
     } else {
-      const nextPendingIndex = plannedRich.findIndex(step => !completedStageKeys.has(getLoadingStageIdentity(step.label)));
+      const nextPendingIndex = plannedRich.findIndex(
+        step => !completedStageKeys.has(getLoadingStageIdentity(step.label)),
+      );
       if (nextPendingIndex >= 0) {
         visiblePlannedIndices.add(nextPendingIndex);
       }
@@ -160,23 +158,25 @@ export function buildLoadingSmartViewModel({
   }
 
   const visiblePlannedStages = plannedRich.filter((_, index) => visiblePlannedIndices.has(index));
-  const expectedTotal = declaredTotalStages
-    ?? (isUsingPlannedStages
+  const expectedTotal =
+    declaredTotalStages ??
+    (isUsingPlannedStages
       ? plannedRich.length
-      : (isIncremental
+      : isIncremental
         ? Math.max(MIN_INCREMENTAL_STAGE_TOTAL, realTotalCompleted + 1)
-        : Math.max(MIN_STANDARD_STAGE_TOTAL, realTotalCompleted + 2)));
+        : Math.max(MIN_STANDARD_STAGE_TOTAL, realTotalCompleted + 2));
   const progressCompletedCount = Math.max(completedCount, completedStageKeys.size);
   const hasActiveStage = Boolean(currentStageKey) && !completedStageKeys.has(currentStageKey);
   const effectiveCompleted = hasActiveStage ? progressCompletedCount + 0.5 : progressCompletedCount;
   const displayedPercent = Math.min(Math.round((effectiveCompleted / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
   const realPercent = Math.min(Math.round((realTotalCompleted / expectedTotal) * 100), MAX_PROGRESS_PERCENT);
-  const percent = pendingInQueue > 0
-    ? Math.min(
-      displayedPercent + Math.round((realPercent - displayedPercent) * QUEUED_PROGRESS_SMOOTHING_FACTOR),
-      MAX_PROGRESS_PERCENT,
-    )
-    : displayedPercent;
+  const percent =
+    pendingInQueue > 0
+      ? Math.min(
+          displayedPercent + Math.round((realPercent - displayedPercent) * QUEUED_PROGRESS_SMOOTHING_FACTOR),
+          MAX_PROGRESS_PERCENT,
+        )
+      : displayedPercent;
 
   return {
     completedRich,

@@ -27,9 +27,6 @@ export const DOSSIE_STATUS = {
 
 export type DossieStatusKey = keyof typeof DOSSIE_STATUS;
 
-export function emitDossieStatus(
-  onStatus: ((status: string) => void) | undefined,
-  key: DossieStatusKey,
-): void {
+export function emitDossieStatus(onStatus: ((status: string) => void) | undefined, key: DossieStatusKey): void {
   onStatus?.(DOSSIE_STATUS[key]);
 }

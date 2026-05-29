@@ -12,15 +12,8 @@ interface SkeletonLineProps {
   className?: string;
 }
 
-const SkeletonLine: React.FC<SkeletonLineProps> = ({
-  width = 'w-full',
-  height = 'h-3',
-  className = '',
-}) => (
-  <div
-    className={`${height} ${width} rounded ${className} skeleton-shimmer`}
-    aria-hidden="true"
-  />
+const SkeletonLine: React.FC<SkeletonLineProps> = ({ width = 'w-full', height = 'h-3', className = '' }) => (
+  <div className={`${height} ${width} rounded ${className} skeleton-shimmer`} aria-hidden="true" />
 );
 
 interface DossieSkeletonLoaderProps {
@@ -55,7 +48,6 @@ const DossieSkeletonLoader: React.FC<DossieSkeletonLoaderProps> = ({ isDarkMode 
       `}</style>
 
       <div className="space-y-5 pb-2" role="status" aria-label="Gerando dossiê...">
-
         {/* Título da empresa */}
         <div className="space-y-1.5">
           <SkeletonLine width="w-2/3" height="h-5" className={base} />
@@ -63,9 +55,11 @@ const DossieSkeletonLoader: React.FC<DossieSkeletonLoaderProps> = ({ isDarkMode 
         </div>
 
         {/* Score PORTA simulado */}
-        <div className={`rounded-xl p-3 border ${
-          isDarkMode ? 'border-slate-700/40 bg-slate-800/40' : 'border-slate-200 bg-slate-50'
-        } space-y-2`}>
+        <div
+          className={`rounded-xl p-3 border ${
+            isDarkMode ? 'border-slate-700/40 bg-slate-800/40' : 'border-slate-200 bg-slate-50'
+          } space-y-2`}
+        >
           <SkeletonLine width="w-1/4" height="h-3" className={base} />
           <div className="flex gap-2">
             {[...Array(5)].map((_, i) => (

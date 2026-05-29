@@ -40,8 +40,8 @@ function normTitle(title: string): string {
   return title
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')   // remove acentos
-    .replace(/[^a-z0-9\s]/g, '')       // remove pontuação
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[^a-z0-9\s]/g, '') // remove pontuação
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -61,7 +61,9 @@ function jaccardSimilarity(a: string, b: string): number {
   if (ba.size === 0 && bb.size === 0) return 1;
   if (ba.size === 0 || bb.size === 0) return 0;
   let intersection = 0;
-  ba.forEach(g => { if (bb.has(g)) intersection++; });
+  ba.forEach(g => {
+    if (bb.has(g)) intersection++;
+  });
   return intersection / (ba.size + bb.size - intersection);
 }
 
@@ -137,7 +139,9 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
       }
       if (!cancelled) setIsInitialized(true);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ===================================================================
@@ -184,9 +188,10 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
         const hasPartialFailures = partialFailures.length > 0;
         if (hasPartialFailures) {
           const failedCategories = partialFailures.map(f => f.category).join(', ');
-          const warningMessage = count > 0
-            ? `Varredura parcial: alguns temas falharam (${failedCategories}).`
-            : `Não foi possível varrer alguns temas (${failedCategories}).`;
+          const warningMessage =
+            count > 0
+              ? `Varredura parcial: alguns temas falharam (${failedCategories}).`
+              : `Não foi possível varrer alguns temas (${failedCategories}).`;
           setLastWarning(warningMessage);
           toast?.info(`Radar: varredura parcial (${failedCategories})`);
         } else if (count > 0) {
@@ -222,7 +227,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     const intervalMs = config.scanIntervalHours * 3600_000;
     const now = Date.now();
 
-    if (!lastScanAt || (now - lastScanAt) >= intervalMs) {
+    if (!lastScanAt || now - lastScanAt >= intervalMs) {
       runScan();
     }
 
@@ -230,7 +235,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     const timer = setInterval(() => {
       const current = Date.now();
       const lastScan = lastScanAt || 0;
-      if ((current - lastScan) >= intervalMs) {
+      if (current - lastScan >= intervalMs) {
         runScan();
       }
     }, 3600_000);
@@ -247,7 +252,7 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   }, []);
 
   const markAsRead = useCallback((alertId: string) => {
-    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a));
+    setAlerts(prev => prev.map(a => (a.id === alertId ? { ...a, read: true } : a)));
   }, []);
 
   const markAllAsRead = useCallback(() => {

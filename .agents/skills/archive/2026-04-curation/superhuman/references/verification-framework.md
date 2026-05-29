@@ -28,15 +28,17 @@ REFACTOR: Clean up the code while keeping tests green -> tests PASS
 
 ### Test Categories Per Sub-task
 
-| Category | What to Test | Priority |
-|----------|-------------|----------|
-| Happy path | Primary use case works correctly | Required |
-| Edge cases | Boundary values, empty inputs, nulls | Required |
-| Error handling | Invalid inputs, failure modes | Required |
-| Integration points | Interactions with other components | If applicable |
+| Category           | What to Test                         | Priority      |
+| ------------------ | ------------------------------------ | ------------- |
+| Happy path         | Primary use case works correctly     | Required      |
+| Edge cases         | Boundary values, empty inputs, nulls | Required      |
+| Error handling     | Invalid inputs, failure modes        | Required      |
+| Integration points | Interactions with other components   | If applicable |
 
 ### Test Naming Convention
+
 Follow the project's existing convention. If none exists, use:
+
 ```
 describe("{ComponentOrFunction}", () => {
   it("should {expected behavior} when {condition}", () => {
@@ -53,16 +55,18 @@ Every completed sub-task must pass ALL applicable signals before closing.
 
 ### Signal Matrix
 
-| Signal | Command | Required | Notes |
-|--------|---------|----------|-------|
-| Tests | `npm test` / `pytest` / project test cmd | Always | All new and existing tests must pass |
-| Lint | `npm run lint` / `eslint` / project lint cmd | Always | Zero new warnings or errors |
-| Type Check | `tsc --noEmit` / `mypy` / `pyright` | If typed | No new type errors |
-| Build | `npm run build` / project build cmd | If applicable | Project must still build |
-| Format | `prettier --check` / `black --check` | If configured | Code matches project format |
+| Signal     | Command                                      | Required      | Notes                                |
+| ---------- | -------------------------------------------- | ------------- | ------------------------------------ |
+| Tests      | `npm test` / `pytest` / project test cmd     | Always        | All new and existing tests must pass |
+| Lint       | `npm run lint` / `eslint` / project lint cmd | Always        | Zero new warnings or errors          |
+| Type Check | `tsc --noEmit` / `mypy` / `pyright`          | If typed      | No new type errors                   |
+| Build      | `npm run build` / project build cmd          | If applicable | Project must still build             |
+| Format     | `prettier --check` / `black --check`         | If configured | Code matches project format          |
 
 ### Signal Priority
+
 If time-constrained, verify in this order:
+
 1. Tests (non-negotiable)
 2. Build (catch compile/bundling errors)
 3. Type check (catch type mismatches)
@@ -70,7 +74,9 @@ If time-constrained, verify in this order:
 5. Format (lowest priority, auto-fixable)
 
 ### Detecting Project Commands
+
 Before running verification, detect what's available:
+
 1. Check `package.json` scripts for `test`, `lint`, `build`, `typecheck`
 2. Check for `Makefile`, `pyproject.toml`, `Cargo.toml` for project-specific commands
 3. Check for CI config (`.github/workflows/`, `.gitlab-ci.yml`) to see what CI runs
@@ -81,7 +87,9 @@ Before running verification, detect what's available:
 ## Integration Verification
 
 ### When to Run Integration Checks
+
 After each wave completes, run integration verification if:
+
 - Tasks in the wave have shared dependencies
 - Tasks in the wave create interfaces consumed by the next wave
 - The wave includes both implementation and test tasks
@@ -107,7 +115,9 @@ After each wave completes, run integration verification if:
    - Verify no runtime errors in console
 
 ### Cross-Wave Integration
+
 After the final wave, before CONVERGE:
+
 - Run the FULL test suite
 - Run the FULL build
 - Verify no regressions in existing functionality
@@ -118,22 +128,25 @@ After the final wave, before CONVERGE:
 
 ### Failure Categories and Responses
 
-| Failure Type | Likely Cause | Response |
-|---|---|---|
-| Test fails (new test) | Implementation bug | Fix the code, re-run (up to 2 retries) |
-| Test fails (existing test) | Regression introduced | Identify what broke it, fix without changing the test |
-| Lint error | Code style violation | Auto-fix if possible, manual fix otherwise |
-| Type error | Type mismatch | Fix the types - don't use `any` or `# type: ignore` |
-| Build failure | Import error, syntax error | Fix the root cause, re-build |
-| Runtime error | Logic bug, missing dependency | Debug, fix, re-verify |
+| Failure Type               | Likely Cause                  | Response                                              |
+| -------------------------- | ----------------------------- | ----------------------------------------------------- |
+| Test fails (new test)      | Implementation bug            | Fix the code, re-run (up to 2 retries)                |
+| Test fails (existing test) | Regression introduced         | Identify what broke it, fix without changing the test |
+| Lint error                 | Code style violation          | Auto-fix if possible, manual fix otherwise            |
+| Type error                 | Type mismatch                 | Fix the types - don't use `any` or `# type: ignore`   |
+| Build failure              | Import error, syntax error    | Fix the root cause, re-build                          |
+| Runtime error              | Logic bug, missing dependency | Debug, fix, re-verify                                 |
 
 ### Retry Budget
+
 - Each sub-task gets a maximum of 2 retry attempts
 - Each retry includes the previous failure context in the agent prompt
 - If all retries are exhausted, the task is marked `failed`
 
 ### Escalation Protocol
+
 When a task is marked `failed`:
+
 1. Write a failure summary to the board including:
    - What was attempted
    - What failed and why
@@ -143,6 +156,7 @@ When a task is marked `failed`:
 4. Do NOT attempt workarounds that bypass tests or checks
 
 ### What NOT to Do on Failure
+
 - Do NOT suppress or skip failing tests
 - Do NOT add `@ts-ignore`, `// eslint-disable`, or `# type: ignore` to pass checks
 - Do NOT reduce test coverage to make the suite pass
@@ -167,6 +181,7 @@ Each sub-task's verification results are recorded on the board in this format:
 ```
 
 ### Example - Passing Task
+
 ```
 ### Verification: SH-003
 - Status: PASS
@@ -179,6 +194,7 @@ Each sub-task's verification results are recorded on the board in this format:
 ```
 
 ### Example - Failed Task
+
 ```
 ### Verification: SH-006
 - Status: FAIL

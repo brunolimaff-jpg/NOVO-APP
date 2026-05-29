@@ -43,4 +43,4 @@ fixtures, retries, and HTML reports all come out of the box.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/playwright-testing)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/playwright-testing)_

@@ -78,9 +78,7 @@ describe('extractGroundingSources', () => {
         },
       ],
     };
-    expect(extractGroundingSources(response)).toEqual([
-      { title: 'Doc 1', url: 'https://example.com/doc1' },
-    ]);
+    expect(extractGroundingSources(response)).toEqual([{ title: 'Doc 1', url: 'https://example.com/doc1' }]);
   });
 
   it('skips invalid URIs gracefully', () => {
@@ -137,13 +135,12 @@ describe('detectHallucinatedUrls', () => {
 
   it('treats all URLs as hallucinated when ragMatches is empty', () => {
     const text = 'URL: https://documentacao.senior.com.br/erp/compras';
-    expect(detectHallucinatedUrls(text, [])).toContain(
-      'https://documentacao.senior.com.br/erp/compras',
-    );
+    expect(detectHallucinatedUrls(text, [])).toContain('https://documentacao.senior.com.br/erp/compras');
   });
 
   it('ignores non-senior domains', () => {
-    const text = 'Google docs em https://docs.google.com/doc e doc Senior em https://documentacao.senior.com.br/erp/compras';
+    const text =
+      'Google docs em https://docs.google.com/doc e doc Senior em https://documentacao.senior.com.br/erp/compras';
     const result = detectHallucinatedUrls(text, ragMatches);
     expect(result).toEqual([]);
   });

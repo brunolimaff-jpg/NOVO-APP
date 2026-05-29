@@ -23,7 +23,7 @@ describe('ChatErrorBoundary', () => {
       </div>,
     );
 
-    expect(screen.getByTestId('chat-error-boundary')).toBeInTheDocument();
+    expect(screen.getByTestId('controlled-error')).toBeInTheDocument();
     expect(screen.getByText(/O shell do chat falhou/i)).toBeInTheDocument();
     expect(screen.getByTestId('outside-shell')).toBeInTheDocument();
   });

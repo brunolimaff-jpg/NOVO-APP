@@ -224,11 +224,7 @@ Dimensões atuais:
   T (Tecnologia): ${s.t}/10
   A (Adoção):     ${s.a}/10
 
-${
-  adjustments
-    ? `Ajustes já aplicados por deep dives anteriores:\n${adjustments}`
-    : 'Nenhum deep dive executado ainda.'
-}
+${adjustments ? `Ajustes já aplicados por deep dives anteriores:\n${adjustments}` : 'Nenhum deep dive executado ainda.'}
 
 SUA MISSÃO: Investigar profundamente SUA ÁREA. Se encontrar dados que justifiquem alterar alguma nota, use os markers [[PORTA_FEED_*]] no final. Se as notas atuais estiverem corretas para sua área, diga explicitamente "Notas atuais confirmadas, sem ajuste necessário."
 `;

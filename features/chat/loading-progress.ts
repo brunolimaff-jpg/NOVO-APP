@@ -54,17 +54,13 @@ export function useChatLoadingProgress() {
 
   const commitLoadingProgress = useCallback((nextState: CommitLoadingProgressInput) => {
     const updated = {
-      stage:
-        typeof nextState.stage === 'string'
-          ? nextState.stage
-          : loadingProgressRef.current.stage,
+      stage: typeof nextState.stage === 'string' ? nextState.stage : loadingProgressRef.current.stage,
       completedStages: Array.isArray(nextState.completedStages)
         ? nextState.completedStages
         : loadingProgressRef.current.completedStages,
-      totalStages:
-        Object.prototype.hasOwnProperty.call(nextState, 'totalStages')
-          ? nextState.totalStages
-          : loadingProgressRef.current.totalStages,
+      totalStages: Object.prototype.hasOwnProperty.call(nextState, 'totalStages')
+        ? nextState.totalStages
+        : loadingProgressRef.current.totalStages,
     };
 
     loadingProgressRef.current = updated;
@@ -74,11 +70,7 @@ export function useChatLoadingProgress() {
   }, []);
 
   const resetLoadingProgress = useCallback(
-    (
-      stage: string = 'Realizando pesquisa...',
-      totalStages?: number,
-      options?: ResetLoadingProgressOptions,
-    ) => {
+    (stage: string = 'Realizando pesquisa...', totalStages?: number, options?: ResetLoadingProgressOptions) => {
       setFailureCount(0);
       const useIncremental = Boolean(options?.incremental);
       if (useIncremental) {
@@ -111,10 +103,7 @@ export function useChatLoadingProgress() {
       );
       commitLoadingProgress({
         ...next,
-        totalStages:
-          typeof totalStages === 'number'
-            ? totalStages
-            : loadingProgressRef.current.totalStages,
+        totalStages: typeof totalStages === 'number' ? totalStages : loadingProgressRef.current.totalStages,
       });
     },
     [commitLoadingProgress],
@@ -125,20 +114,14 @@ export function useChatLoadingProgress() {
       commitLoadingProgress({
         stage,
         completedStages: loadingProgressRef.current.completedStages,
-        totalStages:
-          typeof totalStages === 'number'
-            ? totalStages
-            : loadingProgressRef.current.totalStages,
+        totalStages: typeof totalStages === 'number' ? totalStages : loadingProgressRef.current.totalStages,
       });
     },
     [commitLoadingProgress],
   );
 
   const completeLoadingProgress = useCallback(() => {
-    const next = finalizeLoadingProgress(
-      loadingProgressRef.current.stage,
-      loadingProgressRef.current.completedStages,
-    );
+    const next = finalizeLoadingProgress(loadingProgressRef.current.stage, loadingProgressRef.current.completedStages);
     commitLoadingProgress({
       ...next,
       totalStages: loadingProgressRef.current.totalStages,

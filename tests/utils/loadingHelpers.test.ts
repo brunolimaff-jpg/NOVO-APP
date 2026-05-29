@@ -1,16 +1,10 @@
 // tests/utils/loadingHelpers.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  cleanFactPrefix,
-  getNextFact,
-  shuffleArray,
-  resetShownFacts,
-} from '../../utils/loadingHelpers';
+import { cleanFactPrefix, getNextFact, shuffleArray, resetShownFacts } from '../../utils/loadingHelpers';
 
 describe('cleanFactPrefix', () => {
   it('remove prefixo "Você sabia?"', () => {
-    expect(cleanFactPrefix('Você sabia? O Brasil lidera...'))
-      .toBe('O Brasil lidera...');
+    expect(cleanFactPrefix('Você sabia? O Brasil lidera...')).toBe('O Brasil lidera...');
   });
 
   it('remove prefixo "Dado:"', () => {

@@ -45,28 +45,25 @@ export function fixFakeLinks(markdownText: string): string {
   if (!markdownText) return markdownText;
 
   // 1. Links markdown: [texto](url_fake) → tenta recuperar ou mantém texto
-  let clean = markdownText.replace(
-    MARKDOWN_HTTP_LINK_REGEX,
-    (match, linkText, url) => {
-      // Se for URL fake, tenta encontrar URL real ou lida com badges
-      if (isFakeUrl(url)) {
-        // Se for um badge de status (CONFIRMADO/AUDITORIA), apenas mantém como negrito limpo
-        const isBadge = /confirmado|auditoria/i.test(linkText);
-        if (isBadge) {
-          return `**${linkText}**`;
-        }
-
-        const realUrl = findSeniorProductUrl(linkText);
-        if (realUrl) {
-          return `[${linkText}](${realUrl})`;
-        }
-
-        // NÃO remove o link - mantém como negrito com indicação para fontes não-badges
-        return `**${linkText}** *[fonte não disponível]*`;
+  let clean = markdownText.replace(MARKDOWN_HTTP_LINK_REGEX, (match, linkText, url) => {
+    // Se for URL fake, tenta encontrar URL real ou lida com badges
+    if (isFakeUrl(url)) {
+      // Se for um badge de status (CONFIRMADO/AUDITORIA), apenas mantém como negrito limpo
+      const isBadge = /confirmado|auditoria/i.test(linkText);
+      if (isBadge) {
+        return `**${linkText}**`;
       }
-      return match;
-    },
-  );
+
+      const realUrl = findSeniorProductUrl(linkText);
+      if (realUrl) {
+        return `[${linkText}](${realUrl})`;
+      }
+
+      // NÃO remove o link - mantém como negrito com indicação para fontes não-badges
+      return `**${linkText}** *[fonte não disponível]*`;
+    }
+    return match;
+  });
 
   // 2. URLs soltas fake no texto → remover
   const domainsRegexPart = FAKE_DOMAINS.map(d => d.replace(/\./g, '\\.')).join('|');
@@ -83,19 +80,16 @@ export function fixFakeLinks(markdownText: string): string {
 export function fixFakeLinksHTML(html: string): string {
   if (!html) return html;
 
-  return html.replace(
-    /<a\s+[^>]*href="(https?:\/\/[^"]+)"[^>]*>([^<]+)<\/a>/gi,
-    (match, url, linkText) => {
-      if (!isFakeUrl(url)) return match;
+  return html.replace(/<a\s+[^>]*href="(https?:\/\/[^"]+)"[^>]*>([^<]+)<\/a>/gi, (match, url, linkText) => {
+    if (!isFakeUrl(url)) return match;
 
-      const realUrl = findSeniorProductUrl(linkText);
-      if (realUrl) {
-        return `<a href="${realUrl}" target="_blank" rel="noopener noreferrer" style="color:#059669;text-decoration:underline;">${linkText}</a>`;
-      }
-
-      return `<strong style="color:#059669;">${linkText}</strong>`;
+    const realUrl = findSeniorProductUrl(linkText);
+    if (realUrl) {
+      return `<a href="${realUrl}" target="_blank" rel="noopener noreferrer" style="color:#059669;text-decoration:underline;">${linkText}</a>`;
     }
-  );
+
+    return `<strong style="color:#059669;">${linkText}</strong>`;
+  });
 }
 
 /**

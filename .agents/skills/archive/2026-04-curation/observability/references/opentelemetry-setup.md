@@ -65,14 +65,18 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { ParentBasedSampler, TraceIdRatioBased } from '@opentelemetry/sdk-trace-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { Resource } from '@opentelemetry/resources';
-import { SEMRESATTRS_SERVICE_NAME, SEMRESATTRS_SERVICE_VERSION, SEMRESATTRS_DEPLOYMENT_ENVIRONMENT } from '@opentelemetry/semantic-conventions';
+import {
+  SEMRESATTRS_SERVICE_NAME,
+  SEMRESATTRS_SERVICE_VERSION,
+  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
+} from '@opentelemetry/semantic-conventions';
 
 const resource = Resource.default().merge(
   new Resource({
     [SEMRESATTRS_SERVICE_NAME]: process.env.SERVICE_NAME ?? 'unknown-service',
     [SEMRESATTRS_SERVICE_VERSION]: process.env.SERVICE_VERSION ?? '0.0.0',
     [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV ?? 'development',
-  })
+  }),
 );
 
 const traceExporter = new OTLPTraceExporter({
@@ -82,9 +86,7 @@ const traceExporter = new OTLPTraceExporter({
   headers: {
     // For vendors like Honeycomb or Grafana Cloud that need auth:
     ...(process.env.OTEL_EXPORTER_OTLP_HEADERS
-      ? Object.fromEntries(
-          process.env.OTEL_EXPORTER_OTLP_HEADERS.split(',').map((h) => h.split('='))
-        )
+      ? Object.fromEntries(process.env.OTEL_EXPORTER_OTLP_HEADERS.split(',').map(h => h.split('=')))
       : {}),
   },
 });
@@ -110,15 +112,13 @@ const sdk = new NodeSDK({
   }),
   sampler: new ParentBasedSampler({
     // Accept parent's sampling decision; for root spans, sample 10%
-    root: new TraceIdRatioBased(
-      Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? '0.1')
-    ),
+    root: new TraceIdRatioBased(Number(process.env.OTEL_TRACES_SAMPLER_ARG ?? '0.1')),
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
       '@opentelemetry/instrumentation-fs': { enabled: false }, // noisy, disable by default
       '@opentelemetry/instrumentation-http': {
-        ignoreIncomingRequestHook: (req) =>
+        ignoreIncomingRequestHook: req =>
           // Suppress health check traces
           req.url === '/health' || req.url === '/ready',
       },
@@ -155,23 +155,20 @@ export const ordersProcessed = meter.createCounter('orders_processed_total', {
 });
 
 // Histogram - for latency and size distributions
-export const orderProcessingDuration = meter.createHistogram(
-  'order_processing_duration_seconds',
-  {
-    description: 'Time to process an order end-to-end',
-    unit: 's',
-    advice: {
-      // Custom bucket boundaries for your latency profile
-      explicitBucketBoundaries: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-    },
-  }
-);
+export const orderProcessingDuration = meter.createHistogram('order_processing_duration_seconds', {
+  description: 'Time to process an order end-to-end',
+  unit: 's',
+  advice: {
+    // Custom bucket boundaries for your latency profile
+    explicitBucketBoundaries: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+  },
+});
 
 // Observable gauge - for values that are polled, not recorded on events
 const activeConnections = meter.createObservableGauge('db_active_connections', {
   description: 'Current active database connections',
 });
-activeConnections.addCallback((result) => {
+activeConnections.addCallback(result => {
   result.observe(pool.totalCount - pool.idleCount, { pool: 'primary' });
 });
 
@@ -310,13 +307,13 @@ def process_payment(order_id: str, amount: float):
 
 ## Sampler reference
 
-| Sampler | Description | Use case |
-|---|---|---|
-| `AlwaysOn` | Sample 100% of traces | Dev / low-traffic services |
-| `AlwaysOff` | Sample nothing | Disable tracing without code change |
-| `TraceIdRatioBased(0.1)` | Sample 10% of root spans deterministically | Production baseline |
-| `ParentBasedSampler(root)` | Respect parent decision; use `root` for new traces | Production (recommended) |
-| Tail-based (Collector) | Collect all spans, decide after trace completes | Catching errors/slow traces |
+| Sampler                    | Description                                        | Use case                            |
+| -------------------------- | -------------------------------------------------- | ----------------------------------- |
+| `AlwaysOn`                 | Sample 100% of traces                              | Dev / low-traffic services          |
+| `AlwaysOff`                | Sample nothing                                     | Disable tracing without code change |
+| `TraceIdRatioBased(0.1)`   | Sample 10% of root spans deterministically         | Production baseline                 |
+| `ParentBasedSampler(root)` | Respect parent decision; use `root` for new traces | Production (recommended)            |
+| Tail-based (Collector)     | Collect all spans, decide after trace completes    | Catching errors/slow traces         |
 
 **Tail-based sampling requires the OTel Collector** with the `tailsampling` processor.
 Example Collector config:
@@ -343,14 +340,14 @@ processors:
 
 ## Exporter quick reference
 
-| Backend | Exporter package | Endpoint format |
-|---|---|---|
-| OTel Collector (recommended) | `exporter-trace-otlp-http` | `http://collector:4318/v1/traces` |
-| Jaeger | `exporter-jaeger` or OTLP to Jaeger | `http://jaeger:14268` |
-| Grafana Tempo | OTLP HTTP | `http://tempo:4318` |
-| Datadog | `dd-trace` (separate SDK) or OTel Collector with Datadog exporter | `https://trace.agent.datadoghq.com` |
-| Honeycomb | OTLP HTTP with API key header | `https://api.honeycomb.io` |
-| New Relic | OTLP HTTP with license key header | `https://otlp.nr-data.net:4318` |
+| Backend                      | Exporter package                                                  | Endpoint format                     |
+| ---------------------------- | ----------------------------------------------------------------- | ----------------------------------- |
+| OTel Collector (recommended) | `exporter-trace-otlp-http`                                        | `http://collector:4318/v1/traces`   |
+| Jaeger                       | `exporter-jaeger` or OTLP to Jaeger                               | `http://jaeger:14268`               |
+| Grafana Tempo                | OTLP HTTP                                                         | `http://tempo:4318`                 |
+| Datadog                      | `dd-trace` (separate SDK) or OTel Collector with Datadog exporter | `https://trace.agent.datadoghq.com` |
+| Honeycomb                    | OTLP HTTP with API key header                                     | `https://api.honeycomb.io`          |
+| New Relic                    | OTLP HTTP with license key header                                 | `https://otlp.nr-data.net:4318`     |
 
 **Datadog note:** Datadog's native `dd-trace` library has better Datadog-specific
 features (APM, runtime metrics, profiling) than routing OTel through the Collector.

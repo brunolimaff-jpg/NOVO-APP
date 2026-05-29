@@ -48,29 +48,19 @@ describe('EmptyStateHome onboarding gate', () => {
   });
 
   it('mostra aviso sobre impacto de iniciar sem CNPJ no Score PORTA', () => {
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     expect(
-      screen.getByText(/Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA\./i),
+      screen.getByText(
+        /Sem CNPJ confirmado, a investigação pode ficar incompleta e reduzir a precisão do Score PORTA\./i,
+      ),
     ).toBeInTheDocument();
   });
 
   it('does not submit while required fields are missing', () => {
     const onStartInvestigation = vi.fn();
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={onStartInvestigation}
-        isDarkMode={true}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={onStartInvestigation} isDarkMode={true} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Iniciar investigação completa/i }));
     expect(onStartInvestigation).not.toHaveBeenCalled();
@@ -84,13 +74,7 @@ describe('EmptyStateHome onboarding gate', () => {
     vi.stubEnv('VITE_PREVIEW_DEMO_STATE', 'MT');
     const onStartInvestigation = vi.fn();
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={onStartInvestigation}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={onStartInvestigation} isDarkMode={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Investigar empresa demo: Grupo Scheffer/i }));
 
@@ -108,13 +92,7 @@ describe('EmptyStateHome onboarding gate', () => {
     vi.stubEnv('VITE_PREVIEW_DEMO_CITY', 'Cuiaba');
     vi.stubEnv('VITE_PREVIEW_DEMO_STATE', 'MT');
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     expect(screen.queryByTestId('preview-demo-investigation-button')).not.toBeInTheDocument();
   });
@@ -122,13 +100,7 @@ describe('EmptyStateHome onboarding gate', () => {
   it('submits once mandatory fields are valid', async () => {
     const onStartInvestigation = vi.fn();
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={onStartInvestigation}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={onStartInvestigation} isDarkMode={false} />);
 
     fireEvent.change(screen.getByLabelText(/Nome da empresa/i), { target: { value: 'Grupo Scheffer' } });
     fireEvent.change(screen.getByLabelText(/Cidade/i), { target: { value: 'Cuiabá' } });
@@ -170,13 +142,7 @@ describe('EmptyStateHome onboarding gate', () => {
   });
 
   it('keeps the large "Configurar Radar agora" CTA when radar is not configured', () => {
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={true}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={true} />);
 
     expect(screen.getByRole('button', { name: /Configurar Radar agora/i })).toBeInTheDocument();
   });
@@ -189,13 +155,7 @@ describe('EmptyStateHome onboarding gate', () => {
       state: 'RO',
     });
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
     fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
@@ -212,13 +172,7 @@ describe('EmptyStateHome onboarding gate', () => {
   it('mostra mensagem especifica para 404 de cnpj nao encontrado', async () => {
     fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('HTTP 404'));
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
     fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
@@ -231,13 +185,7 @@ describe('EmptyStateHome onboarding gate', () => {
   it('mostra mensagem de indisponibilidade quando o proxy falha', async () => {
     fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('HTTP 503'));
 
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
     fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
@@ -248,15 +196,11 @@ describe('EmptyStateHome onboarding gate', () => {
   });
 
   it('mostra orientacao de proxy no localhost quando o browser recebe o app html', async () => {
-    fetchCompanyByCnpjMock.mockRejectedValueOnce(new Error('Local dev sem proxy para /api/cnpj. Rode via vercel dev ou configure VITE_CNPJ_PROXY_URL.'));
-
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-      />,
+    fetchCompanyByCnpjMock.mockRejectedValueOnce(
+      new Error('Local dev sem proxy para /api/cnpj. Rode via vercel dev ou configure VITE_CNPJ_PROXY_URL.'),
     );
+
+    render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={false} />);
 
     fireEvent.change(screen.getByTestId('investigation-cnpj-input'), { target: { value: '04.252.011/0001-10' } });
     fireEvent.click(screen.getByTestId('investigation-cnpj-validate-button'));
