@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { storageGet, storageRemove, storageSet } from '../utils/idbStorage';
 import { storage } from '../services/storage';
+import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 
 export interface OperatorProfile {
   operatorId: string;
@@ -62,74 +63,129 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [email, setOperatorEmail] = useState<string>(() => getSavedOperatorEmail());
   const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
   const didBackfillRef = useRef(false);
+  const didTrackAppOpenRef = useRef(false);
 
-  const setName = useCallback((nextName: string) => {
-    const normalizedName = nextName.trim();
-    if (!normalizedName) return;
+  const setName = useCallback(
+    (nextName: string) => {
+      const normalizedName = nextName.trim();
+      if (!normalizedName) return;
 
-    storageSet(OPERATOR_NAME_KEY, normalizedName);
-    setOperatorName(normalizedName);
+      storageSet(OPERATOR_NAME_KEY, normalizedName);
+      setOperatorName(normalizedName);
 
-    // Sync to Supabase if email exists
-    if (email) {
-      void storage.saveUserContext({ operatorId, name: normalizedName, email });
-    }
-  }, [operatorId, email]);
+      // Sync to Supabase if email exists
+      if (email) {
+        void storage.saveUserContext({ operatorId, name: normalizedName, email }).catch(() => {});
+      }
+    },
+    [operatorId, email],
+  );
 
-  const setEmail = useCallback((nextEmail: string) => {
-    const normalizedEmail = nextEmail.trim();
-    if (!normalizedEmail) return;
+  const setEmail = useCallback(
+    (nextEmail: string) => {
+      const normalizedEmail = nextEmail.trim();
+      if (!normalizedEmail) return;
 
-    storageSet(OPERATOR_EMAIL_KEY, normalizedEmail);
-    setOperatorEmail(normalizedEmail);
+      storageSet(OPERATOR_EMAIL_KEY, normalizedEmail);
+      setOperatorEmail(normalizedEmail);
 
-    // Sync to Supabase (fire and forget)
-    void storage.saveUserContext({ operatorId, name, email: normalizedEmail });
-  }, [operatorId, name]);
+      // Sync to Supabase (fire and forget)
+      void storage.saveUserContext({ operatorId, name, email: normalizedEmail }).catch(() => {});
+    },
+    [operatorId, name],
+  );
 
-  const registerOperator = useCallback((nextName: string, nextEmail: string) => {
-    const normalizedName = nextName.trim();
-    const normalizedEmail = nextEmail.trim();
-    if (!normalizedName || !normalizedEmail) return;
+  const registerOperator = useCallback(
+    (nextName: string, nextEmail: string) => {
+      const normalizedName = nextName.trim();
+      const normalizedEmail = nextEmail.trim();
+      if (!normalizedName || !normalizedEmail) return;
 
-    storageSet(OPERATOR_NAME_KEY, normalizedName);
-    storageSet(OPERATOR_EMAIL_KEY, normalizedEmail);
-    setOperatorName(normalizedName);
-    setOperatorEmail(normalizedEmail);
+      storageSet(OPERATOR_NAME_KEY, normalizedName);
+      storageSet(OPERATOR_EMAIL_KEY, normalizedEmail);
+      setOperatorName(normalizedName);
+      setOperatorEmail(normalizedEmail);
 
-    void storage.saveUserContext({
-      operatorId,
-      name: normalizedName,
-      email: normalizedEmail,
-    });
-    storage.scheduleDossierSync({ pull: true });
-  }, [operatorId]);
+      void storage
+        .saveUserContext({
+          operatorId,
+          name: normalizedName,
+          email: normalizedEmail,
+        })
+        .catch(() => {});
+
+      // Tracking
+      if (!didTrackAppOpenRef.current) {
+        didTrackAppOpenRef.current = true;
+        void initSessionTracking(operatorId, normalizedEmail).catch(() => {});
+      }
+      trackOperatorEvent('operator_registered', {
+        operatorId,
+        email: normalizedEmail,
+      });
+
+      storage.scheduleDossierSync({ pull: true });
+    },
+    [operatorId],
+  );
 
   useEffect(() => {
     if (!shouldBackfillSavedProfileRef.current || didBackfillRef.current) return;
     if (!operatorId || !name || !email) return;
 
     didBackfillRef.current = true;
-    void storage.saveUserContext({ operatorId, name, email });
+    void storage.saveUserContext({ operatorId, name, email }).catch(() => {});
+
+    // Tracking de sessaoo — dispara apenas 1x por montagem do provider
+    if (!didTrackAppOpenRef.current) {
+      didTrackAppOpenRef.current = true;
+      void initSessionTracking(operatorId, email).catch(() => {});
+    }
   }, [email, name, operatorId]);
+
+  // Listeners de encerramento de sessao — pagehide (fechar tab) + visibilitychange:hidden (minimizar)
+  useEffect(() => {
+    const handlePageHide = () => endOperatorSession('pagehide');
+    const handleVisibilityHidden = () => {
+      if (document.visibilityState === 'hidden') endOperatorSession('visibility_hidden');
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibilityHidden);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityHidden);
+    };
+  }, []);
 
   const clearName = useCallback(() => {
     storageRemove(OPERATOR_NAME_KEY);
     setOperatorName('');
   }, []);
 
-  const linkToExistingOperator = useCallback((existingOperatorId: string, existingName: string, existingEmail: string) => {
-    storageSet(OPERATOR_ID_KEY, existingOperatorId);
-    storageSet(OPERATOR_NAME_KEY, existingName);
-    storageSet(OPERATOR_EMAIL_KEY, existingEmail);
-    setOperatorId(existingOperatorId);
-    setOperatorName(existingName);
-    setOperatorEmail(existingEmail);
+  const linkToExistingOperator = useCallback(
+    (existingOperatorId: string, existingName: string, existingEmail: string) => {
+      storageSet(OPERATOR_ID_KEY, existingOperatorId);
+      storageSet(OPERATOR_NAME_KEY, existingName);
+      storageSet(OPERATOR_EMAIL_KEY, existingEmail);
+      setOperatorId(existingOperatorId);
+      setOperatorName(existingName);
+      setOperatorEmail(existingEmail);
 
-    // Sync to Supabase
-    void storage.saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail });
-    storage.scheduleDossierSync({ pull: true });
-  }, []);
+      // Sync to Supabase
+      void storage
+        .saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail })
+        .catch(() => {});
+
+      // Tracking (se ainda nao disparou nesta sessao)
+      if (!didTrackAppOpenRef.current) {
+        didTrackAppOpenRef.current = true;
+        void initSessionTracking(existingOperatorId, existingEmail).catch(() => {});
+      }
+
+      storage.scheduleDossierSync({ pull: true });
+    },
+    [],
+  );
 
   const value = useMemo<OperatorContextType>(
     () => ({
@@ -146,11 +202,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     [clearName, email, linkToExistingOperator, name, operatorId, registerOperator, setEmail, setName],
   );
 
-  return (
-    <OperatorContext.Provider value={value}>
-      {children}
-    </OperatorContext.Provider>
-  );
+  return <OperatorContext.Provider value={value}>{children}</OperatorContext.Provider>;
 };
 
 export const useOperator = (): OperatorContextType => {

@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-const saveUserContextMock = vi.hoisted(() => vi.fn());
+const saveUserContextMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const scheduleDossierSyncMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/storage', () => ({
@@ -12,10 +12,7 @@ vi.mock('../../services/storage', () => ({
   },
 }));
 
-import {
-  OperatorProvider,
-  useOperator,
-} from '../../contexts/OperatorContext';
+import { OperatorProvider, useOperator } from '../../contexts/OperatorContext';
 
 const Probe: React.FC = () => {
   const { name, email, operatorId, clearName, setName, registerOperator, loading } = useOperator();

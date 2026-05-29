@@ -216,12 +216,14 @@ describe('storage', () => {
       vi.mocked(set).mockResolvedValue(undefined);
       vi.mocked(get).mockResolvedValue([]);
       vi.mocked(syncQueue.peek)
-        .mockReturnValueOnce([{
-          table: 'dossies',
-          operation: 'upsert',
-          data: {},
-          id: 'session-1',
-        }])
+        .mockReturnValueOnce([
+          {
+            table: 'dossies',
+            operation: 'upsert',
+            data: {},
+            id: 'session-1',
+          },
+        ])
         .mockReturnValueOnce([]);
 
       await storage.saveDossier(mockSession);
@@ -236,18 +238,22 @@ describe('storage', () => {
 
       expect(syncQueue.processWhere).toHaveBeenCalledTimes(1);
       const [predicate] = vi.mocked(syncQueue.processWhere).mock.calls[0];
-      expect(predicate({
-        table: 'dossies',
-        operation: 'upsert',
-        data: {},
-        id: 'session-1',
-      })).toBe(true);
-      expect(predicate({
-        table: 'radar_alerts',
-        operation: 'upsert',
-        data: {},
-        id: 'alerts',
-      })).toBe(false);
+      expect(
+        predicate({
+          table: 'dossies',
+          operation: 'upsert',
+          data: {},
+          id: 'session-1',
+        }),
+      ).toBe(true);
+      expect(
+        predicate({
+          table: 'radar_alerts',
+          operation: 'upsert',
+          data: {},
+          id: 'alerts',
+        }),
+      ).toBe(false);
       localStorage.removeItem('scout360:operator_id');
     });
 
@@ -274,7 +280,7 @@ describe('storage', () => {
       supabaseMock.from.mockReturnValue({ select: selectMock });
 
       let releaseProcessing: (() => void) | undefined;
-      const processing = new Promise<void>((resolve) => {
+      const processing = new Promise<void>(resolve => {
         releaseProcessing = resolve;
       });
       vi.mocked(syncQueue.processWhere).mockImplementationOnce(async () => {
@@ -287,7 +293,7 @@ describe('storage', () => {
         .mockReturnValueOnce([])
         .mockReturnValueOnce([]);
 
-      const syncComplete = new Promise<Event>((resolve) => {
+      const syncComplete = new Promise<Event>(resolve => {
         window.addEventListener('scout:sync-complete', resolve, { once: true });
       });
 
@@ -465,12 +471,16 @@ describe('storage', () => {
       });
 
       expect(supabaseMock.from).toHaveBeenCalledWith('user_context');
-      expect(supabaseMock.upsert).toHaveBeenCalledWith({
-        operator_id: 'operator-123',
-        display_name: 'Test Operator',
-        email: 'test@example.com',
-        last_seen: expect.any(String),
-      }, { onConflict: 'operator_id' });
+      expect(supabaseMock.upsert).toHaveBeenCalledWith(
+        {
+          operator_id: 'operator-123',
+          display_name: 'Test Operator',
+          email: 'test@example.com',
+          email_normalized: 'test@example.com',
+          last_seen: expect.any(String),
+        },
+        { onConflict: 'operator_id' },
+      );
       expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
