@@ -1007,8 +1007,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         completeLoadingProgress();
 
         if (sessionToPersist) {
+          const dossier = sessionToPersist as ChatSession;
           try {
-            await storage.saveDossier(sessionToPersist);
+            await storage.saveDossier(dossier);
+            window.dispatchEvent(
+              new CustomEvent('dossier:completed', {
+                detail: {
+                  dossierId: dossier.id,
+                  companyName: resolvedMegaCompany || normalizedCompany || '',
+                  cnpj: dossier.cnpj,
+                },
+              }),
+            );
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
               sessionId,

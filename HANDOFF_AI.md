@@ -1,49 +1,68 @@
-# Handoff Tecnico — [NOVO-APP] — 29/05/2026 (fim de sessao)
+# Handoff Tecnico — [NOVO-APP] — 29/05/2026 (novos bugs preview + decisao fechar PR #314)
 
 ## Objetivo da Proxima Sessao
 
-Tres branches ativas:
+- **Corrigir 2 P0 + 1 P2 no `feat/dossier-lifecycle`**: `operator_email: null`, tela branca transicao LoadingSmart, dynamic import
+- **Fechar PR #314 atual**, squash commits (3-4 semanticos), abrir nova PR limpa
+- **Retomar `feat/crm-supabase-migration`** stashed
 
-- **`fix/remove-web-search-fallback` (PR #313)** — merge conflict resolvido, CI pendente. Aguardar CI passar e mergear.
-- **`feat/dossier-lifecycle` (PR #314)** — 10 commits, aberta, 15 findings de code review (3 P0, 2 P1, 7 P2, 3 P3) para corrigir.
-- **`feat/crm-supabase-migration`** — stashed, sem PR.
-
-**Proximo passo: Verificar CI da PR #313. Se verde, mergear. Em seguida, corrigir 3 P0 do code review na PR #314 e submeter nova revisao.**
+**Proximo passo: Corrigir `operator_email: null` em `services/storage.ts` + tela branca em `utils/renderStateClassifier.ts`, squash, abrir nova PR.**
 
 ## Estado Atual
 
-- **Branch principal:** `fix/remove-web-search-fallback` (3ee6374) — PR #313 aberta, mergeable, CI pendente
-- **Branch secundaria:** `feat/dossier-lifecycle` — PR #314 aberta (10 commits)
-- **Main:** sincronizada (commit `f74ca6f`)
+- **Branch atual:** `feat/dossier-lifecycle` — commit 211e240, 11 commits a frente do main
+- **PR #314:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/314 — aberta, pendente de correcoes
+- **PR #313:** MERGEADA (squash) — fix/remove-web-search-fallback
+- **Main:** sincronizada (commit `8d6e33f`)
 - **Working tree:** limpa
-- **Stashes:** `feat/crm-supabase-migration` (stash@{1}, stash@{2})
+- **Stashes:** `feat/crm-supabase-migration` (stash@{3}, stash@{4}, stash@{5})
 
 ## O que foi feito
 
-### 1. Commits finais + PR #314 na feat/dossier-lifecycle
+### 1. PR #313 mergeada (fix/remove-web-search-fallback)
 
-- Commits 0415e40 a 9101a6c + f74ca6f (docs/handoff pos PR #312)
-- Total: 10 commits
-- PR #314 aberta: https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
+- Squash merge: 8d6e33f no main
+- Branch local `fix/remove-web-search-fallback` ainda existe (deletar)
 
-### 2. Resolucao de merge conflict na PR #313
+### 2. feat/dossier-lifecycle rebasada no main
 
-- Branch `fix/remove-web-search-fallback` — merge conflict com main resolvido
-- 2 conflitos:
-  1. Imports removidos (merge acidental via outro terminal)
-  2. `maxRetries` — `withAutoRetry` vs `MAX_FUNCTION_CALL_RETRIES`
-- Review Gemini Code Assist (buildSocioRuralSearchQueries) ja resolvido em 6c7ef13
-- **PR agora MERGEABLE**, CI pendente (Build, Tests, Typecheck, Dossier Golden)
+- Commits web-search-fallback removidos durante rebase
+- 3 P0 corrigidos (commit 0486897): cleanup race, silent errors, cross-device
+
+### 3. Novos bugs encontrados no preview Vercel (Lilian/Karine)
+
+| Prio | Bug                                                  | Local                               | Solucao planejada                                                                                                     |
+| ---- | ---------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| P0   | `operator_email: null` em todos os dossies           | `services/storage.ts:153-218`       | Adicionar `operator_email` no upsert, ler de `localStorage.getItem('scout360:operator_email')`                        |
+| P0   | Tela branca na transicao LoadingSmart -> timeline    | `utils/renderStateClassifier.ts`    | `classifyPanelState` retorna `'empty'` quando `messages` vazio e `resumoDossie` null. Ajustar logica de classificacao |
+| P2   | Dynamic import `await import('../services/storage')` | `components/DossierShareBar.tsx:22` | Substituir por static import                                                                                          |
+
+### 4. Decisao: fechar PR #314 e abrir nova PR limpa
+
+**Opcao 3 escolhida:**
+
+- Fechar PR #314 atual
+- Corrigir os 3 bugs
+- Squash commits em 3-4 commits semanticos
+- Abrir nova PR limpa
+
+### Validacao apos correcoes
+
+- Typecheck pendente
+- Testes pendentes
+- CI pendente
 
 ## Riscos Tecnicos Residuais
 
-1. **P0 withTimeout (api/gemini.ts:416 e :491):** AbortController cria signal mas nao propaga para chat.sendMessage() nem sendFunctionResponses(). Afeta TODA chamada Gemini com timeout. **(Documentado, nao corrigido — vem de sessoes anteriores)**
-2. **Cross-device divergence:** Supabase e IndexedDB sem protocolo de sync claro — P0 na feat/dossier-lifecycle
-3. **CI PR #313:** se falhar, precisara de novo debug antes do merge
+1. **P0 withTimeout (api/gemini.ts:416 e :491):** AbortController cria signal mas nao propaga para chat.sendMessage() nem sendFunctionResponses(). **(Documentado, nao corrigido)**
+2. **Branch residual `fix/remove-web-search-fallback`:** mergeada, branch local ainda existe
+3. **CRM migration:** stashed, precisa ser retomado ou descartado
+4. **12 findings do code review ainda nao corrigidos:** 2 P1, 7 P2, 3 P3 (serao resolvidos na nova PR)
 
 ## Links
 
-- **Branch PR #313:** `fix/remove-web-search-fallback` | https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
-- **Branch PR #314:** `feat/dossier-lifecycle` | https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
-- **Vault sessao:** `Bruno Vault/20-SESSOES/2026-05/2026-05-29T18-30-00-resolucao-merge-conflict-pr313-pr314.md`
-- **Licoes (anteriores):** `Bruno Vault/30-LICOES/LICOES-APRENDIDAS-CONSOLIDACAO-CODE-REVIEW-2026-05-29.md`
+- **PR #314:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
+- **PR #313 (merged):** https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
+- **Preview:** `scoutagro-git-feat-dossier-lifecycle-brunolimaff-3629s-projects.vercel.app`
+- **Vault novos bugs:** `Bruno Vault/20-SESSOES/2026-05/2026-05-29T20-30-00-novos-bugs-preview-fechamento-pr314.md`
+- **Licoes:** `Bruno Vault/30-LICOES/` (lições desta sessão pendentes de registro)

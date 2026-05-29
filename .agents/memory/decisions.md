@@ -401,6 +401,16 @@ Reason: o review encontrou 3 P0 que teriam ido para PR sem deteccao. A consolida
 
 Refs: branch `feat/dossier-lifecycle`, vault `2026-05-29T17-30-00-code-review-dossier-lifecycle-pr313.md`.
 
+## 2026-05-29 - Supabase fallback quando IDB retorna null em cross-device (APLICADO)
+
+Decision: quando `findExistingDossier` (Supabase) confirma existencia de um dossie mas `storage.getDossier` (IndexedDB) retorna null (ex: operador mudou de dispositivo), o acesso ao dossie existente deve usar fallback para Supabase em vez de bloquear o fluxo.
+
+Reason: `getDossier` le apenas IndexedDB local. Em um cenario cross-device, o dossie existe no Supabase (persistido de outro dispositivo) mas nao no IDB local. Usar IDB como guard criava falso negativo que impedia o operador de acessar o proprio dossie. O fallback mantem consistencia: Supabase e a source of truth, IDB e cache.
+
+Contract: `handleAccessExistingDossier` tenta IDB primeiro; se null, faz fetch do Supabase via `storageApi.getDossier`. Nao bloquear o fluxo porque IDB esta vazio -- a fonte confiavel e o Supabase.
+
+Refs: `components/ChatInterface.tsx:230`, commit `0486897`, vault `2026-05-29T20-00-00-pr313-merge-p0-fixes.md`.
+
 ## 2026-05-29 - PR #313 precisa de rebase antes do merge (APLICADO)
 
 Decision: PR #313 (`fix/remove-web-search-fallback`) esta com MergeStateStatus: DIRTY e precisa de `git rebase main` antes do merge. Nao mergear com DIRTY.
@@ -408,3 +418,19 @@ Decision: PR #313 (`fix/remove-web-search-fallback`) esta com MergeStateStatus: 
 Reason: o rebase evita conflito de merge e mantem historia linear. O merge state DIRTY indica que a branch divergiu da base e o GitHub nao consegue fazer fast-forward.
 
 Refs: PR #313, branch `fix/remove-web-search-fallback`.
+
+## 2026-05-29 - Fechar PR #314 e abrir nova PR limpa (DECIDIDO)
+
+Decision: fechar PR #314 (`feat/dossier-lifecycle`), corrigir os 3 novos bugs encontrados no preview (2 P0 + 1 P2), squash commits em 3-4 commits semanticos, e abrir nova PR limpa.
+
+Reason: a PR #314 ja tem 11 commits e 15 findings de code review pendentes. Novos bugs no preview (operator_email null, tela branca na transicao, dynamic import) adicionariam mais commits difficeis de revisar. Uma nova PR com commits semanticos e conteudo limpo facilita o review e reduz risco de merge com bugs.
+
+Findings novos identificados:
+
+1. **P0 - operator_email null**: `saveDossier()` e `saveAllDossiers()` em `services/storage.ts:153-218` nao incluem `operator_email` no upsert Supabase. Precisa ler de `localStorage.getItem('scout360:operator_email')`.
+2. **P0 - Tela branca transicao LoadingSmart**: `classifyPanelState` em `utils/renderStateClassifier.ts` retorna `'empty'` quando `messages` vazio e `resumoDossie` null, causando `showEmptyStateFallback` apos investigacao concluir.
+3. **P2 - Dynamic import**: `components/DossierShareBar.tsx:22` usa `await import('../services/storage')` em vez de static import.
+
+Contract: 3-4 commits semanticos na nova PR (ex: fix/operator-email, fix/tela-branca-loading, feat/dossier-lifecycle-clean). Nao incluir findings do code review que nao sao bugs (discutir com Bruno).
+
+Refs: PR #314, vault `2026-05-29T20-30-00-novos-bugs-preview-fechamento-pr314.md`, `services/storage.ts:153-218`, `utils/renderStateClassifier.ts`, `components/DossierShareBar.tsx:22`.
