@@ -148,10 +148,8 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 
   const handleCopyLink = async () => {
     const safeContent = sanitizeSensitivePersonalData(content);
-    const isPublicPage = window.location.pathname.startsWith('/dossie/');
-    const text = isPublicPage
-      ? `${safeContent.substring(0, 120)}...\n\n${window.location.href}`
-      : safeContent.substring(0, 200);
+    const snippet = safeContent.substring(0, 120);
+    const text = `${snippet}...\n\n${window.location.href}`;
 
     const onSuccess = () => {
       setCopyLinkState('copied');
@@ -182,6 +180,13 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     } catch {
       handleCopy();
     }
+
+    trackOperatorEvent('dossier_shared', {
+      operatorId: operator?.operatorId || '',
+      email: operator?.email || undefined,
+      entityType: 'message',
+      shareChannel: 'copy_link',
+    });
   };
 
   const handleLike = () => {
