@@ -13,17 +13,20 @@
 ## Pré-flight (commit 0 — pode ser PR única ou commit direto na branch da sprint)
 
 ### Tag de rollback
+
 ```bash
 git checkout main && git pull origin main
 git tag pre-sprint-9 && git push origin pre-sprint-9
 ```
 
 ### DevDeps de análise
+
 ```bash
 npm install --save-dev madge ts-prune
 ```
 
 Adicionar scripts em `package.json`:
+
 ```json
 {
   "scripts": {
@@ -34,6 +37,7 @@ Adicionar scripts em `package.json`:
 ```
 
 ### Baseline de circulares
+
 ```bash
 npm run analyze:circular > /tmp/madge-baseline.txt
 ```
@@ -41,6 +45,7 @@ npm run analyze:circular > /tmp/madge-baseline.txt
 Registrar resultado em `../PLANO_COMPLETO_SPRINTS.md` (Apêndice B): data, comando, número de circulares.
 
 ### Confirmar baseline limpo
+
 ```bash
 npm test && npm run typecheck && npm run build && npm run lint
 ```
@@ -54,7 +59,9 @@ npm test && npm run typecheck && npm run build && npm run lint
 **Pré-requisito:** Pré-flight concluído.
 
 ### Problema verificado
+
 `features/chat/message-helpers.ts:68` define `isAbortLikeError`. Importadores em `features/dossier/`:
+
 - `waterfall-orchestrator.ts:29` (também importa `RunMegaPromptWaterfallArgs` da `message-orchestrator.ts:32`)
 - `porta-reconciliation.ts:7`
 - `benchmark-stage.ts:4`
@@ -64,6 +71,7 @@ Importador interno em `features/chat/message-orchestrator.ts:21` (mantém — es
 ### Mudanças
 
 **1. Criar `utils/abortHelpers.ts`** com a implementação de `isAbortLikeError`:
+
 ```typescript
 // utils/abortHelpers.ts
 export function isAbortLikeError(error: unknown): boolean {
@@ -74,21 +82,25 @@ export function isAbortLikeError(error: unknown): boolean {
 **2. Atualizar `features/chat/message-helpers.ts`**: substituir a definição local por `export { isAbortLikeError } from '../../utils/abortHelpers';` (re-export para não quebrar importadores internos no mesmo PR — remover na onda 4 ou em PR de cleanup).
 
 **3. Atualizar imports em `features/dossier/*`**:
+
 - `waterfall-orchestrator.ts:29` → `import { isAbortLikeError } from '../../utils/abortHelpers';`
 - `porta-reconciliation.ts:7` → idem
 - `benchmark-stage.ts:4` → idem
 
 **4. Mover `RunMegaPromptWaterfallArgs`**:
+
 - Localizar a interface em `features/chat/message-orchestrator.ts`.
 - Decisão: se for usada apenas por dossier, mover para `features/dossier/types.ts`. Se for compartilhada, mover para `types.ts` (root).
 - Atualizar `features/dossier/waterfall-orchestrator.ts:32` para apontar à nova localização.
 
 ### Aceite
+
 - [ ] `grep -rn "from '\.\./chat" features/dossier/` retorna 0 resultados.
 - [ ] `npm test` verde (especialmente `tests/features/chat/*` e `tests/features/dossier/*`).
 - [ ] `npm run typecheck` verde.
 
 ### Rollback
+
 Reverter PR; `pre-sprint-9` continua válida como rede de segurança da sprint inteira.
 
 ---
@@ -101,6 +113,7 @@ Reverter PR; `pre-sprint-9` continua válida como rede de segurança da sprint i
 ### Decisão prévia (documental, antes da PR)
 
 Atualizar `ARQUITETURA.md` com seção **"Feature Flags"**:
+
 - Avaliação: runtime, via `import.meta.env.VITE_FF_*` com fallback hardcoded.
 - Override em produção: variáveis de ambiente Vercel `VITE_FF_<NAME>`.
 - Sem remote config nesta fase.
@@ -109,20 +122,21 @@ Atualizar `ARQUITETURA.md` com seção **"Feature Flags"**:
 ### Mudanças
 
 **1. Criar `utils/featureFlags.ts`:**
+
 ```typescript
 export type FeatureFlagName = 'deepDive' | 'warRoom' | 'newExportFlow' | 'radarV2';
 
 interface FeatureFlagConfig {
   default: boolean;
-  removeBy: string;  // ex.: 'Sprint 12'
+  removeBy: string; // ex.: 'Sprint 12'
   envOverride?: string; // ex.: 'VITE_FF_DEEP_DIVE'
 }
 
 const FLAGS: Record<FeatureFlagName, FeatureFlagConfig> = {
-  deepDive:       { default: true,  removeBy: 'Sprint 14', envOverride: 'VITE_FF_DEEP_DIVE' },
-  warRoom:        { default: true,  removeBy: 'Sprint 14', envOverride: 'VITE_FF_WAR_ROOM' },
-  newExportFlow:  { default: false, removeBy: 'Sprint 12', envOverride: 'VITE_FF_NEW_EXPORT' },
-  radarV2:        { default: false, removeBy: 'Sprint 13', envOverride: 'VITE_FF_RADAR_V2' },
+  deepDive: { default: true, removeBy: 'Sprint 14', envOverride: 'VITE_FF_DEEP_DIVE' },
+  warRoom: { default: true, removeBy: 'Sprint 14', envOverride: 'VITE_FF_WAR_ROOM' },
+  newExportFlow: { default: false, removeBy: 'Sprint 12', envOverride: 'VITE_FF_NEW_EXPORT' },
+  radarV2: { default: false, removeBy: 'Sprint 13', envOverride: 'VITE_FF_RADAR_V2' },
 };
 
 export function getFlag(name: FeatureFlagName): boolean {
@@ -135,16 +149,19 @@ export function getFlag(name: FeatureFlagName): boolean {
 ```
 
 **2. Criar `tests/utils/featureFlags.test.ts`** com 3 casos:
+
 - Leitura padrão retorna `default`.
 - Override `VITE_FF_<NAME>=true` retorna `true`.
 - Override inválido (`'maybe'`) cai no `default`.
 
 ### Aceite
+
 - [ ] `utils/featureFlags.ts` existe e exporta `getFlag` + tipo `FeatureFlagName`.
 - [ ] Testes passam com cobertura ≥ 90% nas linhas novas.
 - [ ] `ARQUITETURA.md` tem seção "Feature Flags".
 
 ### Rollback
+
 Reverter PR. Não há consumidores ainda.
 
 ---
@@ -155,7 +172,9 @@ Reverter PR. Não há consumidores ainda.
 **Risco:** médio (toca `App.tsx` extensamente)
 
 ### Problema verificado
+
 `App.tsx` tem wiring de modal espalhado:
+
 - Estado: linhas 141, 147 (`useState`).
 - Efeito de Esc: linhas 161–169.
 - Setters: linhas 451, 471, 622–632.
@@ -164,6 +183,7 @@ Reverter PR. Não há consumidores ainda.
 ### Mudanças
 
 **1. Criar `hooks/useEmailModal.ts`:**
+
 ```typescript
 export interface UseEmailModalReturn {
   isOpen: boolean;
@@ -182,6 +202,7 @@ export function useEmailModal(deps: UseEmailModalDeps): UseEmailModalReturn {
 **2. Criar `hooks/useFollowUpModal.ts`** análogo para FollowUp.
 
 **3. Refatorar `App.tsx`:**
+
 - Substituir `useState(false)` em 141, 147 por `const email = useEmailModal({ ... });` e `const followUp = useFollowUpModal({ ... });`.
 - Remover efeito de Esc (linhas 161–169) — agora vive nos hooks.
 - Substituir `setShowEmailModal(true/false)` por `email.open()`/`email.close()` (linhas 451, 622–628).
@@ -189,6 +210,7 @@ export function useEmailModal(deps: UseEmailModalDeps): UseEmailModalReturn {
 - No render (linhas 695–703), passar `isOpen={email.isOpen}` e `onClose={email.close}`.
 
 **4. Criar `tests/hooks/useEmailModal.test.tsx`:**
+
 - Caso 1: `open()` define `isOpen=true`.
 - Caso 2: tecla Esc dispara `close()` quando `isOpen=true`.
 - Caso 3: `handleSend` chama callback de envio passado em `deps`.
@@ -196,12 +218,14 @@ export function useEmailModal(deps: UseEmailModalDeps): UseEmailModalReturn {
 **5. Criar `tests/hooks/useFollowUpModal.test.tsx`** análogo.
 
 ### Aceite
+
 - [ ] `App.tsx` < 700 linhas (queda mínima de ~70).
 - [ ] `grep -n "setShowEmailModal\|setShowFollowUpModal" App.tsx` retorna 0.
 - [ ] Testes novos passam com cobertura ≥ 80%.
 - [ ] Validação manual: abrir e fechar EmailModal e FollowUpModal funciona; Esc fecha.
 
 ### Rollback
+
 Reverter PR; sem efeito em outros consumidores (hooks isolados).
 
 ---
@@ -214,13 +238,24 @@ Reverter PR; sem efeito em outros consumidores (hooks isolados).
 ### Mudanças — `services/exportService.ts`
 
 Criar `services/exportService.ts` com:
-```typescript
-export interface EmailPayload { /* ... */ }
-export interface FollowUpPayload { /* ... */ }
 
-export function buildEmailPayload(session: Session, dossier: Dossier): EmailPayload { /* ... */ }
-export function buildFollowUpPayload(session: Session): FollowUpPayload { /* ... */ }
-export async function exportToPDF(node: HTMLElement): Promise<Blob> { /* delegar a utils/printExport.ts */ }
+```typescript
+export interface EmailPayload {
+  /* ... */
+}
+export interface FollowUpPayload {
+  /* ... */
+}
+
+export function buildEmailPayload(session: Session, dossier: Dossier): EmailPayload {
+  /* ... */
+}
+export function buildFollowUpPayload(session: Session): FollowUpPayload {
+  /* ... */
+}
+export async function exportToPDF(node: HTMLElement): Promise<Blob> {
+  /* delegar a utils/printExport.ts */
+}
 ```
 
 Migrar lógica embutida em `App.tsx` para o service. Atualizar hooks da Onda 3 para chamar `buildEmailPayload`/`buildFollowUpPayload` em `handleSend`.
@@ -228,6 +263,7 @@ Migrar lógica embutida em `App.tsx` para o service. Atualizar hooks da Onda 3 p
 ### Mudanças — `index.tsx` (remover risco Pinecone)
 
 Em `index.tsx:7-19`, remover do array `OPTIONAL_ENV_VARS`:
+
 ```typescript
 { key: 'VITE_PINECONE_API_KEY', label: 'Chave Pinecone (RAG)' },         // ← remover
 { key: 'VITE_PINECONE_INDEX_HOST', label: 'Host do índice Pinecone' },   // ← remover
@@ -238,6 +274,7 @@ A validação "Pinecone está configurado?" deve ser feita server-side em `api/d
 ### Mudanças — `.env.example`
 
 Adicionar comentário antes de cada chave server-only:
+
 ```
 # SERVER-ONLY — nunca prefixar com VITE_ (risco de exposição no bundle)
 GEMINI_API_KEY=
@@ -249,6 +286,7 @@ BRAVE_SEARCH_API_KEY=
 ### Mudanças — `utils/envValidation.ts`
 
 Criar:
+
 ```typescript
 export function validateServerEnv(required: string[]): void {
   const missing = required.filter(k => !process.env[k]);
@@ -259,6 +297,7 @@ export function validateServerEnv(required: string[]): void {
 ```
 
 Importar e chamar no início de:
+
 - `api/gemini.ts` → `validateServerEnv(['GEMINI_API_KEY']);`
 - `api/gerar-dossie.ts` → idem
 - `api/pulse-news.ts` → idem
@@ -271,6 +310,7 @@ Importar e chamar no início de:
 Confirmar que `api/docs-rag.ts` e `api/rag.ts` leem apenas `process.env.PINECONE_*` (não `import.meta.env`). Documentar resultado no PR description. Se houver leitura via `import.meta.env`, é bug de segurança a ser corrigido nesta mesma PR.
 
 ### Aceite
+
 - [ ] `services/exportService.ts` criado e usado pelos hooks da Onda 3.
 - [ ] `grep -rn "VITE_PINECONE" --include="*.ts" --include="*.tsx" .` retorna 0 (excluindo node_modules/dist).
 - [ ] `npm run build` produz bundle sem string `VITE_PINECONE_API_KEY` (verificar com `grep VITE_PINECONE dist/assets/*.js`).
@@ -279,6 +319,7 @@ Confirmar que `api/docs-rag.ts` e `api/rag.ts` leem apenas `process.env.PINECONE
 - [ ] Validação manual: deploy em preview Vercel não falha; `/api/gemini` continua respondendo.
 
 ### Rollback
+
 Reverter PR; chaves Pinecone server-only continuam funcionando porque `api/*.ts` já usa `process.env`.
 
 ---
@@ -293,6 +334,7 @@ Reverter PR; chaves Pinecone server-only continuam funcionando porque `api/*.ts`
 **1. Criar `components/ErrorBoundaries/GlobalErrorBoundary.tsx`** — fallback de último recurso (mensagem genérica + botão "recarregar").
 
 **2. Atualizar `index.tsx`:**
+
 ```tsx
 <GlobalErrorBoundary>
   <ChatStoreProvider>
@@ -306,10 +348,12 @@ Reverter PR; chaves Pinecone server-only continuam funcionando porque `api/*.ts`
 **3. Manter `ChatErrorBoundary` e `DossierErrorBoundary`** existentes — são feature-level, este novo é o último firewall.
 
 ### Aceite
+
 - [ ] Boundary global engloba `<App />`.
 - [ ] Erro propositalmente lançado em dev mostra a UI de fallback global.
 
 ### Rollback
+
 Reverter; nada depende disso.
 
 ---
@@ -329,10 +373,10 @@ Reverter; nada depende disso.
 
 ## Estimativa de redução
 
-| Métrica | Antes | Depois (target) |
-|---|---|---|
-| `App.tsx` linhas | 772 | < 600 |
-| `App.tsx` imports | 46 | < 40 |
-| Boundary leak `dossier→chat` | 4 imports | 0 |
-| `VITE_PINECONE_*` no código | 2 referências | 0 |
-| Vercel Functions sem env validation | 6 | 0 |
+| Métrica                             | Antes         | Depois (target) |
+| ----------------------------------- | ------------- | --------------- |
+| `App.tsx` linhas                    | 772           | < 600           |
+| `App.tsx` imports                   | 46            | < 40            |
+| Boundary leak `dossier→chat`        | 4 imports     | 0               |
+| `VITE_PINECONE_*` no código         | 2 referências | 0               |
+| Vercel Functions sem env validation | 6             | 0               |

@@ -11,12 +11,33 @@ interface RadarSettingsProps {
 }
 
 const UF_NAMES: Record<string, string> = {
-  AC: 'Acre', AL: 'Alagoas', AM: 'Amazonas', AP: 'Amapá', BA: 'Bahia', CE: 'Ceará',
-  DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás', MA: 'Maranhão', MG: 'Minas Gerais',
-  MS: 'Mato Grosso do Sul', MT: 'Mato Grosso', PA: 'Pará', PB: 'Paraíba', PE: 'Pernambuco',
-  PI: 'Piauí', PR: 'Paraná', RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RO: 'Rondônia',
-  RR: 'Roraima', RS: 'Rio Grande do Sul', SC: 'Santa Catarina', SE: 'Sergipe',
-  SP: 'São Paulo', TO: 'Tocantins',
+  AC: 'Acre',
+  AL: 'Alagoas',
+  AM: 'Amazonas',
+  AP: 'Amapá',
+  BA: 'Bahia',
+  CE: 'Ceará',
+  DF: 'Distrito Federal',
+  ES: 'Espírito Santo',
+  GO: 'Goiás',
+  MA: 'Maranhão',
+  MG: 'Minas Gerais',
+  MS: 'Mato Grosso do Sul',
+  MT: 'Mato Grosso',
+  PA: 'Pará',
+  PB: 'Paraíba',
+  PE: 'Pernambuco',
+  PI: 'Piauí',
+  PR: 'Paraná',
+  RJ: 'Rio de Janeiro',
+  RN: 'Rio Grande do Norte',
+  RO: 'Rondônia',
+  RR: 'Roraima',
+  RS: 'Rio Grande do Sul',
+  SC: 'Santa Catarina',
+  SE: 'Sergipe',
+  SP: 'São Paulo',
+  TO: 'Tocantins',
 };
 
 const INTERVAL_OPTIONS = [
@@ -26,28 +47,18 @@ const INTERVAL_OPTIONS = [
   { value: 24, label: '1x/dia (24h)' },
 ];
 
-const RadarSettings: React.FC<RadarSettingsProps> = ({
-  config,
-  onUpdateConfig,
-  lastScanAt,
-  onClose,
-  isDarkMode,
-}) => {
+const RadarSettings: React.FC<RadarSettingsProps> = ({ config, onUpdateConfig, lastScanAt, onClose, isDarkMode }) => {
   const categories = Object.keys(RADAR_CATEGORY_LABELS) as RadarCategory[];
 
   const toggleCategory = (cat: RadarCategory) => {
     const current = config.categories;
-    const updated = current.includes(cat)
-      ? current.filter(c => c !== cat)
-      : [...current, cat];
+    const updated = current.includes(cat) ? current.filter(c => c !== cat) : [...current, cat];
     onUpdateConfig({ categories: updated });
   };
 
   const toggleEstado = (uf: string) => {
     const current = config.estados;
-    const updated = current.includes(uf)
-      ? current.filter(u => u !== uf)
-      : [...current, uf];
+    const updated = current.includes(uf) ? current.filter(u => u !== uf) : [...current, uf];
     onUpdateConfig({ estados: updated });
   };
 
@@ -71,11 +82,15 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-2xl mx-4 ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      }`}>
+      <div
+        className={`relative w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-2xl mx-4 ${
+          isDarkMode ? 'bg-gray-900' : 'bg-white'
+        }`}
+      >
         {/* Header */}
-        <div className={`flex-shrink-0 flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div
+          className={`flex-shrink-0 flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}
+        >
           <div className="flex items-center gap-2">
             <span className="text-lg">📡</span>
             <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
@@ -85,7 +100,9 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
           <button
             onClick={onClose}
             className={`p-1.5 rounded-lg transition-colors ${
-              isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
             ✕
@@ -107,9 +124,11 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
                   config.enabled ? 'bg-emerald-500' : isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
                 }`}
               >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                  config.enabled ? 'translate-x-6' : 'translate-x-0.5'
-                }`} />
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    config.enabled ? 'translate-x-6' : 'translate-x-0.5'
+                  }`}
+                />
               </button>
             </div>
             {nextScanIn && config.enabled && (
@@ -150,9 +169,7 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
                 <label
                   key={cat}
                   className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                    config.categories.includes(cat)
-                      ? isDarkMode ? 'bg-gray-700/50' : 'bg-emerald-50'
-                      : ''
+                    config.categories.includes(cat) ? (isDarkMode ? 'bg-gray-700/50' : 'bg-emerald-50') : ''
                   }`}
                 >
                   <input
@@ -182,7 +199,9 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
               <button
                 onClick={selectAllEstados}
                 className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 Selecionar todos
@@ -190,7 +209,9 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
               <button
                 onClick={clearEstados}
                 className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 Limpar
@@ -216,7 +237,8 @@ const RadarSettings: React.FC<RadarSettingsProps> = ({
             </div>
             {config.estados.length > 0 && (
               <p className={`text-[10px] mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                {config.estados.length} estado{config.estados.length > 1 ? 's' : ''} selecionado{config.estados.length > 1 ? 's' : ''}
+                {config.estados.length} estado{config.estados.length > 1 ? 's' : ''} selecionado
+                {config.estados.length > 1 ? 's' : ''}
               </p>
             )}
           </div>

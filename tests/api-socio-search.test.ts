@@ -119,14 +119,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Elizeu Zulmar Maggi Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04.733.767/0001-80',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Elizeu Zulmar Maggi Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -146,11 +149,14 @@ describe('api/socio-search', () => {
         }),
       ],
     });
-    expect((response.payload as { companies: Array<{ relationshipScope: string; rootContext: boolean }> }).companies)
-      .not.toEqual(expect.arrayContaining([
+    expect(
+      (response.payload as { companies: Array<{ relationshipScope: string; rootContext: boolean }> }).companies,
+    ).not.toEqual(
+      expect.arrayContaining([
         expect.objectContaining({ relationshipScope: 'group_link' }),
         expect.objectContaining({ rootContext: true }),
-      ]));
+      ]),
+    );
   });
 
   it('referencia CNPJ baixado do CNPJ Aberto sem inserir no inventario principal', async () => {
@@ -169,14 +175,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Carolina Moggnon Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04.733.767/0001-80',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Carolina Moggnon Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     const payload = response.payload as {
       companies: unknown[];
@@ -184,12 +193,14 @@ describe('api/socio-search', () => {
     };
     expect(response.statusCode).toBe(200);
     expect(payload.companies).toHaveLength(0);
-    expect(payload.rejected).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        sourceTitle: 'CNPJ Aberto — Empresa Baixada LTDA',
-        reason: expect.stringMatching(/baixado\/inativo/i),
-      }),
-    ]));
+    expect(payload.rejected).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceTitle: 'CNPJ Aberto — Empresa Baixada LTDA',
+          reason: expect.stringMatching(/baixado\/inativo/i),
+        }),
+      ]),
+    );
     expect(lookupCnpjMock).not.toHaveBeenCalled();
   });
 
@@ -220,15 +231,18 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Elizeu Zulmar Maggi Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04.733.767/0001-80',
-        trace: true,
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Elizeu Zulmar Maggi Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+          trace: true,
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -285,38 +299,46 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Elizeu Zulmar Maggi Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04.733.767/0001-80',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Elizeu Zulmar Maggi Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect((response.payload as { trace?: unknown }).trace).toBeUndefined();
   });
 
   it('retorna empresas fortes e remove CPF completo do snippet', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. CPF 123.456.789-00 e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. CPF 123.456.789-00 e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04.733.767/0001-80',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -337,24 +359,29 @@ describe('api/socio-search', () => {
   });
 
   it('rejeita homonimo fraco sem contexto do grupo', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: João Scheffer abre empresa de tecnologia',
-      'URL: https://example.com/homonimo',
-      'Resumo: Pessoa sem conexão com Scheffer & Cia Ltda, agro ou CNPJ raiz.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: João Scheffer abre empresa de tecnologia',
+        'URL: https://example.com/homonimo',
+        'Resumo: Pessoa sem conexão com Scheffer & Cia Ltda, agro ou CNPJ raiz.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -364,24 +391,29 @@ describe('api/socio-search', () => {
   });
 
   it('rejeita match por nome em dominio forte quando falta contexto do grupo', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - quadro societário',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      'Resumo: Guilherme M. Scheffer consta como sócio de outra empresa sem contexto do grupo analisado.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - quadro societário',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        'Resumo: Guilherme M. Scheffer consta como sócio de outra empresa sem contexto do grupo analisado.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -393,12 +425,14 @@ describe('api/socio-search', () => {
   it('retorna CNPJ valido do socio mesmo sem contexto da matriz como outro CNPJ do socio', async () => {
     performWebSearchMock
       .mockResolvedValueOnce('Nenhum resultado encontrado.')
-      .mockResolvedValueOnce([
-        'Título: Guilherme M. Scheffer - quadro societário',
-        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        'Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda Independente LTDA CNPJ 12.345.678/0001-95.',
-        '---',
-      ].join('\n'))
+      .mockResolvedValueOnce(
+        [
+          'Título: Guilherme M. Scheffer - quadro societário',
+          'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          'Resumo: Guilherme M. Scheffer consta como sócio administrador da Fazenda Independente LTDA CNPJ 12.345.678/0001-95.',
+          '---',
+        ].join('\n'),
+      )
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: '12345678000195',
@@ -419,14 +453,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(performWebSearchMock).toHaveBeenCalledWith(
@@ -448,12 +485,14 @@ describe('api/socio-search', () => {
   });
 
   it('nao promove CNPJ de perfil do socio para grupo so porque a raiz aparece no mesmo bloco', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Econodata',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Econodata',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: '09567366000111',
       companyName: 'AGROPECUARIA SCHEFFER LTDA',
@@ -473,14 +512,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -515,12 +557,14 @@ describe('api/socio-search', () => {
       text: async () => pageHtml,
     } as Response);
     performWebSearchMock
-      .mockResolvedValueOnce([
-        'Título: Guilherme M. Scheffer - Econodata',
-        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
-        '---',
-      ].join('\n'))
+      .mockResolvedValueOnce(
+        [
+          'Título: Guilherme M. Scheffer - Econodata',
+          'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          'Resumo: Guilherme M. Scheffer também desempenha função na Scheffer & Cia Ltda. Empresas em que Guilherme é listado: Agropecuaria Scheffer LTDA CNPJ 09.567.366/0001-11.',
+          '---',
+        ].join('\n'),
+      )
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockImplementation(async (cnpj: string) => ({
       cnpj,
@@ -538,14 +582,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledWith('https://consultasocio.com/q/sa/guilherme-m-scheffer', expect.any(Object));
@@ -561,14 +608,18 @@ describe('api/socio-search', () => {
       diagnostics?: { cnpjsEnriched?: number };
     };
     expect(payload.companies).toHaveLength(6);
-    expect(payload.companies).toEqual(expect.arrayContaining(
-      pageCompanies.slice(0, 5).map(([name, cnpj]) => expect.objectContaining({
-        name,
-        cnpj: normalizeCnpj(cnpj),
-        relationshipScope: 'partner_other_cnpj',
-        rootContext: false,
-      })),
-    ));
+    expect(payload.companies).toEqual(
+      expect.arrayContaining(
+        pageCompanies.slice(0, 5).map(([name, cnpj]) =>
+          expect.objectContaining({
+            name,
+            cnpj: normalizeCnpj(cnpj),
+            relationshipScope: 'partner_other_cnpj',
+            rootContext: false,
+          }),
+        ),
+      ),
+    );
     expect(payload.companies.at(-1)).toMatchObject({
       name: pageCompanies.at(-1)?.[0],
       cnpj: normalizeCnpj(pageCompanies.at(-1)?.[1] || ''),
@@ -584,25 +635,28 @@ describe('api/socio-search', () => {
 
   it('extrai varios CNPJs da mesma pagina de perfil do socio e retorna excedentes sem lookup como pendentes', async () => {
     const profileCnpjs = Array.from({ length: 7 }, (_, index) => formatTestCnpj(buildValidCnpj(index + 10)));
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${profileCnpjs[0]}.`,
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${profileCnpjs[0]}.`,
+        '---',
+      ].join('\n'),
+    );
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       headers: new Headers({ 'content-type': 'text/plain' }),
-      text: async () => [
-        'Empresas em que Guilherme M. Scheffer aparece:',
-        `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[0]}`,
-        `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[1]}`,
-        `Fazenda Leste LTDA CNPJ ${profileCnpjs[2]}`,
-        `Armazens Serra LTDA CNPJ ${profileCnpjs[3]}`,
-        `Transportes Oeste LTDA CNPJ ${profileCnpjs[4]}`,
-        `Bio Insumos Vale LTDA CNPJ ${profileCnpjs[5]}`,
-        `Trading Centro LTDA CNPJ ${profileCnpjs[6]}`,
-      ].join('\n'),
+      text: async () =>
+        [
+          'Empresas em que Guilherme M. Scheffer aparece:',
+          `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[0]}`,
+          `Agropecuaria Norte LTDA CNPJ ${profileCnpjs[1]}`,
+          `Fazenda Leste LTDA CNPJ ${profileCnpjs[2]}`,
+          `Armazens Serra LTDA CNPJ ${profileCnpjs[3]}`,
+          `Transportes Oeste LTDA CNPJ ${profileCnpjs[4]}`,
+          `Bio Insumos Vale LTDA CNPJ ${profileCnpjs[5]}`,
+          `Trading Centro LTDA CNPJ ${profileCnpjs[6]}`,
+        ].join('\n'),
     } as Response);
     lookupCnpjMock.mockImplementation(async (cnpj: string) => ({
       cnpj,
@@ -620,14 +674,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     const payload = response.payload as {
@@ -642,11 +699,16 @@ describe('api/socio-search', () => {
       diagnostics?: { pagesFetched?: number; cnpjsEnriched?: number };
     };
 
-    expect(globalThis.fetch).toHaveBeenCalledWith('https://consultasocio.com/q/sa/guilherme-m-scheffer', expect.any(Object));
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://consultasocio.com/q/sa/guilherme-m-scheffer',
+      expect.any(Object),
+    );
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
     expect(payload.diagnostics).toMatchObject({ pagesFetched: 1, cnpjsEnriched: 5 });
     expect(payload.companies.map(company => company.cnpj)).toEqual(profileCnpjs.map(normalizeCnpj));
-    expect(payload.companies.slice(0, 5).every(company => company.relationshipScope === 'partner_other_cnpj')).toBe(true);
+    expect(payload.companies.slice(0, 5).every(company => company.relationshipScope === 'partner_other_cnpj')).toBe(
+      true,
+    );
     expect(payload.companies.slice(5).every(company => company.relationshipScope === 'unconfirmed')).toBe(true);
     expect(payload.companies.slice(5).every(company => company.validationStatus === 'pending')).toBe(true);
     expect(payload.companies.every(company => company.rootContext === false)).toBe(true);
@@ -658,25 +720,30 @@ describe('api/socio-search', () => {
   it('substitui nome truncado por fallback de CNPJ quando lookup oficial nao enriquece', async () => {
     const validCnpj = buildValidCnpj(30);
     const formattedCnpj = formatTestCnpj(validCnpj);
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${formattedCnpj}.`,
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        `Resumo: Guilherme M. Scheffer consta no quadro societário de Cia Ltda CNPJ ${formattedCnpj}.`,
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -697,25 +764,30 @@ describe('api/socio-search', () => {
   it('retorna CNPJ textual sem validacao oficial como pendente e nao confirmado', async () => {
     const validCnpj = buildValidCnpj(32);
     const formattedCnpj = formatTestCnpj(validCnpj);
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      `Resumo: Guilherme M. Scheffer consta no quadro societário de Condominio Rural X CNPJ ${formattedCnpj}.`,
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        `Resumo: Guilherme M. Scheffer consta no quadro societário de Condominio Rural X CNPJ ${formattedCnpj}.`,
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -735,12 +807,14 @@ describe('api/socio-search', () => {
   it('substitui nome oficial truncado por razao inferida do bloco do CNPJ', async () => {
     const validCnpj = buildValidCnpj(31);
     const formattedCnpj = formatTestCnpj(validCnpj);
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      `Resumo: Guilherme M. Scheffer consta no quadro societário de Agropecuaria Norte LTDA CNPJ ${formattedCnpj}.`,
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        `Resumo: Guilherme M. Scheffer consta no quadro societário de Agropecuaria Norte LTDA CNPJ ${formattedCnpj}.`,
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: validCnpj,
       companyName: 'Cia Ltda',
@@ -757,14 +831,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -788,14 +865,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -812,25 +892,30 @@ describe('api/socio-search', () => {
     const cnpjList = Array.from({ length: 62 }, (_, index) => {
       return [`Empresa ${index + 1} LTDA`, formatTestCnpj(buildValidCnpj(index + 100))] as const;
     });
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      `Resumo: Guilherme M. Scheffer consta como sócio administrador. ${cnpjList.map(([name, cnpj]) => `${name} CNPJ ${cnpj}`).join(' ')}`,
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        `Resumo: Guilherme M. Scheffer consta como sócio administrador. ${cnpjList.map(([name, cnpj]) => `${name} CNPJ ${cnpj}`).join(' ')}`,
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockRejectedValue(new Error('official lookup timeout'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     const payload = response.payload as {
@@ -848,25 +933,30 @@ describe('api/socio-search', () => {
   });
 
   it('rejeita CNPJ com digito verificador invalido quando o lookup oficial nao confirma', async () => {
-    performWebSearchMock.mockResolvedValueOnce([
-      'Título: Guilherme M. Scheffer - Consulta Sócio',
-      'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-      'Resumo: Guilherme M. Scheffer consta como sócio administrador de Cia Ltda CNPJ 11.111.111/0001-11.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValueOnce(
+      [
+        'Título: Guilherme M. Scheffer - Consulta Sócio',
+        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+        'Resumo: Guilherme M. Scheffer consta como sócio administrador de Cia Ltda CNPJ 11.111.111/0001-11.',
+        '---',
+      ].join('\n'),
+    );
     lookupCnpjMock.mockRejectedValue(new Error('official source timeout'));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -881,12 +971,14 @@ describe('api/socio-search', () => {
     const formattedCnpj = formatTestCnpj(validCnpj);
     performWebSearchMock
       .mockResolvedValueOnce('Nenhum resultado encontrado.')
-      .mockResolvedValueOnce([
-        'Título: Guilherme M. Scheffer - quadro societário',
-        'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
-        `Resumo: Guilherme M. Scheffer aparece perto da Fazenda Homonima LTDA CNPJ ${formattedCnpj}.`,
-        '---',
-      ].join('\n'))
+      .mockResolvedValueOnce(
+        [
+          'Título: Guilherme M. Scheffer - quadro societário',
+          'URL: https://consultasocio.com/q/sa/guilherme-m-scheffer',
+          `Resumo: Guilherme M. Scheffer aparece perto da Fazenda Homonima LTDA CNPJ ${formattedCnpj}.`,
+          '---',
+        ].join('\n'),
+      )
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: validCnpj,
@@ -907,14 +999,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -932,12 +1027,14 @@ describe('api/socio-search', () => {
     const formattedCnpj = formatTestCnpj(validCnpj);
     performWebSearchMock
       .mockResolvedValueOnce('Nenhum resultado encontrado.')
-      .mockResolvedValueOnce([
-        'Título: João Silva - quadro societário',
-        'URL: https://consultasocio.com/q/sa/joao-silva',
-        `Resumo: João Silva aparece no quadro societário da Agro Silva LTDA CNPJ ${formattedCnpj}.`,
-        '---',
-      ].join('\n'))
+      .mockResolvedValueOnce(
+        [
+          'Título: João Silva - quadro societário',
+          'URL: https://consultasocio.com/q/sa/joao-silva',
+          `Resumo: João Silva aparece no quadro societário da Agro Silva LTDA CNPJ ${formattedCnpj}.`,
+          '---',
+        ].join('\n'),
+      )
       .mockResolvedValue('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: validCnpj,
@@ -955,14 +1052,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'João Silva',
-        rootCompanyName: 'Empresa Raiz Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'João Silva',
+          rootCompanyName: 'Empresa Raiz Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -976,34 +1076,42 @@ describe('api/socio-search', () => {
   });
 
   it('usa cache para repetir a mesma busca sem novo scraping', async () => {
-    performWebSearchMock.mockResolvedValue([
-      'Título: Agropecuária Scheffer',
-      'URL: https://example.com/agropecuaria-scheffer',
-      'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem no contexto societário da Agropecuária Scheffer.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Agropecuária Scheffer',
+        'URL: https://example.com/agropecuaria-scheffer',
+        'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem no contexto societário da Agropecuária Scheffer.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
 
     const first = makeResponse();
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, first.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      first.res,
+    );
 
     const second = makeResponse();
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, second.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      second.res,
+    );
 
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
@@ -1016,24 +1124,29 @@ describe('api/socio-search', () => {
 
   it('continua pesquisando em producao quando cache persistente nao esta configurado', async () => {
     vi.stubEnv('NODE_ENV', 'production');
-    performWebSearchMock.mockResolvedValue([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -1057,24 +1170,29 @@ describe('api/socio-search', () => {
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'public-anon-key');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('page fetch not mocked'));
-    performWebSearchMock.mockResolvedValue([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -1090,7 +1208,8 @@ describe('api/socio-search', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -1100,24 +1219,29 @@ describe('api/socio-search', () => {
         status: 503,
         json: async () => ({}),
       } as Response);
-    performWebSearchMock.mockResolvedValue([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
@@ -1133,7 +1257,8 @@ describe('api/socio-search', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -1151,33 +1276,41 @@ describe('api/socio-search', () => {
         status: 503,
         json: async () => ({}),
       } as Response);
-    performWebSearchMock.mockResolvedValue([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const first = makeResponse();
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, first.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      first.res,
+    );
 
     const second = makeResponse();
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, second.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      second.res,
+    );
 
     expect(first.payload).toMatchObject({ companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })] });
     expect(second.payload).toMatchObject({
@@ -1195,39 +1328,49 @@ describe('api/socio-search', () => {
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ([{
-        result: {
-          companies: [{
-            name: 'Scheffer Colombia S.A.S.',
-            country: 'CO',
-            partnerName: 'Guilherme M. Scheffer',
-            sourceUrl: 'https://example.com/colombia',
-            sourceTitle: 'Fonte cache',
-            snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
-            confidence: 'strong',
-            evidenceType: 'registry',
-          }],
-          rejected: [],
-          degraded: false,
-          cached: false,
+      json: async () => [
+        {
+          result: {
+            companies: [
+              {
+                name: 'Scheffer Colombia S.A.S.',
+                country: 'CO',
+                partnerName: 'Guilherme M. Scheffer',
+                sourceUrl: 'https://example.com/colombia',
+                sourceTitle: 'Fonte cache',
+                snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
+                confidence: 'strong',
+                evidenceType: 'registry',
+              },
+            ],
+            rejected: [],
+            degraded: false,
+            cached: false,
+          },
         },
-      }]),
+      ],
     } as Response);
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
-    expect(response.payload).toMatchObject({ cached: true, companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })] });
+    expect(response.payload).toMatchObject({
+      cached: true,
+      companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
+    });
     expect(fetchSpy).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ method: 'GET' }));
     expect(performWebSearchMock).not.toHaveBeenCalled();
   });
@@ -1235,7 +1378,8 @@ describe('api/socio-search', () => {
   it('grava cache persistente com expiracao de pelo menos 7 dias', async () => {
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -1244,24 +1388,29 @@ describe('api/socio-search', () => {
         ok: true,
         json: async () => ({}),
       } as Response);
-    performWebSearchMock.mockResolvedValue([
-      'Título: Scheffer Colombia S.A.S. importações',
-      'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
-      'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
-      '---',
-    ].join('\n'));
+    performWebSearchMock.mockResolvedValue(
+      [
+        'Título: Scheffer Colombia S.A.S. importações',
+        'URL: https://www.veritradecorp.com/es/COLOMBIA/importaciones-y-exportaciones-scheffer-colombia-sas/NIT-901352572',
+        'Resumo: Guilherme M. Scheffer aparece ligado à Scheffer Colombia S.A.S. e SCHEFFER & CIA LTDA exportou para a empresa.',
+        '---',
+      ].join('\n'),
+    );
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -1277,21 +1426,26 @@ describe('api/socio-search', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
       headers: new Headers({ 'content-type': 'text/html' }),
-      text: async () => `<html><body>Guilherme M. Scheffer aparece com Scheffer & Cia Ltda na Agropecuaria Scheffer CNPJ ${formattedCnpj}.</body></html>`,
+      text: async () =>
+        `<html><body>Guilherme M. Scheffer aparece com Scheffer & Cia Ltda na Agropecuaria Scheffer CNPJ ${formattedCnpj}.</body></html>`,
     } as Response);
     performWebSearchMock
-      .mockResolvedValueOnce([
-        'Título: Resultado genérico Scheffer',
-        'URL: https://example.com/generico',
-        'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem em resultado superficial.',
-        '---',
-      ].join('\n'))
-      .mockResolvedValueOnce([
-        'Título: Agropecuaria Scheffer QSA',
-        'URL: https://example.com/agropecuaria-scheffer',
-        'Resumo: Guilherme M. Scheffer aparece no quadro societário do grupo Scheffer.',
-        '---',
-      ].join('\n'))
+      .mockResolvedValueOnce(
+        [
+          'Título: Resultado genérico Scheffer',
+          'URL: https://example.com/generico',
+          'Resumo: Guilherme M. Scheffer e Scheffer & Cia Ltda aparecem em resultado superficial.',
+          '---',
+        ].join('\n'),
+      )
+      .mockResolvedValueOnce(
+        [
+          'Título: Agropecuaria Scheffer QSA',
+          'URL: https://example.com/agropecuaria-scheffer',
+          'Resumo: Guilherme M. Scheffer aparece no quadro societário do grupo Scheffer.',
+          '---',
+        ].join('\n'),
+      )
       .mockResolvedValueOnce('Nenhum resultado encontrado.');
     lookupCnpjMock.mockResolvedValueOnce({
       cnpj: validCnpj,
@@ -1312,22 +1466,28 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(performWebSearchMock).toHaveBeenCalledTimes(6);
     expect(fetchSpy).toHaveBeenCalledWith('https://example.com/generico', expect.any(Object));
-    expect(lookupCnpjMock).toHaveBeenCalledWith(validCnpj, expect.objectContaining({
-      maxSources: 1,
-      timeoutMs: expect.any(Number),
-    }));
+    expect(lookupCnpjMock).toHaveBeenCalledWith(
+      validCnpj,
+      expect.objectContaining({
+        maxSources: 1,
+        timeoutMs: expect.any(Number),
+      }),
+    );
     expect(response.payload).toMatchObject({
       companies: [
         expect.objectContaining({
@@ -1372,14 +1532,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);
@@ -1414,14 +1577,17 @@ describe('api/socio-search', () => {
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
 
-    await handler({
-      method: 'POST',
-      body: {
-        socioName: 'Guilherme M. Scheffer',
-        rootCompanyName: 'Scheffer & Cia Ltda',
-        rootCnpj: '04733767000180',
-      },
-    } as VercelRequest, response.res);
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
 
     expect(response.statusCode).toBe(200);
     expect(lookupCnpjMock).toHaveBeenCalledTimes(5);

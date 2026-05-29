@@ -1,9 +1,9 @@
-import { ChatSession, Message } from "../types";
-import { withAutoRetry } from "../utils/retry";
-import { scoutDiag } from "../utils/diagnosticLog";
-import { BACKEND_URL } from "./apiConfig";
-import { stripInternalMarkers } from "../utils/textCleaners";
-import { DEFAULT_MODE } from "../constants";
+import { ChatSession, Message } from '../types';
+import { withAutoRetry } from '../utils/retry';
+import { scoutDiag } from '../utils/diagnosticLog';
+import { BACKEND_URL } from './apiConfig';
+import { stripInternalMarkers } from '../utils/textCleaners';
+import { DEFAULT_MODE } from '../constants';
 
 const SESSIONS_API_URL = BACKEND_URL;
 const TIMEOUT_MS = 10000;
@@ -35,12 +35,7 @@ class RemoteStoreError extends Error {
   action: string;
   details?: Record<string, unknown>;
 
-  constructor(
-    kind: RemoteStoreErrorKind,
-    action: string,
-    message: string,
-    details?: Record<string, unknown>,
-  ) {
+  constructor(kind: RemoteStoreErrorKind, action: string, message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'RemoteStoreError';
     this.kind = kind;
@@ -123,11 +118,7 @@ function parseListSessionsResponse(text: string): RemoteSessionRow[] {
       throw new RemoteStoreError('unavailable', 'listSessions', envelope.message ?? 'Use POST para ações');
     }
 
-    throw new RemoteStoreError(
-      'incompatible',
-      'listSessions',
-      envelope.message ?? 'Invalid sessions payload',
-    );
+    throw new RemoteStoreError('incompatible', 'listSessions', envelope.message ?? 'Invalid sessions payload');
   }
 
   if (envelope.success === false) {
@@ -188,7 +179,7 @@ async function fetchWithTimeout(url: string, options: FetchOptions, timeout: num
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(timeoutId);
     return response;
@@ -203,19 +194,21 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
     const attempts: Array<{ name: string; request: () => Promise<Response> }> = [
       {
         name: 'GET querystring',
-        request: () => fetchWithTimeout(`${SESSIONS_API_URL}?action=listSessions`, {
-          method: "GET",
-          redirect: "follow",
-        }),
+        request: () =>
+          fetchWithTimeout(`${SESSIONS_API_URL}?action=listSessions`, {
+            method: 'GET',
+            redirect: 'follow',
+          }),
       },
       {
         name: 'POST body',
-        request: () => fetchWithTimeout(SESSIONS_API_URL, {
-          method: "POST",
-          redirect: "follow",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "listSessions" }),
-        }),
+        request: () =>
+          fetchWithTimeout(SESSIONS_API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action: 'listSessions' }),
+          }),
       },
     ];
 
@@ -248,9 +241,9 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
   try {
     const rows = await withAutoRetry<RemoteSessionRow[]>('RemoteStore:list', apiCall, { maxRetries: 2 });
 
-    return rows.map((r) => ({
+    return rows.map(r => ({
       id: r.sessionId,
-      title: r.title || "Sessão sem título",
+      title: r.title || 'Sessão sem título',
       empresaAlvo: r.empresaAlvo || null,
       cnpj: r.cnpj || null,
       modoPrincipal: DEFAULT_MODE,
@@ -258,12 +251,12 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
       resumoDossie: r.resumoDossie || null,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
-      messages: []
+      messages: [],
     }));
   } catch (error) {
     const reason = toErrorMessage(error);
-    scoutDiag.warn("RemoteStore", "sync remoto indisponível; usando cache local", {
-      action: "listSessions",
+    scoutDiag.warn('RemoteStore', 'sync remoto indisponível; usando cache local', {
+      action: 'listSessions',
       reason,
       attempts: error instanceof RemoteStoreError ? error.details?.attempts : undefined,
     });
@@ -274,10 +267,10 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
 export async function getRemoteSession(id: string): Promise<ChatSession | null> {
   const apiCall = async () => {
     const res = await fetchWithTimeout(SESSIONS_API_URL, {
-      method: "POST",
-      redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getSession", sessionId: id })
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'getSession', sessionId: id }),
     });
 
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
@@ -297,10 +290,10 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
         messages = parsed.map((message: Message & { timestamp: string }) => ({
           ...message,
           text: stripInternalMarkers(String(message.text || '')),
-          timestamp: new Date(message.timestamp)
+          timestamp: new Date(message.timestamp),
         }));
       } catch (parseErr: unknown) {
-        scoutDiag.warn("RemoteStore", "messagesJson inválido ao restaurar sessão", {
+        scoutDiag.warn('RemoteStore', 'messagesJson inválido ao restaurar sessão', {
           sessionId: s.sessionId,
           error: toErrorMessage(parseErr),
         });
@@ -310,7 +303,7 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
 
     return {
       id: s.sessionId,
-      title: s.title || "Sessão sem título",
+      title: s.title || 'Sessão sem título',
       empresaAlvo: s.empresaAlvo || null,
       cnpj: s.cnpj || null,
       modoPrincipal: DEFAULT_MODE,
@@ -318,7 +311,7 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
       resumoDossie: s.resumoDossie || null,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
-      messages
+      messages,
     };
   } catch (error) {
     const details = {
@@ -327,9 +320,9 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
     };
 
     if (error instanceof RemoteStoreError) {
-      scoutDiag.warn("RemoteStore", "getRemoteSession indisponível", details);
+      scoutDiag.warn('RemoteStore', 'getRemoteSession indisponível', details);
     } else {
-      scoutDiag.error("RemoteStore", "getRemoteSession falhou", details);
+      scoutDiag.error('RemoteStore', 'getRemoteSession falhou', details);
     }
     return null;
   }
@@ -337,11 +330,11 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
 
 export async function saveRemoteSession(session: ChatSession, userId?: string, userName?: string) {
   const payload = {
-    action: "saveSession",
+    action: 'saveSession',
     session: {
       id: session.id,
-      userId: userId || "user_default",
-      userName: userName || "Convidado",
+      userId: userId || 'user_default',
+      userName: userName || 'Convidado',
       title: session.title,
       empresaAlvo: session.empresaAlvo,
       cnpj: session.cnpj,
@@ -349,16 +342,16 @@ export async function saveRemoteSession(session: ChatSession, userId?: string, u
       updatedAt: session.updatedAt,
       messages: session.messages,
       scoreOportunidade: session.scoreOportunidade,
-      resumoDossie: session.resumoDossie
-    }
+      resumoDossie: session.resumoDossie,
+    },
   };
 
   const apiCall = async () => {
     const res = await fetchWithTimeout(SESSIONS_API_URL, {
-      method: "POST",
-      redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);

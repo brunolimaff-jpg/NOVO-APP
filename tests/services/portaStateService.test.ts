@@ -126,4 +126,3 @@ describe('portaStateService', () => {
     expect(state?.consolidatedScore?.flags).toEqual([]);
   });
 });
-

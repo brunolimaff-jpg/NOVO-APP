@@ -52,11 +52,13 @@ Atualizar imports internos (cruzados entre o hook e o service) — o hook deve p
 ### Re-exports temporários (compat)
 
 **Criar `hooks/useRadar.ts` (novo arquivo de re-export):**
+
 ```typescript
 export * from '../features/radar/useRadar';
 ```
 
 **Criar `services/radarService.ts` (novo arquivo de re-export):**
+
 ```typescript
 export * from '../features/radar/radarService';
 ```
@@ -64,6 +66,7 @@ export * from '../features/radar/radarService';
 > Estes re-exports são deletados na Onda 3.
 
 ### Aceite
+
 - [ ] Arquivos físicos estão em `features/radar/` (verificar com `ls features/radar/`).
 - [ ] `tests/features/radar/*` passa.
 - [ ] `tests/hooks/useRadar.test.ts` e `tests/services/radarService.test.ts` não existem mais (foram movidos).
@@ -71,6 +74,7 @@ export * from '../features/radar/radarService';
 - [ ] Gates verdes.
 
 ### Rollback
+
 Reverter PR; os 4 arquivos voltam às posições originais via `git revert`.
 
 ---
@@ -85,6 +89,7 @@ Reverter PR; os 4 arquivos voltam às posições originais via `git revert`.
 **1. Criar `features/radar/orchestrator.ts`:**
 
 Identificar funções de alto nível atualmente em `features/radar/radarService.ts` ou `features/radar/useRadar.ts` que fazem orquestração entre múltiplas chamadas. Candidatos típicos:
+
 - `scanForAlerts`
 - `processRadarEntry`
 - Wrapper de `api/radar-scan.ts`
@@ -92,6 +97,7 @@ Identificar funções de alto nível atualmente em `features/radar/radarService.
 Mover essas funções para `orchestrator.ts`. O `radarService.ts` deve ficar como camada de I/O pura (HTTP/storage); o `orchestrator.ts` é a camada de regra de negócio.
 
 **2. Atualizar `features/radar/index.ts` (barrel):**
+
 ```typescript
 export { useRadar } from './useRadar';
 export { scanForAlerts, processRadarEntry } from './orchestrator';
@@ -110,6 +116,7 @@ Substituir por `import { ... } from 'features/radar';` (ou caminho relativo equi
 > Os re-exports da Onda 1 ainda existem como rede de segurança durante esta PR — só são deletados na Onda 3.
 
 ### Aceite
+
 - [ ] `features/radar/orchestrator.ts` criado.
 - [ ] `features/radar/index.ts` exporta tudo público do feature.
 - [ ] `grep -rn "from.*hooks/useRadar\|from.*services/radarService" --include="*.ts" --include="*.tsx" . | grep -v node_modules | grep -v "features/radar/" | grep -v "/test"` retorna 0.
@@ -118,6 +125,7 @@ Substituir por `import { ... } from 'features/radar';` (ou caminho relativo equi
 - [ ] Gates verdes.
 
 ### Rollback
+
 Reverter PR; consumidores voltam a usar imports antigos via re-exports.
 
 ---
@@ -130,6 +138,7 @@ Reverter PR; consumidores voltam a usar imports antigos via re-exports.
 ### Mudanças
 
 **1. Mover componentes:**
+
 ```bash
 mkdir -p features/radar/components
 git mv components/RadarBell.tsx       features/radar/components/RadarBell.tsx
@@ -138,6 +147,7 @@ git mv components/RadarSettings.tsx   features/radar/components/RadarSettings.ts
 ```
 
 **2. Adicionar exports ao barrel `features/radar/index.ts`:**
+
 ```typescript
 export { RadarBell } from './components/RadarBell';
 export { RadarPanel } from './components/RadarPanel';
@@ -145,12 +155,15 @@ export { RadarSettings } from './components/RadarSettings';
 ```
 
 **3. Atualizar imports em todos os consumidores** (estimativa: 5–10 arquivos):
+
 ```bash
 grep -rln "from.*components/Radar" --include="*.ts" --include="*.tsx" . | grep -v node_modules
 ```
+
 Substituir por `import { RadarBell } from 'features/radar';` (ou caminho equivalente).
 
 **4. Deletar re-exports temporários da Onda 1:**
+
 ```bash
 rm hooks/useRadar.ts
 rm services/radarService.ts
@@ -189,6 +202,7 @@ const FORBIDDEN_IMPORT_PATTERNS = [
 ```
 
 ### Aceite
+
 - [ ] `hooks/useRadar.ts` e `services/radarService.ts` não existem mais.
 - [ ] `components/RadarBell.tsx`, `components/RadarPanel.tsx`, `components/RadarSettings.tsx` não existem mais (estão em `features/radar/components/`).
 - [ ] `features/radar/index.ts` exporta os 3 componentes + hook + tipos + funções de orchestrator.
@@ -197,6 +211,7 @@ const FORBIDDEN_IMPORT_PATTERNS = [
 - [ ] Gates verdes.
 
 ### Rollback
+
 Reverter PR; restaurar componentes e arquivos legados.
 
 ---
@@ -226,10 +241,10 @@ Reverter PR; restaurar componentes e arquivos legados.
 
 ## Estimativa de redução
 
-| Métrica | Antes | Depois |
-|---|---|---|
-| Arquivos Radar fora do boundary | 5 | 0 |
-| `hooks/useRadar.ts` | 291 ln | deletado |
-| `services/radarService.ts` | 234 ln | deletado |
-| Imports legados | ~29 | 0 |
-| `features/radar/` | stub (2 arq.) | runtime completo (8+ arq.) |
+| Métrica                         | Antes         | Depois                     |
+| ------------------------------- | ------------- | -------------------------- |
+| Arquivos Radar fora do boundary | 5             | 0                          |
+| `hooks/useRadar.ts`             | 291 ln        | deletado                   |
+| `services/radarService.ts`      | 234 ln        | deletado                   |
+| Imports legados                 | ~29           | 0                          |
+| `features/radar/`               | stub (2 arq.) | runtime completo (8+ arq.) |

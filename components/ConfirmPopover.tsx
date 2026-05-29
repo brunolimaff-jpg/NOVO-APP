@@ -15,12 +15,7 @@ interface ConfirmPopoverProps {
   children: (triggerProps: { onClick: (e?: React.MouseEvent) => void }) => React.ReactNode;
 }
 
-const ConfirmPopover: React.FC<ConfirmPopoverProps> = ({
-  onConfirm,
-  message,
-  isDarkMode = false,
-  children,
-}) => {
+const ConfirmPopover: React.FC<ConfirmPopoverProps> = ({ onConfirm, message, isDarkMode = false, children }) => {
   const [confirming, setConfirming] = useState(false);
 
   const trigger = (e?: React.MouseEvent) => {
@@ -43,11 +38,9 @@ const ConfirmPopover: React.FC<ConfirmPopoverProps> = ({
     return (
       <div
         className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 border text-xs animate-fade-in ${
-          isDarkMode
-            ? 'bg-slate-800 border-red-500/40'
-            : 'bg-red-50 border-red-200'
+          isDarkMode ? 'bg-slate-800 border-red-500/40' : 'bg-red-50 border-red-200'
         }`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <span className={`font-medium truncate max-w-[120px] ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
           {message}

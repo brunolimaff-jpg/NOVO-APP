@@ -11,7 +11,10 @@ describe('FooterCredits', () => {
 
     const authorLink = screen.getByRole('link', { name: /bruno\.ferreira/i });
     expect(authorLink).toBeInTheDocument();
-    expect(authorLink).toHaveAttribute('href', 'https://teams.microsoft.com/l/chat/0/0?users=bruno.ferreira@senior.com.br');
+    expect(authorLink).toHaveAttribute(
+      'href',
+      'https://teams.microsoft.com/l/chat/0/0?users=bruno.ferreira@senior.com.br',
+    );
     expect(authorLink).toHaveAttribute('target', '_blank');
     expect(authorLink).toHaveAttribute('rel', 'noopener noreferrer');
   });

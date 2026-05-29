@@ -172,13 +172,7 @@ describe('sendMessageToGemini lookup gate', () => {
       });
 
     const { sendMessageToGemini } = await import('../../services/geminiService');
-    const result = await sendMessageToGemini(
-      'onde ficam as algodoeiras?',
-      [],
-      'Instrução de sistema',
-      {},
-      false,
-    );
+    const result = await sendMessageToGemini('onde ficam as algodoeiras?', [], 'Instrução de sistema', {}, false);
 
     expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
     expect(result.text).toContain('stand-by');

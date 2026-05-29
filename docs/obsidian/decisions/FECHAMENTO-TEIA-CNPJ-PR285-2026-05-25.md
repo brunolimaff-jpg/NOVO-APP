@@ -1,3 +1,10 @@
+---
+type: fechamento
+tags:
+  - fechamento
+  - teia-cnpj
+---
+
 # Fechamento - Teia CNPJ PR #285
 
 **Data:** 2026-05-25  
@@ -51,13 +58,13 @@ O ponto mais importante e semantico:
 
 ## Contrato duravel
 
-| Campo | Regra |
-|-------|-------|
-| `group_link` | Usar apenas com mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo. |
-| `partner_other_cnpj` | Usar quando QSA/CNPJ Aberto/Receita confirma que o socio aparece no CNPJ, sem prova de grupo. |
-| `unconfirmed` | Usar para CNPJ textual, com `*`, inconsistente, invalido ou sem confirmacao oficial. |
-| `rootContext` | `false` para lateral; `true` somente quando houver prova de grupo. |
-| `operationalThesisAllowed` | `false` para lateral. |
+| Campo                      | Regra                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------- |
+| `group_link`               | Usar apenas com mesmo radical de CNPJ ou evidencia independente conectando CNPJ a raiz/grupo. |
+| `partner_other_cnpj`       | Usar quando QSA/CNPJ Aberto/Receita confirma que o socio aparece no CNPJ, sem prova de grupo. |
+| `unconfirmed`              | Usar para CNPJ textual, com `*`, inconsistente, invalido ou sem confirmacao oficial.          |
+| `rootContext`              | `false` para lateral; `true` somente quando houver prova de grupo.                            |
+| `operationalThesisAllowed` | `false` para lateral.                                                                         |
 
 Termos proibidos para lateral: `Proprias`, `Side business`, `veiculo operacional do grupo`, `oficial do grupo`, bioinsumos proprios, verticalizacao, enterprise, wedge Senior.
 
@@ -74,14 +81,14 @@ Termos proibidos para lateral: `Proprias`, `Side business`, `veiculo operacional
 
 ## Linha do tempo resumida
 
-| PR | Status | Papel |
-|----|--------|-------|
-| #279 | MERGED | Teia Societaria Tipo 5 com Mermaid e drill-down. |
+| PR   | Status | Papel                                                                                |
+| ---- | ------ | ------------------------------------------------------------------------------------ |
+| #279 | MERGED | Teia Societaria Tipo 5 com Mermaid e drill-down.                                     |
 | #280 | MERGED | Deep research da Teia; aumentou profundidade e revelou necessidade de busca reversa. |
-| #283 | MERGED | Consolidacao de prompts e anti-alucinacao. |
-| #284 | MERGED | War Room RAG anti-alucinacao. |
-| #285 | MERGED | Corrige busca por socios, matriz, contrato lateral e limpeza visual. |
-| #286 | MERGED | Links inline auditaveis; validada depois da #285 e encerrada sem PR aberta. |
+| #283 | MERGED | Consolidacao de prompts e anti-alucinacao.                                           |
+| #284 | MERGED | War Room RAG anti-alucinacao.                                                        |
+| #285 | MERGED | Corrige busca por socios, matriz, contrato lateral e limpeza visual.                 |
+| #286 | MERGED | Links inline auditaveis; validada depois da #285 e encerrada sem PR aberta.          |
 
 ## Licoes aprendidas
 

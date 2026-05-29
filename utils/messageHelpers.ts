@@ -53,12 +53,7 @@ export function resolveHintedCompany(
   if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) return cleanTitle(fromEmpresaField);
 
   const trimmed = safeVisibleText.trim();
-  if (
-    trimmed.length > 0 &&
-    trimmed.length <= 60 &&
-    !trimmed.includes('\n') &&
-    !isGenericCompanyLabel(trimmed)
-  ) {
+  if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n') && !isGenericCompanyLabel(trimmed)) {
     return trimmed;
   }
 

@@ -7,9 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('[Supabase] Variaveis de ambiente ausentes. Storage remoto desativado.');
 }
 
-export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export function isSupabaseAvailable(): boolean {
   return supabase !== null;

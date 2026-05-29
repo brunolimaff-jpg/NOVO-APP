@@ -27,19 +27,27 @@ export function WarRoomHeader({
   return (
     <div className={`flex items-center justify-between px-3 sm:px-5 py-3 border-b ${t.terminalBdr} ${t.terminalHdr}`}>
       <div className="flex items-center gap-3">
-        <button onClick={onToggleSidebar} className={`sm:hidden p-2 rounded-lg ${t.btnClear} border`} aria-expanded={isSidebarOpen}>☰</button>
+        <button
+          onClick={onToggleSidebar}
+          className={`sm:hidden p-2 rounded-lg ${t.btnClear} border`}
+          aria-expanded={isSidebarOpen}
+        >
+          ☰
+        </button>
         <span className="text-xl">{cfg.icon}</span>
         <div className="min-w-0">
-          <h3 className={`text-sm font-black uppercase tracking-wide ${accent.text[cfg.accent]} truncate`}>The War Room</h3>
-          <p className={`text-[10px] ${t.emptySub} truncate`}>
-            Rota atual: {cfg.label}
-          </p>
+          <h3 className={`text-sm font-black uppercase tracking-wide ${accent.text[cfg.accent]} truncate`}>
+            The War Room
+          </h3>
+          <p className={`text-[10px] ${t.emptySub} truncate`}>Rota atual: {cfg.label}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
         {hasMessages && (
-          <button onClick={onClearMessages}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${t.btnClear}`}>
+          <button
+            onClick={onClearMessages}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${t.btnClear}`}
+          >
             🗑️ <span className="hidden sm:inline">Limpar</span>
           </button>
         )}

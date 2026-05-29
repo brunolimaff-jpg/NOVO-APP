@@ -261,9 +261,7 @@ describe('loadWarRoomDocsContext', () => {
 
     await loadWarRoomDocsContext('tech', 'status test', defaultFlags, onStatus);
 
-    expect(onStatus).toHaveBeenCalledWith(
-      expect.stringContaining('Consultando Pinecone'),
-    );
+    expect(onStatus).toHaveBeenCalledWith(expect.stringContaining('Consultando Pinecone'));
   });
 
   it('generates enhanced queries for fercus flag', async () => {

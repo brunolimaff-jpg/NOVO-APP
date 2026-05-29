@@ -11,54 +11,21 @@ interface FriendlyError {
   canRetry: boolean;
 }
 
-const NETWORK_PATTERNS = [
-  'fetch',
-  'network',
-  'failed to fetch',
-  'networkerror',
-  'net::',
-];
+const NETWORK_PATTERNS = ['fetch', 'network', 'failed to fetch', 'networkerror', 'net::'];
 
-const QUOTA_PATTERNS = [
-  '429',
-  'quota',
-  'rate limit',
-  'resource_exhausted',
-  'too many requests',
-];
+const QUOTA_PATTERNS = ['429', 'quota', 'rate limit', 'resource_exhausted', 'too many requests'];
 
-const AUTH_PATTERNS = [
-  '401',
-  '403',
-  'unauthorized',
-  'forbidden',
-  'api key',
-  'invalid_api_key',
-];
+const AUTH_PATTERNS = ['401', '403', 'unauthorized', 'forbidden', 'api key', 'invalid_api_key'];
 
-const TIMEOUT_PATTERNS = [
-  'timeout',
-  'timed out',
-  'deadline',
-  'aborted',
-  'context deadline exceeded',
-];
+const TIMEOUT_PATTERNS = ['timeout', 'timed out', 'deadline', 'aborted', 'context deadline exceeded'];
 
 function matches(msg: string, patterns: string[]): boolean {
   const lower = msg.toLowerCase();
   return patterns.some(p => lower.includes(p));
 }
 
-export function getFriendlyErrorMessage(
-  error: unknown,
-  context: ErrorContext = 'generic',
-): FriendlyError {
-  const rawMessage =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-      ? error
-      : 'Erro desconhecido';
+export function getFriendlyErrorMessage(error: unknown, context: ErrorContext = 'generic'): FriendlyError {
+  const rawMessage = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Erro desconhecido';
 
   if (matches(rawMessage, TIMEOUT_PATTERNS)) {
     return {

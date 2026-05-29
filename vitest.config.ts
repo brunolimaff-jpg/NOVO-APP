@@ -15,12 +15,9 @@ export default defineConfig({
     // FIX: resolve conflitos de ESM entre dependências do jsdom
     server: {
       deps: {
-        inline: [
-          "html-encoding-sniffer",
-          "@exodus/bytes"
-        ]
-      }
-    }
+        inline: ['html-encoding-sniffer', '@exodus/bytes'],
+      },
+    },
   },
   resolve: {
     alias: {

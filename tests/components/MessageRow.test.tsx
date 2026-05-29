@@ -99,9 +99,7 @@ describe('MessageRow', () => {
 
   it('retorna null quando index está fora dos limites', () => {
     const messages = [makeMessage()];
-    const { container } = render(
-      <MessageRow index={5} data={makeData(messages)} />,
-    );
+    const { container } = render(<MessageRow index={5} data={makeData(messages)} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -268,9 +266,7 @@ describe('MessageRow', () => {
 
   it('renderiza mensagem do usuário sem crashar no modo dark', () => {
     const msg = makeMessage({ text: 'Pesquisar empresa', sender: Sender.User });
-    expect(() =>
-      render(<MessageRow index={0} data={makeData([msg], { isDarkMode: true })} />),
-    ).not.toThrow();
+    expect(() => render(<MessageRow index={0} data={makeData([msg], { isDarkMode: true })} />)).not.toThrow();
   });
 
   it('mantem fallback local quando a renderizacao do dossie explode', () => {

@@ -25,9 +25,7 @@ function isUrlAllowed(url: string, allowedNormalized: Set<string>): boolean {
  * cada lookup percorre chaves do Map com lower.includes(key), evitando
  * chamadas custosas a new URL() dentro do loop de substituição.
  */
-export function buildPoolLookupMap(
-  allowedPool: DossierSourceRef[],
-): Map<string, string> {
+export function buildPoolLookupMap(allowedPool: DossierSourceRef[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const source of allowedPool) {
     const title = (source.title || '').toLowerCase().trim();
@@ -93,16 +91,11 @@ function renumberUrgencySectionLinks(text: string): string {
   return before + updatedSection + after;
 }
 
-export function applyDossierLinkIntegrity(
-  rawText: string,
-  options: DossierLinkIntegrityOptions = {},
-): string {
+export function applyDossierLinkIntegrity(rawText: string, options: DossierLinkIntegrityOptions = {}): string {
   if (!rawText) return '';
 
   const allowedNormalized = new Set(
-    (options.allowedPool || [])
-      .map(source => normalizeSourceUrl(source.url))
-      .filter(Boolean),
+    (options.allowedPool || []).map(source => normalizeSourceUrl(source.url)).filter(Boolean),
   );
 
   const poolLookupMap = options.allowedPool?.length
@@ -117,22 +110,22 @@ export function applyDossierLinkIntegrity(
   text = text.replace(MARKDOWN_LINK_REGEX, (match, linkText, url) => {
     const trimmedUrl = (url || '').trim();
     if (!trimmedUrl || isFakeUrl(trimmedUrl)) {
-      const replacement = poolLookupMap.size > 0
-        ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl)
-        : null;
+      const replacement = poolLookupMap.size > 0 ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl) : null;
       if (replacement && !isFakeUrl(replacement) && isUrlAllowed(replacement, allowedNormalized)) {
-        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
+        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim())
+          ? linkText.trim().replace(/^\[|\]$/g, '')
+          : linkText;
         return `[${numLabel}](${replacement})`;
       }
       return `**${linkText.trim()}** *(sem fonte URL verificável)*`;
     }
 
     if (!isUrlAllowed(trimmedUrl, allowedNormalized)) {
-      const replacement = poolLookupMap.size > 0
-        ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl)
-        : null;
+      const replacement = poolLookupMap.size > 0 ? findPoolReplacement(poolLookupMap, linkText, poolFallbackUrl) : null;
       if (replacement && isUrlAllowed(replacement, allowedNormalized)) {
-        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim()) ? linkText.trim().replace(/^\[|\]$/g, '') : linkText;
+        const numLabel = /^\[?\d+(?:\.\d+)?\]?$/.test(linkText.trim())
+          ? linkText.trim().replace(/^\[|\]$/g, '')
+          : linkText;
         return `[${numLabel}](${replacement})`;
       }
       return `**${linkText.trim()}** *(sem fonte URL verificável)*`;

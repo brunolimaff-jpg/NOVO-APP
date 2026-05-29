@@ -14,10 +14,10 @@ interface GeminiGenerateRequest extends GeminiApiBaseRequest {
 }
 
 interface GeminiChatRequest extends GeminiApiBaseRequest {
-  action: "chatSendMessage";
+  action: 'chatSendMessage';
   model: string;
   systemInstruction: string;
-  history: Array<{ role: "user" | "model"; text: string }>;
+  history: Array<{ role: 'user' | 'model'; text: string }>;
   message: string;
   useGrounding?: boolean;
   thinkingLevel?: 'low' | 'medium' | 'high';
@@ -80,8 +80,9 @@ interface GeminiHealthResponse {
   text?: string;
 }
 
-const CUSTOM_GEMINI_PROXY_BASE_URL =
-  (import.meta.env.VITE_GEMINI_PROXY_URL || '').replace(/\/api\/gemini$/, '').replace(/\/$/, '');
+const CUSTOM_GEMINI_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
+  .replace(/\/api\/gemini$/, '')
+  .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
 const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
@@ -102,9 +103,7 @@ export function resolveGeminiApiEndpoint(
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
   if (!(isDev && isLocalDevHost)) return '/api/gemini';
-  return CUSTOM_GEMINI_PROXY_BASE_URL
-    ? `${CUSTOM_GEMINI_PROXY_BASE_URL}/api/gemini`
-    : '/api/gemini';
+  return CUSTOM_GEMINI_PROXY_BASE_URL ? `${CUSTOM_GEMINI_PROXY_BASE_URL}/api/gemini` : '/api/gemini';
 }
 
 // FIX: removidas as const GEMINI_API_ENDPOINT e GERAR_DOSSIE_ENDPOINT do escopo
@@ -113,13 +112,18 @@ export function resolveGeminiApiEndpoint(
 
 async function callGeminiApi<TResponse>(
   endpoint: string,
-  payload: GeminiGenerateRequest | GeminiChatRequest | GeminiHealthRequest | GeminiCreateCachedContentRequest | GeminiDeleteCachedContentRequest | Record<string, unknown>,
-  signal?: AbortSignal
+  payload:
+    | GeminiGenerateRequest
+    | GeminiChatRequest
+    | GeminiHealthRequest
+    | GeminiCreateCachedContentRequest
+    | GeminiDeleteCachedContentRequest
+    | Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<TResponse> {
   const controller = new AbortController();
-  const timeoutMs = Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0
-    ? GEMINI_PROXY_TIMEOUT_MS
-    : 90000;
+  const timeoutMs =
+    Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0 ? GEMINI_PROXY_TIMEOUT_MS : 90000;
   let timedOut = false;
 
   const timeoutId = setTimeout(() => {
@@ -136,7 +140,7 @@ async function callGeminiApi<TResponse>(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: controller.signal
+      signal: controller.signal,
     });
   } catch (error: unknown) {
     if (timedOut) {
@@ -170,10 +174,14 @@ async function callGeminiApi<TResponse>(
 
 export async function proxyGenerateContent(
   params: Omit<GeminiGenerateRequest, 'action'>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<GeminiGenerateResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiGenerateResponse>(resolveGeminiApiEndpoint(), { action: 'generateContent', ...params }, signal);
+  return callGeminiApi<GeminiGenerateResponse>(
+    resolveGeminiApiEndpoint(),
+    { action: 'generateContent', ...params },
+    signal,
+  );
 }
 
 export async function proxyCreateCachedContent(
@@ -199,11 +207,15 @@ export async function proxyDeleteCachedContent(
 }
 
 export async function proxyChatSendMessage(
-  params: Omit<GeminiChatRequest, "action">,
-  signal?: AbortSignal
+  params: Omit<GeminiChatRequest, 'action'>,
+  signal?: AbortSignal,
 ): Promise<GeminiChatResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiChatResponse>(resolveGeminiApiEndpoint(), { action: "chatSendMessage", ...params }, signal);
+  return callGeminiApi<GeminiChatResponse>(
+    resolveGeminiApiEndpoint(),
+    { action: 'chatSendMessage', ...params },
+    signal,
+  );
 }
 
 export interface OpenWebSearchResponse {
@@ -213,7 +225,15 @@ export interface OpenWebSearchResponse {
   providerStatus?: Array<{
     provider: 'brave' | 'duckduckgo';
     ok: boolean;
-    reason?: 'missing_key' | 'unauthorized' | 'quota_exhausted' | 'rate_limited' | 'timeout' | 'server_error' | 'empty_result' | 'unknown';
+    reason?:
+      | 'missing_key'
+      | 'unauthorized'
+      | 'quota_exhausted'
+      | 'rate_limited'
+      | 'timeout'
+      | 'server_error'
+      | 'empty_result'
+      | 'unknown';
     statusCode?: number;
   }>;
   degraded?: boolean;
@@ -222,11 +242,11 @@ export interface OpenWebSearchResponse {
 }
 
 export async function executeOpenWebSearchTool(query: string, url?: string): Promise<OpenWebSearchResponse> {
-  const endpoint = import.meta.env.VITE_OPEN_WEB_SEARCH_URL || "/api/open-web-search";
+  const endpoint = import.meta.env.VITE_OPEN_WEB_SEARCH_URL || '/api/open-web-search';
   const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, url })
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, url }),
   });
   if (!response.ok) {
     throw new Error(`OpenWebSearch failed: ${response.status}`);
@@ -236,13 +256,13 @@ export async function executeOpenWebSearchTool(query: string, url?: string): Pro
 
 export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: "health" }, signal);
+  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: 'health' }, signal);
 }
 
 /** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */
 export async function proxyGerarDossie(
   params: Omit<GeminiGenerateRequest, 'action'>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<GeminiGenerateResponse> {
   // FIX: endpoint resolvido lazy dentro da função, não como const de módulo.
   // Previne TDZ "Cannot access '$i' before initialization" em produção.

@@ -40,9 +40,7 @@ const HeaderSessionSearch: React.FC<HeaderSessionSearchProps> = ({ value, onChan
     <div
       className={`flex w-full min-w-0 max-w-2xl items-center gap-2 rounded-xl border px-3 py-2 transition-colors md:max-w-none ${shell} ${className}`.trim()}
     >
-      <MagnifyingGlassIcon
-        className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}
-      />
+      <MagnifyingGlassIcon className={`flex-shrink-0 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
       <input
         type="search"
         value={value}

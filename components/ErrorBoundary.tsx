@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  buildUiErrorReport,
-  generateUiErrorId,
-  persistUiErrorAudit,
-} from '../utils/errorBoundaryAudit';
+import { buildUiErrorReport, generateUiErrorId, persistUiErrorAudit } from '../utils/errorBoundaryAudit';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -61,15 +57,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           <div className="max-w-lg w-full bg-gray-900 border border-red-900/50 rounded-2xl p-8 shadow-2xl">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">🚨</div>
-              <h1 className="text-xl font-bold text-white mb-1">
-                🦅 Senior Scout 360
-              </h1>
-              <h2 className="text-base font-semibold text-red-400 mb-3">
-                Algo deu errado
-              </h2>
+              <h1 className="text-xl font-bold text-white mb-1">🦅 Senior Scout 360</h1>
+              <h2 className="text-base font-semibold text-red-400 mb-3">Algo deu errado</h2>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Ocorreu um erro inesperado. Seus dados locais estao seguros.
-                Tente novamente ou recarregue o aplicativo.
+                Ocorreu um erro inesperado. Seus dados locais estao seguros. Tente novamente ou recarregue o aplicativo.
               </p>
             </div>
 

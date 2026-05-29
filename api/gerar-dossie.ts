@@ -60,11 +60,11 @@ function extractGeminiText(response: unknown): string {
   if (!Array.isArray(candidates)) return '';
 
   return candidates
-    .flatMap((candidate) => {
+    .flatMap(candidate => {
       const parts = (candidate as { content?: { parts?: unknown } })?.content?.parts;
       return Array.isArray(parts) ? parts : [];
     })
-    .map((part) => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
+    .map(part => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
     .filter(Boolean)
     .join('');
 }

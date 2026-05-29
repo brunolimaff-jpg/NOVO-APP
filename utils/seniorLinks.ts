@@ -1,31 +1,30 @@
-
 // ============================================================================
 // MAPEAMENTO MESTRE DE PRODUTOS SENIOR & GATEC
 // ============================================================================
 
 export const SENIOR_PRODUCT_URLS: Record<string, string> = {
   // === PLATAFORMA / PERFORMANCE CORPORATIVA ===
-  'bpm': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
+  bpm: 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'modelagem e execução de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'modelagem e execucao de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
   'gestão de processos': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
-  'workflow': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
-  'ged': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
-  'ecm': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
+  workflow: 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
+  ged: 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
+  ecm: 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'ecm/ged': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'gestão de documentos': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'gestão eletrônica de documentos': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'gestao eletronica de documentos': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
   'gestao de documentos': 'https://www.senior.com.br/solucoes/performance-corporativa/ged',
-  'bot': 'https://www.senior.com.br/solucoes/performance-corporativa/bot',
-  'chatbot': 'https://www.senior.com.br/solucoes/performance-corporativa/bot',
-  'bi': 'https://www.senior.com.br/solucoes/performance-corporativa/bi',
+  bot: 'https://www.senior.com.br/solucoes/performance-corporativa/bot',
+  chatbot: 'https://www.senior.com.br/solucoes/performance-corporativa/bot',
+  bi: 'https://www.senior.com.br/solucoes/performance-corporativa/bi',
   'business intelligence': 'https://www.senior.com.br/solucoes/performance-corporativa/bi',
-  'analytics': 'https://www.senior.com.br/solucoes/performance-corporativa/bi',
+  analytics: 'https://www.senior.com.br/solucoes/performance-corporativa/bi',
 
   // === ERP ===
-  'erp': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
-  'sapiens': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
+  erp: 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
+  sapiens: 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'erp senior': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'gestão empresarial': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'gestao empresarial': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
@@ -36,11 +35,11 @@ export const SENIOR_PRODUCT_URLS: Record<string, string> = {
   'gestão fiscal': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'gestão contábil': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp',
   'senior capital': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
-  'tesouraria': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
+  tesouraria: 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
   'gestão de tesouraria avançada': 'https://www.senior.com.br/solucoes/gestao-empresarial-erp/gestao-financeira',
 
   // === HCM / GESTÃO DE PESSOAS ===
-  'hcm': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm',
+  hcm: 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm',
   'gestão de pessoas': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm',
   'gestao de pessoas': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm',
   'folha de pagamento': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm/departamento-pessoal',
@@ -57,38 +56,38 @@ export const SENIOR_PRODUCT_URLS: Record<string, string> = {
   'gestao de terceiros': 'https://www.senior.com.br/solucoes/gestao-de-terceiros',
 
   // === LOGÍSTICA ===
-  'tms': 'https://www.senior.com.br/solucoes/logistica/tms',
+  tms: 'https://www.senior.com.br/solucoes/logistica/tms',
   'gestão de transporte': 'https://www.senior.com.br/solucoes/logistica/tms',
   'gestao de transporte': 'https://www.senior.com.br/solucoes/logistica/tms',
-  'wms': 'https://www.senior.com.br/solucoes/logistica/wms',
+  wms: 'https://www.senior.com.br/solucoes/logistica/wms',
   'gestão de armazém': 'https://www.senior.com.br/solucoes/logistica/wms',
   'gestao de armazem': 'https://www.senior.com.br/solucoes/logistica/wms',
-  'yms': 'https://www.senior.com.br/solucoes/logistica/yms',
+  yms: 'https://www.senior.com.br/solucoes/logistica/yms',
   'gestão de pátio': 'https://www.senior.com.br/solucoes/logistica/yms',
   'gestao de patio': 'https://www.senior.com.br/solucoes/logistica/yms',
-  'rms': 'https://www.senior.com.br/solucoes/logistica/rms',
+  rms: 'https://www.senior.com.br/solucoes/logistica/rms',
   'gestão de riscos': 'https://www.senior.com.br/solucoes/logistica/rms',
   'gestao de riscos': 'https://www.senior.com.br/solucoes/logistica/rms',
 
   // === GATEC / AGRO ===
-  'simplefarm': 'https://www.gatec.com.br/simplefarm',
+  simplefarm: 'https://www.gatec.com.br/simplefarm',
   'simple farm': 'https://www.gatec.com.br/simplefarm',
-  'mapfy': 'https://www.gatec.com.br/mapfy',
-  'operis': 'https://www.gatec.com.br/operis',
-  'commerce': 'https://www.gatec.com.br/commerce',
+  mapfy: 'https://www.gatec.com.br/mapfy',
+  operis: 'https://www.gatec.com.br/operis',
+  commerce: 'https://www.gatec.com.br/commerce',
   'commerce log': 'https://www.gatec.com.br/commerce',
-  'shield': 'https://www.gatec.com.br/shield',
-  'gatec': 'https://www.gatec.com.br',
-  'oneclick': 'https://www.gatec.com.br',
-  'simpleviewer': 'https://www.gatec.com.br',
+  shield: 'https://www.gatec.com.br/shield',
+  gatec: 'https://www.gatec.com.br',
+  oneclick: 'https://www.gatec.com.br',
+  simpleviewer: 'https://www.gatec.com.br',
 
   // === OUTROS ===
   'senior flow': 'https://www.senior.com.br/solucoes/performance-corporativa/bpm',
-  'ronda': 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm/controle-de-acesso',
+  ronda: 'https://www.senior.com.br/solucoes/gestao-de-pessoas-hcm/controle-de-acesso',
   'senior x': 'https://www.senior.com.br/seniorx',
   'senior x platform': 'https://www.senior.com.br/seniorx',
-  'xplatform': 'https://www.senior.com.br/seniorx',
-  'crm': 'https://www.senior.com.br/solucoes/gestao-comercial',
+  xplatform: 'https://www.senior.com.br/seniorx',
+  crm: 'https://www.senior.com.br/solucoes/gestao-comercial',
   'gestão comercial': 'https://www.senior.com.br/solucoes/gestao-comercial',
   'gestao comercial': 'https://www.senior.com.br/solucoes/gestao-comercial',
   'gestão de despesas': 'https://www.senior.com.br/solucoes/gestao-de-despesas',
@@ -110,7 +109,8 @@ export function buildSeniorOrGAtecSearchUrl(term: string): string {
 export function findSeniorProductUrl(text: string): string | null {
   const normalized = text
     .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos para busca
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos para busca
     .replace(/[()]/g, '')
     .trim();
 
@@ -182,7 +182,7 @@ export function fixGoogleSearchLinks(text: string): string {
       }
       // Se não encontrou mapeamento, manter o link original
       return match;
-    }
+    },
   );
 }
 
@@ -195,7 +195,7 @@ export function fixGoogleSearchLinksHTML(html: string): string {
         return `<a href="${realUrl}" target="_blank" rel="noopener noreferrer"${attrs}>${linkText}</a>`;
       }
       return match;
-    }
+    },
   );
 }
 

@@ -7,6 +7,7 @@
 Inheritance creates tight coupling and deep hierarchies that are hard to reason about. Composition builds behavior by assembling small, focused pieces.
 
 **Bad - inheritance-based:**
+
 ```js
 // BaseButton -> IconButton -> LoadingIconButton -> DisabledLoadingIconButton
 // Every new variation requires a new subclass
@@ -15,11 +16,12 @@ class IconButton extends BaseButton { render() { /* duplicates + extends */ } }
 ```
 
 **Good - composition-based:**
+
 ```js
 // Assemble behavior at call site
 <Button loading={true} icon={<Spinner />} disabled={false}>
   Submit
-</Button>
+</Button>;
 
 // Internally, Button composes primitives
 function Button({ loading, icon, children, ...rest }) {
@@ -28,28 +30,24 @@ function Button({ loading, icon, children, ...rest }) {
       {loading ? <Spinner /> : icon}
       {children}
     </button>
-  )
+  );
 }
 ```
 
 **Slot patterns** - expose named areas for consumers to inject content without needing props for every variation:
+
 ```js
 // Consumer controls what goes in each slot
-<Card
-  header={<h2>Title</h2>}
-  footer={<Button>Save</Button>}
->
+<Card header={<h2>Title</h2>} footer={<Button>Save</Button>}>
   <p>Body content</p>
 </Card>
 ```
 
 **Render delegation** - let the parent decide how to render a child item:
+
 ```js
 // List doesn't know how to render items - consumer provides renderItem
-<List
-  items={users}
-  renderItem={(user) => <UserRow key={user.id} user={user} />}
-/>
+<List items={users} renderItem={user => <UserRow key={user.id} user={user} />} />
 ```
 
 ---
@@ -59,21 +57,25 @@ function Button({ loading, icon, children, ...rest }) {
 Apply the **single responsibility principle**: a component should have one reason to change.
 
 **The "reason to change" test:**
+
 - If you can describe a component's purpose with "and", split it.
 - "This component fetches data AND renders a table AND handles sorting" = three components.
 
 **Signals to split a component:**
+
 - File is over ~150-200 lines and growing
 - Component has multiple independent units of state
 - Part of the component re-renders when unrelated state changes
 - Reusing part of it in another context requires copy-pasting
 
 **Signals NOT to split:**
+
 - The pieces are never used independently
 - Splitting would require prop-drilling through one layer just to split for the sake of it
 - The component is genuinely simple - don't split for splitting's sake
 
 **Layer model:**
+
 ```
 Page / Route component        - orchestrates layout, data fetching
   Feature component           - specific business domain (UserProfile, CheckoutForm)
@@ -121,20 +123,18 @@ Optimize only when you have evidence of a problem. Premature optimization adds c
 // Memoize expensive derived values - not all values
 const sortedItems = useMemo(
   () => items.slice().sort(compareFn),
-  [items, compareFn] // only recompute when inputs change
-)
+  [items, compareFn], // only recompute when inputs change
+);
 
 // Memoize callbacks passed to children that rely on referential equality
-const handleSubmit = useCallback(
-  () => submitForm(formData),
-  [formData]
-)
+const handleSubmit = useCallback(() => submitForm(formData), [formData]);
 
 // Memoize components that receive stable props but re-render due to parent
-const MemoizedRow = memo(Row) // only useful if Row's props are stable
+const MemoizedRow = memo(Row); // only useful if Row's props are stable
 ```
 
 **Avoiding unnecessary re-renders:**
+
 - Keep state as local as possible - lifting state high causes wide re-renders
 - Split context by concern: `ThemeContext`, `AuthContext`, `CartContext` - not one giant app context
 - Avoid creating new object/array literals in render - they break referential equality on every render:
@@ -157,6 +157,7 @@ const CONFIG = { timeout: 3000 }
 **Minimal props principle:** Pass only what the component needs. If a component accepts a whole `user` object but only uses `user.name`, consider passing just `name`.
 
 **Avoid boolean prop explosion:**
+
 ```js
 // Bad - combinatorial explosion of boolean props
 <Button primary large outline disabled loading />
@@ -166,6 +167,7 @@ const CONFIG = { timeout: 3000 }
 ```
 
 **Compound components pattern** - for components with tightly related sub-parts:
+
 ```js
 // Instead of a monolithic component with many props:
 <Select
@@ -212,6 +214,7 @@ Page components - route-level, orchestrate data + layout
 ```
 
 **Rules:**
+
 - Higher layers can use lower layers. Lower layers must never know about higher layers.
 - Tokens live outside component code - in CSS custom properties or a theme object.
 - Primitives accept all valid HTML attributes (spread `...rest` to the underlying element).
@@ -222,25 +225,28 @@ Page components - route-level, orchestrate data + layout
 ## Controlled vs Uncontrolled Components
 
 **Uncontrolled** - the component manages its own state. Consumer reads it only when needed (e.g., on submit via ref).
+
 - Use when: the value is ephemeral, form submit is the only time parent cares, reducing re-renders matters.
 
 **Controlled** - the consumer owns the state and passes it via props. Component is a pure rendering function.
+
 - Use when: the value must be synchronized with other UI, parent needs to react to every change, external validation is needed.
 
 **Hybrid approach** - accept an optional `value` prop. If provided, be controlled. If absent, manage internally:
+
 ```js
 function Input({ value: controlledValue, defaultValue, onChange }) {
-  const isControlled = controlledValue !== undefined
-  const [internalValue, setInternalValue] = useState(defaultValue ?? '')
+  const isControlled = controlledValue !== undefined;
+  const [internalValue, setInternalValue] = useState(defaultValue ?? '');
 
-  const value = isControlled ? controlledValue : internalValue
+  const value = isControlled ? controlledValue : internalValue;
 
   function handleChange(e) {
-    if (!isControlled) setInternalValue(e.target.value)
-    onChange?.(e.target.value)
+    if (!isControlled) setInternalValue(e.target.value);
+    onChange?.(e.target.value);
   }
 
-  return <input value={value} onChange={handleChange} />
+  return <input value={value} onChange={handleChange} />;
 }
 ```
 
@@ -253,11 +259,13 @@ Rule: never switch between controlled and uncontrolled during a component's life
 Error boundaries catch rendering errors in the component subtree and display fallback UI instead of crashing the whole page.
 
 **Placement strategy:**
+
 - One at the app root - catches anything that slips through
 - One per major page section (sidebar, main content, header) - lets rest of page survive
 - One per independently loaded widget or third-party integration
 
 **Fallback UI patterns:**
+
 ```js
 // Minimal fallback - show nothing, log error
 <ErrorBoundary fallback={null} onError={reportToMonitoring}>
@@ -279,30 +287,32 @@ Error boundaries catch rendering errors in the component subtree and display fal
 **Colocation** - fetch data as close to where it's needed as possible. Don't fetch everything at the top and drill it down.
 
 **Waterfall prevention** - parallel fetches are faster than sequential:
+
 ```js
 // Bad - waterfall: user fetch completes, THEN posts fetch starts
-const user = await fetchUser(id)
-const posts = await fetchPostsByUser(user.id)
+const user = await fetchUser(id);
+const posts = await fetchPostsByUser(user.id);
 
 // Good - parallel when IDs are known upfront
 const [user, posts] = await Promise.all([
   fetchUser(id),
-  fetchPostsByUser(id) // if you can derive the ID early
-])
+  fetchPostsByUser(id), // if you can derive the ID early
+]);
 ```
 
 **Optimistic updates** - update UI immediately, revert on failure:
+
 ```js
 // Immediately update local state
-setTodos(prev => prev.map(t => t.id === id ? { ...t, done: true } : t))
+setTodos(prev => prev.map(t => (t.id === id ? { ...t, done: true } : t)));
 
 // Send to server in background
 try {
-  await api.updateTodo(id, { done: true })
+  await api.updateTodo(id, { done: true });
 } catch {
   // Revert on failure
-  setTodos(originalTodos)
-  showError('Failed to save. Your change was reverted.')
+  setTodos(originalTodos);
+  showError('Failed to save. Your change was reverted.');
 }
 ```
 
@@ -316,37 +326,40 @@ try {
 
 ```js
 useEffect(() => {
-  const controller = new AbortController()
+  const controller = new AbortController();
 
   fetchData({ signal: controller.signal })
     .then(setData)
     .catch(err => {
-      if (err.name !== 'AbortError') setError(err)
-    })
+      if (err.name !== 'AbortError') setError(err);
+    });
 
-  return () => controller.abort() // cleanup on unmount or dependency change
-}, [dependency])
+  return () => controller.abort(); // cleanup on unmount or dependency change
+}, [dependency]);
 ```
 
 **Race conditions** - when a fast response arrives after a slow one:
+
 ```js
 useEffect(() => {
-  let cancelled = false
+  let cancelled = false;
 
   fetchSearch(query).then(results => {
-    if (!cancelled) setResults(results) // ignore stale responses
-  })
+    if (!cancelled) setResults(results); // ignore stale responses
+  });
 
-  return () => { cancelled = true }
-}, [query])
+  return () => {
+    cancelled = true;
+  };
+}, [query]);
 ```
 
 **Stale closures** - a closure captures the variable value at the time it was created. If that variable changes later, the closure sees the old value. Solutions: include the variable in the dependency array, use a ref to hold the latest value, or use the functional update form of setState:
 
 ```js
 // Safe - uses functional update, doesn't close over count
-setCount(prev => prev + 1)
+setCount(prev => prev + 1);
 
 // Risky - closes over count, may be stale in async context
-setCount(count + 1)
+setCount(count + 1);
 ```

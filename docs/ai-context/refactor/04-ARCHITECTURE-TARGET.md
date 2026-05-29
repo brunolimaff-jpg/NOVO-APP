@@ -89,12 +89,12 @@ constants/
 
 ## Estado Atual vs Alvo (2026-05-16)
 
-| Regra | Estado Atual | Sprint de Resolucao |
-|---|---|---|
-| `features/dossier/*` nao importa de `features/chat/*` | **Resolvido** (Sprint 9 / PR `#254`) | done |
-| `features/radar/*` contem runtime completo | **Resolvido** (Sprint 10; facades antigas preservadas) | done |
-| `VITE_PINECONE_API_KEY` nao exposto no bundle | **Risco aceito** para app interno/fechado (OI-055) | reavaliar se app virar externo |
-| Componentes < 500 linhas | **Parcialmente resolvido** (`WarRoom` 283 após Onda 1C; `LoadingSmart` 672 após Onda 1B; CRMDetail removido com Mini CRM local) | Sprint 12 avalia se `LoadingSmart` precisa de nova fatia |
+| Regra                                                 | Estado Atual                                                                                                                    | Sprint de Resolucao                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `features/dossier/*` nao importa de `features/chat/*` | **Resolvido** (Sprint 9 / PR `#254`)                                                                                            | done                                                     |
+| `features/radar/*` contem runtime completo            | **Resolvido** (Sprint 10; facades antigas preservadas)                                                                          | done                                                     |
+| `VITE_PINECONE_API_KEY` nao exposto no bundle         | **Risco aceito** para app interno/fechado (OI-055)                                                                              | reavaliar se app virar externo                           |
+| Componentes < 500 linhas                              | **Parcialmente resolvido** (`WarRoom` 283 após Onda 1C; `LoadingSmart` 672 após Onda 1B; CRMDetail removido com Mini CRM local) | Sprint 12 avalia se `LoadingSmart` precisa de nova fatia |
 
 ## Regras de Organizacao
 
@@ -107,13 +107,13 @@ constants/
 
 ## Sequencia de Introducao das Novas Camadas
 
-| Camada | Sprint de Introducao | Dependencia | Gate de Aceite |
-|---|---|---|---|
-| `stores/chatStore.ts` | Sprint 4 (junto com extracao dossier) | `message-orchestrator` concluido | Props de sessao somem do `App.tsx` |
-| `stores/dossierStore.ts` | Sprint 4 | `waterfall-orchestrator` concluido | `App.tsx` nao segura mais score PORTA |
-| `ChatErrorBoundary.tsx` | Sprint 4 | `features/chat/` estabilizada | Gemini 429/500 nao quebra tela |
-| `DossierErrorBoundary.tsx` | Sprint 4 | `features/dossier/` estabilizada | Waterfall falho exibe fallback visual |
-| `features/radar/` (stub) | Sprint 8 | Nenhuma — apenas tipos | `tsc --noEmit` verde |
-| `features/radar/` (runtime) | Sprint 10 | Sprint 8 stub | hook/service movidos + imports novos via barrel + guardrail arquitetural |
-| Validacao Zod em `[[PORTA_*]]` | Sprint 6 | `prompts/mega/contracts.ts` | 3 cenarios de alucinacao passam |
-| `constants/market-intelligence.ts` | Sprint 7 (antes de `constants/app.ts`) | Nenhuma | Nenhuma constante de UI regride |
+| Camada                             | Sprint de Introducao                   | Dependencia                        | Gate de Aceite                                                           |
+| ---------------------------------- | -------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
+| `stores/chatStore.ts`              | Sprint 4 (junto com extracao dossier)  | `message-orchestrator` concluido   | Props de sessao somem do `App.tsx`                                       |
+| `stores/dossierStore.ts`           | Sprint 4                               | `waterfall-orchestrator` concluido | `App.tsx` nao segura mais score PORTA                                    |
+| `ChatErrorBoundary.tsx`            | Sprint 4                               | `features/chat/` estabilizada      | Gemini 429/500 nao quebra tela                                           |
+| `DossierErrorBoundary.tsx`         | Sprint 4                               | `features/dossier/` estabilizada   | Waterfall falho exibe fallback visual                                    |
+| `features/radar/` (stub)           | Sprint 8                               | Nenhuma — apenas tipos             | `tsc --noEmit` verde                                                     |
+| `features/radar/` (runtime)        | Sprint 10                              | Sprint 8 stub                      | hook/service movidos + imports novos via barrel + guardrail arquitetural |
+| Validacao Zod em `[[PORTA_*]]`     | Sprint 6                               | `prompts/mega/contracts.ts`        | 3 cenarios de alucinacao passam                                          |
+| `constants/market-intelligence.ts` | Sprint 7 (antes de `constants/app.ts`) | Nenhuma                            | Nenhuma constante de UI regride                                          |

@@ -68,21 +68,18 @@ export function WarRoomModelMessage({
             {expandedErrorId === msg.id ? 'Ocultar detalhes' : 'Ver detalhes'}
           </button>
           {expandedErrorId === msg.id && (
-            <pre className={`w-full mt-1 text-[10px] whitespace-pre-wrap break-words p-2 rounded-md ${
-              dk ? 'bg-slate-950/60 text-slate-300' : 'bg-slate-100 text-slate-700'
-            }`}>
+            <pre
+              className={`w-full mt-1 text-[10px] whitespace-pre-wrap break-words p-2 rounded-md ${
+                dk ? 'bg-slate-950/60 text-slate-300' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
               {msg.technicalDetails || 'Sem detalhes técnicos disponíveis para esta falha.'}
             </pre>
           )}
         </div>
       )}
       {mergedSources.length > 0 && (
-        <WarRoomSources
-          isDarkMode={dk}
-          linkStatuses={linkStatuses}
-          sources={mergedSources}
-          t={t}
-        />
+        <WarRoomSources isDarkMode={dk} linkStatuses={linkStatuses} sources={mergedSources} t={t} />
       )}
     </div>
   );

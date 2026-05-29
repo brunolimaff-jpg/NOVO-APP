@@ -69,40 +69,25 @@ function applyStateUpdate<T>(current: T, next: SetStateAction<T>): T {
 export function DossierStoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(dossierStoreReducer, initialState);
 
-  const setExportStatus = useCallback<Dispatch<SetStateAction<ExportStatus>>>(
-    next => {
-      dispatch({ type: 'set_export_status', payload: next });
-    },
-    [],
-  );
+  const setExportStatus = useCallback<Dispatch<SetStateAction<ExportStatus>>>(next => {
+    dispatch({ type: 'set_export_status', payload: next });
+  }, []);
 
-  const setExportError = useCallback<Dispatch<SetStateAction<string | null>>>(
-    next => {
-      dispatch({ type: 'set_export_error', payload: next });
-    },
-    [],
-  );
+  const setExportError = useCallback<Dispatch<SetStateAction<string | null>>>(next => {
+    dispatch({ type: 'set_export_error', payload: next });
+  }, []);
 
-  const setPdfReportContent = useCallback<Dispatch<SetStateAction<string | null>>>(
-    next => {
-      dispatch({ type: 'set_pdf_report_content', payload: next });
-    },
-    [],
-  );
+  const setPdfReportContent = useCallback<Dispatch<SetStateAction<string | null>>>(next => {
+    dispatch({ type: 'set_pdf_report_content', payload: next });
+  }, []);
 
-  const setIsSavingRemote = useCallback<Dispatch<SetStateAction<boolean>>>(
-    next => {
-      dispatch({ type: 'set_is_saving_remote', payload: next });
-    },
-    [],
-  );
+  const setIsSavingRemote = useCallback<Dispatch<SetStateAction<boolean>>>(next => {
+    dispatch({ type: 'set_is_saving_remote', payload: next });
+  }, []);
 
-  const setRemoteSaveStatus = useCallback<Dispatch<SetStateAction<RemoteSaveStatus>>>(
-    next => {
-      dispatch({ type: 'set_remote_save_status', payload: next });
-    },
-    [],
-  );
+  const setRemoteSaveStatus = useCallback<Dispatch<SetStateAction<RemoteSaveStatus>>>(next => {
+    dispatch({ type: 'set_remote_save_status', payload: next });
+  }, []);
 
   const value = useMemo<DossierStoreValue>(
     () => ({

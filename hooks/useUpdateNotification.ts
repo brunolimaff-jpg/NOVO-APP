@@ -83,74 +83,78 @@ export function useUpdateNotification() {
   const lastFocusCheckRef = useRef(0);
 
   // Verificar versão no servidor
-  const checkForUpdates = useCallback(async (options?: { force?: boolean; ignoreSnooze?: boolean }) => {
-    const skipInterval = options?.force ?? false;
-    const skipSnooze = options?.ignoreSnooze ?? false;
-    if (!skipInterval && !shouldCheck()) return;
-    if (!skipSnooze && isSnoozed()) return;
+  const checkForUpdates = useCallback(
+    async (options?: { force?: boolean; ignoreSnooze?: boolean }) => {
+      const skipInterval = options?.force ?? false;
+      const skipSnooze = options?.ignoreSnooze ?? false;
+      if (!skipInterval && !shouldCheck()) return;
+      if (!skipSnooze && isSnoozed()) return;
 
-    try {
-      setIsChecking(true);
+      try {
+        setIsChecking(true);
 
-      // Fetch version.json do servidor
-      const response = await fetch('/version.json', {
-        cache: 'no-store',
-        headers: { 'pragma': 'no-cache' }
-      });
-
-      if (!response.ok) return;
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) return;
-
-      const versionData: VersionInfo = await response.json();
-      const storedVersion = localStorage.getItem(STORAGE_KEY_CURRENT_VERSION);
-
-      setCurrentVersion(storedVersion);
-      setLastCheckTime(Date.now());
-
-      if (!storedVersion) {
-        // Primeiro acesso — registra versão corrente sem notificar
-        localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, versionData.version);
-      } else if (isNewerVersion(versionData.version, storedVersion)) {
-        setNewVersion(versionData.version);
-        setUpdateAvailable(true);
-
-        // Disparar evento customizado para possível notificação em Toast
-        const event = new CustomEvent('updateAvailable', {
-          detail: {
-            currentVersion: storedVersion,
-            newVersion: versionData.version,
-            timestamp: versionData.timestamp,
-          } as UpdateAvailableEvent,
+        // Fetch version.json do servidor
+        const response = await fetch('/version.json', {
+          cache: 'no-store',
+          headers: { pragma: 'no-cache' },
         });
-        window.dispatchEvent(event);
-      }
 
-      // Armazenar timestamp do check
-      localStorage.setItem(STORAGE_KEY_LAST_CHECK, Date.now().toString());
-    } catch (error) {
-      scoutDiag.warn('UpdateCheck', 'Falha ao verificar atualizações', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      // Continuar silenciosamente se falhar
-    } finally {
-      setIsChecking(false);
-    }
-  }, [shouldCheck, isSnoozed]);
+        if (!response.ok) return;
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) return;
+
+        const versionData: VersionInfo = await response.json();
+        const storedVersion = localStorage.getItem(STORAGE_KEY_CURRENT_VERSION);
+
+        setCurrentVersion(storedVersion);
+        setLastCheckTime(Date.now());
+
+        if (!storedVersion) {
+          // Primeiro acesso — registra versão corrente sem notificar
+          localStorage.setItem(STORAGE_KEY_CURRENT_VERSION, versionData.version);
+        } else if (isNewerVersion(versionData.version, storedVersion)) {
+          setNewVersion(versionData.version);
+          setUpdateAvailable(true);
+
+          // Disparar evento customizado para possível notificação em Toast
+          const event = new CustomEvent('updateAvailable', {
+            detail: {
+              currentVersion: storedVersion,
+              newVersion: versionData.version,
+              timestamp: versionData.timestamp,
+            } as UpdateAvailableEvent,
+          });
+          window.dispatchEvent(event);
+        }
+
+        // Armazenar timestamp do check
+        localStorage.setItem(STORAGE_KEY_LAST_CHECK, Date.now().toString());
+      } catch (error) {
+        scoutDiag.warn('UpdateCheck', 'Falha ao verificar atualizações', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continuar silenciosamente se falhar
+      } finally {
+        setIsChecking(false);
+      }
+    },
+    [shouldCheck, isSnoozed],
+  );
 
   // Executar check no mount (forçado após reload por chunk stale)
   useEffect(() => {
     let pendingChunkReload = false;
     try {
       pendingChunkReload =
-        typeof window !== 'undefined' &&
-        window.sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY) === '1';
+        typeof window !== 'undefined' && window.sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY) === '1';
     } catch {
       // sessionStorage indisponivel em contextos restritos (cross-origin iframe etc.)
     }
     if (pendingChunkReload) {
-      try { window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY); } catch {
+      try {
+        window.sessionStorage.removeItem(CHUNK_RELOAD_PENDING_KEY);
+      } catch {
         // sessionStorage indisponivel em contextos restritos (cross-origin iframe etc.)
       }
       void checkForUpdates({ force: true, ignoreSnooze: true });

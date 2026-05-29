@@ -61,9 +61,7 @@ describe('useAppInitialization', () => {
 
     expect(options.loadSessions).toHaveBeenCalledTimes(1);
     const setCurrentSessionIdMock = options.setCurrentSessionId as ReturnType<typeof vi.fn>;
-    expect(
-      setCurrentSessionIdMock.mock.calls.some(([arg]: [unknown]) => typeof arg === 'string'),
-    ).toBe(false);
+    expect(setCurrentSessionIdMock.mock.calls.some(([arg]: [unknown]) => typeof arg === 'string')).toBe(false);
   });
 
   it('restaura a primeira sessao local quando ha historico salvo', async () => {

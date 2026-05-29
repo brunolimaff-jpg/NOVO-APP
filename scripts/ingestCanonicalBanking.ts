@@ -7,10 +7,7 @@ dotenv.config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 const PINECONE_API_KEY =
-  process.env.PINECONE_DOCS_KEY ||
-  process.env.PINECONE_API_KEY ||
-  process.env.VITE_PINECONE_KEY ||
-  '';
+  process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY || '';
 
 const NAMESPACE = 'senior-erp-docs';
 const SOURCE_URL =
@@ -64,7 +61,7 @@ function chunkText(input: string, max = 1200, overlap = 180): string[] {
   const parts = input
     .split(/\n##\s+/)
     .map((s, i) => (i === 0 ? s : `## ${s}`))
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean);
 
   const chunks: string[] = [];
@@ -94,8 +91,7 @@ async function run() {
 
   const chunks = chunkText(CANONICAL_DOC);
   const contents = chunks.map(
-    (c, i) =>
-      `Fonte Curada ERP Banking Senior (Mar/2026)\nTrecho ${i + 1}/${chunks.length}\n\n${c}`,
+    (c, i) => `Fonte Curada ERP Banking Senior (Mar/2026)\nTrecho ${i + 1}/${chunks.length}\n\n${c}`,
   );
 
   const emb = await ai.models.embedContent({
@@ -122,15 +118,11 @@ async function run() {
 
   await index.upsert(vectors);
   console.log(
-    JSON.stringify(
-      { ok: true, upserted: vectors.length, namespace: NAMESPACE, index: PINECONE_INDEX_NAME },
-      null,
-      2,
-    ),
+    JSON.stringify({ ok: true, upserted: vectors.length, namespace: NAMESPACE, index: PINECONE_INDEX_NAME }, null, 2),
   );
 }
 
-run().catch((err) => {
+run().catch(err => {
   console.error(err);
   process.exit(1);
 });

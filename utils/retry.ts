@@ -1,13 +1,12 @@
-
 import { AppError } from '../types';
 import { normalizeAppError } from './errorHelpers';
 
 interface RetryOptions {
-  maxRetries?: number;        // Default: 3
-  baseDelayMs?: number;       // Default: 1000ms
-  maxDelayMs?: number;        // Default: 10000ms
-  jitter?: boolean;           // Default: true
-  abortSignal?: AbortSignal;  // If provided, cancels retries when aborted
+  maxRetries?: number; // Default: 3
+  baseDelayMs?: number; // Default: 1000ms
+  maxDelayMs?: number; // Default: 10000ms
+  jitter?: boolean; // Default: true
+  abortSignal?: AbortSignal; // If provided, cancels retries when aborted
 }
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -19,15 +18,9 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function withAutoRetry<T>(
   actionName: string,
   action: () => Promise<T>,
-  options: RetryOptions = {}
+  options: RetryOptions = {},
 ): Promise<T> {
-  const {
-    maxRetries = 3,
-    baseDelayMs = 1000,
-    maxDelayMs = 10000,
-    jitter = true,
-    abortSignal,
-  } = options;
+  const { maxRetries = 3, baseDelayMs = 1000, maxDelayMs = 10000, jitter = true, abortSignal } = options;
 
   let attempt = 0;
 
@@ -70,7 +63,9 @@ export async function withAutoRetry<T>(
       // Isso evita o problema de "thundering herd" onde todos retentam ao mesmo tempo
       const finalDelay = jitter ? Math.random() * cappedDelay : cappedDelay;
 
-      console.warn(`[AutoRetry] ${actionName} error (${appError.code}). Retrying in ${Math.round(finalDelay)}ms (Attempt ${attempt}/${maxRetries})`);
+      console.warn(
+        `[AutoRetry] ${actionName} error (${appError.code}). Retrying in ${Math.round(finalDelay)}ms (Attempt ${attempt}/${maxRetries})`,
+      );
 
       await wait(finalDelay);
     }

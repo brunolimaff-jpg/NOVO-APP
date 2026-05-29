@@ -114,7 +114,12 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
             <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
           ) : (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
             </svg>
           )}
         </button>
@@ -124,22 +129,25 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
         <div
           id={menuId}
           className={`absolute right-0 top-full mt-1 w-56 rounded-xl border shadow-lg z-50 overflow-hidden ${
-            isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-200'
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
           }`}
           role="menu"
         >
-          <div role="presentation" className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-          }`}>
+          <div
+            role="presentation"
+            className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${
+              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`}
+          >
             Exportar dossiê
           </div>
 
           <div role="separator" className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
 
           <button
-            ref={el => { menuItemsRef.current[0] = el; }}
+            ref={el => {
+              menuItemsRef.current[0] = el;
+            }}
             onClick={() => handleAction(() => onExportConversation?.('html', 'full'))}
             disabled={!onExportConversation}
             role="menuitem"
@@ -151,17 +159,32 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 : 'opacity-40 cursor-not-allowed'
             }`}
           >
-            <span className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
-              isDarkMode ? 'bg-emerald-800/50 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
-            }`}>HT</span>
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
+                isDarkMode ? 'bg-emerald-800/50 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
+              }`}
+            >
+              HT
+            </span>
             <div>
-              <p className="font-medium">HTML navegável <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-emerald-800/30 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}>Recomendado</span></p>
-              <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Relatório completo no browser</p>
+              <p className="font-medium">
+                HTML navegável{' '}
+                <span
+                  className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${isDarkMode ? 'bg-emerald-800/30 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}
+                >
+                  Recomendado
+                </span>
+              </p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Relatório completo no browser
+              </p>
             </div>
           </button>
 
           <button
-            ref={el => { menuItemsRef.current[1] = el; }}
+            ref={el => {
+              menuItemsRef.current[1] = el;
+            }}
             onClick={() => handleAction(onExportPDF)}
             role="menuitem"
             className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
@@ -170,17 +193,25 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 : 'text-gray-700 hover:bg-gray-50 focus:bg-gray-50'
             }`}
           >
-            <span className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
-              isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-            }`}>PD</span>
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
+                isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              PD
+            </span>
             <div>
               <p className="font-medium">PDF</p>
-              <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Imprimir / salvar como PDF</p>
+              <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Imprimir / salvar como PDF
+              </p>
             </div>
           </button>
 
           <button
-            ref={el => { menuItemsRef.current[2] = el; }}
+            ref={el => {
+              menuItemsRef.current[2] = el;
+            }}
             onClick={() => handleAction(() => onExportConversation?.('doc', 'full'))}
             disabled={!onExportConversation}
             role="menuitem"
@@ -192,9 +223,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 : 'opacity-40 cursor-not-allowed'
             }`}
           >
-            <span className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
-              isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-50 text-blue-600'
-            }`}>DO</span>
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
+                isDarkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-50 text-blue-600'
+              }`}
+            >
+              DO
+            </span>
             <div>
               <p className="font-medium">Word (.doc)</p>
               <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Editar e compartilhar</p>
@@ -202,7 +237,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           </button>
 
           <button
-            ref={el => { menuItemsRef.current[3] = el; }}
+            ref={el => {
+              menuItemsRef.current[3] = el;
+            }}
             onClick={() => handleAction(() => onExportConversation?.('md', 'full'))}
             disabled={!onExportConversation}
             role="menuitem"
@@ -214,9 +251,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 : 'opacity-40 cursor-not-allowed'
             }`}
           >
-            <span className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
-              isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-            }`}>MD</span>
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold ${
+                isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              MD
+            </span>
             <div>
               <p className="font-medium">Markdown</p>
               <p className={`text-[11px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Texto estruturado</p>
@@ -226,7 +267,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           <div role="separator" className={`h-px ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`} />
 
           <button
-            ref={el => { menuItemsRef.current[4] = el; }}
+            ref={el => {
+              menuItemsRef.current[4] = el;
+            }}
             onClick={() => handleAction(onCopyMarkdown)}
             role="menuitem"
             className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
@@ -235,11 +278,18 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
                 : 'text-gray-700 hover:bg-gray-50 focus:bg-gray-50'
             }`}
           >
-            <span className={`w-7 h-7 flex items-center justify-center rounded-md ${
-              isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span
+              className={`w-7 h-7 flex items-center justify-center rounded-md ${
+                isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
               </svg>
             </span>
             <div>
@@ -249,19 +299,23 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
           </button>
 
           {displayStatus !== 'idle' && (
-            <div role="status" aria-live="polite" className={`mx-3 mb-2 mt-1 rounded-lg px-3 py-2 text-xs ${
-              displayStatus === 'error'
-                ? isDarkMode
-                  ? 'bg-red-900/30 text-red-300'
-                  : 'bg-red-50 text-red-700'
-                : displayStatus === 'success'
+            <div
+              role="status"
+              aria-live="polite"
+              className={`mx-3 mb-2 mt-1 rounded-lg px-3 py-2 text-xs ${
+                displayStatus === 'error'
                   ? isDarkMode
-                    ? 'bg-emerald-900/30 text-emerald-300'
-                    : 'bg-emerald-50 text-emerald-700'
-                  : isDarkMode
-                    ? 'bg-blue-900/30 text-blue-300'
-                    : 'bg-blue-50 text-blue-700'
-            }`}>
+                    ? 'bg-red-900/30 text-red-300'
+                    : 'bg-red-50 text-red-700'
+                  : displayStatus === 'success'
+                    ? isDarkMode
+                      ? 'bg-emerald-900/30 text-emerald-300'
+                      : 'bg-emerald-50 text-emerald-700'
+                    : isDarkMode
+                      ? 'bg-blue-900/30 text-blue-300'
+                      : 'bg-blue-50 text-blue-700'
+              }`}
+            >
               {displayStatus === 'loading' && 'Preparando exportação...'}
               {displayStatus === 'success' && 'Exportação concluída.'}
               {displayStatus === 'error' && 'Falha ao exportar.'}

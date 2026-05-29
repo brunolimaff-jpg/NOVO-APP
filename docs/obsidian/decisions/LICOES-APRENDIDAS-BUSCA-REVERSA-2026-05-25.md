@@ -1,3 +1,9 @@
+---
+type: licoes-aprendidas
+tags:
+  - licoes-aprendidas
+---
+
 # Licoes Aprendidas - Busca Reversa de CNPJs por Nome de Socio
 
 **Data:** 2026-05-25
@@ -30,10 +36,12 @@ A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs 
 **Correcao:** Implementar `searchConsultasocioDirect()` — constroi URL no padrao `/q/sa/{slug}` (nome minusculo sem acentos com hifens), faz scrape com Cheerio, extrai texto da pagina contendo CNPJs.
 
 **Arquivos:**
+
 - `utils/documentExtractor.ts` — funcoes `buildConsultasocioUrl()`, `searchConsultasocioDirect()`, `isPessoaJuridica()`
 - `api/socio-search.ts` — `runSearch()` chama `searchConsultasocioDirect()` antes de busca web generica, mas apenas para pessoa fisica (PF)
 
 **Parametros atuais:**
+
 - `maxPages = 15` (inicialmente 3, ajustado no commit `3e0058e`)
 - Timeout de 10s por pagina
 - User-Agent: `Mozilla/5.0 ScoutAgro/1.0`
@@ -61,6 +69,7 @@ A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs 
 **Problema:** Empresas extraidas da tabela Gemini (`Outros CNPJs onde o socio aparece`) nao tinham `sourceTitle` (campo vazio) e recebiam `confidence: weak`, o que fazia `hasEnoughEvidence()` no `societaryGraph.ts` rejeita-las e o Mermaid ficar vazio.
 
 **Correcao:**
+
 - `teiaTextParser.ts`: adicionar `sourceTitle: 'Gemini — Tabela CNPJs'` como valor default quando vazio
 - `societaryGraph.ts`: promover `confidence` para `'medium'` quando o CNPJ e valido (`isValidCnpj()`), mesmo que a evidencia textual seja fraca
 
@@ -75,6 +84,7 @@ A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs 
 **Problema:** O parser (`teiaTextParser.ts`) e o grafo (`societaryGraph.ts`) nao validavam CNPJ por digito verificador. Um CNPJ com 14 digitos mas digito verificador invalido era aceito como valido, abrindo porta para alucinacao.
 
 **Correcao:**
+
 - Adicionar `isValidCnpj()` em `teiaTextParser.ts` antes de aceitar CNPJ como valido
 - Adicionar `isValidCnpj()` em `societaryGraph.ts` para filtrar nos do grafo
 - Reordenar `describeSocietaryCompanyType()` para detectar tipo societario antes de validar CNPJ
@@ -94,6 +104,7 @@ A PR #285 nasceu como hotfix para corrigir a regressao de profundidade de CNPJs 
 **Arquivo:** `utils/documentExtractor.ts` — funcao `performGeminiSearch()`
 
 **Arquitetura:**
+
 ```
 performWebSearch(query)
   -> performGeminiSearch(query, apiKey)  // Primaria
@@ -115,6 +126,7 @@ performWebSearch(query)
 **Arquivo:** `utils/documentExtractor.ts` — funcao `performGeminiSearch()` reescrita
 
 **Fluxo atual:**
+
 ```
 performGeminiSearch(query, apiKey):
   1. Chama Gemini 2.5 Flash com tools: [{ google_search: {} }]
@@ -124,6 +136,7 @@ performGeminiSearch(query, apiKey):
 ```
 
 **Parametros:**
+
 - Modelo: `gemini-2.5-flash`
 - Temperature: `0`
 - Max output tokens: `256` (suficiente para grounding, nao para gerar CNPJs)
@@ -142,6 +155,7 @@ performGeminiSearch(query, apiKey):
 **Correcao:** CNPJ Aberto passou a ter contrato estruturado antes de entrar em `/api/socio-search`.
 
 **Contrato minimo:**
+
 - `relationshipScope: partner_other_cnpj`
 - `rootContext: false`
 - `sourceProvider: cnpj_aberto`
@@ -161,6 +175,7 @@ performGeminiSearch(query, apiKey):
 **Problema:** Mesmo depois do contrato semantico, a UI ainda mostrava coluna/badge `CNPJ lateral do socio`, secoes textuais inseguras, alerta falso de validacao e dados potencialmente servidos por cache antigo.
 
 **Correcao:**
+
 - Matriz removeu coluna/badge de relacao lateral.
 - Tabela/Grafo normalizaram nomes curtos dos socios.
 - Renderer filtrou `Outros CNPJs`, `Alertas` e `Vinculo do socio; grupo nao confirmado`.
@@ -171,17 +186,17 @@ performGeminiSearch(query, apiKey):
 
 ## Tabela Resumo dos 9 Ciclos
 
-| # | Ciclo | Resultado | Problema resolvido | Problema criado/revelado |
-|---|-------|-----------|-------------------|--------------------------|
-| 1 | DuckDuckGo GET->POST | Funciona local | Formulario vazio no GET | Vercel pode bloquear IP |
-| 2 | consultasocio.com scrape | PERFEITO local | Fonte societaria direta | Bloqueia na Vercel (datacenter IP) |
-| 3 | Mermaid batch render | OK | Flickering no Mermaid | Nenhum |
-| 4 | sourceTitle + confidence | OK | Mermaid vazio sem fonte | Nenhum |
-| 5 | isValidCnpj em parser/grafo | OK | CNPJ falso aceito | Nenhum |
-| 6 | Gemini Search v1 (LLM) | FALHA | Fonte pra Vercel | Alucina CNPJs falsos |
-| 7 | Gemini Search v2 (URL-only) | TESTANDO | Alucinacao de CNPJs | Depende de GEMINI_API_KEY na preview |
-| 8 | CNPJ Aberto estruturado | OK em teste local | Fonte dedicada por socio | Exige contrato semantico para nao promover lateral a grupo |
-| 9 | Fechamento visual + cache v7 | OK validado | UI/texto/cache obsoletos | Exige reestruturacao posterior para nao espalhar regra |
+| #   | Ciclo                        | Resultado         | Problema resolvido       | Problema criado/revelado                                   |
+| --- | ---------------------------- | ----------------- | ------------------------ | ---------------------------------------------------------- |
+| 1   | DuckDuckGo GET->POST         | Funciona local    | Formulario vazio no GET  | Vercel pode bloquear IP                                    |
+| 2   | consultasocio.com scrape     | PERFEITO local    | Fonte societaria direta  | Bloqueia na Vercel (datacenter IP)                         |
+| 3   | Mermaid batch render         | OK                | Flickering no Mermaid    | Nenhum                                                     |
+| 4   | sourceTitle + confidence     | OK                | Mermaid vazio sem fonte  | Nenhum                                                     |
+| 5   | isValidCnpj em parser/grafo  | OK                | CNPJ falso aceito        | Nenhum                                                     |
+| 6   | Gemini Search v1 (LLM)       | FALHA             | Fonte pra Vercel         | Alucina CNPJs falsos                                       |
+| 7   | Gemini Search v2 (URL-only)  | TESTANDO          | Alucinacao de CNPJs      | Depende de GEMINI_API_KEY na preview                       |
+| 8   | CNPJ Aberto estruturado      | OK em teste local | Fonte dedicada por socio | Exige contrato semantico para nao promover lateral a grupo |
+| 9   | Fechamento visual + cache v7 | OK validado       | UI/texto/cache obsoletos | Exige reestruturacao posterior para nao espalhar regra     |
 
 ## Arquitetura anterior de busca (HEAD `6d49b28`, superada pelo Ciclo 8)
 
@@ -207,15 +222,15 @@ performGeminiSearch(query, apiKey):
 
 ## Arquivos Alterados (diferencial entre b8b9058 e 6d49b28)
 
-| Arquivo | Linhas alteradas | Ciclos envolvidos |
-|---------|-----------------|-------------------|
-| `utils/documentExtractor.ts` | +189 | 1, 2, 6, 7 |
-| `api/socio-search.ts` | +81/-35 | 2 |
-| `features/dossier/SocietaryMap.tsx` | +14/-47 | 3 |
-| `features/dossier/teiaTextParser.ts` | +16 | 4, 5 |
-| `features/dossier/societaryGraph.ts` | +4 | 4, 5 |
-| `tests/features/dossier/SocietaryMap.test.tsx` | +80/-20 | 3 |
-| `tests/api-socio-search.test.ts` | +16 | 2 |
+| Arquivo                                        | Linhas alteradas | Ciclos envolvidos |
+| ---------------------------------------------- | ---------------- | ----------------- |
+| `utils/documentExtractor.ts`                   | +189             | 1, 2, 6, 7        |
+| `api/socio-search.ts`                          | +81/-35          | 2                 |
+| `features/dossier/SocietaryMap.tsx`            | +14/-47          | 3                 |
+| `features/dossier/teiaTextParser.ts`           | +16              | 4, 5              |
+| `features/dossier/societaryGraph.ts`           | +4               | 4, 5              |
+| `tests/features/dossier/SocietaryMap.test.tsx` | +80/-20          | 3                 |
+| `tests/api-socio-search.test.ts`               | +16              | 2                 |
 
 ## Licoes Aprendidas
 
@@ -237,6 +252,7 @@ O Gemini do Ciclo 6 gerou CNPJs como `10.542.424/0001-00` que podem ter digito v
 ### 4. consultasocio.com e a melhor fonte local, mas bloqueia em producao
 
 O scraper de consultasocio.com entrega qualidade excepcional (80 CNPJs, 14 empresas para Elizeu Scheffer), mas o IP da Vercel e bloqueado. Possiveis contornos (nao implementados):
+
 - Proxy rotativo (complexo, anti-ToS)
 - Cache persistente no Supabase para resultados bons (ja implementado mas sem SERVICE_ROLE_KEY configurada)
 - Fonte alternativa de consulta societaria oficial
@@ -244,6 +260,7 @@ O scraper de consultasocio.com entrega qualidade excepcional (80 CNPJs, 14 empre
 ### 5. A pipeline de extracao precisa de 3 camadas
 
 Para cada socio, o fluxo ideal e:
+
 1. **Fonte direta** (consultasocio.com ou similar) — funciona local, falha Vercel
 2. **Busca web com URLs reais** (Gemini Search Grounding v2) — descobre paginas, extrai texto
 3. **Busca web generica** (DuckDuckGo) — fallback gratuito, pode ser bloqueado

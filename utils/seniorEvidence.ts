@@ -55,10 +55,7 @@ function normalizeComparableText(value: string): string {
     .trim();
 }
 
-function inferClienteMatchType(
-  lookup: LookupResponse,
-  primary: LookupResponse['results'][number],
-): MatchType {
+function inferClienteMatchType(lookup: LookupResponse, primary: LookupResponse['results'][number]): MatchType {
   if (primary.matchType) return primary.matchType;
 
   const normalizedQuery = normalizeComparableText(lookup.query || '');
@@ -118,9 +115,7 @@ export function appendSeniorEvidenceNote(
   if (!clienteSeniorData?.encontrado || !trimmed) return trimmed;
   if (/##\s*🔒\s*Nota de consist[eê]ncia comercial/i.test(trimmed)) return trimmed;
 
-  const competitorMentions = COMPETITOR_PATTERNS
-    .filter(({ regex }) => regex.test(trimmed))
-    .map(({ label }) => label);
+  const competitorMentions = COMPETITOR_PATTERNS.filter(({ regex }) => regex.test(trimmed)).map(({ label }) => label);
 
   if (competitorMentions.length === 0) return trimmed;
 

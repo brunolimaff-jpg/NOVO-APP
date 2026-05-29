@@ -67,10 +67,7 @@ function mergeSessionPair(local: ChatSession, remote: ChatSession): ChatSession 
  * Mescla listas de sessões sem apagar mensagens locais com versão remota vazia/stale.
  * Sessões só em uma das listas são preservadas.
  */
-export function mergeChatSessions(
-  localSessions: ChatSession[],
-  incomingSessions: ChatSession[],
-): ChatSession[] {
+export function mergeChatSessions(localSessions: ChatSession[], incomingSessions: ChatSession[]): ChatSession[] {
   const byId = new Map<string, ChatSession>();
 
   for (const session of localSessions) {
@@ -86,7 +83,5 @@ export function mergeChatSessions(
     byId.set(incoming.id, mergeSessionPair(existing, incoming));
   }
 
-  return Array.from(byId.values()).sort(
-    (a, b) => parseUpdatedAt(b.updatedAt) - parseUpdatedAt(a.updatedAt),
-  );
+  return Array.from(byId.values()).sort((a, b) => parseUpdatedAt(b.updatedAt) - parseUpdatedAt(a.updatedAt));
 }

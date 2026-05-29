@@ -120,17 +120,13 @@ describe('seniorEvidence', () => {
   });
 
   it('anexa nota de consistencia quando texto cita TOTVS ou SAP', () => {
-    const result = appendSeniorEvidenceNote(
-      'Há sinais de TOTVS Protheus em vagas abertas.',
-      'Grupo Scheffer',
-      {
-        encontrado: true,
-        grupo: 'Grupo Scheffer',
-        totalModulos: 4,
-        familias: ['ERP'],
-        modulosPorFamilia: {},
-      },
-    );
+    const result = appendSeniorEvidenceNote('Há sinais de TOTVS Protheus em vagas abertas.', 'Grupo Scheffer', {
+      encontrado: true,
+      grupo: 'Grupo Scheffer',
+      totalModulos: 4,
+      familias: ['ERP'],
+      modulosPorFamilia: {},
+    });
 
     expect(result).toContain('## 🔒 Nota de consistência comercial');
     expect(result).toContain('cliente Senior');

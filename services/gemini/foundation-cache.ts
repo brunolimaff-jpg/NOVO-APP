@@ -18,12 +18,7 @@ export function isFoundationCacheEnabled(): boolean {
 }
 
 export function buildStaticDossierContext(input: StaticDossierContextInput): string {
-  return [
-    input.dossierSeedContext,
-    input.waterfallLookupContext,
-    input.seniorEvidenceContext,
-    input.teiaResearchText,
-  ]
+  return [input.dossierSeedContext, input.waterfallLookupContext, input.seniorEvidenceContext, input.teiaResearchText]
     .filter(Boolean)
     .join('\n\n');
 }
@@ -44,9 +39,7 @@ export function buildDynamicDossierContext(
 ): string {
   return [
     contextHint ? `Objetivo desta passada:\n${contextHint}` : '',
-    accumulatedTextSnapshot
-      ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-windowChars)}`
-      : '',
+    accumulatedTextSnapshot ? `Contexto anterior consolidado:\n${accumulatedTextSnapshot.slice(-windowChars)}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');

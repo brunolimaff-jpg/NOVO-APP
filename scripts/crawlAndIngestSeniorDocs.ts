@@ -23,13 +23,14 @@ function isValidUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return false;
-    if (!ALLOWED_DOMAINS.some((pattern) => pattern.test(url))) return false;
+    if (!ALLOWED_DOMAINS.some(pattern => pattern.test(url))) return false;
 
     // Block private/reserved IPs
     const hostname = parsed.hostname.toLowerCase();
 
     // localhost variants
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '[::1]') return false;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname === '[::1]')
+      return false;
 
     // 169.254.x.x (link-local)
     if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname)) return false;
@@ -54,8 +55,7 @@ function isValidUrl(url: string): boolean {
 // ---------------------------------------------------------------------------
 
 const GEMINI_API_KEY = process.env.VITE_API_KEY || process.env.GEMINI_API_KEY;
-const PINECONE_API_KEY =
-  process.env.PINECONE_DOCS_KEY || process.env.VITE_PINECONE_KEY || process.env.PINECONE_API_KEY;
+const PINECONE_API_KEY = process.env.PINECONE_DOCS_KEY || process.env.VITE_PINECONE_KEY || process.env.PINECONE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 const NAMESPACE = 'senior-erp-docs';
 const BATCH_SIZE = 50;
@@ -119,10 +119,7 @@ function extractTextFromHtml(html: string): string {
 
   // Fallback: if content selectors yielded nothing useful, grab all visible text
   if (text.length < 50) {
-    return $(container)
-      .text()
-      .replace(/\s+/g, ' ')
-      .trim();
+    return $(container).text().replace(/\s+/g, ' ').trim();
   }
 
   return text;
@@ -194,7 +191,7 @@ async function generateEmbeddingsBatch(texts: string[]): Promise<number[][]> {
     config: { taskType: 'RETRIEVAL_DOCUMENT' },
   });
   if (!result.embeddings) return [];
-  return result.embeddings.map((e) => e.values || []);
+  return result.embeddings.map(e => e.values || []);
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +241,7 @@ async function runTaskQueue(tasks: CrawlTask[], concurrency: number): Promise<Cr
       const task = tasks[taskIndex];
 
       // Rate-limit delay between starts
-      await new Promise((r) => setTimeout(r, RATE_LIMIT_DELAY_MS));
+      await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY_MS));
 
       if (!isValidUrl(task.url)) {
         results.push({ task, chunkCount: 0, error: 'URL inválida ou bloqueada (SSRF)' });
@@ -294,7 +291,7 @@ async function embedAndUpsert(
 ): Promise<number> {
   for (let i = 0; i < records.length; i += BATCH_SIZE) {
     const batch = records.slice(i, i + BATCH_SIZE);
-    const texts = batch.map((r) => r.text);
+    const texts = batch.map(r => r.text);
     const vectors = await generateEmbeddingsBatch(texts);
 
     const pineconeRecords = batch.map((r, idx) => ({
@@ -307,7 +304,7 @@ async function embedAndUpsert(
       await index.namespace(NAMESPACE).upsert(pineconeRecords);
     } catch (err: any) {
       console.error(`  Erro ao enviar lote: ${err.message}. Retentando...`);
-      await new Promise((r) => setTimeout(r, 5000));
+      await new Promise(r => setTimeout(r, 5000));
       const retryVectors = await generateEmbeddingsBatch(texts);
       const retryRecords = batch.map((r, idx) => ({
         id: r.id,
@@ -362,8 +359,8 @@ async function crawlAndIngest(): Promise<void> {
   const results = await runTaskQueue(tasks, MAX_CONCURRENCY);
 
   // ---- Relatório final ----
-  const succeeded = results.filter((r) => !r.error);
-  const failed = results.filter((r) => r.error);
+  const succeeded = results.filter(r => !r.error);
+  const failed = results.filter(r => r.error);
   const totalChunks = succeeded.reduce((sum, r) => sum + r.chunkCount, 0);
 
   console.log('\n' + '='.repeat(60));
@@ -385,7 +382,7 @@ async function crawlAndIngest(): Promise<void> {
   }
 }
 
-crawlAndIngest().catch((err) => {
+crawlAndIngest().catch(err => {
   console.error('\n💥 Erro fatal:', err?.message || err);
   process.exit(1);
 });

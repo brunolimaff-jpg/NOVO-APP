@@ -32,10 +32,7 @@ export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): Re
 }
 
 /** Hero overlay: permanece até `isLoading` false, mesmo com preview parcial do waterfall. */
-export function shouldShowHeroLoadingOverlay(
-  isLoading: boolean,
-  loadingVariant: LoadingVariant | undefined,
-): boolean {
+export function shouldShowHeroLoadingOverlay(isLoading: boolean, loadingVariant: LoadingVariant | undefined): boolean {
   return isLoading && loadingVariant === 'hero';
 }
 

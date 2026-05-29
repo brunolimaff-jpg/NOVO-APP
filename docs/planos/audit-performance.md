@@ -10,16 +10,16 @@
 
 ## Resumo Executivo
 
-| Categoria | Pontuacao (0-5) | Severidade |
-|-----------|:---:|:---:|
-| 1. Waterfalls / Fetch Cascata | **2/5** | CRITICAL |
-| 2. Bundle Size | **2/5** | CRITICAL |
-| 3. Re-renders | **3/5** | MEDIUM |
-| 4. Server-Side (API Caching) | **1/5** | HIGH |
-| 5. Client-Side Fetching | **2/5** | MEDIUM-HIGH |
-| 6. JavaScript Performance | **3/5** | LOW-MEDIUM |
-| 7. Rendering Performance | **3/5** | MEDIUM |
-| **Geral** | **2.3/5** | **ALTA** |
+| Categoria                     | Pontuacao (0-5) | Severidade  |
+| ----------------------------- | :-------------: | :---------: |
+| 1. Waterfalls / Fetch Cascata |     **2/5**     |  CRITICAL   |
+| 2. Bundle Size                |     **2/5**     |  CRITICAL   |
+| 3. Re-renders                 |     **3/5**     |   MEDIUM    |
+| 4. Server-Side (API Caching)  |     **1/5**     |    HIGH     |
+| 5. Client-Side Fetching       |     **2/5**     | MEDIUM-HIGH |
+| 6. JavaScript Performance     |     **3/5**     | LOW-MEDIUM  |
+| 7. Rendering Performance      |     **3/5**     |   MEDIUM    |
+| **Geral**                     |    **2.3/5**    |  **ALTA**   |
 
 ---
 
@@ -45,6 +45,7 @@
 **Problema:** App.tsx importa estaticamente ~30 modulos. Zero uso de `React.lazy()` ou `Suspense`.
 
 Componentes carregados na inicializacao (todos estaticos):
+
 - `ChatInterface` (329 linhas)
 - `LoadingSmart` (660 linhas, que importa `geminiService`)
 - `EmailModal`, `FollowUpModal`, `UpdateNotificationModal`
@@ -63,7 +64,7 @@ const EmailModal = React.lazy(() => import('./components/EmailModal'));
 // No JSX:
 <React.Suspense fallback={<div className="h-64 animate-pulse bg-gray-800/20 rounded-xl" />}>
   {isLoading && <LoadingSmart {...props} />}
-</React.Suspense>
+</React.Suspense>;
 ```
 
 ### 1.2 LoadingSmart importa geminiService diretamente (ALTO)
@@ -135,13 +136,13 @@ Ou, melhor ainda, so carregar o chunk mermaid quando o usuario realmente abrir u
 **Arquivo:** Multiplos componentes importam `framer-motion` estaticamente.  
 **Problema:** `framer-motion` (5.4MB em disco) e importado estaticamente em 5 componentes sem chunk separado:
 
-| Componente | Arquivo |
-|---|---|
+| Componente         | Arquivo                              |
+| ------------------ | ------------------------------------ |
 | ClienteSeniorScore | `/components/ClienteSeniorScore.tsx` |
-| StatusIndicator | `/components/StatusIndicator.tsx` |
-| Tooltip | `/components/Tooltip.tsx` |
-| ScorePorta | `/components/ScorePorta.tsx` |
-| ChatShell | `/components/chat/ChatShell.tsx` |
+| StatusIndicator    | `/components/StatusIndicator.tsx`    |
+| Tooltip            | `/components/Tooltip.tsx`            |
+| ScorePorta         | `/components/ScorePorta.tsx`         |
+| ChatShell          | `/components/chat/ChatShell.tsx`     |
 
 Nao ha `manualChunks` para framer-motion no `vite.config.ts`.
 
@@ -195,21 +196,21 @@ const { jsPDF } = await import('jspdf');
 
 ### 3.1 Componentes grandes sem React.memo (ALTO)
 
-| Componente | Linhas | Memo? | Renderiza em |
-|---|---|---|---|
-| EmptyStateHome | 748 | NAO | Toda inicializacao |
-| LoadingSmart | 660 | NAO | Durante loading de IA |
-| SettingsDrawer | 634 | NAO | Ao abrir settings |
-| RadarPanel | 386 | NAO | Ao abrir radar |
-| InvestigationDashboard | 361 | NAO | Ao abrir dashboard |
-| WarRoom | 283 | NAO | Durante conversa |
-| UserMenu | ~130 | NAO | Header, toda interacao |
-| WelcomeScreen | ~150 | NAO | Home screen |
-| DossieSkeletonLoader | ~80 | NAO | Durante geracao dossie |
-| ClienteSeniorScore | ~130 | NAO | Score card |
-| HelpCenterFloating | ~130 | NAO | Flutuante na tela |
-| DeepDiveTopics | ~250 | NAO | Durante investigacao |
-| GhostMessageBlock | ~60 | NAO | Mensagens de erro |
+| Componente             | Linhas | Memo? | Renderiza em           |
+| ---------------------- | ------ | ----- | ---------------------- |
+| EmptyStateHome         | 748    | NAO   | Toda inicializacao     |
+| LoadingSmart           | 660    | NAO   | Durante loading de IA  |
+| SettingsDrawer         | 634    | NAO   | Ao abrir settings      |
+| RadarPanel             | 386    | NAO   | Ao abrir radar         |
+| InvestigationDashboard | 361    | NAO   | Ao abrir dashboard     |
+| WarRoom                | 283    | NAO   | Durante conversa       |
+| UserMenu               | ~130   | NAO   | Header, toda interacao |
+| WelcomeScreen          | ~150   | NAO   | Home screen            |
+| DossieSkeletonLoader   | ~80    | NAO   | Durante geracao dossie |
+| ClienteSeniorScore     | ~130   | NAO   | Score card             |
+| HelpCenterFloating     | ~130   | NAO   | Flutuante na tela      |
+| DeepDiveTopics         | ~250   | NAO   | Durante investigacao   |
+| GhostMessageBlock      | ~60    | NAO   | Mensagens de erro      |
 
 **Memoizados corretamente:** `MarkdownRenderer`, `ErrorMessageCard`, `MessageRow`, `SmartOptions`, `InlineTypingResponse`.
 
@@ -226,6 +227,7 @@ export default React.memo(WarRoom);
 **Arquivo:** `/Users/brunolima/Documents/NOVO-APP/components/ClienteSeniorScore.tsx`
 
 Inline style objects que criam novas referencias em todo render:
+
 ```tsx
 // Linhas 40-118 — ~15 inline style objects
 style={{
@@ -254,19 +256,19 @@ const STYLES = {
 
 Multiplos componentes criam arrow functions inline em props `onChange`, `onClick`, `onKeyDown`:
 
-| Arquivo | Linha | Handler |
-|---|---|---|
-| EmptyStateHome.tsx | 394, 454, 518, 535 | `onChange={e => ...}` |
-| InvestigationDashboard.tsx | 223, 228, 240, 256, 287 | `onChange/onClick={() => ...}` |
-| SettingsDrawer.tsx | 213, 215, 281, 299, 479, 496 | `onChange/onClick={() => ...}` |
-| RadarPanel.tsx | 127, 145, 296, 367 | `onChange/onClick={() => ...}` |
-| UserMenu.tsx | 64, 108, 119 | `onClick={() => ...}` |
-| WelcomeScreen.tsx | 104, 126 | `onClick={() => ...}` |
-| DeepDiveTopics.tsx | 213 | `onClick={() => ...}` |
-| HelpCenterFloating.tsx | 80, 98, 128 | `onClick={() => ...}` |
-| ToastContainer.tsx | 39 | `onClick={() => ...}` |
-| GhostMessageBlock.tsx | 31, 43 | `onClick={() => ...}` |
-| Composer.tsx | — (potencial) | `onChange/onKeyDown` |
+| Arquivo                    | Linha                        | Handler                        |
+| -------------------------- | ---------------------------- | ------------------------------ |
+| EmptyStateHome.tsx         | 394, 454, 518, 535           | `onChange={e => ...}`          |
+| InvestigationDashboard.tsx | 223, 228, 240, 256, 287      | `onChange/onClick={() => ...}` |
+| SettingsDrawer.tsx         | 213, 215, 281, 299, 479, 496 | `onChange/onClick={() => ...}` |
+| RadarPanel.tsx             | 127, 145, 296, 367           | `onChange/onClick={() => ...}` |
+| UserMenu.tsx               | 64, 108, 119                 | `onClick={() => ...}`          |
+| WelcomeScreen.tsx          | 104, 126                     | `onClick={() => ...}`          |
+| DeepDiveTopics.tsx         | 213                          | `onClick={() => ...}`          |
+| HelpCenterFloating.tsx     | 80, 98, 128                  | `onClick={() => ...}`          |
+| ToastContainer.tsx         | 39                           | `onClick={() => ...}`          |
+| GhostMessageBlock.tsx      | 31, 43                       | `onClick={() => ...}`          |
+| Composer.tsx               | — (potencial)                | `onChange/onKeyDown`           |
 
 **Impacto:** Em componentes sem memo, cada render cria novas funcoes — nao causa re-render extra no proprio componente, mas causa nos filhos. Se Eventual filhos sao `memo`, eles quebram.
 
@@ -274,22 +276,22 @@ Multiplos componentes criam arrow functions inline em props `onChange`, `onClick
 
 ```tsx
 // Em vez de:
-<button onClick={() => setOpen(true)} />
+<button onClick={() => setOpen(true)} />;
 
 // Usar:
 const handleOpen = useCallback(() => setOpen(true), []);
-<button onClick={handleOpen} />
+<button onClick={handleOpen} />;
 ```
 
 ### 3.4 key={index} em listas (MEDIO)
 
-| Arquivo | Linha |
-|---|---|
-| EmptyStateHome.tsx | 695 |
-| RadarPanel.tsx | 264 |
-| LoadingSmart.tsx | 114, 129, 632 |
-| WelcomeScreen.tsx | 125 |
-| DossieSkeletonLoader.tsx | 72 |
+| Arquivo                  | Linha         |
+| ------------------------ | ------------- |
+| EmptyStateHome.tsx       | 695           |
+| RadarPanel.tsx           | 264           |
+| LoadingSmart.tsx         | 114, 129, 632 |
+| WelcomeScreen.tsx        | 125           |
+| DossieSkeletonLoader.tsx | 72            |
 
 **Problema:** `key={i}` ou `key={index}` em listas que podem ser reordenadas ou filtradas causa reconciliacao incorreta.
 
@@ -297,10 +299,14 @@ const handleOpen = useCallback(() => setOpen(true), []);
 
 ```tsx
 // Em vez de:
-{array.map((item, i) => <div key={i}>...</div>)}
+{
+  array.map((item, i) => <div key={i}>...</div>);
+}
 
 // Usar:
-{array.map((item) => <div key={item.id}>...</div>)}
+{
+  array.map(item => <div key={item.id}>...</div>);
+}
 ```
 
 ---
@@ -311,18 +317,18 @@ const handleOpen = useCallback(() => setOpen(true), []);
 
 **Problema:** Nenhuma rota `/api/*.ts` define `Cache-Control`. Nem mesmo GET endpoints idempotentes.
 
-| Rota | Metodo | maxDuration | Cache? |
-|---|---|---|---|
-| `/api/gemini.ts` | POST | 300s | NAO aplicavel |
-| `/api/gerar-dossie.ts` | POST | 300s | NAO aplicavel |
-| `/api/radar-scan.ts` | POST | 120s | NAO aplicavel |
-| `/api/extract-content.ts` | GET | 60s | **Sem cache** |
-| `/api/docs-rag.ts` | GET/POST | 60s | **Sem cache** |
-| `/api/rag.ts` | GET/POST | 60s | **Sem cache** |
-| `/api/open-web-search.ts` | GET | 60s | **Sem cache** |
-| `/api/cnpj.ts` | GET | — | **Sem cache** |
-| `/api/comex.ts` | GET | — | **Sem cache** |
-| `/api/link-status.ts` | GET | — | **Sem cache** |
+| Rota                      | Metodo   | maxDuration | Cache?        |
+| ------------------------- | -------- | ----------- | ------------- |
+| `/api/gemini.ts`          | POST     | 300s        | NAO aplicavel |
+| `/api/gerar-dossie.ts`    | POST     | 300s        | NAO aplicavel |
+| `/api/radar-scan.ts`      | POST     | 120s        | NAO aplicavel |
+| `/api/extract-content.ts` | GET      | 60s         | **Sem cache** |
+| `/api/docs-rag.ts`        | GET/POST | 60s         | **Sem cache** |
+| `/api/rag.ts`             | GET/POST | 60s         | **Sem cache** |
+| `/api/open-web-search.ts` | GET      | 60s         | **Sem cache** |
+| `/api/cnpj.ts`            | GET      | —           | **Sem cache** |
+| `/api/comex.ts`           | GET      | —           | **Sem cache** |
+| `/api/link-status.ts`     | GET      | —           | **Sem cache** |
 
 **Sugestao:** Adicionar Cache-Control para GET endpoints:
 
@@ -343,15 +349,15 @@ res.setHeader('Cache-Control', 'public, s-maxage=3600, max-age=300');
 
 Todas as rotas tem `maxDuration` definido explicitamente. Nenhuma timeout configuracao ausente.
 
-| Rota | maxDuration | Uso |
-|---|---|---|
-| gemini.ts | 300s | Resposta IA complexa |
-| gerar-dossie.ts | 300s | Dossie completo |
-| radar-scan.ts | 120s | Scan de radar |
-| extract-content.ts | 60s | Extracao de URL |
-| docs-rag.ts | 60s | RAG doc |
-| rag.ts | 60s | RAG geral |
-| open-web-search.ts | 60s | Web search |
+| Rota               | maxDuration | Uso                  |
+| ------------------ | ----------- | -------------------- |
+| gemini.ts          | 300s        | Resposta IA complexa |
+| gerar-dossie.ts    | 300s        | Dossie completo      |
+| radar-scan.ts      | 120s        | Scan de radar        |
+| extract-content.ts | 60s         | Extracao de URL      |
+| docs-rag.ts        | 60s         | RAG doc              |
+| rag.ts             | 60s         | RAG geral            |
+| open-web-search.ts | 60s         | Web search           |
 
 Sem alteracao necessaria.
 
@@ -368,7 +374,7 @@ Sem alteracao necessaria.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,  // 5 min
+      staleTime: 1000 * 60 * 5, // 5 min
       retry: 2,
       refetchOnWindowFocus: false,
     },
@@ -379,6 +385,7 @@ const queryClient = new QueryClient({
 Contudo, NENHUM componente usa `useQuery` ou `useMutation`. Todas as chamadas API sao `fetch()` direto.
 
 **Locais de fetch() direto (sem TanStack Query):**
+
 - `services/ragService.ts` linha 29
 - `services/extractContentService.ts` linha 56
 - `services/clientLookupService.ts` linha 104, 133, 445, 500
@@ -408,6 +415,7 @@ const { data } = useQuery({
 **Problema:** Fetch manual nao deduplica. Se dois componentes montam e chamam a mesma URL simultaneamente, duas requisicoes sao disparadas.
 
 **Locais de risco:**
+
 - `clientLookupService.ts` — consultas de CNPJ (linha 445 usa `Promise.allSettled` para variantes, mas nao ha cache entre chamadas)
 - `geminiProxy.ts` — multiplas chamadas para a mesma rota API
 
@@ -431,12 +439,12 @@ function fetchLookup(query: string): Promise<LookupResponse> {
 
 ### 6.1 filter().map() em cadeia (MEDIO)
 
-| Arquivo | Linha | Codigo |
-|---|---|---|
-| components/MessageRow.tsx | 105 | `.filter(s => !!s.url).map(s => s.url)` |
-| components/MessageRow.tsx | 232 | `.filter(group => ...).map(group => ...)` |
-| api/gemini.ts | 71 | `.filter(pattern => ...).map((_, i) => ...)` |
-| api/gemini.ts | 72 | `filter(...).map(...)` |
+| Arquivo                   | Linha | Codigo                                       |
+| ------------------------- | ----- | -------------------------------------------- |
+| components/MessageRow.tsx | 105   | `.filter(s => !!s.url).map(s => s.url)`      |
+| components/MessageRow.tsx | 232   | `.filter(group => ...).map(group => ...)`    |
+| api/gemini.ts             | 71    | `.filter(pattern => ...).map((_, i) => ...)` |
+| api/gemini.ts             | 72    | `filter(...).map(...)`                       |
 
 Estes percorrem o array duas vezes quando uma unica iteracao bastaria.
 
@@ -444,10 +452,10 @@ Estes percorrem o array duas vezes quando uma unica iteracao bastaria.
 
 ```tsx
 // Em vez de:
-items.filter(s => !!s.url).map(s => s.url)
+items.filter(s => !!s.url).map(s => s.url);
 
 // Usar:
-items.flatMap(s => s.url ? [s.url] : [])
+items.flatMap(s => (s.url ? [s.url] : []));
 
 // Ou reduce:
 items.reduce<string[]>((acc, s) => {
@@ -458,27 +466,28 @@ items.reduce<string[]>((acc, s) => {
 
 ### 6.2 RegExp criado em render path (MEDIO)
 
-| Arquivo | Linha | Descricao |
-|---|---|---|
-| utils/mermaid.ts | 129 | `new RegExp(...)` criado no escopo do modulo — OK |
-| utils/continuitySuggestions.ts | 161 | `new RegExp(...)` em funcao de transformacao |
-| utils/continuitySuggestions.ts | 181 | `new RegExp(detect.source, ...)` |
-| utils/linkFixer.ts | 43 | `new RegExp(...)` no escopo do modulo — OK |
-| EmptyStateHome.tsx | 121 | `new RegExp(sourceName.replace(...))` em JSX de renderizacao |
-| api/radar-scan.ts | 98, 102, 331 | `new RegExp(...)` dentro de loops |
+| Arquivo                        | Linha        | Descricao                                                    |
+| ------------------------------ | ------------ | ------------------------------------------------------------ |
+| utils/mermaid.ts               | 129          | `new RegExp(...)` criado no escopo do modulo — OK            |
+| utils/continuitySuggestions.ts | 161          | `new RegExp(...)` em funcao de transformacao                 |
+| utils/continuitySuggestions.ts | 181          | `new RegExp(detect.source, ...)`                             |
+| utils/linkFixer.ts             | 43           | `new RegExp(...)` no escopo do modulo — OK                   |
+| EmptyStateHome.tsx             | 121          | `new RegExp(sourceName.replace(...))` em JSX de renderizacao |
+| api/radar-scan.ts              | 98, 102, 331 | `new RegExp(...)` dentro de loops                            |
 
 **Sugestao:** Para `EmptyStateHome.tsx` linha 121, memoizar o regex ou extrair para constante:
 
 ```tsx
 const sourceRegex = useMemo(
   () => new RegExp(`${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
-  [sourceName]
+  [sourceName],
 );
 ```
 
 ### 6.3 localStorage sem cache em memoria (MEDIO)
 
 **Locais de risco:**
+
 - `services/gemini/recovery.ts` linhas 17-18: le localStorage em cada chamada de funcao
 - `utils/conversationHistory.ts` linhas 30-69: le e escreve localStorage em toda operacao
 - `utils/sessionExport.ts` linhas 138-189: acesso direto sem cache
@@ -502,6 +511,7 @@ function getSnoozeUntil(): string | null {
 ### 6.4 Sem debounce em inputs (BAIXO)
 
 **Locais:**
+
 - `InvestigationDashboard.tsx` linha 223: `onChange={(e) => setSearchText(e.target.value)}` — sem debounce, causa re-render em cada tecla
 - `EmptyStateHome.tsx` linhas 394-535: varios inputs de busca/CNPJ sem debounce
 
@@ -510,10 +520,7 @@ function getSnoozeUntil(): string | null {
 ```tsx
 import { debounce } from '...';
 
-const handleSearch = useMemo(
-  () => debounce((value: string) => setSearchText(value), 300),
-  []
-);
+const handleSearch = useMemo(() => debounce((value: string) => setSearchText(value), 300), []);
 ```
 
 ---
@@ -524,14 +531,14 @@ const handleSearch = useMemo(
 
 **Locais principais:**
 
-| Componente | Linhas com inline style |
-|---|---|
-| LoadingSmart.tsx | 80, 111, 115, 130, 155, 462, 476 |
-| ClienteSeniorScore.tsx | 40, 49, 57, 58, 59, 61, 73, 74, 78, 83, 87, 93, 104, 116, 117, 118 (~15 objetos) |
-| SectionalBotMessage.tsx | 64 |
-| EmptyStateHome.tsx | 645 |
-| InvestigationDashboard.tsx | 75, 271, 348 |
-| RadarPanel.tsx | 264 |
+| Componente                 | Linhas com inline style                                                          |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| LoadingSmart.tsx           | 80, 111, 115, 130, 155, 462, 476                                                 |
+| ClienteSeniorScore.tsx     | 40, 49, 57, 58, 59, 61, 73, 74, 78, 83, 87, 93, 104, 116, 117, 118 (~15 objetos) |
+| SectionalBotMessage.tsx    | 64                                                                               |
+| EmptyStateHome.tsx         | 645                                                                              |
+| InvestigationDashboard.tsx | 75, 271, 348                                                                     |
+| RadarPanel.tsx             | 264                                                                              |
 
 **Impacto:** Cada inline `style={{}}` cria um novo objeto em toda renderizacao. Se esse elemento JSX tem filhos memoizados, eles serao forçados a re-renderizar.
 
@@ -542,12 +549,13 @@ const handleSearch = useMemo(
 const RADAR_SWEEP_STYLE = { animationDuration: '2s' } as const;
 
 // No JSX:
-<div className="..." style={RADAR_SWEEP_STYLE} />
+<div className="..." style={RADAR_SWEEP_STYLE} />;
 ```
 
 ### 7.2 Sem content-visibility em listas (MEDIO)
 
 **Problema:** Nenhum componente usa `content-visibility: auto` para otimizar renderizacao de listas longas. Ideal para:
+
 - `SessionsSidebar.tsx` (lista de sessoes)
 - `InvestigationDashboard.tsx` (lista de investigacoes)
 
@@ -555,7 +563,9 @@ const RADAR_SWEEP_STYLE = { animationDuration: '2s' } as const;
 
 ```tsx
 <div className="..." style={{ contentVisibility: 'auto' }}>
-  {items.map(item => <div key={item.id}>{item.name}</div>)}
+  {items.map(item => (
+    <div key={item.id}>{item.name}</div>
+  ))}
 </div>
 ```
 
@@ -566,6 +576,7 @@ Nao foram encontrados casos de inline component definitions (componentes definid
 ### 7.4 && conditional em vez de ternario (BAIXO)
 
 `&&` e amplamente usado em JSX:
+
 - `RadarPanel.tsx`: 10+ ocorrencias
 - `EmptyStateHome.tsx`: 10+ ocorrencias
 - Outros componentes: uso extensivo
@@ -576,16 +587,22 @@ Nao foram encontrados casos de inline component definitions (componentes definid
 
 ```tsx
 // Em vez de:
-{unreadCount > 0 && <span>{unreadCount}</span>}
+{
+  unreadCount > 0 && <span>{unreadCount}</span>;
+}
 
 // Manter (este e seguro pois > 0 ja e bool):
-seguro
+seguro;
 
 // Mas para casos como:
-{items.length && <List items={items} />}  // PERIGO: renderiza "0"
+{
+  items.length && <List items={items} />;
+} // PERIGO: renderiza "0"
 
 // Usar:
-{items.length > 0 && <List items={items} />}
+{
+  items.length > 0 && <List items={items} />;
+}
 ```
 
 Nao foi encontrado caso real de `0` renderizado, mas o padrao existe no codigo e merece atencao.
@@ -596,33 +613,33 @@ Nao foi encontrado caso real de `0` renderizado, mas o padrao existe no codigo e
 
 ### Grande porte (~400-750 linhas) — prioridade de revisao
 
-| Arquivo | Linhas | Memo? | useState | useEffect | useMemo | useCallback |
-|---|---|---|---|---|---|---|
-| EmptyStateHome.tsx | 748 | NAO | 8 | 0 | 2 | 0 |
-| LoadingSmart.tsx | 660 | NAO | 8 | 6 | 3 | 6 |
-| SettingsDrawer.tsx | 634 | NAO | 9 | 1 | 0 | 0 |
-| MarkdownRenderer.tsx | 523 | **SIM** | 4 | 1 | 5 | 0 |
-| PDFGenerator.ts | 582 | N/A | 0 | 0 | 0 | 0 |
-| App.tsx | 524 | NAO | 0 | 0 | 0 | 0 |
-| RadarPanel.tsx | 386 | NAO | 5 | 0 | 1 | 0 |
-| InvestigationDashboard.tsx | 361 | NAO | 5 | 1 | 3 | 0 |
-| MessageRow.tsx | 342 | **SIM** | 2 | 1 | 0 | 0 |
-| ChatInterface.tsx | 329 | NAO | 0 | 0 | 1 | 3 |
-| SessionsSidebar.tsx | 311 | NAO | 3 | 1 | 1 | 0 |
-| WarRoom.tsx | 283 | NAO | 1 | 4 | 1 | 6 |
+| Arquivo                    | Linhas | Memo?   | useState | useEffect | useMemo | useCallback |
+| -------------------------- | ------ | ------- | -------- | --------- | ------- | ----------- |
+| EmptyStateHome.tsx         | 748    | NAO     | 8        | 0         | 2       | 0           |
+| LoadingSmart.tsx           | 660    | NAO     | 8        | 6         | 3       | 6           |
+| SettingsDrawer.tsx         | 634    | NAO     | 9        | 1         | 0       | 0           |
+| MarkdownRenderer.tsx       | 523    | **SIM** | 4        | 1         | 5       | 0           |
+| PDFGenerator.ts            | 582    | N/A     | 0        | 0         | 0       | 0           |
+| App.tsx                    | 524    | NAO     | 0        | 0         | 0       | 0           |
+| RadarPanel.tsx             | 386    | NAO     | 5        | 0         | 1       | 0           |
+| InvestigationDashboard.tsx | 361    | NAO     | 5        | 1         | 3       | 0           |
+| MessageRow.tsx             | 342    | **SIM** | 2        | 1         | 0       | 0           |
+| ChatInterface.tsx          | 329    | NAO     | 0        | 0         | 1       | 3           |
+| SessionsSidebar.tsx        | 311    | NAO     | 3        | 1         | 1       | 0           |
+| WarRoom.tsx                | 283    | NAO     | 1        | 4         | 1       | 6           |
 
 ## Apendice B: Pacotes Pesados
 
-| Pacote | Tamanho (node_modules) | Uso | Dynamic? |
-|---|---|---|---|
-| mermaid | 26 MB | MarkdownRenderer, PDFGenerator | **SIM** (ambos) |
-| framer-motion | 5.4 MB | 5 componentes | NAO |
-| cheerio | ~5 MB | documentExtractor | **SIM** |
-| pdf-parse | ~10 MB | documentExtractor | **SIM** |
-| mammoth | ~2 MB | documentExtractor | **SIM** |
-| jspdf | ~3 MB | PDFGenerator | NAO |
-| react-virtuoso | ~500 KB | MessageTimeline | NAO |
-| @pinecone-database/pinecone | ~2 MB | Server-side | N/A |
+| Pacote                      | Tamanho (node_modules) | Uso                            | Dynamic?        |
+| --------------------------- | ---------------------- | ------------------------------ | --------------- |
+| mermaid                     | 26 MB                  | MarkdownRenderer, PDFGenerator | **SIM** (ambos) |
+| framer-motion               | 5.4 MB                 | 5 componentes                  | NAO             |
+| cheerio                     | ~5 MB                  | documentExtractor              | **SIM**         |
+| pdf-parse                   | ~10 MB                 | documentExtractor              | **SIM**         |
+| mammoth                     | ~2 MB                  | documentExtractor              | **SIM**         |
+| jspdf                       | ~3 MB                  | PDFGenerator                   | NAO             |
+| react-virtuoso              | ~500 KB                | MessageTimeline                | NAO             |
+| @pinecone-database/pinecone | ~2 MB                  | Server-side                    | N/A             |
 
 ## Apendice C: Pontos Fortes Identificados
 
@@ -662,4 +679,4 @@ Nao foi encontrado caso real de `0` renderizado, mas o padrao existe no codigo e
 
 ---
 
-*Relatorio gerado por auditoria estatica em 2026-05-22. Nenhum arquivo foi modificado.*
+_Relatorio gerado por auditoria estatica em 2026-05-22. Nenhum arquivo foi modificado._

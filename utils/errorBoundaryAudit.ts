@@ -2,7 +2,10 @@ const UI_ERROR_AUDIT_KEY = 'scout360_ui_errors_v1';
 
 export function generateUiErrorId(message: string): string {
   const timestamp = Date.now().toString(36).toUpperCase();
-  const prefix = message.replace(/[^a-zA-Z$_]/g, '').slice(0, 6).toUpperCase();
+  const prefix = message
+    .replace(/[^a-zA-Z$_]/g, '')
+    .slice(0, 6)
+    .toUpperCase();
   return `ERR-${prefix}-${timestamp}`;
 }
 

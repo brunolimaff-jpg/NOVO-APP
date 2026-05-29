@@ -41,4 +41,4 @@ then move inward. Tools are instruments; systematic thinking is the method.
 
 ---
 
-*Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/debugging-tools)*
+_Generated from [AbsolutelySkilled](https://absolutelyskilled.dev/skill/debugging-tools)_

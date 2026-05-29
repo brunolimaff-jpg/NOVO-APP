@@ -52,8 +52,12 @@ const RadarBell: React.FC<RadarBellProps> = ({ unreadCount, isScanning, onClick,
       {/* Ponto de Status (Dot) - Substitui o número */}
       {hasUnread && (
         <span className="absolute top-1.5 right-1.5 flex h-3 w-3">
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDarkMode ? 'bg-amber-400' : 'bg-amber-500'}`}></span>
-          <span className={`relative inline-flex rounded-full h-3 w-3 border-2 ${isDarkMode ? 'bg-amber-500 border-gray-900' : 'bg-amber-600 border-white'}`}></span>
+          <span
+            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isDarkMode ? 'bg-amber-400' : 'bg-amber-500'}`}
+          ></span>
+          <span
+            className={`relative inline-flex rounded-full h-3 w-3 border-2 ${isDarkMode ? 'bg-amber-500 border-gray-900' : 'bg-amber-600 border-white'}`}
+          ></span>
         </span>
       )}
 

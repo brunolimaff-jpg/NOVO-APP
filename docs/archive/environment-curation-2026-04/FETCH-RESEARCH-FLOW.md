@@ -3,6 +3,7 @@
 Este protocolo define como agentes devem utilizar o **Fetch MCP** para maximizar a inteligência útil em investigações sobre empresas, especialmente no setor de agronegócio.
 
 ## Objetivo
+
 Melhorar a profundidade factual de cada investigação, saindo de simples buscas superficiais para uma análise de evidências reais.
 
 ## Ordem de prioridade de páginas

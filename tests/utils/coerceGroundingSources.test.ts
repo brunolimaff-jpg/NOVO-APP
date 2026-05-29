@@ -17,8 +17,8 @@ describe('coerceGroundingSources', () => {
   });
 
   it('converte objeto único legado em array', () => {
-    expect(
-      coerceGroundingSources({ title: 'Legado', url: 'https://legacy.example' }),
-    ).toEqual([{ title: 'Legado', url: 'https://legacy.example', verification: undefined }]);
+    expect(coerceGroundingSources({ title: 'Legado', url: 'https://legacy.example' })).toEqual([
+      { title: 'Legado', url: 'https://legacy.example', verification: undefined },
+    ]);
   });
 });

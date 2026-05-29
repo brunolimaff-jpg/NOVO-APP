@@ -9,24 +9,10 @@ import {
   getDisplayBadges,
   hasCompanyFilials,
 } from './societaryGraph';
-import {
-  type CompanyCategory,
-  classifyCompany,
-  getPFPartnerIds,
-  isSideBusiness,
-} from './societaryCategories';
+import { type CompanyCategory, classifyCompany, getPFPartnerIds, isSideBusiness } from './societaryCategories';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
-const PARTNER_MATRIX_COLORS = [
-  '#7c3aed',
-  '#0891b2',
-  '#dc2626',
-  '#ca8a04',
-  '#16a34a',
-  '#db2777',
-  '#4f46e5',
-  '#ea580c',
-];
+const PARTNER_MATRIX_COLORS = ['#7c3aed', '#0891b2', '#dc2626', '#ca8a04', '#16a34a', '#db2777', '#4f46e5', '#ea580c'];
 
 function firstGivenName(fullName: string): string {
   const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
@@ -90,20 +76,9 @@ function FilterButton({
   );
 }
 
-function SummaryMetric({
-  value,
-  label,
-  testId,
-}: {
-  value: number;
-  label: string;
-  testId: string;
-}) {
+function SummaryMetric({ value, label, testId }: { value: number; label: string; testId: string }) {
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center"
-      data-testid={testId}
-    >
+    <div className="flex flex-col items-center justify-center gap-1.5 px-2 py-1 text-center" data-testid={testId}>
       <strong className="text-[1.5rem] font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
         {value}
       </strong>
@@ -123,9 +98,12 @@ function countTotalCnpjs(companies: SocietaryCompany[]): number {
 }
 
 function badgeTone(badge: SocietaryBadge): string {
-  if (badge === 'validar') return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
-  if (badge === 'internacional') return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-200';
-  if (badge === 'holding') return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
+  if (badge === 'validar')
+    return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  if (badge === 'internacional')
+    return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-200';
+  if (badge === 'holding')
+    return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-200';
   return 'border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400';
 }
 
@@ -155,8 +133,7 @@ interface TableRowProps {
 }
 
 const TableRow = React.memo(({ row, partnerColumns, partnerColors, cnaeLabel }: TableRowProps) => (
-  <tr className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-  >
+  <tr className="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
     <td className="text-left font-bold leading-snug text-slate-900 dark:text-slate-100 px-3 py-4">
       {row.company.name}
       <div className="mt-1.5 flex flex-wrap gap-1">
@@ -262,9 +239,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
 
   const partnerColors = useMemo(() => {
     const map = new Map<string, string>();
-    graph.partners.forEach((p, i) =>
-      map.set(p.id, PARTNER_MATRIX_COLORS[i % PARTNER_MATRIX_COLORS.length]),
-    );
+    graph.partners.forEach((p, i) => map.set(p.id, PARTNER_MATRIX_COLORS[i % PARTNER_MATRIX_COLORS.length]));
     return map;
   }, [graph.partners]);
 
@@ -364,15 +339,13 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
         <FilterButton isActive={isAllActive} onClick={handleClearFilters}>
           Todos
         </FilterButton>
-        {(['em_comum', 'proprias'] as const).filter(cat => metrics[cat] > 0).map(cat => (
-          <FilterButton
-            key={cat}
-            isActive={activeCategory === cat}
-            onClick={() => handleCategoryClick(cat)}
-          >
-            {CATEGORY_LABELS[cat]}
-          </FilterButton>
-        ))}
+        {(['em_comum', 'proprias'] as const)
+          .filter(cat => metrics[cat] > 0)
+          .map(cat => (
+            <FilterButton key={cat} isActive={activeCategory === cat} onClick={() => handleCategoryClick(cat)}>
+              {CATEGORY_LABELS[cat]}
+            </FilterButton>
+          ))}
 
         <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden />
 
@@ -430,11 +403,13 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
       {inactiveReferences.length > 0 ? (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[0.76rem] leading-relaxed text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <strong>{inactiveReferences.length}</strong>{' '}
-          {inactiveReferences.length === 1 ? 'CNPJ baixado/inativo foi referenciado' : 'CNPJs baixados/inativos foram referenciados'} pelas fontes e excluído
+          {inactiveReferences.length === 1
+            ? 'CNPJ baixado/inativo foi referenciado'
+            : 'CNPJs baixados/inativos foram referenciados'}{' '}
+          pelas fontes e excluído
           {inactiveReferences.length === 1 ? '' : 's'} do inventário principal.
         </div>
       ) : null}
-
     </section>
   );
 };

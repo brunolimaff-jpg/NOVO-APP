@@ -7,9 +7,9 @@ export type TierERP = 1 | 2 | 3;
 
 export interface Revendedora {
   nome: string;
-  regioes: string[];           // ex: ['MT', 'GO', 'MS']
-  cidades_chave: string[];     // ex: ['Cuiabá', 'Campo Grande']
-  especialidade: string[];     // ex: ['agro', 'sucroenergetico', 'cooperativas']
+  regioes: string[]; // ex: ['MT', 'GO', 'MS']
+  cidades_chave: string[]; // ex: ['Cuiabá', 'Campo Grande']
+  especialidade: string[]; // ex: ['agro', 'sucroenergetico', 'cooperativas']
   site?: string;
   linkedin?: string;
   observacoes?: string;
@@ -17,10 +17,10 @@ export interface Revendedora {
 
 export interface Concorrente {
   id: string;
-  nome: string;                // 'TOTVS Protheus'
-  fabricante: string;          // 'TOTVS S.A.'
-  tier: TierERP;               // 1=enterprise, 2=mid, 3=regional
-  segmentos: string[];         // ['agro', 'industria', 'servicos']
+  nome: string; // 'TOTVS Protheus'
+  fabricante: string; // 'TOTVS S.A.'
+  tier: TierERP; // 1=enterprise, 2=mid, 3=regional
+  segmentos: string[]; // ['agro', 'industria', 'servicos']
   sites: {
     oficial: string;
     documentacao?: string;
@@ -31,19 +31,18 @@ export interface Concorrente {
     reclameAqui?: string;
     capterra?: string;
     g2?: string;
-    appStoreBusca?: string;    // termo de busca na App Store
-    playStoreBusca?: string;   // termo de busca na Play Store
+    appStoreBusca?: string; // termo de busca na App Store
+    playStoreBusca?: string; // termo de busca na Play Store
   };
   linkedin?: string;
   revendas: Revendedora[];
-  notas_internas?: string;     // contexto estratégico para os prompts
+  notas_internas?: string; // contexto estratégico para os prompts
 }
 
 // ===================================================================
 // REGISTRO COMPLETO DE CONCORRENTES
 // ===================================================================
 export const CONCORRENTES: Concorrente[] = [
-
   // ---------------------------------------------------------------
   // TIER 1 — ENTERPRISE
   // ---------------------------------------------------------------
@@ -109,7 +108,8 @@ export const CONCORRENTES: Concorrente[] = [
         linkedin: 'https://www.linkedin.com/company/seidor/',
       },
     ],
-    notas_internas: 'Tier enterprise. Custo muito alto (R$1M-10M+). Implementação 1-3 anos. Estouro de orçamento comum. Senior vence em custo, velocidade e suporte local.',
+    notas_internas:
+      'Tier enterprise. Custo muito alto (R$1M-10M+). Implementação 1-3 anos. Estouro de orçamento comum. Senior vence em custo, velocidade e suporte local.',
   },
 
   {
@@ -155,7 +155,8 @@ export const CONCORRENTES: Concorrente[] = [
         linkedin: 'https://www.linkedin.com/company/ramo-solucoes/',
       },
     ],
-    notas_internas: 'Mid-market. R$9.900+/mês para 15 usuários. Muito dependente do parceiro — a qualidade varia muito por revenda. Senior vence em módulos incluídos e suporte direto.',
+    notas_internas:
+      'Mid-market. R$9.900+/mês para 15 usuários. Muito dependente do parceiro — a qualidade varia muito por revenda. Senior vence em módulos incluídos e suporte direto.',
   },
 
   {
@@ -198,7 +199,8 @@ export const CONCORRENTES: Concorrente[] = [
         cidades_chave: ['Piracicaba', 'Ribeirão Preto'],
         especialidade: ['agro', 'cana', 'graos', 'cooperativas', 'usinas'],
         site: 'https://www.totvs.com/segmento/agronegocio/',
-        observacoes: 'Unidade especializada agro da TOTVS. Soluções específicas: TOTVS Agro Colheita, TOTVS Agro Pecuária.',
+        observacoes:
+          'Unidade especializada agro da TOTVS. Soluções específicas: TOTVS Agro Colheita, TOTVS Agro Pecuária.',
       },
       {
         nome: 'TOTVS Leste',
@@ -216,7 +218,8 @@ export const CONCORRENTES: Concorrente[] = [
         observacoes: 'Parceiro TOTVS com foco em distribuição/atacado no Centro-Oeste.',
       },
     ],
-    notas_internas: 'Líder de mercado. 60.000+ clientes. 47 das 100 maiores de agro. Fraquezas: lentidão, interface datada, customizações pesadas em AdvPL, atualizações travosas.',
+    notas_internas:
+      'Líder de mercado. 60.000+ clientes. 47 das 100 maiores de agro. Fraquezas: lentidão, interface datada, customizações pesadas em AdvPL, atualizações travosas.',
   },
 
   // ---------------------------------------------------------------
@@ -248,7 +251,8 @@ export const CONCORRENTES: Concorrente[] = [
         observacoes: 'Verificar parceiros Sankhya ativos em MT via site oficial.',
       },
     ],
-    notas_internas: 'SaaS moderno, crescendo no agro. Interface boa. Menos robusto para operações complexas. Senior vence em portfólio completo, GAtec e presença nacional.',
+    notas_internas:
+      'SaaS moderno, crescendo no agro. Interface boa. Menos robusto para operações complexas. Senior vence em portfólio completo, GAtec e presença nacional.',
   },
 
   {
@@ -272,7 +276,8 @@ export const CONCORRENTES: Concorrente[] = [
         especialidade: ['usinas', 'cana', 'sucroenergetico'],
       },
     ],
-    notas_internas: '600+ fazendas, 4.500 usuários, 78M ton/ano geridas. BI com 350 indicadores. Só faz agro — não atende gestão corporativa. Senior vence: ERP+GAtec+HCM integrados.',
+    notas_internas:
+      '600+ fazendas, 4.500 usuários, 78M ton/ano geridas. BI com 350 indicadores. Só faz agro — não atende gestão corporativa. Senior vence: ERP+GAtec+HCM integrados.',
   },
 
   {
@@ -300,7 +305,8 @@ export const CONCORRENTES: Concorrente[] = [
         observacoes: 'Forte no Centro-Oeste. Venda predominantemente direta. Verificar parceiros via site.',
       },
     ],
-    notas_internas: 'ERP + agro integrado. Forte em GO/MT. Tecnologia menos atualizada. Sem plataforma de hiperautomação. HCM limitado. Senior vence: modernidade, Flow, HCM, suporte nacional.',
+    notas_internas:
+      'ERP + agro integrado. Forte em GO/MT. Tecnologia menos atualizada. Sem plataforma de hiperautomação. HCM limitado. Senior vence: modernidade, Flow, HCM, suporte nacional.',
   },
 
   {
@@ -327,7 +333,8 @@ export const CONCORRENTES: Concorrente[] = [
         especialidade: ['servicos', 'construcao', 'hcm'],
       },
     ],
-    notas_internas: 'PMEs regionais. ERP+HCM. Interface menos moderna. Menor presença em agro. Senior vence: plataforma mais moderna, Senior Flow, GAtec, maior inovação.',
+    notas_internas:
+      'PMEs regionais. ERP+HCM. Interface menos moderna. Menor presença em agro. Senior vence: plataforma mais moderna, Senior Flow, GAtec, maior inovação.',
   },
 
   {
@@ -354,7 +361,8 @@ export const CONCORRENTES: Concorrente[] = [
         especialidade: ['hcm', 'folha', 'ponto', 'esocial'],
       },
     ],
-    notas_internas: 'Especialista HCM 100% cloud. Forte em folha e ponto. SÓ faz RH — sem ERP. Senior vence: ERP+HCM integrados, uma plataforma vs duas, dados unificados, custo total menor.',
+    notas_internas:
+      'Especialista HCM 100% cloud. Forte em folha e ponto. SÓ faz RH — sem ERP. Senior vence: ERP+HCM integrados, uma plataforma vs duas, dados unificados, custo total menor.',
   },
 
   // ---------------------------------------------------------------
@@ -383,7 +391,8 @@ export const CONCORRENTES: Concorrente[] = [
         site: 'https://www.viasoft.com.br',
       },
     ],
-    notas_internas: 'Forte no Sul. Cooperativas e indústria. Menor presença no Centro-Oeste. Senior vence: mais setores, maior presença nacional, GAtec.',
+    notas_internas:
+      'Forte no Sul. Cooperativas e indústria. Menor presença no Centro-Oeste. Senior vence: mais setores, maior presença nacional, GAtec.',
   },
 
   {
@@ -407,9 +416,9 @@ export const CONCORRENTES: Concorrente[] = [
         especialidade: ['agro', 'pme', 'produtor-pequeno'],
       },
     ],
-    notas_internas: 'Regional. Pequeno produtor rural MT/GO. Menor complexidade. Senior normalmente não compete diretamente — prospect provavelmente fora do ICP ideal.',
+    notas_internas:
+      'Regional. Pequeno produtor rural MT/GO. Menor complexidade. Senior normalmente não compete diretamente — prospect provavelmente fora do ICP ideal.',
   },
-
 ];
 
 // ===================================================================
@@ -423,9 +432,7 @@ export function getConcorrente(id: string): Concorrente | undefined {
 
 /** Lista concorrentes que atuam em determinada região */
 export function getConcorrentesPorRegiao(uf: string): Concorrente[] {
-  return CONCORRENTES.filter(c =>
-    c.revendas.some(r => r.regioes.includes(uf))
-  );
+  return CONCORRENTES.filter(c => c.revendas.some(r => r.regioes.includes(uf)));
 }
 
 /** Lista todas as revendas ativas em um estado */
@@ -448,7 +455,5 @@ export function getConcorrentesPorSegmento(segmento: string): Concorrente[] {
 
 /** Retorna IDs e nomes para uso em prompts */
 export function listarConcorrentesParaPrompt(): string {
-  return CONCORRENTES.map(c =>
-    `- ${c.nome} (${c.fabricante}) — Tier ${c.tier} — ${c.segmentos.join(', ')}`
-  ).join('\n');
+  return CONCORRENTES.map(c => `- ${c.nome} (${c.fabricante}) — Tier ${c.tier} — ${c.segmentos.join(', ')}`).join('\n');
 }

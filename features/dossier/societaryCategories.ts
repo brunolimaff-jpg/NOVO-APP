@@ -3,8 +3,20 @@ import type { SocietaryCompany, SocietaryPartner } from './societaryGraph';
 export type CompanyCategory = 'em_comum' | 'proprias';
 
 const PJ_SUFFIXES = [
-  'LTDA', 'S/A', 'S.A.', 'S.A', 'CIA', 'ME', 'EPP',
-  'EIRELI', 'SLU', 'LLC', 'INC', 'CORP', 'SAS', 'SA',
+  'LTDA',
+  'S/A',
+  'S.A.',
+  'S.A',
+  'CIA',
+  'ME',
+  'EPP',
+  'EIRELI',
+  'SLU',
+  'LLC',
+  'INC',
+  'CORP',
+  'SAS',
+  'SA',
 ];
 
 export function isPartnerPJ(partner: SocietaryPartner): boolean {
@@ -13,19 +25,14 @@ export function isPartnerPJ(partner: SocietaryPartner): boolean {
     if (digits.length >= 14) return true;
   }
   const upper = partner.name.toUpperCase().trim();
-  return PJ_SUFFIXES.some(s =>
-    upper.endsWith(` ${s}`) || upper.endsWith(`.${s}`) || upper === s,
-  );
+  return PJ_SUFFIXES.some(s => upper.endsWith(` ${s}`) || upper.endsWith(`.${s}`) || upper === s);
 }
 
 export function getPFPartnerIds(partners: SocietaryPartner[]): Set<string> {
   return new Set(partners.filter(p => !isPartnerPJ(p)).map(p => p.id));
 }
 
-export function classifyCompany(
-  company: SocietaryCompany,
-  pfPartnerIds?: Set<string>,
-): CompanyCategory {
+export function classifyCompany(company: SocietaryCompany, pfPartnerIds?: Set<string>): CompanyCategory {
   if (!pfPartnerIds) {
     return company.partnerIds.length >= 2 ? 'em_comum' : 'proprias';
   }

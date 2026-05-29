@@ -68,6 +68,8 @@ export function useAppInitialization({
     };
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 }

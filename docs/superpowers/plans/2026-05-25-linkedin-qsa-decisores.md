@@ -14,18 +14,18 @@
 
 ## Arquivos Criados/Modificados
 
-| Ação | Arquivo | Responsabilidade |
-|------|---------|-----------------|
-| Create | `api/linkedin-search.ts` | Endpoint serverless — chama Apify, cache, retorna perfis |
-| Create | `supabase/migrations/20260526000000_linkedin_cache.sql` | Migration — tabela de cache no Supabase |
-| Create | `tests/api/linkedin-search.test.ts` | Testes do endpoint (mock Apify + cache) |
-| Create | `components/LinkedInSocioCard.tsx` | Card visual com foto, headline, skills, link |
-| Create | `tests/components/LinkedInSocioCard.test.tsx` | Testes do componente |
-| Modify | `types.ts` | Adicionar `LinkedInProfile`, `LinkedInSearchResponse` |
-| Modify | `config/localDevApiProxy.ts` | Adicionar `/api/linkedin-search` ao proxy |
-| Modify | `features/dossier/SocietaryMap.tsx` | Buscar LinkedIn ao carregar QSA, renderizar cards |
-| Modify | `features/dossier/societaryGraph.ts` | Estender `SocietaryPartnerInput` com `linkedinProfile` |
-| Modify | `features/dossier/waterfall-orchestrator.ts` | Coletar dados LinkedIn e injetar no seed context |
+| Ação   | Arquivo                                                 | Responsabilidade                                         |
+| ------ | ------------------------------------------------------- | -------------------------------------------------------- |
+| Create | `api/linkedin-search.ts`                                | Endpoint serverless — chama Apify, cache, retorna perfis |
+| Create | `supabase/migrations/20260526000000_linkedin_cache.sql` | Migration — tabela de cache no Supabase                  |
+| Create | `tests/api/linkedin-search.test.ts`                     | Testes do endpoint (mock Apify + cache)                  |
+| Create | `components/LinkedInSocioCard.tsx`                      | Card visual com foto, headline, skills, link             |
+| Create | `tests/components/LinkedInSocioCard.test.tsx`           | Testes do componente                                     |
+| Modify | `types.ts`                                              | Adicionar `LinkedInProfile`, `LinkedInSearchResponse`    |
+| Modify | `config/localDevApiProxy.ts`                            | Adicionar `/api/linkedin-search` ao proxy                |
+| Modify | `features/dossier/SocietaryMap.tsx`                     | Buscar LinkedIn ao carregar QSA, renderizar cards        |
+| Modify | `features/dossier/societaryGraph.ts`                    | Estender `SocietaryPartnerInput` com `linkedinProfile`   |
+| Modify | `features/dossier/waterfall-orchestrator.ts`            | Coletar dados LinkedIn e injetar no seed context         |
 
 ---
 
@@ -60,19 +60,20 @@ CREATE INDEX idx_linkedin_cache_expires ON linkedin_profile_cache (expires_at) W
 
 ### Por que tabela dedicada, não reusar `extract_cache`?
 
-| Comparação | `extract_cache` | `linkedin_profile_cache` |
-|------------|----------------|--------------------------|
-| Schema | genérico (jsonb result) | tipado (profiles jsonb, found bool) |
-| TTL | 7 dias | 30 dias (LinkedIn muda pouco) |
-| Índices | só PK | PK + socio_name + expires_at |
-| Cache "não encontrado" | não suporta | `found = FALSE` com TTL menor |
-| Query por sócio | full scan | índice dedicado |
+| Comparação             | `extract_cache`         | `linkedin_profile_cache`            |
+| ---------------------- | ----------------------- | ----------------------------------- |
+| Schema                 | genérico (jsonb result) | tipado (profiles jsonb, found bool) |
+| TTL                    | 7 dias                  | 30 dias (LinkedIn muda pouco)       |
+| Índices                | só PK                   | PK + socio_name + expires_at        |
+| Cache "não encontrado" | não suporta             | `found = FALSE` com TTL menor       |
+| Query por sócio        | full scan               | índice dedicado                     |
 
 ---
 
 ## Task 1: Tabela Supabase + Types
 
 **Files:**
+
 - Create: `supabase/migrations/20260526000000_linkedin_cache.sql`
 - Modify: `types.ts`
 - Modify: `features/dossier/societaryGraph.ts`
@@ -205,6 +206,7 @@ git commit -m "feat: adiciona tabela linkedin_profile_cache e types LinkedInProf
 ## Task 2: Endpoint `api/linkedin-search.ts`
 
 **Files:**
+
 - Create: `api/linkedin-search.ts`
 - Modify: `config/localDevApiProxy.ts`
 
@@ -256,7 +258,10 @@ const memoryCache = new Map<string, CacheEntry>();
 function getMemoryCached(key: string): CacheEntry | null {
   const entry = memoryCache.get(key);
   if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { memoryCache.delete(key); return null; }
+  if (Date.now() > entry.expiresAt) {
+    memoryCache.delete(key);
+    return null;
+  }
   return entry;
 }
 
@@ -283,7 +288,7 @@ async function getPersistentCached(key: string): Promise<CacheEntry | null> {
     const url = `${config.url}/rest/v1/linkedin_profile_cache?id=eq.${encodeURIComponent(key)}&expires_at=gt.${new Date().toISOString()}&select=profiles,found`;
     const res = await fetch(url, { headers: { apikey: config.key, Authorization: `Bearer ${config.key}` } });
     if (!res.ok) return null;
-    const rows = await res.json() as Array<{ profiles: LinkedInProfile[]; found: boolean }>;
+    const rows = (await res.json()) as Array<{ profiles: LinkedInProfile[]; found: boolean }>;
     if (!rows[0]) return null;
     return {
       profiles: rows[0].profiles ?? [],
@@ -334,29 +339,31 @@ function buildApifyPayload(params: z.infer<typeof RequestSchema>) {
 }
 
 function mapApifyToLinkedInProfile(raw: Record<string, unknown>): LinkedInProfile {
-  const currentPosition = Array.isArray(raw.currentPosition) && raw.currentPosition[0]
-    ? {
-        title: (raw.currentPosition[0] as Record<string,unknown>).position as string || '',
-        companyName: (raw.currentPosition[0] as Record<string,unknown>).companyName as string || '',
-        location: (raw.currentPosition[0] as Record<string,unknown>).location as string || null,
-        startDate: (raw.currentPosition[0] as Record<string,unknown>).startDate as LinkedInProfile['currentPosition'] extends {startDate?: infer D} | null ? D : never || null,
-      }
-    : null;
+  const currentPosition =
+    Array.isArray(raw.currentPosition) && raw.currentPosition[0]
+      ? {
+          title: ((raw.currentPosition[0] as Record<string, unknown>).position as string) || '',
+          companyName: ((raw.currentPosition[0] as Record<string, unknown>).companyName as string) || '',
+          location: ((raw.currentPosition[0] as Record<string, unknown>).location as string) || null,
+          startDate:
+            ((raw.currentPosition[0] as Record<string, unknown>)
+              .startDate as LinkedInProfile['currentPosition'] extends { startDate?: infer D } | null ? D : never) ||
+            null,
+        }
+      : null;
 
-  const skills = Array.isArray(raw.skills)
-    ? (raw.skills as Array<{name: string}>).slice(0, 5).map(s => s.name)
-    : [];
+  const skills = Array.isArray(raw.skills) ? (raw.skills as Array<{ name: string }>).slice(0, 5).map(s => s.name) : [];
 
   return {
-    linkedinUrl: raw.linkedinUrl as string || '',
-    publicIdentifier: raw.publicIdentifier as string || '',
-    firstName: raw.firstName as string || '',
-    lastName: raw.lastName as string || '',
-    headline: raw.headline as string || '',
-    photo: raw.photo as string || null,
-    location: raw.location ? (raw.location as Record<string,unknown>).linkedinText as string || null : null,
+    linkedinUrl: (raw.linkedinUrl as string) || '',
+    publicIdentifier: (raw.publicIdentifier as string) || '',
+    firstName: (raw.firstName as string) || '',
+    lastName: (raw.lastName as string) || '',
+    headline: (raw.headline as string) || '',
+    photo: (raw.photo as string) || null,
+    location: raw.location ? ((raw.location as Record<string, unknown>).linkedinText as string) || null : null,
     currentPosition,
-    connectionsCount: raw.connectionsCount as number || undefined,
+    connectionsCount: (raw.connectionsCount as number) || undefined,
     verified: Boolean(raw.verified),
     skills,
   };
@@ -365,22 +372,19 @@ function mapApifyToLinkedInProfile(raw: Record<string, unknown>): LinkedInProfil
 async function callApifyApi(payload: Record<string, unknown>): Promise<LinkedInProfile[]> {
   if (!APIFY_TOKEN) return [];
 
-  const runRes = await fetch(
-    `${APIFY_BASE}/acts/${APIFY_ACTOR}/runs?waitForFinish=120`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${APIFY_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(APIFY_TIMEOUT_MS),
+  const runRes = await fetch(`${APIFY_BASE}/acts/${APIFY_ACTOR}/runs?waitForFinish=120`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${APIFY_TOKEN}`,
+      'Content-Type': 'application/json',
     },
-  );
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(APIFY_TIMEOUT_MS),
+  });
 
   if (!runRes.ok) return [];
 
-  const runData = await runRes.json() as { data?: { defaultDatasetId?: string } };
+  const runData = (await runRes.json()) as { data?: { defaultDatasetId?: string } };
   const datasetId = runData?.data?.defaultDatasetId;
   if (!datasetId) return [];
 
@@ -391,7 +395,7 @@ async function callApifyApi(payload: Record<string, unknown>): Promise<LinkedInP
 
   if (!datasetRes.ok) return [];
 
-  const items = await datasetRes.json() as Array<Record<string, unknown>>;
+  const items = (await datasetRes.json()) as Array<Record<string, unknown>>;
   return items.map(mapApifyToLinkedInProfile);
 }
 
@@ -468,10 +472,18 @@ Editar `config/localDevApiProxy.ts`:
 
 ```typescript
 export const LOCAL_DEV_API_PROXY_PATHS = [
-  '/api/gemini', '/api/radar-scan', '/api/gerar-dossie', '/api/cnpj',
-  '/api/comex', '/api/open-web-search', '/api/link-status',
-  '/api/extract-content', '/api/rag', '/api/docs-rag', '/api/socio-search',
-  '/api/linkedin-search',  // ← NOVO
+  '/api/gemini',
+  '/api/radar-scan',
+  '/api/gerar-dossie',
+  '/api/cnpj',
+  '/api/comex',
+  '/api/open-web-search',
+  '/api/link-status',
+  '/api/extract-content',
+  '/api/rag',
+  '/api/docs-rag',
+  '/api/socio-search',
+  '/api/linkedin-search', // ← NOVO
 ];
 ```
 
@@ -495,6 +507,7 @@ git commit -m "feat: endpoint /api/linkedin-search com cache Supabase + Apify"
 ## Task 3: Testes do Endpoint
 
 **Files:**
+
 - Create: `tests/api/linkedin-search.test.ts`
 
 - [ ] **Step 1: Escrever testes**
@@ -561,19 +574,21 @@ describe('/api/linkedin-search', () => {
     });
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => [{
-        linkedinUrl: 'https://linkedin.com/in/test',
-        publicIdentifier: 'test',
-        firstName: 'Test',
-        lastName: 'User',
-        headline: 'CEO',
-        photo: null,
-        location: { linkedinText: 'Cuiaba, MT' },
-        currentPosition: [{ position: 'CEO', companyName: 'TestCo' }],
-        verified: true,
-        connectionsCount: 500,
-        skills: [{ name: 'Management' }],
-      }],
+      json: async () => [
+        {
+          linkedinUrl: 'https://linkedin.com/in/test',
+          publicIdentifier: 'test',
+          firstName: 'Test',
+          lastName: 'User',
+          headline: 'CEO',
+          photo: null,
+          location: { linkedinText: 'Cuiaba, MT' },
+          currentPosition: [{ position: 'CEO', companyName: 'TestCo' }],
+          verified: true,
+          connectionsCount: 500,
+          skills: [{ name: 'Management' }],
+        },
+      ],
     });
 
     const { default: handler } = await import('../api/linkedin-search.js');
@@ -616,6 +631,7 @@ git commit -m "test: endpoint /api/linkedin-search"
 ## Task 4: Componente LinkedInSocioCard
 
 **Files:**
+
 - Create: `components/LinkedInSocioCard.tsx`
 - Create: `tests/components/LinkedInSocioCard.test.tsx`
 
@@ -858,6 +874,7 @@ git commit -m "feat: componente LinkedInSocioCard com loading/empty/error states
 ## Task 5: Integrar no SocietaryMap
 
 **Files:**
+
 - Modify: `features/dossier/SocietaryMap.tsx`
 
 - [ ] **Step 1: Adicionar estado e busca LinkedIn**
@@ -866,15 +883,12 @@ No início do componente `SocietaryMap` (após a declaração de `const [notice,
 
 ```typescript
 // NOVO: estado para perfis LinkedIn dos sócios
-const [linkedinDataByPartner, setLinkedinDataByPartner] = useState<
-  Record<string, LinkedInProfile | null>
->({});
-const [linkedinLoadingByPartner, setLinkedinLoadingByPartner] = useState<
-  Record<string, boolean>
->({});
+const [linkedinDataByPartner, setLinkedinDataByPartner] = useState<Record<string, LinkedInProfile | null>>({});
+const [linkedinLoadingByPartner, setLinkedinLoadingByPartner] = useState<Record<string, boolean>>({});
 ```
 
 Adicionar import no topo:
+
 ```typescript
 import LinkedInSocioCard from '../../components/LinkedInSocioCard';
 import type { LinkedInProfile } from '../../types';
@@ -891,7 +905,7 @@ useEffect(() => {
 
   const controller = new AbortController();
 
-  rootData.partners.forEach(async (partner) => {
+  rootData.partners.forEach(async partner => {
     const key = normalizePartnerKey(partner.name);
     if (linkedinDataByPartner[key] !== undefined || linkedinLoadingByPartner[key]) return;
 
@@ -936,35 +950,33 @@ useEffect(() => {
 Após a seção do painel de evidências (antes do fechamento do return principal), adicionar:
 
 ```tsx
-{/* Perfis LinkedIn dos Sócios */}
-{rootData?.partners && Object.keys(linkedinDataByPartner).length > 0 && (
-  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
-      Perfis LinkedIn dos Sócios
-    </p>
-    <div className="flex flex-wrap gap-3">
-      {rootData.partners.map(partner => {
-        const key = normalizePartnerKey(partner.name);
-        const profile = linkedinDataByPartner[key];
-        const loading = linkedinLoadingByPartner[key];
+{
+  /* Perfis LinkedIn dos Sócios */
+}
+{
+  rootData?.partners && Object.keys(linkedinDataByPartner).length > 0 && (
+    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+        Perfis LinkedIn dos Sócios
+      </p>
+      <div className="flex flex-wrap gap-3">
+        {rootData.partners.map(partner => {
+          const key = normalizePartnerKey(partner.name);
+          const profile = linkedinDataByPartner[key];
+          const loading = linkedinLoadingByPartner[key];
 
-        if (loading) {
-          return <LinkedInSocioCard key={key} profile={{} as LinkedInProfile} isLoading isDarkMode={isDarkMode} />;
-        }
+          if (loading) {
+            return <LinkedInSocioCard key={key} profile={{} as LinkedInProfile} isLoading isDarkMode={isDarkMode} />;
+          }
 
-        if (!profile) return null;
+          if (!profile) return null;
 
-        return (
-          <LinkedInSocioCard
-            key={key}
-            profile={profile}
-            isDarkMode={isDarkMode}
-          />
-        );
-      })}
+          return <LinkedInSocioCard key={key} profile={profile} isDarkMode={isDarkMode} />;
+        })}
+      </div>
     </div>
-  </div>
-)}
+  );
+}
 ```
 
 Corrigir o caso loading: criar uma variante do componente que aceita `isLoading` sem exigir `profile` completo. Ou usar um profile vazio com `isLoading`.
@@ -1002,6 +1014,7 @@ git commit -m "feat: integra LinkedInSocioCard no SocietaryMap ao carregar QSA"
 ## Task 6: Alimentar CAMINHO DE VENDA
 
 **Files:**
+
 - Modify: `features/dossier/waterfall-orchestrator.ts`
 
 - [ ] **Step 1: Adicionar função formatLinkedinForPrompt e coleta de dados**
@@ -1016,7 +1029,7 @@ if (companyData.qsa && companyData.qsa.length > 0) {
   const linkedinPromises = companyData.qsa
     .filter(p => p.name)
     .slice(0, 5) // máximo 5 sócios para não estourar timeout
-    .map(async (partner) => {
+    .map(async partner => {
       try {
         const resp = await fetch(`${apiBase}/api/linkedin-search`, {
           method: 'POST',
@@ -1045,7 +1058,9 @@ if (companyData.qsa && companyData.qsa.length > 0) {
           p.skills?.length ? `  <skills>${p.skills.join(', ')}</skills>` : '',
           `  <perfil>${p.linkedinUrl}</perfil>`,
           `</SOCIO>`,
-        ].filter(Boolean).join('\n');
+        ]
+          .filter(Boolean)
+          .join('\n');
       } catch {
         return null;
       }
@@ -1058,9 +1073,10 @@ if (companyData.qsa && companyData.qsa.length > 0) {
 }
 
 // Injetar no contextHint ou no teiaResearchContext
-const linkedinContext = linkedinBlocks.length > 0
-  ? `<linkedin_data>\nDados reais extraídos do LinkedIn para os sócios/administradores do QSA:\n\n${linkedinBlocks.join('\n\n')}\n</linkedin_data>`
-  : '';
+const linkedinContext =
+  linkedinBlocks.length > 0
+    ? `<linkedin_data>\nDados reais extraídos do LinkedIn para os sócios/administradores do QSA:\n\n${linkedinBlocks.join('\n\n')}\n</linkedin_data>`
+    : '';
 ```
 
 - [ ] **Step 2: Injetar linkedinContext no prompt dos módulos**

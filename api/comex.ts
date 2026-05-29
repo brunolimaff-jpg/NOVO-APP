@@ -5,13 +5,15 @@ import { cacheHeaders } from './_cache-headers.js';
 import { setSecurityHeaders } from './_security-headers.js';
 
 // Origens permitidas: domínio de produção + previews Vercel + dev local
-const ALLOWED_ORIGINS = new Set([
-  process.env.ALLOWED_ORIGIN,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-  'https://scoutagro.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-].filter(Boolean) as string[]);
+const ALLOWED_ORIGINS = new Set(
+  [
+    process.env.ALLOWED_ORIGIN,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+    'https://scoutagro.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ].filter(Boolean) as string[],
+);
 
 function applyCors(req: VercelRequest, res: VercelResponse): void {
   const origin = req.headers.origin ?? '';
@@ -25,12 +27,12 @@ function applyCors(req: VercelRequest, res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
   );
 }
 
 // Exemplo de faixas de valor segundo MDIC/Serpro
-type ExportBand = 
+type ExportBand =
   | 'Até US$ 1 milhão'
   | 'US$ 1 milhão a US$ 10 milhões'
   | 'US$ 10 milhões a US$ 50 milhões'
@@ -70,11 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       throw err;
     }
-    
+
     // Regra determinística mockada baseada nos primeiros digitos do CNPJ
     // Para testar o feature com CNPJs reais de agro
     const sumCnpj = cleanCnpj.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
-    
+
     // Se a soma for par, é exportador (para simular uma distribuição de ~50% no nosso banco de testes agro)
     // No mundo real, isso deve bater com uma base em memória gerada pelos CSVs do MDIC.
     const isExportadorSimulado = sumCnpj % 2 === 0;
@@ -85,26 +87,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Até US$ 1 milhão',
         'US$ 1 milhão a US$ 10 milhões',
         'US$ 10 milhões a US$ 50 milhões',
-        'Mais de US$ 50 milhões'
+        'Mais de US$ 50 milhões',
       ];
-      
+
       const bandIndex = sumCnpj % 4; // Deterministico
-      
+
       // Gera produtos NCM fictícios baseados no CNAE principal
       const cnaePrincipal = empresaInfo.cnaeDescricao?.toLowerCase() || '';
       let produtos = ['Grãos', 'Commodities Agrícolas'];
-      
+
       if (cnaePrincipal.includes('algodão')) produtos = ['Algodão em pluma'];
       else if (cnaePrincipal.includes('soja')) produtos = ['Soja em grãos', 'Farelo de Soja'];
       else if (cnaePrincipal.includes('boi') || cnaePrincipal.includes('carne')) produtos = ['Carne Bovina Congelada'];
-      else if (cnaePrincipal.includes('usina') || cnaePrincipal.includes('cana')) produtos = ['Açúcar de Cana', 'Etanol'];
+      else if (cnaePrincipal.includes('usina') || cnaePrincipal.includes('cana'))
+        produtos = ['Açúcar de Cana', 'Etanol'];
 
       const result: ComexResult = {
         isExportador: true,
         cnpj: cleanCnpj,
         anoReferencia: new Date().getFullYear() - 1, // Dados do MDIC costumam ter delay
         faixaValorEstimado: bands[bandIndex],
-        principaisNCMs: produtos
+        principaisNCMs: produtos,
       };
 
       res.setHeader('Cache-Control', cacheHeaders(86400)['Cache-Control']);
@@ -114,10 +117,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         isExportador: false,
         cnpj: cleanCnpj,
-        message: 'CNPJ não listado no Cadastro de Exportadores MDIC no último ano base.'
+        message: 'CNPJ não listado no Cadastro de Exportadores MDIC no último ano base.',
       });
     }
-
   } catch (error) {
     console.error('Error fetching Comex API:', error);
     return res.status(500).json({ error: 'Internal server error while fetching Comex data' });

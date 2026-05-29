@@ -1,7 +1,4 @@
-export type {
-  InvestigationBuildOptions,
-  InvestigationPayload,
-} from './mega/contracts';
+export type { InvestigationBuildOptions, InvestigationPayload } from './mega/contracts';
 export {
   MASTER_INVESTIGATION_ORCHESTRATOR_V5,
   SHARED_ABSENCE_SEMANTICS_BLOCK,

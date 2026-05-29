@@ -11,8 +11,12 @@ const ModeDisplay: React.FC = () => {
     <div>
       <span data-testid="mode">{mode}</span>
       <span data-testid="instruction">{systemInstruction.slice(0, 20)}</span>
-      <button data-testid="toggle" onClick={toggleMode}>toggle</button>
-      <button data-testid="set-investigacao" onClick={() => setMode('investigacao')}>set investigacao</button>
+      <button data-testid="toggle" onClick={toggleMode}>
+        toggle
+      </button>
+      <button data-testid="set-investigacao" onClick={() => setMode('investigacao')}>
+        set investigacao
+      </button>
     </div>
   );
 };

@@ -82,9 +82,7 @@ describe('PORTA mega prompts', () => {
     );
     expect(PROMPT_RISCOS_COMPLIANCE_GOD_MODE).toContain('ABNT');
     expect(PROMPT_RISCOS_COMPLIANCE_GOD_MODE).toContain('PRO Carbono');
-    expect(PROMPT_RISCOS_COMPLIANCE_GOD_MODE).toContain(
-      'CONTRAPESOS DE COMPLIANCE E GOVERNAN\u00c7A',
-    );
+    expect(PROMPT_RISCOS_COMPLIANCE_GOD_MODE).toContain('CONTRAPESOS DE COMPLIANCE E GOVERNAN\u00c7A');
   });
 
   it('includes P and segment markers in the expansion prompt', () => {
@@ -97,9 +95,7 @@ describe('PORTA mega prompts', () => {
 
   it('uses the stricter COP -> AGI -> PRD segment logic and diversified verticals', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('COP > AGI > PRD');
-    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain(
-      '\u00c9 cooperativa agr\u00edcola? \u2192 COP',
-    );
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('\u00c9 cooperativa agr\u00edcola? \u2192 COP');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('mais de 3 verticais');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('energia');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('piscicultura');
@@ -115,10 +111,16 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Empresas do Grupo Economico:**');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('**Outros CNPJs:**');
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('Nao gere tabela textual de "Outros CNPJs onde o socio aparece"');
-    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |');
-    expect(PROMPT_TEIA_DEEP_MODULE).toContain('OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo');
+    expect(PROMPT_TEIA_DEEP_MODULE).not.toContain(
+      '| Socio | CNPJ | Razao Social | Fonte | Confianca | Escopo | Uso comercial |',
+    );
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain(
+      'OFICIAL qualifica o vinculo do socio, nao o vinculo do CNPJ com o grupo',
+    );
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ_LATERAL_SOCIO');
-    expect(PROMPT_TEIA_DEEP_MODULE).toContain('CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior');
+    expect(PROMPT_TEIA_DEEP_MODULE).toContain(
+      'CNPJ lateral nao sustenta tese operacional, enterprise, bioinsumos, verticalizacao ou wedge Senior',
+    );
     expect(PROMPT_TEIA_DEEP_MODULE).toContain('##.###.###/####-##*');
     expect(PROMPT_TEIA_DEEP_MODULE).not.toContain('* = hipótese a validar');
 
@@ -126,8 +128,12 @@ describe('PORTA mega prompts', () => {
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('listar os 10 mais relevantes');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).not.toContain('NÃO gere tabela > 15 linhas');
     expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('NÃO trunque nem amostre a tabela de CNPJs');
-    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('Nao use CNPJ lateral do socio como prova de grupo economico ou verticalizacao');
-    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain('| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |');
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain(
+      'Nao use CNPJ lateral do socio como prova de grupo economico ou verticalizacao',
+    );
+    expect(PROMPT_RADAR_EXPANSAO_GOD_MODE).toContain(
+      '| CNPJ | Razão Social | Relação na Teia | CNAE / Papel | Fonte | Confiança |',
+    );
   });
 
   it('includes P proxy, R trabalhista and A2 markers in the RH prompt', () => {
@@ -234,18 +240,21 @@ describe('PORTA mega prompts', () => {
       ),
       digestPrompt(
         'war-mode-minimal-hidden-prompt',
-        buildInvestigationHiddenPrompt({
-          companyName: 'Cooperativa Horizonte',
-          cnpj: undefined,
-          city: '',
-          state: 'PR',
-        }, {
-          includeBudget: false,
-          mode: 'warMode',
-          strictAudit: false,
-          enableDiscrepancyHunter: false,
-          enableCostOfDelay: false,
-        }),
+        buildInvestigationHiddenPrompt(
+          {
+            companyName: 'Cooperativa Horizonte',
+            cnpj: undefined,
+            city: '',
+            state: 'PR',
+          },
+          {
+            includeBudget: false,
+            mode: 'warMode',
+            strictAudit: false,
+            enableDiscrepancyHunter: false,
+            enableCostOfDelay: false,
+          },
+        ),
       ),
     ]).toMatchInlineSnapshot(`
       [

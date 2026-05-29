@@ -5,13 +5,7 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import {
-  Sender,
-  type ChatSession,
-  type LastAction,
-  type Message,
-  type RunMegaPromptWaterfallArgs,
-} from '../../types';
+import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { extractCompanyName } from '../../utils/companyNameExtractor';
@@ -64,11 +58,7 @@ export interface UseChatMessageOrchestratorOptions {
   requestKind: RequestKind;
   setRequestKind: Dispatch<SetStateAction<RequestKind>>;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
-  resetLoadingProgress: (
-    stage?: string,
-    totalStages?: number,
-    options?: ResetLoadingProgressOptions,
-  ) => void;
+  resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
   completeLoadingProgress: () => void;
   setFailureCount: Dispatch<SetStateAction<number>>;
@@ -119,10 +109,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   const resolvedOperatorName = requireDependency(options.resolvedOperatorName, 'resolvedOperatorName');
   const canUseLookup = options.canUseLookup ?? false;
   const requestKind = options.requestKind ?? chatStore?.requestKind ?? 'default';
-  const setRequestKind = requireDependency(
-    options.setRequestKind ?? chatStore?.setRequestKind,
-    'setRequestKind',
-  );
+  const setRequestKind = requireDependency(options.setRequestKind ?? chatStore?.setRequestKind, 'setRequestKind');
   const setIsLoading = requireDependency(options.setIsLoading ?? chatStore?.setIsLoading, 'setIsLoading');
   const resetLoadingProgress = requireDependency(
     options.resetLoadingProgress ?? chatStore?.resetLoadingProgress,
@@ -136,10 +123,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     options.completeLoadingProgress ?? chatStore?.completeLoadingProgress,
     'completeLoadingProgress',
   );
-  const setFailureCount = requireDependency(
-    options.setFailureCount ?? chatStore?.setFailureCount,
-    'setFailureCount',
-  );
+  const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
   const setLoadingVariant = requireDependency(
     options.setLoadingVariant ?? chatStore?.setLoadingVariant,
     'setLoadingVariant',
@@ -148,10 +132,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     options.setLoadingPinnedLabel ?? chatStore?.setLoadingPinnedLabel,
     'setLoadingPinnedLabel',
   );
-  const setVisibleCount = requireDependency(
-    options.setVisibleCount ?? chatStore?.setVisibleCount,
-    'setVisibleCount',
-  );
+  const setVisibleCount = requireDependency(options.setVisibleCount ?? chatStore?.setVisibleCount, 'setVisibleCount');
   const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
   const toast = options.toast ?? fallbackToast;
   const investigationLogged = options.investigationLogged ?? chatStore?.investigationLogged ?? false;
@@ -159,10 +140,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     options.setInvestigationLogged ?? chatStore?.setInvestigationLogged,
     'setInvestigationLogged',
   );
-  const runMegaPromptWaterfall = requireDependency(
-    options.runMegaPromptWaterfall,
-    'runMegaPromptWaterfall',
-  );
+  const runMegaPromptWaterfall = requireDependency(options.runMegaPromptWaterfall, 'runMegaPromptWaterfall');
 
   let cleanupPostCompletion: (() => void) | null = null;
 
@@ -197,7 +175,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             documentReadyState: document.readyState,
             activeElement: document.activeElement?.tagName || '',
           });
-        } catch { /* non-critical DOM check */ }
+        } catch {
+          /* non-critical DOM check */
+        }
       }, delay);
       timerIds.push(id);
     }
@@ -255,8 +235,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       let historyToPass: Message[] = [];
       const sessionForHint = sessionsRef.current.find(session => session.id === sessionId);
       const sessionCnpjDigits = (sessionForHint?.cnpj || '').replace(/\D/g, '');
-      const hintedCompany =
-        hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
+      const hintedCompany = hintedCompanyOverride || resolveHintedCompany(sessionForHint?.empresaAlvo, safeVisibleText);
       const normalizedCompany = pickCompanyLabel(
         hintedCompany,
         safeVisibleText,
@@ -285,10 +264,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       activeGenerationRef.current[sessionId] = botMessageId;
       const hasConsolidatedBotResponse = historyToPass.some(
         message =>
-          message.sender === Sender.Bot &&
-          !message.isError &&
-          !message.isThinking &&
-          Boolean(message.text?.trim()),
+          message.sender === Sender.Bot && !message.isError && !message.isThinking && Boolean(message.text?.trim()),
       );
 
       const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
@@ -325,8 +301,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
           .toUpperCase();
-        const isMegaPrompt =
-          normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
+        const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
         if (isMegaPrompt) {
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
@@ -383,16 +358,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           canUseLookup,
         );
 
-        const safeSuggestions = ensureContinuitySuggestions(
-          suggestions,
-          normalizedCompany || hintedCompany || null,
-          { contextText: responseText },
-        );
+        const safeSuggestions = ensureContinuitySuggestions(suggestions, normalizedCompany || hintedCompany || null, {
+          contextText: responseText,
+        });
 
         // Guard: resposta vazia do Gemini não deve gerar card invisível
         const fallbackText = '*Sem resposta do assistente.*';
-        const finalResponseText =
-          responseText && responseText.trim().length > 0 ? responseText : fallbackText;
+        const finalResponseText = responseText && responseText.trim().length > 0 ? responseText : fallbackText;
 
         if (finalResponseText === fallbackText) {
           scoutDiag.warn('MessageOrchestrator', 'Gemini retornou texto vazio — usando fallback', {
@@ -423,9 +395,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
                     text: finalResponseText,
                     groundingSources: sources as { title: string; url: string }[] | undefined,
                     webVerificationStatus,
-                    groundingUsed: webVerificationStatus && webVerificationStatus !== 'not_applicable'
-                      ? webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified'
-                      : undefined,
+                    groundingUsed:
+                      webVerificationStatus && webVerificationStatus !== 'not_applicable'
+                        ? webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified'
+                        : undefined,
                     suggestions: safeSuggestions,
                     scorePorta: scorePorta || undefined,
                     clienteSeniorData: clienteSeniorData || undefined,
@@ -570,8 +543,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       let currentHistory: Message[];
       let immediateCompany: string | null;
       const resolvedRequestKind = options?.requestKind ?? 'default';
-      const fixedLoadingLine =
-        resolvedRequestKind === 'deep_dive' ? options?.fixedLoadingLine ?? null : null;
+      const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? (options?.fixedLoadingLine ?? null) : null;
 
       setRequestKind(resolvedRequestKind);
       setLoadingPinnedLabel(fixedLoadingLine);
@@ -602,9 +574,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         immediateCompany = hintedCompanyOverride || existingSession.empresaAlvo || null;
         if (options?.cnpj && !existingSession.cnpj) {
           setSessions(prev =>
-            prev.map(session =>
-              session.id === sessionId ? { ...session, cnpj: options.cnpj ?? null } : session,
-            ),
+            prev.map(session => (session.id === sessionId ? { ...session, cnpj: options.cnpj ?? null } : session)),
           );
         }
       }

@@ -684,4 +684,3 @@ export const OPERACAO_PROMPT =
 - Humor leve e analogias do agro são bem-vindos no CORPO do dossiê — nunca na abertura.
 - Se a empresa é má oportunidade, diz sem rodeios. Se é boa, apresenta os números que provam.
 `;
-

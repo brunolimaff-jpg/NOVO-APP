@@ -23,13 +23,13 @@ export function useToast(duration = 4000) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   const add = useCallback(
     (type: ToastType, message: string) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      setToasts((prev) => [...prev.slice(-4), { id, type, message }]); // max 5 simultâneos
+      setToasts(prev => [...prev.slice(-4), { id, type, message }]); // max 5 simultâneos
       setTimeout(() => dismiss(id), duration);
       return id;
     },

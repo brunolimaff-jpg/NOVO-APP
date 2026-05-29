@@ -57,7 +57,8 @@ const themeCatalog: ContinuityTheme[] = [
   },
   {
     id: 'ops',
-    detect: /\b(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o|wms)\b/gi,
+    detect:
+      /\b(opera[cç][aã]o|log[ií]st|supply|rastreabil|expedi[cç][aã]o|estoque|insumo|colheita|safra|produ[cç][aã]o|wms)\b/gi,
     prompts: [
       company => `Qual gargalo operacional em ${company} mais ameaça margem, prazo ou nível de serviço?`,
       company => `Onde ${company} perde dinheiro quando a operação cresce mais rápido que o controle?`,

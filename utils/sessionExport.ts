@@ -38,8 +38,7 @@ export async function exportSessionsAsJSON(): Promise<void> {
     // Criar timestamp para nome do arquivo
     const now = new Date();
     const timestamp = now.toISOString().replace(/[:.]/g, '-').split('T')[0];
-    const time = now.getHours().toString().padStart(2, '0') +
-      now.getMinutes().toString().padStart(2, '0');
+    const time = now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0');
     const filename = `scout360_backup_${timestamp}_${time}.json`;
 
     // Fazer download
@@ -52,12 +51,7 @@ export async function exportSessionsAsJSON(): Promise<void> {
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Erro ao exportar sessões:', error);
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : 'Erro ao exportar sessões',
-      { cause: error }
-    );
+    throw new Error(error instanceof Error ? error.message : 'Erro ao exportar sessões', { cause: error });
   }
 }
 
@@ -68,7 +62,7 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = async (e) => {
+    reader.onload = async e => {
       try {
         const content = e.target?.result as string;
         const backup = JSON.parse(content) as SessionBackup;
@@ -98,13 +92,7 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
         resolve(backup);
       } catch (error) {
         console.error('Erro ao importar sessões:', error);
-        reject(
-          new Error(
-            error instanceof Error
-              ? error.message
-              : 'Erro ao importar arquivo'
-          )
-        );
+        reject(new Error(error instanceof Error ? error.message : 'Erro ao importar arquivo'));
       }
     };
 

@@ -51,7 +51,7 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
@@ -82,8 +82,8 @@ function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; ind
   const sample = (text || '').trim();
   if (!sample) return { detected: false, indicators: [] };
 
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => pattern.test(sample) ? [`hard_${i}`] : []);
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => pattern.test(sample) ? [`soft_${i}`] : []);
+  const hardHits = HARD_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`hard_${i}`] : []));
+  const softHits = SOFT_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`soft_${i}`] : []));
   return {
     detected: hardHits.length > 0 || softHits.length >= 2,
     indicators: [...hardHits, ...softHits],
@@ -131,11 +131,11 @@ function extractGeminiText(response: unknown): string {
   if (!Array.isArray(candidates)) return '';
 
   return candidates
-    .flatMap((candidate) => {
+    .flatMap(candidate => {
       const parts = (candidate as { content?: { parts?: unknown } })?.content?.parts;
       return Array.isArray(parts) ? parts : [];
     })
-    .map((part) => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
+    .map(part => (typeof (part as { text?: unknown })?.text === 'string' ? (part as { text: string }).text : ''))
     .filter(Boolean)
     .join('');
 }
@@ -175,8 +175,8 @@ function normalizeHistory(
   if (!input) return [];
 
   return input
-    .map((item) => ({ role: item.role, parts: [{ text: item.text }] }))
-    .filter((msg) => msg.parts[0].text.trim().length > 0);
+    .map(item => ({ role: item.role, parts: [{ text: item.text }] }))
+    .filter(msg => msg.parts[0].text.trim().length > 0);
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -220,11 +220,7 @@ function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkin
   return GeminiSdkThinkingLevel.HIGH;
 }
 
-async function executeGeminiAction(
-  ai: GoogleGenAI,
-  body: ParsedBody,
-  res: VercelResponse,
-): Promise<VercelResponse> {
+async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: VercelResponse): Promise<VercelResponse> {
   switch (body.action) {
     case 'health': {
       const response = await ai.models.generateContent({
@@ -242,18 +238,19 @@ async function executeGeminiAction(
       const contents = body.contents;
 
       // ── Server-side watermark: extrai nome do modulo das contents ──
-      const contentsStr = typeof contents === 'string' ? contents
-        : Array.isArray(contents)
-          ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
-          : '';
+      const contentsStr =
+        typeof contents === 'string'
+          ? contents
+          : Array.isArray(contents)
+            ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
+            : '';
       const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
       const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
-        void insertDiagnosticsBatch(
-          { runId: srvRunId, route: '/api/gemini', events: [] },
-          [{
+        void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
+          {
             at: new Date().toISOString(),
             t: Date.now(),
             runId: srvRunId,
@@ -261,8 +258,8 @@ async function executeGeminiAction(
             event: 'module:start',
             severity: 'info',
             payload: { module: srvModuleName, model },
-          }],
-        );
+          },
+        ]);
       }
 
       if (!contents) {
@@ -282,7 +279,9 @@ async function executeGeminiAction(
           console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
         }
         if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
-          console.warn('[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
+          console.warn(
+            '[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent',
+          );
         }
         if (configIn.toolConfig !== undefined) {
           console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
@@ -302,9 +301,8 @@ async function executeGeminiAction(
       });
 
       if (srvModuleName) {
-        void insertDiagnosticsBatch(
-          { runId: srvRunId, route: '/api/gemini', events: [] },
-          [{
+        void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
+          {
             at: new Date().toISOString(),
             t: Date.now(),
             runId: srvRunId,
@@ -312,8 +310,8 @@ async function executeGeminiAction(
             event: 'module:end',
             severity: 'info',
             payload: { module: srvModuleName, model },
-          }],
-        );
+          },
+        ]);
       }
 
       return res.status(200).json({
@@ -371,17 +369,18 @@ async function executeGeminiAction(
       const openWebSearchTool = {
         functionDeclarations: [
           {
-            name: "performWebSearch",
-            description: "Realiza busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos. Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise.",
+            name: 'performWebSearch',
+            description:
+              'Realiza busca na web ou extrai conteúdo de uma URL específica usando múltiplos motores de busca gratuitos. Útil para obter informações atualizadas, notícias, ou extrair texto de páginas para análise.',
             parameters: {
-              type: "OBJECT",
+              type: 'OBJECT',
               properties: {
-                query: { type: "STRING", description: "O termo de busca para a pesquisa na web." },
-                url: { type: "STRING", description: "A URL completa para extrair conteúdo diretamente." }
+                query: { type: 'STRING', description: 'O termo de busca para a pesquisa na web.' },
+                url: { type: 'STRING', description: 'A URL completa para extrair conteúdo diretamente.' },
               },
-            }
-          }
-        ]
+            },
+          },
+        ],
       };
 
       const runChat = async (withGrounding: boolean) => {
@@ -407,7 +406,7 @@ async function executeGeminiAction(
         const res = await withTimeout(
           chat.sendMessage({ message }),
           timeout,
-          withGrounding ? "chat-with-grounding" : "chat-no-grounding",
+          withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
         );
 
         return { chat, response: res };
@@ -436,13 +435,13 @@ async function executeGeminiAction(
           }> = [];
 
           for (const call of response.functionCalls) {
-            if (call.name === "performWebSearch") {
+            if (call.name === 'performWebSearch') {
               const args = call.args as { query?: string; url?: string };
               try {
-                const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : "http://localhost:3000";
+                const origin = getEnvVar('VERCEL_URL') ? `https://${getEnvVar('VERCEL_URL')}` : 'http://localhost:3000';
                 const toolResponse = await fetch(`${origin}/api/open-web-search`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(args),
                   signal: AbortSignal.timeout(30_000),
                 });
@@ -458,17 +457,18 @@ async function executeGeminiAction(
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
-                    response: { result: toolResult }
-                  }
+                    response: { result: toolResult },
+                  },
                 });
               } catch (toolError) {
                 console.error(`[OpenWebSearch] Falha:`, toolError);
-                const message = toolError instanceof Error ? toolError.message : 'Failed to perform web search/extraction.';
+                const message =
+                  toolError instanceof Error ? toolError.message : 'Failed to perform web search/extraction.';
                 functionResponses.push({
                   functionResponse: {
                     name: call.name,
-                    response: { error: message }
-                  }
+                    response: { error: message },
+                  },
                 });
               }
             }
@@ -488,10 +488,9 @@ async function executeGeminiAction(
             break; // Nenhuma chamada reconhecida
           }
         }
-
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-        console.warn("[GeminiProxy] Falha no Grounding/Tool, acionando fallback:", primaryError);
+        console.warn('[GeminiProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
         groundingActivated = false;
         const fallbackData = await runChat(false);
         response = fallbackData.response;
@@ -544,7 +543,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing runId or events' });
     }
 
-    const events = body.events.slice(0, MAX_EVENTS_PER_BATCH) as unknown as Parameters<typeof insertDiagnosticsBatch>[1];
+    const events = body.events.slice(0, MAX_EVENTS_PER_BATCH) as unknown as Parameters<
+      typeof insertDiagnosticsBatch
+    >[1];
 
     const result = await insertDiagnosticsBatch(
       {

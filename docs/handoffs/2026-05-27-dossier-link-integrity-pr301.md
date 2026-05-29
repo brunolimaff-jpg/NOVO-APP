@@ -20,11 +20,11 @@
 
 ### Feito (commits na PR, CI verde)
 
-| Commit | Resumo |
-|--------|--------|
+| Commit    | Resumo                                                                                                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `2c6e40b` | Pipeline integridade: `dossierLinkIntegrity`, footer Fontes, `buildAuditableSources` (`consulted_not_cited`), prompts `[[n]](URL)`, waterfall pool/fallback `continue` |
-| `a7d56ff` | Review Gemini (regex decimal, headings `#+`, `normalizeSourceUrl` no pool); fix `MessageActionsBar.test` → label `Fontes (N)` |
-| `b3af760` | Tela branca Scheffer: `coerceGroundingSources`, hero só sem texto >200 chars, `setIsLoading(false)` ao trocar sessão, Virtuoso não suspende com mensagens |
+| `a7d56ff` | Review Gemini (regex decimal, headings `#+`, `normalizeSourceUrl` no pool); fix `MessageActionsBar.test` → label `Fontes (N)`                                          |
+| `b3af760` | Tela branca Scheffer: `coerceGroundingSources`, hero só sem texto >200 chars, `setIsLoading(false)` ao trocar sessão, Virtuoso não suspende com mensagens              |
 
 **CI PR #301 (último push remoto):** Typecheck, Tests, Build, Dossier Golden, Smoke preview, Vercel — **SUCCESS**.
 
@@ -32,13 +32,13 @@
 
 ### Feito localmente (NÃO commitado)
 
-| Arquivo | Mudança |
-|---------|---------|
-| `features/dossier/waterfall-orchestrator.ts` | `flushWaterfallPreview` (>200 chars → `updateSessionById` + `inline`); etapas Teia no LoadingSmart; `AbortSignal.timeout(25s)` em `/api/link-status` |
-| `App.tsx` | `showFullscreenLoadingSmart` — esconde overlay hero quando já há stream parcial |
-| `components/ChatInterface.tsx` | `hasSubstantiveMessages` inclui thinking com texto >200 |
-| `features/chat/message-orchestrator.ts` | `completeLoadingProgress()` após `runMegaPromptWaterfall` |
-| `tests/features/dossier/waterfall-orchestrator.test.ts` | `updateSessionById` ≥2 chamadas (preview + final) |
+| Arquivo                                                 | Mudança                                                                                                                                              |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/dossier/waterfall-orchestrator.ts`            | `flushWaterfallPreview` (>200 chars → `updateSessionById` + `inline`); etapas Teia no LoadingSmart; `AbortSignal.timeout(25s)` em `/api/link-status` |
+| `App.tsx`                                               | `showFullscreenLoadingSmart` — esconde overlay hero quando já há stream parcial                                                                      |
+| `components/ChatInterface.tsx`                          | `hasSubstantiveMessages` inclui thinking com texto >200                                                                                              |
+| `features/chat/message-orchestrator.ts`                 | `completeLoadingProgress()` após `runMegaPromptWaterfall`                                                                                            |
+| `tests/features/dossier/waterfall-orchestrator.test.ts` | `updateSessionById` ≥2 chamadas (preview + final)                                                                                                    |
 
 ### Produção vs PR
 
@@ -50,42 +50,42 @@
 
 ## Open decisions
 
-| # | Decisão | Opções |
-|---|---------|--------|
-| 1 | Commitar/push UX waterfall? | Sim → 1 commit na PR; Não → descartar diff local |
-| 2 | MERGE PR #301 | Só com **MERGE** explícito do usuário |
-| 3 | `open-web-search` em Vercel | Auditar env Brave/API/rate limit; não hardcode URL por CNPJ |
-| 4 | Dossiês antigos em cache | Footer/strip na render; regenerar investigação para pool completo |
+| #   | Decisão                     | Opções                                                            |
+| --- | --------------------------- | ----------------------------------------------------------------- |
+| 1   | Commitar/push UX waterfall? | Sim → 1 commit na PR; Não → descartar diff local                  |
+| 2   | MERGE PR #301               | Só com **MERGE** explícito do usuário                             |
+| 3   | `open-web-search` em Vercel | Auditar env Brave/API/rate limit; não hardcode URL por CNPJ       |
+| 4   | Dossiês antigos em cache    | Footer/strip na render; regenerar investigação para pool completo |
 
 ---
 
 ## Skills to use
 
-| Situação | Skill / agente |
-|----------|----------------|
-| Smoke preview / Scheffer | Chrome DevTools MCP ou skill `chrome-devtools` |
-| CI / testes pós-push | `validator`, `npm test`, `npm run typecheck` |
-| Comentários PR | `gh-resolve-pr-comments` (`.claude/skills/gh-resolve-pr-comments/SKILL.md`) |
-| Env busca web Vercel | `vercel-cli` + `deployments-cicd`; revisar `api/open-web-search.ts` |
-| Encerrar sessão vault | `doc-handoff` + atualizar Bruno Vault `20-SESSOES` se lição nova |
+| Situação                 | Skill / agente                                                              |
+| ------------------------ | --------------------------------------------------------------------------- |
+| Smoke preview / Scheffer | Chrome DevTools MCP ou skill `chrome-devtools`                              |
+| CI / testes pós-push     | `validator`, `npm test`, `npm run typecheck`                                |
+| Comentários PR           | `gh-resolve-pr-comments` (`.claude/skills/gh-resolve-pr-comments/SKILL.md`) |
+| Env busca web Vercel     | `vercel-cli` + `deployments-cicd`; revisar `api/open-web-search.ts`         |
+| Encerrar sessão vault    | `doc-handoff` + atualizar Bruno Vault `20-SESSOES` se lição nova            |
 
 ---
 
 ## Artifacts (referências — não duplicar)
 
-| Tipo | Path / URL |
-|------|------------|
-| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/301 |
-| Handoff curto repo | `HANDOFF_AI.md` |
-| Plano integridade links | `.cursor/plans/fix_links_urgência_367c96e6.plan.md` |
-| Pipeline fontes | `utils/dossierFinalize.ts`, `utils/dossierLinkIntegrity.ts`, `utils/dossierSourcesFooter.ts`, `utils/dossierSourcePool.ts` |
-| Waterfall | `features/dossier/waterfall-orchestrator.ts` |
-| Fallback web | `services/gemini/investigation-orchestration.ts` (~L171 `continue` em degraded) |
-| UI fontes | `components/MessageRow.tsx`, `components/MarkdownRenderer.tsx` |
-| Loading overlay | `App.tsx` (L~548 `showFullscreenLoadingSmart`), `components/LoadingSmart.tsx` |
-| Testes novos | `tests/utils/dossierLinkIntegrity.test.ts`, `dossierSourcesFooter.test.ts`, `auditableSources-consulted.test.ts` |
-| Handoff PR #300 (mergeada) | `docs/handoffs/2026-05-26-dossier-sync-pr300.md` |
-| Vault ponteiro | `docs/OBSIDIAN_VAULT.md` |
+| Tipo                       | Path / URL                                                                                                                 |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| PR                         | https://github.com/brunolimaff-jpg/NOVO-APP/pull/301                                                                       |
+| Handoff curto repo         | `HANDOFF_AI.md`                                                                                                            |
+| Plano integridade links    | `.cursor/plans/fix_links_urgência_367c96e6.plan.md`                                                                        |
+| Pipeline fontes            | `utils/dossierFinalize.ts`, `utils/dossierLinkIntegrity.ts`, `utils/dossierSourcesFooter.ts`, `utils/dossierSourcePool.ts` |
+| Waterfall                  | `features/dossier/waterfall-orchestrator.ts`                                                                               |
+| Fallback web               | `services/gemini/investigation-orchestration.ts` (~L171 `continue` em degraded)                                            |
+| UI fontes                  | `components/MessageRow.tsx`, `components/MarkdownRenderer.tsx`                                                             |
+| Loading overlay            | `App.tsx` (L~548 `showFullscreenLoadingSmart`), `components/LoadingSmart.tsx`                                              |
+| Testes novos               | `tests/utils/dossierLinkIntegrity.test.ts`, `dossierSourcesFooter.test.ts`, `auditableSources-consulted.test.ts`           |
+| Handoff PR #300 (mergeada) | `docs/handoffs/2026-05-26-dossier-sync-pr300.md`                                                                           |
+| Vault ponteiro             | `docs/OBSIDIAN_VAULT.md`                                                                                                   |
 
 ---
 

@@ -100,7 +100,14 @@ describe('WarRoom', () => {
   it('cancels an in-flight query through the stop button', async () => {
     let capturedSignal: AbortSignal | undefined;
     queryWarRoomMock.mockImplementation(
-      (_mode: WarRoomMode, _message: string, _history: unknown[], _target: string, _onStatus: unknown, options: { signal: AbortSignal }) => {
+      (
+        _mode: WarRoomMode,
+        _message: string,
+        _history: unknown[],
+        _target: string,
+        _onStatus: unknown,
+        options: { signal: AbortSignal },
+      ) => {
         capturedSignal = options.signal;
         return new Promise(() => undefined);
       },

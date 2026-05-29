@@ -29,8 +29,7 @@ function limitHistoryText(text: string, limit: number): string {
 }
 
 function toModelHistoryItem(message: Message): { role: 'user' | 'model'; text: string } {
-  const limit =
-    message.sender === Sender.Bot ? FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT : FOLLOW_UP_USER_HISTORY_CHAR_LIMIT;
+  const limit = message.sender === Sender.Bot ? FOLLOW_UP_BOT_HISTORY_CHAR_LIMIT : FOLLOW_UP_USER_HISTORY_CHAR_LIMIT;
   return {
     role: message.sender === Sender.User ? 'user' : 'model',
     text: limitHistoryText(sanitizeHistoryText(message.text || ''), limit),
@@ -60,9 +59,7 @@ function buildFollowUpHistory(messages: Message[]): Array<{ role: 'user' | 'mode
   const turns = buildCompleteTurns(messages);
   if (turns.length === 0) return [];
 
-  const selectedTurns = turns.length === 1
-    ? turns
-    : [turns[0], turns[turns.length - 1]];
+  const selectedTurns = turns.length === 1 ? turns : [turns[0], turns[turns.length - 1]];
 
   return selectedTurns.flatMap(turn => [toModelHistoryItem(turn.user), toModelHistoryItem(turn.model)]);
 }
@@ -109,10 +106,7 @@ export function buildConversationHistory(
   optionsOrIsDeepDive: BuildConversationHistoryOptions | boolean,
 ): Array<{ role: 'user' | 'model'; text: string }> {
   const validMessages = conversationHistory.filter(message => message.text && message.text.trim().length > 0);
-  const options =
-    typeof optionsOrIsDeepDive === 'boolean'
-      ? { isDeepDive: optionsOrIsDeepDive }
-      : optionsOrIsDeepDive;
+  const options = typeof optionsOrIsDeepDive === 'boolean' ? { isDeepDive: optionsOrIsDeepDive } : optionsOrIsDeepDive;
 
   if (options.isDeepDive) {
     return validMessages

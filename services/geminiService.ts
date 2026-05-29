@@ -4,11 +4,7 @@
 export { getPortaState, resetPortaState, initPortaState } from './portaStateService';
 export { parsePortaMarkerV2 } from '../utils/porta';
 
-export type {
-  GeminiRequestOptions,
-  SendMessageToGeminiResult,
-  SpotterExtractedData,
-} from './gemini/contracts';
+export type { GeminiRequestOptions, SendMessageToGeminiResult, SpotterExtractedData } from './gemini/contracts';
 export type { ParsedPortaFeeds } from './gemini/porta';
 
 export { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from './gemini/porta';

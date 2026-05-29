@@ -75,19 +75,12 @@ describe('parseSmartOptions', () => {
 
 describe('SmartOptions component', () => {
   it('retorna null quando options é vazio', () => {
-    const { container } = render(
-      <SmartOptions options={[]} onPreFillInput={vi.fn()} />,
-    );
+    const { container } = render(<SmartOptions options={[]} onPreFillInput={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 
   it('renderiza botões para cada opção', () => {
-    render(
-      <SmartOptions
-        options={['Opção A', 'Opção B', 'Opção C']}
-        onPreFillInput={vi.fn()}
-      />,
-    );
+    render(<SmartOptions options={['Opção A', 'Opção B', 'Opção C']} onPreFillInput={vi.fn()} />);
     expect(screen.getByText('Opção A')).toBeInTheDocument();
     expect(screen.getByText('Opção B')).toBeInTheDocument();
     expect(screen.getByText('Opção C')).toBeInTheDocument();
@@ -95,21 +88,14 @@ describe('SmartOptions component', () => {
 
   it('chama onPreFillInput com texto ao clicar em opção', () => {
     const onPreFillInput = vi.fn();
-    render(
-      <SmartOptions options={['Analisar fiscal']} onPreFillInput={onPreFillInput} />,
-    );
+    render(<SmartOptions options={['Analisar fiscal']} onPreFillInput={onPreFillInput} />);
     fireEvent.click(screen.getByText('Analisar fiscal'));
     expect(onPreFillInput).toHaveBeenCalledWith('Analisar fiscal');
   });
 
   it('mostra estado de regenerando quando isRegenerating=true', () => {
     const { container } = render(
-      <SmartOptions
-        options={['op1']}
-        onPreFillInput={vi.fn()}
-        isRegenerating
-        onRegenerate={vi.fn()}
-      />,
+      <SmartOptions options={['op1']} onPreFillInput={vi.fn()} isRegenerating onRegenerate={vi.fn()} />,
     );
     // Just verify it renders without crash in this state
     expect(container).toBeTruthy();

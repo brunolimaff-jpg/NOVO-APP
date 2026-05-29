@@ -171,12 +171,14 @@ describe('useRadar', () => {
     });
 
     expect(fetchRadarAlerts).toHaveBeenCalledTimes(1);
-    expect(fetchRadarAlerts).toHaveBeenCalledWith(expect.objectContaining({
-      enabled: false,
-      isConfigured: true,
-      categories: ['concorrentes'],
-      estados: ['MT'],
-    }));
+    expect(fetchRadarAlerts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: false,
+        isConfigured: true,
+        categories: ['concorrentes'],
+        estados: ['MT'],
+      }),
+    );
   });
 
   it('IDB indisponível não quebra o hook (graceful degradation)', async () => {

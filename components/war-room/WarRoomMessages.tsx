@@ -44,15 +44,30 @@ export function WarRoomMessages({
         const mergedSources = messageSourcesMap[msg.id] || [];
         return (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[95%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-3 relative group ${msg.role === 'user'
-              ? `bg-gradient-to-br ${accent.grad[MODE_CONFIG[msg.mode].accent]} text-white shadow-lg`
-              : msg.isError ? t.msgBotErr : t.msgBotBg}`}>
+            <div
+              className={`max-w-[95%] sm:max-w-[85%] rounded-2xl px-3 sm:px-4 py-3 relative group ${
+                msg.role === 'user'
+                  ? `bg-gradient-to-br ${accent.grad[MODE_CONFIG[msg.mode].accent]} text-white shadow-lg`
+                  : msg.isError
+                    ? t.msgBotErr
+                    : t.msgBotBg
+              }`}
+            >
               {msg.isLoading ? (
                 <div className="flex items-center gap-2 py-1">
                   <div className="flex gap-1">
-                    <span className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`} style={{ animationDelay: '0ms' }} />
-                    <span className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`} style={{ animationDelay: '150ms' }} />
-                    <span className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`} style={{ animationDelay: '300ms' }} />
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`}
+                      style={{ animationDelay: '0ms' }}
+                    />
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`}
+                      style={{ animationDelay: '150ms' }}
+                    />
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${t.loadDot} animate-bounce`}
+                      style={{ animationDelay: '300ms' }}
+                    />
                   </div>
                   <span className={`text-[10px] animate-pulse ${t.loadTxt}`}>{status || 'Processando...'}</span>
                 </div>

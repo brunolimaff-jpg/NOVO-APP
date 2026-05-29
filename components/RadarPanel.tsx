@@ -78,7 +78,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
       {/* Panel */}
       <div
         className={`relative w-full max-w-md h-full flex flex-col shadow-2xl transition-all duration-300 ${
-          isDarkMode ? 'bg-gray-900/95 backdrop-blur-xl border-l border-white/10' : 'bg-white/95 backdrop-blur-xl border-l border-gray-200/60'
+          isDarkMode
+            ? 'bg-gray-900/95 backdrop-blur-xl border-l border-white/10'
+            : 'bg-white/95 backdrop-blur-xl border-l border-gray-200/60'
         }`}
       >
         {/* Header */}
@@ -86,13 +88,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-lg">📡</span>
-              <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                Radar Setorial
-              </h2>
+              <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Radar Setorial</h2>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
-                  {unreadCount}
-                </span>
+                <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">{unreadCount}</span>
               )}
             </div>
             <div className="flex items-center gap-1">
@@ -100,7 +98,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                 <button
                   onClick={onOpenSettings}
                   className={`p-1.5 rounded-lg text-sm transition-colors ${
-                    isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                    isDarkMode
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                   title="Configurações do Radar"
                 >
@@ -111,7 +111,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                 <button
                   onClick={onClose}
                   className={`p-1.5 rounded-lg text-sm transition-colors ${
-                    isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                    isDarkMode
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   ✕
@@ -126,9 +128,7 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value as RadarCategory | 'all')}
               className={`text-xs px-2 py-1 rounded-md border ${
-                isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-gray-300'
-                  : 'bg-gray-50 border-gray-200 text-gray-700'
+                isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'
               }`}
             >
               <option value="all">Todas categorias</option>
@@ -168,7 +168,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               <button
                 onClick={onMarkAllAsRead}
                 className={`text-xs px-3 py-1 rounded-md transition-colors ${
-                  isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  isDarkMode
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
                 Marcar todas como lidas
@@ -207,7 +209,9 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
                   onClick={onForceScan}
                   disabled={isScanning}
                   className={`mt-2 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
-                    isDarkMode ? 'bg-red-900/50 hover:bg-red-900 text-red-100' : 'bg-red-100 hover:bg-red-200 text-red-800'
+                    isDarkMode
+                      ? 'bg-red-900/50 hover:bg-red-900 text-red-100'
+                      : 'bg-red-100 hover:bg-red-200 text-red-800'
                   }`}
                 >
                   Tentar novamente
@@ -218,11 +222,17 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
 
           {/* Meta Insight Display */}
           {metaInsight && (
-            <div className={`mt-3 p-3 rounded-lg border text-xs leading-relaxed ${
-              isDarkMode ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-200' : 'bg-indigo-50 border-indigo-200 text-indigo-900'
-            }`}>
+            <div
+              className={`mt-3 p-3 rounded-lg border text-xs leading-relaxed ${
+                isDarkMode
+                  ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-200'
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+              }`}
+            >
               <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold tracking-wider uppercase opacity-80">
-                <span role="img" aria-label="insight">🧠</span>
+                <span role="img" aria-label="insight">
+                  🧠
+                </span>
                 Insight Estratégico (Gemini)
               </div>
               {metaInsight}
@@ -234,11 +244,11 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
         <div className="flex-1 overflow-y-auto p-2">
           {!isConfigured ? (
             <div className={`flex flex-col items-center justify-center h-full px-6 text-center`}>
-              <div className={`w-full max-w-xs p-6 rounded-2xl border-2 border-dashed ${
-                isDarkMode
-                  ? 'border-emerald-800/50 bg-emerald-900/10'
-                  : 'border-emerald-300 bg-emerald-50/50'
-              }`}>
+              <div
+                className={`w-full max-w-xs p-6 rounded-2xl border-2 border-dashed ${
+                  isDarkMode ? 'border-emerald-800/50 bg-emerald-900/10' : 'border-emerald-300 bg-emerald-50/50'
+                }`}
+              >
                 <span className="text-5xl block mb-4">🛰️</span>
                 <h3 className={`text-base font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   Configure seu Radar
@@ -255,18 +265,26 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               </div>
             </div>
           ) : isScanning && filtered.length === 0 ? (
-            <div className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+            <div
+              className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}
+            >
               <span className="text-4xl mb-3 animate-pulse">📡</span>
               <p className="text-sm font-medium animate-pulse">Buscando notícias do setor...</p>
               <p className="text-xs mt-2">Isso costuma levar de 15 a 30 segundos</p>
               <div className="flex gap-1 mt-3">
                 {[0, 1, 2].map(i => (
-                  <span key={i} className={`w-2 h-2 rounded-full bg-emerald-400 animate-bounce`} style={{ animationDelay: `${i * 0.15}s` }} />
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full bg-emerald-400 animate-bounce`}
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
                 ))}
               </div>
             </div>
           ) : filtered.length === 0 ? (
-            <div className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+            <div
+              className={`flex flex-col items-center justify-center h-48 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}
+            >
               <span className="text-4xl mb-2">📡</span>
               <p className="text-sm font-medium">Nenhum alerta encontrado</p>
               <p className="text-xs mt-1">
@@ -278,103 +296,128 @@ const RadarPanel: React.FC<RadarPanelProps> = ({
               {(filtered || []).map(alert => {
                 const isVulnerabilidade = alert.impacto === 'vulnerabilidade';
                 return (
-                <div
-                  key={alert.id}
-                  className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg ${
-                    !alert.read
-                      ? isDarkMode
-                        ? isVulnerabilidade 
-                          ? 'bg-gradient-to-br from-red-900/20 to-gray-800/80 border-red-500/50 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
-                          : 'bg-gradient-to-br from-emerald-900/20 to-gray-800/80 border-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
-                        : isVulnerabilidade
-                          ? 'bg-gradient-to-br from-red-50 to-white border-red-300 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
-                          : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
-                      : isDarkMode
-                        ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:border-gray-600'
-                        : 'bg-gray-50/80 border-gray-200/60 hover:bg-white hover:border-gray-300'
-                  }`}
-                  onClick={() => {
-                    onMarkAsRead(alert.id);
-                    if (alert.sourceUrl && alert.sourceUrl !== '#') {
-                      window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      {/* Category + Relevance tags */}
-                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${RADAR_CATEGORY_COLORS[alert.category]}`}>
-                          {RADAR_CATEGORY_ICONS[alert.category]} {RADAR_CATEGORY_LABELS[alert.category]}
-                        </span>
-                        
-                        {alert.impacto && alert.impacto !== 'neutro' && (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            alert.impacto === 'vulnerabilidade' || alert.impacto === 'ameaca'
-                              ? 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
-                              : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                          }`}>
-                            {alert.impacto.toUpperCase()}
+                  <div
+                    key={alert.id}
+                    className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg ${
+                      !alert.read
+                        ? isDarkMode
+                          ? isVulnerabilidade
+                            ? 'bg-gradient-to-br from-red-900/20 to-gray-800/80 border-red-500/50 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
+                            : 'bg-gradient-to-br from-emerald-900/20 to-gray-800/80 border-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
+                          : isVulnerabilidade
+                            ? 'bg-gradient-to-br from-red-50 to-white border-red-300 shadow-[0_4px_20px_-4px_rgba(239,68,68,0.15)]'
+                            : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)]'
+                        : isDarkMode
+                          ? 'bg-gray-800/40 border-gray-700/50 hover:bg-gray-800/60 hover:border-gray-600'
+                          : 'bg-gray-50/80 border-gray-200/60 hover:bg-white hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      onMarkAsRead(alert.id);
+                      if (alert.sourceUrl && alert.sourceUrl !== '#') {
+                        window.open(alert.sourceUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {/* Category + Relevance tags */}
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                          <span
+                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${RADAR_CATEGORY_COLORS[alert.category]}`}
+                          >
+                            {RADAR_CATEGORY_ICONS[alert.category]} {RADAR_CATEGORY_LABELS[alert.category]}
                           </span>
-                        )}
 
-                        {alert.estagio === 'sinal_fraco' && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30 truncate" title="Sinal Fraco Captado pelo Radar">
-                            🔮 Preditivo
-                          </span>
-                        )}
+                          {alert.impacto && alert.impacto !== 'neutro' && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                alert.impacto === 'vulnerabilidade' || alert.impacto === 'ameaca'
+                                  ? 'bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30'
+                                  : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                              }`}
+                            >
+                              {alert.impacto.toUpperCase()}
+                            </span>
+                          )}
 
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${RELEVANCE_BADGES[alert.relevance]}`}>
-                          {alert.relevance}
-                        </span>
-                        {alert.estado && (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
-                            {alert.estado}
+                          {alert.estagio === 'sinal_fraco' && (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-violet-500/20 text-violet-700 dark:text-violet-400 border border-violet-500/30 truncate"
+                              title="Sinal Fraco Captado pelo Radar"
+                            >
+                              🔮 Preditivo
+                            </span>
+                          )}
+
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${RELEVANCE_BADGES[alert.relevance]}`}
+                          >
+                            {alert.relevance}
                           </span>
-                        )}
-                        {!alert.read && (
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                        )}
+                          {alert.estado && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'}`}
+                            >
+                              {alert.estado}
+                            </span>
+                          )}
+                          {!alert.read && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
+                        </div>
+
+                        {/* Title with external link indicator */}
+                        <div className="flex items-start gap-1">
+                          <span
+                            className={`text-sm font-semibold leading-tight flex-1 ${
+                              isDarkMode
+                                ? 'text-gray-200 group-hover:text-emerald-400'
+                                : 'text-slate-800 group-hover:text-emerald-600'
+                            } transition-colors`}
+                          >
+                            {alert.title}
+                          </span>
+                          <span
+                            className={`text-[10px] mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${
+                              isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+                            }`}
+                          >
+                            ↗
+                          </span>
+                        </div>
+
+                        {/* Summary */}
+                        <p
+                          className={`text-xs mt-1 leading-relaxed line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                        >
+                          {alert.summary}
+                        </p>
+
+                        {/* Footer */}
+                        <div
+                          className={`flex items-center gap-2 mt-1.5 text-[10px] ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}
+                        >
+                          <span>{alert.sourceName || 'Fonte'}</span>
+                          <span>·</span>
+                          <span>{timeAgo(alert.scannedAt)}</span>
+                        </div>
                       </div>
 
-                      {/* Title with external link indicator */}
-                      <div className="flex items-start gap-1">
-                        <span className={`text-sm font-semibold leading-tight flex-1 ${
-                          isDarkMode ? 'text-gray-200 group-hover:text-emerald-400' : 'text-slate-800 group-hover:text-emerald-600'
-                        } transition-colors`}>
-                          {alert.title}
-                        </span>
-                        <span className={`text-[10px] mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${
-                          isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-                        }`}>↗</span>
-                      </div>
-
-                      {/* Summary */}
-                      <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {alert.summary}
-                      </p>
-
-                      {/* Footer */}
-                      <div className={`flex items-center gap-2 mt-1.5 text-[10px] ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                        <span>{alert.sourceName || 'Fonte'}</span>
-                        <span>·</span>
-                        <span>{timeAgo(alert.scannedAt)}</span>
-                      </div>
+                      {/* Dismiss button */}
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          onDismiss(alert.id);
+                        }}
+                        className={`p-1 rounded text-xs transition-colors flex-shrink-0 ${
+                          isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-300 hover:text-gray-500'
+                        }`}
+                        title="Remover alerta"
+                      >
+                        ✕
+                      </button>
                     </div>
-
-                    {/* Dismiss button */}
-                    <button
-                      onClick={e => { e.stopPropagation(); onDismiss(alert.id); }}
-                      className={`p-1 rounded text-xs transition-colors flex-shrink-0 ${
-                        isDarkMode ? 'text-gray-600 hover:text-gray-400' : 'text-gray-300 hover:text-gray-500'
-                      }`}
-                      title="Remover alerta"
-                    >
-                      ✕
-                    </button>
                   </div>
-                </div>
-              )})}
+                );
+              })}
             </div>
           )}
         </div>

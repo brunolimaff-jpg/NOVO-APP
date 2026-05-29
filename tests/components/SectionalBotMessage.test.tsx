@@ -49,12 +49,7 @@ describe('SectionalBotMessage', () => {
       ].join('\n'),
     };
 
-    render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-      />
-    );
+    render(<SectionalBotMessage message={message} isDarkMode={false} />);
 
     expect(screen.getByText('Módulo 1')).toBeInTheDocument();
     expect(screen.getByText('Módulo 2')).toBeInTheDocument();
@@ -126,22 +121,11 @@ describe('SectionalBotMessage', () => {
       id: 'bot-teia',
       sender: Sender.Bot,
       timestamp: new Date(),
-      text: [
-        '## Mapas Visuais',
-        '',
-        '### Mapa: Teia societária',
-        '',
-        'Conteúdo textual da teia.',
-      ].join('\n'),
+      text: ['## Mapas Visuais', '', '### Mapa: Teia societária', '', 'Conteúdo textual da teia.'].join('\n'),
     };
 
     render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-      />,
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
     );
 
     expect(screen.getByTestId('societary-map')).toHaveTextContent('04733767000180::Scheffer & Cia');
@@ -172,12 +156,7 @@ describe('SectionalBotMessage', () => {
     };
 
     render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-      />,
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
     );
 
     expect(screen.getByTestId('societary-map')).toHaveTextContent('Agropecuaria Scheffer Ltda');
@@ -214,12 +193,7 @@ describe('SectionalBotMessage', () => {
     };
 
     render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-      />,
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
     );
 
     expect(screen.queryByText(/Amaggi Exportação/)).not.toBeInTheDocument();
@@ -256,12 +230,7 @@ describe('SectionalBotMessage', () => {
     };
 
     render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-      />,
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
     );
 
     expect(screen.getAllByTestId('societary-map')).toHaveLength(1);
@@ -285,14 +254,7 @@ describe('SectionalBotMessage', () => {
       ].join('\n'),
     };
 
-    render(
-      <SectionalBotMessage
-        message={message}
-        sessionId="session-1"
-        userId="operator-1"
-        isDarkMode={false}
-      />,
-    );
+    render(<SectionalBotMessage message={message} sessionId="session-1" userId="operator-1" isDarkMode={false} />);
 
     expect(screen.getAllByText('Essa parte ajudou?')).toHaveLength(2);
     expect(screen.getByText(/Resumo executivo/)).toBeInTheDocument();
@@ -332,12 +294,7 @@ describe('SectionalBotMessage', () => {
     };
 
     const { container } = render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-      />,
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
     );
 
     // SocietaryMap deve ter sido renderizado
@@ -357,7 +314,12 @@ describe('SectionalBotMessage', () => {
     // re-parseia o markdown completo a cada re-render, congelando a UI.
     const capturedRefs: AuditableSource[][] = [];
 
-    const CapturingMarkdownRenderer = ({ auditableSources }: { content: string; auditableSources?: AuditableSource[] }) => {
+    const CapturingMarkdownRenderer = ({
+      auditableSources,
+    }: {
+      content: string;
+      auditableSources?: AuditableSource[];
+    }) => {
       capturedRefs.push(auditableSources ?? []);
       return <div />;
     };
@@ -381,11 +343,7 @@ describe('SectionalBotMessage', () => {
       return (
         <>
           <button onClick={() => setTick(t => t + 1)}>tick {tick}</button>
-          <SectionalBotMessage
-            message={message}
-            isDarkMode={false}
-            auditableSources={stableSources}
-          />
+          <SectionalBotMessage message={message} isDarkMode={false} auditableSources={stableSources} />
         </>
       );
     };
@@ -394,7 +352,9 @@ describe('SectionalBotMessage', () => {
 
     const firstRefs = capturedRefs.slice();
 
-    act(() => { getByRole('button').click(); });
+    act(() => {
+      getByRole('button').click();
+    });
 
     const secondRefs = capturedRefs.slice(firstRefs.length);
 

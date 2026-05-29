@@ -24,9 +24,9 @@ test.describe('Scout smoke - chat shell', () => {
 
     await expect(page.getByTestId('sidebar-toggle')).toBeVisible();
     await expect(page.getByTestId('chat-input')).toBeVisible();
-    await expect(
-      page.getByTestId('chat-send-button').or(page.getByTestId('chat-stop-button')),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('send-message-button').or(page.getByTestId('chat-stop-button'))).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByTestId('chat-new-investigation-button')).toBeVisible();
     await expect(page.getByTestId('chat-theme-toggle')).toBeVisible();
   });
@@ -34,15 +34,13 @@ test.describe('Scout smoke - chat shell', () => {
   test('deve permitir digitar no chat e acionar envio', async ({ page }) => {
     await openChatShell(page);
 
-    await page
-      .getByTestId('chat-input')
-      .fill('Quais s\u00E3o os principais riscos fiscais dessa opera\u00E7\u00E3o?', {
-        timeout: 40_000,
-      });
-    await page.getByTestId('chat-send-button').click();
+    await page.getByTestId('chat-input').fill('Quais s\u00E3o os principais riscos fiscais dessa opera\u00E7\u00E3o?', {
+      timeout: 40_000,
+    });
+    await page.getByTestId('send-message-button').click();
 
-    await expect(
-      page.getByTestId('chat-processing-indicator').or(page.getByTestId('chat-stop-button')),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('chat-processing-indicator').or(page.getByTestId('chat-stop-button'))).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

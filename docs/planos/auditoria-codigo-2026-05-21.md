@@ -1,4 +1,5 @@
 # Plano de Auditoria de Codigo - Senior Scout 360
+
 ## 2026-05-21
 
 ---
@@ -44,16 +45,16 @@ Onda 5: Verificacao final (testes + typecheck + build)
 
 ### Agentes por Dimensao
 
-| Dimensao | Agente | Modelo | Arquivos-alvo |
-|----------|--------|--------|---------------|
-| Falhas Silenciosas | debugger | sonnet | components/, services/, api/, features/, utils/ |
-| Performance | react-next-ts | sonnet | App.tsx, components/, vite.config.ts, stores/ |
-| Seguranca | reviewer | sonnet | api/*.ts, index.tsx, services/geminiProxy.ts, .env* |
+| Dimensao           | Agente        | Modelo | Arquivos-alvo                                       |
+| ------------------ | ------------- | ------ | --------------------------------------------------- |
+| Falhas Silenciosas | debugger      | sonnet | components/, services/, api/, features/, utils/     |
+| Performance        | react-next-ts | sonnet | App.tsx, components/, vite.config.ts, stores/       |
+| Seguranca          | reviewer      | sonnet | api/_.ts, index.tsx, services/geminiProxy.ts, .env_ |
 
 ### Regras Fixas
 
 1. NUNCA modificar fachadas congeladas: `geminiService.ts`, `warRoomService.ts`, `ChatInterface.tsx`, `constants.ts`, `megaPrompts.ts`, `types.ts`
-2. NUNCA modificar arquivos de teste (tests/*) — apenas codigo de producao
+2. NUNCA modificar arquivos de teste (tests/\*) — apenas codigo de producao
 3. NUNCA modificar `.env.local` ou `.env.example` — apenas alertar sobre riscos
 4. APOS cada correcao, rodar: `npm run typecheck && npm run lint -- --quiet`
 5. AO FINAL de cada onda, rodar: `npm test` completo (834+ testes)
@@ -116,28 +117,28 @@ catch (e) { log(e); }
 
 Baseado em inspecao previa, estes arquivos tem ocorrencias confirmadas de `catch {}` (sem parametro):
 
-| Arquivo | Linhas | Risco | Prioridade |
-|---------|--------|-------|------------|
-| contexts/ModeContext.tsx | 23, 32 | Erro de parse JSON silencioso | P0 |
-| features/radar/useRadar.ts | 104-116, 138 | IDB ops falham sem warning | P0 |
-| features/radar/service.ts | 192 | Erro oculto em scan | P0 |
-| features/dossier/waterfall-orchestrator.ts | 104 | Erro em waterfall | P0 |
-| utils/idbStorage.ts | 13, 22, 30 | Storage falha silenciosamente | P0 |
-| utils/diagnosticLog.ts | 31, 47 | catch em modulo de log (ironico) | P1 |
-| utils/conversationHistory.ts | 42 | Parse history falha | P1 |
-| utils/textCleaners.ts | 386, 463 | Cleaner falha sem aviso | P1 |
-| utils/webVerification.ts | 38, 52, 96 | Verificacao de URL falha | P1 |
-| utils/documentExtractor.ts | 37 | Extracao falha | P1 |
-| utils/loadingCuriosities.ts | 150 | Loading state falha | P2 |
-| utils/PDFGenerator.ts | 387 | PDF gen falha | P1 |
-| utils/linkValidation.ts | 26 | Link check falha | P2 |
-| components/InvestigationDashboard.tsx | 36 | Dashboard falha | P1 |
-| components/SectionalBotMessage.tsx | 30 | Mensagem falha | P1 |
-| components/FollowUpModal.tsx | 100 | Modal falha | P1 |
-| components/SystemHealthCheck.tsx | 212 | Health check falha | P1 |
-| components/MessageActionsBar.tsx | 108 | Acoes falham | P1 |
-| components/WarRoom.tsx | 57 | WarRoom falha | P1 |
-| hooks/useAppInitialization.ts | 35, 79 | `.catch(() => {})` | P0 |
+| Arquivo                                    | Linhas       | Risco                            | Prioridade |
+| ------------------------------------------ | ------------ | -------------------------------- | ---------- |
+| contexts/ModeContext.tsx                   | 23, 32       | Erro de parse JSON silencioso    | P0         |
+| features/radar/useRadar.ts                 | 104-116, 138 | IDB ops falham sem warning       | P0         |
+| features/radar/service.ts                  | 192          | Erro oculto em scan              | P0         |
+| features/dossier/waterfall-orchestrator.ts | 104          | Erro em waterfall                | P0         |
+| utils/idbStorage.ts                        | 13, 22, 30   | Storage falha silenciosamente    | P0         |
+| utils/diagnosticLog.ts                     | 31, 47       | catch em modulo de log (ironico) | P1         |
+| utils/conversationHistory.ts               | 42           | Parse history falha              | P1         |
+| utils/textCleaners.ts                      | 386, 463     | Cleaner falha sem aviso          | P1         |
+| utils/webVerification.ts                   | 38, 52, 96   | Verificacao de URL falha         | P1         |
+| utils/documentExtractor.ts                 | 37           | Extracao falha                   | P1         |
+| utils/loadingCuriosities.ts                | 150          | Loading state falha              | P2         |
+| utils/PDFGenerator.ts                      | 387          | PDF gen falha                    | P1         |
+| utils/linkValidation.ts                    | 26           | Link check falha                 | P2         |
+| components/InvestigationDashboard.tsx      | 36           | Dashboard falha                  | P1         |
+| components/SectionalBotMessage.tsx         | 30           | Mensagem falha                   | P1         |
+| components/FollowUpModal.tsx               | 100          | Modal falha                      | P1         |
+| components/SystemHealthCheck.tsx           | 212          | Health check falha               | P1         |
+| components/MessageActionsBar.tsx           | 108          | Acoes falham                     | P1         |
+| components/WarRoom.tsx                     | 57           | WarRoom falha                    | P1         |
+| hooks/useAppInitialization.ts              | 35, 79       | `.catch(() => {})`               | P0         |
 
 ### 2.4 Remediacao
 
@@ -145,10 +146,11 @@ Para cada `catch {}` identificado, aplicar uma das seguintes:
 
 1. **Adicionar `scoutDiag.warn()`** — para erros esperados/degradacao (ex: IDB indisponivel)
 2. **Adicionar `scoutDiag.error()`** — para erros inesperados que impactam usuario
-3. **Adicionar `console.error()`** — em codigo serverless (api/*.ts) onde scoutDiag nao esta disponivel
+3. **Adicionar `console.error()`** — em codigo serverless (api/\*.ts) onde scoutDiag nao esta disponivel
 4. **Propagar o erro** — quando o chamador precisa saber (rethrow ou retornar Result type)
 
 **Padrao recomendado:**
+
 ```typescript
 // BOM
 try {
@@ -162,6 +164,7 @@ try {
 ```
 
 **Excecoes aceitaveis para catch silencioso:**
+
 - `navigator.clipboard.writeText()` — fallback aceito (UX degradada nao critica)
 - Service Worker unregister em dev — operacao best-effort
 - Cache API delete em dev — operacao best-effort
@@ -189,15 +192,16 @@ Auditar contra as 64 regras do framework Vercel React Best Practices, organizada
 
 #### Categoria A: Waterfalls (cadeias de requisicao)
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| A1 | Evitar fetch em cascata (request que depende de outra) | ALTA |
-| A2 | Parallel data fetching com Promise.all | ALTA |
-| A3 | Streaming SSR para dados lentos | BAIXA (SPA) |
-| A4 | Route-based code splitting | MEDIA |
-| A5 | Layout data fetching independente | BAIXA |
+| Regra | Descricao                                              | Relevancia  |
+| ----- | ------------------------------------------------------ | ----------- |
+| A1    | Evitar fetch em cascata (request que depende de outra) | ALTA        |
+| A2    | Parallel data fetching com Promise.all                 | ALTA        |
+| A3    | Streaming SSR para dados lentos                        | BAIXA (SPA) |
+| A4    | Route-based code splitting                             | MEDIA       |
+| A5    | Layout data fetching independente                      | BAIXA       |
 
 **Padroes a procurar:**
+
 ```typescript
 // ANTI-PADRAO (serial waterfall)
 const company = await lookupCnpj(cnpj);
@@ -209,15 +213,16 @@ const [company, news] = await Promise.all([lookupCnpj(cnpj), fetchNews(cnpj)]);
 
 #### Categoria B: Bundle Size
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| B1 | Dynamic import de bibliotecas pesadas | ALTA |
-| B2 | Tree-shaking verification | MEDIA |
-| B3 | Bundle analysis no CI | ALTA |
-| B4 | Evitar dependencias duplicadas | MEDIA |
-| B5 | Lazy load de componentes abaixo da dobra | MEDIA |
+| Regra | Descricao                                | Relevancia |
+| ----- | ---------------------------------------- | ---------- |
+| B1    | Dynamic import de bibliotecas pesadas    | ALTA       |
+| B2    | Tree-shaking verification                | MEDIA      |
+| B3    | Bundle analysis no CI                    | ALTA       |
+| B4    | Evitar dependencias duplicadas           | MEDIA      |
+| B5    | Lazy load de componentes abaixo da dobra | MEDIA      |
 
 **Bibliotecas pesadas no bundle atual:**
+
 - mermaid (~3.1 MB chunk) — candidato a dynamic import
 - jspdf (~1.2 MB) — so usado em export
 - mammoth (~0.5 MB) — so usado em extracao de documento
@@ -225,6 +230,7 @@ const [company, news] = await Promise.all([lookupCnpj(cnpj), fetchNews(cnpj)]);
 - framer-motion (~0.6 MB) — animacoes
 
 **Candidatos a dynamic import:**
+
 ```typescript
 // ANTI-PADRAO: import estatico de lib pesada
 import { jsPDF } from 'jspdf';
@@ -235,15 +241,16 @@ const { default: jsPDF } = await import('jspdf');
 
 #### Categoria C: Server-Side (Vercel Serverless Functions)
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| C1 | Cold start minimization | ALTA |
-| C2 | Edge vs Node runtime choice | MEDIA |
-| C3 | Response streaming | MEDIA |
-| C4 | Cache-Control headers | ALTA |
-| C5 | Avoid heavy computation on server | MEDIA |
+| Regra | Descricao                         | Relevancia |
+| ----- | --------------------------------- | ---------- |
+| C1    | Cold start minimization           | ALTA       |
+| C2    | Edge vs Node runtime choice       | MEDIA      |
+| C3    | Response streaming                | MEDIA      |
+| C4    | Cache-Control headers             | ALTA       |
+| C5    | Avoid heavy computation on server | MEDIA      |
 
 **Verificacoes:**
+
 - api/gemini.ts tem maxDuration = 300 — adequado?
 - api/radar-scan.ts tem maxDuration = 120 — adequado?
 - Rotas GET estao usando cache headers?
@@ -251,30 +258,32 @@ const { default: jsPDF } = await import('jspdf');
 
 #### Categoria D: Client-Side Fetching
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| D1 | TanStack Query usage | ALTA |
-| D2 | Deduplication of requests | MEDIA |
-| D3 | Prefetching de dados previsiveis | BAIXA |
-| D4 | Stale-while-revalidate pattern | MEDIA |
-| D5 | Optimistic updates | BAIXA |
+| Regra | Descricao                        | Relevancia |
+| ----- | -------------------------------- | ---------- |
+| D1    | TanStack Query usage             | ALTA       |
+| D2    | Deduplication of requests        | MEDIA      |
+| D3    | Prefetching de dados previsiveis | BAIXA      |
+| D4    | Stale-while-revalidate pattern   | MEDIA      |
+| D5    | Optimistic updates               | BAIXA      |
 
 **Verificacoes:**
+
 - QueryClient configurado em index.tsx com staleTime: 5min, retry: 2
 - Verificar se componentes estao usando hooks do TanStack Query consistentemente
 - Identificar useEffect + fetch direto que deveriam ser queries
 
 #### Categoria E: Re-renders
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| E1 | React.memo em listas grandes | ALTA |
-| E2 | useMemo/useCallback para props-estaveis | ALTA |
-| E3 | Evitar new objetos/arrays em render | ALTA |
-| E4 | Key prop estavel em lists | ALTA |
-| E5 | Context splitting | MEDIA |
+| Regra | Descricao                               | Relevancia |
+| ----- | --------------------------------------- | ---------- |
+| E1    | React.memo em listas grandes            | ALTA       |
+| E2    | useMemo/useCallback para props-estaveis | ALTA       |
+| E3    | Evitar new objetos/arrays em render     | ALTA       |
+| E4    | Key prop estavel em lists               | ALTA       |
+| E5    | Context splitting                       | MEDIA      |
 
 **Padroes a procurar:**
+
 ```typescript
 // ANTI-PADRAO: novo objeto a cada render
 <Component config={{ key: 'value' }} />
@@ -287,6 +296,7 @@ const { default: jsPDF } = await import('jspdf');
 ```
 
 **Componentes grandes a verificar:**
+
 - LoadingSmart.tsx (672 linhas) — candidato a memo
 - EmptyStateHome.tsx (32k) — candidato a splitting
 - MarkdownRenderer.tsx (20k) — candidato a memo
@@ -296,55 +306,49 @@ const { default: jsPDF } = await import('jspdf');
 
 #### Categoria F: Rendering
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| F1 | Avoid unnecessary Suspense boundaries | MEDIA |
-| F2 | Correct SSR hydration | BAIXA (SPA) |
-| F3 | Image optimization | BAIXA |
-| F4 | Avoid layout shift | MEDIA |
-| F5 | Font loading strategy | BAIXA |
+| Regra | Descricao                             | Relevancia  |
+| ----- | ------------------------------------- | ----------- |
+| F1    | Avoid unnecessary Suspense boundaries | MEDIA       |
+| F2    | Correct SSR hydration                 | BAIXA (SPA) |
+| F3    | Image optimization                    | BAIXA       |
+| F4    | Avoid layout shift                    | MEDIA       |
+| F5    | Font loading strategy                 | BAIXA       |
 
 #### Categoria G: JavaScript Performance
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| G1 | Debounce/Throttle em eventos frequentes | ALTA |
-| G2 | Avoid long tasks (>50ms) | MEDIA |
-| G3 | requestAnimationFrame para animacoes | BAIXA |
-| G4 | Web Workers para processamento pesado | MEDIA |
-| G5 | Avoid forcing layout/reflow | BAIXA |
+| Regra | Descricao                               | Relevancia |
+| ----- | --------------------------------------- | ---------- |
+| G1    | Debounce/Throttle em eventos frequentes | ALTA       |
+| G2    | Avoid long tasks (>50ms)                | MEDIA      |
+| G3    | requestAnimationFrame para animacoes    | BAIXA      |
+| G4    | Web Workers para processamento pesado   | MEDIA      |
+| G5    | Avoid forcing layout/reflow             | BAIXA      |
 
 #### Categoria H: Advanced Patterns
 
-| Regra | Descricao | Relevancia |
-|-------|-----------|------------|
-| H1 | React Compiler (React Forget) | ALTA |
-| H2 | useOptimistic para UX otimista | BAIXA |
-| H3 | useTransition para updates nao-urgentes | MEDIA |
-| H4 | Server Actions (se aplicavel) | BAIXA |
-| H5 | Partial Prerendering | BAIXA |
+| Regra | Descricao                               | Relevancia |
+| ----- | --------------------------------------- | ---------- |
+| H1    | React Compiler (React Forget)           | ALTA       |
+| H2    | useOptimistic para UX otimista          | BAIXA      |
+| H3    | useTransition para updates nao-urgentes | MEDIA      |
+| H4    | Server Actions (se aplicavel)           | BAIXA      |
+| H5    | Partial Prerendering                    | BAIXA      |
 
 **Nota importante:** React Compiler (babel-plugin-react-compiler) esta ativo apenas em desenvolvimento (NODE_ENV !== 'production'). O comentario no vite.config.ts diz que em producao causa TDZ. Isso precisa ser investigado — ou o bug foi resolvido em versao mais recente do compilador, ou o codigo precisa ser ajustado para permitir compilacao em producao.
 
 ### 3.3 Remediacao
 
 **Prioridade ALTA (impacto direto em UX):**
+
 1. React.memo() em componentes de lista (MessageRow, cards de dossie)
 2. Dynamic import de mermaid, jspdf, mammoth, pdf-parse
 3. useMemo/useCallback em props de componentes grandes
 4. Substituir useEffect + fetch por TanStack Query onde houver
 5. Cache-Control headers em API routes GET
 
-**Prioridade MEDIA:**
-6. Debounce em search/busca de sessoes
-7. Splitting de componentes grandes (>500 linhas) — continuar o trabalho da Fase 2
-8. Verificar keys estaveis em listas
-9. Promise.all em waterfalls serializados
+**Prioridade MEDIA:** 6. Debounce em search/busca de sessoes 7. Splitting de componentes grandes (>500 linhas) — continuar o trabalho da Fase 2 8. Verificar keys estaveis em listas 9. Promise.all em waterfalls serializados
 
-**Prioridade BAIXA:**
-10. Investigar React Compiler em producao
-11. Lazy loading de abas/drawers (SettingsDrawer, RadarPanel)
-12. Bundle analysis no CI (vite build --analyze ou similar)
+**Prioridade BAIXA:** 10. Investigar React Compiler em producao 11. Lazy loading de abas/drawers (SettingsDrawer, RadarPanel) 12. Bundle analysis no CI (vite build --analyze ou similar)
 
 ### 3.4 Criterio de Aprovacao
 
@@ -365,6 +369,7 @@ const { default: jsPDF } = await import('jspdf');
 ### 4.1 Escopo
 
 Auditar contra:
+
 - Exposicao de chaves/segredos em frontend
 - Validacao de input (Zod, sanitizacao)
 - XSS e injecao
@@ -387,6 +392,7 @@ Auditar contra:
 ```
 
 **Recomendacao:**
+
 - Manter como risco aceito para app interno
 - Adicionar alerta em index.tsx se VITE_PINECONE_API_KEY aparecer em bundle de producao
 - Documentar que, se o app virar externo, migrar Pinecone para serverless (OI-055 reabrir)
@@ -400,7 +406,8 @@ Baseado em inspecao: `.env.local` contem chaves reais de Pinecone, Gemini e Brav
 
 #### P1: API Routes sem autenticacao
 
-**Todas as rotas api/*.ts** sao publicas (sem auth). Para app interno fechado com Vercel Protection, isso e aceitavel, mas:
+**Todas as rotas api/\*.ts** sao publicas (sem auth). Para app interno fechado com Vercel Protection, isso e aceitavel, mas:
+
 - api/gemini.ts aceita qualquer payload POST — risco de abuso de quota
 - api/open-web-search.ts aceita qualquer payload POST — risco de custo
 - api/radar-scan.ts aceita qualquer payload POST — risco de custo
@@ -428,6 +435,7 @@ function UserInput({ value }: { value: string }) {
 ```
 
 **Verificar:**
+
 - react-markdown com rehype-raw — permite HTML bruto? Risco XSS.
 - Props de componente que recebem HTML/markdown sem sanitizacao
 - INNER_HTML_PATTERN em qualquer lugar
@@ -440,6 +448,7 @@ function UserInput({ value }: { value: string }) {
 ```
 
 **Verificar CORS em TODAS as rotas:**
+
 - api/gemini.ts — sem CORS explicito
 - api/open-web-search.ts — sem CORS explicito
 - api/radar-scan.ts — sem CORS explicito
@@ -448,6 +457,7 @@ function UserInput({ value }: { value: string }) {
 #### SSRF Prevention
 
 **Verificar:**
+
 - api/open-web-search.ts — faz fetch para URLs externas com parametro url. Validacao de URL existe?
 - api/extract-content.ts — faz fetch de URL. Validacao?
 - api/link-status.ts — faz fetch de URL. Validacao SSRF?
@@ -456,26 +466,20 @@ function UserInput({ value }: { value: string }) {
 
 O codigo ja tem applyPromptLeakShieldLocal em api/gemini.ts (bom).
 **Verificar** se a mesma protecao existe em:
+
 - api/gerar-dossie.ts
 - features/chat/message-orchestrator.ts (lado do cliente)
 
 ### 4.4 Remediacao
 
 **Prioridade P0 (corrigir imediatamente):**
+
 1. Confirmar .env.local no .gitignore — se nao estiver, adicionar
-2. Verificar se GEMINI_API_KEY ou PINECONE_* vazam para o bundle frontend (build + inspecionar dist/)
+2. Verificar se GEMINI*API_KEY ou PINECONE*\* vazam para o bundle frontend (build + inspecionar dist/)
 
-**Prioridade P1 (alta):**
-3. Adicionar CORS com origin validation em TODAS as API routes (seguir padrao de api/cnpj.ts)
-4. Adicionar Bearer token check em API routes serverless
-5. Sanitizacao de props de componente que renderizam HTML
-6. SSRF protection em endpoints que fazem fetch externo (open-web-search, extract-content, link-status)
-7. Input validation faltante em props de componente
+**Prioridade P1 (alta):** 3. Adicionar CORS com origin validation em TODAS as API routes (seguir padrao de api/cnpj.ts) 4. Adicionar Bearer token check em API routes serverless 5. Sanitizacao de props de componente que renderizam HTML 6. SSRF protection em endpoints que fazem fetch externo (open-web-search, extract-content, link-status) 7. Input validation faltante em props de componente
 
-**Prioridade P2 (media):**
-8. CSP (Content Security Policy) headers
-9. Auditoria de INNER_HTML_PATTERN em todo o codigo
-10. Verificar react-markdown com rehype-raw para XSS
+**Prioridade P2 (media):** 8. CSP (Content Security Policy) headers 9. Auditoria de INNER_HTML_PATTERN em todo o codigo 10. Verificar react-markdown com rehype-raw para XSS
 
 ### 4.5 Criterio de Aprovacao
 
@@ -496,23 +500,23 @@ O codigo ja tem applyPromptLeakShieldLocal em api/gemini.ts (bom).
 
 ### Matriz de Priorizacao (RICE)
 
-| Item | Reach | Impact | Confidence | Effort | RICE Score |
-|------|-------|--------|------------|--------|------------|
-| Catch silencioso P0 (IDB, ModeContext) | 100% users | 3 (bugs sem diagnostico) | 100% (confirmado em grep) | 4h | 300 |
-| Pinecone keys em frontend | 100% devs | 2 (risco de vazamento) | 90% (confirmado) | 1h (auditar) | 180 |
-| CORS ausente em API routes | 100% requests | 2 (risco de abuso) | 85% (5 de 6 rotas) | 2h | 170 |
-| Fetch waterfall serial | 80% users | 2 (lentidao) | 70% (padrao comum) | 3h | 112 |
-| Dynamic import de libs pesadas | 60% users | 2 (bundle grande) | 80% (mermaid, jspdf) | 3h | 96 |
-| Auth em API routes | 100% requests | 3 (seguranca) | 50% (app interno) | 2h | 150 |
-| XSS via rehype-raw | 30% users | 3 (critico se explorado) | 40% (baixa probabilidade) | 1h | 36 |
+| Item                                   | Reach         | Impact                   | Confidence                | Effort       | RICE Score |
+| -------------------------------------- | ------------- | ------------------------ | ------------------------- | ------------ | ---------- |
+| Catch silencioso P0 (IDB, ModeContext) | 100% users    | 3 (bugs sem diagnostico) | 100% (confirmado em grep) | 4h           | 300        |
+| Pinecone keys em frontend              | 100% devs     | 2 (risco de vazamento)   | 90% (confirmado)          | 1h (auditar) | 180        |
+| CORS ausente em API routes             | 100% requests | 2 (risco de abuso)       | 85% (5 de 6 rotas)        | 2h           | 170        |
+| Fetch waterfall serial                 | 80% users     | 2 (lentidao)             | 70% (padrao comum)        | 3h           | 112        |
+| Dynamic import de libs pesadas         | 60% users     | 2 (bundle grande)        | 80% (mermaid, jspdf)      | 3h           | 96         |
+| Auth em API routes                     | 100% requests | 3 (seguranca)            | 50% (app interno)         | 2h           | 150        |
+| XSS via rehype-raw                     | 30% users     | 3 (critico se explorado) | 40% (baixa probabilidade) | 1h           | 36         |
 
 ### Matriz de Risco por Dimensao
 
-| Dimensao | Risco Atual | Impacto Potencial | Esforco Total |
-|----------|-------------|-------------------|---------------|
-| Falhas Silenciosas | ALTO (30+ ocorrencias) | Bugs nao diagnosticaveis, usuario ve tela parada | 6-8h |
-| Performance | MEDIO (bundle 3MB+, sem code split) | Carregamento lento, re-renders excessivos | 8-10h |
-| Seguranca | MEDIO-ALTO (chaves no frontend, CORS ausente) | Vazamento de credenciais, abuso de API | 4-6h |
+| Dimensao           | Risco Atual                                   | Impacto Potencial                                | Esforco Total |
+| ------------------ | --------------------------------------------- | ------------------------------------------------ | ------------- |
+| Falhas Silenciosas | ALTO (30+ ocorrencias)                        | Bugs nao diagnosticaveis, usuario ve tela parada | 6-8h          |
+| Performance        | MEDIO (bundle 3MB+, sem code split)           | Carregamento lento, re-renders excessivos        | 8-10h         |
+| Seguranca          | MEDIO-ALTO (chaves no frontend, CORS ausente) | Vazamento de credenciais, abuso de API           | 4-6h          |
 
 ---
 
@@ -596,15 +600,15 @@ Nota: Fases 2, 3, e 4 podem rodar em branches separadas em paralelo se o risco d
 
 ### Por Fase
 
-| Fase | Criterio "Aprovado" | Criterio "Precisa Corrigir" |
-|------|---------------------|------------------------------|
-| 1 - Silent Failures Audit | Relatorio com todas as ocorrencias, classificadas por prioridade | Menos de 80% das ocorrencias identificadas |
-| 1 - Performance Audit | Relatorio com pontuacao em cada categoria Vercel | Qualquer categoria com nota < 3/5 |
-| 1 - Seguranca Audit | Relatorio com todas portas de entrada identificadas | Qualquer P0 nao identificado |
-| 2 - Correcao Silent Failures | Zero catch {} sem parametro em producao | 1+ ocorrencia restante |
-| 3 - Correcao Seguranca | CORS em todas API, .env.local no .gitignore, input validado | 1+ P0/P1 sem correcao |
-| 4 - Correcao Performance | Dynamic import de libs pesadas, memo em listas, cache headers | Chunk mermaid >2MB, zero memo em listas |
-| 5 - Verificacao Final | npm test + typecheck + build + lint + analyze:circular verdes | Qualquer gate vermelho |
+| Fase                         | Criterio "Aprovado"                                              | Criterio "Precisa Corrigir"                |
+| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| 1 - Silent Failures Audit    | Relatorio com todas as ocorrencias, classificadas por prioridade | Menos de 80% das ocorrencias identificadas |
+| 1 - Performance Audit        | Relatorio com pontuacao em cada categoria Vercel                 | Qualquer categoria com nota < 3/5          |
+| 1 - Seguranca Audit          | Relatorio com todas portas de entrada identificadas              | Qualquer P0 nao identificado               |
+| 2 - Correcao Silent Failures | Zero catch {} sem parametro em producao                          | 1+ ocorrencia restante                     |
+| 3 - Correcao Seguranca       | CORS em todas API, .env.local no .gitignore, input validado      | 1+ P0/P1 sem correcao                      |
+| 4 - Correcao Performance     | Dynamic import de libs pesadas, memo em listas, cache headers    | Chunk mermaid >2MB, zero memo em listas    |
+| 5 - Verificacao Final        | npm test + typecheck + build + lint + analyze:circular verdes    | Qualquer gate vermelho                     |
 
 ### Gate Global (antes de mergear qualquer branch)
 
@@ -623,28 +627,34 @@ Nota: Fases 2, 3, e 4 podem rodar em branches separadas em paralelo se o risco d
 ## 8. Riscos e Mitigacoes
 
 ### Risco 1: Correcao de catch quebra fluxo esperado
+
 **Descricao:** Adicionar scoutDiag.warn() em catch {} pode mudar comportamento de log e expor erros que eram intencionalmente silenciados.
 **Mitigacao:** Nao mudar logica de negocios. Apenas adicionar log. O comportamento do catch (usar fallback, continuar execucao) permanece igual.
 
 ### Risco 2: Dynamic import quebra lazy loading
+
 **Descricao:** Mover imports estaticos para dynamic em runtime pode introduzir flash de carregamento ou quebrar dependencias.
 **Mitigacao:** Usar React.lazy() + Suspense com skeleton existente (LoadingSmart ja tem variantes). Testar manualmente o fluxo de export.
 
 ### Risco 3: CORS em API routes quebra chamadas existentes
+
 **Descricao:** Adicionar CORS validation pode bloquear chamadas legitimas de previews Vercel ou dev local.
 **Mitigacao:** Reutilizar o padrao de api/cnpj.ts que ja aceita previews Vercel e localhost. Testar com vercel dev.
 
 ### Risco 4: Testes falham apos correcoes
+
 **Descricao:** Testes que mockam comportamento de catch podem quebrar se o log mudar.
 **Mitigacao:** Nao modificar testes. Se um teste mocka console.warn ou scoutDiag, o novo warning pode ser expectativa adicional. Rodar npm test apos cada alteracao.
 
 ### Risco 5: Aderencia ao escopo — evitar gold-plating
+
 **Descricao:** Durante a auditoria de performance, e tentador refatorar componentes grandes (LoadingSmart, EmptyStateHome) em vez de apenas auditar.
 **Mitigacao:** O escopo da auditoria e DETECTAR e DOCUMENTAR. Correcoes estruturais grandes (splitting de componentes) ficam para outro plano. Esta auditoria so corrige o que e diretamente relacionado as 3 dimensoes.
 
 ### Risco 6: Pinecone keys no bundle
+
 **Descricao:** Chaves Pinecone no bundle frontend sao risco aceito, mas o plano precisa reavaliar.
-**Mitigacao:** Auditar se as chaves estao acessiveis no bundle de producao (dist/assets/*.js). Se sim, documentar o risco e recomendar migracao para serverless. Nao alterar sem autorizacao do owner.
+**Mitigacao:** Auditar se as chaves estao acessiveis no bundle de producao (dist/assets/\*.js). Se sim, documentar o risco e recomendar migracao para serverless. Nao alterar sem autorizacao do owner.
 
 ---
 
@@ -754,6 +764,7 @@ rehype-raw
 ### debugger (silent failures) — 30+ arquivos
 
 Alta prioridade:
+
 - contexts/ModeContext.tsx
 - features/radar/useRadar.ts
 - features/radar/service.ts
@@ -764,6 +775,7 @@ Alta prioridade:
 - utils/documentExtractor.ts
 
 Media prioridade:
+
 - utils/textCleaners.ts
 - utils/webVerification.ts
 - utils/PDFGenerator.ts
@@ -787,7 +799,7 @@ Media prioridade:
 - components/MessageRow.tsx (15k)
 - components/SessionsSidebar.tsx (13k)
 - services/geminiProxy.ts (fetch patterns)
-- features/**/*.ts (waterfalls)
+- features/\*_/_.ts (waterfalls)
 - vite.config.ts (chunk config)
 - utils/PDFGenerator.ts (lib pesada)
 - utils/printExport.ts (mermaid peso)
@@ -821,17 +833,17 @@ Media prioridade:
 
 ## Resumo de Esforco
 
-| Fase | Horas | Agentes | Depende de |
-|------|-------|---------|------------|
-| Setup | 0.5h | planner | - |
-| Audit Falhas Silenciosas | 2h | debugger | Setup |
-| Audit Performance | 2h | react-next-ts | Setup |
-| Audit Seguranca | 1.5h | reviewer | Setup |
-| Correcao P0/P1 Silent | 4h | implementer | Audit Silent |
-| Correcao P0/P1 Seguranca | 3h | implementer | Audit Seguranca |
-| Correcao Performance | 4h | react-next-ts | Audit Performance |
-| Verificacao Final | 1h | validator | Todas correcoes |
-| **Total** | **18h** | 4 agentes | - |
+| Fase                     | Horas   | Agentes       | Depende de        |
+| ------------------------ | ------- | ------------- | ----------------- |
+| Setup                    | 0.5h    | planner       | -                 |
+| Audit Falhas Silenciosas | 2h      | debugger      | Setup             |
+| Audit Performance        | 2h      | react-next-ts | Setup             |
+| Audit Seguranca          | 1.5h    | reviewer      | Setup             |
+| Correcao P0/P1 Silent    | 4h      | implementer   | Audit Silent      |
+| Correcao P0/P1 Seguranca | 3h      | implementer   | Audit Seguranca   |
+| Correcao Performance     | 4h      | react-next-ts | Audit Performance |
+| Verificacao Final        | 1h      | validator     | Todas correcoes   |
+| **Total**                | **18h** | 4 agentes     | -                 |
 
 **Nota:** Fases 2-3-4 (correcoes) podem rodar em paralelo em branches separadas, reduzindo tempo real para ~8-10h.
 

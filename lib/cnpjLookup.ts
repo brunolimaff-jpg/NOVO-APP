@@ -34,14 +34,21 @@ export class CnpjNotFoundError extends Error {
 }
 
 class CnpjSourceError extends Error {
-  constructor(message: string, public readonly notFound: boolean) {
+  constructor(
+    message: string,
+    public readonly notFound: boolean,
+  ) {
     super(message);
   }
 }
 
 // ── Cache com limite de 1000 entradas (evict-oldest) ─────────────────────────
 const CACHE_VERSION = 2;
-interface CacheEntry { data: CnpjResult; expiresAt: number; version: number }
+interface CacheEntry {
+  data: CnpjResult;
+  expiresAt: number;
+  version: number;
+}
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_MAX = 1000;
@@ -49,8 +56,14 @@ const CACHE_MAX = 1000;
 function getCached(cnpj: string): CnpjResult | null {
   const entry = cache.get(cnpj);
   if (!entry) return null;
-  if (entry.version !== CACHE_VERSION) { cache.delete(cnpj); return null; }
-  if (Date.now() > entry.expiresAt) { cache.delete(cnpj); return null; }
+  if (entry.version !== CACHE_VERSION) {
+    cache.delete(cnpj);
+    return null;
+  }
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(cnpj);
+    return null;
+  }
   return entry.data;
 }
 
@@ -119,7 +132,13 @@ function mapPartners(items: unknown, source: CnpjPartnerSource): CnpjPartner[] |
     const partner: CnpjPartner = {
       name: pickText(item, ['nome_socio', 'nome', 'razao_social']),
       role: pickText(item, ['qualificacao_socio', 'qualificacao', 'cargo']),
-      document: pickPublicDocument(item, ['documento_socio', 'cpf_cnpj_socio', 'cnpj_cpf_socio', 'cpf_cnpj', 'documento']),
+      document: pickPublicDocument(item, [
+        'documento_socio',
+        'cpf_cnpj_socio',
+        'cnpj_cpf_socio',
+        'cpf_cnpj',
+        'documento',
+      ]),
       source,
       confidence: 'official',
     };
@@ -228,6 +247,9 @@ export async function lookupCnpj(cnpjValue: string, options: LookupCnpjOptions =
     throw new CnpjNotFoundError(cnpj);
   }
 
-  console.error(`[cnpjLookup] todas as fontes falharam para ${cnpj}:`, errors.map(e => e.msg));
+  console.error(
+    `[cnpjLookup] todas as fontes falharam para ${cnpj}:`,
+    errors.map(e => e.msg),
+  );
   throw new Error(errors.map(e => e.msg).join('; '));
 }

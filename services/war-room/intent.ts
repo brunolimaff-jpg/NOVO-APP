@@ -9,12 +9,7 @@ const PROCESSO_AGRICOLA_PATTERNS = [
   /\bsimplefarm\b/i,
 ];
 
-const INTEGRACAO_PATTERNS = [
-  /integra(?:ção|cao)/i,
-  /integrado\s+ao?\s+erp/i,
-  /arquitetura/i,
-  /\bbackoffice\b/i,
-];
+const INTEGRACAO_PATTERNS = [/integra(?:ção|cao)/i, /integrado\s+ao?\s+erp/i, /arquitetura/i, /\bbackoffice\b/i];
 
 const FERCUS_PATTERNS = [/\bfercus\b/i, /custos?\s+gerenciais/i];
 const TALHAO_PATTERNS = [/\btalh(?:ão|ao)\b/i, /agr0193/i, /consulta\s+anal(?:ítica|itica)/i];
@@ -64,44 +59,50 @@ const BLOCKED_INTENT_PATTERNS = [
 
 const CLEAN_TARGET_RE = /^[\s"'`(,-]+|[\s"'`).,;:!?-]+$/g;
 const TARGET_TOKEN_RE = /[\p{L}0-9][\p{L}0-9 ._/-]{1,60}/u;
-const SENIOR_FIRST_RE = new RegExp(`\\bsenior(?:\\s+sistemas)?\\s+(?:vs|versus|contra)\\s+(${TARGET_TOKEN_RE.source})`, 'iu');
-const SENIOR_SECOND_RE = new RegExp(`(${TARGET_TOKEN_RE.source})\\s+(?:vs|versus|contra)\\s+senior(?:\\s+sistemas)?\\b`, 'iu');
+const SENIOR_FIRST_RE = new RegExp(
+  `\\bsenior(?:\\s+sistemas)?\\s+(?:vs|versus|contra)\\s+(${TARGET_TOKEN_RE.source})`,
+  'iu',
+);
+const SENIOR_SECOND_RE = new RegExp(
+  `(${TARGET_TOKEN_RE.source})\\s+(?:vs|versus|contra)\\s+senior(?:\\s+sistemas)?\\b`,
+  'iu',
+);
 const GENERIC_TARGET_RE = new RegExp(`\\b(?:vs|versus|contra)\\b\\s+(${TARGET_TOKEN_RE.source})`, 'iu');
 
 export function isOutOfScope(message: string): boolean {
-  return OUT_OF_SCOPE_PATTERNS.some((pattern) => pattern.test(message));
+  return OUT_OF_SCOPE_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function isProcessoAgricolaIntent(message: string): boolean {
-  return PROCESSO_AGRICOLA_PATTERNS.some((pattern) => pattern.test(message));
+  return PROCESSO_AGRICOLA_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function isIntegracaoIntent(message: string): boolean {
-  return INTEGRACAO_PATTERNS.some((pattern) => pattern.test(message));
+  return INTEGRACAO_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function hasFercusIntent(message: string): boolean {
-  return FERCUS_PATTERNS.some((pattern) => pattern.test(message));
+  return FERCUS_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function hasTalhaoIntent(message: string): boolean {
-  return TALHAO_PATTERNS.some((pattern) => pattern.test(message));
+  return TALHAO_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function hasGatecAgricolaIntent(message: string): boolean {
-  return GATEC_AGRICOLA_PATTERNS.some((pattern) => pattern.test(message));
+  return GATEC_AGRICOLA_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function hasBankingIntent(message: string): boolean {
-  return BANKING_PATTERNS.some((pattern) => pattern.test(message));
+  return BANKING_PATTERNS.some(pattern => pattern.test(message));
 }
 
 export function isBlockedIntent(text: string): boolean {
-  return BLOCKED_INTENT_PATTERNS.some((pattern) => pattern.test(text));
+  return BLOCKED_INTENT_PATTERNS.some(pattern => pattern.test(text));
 }
 
 export function resolveWarRoomIntent(text: string): WarRoomRoute {
-  return BENCHMARK_INTENT_PATTERNS.some((pattern) => pattern.test(text)) ? 'benchmark' : 'tech';
+  return BENCHMARK_INTENT_PATTERNS.some(pattern => pattern.test(text)) ? 'benchmark' : 'tech';
 }
 
 export function normalizeCompetitorTarget(value: string): string {

@@ -23,8 +23,7 @@ type ChunkRecord = {
 };
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY;
-const PINECONE_API_KEY =
-  process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY;
+const PINECONE_API_KEY = process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY;
 const DEFAULT_INDEX = 'scout-arsenal';
 const DEFAULT_NAMESPACE = 'competitor-pdfs';
 const INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
@@ -133,7 +132,7 @@ async function extractPdfWithGeminiOcr(buffer: Buffer, title: string): Promise<s
   const data = (await response.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('\n') || '';
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || '';
   return normalizeText(text);
 }
 
@@ -158,7 +157,7 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
     contents: texts,
     config: { taskType: 'RETRIEVAL_DOCUMENT' },
   });
-  return (result.embeddings || []).map((e) => e.values || []);
+  return (result.embeddings || []).map(e => e.values || []);
 }
 
 function recordId(filePath: string, chunkIdx: number): string {
@@ -236,12 +235,10 @@ async function run(): Promise<void> {
     if (doc.extraction === 'native') nativeCount += 1;
     else if (doc.extraction === 'gemini_ocr') ocrCount += 1;
     else failedCount += 1;
-    console.log(
-      `[${i + 1}/${pdfs.length}] ${path.basename(pdf)} -> ${doc.extraction} (${doc.content.length} chars)`,
-    );
+    console.log(`[${i + 1}/${pdfs.length}] ${path.basename(pdf)} -> ${doc.extraction} (${doc.content.length} chars)`);
   }
 
-  const allRecords = docs.flatMap((doc) => docToChunkRecords(doc, CATEGORY));
+  const allRecords = docs.flatMap(doc => docToChunkRecords(doc, CATEGORY));
   if (!allRecords.length) {
     console.log('[ingestPdfDocs] Nenhum chunk gerado. Nada para indexar.');
     return;
@@ -251,7 +248,7 @@ async function run(): Promise<void> {
   let inserted = 0;
   for (let i = 0; i < allRecords.length; i += BATCH_SIZE) {
     const batch = allRecords.slice(i, i + BATCH_SIZE);
-    const vectors = await embedBatch(batch.map((r) => r.text));
+    const vectors = await embedBatch(batch.map(r => r.text));
     const pineconeRecords = batch.map((r, idx) => ({
       id: r.id,
       values: vectors[idx],
@@ -272,7 +269,7 @@ async function run(): Promise<void> {
   console.log(`Namespace: ${PINECONE_NAMESPACE}`);
 }
 
-run().catch((err) => {
+run().catch(err => {
   console.error('[ingestPdfDocs] Falha geral:', err?.message || err);
   process.exit(1);
 });

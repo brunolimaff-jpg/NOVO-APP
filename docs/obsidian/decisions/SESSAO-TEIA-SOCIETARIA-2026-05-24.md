@@ -1,9 +1,9 @@
 ---
-title: "Sessao: Teia societaria profunda"
+title: 'Sessao: Teia societaria profunda'
 type: sessao
-projeto: "NOVO-APP"
+projeto: 'NOVO-APP'
 data: 2026-05-24T12:47:40-04:00
-branch: "codex/investigar-busca-da-teia-societria"
+branch: 'codex/investigar-busca-da-teia-societria'
 tags:
   - sessao
   - NOVO-APP
@@ -20,9 +20,9 @@ Sessao focada em corrigir a profundidade e a leitura visual da teia societaria n
 
 ## PRs
 
-| PR | Titulo | Estado | Merge commit |
-|---|---|---|---|
-| [#279](https://github.com/brunolimaff-jpg/NOVO-APP/pull/279) | `[codex] teia societaria tipo 5` | Mergeada em 2026-05-24 12:40 -04 | `5887d318e724c1d07248b3ae97fbcaaf24693f57` |
+| PR                                                           | Titulo                                  | Estado                           | Merge commit                               |
+| ------------------------------------------------------------ | --------------------------------------- | -------------------------------- | ------------------------------------------ |
+| [#279](https://github.com/brunolimaff-jpg/NOVO-APP/pull/279) | `[codex] teia societaria tipo 5`        | Mergeada em 2026-05-24 12:40 -04 | `5887d318e724c1d07248b3ae97fbcaaf24693f57` |
 | [#280](https://github.com/brunolimaff-jpg/NOVO-APP/pull/280) | `[codex] deepen societary map research` | Mergeada em 2026-05-24 12:47 -04 | `cbca8034901771a0c6a0bec564f9393d9b173a2c` |
 
 ## Trabalho concluido
@@ -35,13 +35,13 @@ Sessao focada em corrigir a profundidade e a leitura visual da teia societaria n
 
 ## Decisoes principais
 
-| Decisao | Racional |
-|---|---|
-| Profundidade maxima em 2 niveis | Evita explosao recursiva: raiz -> socios -> empresas ligadas aos socios. |
-| Filiais consolidadas na matriz | Evita um bloco por filial; exibe `Matriz + N filiais` no CNPJ raiz. |
-| `trade` nao vira flag penalizadora | A busca nao produz mais `evidenceType: trade`; cache antigo segue compativel. |
-| `Trading` fica como tipo visual | Quando nome, papel ou CNAE indicam trading, o no mostra `Trading` em vez de `Empresa relacionada`. |
-| Arestas tem rotulo de vinculo | Labels como `QSA da matriz`, `Administra CNPJ`, `Mesmo radical CNPJ`, `CNPJ relacionado` explicam o encaixe sem afirmar controle juridico. |
+| Decisao                            | Racional                                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Profundidade maxima em 2 niveis    | Evita explosao recursiva: raiz -> socios -> empresas ligadas aos socios.                                                                   |
+| Filiais consolidadas na matriz     | Evita um bloco por filial; exibe `Matriz + N filiais` no CNPJ raiz.                                                                        |
+| `trade` nao vira flag penalizadora | A busca nao produz mais `evidenceType: trade`; cache antigo segue compativel.                                                              |
+| `Trading` fica como tipo visual    | Quando nome, papel ou CNAE indicam trading, o no mostra `Trading` em vez de `Empresa relacionada`.                                         |
+| Arestas tem rotulo de vinculo      | Labels como `QSA da matriz`, `Administra CNPJ`, `Mesmo radical CNPJ`, `CNPJ relacionado` explicam o encaixe sem afirmar controle juridico. |
 
 ## Arquivos afetados
 

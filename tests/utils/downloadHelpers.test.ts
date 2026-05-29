@@ -91,7 +91,9 @@ describe('downloadFile', () => {
   });
 
   it('lança erro quando createObjectURL falha', () => {
-    createObjectURLMock.mockImplementation(() => { throw new Error('quota exceeded'); });
+    createObjectURLMock.mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
     expect(() => downloadFile('f.txt', 'c', 'text/plain')).toThrow('Falha ao iniciar o download');
   });
 });

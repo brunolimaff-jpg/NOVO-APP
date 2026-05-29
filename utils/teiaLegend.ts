@@ -1,5 +1,4 @@
-const TEIA_HYPOTHESIS_LEGEND_LINE =
-  /^\s*\*?\s*=\s*hip[oó]tese\s+a\s+validar[^\n]*$/gim;
+const TEIA_HYPOTHESIS_LEGEND_LINE = /^\s*\*?\s*=\s*hip[oó]tese\s+a\s+validar[^\n]*$/gim;
 
 const TEIA_HYPOTHESIS_LEGEND_INLINE =
   /\*?\s*=\s*hip[oó]tese\s+a\s+validar[^.\n]*(?:n[aã]o\s+confirmado[^.\n]*)?(?:core\s+operacional|core\s+instalado)?[^.\n]*\.?/gi;

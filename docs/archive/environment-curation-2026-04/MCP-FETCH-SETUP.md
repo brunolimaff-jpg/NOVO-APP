@@ -35,6 +35,7 @@ Para configurar no seu cliente, use o arquivo de exemplo disponível em:
 [`docs/mcp/fetch.generic.example.json`](./mcp/fetch.generic.example.json)
 
 ### Comando básico:
+
 ```bash
 npx -y @modelcontextprotocol/server-fetch
 ```
@@ -49,10 +50,10 @@ Ao interagir com o Scout como agente:
 
 ## Diferença entre busca e aprofundamento
 
-| Camada | Ferramenta | Papel |
-|---|---|---|
-| **Busca (Discovery)** | `api/open-web-search.ts` | Encontrar candidatos, notícias rápidas e snippets. |
-| **Aprofundamento (Fetch)** | Fetch MCP | Abrir a página completa para extração factual densa. |
+| Camada                     | Ferramenta               | Papel                                                |
+| -------------------------- | ------------------------ | ---------------------------------------------------- |
+| **Busca (Discovery)**      | `api/open-web-search.ts` | Encontrar candidatos, notícias rápidas e snippets.   |
+| **Aprofundamento (Fetch)** | Fetch MCP                | Abrir a página completa para extração factual densa. |
 
 ## Limitações
 

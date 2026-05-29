@@ -31,7 +31,8 @@ const COMPANY_PATTERNS: RegExp[] = [
  * Sufixos e complementos que devem ser removidos da captura greedy.
  * Ex.: "investigar a Bom Futuro e suas operações" → "Bom Futuro"
  */
-const TRAILING_NOISE = /\s+(?:e\s+(?:su[ao]s?|del[ea]s?|d?ess[ea]s?)|por\s+favor|pra\s+mim|,\s*por\s+favor|para\s+(?:mim|[ao]|eu)|no\s+(?:mercado|setor|agro|brasil)|na\s+senior|\.{1,3}$|\?\s*$).*/i;
+const TRAILING_NOISE =
+  /\s+(?:e\s+(?:su[ao]s?|del[ea]s?|d?ess[ea]s?)|por\s+favor|pra\s+mim|,\s*por\s+favor|para\s+(?:mim|[ao]|eu)|no\s+(?:mercado|setor|agro|brasil)|na\s+senior|\.{1,3}$|\?\s*$).*/i;
 
 /**
  * Extrai o nome da empresa a partir do texto visível da mensagem do usuário.

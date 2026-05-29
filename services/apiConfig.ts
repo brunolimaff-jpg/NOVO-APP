@@ -20,8 +20,7 @@ function getEnvValue(key: ScoutApiEnvKey): string | undefined {
 
 export const BACKEND_URL = getEnvValue('VITE_BACKEND_URL') ?? FALLBACK_BACKEND_URL;
 export const LOOKUP_URL = getEnvValue('VITE_LOOKUP_URL') ?? FALLBACK_LOOKUP_URL;
-export const OPEN_WEB_SEARCH_ENDPOINT =
-  getEnvValue('VITE_OPEN_WEB_SEARCH_URL') ?? FALLBACK_OPEN_WEB_SEARCH_ENDPOINT;
+export const OPEN_WEB_SEARCH_ENDPOINT = getEnvValue('VITE_OPEN_WEB_SEARCH_URL') ?? FALLBACK_OPEN_WEB_SEARCH_ENDPOINT;
 
 export const FAKE_DOMAINS = [
   'ai.studio',
