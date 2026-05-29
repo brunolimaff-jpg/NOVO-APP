@@ -152,11 +152,33 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     const text = isPublicPage
       ? `${safeContent.substring(0, 120)}...\n\n${window.location.href}`
       : safeContent.substring(0, 200);
-    try {
-      await navigator.clipboard.writeText(text);
+
+    const onSuccess = () => {
       setCopyLinkState('copied');
       if (copyLinkTimerRef.current) clearTimeout(copyLinkTimerRef.current);
       copyLinkTimerRef.current = setTimeout(() => setCopyLinkState('idle'), 3000);
+    };
+
+    // Clipboard API (requer secure context)
+    try {
+      await navigator.clipboard.writeText(text);
+      onSuccess();
+      return;
+    } catch {
+      /* fallthrough para execCommand */
+    }
+
+    // Fallback via execCommand (funciona em HTTP/localhost)
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      onSuccess();
     } catch {
       handleCopy();
     }
