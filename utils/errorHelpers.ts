@@ -107,7 +107,7 @@ export function normalizeAppError(
     code = 'BILLING';
     friendlyMessage = 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     retryable = false;
-    transient = false;
+    transient = true;
   }
   // 8. Auth Errors
   else if (status === 401 || status === 403 || rawMessage.match(/api key|unauthorized|forbidden/i)) {
