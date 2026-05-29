@@ -1051,8 +1051,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           );
         }
       } finally {
-        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
-        await deleteWaterfallFoundationCache(foundationCacheName);
+        // Fire-and-forget: o cache tem TTL e expira automaticamente.
+        // Não bloqueia o waterfall para evitar overlay preso em 95%.
+        deleteWaterfallFoundationCache(foundationCacheName).catch(() => {
+          /* erro já logado internamente */
+        });
       }
     },
     [
