@@ -70,6 +70,13 @@ function renderMarkdown(text: string): string {
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
+  // Protect <pre> blocks from \n\n replacement
+  const preBlocks: string[] = [];
+  html = html.replace(/<pre>[\s\S]*?<\/pre>/g, match => {
+    preBlocks.push(match);
+    return `%%PRE_BLOCK_${preBlocks.length - 1}%%`;
+  });
+
   // Links — URL sanitizada (apenas http/https), texto já escapado por toPlainText
   html = html.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
@@ -104,6 +111,9 @@ function renderMarkdown(text: string): string {
 
   // Wrap consecutive <li> in <ul>/<ol>
   html = html.replace(/((?:<li>.*?<\/li>)+)/g, '<ul>$1</ul>');
+
+  // Restore protected <pre> blocks
+  html = html.replace(/%%PRE_BLOCK_(\d+)%%/g, (_, i) => preBlocks[Number(i)] || '');
 
   return html;
 }
@@ -195,7 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const src of sources) {
         const title = String(src.title || 'Fonte');
         const url = String(src.url || '#');
-        messagesHtml += `<div style="margin-bottom:4px">&#8226; <a href="${toPlainText(url)}" target="_blank" rel="noopener">${toPlainText(title)}</a></div>`;
+        messagesHtml += `<div style="margin-bottom:4px">&#8226; <a href="${toPlainText(safeUrl(url))}" target="_blank" rel="noopener">${toPlainText(title)}</a></div>`;
       }
       messagesHtml += '</div>';
     }

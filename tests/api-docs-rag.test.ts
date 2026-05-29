@@ -66,7 +66,7 @@ function match(score: number, metadata: Record<string, unknown>) {
   return { score, metadata };
 }
 
-describe('api/docs-rag handler', () => {
+describe('api/rag handler — docs mode (consolidated from api/docs-rag)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
@@ -80,7 +80,7 @@ describe('api/docs-rag handler', () => {
   });
 
   it('retorna 405 para GET', async () => {
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
 
     await handler({ method: 'GET' } as VercelRequest, res);
@@ -90,7 +90,7 @@ describe('api/docs-rag handler', () => {
   });
 
   it('retorna 400 para body inválido', async () => {
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
 
     await handler(post({ query: '' }), res);
@@ -99,18 +99,18 @@ describe('api/docs-rag handler', () => {
     expect(res._data).toMatchObject({ error: 'Invalid request' });
   });
 
-  it('retorna sinal explícito quando não há matches', async () => {
+  it('retorna sinal explícito quando não há matches (docs mode)', async () => {
     queryMock.mockResolvedValueOnce({ matches: [] });
 
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
-    await handler(post({ query: 'erp agro' }), res);
+    await handler(post({ query: 'erp agro', namespace: 'senior-erp-docs' }), res);
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toBe(NO_DOCS_SIGNAL);
   });
 
-  it('retorna sinal explícito quando matches ficam abaixo do score mínimo', async () => {
+  it('retorna sinal explícito quando matches ficam abaixo do score mínimo (docs mode)', async () => {
     const lowScoreMetadata = {
       titulo: 'Documento fraco',
       categoria: 'Geral',
@@ -121,15 +121,15 @@ describe('api/docs-rag handler', () => {
       matches: [match(0.59, lowScoreMetadata)],
     });
 
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
-    await handler(post({ query: 'erp agro' }), res);
+    await handler(post({ query: 'erp agro', namespace: 'senior-erp-docs' }), res);
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toBe(NO_DOCS_SIGNAL);
   });
 
-  it('inclui match forte com texto indexado e preserva fonte', async () => {
+  it('inclui match forte com texto indexado e preserva fonte (docs mode)', async () => {
     queryMock.mockResolvedValueOnce({
       matches: [
         match(0.6, {
@@ -141,9 +141,9 @@ describe('api/docs-rag handler', () => {
       ],
     });
 
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
-    await handler(post({ query: 'gestão de safras' }), res);
+    await handler(post({ query: 'gestão de safras', namespace: 'senior-erp-docs' }), res);
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toContain('### ERP: Gestão de Safras');
@@ -151,7 +151,7 @@ describe('api/docs-rag handler', () => {
     expect(res._data?.context).toContain('(Fonte: https://documentacao.senior.com.br/safras)');
   });
 
-  it('não cria contexto evidencial quando match forte tem apenas URL sem texto indexado', async () => {
+  it('não cria contexto evidencial quando match forte tem apenas URL sem texto indexado (docs mode)', async () => {
     const urlOnlyMetadata = {
       titulo: 'Página sem texto',
       categoria: 'ERP',
@@ -161,15 +161,15 @@ describe('api/docs-rag handler', () => {
       matches: [match(0.91, urlOnlyMetadata)],
     });
 
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
-    await handler(post({ query: 'documento sem texto' }), res);
+    await handler(post({ query: 'documento sem texto', namespace: 'senior-erp-docs' }), res);
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toBe(NO_DOCS_SIGNAL);
   });
 
-  it('mantém aviso conservador para match forte sem texto quando há outro match textual', async () => {
+  it('mantém aviso conservador para match forte sem texto quando há outro match textual (docs mode)', async () => {
     queryMock.mockResolvedValueOnce({
       matches: [
         match(0.86, {
@@ -186,17 +186,17 @@ describe('api/docs-rag handler', () => {
       ],
     });
 
-    const { default: handler } = await import('../api/docs-rag');
+    const { default: handler } = await import('../api/rag');
     const res = response();
-    await handler(post({ query: 'mix docs' }), res);
+    await handler(post({ query: 'mix docs', namespace: 'senior-erp-docs' }), res);
 
     expect(res._status).toBe(200);
     expect(res._data?.context).toContain('Conteúdo indexado confiável.');
     expect(res._data?.context).not.toContain('[CONTEÚDO NÃO INDEXADO');
   });
 
-  it('mantém namespace inválido retornando 400', async () => {
-    const { default: handler } = await import('../api/docs-rag');
+  it('mantém namespace inválido retornando 400 (docs mode)', async () => {
+    const { default: handler } = await import('../api/rag');
     const res = response();
 
     await handler(post({ query: 'erp agro', namespace: 'private-docs' }), res);

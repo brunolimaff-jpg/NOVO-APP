@@ -36,6 +36,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
 }) => {
   const downloadTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const copyLinkTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const [copyLinkState, setCopyLinkState] = useState<'idle' | 'copied'>('idle');
   const [downloadError, setDownloadError] = useState(false);
@@ -47,6 +48,7 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
   useEffect(() => {
     return () => {
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (copyLinkTimerRef.current) clearTimeout(copyLinkTimerRef.current);
       if (downloadTimerRef.current) clearTimeout(downloadTimerRef.current);
     };
   }, []);
@@ -153,8 +155,8 @@ const MessageActionsBar: React.FC<MessageActionsBarProps> = ({
     try {
       await navigator.clipboard.writeText(text);
       setCopyLinkState('copied');
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyLinkState('idle'), 3000);
+      if (copyLinkTimerRef.current) clearTimeout(copyLinkTimerRef.current);
+      copyLinkTimerRef.current = setTimeout(() => setCopyLinkState('idle'), 3000);
     } catch {
       handleCopy();
     }

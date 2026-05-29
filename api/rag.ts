@@ -6,6 +6,7 @@ import { setSecurityHeaders } from './_security-headers.js';
 
 const RagRequestSchema = z.object({
   query: z.string().min(1).max(10000),
+  namespace: z.string().min(1).max(120).optional(),
 });
 
 export const config = {
@@ -14,8 +15,15 @@ export const config = {
 export const maxDuration = 60;
 
 const DEFAULT_PINECONE_INDEX = 'scout-arsenal';
+const DEFAULT_PINECONE_DOCS_NAMESPACE = 'senior-erp-docs';
+const COMPETITOR_DOCS_NAMESPACE = 'competitor-pdfs';
+const GENERAL_RAG_SCORE_MIN = 0.35;
+const DOCS_RAG_SCORE_MIN = 0.6;
+const NO_DOCS_SIGNAL =
+  '[SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]';
 const PINECONE_INDEX_SECRET_PREFIX_RE = /^pcsk_/i;
 const PINECONE_INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
+const ALLOWED_DOCS_NAMESPACES = new Set<string>([DEFAULT_PINECONE_DOCS_NAMESPACE, COMPETITOR_DOCS_NAMESPACE]);
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -38,8 +46,27 @@ function resolvePineconeIndexName(candidate?: string | null): string {
   return normalized;
 }
 
-function resolveOptionalNamespace(candidate?: string | null): string | undefined {
-  return normalizeEnvValue(candidate);
+function resolveOptionalNamespace(candidate?: string | null, fallback?: string): string | undefined {
+  return normalizeEnvValue(candidate) ?? fallback;
+}
+
+function formatTextBackedMatch(metadata: Record<string, unknown>): string | null {
+  const texto = String(metadata.text || metadata.content || '').trim();
+  if (!texto) return null;
+
+  const titulo = metadata.titulo || 'Documento';
+  const categoria = metadata.categoria || 'Geral';
+  const url = metadata.url || '';
+  return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
+}
+
+function formatUrlOnlyMatch(metadata: Record<string, unknown>): string | null {
+  const url = String(metadata.url || '').trim();
+  if (!url) return null;
+
+  const titulo = metadata.titulo || 'Documento';
+  const categoria = metadata.categoria || 'Geral';
+  return `### ${categoria}: ${titulo}\n[CONTEÚDO NÃO INDEXADO — não use esta fonte como evidência textual]\n(Fonte: ${url})`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -54,26 +81,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
     }
 
-    const { query } = parsed.data;
+    const { query, namespace } = parsed.data;
+    const isDocsMode = !!namespace || req.url?.includes('/docs-rag');
 
     const ai = new GoogleGenAI({ apiKey: getRequiredEnv('GEMINI_API_KEY') });
 
-    const pineconeKey = process.env.PINECONE_API_KEY || process.env.PINECONE_DOCS_KEY;
+    // Resolve Pinecone key: docs mode prefers PINECONE_DOCS_KEY; general mode prefers PINECONE_API_KEY
+    const pineconeKey = isDocsMode
+      ? process.env.PINECONE_DOCS_KEY || getRequiredEnv('PINECONE_API_KEY')
+      : process.env.PINECONE_API_KEY || process.env.PINECONE_DOCS_KEY;
     if (!pineconeKey) {
       throw new Error('Missing required env var: PINECONE_API_KEY or PINECONE_DOCS_KEY');
     }
 
-    const rawIndexName = process.env.PINECONE_INDEX || process.env.PINECONE_DOCS_INDEX;
+    // Resolve index name: docs mode prefers PINECONE_DOCS_INDEX
+    const rawIndexName = isDocsMode
+      ? process.env.PINECONE_DOCS_INDEX || process.env.PINECONE_INDEX
+      : process.env.PINECONE_INDEX || process.env.PINECONE_DOCS_INDEX;
     const pineconeIndexName = resolvePineconeIndexName(rawIndexName);
     if (rawIndexName?.trim() && rawIndexName.trim() !== pineconeIndexName) {
-      console.warn(
-        `[RAG] Invalid Pinecone index env "${rawIndexName}" detected. Falling back to "${pineconeIndexName}".`,
-      );
+      console.warn(`[RAG] Invalid Pinecone index env "${rawIndexName}". Falling back to "${pineconeIndexName}".`);
     }
-    const namespace = resolveOptionalNamespace(process.env.PINECONE_NAMESPACE);
+
     const pc = new Pinecone({ apiKey: pineconeKey });
     const index = pc.index(pineconeIndexName);
-    const queryTarget = namespace ? index.namespace(namespace) : index;
 
     const embeddingResponse = await ai.models.embedContent({
       model: 'gemini-embedding-001',
@@ -84,8 +115,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const queryVector = embeddingResponse.embeddings?.[0]?.values;
 
     if (!queryVector || queryVector.length === 0) {
-      return res.status(200).json({ context: '' });
+      return res.status(200).json({ context: isDocsMode ? NO_DOCS_SIGNAL : '' });
     }
+
+    if (isDocsMode) {
+      // --- Docs mode (formerly api/docs-rag.ts) ---
+      const configuredNamespace =
+        resolveOptionalNamespace(
+          process.env.PINECONE_DOCS_NAMESPACE,
+          resolveOptionalNamespace(process.env.PINECONE_NAMESPACE, DEFAULT_PINECONE_DOCS_NAMESPACE),
+        ) || DEFAULT_PINECONE_DOCS_NAMESPACE;
+      const requestedNamespace = resolveOptionalNamespace(namespace);
+      const docsNamespace = requestedNamespace || configuredNamespace;
+      if (!ALLOWED_DOCS_NAMESPACES.has(docsNamespace)) {
+        return res.status(400).json({
+          error: 'Invalid namespace',
+          allowed: Array.from(ALLOWED_DOCS_NAMESPACES),
+        });
+      }
+
+      const results = await index.namespace(docsNamespace).query({
+        vector: queryVector,
+        topK: 8,
+        includeMetadata: true,
+      });
+
+      if (!results.matches || results.matches.length === 0) {
+        return res.status(200).json({ context: NO_DOCS_SIGNAL });
+      }
+
+      const filtered = results.matches.filter(m => (m.score ?? 0) >= DOCS_RAG_SCORE_MIN);
+      const matches = results.matches.map(m => m.metadata || {});
+      if (filtered.length === 0) {
+        return res.status(200).json({ context: NO_DOCS_SIGNAL });
+      }
+
+      const textBackedParts: string[] = [];
+      const urlOnlyParts: string[] = [];
+
+      for (const match of filtered) {
+        const metadata = (match.metadata || {}) as Record<string, unknown>;
+        const textBackedPart = formatTextBackedMatch(metadata);
+        if (textBackedPart) {
+          textBackedParts.push(textBackedPart);
+          continue;
+        }
+
+        const urlOnlyPart = formatUrlOnlyMatch(metadata);
+        if (urlOnlyPart) urlOnlyParts.push(urlOnlyPart);
+      }
+
+      if (textBackedParts.length === 0) {
+        return res.status(200).json({ context: NO_DOCS_SIGNAL });
+      }
+
+      const context = textBackedParts.join('\n\n---\n\n');
+
+      return res.status(200).json({ context, matches });
+    }
+
+    // --- General mode (original api/rag.ts behavior) ---
+    const targetNamespace = resolveOptionalNamespace(process.env.PINECONE_NAMESPACE);
+    const queryTarget = targetNamespace ? index.namespace(targetNamespace) : index;
 
     const results = await queryTarget.query({
       vector: queryVector,
@@ -94,7 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const context = results.matches
-      .filter(m => (m.score ?? 0) > 0.35)
+      .filter(m => (m.score ?? 0) > GENERAL_RAG_SCORE_MIN)
       .map(m => `[Proposta: ${m.metadata?.source}]\n${m.metadata?.text}`)
       .join('\n\n---\n\n');
 
