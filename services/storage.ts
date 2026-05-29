@@ -171,6 +171,7 @@ export const storage = {
       data: {
         id: session.id,
         operator_id: operatorId,
+        operator_email: localStorage.getItem('scout360:operator_email') || null,
         title: session.title,
         empresa_alvo: session.empresaAlvo,
         cnpj: session.cnpj,
@@ -201,6 +202,7 @@ export const storage = {
         data: {
           id: session.id,
           operator_id: operatorId,
+          operator_email: localStorage.getItem('scout360:operator_email') || null,
           title: session.title,
           empresa_alvo: session.empresaAlvo,
           cnpj: session.cnpj,
@@ -589,6 +591,7 @@ export const storage = {
       entityId: dossierId,
       companyCnpj: dossier.cnpj || undefined,
       companyName: dossier.empresaAlvo || undefined,
+      shareChannel: 'link',
     });
 
     return token;
