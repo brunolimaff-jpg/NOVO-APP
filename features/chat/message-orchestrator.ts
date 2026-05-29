@@ -309,7 +309,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
       try {
-
         if (isMegaPrompt) {
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
@@ -566,6 +565,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       setLoadingPinnedLabel,
       setLoadingVariant,
       setRequestKind,
+      operatorId,
+      operatorEmail,
       setSessions,
       setVisibleCount,
       systemInstruction,
