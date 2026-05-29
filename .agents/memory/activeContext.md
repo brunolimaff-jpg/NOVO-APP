@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-29 18:30 (Resolucao merge conflict + PR #314 aberta)
+Last updated: 2026-05-29 14:15 (PR #313 mergeada + 3 P0 corrigidos na PR #314)
 
 ## Boot
 
@@ -9,29 +9,29 @@ Last updated: 2026-05-29 18:30 (Resolucao merge conflict + PR #314 aberta)
 
 ## Fase atual
 
-**Resolucao merge conflict PR #313 concluida. PR #314 dossier-lifecycle aberta. Ambos os PRs aguardando CI/revisao.**
+**PR #313 mergeada. 3 P0 corrigidos na feat/dossier-lifecycle. PR #314 atualizada.**
 
 ### PR #313 — fix/remove-web-search-fallback
 
-| Item                      | Status                      |
-| ------------------------- | --------------------------- |
-| Branch remota             | Pushada                     |
-| PR #313 aberta            | Aberta                      |
-| Merge conflict resolvido  | CONCLUIDO (2 conflitos)     |
-| Gemini Code Assist review | Resolvido (6c7ef13)         |
-| MergeStateStatus          | **MERGEABLE** (CI pendente) |
+| Item            | Status                    |
+| --------------- | ------------------------- |
+| Branch          | MERGEADA (squash 8d6e33f) |
+| Branch local    | Ainda existe (deletar)    |
 
-### PR #314 — feat/dossier-lifecycle (10 commits)
+### PR #314 — feat/dossier-lifecycle
 
-| Item                            | Status                          |
-| ------------------------------- | ------------------------------- |
-| Trava CNPJ duplicado            | Implementado (0415e40)          |
-| Modal dossie duplicado          | Implementado (6e64e57)          |
-| findExistingDossier             | Implementado (e276d9f)          |
-| DossierShareBar + link Teams    | Implementado (9f5d32b, 626f97d) |
-| Code review (65 -> 15 findings) | CONCLUIDO                       |
-| PR #314 aberta                  | Aberta                          |
-| 3 P0 corrigidos                 | Pendente                        |
+| Item                            | Status                        |
+| ------------------------------- | ----------------------------- |
+| Trava CNPJ duplicado            | Implementado                  |
+| Modal dossie duplicado          | Implementado                  |
+| findExistingDossier             | Implementado                  |
+| DossierShareBar + link Teams    | Implementado                  |
+| Code review (65 -> 15 findings) | CONCLUIDO                     |
+| 3 P0 corrigidos                 | **CONCLUIDO** (0486897)       |
+| 2 P1 restantes                  | Pendente                      |
+| 7 P2 restantes                  | Pendente                      |
+| 3 P3 restantes                  | Pendente                      |
+| CI                              | Pendente                      |
 
 ### Pendencias de sessoes anteriores
 
@@ -43,17 +43,14 @@ Last updated: 2026-05-29 18:30 (Resolucao merge conflict + PR #314 aberta)
 
 ## Proximo passo
 
-1. Aguardar CI da PR #313 (Build, Tests, Typecheck, Dossier Golden)
-2. Se verde: mergear PR #313 e acompanhar deploy (verificar tela branca)
-3. Corrigir 3 P0 + 2 P1 do code review na PR #314
-4. Submeter nova revisao da PR #314
+1. Aguardar CI da PR #314
+2. Se verde: mergear OU corrigir P1/P2 restantes primeiro
+3. Retomar CRM migration (`feat/crm-supabase-migration`)
 
 ## Ponteiros
 
 - `HANDOFF_AI.md`
-- PR #313: https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
 - PR #314: https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
-- Vault: `2026-05-29T18-30-00-resolucao-merge-conflict-pr313-pr314.md`
+- PR #313 (merged): https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
+- Vault code review: `Bruno Vault/20-SESSOES/2026-05/2026-05-29T17-30-00-code-review-dossier-lifecycle-pr313.md`
 - `CALIBER_LEARNINGS.md`
-- `docs/superpowers/plans/2026-05-29-crm-supabase-migration.md`
-- `docs/superpowers/plans/2026-05-29-dossier-lifecycle.md`
