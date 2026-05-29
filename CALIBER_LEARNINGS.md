@@ -54,6 +54,8 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
 - **Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
   `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossie existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
 
+- **select('id') em fallback Supabase retorna dados incompletos** [supabase, indexdb, cross-device, fallback]
+  `findExistingDossier` faz `select('id')` para confirmar existencia, mas handleAccessExistingDossier precisa de `display_name`/`content` no fallback. Sempre selecionar todos os campos necessarios na consulta de fallback, nao apenas o ID.
 - **Componente condicional sem `key` causa estado stale** [react, key, componente]
   `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossie anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
 

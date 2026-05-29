@@ -1,6 +1,61 @@
 # Decisions
 
-Last updated: 2026-05-29 17:30
+Last updated: 2026-05-29
+
+## 2026-05-29 — Rastreio waterfall no Supabase (APLICADO)
+
+Decision: criar tabela `waterfall_logs` no Supabase com `waterfallTrace` inserindo fire-and-forget em cada modulo do waterfall-orchestrator. Cada modulo registra `moduleStart` e `moduleEnd` com `duration_ms`. Indices em `dossier_id`, `operator_id`, `created_at`. RLS por `operator_id`.
+
+Reason: sem logs persistentes, quando o browser trava ou o waterfall nunca completa, nao ha como debugar. console.log morre junto com o browser. Supabase inserts fire-and-forget funcionam mesmo com event loop sob estresse.
+
+Contract: `logWaterfallEvent` nunca bloqueia o fluxo principal; `waterfallTrace` criado em `initWaterfallTrace` e preenchido por `moduleStart`/`moduleEnd`; fire-and-forget com `.catch(() => {})`.
+
+Refs: `utils/waterfallLogger.ts`, `features/dossier/waterfall-orchestrator.ts`, commit `3af5c97`.
+
+## 2026-05-29 — Deploy 95% = LoadingSmart, nao Vercel (DIAGNOSTICO)
+
+Decision: `MAX_PROGRESS_PERCENT = 95` no LoadingSmart e intencional. A barra nunca chega a 100%. O overlay desaparece quando `isLoading` vira `false`. "Travou em 95%" significa waterfall incompleto, nao deploy travado.
+
+Action: confirmar antes de tentar re-deploy. Usar `waterfall_logs` para identificar qual modulo travou.
+
+Contract: documentar este diagnostico para evitar ciclos de debug em falso deploy.
+
+Refs: `components/LoadingSmart.tsx`, `features/dossier/waterfall-orchestrator.ts`.
+
+## 2026-05-29 — Consolidacao de serverless functions (APLICADO)
+
+Decision: Para resolver limite de 12 funcoes do Hobby plan, deletar `api/pulse-news.ts` (0 referencias) e consolidar `api/docs-rag.ts` dentro de `api/rag.ts` com handler unificado. Rewrite `/api/docs-rag` -> `/api/rag` em `vercel.json`.
+
+Resultado: 13 -> 11 funcoes (1 de folga). Sem custo, sem upgrade de plano.
+
+Contract: Qualquer nova API route deve primeiro verificar se consolida em handler existente antes de criar novo arquivo em `api/`.
+
+Refs: `api/rag.ts`, `vercel.json`, commit `69f97f0`.
+
+## 2026-05-29 — SUPABASE_URL vs VITE_SUPABASE_URL (APLICADO)
+
+Decision: Env vars com prefixo `VITE_` sao inlineadas no bundle frontend pelo Vite e NAO estao disponiveis em `process.env` no runtime serverless. Serverless functions precisam de vars SEM prefixo `VITE_`.
+
+Action: `SUPABASE_URL` adicionada no Vercel com mesmo valor de `VITE_SUPABASE_URL`.
+
+Contract: Sempre verificar qual runtime usa a env var. Serverless -> sem VITE*. Frontend -> com VITE*.
+
+## 2026-05-29 — PR #316: fix/dossier-share-bar-event (6 commits, PRONTO)
+
+Decision: 6 commits em `fix/dossier-share-bar-event` prontos para PR #316. Bloqueadores resolvidos (12 funcoes, env var, rastreio). Deploy preview funcionando.
+
+Contract: Verificar deploy producao antes do merge. Nao fazer merge com deploy quebrado.
+
+Refs: branch `fix/dossier-share-bar-event`, `api/dossie.ts`, `api/rag.ts`, `utils/waterfallLogger.ts`.
+
+## Licoes da sessao
+
+1. **Limite 12 serverless functions (Hobby) e real.** Consolidacao (deletar + unificar handlers) resolve sem upgrade. Estrategia replicavel.
+2. **VITE\_ prefixo em env vars:** Nao funciona em serverless functions. Sempre configurar vars sem VITE\_ para `api/` routes.
+3. **Code review P0:** safeUrl() em groundingSources previne XSS por `javascript:`. Blocos `<pre>` precisam de escape antes de replace de `\n\n`.
+4. **Waterfall sem rastreio = cegueira:** `waterfall_logs` no Supabase com fire-and-forget inserts. Essencial para debug de waterfall travado.
+5. **95% e intencional:** MAX_PROGRESS_PERCENT = 95. "Travou em 95%" = waterfall, nao deploy.
+6. **Gates continuos:** validate:ci apos cada commit evita regressao.
 
 ## 2026-05-27 - PR #302: React.memo + lookup O(1) + processingKey string concat
 
@@ -307,10 +362,6 @@ Decision: o drill-down por socio deve rodar apenas no server-side (`/api/socio-s
 Reason: dados societarios publicos tem risco alto de homonimos. A IA ou uma fonte generica nao pode conectar empresa apenas por nome de socio. Em producao, scraping sem cache persistente geraria instabilidade, custo e risco operacional.
 
 Constraint: o cache server-side aceita somente `SUPABASE_SERVICE_ROLE_KEY`; anon/public key nao e suficiente. Se o cache persistente nao estiver configurado/gravavel em producao, a API deve degradar sem scraping.
-
-Reason: operadores precisam de visibilidade do estado da sincronizacao. Sync automatico silencioso gera incerteza ("meus dados estao salvos?"). O botao manual com contagem fornece feedback tangivel. O evento `scout:sync-complete` permite que hooks recarreguem dados apos sync, garantindo consistencia da UI.
-
-Constraint: sync automatico em background continua rodando (sync queue processa offline operations). O botao manual e um complemento, nao substituicao. Se no futuro o sync for confiavel a ponto de ser invisivel, o botao pode ser ocultado, nao removido.
 
 ## 2026-05-24 - Temperature 0.1 obrigatoria para toda chamada Gemini de dossie
 
