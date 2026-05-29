@@ -14,20 +14,21 @@
 
 ## Estrutura de Arquivos
 
-| Arquivo | Ação | Teste |
-|---------|------|-------|
-| `lib/supabase/dossierDuplicate.ts` | **Criar** | `tests/lib/supabase/dossierDuplicate.test.ts` |
-| `components/DuplicateDossierModal.tsx` | **Criar** | `tests/components/DuplicateDossierModal.test.tsx` |
-| `components/DossierShareBar.tsx` | **Criar** | `tests/components/DossierShareBar.test.tsx` |
-| `components/ChatInterface.tsx` | **Modificar** | `tests/components/ChatInterface.test.tsx` |
+| Arquivo                                      | Ação          | Teste                                                   |
+| -------------------------------------------- | ------------- | ------------------------------------------------------- |
+| `lib/supabase/dossierDuplicate.ts`           | **Criar**     | `tests/lib/supabase/dossierDuplicate.test.ts`           |
+| `components/DuplicateDossierModal.tsx`       | **Criar**     | `tests/components/DuplicateDossierModal.test.tsx`       |
+| `components/DossierShareBar.tsx`             | **Criar**     | `tests/components/DossierShareBar.test.tsx`             |
+| `components/ChatInterface.tsx`               | **Modificar** | `tests/components/ChatInterface.test.tsx`               |
 | `features/dossier/waterfall-orchestrator.ts` | **Modificar** | `tests/features/dossier/waterfall-orchestrator.test.ts` |
-| `services/storage.ts` | **Modificar** | `tests/services/storage.test.ts` |
+| `services/storage.ts`                        | **Modificar** | `tests/services/storage.test.ts`                        |
 
 ---
 
 ### Task 1: findExistingDossier — TDD
 
 **Files:**
+
 - Create: `tests/lib/supabase/dossierDuplicate.test.ts`
 - Create: `lib/supabase/dossierDuplicate.ts`
 
@@ -132,9 +133,7 @@ describe('findExistingDossier', () => {
       }),
     };
     mockSelect.mockReturnValueOnce(chainCnpj).mockReturnValueOnce(chainRazao);
-    mockFrom
-      .mockReturnValueOnce({ select: mockSelect })
-      .mockReturnValueOnce({ select: mockSelect });
+    mockFrom.mockReturnValueOnce({ select: mockSelect }).mockReturnValueOnce({ select: mockSelect });
 
     const { findExistingDossier } = await import('../../lib/supabase/dossierDuplicate');
     const result = await findExistingDossier('00000000000000', 'Empresa Filial', 'op-1');
@@ -273,6 +272,7 @@ git commit -m "feat: adiciona findExistingDossier — busca por CNPJ e razão so
 ### Task 2: DuplicateDossierModal — TDD
 
 **Files:**
+
 - Create: `tests/components/DuplicateDossierModal.test.tsx`
 - Create: `components/DuplicateDossierModal.tsx`
 
@@ -498,6 +498,7 @@ git commit -m "feat: adiciona modal de dossiê duplicado com opções de acesso 
 ### Task 3: Integrar check de duplicação no ChatInterface — TDD
 
 **Files:**
+
 - Modify: `tests/components/ChatInterface.test.tsx`
 - Modify: `components/ChatInterface.tsx`
 
@@ -596,15 +597,30 @@ const executeInvestigation = useCallback(
       try {
         const signal = AbortSignal.timeout(8000);
         const companyData = await fetchCompanyByCnpj(payload.cnpj, signal);
-        if (companyData.cnaeDescricao) { segmentHint = companyData.cnaeDescricao; }
+        if (companyData.cnaeDescricao) {
+          segmentHint = companyData.cnaeDescricao;
+        }
       } catch (error) {
         scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
       }
     }
 
     const hiddenPromptBase = buildInvestigationHiddenPrompt(
-      { companyName: payload.companyName, cnpj: payload.cnpj || undefined, city: payload.city, state: payload.state, segmentHint },
-      { includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar), mode: promptMode, strictAudit: true, enableDiscrepancyHunter: true, enableCostOfDelay: true, promptVersion: PROMPT_VERSION },
+      {
+        companyName: payload.companyName,
+        cnpj: payload.cnpj || undefined,
+        city: payload.city,
+        state: payload.state,
+        segmentHint,
+      },
+      {
+        includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
+        mode: promptMode,
+        strictAudit: true,
+        enableDiscrepancyHunter: true,
+        enableCostOfDelay: true,
+        promptVersion: PROMPT_VERSION,
+      },
     );
     const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
     await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj);
@@ -614,7 +630,9 @@ const executeInvestigation = useCallback(
 
 const handleStartInvestigation = useCallback(
   async (payload: StartInvestigationPayload) => {
-    if (operatorId) { void storage.touchUserContext(operatorId); }
+    if (operatorId) {
+      void storage.touchUserContext(operatorId);
+    }
 
     if (payload.cnpj || payload.companyName) {
       const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
@@ -633,7 +651,9 @@ const handleStartInvestigation = useCallback(
 const handleAccessExistingDossier = useCallback(async () => {
   if (!duplicateDossier || !operatorId) return;
   const dossier = await storage.getDossier(duplicateDossier.id);
-  if (dossier) { onSelectSession?.(duplicateDossier.id); }
+  if (dossier) {
+    onSelectSession?.(duplicateDossier.id);
+  }
   setDuplicateDossier(null);
   pendingPayloadRef.current = null;
   trackOperatorEvent('dossier_reopened', {
@@ -648,7 +668,9 @@ const handleNewResearchOverride = useCallback(
   async (payload: StartInvestigationPayload) => {
     setDuplicateDossier(null);
     pendingPayloadRef.current = null;
-    if (duplicateDossier) { await storage.deleteDossier(duplicateDossier.id); }
+    if (duplicateDossier) {
+      await storage.deleteDossier(duplicateDossier.id);
+    }
     await executeInvestigation(payload);
     trackOperatorEvent('dossier_override', {
       operatorId: operatorId || '',
@@ -700,6 +722,7 @@ git commit -m "feat: adiciona trava de CNPJ duplicado antes de nova investigaç�
 ### Task 4: DossierShareBar — TDD
 
 **Files:**
+
 - Create: `tests/components/DossierShareBar.test.tsx`
 - Create: `components/DossierShareBar.tsx`
 
@@ -908,6 +931,7 @@ git commit -m "feat: adiciona barra de compartilhamento com link e botão Teams"
 ### Task 5: Evento dossier:completed + tracking — TDD
 
 **Files:**
+
 - Modify: `tests/features/dossier/waterfall-orchestrator.test.ts`
 - Modify: `features/dossier/waterfall-orchestrator.ts`
 - Modify: `tests/services/storage.test.ts`
@@ -1033,6 +1057,7 @@ git commit -m "feat: emite evento dossier:completed pós-persistência e adicion
 ### Task 6: Integrar DossierShareBar na UI — TDD
 
 **Files:**
+
 - Modify: `tests/components/MessageRow.test.tsx`
 - Modify: `components/MessageRow.tsx`
 

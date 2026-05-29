@@ -1,4 +1,5 @@
 import { supabase, isSupabaseAvailable } from '../supabaseClient';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 export interface ExistingDossier {
   id: string;
@@ -37,7 +38,12 @@ export async function findExistingDossier(
       .limit(1)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      scoutDiag.warn('dossierDuplicate', 'Erro Supabase na busca por CNPJ', {
+        cnpj: cnpjDigits,
+        error: error.message,
+      });
+    } else if (data) {
       return mapDossierRow(data as Record<string, unknown>);
     }
   }
@@ -52,7 +58,12 @@ export async function findExistingDossier(
       .limit(1)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      scoutDiag.warn('dossierDuplicate', 'Erro Supabase na busca por empresa_alvo', {
+        empresaAlvo: empresaAlvo.trim(),
+        error: error.message,
+      });
+    } else if (data) {
       return mapDossierRow(data as Record<string, unknown>);
     }
   }

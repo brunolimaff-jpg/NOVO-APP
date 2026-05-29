@@ -43,9 +43,7 @@ describe('DossierShareBar', () => {
     fireEvent.click(screen.getByText('Copiar link'));
 
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        'https://scoutagro.app/dossie/token-abc-123',
-      );
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://scoutagro.app/dossie/token-abc-123');
     });
 
     const teamsBtn = screen.getByText('Teams');

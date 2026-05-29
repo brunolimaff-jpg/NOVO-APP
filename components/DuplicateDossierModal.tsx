@@ -15,9 +15,7 @@ export function DuplicateDossierModal({
   onNewResearch,
   onDismiss,
 }: DuplicateDossierModalProps) {
-  const createdAt = existing.createdAt
-    ? new Date(existing.createdAt).toLocaleDateString('pt-BR')
-    : 'data desconhecida';
+  const createdAt = existing.createdAt ? new Date(existing.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida';
 
   return (
     <div
@@ -28,9 +26,7 @@ export function DuplicateDossierModal({
         className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          Dossiê existente
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Dossiê existente</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
           Já existe um dossiê para <strong>{companyName}</strong>, gerado em {createdAt}.
         </p>
@@ -58,10 +54,7 @@ export function DuplicateDossierModal({
           </button>
         </div>
 
-        <button
-          onClick={onDismiss}
-          className="mt-3 w-full text-sm text-gray-400 hover:text-gray-500 transition-colors"
-        >
+        <button onClick={onDismiss} className="mt-3 w-full text-sm text-gray-400 hover:text-gray-500 transition-colors">
           Cancelar
         </button>
       </div>

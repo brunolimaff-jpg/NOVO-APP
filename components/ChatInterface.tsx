@@ -9,6 +9,7 @@ import { Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
+import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 import { DossierShareBar } from './DossierShareBar';
@@ -129,17 +130,22 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     dossierId: string;
     companyName: string;
   } | null>(null);
+  const completedDossierSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     const handleCompleted = (event: Event) => {
-      setCompletedDossier((event as CustomEvent).detail);
+      const detail = (event as CustomEvent).detail;
+      setCompletedDossier(detail);
+      completedDossierSessionRef.current = currentSession?.id ?? null;
     };
     window.addEventListener('dossier:completed', handleCompleted);
     return () => window.removeEventListener('dossier:completed', handleCompleted);
-  }, []);
+  }, [currentSession?.id]);
 
   useEffect(() => {
-    setCompletedDossier(null);
+    if (currentSession?.id !== completedDossierSessionRef.current) {
+      setCompletedDossier(null);
+    }
   }, [currentSession?.id]);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
@@ -227,10 +233,18 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const handleAccessExistingDossier = useCallback(async () => {
     if (!duplicateDossier || !operatorId) return;
+
     const dossier = await storage.getDossier(duplicateDossier.id);
-    if (dossier) {
-      onSelectSession(duplicateDossier.id);
+    if (!dossier) {
+      const { data } = await supabase!.from('dossies').select('id').eq('id', duplicateDossier.id).maybeSingle();
+      if (!data) {
+        setDuplicateDossier(null);
+        pendingPayloadRef.current = null;
+        return;
+      }
     }
+
+    onSelectSession(duplicateDossier.id);
     setDuplicateDossier(null);
     pendingPayloadRef.current = null;
     trackOperatorEvent('dossier_reopened', {
