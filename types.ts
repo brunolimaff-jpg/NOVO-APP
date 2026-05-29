@@ -29,6 +29,7 @@ export type ErrorCode =
   | 'RATE_LIMIT'
   | 'MODEL_OVERLOADED'
   | 'AUTH'
+  | 'BILLING'
   | 'BAD_REQUEST'
   | 'SERVER'
   | 'PARSER'

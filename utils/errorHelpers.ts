@@ -34,8 +34,16 @@ export function normalizeAppError(
   }
 
   const rawMessage = typeof errorLike.message === 'string' ? errorLike.message : String(error);
+  const explicitStatus =
+    typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0;
+  // Extrai status HTTP do formato "Gemini proxy failed (XXX): ..." (geminiProxy.ts)
+  const proxyStatusMatch = rawMessage.match(/Gemini proxy failed \((\d{3})\)/);
+  // Extrai status HTTP de JSON inline: {"code":"500"} ou "code": 500
+  const jsonStatusMatch = rawMessage.match(/"code"\s*:\s*"?(\d{3})"?/);
   const status =
-    typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0; // Tenta capturar status HTTP ou código gRPC
+    explicitStatus ||
+    (proxyStatusMatch ? Number(proxyStatusMatch[1]) : 0) ||
+    (jsonStatusMatch ? Number(jsonStatusMatch[1]) : 0);
 
   let code: ErrorCode = 'UNKNOWN';
   let friendlyMessage = defaultMessage;
@@ -102,7 +110,14 @@ export function normalizeAppError(
     retryable = false;
     transient = false;
   }
-  // 7. Auth Errors
+  // 7. Billing Errors (403 com dunning/PERMISSION_DENIED — projeto Google Cloud suspenso)
+  else if (rawMessage.match(/dunning|PERMISSION_DENIED|billing/i)) {
+    code = 'BILLING';
+    friendlyMessage = 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
+    retryable = false;
+    transient = true;
+  }
+  // 8. Auth Errors
   else if (status === 401 || status === 403 || rawMessage.match(/api key|unauthorized|forbidden/i)) {
     code = 'AUTH';
     friendlyMessage = 'Chave de API inválida ou expirada.';
@@ -143,6 +158,8 @@ export function getFriendlyErrorMessage(error: AppError, _mode: ChatMode): strin
       return 'Ocorreu uma falha temporária nos servidores de IA.';
     case 'ABORTED':
       return 'Geração interrompida.';
+    case 'BILLING':
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     default:
       return error.friendlyMessage || 'Não foi possível completar a solicitação.';
   }

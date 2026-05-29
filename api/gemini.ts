@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { setSecurityHeaders } from './_security-headers.js';
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
+import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -158,11 +159,6 @@ function getApiKeys(): string[] {
   }
 
   return keys;
-}
-
-function isQuotaExhausted(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /RESOURCE_EXHAUSTED|check quota|rate.?limit/i.test(message) || /"code"\s*:\s*429/.test(message);
 }
 
 function toNumberSafe(value: unknown, fallback: number): number {
@@ -584,8 +580,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await executeGeminiAction(ai, body, res);
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
-        if (isQuotaExhausted(error) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com cota esgotada, tentando fallback...`);
+        if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {
+          console.warn(`[GeminiProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
           lastError = error;
           continue;
         }

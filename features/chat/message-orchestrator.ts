@@ -4,6 +4,7 @@ import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
+import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
@@ -337,27 +338,32 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           clienteSeniorData,
           ghostReason,
           webVerificationStatus,
-        } = await sendMessageToGemini(
-          text,
-          historyToPass,
-          systemInstruction,
-          {
-            signal,
-            onText: () => {
-              setFailureCount(0);
-            },
-            onStatus: newStatus => {
-              advanceLoadingProgress(newStatus);
-            },
-            onRagFailed: () => {
-              toast.warning?.('Busca de contexto indisponível — resposta pode ser menos precisa');
-            },
-            nomeVendedor: resolvedOperatorName,
-            sessionId,
-            hintedCompany,
-            isFollowUp: Boolean(options?.isFollowUp),
-          },
-          canUseLookup,
+        } = await withAutoRetry(
+          'sendMessageToGemini',
+          () =>
+            sendMessageToGemini(
+              text,
+              historyToPass,
+              systemInstruction,
+              {
+                signal,
+                onText: () => {
+                  setFailureCount(0);
+                },
+                onStatus: newStatus => {
+                  advanceLoadingProgress(newStatus);
+                },
+                onRagFailed: () => {
+                  toast.warning?.('Busca de contexto indisponível — resposta pode ser menos precisa');
+                },
+                nomeVendedor: resolvedOperatorName,
+                sessionId,
+                hintedCompany,
+                isFollowUp: Boolean(options?.isFollowUp),
+              },
+              canUseLookup,
+            ),
+          { abortSignal: signal },
         );
 
         const safeSuggestions = ensureContinuitySuggestions(suggestions, normalizedCompany || hintedCompany || null, {

@@ -15,6 +15,8 @@ const NETWORK_PATTERNS = ['fetch', 'network', 'failed to fetch', 'networkerror',
 
 const QUOTA_PATTERNS = ['429', 'quota', 'rate limit', 'resource_exhausted', 'too many requests'];
 
+const BILLING_PATTERNS = ['dunning', 'permission_denied', 'billing'];
+
 const AUTH_PATTERNS = ['401', '403', 'unauthorized', 'forbidden', 'api key', 'invalid_api_key'];
 
 const TIMEOUT_PATTERNS = ['timeout', 'timed out', 'deadline', 'aborted', 'context deadline exceeded'];
@@ -40,6 +42,14 @@ export function getFriendlyErrorMessage(error: unknown, context: ErrorContext = 
       title: 'Limite de consultas atingido',
       detail: 'Muitas requisições em pouco tempo. Aguarde 1 minuto e tente novamente.',
       canRetry: true,
+    };
+  }
+
+  if (matches(rawMessage, BILLING_PATTERNS)) {
+    return {
+      title: 'Serviço indisponível',
+      detail: 'O serviço está temporariamente indisponível. Tente novamente mais tarde.',
+      canRetry: false,
     };
   }
 
