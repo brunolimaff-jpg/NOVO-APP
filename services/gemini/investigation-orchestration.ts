@@ -830,7 +830,7 @@ export async function getIsolatedBenchmark(
     `Benchmark:Isolated:${empresaAlvo}`,
     stepSignal =>
       withAutoRetry('Benchmark:Isolated', () => benchmarkClientes(empresaAlvo), {
-        maxRetries: 3,
+        maxRetries: 1,
         abortSignal: stepSignal,
       }),
     options.signal,

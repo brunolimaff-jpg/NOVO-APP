@@ -3,7 +3,7 @@ import { getIsolatedBenchmark } from '../../services/geminiService';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 
-const MODULAR_BENCHMARK_TIMEOUT_MS = 45000;
+const MODULAR_BENCHMARK_TIMEOUT_MS = 20000;
 const BENCHMARK_FAILURE_LABEL = 'Benchmark de mercado';
 
 export interface RunDossierBenchmarkStageArgs {
