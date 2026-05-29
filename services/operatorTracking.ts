@@ -114,8 +114,16 @@ async function startOperatorSessionAsync(operatorId: string, email?: string): Pr
 
   const existingSessionId = sessionStorage.getItem('scout:current_session_id');
   if (existingSessionId) {
-    touchOperatorSession();
-    return;
+    const { data } = await supabase!.from('operator_sessions').select('id').eq('id', existingSessionId).maybeSingle();
+
+    if (data) {
+      touchOperatorSession();
+      return;
+    }
+
+    // Sessao nao existe mais no banco — limpa sessionStorage e recria
+    sessionStorage.removeItem('scout:current_session_id');
+    sessionStorage.removeItem('scout:session_started_at');
   }
 
   const sessionId = getCurrentSessionId();
