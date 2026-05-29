@@ -54,6 +54,11 @@ function toPlainText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function safeUrl(raw: string): string {
+  const trimmed = raw.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : '#';
+}
+
 function renderMarkdown(text: string): string {
   let html = toPlainText(text);
 
@@ -65,8 +70,11 @@ function renderMarkdown(text: string): string {
   // Inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-  // Links — must be after toPlainText (escaped) but before other formatting
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Links — URL sanitizada (apenas http/https), texto já escapado por toPlainText
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    (_, text, url) => `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer">${text}</a>`,
+  );
 
   // Bold e italic
   html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
