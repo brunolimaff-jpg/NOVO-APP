@@ -7,13 +7,7 @@ export type Feedback = 'up' | 'down';
 
 export type FeedbackScope = 'message' | 'section' | 'error';
 
-export type FeedbackReason =
-  | 'generic'
-  | 'no_evidence'
-  | 'wrong_info'
-  | 'not_actionable'
-  | 'too_long'
-  | 'other';
+export type FeedbackReason = 'generic' | 'no_evidence' | 'wrong_info' | 'not_actionable' | 'too_long' | 'other';
 
 export interface FeedbackSubmissionOptions {
   scope?: FeedbackScope;
@@ -35,6 +29,7 @@ export type ErrorCode =
   | 'RATE_LIMIT'
   | 'MODEL_OVERLOADED'
   | 'AUTH'
+  | 'BILLING'
   | 'BAD_REQUEST'
   | 'SERVER'
   | 'PARSER'
@@ -239,7 +234,12 @@ export interface ChatInterfaceProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
-  onDeepDive: (displayMessage: string, hiddenPrompt: string, forcedCompanyName?: string, cnpj?: string | null) => Promise<void>;
+  onDeepDive: (
+    displayMessage: string,
+    hiddenPrompt: string,
+    forcedCompanyName?: string,
+    cnpj?: string | null,
+  ) => Promise<void>;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   messages: Message[];
@@ -326,11 +326,36 @@ export const RADAR_CATEGORY_COLORS: Record<RadarCategory, string> = {
 };
 
 export const BRASIL_UFS = [
-  'AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
-  'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO',
+  'AC',
+  'AL',
+  'AM',
+  'AP',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MG',
+  'MS',
+  'MT',
+  'PA',
+  'PB',
+  'PE',
+  'PI',
+  'PR',
+  'RJ',
+  'RN',
+  'RO',
+  'RR',
+  'RS',
+  'SC',
+  'SE',
+  'SP',
+  'TO',
 ] as const;
 
-export type BrasilUF = typeof BRASIL_UFS[number];
+export type BrasilUF = (typeof BRASIL_UFS)[number];
 
 export interface RadarAlert {
   id: string;

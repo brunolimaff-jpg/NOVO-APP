@@ -1,4 +1,3 @@
-
 import { AppError, ErrorCode, ErrorSource } from '../types';
 import { ChatMode } from '../constants';
 
@@ -13,7 +12,7 @@ type ErrorLike = {
 };
 
 function toErrorLike(error: unknown): ErrorLike {
-  return error && typeof error === 'object' ? error as ErrorLike : {};
+  return error && typeof error === 'object' ? (error as ErrorLike) : {};
 }
 
 /**
@@ -21,8 +20,8 @@ function toErrorLike(error: unknown): ErrorLike {
  */
 export function normalizeAppError(
   error: unknown,
-  source: ErrorSource = 'UNKNOWN', 
-  defaultMessage: string = 'Ocorreu um erro inesperado.'
+  source: ErrorSource = 'UNKNOWN',
+  defaultMessage: string = 'Ocorreu um erro inesperado.',
 ): AppError {
   const errorLike = toErrorLike(error);
 
@@ -30,21 +29,18 @@ export function normalizeAppError(
   if (isAppError(error)) {
     return {
       ...error,
-      source: error.source === 'UNKNOWN' ? source : error.source
+      source: error.source === 'UNKNOWN' ? source : error.source,
     };
   }
 
   const rawMessage = typeof errorLike.message === 'string' ? errorLike.message : String(error);
-  const status = typeof errorLike.status === 'number'
-    ? errorLike.status
-    : typeof errorLike.code === 'number'
-      ? errorLike.code
-      : 0; // Tenta capturar status HTTP ou código gRPC
+  const status =
+    typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0; // Tenta capturar status HTTP ou código gRPC
 
   let code: ErrorCode = 'UNKNOWN';
   let friendlyMessage = defaultMessage;
-  let retryable = true;   // Default: botão "Tentar de novo" aparece
-  let transient = false;  // Default: sem auto-retry automático
+  let retryable = true; // Default: botão "Tentar de novo" aparece
+  let transient = false; // Default: sem auto-retry automático
 
   // 0. Erros Fatais de Fetch / Abort (NÃO RETENTAR)
   if (rawMessage.match(/input body is disturbed/i)) {
@@ -52,15 +48,18 @@ export function normalizeAppError(
     friendlyMessage = 'Erro técnico na comunicação (Corpo da requisição já utilizado).';
     retryable = false;
     transient = false; // CRÍTICO: Nunca retentar erro de body disturbed
-  }
-  else if (rawMessage.match(/aborted/i) || errorLike.name === 'AbortError' || errorLike.code === 'ABORTED') {
+  } else if (rawMessage.match(/aborted/i) || errorLike.name === 'AbortError' || errorLike.code === 'ABORTED') {
     code = 'ABORTED';
     friendlyMessage = 'Solicitação cancelada pelo usuário.';
     retryable = false;
     transient = false; // CRÍTICO: Nunca retentar cancelamento do usuário
   }
   // 1. Erros de Rede / Conexão (Fetch API)
-  else if (rawMessage.match(/fetch failed|load failed|network|connection|offline|internet|failed to fetch|err_connection|net::err_/i)) {
+  else if (
+    rawMessage.match(
+      /fetch failed|load failed|network|connection|offline|internet|failed to fetch|err_connection|net::err_/i,
+    )
+  ) {
     code = 'NETWORK';
     friendlyMessage = 'Parece que você está sem internet ou houve uma falha na conexão.';
     transient = true;
@@ -103,14 +102,21 @@ export function normalizeAppError(
     retryable = false;
     transient = false;
   }
-  // 7. Auth Errors
+  // 7. Billing Errors (403 com dunning/PERMISSION_DENIED — projeto Google Cloud suspenso)
+  else if (rawMessage.match(/dunning|PERMISSION_DENIED|billing/i)) {
+    code = 'BILLING';
+    friendlyMessage = 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
+    retryable = false;
+    transient = true;
+  }
+  // 8. Auth Errors
   else if (status === 401 || status === 403 || rawMessage.match(/api key|unauthorized|forbidden/i)) {
     code = 'AUTH';
     friendlyMessage = 'Chave de API inválida ou expirada.';
     retryable = false;
     transient = false;
   }
-  
+
   return {
     code,
     message: rawMessage,
@@ -119,7 +125,7 @@ export function normalizeAppError(
     retryable,
     transient,
     source,
-    details: error && typeof error === 'object' ? error as Record<string, unknown> : undefined
+    details: error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined,
   };
 }
 
@@ -132,12 +138,21 @@ function isAppError(error: unknown): error is AppError {
  */
 export function getFriendlyErrorMessage(error: AppError, _mode: ChatMode): string {
   switch (error.code) {
-    case 'NETWORK': return "Verifique sua conexão com a internet e tente novamente.";
-    case 'RATE_LIMIT': return "Muitas requisições simultâneas. Aguarde alguns instantes.";
-    case 'MODEL_OVERLOADED': return "O serviço de IA está temporariamente instável.";
-    case 'BLOCKED_CONTENT': return "Não consegui processar essa solicitação por políticas de segurança.";
-    case 'SERVER': return "Ocorreu uma falha temporária nos servidores de IA.";
-    case 'ABORTED': return "Geração interrompida.";
-    default: return error.friendlyMessage || "Não foi possível completar a solicitação.";
+    case 'NETWORK':
+      return 'Verifique sua conexão com a internet e tente novamente.';
+    case 'RATE_LIMIT':
+      return 'Muitas requisições simultâneas. Aguarde alguns instantes.';
+    case 'MODEL_OVERLOADED':
+      return 'O serviço de IA está temporariamente instável.';
+    case 'BLOCKED_CONTENT':
+      return 'Não consegui processar essa solicitação por políticas de segurança.';
+    case 'SERVER':
+      return 'Ocorreu uma falha temporária nos servidores de IA.';
+    case 'ABORTED':
+      return 'Geração interrompida.';
+    case 'BILLING':
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
+    default:
+      return error.friendlyMessage || 'Não foi possível completar a solicitação.';
   }
 }
