@@ -526,6 +526,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         });
 
         setIsLoading(false);
+        completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
