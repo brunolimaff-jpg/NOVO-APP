@@ -15,7 +15,8 @@ export function DuplicateDossierModal({
   onNewResearch,
   onDismiss,
 }: DuplicateDossierModalProps) {
-  const createdAt = existing.createdAt ? new Date(existing.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida';
+  const date = existing.createdAt ? new Date(existing.createdAt) : null;
+  const createdAt = date && !isNaN(date.getTime()) ? date.toLocaleDateString('pt-BR') : 'data desconhecida';
 
   return (
     <div

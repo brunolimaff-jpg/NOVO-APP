@@ -5,7 +5,7 @@ import { useOperator } from '../contexts/OperatorContext';
 import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
-import { Sender, type RadarAlert } from '../types';
+import { type ChatSession, Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
@@ -234,14 +234,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const handleAccessExistingDossier = useCallback(async () => {
     if (!duplicateDossier || !operatorId) return;
 
-    const dossier = await storage.getDossier(duplicateDossier.id);
+    let dossier = await storage.getDossier(duplicateDossier.id);
     if (!dossier) {
-      const { data } = await supabase!.from('dossies').select('id').eq('id', duplicateDossier.id).maybeSingle();
-      if (!data) {
+      if (!supabase) {
         setDuplicateDossier(null);
         pendingPayloadRef.current = null;
         return;
       }
+      const { data } = await supabase.from('dossies').select('content').eq('id', duplicateDossier.id).maybeSingle();
+      if (!data || !data.content) {
+        setDuplicateDossier(null);
+        pendingPayloadRef.current = null;
+        return;
+      }
+      dossier = data.content as ChatSession;
+      await storage.saveDossier(dossier!);
     }
 
     onSelectSession(duplicateDossier.id);
