@@ -3,7 +3,6 @@ import { ChatSession } from '../types';
 import { listRemoteSessions } from '../services/sessionRemoteStore';
 import { LOOKUP_URL } from '../services/apiConfig';
 import { scoutDiag } from '../utils/diagnosticLog';
-import { mergeChatSessions } from '../utils/mergeChatSessions';
 
 interface UseAppInitializationOptions {
   loadSessions: () => Promise<ChatSession[]>;
@@ -55,7 +54,7 @@ export function useAppInitialization({
         .then(remoteList => {
           if (cancelled) return;
           if (remoteList.length === 0) return;
-          setSessions(current => mergeChatSessions(current, remoteList));
+          setSessions(() => remoteList);
           // Only update selected session if user hasn't started interacting
           setCurrentSessionId(prev => {
             if (prev) return prev;
