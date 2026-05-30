@@ -141,6 +141,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       const detail = (event as CustomEvent).detail;
       if (!detail || typeof detail !== 'object' || !('dossierId' in detail)) return;
       completedDossierSessionRef.current = detail.dossierId;
+      console.log('[dossier:completed]', { eventDossierId: detail.dossierId?.slice(0,8), refSessionId: currentSessionIdRef.current?.slice(0,8), match: detail.dossierId === currentSessionIdRef.current });
       if (detail.dossierId === currentSessionIdRef.current) {
         setCompletedDossier(detail);
       }
