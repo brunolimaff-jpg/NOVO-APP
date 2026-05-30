@@ -2,20 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { storage } from '../services/storage';
 import { ChatSession } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
-import { mergeChatSessions } from '../utils/mergeChatSessions';
+import { runIdbToSupabaseMigration } from '../lib/migration/idbToSupabase';
 
 const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
-
-interface SyncCompleteDetail {
-  pushed?: number;
-  pulled?: number;
-  errors?: unknown[];
-}
 
 export function useSessionStorage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const sessionsRef = useRef<ChatSession[]>([]);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPersistedRef = useRef<string>('');
 
   useEffect(() => {
     sessionsRef.current = sessions;
@@ -32,11 +29,25 @@ export function useSessionStorage() {
         })),
       }));
 
+    // Executa migração IDB → Supabase (1x, guarded by flag)
     try {
-      const idbSessions = await storage.getDossiers();
-      if (idbSessions && idbSessions.length > 0) return sanitizeLoadedSessions(idbSessions);
+      await runIdbToSupabaseMigration({
+        upsertFn: async session => {
+          await storage.saveDossier(session);
+        },
+        getOperatorId: () => localStorage.getItem('scout360:operator_id'),
+      });
     } catch {
-      // IndexedDB unavailable, try localStorage fallback
+      console.warn('[useSessionStorage] Migration IDB→Supabase failed, trying Supabase direct');
+    }
+
+    try {
+      const supabaseSessions = await storage.getDossiers();
+      if (supabaseSessions && supabaseSessions.length > 0) {
+        return sanitizeLoadedSessions(supabaseSessions);
+      }
+    } catch {
+      // Supabase unavailable, try localStorage fallback
     }
 
     try {
@@ -61,20 +72,30 @@ export function useSessionStorage() {
   }, []);
 
   const persistSessions = useCallback(async (data: ChatSession[]) => {
-    try {
-      await storage.saveAllDossiers(data);
-    } catch {
+    const key = JSON.stringify(data.map(s => s.id).sort());
+    if (key === lastPersistedRef.current) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      lastPersistedRef.current = key;
       try {
-        localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(data));
-      } catch (e: unknown) {
-        const storageErr = e as { name?: string; code?: number };
-        if (storageErr?.name === 'QuotaExceededError' || storageErr?.code === 22) {
-          console.warn('[Storage] Quota exceeded — trimming oldest sessions');
-          const trimmed = data.slice(0, Math.max(data.length - 5, 1));
-          localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(trimmed));
+        await storage.saveAllDossiers(data);
+      } catch {
+        try {
+          localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(data));
+        } catch (e: unknown) {
+          const storageErr = e as { name?: string; code?: number };
+          if (storageErr?.name === 'QuotaExceededError' || storageErr?.code === 22) {
+            console.warn('[Storage] Quota exceeded — trimming oldest sessions');
+            const trimmed = data.slice(0, Math.max(data.length - 5, 1));
+            localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(trimmed));
+          }
         }
       }
-    }
+    }, 1000);
   }, []);
 
   useEffect(() => {
@@ -83,20 +104,35 @@ export function useSessionStorage() {
     }
   }, [sessions, isInitialized, persistSessions]);
 
-  // Reload sessions from IDB after sync pulls data from Supabase
+  // Initial load — finally garante setIsLoading(false) mesmo em erro
   useEffect(() => {
-    const handleSyncComplete = (event: Event) => {
-      const detail = (event as CustomEvent<SyncCompleteDetail>).detail;
-      if (!detail || (detail.pulled ?? 0) <= 0) return;
-
-      loadSessions().then(loaded => {
-        setSessions(prev => mergeChatSessions(prev, loaded));
-        setIsInitialized(true);
-      });
+    let cancelled = false;
+    (async () => {
+      try {
+        const loaded = await loadSessions();
+        if (!cancelled) {
+          setSessions(loaded);
+          setIsInitialized(true);
+        }
+      } catch (e) {
+        console.error('[useSessionStorage] Initial load failed:', e);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener('scout:sync-complete', handleSyncComplete);
-    return () => window.removeEventListener('scout:sync-complete', handleSyncComplete);
   }, [loadSessions]);
+
+  // Cleanup debounce timer
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return {
     sessions,
@@ -104,6 +140,8 @@ export function useSessionStorage() {
     sessionsRef,
     isInitialized,
     setIsInitialized,
+    isLoading,
+    setIsLoading,
     loadSessions,
   };
 }

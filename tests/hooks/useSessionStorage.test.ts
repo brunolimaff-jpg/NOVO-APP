@@ -11,17 +11,19 @@ vi.mock('idb-keyval', () => ({
 }));
 
 const getDossiersMock = vi.hoisted(() => vi.fn());
+const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveAllDossiersMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../../services/storage', () => ({
   storage: {
     getDossiers: getDossiersMock,
+    saveDossier: saveDossierMock,
     saveAllDossiers: saveAllDossiersMock,
   },
 }));
 
 import { useSessionStorage } from '../../hooks/useSessionStorage';
-import { ChatSession, Sender } from '../../types';
+import { ChatSession } from '../../types';
 
 function makeSession(id: string, title: string, messages: ChatSession['messages'] = []): ChatSession {
   return {
@@ -41,10 +43,13 @@ function makeSession(id: string, title: string, messages: ChatSession['messages'
 describe('useSessionStorage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
     window.localStorage.clear();
     idbGetMock.mockResolvedValue(undefined);
     idbSetMock.mockResolvedValue(undefined);
     getDossiersMock.mockResolvedValue([]);
+    saveDossierMock.mockResolvedValue(undefined);
+    saveAllDossiersMock.mockResolvedValue(undefined);
   });
 
   it('inicializa com sessions vazia e isInitialized false', () => {
@@ -59,7 +64,7 @@ describe('useSessionStorage', () => {
     expect(sessions).toEqual([]);
   });
 
-  it('loadSessions carrega sessions do IndexedDB quando disponível', async () => {
+  it('loadSessions carrega sessions do Supabase quando disponível', async () => {
     const storedSessions = [makeSession('s1', 'Fazenda Alpha')];
     getDossiersMock.mockResolvedValue(storedSessions);
 
@@ -70,8 +75,8 @@ describe('useSessionStorage', () => {
     expect(sessions[0].title).toBe('Fazenda Alpha');
   });
 
-  it('loadSessions usa localStorage como fallback quando IDB falha', async () => {
-    getDossiersMock.mockRejectedValue(new Error('IDB unavailable'));
+  it('loadSessions usa localStorage como fallback quando Supabase falha', async () => {
+    getDossiersMock.mockRejectedValue(new Error('Supabase unavailable'));
     const storedSessions = [makeSession('s2', 'Cooperativa Beta')];
     window.localStorage.setItem('scout360_sessions_v1', JSON.stringify(storedSessions));
 
@@ -116,7 +121,8 @@ describe('useSessionStorage', () => {
     expect(sessions[0].messages[0].timestamp).toBeInstanceOf(Date);
   });
 
-  it('setSessions atualiza o estado e dispara persistência', async () => {
+  it('setSessions atualiza o estado e dispara persistência com debounce', async () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() => useSessionStorage());
 
     // Inicializar primeiro
@@ -129,9 +135,15 @@ describe('useSessionStorage', () => {
       result.current.setSessions([newSession]);
     });
 
-    await waitFor(() => {
-      expect(saveAllDossiersMock).toHaveBeenCalled();
+    // Persistência não deve ter sido chamada ainda (debounce 1s)
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+
+    // Avançar o timer
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
     });
+
+    expect(saveAllDossiersMock).toHaveBeenCalled();
   });
 
   it('sessionsRef é mantido sincronizado com sessions', async () => {
@@ -149,80 +161,12 @@ describe('useSessionStorage', () => {
   });
 
   it('loadSessions retorna array vazio para localStorage com JSON inválido', async () => {
-    getDossiersMock.mockRejectedValue(new Error('IDB unavailable'));
+    getDossiersMock.mockRejectedValue(new Error('Supabase unavailable'));
     window.localStorage.setItem('scout360_sessions_v1', 'JSON_INVALIDO{{{');
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
 
     expect(sessions).toEqual([]);
-  });
-
-  it('scout:sync-complete push-only não recarrega sessões nem regrava o estado', async () => {
-    const localWithDossier = makeSession('scheffer-push', 'Scheffer & Cia', [
-      {
-        id: 'bot-push',
-        sender: Sender.Bot,
-        text: 'Dossiê completo já renderizado',
-        timestamp: new Date('2026-05-26T11:00:00.000Z'),
-      },
-    ]);
-
-    const { result } = renderHook(() => useSessionStorage());
-
-    act(() => {
-      result.current.setIsInitialized(true);
-      result.current.setSessions([localWithDossier]);
-    });
-
-    await waitFor(() => {
-      expect(saveAllDossiersMock).toHaveBeenCalled();
-    });
-
-    const loadsBeforePushOnlyEvent = getDossiersMock.mock.calls.length;
-    saveAllDossiersMock.mockClear();
-
-    act(() => {
-      window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail: { pushed: 1, pulled: 0, errors: [] } }));
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(getDossiersMock).toHaveBeenCalledTimes(loadsBeforePushOnlyEvent);
-    expect(saveAllDossiersMock).not.toHaveBeenCalled();
-    expect(result.current.sessions[0]?.messages[0]?.text).toContain('Dossiê completo');
-  });
-
-  it('scout:sync-complete preserva messages locais quando reload traz sessão stale sem texto', async () => {
-    const localWithDossier = makeSession('scheffer-1', 'Scheffer & Cia', [
-      {
-        id: 'bot-1',
-        sender: Sender.Bot,
-        text: 'Dossiê completo da Scheffer com teia societária',
-        timestamp: new Date('2026-05-26T11:00:00.000Z'),
-      },
-    ]);
-    const staleRemote = makeSession('scheffer-1', 'Scheffer & Cia', []);
-    staleRemote.updatedAt = '2026-05-26T12:00:00.000Z';
-
-    getDossiersMock.mockResolvedValue([staleRemote]);
-
-    const { result } = renderHook(() => useSessionStorage());
-
-    act(() => {
-      result.current.setIsInitialized(true);
-      result.current.setSessions([localWithDossier]);
-    });
-
-    act(() => {
-      window.dispatchEvent(new CustomEvent('scout:sync-complete', { detail: { pushed: 0, pulled: 1, errors: [] } }));
-    });
-
-    await waitFor(() => {
-      expect(result.current.sessions[0]?.messages).toHaveLength(1);
-      expect(result.current.sessions[0]?.messages[0]?.text).toContain('Dossiê completo');
-    });
   });
 });
