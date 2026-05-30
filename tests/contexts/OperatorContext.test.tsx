@@ -3,12 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const saveUserContextMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
-const scheduleDossierSyncMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/storage', () => ({
   storage: {
     saveUserContext: saveUserContextMock,
-    scheduleDossierSync: scheduleDossierSyncMock,
   },
 }));
 
@@ -48,7 +46,6 @@ describe('OperatorProvider', () => {
   beforeEach(() => {
     window.localStorage.clear();
     saveUserContextMock.mockClear();
-    scheduleDossierSyncMock.mockClear();
   });
 
   it('starts without a name but with a stable operator id', () => {
@@ -84,7 +81,6 @@ describe('OperatorProvider', () => {
       name: 'Bruno Lima',
       email: 'bruno@senior.com.br',
     });
-    expect(scheduleDossierSyncMock).toHaveBeenCalledWith({ pull: true });
   });
 
   it('backfills saved name and email once on mount', async () => {

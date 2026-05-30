@@ -95,10 +95,7 @@ describe('runIdbToSupabaseMigration', () => {
     const { get } = await import('idb-keyval');
     vi.mocked(get).mockResolvedValue(MOCK_SESSIONS);
 
-    const upsertMock = vi
-      .fn()
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('Supabase offline'));
+    const upsertMock = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Supabase offline'));
 
     await expect(
       runIdbToSupabaseMigration({

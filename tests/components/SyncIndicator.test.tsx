@@ -1,17 +1,10 @@
-import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-const getSyncQueueSizeMock = vi.hoisted(() => vi.fn());
-const scheduleBackgroundSyncMock = vi.hoisted(() => vi.fn());
-const syncAllMock = vi.hoisted(() => vi.fn());
+const isSupabaseAvailableMock = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock('../../services/storage', () => ({
-  storage: {
-    getSyncQueueSize: getSyncQueueSizeMock,
-    scheduleBackgroundSync: scheduleBackgroundSyncMock,
-    syncAll: syncAllMock,
-  },
+vi.mock('../../lib/supabaseClient', () => ({
+  isSupabaseAvailable: isSupabaseAvailableMock,
 }));
 
 import { SyncIndicator } from '../../components/SyncIndicator';
@@ -19,28 +12,28 @@ import { SyncIndicator } from '../../components/SyncIndicator';
 describe('SyncIndicator', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    getSyncQueueSizeMock.mockReturnValue(0);
-    scheduleBackgroundSyncMock.mockClear();
-    syncAllMock.mockResolvedValue({ pushed: 0, pulled: 0, errors: [] });
+    isSupabaseAvailableMock.mockReturnValue(true);
+    Object.defineProperty(navigator, 'onLine', { value: true, writable: true, configurable: true });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('mostra nuvem em dia sem badge', () => {
+  it('mostra "Conectado" quando online e Supabase disponível', () => {
     render(<SyncIndicator isDarkMode={false} />);
-
-    expect(screen.getByRole('button', { name: /nuvem · em dia/i })).toBeInTheDocument();
-    expect(screen.queryByText('Nuvem')).not.toBeInTheDocument();
+    expect(screen.getByText('Conectado')).toBeInTheDocument();
   });
 
-  it('mostra badge com contagem pendente', () => {
-    getSyncQueueSizeMock.mockReturnValue(2);
+  it('mostra "Nuvem indisponível" quando Supabase fora do ar', () => {
+    isSupabaseAvailableMock.mockReturnValue(false);
 
     render(<SyncIndicator isDarkMode={false} />);
+    expect(screen.getByText('Nuvem indisponível')).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole('button', { name: /nuvem · 2 pendentes/i })).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+  it('exibe label a11y com status', () => {
+    render(<SyncIndicator isDarkMode={false} />);
+    expect(screen.getByLabelText('Nuvem · Conectado')).toBeInTheDocument();
   });
 });
