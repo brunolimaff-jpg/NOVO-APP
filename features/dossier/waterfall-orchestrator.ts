@@ -1028,9 +1028,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         completeLoadingProgress();
 
         if (sessionToPersist) {
-          const dossier = sessionToPersist as ChatSession;
           try {
-            await storage.saveDossier(dossier);
+            await storage.saveDossier(sessionToPersist);
           } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             waterfallTrace.error({ step: 'saveDossier', error: errMsg });
@@ -1040,16 +1039,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               error: errMsg,
             });
           }
-          window.dispatchEvent(
-            new CustomEvent('dossier:completed', {
-              detail: {
-                dossierId: dossier.id,
-                companyName: resolvedMegaCompany || normalizedCompany || '',
-                cnpj: dossier.cnpj,
-              },
-            }),
-          );
         }
+
+        // Usa sessionId diretamente — não depende de sessionToPersist
+        // (que pode ser null se updateSessionById não encontrar a sessão).
+        window.dispatchEvent(
+          new CustomEvent('dossier:completed', {
+            detail: {
+              dossierId: sessionId,
+              companyName: resolvedMegaCompany || normalizedCompany || '',
+              cnpj: undefined,
+            },
+          }),
+        );
       } finally {
         // Fire-and-forget: o cache tem TTL e expira automaticamente.
         // Não bloqueia o waterfall para evitar overlay preso em 95%.
