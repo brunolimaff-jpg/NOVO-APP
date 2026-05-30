@@ -24,7 +24,7 @@ export async function runIdbToSupabaseMigration(deps: MigrationDeps): Promise<nu
     return 0;
   }
 
-  let sessions: ChatSession[] = [];
+  let sessions: ChatSession[];
   try {
     sessions = (await get<ChatSession[]>(IDB_SESSIONS_KEY)) || [];
   } catch (e) {
@@ -38,7 +38,7 @@ export async function runIdbToSupabaseMigration(deps: MigrationDeps): Promise<nu
     return 0;
   }
 
-  console.log(`[Storage] Migration: ${sessions.length} sessions found in IDB, migrating to Supabase...`);
+  console.warn(`[Storage] Migration: ${sessions.length} sessions found in IDB, migrating to Supabase...`);
 
   let migrated = 0;
   const errors: Error[] = [];

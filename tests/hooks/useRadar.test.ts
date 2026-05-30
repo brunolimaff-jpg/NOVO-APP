@@ -1,13 +1,21 @@
 // tests/hooks/useRadar.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useRadar } from '../../features/radar';
 import type { RadarAlert } from '../../types';
 
-// Mock IDB
-vi.mock('idb-keyval', () => ({
-  get: vi.fn().mockResolvedValue(undefined),
-  set: vi.fn().mockResolvedValue(undefined),
+// Mock storage
+const getRadarAlertsMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const saveRadarAlertsMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const getRadarConfigMock = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+const saveRadarConfigMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+
+vi.mock('../../services/storage', () => ({
+  storage: {
+    getRadarAlerts: getRadarAlertsMock,
+    saveRadarAlerts: saveRadarAlertsMock,
+    getRadarConfig: getRadarConfigMock,
+    saveRadarConfig: saveRadarConfigMock,
+  },
 }));
 
 // Mock radar service (no real HTTP calls)
@@ -19,8 +27,8 @@ vi.mock('../../features/radar/service', async () => {
   };
 });
 
+import { useRadar } from '../../features/radar';
 import { fetchRadarAlerts } from '../../features/radar/service';
-import { get as idbGet, set as idbSet } from 'idb-keyval';
 
 function makeAlert(id: string, read = false): RadarAlert {
   return {
@@ -39,8 +47,11 @@ function makeAlert(id: string, read = false): RadarAlert {
 
 describe('useRadar', () => {
   beforeEach(() => {
-    vi.mocked(idbGet).mockResolvedValue(undefined);
-    vi.mocked(idbSet).mockResolvedValue(undefined);
+    localStorage.clear();
+    getRadarAlertsMock.mockResolvedValue([]);
+    saveRadarAlertsMock.mockResolvedValue(undefined);
+    getRadarConfigMock.mockResolvedValue(null);
+    saveRadarConfigMock.mockResolvedValue(undefined);
     vi.mocked(fetchRadarAlerts).mockResolvedValue({
       alerts: [] as RadarAlert[],
       metaInsight: null,
@@ -61,12 +72,9 @@ describe('useRadar', () => {
     expect(result.current.lastError).toBeNull();
   });
 
-  it('carrega alertas do IDB ao inicializar', async () => {
+  it('carrega alertas do Supabase ao inicializar', async () => {
     const saved = [makeAlert('a1'), makeAlert('a2', true)];
-    vi.mocked(idbGet).mockImplementation(async (key: string) => {
-      if (key === 'scout360_radar_alerts') return saved;
-      return undefined;
-    });
+    getRadarAlertsMock.mockResolvedValue(saved);
 
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.alerts).toHaveLength(2));
@@ -75,10 +83,7 @@ describe('useRadar', () => {
 
   it('markAsRead marca alerta como lido', async () => {
     const saved = [makeAlert('x1'), makeAlert('x2')];
-    vi.mocked(idbGet).mockImplementation(async (key: string) => {
-      if (key === 'scout360_radar_alerts') return saved;
-      return undefined;
-    });
+    getRadarAlertsMock.mockResolvedValue(saved);
 
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.alerts).toHaveLength(2));
@@ -94,10 +99,7 @@ describe('useRadar', () => {
 
   it('markAllAsRead marca todos como lido', async () => {
     const saved = [makeAlert('y1'), makeAlert('y2'), makeAlert('y3')];
-    vi.mocked(idbGet).mockImplementation(async (key: string) => {
-      if (key === 'scout360_radar_alerts') return saved;
-      return undefined;
-    });
+    getRadarAlertsMock.mockResolvedValue(saved);
 
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.alerts).toHaveLength(3));
@@ -112,10 +114,7 @@ describe('useRadar', () => {
 
   it('dismissAlert remove alerta da lista', async () => {
     const saved = [makeAlert('d1'), makeAlert('d2')];
-    vi.mocked(idbGet).mockImplementation(async (key: string) => {
-      if (key === 'scout360_radar_alerts') return saved;
-      return undefined;
-    });
+    getRadarAlertsMock.mockResolvedValue(saved);
 
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.alerts).toHaveLength(2));
@@ -143,7 +142,6 @@ describe('useRadar', () => {
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.config).toBeDefined());
 
-    // Default config.isConfigured = false
     await act(async () => {
       await result.current.forceScan();
     });
@@ -181,8 +179,8 @@ describe('useRadar', () => {
     );
   });
 
-  it('IDB indisponível não quebra o hook (graceful degradation)', async () => {
-    vi.mocked(idbGet).mockRejectedValue(new Error('IDB unavailable'));
+  it('Supabase indisponível não quebra o hook (graceful degradation)', async () => {
+    getRadarAlertsMock.mockRejectedValue(new Error('Supabase unavailable'));
 
     const { result } = renderHook(() => useRadar());
     await waitFor(() => expect(result.current.alerts).toBeDefined());
