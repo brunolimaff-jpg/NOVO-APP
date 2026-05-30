@@ -19,6 +19,17 @@ function getOperatorId(): string | null {
   return localStorage.getItem('scout360:operator_id');
 }
 
+// Strip transient UI state from messages before persisting
+function stripTransientState(session: ChatSession): ChatSession {
+  return {
+    ...session,
+    messages: (session.messages || []).map(msg => ({
+      ...msg,
+      isThinking: false,
+    })),
+  };
+}
+
 // Debounce para touchUserContext — max 1 chamada a cada 60s
 let lastTouchTs = 0;
 
@@ -50,7 +61,16 @@ export const storage = {
     }
     if (!data) return [];
 
-    return data.map((row: { content: ChatSession | null }) => row.content).filter((s): s is ChatSession => s != null);
+    return data
+      .map((row: { content: ChatSession | null }) => row.content)
+      .filter((s): s is ChatSession => s != null)
+      .map(session => ({
+        ...session,
+        messages: (session.messages || []).map(msg => ({
+          ...msg,
+          isThinking: false,
+        })),
+      }));
   },
 
   async getDossier(id: string): Promise<ChatSession | null> {
@@ -72,25 +92,31 @@ export const storage = {
       return null;
     }
     if (!data?.content) return null;
-    return data.content as ChatSession;
+    const session = data.content as ChatSession;
+    return {
+      ...session,
+      messages: (session.messages || []).map(msg => ({ ...msg, isThinking: false })),
+    };
   },
 
   async saveDossier(session: ChatSession): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
+    const cleanSession = stripTransientState(session);
+
     const { error } = await supabase!.from('dossies').upsert({
-      id: session.id,
+      id: cleanSession.id,
       operator_id: operatorId,
       operator_email: localStorage.getItem('scout360:operator_email') ?? null,
-      title: session.title,
-      empresa_alvo: session.empresaAlvo,
-      cnpj: session.cnpj,
-      modo_principal: session.modoPrincipal,
-      score_oportunidade: session.scoreOportunidade,
-      resumo_dossie: session.resumoDossie,
-      content: session as unknown as Record<string, unknown>,
-      updated_at: session.updatedAt || new Date().toISOString(),
+      title: cleanSession.title,
+      empresa_alvo: cleanSession.empresaAlvo,
+      cnpj: cleanSession.cnpj,
+      modo_principal: cleanSession.modoPrincipal,
+      score_oportunidade: cleanSession.scoreOportunidade,
+      resumo_dossie: cleanSession.resumoDossie,
+      content: cleanSession as unknown as Record<string, unknown>,
+      updated_at: cleanSession.updatedAt || new Date().toISOString(),
     });
 
     if (error) {
@@ -104,21 +130,22 @@ export const storage = {
     if (!isSupabaseAvailable() || !operatorId) return;
 
     const results = await Promise.allSettled(
-      sessions.map(session =>
-        supabase!.from('dossies').upsert({
-          id: session.id,
+      sessions.map(session => {
+        const clean = stripTransientState(session);
+        return supabase!.from('dossies').upsert({
+          id: clean.id,
           operator_id: operatorId,
           operator_email: localStorage.getItem('scout360:operator_email') ?? null,
-          title: session.title,
-          empresa_alvo: session.empresaAlvo,
-          cnpj: session.cnpj,
-          modo_principal: session.modoPrincipal,
-          score_oportunidade: session.scoreOportunidade,
-          resumo_dossie: session.resumoDossie,
-          content: session as unknown as Record<string, unknown>,
-          updated_at: session.updatedAt || new Date().toISOString(),
-        }),
-      ),
+          title: clean.title,
+          empresa_alvo: clean.empresaAlvo,
+          cnpj: clean.cnpj,
+          modo_principal: clean.modoPrincipal,
+          score_oportunidade: clean.scoreOportunidade,
+          resumo_dossie: clean.resumoDossie,
+          content: clean as unknown as Record<string, unknown>,
+          updated_at: clean.updatedAt || new Date().toISOString(),
+        });
+      }),
     );
 
     const failures = results.filter(r => {
