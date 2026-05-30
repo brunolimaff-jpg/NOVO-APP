@@ -113,8 +113,9 @@ describe('storage (simplificado — Supabase direto)', () => {
         error: null,
       });
       const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
-      const eqMock = vi.fn().mockReturnValue({ is: isMock });
-      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      const eqOpMock = vi.fn().mockReturnValue({ is: isMock });
+      const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqIdMock });
       supabaseMock.from.mockReturnValue({ select: selectMock });
 
       const result = await storage.getDossier('session-1');
@@ -126,13 +127,23 @@ describe('storage (simplificado — Supabase direto)', () => {
     it('deve retornar null se dossier não encontrado', async () => {
       supabaseMock.single.mockResolvedValue({ data: null, error: null });
       const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
-      const eqMock = vi.fn().mockReturnValue({ is: isMock });
-      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      const eqOpMock = vi.fn().mockReturnValue({ is: isMock });
+      const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqIdMock });
       supabaseMock.from.mockReturnValue({ select: selectMock });
 
       const result = await storage.getDossier('non-existent');
 
       expect(result).toBeNull();
+    });
+
+    it('deve retornar null se não houver operatorId', async () => {
+      localStorage.removeItem('scout360:operator_id');
+
+      const result = await storage.getDossier('session-1');
+
+      expect(result).toBeNull();
+      expect(supabaseMock.from).not.toHaveBeenCalled();
     });
 
     it('deve retornar null se Supabase indisponível', async () => {
@@ -200,8 +211,9 @@ describe('storage (simplificado — Supabase direto)', () => {
 
   describe('deleteDossier', () => {
     it('deve fazer soft delete no Supabase', async () => {
-      const updateEq = vi.fn().mockResolvedValue({ error: null });
-      supabaseMock.update.mockReturnValue({ eq: updateEq });
+      const eqOpMock = vi.fn().mockResolvedValue({ error: null });
+      const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
+      supabaseMock.update.mockReturnValue({ eq: eqIdMock });
       supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
 
       await storage.deleteDossier('session-1');

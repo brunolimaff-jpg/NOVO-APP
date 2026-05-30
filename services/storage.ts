@@ -53,10 +53,14 @@ export const storage = {
   async getDossier(id: string): Promise<ChatSession | null> {
     if (!isSupabaseAvailable()) return null;
 
+    const operatorId = getOperatorId();
+    if (!operatorId) return null;
+
     const { data, error } = await supabase!
       .from('dossies')
       .select('content')
       .eq('id', id)
+      .eq('operator_id', operatorId)
       .is('deleted_at', null)
       .single();
 
@@ -126,7 +130,8 @@ export const storage = {
     const { error } = await supabase!
       .from('dossies')
       .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('operator_id', operatorId);
 
     if (error) {
       console.error('[Storage] deleteDossier failed:', id, error);
