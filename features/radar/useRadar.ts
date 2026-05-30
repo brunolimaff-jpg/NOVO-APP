@@ -106,11 +106,15 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
   }, []);
 
   const persistLastScan = useCallback(async (ts: number) => {
-    await storage.saveRadarLastScan(ts);
+    localStorage.setItem('scout360:radar_last_scan', String(ts));
   }, []);
 
   const persistMetaInsight = useCallback(async (insight: string | null) => {
-    await storage.saveRadarMetaInsight(insight);
+    if (insight) {
+      localStorage.setItem('scout360:radar_meta_insight', insight);
+    } else {
+      localStorage.removeItem('scout360:radar_meta_insight');
+    }
   }, []);
 
   // ===================================================================
@@ -121,11 +125,13 @@ export function useRadar(toast?: ToastActions): UseRadarReturn {
     let cancelled = false;
     (async () => {
       try {
-        const [savedAlerts, savedConfig, savedLastScan, savedMetaInsight] = await Promise.all([
+        const lastScanVal = localStorage.getItem('scout360:radar_last_scan');
+        const savedLastScan = lastScanVal ? Number(lastScanVal) : null;
+        const savedMetaInsight = localStorage.getItem('scout360:radar_meta_insight');
+
+        const [savedAlerts, savedConfig] = await Promise.all([
           storage.getRadarAlerts() as Promise<RadarAlert[]>,
           storage.getRadarConfig() as Promise<RadarConfig>,
-          storage.getRadarLastScan(),
-          storage.getRadarMetaInsight(),
         ]);
         if (cancelled) return;
         if (savedAlerts) setAlerts(savedAlerts);
