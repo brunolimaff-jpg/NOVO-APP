@@ -9,7 +9,6 @@ const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 export function useSessionStorage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const sessionsRef = useRef<ChatSession[]>([]);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -111,8 +110,6 @@ export function useSessionStorage() {
         }
       } catch (e) {
         console.error('[useSessionStorage] Initial load failed:', e);
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     })();
     return () => {
@@ -156,8 +153,6 @@ export function useSessionStorage() {
     sessionsRef,
     isInitialized,
     setIsInitialized,
-    isLoading,
-    setIsLoading,
     loadSessions,
   };
 }
