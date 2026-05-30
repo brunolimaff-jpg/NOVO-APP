@@ -131,13 +131,19 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     companyName: string;
   } | null>(null);
   const completedDossierSessionRef = useRef<string | null>(null);
+  const currentSessionIdRef = useRef<string | null>(null);
+  // Atualizado durante render (não em useEffect) — garante valor em sync
+  // quando o dispatchEvent síncrono do waterfall disparar dossier:completed.
+  currentSessionIdRef.current = currentSession?.id ?? null;
 
   useEffect(() => {
     const handleCompleted = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (!detail || typeof detail !== 'object' || !('dossierId' in detail)) return;
       completedDossierSessionRef.current = detail.dossierId;
-      setCompletedDossier(detail);
+      if (detail.dossierId === currentSessionIdRef.current) {
+        setCompletedDossier(detail);
+      }
     };
     window.addEventListener('dossier:completed', handleCompleted);
     return () => window.removeEventListener('dossier:completed', handleCompleted);
