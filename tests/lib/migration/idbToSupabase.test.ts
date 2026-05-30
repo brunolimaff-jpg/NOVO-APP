@@ -11,7 +11,7 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn(),
 }));
 
-vi.mock('../../lib/supabaseClient', () => ({
+vi.mock('../../../lib/supabaseClient', () => ({
   isSupabaseAvailable: vi.fn(() => true),
   supabase: null,
 }));
