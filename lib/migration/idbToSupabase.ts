@@ -5,6 +5,7 @@
 
 import { get } from 'idb-keyval';
 import type { ChatSession } from '../../types';
+import { isSupabaseAvailable } from '../supabaseClient';
 
 const MIGRATION_FLAG = 'scout360:migration_v2_complete';
 const IDB_SESSIONS_KEY = 'scout360_sessions_v2';
@@ -16,6 +17,12 @@ export interface MigrationDeps {
 
 export async function runIdbToSupabaseMigration(deps: MigrationDeps): Promise<number> {
   if (localStorage.getItem(MIGRATION_FLAG) === 'true') {
+    return 0;
+  }
+
+  // Se Supabase não está disponível, retorna sem setar flag para tentar novamente no próximo load
+  if (!isSupabaseAvailable()) {
+    console.warn('[Storage] Migration: Supabase unavailable, will retry on next load');
     return 0;
   }
 
@@ -60,6 +67,6 @@ export async function runIdbToSupabaseMigration(deps: MigrationDeps): Promise<nu
   }
 
   localStorage.setItem(MIGRATION_FLAG, 'true');
-  console.log(`[Storage] Migration: ${migrated} sessions migrated successfully`);
+  console.warn(`[Storage] Migration: ${migrated} sessions migrated successfully`);
   return migrated;
 }

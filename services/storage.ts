@@ -19,6 +19,9 @@ function getOperatorId(): string | null {
   return localStorage.getItem('scout360:operator_id');
 }
 
+// Debounce para touchUserContext — max 1 chamada a cada 60s
+let lastTouchTs = 0;
+
 // ===================================================================
 // STORAGE INTERFACE
 // ===================================================================
@@ -47,7 +50,7 @@ export const storage = {
     }
     if (!data) return [];
 
-    return data.map((row: { content: ChatSession | null }) => row.content).filter((s): s is ChatSession => s !== null);
+    return data.map((row: { content: ChatSession | null }) => row.content).filter((s): s is ChatSession => s != null);
   },
 
   async getDossier(id: string): Promise<ChatSession | null> {
@@ -79,7 +82,7 @@ export const storage = {
     const { error } = await supabase!.from('dossies').upsert({
       id: session.id,
       operator_id: operatorId,
-      operator_email: localStorage.getItem('scout360:operator_email') || null,
+      operator_email: localStorage.getItem('scout360:operator_email') ?? null,
       title: session.title,
       empresa_alvo: session.empresaAlvo,
       cnpj: session.cnpj,
@@ -92,6 +95,7 @@ export const storage = {
 
     if (error) {
       console.error('[Storage] saveDossier failed:', session.id, error);
+      throw new Error(error.message);
     }
   },
 
@@ -104,7 +108,7 @@ export const storage = {
         supabase!.from('dossies').upsert({
           id: session.id,
           operator_id: operatorId,
-          operator_email: localStorage.getItem('scout360:operator_email') || null,
+          operator_email: localStorage.getItem('scout360:operator_email') ?? null,
           title: session.title,
           empresa_alvo: session.empresaAlvo,
           cnpj: session.cnpj,
@@ -117,7 +121,11 @@ export const storage = {
       ),
     );
 
-    const failures = results.filter(r => r.status === 'rejected');
+    const failures = results.filter(r => {
+      // Supabase never rejects — errors come in the resolved value
+      if (r.status === 'rejected') return true;
+      return r.value != null && typeof r.value === 'object' && 'error' in r.value && r.value.error != null;
+    });
     if (failures.length > 0) {
       console.error(`[Storage] saveAllDossiers: ${failures.length}/${sessions.length} upserts failed`);
     }
@@ -163,12 +171,14 @@ export const storage = {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      void supabase!.from('extract_cache').upsert({
-        id: cacheKey,
-        result,
-        expires_at: expiresAt.toISOString(),
-        operator_id: operatorId,
-      });
+      void Promise.resolve(
+        supabase!.from('extract_cache').upsert({
+          id: cacheKey,
+          result,
+          expires_at: expiresAt.toISOString(),
+          operator_id: operatorId,
+        }),
+      ).catch(() => {});
     }
   },
 
@@ -197,6 +207,10 @@ export const storage = {
 
   async touchUserContext(operatorId: string): Promise<void> {
     if (!operatorId || !isSupabaseAvailable()) return;
+
+    const now = Date.now();
+    if (now - lastTouchTs < 60_000) return;
+    lastTouchTs = now;
 
     try {
       await supabase!
@@ -243,14 +257,16 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!operatorId) return;
 
-    void supabase!.from('audit_log').insert({
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      metadata,
-      operator_id: operatorId,
-      created_at: new Date().toISOString(),
-    });
+    void Promise.resolve(
+      supabase!.from('audit_log').insert({
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        metadata,
+        operator_id: operatorId,
+        created_at: new Date().toISOString(),
+      }),
+    ).catch(() => {});
   },
 
   // ===================================================================
@@ -272,17 +288,18 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void supabase!.from('favorites').upsert(
-      {
-        operator_id: operatorId,
-        cnpj,
-        company_name: companyName,
-        reason,
-        dossier_id: dossierId,
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: 'operator_id,cnpj' },
-    );
+    void Promise.resolve(
+      supabase!.from('favorites').upsert(
+        {
+          operator_id: operatorId,
+          cnpj,
+          company_name: companyName,
+          reason,
+          dossier_id: dossierId,
+        },
+        { onConflict: 'operator_id,cnpj' },
+      ),
+    ).catch(() => {});
 
     await this.logAudit('favorite_added', 'dossier', dossierId, {
       cnpj,
@@ -295,7 +312,9 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj);
+    void Promise.resolve(supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj)).catch(
+      () => {},
+    );
     await this.logAudit('favorite_removed', 'dossier', undefined, { cnpj });
   },
 
@@ -395,7 +414,7 @@ export const storage = {
 
     trackOperatorEvent('dossier_shared', {
       operatorId,
-      email: localStorage.getItem('scout360:operator_email') || undefined,
+      email: localStorage.getItem('scout360:operator_email') ?? undefined,
       entityType: 'shared_dossier',
       entityId: dossierId,
       companyCnpj: dossier.cnpj || undefined,

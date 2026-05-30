@@ -179,6 +179,9 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         didTrackAppOpenRef.current = true;
         void initSessionTracking(existingOperatorId, existingEmail).catch(() => {});
       }
+
+      // Notificar sessões para recarregar com o novo operatorId
+      window.dispatchEvent(new CustomEvent('operator-relinked'));
     },
     [],
   );

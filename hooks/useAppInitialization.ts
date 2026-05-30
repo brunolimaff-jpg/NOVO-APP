@@ -1,6 +1,5 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import { ChatSession } from '../types';
-import { listRemoteSessions } from '../services/sessionRemoteStore';
 import { LOOKUP_URL } from '../services/apiConfig';
 import { scoutDiag } from '../utils/diagnosticLog';
 
@@ -48,22 +47,6 @@ export function useAppInitialization({
       }
       if (window.innerWidth < 768) setIsSidebarOpen(false);
       setIsInitialized(true);
-
-      // Phase 2: background sync — merge remote without blocking or disrupting
-      listRemoteSessions()
-        .then(remoteList => {
-          if (cancelled) return;
-          if (remoteList.length === 0) return;
-          setSessions(() => remoteList);
-          // Only update selected session if user hasn't started interacting
-          setCurrentSessionId(prev => {
-            if (prev) return prev;
-            return null;
-          });
-        })
-        .catch(() => {
-          scoutDiag.warn('AppInit', 'Sync remoto de sessões falhou (best-effort)');
-        });
     };
 
     init();

@@ -12,7 +12,6 @@ export function useSessionStorage() {
   const [isLoading, setIsLoading] = useState(true);
   const sessionsRef = useRef<ChatSession[]>([]);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPersistedRef = useRef<string>('');
 
   useEffect(() => {
     sessionsRef.current = sessions;
@@ -72,15 +71,11 @@ export function useSessionStorage() {
   }, []);
 
   const persistSessions = useCallback(async (data: ChatSession[]) => {
-    const key = JSON.stringify(data.map(s => s.id).sort());
-    if (key === lastPersistedRef.current) return;
-
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
     debounceTimerRef.current = setTimeout(async () => {
-      lastPersistedRef.current = key;
       try {
         await storage.saveAllDossiers(data);
       } catch {
@@ -125,14 +120,35 @@ export function useSessionStorage() {
     };
   }, [loadSessions]);
 
-  // Cleanup debounce timer
+  // Cleanup debounce timer — flush pending write on unmount
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      // Flush pending write: fire-and-forget save of current sessions
+      const pendingSessions = sessionsRef.current;
+      if (pendingSessions.length > 0) {
+        storage.saveAllDossiers(pendingSessions).catch(() => {});
+      }
     };
   }, []);
+
+  // Reload sessions when operatorId changes
+  useEffect(() => {
+    const handler = () => {
+      loadSessions()
+        .then(loaded => {
+          if (loaded.length > 0) {
+            setSessions(loaded);
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener('operator-relinked', handler);
+    return () => window.removeEventListener('operator-relinked', handler);
+  }, [loadSessions]);
 
   return {
     sessions,
