@@ -127,8 +127,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
           })
           .catch(() => {});
       }
-
-      storage.scheduleDossierSync({ pull: true });
     },
     [operatorId],
   );
@@ -181,8 +179,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         didTrackAppOpenRef.current = true;
         void initSessionTracking(existingOperatorId, existingEmail).catch(() => {});
       }
-
-      storage.scheduleDossierSync({ pull: true });
     },
     [],
   );
