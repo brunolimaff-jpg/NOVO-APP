@@ -108,11 +108,11 @@ describe('storage (simplificado — Supabase direto)', () => {
 
   describe('getDossier', () => {
     it('deve retornar dossier específico do Supabase', async () => {
-      supabaseMock.single.mockResolvedValue({
+      supabaseMock.maybeSingle.mockResolvedValue({
         data: { content: mockSession },
         error: null,
       });
-      const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
+      const isMock = vi.fn().mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
       const eqOpMock = vi.fn().mockReturnValue({ is: isMock });
       const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
       const selectMock = vi.fn().mockReturnValue({ eq: eqIdMock });
@@ -125,8 +125,8 @@ describe('storage (simplificado — Supabase direto)', () => {
     });
 
     it('deve retornar null se dossier não encontrado', async () => {
-      supabaseMock.single.mockResolvedValue({ data: null, error: null });
-      const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
+      supabaseMock.maybeSingle.mockResolvedValue({ data: null, error: null });
+      const isMock = vi.fn().mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
       const eqOpMock = vi.fn().mockReturnValue({ is: isMock });
       const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
       const selectMock = vi.fn().mockReturnValue({ eq: eqIdMock });
@@ -190,14 +190,20 @@ describe('storage (simplificado — Supabase direto)', () => {
   });
 
   describe('saveAllDossiers', () => {
-    it('deve fazer upsert em paralelo para todas as sessões', async () => {
+    it('deve fazer upsert em lote (bulk) para todas as sessões', async () => {
       supabaseMock.upsert.mockResolvedValue({ error: null });
       supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
       const sessions = [mockSession, { ...mockSession, id: 'session-2' }];
       await storage.saveAllDossiers(sessions);
 
-      expect(supabaseMock.upsert).toHaveBeenCalledTimes(2);
+      expect(supabaseMock.upsert).toHaveBeenCalledTimes(1);
+      expect(supabaseMock.upsert).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'session-1' }),
+          expect.objectContaining({ id: 'session-2' }),
+        ]),
+      );
     });
 
     it('não deve fazer upsert se não houver operatorId', async () => {

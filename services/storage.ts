@@ -85,7 +85,7 @@ export const storage = {
       .eq('id', id)
       .eq('operator_id', operatorId)
       .is('deleted_at', null)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('[Storage] getDossier failed:', id, error);
@@ -127,34 +127,28 @@ export const storage = {
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
     const operatorId = getOperatorId();
-    if (!isSupabaseAvailable() || !operatorId) return;
+    if (!isSupabaseAvailable() || !operatorId || sessions.length === 0) return;
 
-    const results = await Promise.allSettled(
-      sessions.map(session => {
-        const clean = stripTransientState(session);
-        return supabase!.from('dossies').upsert({
-          id: clean.id,
-          operator_id: operatorId,
-          operator_email: localStorage.getItem('scout360:operator_email') ?? null,
-          title: clean.title,
-          empresa_alvo: clean.empresaAlvo,
-          cnpj: clean.cnpj,
-          modo_principal: clean.modoPrincipal,
-          score_oportunidade: clean.scoreOportunidade,
-          resumo_dossie: clean.resumoDossie,
-          content: clean as unknown as Record<string, unknown>,
-          updated_at: clean.updatedAt || new Date().toISOString(),
-        });
-      }),
-    );
-
-    const failures = results.filter(r => {
-      // Supabase never rejects — errors come in the resolved value
-      if (r.status === 'rejected') return true;
-      return r.value != null && typeof r.value === 'object' && 'error' in r.value && r.value.error != null;
+    const payloads = sessions.map(session => {
+      const clean = stripTransientState(session);
+      return {
+        id: clean.id,
+        operator_id: operatorId,
+        operator_email: localStorage.getItem('scout360:operator_email') ?? null,
+        title: clean.title,
+        empresa_alvo: clean.empresaAlvo,
+        cnpj: clean.cnpj,
+        modo_principal: clean.modoPrincipal,
+        score_oportunidade: clean.scoreOportunidade,
+        resumo_dossie: clean.resumoDossie,
+        content: clean as unknown as Record<string, unknown>,
+        updated_at: clean.updatedAt || new Date().toISOString(),
+      };
     });
-    if (failures.length > 0) {
-      console.error(`[Storage] saveAllDossiers: ${failures.length}/${sessions.length} upserts failed`);
+
+    const { error } = await supabase!.from('dossies').upsert(payloads);
+    if (error) {
+      console.error('[Storage] saveAllDossiers failed:', error);
     }
   },
 
@@ -198,14 +192,12 @@ export const storage = {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      void Promise.resolve(
-        supabase!.from('extract_cache').upsert({
-          id: cacheKey,
-          result,
-          expires_at: expiresAt.toISOString(),
-          operator_id: operatorId,
-        }),
-      ).catch(() => {});
+      void supabase!.from('extract_cache').upsert({
+        id: cacheKey,
+        result,
+        expires_at: expiresAt.toISOString(),
+        operator_id: operatorId,
+      });
     }
   },
 
@@ -284,16 +276,14 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!operatorId) return;
 
-    void Promise.resolve(
-      supabase!.from('audit_log').insert({
-        action,
-        target_type: targetType,
-        target_id: targetId,
-        metadata,
-        operator_id: operatorId,
-        created_at: new Date().toISOString(),
-      }),
-    ).catch(() => {});
+    void supabase!.from('audit_log').insert({
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      metadata,
+      operator_id: operatorId,
+      created_at: new Date().toISOString(),
+    });
   },
 
   // ===================================================================
@@ -315,18 +305,16 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void Promise.resolve(
-      supabase!.from('favorites').upsert(
-        {
-          operator_id: operatorId,
-          cnpj,
-          company_name: companyName,
-          reason,
-          dossier_id: dossierId,
-        },
-        { onConflict: 'operator_id,cnpj' },
-      ),
-    ).catch(() => {});
+    void supabase!.from('favorites').upsert(
+      {
+        operator_id: operatorId,
+        cnpj,
+        company_name: companyName,
+        reason,
+        dossier_id: dossierId,
+      },
+      { onConflict: 'operator_id,cnpj' },
+    );
 
     await this.logAudit('favorite_added', 'dossier', dossierId, {
       cnpj,
@@ -339,9 +327,7 @@ export const storage = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void Promise.resolve(supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj)).catch(
-      () => {},
-    );
+    void supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj);
     await this.logAudit('favorite_removed', 'dossier', undefined, { cnpj });
   },
 

@@ -77,7 +77,7 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
         }
 
         // Salvar sessões via Supabase
-        await Promise.all(backup.sessions.map(s => storage.saveDossier(s)));
+        await storage.saveAllDossiers(backup.sessions);
 
         resolve(backup);
       } catch (error) {

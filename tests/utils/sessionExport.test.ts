@@ -7,6 +7,7 @@ vi.mock('../../services/storage', () => ({
   storage: {
     getDossiers: vi.fn(),
     saveDossier: vi.fn(),
+    saveAllDossiers: vi.fn(),
   },
 }));
 
@@ -54,9 +55,9 @@ describe('sessionExport', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:scout360-backup');
   });
 
-  it('importa sessões chamando storage.saveDossier para cada sessão', async () => {
+  it('importa sessões chamando storage.saveAllDossiers para cada sessão', async () => {
     const session = makeSession({ id: 'imported-session' });
-    vi.mocked(storage.saveDossier).mockResolvedValue(undefined);
+    vi.mocked(storage.saveAllDossiers).mockResolvedValue(undefined);
 
     const file = new File(
       [
@@ -76,12 +77,12 @@ describe('sessionExport', () => {
       sessions: [expect.objectContaining({ id: 'imported-session' })],
     });
 
-    expect(storage.saveDossier).toHaveBeenCalledWith(session);
+    expect(storage.saveAllDossiers).toHaveBeenCalledWith([session]);
   });
 
-  it('importa multiplas sessoes chamando storage.saveDossier para cada uma', async () => {
+  it('importa multiplas sessoes via bulk saveAllDossiers', async () => {
     const sessions = [makeSession({ id: 's1' }), makeSession({ id: 's2' })];
-    vi.mocked(storage.saveDossier).mockResolvedValue(undefined);
+    vi.mocked(storage.saveAllDossiers).mockResolvedValue(undefined);
 
     const file = new File(
       [
@@ -100,8 +101,7 @@ describe('sessionExport', () => {
       sessionCount: 2,
     });
 
-    expect(storage.saveDossier).toHaveBeenCalledTimes(2);
-    expect(storage.saveDossier).toHaveBeenCalledWith(sessions[0]);
-    expect(storage.saveDossier).toHaveBeenCalledWith(sessions[1]);
+    expect(storage.saveAllDossiers).toHaveBeenCalledTimes(1);
+    expect(storage.saveAllDossiers).toHaveBeenCalledWith(sessions);
   });
 });
