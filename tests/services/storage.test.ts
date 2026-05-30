@@ -1,5 +1,5 @@
 // tests/services/storage.test.ts
-// Tests for unified storage layer (Supabase + IDB offline)
+// Tests for simplified storage layer (Supabase direct, IDB only for extract cache)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -8,44 +8,35 @@ const supabaseMock = vi.hoisted(() => ({
   upsert: vi.fn(),
   select: vi.fn(),
   update: vi.fn(),
+  insert: vi.fn(),
+  delete: vi.fn(),
   eq: vi.fn(),
+  is: vi.fn(),
+  order: vi.fn(),
+  single: vi.fn(),
   maybeSingle: vi.fn(),
+  gt: vi.fn(),
+  limit: vi.fn(),
 }));
 
-// Mock idb-keyval
 vi.mock('idb-keyval', () => ({
   get: vi.fn(),
   set: vi.fn(),
 }));
 
-// Mock supabaseClient
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: supabaseMock.from,
   },
-  isSupabaseAvailable: vi.fn(() => false),
-}));
-
-// Mock syncQueue
-vi.mock('../../services/syncQueue', () => ({
-  syncQueue: {
-    enqueue: vi.fn(),
-    remove: vi.fn(),
-    size: vi.fn(() => 0),
-    peek: vi.fn(() => []),
-    load: vi.fn(async () => []),
-    processWhere: vi.fn(async () => true),
-    processAll: vi.fn(),
-  },
+  isSupabaseAvailable: vi.fn(() => true),
 }));
 
 import { storage } from '../../services/storage';
 import { get, set } from 'idb-keyval';
 import { isSupabaseAvailable } from '../../lib/supabaseClient';
-import { syncQueue } from '../../services/syncQueue';
 import type { ChatSession } from '../../types';
 
-describe('storage', () => {
+describe('storage (simplificado — Supabase direto)', () => {
   const mockSession: ChatSession = {
     id: 'session-1',
     title: 'Test Session',
@@ -60,379 +51,201 @@ describe('storage', () => {
   };
 
   beforeEach(() => {
-    vi.useRealTimers();
     vi.clearAllMocks();
-    vi.mocked(isSupabaseAvailable).mockReturnValue(false);
-    vi.mocked(syncQueue.peek).mockReturnValue([]);
-    supabaseMock.from.mockReset();
-    supabaseMock.upsert.mockReset();
-    supabaseMock.select.mockReset();
-    supabaseMock.update.mockReset();
-    supabaseMock.eq.mockReset();
-    supabaseMock.maybeSingle.mockReset();
+    localStorage.clear();
+    localStorage.setItem('scout360:operator_id', 'op_test123');
+    vi.mocked(isSupabaseAvailable).mockReturnValue(true);
   });
 
-  describe('getOperatorId', () => {
-    it('should read operator_id from localStorage', () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      // Access the helper via storage methods that use it
-      expect(localStorage.getItem('scout360:operator_id')).toBe('operator-123');
-      localStorage.removeItem('scout360:operator_id');
-    });
-  });
+  // ===================================================================
+  // DOSSIERS
+  // ===================================================================
 
-  describe('Dossiers', () => {
-    it('saveDossier should call IDB set and syncQueue.enqueue', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
-
-      await storage.saveDossier(mockSession);
-
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', expect.any(Array));
-      expect(syncQueue.enqueue).toHaveBeenCalledWith({
-        table: 'dossies',
-        operation: 'upsert',
-        data: expect.objectContaining({
-          id: mockSession.id,
-          title: mockSession.title,
-          empresa_alvo: mockSession.empresaAlvo,
-          cnpj: mockSession.cnpj,
-          modo_principal: mockSession.modoPrincipal,
-          score_oportunidade: mockSession.scoreOportunidade,
-          resumo_dossie: mockSession.resumoDossie,
-          operator_id: 'operator-123',
-        }),
-        id: mockSession.id,
-      });
-      localStorage.removeItem('scout360:operator_id');
-    });
-
-    it('saveDossier should save to IDB but NOT enqueue when no operator_id', async () => {
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
-
-      await storage.saveDossier(mockSession);
-
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', expect.any(Array));
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('saveAllDossiers should bulk save to IDB and enqueue sync for each', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      const sessions = [mockSession];
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
-
-      await storage.saveAllDossiers(sessions);
-
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', sessions);
-      expect(syncQueue.enqueue).toHaveBeenCalledTimes(1);
-      expect(syncQueue.enqueue).toHaveBeenCalledWith({
-        table: 'dossies',
-        operation: 'upsert',
-        data: expect.objectContaining({
-          id: mockSession.id,
-          operator_id: 'operator-123',
-        }),
-        id: mockSession.id,
-      });
-      localStorage.removeItem('scout360:operator_id');
-    });
-
-    it('saveAllDossiers should save to IDB but NOT enqueue when no operator_id', async () => {
-      const sessions = [mockSession];
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
-
-      await storage.saveAllDossiers(sessions);
-
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', sessions);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('getDossiers should return from IDB', async () => {
-      vi.mocked(get).mockResolvedValue([mockSession]);
+  describe('getDossiers', () => {
+    it('deve retornar dossiers do Supabase', async () => {
+      const mockData = [{ content: { id: 'd1', title: 'Test', messages: [] } }];
+      const orderMock = vi.fn().mockResolvedValue({ data: mockData, error: null });
+      const isMock = vi.fn().mockReturnValue({ order: orderMock });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
 
       const result = await storage.getDossiers();
 
-      expect(get).toHaveBeenCalledWith('scout360_sessions_v2');
-      expect(result).toEqual([mockSession]);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('d1');
+      expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
     });
 
-    it('getDossier should return specific session from local sessions', async () => {
-      vi.mocked(get).mockResolvedValue([mockSession]);
+    it('deve retornar array vazio se não houver operatorId', async () => {
+      localStorage.removeItem('scout360:operator_id');
+
+      const result = await storage.getDossiers();
+
+      expect(result).toEqual([]);
+    });
+
+    it('deve retornar array vazio se Supabase indisponível', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(false);
+
+      const result = await storage.getDossiers();
+
+      expect(result).toEqual([]);
+    });
+
+    it('deve retornar array vazio se erro na consulta', async () => {
+      const orderMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } });
+      const isMock = vi.fn().mockReturnValue({ order: orderMock });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
+
+      const result = await storage.getDossiers();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getDossier', () => {
+    it('deve retornar dossier específico do Supabase', async () => {
+      supabaseMock.single.mockResolvedValue({
+        data: { content: mockSession },
+        error: null,
+      });
+      const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
 
       const result = await storage.getDossier('session-1');
 
       expect(result).toEqual(mockSession);
+      expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
     });
 
-    it('getDossier should return null if session not found', async () => {
-      vi.mocked(get).mockResolvedValue([mockSession]);
+    it('deve retornar null se dossier não encontrado', async () => {
+      supabaseMock.single.mockResolvedValue({ data: null, error: null });
+      const isMock = vi.fn().mockReturnValue({ single: supabaseMock.single });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
 
       const result = await storage.getDossier('non-existent');
 
       expect(result).toBeNull();
     });
 
-    it('deleteDossier should remove from local and enqueue sync with deleted_at', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      vi.mocked(get).mockResolvedValue([mockSession]);
-      vi.mocked(set).mockResolvedValue(undefined);
+    it('deve retornar null se Supabase indisponível', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(false);
 
-      await storage.deleteDossier('session-1');
+      const result = await storage.getDossier('session-1');
 
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', []);
-      expect(syncQueue.enqueue).toHaveBeenCalledWith({
-        table: 'dossies',
-        operation: 'upsert',
-        data: expect.objectContaining({
-          id: 'session-1',
-          operator_id: 'operator-123',
-          content: mockSession,
-          deleted_at: expect.any(String),
-          updated_at: expect.any(String),
-        }),
-        id: 'session-1',
-      });
-      localStorage.removeItem('scout360:operator_id');
+      expect(result).toBeNull();
     });
+  });
 
-    it('deleteDossier should remove from local but NOT enqueue when no operator_id', async () => {
-      vi.mocked(get).mockResolvedValue([mockSession]);
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.deleteDossier('session-1');
-
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', []);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('saveDossier should schedule one debounced auto sync for dossier operations', async () => {
-      vi.useFakeTimers();
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]);
-      vi.mocked(syncQueue.peek)
-        .mockReturnValueOnce([
-          {
-            table: 'dossies',
-            operation: 'upsert',
-            data: {},
-            id: 'session-1',
-          },
-        ])
-        .mockReturnValueOnce([]);
+  describe('saveDossier', () => {
+    it('deve fazer upsert no Supabase', async () => {
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
       await storage.saveDossier(mockSession);
-      await storage.saveDossier({ ...mockSession, title: 'Updated Session' });
-
-      expect(syncQueue.processWhere).not.toHaveBeenCalled();
-
-      await vi.advanceTimersByTimeAsync(749);
-      expect(syncQueue.processWhere).not.toHaveBeenCalled();
-
-      await vi.advanceTimersByTimeAsync(1);
-
-      expect(syncQueue.processWhere).toHaveBeenCalledTimes(1);
-      const [predicate] = vi.mocked(syncQueue.processWhere).mock.calls[0];
-      expect(
-        predicate({
-          table: 'dossies',
-          operation: 'upsert',
-          data: {},
-          id: 'session-1',
-        }),
-      ).toBe(true);
-      expect(
-        predicate({
-          table: 'radar_alerts',
-          operation: 'upsert',
-          data: {},
-          id: 'alerts',
-        }),
-      ).toBe(false);
-      localStorage.removeItem('scout360:operator_id');
-    });
-
-    it('syncDossiers should preserve pull when a rerun is requested during in-flight sync', async () => {
-      vi.useFakeTimers();
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      vi.mocked(get).mockResolvedValue([]);
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      const dossierOp = {
-        table: 'dossies',
-        operation: 'upsert' as const,
-        data: {},
-        id: 'session-1',
-      };
-      const orderMock = vi.fn().mockResolvedValue({
-        data: [{ content: mockSession }],
-        error: null,
-      });
-      const isMock = vi.fn().mockReturnValue({ order: orderMock });
-      const eqMock = vi.fn().mockReturnValue({ is: isMock });
-      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
-      supabaseMock.from.mockReturnValue({ select: selectMock });
-
-      let releaseProcessing: (() => void) | undefined;
-      const processing = new Promise<void>(resolve => {
-        releaseProcessing = resolve;
-      });
-      vi.mocked(syncQueue.processWhere).mockImplementationOnce(async () => {
-        await processing;
-        return true;
-      });
-      vi.mocked(syncQueue.peek)
-        .mockReturnValueOnce([dossierOp])
-        .mockReturnValueOnce([])
-        .mockReturnValueOnce([])
-        .mockReturnValueOnce([]);
-
-      const syncComplete = new Promise<Event>(resolve => {
-        window.addEventListener('scout:sync-complete', resolve, { once: true });
-      });
-
-      const firstSync = storage.syncDossiers();
-      await Promise.resolve();
-
-      const skippedSync = await storage.syncDossiers({ pull: true });
-      expect(skippedSync).toEqual({ pushed: 0, pulled: 0, errors: [] });
-
-      releaseProcessing?.();
-      await firstSync;
-      await vi.advanceTimersByTimeAsync(750);
-      await syncComplete;
 
       expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
-      expect(selectMock).toHaveBeenCalledWith('content');
-      expect(eqMock).toHaveBeenCalledWith('operator_id', 'operator-123');
-      expect(isMock).toHaveBeenCalledWith('deleted_at', null);
-      expect(orderMock).toHaveBeenCalledWith('updated_at', { ascending: false });
-      expect(set).toHaveBeenCalledWith('scout360_sessions_v2', [mockSession]);
+      expect(supabaseMock.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockSession.id,
+          title: mockSession.title,
+          operator_id: 'op_test123',
+        }),
+      );
+    });
+
+    it('não deve fazer upsert se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+
+      await storage.saveDossier(mockSession);
+
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
+    it('não deve fazer upsert se Supabase indisponível', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(false);
+
+      await storage.saveDossier(mockSession);
+
+      expect(supabaseMock.from).not.toHaveBeenCalled();
     });
   });
 
-  describe('Radar', () => {
-    it('getRadarAlerts should return from IDB', async () => {
-      const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
-      vi.mocked(get).mockResolvedValue(mockAlerts);
+  describe('saveAllDossiers', () => {
+    it('deve fazer upsert em paralelo para todas as sessões', async () => {
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
-      const result = await storage.getRadarAlerts();
+      const sessions = [mockSession, { ...mockSession, id: 'session-2' }];
+      await storage.saveAllDossiers(sessions);
 
-      expect(get).toHaveBeenCalledWith('scout360_radar_alerts');
-      expect(result).toEqual(mockAlerts);
+      expect(supabaseMock.upsert).toHaveBeenCalledTimes(2);
     });
 
-    it('saveRadarAlerts should save to IDB and enqueue sync', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.saveRadarAlerts(mockAlerts);
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_alerts', mockAlerts);
-      expect(syncQueue.enqueue).toHaveBeenCalled();
+    it('não deve fazer upsert se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
-    });
 
-    it('saveRadarAlerts should save to IDB but NOT enqueue when no operator_id', async () => {
-      const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
-      vi.mocked(set).mockResolvedValue(undefined);
+      await storage.saveAllDossiers([mockSession]);
 
-      await storage.saveRadarAlerts(mockAlerts);
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_alerts', mockAlerts);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('getRadarConfig should return from IDB', async () => {
-      const mockConfig = { enabled: true, categories: [] };
-      vi.mocked(get).mockResolvedValue(mockConfig);
-
-      const result = await storage.getRadarConfig();
-
-      expect(get).toHaveBeenCalledWith('scout360_radar_config');
-      expect(result).toEqual(mockConfig);
-    });
-
-    it('saveRadarConfig should save to IDB and enqueue sync', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      const mockConfig = { enabled: true, categories: [] };
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.saveRadarConfig(mockConfig);
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_config', mockConfig);
-      expect(syncQueue.enqueue).toHaveBeenCalled();
-      localStorage.removeItem('scout360:operator_id');
-    });
-
-    it('saveRadarConfig should save to IDB but NOT enqueue when no operator_id', async () => {
-      const mockConfig = { enabled: true, categories: [] };
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.saveRadarConfig(mockConfig);
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_config', mockConfig);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('getRadarLastScan should return from IDB', async () => {
-      vi.mocked(get).mockResolvedValue(1234567890);
-
-      const result = await storage.getRadarLastScan();
-
-      expect(get).toHaveBeenCalledWith('scout360_radar_last_scan');
-      expect(result).toBe(1234567890);
-    });
-
-    it('saveRadarLastScan should save to IDB only', async () => {
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.saveRadarLastScan(1234567890);
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_last_scan', 1234567890);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('getRadarMetaInsight should return from IDB', async () => {
-      vi.mocked(get).mockResolvedValue('Test insight');
-
-      const result = await storage.getRadarMetaInsight();
-
-      expect(get).toHaveBeenCalledWith('scout360_radar_meta_insight');
-      expect(result).toBe('Test insight');
-    });
-
-    it('saveRadarMetaInsight should save to IDB only', async () => {
-      vi.mocked(set).mockResolvedValue(undefined);
-
-      await storage.saveRadarMetaInsight('Test insight');
-
-      expect(set).toHaveBeenCalledWith('scout360_radar_meta_insight', 'Test insight');
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+      expect(supabaseMock.from).not.toHaveBeenCalled();
     });
   });
 
-  describe('Extract Cache', () => {
-    it('getExtractCache should return from IDB with prefix', async () => {
-      const mockCache = { result: { data: 'test' }, timestamp: 1234567890 };
-      vi.mocked(get).mockResolvedValue(mockCache);
+  describe('deleteDossier', () => {
+    it('deve fazer soft delete no Supabase', async () => {
+      const updateEq = vi.fn().mockResolvedValue({ error: null });
+      supabaseMock.update.mockReturnValue({ eq: updateEq });
+      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
+
+      await storage.deleteDossier('session-1');
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
+      expect(supabaseMock.update).toHaveBeenCalledWith({
+        deleted_at: expect.any(String),
+        updated_at: expect.any(String),
+      });
+    });
+
+    it('não deve fazer delete se não houver operatorId', async () => {
+      localStorage.removeItem('scout360:operator_id');
+
+      await storage.deleteDossier('session-1');
+
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+  });
+
+  // ===================================================================
+  // EXTRACT CACHE
+  // ===================================================================
+
+  describe('extract cache', () => {
+    it('getExtractCache deve usar IDB', async () => {
+      vi.mocked(get).mockResolvedValue({ result: 'cached', timestamp: Date.now() });
 
       const result = await storage.getExtractCache('test-key');
 
       expect(get).toHaveBeenCalledWith('ext-cache-test-key');
-      expect(result).toEqual(mockCache);
+      expect(result).toEqual({ result: 'cached', timestamp: expect.any(Number) });
     });
 
-    it('saveExtractCache should save to IDB and enqueue sync with expires_at', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
+    it('getExtractCache deve retornar null se IDB falhar', async () => {
+      vi.mocked(get).mockRejectedValue(new Error('IDB error'));
+
+      const result = await storage.getExtractCache('test-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('saveExtractCache deve salvar no IDB', async () => {
+      vi.mocked(isSupabaseAvailable).mockReturnValue(false);
       vi.mocked(set).mockResolvedValue(undefined);
 
       await storage.saveExtractCache('test-key', { data: 'test' });
@@ -441,26 +254,26 @@ describe('storage', () => {
         result: { data: 'test' },
         timestamp: expect.any(Number),
       });
-      expect(syncQueue.enqueue).toHaveBeenCalled();
-      localStorage.removeItem('scout360:operator_id');
     });
 
-    it('saveExtractCache should save to IDB but NOT enqueue when no operator_id', async () => {
+    it('saveExtractCache deve fazer upsert no Supabase também', async () => {
       vi.mocked(set).mockResolvedValue(undefined);
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
       await storage.saveExtractCache('test-key', { data: 'test' });
 
-      expect(set).toHaveBeenCalledWith('ext-cache-test-key', {
-        result: { data: 'test' },
-        timestamp: expect.any(Number),
-      });
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+      expect(supabaseMock.from).toHaveBeenCalledWith('extract_cache');
+      expect(supabaseMock.upsert).toHaveBeenCalled();
     });
   });
 
-  describe('User Context', () => {
-    it('saveUserContext should upsert immediately when Supabase is available', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+  // ===================================================================
+  // USER CONTEXT
+  // ===================================================================
+
+  describe('user context', () => {
+    it('saveUserContext deve fazer upsert direto no Supabase', async () => {
       supabaseMock.upsert.mockResolvedValue({ error: null });
       supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
@@ -481,72 +294,19 @@ describe('storage', () => {
         },
         { onConflict: 'operator_id' },
       );
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
 
-    it('saveUserContext should keep retry queued when remote upsert fails', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      supabaseMock.upsert.mockResolvedValue({ error: { message: 'RLS denied' } });
-      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
-
-      await storage.saveUserContext({
-        operatorId: 'operator-123',
-        name: 'Test Operator',
-        email: 'test@example.com',
-      });
-
-      expect(supabaseMock.upsert).toHaveBeenCalled();
-      expect(syncQueue.enqueue).toHaveBeenCalledWith({
-        table: 'user_context',
-        operation: 'upsert',
-        data: expect.objectContaining({
-          operator_id: 'operator-123',
-          display_name: 'Test Operator',
-          email: 'test@example.com',
-        }),
-        id: 'operator-123',
-      });
-    });
-
-    it('saveUserContext should remove pending retry after remote success', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      supabaseMock.upsert.mockResolvedValue({ error: null });
-      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
-
-      await storage.saveUserContext({
-        operatorId: 'operator-123',
-        name: 'Test Operator',
-        email: 'test@example.com',
-      });
-
-      expect(syncQueue.remove).toHaveBeenCalledWith('user_context', 'operator-123');
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('saveUserContext should enqueue when Supabase is unavailable', async () => {
-      await storage.saveUserContext({
-        operatorId: 'operator-123',
-        name: 'Test Operator',
-        email: 'test@example.com',
-      });
-
-      expect(supabaseMock.from).not.toHaveBeenCalled();
-      expect(syncQueue.enqueue).toHaveBeenCalled();
-      expect(set).not.toHaveBeenCalled();
-    });
-
-    it('saveUserContext should NOT enqueue when no operatorId', async () => {
+    it('saveUserContext não deve fazer upsert sem operatorId', async () => {
       await storage.saveUserContext({
         operatorId: '',
         name: 'Test Operator',
         email: 'test@example.com',
       });
 
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
+      expect(supabaseMock.from).not.toHaveBeenCalled();
     });
 
-    it('touchUserContext should update only last_seen for an existing user', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+    it('touchUserContext deve atualizar last_seen', async () => {
       const updateEq = vi.fn().mockResolvedValue({ error: null });
       supabaseMock.update.mockReturnValue({ eq: updateEq });
       supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
@@ -554,76 +314,97 @@ describe('storage', () => {
       await storage.touchUserContext('operator-123');
 
       expect(supabaseMock.from).toHaveBeenCalledWith('user_context');
-      expect(supabaseMock.select).not.toHaveBeenCalled();
       expect(supabaseMock.update).toHaveBeenCalledWith({ last_seen: expect.any(String) });
-      expect(updateEq).toHaveBeenCalledWith('operator_id', 'operator-123');
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-    });
-
-    it('touchUserContext should not create or enqueue when no matching row exists', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      const updateEq = vi.fn().mockResolvedValue({ error: null });
-      supabaseMock.update.mockReturnValue({ eq: updateEq });
-      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
-
-      await storage.touchUserContext('operator-missing');
-
-      expect(supabaseMock.select).not.toHaveBeenCalled();
-      expect(supabaseMock.update).toHaveBeenCalledWith({ last_seen: expect.any(String) });
-      expect(updateEq).toHaveBeenCalledWith('operator_id', 'operator-missing');
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
-      expect(supabaseMock.upsert).not.toHaveBeenCalled();
-    });
-
-    it('touchUserContext should debounce repeated touches for same operator', async () => {
-      vi.mocked(isSupabaseAvailable).mockReturnValue(true);
-      const updateEq = vi.fn().mockResolvedValue({ error: null });
-      supabaseMock.update.mockReturnValue({ eq: updateEq });
-      supabaseMock.from.mockReturnValue({ update: supabaseMock.update });
-
-      await storage.touchUserContext('operator-debounce');
-      await storage.touchUserContext('operator-debounce');
-
-      expect(updateEq).toHaveBeenCalledTimes(1);
-      expect(syncQueue.enqueue).not.toHaveBeenCalled();
     });
   });
 
-  describe('Sync', () => {
-    it('getSyncQueueSize should return syncQueue size', () => {
-      vi.mocked(syncQueue.size).mockReturnValue(5);
+  // ===================================================================
+  // RADAR
+  // ===================================================================
 
-      const size = storage.getSyncQueueSize();
+  describe('radar', () => {
+    it('getRadarAlerts deve buscar do Supabase', async () => {
+      const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
+      supabaseMock.maybeSingle.mockResolvedValue({
+        data: { alert_data: mockAlerts },
+        error: null,
+      });
+      const limitMock = vi.fn().mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
+      const orderMock = vi.fn().mockReturnValue({ limit: limitMock });
+      const eqMock = vi.fn().mockReturnValue({ order: orderMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
 
-      expect(size).toBe(5);
-      expect(syncQueue.size).toHaveBeenCalled();
+      const result = await storage.getRadarAlerts();
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('radar_alerts');
+      expect(result).toEqual(mockAlerts);
+    });
+
+    it('saveRadarAlerts deve fazer upsert no Supabase', async () => {
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveRadarAlerts([{ id: 'alert-1' }]);
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('radar_alerts');
+      expect(supabaseMock.upsert).toHaveBeenCalled();
+    });
+
+    it('getRadarConfig deve buscar do Supabase', async () => {
+      supabaseMock.maybeSingle.mockResolvedValue({
+        data: { config: { enabled: true } },
+        error: null,
+      });
+      const eqMock = vi.fn().mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
+
+      const result = await storage.getRadarConfig();
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('radar_configs');
+      expect(result).toEqual({ enabled: true });
+    });
+
+    it('saveRadarConfig deve fazer upsert no Supabase', async () => {
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveRadarConfig({ enabled: true });
+
+      expect(supabaseMock.from).toHaveBeenCalledWith('radar_configs');
+      expect(supabaseMock.upsert).toHaveBeenCalled();
     });
   });
 
-  describe('Works when Supabase is unavailable', () => {
+  // ===================================================================
+  // FALLBACK: SUPABASE INDISPONÍVEL
+  // ===================================================================
+
+  describe('quando Supabase está indisponível', () => {
     beforeEach(() => {
       vi.mocked(isSupabaseAvailable).mockReturnValue(false);
     });
 
-    it('saveDossier should work without Supabase', async () => {
-      localStorage.setItem('scout360:operator_id', 'operator-123');
-      vi.mocked(set).mockResolvedValue(undefined);
-      vi.mocked(get).mockResolvedValue([]); // Return empty array for getLocalSessions
-
-      await storage.saveDossier(mockSession);
-
-      expect(set).toHaveBeenCalled();
-      expect(syncQueue.enqueue).toHaveBeenCalled();
-      localStorage.removeItem('scout360:operator_id');
+    it('getDossiers deve retornar array vazio', async () => {
+      const result = await storage.getDossiers();
+      expect(result).toEqual([]);
     });
 
-    it('getDossiers should work without Supabase', async () => {
-      vi.mocked(get).mockResolvedValue([mockSession]);
+    it('saveDossier não deve quebrar', async () => {
+      await expect(storage.saveDossier(mockSession)).resolves.toBeUndefined();
+    });
 
-      const result = await storage.getDossiers();
+    it('deleteDossier não deve quebrar', async () => {
+      await expect(storage.deleteDossier('session-1')).resolves.toBeUndefined();
+    });
 
-      expect(result).toEqual([mockSession]);
-      expect(isSupabaseAvailable).toHaveBeenCalled();
+    it('getExtractCache ainda funciona via IDB', async () => {
+      vi.mocked(get).mockResolvedValue({ result: 'cached', timestamp: 123 });
+
+      const result = await storage.getExtractCache('test-key');
+
+      expect(result).toEqual({ result: 'cached', timestamp: 123 });
     });
   });
 });
