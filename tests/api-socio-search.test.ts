@@ -1272,6 +1272,10 @@ describe('api/socio-search', () => {
         json: async () => ({}),
       } as Response)
       .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response)
+      .mockResolvedValueOnce({
         ok: false,
         status: 503,
         json: async () => ({}),
@@ -1319,7 +1323,7 @@ describe('api/socio-search', () => {
       cached: true,
       diagnostics: expect.objectContaining({ cacheSource: 'memory' }),
     });
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
     expect(performWebSearchMock).toHaveBeenCalledTimes(6);
   });
 
@@ -1387,6 +1391,10 @@ describe('api/socio-search', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
       } as Response);
     performWebSearchMock.mockResolvedValue(
       [
@@ -1413,8 +1421,8 @@ describe('api/socio-search', () => {
     );
 
     expect(response.statusCode).toBe(200);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const upsertBody = JSON.parse(String((fetchSpy.mock.calls[2][1] as any).body));
     expect(upsertBody.id).toContain('socio-search:v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);

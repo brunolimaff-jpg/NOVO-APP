@@ -84,21 +84,26 @@ describe('Gemini Function Calling Integration', () => {
     const fetchBody = JSON.parse(String((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]?.body));
     expect(fetchBody).toEqual({ url: 'https://example.com/doc.pdf' });
 
-    expect(sendMessageMock).toHaveBeenNthCalledWith(1, { message: 'Analise este link: https://example.com/doc.pdf' });
+    expect(sendMessageMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ message: 'Analise este link: https://example.com/doc.pdf' }),
+    );
     expect(sendMessageMock).toHaveBeenNthCalledWith(
       2,
-      expect.arrayContaining([
-        expect.objectContaining({
-          functionResponse: expect.objectContaining({
-            name: 'performWebSearch',
-            response: expect.objectContaining({
-              result: expect.objectContaining({
-                content: expect.stringContaining('Conteudo extraído do PDF mock'),
+      expect.objectContaining({
+        message: expect.arrayContaining([
+          expect.objectContaining({
+            functionResponse: expect.objectContaining({
+              name: 'performWebSearch',
+              response: expect.objectContaining({
+                result: expect.objectContaining({
+                  content: expect.stringContaining('Conteudo extraído do PDF mock'),
+                }),
               }),
             }),
           }),
-        }),
-      ]),
+        ]),
+      }),
     );
 
     expect(mockResponse.status).toHaveBeenCalledWith(200);

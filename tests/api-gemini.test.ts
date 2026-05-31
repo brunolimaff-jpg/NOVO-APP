@@ -92,16 +92,18 @@ describe('api/gemini handler', () => {
     expect(payload).toMatchObject({ text: 'resposta final' });
     expect(sendMessageMock).toHaveBeenNthCalledWith(
       2,
-      expect.arrayContaining([
-        expect.objectContaining({
-          functionResponse: expect.objectContaining({
-            name: 'performWebSearch',
-            response: expect.objectContaining({
-              error: 'Tool failed upstream',
+      expect.objectContaining({
+        message: expect.arrayContaining([
+          expect.objectContaining({
+            functionResponse: expect.objectContaining({
+              name: 'performWebSearch',
+              response: expect.objectContaining({
+                error: 'Tool failed upstream',
+              }),
             }),
           }),
-        }),
-      ]),
+        ]),
+      }),
     );
   });
 

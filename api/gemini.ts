@@ -175,10 +175,18 @@ function normalizeHistory(
     .filter(msg => msg.parts[0].text.trim().length > 0);
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+  abortController?: AbortController,
+): Promise<T> {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs);
+    timeoutHandle = setTimeout(() => {
+      abortController?.abort();
+      reject(new Error(`${label} timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
   });
 
   try {
@@ -399,10 +407,12 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         });
 
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
+        const abortController = new AbortController();
         const res = await withTimeout(
-          chat.sendMessage({ message }),
+          chat.sendMessage({ message, config: { abortSignal: abortController.signal } }),
           timeout,
           withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
+          abortController,
         );
 
         return { chat, response: res };
@@ -472,14 +482,16 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
           if (functionResponses.length > 0) {
             // Envia TODAS as respostas de funções em uma única mensagem (Batching)
-            const sendFunctionResponses = chatSession.sendMessage as unknown as (
-              message: typeof functionResponses,
-            ) => Promise<typeof response>;
-            response = await withTimeout(
-              sendFunctionResponses(functionResponses),
+            const fnAbortController = new AbortController();
+            response = (await withTimeout(
+              chatSession.sendMessage({
+                message: functionResponses,
+                config: { abortSignal: fnAbortController.signal },
+              }),
               CHAT_TIMEOUT_MS,
               'function-call-response',
-            );
+              fnAbortController,
+            )) as typeof response;
           } else {
             break; // Nenhuma chamada reconhecida
           }
