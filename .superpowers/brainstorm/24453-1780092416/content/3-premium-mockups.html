@@ -1,0 +1,1506 @@
+<h2>Round 2 — 3 Abordagens Premium</h2>
+<p class="subtitle">Mockups com mais complexidade visual, animacoes e personalidade. Clique no que preferir.</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- B2: PREMIUM HUB — Glassmorphism + Particles -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="options">
+  <div class="option" data-choice="b2" onclick="toggleSelect(this)">
+    <div class="letter">B2</div>
+    <div class="content">
+      <h3>Premium Hub</h3>
+      <p>
+        Evolucao do B com glassmorphism, particulas de fundo, live counters, cartoes com micro-interacao. Visual premium
+        tipo Linear + Vercel.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">B2 — Premium Hub (glassmorphism + particulas + live data)</div>
+  <div
+    class="mockup-body"
+    style="
+      min-height: 700px;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(4, 120, 87, 0.25) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(6, 182, 212, 0.12) 0%, transparent 50%), #020617;
+      font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    "
+  >
+    <!-- subtle animated particles (CSS dots simulating particles) -->
+    <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: 0.3">
+      <div
+        style="
+          position: absolute;
+          top: 15%;
+          left: 10%;
+          width: 3px;
+          height: 3px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 8px #10b981;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 25%;
+          right: 20%;
+          width: 2px;
+          height: 2px;
+          background: #6ee7b7;
+          border-radius: 50%;
+          box-shadow: 0 0 6px #6ee7b7;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 60%;
+          left: 30%;
+          width: 3px;
+          height: 3px;
+          background: #34d399;
+          border-radius: 50%;
+          box-shadow: 0 0 10px #34d399;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 75%;
+          left: 65%;
+          width: 2px;
+          height: 2px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 5px #10b981;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 5%;
+          left: 50%;
+          width: 2px;
+          height: 2px;
+          background: #6ee7b7;
+          border-radius: 50%;
+          box-shadow: 0 0 7px #6ee7b7;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 40%;
+          right: 8%;
+          width: 3px;
+          height: 3px;
+          background: #059669;
+          border-radius: 50%;
+          box-shadow: 0 0 9px #059669;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          bottom: 20%;
+          left: 15%;
+          width: 2px;
+          height: 2px;
+          background: #34d399;
+          border-radius: 50%;
+          box-shadow: 0 0 5px #34d399;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          bottom: 10%;
+          right: 25%;
+          width: 3px;
+          height: 3px;
+          background: #10b981;
+          border-radius: 50%;
+          box-shadow: 0 0 8px #10b981;
+        "
+      ></div>
+    </div>
+
+    <!-- SCAN LINE animating across screen (radar effect) -->
+    <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none">
+      <div
+        style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+        "
+      ></div>
+    </div>
+
+    <!-- Top bar (glass) -->
+    <div
+      style="
+        position: relative;
+        z-index: 10;
+        padding: 14px 28px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(20px);
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div
+          style="
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #047857, #10b981);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: white;
+            font-weight: 700;
+          "
+        >
+          S
+        </div>
+        <span style="font-weight: 700; font-size: 13px; color: #f1f5f9">Senior Scout 360</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 18px">
+        <!-- Live status indicator -->
+        <div style="display: flex; align-items: center; gap: 6px">
+          <div
+            style="width: 7px; height: 7px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981"
+          ></div>
+          <span style="font-size: 10px; color: #64748b; font-weight: 600">Sistema ativo</span>
+        </div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 14px;
+            padding: 4px 10px;
+          "
+        >
+          <div
+            style="width: 6px; height: 6px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 6px #ef4444"
+          ></div>
+          <span style="font-size: 10px; color: #fca5a5; font-weight: 600">3 alertas</span>
+        </div>
+        <div
+          style="
+            width: 28px;
+            height: 28px;
+            background: #047857;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+          "
+        >
+          BL
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div
+      style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 28px 28px;
+        max-width: 960px;
+        margin: 0 auto;
+        width: 100%;
+        position: relative;
+        z-index: 10;
+      "
+    >
+      <!-- Hero with glass cards hovering -->
+      <div style="text-align: center; margin-bottom: 32px; width: 100%">
+        <!-- Live counter strip -->
+        <div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 28px">
+          <div style="text-align: center">
+            <div style="font-size: 22px; font-weight: 800; color: #10b981; font-family: monospace">2,847</div>
+            <div
+              style="
+                font-size: 9px;
+                color: #64748b;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+              "
+            >
+              Empresas mapeadas
+            </div>
+          </div>
+          <div style="width: 1px; background: rgba(255, 255, 255, 0.06)"></div>
+          <div style="text-align: center">
+            <div style="font-size: 22px; font-weight: 800; color: #10b981; font-family: monospace">156</div>
+            <div
+              style="
+                font-size: 9px;
+                color: #64748b;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+              "
+            >
+              Dossies essa semana
+            </div>
+          </div>
+          <div style="width: 1px; background: rgba(255, 255, 255, 0.06)"></div>
+          <div style="text-align: center">
+            <div style="font-size: 22px; font-weight: 800; color: #f59e0b; font-family: monospace">3</div>
+            <div
+              style="
+                font-size: 9px;
+                color: #64748b;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+              "
+            >
+              Alertas criticos
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 30px; font-weight: 800; color: #f1f5f9; line-height: 1.25; margin-bottom: 6px">
+          O que vamos descobrir<br />hoje, Bruno?
+        </div>
+        <div style="font-size: 12px; color: #64748b">Inteligencia comercial em tempo real para o agronegocio</div>
+      </div>
+
+      <!-- Premium Input Card (glassmorphism) -->
+      <div
+        style="
+          background: rgba(15, 23, 42, 0.7);
+          backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          padding: 6px;
+          display: flex;
+          align-items: center;
+          max-width: 580px;
+          width: 100%;
+          margin-bottom: 12px;
+          box-shadow:
+            0 8px 32px rgba(0, 0, 0, 0.4),
+            0 0 0 1px rgba(4, 120, 87, 0.15),
+            0 0 60px rgba(4, 120, 87, 0.08);
+        "
+      >
+        <div
+          style="
+            padding: 12px 18px;
+            color: #475569;
+            font-size: 14px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          "
+        >
+          <span style="font-size: 16px">&#x1F50D;</span>
+          <span>Nome da empresa, CNPJ ou descreva o cenario...</span>
+        </div>
+        <div
+          style="
+            background: linear-gradient(135deg, #047857, #059669);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(4, 120, 87, 0.4);
+            cursor: pointer;
+          "
+        >
+          Investigar &#x2192;
+        </div>
+      </div>
+      <div style="font-size: 10px; color: #475569; text-align: center; margin-bottom: 36px">
+        <span style="color: #10b981">CNPJ opcional</span> — sem ele, a precisao do Score PORTA cai ~40%
+      </div>
+
+      <!-- Feature cards with staggered "hover" effect -->
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          width: 100%;
+          max-width: 700px;
+          margin-bottom: 28px;
+        "
+      >
+        <!-- Primary card (highlighted) -->
+        <div
+          style="
+            background: linear-gradient(135deg, rgba(4, 120, 87, 0.2), rgba(5, 150, 105, 0.1));
+            border: 1px solid rgba(4, 120, 87, 0.3);
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <div
+            style="
+              position: absolute;
+              top: -20px;
+              right: -20px;
+              width: 60px;
+              height: 60px;
+              background: radial-gradient(circle, rgba(16, 185, 129, 0.3), transparent);
+              border-radius: 50%;
+            "
+          ></div>
+          <div style="font-size: 26px; margin-bottom: 6px; position: relative">&#x1F50D;</div>
+          <div style="font-size: 12px; font-weight: 700; color: #6ee7b7; position: relative">Dossie Completo</div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 2px; position: relative">Score PORTA em 5 dim.</div>
+        </div>
+        <div
+          style="
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+          "
+        >
+          <div style="font-size: 26px; margin-bottom: 6px">&#x2694;&#xFE0F;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Competitivo</div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 2px">Contra concorrentes</div>
+        </div>
+        <div
+          style="
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+          "
+        >
+          <div style="font-size: 26px; margin-bottom: 6px">&#x1F504;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Cross-sell</div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 2px">Oportunidades</div>
+        </div>
+        <div
+          style="
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+          "
+        >
+          <div style="font-size: 26px; margin-bottom: 6px">&#x26A1;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Blitz</div>
+          <div style="font-size: 9px; color: #64748b; margin-top: 2px">Reuniao em 10min</div>
+        </div>
+      </div>
+
+      <!-- Bottom: Radar Live + Recent (glass cards) -->
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; width: 100%">
+        <!-- Radar Live Feed -->
+        <div
+          style="
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+          "
+        >
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div style="font-weight: 700; font-size: 13px; color: #e2e8f0">&#x1F4E1; Radar ao vivo</div>
+              <div
+                style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981"
+              ></div>
+            </div>
+            <span
+              style="
+                background: rgba(239, 68, 68, 0.15);
+                color: #fca5a5;
+                font-size: 9px;
+                padding: 2px 8px;
+                border-radius: 8px;
+                font-weight: 700;
+              "
+              >3 NOVOS</span
+            >
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <div
+              style="
+                padding: 10px 12px;
+                background: rgba(2, 6, 23, 0.6);
+                border-radius: 10px;
+                border-left: 3px solid #06b6d4;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              <div style="flex: 1">
+                <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">
+                  Oportunidade: Expansao de cooperativas no MT
+                </div>
+                <div style="font-size: 9px; color: #64748b">Ha 45 min · Fonte: Globo Rural</div>
+              </div>
+              <span
+                style="
+                  font-size: 9px;
+                  color: #06b6d4;
+                  font-weight: 700;
+                  background: rgba(6, 182, 212, 0.1);
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                "
+                >ALTA</span
+              >
+            </div>
+            <div
+              style="
+                padding: 10px 12px;
+                background: rgba(2, 6, 23, 0.6);
+                border-radius: 10px;
+                border-left: 3px solid #ef4444;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              <div style="flex: 1">
+                <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">
+                  AMEACA: TOTVS lanca modulo agropecuario
+                </div>
+                <div style="font-size: 9px; color: #64748b">Ha 2h · Fonte: Exame</div>
+              </div>
+              <span
+                style="
+                  font-size: 9px;
+                  color: #ef4444;
+                  font-weight: 700;
+                  background: rgba(239, 68, 68, 0.1);
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                "
+                >ALTA</span
+              >
+            </div>
+            <div
+              style="
+                padding: 10px 12px;
+                background: rgba(2, 6, 23, 0.6);
+                border-radius: 10px;
+                border-left: 3px solid #f59e0b;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+              "
+            >
+              <div style="flex: 1">
+                <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">M&A: Fusao de sementeiras no RS</div>
+                <div style="font-size: 9px; color: #64748b">Ontem · Fonte: Valor Economico</div>
+              </div>
+              <span
+                style="
+                  font-size: 9px;
+                  color: #f59e0b;
+                  font-weight: 700;
+                  background: rgba(245, 158, 11, 0.1);
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                "
+                >MEDIA</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent + Onboarding -->
+        <div style="display: flex; flex-direction: column; gap: 14px">
+          <!-- Recent investigations -->
+          <div
+            style="
+              background: rgba(15, 23, 42, 0.5);
+              backdrop-filter: blur(16px);
+              border: 1px solid rgba(255, 255, 255, 0.06);
+              border-radius: 16px;
+              padding: 20px;
+              flex: 1;
+            "
+          >
+            <div style="font-weight: 700; font-size: 13px; color: #e2e8f0; margin-bottom: 12px">
+              &#x1F4CB; Investigacoes recentes
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 8px;
+                  background: rgba(2, 6, 23, 0.6);
+                  border-radius: 8px;
+                "
+              >
+                <div
+                  style="
+                    width: 30px;
+                    height: 30px;
+                    background: linear-gradient(135deg, #047857, #10b981);
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-weight: 700;
+                    font-size: 10px;
+                  "
+                >
+                  78
+                </div>
+                <div style="flex: 1">
+                  <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">Grupo Scheffer</div>
+                  <div style="font-size: 9px; color: #64748b">Dossie completo · Ha 2h</div>
+                </div>
+                <span style="font-size: 9px; color: #10b981; font-weight: 700">PORTA 78</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  padding: 8px;
+                  background: rgba(2, 6, 23, 0.6);
+                  border-radius: 8px;
+                "
+              >
+                <div
+                  style="
+                    width: 30px;
+                    height: 30px;
+                    background: #1e293b;
+                    border-radius: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f59e0b;
+                    font-weight: 700;
+                    font-size: 10px;
+                  "
+                >
+                  62
+                </div>
+                <div style="flex: 1">
+                  <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">SLC Agricola</div>
+                  <div style="font-size: 9px; color: #64748b">Competitivo · Ha 5h</div>
+                </div>
+                <span style="font-size: 9px; color: #f59e0b; font-weight: 700">PORTA 62</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Onboarding CTA with glow -->
+          <div
+            style="
+              background: linear-gradient(135deg, rgba(4, 120, 87, 0.18), rgba(16, 185, 129, 0.08));
+              border: 1px solid rgba(16, 185, 129, 0.25);
+              border-radius: 14px;
+              padding: 14px 18px;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              box-shadow: 0 0 20px rgba(4, 120, 87, 0.08);
+            "
+          >
+            <div style="font-size: 20px">&#x2728;</div>
+            <div style="flex: 1">
+              <div style="font-size: 11px; color: #6ee7b7; font-weight: 600">Primeira vez no Scout?</div>
+              <div style="font-size: 10px; color: #94a3b8">Tour guiado de 60 segundos para virar expert.</div>
+            </div>
+            <div
+              style="
+                background: linear-gradient(135deg, #047857, #059669);
+                color: white;
+                font-size: 10px;
+                padding: 6px 12px;
+                border-radius: 8px;
+                font-weight: 700;
+                box-shadow: 0 2px 8px rgba(4, 120, 87, 0.3);
+                cursor: pointer;
+              "
+            >
+              Tour &#x2192;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height: 40px"></div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- D: COMMAND DECK — Cockpit Style           -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="options">
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Command Deck</h3>
+      <p>
+        Estilo centro de comando — split screen com visualizacao de dados viva a esquerda, painel de acoes a direita.
+        Radar, metricas e alertas pulsando em tempo real.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">D — Command Deck (centro de comando + split screen)</div>
+  <div
+    class="mockup-body"
+    style="
+      min-height: 700px;
+      background: #020617;
+      font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+      display: flex;
+    "
+  >
+    <!-- LEFT: Command Center Visualization -->
+    <div
+      style="
+        width: 55%;
+        background: radial-gradient(ellipse at center, rgba(4, 120, 87, 0.15), transparent 70%), #030712;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #1e293b;
+      "
+    >
+      <!-- Top strip -->
+      <div style="padding: 14px 20px; display: flex; align-items: center; gap: 10px">
+        <div
+          style="
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #047857, #10b981);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: white;
+            font-weight: 700;
+          "
+        >
+          S
+        </div>
+        <span style="font-weight: 700; font-size: 12px; color: #f1f5f9">Senior Scout 360</span>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 4px">
+          <div
+            style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; box-shadow: 0 0 6px #10b981"
+          ></div>
+          <span style="font-size: 9px; color: #64748b">ONLINE</span>
+        </div>
+      </div>
+
+      <!-- Main Viz: Radar circle + live data streams -->
+      <div
+        style="
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          overflow: hidden;
+        "
+      >
+        <!-- Radar rings -->
+        <div style="position: relative; width: 280px; height: 280px; margin-bottom: 40px">
+          <!-- Outer ring -->
+          <div style="position: absolute; inset: 0; border: 2px solid rgba(4, 120, 87, 0.2); border-radius: 50%"></div>
+          <!-- Ring 2 -->
+          <div
+            style="position: absolute; inset: 30px; border: 1px solid rgba(4, 120, 87, 0.25); border-radius: 50%"
+          ></div>
+          <!-- Ring 3 -->
+          <div
+            style="position: absolute; inset: 60px; border: 1px solid rgba(4, 120, 87, 0.3); border-radius: 50%"
+          ></div>
+          <!-- Center dot -->
+          <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center">
+            <div
+              style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; box-shadow: 0 0 20px #10b981"
+            ></div>
+          </div>
+          <!-- Blips on radar -->
+          <div
+            style="
+              position: absolute;
+              top: 45%;
+              left: 22%;
+              width: 8px;
+              height: 8px;
+              background: #ef4444;
+              border-radius: 50%;
+              box-shadow: 0 0 12px #ef4444;
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              top: 18%;
+              right: 28%;
+              width: 6px;
+              height: 6px;
+              background: #06b6d4;
+              border-radius: 50%;
+              box-shadow: 0 0 10px #06b6d4;
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              bottom: 30%;
+              right: 20%;
+              width: 7px;
+              height: 7px;
+              background: #f59e0b;
+              border-radius: 50%;
+              box-shadow: 0 0 10px #f59e0b;
+            "
+          ></div>
+          <div
+            style="
+              position: absolute;
+              top: 30%;
+              left: 65%;
+              width: 5px;
+              height: 5px;
+              background: #06b6d4;
+              border-radius: 50%;
+              box-shadow: 0 0 8px #06b6d4;
+            "
+          ></div>
+
+          <!-- Sweep line representation -->
+          <div
+            style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              width: 50%;
+              height: 1px;
+              background: linear-gradient(90deg, rgba(16, 185, 129, 0.6), transparent);
+              transform-origin: left center;
+              transform: rotate(-45deg);
+            "
+          ></div>
+        </div>
+
+        <!-- Legend -->
+        <div style="display: flex; gap: 18px; margin-bottom: 32px">
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 9px; color: #94a3b8">
+            <div
+              style="width: 6px; height: 6px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 5px #ef4444"
+            ></div>
+            AMEACA
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 9px; color: #94a3b8">
+            <div
+              style="width: 6px; height: 6px; background: #06b6d4; border-radius: 50%; box-shadow: 0 0 5px #06b6d4"
+            ></div>
+            OPORTUNIDADE
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 9px; color: #94a3b8">
+            <div
+              style="width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; box-shadow: 0 0 5px #f59e0b"
+            ></div>
+            NEUTRO
+          </div>
+        </div>
+
+        <!-- Live counters -->
+        <div style="display: flex; gap: 32px">
+          <div style="text-align: center">
+            <div style="font-size: 28px; font-weight: 800; color: #10b981; font-family: monospace">2,847</div>
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em">
+              Sinais processados
+            </div>
+          </div>
+          <div style="text-align: center">
+            <div style="font-size: 28px; font-weight: 800; color: #f59e0b; font-family: monospace">12</div>
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em">
+              Setores monitorados
+            </div>
+          </div>
+          <div style="text-align: center">
+            <div style="font-size: 28px; font-weight: 800; color: #06b6d4; font-family: monospace">48</div>
+            <div style="font-size: 8px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em">
+              Fontes ativas
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Quick Actions Panel -->
+    <div style="width: 45%; display: flex; flex-direction: column; background: #020617">
+      <!-- User bar -->
+      <div style="padding: 12px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 10px">
+        <div style="font-size: 16px; font-weight: 800; color: #f1f5f9">Bom dia, Bruno!</div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 6px">
+          <span style="font-size: 9px; color: #64748b">Tour guiado</span>
+          <span
+            style="
+              background: rgba(4, 120, 87, 0.2);
+              color: #6ee7b7;
+              font-size: 9px;
+              padding: 3px 8px;
+              border-radius: 4px;
+              font-weight: 600;
+              cursor: pointer;
+            "
+            >&#x25B6;</span
+          >
+        </div>
+      </div>
+
+      <!-- Main quick form -->
+      <div style="flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto">
+        <!-- Investigate card -->
+        <div
+          style="
+            background: linear-gradient(135deg, #047857, #059669);
+            border-radius: 14px;
+            padding: 20px;
+            color: white;
+            box-shadow: 0 4px 20px rgba(4, 120, 87, 0.3);
+          "
+        >
+          <div style="font-weight: 700; font-size: 14px; margin-bottom: 14px">&#x1F50D; Investigacao Rapida</div>
+          <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 10px; margin-bottom: 8px">
+            <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">Empresa *</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px">
+            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 10px">
+              <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">Cidade *</div>
+            </div>
+            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 10px">
+              <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">UF *</div>
+            </div>
+          </div>
+          <div style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; padding: 10px; margin-bottom: 12px">
+            <div style="font-size: 10px; color: rgba(255, 255, 255, 0.4)">CNPJ (opcional — +40% precisao)</div>
+          </div>
+          <div
+            style="
+              background: rgba(255, 255, 255, 0.15);
+              border-radius: 10px;
+              padding: 10px;
+              text-align: center;
+              font-weight: 600;
+              font-size: 12px;
+              cursor: pointer;
+            "
+          >
+            Iniciar Investigacao &#x2192;
+          </div>
+        </div>
+
+        <!-- Quick modes -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 10px;
+              padding: 14px;
+              text-align: center;
+              cursor: pointer;
+            "
+          >
+            <div style="font-size: 20px; margin-bottom: 4px">&#x2694;&#xFE0F;</div>
+            <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">Competitivo</div>
+            <div style="font-size: 9px; color: #64748b">Contra concorrentes</div>
+          </div>
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 10px;
+              padding: 14px;
+              text-align: center;
+              cursor: pointer;
+            "
+          >
+            <div style="font-size: 20px; margin-bottom: 4px">&#x1F504;</div>
+            <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">Cross-sell</div>
+            <div style="font-size: 9px; color: #64748b">Oportunidades</div>
+          </div>
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 10px;
+              padding: 14px;
+              text-align: center;
+              cursor: pointer;
+            "
+          >
+            <div style="font-size: 20px; margin-bottom: 4px">&#x26A1;</div>
+            <div style="font-size: 11px; font-weight: 600; color: #e2e8f0">Blitz</div>
+            <div style="font-size: 9px; color: #64748b">Reuniao em 10min</div>
+          </div>
+          <div
+            style="
+              background: rgba(4, 120, 87, 0.1);
+              border: 1px solid rgba(4, 120, 87, 0.2);
+              border-radius: 10px;
+              padding: 14px;
+              text-align: center;
+              cursor: pointer;
+            "
+          >
+            <div style="font-size: 20px; margin-bottom: 4px">&#x1F4E1;</div>
+            <div style="font-size: 11px; font-weight: 600; color: #6ee7b7">Configurar Radar</div>
+            <div style="font-size: 9px; color: #64748b">Setores personalizados</div>
+          </div>
+        </div>
+
+        <!-- Recent dossies -->
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 16px">
+          <div style="font-weight: 700; font-size: 12px; color: #e2e8f0; margin-bottom: 10px">
+            &#x1F4CB; Ultimos dossies
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px;
+                background: #030712;
+                border-radius: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 26px;
+                  height: 26px;
+                  background: linear-gradient(135deg, #047857, #10b981);
+                  border-radius: 5px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: white;
+                  font-weight: 700;
+                  font-size: 9px;
+                "
+              >
+                78
+              </div>
+              <div style="font-size: 10px; font-weight: 600; color: #e2e8f0; flex: 1">Grupo Scheffer</div>
+              <span style="font-size: 8px; color: #64748b">2h</span>
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px;
+                background: #030712;
+                border-radius: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 26px;
+                  height: 26px;
+                  background: #1e293b;
+                  border-radius: 5px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: #f59e0b;
+                  font-weight: 700;
+                  font-size: 9px;
+                "
+              >
+                62
+              </div>
+              <div style="font-size: 10px; font-weight: 600; color: #e2e8f0; flex: 1">SLC Agricola</div>
+              <span style="font-size: 8px; color: #64748b">5h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height: 40px"></div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- E: FLOW HUB — Progressive Disclosure      -->
+<!-- ═══════════════════════════════════════════ -->
+
+<div class="options">
+  <div class="option" data-choice="e" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Flow Hub</h3>
+      <p>
+        Revelacao progressiva — fluxo principal no centro com destaque, cards secundarios orbitam ao redor. Animacoes em
+        cascata revelam features. Estilo Apple/Stripe.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">E — Flow Hub (revelacao progressiva + animacao em cascata)</div>
+  <div
+    class="mockup-body"
+    style="
+      min-height: 700px;
+      background: #020617;
+      font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+      display: flex;
+      flex-direction: column;
+    "
+  >
+    <!-- Top bar -->
+    <div style="padding: 12px 24px; display: flex; align-items: center; border-bottom: 1px solid #1e293b">
+      <div style="display: flex; align-items: center; gap: 6px">
+        <div
+          style="
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #047857, #10b981);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: white;
+            font-weight: 700;
+          "
+        >
+          S
+        </div>
+        <span style="font-weight: 700; font-size: 12px; color: #f1f5f9">Senior Scout 360</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 12px">
+        <span
+          style="
+            background: rgba(4, 120, 87, 0.2);
+            color: #6ee7b7;
+            font-size: 10px;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+          "
+          >&#x2728; Tour guiado</span
+        >
+        <div
+          style="
+            width: 24px;
+            height: 24px;
+            background: #047857;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 9px;
+            font-weight: 700;
+          "
+        >
+          BL
+        </div>
+      </div>
+    </div>
+
+    <!-- Three-zone layout: ORBIT LEFT · CENTER · ORBIT RIGHT -->
+    <div style="flex: 1; display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 0; overflow: hidden">
+      <!-- LEFT ORBIT: Secondary cards -->
+      <div
+        style="padding: 20px 12px 20px 20px; display: flex; flex-direction: column; justify-content: center; gap: 14px"
+      >
+        <!-- Radar mini (slides in from left) -->
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 14px;
+            border-left: 3px solid #06b6d4;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 8px">
+            <span style="font-size: 12px">&#x1F4E1;</span>
+            <span style="font-weight: 700; font-size: 11px; color: #e2e8f0">Radar ativo</span>
+            <span
+              style="
+                margin-left: auto;
+                background: rgba(239, 68, 68, 0.2);
+                color: #fca5a5;
+                font-size: 8px;
+                padding: 1px 5px;
+                border-radius: 4px;
+                font-weight: 700;
+              "
+              >3</span
+            >
+          </div>
+          <div style="font-size: 10px; color: #94a3b8; line-height: 1.4">
+            3 sinais detectados no seu setor. 1 ameaca requer atencao.
+          </div>
+        </div>
+
+        <!-- Metrics mini -->
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px">
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 8px">
+            <span style="font-size: 12px">&#x1F4CA;</span>
+            <span style="font-weight: 700; font-size: 11px; color: #e2e8f0">Suas metricas</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+            <div style="text-align: center">
+              <div style="font-size: 16px; font-weight: 800; color: #10b981; font-family: monospace">12</div>
+              <div style="font-size: 8px; color: #64748b">Dossies este mes</div>
+            </div>
+            <div style="text-align: center">
+              <div style="font-size: 16px; font-weight: 800; color: #06b6d4; font-family: monospace">76</div>
+              <div style="font-size: 8px; color: #64748b">Score medio PORTA</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent mini -->
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 14px">
+          <div style="font-weight: 700; font-size: 11px; color: #e2e8f0; margin-bottom: 8px">&#x1F4CB; Recentes</div>
+          <div style="font-size: 10px; color: #94a3b8">Grupo Scheffer (2h)</div>
+          <div style="font-size: 10px; color: #94a3b8">SLC Agricola (5h)</div>
+          <div style="font-size: 10px; color: #94a3b8">Polato Sementes (ontem)</div>
+        </div>
+      </div>
+
+      <!-- CENTER: Main Hero + Input -->
+      <div
+        style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          border-left: 1px solid #1e293b;
+          border-right: 1px solid #1e293b;
+        "
+      >
+        <!-- Greeting -->
+        <div style="text-align: center; margin-bottom: 28px">
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 4px">Boa tarde, Bruno!</div>
+          <div style="font-size: 28px; font-weight: 800; color: #f1f5f9; line-height: 1.2">
+            Qual empresa<br />vamos investigar?
+          </div>
+        </div>
+
+        <!-- Large hero card (center piece) -->
+        <div
+          style="
+            background: linear-gradient(135deg, #047857, #059669);
+            border-radius: 20px;
+            padding: 28px;
+            color: white;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(4, 120, 87, 0.3);
+            position: relative;
+            overflow: hidden;
+          "
+        >
+          <!-- Decorative glow -->
+          <div
+            style="
+              position: absolute;
+              top: -30px;
+              right: -30px;
+              width: 100px;
+              height: 100px;
+              background: radial-gradient(circle, rgba(255, 255, 255, 0.15), transparent);
+              border-radius: 50%;
+            "
+          ></div>
+
+          <div style="font-size: 32px; margin-bottom: 8px; position: relative">&#x1F50D;</div>
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 16px; position: relative">
+            Investigacao Completa
+          </div>
+
+          <div
+            style="
+              background: rgba(0, 0, 0, 0.2);
+              border-radius: 10px;
+              padding: 12px;
+              margin-bottom: 10px;
+              position: relative;
+              text-align: left;
+            "
+          >
+            <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">Empresa *</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 10px; position: relative">
+            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 12px; text-align: left">
+              <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">Cidade *</div>
+            </div>
+            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 12px; text-align: left">
+              <div style="font-size: 10px; color: rgba(255, 255, 255, 0.5)">UF *</div>
+            </div>
+          </div>
+          <div
+            style="
+              background: rgba(0, 0, 0, 0.2);
+              border-radius: 10px;
+              padding: 12px;
+              margin-bottom: 16px;
+              position: relative;
+              text-align: left;
+            "
+          >
+            <div style="font-size: 10px; color: rgba(255, 255, 255, 0.4)">CNPJ (opcional) — +40% precisao no Score</div>
+          </div>
+
+          <div
+            style="
+              background: rgba(255, 255, 255, 0.2);
+              border-radius: 10px;
+              padding: 12px;
+              font-weight: 600;
+              font-size: 13px;
+              position: relative;
+              cursor: pointer;
+            "
+          >
+            &#x25B6; Iniciar Investigacao
+          </div>
+
+          <div style="font-size: 9px; color: rgba(255, 255, 255, 0.6); margin-top: 10px; position: relative">
+            Dossie completo · Score PORTA · Exportavel · ~2 min
+          </div>
+        </div>
+
+        <!-- Bottom strip: quick modes -->
+        <div style="display: flex; gap: 8px; margin-top: 16px">
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 16px;
+              padding: 6px 14px;
+              font-size: 10px;
+              color: #94a3b8;
+              cursor: pointer;
+            "
+          >
+            &#x2694;&#xFE0F; Competitivo
+          </div>
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 16px;
+              padding: 6px 14px;
+              font-size: 10px;
+              color: #94a3b8;
+              cursor: pointer;
+            "
+          >
+            &#x1F504; Cross-sell
+          </div>
+          <div
+            style="
+              background: #0f172a;
+              border: 1px solid #1e293b;
+              border-radius: 16px;
+              padding: 6px 14px;
+              font-size: 10px;
+              color: #94a3b8;
+              cursor: pointer;
+            "
+          >
+            &#x26A1; Blitz
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT ORBIT: War Room + future -->
+      <div
+        style="padding: 20px 20px 20px 12px; display: flex; flex-direction: column; justify-content: center; gap: 14px"
+      >
+        <!-- War Room card -->
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 14px;
+            border-left: 3px solid #ef4444;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 8px">
+            <span style="font-size: 12px">&#x2694;&#xFE0F;</span>
+            <span style="font-weight: 700; font-size: 11px; color: #e2e8f0">War Room</span>
+          </div>
+          <div style="font-size: 10px; color: #94a3b8; line-height: 1.4">
+            Inteligencia competitiva ativa. Monitore concorrentes em tempo real.
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              background: rgba(4, 120, 87, 0.2);
+              border-radius: 6px;
+              padding: 6px 10px;
+              font-size: 9px;
+              color: #6ee7b7;
+              font-weight: 600;
+              text-align: center;
+              cursor: pointer;
+            "
+          >
+            Ativar &#x2192;
+          </div>
+        </div>
+
+        <!-- Future feature card -->
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 14px;
+            border-left: 3px solid transparent;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 8px">
+            <span style="font-size: 12px">&#x1F4CB;</span>
+            <span style="font-weight: 700; font-size: 11px; color: #e2e8f0">Pipeline</span>
+          </div>
+          <div style="font-size: 10px; color: #475569; line-height: 1.4">
+            Em breve. Gestao de leads e oportunidades de venda.
+          </div>
+          <div
+            style="
+              margin-top: 8px;
+              font-size: 8px;
+              padding: 4px 8px;
+              background: rgba(245, 158, 11, 0.1);
+              border-radius: 4px;
+              color: #f59e0b;
+              text-align: center;
+              font-weight: 600;
+            "
+          >
+            EM BREVE
+          </div>
+        </div>
+
+        <!-- Tip card -->
+        <div
+          style="
+            background: linear-gradient(135deg, rgba(4, 120, 87, 0.12), rgba(16, 185, 129, 0.06));
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 10px;
+            padding: 12px;
+          "
+        >
+          <div style="font-size: 10px; color: #6ee7b7; font-weight: 600; margin-bottom: 4px">&#x1F4A1; Dica do dia</div>
+          <div style="font-size: 9px; color: #94a3b8; line-height: 1.4">
+            Adicione o CNPJ para ativar o Score PORTA completo em 5 dimensoes.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height: 40px"></div>
+
+<!-- Summary -->
+<div class="section" style="text-align: center; padding: 20px 0">
+  <h2>Resumo — 3 Abordagens Premium</h2>
+  <p class="subtitle">Qual delas te empolga mais visualmente?</p>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="b2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>B2 — Premium Hub</h3>
+      <p><strong>Visual:</strong> Glassmorphism, particulas, live counters, input premium com glow</p>
+      <p><strong>Diferencial:</strong> Radar ao vivo com feed pulsando, metricas em tempo real</p>
+      <p><strong>GSAP potential:</strong> Particulas animadas, scan line, counters incrementais, cards com stagger</p>
+      <p><strong>Mobile:</strong> Stack vertical, glass cards empilham</p>
+    </div>
+  </div>
+  <div class="card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>D — Command Deck</h3>
+      <p><strong>Visual:</strong> Centro de comando, split screen, radar circular animado</p>
+      <p><strong>Diferencial:</strong> Visualizacao de dados viva, blips no radar, stream de eventos</p>
+      <p><strong>GSAP potential:</strong> Radar sweep animation, blips pulsando, counters, split screen transitions</p>
+      <p><strong>Mobile:</strong> Visualizacao colapsa, painel de acoes toma prioridade</p>
+    </div>
+  </div>
+  <div class="card" data-choice="e" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>E — Flow Hub</h3>
+      <p><strong>Visual:</strong> Tres zonas — orbit cards laterais, centro com hero card expandido</p>
+      <p><strong>Diferencial:</strong> Cards secundarios orbitam o fluxo principal, revelacao progressiva</p>
+      <p><strong>GSAP potential:</strong> Cascata de entrada, orbit hover effects, pulse no CTA principal</p>
+      <p><strong>Mobile:</strong> Zonas laterais viram tabs ou accordion abaixo do hero</p>
+    </div>
+  </div>
+</div>

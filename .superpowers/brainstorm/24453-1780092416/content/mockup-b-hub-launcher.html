@@ -1,0 +1,388 @@
+<h2>Abordagem B: Hub Launcher Centralizado</h2>
+<p class="subtitle">Tela limpa e minimalista como hub de acoes — estilo Notion/Stripe/Google Workspace</p>
+
+<div class="mockup">
+  <div class="mockup-header">Preview: Hub Launcher Centralizado</div>
+  <div
+    class="mockup-body"
+    style="
+      min-height: 700px;
+      background: #020617;
+      font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+      display: flex;
+      flex-direction: column;
+    "
+  >
+    <!-- Minimal top bar -->
+    <div style="padding: 16px 32px; display: flex; align-items: center; border-bottom: 1px solid #1e293b">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div
+          style="
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #047857, #10b981);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: white;
+            font-weight: 700;
+          "
+        >
+          S
+        </div>
+        <span style="font-weight: 700; font-size: 14px; color: #f1f5f9">Senior Scout 360</span>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 16px">
+        <span style="color: #64748b; font-size: 13px">&#x1F4E1; Radar</span>
+        <span style="color: #64748b; font-size: 13px">&#x2694;&#xFE0F; War Room</span>
+        <div
+          style="
+            width: 28px;
+            height: 28px;
+            background: #047857;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+          "
+        >
+          BL
+        </div>
+      </div>
+    </div>
+
+    <!-- Hero Section -->
+    <div
+      style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px 32px 32px;
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+      "
+    >
+      <!-- Greeting -->
+      <div style="text-align: center; margin-bottom: 40px">
+        <div style="font-size: 14px; color: #64748b; margin-bottom: 8px">Boa tarde</div>
+        <div style="font-size: 32px; font-weight: 800; color: #f1f5f9; line-height: 1.2">
+          O que vamos descobrir<br />hoje, Bruno?
+        </div>
+
+        <!-- Quick Investigate Input -->
+        <div
+          style="
+            margin-top: 24px;
+            background: #0f172a;
+            border: 2px solid #1e293b;
+            border-radius: 16px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+          "
+        >
+          <div style="padding: 12px 16px; color: #64748b; font-size: 14px; flex: 1; text-align: left">
+            &#x1F50D; Nome da empresa, CNPJ ou descreva a situacao...
+          </div>
+          <div
+            style="
+              background: linear-gradient(135deg, #047857, #059669);
+              color: white;
+              padding: 10px 20px;
+              border-radius: 12px;
+              font-weight: 600;
+              font-size: 13px;
+              cursor: pointer;
+            "
+          >
+            Investigar
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #475569; margin-top: 8px">
+          Ex: "Grupo Scheffer" ou "Estou concorrendo contra TOTVS na SLC Agricola"
+        </div>
+      </div>
+
+      <!-- Quick Actions Grid -->
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          width: 100%;
+          max-width: 700px;
+          margin-bottom: 40px;
+        "
+      >
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+          "
+        >
+          <div style="font-size: 24px; margin-bottom: 6px">&#x1F50D;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Dossie Completo</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px">Score PORTA</div>
+        </div>
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+          "
+        >
+          <div style="font-size: 24px; margin-bottom: 6px">&#x1F504;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Cross-sell</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px">O que mais vender</div>
+        </div>
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+          "
+        >
+          <div style="font-size: 24px; margin-bottom: 6px">&#x2694;&#xFE0F;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Competitivo</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px">Ganhar da concorrencia</div>
+        </div>
+        <div
+          style="
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+          "
+        >
+          <div style="font-size: 24px; margin-bottom: 6px">&#x26A1;</div>
+          <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Blitz</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px">Reuniao em 10min</div>
+        </div>
+      </div>
+
+      <!-- Two columns below -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%">
+        <!-- Radar Feed -->
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
+            <div style="font-weight: 700; font-size: 13px; color: #e2e8f0">&#x1F4E1; Radar Setorial</div>
+            <span
+              style="
+                background: rgba(239, 68, 68, 0.2);
+                color: #fca5a5;
+                font-size: 10px;
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-weight: 600;
+              "
+              >3 sinais</span
+            >
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="padding: 10px; background: #020617; border-radius: 8px; border-left: 3px solid #06b6d4">
+              <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Oportunidade em cooperativas</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px">Ha 45 min &middot; Relevancia alta</div>
+            </div>
+            <div style="padding: 10px; background: #020617; border-radius: 8px; border-left: 3px solid #ef4444">
+              <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">AMEACA: TOTVS lanca modulo agro</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px">Ha 2h &middot; Relevancia alta</div>
+            </div>
+            <div style="padding: 10px; background: #020617; border-radius: 8px; border-left: 3px solid #06b6d4">
+              <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">M&A no setor sementeiro</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px">Ontem &middot; Relevancia media</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historico Recente -->
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px">
+          <div style="font-weight: 700; font-size: 13px; color: #e2e8f0; margin-bottom: 16px">
+            &#x1F4CB; Investigacoes Recentes
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px;
+                background: #020617;
+                border-radius: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 36px;
+                  height: 36px;
+                  background: linear-gradient(135deg, #047857, #10b981);
+                  border-radius: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: white;
+                  font-weight: 700;
+                  font-size: 11px;
+                "
+              >
+                78
+              </div>
+              <div style="flex: 1">
+                <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Grupo Scheffer</div>
+                <div style="font-size: 10px; color: #64748b">Dossie completo &middot; Ha 2h</div>
+              </div>
+              <span style="font-size: 10px; color: #10b981; font-weight: 600">PORTA 78</span>
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px;
+                background: #020617;
+                border-radius: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 36px;
+                  height: 36px;
+                  background: #1e293b;
+                  border-radius: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: #f59e0b;
+                  font-weight: 700;
+                  font-size: 11px;
+                "
+              >
+                62
+              </div>
+              <div style="flex: 1">
+                <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">SLC Agricola</div>
+                <div style="font-size: 10px; color: #64748b">Competitivo &middot; Ha 5h</div>
+              </div>
+              <span style="font-size: 10px; color: #f59e0b; font-weight: 600">PORTA 62</span>
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px;
+                background: #020617;
+                border-radius: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 36px;
+                  height: 36px;
+                  background: #1e293b;
+                  border-radius: 8px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  color: #06b6d4;
+                  font-weight: 700;
+                  font-size: 11px;
+                "
+              >
+                85
+              </div>
+              <div style="flex: 1">
+                <div style="font-size: 12px; font-weight: 600; color: #e2e8f0">Polato Sementes</div>
+                <div style="font-size: 10px; color: #64748b">Cross-sell &middot; Ontem</div>
+              </div>
+              <span style="font-size: 10px; color: #06b6d4; font-weight: 600">PORTA 85</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Onboarding tip -->
+      <div
+        style="
+          margin-top: 16px;
+          background: linear-gradient(135deg, rgba(4, 120, 87, 0.15), rgba(16, 185, 129, 0.1));
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 10px;
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+        "
+      >
+        <span style="font-size: 16px">&#x2728;</span>
+        <div style="font-size: 12px; color: #94a3b8">
+          <span style="color: #6ee7b7; font-weight: 600">Primeira vez?</span> Clique no botao "Tour guiado" para
+          conhecer o Scout em 60 segundos.
+        </div>
+        <div
+          style="
+            margin-left: auto;
+            background: rgba(4, 120, 87, 0.3);
+            color: #6ee7b7;
+            font-size: 11px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+          "
+        >
+          &#x25B6; Tour guiado
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top: 16px">
+  <div class="pros">
+    <h4>Pros</h4>
+    <ul>
+      <li>Visual impactante — primeira impressao forte</li>
+      <li>Input centralizado e convida a agir (como Google/ChatGPT)</li>
+      <li>Limpo e focado — sem distracao lateral</li>
+      <li>Funciona bem em mobile (tudo empilha naturalmente)</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>Cons</h4>
+    <ul>
+      <li>Menos acessibilidade rapida entre features</li>
+      <li>Pode ficar "congestionado" conforme cresce</li>
+      <li>Nao escala tao bem para 5+ features no futuro</li>
+    </ul>
+  </div>
+</div>

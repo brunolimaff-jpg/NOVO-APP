@@ -139,7 +139,8 @@ const App: React.FC = () => {
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   // Migration notice (Supabase)
-  const { showMigrationNotice, dismissMigrationNotice } = useMigrationNotice(operatorId);
+  const hasOperatorNameForMigration = operatorName.trim().length > 0;
+  const { showMigrationNotice, dismissMigrationNotice } = useMigrationNotice(operatorId, hasOperatorNameForMigration);
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
