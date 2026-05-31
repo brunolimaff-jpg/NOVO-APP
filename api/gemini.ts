@@ -181,6 +181,7 @@ async function withTimeout<T>(
   label: string,
   abortController?: AbortController,
 ): Promise<T> {
+  promise.catch(() => {});
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
@@ -408,14 +409,14 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
         const timeout = withGrounding ? CHAT_TIMEOUT_MS : LONG_CHAT_TIMEOUT_MS;
         const abortController = new AbortController();
-        const res = await withTimeout(
+        const chatRes = await withTimeout(
           chat.sendMessage({ message, config: { abortSignal: abortController.signal } }),
           timeout,
           withGrounding ? 'chat-with-grounding' : 'chat-no-grounding',
           abortController,
         );
 
-        return { chat, response: res };
+        return { chat, response: chatRes };
       };
 
       let response: Awaited<ReturnType<typeof runChat>>['response'];

@@ -279,17 +279,21 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
 
     const rows = (await response.json()) as Array<{ result?: unknown }>;
 
-    // Cleanup expired entries (fire-and-forget, nao bloqueia o fluxo principal)
+    // Cleanup expired entries — awaited para garantir execucao em serverless
     const cleanupUrl = new URL(`${config.url}/rest/v1/extract_cache`);
     cleanupUrl.searchParams.set('expires_at', `lte.${new Date().toISOString()}`);
-    fetch(cleanupUrl, {
-      method: 'DELETE',
-      headers: {
-        apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
-        Prefer: 'return=minimal',
-      },
-    }).catch(() => {});
+    try {
+      await fetch(cleanupUrl, {
+        method: 'DELETE',
+        headers: {
+          apikey: config.key,
+          Authorization: `Bearer ${config.key}`,
+          Prefer: 'return=minimal',
+        },
+      });
+    } catch {
+      // cleanup falhou silenciosamente — nao bloqueia o fluxo principal
+    }
 
     const payload = rows[0]?.result;
     if (!payload) return { status: 'miss' };
