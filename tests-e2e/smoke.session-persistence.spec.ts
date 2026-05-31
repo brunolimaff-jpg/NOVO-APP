@@ -1,3 +1,8 @@
+// ⚠️ OBSOLETO: Este teste usa IndexedDB (scout360_sessions_v2) que foi removido.
+// A persistência agora vai direto no Supabase.
+// Substituído por: tests-e2e/smoke.storage-supabase.spec.ts
+// Manter até migrar para o novo modelo de persistência.
+
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const DETERMINISTIC_WATERFALL_TEXT = [

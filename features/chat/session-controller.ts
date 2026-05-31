@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeOperator } from '../../contexts/OperatorContext';
 import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
+import { storage } from '../../services/storage';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
@@ -243,6 +244,8 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
         setIsLoading(false);
       }
 
+      // Delete from Supabase (fire-and-forget)
+      storage.deleteDossier(sessionId).catch(() => {});
       delete activeGenerationRef.current[sessionId];
       const newSessions = sessions.filter(session => session.id !== sessionId);
       setSessions(newSessions);

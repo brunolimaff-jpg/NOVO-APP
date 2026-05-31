@@ -1,5 +1,5 @@
 import type { ChatSession } from '../types';
-import { storageGet, storageSet } from './idbStorage';
+import { storage } from '../services/storage';
 
 /**
  * Interface para estrutura de backup
@@ -16,8 +16,8 @@ export interface SessionBackup {
  */
 export async function exportSessionsAsJSON(): Promise<void> {
   try {
-    // Tentar obter de IndexedDB primeiro
-    const sessions = await getSessionsFromStorage();
+    // Obter sessões do Supabase via storage service
+    const sessions = await storage.getDossiers();
 
     if (!sessions || sessions.length === 0) {
       throw new Error('Nenhuma sessão para exportar');
@@ -76,18 +76,8 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
           throw new Error('Arquivo não contém sessões');
         }
 
-        // Salvar sessões em storage
-        await saveSessionsToStorage(backup.sessions);
-
-        // Disparar evento de sincronização para outras abas
-        const event = new window.StorageEvent('storage', {
-          key: 'scout360_sessions_imported',
-          newValue: JSON.stringify({
-            timestamp: Date.now(),
-            count: backup.sessions.length,
-          }),
-        });
-        window.dispatchEvent(event);
+        // Salvar sessões via Supabase
+        await storage.saveAllDossiers(backup.sessions);
 
         resolve(backup);
       } catch (error) {
@@ -102,56 +92,6 @@ export async function importSessionsFromJSON(file: File): Promise<SessionBackup>
 
     reader.readAsText(file);
   });
-}
-
-/**
- * Obter sessões do armazenamento (IndexedDB ou localStorage)
- */
-async function getSessionsFromStorage(): Promise<ChatSession[]> {
-  try {
-    const sessionsJson = storageGet('scout360_sessions_v2');
-    if (sessionsJson) {
-      const sessions = JSON.parse(sessionsJson) as unknown;
-      if (Array.isArray(sessions)) {
-        return sessions as ChatSession[];
-      }
-    }
-  } catch (error) {
-    console.warn('Storage v2 indisponível, usando localStorage:', error);
-  }
-
-  // Fallback para localStorage
-  try {
-    const localStorageSessions = window.localStorage.getItem('scout360_sessions_v1');
-    if (localStorageSessions) {
-      return JSON.parse(localStorageSessions) as ChatSession[];
-    }
-  } catch (error) {
-    console.warn('Erro ao ler localStorage:', error);
-  }
-
-  return [];
-}
-
-/**
- * Salvar sessões no armazenamento (IndexedDB ou localStorage)
- */
-async function saveSessionsToStorage(sessions: ChatSession[]): Promise<void> {
-  const sessionsJson = JSON.stringify(sessions);
-  const savedInV2 = storageSet('scout360_sessions_v2', sessionsJson);
-  if (savedInV2) {
-    return;
-  }
-
-  // Fallback para localStorage
-  try {
-    window.localStorage.setItem('scout360_sessions_v1', sessionsJson);
-  } catch (error) {
-    console.error('Erro ao salvar em localStorage:', error);
-    throw new Error('Armazenamento cheio ou indisponível', {
-      cause: error,
-    });
-  }
 }
 
 /**

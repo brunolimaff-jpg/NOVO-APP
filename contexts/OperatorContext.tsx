@@ -127,8 +127,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
           })
           .catch(() => {});
       }
-
-      storage.scheduleDossierSync({ pull: true });
     },
     [operatorId],
   );
@@ -182,7 +180,8 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         void initSessionTracking(existingOperatorId, existingEmail).catch(() => {});
       }
 
-      storage.scheduleDossierSync({ pull: true });
+      // Notificar sessões para recarregar com o novo operatorId
+      window.dispatchEvent(new CustomEvent('operator-relinked'));
     },
     [],
   );

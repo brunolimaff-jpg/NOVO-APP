@@ -1,8 +1,7 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useReducer,
   useRef,
@@ -13,7 +12,6 @@ import React, {
 } from 'react';
 import { useChatLoadingProgress } from '../features/chat/loading-progress';
 import { useSessionStorage } from '../hooks/useSessionStorage';
-import { storage } from '../services/storage';
 import type { ChatSession } from '../types';
 import type { LastAction } from '../types';
 
@@ -108,10 +106,6 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
   const lastActionRef = useRef<LastAction | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeGenerationRef = useRef<Record<string, string>>({});
-
-  useEffect(() => {
-    storage.setDossierGenerationActive(loading.isLoading);
-  }, [loading.isLoading]);
 
   const setCurrentSessionId = useCallback<Dispatch<SetStateAction<string | null>>>(next => {
     dispatch({ type: 'set_current_session_id', payload: next });

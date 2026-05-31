@@ -2,52 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { exportSessionsAsJSON, importSessionsFromJSON } from '../../utils/sessionExport';
 import type { ChatSession } from '../../types';
 
-const STORAGE_PREFIX = 'scout360:';
+// Mock the storage module
+vi.mock('../../services/storage', () => ({
+  storage: {
+    getDossiers: vi.fn(),
+    saveDossier: vi.fn(),
+    saveAllDossiers: vi.fn(),
+  },
+}));
 
-function createTestStorage(
-  setItemOverride?: (key: string, value: string, store: Map<string, string>) => void,
-): Storage {
-  const store = new Map<string, string>();
-
-  return {
-    get length() {
-      return store.size;
-    },
-    clear() {
-      store.clear();
-    },
-    getItem(key: string) {
-      return store.get(key) ?? null;
-    },
-    key(index: number) {
-      return Array.from(store.keys())[index] ?? null;
-    },
-    removeItem(key: string) {
-      store.delete(key);
-    },
-    setItem(key: string, value: string) {
-      if (setItemOverride) {
-        setItemOverride(key, value, store);
-        return;
-      }
-      store.set(key, String(value));
-    },
-  };
-}
-
-function replaceWindowLocalStorage(storage: Storage): () => void {
-  const originalStorage = window.localStorage;
-  Object.defineProperty(window, 'localStorage', {
-    configurable: true,
-    value: storage,
-  });
-  return () => {
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      value: originalStorage,
-    });
-  };
-}
+import { storage } from '../../services/storage';
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
@@ -67,16 +31,15 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
 
 describe('sessionExport', () => {
   beforeEach(() => {
-    window.localStorage.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
 
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:scout360-backup');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
   });
 
-  it('exporta sessões salvas no storage v2 prefixado', async () => {
+  it('exporta sessões do Supabase via storage service', async () => {
     const session = makeSession();
-    window.localStorage.setItem(`${STORAGE_PREFIX}scout360_sessions_v2`, JSON.stringify([session]));
+    vi.mocked(storage.getDossiers).mockResolvedValue([session]);
 
     const anchor = document.createElement('a');
     const click = vi.fn();
@@ -85,14 +48,17 @@ describe('sessionExport', () => {
 
     await exportSessionsAsJSON();
 
+    expect(storage.getDossiers).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
     expect(anchor.download).toMatch(/^scout360_backup_\d{4}-\d{2}-\d{2}_\d{4}\.json$/);
     expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:scout360-backup');
   });
 
-  it('importa sessões para o storage v2 como JSON', async () => {
+  it('importa sessões chamando storage.saveAllDossiers para cada sessão', async () => {
     const session = makeSession({ id: 'imported-session' });
+    vi.mocked(storage.saveAllDossiers).mockResolvedValue(undefined);
+
     const file = new File(
       [
         JSON.stringify({
@@ -111,41 +77,31 @@ describe('sessionExport', () => {
       sessions: [expect.objectContaining({ id: 'imported-session' })],
     });
 
-    expect(window.localStorage.getItem(`${STORAGE_PREFIX}scout360_sessions_v2`)).toBe(JSON.stringify([session]));
+    expect(storage.saveAllDossiers).toHaveBeenCalledWith([session]);
   });
 
-  it('usa storage v1 como fallback quando storage v2 não consegue salvar', async () => {
-    const session = makeSession({ id: 'fallback-session' });
-    const storage = createTestStorage((key, value, store) => {
-      if (key === `${STORAGE_PREFIX}scout360_sessions_v2`) {
-        throw new Error('QuotaExceededError');
-      }
-      store.set(key, String(value));
-    });
-    const restoreStorage = replaceWindowLocalStorage(storage);
+  it('importa multiplas sessoes via bulk saveAllDossiers', async () => {
+    const sessions = [makeSession({ id: 's1' }), makeSession({ id: 's2' })];
+    vi.mocked(storage.saveAllDossiers).mockResolvedValue(undefined);
 
     const file = new File(
       [
         JSON.stringify({
           version: '1.0',
           exportDate: '2024-01-03T00:00:00.000Z',
-          sessionCount: 1,
-          sessions: [session],
+          sessionCount: 2,
+          sessions,
         }),
       ],
       'backup.json',
       { type: 'application/json' },
     );
 
-    try {
-      await expect(importSessionsFromJSON(file)).resolves.toMatchObject({
-        sessionCount: 1,
-      });
+    await expect(importSessionsFromJSON(file)).resolves.toMatchObject({
+      sessionCount: 2,
+    });
 
-      expect(window.localStorage.getItem(`${STORAGE_PREFIX}scout360_sessions_v2`)).toBeNull();
-      expect(window.localStorage.getItem('scout360_sessions_v1')).toBe(JSON.stringify([session]));
-    } finally {
-      restoreStorage();
-    }
+    expect(storage.saveAllDossiers).toHaveBeenCalledTimes(1);
+    expect(storage.saveAllDossiers).toHaveBeenCalledWith(sessions);
   });
 });

@@ -3,12 +3,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useAppInitialization } from '../../hooks/useAppInitialization';
 import type { ChatSession } from '../../types';
 
-const listRemoteSessionsMock = vi.hoisted(() => vi.fn());
-
-vi.mock('../../services/sessionRemoteStore', () => ({
-  listRemoteSessions: listRemoteSessionsMock,
-}));
-
 function buildSession(id: string): ChatSession {
   return {
     id,
@@ -45,7 +39,6 @@ describe('useAppInitialization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
-    listRemoteSessionsMock.mockResolvedValue([]);
   });
 
   it('nao cria sessao vazia automaticamente quando nao ha historico local', async () => {
@@ -78,26 +71,5 @@ describe('useAppInitialization', () => {
 
     expect(options.setSessions).toHaveBeenCalledWith(expect.any(Function));
     expect(options.setIsInitialized).toHaveBeenCalledWith(true);
-  });
-
-  it('nao faz merge remoto quando a lista remota vem vazia', async () => {
-    const localSessions = [buildSession('s1')];
-    const options = buildOptions({
-      loadSessions: vi.fn().mockResolvedValue(localSessions),
-    });
-
-    listRemoteSessionsMock.mockResolvedValueOnce([]);
-
-    renderHook(() => useAppInitialization(options));
-
-    await waitFor(() => {
-      expect(options.setIsInitialized).toHaveBeenCalledWith(true);
-    });
-
-    await waitFor(() => {
-      expect(listRemoteSessionsMock).toHaveBeenCalledTimes(1);
-    });
-
-    expect(options.setSessions).toHaveBeenCalledTimes(1);
   });
 });
