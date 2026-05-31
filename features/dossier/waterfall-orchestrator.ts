@@ -1028,8 +1028,22 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
       } finally {
-        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
-        await deleteWaterfallFoundationCache(foundationCacheName);
+        // Timeout curto evita que delete bloqueie o retorno do waterfall (Lição 14).
+        // Se demorar >15s, o cache expira naturalmente pelo TTL de 600s.
+        if (foundationCacheName) {
+          try {
+            await Promise.race([
+              deleteWaterfallFoundationCache(foundationCacheName),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('deleteWaterfallFoundationCache timeout after 15s')), 15_000),
+              ),
+            ]);
+          } catch {
+            scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache timeout ou falha', {
+              cacheName: foundationCacheName,
+            });
+          }
+        }
       }
     },
     [
