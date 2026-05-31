@@ -1,68 +1,54 @@
-# Handoff Tecnico — [NOVO-APP] — 29/05/2026 (novos bugs preview + decisao fechar PR #314)
+# Handoff — [NOVO-APP] — 31/05/2026 — Vercel Features Exploradas
 
 ## Objetivo da Proxima Sessao
 
-- **Corrigir 2 P0 + 1 P2 no `feat/dossier-lifecycle`**: `operator_email: null`, tela branca transicao LoadingSmart, dynamic import
-- **Fechar PR #314 atual**, squash commits (3-4 semanticos), abrir nova PR limpa
-- **Retomar `feat/crm-supabase-migration`** stashed
-
-**Proximo passo: Corrigir `operator_email: null` em `services/storage.ts` + tela branca em `utils/renderStateClassifier.ts`, squash, abrir nova PR.**
+- **Sincronizar `main` local com origin** (PR #317 squash-merged em `7773173`, local ainda em `0b38ebe`)
+- **Limpar branches residuais**: `refactor/remove-idb-storage` (local), `fix/remove-web-search-fallback` (mergeada)
+- **Verificar P0 withTimeout** (`api/gemini.ts:416, :491`) — AbortSignal nao propaga para `chat.sendMessage()`
+- **Decidir sobre CRM migration stashed** (`feat/crm-supabase-migration`) — retomar ou descartar
+- **Verificar `waterfallLogger.ts`** — ainda existe no repo, confirmar se deletar agora
 
 ## Estado Atual
 
-- **Branch atual:** `feat/dossier-lifecycle` — commit 211e240, 11 commits a frente do main
-- **PR #314:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/314 — aberta, pendente de correcoes
-- **PR #313:** MERGEADA (squash) — fix/remove-web-search-fallback
-- **Main:** sincronizada (commit `8d6e33f`)
-- **Working tree:** limpa
-- **Stashes:** `feat/crm-supabase-migration` (stash@{3}, stash@{4}, stash@{5})
+- **Branch atual:** `main` (local: `424faab5`, origin: `7773173` — main local desatualizado)
+- **Origin/main:** `7773173` (refactor: simplifica storage — remove IDB offline)
+- **PRs abertas:** Nenhuma
+- **Working tree:** arquivos modificados (handoff, memory) + untracked (.superpowers, docs/superpowers/plans)
+- **Testes:** 1249 passando, 0 falhas, 144 arquivos
 
-## O que foi feito
+## O que foi feito nesta sessao
 
-### 1. PR #313 mergeada (fix/remove-web-search-fallback)
+### Audit Vercel Features — Exploracao Completa
 
-- Squash merge: 8d6e33f no main
-- Branch local `fix/remove-web-search-fallback` ainda existe (deletar)
+| Feature       | Relevancia | Hobby?          | Status                   |
+| ------------- | ---------- | --------------- | ------------------------ |
+| AI Gateway    | 9/10       | Nao (Pro)       | Plano escrito, arquivado |
+| Cron Jobs     | 8/10       | 2 crons, diario | Plano escrito, arquivado |
+| Queues        | 7/10       | Nao (Pro)       | Plano escrito, arquivado |
+| Firewall/WAF  | 7/10       | Parcial         | Nao priorizado           |
+| Edge Config   | 6/10       | Nao (Pro)       | Nao priorizado           |
+| Fluid Compute | 5/10       | Ja usa          | Nada a fazer             |
+| Blob          | 4/10       | Sim             | Nao priorizado           |
+| Sandbox       | 2/10       | Nao             | Nao priorizado           |
 
-### 2. feat/dossier-lifecycle rebasada no main
+### Decisao: Plano Cancelado
 
-- Commits web-search-fallback removidos durante rebase
-- 3 P0 corrigidos (commit 0486897): cleanup race, silent errors, cross-device
-
-### 3. Novos bugs encontrados no preview Vercel (Lilian/Karine)
-
-| Prio | Bug                                                  | Local                               | Solucao planejada                                                                                                     |
-| ---- | ---------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| P0   | `operator_email: null` em todos os dossies           | `services/storage.ts:153-218`       | Adicionar `operator_email` no upsert, ler de `localStorage.getItem('scout360:operator_email')`                        |
-| P0   | Tela branca na transicao LoadingSmart -> timeline    | `utils/renderStateClassifier.ts`    | `classifyPanelState` retorna `'empty'` quando `messages` vazio e `resumoDossie` null. Ajustar logica de classificacao |
-| P2   | Dynamic import `await import('../services/storage')` | `components/DossierShareBar.tsx:22` | Substituir por static import                                                                                          |
-
-### 4. Decisao: fechar PR #314 e abrir nova PR limpa
-
-**Opcao 3 escolhida:**
-
-- Fechar PR #314 atual
-- Corrigir os 3 bugs
-- Squash commits em 3-4 commits semanticos
-- Abrir nova PR limpa
-
-### Validacao apos correcoes
-
-- Typecheck pendente
-- Testes pendentes
-- CI pendente
+- **Plano:** `docs/superpowers/plans/2026-05-31-vercel-ai-gateway-cron-queues.md` (commit `424faab5`)
+- **Motivo:** Hobby plan limita funcoes (12), AI Gateway (Pro-only), Queues (Pro-only)
+- **Analise:** 16 funcoes excederia limite Hobby de 12. Upgrade para Pro (US$ 20/mes) necessario para AI Gateway + Queues + mais funcoes.
+- **Conclusao:** Esforco de refatoracao (6 arquivos) nao justifica ganhos parciais no Hobby.
 
 ## Riscos Tecnicos Residuais
 
-1. **P0 withTimeout (api/gemini.ts:416 e :491):** AbortController cria signal mas nao propaga para chat.sendMessage() nem sendFunctionResponses(). **(Documentado, nao corrigido)**
-2. **Branch residual `fix/remove-web-search-fallback`:** mergeada, branch local ainda existe
-3. **CRM migration:** stashed, precisa ser retomado ou descartado
-4. **12 findings do code review ainda nao corrigidos:** 2 P1, 7 P2, 3 P3 (serao resolvidos na nova PR)
+1. **P0 withTimeout (api/gemini.ts:416, :491):** AbortController cria signal mas nao propaga para `chat.sendMessage()`. Documentado, nao corrigido.
+2. **Branch `refactor/remove-idb-storage` local ainda existe**: pode ser deletada apos sync de main.
+3. **Branch `fix/remove-web-search-fallback` residual**: mergeada, branch local ainda existe.
+4. **CRM migration stashed**: precisa decidir (retomar ou descartar).
+5. **`waterfallLogger.ts` nao removido**: existe no repo, confirmar se deletar.
+6. **Supabase extract_cache TTL**: implementado no client sem cleanup automatico no banco.
 
 ## Links
 
-- **PR #314:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
-- **PR #313 (merged):** https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
-- **Preview:** `scoutagro-git-feat-dossier-lifecycle-brunolimaff-3629s-projects.vercel.app`
-- **Vault novos bugs:** `Bruno Vault/20-SESSOES/2026-05/2026-05-29T20-30-00-novos-bugs-preview-fechamento-pr314.md`
-- **Licoes:** `Bruno Vault/30-LICOES/` (lições desta sessão pendentes de registro)
+- **Plano Vercel:** `docs/superpowers/plans/2026-05-31-vercel-ai-gateway-cron-queues.md`
+- **Commit:** `424faab5`
+- **PR #317 merge:** `7773173`
