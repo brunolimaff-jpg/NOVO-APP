@@ -96,6 +96,28 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
 
+  // ── Instrumentação: detecta timeline renderizando vazia ──
+  const prevTimelineLenRef = useRef(safeMessages.length);
+  useEffect(() => {
+    const prev = prevTimelineLenRef.current;
+    const curr = safeMessages.length;
+    prevTimelineLenRef.current = curr;
+
+    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !isLoading) {
+      console.error(
+        '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
+        JSON.stringify({
+          sessionId: currentSession?.id,
+          before: prev,
+          after: curr,
+          showInitialHome,
+          shouldSuspendVirtualizedList,
+          isDarkMode,
+        }),
+      );
+    }
+  }, [safeMessages.length, showInitialHome, shouldSuspendVirtualizedList, isLoading, currentSession?.id, isDarkMode]);
+
   // Use larger overscan when any bot message looks like a dossier (long text) to
   // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
   const virtuosoOverscan = useMemo(() => {
