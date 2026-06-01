@@ -65,6 +65,17 @@ const BULLETS: string[] = [
   'Exportável para follow-up comercial — sem retrabalho manual.',
 ];
 
+/* ── Constantes de estilo e mensagens ────────────────────── */
+
+const CNPJ_VALIDATE_BTN_ACTIVE_CLASS =
+  'bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-500';
+
+/* ── Mensagens de status CNPJ ────────────────────────────── */
+
+const CNPJ_404_MSG = 'CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.';
+const CNPJ_LOCAL_DEV_MSG = 'Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.';
+const CNPJ_UNAVAILABLE_MSG = 'Serviço de consulta indisponível no momento. Preencha os campos manualmente.';
+
 function getPreviewDemoPayload(): PreviewDemoPayload | null {
   if (import.meta.env.VITE_ENABLE_PREVIEW_DEMO !== 'true') return null;
 
@@ -82,7 +93,6 @@ function getPreviewDemoPayload(): PreviewDemoPayload | null {
     state,
   };
 }
-
 
 const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
   mode,
@@ -173,11 +183,11 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('404') || msg.toLowerCase().includes('não encontrado')) {
-        setCnpjStatus('CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.');
+        setCnpjStatus(CNPJ_404_MSG);
       } else if (msg.includes('Local dev sem proxy')) {
-        setCnpjStatus('Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.');
+        setCnpjStatus(CNPJ_LOCAL_DEV_MSG);
       } else {
-        setCnpjStatus('Serviço de consulta indisponível no momento. Preencha os campos manualmente.');
+        setCnpjStatus(CNPJ_UNAVAILABLE_MSG);
       }
       setCnpjLocked(false);
     } finally {

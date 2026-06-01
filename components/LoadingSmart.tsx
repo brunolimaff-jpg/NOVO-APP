@@ -27,9 +27,6 @@ const SOURCE_LINKS: Record<string, string> = {
   gatec: 'https://www.gatec.com.br/',
 };
 
-// EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
-// do que qualquer hardcode por modo. declaredTotalStages tem precedência quando disponível.
-
 interface LoadingSmartProps {
   isLoading: boolean;
   mode: ChatMode;

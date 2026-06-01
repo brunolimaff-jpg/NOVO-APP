@@ -22,6 +22,7 @@ import {
   autoLinkSeniorTerms,
   cleanFakeSourcesBlock,
 } from '../utils/linkFixer';
+import { sanitizeSvgHtml } from '../utils/privacy';
 
 // Module-level constants prevent new array references on every render, which would
 // bypass react-markdown's internal memoisation and force a full re-parse each render.
@@ -255,7 +256,9 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'de
   }
 
   if (variant === 'compact') {
-    return <div className="mermaid-chart overflow-x-auto p-2" dangerouslySetInnerHTML={{ __html: svg }} />;
+    return (
+      <div className="mermaid-chart overflow-x-auto p-2" dangerouslySetInnerHTML={{ __html: sanitizeSvgHtml(svg) }} />
+    );
   }
 
   return (
@@ -268,7 +271,7 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'de
       </div>
       <div
         className="mermaid-chart flex items-center justify-center overflow-x-auto p-4 sm:p-6"
-        dangerouslySetInnerHTML={{ __html: svg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvgHtml(svg) }}
       />
     </div>
   );
