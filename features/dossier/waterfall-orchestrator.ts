@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { registerWaterfallStart, registerWaterfallEnd } from './waterfall-guard';
 import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
 import {
   PROMPT_CAMINHO_DE_VENDA,
@@ -403,6 +404,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       isFirstInteraction,
       sessionCnpjDigits,
     }: RunMegaPromptWaterfallArgs) => {
+      const guardCheck = registerWaterfallStart(sessionId);
+      if (!guardCheck.allowed) {
+        scoutDiag.warn('WaterfallGuard', 'waterfall bloqueado por floodgate; abortando execução', {
+          sessionId,
+          reason: guardCheck.reason,
+          guard: guardCheck.guard,
+        });
+        return;
+      }
+      const waterfallRunId = guardCheck.runId;
+
       let accumulatedText = '';
       let previousStageCompleted = false;
       const optionalStepFailures = new Set<string>();
@@ -751,6 +763,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return validatedText;
       };
 
+      let waterfallEndStatus: 'completed' | 'failed' = 'failed';
+
       try {
         if (isFirstInteraction) {
           resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -1035,6 +1049,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             if (saveTimeoutId) clearTimeout(saveTimeoutId);
           }
         }
+
+        waterfallEndStatus = 'completed';
       } finally {
         // Timeout curto evita que delete bloqueie o retorno do waterfall (Lição 14).
         // Se demorar >15s, o cache expira naturalmente pelo TTL de 600s.
@@ -1058,6 +1074,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             if (cacheTimeoutId) clearTimeout(cacheTimeoutId);
           }
         }
+
+        registerWaterfallEnd(sessionId, waterfallRunId, waterfallEndStatus);
       }
     },
     [

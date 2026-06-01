@@ -83,7 +83,6 @@ function getPreviewDemoPayload(): PreviewDemoPayload | null {
   };
 }
 
-
 const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
   mode,
   onStartInvestigation,
