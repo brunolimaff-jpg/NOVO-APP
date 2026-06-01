@@ -5,7 +5,3 @@ import type { ChatSession } from '../../types';
 
 export type { ChatSession };
 
-export interface ExtractCacheEntry {
-  result: unknown;
-  timestamp: number;
-}
