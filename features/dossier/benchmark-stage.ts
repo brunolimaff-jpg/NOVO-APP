@@ -29,7 +29,13 @@ export async function runDossierBenchmarkStage({
       timeoutMs: MODULAR_BENCHMARK_TIMEOUT_MS,
     });
 
-    if (benchmark) appendWaterfallChunk(benchmark);
+    if (benchmark) {
+      appendWaterfallChunk(benchmark);
+    } else {
+      // FIX: fallback visual quando o benchmark retorna vazio
+      // sem dados, evita silêncio na saída do waterfall.
+      appendWaterfallChunk('Dados de benchmark indisponíveis.');
+    }
     optionalStepFailures.delete(BENCHMARK_FAILURE_LABEL);
     setFailureCount(0);
     return true;

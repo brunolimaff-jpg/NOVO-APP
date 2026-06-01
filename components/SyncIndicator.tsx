@@ -5,6 +5,31 @@ interface SyncIndicatorProps {
   isDarkMode: boolean;
 }
 
+/* ── Helpers de estilo ───────────────────────────────────── */
+
+const getStatusText = (isOnline: boolean, supabaseAvailable: boolean) =>
+  !isOnline ? 'Offline' : !supabaseAvailable ? 'Nuvem indisponível' : 'Conectado';
+
+const getColorClasses = (isOnline: boolean, supabaseAvailable: boolean, isDarkMode: boolean) =>
+  !isOnline
+    ? isDarkMode
+      ? 'text-red-400'
+      : 'text-red-500'
+    : !supabaseAvailable
+      ? isDarkMode
+        ? 'text-amber-400'
+        : 'text-amber-500'
+      : isDarkMode
+        ? 'text-emerald-400'
+        : 'text-emerald-600';
+
+const getDotColor = (isOnline: boolean, supabaseAvailable: boolean) =>
+  !isOnline ? 'bg-red-500' : !supabaseAvailable ? 'bg-amber-500' : 'bg-emerald-500';
+
+const STATUS_LABEL_CLASS = 'hidden sm:inline';
+
+/* ── Componente principal ─────────────────────────────────── */
+
 export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [supabaseAvailable, setSupabaseAvailable] = useState(isSupabaseAvailable());
@@ -27,21 +52,9 @@ export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const statusText = !isOnline ? 'Offline' : !supabaseAvailable ? 'Nuvem indisponível' : 'Conectado';
-
-  const colorClasses = !isOnline
-    ? isDarkMode
-      ? 'text-red-400'
-      : 'text-red-500'
-    : !supabaseAvailable
-      ? isDarkMode
-        ? 'text-amber-400'
-        : 'text-amber-500'
-      : isDarkMode
-        ? 'text-emerald-400'
-        : 'text-emerald-600';
-
-  const dotColor = !isOnline ? 'bg-red-500' : !supabaseAvailable ? 'bg-amber-500' : 'bg-emerald-500';
+  const statusText = getStatusText(isOnline, supabaseAvailable);
+  const colorClasses = getColorClasses(isOnline, supabaseAvailable, isDarkMode);
+  const dotColor = getDotColor(isOnline, supabaseAvailable);
 
   return (
     <div
@@ -50,7 +63,7 @@ export function SyncIndicator({ isDarkMode }: SyncIndicatorProps) {
       className={`flex items-center gap-1.5 px-2 py-1 text-xs ${colorClasses}`}
     >
       <span className={`inline-block h-2 w-2 rounded-full ${dotColor}`} />
-      <span className="hidden sm:inline">{statusText}</span>
+      <span className={STATUS_LABEL_CLASS}>{statusText}</span>
     </div>
   );
 }

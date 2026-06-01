@@ -331,24 +331,18 @@ function shouldPromoteEvidence(existing: SocietaryCompany, incoming: SocietaryCo
   return companyEvidenceRank(incoming) > companyEvidenceRank(existing);
 }
 
-function findCompanyByExactCnpj(
-  companiesByKey: Map<string, SocietaryCompany>,
-  cnpj: string,
-): SocietaryCompany | undefined {
+function findCompanyByExactCnpj(cnpjIndex: Map<string, SocietaryCompany>, cnpj: string): SocietaryCompany | undefined {
   if (!isValidCnpj(cnpj)) return undefined;
-  return Array.from(companiesByKey.values()).find(company => company.cnpj === cnpj);
+  return cnpjIndex.get(cnpj);
 }
 
 function findCompanyByCnpjRadical(
-  companiesByKey: Map<string, SocietaryCompany>,
+  radicalIndex: Map<string, SocietaryCompany>,
   cnpj: string,
 ): SocietaryCompany | undefined {
   if (!isValidCnpj(cnpj)) return undefined;
   const radical = cnpj.slice(0, 8);
-  return Array.from(companiesByKey.values()).find(company => {
-    const companyCnpj = normalizeCnpj(company.cnpj || '');
-    return isValidCnpj(companyCnpj) && companyCnpj.slice(0, 8) === radical;
-  });
+  return radicalIndex.get(radical);
 }
 
 function mergeCompanyRecords(target: SocietaryCompany, source: SocietaryCompany): void {
@@ -511,6 +505,8 @@ export function buildSocietaryGraph(
 
   const rejectedCompanies: RejectedSocietaryCompany[] = [];
   const companiesByKey = new Map<string, SocietaryCompany>();
+  const cnpjIndex = new Map<string, SocietaryCompany>();
+  const radicalIndex = new Map<string, SocietaryCompany>();
   const rootBranchCnpjs = new Set<string>();
   const rootCnpj = normalizeCnpj(input.root.cnpj || '');
 
@@ -578,8 +574,8 @@ export function buildSocietaryGraph(
     const key = buildCompanyKey(company);
     const existing =
       companiesByKey.get(key) ||
-      findCompanyByExactCnpj(companiesByKey, normalizedCnpj) ||
-      findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
+      findCompanyByExactCnpj(cnpjIndex, normalizedCnpj) ||
+      findCompanyByCnpjRadical(radicalIndex, normalizedCnpj);
     if (existing) {
       if (partner && !existing.partnerIds.includes(partner.id)) existing.partnerIds.push(partner.id);
       if (relationshipScope === 'group_link') existing.rootLinked = true;
@@ -630,6 +626,13 @@ export function buildSocietaryGraph(
     };
     created.badges = buildBadges(created);
     companiesByKey.set(key, created);
+    {
+      const normalized = normalizeCnpj(created.cnpj || '');
+      if (isValidCnpj(normalized)) {
+        cnpjIndex.set(normalized, created);
+        radicalIndex.set(normalized.slice(0, 8), created);
+      }
+    }
   }
 
   if (geminiCnpjs) {
@@ -704,8 +707,8 @@ export function buildSocietaryGraph(
         const existingKey = buildCompanyKey(geminiCandidate);
         const existing =
           companiesByKey.get(existingKey) ||
-          findCompanyByExactCnpj(companiesByKey, normalizedCnpj) ||
-          findCompanyByCnpjRadical(companiesByKey, normalizedCnpj);
+          findCompanyByExactCnpj(cnpjIndex, normalizedCnpj) ||
+          findCompanyByCnpjRadical(radicalIndex, normalizedCnpj);
         if (existing) {
           if (!isHeadquartersCnpj(existing.cnpj) || isHeadquartersCnpj(normalizedCnpj)) {
             existing.name = geminiCandidate.name.trim();
@@ -757,6 +760,13 @@ export function buildSocietaryGraph(
         };
         created.badges = buildBadges(created);
         companiesByKey.set(buildCompanyKey(geminiCandidate), created);
+        {
+          const normalized = normalizeCnpj(created.cnpj || '');
+          if (isValidCnpj(normalized)) {
+            cnpjIndex.set(normalized, created);
+            radicalIndex.set(normalized.slice(0, 8), created);
+          }
+        }
       }
     }
   }

@@ -119,6 +119,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const hasSubstantiveText = Boolean(msg.text && msg.text.trim().length > 200);
   const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero' && !hasSubstantiveText;
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
+  const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
   const contentRef = useRef<HTMLDivElement | null>(null);
   let content: React.ReactNode;
 
@@ -194,7 +195,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
         onReportError={onReportError ? () => onReportError(msg.id, msg.errorDetails!) : undefined}
       />
     );
-  } else if (isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '')) {
+  } else if (showGhostContent) {
     content = (
       <div className="flex justify-start animate-fade-in w-full max-w-3xl">
         <GhostMessageBlock msg={msg} onRetry={onRetry} isLoading={isLoading} isDarkMode={isDarkMode} />

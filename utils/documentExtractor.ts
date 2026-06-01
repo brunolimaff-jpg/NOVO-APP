@@ -277,53 +277,75 @@ export async function searchConsultasocioDirect(socioName: string): Promise<stri
     const allBlocks: string[] = [];
     const maxPages = 15;
 
-    for (let page = 1; page <= maxPages; page++) {
-      const pageUrl = page === 1 ? url : `${url}?page=${page}`;
+    // Page 1: sequential — valida existencia e estrutura do site
+    const page1Url = url;
+    const page1Response = await fetch(page1Url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
 
-      const response = await fetch(pageUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
-        signal: AbortSignal.timeout(10000),
-      });
+    if (!page1Response.ok) {
+      scoutDiag.warn('DocumentExtractor', `consultasocio.com retornou ${page1Response.status}`, { url });
+      return null;
+    }
 
-      if (!response.ok) {
-        if (page === 1) {
-          scoutDiag.warn('DocumentExtractor', `consultasocio.com retornou ${response.status}`, { url });
-          return null;
-        }
-        break;
-      }
+    const page1Html = await page1Response.text();
+    const $ = cheerio.load(page1Html);
+    const page1Text = $('body').text().replace(/\s+/g, ' ').trim();
 
-      const html = await response.text();
-      const $ = cheerio.load(html);
-      const pageText = $('body').text().replace(/\s+/g, ' ').trim();
+    const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
+    const page1Cnpjs = page1Text.match(cnpjPattern);
 
-      const cnpjPattern = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/g;
-      const foundCnpjs = pageText.match(cnpjPattern);
+    if (!page1Cnpjs || page1Cnpjs.length === 0) {
+      scoutDiag.warn('DocumentExtractor', 'consultasocio.com sem CNPJs na pagina 1', { url });
+      return null;
+    }
 
-      if (!foundCnpjs || foundCnpjs.length === 0) {
-        if (page === 1) {
-          scoutDiag.warn('DocumentExtractor', 'consultasocio.com sem CNPJs na pagina 1', { url });
-          return null;
-        }
-        break;
-      }
+    allBlocks.push(`Título: consultasocio.com — ${socioName} (página 1)\nURL: ${page1Url}\nResumo: ${page1Text}\n---`);
 
-      allBlocks.push(
-        `Título: consultasocio.com — ${socioName} (página ${page})\nURL: ${pageUrl}\nResumo: ${pageText}\n---`,
-      );
+    const hasNextPage = $('a')
+      .toArray()
+      .some(el => $(el).attr('href')?.includes('page=2'));
+    if (!hasNextPage) {
+      scoutDiag.info('DocumentExtractor', 'consultasocio.com: apenas 1 pagina');
+      return allBlocks.join('\n');
+    }
 
-      const hasNextPage = $('a')
-        .toArray()
-        .some(el =>
-          $(el)
-            .attr('href')
-            ?.includes(`page=${page + 1}`),
+    // Pages 2+: paralelo — todas sao independentes (URL previsivel)
+    const remainingPages: number[] = [];
+    for (let p = 2; p <= maxPages; p++) remainingPages.push(p);
+
+    const pageResults = await Promise.allSettled(
+      remainingPages.map(async page => {
+        const pageUrl = `${url}?page=${page}`;
+        const resp = await fetch(pageUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!resp.ok) return null;
+        const html = await resp.text();
+        const $2 = cheerio.load(html);
+        const text = $2('body').text().replace(/\s+/g, ' ').trim();
+        const found = text.match(cnpjPattern);
+        if (!found || found.length === 0) return null;
+        return {
+          page,
+          pageUrl,
+          text,
+        };
+      }),
+    );
+
+    for (const result of pageResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        allBlocks.push(
+          `Título: consultasocio.com — ${socioName} (página ${result.value.page})\nURL: ${result.value.pageUrl}\nResumo: ${result.value.text}\n---`,
         );
-      if (!hasNextPage) break;
+      }
     }
 
     const result = allBlocks.join('\n');
-    scoutDiag.info('DocumentExtractor', `consultasocio.com: ${allBlocks.length} páginas extraídas`);
+    scoutDiag.info('DocumentExtractor', `consultasocio.com: ${allBlocks.length} páginas extraídas (paralelo)`);
     return result || null;
   } catch (error) {
     scoutDiag.warn('DocumentExtractor', 'consultasocio.com indisponivel', {

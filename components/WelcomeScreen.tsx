@@ -1,5 +1,29 @@
 import React, { useState } from 'react';
 
+/* ── Constantes de estilo (tema claro/escuro) ────────────── */
+
+const STEP_BADGE_CLASS =
+  'bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0';
+
+const getWelcomeTheme = (isDarkMode: boolean) => ({
+  textPrimary: isDarkMode ? 'text-white' : 'text-slate-900',
+  textSecondary: isDarkMode ? 'text-gray-400' : 'text-slate-500',
+  heading: isDarkMode ? 'text-gray-500' : 'text-slate-400',
+  cardBg: isDarkMode ? 'bg-gray-800/50' : 'bg-white shadow-sm',
+  cardBorder: isDarkMode ? 'border-gray-700' : 'border-slate-200',
+  cardHover: isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-slate-50',
+  cardHoverBorder: isDarkMode ? 'hover:border-green-600' : 'hover:border-emerald-500',
+  exampleBg: isDarkMode ? 'bg-gray-800/30' : 'bg-slate-50',
+  exampleBorder: isDarkMode ? 'border-gray-700/50' : 'border-slate-200',
+  exampleHover: isDarkMode ? 'hover:bg-gray-800/60' : 'hover:bg-slate-100',
+  tutorialBg: isDarkMode ? 'bg-gray-800/30' : 'bg-slate-50',
+  tutorialBorder: isDarkMode ? 'border-gray-800' : 'border-slate-200',
+  checkBg: isDarkMode ? 'bg-green-900/10' : 'bg-emerald-50',
+  checkBorder: isDarkMode ? 'border-green-900/30' : 'border-emerald-100',
+  crossBg: isDarkMode ? 'bg-red-900/10' : 'bg-red-50',
+  crossBorder: isDarkMode ? 'border-red-900/30' : 'border-red-100',
+});
+
 interface WelcomeScreenProps {
   onSendMessage: (text: string) => void;
   onPreFill: (text: string) => void;
@@ -71,24 +95,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
     },
   ];
 
-  const theme = {
-    textPrimary: isDarkMode ? 'text-white' : 'text-slate-900',
-    textSecondary: isDarkMode ? 'text-gray-400' : 'text-slate-500',
-    heading: isDarkMode ? 'text-gray-500' : 'text-slate-400',
-    cardBg: isDarkMode ? 'bg-gray-800/50' : 'bg-white shadow-sm',
-    cardBorder: isDarkMode ? 'border-gray-700' : 'border-slate-200',
-    cardHover: isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-slate-50',
-    cardHoverBorder: isDarkMode ? 'hover:border-green-600' : 'hover:border-emerald-500',
-    exampleBg: isDarkMode ? 'bg-gray-800/30' : 'bg-slate-50',
-    exampleBorder: isDarkMode ? 'border-gray-700/50' : 'border-slate-200',
-    exampleHover: isDarkMode ? 'hover:bg-gray-800/60' : 'hover:bg-slate-100',
-    tutorialBg: isDarkMode ? 'bg-gray-800/30' : 'bg-slate-50',
-    tutorialBorder: isDarkMode ? 'border-gray-800' : 'border-slate-200',
-    checkBg: isDarkMode ? 'bg-green-900/10' : 'bg-emerald-50',
-    checkBorder: isDarkMode ? 'border-green-900/30' : 'border-emerald-100',
-    crossBg: isDarkMode ? 'bg-red-900/10' : 'bg-red-50',
-    crossBorder: isDarkMode ? 'border-red-900/30' : 'border-red-100',
-  };
+  const theme = getWelcomeTheme(isDarkMode);
 
   return (
     <div className="flex-1 overflow-auto animate-fade-in custom-scrollbar">
@@ -151,9 +158,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
             {steps.map(step => (
               <div key={step.num} className={`${theme.tutorialBg} border ${theme.tutorialBorder} rounded-xl p-3`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    {step.num}
-                  </span>
+                  <span className={STEP_BADGE_CLASS}>{step.num}</span>
                   <span className={`text-sm font-bold ${theme.textPrimary}`}>{step.title}</span>
                   <span className="text-lg">{step.icon}</span>
                 </div>

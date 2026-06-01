@@ -17,10 +17,13 @@ const FAMILIA_ICONS: Record<string, string> = {
   Hypnobox: '🏠',
 };
 
+const isScoreDataAvailable = (data: ClienteSeniorScoreProps['data']): boolean =>
+  Boolean(data.encontrado) && data.matchType === 'exact' && Boolean(data.familias?.length);
+
 const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMode = true }) => {
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
 
-  if (!data.encontrado || data.matchType !== 'exact' || !data.familias || data.familias.length === 0) return null;
+  if (!isScoreDataAvailable(data)) return null;
 
   const cardBg = isDarkMode ? '#0f172a' : '#ffffff';
   const barColor = isDarkMode ? '#10b981' : '#059669'; // Emerald

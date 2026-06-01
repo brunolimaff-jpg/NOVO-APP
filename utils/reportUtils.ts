@@ -451,6 +451,13 @@ function collectMetricValues(text: string, regex: RegExp): string[] {
   return values;
 }
 
+const INCONSISTENCIES_SECTION_HEADER = `\n\n---\n\n## ⚠️ INCONSISTÊNCIAS DETECTADAS\n\n> Os dados abaixo apareceram com valores diferentes entre o dossiê principal e os aprofundamentos. Todos os itens estão marcados com "**precisa validar**" e devem ser confirmados antes de uso em proposta comercial.\n\n`;
+
+const buildInconsistencyNote = (hasInconsistencies: boolean) =>
+  hasInconsistencies
+    ? '- **Validação obrigatória:** foram detectadas inconsistências entre seções; os pontos marcados como "precisa validar" devem ser confirmados antes de uso comercial.'
+    : '- **Validação obrigatória:** não foram encontradas inconsistências numéricas automáticas entre seções.';
+
 export function generateExecutiveSummary(fullText: string, sections: string[], inconsistenciesSection: string): string {
   const sourceText = normalizeMermaidBlocks(fullText);
   const mainSection = sections[0] || sourceText;
@@ -489,9 +496,7 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
   const mermaidBlocks =
     (sourceText.match(/```mermaid[\s\S]*?```/gi) || []).length + (fullText.match(MERMAID_JSON_PATTERN) || []).length;
 
-  const inconsistencyNote = inconsistenciesSection
-    ? '- **Validação obrigatória:** foram detectadas inconsistências entre seções; os pontos marcados como "precisa validar" devem ser confirmados antes de uso comercial.'
-    : '- **Validação obrigatória:** não foram encontradas inconsistências numéricas automáticas entre seções.';
+  const inconsistencyNote = buildInconsistencyNote(Boolean(inconsistenciesSection));
 
   return [
     '## 📌 RESUMO EXECUTIVO',
@@ -553,12 +558,7 @@ export function detectInconsistencies(sections: string[]): string {
   }
 
   if (inconsistencies.size === 0) return '';
-  return (
-    '\n\n---\n\n## ⚠️ INCONSISTÊNCIAS DETECTADAS\n\n' +
-    '> Os dados abaixo apareceram com valores diferentes entre o dossiê principal e os aprofundamentos. Todos os itens estão marcados com "**precisa validar**" e devem ser confirmados antes de uso em proposta comercial.\n\n' +
-    Array.from(inconsistencies)
-      .map((inc, i) => `${i + 1}. ${inc}`)
-      .join('\n') +
-    '\n'
-  );
+  return `${INCONSISTENCIES_SECTION_HEADER}${Array.from(inconsistencies)
+    .map((inc, i) => `${i + 1}. ${inc}`)
+    .join('\n')}\n`;
 }

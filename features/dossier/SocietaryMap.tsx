@@ -5,16 +5,25 @@ import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
-  countPartnerCompanies,
   describeSocietaryCompanyType,
   formatSocietaryCnpj,
-  SOCIETARY_LABEL_SOCIO_ADMIN,
   type SocietaryCompany,
   type SocietaryCompanyInput,
-  type SocietaryGraph,
   type SocietaryPartnerInput,
 } from './societaryGraph';
 import { lookupCnpj, type CnpjResult } from '../../lib/cnpjLookup';
+import {
+  LoadState,
+  SocioSearchResponse,
+  RejectedSocioSearchResult,
+  RootData,
+  normalizePartnerKey,
+  firstGivenName,
+  collectPartnerCompanies,
+  countCompaniesByScope,
+  describeEvidencePartner,
+  describeRelationshipScope,
+} from './SocietaryMap/utils';
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
@@ -26,78 +35,6 @@ interface SocietaryMapProps {
   geminiCnpjs?: SocietaryCompanyInput[];
   traceId?: string;
   traceEnabled?: boolean;
-}
-
-interface SocioSearchResponse {
-  companies?: SocietaryCompanyInput[];
-  rejected?: RejectedSocioSearchResult[];
-  degraded?: boolean;
-  cached?: boolean;
-  diagnostics?: {
-    truncated?: boolean;
-    totalCnpjsFound?: number;
-    truncatedReason?: string;
-    [key: string]: unknown;
-  };
-  trace?: Record<string, unknown>;
-}
-
-interface RejectedSocioSearchResult {
-  sourceTitle?: string;
-  sourceUrl?: string;
-  snippet?: string;
-  reason: string;
-}
-
-type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
-
-interface RootData {
-  cnpj?: string;
-  name: string;
-  partners: SocietaryPartnerInput[];
-}
-
-function normalizePartnerKey(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function firstGivenName(fullName: string): string {
-  const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
-  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
-}
-
-function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCompanyInput[]>): SocietaryCompanyInput[] {
-  return Object.values(companiesByPartner).flat();
-}
-
-function countCompaniesByScope(companies: SocietaryCompany[]): Record<string, number> {
-  return companies.reduce<Record<string, number>>((acc, company) => {
-    const scope = company.relationshipScope || 'group_link';
-    acc[scope] = (acc[scope] || 0) + 1;
-    return acc;
-  }, {});
-}
-
-function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
-  const partners = company.partnerIds
-    .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
-    .filter((partner): partner is (typeof graph.partners)[number] => Boolean(partner));
-
-  if (partners.length === 0) return 'Sem sócio identificado';
-
-  return partners.map(partner => [partner.name, partner.role].filter(Boolean).join(' - ')).join(' / ');
-}
-
-function describeRelationshipScope(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending')
-    return 'Validação pendente';
-  return 'Empresa do grupo';
 }
 
 const filterButtonBaseClass = 'rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition';
@@ -316,11 +253,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         uiCommitStrategy: 'incremental_per_partner',
       });
 
-      for (const [partnerIndex, partner] of rootData!.partners.entries()) {
-        if (cancelled) return;
-        const partnerKey = normalizePartnerKey(partner.name);
-        if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
+      const BATCH_SIZE = 5;
+      const allPartners = rootData!.partners;
 
+      const processPartner = async (partner: RootData['partners'][number]) => {
+        const partnerKey = normalizePartnerKey(partner.name);
+        if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) return;
         loadingPartnerKeysRef.current[partnerKey] = true;
 
         try {
@@ -328,9 +266,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           trace('socio-search iniciado', {
             partnerName: partner.name,
             partnerKey,
-            partnerIndex: partnerIndex + 1,
-            partnersTotal: rootData!.partners.length,
-            remainingPartnersAfterThis: rootData!.partners.length - partnerIndex - 1,
+            partnersTotal: allPartners.length,
           });
           const response = await fetch('/api/socio-search', {
             method: 'POST',
@@ -360,19 +296,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             degraded: payload.degraded,
             cached: payload.cached,
             diagnostics: payload.diagnostics,
-            trace: payload.trace,
-            companies: (payload.companies || []).slice(0, 30).map(company => ({
-              name: company.name,
-              cnpj: company.cnpj || company.rawCnpjLabel || null,
-              partnerName: company.partnerName,
-              relationshipScope: company.relationshipScope,
-              validationStatus: company.validationStatus,
-              sourceTitle: company.sourceTitle,
-            })),
-            rejected: (payload.rejected || []).slice(0, 30).map(item => ({
-              sourceTitle: item.sourceTitle,
-              reason: item.reason,
-            })),
           });
 
           if (!cancelled) {
@@ -394,7 +317,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               partnerName: partner.name,
               partnerKey,
               partnersCompleted: Object.keys(collected).length,
-              partnersTotal: rootData!.partners.length,
+              partnersTotal: totalPartners,
               companiesCount: partnerCompanies.length,
               totalCompaniesSoFar: collectPartnerCompanies(collected).length,
               rejectedCount: partnerRejected.length,
@@ -418,6 +341,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         } finally {
           delete loadingPartnerKeysRef.current[partnerKey];
         }
+      };
+
+      for (let batchStart = 0; batchStart < allPartners.length; batchStart += BATCH_SIZE) {
+        if (cancelled) return;
+        const batch = allPartners.slice(batchStart, batchStart + BATCH_SIZE);
+        await Promise.allSettled(batch.map(processPartner));
       }
 
       if (!cancelled) {
@@ -474,11 +403,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     );
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
+  const partnersById = useMemo(() => (graph ? new Map(graph.partners.map(p => [p.id, p])) : new Map()), [graph]);
+
   const handleSelectPartner = useCallback(
     (partnerId: string | null) => {
       if (!graph) return;
       if (partnerId) {
-        const partner = graph.partners.find(p => p.id === partnerId);
+        const partner = partnersById.get(partnerId);
         setSelectedPartnerName(partner?.name);
       } else {
         setSelectedPartnerName(undefined);
@@ -761,7 +692,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                         ) : null}
                       </div>
                       <p className="mt-1 text-[11px] text-slate-600">
-                        Sócio/admin: {describeEvidencePartner(company, graph)}
+                        Sócio/admin: {describeEvidencePartner(company, partnersById)}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-600">Escopo: {describeRelationshipScope(company)}</p>
                       <p className="mt-1 text-[11px] text-slate-600">Tipo: {describeSocietaryCompanyType(company)}</p>

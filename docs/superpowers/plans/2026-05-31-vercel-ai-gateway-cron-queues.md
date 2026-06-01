@@ -14,37 +14,37 @@
 
 ### Fase 1 — AI Gateway
 
-| Arquivo                    | Ação          | Responsabilidade                                                       |
-| -------------------------- | ------------- | ---------------------------------------------------------------------- |
-| `api/_ai-client.ts`        | **CRIAR**     | Factory centralizada do GoogleGenAI — keys, tracking, fallback         |
-| `api/_gemini-key-utils.ts` | **DELETAR**   | Substituído por `_ai-client.ts`                                        |
-| `api/gemini.ts`            | **MODIFICAR** | Usar `createAiClient()` em vez de `getApiKeys()` + `new GoogleGenAI()` |
-| `api/gerar-dossie.ts`      | **MODIFICAR** | Mesmo                                                                  |
-| `api/radar-scan.ts`        | **MODIFICAR** | Mesmo                                                                  |
-| `api/pulse-news.ts`        | **MODIFICAR** | Mesmo                                                                  |
-| `api/rag.ts`               | **MODIFICAR** | Mesmo                                                                  |
-| `api/docs-rag.ts`          | **MODIFICAR** | Mesmo                                                                  |
-| `vercel.json`              | **MODIFICAR** | Adicionar seção `aiGateway`                                            |
+| Arquivo | Ação | Responsabilidade |
+|---------|------|-----------------|
+| `api/_ai-client.ts` | **CRIAR** | Factory centralizada do GoogleGenAI — keys, tracking, fallback |
+| `api/_gemini-key-utils.ts` | **DELETAR** | Substituído por `_ai-client.ts` |
+| `api/gemini.ts` | **MODIFICAR** | Usar `createAiClient()` em vez de `getApiKeys()` + `new GoogleGenAI()` |
+| `api/gerar-dossie.ts` | **MODIFICAR** | Mesmo |
+| `api/radar-scan.ts` | **MODIFICAR** | Mesmo |
+| `api/pulse-news.ts` | **MODIFICAR** | Mesmo |
+| `api/rag.ts` | **MODIFICAR** | Mesmo |
+| `api/docs-rag.ts` | **MODIFICAR** | Mesmo |
+| `vercel.json` | **MODIFICAR** | Adicionar seção `aiGateway` |
 
 ### Fase 2 — Cron Jobs
 
-| Arquivo                           | Ação          | Responsabilidade                                   |
-| --------------------------------- | ------------- | -------------------------------------------------- |
-| `api/cron/_verify-cron-secret.ts` | **CRIAR**     | Middleware de trava de segredo para cron endpoints |
-| `api/cron/radar-scan.ts`          | **CRIAR**     | Radar scan diário agendado                         |
-| `api/cron/pulse-news.ts`          | **CRIAR**     | Pulse news a cada 6h                               |
-| `api/cron/cache-warmup.ts`        | **CRIAR**     | Cache warming RAG diário                           |
-| `vercel.json`                     | **MODIFICAR** | Adicionar seção `crons`                            |
+| Arquivo | Ação | Responsabilidade |
+|---------|------|-----------------|
+| `api/cron/_verify-cron-secret.ts` | **CRIAR** | Middleware de trava de segredo para cron endpoints |
+| `api/cron/radar-scan.ts` | **CRIAR** | Radar scan diário agendado |
+| `api/cron/pulse-news.ts` | **CRIAR** | Pulse news a cada 6h |
+| `api/cron/cache-warmup.ts` | **CRIAR** | Cache warming RAG diário |
+| `vercel.json` | **MODIFICAR** | Adicionar seção `crons` |
 
 ### Fase 3 — Queues
 
-| Arquivo                   | Ação          | Responsabilidade                          |
-| ------------------------- | ------------- | ----------------------------------------- |
-| `api/queue/dossier.ts`    | **CRIAR**     | Consumer da fila de dossiê                |
-| `api/queue/radar.ts`      | **CRIAR**     | Consumer da fila de radar scan            |
-| `api/queue/status.ts`     | **CRIAR**     | Endpoint GET para consultar status de job |
-| `services/queueClient.ts` | **CRIAR**     | Cliente client-side para enfileirar jobs  |
-| `vercel.json`             | **MODIFICAR** | Adicionar seção `queues`                  |
+| Arquivo | Ação | Responsabilidade |
+|---------|------|-----------------|
+| `api/queue/dossier.ts` | **CRIAR** | Consumer da fila de dossiê |
+| `api/queue/radar.ts` | **CRIAR** | Consumer da fila de radar scan |
+| `api/queue/status.ts` | **CRIAR** | Endpoint GET para consultar status de job |
+| `services/queueClient.ts` | **CRIAR** | Cliente client-side para enfileirar jobs |
+| `vercel.json` | **MODIFICAR** | Adicionar seção `queues` |
 
 ---
 
@@ -53,7 +53,6 @@
 ### Contexto
 
 Hoje 6 arquivos em `api/` instanciam `new GoogleGenAI({ apiKey })` com lógica própria de rotação de chaves. Isso causa:
-
 - Duplicação de `getApiKeys()` em `gemini.ts` (linha 152) e `gerar-dossie.ts` (linha 21)
 - Fallback manual inconsistente (uns têm loop de keys, outros só usam a primeira)
 - Sem tracking de custo por operação
@@ -64,7 +63,6 @@ A solução é criar um factory centralizado `_ai-client.ts` e configurar o AI G
 ### Task 1.1: Criar `api/_ai-client.ts`
 
 **Files:**
-
 - Create: `api/_ai-client.ts`
 - Modify: `api/_gemini-key-utils.ts` (mover funções, depois deletar)
 
@@ -196,9 +194,7 @@ export async function createAiClient(config: AiClientConfig = {}) {
           };
 
           if (process.env.AI_GATEWAY_LOG_ENABLED === '1') {
-            console.log(
-              `[AiClient] ${opLabel} | model=${model} | key=${i + 1}/${keys.length} | ${latencyMs}ms | in=${usage.tokensIn ?? '?'} out=${usage.tokensOut ?? '?'} cache=${usage.cachedTokensIn ?? '?'}`,
-            );
+            console.log(`[AiClient] ${opLabel} | model=${model} | key=${i + 1}/${keys.length} | ${latencyMs}ms | in=${usage.tokensIn ?? '?'} out=${usage.tokensOut ?? '?'} cache=${usage.cachedTokensIn ?? '?'}`);
           }
 
           return { result, usage };
@@ -216,11 +212,7 @@ export async function createAiClient(config: AiClientConfig = {}) {
 
       const latencyMs = Date.now() - start;
       const errorMsg = lastError instanceof Error ? lastError.message : String(lastError);
-      const errorType = isQuotaExhausted(lastError)
-        ? 'quota'
-        : isBillingOrPermissionDenied(lastError)
-          ? 'billing'
-          : 'unknown';
+      const errorType = isQuotaExhausted(lastError) ? 'quota' : isBillingOrPermissionDenied(lastError) ? 'billing' : 'unknown';
 
       const usage: AiUsageReport = {
         model,
@@ -265,18 +257,15 @@ git commit -m "feat: cria _ai-client.ts — factory centralizada Gemini com key 
 ### Task 1.2: Refatorar `api/gemini.ts` para usar `_ai-client.ts`
 
 **Files:**
-
 - Modify: `api/gemini.ts`
 
 - [ ] **Step 1: Substituir imports e remover funções duplicadas**
 
 Remover do arquivo:
-
 - `import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js'` (linha 6)
 - Funções `getEnvVar` (linha 144), `getApiKeys` (linha 152), `toNumberSafe` (linha 164), `extractGeminiHttpStatus` (linha 191), `extractUsageMetadata` (linha 118)
 
 Adicionar:
-
 ```typescript
 import { createAiClient, extractHttpStatus } from './_ai-client.js';
 ```
@@ -334,7 +323,10 @@ try {
   const body = parsed.data;
   const client = await createAiClient();
 
-  const { result } = await client.withKeyFallback(ai => executeGeminiAction(ai, body, res), `gemini-${body.action}`);
+  const { result } = await client.withKeyFallback(
+    ai => executeGeminiAction(ai, body, res),
+    `gemini-${body.action}`,
+  );
 
   return result;
 } catch (error: unknown) {
@@ -382,7 +374,6 @@ git commit -m "refactor: api/gemini.ts usa _ai-client.ts — remove key rotation
 ### Task 1.3: Refatorar os outros 5 arquivos que usam Gemini
 
 **Files:**
-
 - Modify: `api/gerar-dossie.ts`
 - Modify: `api/radar-scan.ts`
 - Modify: `api/pulse-news.ts`
@@ -493,17 +484,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = await createAiClient({ model: model ?? DEFAULT_MODEL });
 
-    const { result } = await client.withKeyFallback(async ai => {
-      const response = await ai.models.generateContent({
-        model: model ?? DEFAULT_MODEL,
-        contents,
-        config: genConfig,
-      });
-      return res.status(200).json({
-        text: extractGeminiText(response),
-        candidates: response.candidates || [],
-      });
-    }, 'gerar-dossie');
+    const { result } = await client.withKeyFallback(
+      async ai => {
+        const response = await ai.models.generateContent({
+          model: model ?? DEFAULT_MODEL,
+          contents,
+          config: genConfig,
+        });
+        return res.status(200).json({
+          text: extractGeminiText(response),
+          candidates: response.candidates || [],
+        });
+      },
+      'gerar-dossie',
+    );
 
     return result;
   } catch (error: unknown) {
@@ -587,7 +581,6 @@ git commit -m "refactor: migra todos os consumers Gemini para _ai-client.ts cent
 ### Task 1.4: Adicionar AI Gateway no `vercel.json`
 
 **Files:**
-
 - Modify: `vercel.json`
 
 - [ ] **Step 1: Adicionar seção `aiGateway` ao `vercel.json`**
@@ -655,7 +648,6 @@ Hoje radar scan e pulse news são 100% reativos (só rodam quando usuário clica
 ### Task 2.1: Criar middleware de segurança `api/cron/_verify-cron-secret.ts`
 
 **Files:**
-
 - Create: `api/cron/_verify-cron-secret.ts`
 
 - [ ] **Step 1: Escrever o middleware**
@@ -698,7 +690,6 @@ git commit -m "feat: middleware de verificação CRON_SECRET para cron endpoints
 ### Task 2.2: Criar `api/cron/radar-scan.ts`
 
 **Files:**
-
 - Create: `api/cron/radar-scan.ts`
 
 - [ ] **Step 1: Escrever o endpoint de cron para radar scan**
@@ -719,7 +710,9 @@ const CATEGORY_QUERIES: Record<string, string[]> = {
     '"TOTVS" OR "Sankhya" OR "Aliare" OR "Unysistem" OR "CHB" OR "Viasoft" software',
     '"TOTVS" agro OR "Sankhya" agro OR "Aliare" agro OR "Viasoft" agronegócio',
   ],
-  regulatorio: ['"Plano Safra" OR "IBAMA" regulamentação OR "Código Florestal" OR "rastreabilidade" agro'],
+  regulatorio: [
+    '"Plano Safra" OR "IBAMA" regulamentação OR "Código Florestal" OR "rastreabilidade" agro',
+  ],
   mercado: [
     '"soja" preço cotação safra 2025 OR 2026',
     '"milho" OR "algodão" OR "café" commodities agro Brasil exportação',
@@ -735,7 +728,9 @@ async function fetchGoogleNewsRss(query: string): Promise<string[]> {
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return [];
     const xml = await res.text();
-    const titles = [...xml.matchAll(/<title>(.*?)<\/title>/g)].map(m => m[1]).filter(t => t && t !== 'Google News');
+    const titles = [...xml.matchAll(/<title>(.*?)<\/title>/g)]
+      .map(m => m[1])
+      .filter(t => t && t !== 'Google News');
     return titles.slice(0, 20);
   } catch {
     return [];
@@ -808,7 +803,6 @@ git commit -m "feat: cron endpoint radar-scan — classifica notícias diariamen
 ### Task 2.3: Criar `api/cron/pulse-news.ts`
 
 **Files:**
-
 - Create: `api/cron/pulse-news.ts`
 
 - [ ] **Step 1: Escrever endpoint de pulse news agendado**
@@ -834,26 +828,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = await createAiClient();
 
-    const { result } = await client.withKeyFallback(async ai => {
-      const chat = ai.chats.create({
-        model: client.defaultModel,
-        config: { temperature: 0.2 },
-      });
+    const { result } = await client.withKeyFallback(
+      async ai => {
+        const chat = ai.chats.create({
+          model: client.defaultModel,
+          config: { temperature: 0.2 },
+        });
 
-      const prompt = `Busque as 3 notícias mais relevantes das últimas 24h sobre tecnologia no agronegócio brasileiro.
+        const prompt = `Busque as 3 notícias mais relevantes das últimas 24h sobre tecnologia no agronegócio brasileiro.
 Para cada notícia, forneça:
 1. Título e fonte
 2. Resumo de 1-2 frases
 3. Por que importa para um vendedor de software de gestão (ERP) para agronegócio`;
 
-      const response = await chat.sendMessage({ message: prompt });
+        const response = await chat.sendMessage({ message: prompt });
 
-      return res.status(200).json({
-        ok: true,
-        generatedAt: new Date().toISOString(),
-        summary: response.text,
-      });
-    }, 'cron-pulse-news');
+        return res.status(200).json({
+          ok: true,
+          generatedAt: new Date().toISOString(),
+          summary: response.text,
+        });
+      },
+      'cron-pulse-news',
+    );
 
     return result;
   } catch (error: unknown) {
@@ -876,7 +873,6 @@ git commit -m "feat: cron endpoint pulse-news — agrega notícias a cada 6h"
 ### Task 2.4: Adicionar seção `crons` ao `vercel.json`
 
 **Files:**
-
 - Modify: `vercel.json`
 
 - [ ] **Step 1: Adicionar seção crons**
@@ -948,7 +944,6 @@ Hoje dossiê (até 300s) e radar (até 120s) são chamadas HTTP síncronas. Se o
 ### Task 3.1: Criar `api/queue/dossier.ts` — Consumer da fila de dossiê
 
 **Files:**
-
 - Create: `api/queue/dossier.ts`
 
 - [ ] **Step 1: Escrever o consumer de dossiê**
@@ -996,41 +991,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const client = await createAiClient({ model: model ?? DEFAULT_MODEL });
 
-    const { result } = await client.withKeyFallback(async ai => {
-      const response = await ai.models.generateContent({
-        model: model ?? DEFAULT_MODEL,
-        contents,
-        config: genConfig,
-      });
+    const { result } = await client.withKeyFallback(
+      async ai => {
+        const response = await ai.models.generateContent({
+          model: model ?? DEFAULT_MODEL,
+          contents,
+          config: genConfig,
+        });
 
-      const text = typeof (response as { text?: string }).text === 'string' ? (response as { text: string }).text : '';
+        const text =
+          typeof (response as { text?: string }).text === 'string'
+            ? (response as { text: string }).text
+            : '';
 
-      // Callback se configurado (ex: webhook para Supabase)
-      if (callbackUrl) {
-        try {
-          await fetch(callbackUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jobId,
-              status: 'completed',
-              completedAt: new Date().toISOString(),
-              text,
-            }),
-            signal: AbortSignal.timeout(10_000),
-          });
-        } catch (cbError) {
-          console.warn(`[Queue:Dossier] Callback falhou para job ${jobId}:`, cbError);
+        // Callback se configurado (ex: webhook para Supabase)
+        if (callbackUrl) {
+          try {
+            await fetch(callbackUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jobId,
+                status: 'completed',
+                completedAt: new Date().toISOString(),
+                text,
+              }),
+              signal: AbortSignal.timeout(10_000),
+            });
+          } catch (cbError) {
+            console.warn(`[Queue:Dossier] Callback falhou para job ${jobId}:`, cbError);
+          }
         }
-      }
 
-      return res.status(200).json({
-        jobId,
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        text,
-      });
-    }, `queue-dossier-${jobId}`);
+        return res.status(200).json({
+          jobId,
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          text,
+        });
+      },
+      `queue-dossier-${jobId}`,
+    );
 
     return result;
   } catch (error: unknown) {
@@ -1076,7 +1077,6 @@ git commit -m "feat: queue consumer dossier.ts — processamento assíncrono com
 ### Task 3.2: Criar `api/queue/status.ts` — Endpoint de status
 
 **Files:**
-
 - Create: `api/queue/status.ts`
 
 - [ ] **Step 1: Escrever endpoint GET de status**
@@ -1127,7 +1127,6 @@ git commit -m "feat: endpoint GET /api/queue/status — consulta status de job"
 ### Task 3.3: Criar `services/queueClient.ts` — Cliente client-side
 
 **Files:**
-
 - Create: `services/queueClient.ts`
 
 - [ ] **Step 1: Escrever o cliente de fila para o frontend**
@@ -1217,7 +1216,6 @@ git commit -m "feat: queueClient.ts — enfileirar, consultar status, polling co
 ### Task 3.4: Adicionar seção `queues` ao `vercel.json`
 
 **Files:**
-
 - Modify: `vercel.json`
 
 - [ ] **Step 1: Adicionar configuração de queues**

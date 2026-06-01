@@ -69,7 +69,10 @@ export default defineConfig(({ mode }) => {
           // FIX: React Compiler ativo APENAS em desenvolvimento.
           // Em produção, reescreve closures e causa TDZ:
           // "Cannot access 'Sn' before initialization" (símbolo minificado).
-          plugins: process.env.NODE_ENV !== 'production' ? [ReactCompilerPlugin] : [],
+          // Usa mode !== 'production' (parâmetro do callback defineConfig)
+          // em vez de process.env.NODE_ENV, por ser a forma nativa do Vite
+          // e não depender de substituição de variável de ambiente externa.
+          plugins: mode !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
       !isPreviewBuild &&

@@ -40,6 +40,9 @@ export function pickCompanyLabel(...candidates: Array<string | null | undefined>
   return '';
 }
 
+const isPlainCompanyName = (text: string): boolean =>
+  text.length > 0 && text.length <= 60 && !text.includes('\n') && !isGenericCompanyLabel(text);
+
 export function resolveHintedCompany(
   sessionEmpresaAlvo: string | null | undefined,
   safeVisibleText: string,
@@ -53,7 +56,7 @@ export function resolveHintedCompany(
   if (fromEmpresaField && !isGenericCompanyLabel(fromEmpresaField)) return cleanTitle(fromEmpresaField);
 
   const trimmed = safeVisibleText.trim();
-  if (trimmed.length > 0 && trimmed.length <= 60 && !trimmed.includes('\n') && !isGenericCompanyLabel(trimmed)) {
+  if (isPlainCompanyName(trimmed)) {
     return trimmed;
   }
 
