@@ -6,6 +6,7 @@ import {
   type SocietaryCompany,
   type SocietaryCompanyInput,
   type SocietaryGraph,
+  type SocietaryPartner,
   type SocietaryPartnerInput,
 } from '../societaryGraph';
 
@@ -66,10 +67,13 @@ export function countCompaniesByScope(companies: SocietaryCompany[]): Record<str
   }, {});
 }
 
-export function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
+export function describeEvidencePartner(
+  company: SocietaryCompany,
+  partnersById: Map<string, SocietaryPartner>,
+): string {
   const partners = company.partnerIds
-    .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
-    .filter((partner): partner is (typeof graph.partners)[number] => Boolean(partner));
+    .map(partnerId => partnersById.get(partnerId))
+    .filter((partner): partner is SocietaryPartner => Boolean(partner));
 
   if (partners.length === 0) return 'Sem sócio identificado';
 

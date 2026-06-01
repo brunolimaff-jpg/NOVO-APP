@@ -253,11 +253,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         uiCommitStrategy: 'incremental_per_partner',
       });
 
-      for (const [partnerIndex, partner] of rootData!.partners.entries()) {
-        if (cancelled) return;
-        const partnerKey = normalizePartnerKey(partner.name);
-        if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) continue;
+      const BATCH_SIZE = 5;
+      const allPartners = rootData!.partners;
 
+      const processPartner = async (partner: RootData['partners'][number]) => {
+        const partnerKey = normalizePartnerKey(partner.name);
+        if (searchedPartnerKeysRef.current[partnerKey] || loadingPartnerKeysRef.current[partnerKey]) return;
         loadingPartnerKeysRef.current[partnerKey] = true;
 
         try {
@@ -265,9 +266,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           trace('socio-search iniciado', {
             partnerName: partner.name,
             partnerKey,
-            partnerIndex: partnerIndex + 1,
-            partnersTotal: rootData!.partners.length,
-            remainingPartnersAfterThis: rootData!.partners.length - partnerIndex - 1,
+            partnersTotal: allPartners.length,
           });
           const response = await fetch('/api/socio-search', {
             method: 'POST',
@@ -297,19 +296,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             degraded: payload.degraded,
             cached: payload.cached,
             diagnostics: payload.diagnostics,
-            trace: payload.trace,
-            companies: (payload.companies || []).slice(0, 30).map(company => ({
-              name: company.name,
-              cnpj: company.cnpj || company.rawCnpjLabel || null,
-              partnerName: company.partnerName,
-              relationshipScope: company.relationshipScope,
-              validationStatus: company.validationStatus,
-              sourceTitle: company.sourceTitle,
-            })),
-            rejected: (payload.rejected || []).slice(0, 30).map(item => ({
-              sourceTitle: item.sourceTitle,
-              reason: item.reason,
-            })),
           });
 
           if (!cancelled) {
@@ -331,7 +317,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               partnerName: partner.name,
               partnerKey,
               partnersCompleted: Object.keys(collected).length,
-              partnersTotal: rootData!.partners.length,
+              partnersTotal: totalPartners,
               companiesCount: partnerCompanies.length,
               totalCompaniesSoFar: collectPartnerCompanies(collected).length,
               rejectedCount: partnerRejected.length,
@@ -355,6 +341,12 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         } finally {
           delete loadingPartnerKeysRef.current[partnerKey];
         }
+      };
+
+      for (let batchStart = 0; batchStart < allPartners.length; batchStart += BATCH_SIZE) {
+        if (cancelled) return;
+        const batch = allPartners.slice(batchStart, batchStart + BATCH_SIZE);
+        await Promise.allSettled(batch.map(processPartner));
       }
 
       if (!cancelled) {
@@ -411,11 +403,13 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     );
   }, [rootData, companiesByPartner, geminiCnpjs]);
 
+  const partnersById = useMemo(() => (graph ? new Map(graph.partners.map(p => [p.id, p])) : new Map()), [graph]);
+
   const handleSelectPartner = useCallback(
     (partnerId: string | null) => {
       if (!graph) return;
       if (partnerId) {
-        const partner = graph.partners.find(p => p.id === partnerId);
+        const partner = partnersById.get(partnerId);
         setSelectedPartnerName(partner?.name);
       } else {
         setSelectedPartnerName(undefined);
@@ -698,7 +692,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
                         ) : null}
                       </div>
                       <p className="mt-1 text-[11px] text-slate-600">
-                        Sócio/admin: {describeEvidencePartner(company, graph)}
+                        Sócio/admin: {describeEvidencePartner(company, partnersById)}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-600">Escopo: {describeRelationshipScope(company)}</p>
                       <p className="mt-1 text-[11px] text-slate-600">Tipo: {describeSocietaryCompanyType(company)}</p>
