@@ -19,7 +19,7 @@ export const favorites = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    supabase!.from('favorites').upsert(
+    const { error } = await supabase!.from('favorites').upsert(
       {
         operator_id: operatorId,
         cnpj,
@@ -29,6 +29,10 @@ export const favorites = {
       },
       { onConflict: 'operator_id,cnpj' },
     );
+
+    if (error) {
+      console.error('[Storage] addFavorite failed:', error.message);
+    }
 
     await audit.logAudit('favorite_added', 'dossier', dossierId, {
       cnpj,
@@ -41,7 +45,11 @@ export const favorites = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj);
+    const { error } = await supabase!.from('favorites').delete().eq('operator_id', operatorId).eq('cnpj', cnpj);
+
+    if (error) {
+      console.error('[Storage] removeFavorite failed:', error.message);
+    }
     await audit.logAudit('favorite_removed', 'dossier', undefined, { cnpj });
   },
 };

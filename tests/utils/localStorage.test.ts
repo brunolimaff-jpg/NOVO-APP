@@ -1,4 +1,4 @@
-// tests/utils/idbStorage.test.ts
+// tests/utils/localStorage.test.ts
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { storageSet, storageGet, storageRemove } from '../../utils/localStorage';
 

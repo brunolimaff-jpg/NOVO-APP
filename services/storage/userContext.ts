@@ -16,10 +16,9 @@ export const userContext = {
       last_seen: new Date().toISOString(),
     };
 
-    try {
-      await supabase!.from('user_context').upsert(payload, { onConflict: 'operator_id' });
-    } catch (error) {
-      console.warn('storage.saveUserContext: erro remoto', error);
+    const { error } = await supabase!.from('user_context').upsert(payload, { onConflict: 'operator_id' });
+    if (error) {
+      console.warn('storage.saveUserContext: erro remoto', error.message);
     }
   },
 
@@ -30,13 +29,12 @@ export const userContext = {
     if (now - lastTouchTs < 60_000) return;
     lastTouchTs = now;
 
-    try {
-      await supabase!
-        .from('user_context')
-        .update({ last_seen: new Date().toISOString() })
-        .eq('operator_id', operatorId);
-    } catch (error) {
-      console.warn('storage.touchUserContext: erro remoto', error);
+    const { error } = await supabase!
+      .from('user_context')
+      .update({ last_seen: new Date().toISOString() })
+      .eq('operator_id', operatorId);
+    if (error) {
+      console.warn('storage.touchUserContext: erro remoto', error.message);
     }
   },
 
