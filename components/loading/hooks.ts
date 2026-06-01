@@ -1,9 +1,8 @@
 // components/loading/hooks.ts
 // Hooks extraídos de LoadingSmart.tsx para reduzir tamanho do componente principal.
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  buildLoadingSmartViewModel,
   getLoadingStageIdentity,
   LOADING_STAGE_ORDER_BY_KEY,
 } from '../../utils/loadingSmartViewModel';
