@@ -1,5 +1,5 @@
 /**
- * idbStorage — wrapper seguro sobre localStorage para persistência PWA.
+ * localStorage — wrapper seguro sobre localStorage para persistência PWA.
  * Em PWA instalado, localStorage persiste entre sessões igual a IndexedDB para dados simples.
  * Fallback silencioso em ambientes que bloqueiam storage (modo privado, iframes).
  */
