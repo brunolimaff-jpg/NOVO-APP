@@ -1008,8 +1008,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
+          let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
           try {
-            await storage.saveDossier(dossier);
+            await Promise.race([
+              storage.saveDossier(dossier),
+              new Promise<never>((_, reject) => {
+                saveTimeoutId = setTimeout(() => reject(new Error('saveDossier timeout after 15s')), 15_000);
+              }),
+            ]);
             window.dispatchEvent(
               new CustomEvent('dossier:completed', {
                 detail: {
@@ -1025,11 +1031,33 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               company: resolvedMegaCompany || normalizedCompany || null,
               error: error instanceof Error ? error.message : String(error),
             });
+          } finally {
+            if (saveTimeoutId) clearTimeout(saveTimeoutId);
           }
         }
       } finally {
-        // Não repassa signal abortado: delete deve completar mesmo após cancelamento do waterfall.
-        await deleteWaterfallFoundationCache(foundationCacheName);
+        // Timeout curto evita que delete bloqueie o retorno do waterfall (Lição 14).
+        // Se demorar >15s, o cache expira naturalmente pelo TTL de 600s.
+        if (foundationCacheName) {
+          let cacheTimeoutId: ReturnType<typeof setTimeout> | undefined;
+          try {
+            await Promise.race([
+              deleteWaterfallFoundationCache(foundationCacheName),
+              new Promise<never>((_, reject) => {
+                cacheTimeoutId = setTimeout(
+                  () => reject(new Error('deleteWaterfallFoundationCache timeout after 15s')),
+                  15_000,
+                );
+              }),
+            ]);
+          } catch {
+            scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache timeout ou falha', {
+              cacheName: foundationCacheName,
+            });
+          } finally {
+            if (cacheTimeoutId) clearTimeout(cacheTimeoutId);
+          }
+        }
       }
     },
     [

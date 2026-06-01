@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-05-29 20:30 (novos bugs preview + decisao fechar PR #314)
+Last updated: 2026-05-31 — Vercel Features Exploradas (plano cancelado)
 
 ## Boot
 
@@ -9,53 +9,35 @@ Last updated: 2026-05-29 20:30 (novos bugs preview + decisao fechar PR #314)
 
 ## Fase atual
 
-**PR #313 mergeada. 3 P0 corrigidos. Novos bugs encontrados no preview. Decisao: fechar PR #314 e abrir nova PR limpa.**
-
-### PR #313 — fix/remove-web-search-fallback
-
-| Item         | Status                    |
-| ------------ | ------------------------- |
-| Branch       | MERGEADA (squash 8d6e33f) |
-| Branch local | Ainda existe (deletar)    |
-
-### PR #314 — feat/dossier-lifecycle (sendo fechada)
-
-| Item                               | Status                                  |
-| ---------------------------------- | --------------------------------------- |
-| Trava CNPJ duplicado               | Implementado                            |
-| Modal dossie duplicado             | Implementado                            |
-| findExistingDossier                | Implementado                            |
-| DossierShareBar + link Teams       | Implementado                            |
-| Code review (65 -> 15 findings)    | CONCLUIDO                               |
-| 3 P0 corrigidos (0486897)          | CONCLUIDO                               |
-| **Novo P0: operator_email null**   | **PENDENTE** (storage.ts)               |
-| **Novo P0: tela branca transicao** | **PENDENTE** (renderStateClassifier.ts) |
-| **Novo P2: dynamic import**        | **PENDENTE** (DossierShareBar.tsx)      |
-| CI                                 | Pendente                                |
-| **Decisao: fechar PR #314**        | **NOVA PR**                             |
+**Audit Vercel Features completo. Plano de implementacao escrito e arquivado.**
 
 ### Pendencias de sessoes anteriores
 
-| Item                                                      | Status                          |
-| --------------------------------------------------------- | ------------------------------- |
-| P0 withTimeout AbortSignal (api/gemini.ts:416, :491)      | **NAO CORRIGIDO** — documentado |
-| Unique constraint `email_normalized` no Supabase          | Pendente                        |
-| Branch residual `fix/gemini-billing-error-classification` | Verificar                       |
+| Item                                                 | Status                          |
+| ---------------------------------------------------- | ------------------------------- |
+| P0 withTimeout AbortSignal (api/gemini.ts:416, :491) | **NAO CORRIGIDO** — documentado |
+| Unique constraint `email_normalized` no Supabase     | Pendente                        |
+| Branch residual `fix/remove-web-search-fallback`     | Branch local existe, mergeada   |
+| Branch `feat/crm-supabase-migration`                 | Stashed, precisa decidir        |
+| `waterfallLogger.ts` nao removido                    | Confirmar com Bruno             |
+| Branch `refactor/remove-idb-storage` local           | Mergeada, pode deletar          |
+| Main local desatualizado (0b38ebe vs origin 7773173) | Precisa `git pull origin main`  |
+
+## Decisoes desta sessao
+
+- **Vercel Features: plano cancelado.** Hobby plan limita a 12 funcoes (plano precisaria de 16), AI Gateway e Queues requerem Pro. Upgrade para Pro (US$ 20/mes) necessario para viabilizar.
+- Plano commitado em `424faab5` para referencia futura.
 
 ## Proximo passo
 
-1. Corrigir `operator_email: null` em `services/storage.ts:153-218`
-2. Corrigir tela branca em `utils/renderStateClassifier.ts`
-3. Corrigir dynamic import em `DossierShareBar.tsx:22`
-4. Squash commits (3-4 semanticos)
-5. Abrir nova PR limpa
-6. Retomar CRM migration (`feat/crm-supabase-migration`)
+1. Sincronizar `main` local com origin (`git pull origin main`)
+2. Deletar branches residuais locais
+3. Decidir sobre CRM migration stashed
+4. Corrigir P0 withTimeout quando houver janela
 
 ## Ponteiros
 
 - `HANDOFF_AI.md`
-- PR #314: https://github.com/brunolimaff-jpg/NOVO-APP/pull/314
-- PR #313 (merged): https://github.com/brunolimaff-jpg/NOVO-APP/pull/313
-- Preview: `scoutagro-git-feat-dossier-lifecycle-brunolimaff-3629s-projects.vercel.app`
-- Vault novos bugs: `Bruno Vault/20-SESSOES/2026-05/2026-05-29T20-30-00-novos-bugs-preview-fechamento-pr314.md`
-- `CALIBER_LEARNINGS.md`
+- Plano Vercel: `docs/superpowers/plans/2026-05-31-vercel-ai-gateway-cron-queues.md`
+- Commit: `424faab5`
+- PR #317: `77731735`
