@@ -10,6 +10,7 @@ import {
 } from '../utils/loadingSmartViewModel';
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 import { ClockIcon, StepSpinner } from './LoadingShared';
+import { formatElapsed } from './loading/hooks';
 import { LoadingOverlayHeader } from './LoadingOverlayHeader';
 import { LoadingStepsList } from './LoadingStepsList';
 import { LoadingInsightCarousel } from './LoadingInsightCarousel';
@@ -28,12 +29,6 @@ const SOURCE_LINKS: Record<string, string> = {
 
 // EXPECTED_STAGES removido — o fallback dinâmico (realTotalCompleted + 2) é sempre mais preciso
 // do que qualquer hardcode por modo. declaredTotalStages tem precedência quando disponível.
-
-/** Formata milissegundos em string legível: 45s | 1m 5s */
-function formatElapsed(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
-}
 
 interface LoadingSmartProps {
   isLoading: boolean;
