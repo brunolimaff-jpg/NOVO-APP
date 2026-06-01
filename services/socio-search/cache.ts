@@ -97,7 +97,8 @@ async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
       return { status: 'unavailable' };
     }
 
-    const rows = (await response.json()) as Array<{ result?: unknown }>;
+    const raw = await response.json();
+    const rows = Array.isArray(raw) ? (raw as Array<{ result?: unknown }>) : [];
     const payload = rows[0]?.result;
     if (!payload) return { status: 'miss' };
     if (!isSocioSearchResponse(payload)) return { status: 'unavailable' };
