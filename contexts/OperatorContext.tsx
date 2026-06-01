@@ -8,7 +8,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { storageGet, storageRemove, storageSet } from '../utils/idbStorage';
+import { storageGet, storageRemove, storageSet } from '../utils/localStorage';
 import { storage } from '../services/storage';
 import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 
