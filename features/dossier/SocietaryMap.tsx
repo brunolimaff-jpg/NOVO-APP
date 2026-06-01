@@ -5,16 +5,25 @@ import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
   buildSocietaryMermaid,
-  countPartnerCompanies,
   describeSocietaryCompanyType,
   formatSocietaryCnpj,
-  SOCIETARY_LABEL_SOCIO_ADMIN,
   type SocietaryCompany,
   type SocietaryCompanyInput,
-  type SocietaryGraph,
   type SocietaryPartnerInput,
 } from './societaryGraph';
 import { lookupCnpj, type CnpjResult } from '../../lib/cnpjLookup';
+import {
+  LoadState,
+  SocioSearchResponse,
+  RejectedSocioSearchResult,
+  RootData,
+  normalizePartnerKey,
+  firstGivenName,
+  collectPartnerCompanies,
+  countCompaniesByScope,
+  describeEvidencePartner,
+  describeRelationshipScope,
+} from './SocietaryMap/utils';
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
@@ -26,78 +35,6 @@ interface SocietaryMapProps {
   geminiCnpjs?: SocietaryCompanyInput[];
   traceId?: string;
   traceEnabled?: boolean;
-}
-
-interface SocioSearchResponse {
-  companies?: SocietaryCompanyInput[];
-  rejected?: RejectedSocioSearchResult[];
-  degraded?: boolean;
-  cached?: boolean;
-  diagnostics?: {
-    truncated?: boolean;
-    totalCnpjsFound?: number;
-    truncatedReason?: string;
-    [key: string]: unknown;
-  };
-  trace?: Record<string, unknown>;
-}
-
-interface RejectedSocioSearchResult {
-  sourceTitle?: string;
-  sourceUrl?: string;
-  snippet?: string;
-  reason: string;
-}
-
-type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
-
-interface RootData {
-  cnpj?: string;
-  name: string;
-  partners: SocietaryPartnerInput[];
-}
-
-function normalizePartnerKey(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function firstGivenName(fullName: string): string {
-  const first = fullName.trim().split(/\s+/)[0] || fullName.trim();
-  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
-}
-
-function collectPartnerCompanies(companiesByPartner: Record<string, SocietaryCompanyInput[]>): SocietaryCompanyInput[] {
-  return Object.values(companiesByPartner).flat();
-}
-
-function countCompaniesByScope(companies: SocietaryCompany[]): Record<string, number> {
-  return companies.reduce<Record<string, number>>((acc, company) => {
-    const scope = company.relationshipScope || 'group_link';
-    acc[scope] = (acc[scope] || 0) + 1;
-    return acc;
-  }, {});
-}
-
-function describeEvidencePartner(company: SocietaryCompany, graph: SocietaryGraph): string {
-  const partners = company.partnerIds
-    .map(partnerId => graph.partners.find(partner => partner.id === partnerId))
-    .filter((partner): partner is (typeof graph.partners)[number] => Boolean(partner));
-
-  if (partners.length === 0) return 'Sem sócio identificado';
-
-  return partners.map(partner => [partner.name, partner.role].filter(Boolean).join(' - ')).join(' / ');
-}
-
-function describeRelationshipScope(company: SocietaryCompany): string {
-  if (company.relationshipScope === 'partner_other_cnpj') return SOCIETARY_LABEL_SOCIO_ADMIN;
-  if (company.relationshipScope === 'unconfirmed' || company.validationStatus === 'pending')
-    return 'Validação pendente';
-  return 'Empresa do grupo';
 }
 
 const filterButtonBaseClass = 'rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition';
