@@ -1038,6 +1038,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           return nextSession;
         });
 
+        scoutDiag.info('WaterfallLifecycle', 'messages-state-after-update', {
+          sessionId,
+          waterfallRunId,
+          messageCount: (sessionToPersist as ChatSession | null)?.messages?.length ?? 0,
+          botMessageUpdated:
+            (sessionToPersist as ChatSession | null)?.messages?.some(
+              (m: { id: string; sender: string; isThinking?: boolean; text?: string }) =>
+                m.id === botMessageId && m.sender === 'bot' && !m.isThinking && Boolean(m.text),
+            ) ?? false,
+          waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
+        });
+
         completeLoadingProgress();
         scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
 

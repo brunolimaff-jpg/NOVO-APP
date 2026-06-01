@@ -26,7 +26,7 @@ import {
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
-import { getWaterfallGuardState } from '../dossier/waterfall-guard';
+import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -223,6 +223,25 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const sessionId = explicitSessionId || currentSessionId;
       if (!sessionId) return;
 
+      if (activeGenerationRef.current[sessionId]) {
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: geração já ativa para esta sessão', {
+          sessionId,
+          activeBotMessageId: activeGenerationRef.current[sessionId],
+          callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
+        });
+        return;
+      }
+
+      if (isAnyWaterfallActive()) {
+        const anyGuard = getWaterfallGuardState(sessionId);
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: waterfall global já ativo', {
+          sessionId,
+          activeRunId: anyGuard?.activeRunId ?? 'other-session',
+          generationCount: anyGuard?.generationCount ?? 0,
+        });
+        return;
+      }
+
       const resolvedRequestKind = options?.requestKind ?? requestKind;
       const fixedLoadingLine = options?.fixedLoadingLine ?? null;
       const resolvedLoadingVariant = resolveLoadingVariant({
@@ -240,6 +259,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         requestKind: resolvedRequestKind,
         loadingVariant: resolvedLoadingVariant,
         textLen: text.length,
+        callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
       });
 
       const isFirstInteraction = Boolean(options?.isFirstInteraction);
@@ -330,9 +350,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       try {
         if (isMegaPrompt) {
+          const preGuard = getWaterfallGuardState(sessionId);
+          const generationBefore = preGuard?.generationCount ?? 0;
+
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
             company: normalizedCompany,
+            generationBefore,
           });
           trackOperatorEvent('dossier_started', {
             operatorId,
@@ -355,18 +379,32 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isFirstInteraction,
             sessionCnpjDigits,
           });
-          completeLoadingProgress();
-          trackOperatorEvent('dossier_completed', {
-            operatorId,
-            email: operatorEmail || undefined,
-            sessionId,
-            entityType: 'session',
-            entityId: botMessageId,
-            companyCnpj: sessionCnpjDigits || undefined,
-            companyName: normalizedCompany || undefined,
-          });
+
+          const postGuard = getWaterfallGuardState(sessionId);
+          const generationAfter = postGuard?.generationCount ?? generationBefore;
+          const waterfallRan = generationAfter > generationBefore;
+
+          if (waterfallRan) {
+            completeLoadingProgress();
+            trackOperatorEvent('dossier_completed', {
+              operatorId,
+              email: operatorEmail || undefined,
+              sessionId,
+              entityType: 'session',
+              entityId: botMessageId,
+              companyCnpj: sessionCnpjDigits || undefined,
+              companyName: normalizedCompany || undefined,
+            });
+          } else {
+            scoutDiag.warn('MessageOrchestrator', 'waterfall bloqueado pelo guard; pulando dossier_completed', {
+              sessionId,
+              generationBefore,
+              generationAfter,
+            });
+          }
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
+            waterfallRan,
           });
           return;
         }

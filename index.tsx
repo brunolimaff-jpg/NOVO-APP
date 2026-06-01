@@ -134,19 +134,17 @@ if (typeof window !== 'undefined') {
 const root = createRoot(rootElement);
 
 root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ChatStoreProvider>
-          <DossierStoreProvider>
-            <OperatorProvider>
-              <ModeProvider>
-                <App />
-              </ModeProvider>
-            </OperatorProvider>
-          </DossierStoreProvider>
-        </ChatStoreProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ChatStoreProvider>
+        <DossierStoreProvider>
+          <OperatorProvider>
+            <ModeProvider>
+              <App />
+            </ModeProvider>
+          </OperatorProvider>
+        </DossierStoreProvider>
+      </ChatStoreProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>,
 );

@@ -153,6 +153,10 @@ export function getWaterfallGuardState(sessionId: string): WaterfallGuardState |
   return guardBySession.get(sessionId) ?? null;
 }
 
+export function isAnyWaterfallActive(): boolean {
+  return globalActiveRunId !== null;
+}
+
 /**
  * Reseta o estado do guard para uma sessão específica ou todas as sessões.
  * USO EXCLUSIVO PARA TESTES. Não chamar em produção.
