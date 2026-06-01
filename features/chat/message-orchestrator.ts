@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
@@ -149,7 +149,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   );
   const runMegaPromptWaterfall = requireDependency(options.runMegaPromptWaterfall, 'runMegaPromptWaterfall');
 
-  let cleanupPostCompletion: (() => void) | null = null;
+  const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -558,10 +558,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
-        if (cleanupPostCompletion) cleanupPostCompletion();
+        if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        cleanupPostCompletion = schedulePostCompletionChecks(sessionId);
+        cleanupPostCompletionRef.current = schedulePostCompletionChecks(sessionId);
       }
     },
     [
