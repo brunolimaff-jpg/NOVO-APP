@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Sentry from '@sentry/react';
 import { buildUiErrorReport, generateUiErrorId, persistUiErrorAudit } from '../../utils/errorBoundaryAudit';
 
 interface ChatErrorBoundaryProps {
@@ -33,6 +34,11 @@ export class ChatErrorBoundary extends React.Component<ChatErrorBoundaryProps, C
     this.setState({ componentStack, errorId });
     persistUiErrorAudit(errorId, error, componentStack);
     console.error(buildUiErrorReport(errorId, error, componentStack));
+
+    Sentry.withScope(scope => {
+      scope.setTag('error-boundary', 'chat');
+      Sentry.captureException(error);
+    });
   }
 
   private handleRetry = () => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import * as Sentry from '@sentry/react';
 import { buildUiErrorReport, generateUiErrorId, persistUiErrorAudit } from '../../utils/errorBoundaryAudit';
 import { isChunkLoadError } from '../../utils/chunkRetry';
 
@@ -35,6 +36,11 @@ export class DossierErrorBoundary extends React.Component<DossierErrorBoundaryPr
     this.setState({ componentStack, errorId });
     persistUiErrorAudit(errorId, error, componentStack);
     console.error(buildUiErrorReport(errorId, error, componentStack));
+
+    Sentry.withScope(scope => {
+      scope.setTag('error-boundary', 'dossier');
+      Sentry.captureException(error);
+    });
   }
 
   private handleRetry = () => {

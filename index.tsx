@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
 import { OperatorProvider } from './contexts/OperatorContext';
@@ -9,6 +10,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
 import { DossierStoreProvider } from './stores/dossierStore';
 import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './utils/diagnosticLog';
+
+// ── Sentry: monitoramento de erros em producao ──
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN,
+  environment: import.meta.env.PROD ? 'production' : 'development',
+  integrations: [Sentry.browserTracingIntegration()],
+  tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+  enabled: Boolean(import.meta.env.VITE_SENTRY_DSN),
+});
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
