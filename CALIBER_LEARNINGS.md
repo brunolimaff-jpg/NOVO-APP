@@ -1,8 +1,8 @@
 # Caliber Learnings — Senior Scout 360
 
-Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras do projeto.
+Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do projeto.
 
-## Padrões confirmados
+## Padroes confirmados
 
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline]
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
@@ -14,30 +14,30 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
   Exemplo: feedback chegou no Supabase, mas cliques repetidos revelaram duplicacao e o clique negativo dependia de motivo + confirmacao.
   Validacao boa cruza banco, UX e semantica esperada antes de concluir que "funcionou".
 
-- Prompts Gemini com XML delimiters têm menor taxa de alucinação
+- Prompts Gemini com XML delimiters tem menor taxa de alucinacao
 - Score PORTA deve sempre ser gerado com temperatura 0.1 (factual)
 - Search Grounding nunca deve ser cacheado — dados de empresa mudam
-- Skeleton screens com dimensões fixas eliminam layout shift no streaming
-- Validar CNPJ antes de qualquer chamada IA evita desperdício de tokens
-- Pool de fontes cumulativo entre módulos do waterfall reduz alucinação de links em módulos sem grounding
-- Pipeline único de integridade ao final (não por módulo) é idempotente e evita duplicação de fontes
-- Três categorias de fontes (citadas, consultadas, inferidas) dão transparência completa ao usuário
+- Skeleton screens com dimensoes fixas eliminam layout shift no streaming
+- Validar CNPJ antes de qualquer chamada IA evita desperdicio de tokens
+- Pool de fontes cumulativo entre modulos do waterfall reduz alucinacao de links em modulos sem grounding
+- Pipeline unico de integridade ao final (nao por modulo) e idempotente e evita duplicacao de fontes
+- Tres categorias de fontes (citadas, consultadas, inferidas) dao transparencia completa ao usuario
 
-## Anti-padrões identificados
+## Anti-padroes identificados
 
 - Prompt inline no componente: dificulta versionamento e teste
-- catch vazio em chamadas Gemini: vendedor vê tela travada sem saber o motivo
-- `any` em tipos de resposta da IA: propaga erros silenciosos para o dossiê
-- Cache de Search Grounding: dossiê com dados desatualizados compromete credibilidade na reunião
-- `break` em fallback de busca web: um módulo degradado não deve abortar o pipeline inteiro; `continue` preserva resiliência e fontes de módulos anteriores
-- `?? 'hero'` em `loadingVariant`: coerção de `undefined` para valor padrão ignora semântica do nulo; comparar explicitamente com `=== 'hero'`
-- `useMemo` para strings primitivas: desnecessário e mais complexo que concatenação direta de string — React já compara `===` em deps de useEffect
+- catch vazio em chamadas Gemini: vendedor ve tela travada sem saber o motivo
+- `any` em tipos de resposta da IA: propaga erros silenciosos para o dossier
+- Cache de Search Grounding: dossier com dados desatualizados compromete credibilidade na reuniao
+- `break` em fallback de busca web: um modulo degradado nao deve abortar o pipeline inteiro; `continue` preserva resiliencia e fontes de modulos anteriores
+- `?? 'hero'` em `loadingVariant`: coerção de `undefined` para valor padrao ignora semantica do nulo; comparar explicitamente com `=== 'hero'`
+- `useMemo` para strings primitivas: desnecessario e mais complexo que concatenacao direta de string — React ja compara `===` em deps de useEffect
 
 - **Benchmark timeout reduzido para 20s** [performance, benchmark, timeout]
   `MODULAR_BENCHMARK_TIMEOUT_MS` de 45000 para 20000. Benchmark e etapa opcional — timeout curto evita travamento do loading.
 
 - **completeLoadingProgress() no finally** [loading, react, safe]
-  `setIsLoading(false)` no finally nao basta: o progress tracker interno do LoadingSmart precisa ser resetado com `completeLoadingProgress()`. Sem isso, o proximo request herda estado zumbi.
+  `setIsLoading(false)` no finally nao basta: o progress tracker interno do LoadingSmart precisa ser resetado com `completeLoadingProgress()`. Sem isso, o proximo request herda estado zombi.
 
 - **Timeout aninhado multiplica tempo real** [api, timeout, anti-pattern]
   Camadas de retry (fetchWithRetry 3x, cold-start, withAutoRetry 3x) acumulam delay mesmo com timeout externo. Cada camada adiciona seu proprio tempo de execucao. Para etapas opcionais, 1 tentativa com timeout curto e melhor que multiplos retries.
@@ -52,10 +52,10 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
   `findExistingDossier` retorna `null` no catch. O caller interpreta null como "nao existe" e cria novo registro. Nunca usar `return null` em catch de funcao de consulta sem log ou fallback.
 
 - **Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
-  `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossie existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
+  `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
 
 - **Componente condicional sem `key` causa estado stale** [react, key, componente]
-  `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossie anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
+  `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossier anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
 
 - **Code review max-effort exige consolidacao pos-review** [code-review, qualidade]
   65 findings brutos precisam ser filtrados e agrupados. Sem consolidacao, a fila de correcao fica poluida com ruido. Findings repetidos (mesmo bug em arquivos diferentes) devem ser deduplicados antes de apresentar.
@@ -96,8 +96,35 @@ Padrões e anti-padrões aprendidos de sessões anteriores. Tratados como regras
 - **E2E com modal de migracao bloqueia cliques** [test, e2e, modal]
   Modal "Agora seus dados ficam salvos na nuvem!" intercepta pointer events e bloqueia clicks em testes E2E no preview. Solucao: `page.addInitScript(() => localStorage.setItem('scout360:supabase_migration_seen', 'true'))` antes de `page.goto()`.
 
+- **Floodgate global previne restart loop melhor que trava local** [react, waterfall, restart-loop, concorrencia]
+  O restart loop era causado por 3 waterfalls concorrentes disparados por re-render/re-entry. Uma trava local (checar se sessao ja esta rodando) nao bastava porque o problema era global — um waterfall de sessao A colidia com waterfall de sessao B. Solucao: `Map<sessionId, WaterfallGuardState>` + `globalActiveRunId` no modulo, `registerWaterfallStart()` bloquear se qualquer waterfall estiver ativo.
+
+- **`let cleanupPostCompletion` perde referencia entre renders** [react, useRef, hook, cleanup]
+  Uma variavel `let` declarada no corpo do hook (fora de useRef) tem seu valor perdido quando o hook re-renderiza. O `cleanupPostCompletion` nunca era chamado na proxima execucao porque a variavel ja era `null`. Solucao: usar `useRef<() => void>` para preservar a referencia atraves dos renders.
+
+- **Restart loop so aparece em producao, nao em testes** [testing, debug, waterfall, restart-loop]
+  O restart loop do waterfall nunca foi detectado em testes unitarios (1249 passando). So apareceu em preview Vercel e producao porque depende de timing real de re-render, estado de DOM, e latencia da API Gemini. Os diagnosticos via `scoutDiag.warn('PostCompletion', 'RESTART-DETECTED')` no Supabase revelaram o ponto exato sem precisar de breakpoints ou logs locais.
+
+- **scoutDiag.warn para diagnostico em producao** [debug, supabase, log, producao]
+  `scoutDiag.info()` em loops rapidos gera spam no Supabase. `scoutDiag.warn()` com payload rico (generationDelta, baselineGeneration, runId) e filtro condicional (so loga quando `isRestarting`) manteve os logs uteis e o volume baixo. Usar warn em vez de info para eventos de diagnostico que devem ser visiveis mesmo em ambiente com filtro de log.
+
+- **React.StrictMode em producao causa double-invocation de renders** [react, strictmode, producao, restart-loop]
+  `React.StrictMode` ativo em producao (`index.tsx`) faz React invocar renders duas vezes intencionalmente para detectar side effects. Isso disparava `processMessage` multiplas vezes, cada uma criando uma nova sessao de waterfall e setando `isLoading=true`, deixando a UI travada. O `callerStack` diagnostic no `processMessage:start` confirmou que a origem era o scheduler do React, nao acao do usuario. Solucao: `StrictMode` apenas em desenvolvimento (`process.env.NODE_ENV !== 'production'`).
+
+- **Re-entry guard antes de setIsLoading** [react, guard, loading, restart-loop]
+  Em `processMessage`, o guard `isAnyWaterfallActive()` deve vir ANTES de `setIsLoading(true)`. Se o guard estiver depois, o estado de loading ja foi setado e a UI fica em estado inconsistente mesmo que o waterfall seja bloqueado em seguida. Solucao: checar `activeGenerationRef.current || isAnyWaterfallActive()` no topo do `processMessage`, antes de qualquer mutacao de estado.
+
+- **callerStack diagnostic revela origem do restart** [debug, diagnostic, waterfall, restart-loop]
+  `new Error().stack` em `processMessage:start` logado no `scoutDiag` revelou que o waterfall era disparado pelo scheduler do React (re-render), nao por clique do usuario. Sem esse diagnostico, a causa raiz (StrictMode em producao) teria sido muito mais dificil de encontrar. Solucao: manter `callerStack` como parte do diagnostic pack do waterfall — debug barato que elimina hipoteses rapidamente.
+
+- **generationBefore/After guard evita dossier:completed falso** [eventbus, guard, waterfall, restart-loop]
+  `processMessage` salvava `generationBefore` no inicio e comparava com `generationAfter` antes de emitir `dossier:completed`. Se a geracao mudou durante a execucao (outro waterfall foi iniciado), o evento nao e emitido. Isso evita que o consumidor receba um `dossier:completed` de uma sessao que ja foi substituida.
+
+- **completeLoadingProgress deve resetar loadingVariant para undefined** [loading, progress, variant, stale]
+  `completeLoadingProgress()` em `loading-progress.ts` setava `setIsLoading(false)` e `setProgress(100)` mas nao resetava `loadingVariant`. No proximo loading, o componente exibia o variant anterior em vez do novo. Solucao: adicionar `setLoadingVariant(undefined)` no reset.
+
 <!-- caliber:managed:learnings -->
 
-_Atualizado automaticamente pelo Caliber após sessões de agente._
+_Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
