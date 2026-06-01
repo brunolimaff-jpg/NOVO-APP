@@ -7,6 +7,40 @@ interface HelpCenterFloatingProps {
 
 const HELP_PANEL_ID = 'scout-help-center-panel';
 
+/* ── Constantes de estilo ─────────────────────────────────── */
+
+const PANEL_POSITION_CLASS =
+  'fixed inset-x-4 bottom-36 max-h-[min(620px,calc(100dvh-12rem))] overflow-hidden rounded-lg border sm:left-auto sm:right-6 sm:bottom-44 sm:w-[420px]';
+const HELP_PANEL_TITLE_CLASS =
+  'text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400';
+const CONTENT_WRAPPER_CLASS = 'max-h-[calc(min(620px,100dvh-12rem)-92px)] overflow-y-auto px-4 py-4';
+const BADGE_NUMBER_CLASS = 'mr-2 text-xs font-bold text-emerald-700 dark:text-emerald-400';
+const EXPANDED_ICON_CLASS = 'text-lg leading-none text-emerald-700 dark:text-emerald-400';
+const FAB_BUTTON_CLASS =
+  'flex min-h-14 min-w-14 items-center justify-center rounded-lg bg-emerald-700 p-4 text-white shadow-xl shadow-emerald-900/20 transition-colors hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus-visible:ring-offset-slate-950';
+const FAB_HELP_ICON_SIZE = 'h-6 w-6';
+
+/* ── Helpers de cor (dark mode) ───────────────────────────── */
+
+const panelClass = (dm: boolean) =>
+  dm
+    ? 'border-slate-700 bg-slate-950 text-slate-100 shadow-2xl shadow-black/40'
+    : 'border-slate-200 bg-white text-slate-900 shadow-2xl shadow-slate-900/15';
+const mutedText = (dm: boolean) => (dm ? 'text-slate-400' : 'text-slate-600');
+const questionClass = (dm: boolean) =>
+  dm
+    ? 'border-slate-800 bg-slate-900 text-slate-100 hover:border-emerald-500/60 hover:bg-slate-800'
+    : 'border-slate-200 bg-white text-slate-900 hover:border-emerald-500/60 hover:bg-emerald-50';
+const answerClass = (dm: boolean) =>
+  dm ? 'border-slate-800 bg-slate-950/70 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-700';
+const secondaryButton = (dm: boolean) =>
+  dm
+    ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
+const sectionDivider = (dm: boolean) => (dm ? 'border-slate-800' : 'border-slate-200');
+
+/* ── Ícones inline ────────────────────────────────────────── */
+
 const HelpIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg
     className={className}
@@ -40,6 +74,8 @@ const CloseIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+/* ── Componente principal ─────────────────────────────────── */
+
 export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
@@ -57,20 +93,6 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  const panelClass = isDarkMode
-    ? 'border-slate-700 bg-slate-950 text-slate-100 shadow-2xl shadow-black/40'
-    : 'border-slate-200 bg-white text-slate-900 shadow-2xl shadow-slate-900/15';
-  const mutedText = isDarkMode ? 'text-slate-400' : 'text-slate-600';
-  const questionClass = isDarkMode
-    ? 'border-slate-800 bg-slate-900 text-slate-100 hover:border-emerald-500/60 hover:bg-slate-800'
-    : 'border-slate-200 bg-white text-slate-900 hover:border-emerald-500/60 hover:bg-emerald-50';
-  const answerClass = isDarkMode
-    ? 'border-slate-800 bg-slate-950/70 text-slate-300'
-    : 'border-slate-200 bg-slate-50 text-slate-700';
-  const secondaryButton = isDarkMode
-    ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
-    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
-
   return (
     <div className="fixed bottom-20 right-4 z-[70] sm:bottom-24 sm:right-6">
       {isOpen && (
@@ -79,33 +101,29 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
           role="dialog"
           aria-modal="false"
           aria-labelledby="scout-help-center-title"
-          className={`fixed inset-x-4 bottom-36 max-h-[min(620px,calc(100dvh-12rem))] overflow-hidden rounded-lg border sm:left-auto sm:right-6 sm:bottom-44 sm:w-[420px] ${panelClass}`}
+          className={`${PANEL_POSITION_CLASS} ${panelClass(isDarkMode)}`}
         >
-          <div
-            className={`flex items-start justify-between gap-4 border-b px-4 py-3 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`}
-          >
+          <div className={`flex items-start justify-between gap-4 border-b px-4 py-3 ${sectionDivider(isDarkMode)}`}>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-                Ajuda do Scout
-              </p>
+              <p className={HELP_PANEL_TITLE_CLASS}>Ajuda do Scout</p>
               <h2 id="scout-help-center-title" className="mt-1 text-base font-bold">
                 Perguntas frequentes
               </h2>
-              <p className={`mt-1 text-xs leading-relaxed ${mutedText}`}>
+              <p className={`mt-1 text-xs leading-relaxed ${mutedText(isDarkMode)}`}>
                 Dúvidas rápidas sobre uso, fases, recursos e limites do Senior Scout 360.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className={`min-h-11 min-w-11 rounded-md p-2 transition-colors ${secondaryButton}`}
+              className={`min-h-11 min-w-11 rounded-md p-2 transition-colors ${secondaryButton(isDarkMode)}`}
               aria-label="Fechar ajuda"
             >
               <CloseIcon className="mx-auto h-5 w-5" />
             </button>
           </div>
 
-          <div className="max-h-[calc(min(620px,100dvh-12rem)-92px)] overflow-y-auto px-4 py-4">
+          <div className={CONTENT_WRAPPER_CLASS}>
             <div className="space-y-2">
               {HELP_CENTER_FAQS.map((faq, index) => {
                 const isExpanded = openQuestionId === faq.id;
@@ -116,24 +134,22 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
                     <button
                       type="button"
                       onClick={() => setOpenQuestionId(isExpanded ? null : faq.id)}
-                      className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold leading-snug transition-colors ${questionClass}`}
+                      className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm font-semibold leading-snug transition-colors ${questionClass(isDarkMode)}`}
                       aria-expanded={isExpanded}
                       aria-controls={answerId}
                     >
                       <span>
-                        <span className="mr-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
+                        <span className={BADGE_NUMBER_CLASS}>{String(index + 1).padStart(2, '0')}</span>
                         {faq.question}
                       </span>
-                      <span className="text-lg leading-none text-emerald-700 dark:text-emerald-400" aria-hidden="true">
+                      <span className={EXPANDED_ICON_CLASS} aria-hidden="true">
                         {isExpanded ? '-' : '+'}
                       </span>
                     </button>
                     {isExpanded && (
                       <div
                         id={answerId}
-                        className={`mt-1 rounded-md border px-3 py-3 text-sm leading-relaxed ${answerClass}`}
+                        className={`mt-1 rounded-md border px-3 py-3 text-sm leading-relaxed ${answerClass(isDarkMode)}`}
                       >
                         {faq.answer}
                       </div>
@@ -149,12 +165,12 @@ export const HelpCenterFloating: React.FC<HelpCenterFloatingProps> = ({ isDarkMo
       <button
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
-        className="flex min-h-14 min-w-14 items-center justify-center rounded-lg bg-emerald-700 p-4 text-white shadow-xl shadow-emerald-900/20 transition-colors hover:bg-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus-visible:ring-offset-slate-950"
+        className={FAB_BUTTON_CLASS}
         aria-label={isOpen ? 'Fechar ajuda do Scout' : 'Abrir ajuda do Scout'}
         aria-expanded={isOpen}
         aria-controls={HELP_PANEL_ID}
       >
-        <HelpIcon className="h-6 w-6" />
+        <HelpIcon className={FAB_HELP_ICON_SIZE} />
         <span className="sr-only">Ajuda</span>
       </button>
     </div>
