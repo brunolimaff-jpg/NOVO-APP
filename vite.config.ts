@@ -144,18 +144,20 @@ export default defineConfig(({ mode }) => {
             enabled: false,
           },
         }),
-      sentryVitePlugin({
-        org: env.SENTRY_ORG || 's-3j',
-        project: env.SENTRY_PROJECT || 'javascript-react',
-        authToken: env.SENTRY_AUTH_TOKEN,
-        sourcemaps: {
-          assets: ['./dist/**'],
-          ignore: ['node_modules'],
-        },
-        release: {
-          name: env.APP_VERSION || `v${JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')).version}`,
-        },
-      }),
+      Boolean(env.SENTRY_AUTH_TOKEN) &&
+        sentryVitePlugin({
+          org: env.SENTRY_ORG || 's-3j',
+          project: env.SENTRY_PROJECT || 'scout-360',
+          authToken: env.SENTRY_AUTH_TOKEN,
+          sourcemaps: {
+            assets: ['./dist/**'],
+            ignore: ['node_modules'],
+          },
+          release: {
+            name:
+              env.APP_VERSION || `v${JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')).version}`,
+          },
+        }),
     ].filter(Boolean),
     resolve: {
       alias: {
