@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
@@ -26,6 +26,7 @@ import {
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
+import { getWaterfallGuardState } from '../dossier/waterfall-guard';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -148,7 +149,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   );
   const runMegaPromptWaterfall = requireDependency(options.runMegaPromptWaterfall, 'runMegaPromptWaterfall');
 
-  let cleanupPostCompletion: (() => void) | null = null;
+  const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -158,6 +159,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   function schedulePostCompletionChecks(sessionId: string): () => void {
     const delays = [0, 100, 500, 1_000, 3_000, 10_000];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
+    const baselineGuard = getWaterfallGuardState(sessionId);
+    const baselineGen = baselineGuard?.generationCount ?? 0;
 
     for (const delay of delays) {
       const id = setTimeout(() => {
@@ -168,7 +171,11 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const composer = document.querySelector('[data-testid="composer-input"]');
           const scroller = document.querySelector('[data-virtuoso-scroller]');
 
-          scoutDiag.info('PostCompletion', `check:${delay}ms`, {
+          const currentGuard = getWaterfallGuardState(sessionId);
+          const genDelta = (currentGuard?.generationCount ?? baselineGen) - baselineGen;
+          const isRestarting = genDelta > 0;
+
+          const payload = {
             sessionId,
             bodyLen: bodyText.length,
             containsDossie: /dossi[eê]/i.test(bodyText),
@@ -180,7 +187,20 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
             documentReadyState: document.readyState,
             activeElement: document.activeElement?.tagName || '',
-          });
+            waterfallGenCount: currentGuard?.generationCount ?? 'n/a',
+            waterfallActiveRunId: currentGuard?.activeRunId ?? null,
+            waterfallBlockedCount: currentGuard?.blockedCount ?? 0,
+          };
+
+          if (isRestarting) {
+            scoutDiag.warn('PostCompletion', `RESTART-DETECTED:check:${delay}ms`, {
+              ...payload,
+              generationDelta: genDelta,
+              baselineGeneration: baselineGen,
+            });
+          } else {
+            scoutDiag.info('PostCompletion', `check:${delay}ms`, payload);
+          }
         } catch {
           /* non-critical DOM check */
         }
@@ -538,10 +558,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
-        if (cleanupPostCompletion) cleanupPostCompletion();
+        if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        cleanupPostCompletion = schedulePostCompletionChecks(sessionId);
+        cleanupPostCompletionRef.current = schedulePostCompletionChecks(sessionId);
       }
     },
     [
