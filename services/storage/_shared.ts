@@ -1,6 +1,8 @@
 // services/storage/_shared.ts
 // Helpers compartilhados entre módulos de storage.
 
+import { storageGet } from '../../utils/localStorage';
+
 export function getOperatorId(): string | null {
-  return localStorage.getItem('scout360:operator_id');
+  return storageGet('operator_id');
 }

@@ -26,7 +26,10 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export function timeAgoHome(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  if (!dateStr) return 'RECENTE';
+  const parsedDate = new Date(dateStr);
+  if (isNaN(parsedDate.getTime())) return 'RECENTE';
+  const diff = Date.now() - parsedDate.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `HÁ ${mins} MIN`;
   const hours = Math.floor(mins / 60);
