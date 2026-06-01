@@ -2,7 +2,9 @@
 
 # Carrega variaveis do arquivo .env local se ele existir
 if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
+  set -a
+  source .env
+  set +a
 fi
 
 # Tenta carregar de perfis comuns caso nao esteja no .env
