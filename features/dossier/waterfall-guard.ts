@@ -23,6 +23,9 @@ export interface WaterfallGuardState {
 
 const guardBySession = new Map<string, WaterfallGuardState>();
 
+let globalActiveRunId: string | null = null;
+let globalLastCompletedAt = 0;
+
 function getOrCreateGuard(sessionId: string): WaterfallGuardState {
   if (!guardBySession.has(sessionId)) {
     guardBySession.set(sessionId, {
@@ -47,9 +50,28 @@ export interface WaterfallStartResult {
  * Retorna { allowed: true, runId } se permitido, ou { allowed: false, reason } se bloqueado.
  */
 export function registerWaterfallStart(sessionId: string): WaterfallStartResult {
-  const guard = getOrCreateGuard(sessionId);
   const now = Date.now();
 
+  if (globalActiveRunId) {
+    scoutDiag.warn('WaterfallGuard', 'floodgate: outro waterfall já está rodando (global)', {
+      sessionId,
+      globalActiveRunId,
+      globalLastCompletedAt,
+    });
+    return { allowed: false, runId: globalActiveRunId, reason: 'already_running', guard: getOrCreateGuard(sessionId) };
+  }
+
+  const msSinceGlobalComplete = now - globalLastCompletedAt;
+  if (globalLastCompletedAt > 0 && msSinceGlobalComplete < WATERFALL_COOLDOWN_MS) {
+    scoutDiag.warn('WaterfallGuard', 'floodgate: cooldown global ainda ativo', {
+      sessionId,
+      msSinceGlobalComplete,
+      cooldownMs: WATERFALL_COOLDOWN_MS,
+    });
+    return { allowed: false, runId: '', reason: 'cooldown', guard: getOrCreateGuard(sessionId) };
+  }
+
+  const guard = getOrCreateGuard(sessionId);
   if (guard.activeRunId) {
     guard.blockedCount++;
     scoutDiag.warn('WaterfallGuard', 'floodgate: waterfall já está rodando para esta sessão', {
@@ -77,6 +99,7 @@ export function registerWaterfallStart(sessionId: string): WaterfallStartResult 
   guard.generationCount++;
   const runId = `${sessionId}-gen${guard.generationCount}-${Date.now().toString(36)}`;
   guard.activeRunId = runId;
+  globalActiveRunId = runId;
 
   scoutDiag.info('WaterfallGuard', 'waterfall:start', {
     sessionId,
@@ -111,6 +134,8 @@ export function registerWaterfallEnd(
 
   guard.activeRunId = null;
   guard.lastCompletedAt = Date.now();
+  globalActiveRunId = null;
+  globalLastCompletedAt = Date.now();
 
   scoutDiag.info('WaterfallGuard', 'waterfall:end', {
     sessionId,
@@ -138,4 +163,6 @@ export function resetWaterfallGuard(sessionId?: string): void {
   } else {
     guardBySession.clear();
   }
+  globalActiveRunId = null;
+  globalLastCompletedAt = 0;
 }
