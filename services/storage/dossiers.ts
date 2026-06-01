@@ -1,6 +1,7 @@
 // services/storage/dossiers.ts
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
 import { getOperatorId } from './_shared';
+import { storageGet } from '../../utils/localStorage';
 import type { ChatSession } from './types';
 
 function stripTransientState(session: ChatSession): ChatSession {
@@ -80,7 +81,7 @@ export const dossiers = {
     const { error } = await supabase!.from('dossies').upsert({
       id: cleanSession.id,
       operator_id: operatorId,
-      operator_email: localStorage.getItem('scout360:operator_email') ?? null,
+      operator_email: storageGet('operator_email') ?? null,
       title: cleanSession.title,
       empresa_alvo: cleanSession.empresaAlvo,
       cnpj: cleanSession.cnpj,
@@ -106,7 +107,7 @@ export const dossiers = {
       return {
         id: clean.id,
         operator_id: operatorId,
-        operator_email: localStorage.getItem('scout360:operator_email') ?? null,
+        operator_email: storageGet('operator_email') ?? null,
         title: clean.title,
         empresa_alvo: clean.empresaAlvo,
         cnpj: clean.cnpj,

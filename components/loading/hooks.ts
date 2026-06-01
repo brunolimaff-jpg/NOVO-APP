@@ -2,10 +2,7 @@
 // Hooks extraídos de LoadingSmart.tsx para reduzir tamanho do componente principal.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  getLoadingStageIdentity,
-  LOADING_STAGE_ORDER_BY_KEY,
-} from '../../utils/loadingSmartViewModel';
+import { getLoadingStageIdentity, LOADING_STAGE_ORDER_BY_KEY } from '../../utils/loadingSmartViewModel';
 import { stripInternalMarkers } from '../../utils/textCleaners';
 import { generateLoadingCuriosities } from '../../services/geminiService';
 import { buildLoadingCuriositiesFallback } from '../../utils/loadingCuriosities';

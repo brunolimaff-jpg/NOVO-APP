@@ -19,7 +19,7 @@ export const favorites = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
 
-    void supabase!.from('favorites').upsert(
+    supabase!.from('favorites').upsert(
       {
         operator_id: operatorId,
         cnpj,

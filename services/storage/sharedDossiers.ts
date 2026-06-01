@@ -3,6 +3,7 @@ import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
 import { getOperatorId } from './_shared';
 import { dossiers } from './dossiers';
 import { trackOperatorEvent } from '../operatorTracking';
+import { storageGet } from '../../utils/localStorage';
 import type { ChatSession } from './types';
 
 export const sharedDossiers = {
@@ -34,7 +35,7 @@ export const sharedDossiers = {
 
     trackOperatorEvent('dossier_shared', {
       operatorId,
-      email: localStorage.getItem('scout360:operator_email') ?? undefined,
+      email: storageGet('operator_email') ?? undefined,
       entityType: 'shared_dossier',
       entityId: dossierId,
       companyCnpj: dossier.cnpj || undefined,
