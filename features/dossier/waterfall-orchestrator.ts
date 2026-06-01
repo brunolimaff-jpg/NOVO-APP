@@ -829,6 +829,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
+        scoutDiag.info('WaterfallLifecycle', 'pre-benchmark', { sessionId, waterfallRunId });
         const benchmarkCompleted = await runDossierBenchmarkStage({
           sessionId,
           company: resolvedMegaCompany,
@@ -837,6 +838,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
+        scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
         if (benchmarkCompleted) {
           advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
@@ -851,6 +853,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let portaIntegrityHold = false;
         let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
+        scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
         try {
           const result = await Promise.race([
             reconcileWaterfallPorta({
@@ -895,6 +898,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
+        scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
 
         if (optionalStepFailures.size > 0) {
@@ -954,27 +958,39 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               : 'not_applicable';
 
         let waterfallSuggestions: string[] = [];
+        const CONTINUITY_QUESTION_TIMEOUT_MS = 20_000;
+        scoutDiag.info('WaterfallLifecycle', 'pre-continuity-question', { sessionId, waterfallRunId });
         try {
-          waterfallSuggestions = await generateContinuityQuestion(
-            [
-              ...historyToPass,
-              {
-                id: uuidv4(),
-                sender: Sender.User,
-                text: safeVisibleText,
-                timestamp: new Date(),
-              },
-              {
-                id: uuidv4(),
-                sender: Sender.Bot,
-                text: waterfallFinalText,
-                timestamp: new Date(),
-                clienteSeniorData: waterfallClienteSeniorData,
-              },
-            ],
-            resolvedMegaCompany || null,
-            resolvedOperatorName,
-          );
+          let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
+          waterfallSuggestions = await Promise.race([
+            generateContinuityQuestion(
+              [
+                ...historyToPass,
+                {
+                  id: uuidv4(),
+                  sender: Sender.User,
+                  text: safeVisibleText,
+                  timestamp: new Date(),
+                },
+                {
+                  id: uuidv4(),
+                  sender: Sender.Bot,
+                  text: waterfallFinalText,
+                  timestamp: new Date(),
+                  clienteSeniorData: waterfallClienteSeniorData,
+                },
+              ],
+              resolvedMegaCompany || null,
+              resolvedOperatorName,
+            ),
+            new Promise<never>((_, reject) => {
+              continuityTimeoutId = setTimeout(
+                () => reject(new Error('generateContinuityQuestion timeout')),
+                CONTINUITY_QUESTION_TIMEOUT_MS,
+              );
+            }),
+          ]);
+          if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
         } catch (error) {
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
@@ -982,6 +998,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             error: error instanceof Error ? error.message : String(error),
           });
         }
+        scoutDiag.info('WaterfallLifecycle', 'pos-continuity-question', { sessionId, waterfallRunId });
 
         waterfallSuggestions = ensureContinuitySuggestions(
           waterfallSuggestions,
@@ -1022,6 +1039,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         });
 
         completeLoadingProgress();
+        scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
 
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
@@ -1078,7 +1096,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
+        scoutDiag.info('WaterfallLifecycle', 'pre-register-end', {
+          sessionId,
+          waterfallRunId,
+          waterfallEndStatus,
+          hasCacheName: Boolean(foundationCacheName),
+        });
         registerWaterfallEnd(sessionId, waterfallRunId, waterfallEndStatus);
+        scoutDiag.info('WaterfallLifecycle', 'pos-register-end', { sessionId, waterfallRunId });
       }
     },
     [
