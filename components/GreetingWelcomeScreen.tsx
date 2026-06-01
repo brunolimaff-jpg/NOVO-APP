@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { getTimeGreeting } from '../utils/timeGreeting';
 import { storage } from '../services/storage';
-import { storageGet } from '../utils/idbStorage';
+import { storageGet } from '../utils/localStorage';
 
 interface GreetingWelcomeScreenProps {
   isDarkMode: boolean;
