@@ -26,7 +26,7 @@ Sentry.init({
   replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
   replaysOnErrorSampleRate: import.meta.env.PROD ? 1.0 : 1.0,
   enabled: Boolean(import.meta.env.VITE_SENTRY_DSN),
-  denyUrls: [/^chrome-extension:\/\//, /^moz-extension:\/\//, /^safari-extension:\/\//],
+  denyUrls: [/extensions\//, /^chrome-extension:\/\//, /^moz-extension:\/\//],
   beforeSend(event) {
     const message = event.exception?.values?.[0]?.type ?? '';
     const value = event.exception?.values?.[0]?.value ?? '';
