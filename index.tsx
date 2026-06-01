@@ -26,6 +26,7 @@ Sentry.init({
   replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
   replaysOnErrorSampleRate: import.meta.env.PROD ? 1.0 : 1.0,
   enabled: Boolean(import.meta.env.VITE_SENTRY_DSN),
+  denyUrls: [/extensions\//, /^chrome-extension:\/\//, /^moz-extension:\/\//],
   beforeSend(event) {
     const message = event.exception?.values?.[0]?.type ?? '';
     const value = event.exception?.values?.[0]?.value ?? '';
@@ -35,10 +36,6 @@ Sentry.init({
       value.includes('Loading chunk') ||
       value.includes('Failed to fetch dynamically imported module')
     ) {
-      return null;
-    }
-    // Ignora erros de extensoes de browser ou scripts de terceiros
-    if (value.includes('chrome-extension') || value.includes('moz-extension')) {
       return null;
     }
     return event;
