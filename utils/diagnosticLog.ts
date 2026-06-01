@@ -231,7 +231,7 @@ export function flushDiagnosticsNow(reason: string, force = false): void {
 
 interface VisibilityState {
   isLoading: boolean;
-  loadingVariant: string;
+  loadingVariant: string | null;
   requestKind: string;
 }
 

@@ -240,6 +240,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         requestKind: resolvedRequestKind,
         loadingVariant: resolvedLoadingVariant,
         textLen: text.length,
+        callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
       });
 
       const isFirstInteraction = Boolean(options?.isFirstInteraction);
@@ -330,9 +331,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       try {
         if (isMegaPrompt) {
+          const preGuard = getWaterfallGuardState(sessionId);
+          const generationBefore = preGuard?.generationCount ?? 0;
+
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
             company: normalizedCompany,
+            generationBefore,
           });
           trackOperatorEvent('dossier_started', {
             operatorId,
@@ -355,18 +360,33 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isFirstInteraction,
             sessionCnpjDigits,
           });
+
+          const postGuard = getWaterfallGuardState(sessionId);
+          const generationAfter = postGuard?.generationCount ?? generationBefore;
+          const waterfallRan = generationAfter > generationBefore;
+
           completeLoadingProgress();
-          trackOperatorEvent('dossier_completed', {
-            operatorId,
-            email: operatorEmail || undefined,
-            sessionId,
-            entityType: 'session',
-            entityId: botMessageId,
-            companyCnpj: sessionCnpjDigits || undefined,
-            companyName: normalizedCompany || undefined,
-          });
+
+          if (waterfallRan) {
+            trackOperatorEvent('dossier_completed', {
+              operatorId,
+              email: operatorEmail || undefined,
+              sessionId,
+              entityType: 'session',
+              entityId: botMessageId,
+              companyCnpj: sessionCnpjDigits || undefined,
+              companyName: normalizedCompany || undefined,
+            });
+          } else {
+            scoutDiag.warn('MessageOrchestrator', 'waterfall bloqueado pelo guard; pulando dossier_completed', {
+              sessionId,
+              generationBefore,
+              generationAfter,
+            });
+          }
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
+            waterfallRan,
           });
           return;
         }
