@@ -1,54 +1,67 @@
-# Handoff — [NOVO-APP] — 31/05/2026 — Vercel Features Exploradas
-
-## Objetivo da Proxima Sessao
-
-- **Sincronizar `main` local com origin** (PR #317 squash-merged em `7773173`, local ainda em `0b38ebe`)
-- **Limpar branches residuais**: `refactor/remove-idb-storage` (local), `fix/remove-web-search-fallback` (mergeada)
-- **Verificar P0 withTimeout** (`api/gemini.ts:416, :491`) — AbortSignal nao propaga para `chat.sendMessage()`
-- **Decidir sobre CRM migration stashed** (`feat/crm-supabase-migration`) — retomar ou descartar
-- **Verificar `waterfallLogger.ts`** — ainda existe no repo, confirmar se deletar agora
+# Handoff — NOVO-APP — 01/06/2026 — Waterfall fixado, PRs #321 e #322 mergeados
 
 ## Estado Atual
 
-- **Branch atual:** `main` (local: `424faab5`, origin: `7773173` — main local desatualizado)
-- **Origin/main:** `7773173` (refactor: simplifica storage — remove IDB offline)
+- **Branch:** `main` (commit `0370a5ec`)
+- **Origin/main:** `0370a5ec` (sync ok)
 - **PRs abertas:** Nenhuma
-- **Working tree:** arquivos modificados (handoff, memory) + untracked (.superpowers, docs/superpowers/plans)
-- **Testes:** 1249 passando, 0 falhas, 144 arquivos
+- **Working tree:** doc changes pendentes (unstaged) + 2 untracked (`.superpowers/`, `utils/promptLeakShield.ts`)
+- **Waterfall:** Completo e renderizando corretamente. Minor UX issues em stage transitions — nao bloqueantes.
 
-## O que foi feito nesta sessao
+## O que foi concluido
 
-### Audit Vercel Features — Exploracao Completa
+### PR #321 — WaterfallGuard + Diagnostics (7aca0032, +674/-435)
 
-| Feature       | Relevancia | Hobby?          | Status                   |
-| ------------- | ---------- | --------------- | ------------------------ |
-| AI Gateway    | 9/10       | Nao (Pro)       | Plano escrito, arquivado |
-| Cron Jobs     | 8/10       | 2 crons, diario | Plano escrito, arquivado |
-| Queues        | 7/10       | Nao (Pro)       | Plano escrito, arquivado |
-| Firewall/WAF  | 7/10       | Parcial         | Nao priorizado           |
-| Edge Config   | 6/10       | Nao (Pro)       | Nao priorizado           |
-| Fluid Compute | 5/10       | Ja usa          | Nada a fazer             |
-| Blob          | 4/10       | Sim             | Nao priorizado           |
-| Sandbox       | 2/10       | Nao             | Nao priorizado           |
+- `features/dossier/waterfall-guard.ts` (NEW): floodgate global `Map<sessionId, WaterfallGuardState>` + `globalActiveRunId` que permite apenas 1 waterfall por vez em todo o app. Cooldown de 5s apos conclusao.
+- `features/dossier/waterfall-orchestrator.ts`: `registerWaterfallStart()` no topo, `registerWaterfallEnd()` no finally, `WaterfallLifecycle` diagnostics em cada etapa pos-modulo.
+- `features/chat/message-orchestrator.ts`: `PostCompletion` com restart detection via `generationCount` baseline vs atual. `cleanupPostCompletion` migrado de `let` para `useRef`.
 
-### Decisao: Plano Cancelado
+### PR #322 — Final Fixes (0370a5ec, +81/-28, 6 arquivos)
 
-- **Plano:** `docs/superpowers/plans/2026-05-31-vercel-ai-gateway-cron-queues.md` (commit `424faab5`)
-- **Motivo:** Hobby plan limita funcoes (12), AI Gateway (Pro-only), Queues (Pro-only)
-- **Analise:** 16 funcoes excederia limite Hobby de 12. Upgrade para Pro (US$ 20/mes) necessario para AI Gateway + Queues + mais funcoes.
-- **Conclusao:** Esforco de refatoracao (6 arquivos) nao justifica ganhos parciais no Hobby.
+- **Root Cause descoberto:** `React.StrictMode` estava ativo em producao (`index.tsx`), causando double-invocation de renders que disparava multiplos `processMessage`.
+- **Re-entry guard em `processMessage`:** `isAnyWaterfallActive()` check ANTES de `setIsLoading(true)`. Se houver waterfall ativo, retorna imediatamente.
+- **`loadingVariant` reset:** `completeLoadingProgress()` em `loading-progress.ts` agora reseta `loadingVariant` para `undefined` ao concluir.
+- **Guard block propagation:** `processMessage` passou a comparar `generationBefore/After` para evitar `dossier_completed` falso.
+- **`callerStack` diagnostic:** `processMessage:start` loga stack trace da chamada no `scoutDiag`, confirmando que o waterfall era disparado pelo scheduler do React, nao por cliques do usuario.
+- **`messages-state-after-update` diagnostic:** verifica persistencia real da mensagem bot apos update.
+- **Code review fixes:** `completeLoadingProgress` condicional (so executa se `waterfallRan`), tipo `loadingVariant` em `VisibilityState`.
+
+## Arquivos alterados
+
+| Arquivo | Mudanca | PR |
+|---------|---------|----|
+| `features/dossier/waterfall-guard.ts` | Novo — floodgate global anti-concorrencia | #321 |
+| `features/dossier/waterfall-orchestrator.ts` | Guard integration + diagnostics + guard propagation | #321, #322 |
+| `features/chat/message-orchestrator.ts` | PostCompletion restart detection + useRef + re-entry guard + callerStack | #321, #322 |
+| `features/chat/loading-progress.ts` | completeLoadingProgress reset loadingVariant + conditional | #322 |
+| `index.tsx` | React.StrictMode removido de producao | #322 |
+| `utils/diagnosticLog.ts` | Ajuste menor | #322 |
+
+## Root Cause (documentado)
+
+O restart loop era causado por `React.StrictMode` ativo em producao. StrictMode invoca renders duas vezes intencionalmente (para detectar side effects), o que disparava `processMessage` multiplas vezes. Cada chamada criava uma nova sessao de waterfall e setava `isLoading=true`, deixando a UI travada.
+
+O `callerStack` diagnostic no `processMessage:start` confirmou que a origem era o scheduler do React, nao acao do usuario.
+
+O WaterfallGuard (`isAnyWaterfallActive`) + re-entry guard (`activeGenerationRef`) agora impedem waterfalls concorrentes mesmo sem StrictMode.
 
 ## Riscos Tecnicos Residuais
 
 1. **P0 withTimeout (api/gemini.ts:416, :491):** AbortController cria signal mas nao propaga para `chat.sendMessage()`. Documentado, nao corrigido.
-2. **Branch `refactor/remove-idb-storage` local ainda existe**: pode ser deletada apos sync de main.
-3. **Branch `fix/remove-web-search-fallback` residual**: mergeada, branch local ainda existe.
-4. **CRM migration stashed**: precisa decidir (retomar ou descartar).
-5. **`waterfallLogger.ts` nao removido**: existe no repo, confirmar se deletar.
-6. **Supabase extract_cache TTL**: implementado no client sem cleanup automatico no banco.
+2. **Branch `feat/crm-supabase-migration`:** Stashed, precisa decidir (retomar ou descartar).
+3. **1 falha pre-existente:** Teste `warRoomService` — nao relacionada ao waterfall.
+4. **Minor UX transitions:** Stage transitions no waterfall podiam ser mais suaves — nao bloqueante.
+
+## Proximo Passo
+
+1. Deletar branches residuais do restart-loop (3 branches locais: `fix/waterfall-95pct-restart-loop`, `fix/waterfall-postcompletion-restart-loop`, `fix/waterfall-restart-loop-v2`)
+2. Decidir sobre `feat/crm-supabase-migration` stashed
+3. Corrigir P0 withTimeout quando houver janela
 
 ## Links
 
-- **Plano Vercel:** `docs/superpowers/plans/2026-05-31-vercel-ai-gateway-cron-queues.md`
-- **Commit:** `424faab5`
-- **PR #317 merge:** `7773173`
+- **PR #321:** `7aca0032` — WaterfallGuard (floodgate + restart detection + diagnostics)
+- **PR #322:** `0370a5ec` — 5 correcoes (StrictMode, re-entry guard, callerStack, loadingVariant)
+- **WaterfallGuard:** `features/dossier/waterfall-guard.ts`
+- **Orchestrator:** `features/dossier/waterfall-orchestrator.ts`
+- **PostCompletion:** `features/chat/message-orchestrator.ts`

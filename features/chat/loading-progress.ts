@@ -34,7 +34,7 @@ export function useChatLoadingProgress() {
   const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
   const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
   const [requestKind, setRequestKind] = useState<RequestKind>('default');
-  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant>('hero');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant | undefined>('hero');
   const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   const loadingProgressRef = useRef<LoadingProgressState>({
@@ -126,6 +126,7 @@ export function useChatLoadingProgress() {
       ...next,
       totalStages: loadingProgressRef.current.totalStages,
     });
+    setLoadingVariant(undefined);
   }, [commitLoadingProgress]);
 
   return {

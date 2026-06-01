@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
@@ -26,7 +26,7 @@ import {
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
-import { getWaterfallGuardState } from '../dossier/waterfall-guard';
+import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -149,7 +149,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   );
   const runMegaPromptWaterfall = requireDependency(options.runMegaPromptWaterfall, 'runMegaPromptWaterfall');
 
-  let cleanupPostCompletion: (() => void) | null = null;
+  const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -223,6 +223,25 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const sessionId = explicitSessionId || currentSessionId;
       if (!sessionId) return;
 
+      if (activeGenerationRef.current[sessionId]) {
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: geração já ativa para esta sessão', {
+          sessionId,
+          activeBotMessageId: activeGenerationRef.current[sessionId],
+          callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
+        });
+        return;
+      }
+
+      if (isAnyWaterfallActive()) {
+        const anyGuard = getWaterfallGuardState(sessionId);
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: waterfall global já ativo', {
+          sessionId,
+          activeRunId: anyGuard?.activeRunId ?? 'other-session',
+          generationCount: anyGuard?.generationCount ?? 0,
+        });
+        return;
+      }
+
       const resolvedRequestKind = options?.requestKind ?? requestKind;
       const fixedLoadingLine = options?.fixedLoadingLine ?? null;
       const resolvedLoadingVariant = resolveLoadingVariant({
@@ -240,6 +259,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         requestKind: resolvedRequestKind,
         loadingVariant: resolvedLoadingVariant,
         textLen: text.length,
+        callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
       });
 
       const isFirstInteraction = Boolean(options?.isFirstInteraction);
@@ -330,9 +350,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       try {
         if (isMegaPrompt) {
+          const preGuard = getWaterfallGuardState(sessionId);
+          const generationBefore = preGuard?.generationCount ?? 0;
+
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:start', {
             sessionId,
             company: normalizedCompany,
+            generationBefore,
           });
           trackOperatorEvent('dossier_started', {
             operatorId,
@@ -355,18 +379,32 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isFirstInteraction,
             sessionCnpjDigits,
           });
-          completeLoadingProgress();
-          trackOperatorEvent('dossier_completed', {
-            operatorId,
-            email: operatorEmail || undefined,
-            sessionId,
-            entityType: 'session',
-            entityId: botMessageId,
-            companyCnpj: sessionCnpjDigits || undefined,
-            companyName: normalizedCompany || undefined,
-          });
+
+          const postGuard = getWaterfallGuardState(sessionId);
+          const generationAfter = postGuard?.generationCount ?? generationBefore;
+          const waterfallRan = generationAfter > generationBefore;
+
+          if (waterfallRan) {
+            completeLoadingProgress();
+            trackOperatorEvent('dossier_completed', {
+              operatorId,
+              email: operatorEmail || undefined,
+              sessionId,
+              entityType: 'session',
+              entityId: botMessageId,
+              companyCnpj: sessionCnpjDigits || undefined,
+              companyName: normalizedCompany || undefined,
+            });
+          } else {
+            scoutDiag.warn('MessageOrchestrator', 'waterfall bloqueado pelo guard; pulando dossier_completed', {
+              sessionId,
+              generationBefore,
+              generationAfter,
+            });
+          }
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
+            waterfallRan,
           });
           return;
         }
@@ -558,10 +596,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
-        if (cleanupPostCompletion) cleanupPostCompletion();
+        if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        cleanupPostCompletion = schedulePostCompletionChecks(sessionId);
+        cleanupPostCompletionRef.current = schedulePostCompletionChecks(sessionId);
       }
     },
     [
