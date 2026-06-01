@@ -302,8 +302,11 @@ describe('useDossierWaterfallOrchestrator', () => {
     vi.unstubAllGlobals();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    const { resetWaterfallGuard } = await import('../../../features/dossier/waterfall-guard');
+    resetWaterfallGuard();
 
     let uuidCounter = 0;
     uuidv4Mock.mockImplementation(() => `uuid-${++uuidCounter}`);
