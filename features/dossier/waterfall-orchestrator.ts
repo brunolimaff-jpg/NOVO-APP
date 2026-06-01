@@ -1009,7 +1009,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
         let sessionToPersist: ChatSession | null = null;
+        let originalMsgCount = -1;
         updateSessionById(sessionId, session => {
+          originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
           const nextSession: ChatSession = {
             ...session,
@@ -1038,17 +1040,36 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           return nextSession;
         });
 
+        const persistMsgCount = (sessionToPersist as ChatSession | null)?.messages?.length ?? 0;
+        const persistBotUpdated =
+          (sessionToPersist as ChatSession | null)?.messages?.some(
+            (m: { id: string; sender: string; isThinking?: boolean; text?: string }) =>
+              m.id === botMessageId && m.sender === 'bot' && !m.isThinking && Boolean(m.text),
+          ) ?? false;
+
         scoutDiag.info('WaterfallLifecycle', 'messages-state-after-update', {
           sessionId,
           waterfallRunId,
-          messageCount: (sessionToPersist as ChatSession | null)?.messages?.length ?? 0,
-          botMessageUpdated:
-            (sessionToPersist as ChatSession | null)?.messages?.some(
-              (m: { id: string; sender: string; isThinking?: boolean; text?: string }) =>
-                m.id === botMessageId && m.sender === 'bot' && !m.isThinking && Boolean(m.text),
-            ) ?? false,
+          messageCount: persistMsgCount,
+          botMessageUpdated: persistBotUpdated,
           waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
         });
+
+        // ⚠ Diagnóstico: se o dossiê foi gerado mas sessionToPersist está vazio
+        if (!sessionToPersist || persistMsgCount === 0) {
+          console.error(
+            '[Scout360][WaterfallLifecycle] ⚠ sessionToPersist VAZIO após updateSessionById',
+            JSON.stringify({
+              sessionId,
+              waterfallRunId,
+              sessionToPersistIsNull: sessionToPersist === null,
+              originalMsgCount,
+              persistMsgCount,
+              waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
+              botMessageId,
+            }),
+          );
+        }
 
         completeLoadingProgress();
         scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
