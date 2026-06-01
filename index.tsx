@@ -15,9 +15,34 @@ import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.PROD ? 'production' : 'development',
-  integrations: [Sentry.browserTracingIntegration()],
-  tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false,
+    }),
+  ],
+  tracesSampleRate: import.meta.env.PROD ? 0.05 : 1.0,
+  replaysSessionSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+  replaysOnErrorSampleRate: import.meta.env.PROD ? 1.0 : 1.0,
   enabled: Boolean(import.meta.env.VITE_SENTRY_DSN),
+  beforeSend(event) {
+    const message = event.exception?.values?.[0]?.type ?? '';
+    const value = event.exception?.values?.[0]?.value ?? '';
+    // Ignora erros de carregamento de chunk (tratados pelo ChunkRetry)
+    if (
+      message === 'ChunkLoadError' ||
+      value.includes('Loading chunk') ||
+      value.includes('Failed to fetch dynamically imported module')
+    ) {
+      return null;
+    }
+    // Ignora erros de extensoes de browser ou scripts de terceiros
+    if (value.includes('chrome-extension') || value.includes('moz-extension')) {
+      return null;
+    }
+    return event;
+  },
 });
 
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────

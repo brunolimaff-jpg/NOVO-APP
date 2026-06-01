@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { readFileSync, writeFileSync } from 'fs';
 import type { Plugin, ProxyOptions } from 'vite';
 import { LOCAL_DEV_API_PROXY_PATHS, LOCAL_DEV_API_PROXY_TARGET } from './config/localDevApiProxy';
@@ -143,6 +144,18 @@ export default defineConfig(({ mode }) => {
             enabled: false,
           },
         }),
+      sentryVitePlugin({
+        org: env.SENTRY_ORG || 's-3j',
+        project: env.SENTRY_PROJECT || 'javascript-react',
+        authToken: env.SENTRY_AUTH_TOKEN,
+        sourcemaps: {
+          assets: ['./dist/**'],
+          ignore: ['node_modules'],
+        },
+        release: {
+          name: env.APP_VERSION || `v${JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')).version}`,
+        },
+      }),
     ].filter(Boolean),
     resolve: {
       alias: {
@@ -151,6 +164,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      sourcemap: true,
       // FIX: modulePreload polyfill garante carregamento dos chunks na ordem correta
       modulePreload: { polyfill: true },
       chunkSizeWarningLimit: 1500,

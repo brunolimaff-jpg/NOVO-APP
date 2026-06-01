@@ -17,6 +17,10 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-github"]
+    },
+    "sentry": {
+      "command": "/Users/brunolima/Documents/NOVO-APP/scripts/sentry-mcp.sh",
+      "args": []
     }
   }
 }
