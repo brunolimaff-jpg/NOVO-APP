@@ -1,0 +1,120 @@
+<h2>God Components — Qual decompor primeiro?</h2>
+<p class="subtitle">8 arquivos urgentes (5/5). Ordenados por impacto inicial vs risco Vercel Functions.</p>
+
+<div class="section">
+  <h3>Top 3 candidatos — maior ganho inicial</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>services/storage.ts <span class="label">464 linhas</span></h3>
+      <p>
+        7 entidades em 1 arquivo (dossiês, cache, user context, favorites, radar, audit, shared). Decomposição mais
+        limpa: 1 entidade = 1 arquivo.
+      </p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ganhos</h4>
+          <ul>
+            <li>Zero impacto Vercel</li>
+            <li>Padrão claro (1 entidade/arquivo)</li>
+            <li>Baixo risco, alto retorno</li>
+            <li>Afeta todo o app positivamente</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Riscos</h4>
+          <ul>
+            <li>Import paths quebram em vários lugares</li>
+            <li>Precisa testar CRUD de cada entidade</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>components/LoadingSmart.tsx <span class="label">666 linhas · 35 hooks</span></h3>
+      <p>
+        Componente com 11 responsabilidades: timer, fila de stages, ciclo de curiosidades, portal ReactDOM, 2 modos
+        (hero/inline), confirmação de stop.
+      </p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ganhos</h4>
+          <ul>
+            <li>Zero impacto Vercel</li>
+            <li>3 hooks extraíveis (useLoadingTimer, useStageQueue, useCuriosityCycle)</li>
+            <li>Já tem subcomponentes extraídos — falta extrair lógica</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Riscos</h4>
+          <ul>
+            <li>35 hooks interdependentes — extrair sem quebrar é complexo</li>
+            <li>2 modos de renderização precisam continuar consistentes</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>api/socio-search.ts <span class="label">1350 linhas · maxDuration 60s</span></h3>
+      <p>
+        O maior arquivo do projeto. Handler HTTP + cache + busca web + scoring + parsing + diagnóstico = 6
+        responsabilidades. Representa 39% de todo código API.
+      </p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Ganhos</h4>
+          <ul>
+            <li>Maior redução absoluta (1350 → ~300 linha principal)</li>
+            <li>Extrair cache, scoring, parser como módulos internos</li>
+            <li>Facilita otimizar o tempo de execução (hoje 60s é apertado)</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Riscos</h4>
+          <ul>
+            <li>É Vercel Function — NÃO criar novas rotas</li>
+            <li>Cold start pode piorar se imports ficarem pesados</li>
+            <li>Testar requer chamadas reais à API</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 2rem">
+  <h3>Fila de espera (próximos na ordem)</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem">
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem">
+      <strong>4.</strong> SocietaryMap.tsx <span class="label">795 linhas</span><br />
+      <small>30 hooks, 3 fetches, cache global</small>
+    </div>
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem">
+      <strong>5.</strong> EmptyStateHome.tsx <span class="label">764 linhas</span><br />
+      <small>Formulário + Radar + BrasilAPI</small>
+    </div>
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem">
+      <strong>6.</strong> clientLookupService.ts <span class="label">741 linhas</span><br />
+      <small>Cache + matching + 3 formatadores</small>
+    </div>
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem">
+      <strong>7.</strong> textCleaners.ts <span class="label">630 linhas</span><br />
+      <small>Limpeza + leak shield + fontes</small>
+    </div>
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.5rem">
+      <strong>8.</strong> documentExtractor.ts <span class="label">533 linhas</span><br />
+      <small>Web search + extratores + CNPJ</small>
+    </div>
+  </div>
+</div>

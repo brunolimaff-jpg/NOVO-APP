@@ -7,6 +7,7 @@ Regra operacional: este historico e append-only. Nao reescrever entradas antigas
 - [[2026-05-23]] - Inicio da trilha recente: quick wins, Supabase notice e PR #279 da Teia Societaria Tipo 5.
 - [[2026-05-24]] - PRs #279/#280 mergeadas; consolidacao de prompts #283 e War Room anti-alucinacao #284.
 - [[2026-05-25]] - PR #285 e PR #286 mergeadas; correcao semantica da Teia CNPJ, links inline auditaveis, fechamento e pendencias de reestruturacao.
+- [[2026-06-01]] - Sentry integrado + WaterfallGuard (PRs #321/#322) + StrictMode removido. Branch `feature/sentry-error-monitoring`.
 
 ## Indice por PR
 

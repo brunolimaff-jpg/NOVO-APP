@@ -1,0 +1,167 @@
+<h2>Decomposição: services/storage.ts</h2>
+<p class="subtitle">3 abordagens — escolha a que faz mais sentido pro projeto</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Por Entidade <span class="label">Recomendado</span></h3>
+      <p>
+        1 entidade = 1 arquivo. Cada arquivo tem acesso ao cliente Supabase e exporta só suas operações.
+        <code>index.ts</code> re-exporta tudo — nenhum import quebra.
+      </p>
+
+      <pre
+        style="
+          background: #0f172a;
+          padding: 0.75rem;
+          border-radius: 0.4rem;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          color: #e2e8f0;
+          margin: 0.75rem 0;
+        "
+      >
+services/storage/
+├── index.ts           (re-export barrel)
+├── types.ts           (tipos compartilhados)
+├── dossiers.ts        (CRUD 4 ops)
+├── userContext.ts     (4 ops)
+├── favorites.ts       (3 ops)
+├── radar.ts           (4 ops)
+├── sharedDossiers.ts  (2 ops)
+├── extractCache.ts    (IDB, 2 ops)
+└── audit.ts           (1 op)</pre
+      >
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Vantagens</h4>
+          <ul>
+            <li>Cada arquivo &lt;80 linhas</li>
+            <li>Testável isoladamente</li>
+            <li>Segue padrão services/gemini/ (12 arquivos)</li>
+            <li>Fácil de achar: "onde está o CRUD de dossiês?" → dossiers.ts</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Desvantagens</h4>
+          <ul>
+            <li>9 arquivos (muitos imports pra editar)</li>
+            <li>Tipos compartilhados precisam de types.ts</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Por Backend de Persistência</h3>
+      <p>
+        Agrupa por tecnologia de storage: Supabase, IndexedDB, localStorage. Menos arquivos, mas cada um ainda tem
+        múltiplas entidades.
+      </p>
+
+      <pre
+        style="
+          background: #0f172a;
+          padding: 0.75rem;
+          border-radius: 0.4rem;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          color: #e2e8f0;
+          margin: 0.75rem 0;
+        "
+      >
+services/storage/
+├── index.ts           (re-export)
+├── supabase.ts        (dossiês + favorites + radar + shared + user + audit — ~350 linhas)
+├── extractCache.ts    (IDB — ~40 linhas)
+└── localConfig.ts     (localStorage operator — ~20 linhas)</pre
+      >
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Vantagens</h4>
+          <ul>
+            <li>Só 4 arquivos</li>
+            <li>Separação clara por tecnologia</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Desvantagens</h4>
+          <ul>
+            <li>supabase.ts ainda teria 350+ linhas com 6 entidades</li>
+            <li>Não resolve o problema de god module completamente</li>
+            <li>Mesmo problema de hoje, só que menor</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Híbrido: Entidades Grandes + Agrupados</h3>
+      <p>
+        Entidades com mais operações viram arquivos próprios. As menores (audit, extractCache, sharedDossiers) ficam
+        agrupadas.
+      </p>
+
+      <pre
+        style="
+          background: #0f172a;
+          padding: 0.75rem;
+          border-radius: 0.4rem;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          color: #e2e8f0;
+          margin: 0.75rem 0;
+        "
+      >
+services/storage/
+├── index.ts           (re-export)
+├── types.ts
+├── dossiers.ts        (4 ops, ~80 linhas)
+├── userContext.ts     (4 ops, ~60 linhas)
+├── radar.ts           (4 ops, ~70 linhas)
+├── misc.ts            (favorites 3 + shared 2 + audit 1 + extractCache 2 — ~160 linhas)</pre
+      >
+
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Vantagens</h4>
+          <ul>
+            <li>Meio termo: 6 arquivos</li>
+            <li>Entidades complexas isoladas</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Desvantagens</h4>
+          <ul>
+            <li>misc.ts é um mini god module</li>
+            <li>Critério subjetivo do que agrupar</li>
+            <li>Cresce desorganizado com o tempo</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  style="
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 0.5rem;
+    border-left: 3px solid #3b82f6;
+  "
+>
+  <strong>Bônus:</strong> Aproveitamos pra renomear <code>utils/idbStorage.ts</code> →
+  <code>utils/localStorage.ts</code> (o nome atual engana) e corrigir o comentário "IDB" mentiroso no
+  <code>useRadar.ts</code>.
+</div>
