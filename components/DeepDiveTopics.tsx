@@ -84,6 +84,23 @@ Se houver espaço para gerar valor, procure:
 </deep_dive_runtime>
 `;
 
+/* ── Tooltips dos deep dives ─────────────────────────────── */
+
+const TOOLTIP_RAIO_X_OPERACIONAL =
+  'Reconstrói a topologia da operação: elos da cadeia, ativos físicos, gargalos de pátio, rastreabilidade, infraestrutura crítica e onde a operação sangra caixa por falta de sistema.';
+const TOOLTIP_TECH_STACK =
+  'Descobre o ERP core, satélites, sistemas paralelos, shadow IT, linguagens legadas, custo oculto de sustentação e vulnerabilidade do incumbente.';
+const TOOLTIP_TEIA_SOCIETARIA =
+  'Vasculha grupo econômico real, holdings, filiais, SPEs, fazendas, massa operacional escondida, capacidade estática e faturamento consolidado estimado.';
+const TOOLTIP_MAPA_DECISORES =
+  'Identifica sponsor, dono do orçamento, veto, sabotador, shadow board, sucessão, trigger político e a narrativa certa para cada ator.';
+const TOOLTIP_ORCAMENTO_JANELA =
+  'Decodifica budget plausível, owner financeiro, captação, crédito rural, ciclo orçamentário, custo da demora e momento real de compra.';
+const TOOLTIP_RISCOS_COMPLIANCE =
+  'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.';
+const TOOLTIP_RH_SST =
+  'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.';
+
 const buildDeepDiveHiddenPrompt = (basePrompt: string, topicLabel: string) =>
   [
     `DEEP_DIVE_SINGLE_MODULE_EXECUTION (PromptVersion=${PROMPT_VERSION})`,
@@ -103,8 +120,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'raio-x',
         label: 'Raio-X Operacional',
         shortLabel: 'Operacional',
-        tooltip:
-          'Reconstrói a topologia da operação: elos da cadeia, ativos físicos, gargalos de pátio, rastreabilidade, infraestrutura crítica e onde a operação sangra caixa por falta de sistema.',
+        tooltip: TOOLTIP_RAIO_X_OPERACIONAL,
         subtitle: 'Cadeia de valor, ativos, gargalos e perda de caixa operacional',
         impact: 'Impacto alto em O + R',
         icon: '🚜',
@@ -114,8 +130,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'tech-stack',
         label: 'Tech Stack & ERP',
         shortLabel: 'Tech Stack',
-        tooltip:
-          'Descobre o ERP core, satélites, sistemas paralelos, shadow IT, linguagens legadas, custo oculto de sustentação e vulnerabilidade do incumbente.',
+        tooltip: TOOLTIP_TECH_STACK,
         subtitle: 'ERP, legado, integração, shadow IT e wedge contra incumbente',
         impact: 'Impacto brutal em T',
         icon: '💻',
@@ -125,8 +140,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'radar',
         label: 'Teia Societária (M&A)',
         shortLabel: 'Teia Societária',
-        tooltip:
-          'Vasculha grupo econômico real, holdings, filiais, SPEs, fazendas, massa operacional escondida, capacidade estática e faturamento consolidado estimado.',
+        tooltip: TOOLTIP_TEIA_SOCIETARIA,
         subtitle: 'Grupo real, massa escondida e tese enterprise',
         impact: 'Impacto brutal em P + SEG',
         icon: '🕸️',
@@ -136,8 +150,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'mapeamento-decisores',
         label: 'Mapa de Decisores',
         shortLabel: 'Decisores',
-        tooltip:
-          'Identifica sponsor, dono do orçamento, veto, sabotador, shadow board, sucessão, trigger político e a narrativa certa para cada ator.',
+        tooltip: TOOLTIP_MAPA_DECISORES,
         subtitle: 'Sponsor, veto, sabotador e janela política',
         impact: 'Impacto brutal em A',
         icon: '🎭',
@@ -147,8 +160,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'orcamento-janela',
         label: 'Orçamento & Janela',
         shortLabel: 'Orçamento',
-        tooltip:
-          'Decodifica budget plausível, owner financeiro, captação, crédito rural, ciclo orçamentário, custo da demora e momento real de compra.',
+        tooltip: TOOLTIP_ORCAMENTO_JANELA,
         subtitle: 'Comprabilidade, budget, owner financeiro e timing',
         impact: 'Impacto em R + A2',
         icon: '💵',
@@ -158,8 +170,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'compliance',
         label: 'Riscos & Compliance',
         shortLabel: 'Compliance',
-        tooltip:
-          'Mapeia passivo fiscal, PGFN, MPT, risco ambiental, reforma tributária, contrapesos de governança e separa risco ativo de histórico resolvido.',
+        tooltip: TOOLTIP_RISCOS_COMPLIANCE,
         subtitle: 'Passivo fiscal, regulatório, trabalhista e pressão externa real',
         impact: 'Impacto alto em R + TRAD',
         icon: '🚨',
@@ -169,8 +180,7 @@ export const DeepDiveTopics: React.FC<DeepDiveTopicsProps> = ({ onSelectTopic })
         id: 'rh-sindicatos',
         label: 'RH, SST & Cultura Operacional',
         shortLabel: 'RH & SST',
-        tooltip:
-          'Revela headcount real, CAEPF, safristas, terceiros, stack RH, SST, FAP/RAT, risco trabalhista e capacidade da operação de absorver projeto.',
+        tooltip: TOOLTIP_RH_SST,
         subtitle: 'Força de trabalho real, SST e timing operacional',
         impact: 'Impacto em P proxy + R + A2',
         icon: '👥',

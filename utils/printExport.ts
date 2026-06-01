@@ -5,6 +5,33 @@ import { sanitizeSensitivePersonalData } from './privacy';
 import { REPORT_CSS } from './printExport.css';
 import { formatAuditableSourcesForExport, type AuditableSource } from './textCleaners';
 
+/* ── Constantes de template ───────────────────────────────── */
+
+const MERMAID_SCRIPT = `
+    (function () {
+      function showMermaidFallback() {
+        document.querySelectorAll('pre.mermaid').forEach(function (node) {
+          node.classList.add('mermaid-fallback');
+          node.setAttribute('data-render-status', 'fallback');
+        });
+      }
+      window.__scoutRenderMermaid = function () {
+        if (!window.mermaid) { showMermaidFallback(); return; }
+        try {
+          window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
+          Promise.resolve(window.mermaid.run({ querySelector: 'pre.mermaid' })).catch(showMermaidFallback);
+        } catch (_error) { showMermaidFallback(); }
+      };
+      window.__scoutMermaidFallback = showMermaidFallback;
+      window.setTimeout(function () { if (!window.mermaid) showMermaidFallback(); }, 2500);
+    })();
+  `;
+
+const buildSourceRowHtml = (index: number, source: { title?: string; url: string }): string => {
+  const label = sanitizeVisibleText(source.title || source.url);
+  return `<li><span class="source-num">${String(index + 1).padStart(2, '0')}</span><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></li>`;
+};
+
 export interface PrintReportOptions {
   title: string;
   subtitle?: string;
@@ -219,10 +246,7 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
       ? (options.sources || [])
           .map(source => ({ ...source, url: sanitizeUrl(source.url) }))
           .filter(source => source.url)
-          .map((source, index) => {
-            const label = sanitizeVisibleText(source.title || source.url);
-            return `<li><span class="source-num">${String(index + 1).padStart(2, '0')}</span><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a></li>`;
-          })
+          .map((source, index) => buildSourceRowHtml(index, source))
           .join('')
       : '';
 
@@ -262,25 +286,7 @@ export function buildPrintReportHtml(options: PrintReportOptions): string {
     </footer>
   </div>
 
-  <script>
-    (function () {
-      function showMermaidFallback() {
-        document.querySelectorAll('pre.mermaid').forEach(function (node) {
-          node.classList.add('mermaid-fallback');
-          node.setAttribute('data-render-status', 'fallback');
-        });
-      }
-      window.__scoutRenderMermaid = function () {
-        if (!window.mermaid) { showMermaidFallback(); return; }
-        try {
-          window.mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
-          Promise.resolve(window.mermaid.run({ querySelector: 'pre.mermaid' })).catch(showMermaidFallback);
-        } catch (_error) { showMermaidFallback(); }
-      };
-      window.__scoutMermaidFallback = showMermaidFallback;
-      window.setTimeout(function () { if (!window.mermaid) showMermaidFallback(); }, 2500);
-    })();
-  </script>
+  <script>${MERMAID_SCRIPT}</script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" async onload="window.__scoutRenderMermaid && window.__scoutRenderMermaid()" onerror="window.__scoutMermaidFallback && window.__scoutMermaidFallback()"></script>
 </body>
 </html>`;

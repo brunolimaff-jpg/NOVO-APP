@@ -19,6 +19,24 @@ interface FollowUpModalProps {
   onClose: () => void;
 }
 
+/* ── Constantes de template ───────────────────────────────── */
+
+const ICS_VCALENDAR_HEADER = [
+  'BEGIN:VCALENDAR',
+  'VERSION:2.0',
+  'PRODID:-//🦅 Senior Scout 360//FollowUp//PT-BR',
+  'CALSCALE:GREGORIAN',
+  'METHOD:PUBLISH',
+  'BEGIN:VEVENT',
+].join('\r\n');
+
+const ICS_VCALENDAR_FOOTER = ['END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+
+const OUTLOOK_URL_BASE =
+  'https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent';
+
+/* ── Helpers de data/escape ───────────────────────────────── */
+
 const formatICSDate = (date: Date): string =>
   date
     .toISOString()
@@ -27,6 +45,17 @@ const formatICSDate = (date: Date): string =>
 
 const escapeICSText = (text: string): string =>
   text.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+const buildFollowUpDescription = (targetName: string, notas: string, emailTo: string): string => {
+  const notesLine = notas.trim() ? `Notas: ${notas.trim()}` : 'Sem notas adicionais.';
+  return [
+    `Lembrete de follow-up para ${targetName}.`,
+    notesLine,
+    emailTo.trim() ? `Email de lembrete: ${emailTo.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+};
 
 const buildEventWindow = (daysAhead: number) => {
   const start = new Date();
@@ -57,24 +86,12 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   const targetName = rawTargetName.length > 80 ? `${rawTargetName.slice(0, 77)}...` : rawTargetName;
   const { start, end } = buildEventWindow(followUpDias);
   const subject = `Follow-up 🦅 Senior Scout 360 | ${targetName}`;
-  const notes = followUpNotas.trim() ? `Notas: ${followUpNotas.trim()}` : 'Sem notas adicionais.';
-  const description = [
-    `Lembrete de follow-up para ${targetName}.`,
-    notes,
-    emailTo.trim() ? `Email de lembrete: ${emailTo.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const description = buildFollowUpDescription(targetName, followUpNotas, emailTo);
 
   const handleDownloadInvite = (): boolean => {
     try {
       const icsContent = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//🦅 Senior Scout 360//FollowUp//PT-BR',
-        'CALSCALE:GREGORIAN',
-        'METHOD:PUBLISH',
-        'BEGIN:VEVENT',
+        ICS_VCALENDAR_HEADER,
         `UID:${Date.now()}@seniorscout360.local`,
         `DTSTAMP:${formatICSDate(new Date())}`,
         `DTSTART:${formatICSDate(start)}`,
@@ -82,8 +99,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         `SUMMARY:${escapeICSText(subject)}`,
         `DESCRIPTION:${escapeICSText(description)}`,
         'LOCATION:Outlook',
-        'END:VEVENT',
-        'END:VCALENDAR',
+        ICS_VCALENDAR_FOOTER,
       ].join('\r\n');
 
       const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
@@ -103,7 +119,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   };
 
   const handleOpenOutlook = (): boolean => {
-    const outlookUrl = `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(subject)}&startdt=${encodeURIComponent(start.toISOString())}&enddt=${encodeURIComponent(end.toISOString())}&body=${encodeURIComponent(description)}`;
+    const outlookUrl = `${OUTLOOK_URL_BASE}&subject=${encodeURIComponent(subject)}&startdt=${encodeURIComponent(start.toISOString())}&enddt=${encodeURIComponent(end.toISOString())}&body=${encodeURIComponent(description)}`;
     const popup = window.open(outlookUrl, '_blank', 'noopener,noreferrer');
     return !!popup;
   };
