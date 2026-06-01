@@ -384,9 +384,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const generationAfter = postGuard?.generationCount ?? generationBefore;
           const waterfallRan = generationAfter > generationBefore;
 
-          completeLoadingProgress();
-
           if (waterfallRan) {
+            completeLoadingProgress();
             trackOperatorEvent('dossier_completed', {
               operatorId,
               email: operatorEmail || undefined,
