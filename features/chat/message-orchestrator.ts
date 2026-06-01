@@ -223,6 +223,15 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const sessionId = explicitSessionId || currentSessionId;
       if (!sessionId) return;
 
+      if (activeGenerationRef.current[sessionId]) {
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: geração já ativa para esta sessão', {
+          sessionId,
+          activeBotMessageId: activeGenerationRef.current[sessionId],
+          callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
+        });
+        return;
+      }
+
       const resolvedRequestKind = options?.requestKind ?? requestKind;
       const fixedLoadingLine = options?.fixedLoadingLine ?? null;
       const resolvedLoadingVariant = resolveLoadingVariant({
