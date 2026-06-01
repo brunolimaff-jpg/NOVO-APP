@@ -173,7 +173,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         lastBotIsThinking: lastBot.isThinking,
         lastBotIsError: lastBot.isError,
         lastBotTextLen: (lastBot.text ?? '').length,
-        lastBotTextStart: (lastBot.text ?? '').substring(0, 80),
+        lastBotHasText: Boolean(lastBot.text),
         hasRenderableBotMessage,
         shouldSuspendVirtualizedList: shouldSuspendHeroMessageTimeline(
           isLoading,
