@@ -154,45 +154,16 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     [sessions, viewState.currentSessionId],
   );
 
-  // ── Instrumentação: detecta esvaziamento de mensagens ──
+  // ── Instrumentação: loga estado em toda mudança com sessão ativa ──
   useEffect(() => {
-    const msgCount = currentSession?.messages?.length ?? 0;
     const sessionId = viewState.currentSessionId;
-    const title = currentSession?.title ?? null;
-    const hasDossier = Boolean(currentSession?.resumoDossie);
-
-    if (msgCount === 0 && sessionId) {
-      console.warn(
-        '[Scout360][chatStore] currentSession.messages VAZIO',
-        JSON.stringify({ sessionId, title, hasDossier, sessionsCount: sessions.length }),
-      );
-    }
-  }, [
-    currentSession?.messages?.length,
-    currentSession?.resumoDossie,
-    viewState.currentSessionId,
-    sessions.length,
-    currentSession?.title,
-  ]);
-
-  const prevMsgCountRef = useRef(currentSession?.messages?.length ?? 0);
-  useEffect(() => {
-    const current = currentSession?.messages?.length ?? 0;
-    const prev = prevMsgCountRef.current;
-    prevMsgCountRef.current = current;
-
-    if (prev > 0 && current === 0 && viewState.currentSessionId) {
-      console.error(
-        '[Scout360][chatStore] ⚠ MENSAGENS DESAPARECERAM',
-        JSON.stringify({
-          sessionId: viewState.currentSessionId,
-          before: prev,
-          after: current,
-          stack: new Error().stack?.split('\n').slice(1, 4).join(' <- '),
-        }),
-      );
-    }
-  }, [currentSession?.messages?.length, viewState.currentSessionId]);
+    if (!sessionId) return;
+    const msgCount = currentSession?.messages?.length ?? 0;
+    console.warn(
+      '[Scout360][chatStore] currentSession.messages',
+      JSON.stringify({ sessionId, msgCount, sessionsCount: sessions.length, title: currentSession?.title ?? null }),
+    );
+  }, [currentSession?.messages?.length, viewState.currentSessionId, sessions.length, currentSession?.title]);
 
   const value = useMemo<ChatStoreValue>(
     () => ({

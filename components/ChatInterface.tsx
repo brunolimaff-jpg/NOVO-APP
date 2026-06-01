@@ -159,6 +159,42 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       !message.isError &&
       Boolean(String(message.text || '').trim()),
   );
+
+  // ── Instrumentação: diagnostica bot messages no safeMessages ──
+  const botMessages = safeMessages.filter(m => m.sender === Sender.Bot);
+  if (currentSession?.id && botMessages.length > 0) {
+    const lastBot = botMessages[botMessages.length - 1];
+    console.warn(
+      '[Scout360][ChatInterface] botMessages',
+      JSON.stringify({
+        sessionId: currentSession.id,
+        totalBotMsgs: botMessages.length,
+        lastBotId: lastBot.id,
+        lastBotIsThinking: lastBot.isThinking,
+        lastBotIsError: lastBot.isError,
+        lastBotTextLen: (lastBot.text ?? '').length,
+        lastBotTextStart: (lastBot.text ?? '').substring(0, 80),
+        hasRenderableBotMessage,
+        shouldSuspendVirtualizedList: shouldSuspendHeroMessageTimeline(
+          isLoading,
+          loadingVariant,
+          hasRenderableBotMessage,
+        ),
+        isLoading,
+        loadingVariant,
+      }),
+    );
+  } else if (currentSession?.id && botMessages.length === 0) {
+    console.warn(
+      '[Scout360][ChatInterface] botMessages VAZIO',
+      JSON.stringify({
+        sessionId: currentSession.id,
+        safeMessagesLen: safeMessages.length,
+        userMsgs: safeMessages.filter(m => m.sender === Sender.User).length,
+      }),
+    );
+  }
+
   const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
     isLoading,
     loadingVariant,
@@ -348,35 +384,35 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasError: hasErrorInMessages,
   });
 
-  // ── Instrumentação: safeMessages vazio com sessão ativa ──
-  const prevSafeLenRef = useRef(safeMessages.length);
+  // ── Instrumentação: loga estado da UI em toda mudança ──
   useEffect(() => {
-    const prev = prevSafeLenRef.current;
-    const curr = safeMessages.length;
-    prevSafeLenRef.current = curr;
-
-    if (prev > 0 && curr === 0 && currentSession?.id && !isLoading) {
-      console.error(
-        '[Scout360][ChatInterface] ⚠ safeMessages ZEROU com sessão ativa',
-        JSON.stringify({
-          sessionId: currentSession.id,
-          allMessagesLen: messages.length,
-          completedDossier: Boolean(completedDossier),
-          hasDossierContent,
-          panelState,
-          loadingVariant,
-        }),
-      );
-    }
+    if (!currentSession?.id) return;
+    console.warn(
+      '[Scout360][ChatInterface] renderState',
+      JSON.stringify({
+        sessionId: currentSession.id,
+        safeMessagesLen: safeMessages.length,
+        allMessagesLen: messages.length,
+        isLoading,
+        loadingVariant,
+        panelState,
+        showInitialHome,
+        completedDossier: Boolean(completedDossier),
+        hasDossierContent,
+        shouldSuspendVirtualizedList,
+      }),
+    );
   }, [
     safeMessages.length,
+    messages.length,
     currentSession?.id,
     isLoading,
+    loadingVariant,
+    panelState,
+    showInitialHome,
     completedDossier,
     hasDossierContent,
-    panelState,
-    loadingVariant,
-    messages.length,
+    shouldSuspendVirtualizedList,
   ]);
 
   const showEmptyStateFallback = panelState === 'empty' && hasActiveSession && !showInitialHome;

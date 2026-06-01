@@ -1010,8 +1010,24 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         let sessionToPersist: ChatSession | null = null;
         let originalMsgCount = -1;
+        let foundBotMsgId = false;
         updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
+          const botMsgBefore = (session.messages || []).find(m => m.id === botMessageId);
+          foundBotMsgId = Boolean(botMsgBefore);
+
+          console.warn(
+            '[Scout360][WaterfallUpdate] updateSessionById callback',
+            JSON.stringify({
+              sessionId,
+              botMessageId,
+              foundBotMsg: foundBotMsgId,
+              msgCountBefore: originalMsgCount,
+              botIsThinking: botMsgBefore?.isThinking ?? 'nao-encontrado',
+              botTextLen: (botMsgBefore?.text ?? '').length,
+            }),
+          );
+
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
           const nextSession: ChatSession = {
             ...session,
