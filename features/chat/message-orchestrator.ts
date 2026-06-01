@@ -26,7 +26,7 @@ import {
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
-import { getWaterfallGuardState } from '../dossier/waterfall-guard';
+import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -228,6 +228,16 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           sessionId,
           activeBotMessageId: activeGenerationRef.current[sessionId],
           callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
+        });
+        return;
+      }
+
+      if (isAnyWaterfallActive()) {
+        const anyGuard = getWaterfallGuardState(sessionId);
+        scoutDiag.warn('MessageOrchestrator', 'processMessage bloqueado: waterfall global já ativo', {
+          sessionId,
+          activeRunId: anyGuard?.activeRunId ?? 'other-session',
+          generationCount: anyGuard?.generationCount ?? 0,
         });
         return;
       }
