@@ -1009,7 +1009,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
           try {
-            await storage.saveDossier(dossier);
+            await Promise.race([
+              storage.saveDossier(dossier),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('saveDossier timeout after 15s')), 15_000),
+              ),
+            ]);
             window.dispatchEvent(
               new CustomEvent('dossier:completed', {
                 detail: {
