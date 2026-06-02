@@ -1055,7 +1055,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
         });
 
-        // ⚠ Diagnóstico: se o dossiê foi gerado mas sessionToPersist está vazio
+        // ⚠ Fallback: updateSessionById pode perder a sessão quando React faz batch
+        // de setState e o cache está limpo (primeira carga / race condition).
+        // sessionsRef.current é síncrono e sempre tem o valor mais recente.
+        // CALIBER_LEARNINGS:134 — "Não assumir que updateSessionById sempre encontra a sessão."
         if (!sessionToPersist || persistMsgCount === 0) {
           console.error(
             '[Scout360][WaterfallLifecycle] ⚠ sessionToPersist VAZIO após updateSessionById',
@@ -1069,64 +1072,88 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               botMessageId,
             }),
           );
+
+          const sessionsSnapshot = chatStore?.sessionsRef?.current ?? [];
+          const fallbackSession = sessionsSnapshot.find((s: ChatSession) => s.id === sessionId);
+          if (fallbackSession) {
+            const finalCompany =
+              normalizedCompany || fallbackSession.empresaAlvo || pickCompanyLabel(fallbackSession.title);
+            const recoveredSession: ChatSession = {
+              ...fallbackSession,
+              empresaAlvo: finalCompany || fallbackSession.empresaAlvo,
+              scoreOportunidade: waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
+              messages: fallbackSession.messages.map(message =>
+                message.id === botMessageId
+                  ? {
+                      ...message,
+                      text: waterfallFinalText,
+                      scorePorta: waterfallScorePorta ?? undefined,
+                      clienteSeniorData: waterfallClienteSeniorData || undefined,
+                      groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                      webVerificationStatus,
+                      groundingUsed:
+                        webVerificationStatus === 'not_applicable'
+                          ? undefined
+                          : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
+                      suggestions: waterfallSuggestions,
+                      isThinking: false,
+                    }
+                  : message,
+              ),
+            };
+            sessionToPersist = recoveredSession;
+            const updatedSessions = sessionsSnapshot.map(s => (s.id === sessionId ? recoveredSession : s));
+            chatStore?.setSessions?.(updatedSessions);
+            scoutDiag.info('WaterfallLifecycle', 'session-recovered-via-ref', {
+              sessionId,
+              waterfallRunId,
+              recoveredMsgCount: recoveredSession.messages.length,
+              sessionsSnapshotLen: sessionsSnapshot.length,
+            });
+          }
         }
 
         completeLoadingProgress();
-        scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
 
+        // Fire-and-forget: persistência no Supabase não deve bloquear o retorno
+        // do waterfall nem atrasar setIsLoading(false) no message-orchestrator.
+        // O dossiê já está no React state — a UI não depende do Supabase.
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
-          let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          try {
-            await Promise.race([
-              storage.saveDossier(dossier),
-              new Promise<never>((_, reject) => {
-                saveTimeoutId = setTimeout(() => reject(new Error('saveDossier timeout after 15s')), 15_000);
-              }),
-            ]);
-            window.dispatchEvent(
-              new CustomEvent('dossier:completed', {
-                detail: {
-                  dossierId: dossier.id,
-                  companyName: resolvedMegaCompany || normalizedCompany || '',
-                  cnpj: dossier.cnpj,
-                },
-              }),
-            );
-          } catch (error) {
-            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-              sessionId,
-              company: resolvedMegaCompany || normalizedCompany || null,
-              error: error instanceof Error ? error.message : String(error),
+          scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
+
+          storage
+            .saveDossier(dossier)
+            .then(() => {
+              window.dispatchEvent(
+                new CustomEvent('dossier:completed', {
+                  detail: {
+                    dossierId: dossier.id,
+                    companyName: resolvedMegaCompany || normalizedCompany || '',
+                    cnpj: dossier.cnpj,
+                  },
+                }),
+              );
+            })
+            .catch(error => {
+              scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+                sessionId,
+                company: resolvedMegaCompany || normalizedCompany || null,
+                error: error instanceof Error ? error.message : String(error),
+              });
             });
-          } finally {
-            if (saveTimeoutId) clearTimeout(saveTimeoutId);
-          }
         }
 
         waterfallEndStatus = 'completed';
       } finally {
-        // Timeout curto evita que delete bloqueie o retorno do waterfall (Lição 14).
-        // Se demorar >15s, o cache expira naturalmente pelo TTL de 600s.
+        // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
+        // Se demorar, o cache expira naturalmente pelo TTL de 600s.
         if (foundationCacheName) {
-          let cacheTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          try {
-            await Promise.race([
-              deleteWaterfallFoundationCache(foundationCacheName),
-              new Promise<never>((_, reject) => {
-                cacheTimeoutId = setTimeout(
-                  () => reject(new Error('deleteWaterfallFoundationCache timeout after 15s')),
-                  15_000,
-                );
-              }),
-            ]);
-          } catch {
-            scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache timeout ou falha', {
+          deleteWaterfallFoundationCache(foundationCacheName).catch(() => {
+            scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache falhou (fire-and-forget)', {
               cacheName: foundationCacheName,
             });
-          } finally {
-            if (cacheTimeoutId) clearTimeout(cacheTimeoutId);
-          }
+          });
         }
 
         scoutDiag.info('WaterfallLifecycle', 'pre-register-end', {
