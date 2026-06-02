@@ -66,10 +66,65 @@ describe('useAppInitialization', () => {
     renderHook(() => useAppInitialization(options));
 
     await waitFor(() => {
-      expect(options.setCurrentSessionId).toHaveBeenCalledWith('s1');
+      expect(options.setCurrentSessionId).toHaveBeenCalledWith(expect.any(Function));
     });
+
+    // Aplica o updater funcional com prevId null → deve retornar 's1'
+    const updaterFn = (options.setCurrentSessionId as ReturnType<typeof vi.fn>).mock.calls[0][0] as (
+      prev: string | null,
+    ) => string | null;
+    expect(updaterFn(null)).toBe('s1');
+    expect(updaterFn('existing-id')).toBe('existing-id');
 
     expect(options.setSessions).toHaveBeenCalledWith(expect.any(Function));
     expect(options.setIsInitialized).toHaveBeenCalledWith(true);
+  });
+
+  it('preserva sessoes locais criadas antes do load resolver (merge funcional)', async () => {
+    const localSessions = [buildSession('s1')];
+    const options = buildOptions({
+      loadSessions: vi.fn().mockResolvedValue(localSessions),
+    });
+
+    renderHook(() => useAppInitialization(options));
+
+    await waitFor(() => {
+      expect(options.setSessions).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    // Simula: usuário criou sessão local 'nova-sessao' antes do load resolver
+    const mergeFn = (options.setSessions as ReturnType<typeof vi.fn>).mock.calls[0][0] as (
+      prev: ChatSession[],
+    ) => ChatSession[];
+    const prevWithLocal = [buildSession('nova-sessao')];
+    const result = mergeFn(prevWithLocal);
+
+    // Sessão local 'nova-sessao' deve ser preservada
+    expect(result.find(s => s.id === 'nova-sessao')).toBeDefined();
+    // Sessão carregada 's1' deve estar presente
+    expect(result.find(s => s.id === 's1')).toBeDefined();
+    // Sem duplicatas
+    expect(result.length).toBe(2);
+  });
+
+  it('nao sobrescreve currentSessionId quando ja existe sessao ativa', async () => {
+    const localSessions = [buildSession('s1')];
+    const options = buildOptions({
+      loadSessions: vi.fn().mockResolvedValue(localSessions),
+    });
+
+    renderHook(() => useAppInitialization(options));
+
+    await waitFor(() => {
+      expect(options.setCurrentSessionId).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    const updaterFn = (options.setCurrentSessionId as ReturnType<typeof vi.fn>).mock.calls[0][0] as (
+      prev: string | null,
+    ) => string | null;
+    // Se já existe um currentSessionId (usuário iniciou investigação), NÃO sobrescrever
+    expect(updaterFn('active-session-id')).toBe('active-session-id');
+    // Se não existe (primeiro load), selecionar do histórico
+    expect(updaterFn(null)).toBe('s1');
   });
 });

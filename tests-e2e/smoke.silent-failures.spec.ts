@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { e2eOperatorEmail, preventMigrationNotice } from './helpers/onboarding';
 
 /**
  * Testes de falha silenciosa — o usuário NUNCA deve ficar sem feedback.
@@ -20,6 +21,7 @@ test.describe('Scout smoke — resiliência a falhas', () => {
     // Bloqueia todas as chamadas Supabase para simular offline
     await page.route('**/rest/v1/**', route => route.abort('connectionrefused'));
 
+    await preventMigrationNotice(page);
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
@@ -49,11 +51,12 @@ test.describe('Scout smoke — resiliência a falhas', () => {
       }
     });
 
+    await preventMigrationNotice(page);
     await page.goto('/');
 
     // Registrar
     await page.getByPlaceholder('Nome e sobrenome').fill('Bruno Fallback');
-    await page.getByPlaceholder('seu.nome@senior.com.br').fill('fallback@teste.com');
+    await page.getByPlaceholder('seu.nome@senior.com.br').fill(e2eOperatorEmail('qa.fallback'));
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await page.waitForTimeout(3000);
 
@@ -89,9 +92,10 @@ test.describe('Scout smoke — resiliência a falhas', () => {
       }
     });
 
+    await preventMigrationNotice(page);
     await page.goto('/');
     await page.getByPlaceholder('Nome e sobrenome').fill('Bruno Resilient');
-    await page.getByPlaceholder('seu.nome@senior.com.br').fill('resilient@teste.com');
+    await page.getByPlaceholder('seu.nome@senior.com.br').fill(e2eOperatorEmail('qa.resilient'));
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 10000 });
 
@@ -115,9 +119,10 @@ test.describe('Scout smoke — resiliência a falhas', () => {
   // Cenário 4: Reload mid-waterfall → estado preservado
   // ===================================================================
   test('estado parcial deve ser preservado após reload mid-waterfall', async ({ page }) => {
+    await preventMigrationNotice(page);
     await page.goto('/');
     await page.getByPlaceholder('Nome e sobrenome').fill('Bruno Mid');
-    await page.getByPlaceholder('seu.nome@senior.com.br').fill('mid@teste.com');
+    await page.getByPlaceholder('seu.nome@senior.com.br').fill(e2eOperatorEmail('qa.mid'));
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 10000 });
 
@@ -136,7 +141,7 @@ test.describe('Scout smoke — resiliência a falhas', () => {
 
     // Registra novamente
     await page.getByPlaceholder('Nome e sobrenome').fill('Bruno Mid');
-    await page.getByPlaceholder('seu.nome@senior.com.br').fill('mid@teste.com');
+    await page.getByPlaceholder('seu.nome@senior.com.br').fill(e2eOperatorEmail('qa.mid.reload'));
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await page.waitForTimeout(3000);
 

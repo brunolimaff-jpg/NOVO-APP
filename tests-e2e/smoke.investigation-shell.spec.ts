@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { completeOnboarding } from './helpers/onboarding';
 
 async function completeGreeting(page: import('@playwright/test').Page) {
-  await page.goto('/');
-  await page.getByTestId('greeting-name-input').fill('Bruno');
-  await page.getByTestId('greeting-submit-button').click();
-  await expect(page.getByTestId('investigation-company-input')).toBeVisible();
+  await completeOnboarding(page);
 }
 
 test.describe('Scout smoke - investigation shell', () => {

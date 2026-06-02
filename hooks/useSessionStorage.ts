@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
 import { storage } from '../services/storage';
 import { ChatSession } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
@@ -7,14 +7,25 @@ import { runIdbToSupabaseMigration } from '../lib/migration/idbToSupabase';
 const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 
 export function useSessionStorage() {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessions, setSessionsState] = useState<ChatSession[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const sessionsRef = useRef<ChatSession[]>([]);
+  // Render-phase sync mantem o ref alinhado com o estado commitado,
+  // eliminando o lag de 1 render que useEffect introduz.
+  // Essencial para que o fallback do waterfall-orchestrator encontre
+  // a sessao mesmo sob React 18 automatic batching.
+  sessionsRef.current = sessions;
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    sessionsRef.current = sessions;
-  }, [sessions]);
+  const setSessions = useCallback<Dispatch<SetStateAction<ChatSession[]>>>(next => {
+    const resolved =
+      typeof next === 'function'
+        ? (next as (prev: ChatSession[]) => ChatSession[])(sessionsRef.current)
+        : next;
+
+    sessionsRef.current = resolved;
+    setSessionsState(resolved);
+  }, []);
 
   const loadSessions = useCallback(async (): Promise<ChatSession[]> => {
     const sanitizeLoadedSessions = (loaded: ChatSession[]): ChatSession[] =>
@@ -105,7 +116,11 @@ export function useSessionStorage() {
       try {
         const loaded = await loadSessions();
         if (!cancelled) {
-          setSessions(loaded);
+          setSessions(prev => {
+            const loadedIds = new Set(loaded.map(s => s.id));
+            const kept = prev.filter(s => !loadedIds.has(s.id));
+            return [...loaded, ...kept];
+          });
           setIsInitialized(true);
         }
       } catch (e) {
@@ -137,7 +152,11 @@ export function useSessionStorage() {
       loadSessions()
         .then(loaded => {
           if (loaded.length > 0) {
-            setSessions(loaded);
+            setSessions(prev => {
+              const loadedIds = new Set(loaded.map(s => s.id));
+              const kept = prev.filter(s => !loadedIds.has(s.id));
+              return [...loaded, ...kept];
+            });
           }
         })
         .catch(() => {});

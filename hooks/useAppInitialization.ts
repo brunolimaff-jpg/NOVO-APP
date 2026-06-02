@@ -12,12 +12,11 @@ interface UseAppInitializationOptions {
 }
 
 /**
- * Handles app initialization in two phases:
- * 1. (Blocking) Load local sessions immediately so the UI is interactive.
- * 2. (Background) Merge remote sessions without disrupting the current session.
- *
- * Warm-up: dispara um ping silencioso ao Apps Script do lookup logo no boot
- * para evitar cold start quando o vendedor fizer a primeira consulta.
+ * Handles app initialization:
+ * 1. Warm-up: dispara ping silencioso ao Apps Script do lookup.
+ * 2. Load sessions do Supabase e faz merge funcional com sessões locais
+ *    criadas antes da resolução do load — NUNCA sobrescreve prev.
+ * 3. Seleciona sessão inicial apenas se nenhuma foi criada localmente.
  */
 export function useAppInitialization({
   loadSessions,
@@ -30,21 +29,28 @@ export function useAppInitialization({
     let cancelled = false;
 
     // WARM-UP: acorda o Apps Script do lookup silenciosamente.
-    // Não aguarda resposta nem trata erros — o objetivo é apenas tirar o serviço do cold start
-    // antes do vendedor digitar a primeira empresa.
     fetch(`${LOOKUP_URL}?q=warmup`, { method: 'GET', redirect: 'follow' }).catch(() => {
       scoutDiag.warn('AppInit', 'Warmup do lookup falhou (best-effort)');
     });
 
     const init = async () => {
-      const localSessions = await loadSessions();
+      const loaded = await loadSessions();
       if (cancelled) return;
 
-      // Phase 1: make the app interactive with local data immediately
-      if (localSessions.length > 0) {
-        setSessions(() => localSessions);
-        setCurrentSessionId(localSessions[0].id);
+      // Merge funcional: preserva sessões criadas localmente entre o início
+      // do load e sua resolução. loaded vence para IDs sobrepostos (source of truth).
+      setSessions(prev => {
+        const loadedIds = new Set(loaded.map(s => s.id));
+        const kept = prev.filter(s => !loadedIds.has(s.id));
+        return loaded.length > 0 ? [...loaded, ...kept] : prev;
+      });
+
+      // Só seleciona sessão inicial se o usuário ainda não iniciou uma investigação.
+      // Se prevId já existe, mantém — evita sobrescrever sessão ativa ou geração em andamento.
+      if (loaded.length > 0) {
+        setCurrentSessionId(prevId => prevId ?? loaded[0].id);
       }
+
       if (window.innerWidth < 768) setIsSidebarOpen(false);
       setIsInitialized(true);
     };

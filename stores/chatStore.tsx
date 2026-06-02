@@ -48,7 +48,7 @@ export interface ChatStoreValue {
   setLastQuery: Dispatch<SetStateAction<string>>;
   investigationLogged: boolean;
   setInvestigationLogged: Dispatch<SetStateAction<boolean>>;
-  updateSessionById: (sessionId: string, updater: (session: ChatSession) => ChatSession) => void;
+  updateSessionById: (sessionId: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null;
   updateCurrentSession: (updater: (session: ChatSession) => ChatSession) => void;
   lastActionRef: MutableRefObject<LastAction | null>;
   abortControllerRef: MutableRefObject<AbortController | null>;
@@ -126,27 +126,30 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
 
   const updateSessionById = useCallback(
     (sessionId: string, updater: (session: ChatSession) => ChatSession) => {
-      setSessions(prev =>
-        prev.map(session =>
-          session.id === sessionId ? { ...updater(session), updatedAt: new Date().toISOString() } : session,
-        ),
-      );
+      let updatedSession: ChatSession | null = null;
+      const source = sessionsRef.current.some(session => session.id === sessionId) ? sessionsRef.current : sessions;
+      const nextSessions = source.map(session => {
+        if (session.id !== sessionId) return session;
+        const nextSession = { ...updater(session), updatedAt: new Date().toISOString() };
+        updatedSession = nextSession;
+        return nextSession;
+      });
+
+      if (!updatedSession) return null;
+
+      sessionsRef.current = nextSessions;
+      setSessions(nextSessions);
+      return updatedSession;
     },
-    [setSessions],
+    [sessions, sessionsRef, setSessions],
   );
 
   const updateCurrentSession = useCallback(
     (updater: (session: ChatSession) => ChatSession) => {
       if (!viewState.currentSessionId) return;
-      setSessions(prev =>
-        prev.map(session =>
-          session.id === viewState.currentSessionId
-            ? { ...updater(session), updatedAt: new Date().toISOString() }
-            : session,
-        ),
-      );
+      updateSessionById(viewState.currentSessionId, updater);
     },
-    [setSessions, viewState.currentSessionId],
+    [updateSessionById, viewState.currentSessionId],
   );
 
   const currentSession = useMemo(
@@ -174,6 +177,22 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     sessions.length,
     currentSession?.title,
   ]);
+
+  // ── Instrumentação: detecta currentSession null com geração ativa ──
+  useEffect(() => {
+    const hasActiveGeneration = Object.values(activeGenerationRef.current).some(Boolean);
+    if (!currentSession && hasActiveGeneration && viewState.currentSessionId) {
+      console.error(
+        '[Scout360][chatStore] ⚠ currentSession null com geração ativa',
+        JSON.stringify({
+          expectedSessionId: viewState.currentSessionId,
+          sessionsCount: sessions.length,
+          sessionIds: sessions.map(s => s.id),
+          activeGenerationKeys: Object.keys(activeGenerationRef.current).filter(k => activeGenerationRef.current[k]),
+        }),
+      );
+    }
+  }, [currentSession, sessions.length, viewState.currentSessionId]);
 
   const prevMsgCountRef = useRef(currentSession?.messages?.length ?? 0);
   useEffect(() => {

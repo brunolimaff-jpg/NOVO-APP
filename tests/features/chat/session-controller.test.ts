@@ -194,8 +194,10 @@ describe('useSessionManager session controller', () => {
 
     expect(options.setSessions).toHaveBeenCalled();
     const setSessionsMock = options.setSessions as ReturnType<typeof vi.fn>;
-    const filteredSessions = setSessionsMock.mock.calls[0][0];
-    expect(Array.isArray(filteredSessions)).toBe(true);
+    const updaterFn = setSessionsMock.mock.calls[0][0] as (prev: unknown[]) => unknown[];
+    const filteredSessions = updaterFn([makeSession('s1', 'Alpha'), makeSession('s2', 'Beta')]);
+    expect(filteredSessions).toHaveLength(1);
+    expect((filteredSessions[0] as { id: string }).id).toBe('s1');
   });
 
   it('handleDeleteSession cria nova sessão quando a lista fica vazia', () => {

@@ -1,14 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { completeOnboarding } from './helpers/onboarding';
 
 test.describe('Scout smoke — data-testid presence', () => {
   test.describe.configure({ timeout: 90_000 });
 
   async function setupChatShell(page: import('@playwright/test').Page) {
-    await page.goto('/');
-    await page.getByTestId('greeting-name-input').fill('Bruno');
-    await page.getByTestId('greeting-submit-button').click();
-
-    await expect(page.getByTestId('investigation-company-input')).toBeVisible();
+    await completeOnboarding(page);
     await page.getByTestId('investigation-company-input').fill('Fazenda Modelo');
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
@@ -45,7 +42,7 @@ test.describe('Scout smoke — data-testid presence', () => {
     await page.getByTestId('send-message-button').click();
 
     // loading-smart deve aparecer durante o processamento
-    const loadingSmart = page.getByTestId('loading-smart');
+    const loadingSmart = page.getByTestId('loading-smart-overlay');
     const loadingAppeared = await loadingSmart.isVisible({ timeout: 15_000 }).catch(() => false);
 
     if (loadingAppeared) {

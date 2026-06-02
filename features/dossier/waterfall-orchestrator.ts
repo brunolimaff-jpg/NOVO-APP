@@ -82,7 +82,7 @@ export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
   setLoadingVariant?: (variant: 'hero' | 'inline') => void;
-  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null | void;
   resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
   replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
@@ -420,6 +420,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallRunId = guardCheck.runId;
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
+      let sessionToPersist: ChatSession | null = null;
 
       try {
         let accumulatedText = '';
@@ -1008,9 +1009,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
-        let sessionToPersist: ChatSession | null = null;
+        sessionToPersist = null;
         let originalMsgCount = -1;
-        updateSessionById(sessionId, session => {
+        const updatedSession = updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
           const nextSession: ChatSession = {
@@ -1039,6 +1040,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionToPersist = nextSession;
           return nextSession;
         });
+        if (updatedSession) {
+          sessionToPersist = updatedSession;
+        }
 
         const persistMsgCount = (sessionToPersist as ChatSession | null)?.messages?.length ?? 0;
         const persistBotUpdated =
@@ -1055,8 +1059,26 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
         });
 
-        // ⚠ Diagnóstico: se o dossiê foi gerado mas sessionToPersist está vazio
-        if (!sessionToPersist || persistMsgCount === 0) {
+        // ⚠ Fallback: updateSessionById pode perder a sessão quando React faz batch
+        // de setState e o cache está limpo (primeira carga / race condition).
+        // Cenário A: prev[] vazio → callback nunca roda → sessionToPersist = null
+        // Cenário B: prev[] tem a sessão mas botMessageId não casa → texto nunca escrito
+        // sessionsRef.current é sincronizado via render-phase (useSessionStorage.ts).
+        if (!sessionToPersist || !persistBotUpdated) {
+          if (!persistBotUpdated && persistMsgCount > 0) {
+            console.error(
+              '[Scout360][WaterfallLifecycle] ⚠ botMessageId nao encontrado na sessao',
+              JSON.stringify({
+                sessionId,
+                botMessageId,
+                messageIds: sessionToPersist
+                  ? ((sessionToPersist as ChatSession)?.messages?.map((m: { id: string }) => m.id) ?? [])
+                  : [],
+                waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
+              }),
+            );
+          }
+
           console.error(
             '[Scout360][WaterfallLifecycle] ⚠ sessionToPersist VAZIO após updateSessionById',
             JSON.stringify({
@@ -1065,68 +1087,146 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               sessionToPersistIsNull: sessionToPersist === null,
               originalMsgCount,
               persistMsgCount,
+              persistBotUpdated,
               waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
               botMessageId,
             }),
           );
+
+          const sessionsSnapshot = chatStore?.sessionsRef?.current ?? [];
+          const fallbackSession = sessionsSnapshot.find((s: ChatSession) => s.id === sessionId);
+          if (fallbackSession) {
+            const finalCompany =
+              normalizedCompany || fallbackSession.empresaAlvo || pickCompanyLabel(fallbackSession.title);
+            const recoveredSession: ChatSession = {
+              ...fallbackSession,
+              updatedAt: new Date().toISOString(),
+              empresaAlvo: finalCompany || fallbackSession.empresaAlvo,
+              scoreOportunidade: waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
+              messages: fallbackSession.messages.map(message =>
+                message.id === botMessageId
+                  ? {
+                      ...message,
+                      text: waterfallFinalText,
+                      scorePorta: waterfallScorePorta ?? undefined,
+                      clienteSeniorData: waterfallClienteSeniorData || undefined,
+                      groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                      webVerificationStatus,
+                      groundingUsed:
+                        webVerificationStatus === 'not_applicable'
+                          ? undefined
+                          : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
+                      suggestions: waterfallSuggestions,
+                      isThinking: false,
+                    }
+                  : message,
+              ),
+            };
+            sessionToPersist = recoveredSession;
+            // findIndex + prepend garante que a sessão NUNCA seja perdida,
+            // mesmo se prev[] estiver vazio (race condition do React 18 batching).
+            chatStore?.setSessions?.((prev: ChatSession[]) => {
+              const idx = prev.findIndex((s: ChatSession) => s.id === sessionId);
+              if (idx === -1) {
+                return [recoveredSession, ...prev];
+              }
+              const next = [...prev];
+              next[idx] = recoveredSession;
+              return next;
+            });
+            scoutDiag.info('WaterfallLifecycle', 'session-recovered-via-ref', {
+              sessionId,
+              waterfallRunId,
+              recoveredMsgCount: recoveredSession.messages.length,
+              sessionsSnapshotLen: sessionsSnapshot.length,
+            });
+          } else {
+            console.error(
+              '[Scout360][WaterfallLifecycle] FALLBACK TAMBEM VAZIO — sessao irrecuperavel',
+              JSON.stringify({
+                sessionId,
+                waterfallRunId,
+                refCount: sessionsSnapshot.length,
+                allSessionIds: sessionsSnapshot.map((s: ChatSession) => s.id),
+              }),
+            );
+          }
         }
 
         completeLoadingProgress();
-        scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
 
+        // Fire-and-forget: persistência no Supabase não deve bloquear o retorno
+        // do waterfall nem atrasar setIsLoading(false) no message-orchestrator.
+        // O dossiê já está no React state — a UI não depende do Supabase.
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
-          let saveTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          try {
-            await Promise.race([
-              storage.saveDossier(dossier),
-              new Promise<never>((_, reject) => {
-                saveTimeoutId = setTimeout(() => reject(new Error('saveDossier timeout after 15s')), 15_000);
-              }),
-            ]);
-            window.dispatchEvent(
-              new CustomEvent('dossier:completed', {
-                detail: {
-                  dossierId: dossier.id,
-                  companyName: resolvedMegaCompany || normalizedCompany || '',
-                  cnpj: dossier.cnpj,
-                },
-              }),
-            );
-          } catch (error) {
-            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-              sessionId,
-              company: resolvedMegaCompany || normalizedCompany || null,
-              error: error instanceof Error ? error.message : String(error),
+          scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
+
+          let saveResolved = false;
+          const saveTimeoutId = setTimeout(() => {
+            if (!saveResolved) {
+              scoutDiag.warn('ModularDossier', 'saveDossier demorando mais de 15s — ainda pendente', {
+                sessionId,
+              });
+            }
+          }, 15_000);
+
+          storage
+            .saveDossier(dossier)
+            .then(() => {
+              saveResolved = true;
+              clearTimeout(saveTimeoutId);
+              window.dispatchEvent(
+                new CustomEvent('dossier:completed', {
+                  detail: {
+                    dossierId: dossier.id,
+                    companyName: resolvedMegaCompany || normalizedCompany || '',
+                    cnpj: dossier.cnpj,
+                  },
+                }),
+              );
+            })
+            .catch(error => {
+              saveResolved = true;
+              clearTimeout(saveTimeoutId);
+              scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+                sessionId,
+                company: resolvedMegaCompany || normalizedCompany || null,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
+                sessionId,
+                reason: error instanceof Error ? error.message : String(error),
+              });
             });
-          } finally {
-            if (saveTimeoutId) clearTimeout(saveTimeoutId);
-          }
         }
 
         waterfallEndStatus = 'completed';
       } finally {
-        // Timeout curto evita que delete bloqueie o retorno do waterfall (Lição 14).
-        // Se demorar >15s, o cache expira naturalmente pelo TTL de 600s.
+        // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
+        // Timeout de 15s com warning se a promise não resolver.
         if (foundationCacheName) {
-          let cacheTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          try {
-            await Promise.race([
-              deleteWaterfallFoundationCache(foundationCacheName),
-              new Promise<never>((_, reject) => {
-                cacheTimeoutId = setTimeout(
-                  () => reject(new Error('deleteWaterfallFoundationCache timeout after 15s')),
-                  15_000,
-                );
-              }),
-            ]);
-          } catch {
-            scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache timeout ou falha', {
-              cacheName: foundationCacheName,
+          let cacheResolved = false;
+          const cacheTimeoutId = setTimeout(() => {
+            if (!cacheResolved) {
+              scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache demorando mais de 15s', {
+                cacheName: foundationCacheName,
+              });
+            }
+          }, 15_000);
+
+          deleteWaterfallFoundationCache(foundationCacheName)
+            .then(() => {
+              cacheResolved = true;
+              clearTimeout(cacheTimeoutId);
+            })
+            .catch(() => {
+              cacheResolved = true;
+              clearTimeout(cacheTimeoutId);
+              scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache falhou (fire-and-forget)', {
+                cacheName: foundationCacheName,
+              });
             });
-          } finally {
-            if (cacheTimeoutId) clearTimeout(cacheTimeoutId);
-          }
         }
 
         scoutDiag.info('WaterfallLifecycle', 'pre-register-end', {
@@ -1137,6 +1237,40 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         });
         registerWaterfallEnd(sessionId, waterfallRunId, waterfallEndStatus);
         scoutDiag.info('WaterfallLifecycle', 'pos-register-end', { sessionId, waterfallRunId });
+
+        // Health-check final: snapshot completo do sistema pós-waterfall.
+        // Se algo quebrou, este único log responde "o quê, onde, por quê".
+        const healthSession = chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
+        const healthBotMsg = healthSession?.messages?.find(
+          (m: { id: string; sender: string }) => m.id === botMessageId,
+        ) as { id: string; sender: string; isThinking?: boolean; text?: string } | undefined;
+        scoutDiag.info('WaterfallLifecycle', 'health-check-final', {
+          sessionId,
+          waterfallRunId,
+          waterfallEndStatus,
+          sessionFoundInRef: Boolean(healthSession),
+          sessionMsgCount: healthSession?.messages?.length ?? -1,
+          botMsgFound: Boolean(healthBotMsg),
+          botMsgTextLen: typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1,
+          botMsgIsThinking: Boolean(healthBotMsg?.isThinking),
+          isLoading: chatStore?.isLoading ?? 'unknown',
+          loadingVariant: chatStore?.loadingVariant ?? 'unknown',
+          domBodyLen: typeof document !== 'undefined' ? (document.body?.textContent?.length ?? 0) : -1,
+          domHasBotContent:
+            typeof document !== 'undefined'
+              ? Boolean(document.querySelector('[data-testid="bot-message-content"]'))
+              : false,
+          domHasLoadingOverlay:
+            typeof document !== 'undefined'
+              ? Boolean(document.querySelector('[data-testid="loading-smart-overlay"]'))
+              : false,
+          domComposerDisabled:
+            typeof document !== 'undefined'
+              ? ((document.querySelector('[data-testid="composer-input"]') as HTMLInputElement)?.disabled ?? false)
+              : false,
+          dossierWasPersisted: sessionToPersist !== null,
+          cacheWasCleaned: foundationCacheName !== null,
+        });
       }
     },
     [
