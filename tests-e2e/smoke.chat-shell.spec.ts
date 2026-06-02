@@ -1,14 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { completeOnboarding } from './helpers/onboarding';
 
 test.describe('Scout smoke - chat shell', () => {
   test.describe.configure({ timeout: 60_000 });
 
   async function openChatShell(page: import('@playwright/test').Page) {
-    await page.goto('/');
-    await page.getByTestId('greeting-name-input').fill('Bruno');
-    await page.getByTestId('greeting-submit-button').click();
-
-    await expect(page.getByTestId('investigation-company-input')).toBeVisible();
+    await completeOnboarding(page);
     await page.getByTestId('investigation-company-input').fill('Fazenda Modelo');
     await page.getByTestId('investigation-city-input').fill('Cuiab\u00E1');
     await page.getByTestId('investigation-uf-input').fill('MT');

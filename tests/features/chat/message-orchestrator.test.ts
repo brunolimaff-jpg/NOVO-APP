@@ -237,6 +237,7 @@ describe('useChatMessageOrchestrator', () => {
       expect.objectContaining({ sessionId: 'session-new' }),
       true,
     );
+    expect(harness.activeGenerationRef.current['session-new']).toBeUndefined();
   });
 
   it('usa histórico existente em follow-up e muda loadingVariant para inline', async () => {

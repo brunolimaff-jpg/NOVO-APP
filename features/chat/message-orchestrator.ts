@@ -590,6 +590,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           isAbort,
         });
 
+        if (activeGenerationRef.current[sessionId] === botMessageId) {
+          delete activeGenerationRef.current[sessionId];
+        }
+
         setIsLoading(false);
         completeLoadingProgress();
         setRequestKind('default');

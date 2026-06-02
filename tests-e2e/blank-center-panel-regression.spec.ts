@@ -1,5 +1,6 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
+import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
@@ -20,25 +21,11 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   });
 
   async function fullOnboard(page: import('@playwright/test').Page) {
-    await page.goto('/');
-
-    // Dismissa modais de migração/update que bloqueiam interação
-    const migrationDismiss = page.getByRole('button', { name: 'Entendi, começar' });
-    if (await migrationDismiss.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await migrationDismiss.click({ force: true });
-      await page.waitForTimeout(1000);
-    }
-
-    const greeting = page.getByTestId('greeting-card');
-    if (await greeting.isVisible().catch(() => false)) {
-      await page.getByTestId('greeting-name-input').fill('Test Bot');
-      await page.getByTestId('greeting-submit-button').click({ force: true });
-      await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 15_000 });
-      // Preenche formulário de investigação mas NÃO submete (depende da API Gemini)
-      await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
-      await page.getByTestId('investigation-city-input').fill('Cuiabá');
-      await page.getByTestId('investigation-uf-input').fill('MT');
-    }
+    await completeOnboarding(page);
+    // Preenche formulario de investigacao mas NAO submete (depende da API Gemini)
+    await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
+    await page.getByTestId('investigation-city-input').fill('Cuiabá');
+    await page.getByTestId('investigation-uf-input').fill('MT');
   }
 
   async function collectDiagnostics(page: import('@playwright/test').Page) {
@@ -55,7 +42,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       .count()
       .catch(() => -1);
     const loadingSmart = await page
-      .getByTestId('loading-smart')
+      .getByTestId('loading-smart-overlay')
       .isVisible()
       .catch(() => false);
     const controlledError = await page
@@ -81,14 +68,10 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   }
 
   test('app abre sem tela branca — shell visível', async ({ page }) => {
+    await preventMigrationNotice(page);
     await page.goto('/');
 
-    // Dismissa modais de migração/update
-    const migrationDismiss = page.getByRole('button', { name: 'Entendi, começar' });
-    if (await migrationDismiss.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await migrationDismiss.click({ force: true });
-      await page.waitForTimeout(1000);
-    }
+    await dismissMigrationNotice(page);
 
     // O shell principal sempre renderiza
     await expect(page.getByTestId('app-shell')).toBeVisible({ timeout: 15_000 });
@@ -145,7 +128,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
           .isVisible()
           .catch(() => false);
         const hasLoading = await page
-          .getByTestId('loading-smart')
+          .getByTestId('loading-smart-overlay')
           .isVisible()
           .catch(() => false);
         const hasError = await page

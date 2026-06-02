@@ -1,6 +1,76 @@
 # Decisions
 
-Last updated: 2026-05-31 — Vercel Features Exploradas (plano cancelado)
+Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall
+
+## 2026-06-02 — Snapshot sincrono para estado critico de sessao (APLICADO LOCALMENTE)
+
+Decision: atualizacoes criticas de sessao devem retornar o snapshot resultante de forma sincrona. `setSessions` sincroniza `sessionsRef.current` antes de agendar o estado React; `updateSessionById` retorna `ChatSession | null`; o waterfall usa esse retorno para preencher `sessionToPersist`.
+
+Reason: o bug da PR #328 persistia porque o fluxo lia `sessionToPersist` por side effect dentro de callback de `setState`. Com React batching, esse callback podia nao rodar a tempo ou nao rodar quando a sessao sumia do `prev`. A ref ja continha a sessao recuperavel, e o Supabase persistia o dossie, mas o fluxo primario ficava quebrado.
+
+Contract: nao depender de side effects dentro de updater React para resultado que precisa ser persistido/renderizado no mesmo fluxo async. Helpers de escrita critica devem devolver o objeto atualizado e manter a ref sincronizada.
+
+Refs: `hooks/useSessionStorage.ts`, `stores/chatStore.tsx`, `features/dossier/waterfall-orchestrator.ts`, PR #328.
+
+## 2026-06-02 — CI deve travar regressao de tela branca/loading (APLICADO LOCALMENTE)
+
+Decision: adicionar check `E2E Critical Browser` ao GitHub Actions, rodando `blank-center-panel-regression`, `controlled-error-state` e `loading-smart-recovery`.
+
+Reason: as PRs anteriores passavam sem cobrir browser real; o preview smoke era HTTP-only e nao pegava tela branca, composer travado, overlay preso ou drift de onboarding/testid. A suite critica usa onboarding atual e stub deterministico de `/api/gemini`, evitando depender de Gemini real para CI.
+
+Contract: PR que mexe no fluxo de investigacao/loading deve passar typecheck, unit tests, build e `E2E Critical Browser` antes de merge. Se habilitar branch protection/ruleset, incluir esse check como required.
+
+Refs: `.github/workflows/ci.yml`, `tests-e2e/helpers/`, PR #328.
+
+## 2026-06-01 — Barrel export: padrao de decomposicao sem breaking changes (APLICADO)
+
+Decision: ao decompor um god module em modulos menores, criar uma pasta com `index.ts` que re-exporta tudo via barrel export. Nao quebrar imports existentes — consumidores continuam importando do caminho original.
+
+Reason: storage.ts (464 linhas) foi decomposto em 9 modulos dentro de `services/storage/`. Cada modulo tem responsabilidade unica (dossiers, userContext, favorites, radar, sharedDossiers, extractCache, audit, types). O `index.ts` re-exporta todas as funcoes e tipos, mantendo compatibilidade total com quem importa de `services/storage`. Zero arquivos precisaram ter imports atualizados.
+
+Contract: todo god module decomposto deve seguir o padrao: 1 pasta com `index.ts` barrel. Nao remover o arquivo original ate o barrel estar no ar. Testes e typecheck devem passar sem alteracao.
+
+Refs: `services/storage/`, PR #326, commits `f214ebc1`..`4a6e20b2`.
+
+## 2026-06-01 — `storageGet()`: helper tipado para localStorage (APLICADO)
+
+Decision: criar funcao `storageGet<T>(key, fallback?)` em `utils/localStorage.ts` para substituir `JSON.parse(localStorage.getItem(key))` espalhado pelo codigo.
+
+Reason: o padrao antigo gerava codigo repetitivo, sujeito a erros de null check e sem tipagem. O helper centraliza parsing JSON, fallback default, e tipagem generica. Reduz duplicacao e risco de ReferenceError em runtime.
+
+Contract: usar `storageGet<T>(key, defaultValue)` para leitura e `storageSet(key, value)` para escrita. Handoff de migracao pendente: substituir chamadas espalhadas em outros arquivos.
+
+Refs: `utils/localStorage.ts`, PR #326.
+
+## 2026-06-01 — `await + {error}`: padrao de erro Supabase sem try/catch (APLICADO)
+
+Decision: operacoes Supabase devem usar `await` e verificar `{error}` no retorno. Nao usar `try/catch` (Supabase nunca rejeita promessas em operacoes normais). Nao usar `fire-and-forget` (Supabase calls sem await).
+
+Reason: Supabase client retorna `{data, error}` — nunca lanca excecao (a menos que seja erro de rede na camada HTTP, que e raro). O `try/catch` em userContext.ts era codigo morto que escondia erros reais. O fire-and-forget (`supabase.from('x').upsert(...)` sem await) perdia erros silenciosamente. Com `await` + `if (error)`, todo erro de upsert/select e visivel no console e tratavel.
+
+Contract: todo Supabase call deve usar `const { data, error } = await supabase.from(...)...`. Se `error` for truthy, logar com `console.error('[Storage]', error)`. Nao usar `try/catch` em operacoes Supabase normais (excecao: operacoes que fazem fetch HTTP customizado).
+
+Refs: `services/storage/userContext.ts`, PR #326, commit `f214ebc1`.
+
+## 2026-06-01 — Rename `idbStorage.ts` para `localStorage.ts` (APLICADO)
+
+Decision: renomear `utils/idbStorage.ts` para `utils/localStorage.ts`. O nome original era enganoso — o arquivo sempre usou `localStorage` do browser, nunca IndexedDB.
+
+Reason: durante a auditoria da sessao, identificamos que `idbStorage.ts` so usava `localStorage` (window.localStorage). Nao havia operacoes IDB. O nome "idb" confundia novos desenvolvedores (e agents) que assumiam suporte a async/transactions. O rename elimina a confusao.
+
+Contract: alias de export mantido temporariamente para compatibilidade (`export { localStorage as idbStorage }`). Remover alias apos proxima sessao se nenhum import externo quebrar.
+
+Refs: `utils/idbStorage.ts` -> `utils/localStorage.ts`, PR #326.
+
+## 2026-06-01 — Waterfall intocado durante rebase (CONFIRMADO)
+
+Decision: confirmar que `waterfall-orchestrator.ts` esta 100% identico ao main apos o rebase da branch `refactor/decompose-and-optimize`.
+
+Reason: a branch original (`fix/waterfall-95pct-restart-loop`) continha o fix WaterfallGuard. Ao renomear para `refactor/decompose-and-optimize` e rebasear no main (que ja tem WaterfallGuard + anti-restart-loop + Sentry), havia risco de conflito. A verificacao pos-rebase confirmou que o arquivo esta identico ao main — sem regressao no fix do restart loop.
+
+Contract: sempre verificar `waterfall-orchestrator.ts` apos rebase para confirmar que fixes de restart loop nao foram perdidos. `git diff main -- waterfall-orchestrator.ts` deve retornar vazio.
+
+Refs: commit `c41f001a`, PR #326.
 
 ## 2026-05-31 — Vercel AI Gateway + Cron + Queues: plano cancelado (ARQUIVADO)
 
@@ -119,3 +189,53 @@ Findings novos identificados:
 Contract: 3-4 commits semanticos na nova PR (ex: fix/operator-email, fix/tela-branca-loading, feat/dossier-lifecycle-clean). Nao incluir findings do code review que nao sao bugs (discutir com Bruno).
 
 Refs: PR #314, vault `2026-05-29T20-30-00-novos-bugs-preview-fechamento-pr314.md`, `services/storage.ts:153-218`, `utils/renderStateClassifier.ts`, `components/DossierShareBar.tsx:22`.
+
+## 2026-06-01 — sessionsRef fallback para updateSessionById (APLICADO)
+
+Decision: quando `updateSessionById` (waterfall-orchestrator.ts) falha ao encontrar a sessao (retorna undefined por React batching / race condition), usar `sessionsRef.current` como fallback sincrono para reconstruir o dossier.
+
+Reason: durante o waterfall, o React pode fazer batch de sets de estado. Se o cache de sessions esta limpo (primeira carga), `updateSessionById` olha o estado React que ainda nao foi atualizado. Como `sessionsRef` e uma ref sincrona, ela sempre tem o valor mais recente. O fallback busca a sessao na ref e reconstroi o dossier completo.
+
+Contract: (1) tentar `updateSessionById(sessionId, partial)`. (2) Se retornar undefined, buscar em `sessionsRef.current`. (3) Se encontrou na ref, chamar `handleSessionUpdate` manualmente com os dados ja montados. (4) Se nem na ref existe, logar erro e retornar sem dossier — nao travar o loading.
+
+Refs: `waterfall-orchestrator.ts:1059`, commit `365373bd`, PR #327.
+
+## 2026-06-01 — Socio-search: entrypoint HTTP puro + logica em services/ (APLICADO)
+
+Decision: ao decompor `api/socio-search.ts` (1350L), manter o entrypoint HTTP como unico handler (`api/socio-search.ts`, 149L). Toda a logica de negocio extraida para `services/socio-search/` (6 modulos: types, cache, parser, scoring, orchestration, barrel).
+
+Reason: Vercel conta cada `api/*.ts` como uma function. Criar novos handlers multipliicaria o numero de functions. A decomposicao para services/ (modulos internos, sem HTTP) mantem 15 `api/*.ts` — mesmo numero de antes. Nenhum custo adicional de infra. O barrel `services/socio-search/index.ts` re-exporta tudo, mantendo compatibilidade.
+
+Contract: (1) `api/socio-search.ts` so faz parse do request, delegar para orchestration, e retornar resposta. (2) Nao criar novos `api/*.ts` durante decomposicao. (3) Usar barrel export em `services/socio-search/index.ts`. (4) Preservar `export const config` e `maxDuration` no entrypoint.
+
+Refs: `api/socio-search.ts` -> `services/socio-search/`, commit `d7a4bc55`, PR #327.
+
+## 2026-06-02 — sessionsRef fallback como airbag (APLICADO)
+
+Decision: quando `updateSessionById` (waterfall-orchestrator.ts) falha ao encontrar a sessao (retorna undefined por React batching / race condition), usar `sessionsRef.current` como fallback sincrono para reconstruir o dossier. sessionsRef sync agora e feita em render-phase (inline no hook), nao em useEffect.
+
+Reason: durante o waterfall, o React pode fazer batch de sets de estado. Se o cache de sessions esta limpo (primeira carga), `updateSessionById` olha o estado React que ainda nao foi atualizado. sessionsRef e uma ref sincrona — sempre tem o valor mais recente, independente do ciclo de render. O sync em render-phase (vs useEffect) elimina o delay de 1 frame e evita stale closure. O fallback busca a sessao na ref e reconstroi o dossier completo.
+
+Contract: (1) tentar `updateSessionById(sessionId, partial)`. (2) Se retornar undefined, buscar em `sessionsRef.current`. (3) Se encontrou na ref, chamar handleSessionUpdate manualmente. (4) Se nem na ref existe, logar erro e retornar sem dossier. (5) Manter sync inline em render-phase (nao useEffect).
+
+Refs: `hooks/useSessionStorage.ts`, `waterfall-orchestrator.ts`, commit `7ef4dbb4` e `dee6557c`, PR #328.
+
+## 2026-06-02 — Merge funcional em setSessions (APLICADO)
+
+Decision: ao carregar sessions do localStorage ou Supabase, usar `setSessions(prev => merge(loaded, prev))` em vez de `setSessions(() => loaded)`. O operador funcional com merge preserva sessions existentes que podem ter sido carregadas concorrentemente.
+
+Reason: `setSessions(() => localSessions)` no `useAppInitialization` sobrescrevia sessions carregadas do Supabase pelo `useSessionStorage`. Em `session-controller.ts:251`, `setSessions(newSessions)` (array direto) filtrava sessoes mas perdia a referencia ao escopo fechado — o `newSessions` vinha de um stale closure, descartando sessions adicionadas entre a criacao do closure e sua execucao. O merge funcional com `prev` garante que sessions existentes nunca sejam perdidas.
+
+Contract: toda chamada a `setSessions` que carrega dados de fonte externa (localStorage, Supabase) deve usar `prev => merge(loaded, prev)`. Chamadas de toggle/update local (marcar como lida, favoritar) podem continuar usando array direto.
+
+Refs: `hooks/useAppInitialization.ts`, `features/chat/session-controller.ts:251`, commit `44951b6b`, PR #328.
+
+## 2026-06-02 — Remover DossierShareBar do ChatInterface (APLICADO)
+
+Decision: remover o componente `DossierShareBar` e todo o estado associado (`completedDossier`, listener `dossier:completed`) do `ChatInterface.tsx`.
+
+Reason: o banner "Dossie concluido" no rodape gerava estado morto. O listener `dossier:completed` setava `completedDossier` que nunca era consumido por nada apos a remocao do fluxo de compartilhamento. Era codigo frio que adicionava complexidade sem valor. A funcionalidade de compartilhamento de dossie nao e mais parte do fluxo pos-waterfall.
+
+Contract: `ChatInterface.tsx` nao deve mais importar nem referenciar `DossierShareBar`, `completedDossier`, ou `dossier:completed`. Se a funcionalidade de compartilhamento for reintroduzida, deve ser como componente independente, nao acoplado ao ChatInterface.
+
+Refs: `components/ChatInterface.tsx`, commit `1a5100a9`, PR #328.

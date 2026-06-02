@@ -253,9 +253,13 @@ function makeHarness(
     if (overrides.shouldSimulateFallback) {
       return;
     }
+    let updatedSession: ChatSession | null = null;
     state.sessions = state.sessions.map(session =>
-      session.id === sessionId ? { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP } : session,
+      session.id === sessionId
+        ? (updatedSession = { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP })
+        : session,
     );
+    return updatedSession;
   });
 
   const resetLoadingProgress = vi.fn();

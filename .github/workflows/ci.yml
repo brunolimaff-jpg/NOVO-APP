@@ -55,3 +55,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  e2e-critical-browser:
+    name: E2E Critical Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run critical browser regressions
+        run: >-
+          npx playwright test
+          tests-e2e/blank-center-panel-regression.spec.ts
+          tests-e2e/controlled-error-state.spec.ts
+          tests-e2e/loading-smart-recovery.spec.ts

@@ -82,7 +82,7 @@ export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
   setLoadingVariant?: (variant: 'hero' | 'inline') => void;
-  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => void;
+  updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null | void;
   resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
   replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
@@ -1011,7 +1011,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         sessionToPersist = null;
         let originalMsgCount = -1;
-        updateSessionById(sessionId, session => {
+        const updatedSession = updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
           const nextSession: ChatSession = {
@@ -1040,6 +1040,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionToPersist = nextSession;
           return nextSession;
         });
+        if (updatedSession) {
+          sessionToPersist = updatedSession;
+        }
 
         const persistMsgCount = (sessionToPersist as ChatSession | null)?.messages?.length ?? 0;
         const persistBotUpdated =
@@ -1068,7 +1071,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               JSON.stringify({
                 sessionId,
                 botMessageId,
-                messageIds: sessionToPersist ? (sessionToPersist as ChatSession)?.messages?.map((m: { id: string }) => m.id) ?? [] : [],
+                messageIds: sessionToPersist
+                  ? ((sessionToPersist as ChatSession)?.messages?.map((m: { id: string }) => m.id) ?? [])
+                  : [],
                 waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
               }),
             );

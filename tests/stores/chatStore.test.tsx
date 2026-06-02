@@ -141,8 +141,9 @@ describe('ChatStoreProvider', () => {
     expect(result.current.investigationLogged).toBe(true);
     expect(result.current.currentSession?.title).toBe('Acme Agro Revisada');
 
+    const updatedSessions: ChatSession[] = [];
     act(() => {
-      result.current.updateSessionById('session-1', session => ({
+      const updatedSession = result.current.updateSessionById('session-1', session => ({
         ...session,
         messages: [
           ...session.messages,
@@ -154,8 +155,10 @@ describe('ChatStoreProvider', () => {
           },
         ],
       }));
+      if (updatedSession) updatedSessions.push(updatedSession);
     });
 
+    expect(updatedSessions[0].messages).toHaveLength(2);
     expect(result.current.currentSession?.messages).toHaveLength(2);
     expect(result.current.sessionsRef.current[0].messages).toHaveLength(2);
   });

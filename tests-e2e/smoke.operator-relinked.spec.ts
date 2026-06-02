@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { preventMigrationNotice } from './helpers/onboarding';
 
 /**
  * Valida que ao vincular um operador existente (ex: QR code),
@@ -11,11 +12,12 @@ test.describe('Scout smoke — vínculo de operador existente', () => {
   test.describe.configure({ timeout: 60_000 });
 
   test('deve carregar histórico ao vincular operador existente', async ({ page }) => {
+    await preventMigrationNotice(page);
     await page.goto('/');
 
     // Primeiro registro: cria operador novo e faz uma investigação
     await page.getByPlaceholder('Nome e sobrenome').fill('Bruno Relink');
-    await page.getByPlaceholder('seu.nome@senior.com.br').fill('relink@teste.com');
+    await page.getByPlaceholder('seu.nome@senior.com.br').fill('relink@senior.com.br');
     await page.getByRole('button', { name: 'Continuar →' }).click();
     await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 10000 });
 
@@ -52,6 +54,7 @@ test.describe('Scout smoke — vínculo de operador existente', () => {
       route.continue();
     });
 
+    await preventMigrationNotice(page);
     await page.goto('/');
 
     // Registrar com email de operador que já tem dossiês
