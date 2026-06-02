@@ -12,7 +12,6 @@ import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossi
 import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
-import { DossierShareBar } from './DossierShareBar';
 
 import { cleanTitle } from '../utils/textCleaners';
 import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
@@ -126,32 +125,11 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
-  const [completedDossier, setCompletedDossier] = useState<{
-    dossierId: string;
-    companyName: string;
-  } | null>(null);
-  const completedDossierSessionRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const handleCompleted = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      setCompletedDossier(detail);
-      completedDossierSessionRef.current = currentSession?.id ?? null;
-    };
-    window.addEventListener('dossier:completed', handleCompleted);
-    return () => window.removeEventListener('dossier:completed', handleCompleted);
-  }, [currentSession?.id]);
-
-  useEffect(() => {
-    if (currentSession?.id !== completedDossierSessionRef.current) {
-      setCompletedDossier(null);
-    }
-  }, [currentSession?.id]);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
-  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading && !completedDossier);
+  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
   const hasRenderableBotMessage = safeMessages.some(
     message =>
       message.sender === Sender.Bot &&
@@ -340,7 +318,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const hasActiveSession = currentSession !== null && currentSession !== undefined;
   const hasErrorInMessages = safeMessages.some(msg => Boolean(msg.isError));
-  const hasDossierContent = Boolean(currentSession?.resumoDossie) || Boolean(completedDossier);
+  const hasDossierContent = Boolean(currentSession?.resumoDossie);
   const panelState = classifyPanelState({
     messages: safeMessages,
     hasDossierContent,
@@ -361,7 +339,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         JSON.stringify({
           sessionId: currentSession.id,
           allMessagesLen: messages.length,
-          completedDossier: Boolean(completedDossier),
           hasDossierContent,
           panelState,
           loadingVariant,
@@ -372,7 +349,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     safeMessages.length,
     currentSession?.id,
     isLoading,
-    completedDossier,
     hasDossierContent,
     panelState,
     loadingVariant,
@@ -523,9 +499,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             pendingPayloadRef.current = null;
           }}
         />
-      )}
-      {completedDossier && (
-        <DossierShareBar dossierId={completedDossier.dossierId} companyName={completedDossier.companyName} />
       )}
     </>
   );
