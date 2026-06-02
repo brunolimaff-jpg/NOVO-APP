@@ -10,11 +10,12 @@ export function useSessionStorage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const sessionsRef = useRef<ChatSession[]>([]);
+  // Render-phase sync mantem o ref alinhado com o estado commitado,
+  // eliminando o lag de 1 render que useEffect introduz.
+  // Essencial para que o fallback do waterfall-orchestrator encontre
+  // a sessao mesmo sob React 18 automatic batching.
+  sessionsRef.current = sessions;
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    sessionsRef.current = sessions;
-  }, [sessions]);
 
   const loadSessions = useCallback(async (): Promise<ChatSession[]> => {
     const sanitizeLoadedSessions = (loaded: ChatSession[]): ChatSession[] =>

@@ -175,6 +175,24 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
     currentSession?.title,
   ]);
 
+  // ── Instrumentação: detecta currentSession null com geração ativa ──
+  useEffect(() => {
+    const hasActiveGeneration = Object.values(activeGenerationRef.current).some(Boolean);
+    if (!currentSession && hasActiveGeneration && viewState.currentSessionId) {
+      console.error(
+        '[Scout360][chatStore] ⚠ currentSession null com geração ativa',
+        JSON.stringify({
+          expectedSessionId: viewState.currentSessionId,
+          sessionsCount: sessions.length,
+          sessionIds: sessions.map(s => s.id),
+          activeGenerationKeys: Object.keys(activeGenerationRef.current).filter(
+            k => activeGenerationRef.current[k],
+          ),
+        }),
+      );
+    }
+  }, [currentSession, sessions.length, viewState.currentSessionId]);
+
   const prevMsgCountRef = useRef(currentSession?.messages?.length ?? 0);
   useEffect(() => {
     const current = currentSession?.messages?.length ?? 0;

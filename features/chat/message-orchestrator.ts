@@ -544,7 +544,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           return;
         }
 
-        if (activeGenerationRef.current[sessionId] !== botMessageId) return;
+        if (activeGenerationRef.current[sessionId] !== botMessageId) {
+          scoutDiag.warn('MessageOrchestrator', 'error-treatment-skipped-generation-mismatch', {
+            sessionId,
+            expectedBotId: botMessageId,
+            actualBotId: activeGenerationRef.current[sessionId] ?? 'undefined',
+          });
+          return;
+        }
 
         if (isMegaPrompt) {
           trackOperatorEvent('dossier_failed', {

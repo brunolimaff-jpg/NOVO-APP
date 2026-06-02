@@ -261,6 +261,11 @@ const App: React.FC = () => {
 
   const handleStopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
+      scoutDiag.info('Abort', 'user-stopped-generation', {
+        sessionId: currentSessionId,
+        loadingVariant,
+        msgCount: currentSession?.messages?.length ?? 0,
+      });
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsLoading(false);
