@@ -66,8 +66,15 @@ describe('useAppInitialization', () => {
     renderHook(() => useAppInitialization(options));
 
     await waitFor(() => {
-      expect(options.setCurrentSessionId).toHaveBeenCalledWith('s1');
+      expect(options.setCurrentSessionId).toHaveBeenCalledWith(expect.any(Function));
     });
+
+    // Aplica o updater funcional com prevId null → deve retornar 's1'
+    const updaterFn = (options.setCurrentSessionId as ReturnType<typeof vi.fn>).mock.calls[0][0] as (
+      prev: string | null,
+    ) => string | null;
+    expect(updaterFn(null)).toBe('s1');
+    expect(updaterFn('existing-id')).toBe('existing-id');
 
     expect(options.setSessions).toHaveBeenCalledWith(expect.any(Function));
     expect(options.setIsInitialized).toHaveBeenCalledWith(true);

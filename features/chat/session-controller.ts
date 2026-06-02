@@ -247,12 +247,12 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       // Delete from Supabase (fire-and-forget)
       storage.deleteDossier(sessionId).catch(() => {});
       delete activeGenerationRef.current[sessionId];
-      const newSessions = sessions.filter(session => session.id !== sessionId);
-      setSessions(newSessions);
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
 
       if (currentSessionId === sessionId) {
-        if (newSessions.length > 0) {
-          const nextSession = newSessions[0];
+        const remaining = (chatStore?.sessionsRef?.current ?? sessions).filter(s => s.id !== sessionId);
+        if (remaining.length > 0) {
+          const nextSession = remaining[0];
           setCurrentSessionId(nextSession.id);
           resetSessionUI();
 
