@@ -45,6 +45,10 @@ interface ProcessMessageOptions extends HandleSendMessageOptions {
   isFirstInteraction?: boolean;
 }
 
+interface PendingInitialSend {
+  sessionId: string;
+}
+
 export interface UseChatMessageOrchestratorOptions {
   currentSessionId: string | null;
   setSessions: Dispatch<SetStateAction<ChatSession[]>>;
@@ -150,6 +154,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   const runMegaPromptWaterfall = requireDependency(options.runMegaPromptWaterfall, 'runMegaPromptWaterfall');
 
   const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
+  const pendingInitialSendRef = useRef<PendingInitialSend | null>(null);
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -656,15 +661,42 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       let sessionId = currentSessionId;
       let currentHistory: Message[];
       let immediateCompany: string | null;
+      let createdInitialSessionId: string | null = null;
       const resolvedRequestKind = options?.requestKind ?? 'default';
       const fixedLoadingLine = resolvedRequestKind === 'deep_dive' ? (options?.fixedLoadingLine ?? null) : null;
 
       setRequestKind(resolvedRequestKind);
       setLoadingPinnedLabel(fixedLoadingLine);
 
+      if (!sessionId && pendingInitialSendRef.current) {
+        const pendingSessionId = pendingInitialSendRef.current.sessionId;
+        const pendingSession = sessionsRef.current.find(session => session.id === pendingSessionId);
+
+        if (pendingSession) {
+          setCurrentSessionId(pendingSessionId);
+          scoutDiag.warn('MessageOrchestrator', 'envio inicial duplicado bloqueado; mantendo sessão em andamento', {
+            pendingSessionId,
+            textLen: text.length,
+            displayTextLen: resolvedDisplayText.length,
+          });
+          return;
+        }
+
+        pendingInitialSendRef.current = null;
+      }
+
+      if (!sessionId && isAnyWaterfallActive()) {
+        scoutDiag.warn('MessageOrchestrator', 'envio inicial bloqueado: waterfall global já ativo', {
+          textLen: text.length,
+          displayTextLen: resolvedDisplayText.length,
+        });
+        return;
+      }
+
       const existingSession = sessionId ? sessionsRef.current.find(session => session.id === sessionId) : null;
       if (!sessionId || !existingSession) {
         sessionId = uuidv4();
+        createdInitialSessionId = sessionId;
         const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
         const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
         immediateCompany = immediateTitle || null;
@@ -682,6 +714,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         };
         setSessions(prev => [newSession, ...prev]);
         setCurrentSessionId(sessionId);
+        pendingInitialSendRef.current = { sessionId };
         currentHistory = [];
       } else {
         currentHistory = existingSession.messages ? [...existingSession.messages] : [];
@@ -715,20 +748,26 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const previousUserMessages = currentHistory.filter(message => message.sender === Sender.User).length;
       const isDeepDive = resolvedRequestKind === 'deep_dive';
-      await processMessage(
-        text,
-        sessionId,
-        currentHistory,
-        resolvedDisplayText,
-        hintedCompanyOverride || immediateCompany,
-        {
-          isFollowUp: previousUserMessages > 0,
-          isDeepDive,
-          isFirstInteraction: previousUserMessages === 0,
-          requestKind: resolvedRequestKind,
-          fixedLoadingLine: fixedLoadingLine ?? undefined,
-        },
-      );
+      try {
+        await processMessage(
+          text,
+          sessionId,
+          currentHistory,
+          resolvedDisplayText,
+          hintedCompanyOverride || immediateCompany,
+          {
+            isFollowUp: previousUserMessages > 0,
+            isDeepDive,
+            isFirstInteraction: previousUserMessages === 0,
+            requestKind: resolvedRequestKind,
+            fixedLoadingLine: fixedLoadingLine ?? undefined,
+          },
+        );
+      } finally {
+        if (createdInitialSessionId && pendingInitialSendRef.current?.sessionId === createdInitialSessionId) {
+          pendingInitialSendRef.current = null;
+        }
+      }
     },
     [
       currentSessionId,

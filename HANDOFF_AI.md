@@ -2,8 +2,8 @@
 
 ## Objetivo da Proxima Sessao
 
-- **Validar CI remoto da PR #328** e confirmar que o check `E2E Critical Browser` passa no GitHub
-- **Monitorar preview/Supabase diagnostics**: fluxo normal nao deve emitir `session-recovered-via-ref`; fallback fica como airbag, nao como caminho esperado
+- **Validar novo CI remoto da PR #328** apos o follow-up de sessao orfa e confirmar que `Tests`, `Typecheck`, `Build` e `E2E Critical Browser` passam
+- **Monitorar preview/Supabase diagnostics**: fluxo normal nao deve emitir `session-recovered-via-ref`; se houver clique/disparo duplicado inicial, deve aparecer `envio inicial duplicado bloqueado` e a sessao ativa deve continuar a mesma
 - **Fechar PR #327** — socio-search decomposto, testes passando, typecheck limpo
 - **Decompor 3 god modules restantes**: documentExtractor.ts (P1, 533L), textCleaners.ts (P2, 630L), clientLookupService.ts (P2, 741L)
 - **P0 withTimeout** (api/gemini.ts:416, :491) — ainda nao corrigido
@@ -11,7 +11,7 @@
 ## Estado Atual
 
 - **Branch:** `fix/waterfall-session-persist-race-condition` (PR #328)
-- **PR #328:** **ABERTA** (https://github.com/brunolimaff-jpg/NOVO-APP/pull/328) — causa raiz corrigida localmente, aguardando CI remoto/preview antes de merge
+- **PR #328:** **ABERTA** (https://github.com/brunolimaff-jpg/NOVO-APP/pull/328) — causa raiz primaria + sessao orfa por disparo duplicado corrigidas localmente, aguardando novo CI remoto/preview antes de merge
 - **PR #327:** **ABERTA** (https://github.com/brunolimaff-jpg/NOVO-APP/pull/327) — mergeavel sem conflitos
 - **PR #326:** **MERGEADA** em 01/06 (`7362af16`)
 - **Testes:** 148 files, 1289 passando; E2E critico 9/9 passando localmente
@@ -68,6 +68,36 @@ npx playwright test tests-e2e/blank-center-panel-regression.spec.ts tests-e2e/co
 
 Resultado local: typecheck OK, build OK, 148 arquivos/1289 testes Vitest OK, E2E critico 9/9 OK.
 
+## Follow-up 02/06 — sessao orfa por disparo inicial duplicado
+
+### Evidencia do preview
+
+Console real do preview (02/06 16:18 BRT, Grupo Scheffer):
+
+- `WaterfallGuard waterfall:end status completed`
+- `messages-state-after-update { messageCount: 2, botMessageUpdated: true }`
+- `PostCompletion containsDossie: true`
+- `Virtuoso totalItems: 1`
+- sidebar com dois historicos: um dossie finalizado (`Scheffer`) e uma sessao ativa presa no placeholder (`Grupo Scheffer`)
+
+Conclusao: o dossie nao estava sumindo. Uma segunda chamada inicial criava outra sessao antes do re-render aplicar `currentSessionId`; essa segunda chamada era bloqueada pelo waterfall global, mas ja tinha inserido a mensagem de usuario e selecionado a sessao orfa.
+
+### Mudanca
+
+`features/chat/message-orchestrator.ts` agora mantem `pendingInitialSendRef`. Enquanto a primeira investigacao inicial esta em andamento, uma nova chamada inicial apenas re-seleciona a sessao pendente e sai, sem criar outra sessao nem adicionar mensagem de usuario orfa. Tambem bloqueia criacao de sessao inicial quando ja existe waterfall global ativo sem sessao pendente local.
+
+### Validacao local
+
+```bash
+npm test -- tests/features/chat/message-orchestrator.test.ts
+npm run typecheck
+npm test -- tests/components/ChatInterface.test.tsx tests/App.loadingVariant.test.tsx tests/features/chat/message-orchestrator.test.ts
+npm test
+npm run build
+```
+
+Resultado local: teste novo falhou antes do fix com `currentSessionId` virando `session-second`; apos o fix, 10/10 testes do orchestrator passaram, typecheck OK, 32 testes focados de chat/app/render OK, suite completa Vitest 148 arquivos/1290 testes OK e build OK com sourcemaps enviados ao Sentry.
+
 ### Status anterior — fallback salvava, causa raiz ainda aberta
 
 Console real do preview Vercel (02/06 15:30 BRT, Scheffer 04.733.767/0001-80):
@@ -120,6 +150,7 @@ O diagnostico acima foi a pista decisiva: a sessao existia na ref e o Supabase p
 | 4   | 10 diagnosticos revelaram exatamente onde o bug acontece        | Debug sem log = cego                                  | Todo bug P0 merece diagnostic pack           |
 | 5   | Nao ler resultado final de callback de setState React           | Side effect dentro de updater para persistir fluxo    | Retornar snapshot sincronico de helpers      |
 | 6   | E2E de CI deve ser deterministico                               | Usar Gemini real para regressao de loading            | Stub de `/api/gemini` em testes criticos     |
+| 7   | Disparo inicial duplicado deve reaproveitar sessao pendente     | Criar nova sessao antes do re-render do currentSessionId | `handleSendMessage`/fluxos de primeira investigacao |
 
 ## Links
 
@@ -127,4 +158,4 @@ O diagnostico acima foi a pista decisiva: a sessao existia na ref e o Supabase p
 - **PR #327:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/327 (ABERTA)
 - **PR #326:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/326 (MERGEADA)
 - **Vault:** `20-SESSOES/2026-06/2026-06-02T14-45-00-PR328-tela-branca-waterfall-fix.md`
-- **Commits PR #328:** `dee6557c` (fallback inicial), `7ef4dbb4` (10 diagnosticos + health-check), `1f0c09b7` (4 testes), `44951b6b` (merge funcional), `ca0c5b59` (testes merge), `1a5100a9` (remove DossierShareBar)
+- **Commits PR #328:** `dee6557c` (fallback inicial), `7ef4dbb4` (10 diagnosticos + health-check), `1f0c09b7` (4 testes), `44951b6b` (merge funcional), `ca0c5b59` (testes merge), `1a5100a9` (remove DossierShareBar), `82bc27bb` (snapshot sincrono + CI E2E critico), follow-up atual (sessao orfa por disparo duplicado)

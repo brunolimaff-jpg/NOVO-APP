@@ -395,6 +395,50 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
+  it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
+    const deferred = createDeferred<void>();
+    uuidv4Mock
+      .mockReturnValueOnce('session-first')
+      .mockReturnValueOnce('message-user-first')
+      .mockReturnValueOnce('message-bot-first')
+      .mockReturnValueOnce('session-second')
+      .mockReturnValueOnce('message-user-second')
+      .mockReturnValueOnce('message-bot-second');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockImplementationOnce(() => deferred.promise);
+
+    let firstSend!: Promise<void>;
+    act(() => {
+      firstSend = harness.result.current.handleSendMessage(
+        'DOSSIÊ COMPLETO de Grupo Scheffer',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+      );
+    });
+
+    expect(harness.state.sessions).toHaveLength(1);
+    expect(harness.state.sessions[0].id).toBe('session-first');
+    expect(harness.state.sessions[0].messages).toHaveLength(2);
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage(
+        'DOSSIÊ COMPLETO de Grupo Scheffer',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+      );
+    });
+
+    expect(harness.state.currentSessionId).toBe('session-first');
+    expect(harness.state.sessions).toHaveLength(1);
+    expect(harness.state.sessions[0].messages).toHaveLength(2);
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      deferred.resolve();
+      await firstSend;
+    });
+  });
+
   it('mantém deep_dive no caminho padrão e preserva o pinned label durante o envio', async () => {
     const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToGeminiMock>>>();
     uuidv4Mock

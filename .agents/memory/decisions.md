@@ -2,6 +2,16 @@
 
 Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall
 
+## 2026-06-02 — Trava de envio inicial pendente contra sessao orfa (APLICADO LOCALMENTE)
+
+Decision: enquanto a primeira investigacao inicial esta em andamento, `handleSendMessage` deve reaproveitar a sessao pendente em vez de criar outra sessao quando `currentSessionId` ainda nao re-renderizou. `pendingInitialSendRef` guarda a sessao criada e uma segunda chamada inicial apenas chama `setCurrentSessionId(pendingSessionId)` e retorna.
+
+Reason: no preview da PR #328, o waterfall completava, persistia e atualizava uma sessao com 2 mensagens, mas a UI ativa renderizava `Virtuoso totalItems: 1`. A sidebar mostrava dois historicos: o dossie finalizado e uma sessao orfa com apenas "Investigando...". Isso aconteceu porque a segunda chamada inicial chegava antes do re-render aplicar `currentSessionId`; o guard global bloqueava o waterfall, mas a sessao orfa ja tinha sido criada e selecionada.
+
+Contract: fluxo de primeira investigacao nao pode criar nova sessao se ja houver uma sessao inicial pendente ou waterfall global ativo. Duplicatas devem ser bloqueadas antes de inserir mensagem de usuario. Toda regressao deve cobrir duas chamadas iniciais na mesma renderizacao do hook.
+
+Refs: `features/chat/message-orchestrator.ts`, `tests/features/chat/message-orchestrator.test.ts`, PR #328.
+
 ## 2026-06-02 — Snapshot sincrono para estado critico de sessao (APLICADO LOCALMENTE)
 
 Decision: atualizacoes criticas de sessao devem retornar o snapshot resultante de forma sincrona. `setSessions` sincroniza `sessionsRef.current` antes de agendar o estado React; `updateSessionById` retorna `ChatSession | null`; o waterfall usa esse retorno para preencher `sessionToPersist`.
