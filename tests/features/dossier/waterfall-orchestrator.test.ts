@@ -76,8 +76,10 @@ vi.mock('../../../features/dossier/porta-reconciliation', () => ({
   ensureWaterfallScorePorta: ensureWaterfallScorePortaMock,
 }));
 
+const maybeChatStoreRef = vi.hoisted(() => ({ current: undefined as Record<string, unknown> | undefined }));
+
 vi.mock('../../../stores/chatStore', () => ({
-  useMaybeChatStore: () => undefined,
+  useMaybeChatStore: () => maybeChatStoreRef.current,
 }));
 
 vi.mock('../../../services/storage', () => ({
@@ -231,6 +233,7 @@ function makeHarness(
     canUseLookup?: boolean;
     sessionScore?: number | null;
     messages?: Message[];
+    shouldSimulateFallback?: boolean;
   } = {},
 ) {
   const state = {
@@ -247,6 +250,9 @@ function makeHarness(
   };
 
   const updateSessionById = vi.fn((sessionId: string, updater: (session: ChatSession) => ChatSession) => {
+    if (overrides.shouldSimulateFallback) {
+      return;
+    }
     state.sessions = state.sessions.map(session =>
       session.id === sessionId ? { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP } : session,
     );
@@ -895,5 +901,175 @@ describe('useDossierWaterfallOrchestrator', () => {
         /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
       ),
     ).toBe(true);
+  });
+
+  // ── Testes do fallback de recuperação de sessão ──
+
+  it('recupera sessão pelo sessionsRef quando updateSessionById perde a sessão (Cenário A)', async () => {
+    const score = makeScorePorta(72);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: ['Dossiê consolidado da Acme Agro. [[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]'].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const setSessionsSpy = vi.fn();
+
+    maybeChatStoreRef.current = {
+      sessionsRef: {
+        current: [
+          makeSession({
+            id: 'session-1',
+            title: 'Acme Agro',
+            empresaAlvo: 'Acme Agro',
+            messages: [
+              makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem de abertura' }),
+              makeMessage({ id: 'bot-1', sender: Sender.Bot, text: '', isThinking: true }),
+            ],
+          }),
+        ],
+      },
+      setSessions: setSessionsSpy,
+    };
+
+    const harness = makeHarness({ shouldSimulateFallback: true });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('sessionToPersist VAZIO'), expect.any(String));
+
+    expect(setSessionsSpy).toHaveBeenCalled();
+    const updaterFn = setSessionsSpy.mock.calls[0][0];
+    const result = updaterFn([]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('session-1');
+    expect(result[0].updatedAt).toBeDefined();
+
+    const recoveredMsg = result[0].messages.find((m: Message) => m.id === 'bot-1');
+    expect(recoveredMsg).toBeDefined();
+    expect(recoveredMsg!.isThinking).toBe(false);
+    expect(recoveredMsg!.text).toBeTruthy();
+
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'WaterfallLifecycle',
+      'session-recovered-via-ref',
+      expect.objectContaining({ sessionId: 'session-1' }),
+    );
+
+    consoleErrorSpy.mockRestore();
+    maybeChatStoreRef.current = undefined;
+  });
+
+  it('recupera sessão quando botMessageId não é encontrado na sessão (Cenário B)', async () => {
+    const score = makeScorePorta(70);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: ['Dossiê consolidado. [[PORTA:70:P7:O7:R5:T7:A6:PRD:NONE]]'].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const setSessionsSpy = vi.fn();
+
+    maybeChatStoreRef.current = {
+      sessionsRef: {
+        current: [
+          makeSession({
+            id: 'session-1',
+            title: 'Acme Agro',
+            messages: [
+              makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem de abertura' }),
+              makeMessage({ id: 'outro-bot-id', sender: Sender.Bot, text: '', isThinking: true }),
+            ],
+          }),
+        ],
+      },
+      setSessions: setSessionsSpy,
+    };
+
+    const harness = makeHarness({
+      messages: [
+        makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem de abertura' }),
+        makeMessage({ id: 'outro-bot-id', sender: Sender.Bot, text: '', isThinking: true }),
+      ],
+    });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('botMessageId nao encontrado'),
+      expect.any(String),
+    );
+
+    expect(setSessionsSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+    maybeChatStoreRef.current = undefined;
+  });
+
+  it('log de diagnóstico quando fallback sessionsRef também está vazio', async () => {
+    const score = makeScorePorta(72);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: ['Dossiê consolidado. [[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]'].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    maybeChatStoreRef.current = {
+      sessionsRef: { current: [] },
+      setSessions: vi.fn(),
+    };
+
+    const harness = makeHarness({ shouldSimulateFallback: true });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('FALLBACK TAMBEM VAZIO'), expect.any(String));
+
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+    maybeChatStoreRef.current = undefined;
+  });
+
+  it('dispara evento dossier:completed ao persistir dossiê com sucesso', async () => {
+    const score = makeScorePorta(72);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: ['Dossiê consolidado da Acme Agro. [[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]'].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    const customEvent = dispatchSpy.mock.calls.find(
+      ([event]: [Event]) => event instanceof CustomEvent && event.type === 'dossier:completed',
+    )?.[0] as CustomEvent | undefined;
+
+    expect(customEvent).toBeDefined();
+    expect(customEvent!.detail).toMatchObject({
+      dossierId: 'session-1',
+      companyName: 'Acme Agro',
+    });
+
+    dispatchSpy.mockRestore();
   });
 });
