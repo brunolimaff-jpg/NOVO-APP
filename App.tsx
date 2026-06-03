@@ -277,7 +277,7 @@ const App: React.FC = () => {
       updateSessionById(sessionId, session => ({
         ...session,
         messages: (session.messages || []).filter(
-          message => message.id !== activeBotId || message.text.trim().length > 0,
+          message => message.id !== activeBotId || (message.text || '').trim().length > 0,
         ),
       }));
     }

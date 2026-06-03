@@ -1017,7 +1017,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           scoutDiag.warn('WaterfallLifecycle', 'generation-stopped-before-persist', {
             sessionId,
             botMessageId,
-            activeBotId: activeGenerationRef?.current[sessionId] ?? 'undefined',
+            activeBotId: activeGenerationRef?.current?.[sessionId] ?? 'undefined',
           });
           return;
         }

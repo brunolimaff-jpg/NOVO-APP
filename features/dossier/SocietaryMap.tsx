@@ -433,8 +433,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     if (!graph) return;
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
-    const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))];
-    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj)).slice(0, MAX_CNAE_LOOKUPS);
+    const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))].slice(0, MAX_CNAE_LOOKUPS);
+    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj));
 
     if (pending.length === 0) return;
 
