@@ -1,3 +1,23 @@
+## Handoff — 03/06/2026 — PR #330 VALIDADA (aguardando MERGE)
+
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**, validada) |
+| Branch | `fix/blank-panel-static-fallback-post-waterfall` |
+| Commit validação | `bda08162` (review bots endereçados) |
+| Doc detalhada | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
+| Vault | `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md` |
+
+**Validação:** Bruno confirmou preview pós-fix (delay 750ms + PII E2E). Merge com token **MERGE** na mensagem.
+
+**Lições:** `CALIBER_LEARNINGS.md` + `Bruno Vault/30-LICOES/LICOES-BLANK-PANEL-PR330-2026-06-03.md`
+
+**Pendente pós-merge:** smoke produção; PR separada timer/SocietaryMap; migration blank_panel se aplicável.
+
+---
+
+## Handoff — 03/06/2026 — PR #330 (arquivado — ver VALIDADA acima)
+
 ## Handoff — 03/06/2026 — PR #330 (painel branco pós-waterfall)
 
 | Item | Valor |

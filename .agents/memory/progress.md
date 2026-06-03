@@ -8,6 +8,7 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 ## Em andamento
 
 | 2026-06-03 | **PR #330** — review fixes (delay 750ms, E2E PII placeholder); Bruno retesta preview | PR #330 |
+| 2026-06-03 | **PR #330 VALIDADA** — blank panel pós-waterfall; preview Scheffer OK; aguarda MERGE | PR #330, `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
 | 2026-06-03 | **PR #329 MERGEADA** — freeze dossiê hero: timeline suspend, stop+activeGenerationRef, SocietaryMap cap 24. Validado Bruno. Commit `2cd2cffa`. | PR #329 |
 
 | Item                                        | Status                                                               | Link                   |
