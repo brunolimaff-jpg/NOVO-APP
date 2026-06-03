@@ -1,25 +1,24 @@
 # Active Context
 
-Last updated: 2026-06-03 — Sessão PR #330 encerrada (validada)
+Last updated: 2026-06-03 — PR #330 MERGEADA em `main`
 
 ## Boot
 
-1. `HANDOFF_AI.md` → `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
-2. Bruno Vault: [[10-PROJETOS/NOVO-APP]] → sessão 2026-06-03 PR330
+`HANDOFF_AI.md` → `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
 
 ## Estado
 
-- **PR #330:** validada no preview; **aguardando MERGE** (token `MERGE`)
-- **main:** `2cd2cffa` (#329)
-- WIP local não commitado: `loadingBackoff`, `LoadingSmart`, `SocietaryMap` — PR futura
+- **main:** `d4849aa7` (squash merge PR #330)
+- Fix em produção após deploy Vercel: fallback estático proativo + expectedBotCharsMax com isThinking
+- WIP local não mergeado: LoadingSmart, SocietaryMap, loadingBackoff
 
 ## Próximo passo
 
-1. `MERGE` #330 quando quiser integrar em `main`
-2. Smoke produção Scheffer
-3. Opcional: Sentry bridge + SocietaryMap deps
+1. Confirmar deploy production Vercel
+2. Smoke Scheffer em produção
+3. PR futura: timer etapa + SocietaryMap deps
 
 ## Ponteiros
 
-- PR #330, doc `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
-- Supabase sessão `eac8d331-dc3c-4f79-b438-31afe1130e94`
+- PR #330 (merged): https://github.com/brunolimaff-jpg/NOVO-APP/pull/330
+- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md`

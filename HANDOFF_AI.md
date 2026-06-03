@@ -1,8 +1,8 @@
-## Handoff — 03/06/2026 — PR #330 VALIDADA (aguardando MERGE)
+## Handoff — 03/06/2026 — PR #330 MERGEADA em `main` (`d4849aa7`)
 
 | Item | Valor |
 | --- | --- |
-| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**, validada) |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**MERGED** squash) |
 | Branch | `fix/blank-panel-static-fallback-post-waterfall` |
 | Commit validação | `bda08162` (review bots endereçados) |
 | Doc detalhada | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
