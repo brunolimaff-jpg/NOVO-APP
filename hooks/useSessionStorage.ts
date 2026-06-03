@@ -28,14 +28,20 @@ export function useSessionStorage() {
   }, []);
 
   const loadSessions = useCallback(async (): Promise<ChatSession[]> => {
+    const sanitizeLoadedMessage = (message: ChatSession['messages'][number]): ChatSession['messages'][number] => {
+      const { loadingVariant: _loadingVariant, isSourcesOpen: _isSourcesOpen, ...stableMessage } = message;
+      return {
+        ...stableMessage,
+        text: stripInternalMarkers(String(message.text || '')),
+        timestamp: new Date(message.timestamp),
+        isThinking: false,
+      };
+    };
+
     const sanitizeLoadedSessions = (loaded: ChatSession[]): ChatSession[] =>
       loaded.map(session => ({
         ...session,
-        messages: (session.messages || []).map(message => ({
-          ...message,
-          text: stripInternalMarkers(String(message.text || '')),
-          timestamp: new Date(message.timestamp),
-        })),
+        messages: (session.messages || []).map(sanitizeLoadedMessage),
       }));
 
     // Executa migração IDB → Supabase (1x, guarded by flag)
@@ -65,11 +71,7 @@ export function useSessionStorage() {
         const parsed = JSON.parse(raw);
         const localSessions = parsed.map((s: Record<string, unknown>) => ({
           ...s,
-          messages: ((s.messages as Array<Record<string, unknown>>) || []).map(m => ({
-            ...m,
-            text: stripInternalMarkers(String(m.text || '')),
-            timestamp: new Date(m.timestamp as string),
-          })),
+          messages: (((s.messages as Array<Record<string, unknown>>) || []) as unknown) as ChatSession['messages'],
         })) as ChatSession[];
         return sanitizeLoadedSessions(localSessions);
       }

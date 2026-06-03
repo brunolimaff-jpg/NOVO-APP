@@ -1,9 +1,21 @@
 import type { Page, Route } from '@playwright/test';
 
+export const E2E_DOSSIER_SENTINEL = 'SCHEFFER_E2E_SENTINEL';
+export const E2E_DOSSIER_MIN_CHARS = 30_000;
+
+const LONG_EVIDENCE_BLOCK = Array.from({ length: 20 }, (_, index) => {
+  const n = String(index + 1).padStart(3, '0');
+  return `- Evidencia ${n}: ${E2E_DOSSIER_SENTINEL} confirma secao longa com QSA, fazendas, filiais, governanca, riscos, plano comercial, score e recomendacoes para estressar renderizacao do Virtuoso em viewport real.`;
+}).join('\n');
+
 const DETERMINISTIC_WATERFALL_TEXT = [
   '## Raio-X Operacional',
-  'Fluxo deterministico do dossie para validar recuperacao do loading.',
+  `${E2E_DOSSIER_SENTINEL}: fluxo deterministico longo para validar recuperacao do loading e renderizacao real do painel central.`,
   '[[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]',
+  '## Teia Societaria',
+  LONG_EVIDENCE_BLOCK,
+  '## Plano de Acao',
+  LONG_EVIDENCE_BLOCK,
 ].join('\n\n');
 
 const DETERMINISTIC_CHAT_REPLY = 'Resposta deterministica de teste.';

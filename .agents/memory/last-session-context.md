@@ -1,42 +1,41 @@
 # Last Session Context
 
-Saved: 2026-05-29 20:30
+Saved: 2026-06-03 12:40
 
 ## Git
 
-Branch principal: `feat/dossier-lifecycle` (211e240) — PR #314 aberta (11 commits)
-Branch mergeada: `fix/remove-web-search-fallback` — PR #313 squashed em main (8d6e33f)
-Main local: sincronizada (commit `8d6e33f`)
-Working tree: limpa
-Stashes: `feat/crm-supabase-migration` (stash@{3}, stash@{4}, stash@{5})
+Branch de trabalho: `refactor/socio-search-decompose` (PR #327)
+Base: `main`
+PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/327
 
-## Decisao chave
+## Estado
 
-**Opcao 3 — Fechar PR #314 e abrir nova PR limpa.**
-Razao: 2 novos P0 + 1 P2 encontrados no preview Vercel (Lilian/Karine). PR ja tinha 11 commits + 15 findings pendentes. Melhor recomecar com commits semanticos limpos.
+PR #327 recebeu follow-up de cancelamento de pesquisa:
 
-## Novos bugs no preview
+- `Interromper` durante a pesquisa inicial não deve criar item no histórico.
+- Sessão temporária com apenas mensagem do usuário "Investigando..." é descartada.
+- `currentSessionId` volta para `null`, deixando a home inicial.
+- Waterfall não pode continuar para benchmark, reconciliação PORTA, consolidação, `updateSessionById` ou `saveDossier` depois do abort.
+- Clicar em `Nova investigação` durante loading cancela e volta para home, sem criar sessão vazia.
 
-| Prio | Bug                                               | Arquivo                             |
-| ---- | ------------------------------------------------- | ----------------------------------- |
-| P0   | `operator_email: null` em todos os dossies        | `services/storage.ts:153-218`       |
-| P0   | Tela branca na transicao LoadingSmart -> timeline | `utils/renderStateClassifier.ts`    |
-| P2   | Dynamic import em vez de static                   | `components/DossierShareBar.tsx:22` |
+## Validação local
 
-## Estado do codigo
+```bash
+npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/features/chat/message-orchestrator.test.ts tests/features/chat/session-controller.test.ts tests/components/ChatInterface.test.tsx
+npm run typecheck
+npm run build
+```
 
-- PR #314: 11 commits, 15 findings code review pendentes, 2 novos P0 + 1 P2
-- Branch `fix/remove-web-search-fallback`: mergeada, branch local ainda existe (deletar)
-- Stash `feat/crm-supabase-migration`: 3 stashes, pendente
+Resultado:
 
-## Riscos residuais
+- 62 testes focados passaram.
+- Typecheck passou.
+- Build Vite concluiu com exit code 0.
+- Sourcemaps enviados ao Sentry (`s-3j/scout-360`, release `v1.0.0`).
 
-1. **P0 withTimeout AbortSignal** (api/gemini.ts:416, :491) — documentado, nao corrigido
-2. **12 findings code review nao corrigidos** — 2 P1, 7 P2, 3 P3
-3. **Branch residual** `fix/remove-web-search-fallback` — deletar apos confirmacao do merge
-4. **CRM migration stashed** — precisa ser retomado ou descartado
-5. **operator_email null** — afeta todos os dossies novos (P0)
+## Próximo Passo
 
-## Recuperacao
-
-Proxima sessao: `HANDOFF_AI.md` -> `activeContext.md` -> `progress.md` -> corrigir 3 bugs (operator_email, tela branca, import) -> squash -> nova PR -> retomar CRM migration.
+1. Push na PR #327.
+2. Aguardar CI/preview remoto.
+3. Validar no preview: iniciar pesquisa, clicar `Interromper`, confirmar que volta para home e o sidebar não ganha item novo.
+4. Não mergear sem validação visual do fluxo e confirmação explícita do Bruno.

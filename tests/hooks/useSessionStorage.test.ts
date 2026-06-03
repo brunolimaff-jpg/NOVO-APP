@@ -23,7 +23,7 @@ vi.mock('../../services/storage', () => ({
 }));
 
 import { useSessionStorage } from '../../hooks/useSessionStorage';
-import { ChatSession } from '../../types';
+import { ChatSession, Sender } from '../../types';
 
 function makeSession(id: string, title: string, messages: ChatSession['messages'] = []): ChatSession {
   return {
@@ -119,6 +119,31 @@ describe('useSessionStorage', () => {
     const sessions = await result.current.loadSessions();
 
     expect(sessions[0].messages[0].timestamp).toBeInstanceOf(Date);
+  });
+
+  it('loadSessions remove estado transiente de UI vindo da persistência', async () => {
+    const sessionWithTransientState = {
+      ...makeSession('s4b', 'Empresa Transiente'),
+      messages: [
+        {
+          id: 'm1',
+          sender: Sender.Bot,
+          text: '',
+          timestamp: '2025-01-15T10:00:00.000Z',
+          isThinking: true,
+          loadingVariant: 'hero' as const,
+          isSourcesOpen: true,
+        },
+      ],
+    };
+    getDossiersMock.mockResolvedValue([sessionWithTransientState]);
+
+    const { result } = renderHook(() => useSessionStorage());
+    const sessions = await result.current.loadSessions();
+
+    expect(sessions[0].messages[0].isThinking).toBe(false);
+    expect(sessions[0].messages[0]).not.toHaveProperty('loadingVariant');
+    expect(sessions[0].messages[0]).not.toHaveProperty('isSourcesOpen');
   });
 
   it('setSessions atualiza o estado e dispara persistência com debounce', async () => {

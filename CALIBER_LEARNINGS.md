@@ -123,6 +123,19 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **completeLoadingProgress deve resetar loadingVariant para undefined** [loading, progress, variant, stale]
   `completeLoadingProgress()` em `loading-progress.ts` setava `setIsLoading(false)` e `setProgress(100)` mas nao resetava `loadingVariant`. No proximo loading, o componente exibia o variant anterior em vez do novo. Solucao: adicionar `setLoadingVariant(undefined)` no reset.
 
+
+- **lookupCnpj é server-only — browser deve usar fetchCompanyByCnpj via /api/cnpj** [cnpj, cors, browser, proxy]
+  `lib/cnpjLookup.ts:lookupCnpj` chama APIs externas (BrasilAPI, CNPJ.ws, MinhaReceita) diretamente — causa CORS garantido quando chamado do browser. Sintoma: console com "Access-Control-Allow-Origin", coluna CNAE vazia, "todas as fontes falharam". Solucao: no browser, sempre usar `fetchCompanyByCnpj` de `services/brasilApiService` que roteia via `/api/cnpj` (proxy Vercel). O `lookupCnpj` deve ser usado apenas em contexto server (API routes ou scripts Node). Adicionado comentario server-only em `lib/cnpjLookup.ts` e guardas no codigo.
+
+- **hasRenderableBotMessage deve incluir preview isThinking com texto suficiente** [waterfall, preview, timeline, blank-panel]
+  `hasRenderableBotMessage` original exigia `!isThinking`, portanto bloqueava a timeline durante TODO o waterfall mesmo com preview de >200 chars disponivel. `shouldSuspendHeroMessageTimeline` ficava `true` → painel central vazio (blank panel) durante waterfall. Fix: considerar renderizavel quando `!isThinking || text.trim().length >= 200` (WATERFALL_PREVIEW_MIN_CHARS). O overlay hero continua visivel (via `shouldShowHeroLoadingOverlay`), mas a timeline mostra preview incremental.
+
+- **CNAE enrichment deve ser deferido com requestIdleCallback para nao bloquear main thread pos-waterfall** [performance, cnae, requestIdleCallback, freeze]
+  Quando o waterfall termina e isLoading vai a false, o React monta o dossie completo + SocietaryMap dispara 6x `/api/socio-search` + CNAE enrichment em paralelo. Isso saturava o main thread e causava "Pagina sem resposta". Fix: encapsular o enrich() em `requestIdleCallback` (com fallback `setTimeout(fn, 0)`) para que o enriquecimento CNAE ocorra em tempo ocioso. Tambem usa AbortController para cancelar na desmontagem.
+
+- **virtuosoOverscan 1400 agrava freeze quando dossie tem SocietaryMap** [performance, virtuoso, overscan, teia]
+  `virtuosoOverscan=1400` para dossies longos causava re-montagem do SocietaryMap ao rolar, disparando novos lotes de QSA + CNAE. Fix: detectar mensagens com "teia societaria" e reduzir overscan para 600 nesses casos.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

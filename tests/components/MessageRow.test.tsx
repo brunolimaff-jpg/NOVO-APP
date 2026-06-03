@@ -130,7 +130,7 @@ describe('MessageRow', () => {
     expect(handleDeleteWithUndo).toHaveBeenCalledWith('msg-1');
   });
 
-  it('delegates hero loading to the global App overlay without creating a zero-height virtual row', () => {
+  it('renderiza fallback visivel para loading hero quando a timeline fica exposta', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
@@ -138,17 +138,19 @@ describe('MessageRow', () => {
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('hero-loading-spacer')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-loading-inline-fallback')).toBeInTheDocument();
+    expect(screen.getByTestId('inline-typing-response')).toBeInTheDocument();
   });
 
-  it('uses hero as the safe fallback when loadingVariant is absent and keeps the virtual row measurable', () => {
+  it('usa hero como fallback seguro quando loadingVariant esta ausente sem deixar painel branco', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('hero-loading-spacer')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-loading-inline-fallback')).toBeInTheDocument();
+    expect(screen.getByTestId('inline-typing-response')).toBeInTheDocument();
   });
 
   it('renderiza thinking state inline quando loadingVariant=inline', () => {

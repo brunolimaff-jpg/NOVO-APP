@@ -1,4 +1,132 @@
-# Handoff — [NOVO-APP] — 02/06/2026 — PR #328: Tela Branca Pos-Waterfall
+# Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
+
+## Atualização 03/06/2026 — fixes estruturais PR #327 (teia + CNPJ + UX)
+
+### O que foi corrigido
+
+**Phase 1 — P0 CNPJ proxy (fecha tabela/CNAE)**
+- `SocietaryMap.tsx`: substituído `lookupCnpj` (chamadas CORS diretas ao browser) por `fetchCompanyByCnpj` (proxy `/api/cnpj`) no enriquecimento CNAE. `AbortController` integrado; `CnpjResult` import removido.
+- `lib/cnpjLookup.ts`: comentário server-only adicionado (`// SERVER-ONLY: browser callers MUST use fetchCompanyByCnpj`).
+- Novo teste: `SocietaryMap.test.tsx` → "usa fetchCompanyByCnpj (proxy) para enriquecimento CNAE — nao chama brasilapi.com.br diretamente".
+
+**Phase 2 — P0 Preview waterfall (fecha branco inicial)**
+- `ChatInterface.tsx`: `hasRenderableBotMessage` agora trata bot com `text.trim().length >= 200` como renderizável **mesmo com `isThinking=true`**, liberando `shouldSuspendVirtualizedList=false` durante o waterfall.
+- Constante `WATERFALL_PREVIEW_MIN_CHARS = 200` extraída com comentário linkando para `waterfall-orchestrator.ts`.
+- Testes atualizados: `loadingVariant.test.ts` + `ChatInterface.test.tsx` com cenário de preview waterfall.
+
+**Phase 3 — P1 Performance (reduz freeze pós-waterfall)**
+- `SocietaryMap.tsx`: CNAE enrichment deferido com `requestIdleCallback` (fallback `setTimeout 0`) — não bloqueia main thread ao montar dossiê.
+- `SocietaryMatrix.tsx`: prop `isEnrichingCnae` adicionada; skeleton pulse no cabeçalho CNAE + `⏳` nas linhas enquanto enriquecimento está em andamento.
+- `MessageTimeline.tsx`: `virtuosoOverscan` reduzido de 1400 → 600 quando mensagem contém "teia societaria" (evita re-montar SocietaryMap ao rolar).
+
+**Phase 4 — Regression guards verificados**
+- `git diff main...HEAD -- features/dossier/waterfall-orchestrator.ts` → **diff vazio** (arquivo não alterado na PR).
+- Todos os guards PR #328 intactos: `registerWaterfallStart`, `sessionToPersist`, `sig.aborted`, `isAbortLikeError`.
+
+### Validação local (03/06/2026)
+
+```bash
+npm test -- tests/features/dossier/SocietaryMap.test.tsx tests/utils/loadingVariant.test.ts tests/components/ChatInterface.test.tsx tests/features/dossier/waterfall-orchestrator.test.ts
+# Resultado: 65/65 passaram
+
+npm run typecheck
+# Resultado: 0 erros
+
+npm run build
+# Resultado: built in 14.96s, PWA ok, Sentry sourcemaps enviados
+```
+
+### Passos manuais necessários
+
+1. **Migration Supabase** — `supabase/migrations/20260603_blank_panel_observability.sql` deve ser aplicada manualmente no projeto Supabase antes de validar queries `scout_diagnostics`. Não executar em produção sem aprovação do usuário.
+2. **Validação preview** — após push da PR, verificar no Vercel preview:
+   - Zero CORS `brasilapi.com.br` no console do browser
+   - Tabela CNAE preenchida com skeleton durante carregamento
+   - Timeline visível incrementalmente durante waterfall (não mais tela branca)
+   - Query Supabase: `SELECT * FROM scout_diagnostics WHERE area='BlankPanel' ORDER BY created_at DESC LIMIT 10`
+
+### Objetivo da Próxima Sessão
+
+Validar preview Vercel da PR #327 com as correções estruturais; confirmar zero CORS e preview incremental no fluxo real (CNPJ Scheffer `04733767000180`).
+
+---
+
+## Atualizacao 03/06/2026 — PR #327
+
+### Follow-up 03/06 — interromper pesquisa nao pode gerar historico nem relatorio
+
+Evidencia real do preview: apos clicar em **Interromper** durante a pesquisa, a UI ainda podia deixar uma sessao parcial no sidebar com a mensagem "Investigando..." e, em outra rodada, o waterfall continuou ate consolidar e salvar/renderizar um relatorio completo mesmo apos o abort.
+
+Mudancas aplicadas:
+
+- `features/chat/message-orchestrator.ts`: se a primeira investigacao for abortada antes de resposta de bot, a sessao temporaria e removida e `currentSessionId` volta para `null`.
+- `features/chat/session-controller.ts`: clicar em **Nova investigacao** durante loading agora cancela a geracao e volta para home, sem criar sessao vazia.
+- `features/dossier/waterfall-orchestrator.ts`: abort agora interrompe as etapas finais do waterfall antes de benchmark, reconciliacao PORTA, consolidacao, `updateSessionById` e `saveDossier`. O antigo `break` no loop de modulos permitia seguir para consolidacao parcial.
+
+Contrato de produto: **se o usuario interrompeu a pesquisa, nada deve nascer no historico e nenhum relatorio deve ser gerado**. A tela deve voltar para o estado inicial.
+
+Validacao local deste follow-up:
+
+```bash
+npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/features/chat/message-orchestrator.test.ts tests/features/chat/session-controller.test.ts tests/components/ChatInterface.test.tsx
+npm run typecheck
+npm run build
+```
+
+Resultado no worktree da PR: unit/focused tests 62/62 passaram, typecheck OK, build Vite concluiu e sourcemaps foram enviados ao Sentry (`s-3j/scout-360`, release `v1.0.0`).
+
+### O que mudou
+
+- PR #327 continua na branch `refactor/socio-search-decompose`, agora com rastreio permanente para a regressão de tela branca.
+- Adicionado `utils/blankPanelTelemetry.ts`: mede o DOM do `chat-main-panel` e dispara `BlankPanel/blank-panel-detected` quando há sessão ativa com bot final esperado, mas sem conteúdo de bot visível.
+- Sentry agora recebe `captureMessage('Scout360 blank panel detected')` com tags `area`, `source`, `reason`, `session_id` e contexto `blank_panel`.
+- `serverDiagnostics` passa a preservar métricas numéricas/booleanas seguras (`bodyLen`, `botTextMaxLen`, `mainPanelChars`, alturas, contagens), sem liberar strings de prompt/response/body/text/content.
+- Migration Supabase `20260603_blank_panel_observability.sql` aplicada no projeto `vmqfcaoirjcfucvlnpig`, com índices em `scout_diagnostics` por sessão, área/evento, operador e índice parcial `BlankPanel`.
+- E2E de painel branco/loading agora usa dossiê determinístico longo e exige `bot-message-content` visível, `data-text-length > 30000`, dimensões reais e ausência de placeholder/suspensão/erro/empty-state.
+
+### Follow-up 03/06 — tela branca ainda ativa no preview
+
+Nova evidência real do preview mostrou `messageCount=2`, `botMessageUpdated=true`, `waterfallFinalTextLen≈30k`, `panelState='content'`, `Virtuoso itemsRendered { firstIndex: 0, lastIndex: 1 }`, mas o painel central continuava visualmente branco. A assinatura indica que o estado e a virtualização reportavam sucesso, porém o DOM do conteúdo de bot não materializava.
+
+Mudança aplicada: `ChatInterface` agora ativa `forceStaticTimelineFallback` quando há bot final esperado e o snapshot do painel não encontra nós/linhas de bot visíveis. `MessageTimeline` recebe essa flag e renderiza uma lista estática com `MessageRow`, pulando o Virtuoso apenas nesse caso anômalo. O fallback é resetado ao trocar sessão, voltar para loading, home ou suspensão.
+
+Contrato novo: não confiar em `Virtuoso rangeChanged/itemsRendered` como prova de render. A prova de recuperação é `messages-static-fallback` ou `bot-message-content` visível no `chat-main-panel`.
+
+### Evidencia local
+
+```bash
+npm run typecheck
+npm test -- tests/utils/blankPanelTelemetry.test.ts tests/utils/serverDiagnostics.test.ts tests/contracts/supabaseMigrations.contract.test.ts tests/components/ChatInterface.test.tsx tests/components/chat/MessageTimeline.test.tsx tests/components/MessageRow.test.tsx tests/features/chat/message-orchestrator.test.ts
+npm test -- tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx
+npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/stores/chatStore.test.tsx tests/features/chat/message-orchestrator.test.ts
+npm run test:e2e:blank
+npm run test:e2e:loading
+npm run build
+```
+
+Resultado: todos passaram. Build enviou sourcemaps para Sentry (`s-3j/scout-360`, release `v1.0.0`).
+
+Evidência adicional do follow-up:
+
+```bash
+npm test -- tests/components/ChatInterface.test.tsx tests/components/chat/MessageTimeline.test.tsx tests/utils/blankPanelTelemetry.test.ts
+npm run test:e2e:blank
+npm run test:e2e:loading
+```
+
+Resultado: todos passaram; `blank-center-panel-regression` 3/3 e `loading-smart-recovery` 3/3.
+
+### Como investigar se voltar a tela branca
+
+1. Sentry: procurar mensagem `Scout360 blank panel detected`.
+2. Supabase: consultar `scout_diagnostics` com `area = 'BlankPanel'` ou `session_id = <id_da_sessao>`.
+3. Campos chave: `reason`, `rowCount`, `visibleRowCount`, `botNodeCount`, `visibleBotWithCharsCount`, `botCharsMax`, `mainPanelChars`, `panelRect`, `scrollerHeight`, `centerElementTestId`.
+4. Não aceitar como evidência suficiente: dossiê salvo no Supabase, `document.body.textContent`, item no histórico/sidebar, `dossier-content` isolado ou `message-row` estrutural.
+
+### LocalStorage
+
+- Não foi removido nesta mudança porque a evidência atual não aponta `localStorage` como causa raiz: o dossiê real já estava no Supabase com mensagens finais e transientes limpos.
+- Próxima limpeza possível: retirar fallback legado `scout360_sessions_v1` de `useSessionStorage` em uma PR separada, com migração/rollback próprios.
 
 ## Objetivo da Proxima Sessao
 

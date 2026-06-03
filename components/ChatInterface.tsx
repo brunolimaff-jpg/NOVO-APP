@@ -8,6 +8,7 @@ import { storage } from '../services/storage';
 import { type ChatSession, Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { reportBlankPanelIfDetected, type BlankPanelSnapshot } from '../utils/blankPanelTelemetry';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
@@ -48,6 +49,20 @@ const shouldIncludeBudgetPrompt = (
   if ((radar?.alerts?.length || 0) > 0) return true;
   return false;
 };
+
+function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
+  if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
+  if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
+  if (snapshot.loadingOverlayVisible || snapshot.controlledErrorVisible || snapshot.emptyStateVisible) return false;
+
+  if (snapshot.blankDetected) return true;
+
+  const panelHasAlmostNoContent = snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
+  if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
+  if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
+
+  return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
+}
 
 const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
   if (!radar) return '';
@@ -124,18 +139,24 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
+  const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
+  const staticTimelineFallbackSessionRef = useRef<string | null>(null);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
+  // A waterfall preview (isThinking=true) with enough text is renderable — show timeline incrementally.
+  // Mirrors WATERFALL_PREVIEW_MIN_CHARS = 200 from waterfall-orchestrator.ts.
+  const WATERFALL_PREVIEW_MIN_CHARS = 200;
   const hasRenderableBotMessage = safeMessages.some(
     message =>
       message.sender === Sender.Bot &&
-      !message.isThinking &&
       !message.isError &&
-      Boolean(String(message.text || '').trim()),
+      Boolean(String(message.text || '').trim()) &&
+      (!message.isThinking ||
+        String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
   );
   const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
     isLoading,
@@ -325,6 +346,123 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     isLoading,
     hasError: hasErrorInMessages,
   });
+  const expectedBotCharsMax = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...safeMessages
+          .filter(message => message.sender === Sender.Bot && !message.isThinking && !message.isError)
+          .map(message => String(message.text || '').trim().length),
+      ),
+    [safeMessages],
+  );
+
+  const panelSnapshotSignatureRef = useRef('');
+  useEffect(() => {
+    const signature = [
+      currentSession?.id ?? 'no-session',
+      panelState,
+      hasActiveSession ? 'active' : 'inactive',
+      safeMessages.length,
+      messages.length,
+      hasDossierContent ? 'dossier' : 'no-dossier',
+      isLoading ? 'loading' : 'idle',
+      loadingVariant ?? 'none',
+      showInitialHome ? 'home' : 'no-home',
+      showOperatorGate ? 'operator-gate' : 'operator-ready',
+      shouldSuspendVirtualizedList ? 'suspended' : 'timeline',
+      forceStaticTimelineFallback ? 'static-fallback' : 'virtualized',
+      expectedBotCharsMax,
+    ].join('|');
+
+    if (panelSnapshotSignatureRef.current === signature) return;
+    panelSnapshotSignatureRef.current = signature;
+
+    scoutDiag.info('ChatInterface', 'panel:snapshot', {
+      sessionId: currentSession?.id ?? null,
+      panelState,
+      hasActiveSession,
+      safeMessageCount: safeMessages.length,
+      propMessageCount: messages.length,
+      hasDossierContent,
+      expectedBotCharsMax,
+      isLoading,
+      loadingVariant,
+      showInitialHome,
+      showOperatorGate,
+      shouldSuspendVirtualizedList,
+      forceStaticTimelineFallback,
+    });
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    forceStaticTimelineFallback,
+    hasActiveSession,
+    hasDossierContent,
+    isLoading,
+    loadingVariant,
+    messages.length,
+    panelState,
+    safeMessages.length,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+    showOperatorGate,
+  ]);
+
+  useEffect(() => {
+    setForceStaticTimelineFallback(false);
+    staticTimelineFallbackSessionRef.current = null;
+  }, [currentSession?.id]);
+
+  useEffect(() => {
+    if (!isLoading && expectedBotCharsMax > 0 && !showInitialHome && !shouldSuspendVirtualizedList) return;
+
+    setForceStaticTimelineFallback(false);
+    staticTimelineFallbackSessionRef.current = null;
+  }, [expectedBotCharsMax, isLoading, shouldSuspendVirtualizedList, showInitialHome]);
+
+  useEffect(() => {
+    if (!currentSession?.id || expectedBotCharsMax <= 0) return;
+    if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
+
+    const delays = [750, 2_000, 5_000, 9_000];
+    const timers = delays.map(delay =>
+      window.setTimeout(() => {
+        const snapshot = reportBlankPanelIfDetected({
+          sessionId: currentSession.id,
+          source: `ChatInterface:${delay}ms`,
+          messageCount: safeMessages.length,
+          expectedBotCharsMax,
+          isLoading,
+          loadingVariant,
+          panelState,
+          showInitialHome,
+          shouldSuspendVirtualizedList,
+        });
+
+        if (!snapshot || !shouldActivateStaticTimelineFallback(snapshot)) return;
+        if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
+
+        staticTimelineFallbackSessionRef.current = currentSession.id;
+        setForceStaticTimelineFallback(true);
+        scoutDiag.warn('BlankPanel', 'static-timeline-fallback-activated', {
+          ...snapshot,
+          delay,
+        } as unknown as Record<string, unknown>);
+      }, delay),
+    );
+
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    isLoading,
+    loadingVariant,
+    panelState,
+    safeMessages.length,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+  ]);
 
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);
@@ -419,6 +557,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+                forceStaticTimelineFallback={forceStaticTimelineFallback}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);

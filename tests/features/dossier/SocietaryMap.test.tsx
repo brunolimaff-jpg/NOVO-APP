@@ -814,6 +814,68 @@ describe('SocietaryMap', () => {
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Gemini — Tabela Mestre');
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('CNPJ 00.111.222/0001-81');
-    expect(fetch).toHaveBeenCalledTimes(3);
+    // CNAE enrichment now uses fetchCompanyByCnpj (mocked) not fetch directly;
+    // only the /api/socio-search call for the partner remains in fetch
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('usa fetchCompanyByCnpj (proxy) para enriquecimento CNAE — nao chama brasilapi.com.br diretamente', async () => {
+    // Root lookup
+    fetchCompanyByCnpjMock
+      .mockResolvedValueOnce({
+        cnpj: '04733767000180',
+        companyName: 'Scheffer & Cia Ltda',
+        city: 'Sapezal',
+        state: 'MT',
+        qsa: [
+          { name: 'Guilherme M. Scheffer', role: 'Administrador', source: 'BrasilAPI', confidence: 'official' },
+        ],
+      })
+      // CNAE enrichment for partner company
+      .mockResolvedValue({
+        cnpj: '09567366000111',
+        companyName: 'E.Z.M.S. Participações Ltda',
+        city: 'Cuiabá',
+        state: 'MT',
+        cnae: '6462000',
+        cnaeDescricao: 'Holdings de instituições não-financeiras',
+      });
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        companies: [
+          {
+            name: 'E.Z.M.S. Participações Ltda',
+            cnpj: '09567366000111',
+            partnerName: 'Guilherme M. Scheffer',
+            sourceTitle: 'CNPJ Aberto',
+            snippet: 'Sócio admin',
+            confidence: 'strong',
+            evidenceType: 'qsa',
+            rootContext: false,
+          },
+        ],
+        rejected: [],
+        degraded: false,
+        cached: false,
+      }),
+    } as Response);
+
+    render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
+
+    // Wait for table to render (default view)
+    await waitFor(() =>
+      expect(screen.getByTestId('societary-summary-metrics')).toBeInTheDocument(),
+    );
+
+    // fetchCompanyByCnpj must have been called for CNAE enrichment
+    await waitFor(() => expect(fetchCompanyByCnpjMock).toHaveBeenCalled());
+
+    // Ensure fetch() was NOT called with brasilapi.com.br directly (CORS violation)
+    const directBrasilApiCalls = vi.mocked(fetch).mock.calls.filter(
+      ([url]) => typeof url === 'string' && url.includes('brasilapi.com.br'),
+    );
+    expect(directBrasilApiCalls).toHaveLength(0);
   });
 });

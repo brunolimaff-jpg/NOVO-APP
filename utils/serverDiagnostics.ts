@@ -53,6 +53,57 @@ function sanitizeString(value: string, maxLen: number = MAX_STRING_LENGTH): stri
   return String(value).slice(0, maxLen);
 }
 
+function isSensitivePayloadKey(lower: string): boolean {
+  return (
+    lower.includes('token') ||
+    lower.includes('key') ||
+    lower.includes('secret') ||
+    lower.includes('password') ||
+    lower.includes('auth') ||
+    lower.includes('credential') ||
+    lower.includes('prompt') ||
+    lower.includes('response') ||
+    lower.includes('content') ||
+    lower.includes('text') ||
+    lower.includes('body')
+  );
+}
+
+function isSafeTelemetryMetric(lower: string, value: unknown): boolean {
+  if (typeof value !== 'number' && typeof value !== 'boolean') return false;
+
+  return (
+    lower.endsWith('len') ||
+    lower.endsWith('length') ||
+    lower.endsWith('chars') ||
+    lower.endsWith('count') ||
+    lower.endsWith('height') ||
+    lower.endsWith('width') ||
+    lower.includes('visible') ||
+    lower.includes('exists') ||
+    lower.includes('contains') ||
+    lower.includes('offset') ||
+    lower.includes('scroll') ||
+    lower.includes('client') ||
+    lower.includes('rect')
+  );
+}
+
+function isSafeTelemetryLabel(lower: string, value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+
+  return (
+    lower.endsWith('testid') ||
+    lower.endsWith('tag') ||
+    lower.endsWith('role') ||
+    lower.endsWith('reason') ||
+    lower.endsWith('state') ||
+    lower.endsWith('source') ||
+    lower.endsWith('variant') ||
+    lower.endsWith('branch')
+  );
+}
+
 function sanitizePayload(obj: unknown, depth: number = 0): unknown {
   if (depth > MAX_PAYLOAD_DEPTH) return '[truncated: max depth]';
   if (obj === null || obj === undefined) return obj;
@@ -66,22 +117,15 @@ function sanitizePayload(obj: unknown, depth: number = 0): unknown {
     const keys = Object.keys(obj as Record<string, unknown>).slice(0, 30);
     for (const key of keys) {
       const lower = key.toLowerCase();
+      const value = (obj as Record<string, unknown>)[key];
       if (
-        lower.includes('token') ||
-        lower.includes('key') ||
-        lower.includes('secret') ||
-        lower.includes('password') ||
-        lower.includes('auth') ||
-        lower.includes('credential') ||
-        lower.includes('prompt') ||
-        lower.includes('response') ||
-        lower.includes('content') ||
-        lower.includes('text') ||
-        lower.includes('body')
+        isSensitivePayloadKey(lower) &&
+        !isSafeTelemetryMetric(lower, value) &&
+        !isSafeTelemetryLabel(lower, value)
       ) {
         continue;
       }
-      result[key] = sanitizePayload((obj as Record<string, unknown>)[key], depth + 1);
+      result[key] = sanitizePayload(value, depth + 1);
     }
     return result;
   }

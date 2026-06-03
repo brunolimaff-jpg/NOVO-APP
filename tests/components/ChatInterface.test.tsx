@@ -1,11 +1,14 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ChatInterface from '../../components/ChatInterface';
 import { Sender, type Message, type ChatSession } from '../../types';
 
 const { warnMock } = vi.hoisted(() => ({
   warnMock: vi.fn(),
+}));
+const { reportBlankPanelIfDetectedMock } = vi.hoisted(() => ({
+  reportBlankPanelIfDetectedMock: vi.fn(),
 }));
 const { sessionsSidebarMock } = vi.hoisted(() => ({
   sessionsSidebarMock: vi.fn(),
@@ -159,6 +162,10 @@ vi.mock('../../utils/diagnosticLog', () => ({
   scoutDiag: { warn: warnMock, info: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('../../utils/blankPanelTelemetry', () => ({
+  reportBlankPanelIfDetected: reportBlankPanelIfDetectedMock,
+}));
+
 function buildMessage(id: string, sender: Sender, text: string): Message {
   return {
     id,
@@ -230,6 +237,13 @@ function buildProps(
 describe('ChatInterface shell regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    reportBlankPanelIfDetectedMock.mockReturnValue({
+      blankDetected: false,
+      visibleBotWithCharsCount: 1,
+      loadingOverlayVisible: false,
+      controlledErrorVisible: false,
+      emptyStateVisible: false,
+    });
     Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 });
     operatorStateRef.current = {
       name: 'Bruno Lima',
@@ -700,5 +714,111 @@ describe('ChatInterface shell regression', () => {
       globalThis.ResizeObserver = originalResizeObserver;
       window.requestAnimationFrame = originalRaf;
     }
+  });
+
+  it('ativa fallback estatico quando existe bot final mas o DOM virtualizado fica branco', async () => {
+    vi.useFakeTimers();
+    reportBlankPanelIfDetectedMock.mockReturnValue({
+      sessionId: 'session-1',
+      source: 'ChatInterface:750ms',
+      route: '/',
+      messageCount: 2,
+      expectedBotCharsMax: 34,
+      isLoading: false,
+      panelState: 'content',
+      showInitialHome: false,
+      shouldSuspendVirtualizedList: false,
+      panelVisible: true,
+      mainPanelChars: 0,
+      rowCount: 0,
+      visibleRowCount: 0,
+      botNodeCount: 0,
+      visibleBotNodeCount: 0,
+      visibleBotWithCharsCount: 0,
+      botCharsMax: 0,
+      dossierNodeVisible: false,
+      controlledErrorVisible: false,
+      emptyStateVisible: false,
+      loadingOverlayVisible: false,
+      centerElementTag: 'DIV',
+      centerElementTestId: null,
+      centerElementRole: null,
+      centerElementClass: null,
+      suspendedViewportVisible: false,
+      placeholderVisible: false,
+      heroFallbackVisible: false,
+      scrollerHeight: 706,
+      scrollerScrollHeight: 706,
+      scrollerScrollTop: 0,
+      panelRect: { width: 1455, height: 706, top: 116, left: 0, inViewport: true },
+      reason: 'no-message-rows-in-panel',
+      blankDetected: true,
+    });
+
+    try {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+        buildMessage('m2', Sender.Bot, '# Dossiê final disponível para Scheffer'),
+      ];
+
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+            isLoading: false,
+          })}
+        />,
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+      expect(warnMock).toHaveBeenCalledWith(
+        'BlankPanel',
+        'static-timeline-fallback-activated',
+        expect.objectContaining({
+          reason: 'no-message-rows-in-panel',
+          delay: 750,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('exibe timeline (nao suspende) durante waterfall quando preview tem >= 200 chars com isThinking=true', async () => {
+    const previewText = 'A'.repeat(201); // >= WATERFALL_PREVIEW_MIN_CHARS
+    const messages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      {
+        ...buildMessage('m2', Sender.Bot, previewText),
+        isThinking: true,
+        loadingVariant: 'hero' as const,
+      },
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    // Timeline must NOT be suspended — messages-viewport-suspended should be absent
+    await waitFor(() => {
+      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+    });
+
+    // isMessagesViewportReady=false in JSDOM (no ResizeObserver), so Virtuoso placeholder shows —
+    // the key assertion is that messages-viewport-suspended is absent (timeline unlocked).
   });
 });

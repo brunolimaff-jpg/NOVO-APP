@@ -4,13 +4,18 @@ import { getOperatorId } from './_shared';
 import { storageGet } from '../../utils/localStorage';
 import type { ChatSession } from './types';
 
+function stripTransientMessageState(message: ChatSession['messages'][number]): ChatSession['messages'][number] {
+  const { loadingVariant: _loadingVariant, isSourcesOpen: _isSourcesOpen, ...persistentMessage } = message;
+  return {
+    ...persistentMessage,
+    isThinking: false,
+  };
+}
+
 function stripTransientState(session: ChatSession): ChatSession {
   return {
     ...session,
-    messages: (session.messages || []).map(msg => ({
-      ...msg,
-      isThinking: false,
-    })),
+    messages: (session.messages || []).map(stripTransientMessageState),
   };
 }
 
@@ -37,13 +42,7 @@ export const dossiers = {
     return data
       .map((row: { content: ChatSession | null }) => row.content)
       .filter((s): s is ChatSession => s != null)
-      .map(session => ({
-        ...session,
-        messages: (session.messages || []).map(msg => ({
-          ...msg,
-          isThinking: false,
-        })),
-      }));
+      .map(stripTransientState);
   },
 
   async getDossier(id: string): Promise<ChatSession | null> {
@@ -66,10 +65,7 @@ export const dossiers = {
     }
     if (!data?.content) return null;
     const session = data.content as ChatSession;
-    return {
-      ...session,
-      messages: (session.messages || []).map(msg => ({ ...msg, isThinking: false })),
-    };
+    return stripTransientState(session);
   },
 
   async saveDossier(session: ChatSession): Promise<void> {

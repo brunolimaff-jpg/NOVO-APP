@@ -113,6 +113,9 @@ describe('useSessionManager session controller', () => {
     });
 
     expect(abort).toHaveBeenCalled();
+    expect(options.setIsLoading).toHaveBeenCalledWith(false);
+    expect(options.setCurrentSessionId).toHaveBeenCalledWith(null);
+    expect(options.setSessions).not.toHaveBeenCalled();
   });
 
   it('handleNewSession reseta todos os estados de UI', () => {

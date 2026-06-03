@@ -32,6 +32,8 @@ const CATEGORY_ORDER: Record<CompanyCategory, number> = {
 interface SocietaryMatrixProps {
   graph: SocietaryGraph;
   cnaeMap: Record<string, { cnae: string; cnaeDescricao: string }>;
+  /** True while CNAE enrichment via /api/cnpj is in flight — shows skeleton in CNAE column */
+  isEnrichingCnae?: boolean;
   isDarkMode: boolean;
   rootName: string;
   selectedPartnerId?: string | null;
@@ -196,6 +198,7 @@ const TableRow = React.memo(({ row, partnerColumns, partnerColors, cnaeLabel }: 
 const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
   graph,
   cnaeMap,
+  isEnrichingCnae = false,
   isDarkMode,
   rootName: _rootName,
   selectedPartnerId = null,
@@ -367,7 +370,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
             <tr className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-slate-500 dark:text-slate-400">
               <th className="text-left px-3 py-3 min-w-[240px]">Empresa</th>
               <th className="px-3 py-3">CNPJ</th>
-              <th className="text-left px-3 py-3">CNAE</th>
+              <th className="text-left px-3 py-3">CNAE{isEnrichingCnae && <span className="ml-1 inline-block h-1.5 w-6 animate-pulse rounded bg-slate-300 align-middle dark:bg-slate-600" aria-hidden="true" />}</th>
               {partnerColumns.map(partner => (
                 <th key={partner.id} className="px-3 py-3 text-center">
                   {firstGivenName(partner.name)}
@@ -392,7 +395,7 @@ const SocietaryMatrix: React.FC<SocietaryMatrixProps> = ({
                   row={row}
                   partnerColumns={partnerColumns}
                   partnerColors={partnerColors}
-                  cnaeLabel={cnaeLabels.get(row.company.id) ?? '—'}
+                  cnaeLabel={isEnrichingCnae && !cnaeLabels.get(row.company.id) ? '⏳' : (cnaeLabels.get(row.company.id) ?? '—')}
                 />
               ))
             )}

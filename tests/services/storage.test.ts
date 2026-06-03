@@ -34,7 +34,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 import { storage } from '../../services/storage';
 import { get, set } from 'idb-keyval';
 import { isSupabaseAvailable } from '../../lib/supabaseClient';
-import type { ChatSession } from '../../types';
+import { Sender, type ChatSession } from '../../types';
 
 describe('storage (simplificado — Supabase direto)', () => {
   const mockSession: ChatSession = {
@@ -75,6 +75,44 @@ describe('storage (simplificado — Supabase direto)', () => {
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('d1');
       expect(supabaseMock.from).toHaveBeenCalledWith('dossies');
+    });
+
+    it('normaliza estado transiente de mensagens carregadas do Supabase', async () => {
+      const mockData = [
+        {
+          content: {
+            id: 'd1',
+            title: 'Test',
+            messages: [
+              {
+                id: 'm1',
+                sender: Sender.Bot,
+                text: '',
+                timestamp: new Date(),
+                isThinking: true,
+                loadingVariant: 'hero',
+                isSourcesOpen: true,
+              },
+            ],
+          },
+        },
+      ];
+      const orderMock = vi.fn().mockResolvedValue({ data: mockData, error: null });
+      const isMock = vi.fn().mockReturnValue({ order: orderMock });
+      const eqMock = vi.fn().mockReturnValue({ is: isMock });
+      const selectMock = vi.fn().mockReturnValue({ eq: eqMock });
+      supabaseMock.from.mockReturnValue({ select: selectMock });
+
+      const result = await storage.getDossiers();
+
+      expect(result[0].messages[0]).toEqual(
+        expect.objectContaining({
+          id: 'm1',
+          isThinking: false,
+        }),
+      );
+      expect(result[0].messages[0]).not.toHaveProperty('loadingVariant');
+      expect(result[0].messages[0]).not.toHaveProperty('isSourcesOpen');
     });
 
     it('deve retornar array vazio se não houver operatorId', async () => {
@@ -170,6 +208,32 @@ describe('storage (simplificado — Supabase direto)', () => {
           operator_id: 'op_test123',
         }),
       );
+    });
+
+    it('não persiste estado transiente de UI no content do Supabase', async () => {
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveDossier({
+        ...mockSession,
+        messages: [
+          {
+            id: 'm1',
+            sender: Sender.Bot,
+            text: '',
+            timestamp: new Date(),
+            isThinking: true,
+            loadingVariant: 'hero',
+            isSourcesOpen: true,
+          },
+        ],
+      });
+
+      const payload = supabaseMock.upsert.mock.calls[0][0];
+      const persistedMessage = payload.content.messages[0];
+      expect(persistedMessage.isThinking).toBe(false);
+      expect(persistedMessage).not.toHaveProperty('loadingVariant');
+      expect(persistedMessage).not.toHaveProperty('isSourcesOpen');
     });
 
     it('não deve fazer upsert se não houver operatorId', async () => {

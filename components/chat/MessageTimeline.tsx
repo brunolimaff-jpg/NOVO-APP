@@ -21,6 +21,7 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
+  forceStaticTimelineFallback?: boolean;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
@@ -66,6 +67,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   showOperatorGate,
   showInitialHome,
   shouldSuspendVirtualizedList,
+  forceStaticTimelineFallback = false,
   onConfirmOperatorName,
   onStartInvestigation,
   radar,
@@ -92,6 +94,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const pendingDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportReadySignatureRef = useRef('');
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
@@ -103,7 +106,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const curr = safeMessages.length;
     prevTimelineLenRef.current = curr;
 
-    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !isLoading) {
+    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !forceStaticTimelineFallback && !isLoading) {
       console.error(
         '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
         JSON.stringify({
@@ -112,15 +115,33 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           after: curr,
           showInitialHome,
           shouldSuspendVirtualizedList,
+          forceStaticTimelineFallback,
           isDarkMode,
         }),
       );
     }
-  }, [safeMessages.length, showInitialHome, shouldSuspendVirtualizedList, isLoading, currentSession?.id, isDarkMode]);
+  }, [
+    safeMessages.length,
+    showInitialHome,
+    shouldSuspendVirtualizedList,
+    forceStaticTimelineFallback,
+    isLoading,
+    currentSession?.id,
+    isDarkMode,
+  ]);
 
-  // Use larger overscan when any bot message looks like a dossier (long text) to
-  // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
+  // Overscan tuned per content type:
+  // - Messages with teia societária (SocietaryMap) use a reduced overscan to avoid
+  //   triggering SocietaryMap remounts + heavy QSA batch calls while scrolling.
+  // - Long dossiers without teia use 1400 to prevent Mermaid remounts.
   const virtuosoOverscan = useMemo(() => {
+    const hasTeia = safeMessages.some(
+      m =>
+        m.sender === Sender.Bot &&
+        typeof m.text === 'string' &&
+        /teia\s+societ[aá]ria/i.test(m.text),
+    );
+    if (hasTeia) return 600;
     const hasDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000);
     return hasDossier ? 1400 : 400;
   }, [safeMessages]);
@@ -203,7 +224,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   );
 
   useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList) {
+    if (showInitialHome || shouldSuspendVirtualizedList || forceStaticTimelineFallback) {
       setIsMessagesViewportReady(false);
       return;
     }
@@ -221,22 +242,45 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     let rafB: number | null = null;
     let emergencyTimer: number | null = null;
 
+    const readViewportMetrics = () => ({
+      sessionId: currentSession?.id ?? null,
+      viewportWidth: viewport.clientWidth,
+      viewportHeight: viewport.clientHeight,
+      offsetHeight: viewport.offsetHeight,
+      scrollHeight: viewport.scrollHeight,
+      totalItems: safeMessages.length,
+      showInitialHome,
+      shouldSuspendVirtualizedList,
+      forceStaticTimelineFallback,
+    });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
-    const markReady = () => {
-      if (!cancelled) {
-        setIsMessagesViewportReady(true);
+    const markReady = (reason: string) => {
+      if (cancelled) return;
+
+      const metrics = readViewportMetrics();
+      const signature = `${reason}|${metrics.viewportWidth}|${metrics.viewportHeight}|${metrics.totalItems}`;
+      if (viewportReadySignatureRef.current !== signature) {
+        viewportReadySignatureRef.current = signature;
+        const logPayload = { reason, ...metrics };
+        if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0) {
+          scoutDiag.warn('Virtuoso', 'viewport-ready-with-invalid-size', logPayload);
+        } else {
+          scoutDiag.info('Virtuoso', 'viewport-ready', logPayload);
+        }
       }
+
+      setIsMessagesViewportReady(true);
     };
 
     setIsMessagesViewportReady(false);
-    emergencyTimer = window.setTimeout(markReady, 180);
+    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 180);
 
     if (hasValidSize()) {
-      markReady();
+      markReady('initial-size');
     } else if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(() => {
         if (hasValidSize()) {
-          markReady();
+          markReady('resize-observer');
         }
       });
       observer.observe(viewport);
@@ -245,7 +289,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     if (typeof window.requestAnimationFrame === 'function') {
       rafA = window.requestAnimationFrame(() => {
         if (typeof window.requestAnimationFrame === 'function') {
-          rafB = window.requestAnimationFrame(markReady);
+          rafB = window.requestAnimationFrame(() => markReady('double-raf'));
         }
       });
     }
@@ -261,7 +305,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages.length, showInitialHome, shouldSuspendVirtualizedList]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -331,6 +375,16 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
+  useEffect(() => {
+    if (!forceStaticTimelineFallback) return;
+
+    scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
+      sessionId: currentSession?.id ?? null,
+      totalItems: safeMessages.length,
+      hasBotMessage: safeMessages.some(message => message.sender === Sender.Bot),
+    });
+  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
+
   return (
     <div className="flex-1 min-h-0 relative">
       {showOperatorGate ? (
@@ -363,6 +417,27 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               Preparando investigação...
             </p>
           </div>
+        </div>
+      ) : forceStaticTimelineFallback ? (
+        <div
+          className="h-full min-h-0 w-full overflow-y-auto custom-scrollbar"
+          data-testid="messages-static-fallback"
+          data-scout-virtuoso="static-fallback"
+        >
+          {hasMore ? (
+            <div className="flex justify-center py-3">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+              >
+                Carregar mensagens anteriores
+              </button>
+            </div>
+          ) : null}
+          {safeMessages.map((message, index) => (
+            <MessageRow key={message.id} index={index} data={itemData} />
+          ))}
         </div>
       ) : (
         <div ref={messagesViewportRef} className="h-full min-h-0 w-full" data-scout-virtuoso="timeline">

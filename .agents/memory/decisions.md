@@ -1,6 +1,36 @@
 # Decisions
 
-Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall
+Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
+
+## 2026-06-03 — Interromper pesquisa deve descartar sessao temporaria (APLICADO LOCALMENTE)
+
+Decision: quando o usuario interrompe uma pesquisa inicial, o app deve abortar o waterfall, remover a sessao temporaria criada para o envio e voltar para `currentSessionId=null`. O waterfall deve tratar `AbortSignal` como terminal tambem entre etapas finais, antes de benchmark, reconciliacao PORTA, consolidacao, `updateSessionById` e `saveDossier`.
+
+Reason: evidencia real do preview mostrou dois sintomas do mesmo problema de produto: (1) abort deixava uma sessao parcial no sidebar com apenas "Investigando..."; (2) em outra rodada, o waterfall continuava ate gerar e renderizar o relatorio mesmo apos o clique em Interromper. O antigo `break` no loop de modulos parava a iteracao, mas ainda permitia seguir para consolidacao parcial.
+
+Contract: se o usuario clicou em `Interromper` durante a pesquisa, nada deve nascer no historico e nenhum relatorio deve ser gerado. Nova investigacao durante loading tambem deve cancelar e voltar para home, sem criar sessao vazia. Testes devem provar ausencia de `updateSessionById`, `saveDossier` e `completeLoadingProgress` apos abort tardio.
+
+Refs: `features/chat/message-orchestrator.ts`, `features/chat/session-controller.ts`, `features/dossier/waterfall-orchestrator.ts`, `tests/features/chat/message-orchestrator.test.ts`, `tests/features/chat/session-controller.test.ts`, `tests/features/dossier/waterfall-orchestrator.test.ts`, PR #327.
+
+## 2026-06-03 — Fallback estatico quando Virtuoso nao materializa o DOM (APLICADO LOCALMENTE)
+
+Decision: quando existe sessão ativa com bot final esperado, `isLoading=false`, `panelState='content'`, mas o snapshot do `chat-main-panel` não encontra linhas/nós de bot visíveis, `ChatInterface` ativa `forceStaticTimelineFallback`. `MessageTimeline` recebe a flag e renderiza `MessageRow` em lista estática com scroll próprio, pulando o Virtuoso somente nessa anomalia.
+
+Reason: nova evidência do preview mostrou `messageCount=2`, bot final com ~30k caracteres, waterfall finalizado, `Virtuoso itemsRendered { firstIndex: 0, lastIndex: 1 }` e painel visualmente branco. Portanto `rangeChanged/itemsRendered` não prova que o DOM útil foi materializado.
+
+Contract: regressões de tela branca devem testar dois níveis: (1) detector/observabilidade captura ausência de conteúdo visível; (2) fallback estático recupera a UI quando a virtualização falha. Fallback deve resetar em troca de sessão, novo loading, home ou suspensão. Não ativar fallback por persistência Supabase, texto no body ou item no histórico/sidebar.
+
+Refs: `components/ChatInterface.tsx`, `components/chat/MessageTimeline.tsx`, `tests/components/ChatInterface.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, PR #327.
+
+## 2026-06-03 — Painel branco precisa de rastreio visual, nao so persistencia (APLICADO LOCALMENTE)
+
+Decision: bugs de tela branca devem emitir um evento explícito `BlankPanel/blank-panel-detected` quando existe sessão ativa com texto final de bot esperado, mas o painel central não mostra conteúdo de bot visível. O detector mede somente sinais seguros do DOM (`rowCount`, `visibleBotWithCharsCount`, alturas, scroll, `centerElementTestId`) e envia `captureMessage('Scout360 blank panel detected')` para Sentry com tags `area`, `source`, `reason` e `session_id`.
+
+Reason: no preview da PR #327/PR #328, Supabase e waterfall indicavam sucesso (`messageCount=2`, bot final persistido, Virtuoso montado), mas a UI podia ficar visualmente branca. `document.body.textContent` e `dossier-content` não bastam porque sidebar/histórico e wrappers estruturais podem esconder o problema real do painel central.
+
+Contract: validação de tela branca deve provar conteúdo de bot pintado no `chat-main-panel`: `bot-message-content` visível, `data-text-length > 30000`, dimensões reais, sem `empty-state`, sem `controlled-error`, sem placeholder/suspensão e com área visível positiva. Supabase deve preservar métricas numéricas/booleanas seguras mesmo quando o nome da chave contém `body/text/content`, mas continuar removendo strings de prompt, response, body e conteúdo.
+
+Refs: `utils/blankPanelTelemetry.ts`, `components/ChatInterface.tsx`, `features/chat/message-orchestrator.ts`, `tests-e2e/blank-center-panel-regression.spec.ts`, `tests-e2e/loading-smart-recovery.spec.ts`, `supabase/migrations/20260603_blank_panel_observability.sql`, PR #327.
 
 ## 2026-06-02 — Trava de envio inicial pendente contra sessao orfa (APLICADO LOCALMENTE)
 
