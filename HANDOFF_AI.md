@@ -2,6 +2,28 @@
 
 ## Atualizacao 03/06/2026 — PR #327
 
+### Follow-up 03/06 — interromper pesquisa nao pode gerar historico nem relatorio
+
+Evidencia real do preview: apos clicar em **Interromper** durante a pesquisa, a UI ainda podia deixar uma sessao parcial no sidebar com a mensagem "Investigando..." e, em outra rodada, o waterfall continuou ate consolidar e salvar/renderizar um relatorio completo mesmo apos o abort.
+
+Mudancas aplicadas:
+
+- `features/chat/message-orchestrator.ts`: se a primeira investigacao for abortada antes de resposta de bot, a sessao temporaria e removida e `currentSessionId` volta para `null`.
+- `features/chat/session-controller.ts`: clicar em **Nova investigacao** durante loading agora cancela a geracao e volta para home, sem criar sessao vazia.
+- `features/dossier/waterfall-orchestrator.ts`: abort agora interrompe as etapas finais do waterfall antes de benchmark, reconciliacao PORTA, consolidacao, `updateSessionById` e `saveDossier`. O antigo `break` no loop de modulos permitia seguir para consolidacao parcial.
+
+Contrato de produto: **se o usuario interrompeu a pesquisa, nada deve nascer no historico e nenhum relatorio deve ser gerado**. A tela deve voltar para o estado inicial.
+
+Validacao local deste follow-up:
+
+```bash
+npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/features/chat/message-orchestrator.test.ts tests/features/chat/session-controller.test.ts tests/components/ChatInterface.test.tsx
+npm run typecheck
+npm run build
+```
+
+Resultado no worktree da PR: unit/focused tests 62/62 passaram, typecheck OK, build Vite concluiu e sourcemaps foram enviados ao Sentry (`s-3j/scout-360`, release `v1.0.0`).
+
 ### O que mudou
 
 - PR #327 continua na branch `refactor/socio-search-decompose`, agora com rastreio permanente para a regressão de tela branca.

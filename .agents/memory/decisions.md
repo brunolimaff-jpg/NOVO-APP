@@ -1,6 +1,16 @@
 # Decisions
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branco
+Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
+
+## 2026-06-03 — Interromper pesquisa deve descartar sessao temporaria (APLICADO LOCALMENTE)
+
+Decision: quando o usuario interrompe uma pesquisa inicial, o app deve abortar o waterfall, remover a sessao temporaria criada para o envio e voltar para `currentSessionId=null`. O waterfall deve tratar `AbortSignal` como terminal tambem entre etapas finais, antes de benchmark, reconciliacao PORTA, consolidacao, `updateSessionById` e `saveDossier`.
+
+Reason: evidencia real do preview mostrou dois sintomas do mesmo problema de produto: (1) abort deixava uma sessao parcial no sidebar com apenas "Investigando..."; (2) em outra rodada, o waterfall continuava ate gerar e renderizar o relatorio mesmo apos o clique em Interromper. O antigo `break` no loop de modulos parava a iteracao, mas ainda permitia seguir para consolidacao parcial.
+
+Contract: se o usuario clicou em `Interromper` durante a pesquisa, nada deve nascer no historico e nenhum relatorio deve ser gerado. Nova investigacao durante loading tambem deve cancelar e voltar para home, sem criar sessao vazia. Testes devem provar ausencia de `updateSessionById`, `saveDossier` e `completeLoadingProgress` apos abort tardio.
+
+Refs: `features/chat/message-orchestrator.ts`, `features/chat/session-controller.ts`, `features/dossier/waterfall-orchestrator.ts`, `tests/features/chat/message-orchestrator.test.ts`, `tests/features/chat/session-controller.test.ts`, `tests/features/dossier/waterfall-orchestrator.test.ts`, PR #327.
 
 ## 2026-06-03 — Fallback estatico quando Virtuoso nao materializa o DOM (APLICADO LOCALMENTE)
 

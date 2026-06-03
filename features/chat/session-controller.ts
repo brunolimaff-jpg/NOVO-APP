@@ -169,7 +169,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
   ]);
 
   const handleNewSession = useCallback(() => {
-    if (isLoading && abortControllerRef.current) abortControllerRef.current.abort();
+    if (isLoading) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setIsLoading(false);
+      setCurrentSessionId(null);
+      resetSessionUI();
+      return;
+    }
 
     const newSession: ChatSession = {
       id: uuidv4(),
@@ -187,7 +196,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
     setCurrentSessionId(newSession.id);
     resetSessionUI();
-  }, [abortControllerRef, isLoading, resetSessionUI, setCurrentSessionId, setSessions]);
+  }, [abortControllerRef, isLoading, resetSessionUI, setCurrentSessionId, setIsLoading, setSessions]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {

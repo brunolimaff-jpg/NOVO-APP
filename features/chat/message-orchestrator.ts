@@ -799,6 +799,20 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           },
         );
       } finally {
+        if (createdInitialSessionId) {
+          const createdSession = sessionsRef.current.find(session => session.id === createdInitialSessionId);
+          const messages = createdSession?.messages || [];
+          const shouldDiscardAbortedInitialSession =
+            messages.length === 1 &&
+            messages[0].sender === Sender.User &&
+            messages[0].text === resolvedDisplayText;
+
+          if (shouldDiscardAbortedInitialSession) {
+            setSessions(prev => prev.filter(session => session.id !== createdInitialSessionId));
+            setCurrentSessionId(null);
+          }
+        }
+
         if (createdInitialSessionId && pendingInitialSendRef.current?.sessionId === createdInitialSessionId) {
           pendingInitialSendRef.current = null;
         }

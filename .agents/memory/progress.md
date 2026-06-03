@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branco
+Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
 
 Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ver `docs/OBSIDIAN_VAULT.md`.
 **Historico detalhado (snapshot):** `Bruno Vault/90-SISTEMA/archive/REPO-PROGRESS-SNAPSHOT-2026-05-26.md`
@@ -13,6 +13,7 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 | sessionToPersist null — causa raiz primaria | **CORRIGIDA LOCALMENTE** — monitorar preview/Supabase diagnostics     | PR #328                |
 | Sessao orfa por disparo inicial duplicado   | **CORRIGIDA LOCALMENTE** — validar preview apos push                  | PR #328                |
 | PR #327 — Socio-search decomposition        | **ABERTA**, branch `refactor/socio-search-decompose`, com rastreio de painel branco + fallback estático + gates E2E longos adicionados | PR #327, HANDOFF_AI.md |
+| Interromper pesquisa inicial                | **CORRIGIDO LOCALMENTE** — abort remove sessão temporária e impede consolidação/save tardio | PR #327, `message-orchestrator`, `waterfall-orchestrator` |
 | 3 god modules restantes                     | docExtractor (533L), textCleaners (630L), clientLookupService (741L) | HANDOFF_AI.md          |
 | P0 withTimeout (api/gemini.ts:416, :491)    | Nao corrigido                                                        | HANDOFF_AI.md          |
 | Branch `feat/crm-supabase-migration`        | Stashed, nao decidido                                                | --                     |
@@ -21,6 +22,7 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 
 | Data       | Marco                                                                                                                                                                                                                                                    | Link                                                     |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 2026-06-03 | **PR #327 cancelamento de pesquisa** — `Interromper` durante pesquisa inicial não deixa sessão no histórico, volta para home e impede waterfall de consolidar/salvar relatório após abort. | PR #327, `features/chat/message-orchestrator.ts`, `features/dossier/waterfall-orchestrator.ts` |
 | 2026-06-03 | **PR #327 fallback de tela branca** — evidência real mostrou Virtuoso `itemsRendered` sem conteúdo visível. `ChatInterface` ativa `forceStaticTimelineFallback`; `MessageTimeline` pula Virtuoso e renderiza `MessageRow` estático. | PR #327, `components/ChatInterface.tsx`, `components/chat/MessageTimeline.tsx` |
 | 2026-06-03 | **PR #327 observabilidade de tela branca** — detector `BlankPanel` no painel central, `captureMessage` Sentry, sanitizer preservando métricas seguras, índices Supabase em `scout_diagnostics`, E2E blank/loading exigindo bot longo visível. | PR #327, `utils/blankPanelTelemetry.ts`, Supabase `blank_panel_observability` |
 | 2026-06-02 | **PR #328 follow-up 2** — nova evidencia de preview: waterfall completava e persistia, mas segunda chamada inicial criava sessao orfa selecionada. `pendingInitialSendRef` bloqueia duplicacao antes do re-render. Typecheck OK, 1290 testes OK, build OK. | PR #328                                                  |

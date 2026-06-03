@@ -296,7 +296,7 @@ describe('useChatMessageOrchestrator', () => {
     });
   });
 
-  it('remove o placeholder quando o envio é abortado', async () => {
+  it('descarta a sessão inicial quando o envio é abortado antes de gerar resposta', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -310,8 +310,8 @@ describe('useChatMessageOrchestrator', () => {
       await harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
 
-    expect(harness.state.sessions[0].messages).toHaveLength(1);
-    expect(harness.state.sessions[0].messages[0].sender).toBe(Sender.User);
+    expect(harness.state.sessions).toHaveLength(0);
+    expect(harness.state.currentSessionId).toBeNull();
     expect(harness.state.isLoading).toBe(false);
   });
 

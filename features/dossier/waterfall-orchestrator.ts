@@ -478,12 +478,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         };
 
+        const assertNotAborted = () => {
+          if (signal.aborted) {
+            throw new DOMException('The operation was aborted', 'AbortError');
+          }
+        };
+
         if (lookupTarget) {
           try {
             const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
             waterfallLookupContext = formatarParaPrompt(clienteData);
             waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
           } catch (error) {
+            if (isAbortLikeError(error)) throw error;
             scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
               sessionId,
               company: lookupTarget,
@@ -501,6 +508,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionCnpjDigits,
           signal,
         });
+        assertNotAborted();
 
         const staticDossierContext = buildStaticDossierContext({
           dossierSeedContext,
@@ -516,6 +524,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               staticContext: staticDossierContext,
               signal,
             });
+            assertNotAborted();
           } catch (error) {
             if (isAbortLikeError(error)) throw error;
             scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
@@ -780,7 +789,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         for (let index = 0; index < modules.length; index += 1) {
-          if (signal.aborted) break;
+          assertNotAborted();
 
           const module = modules[index];
           if (index > 0) {
@@ -805,6 +814,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               }
             }
             appendWaterfallChunk(moduleResult);
+            assertNotAborted();
             optionalStepFailures.delete(module.name);
             previousStageCompleted = true;
             setFailureCount(0);
@@ -824,6 +834,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
+        assertNotAborted();
         if (previousStageCompleted) {
           advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
@@ -839,6 +850,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
+        assertNotAborted();
         scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
         if (benchmarkCompleted) {
@@ -880,6 +892,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               );
             }),
           ]);
+          assertNotAborted();
           reconciledText = result.accumulatedText;
           waterfallPortaResolution = result.resolution;
           portaIntegrityHold = result.portaIntegrityHold;
@@ -901,6 +914,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
+        assertNotAborted();
 
         if (optionalStepFailures.size > 0) {
           appendWaterfallChunk(
@@ -932,6 +946,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPrepared,
           waterfallGroundingSources,
         );
+        assertNotAborted();
         appendGroundingSources(promotedInlineSources, 'Promoção inline');
 
         if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
@@ -993,6 +1008,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ]);
           if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
         } catch (error) {
+          if (isAbortLikeError(error)) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -1000,6 +1016,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
         scoutDiag.info('WaterfallLifecycle', 'pos-continuity-question', { sessionId, waterfallRunId });
+        assertNotAborted();
 
         waterfallSuggestions = ensureContinuitySuggestions(
           waterfallSuggestions,
@@ -1008,6 +1025,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         );
 
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
+        assertNotAborted();
 
         sessionToPersist = null;
         let originalMsgCount = -1;

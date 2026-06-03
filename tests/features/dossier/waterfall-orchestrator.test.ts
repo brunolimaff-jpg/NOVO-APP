@@ -870,6 +870,30 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
   });
 
+  it('interrompe antes de consolidar quando o usuário aborta após os módulos', async () => {
+    const controller = new AbortController();
+    let moduleCalls = 0;
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      moduleCalls += 1;
+      if (moduleCalls === 5) controller.abort();
+      return `${moduleName} consolidado`;
+    });
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await expect(
+      act(async () => {
+        await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ signal: controller.signal }));
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(reconcileWaterfallPortaMock).not.toHaveBeenCalled();
+    expect(harness.updateSessionById).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+  });
+
   it('faz fallback de sugestões e grava o payload final no updateSessionById', async () => {
     const score = makeScorePorta(70);
     generateContinuityQuestionMock.mockRejectedValue(new Error('invalid json'));

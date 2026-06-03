@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branco
+Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
 
 ## Boot
 
@@ -9,7 +9,7 @@ Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branc
 
 ## Fase atual
 
-**PR #327 aberta — socio-search decomposto + observabilidade/fallback de painel branco.** O incidente atual não foi tratado como falha de persistência: Supabase tinha dossiê final e mensagens limpas, mas a UI podia ficar visualmente branca no painel central. A branch agora adiciona detector `BlankPanel`, evento explícito no Sentry, métricas seguras no `scout_diagnostics`, índices Supabase para investigação, E2E que exige bot longo visível e fallback estático quando Virtuoso reporta range mas o DOM de mensagem não materializa.
+**PR #327 aberta — socio-search decomposto + observabilidade/fallback de painel branco + cancelamento correto de pesquisa.** O incidente de painel branco não foi tratado como falha de persistência: Supabase tinha dossiê final e mensagens limpas, mas a UI podia ficar visualmente branca no painel central. A branch adiciona detector `BlankPanel`, evento explícito no Sentry, métricas seguras no `scout_diagnostics`, índices Supabase para investigação, E2E que exige bot longo visível e fallback estático quando Virtuoso reporta range mas o DOM de mensagem não materializa. Follow-up de 03/06: se o usuário clicar em **Interromper** durante a pesquisa, a sessão temporária deve ser descartada, `currentSessionId` deve voltar para `null` e o waterfall não pode consolidar/salvar relatório depois do abort.
 
 Branch atual: `refactor/socio-search-decompose` (PR #327).
 
@@ -19,6 +19,7 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 | ---------------------------------------------------------------- | ------------------------------- |
 | PR #327 — socio-search decomposto + rastreio/fallback tela branca | **ABERTA**, aguardando push/CI/preview |
 | Painel branco pos-dossie                                          | **TRAVA APLICADA LOCALMENTE** — detector DOM + Sentry + Supabase + fallback estático |
+| Interromper pesquisa inicial                                      | **CORRIGIDO LOCALMENTE** — abort remove sessão temporária e bloqueia consolidação/save tardio |
 | PR #328 — tela branca waterfall                                  | **CONTEXTO HISTORICO** — fixes de snapshot/sessao orfa ja incorporados em main |
 | P0 withTimeout (api/gemini.ts:416, :491)                         | **NAO CORRIGIDO** — documentado |
 | 3 god modules restantes (docExtractor P1, textCleaners P2, etc.) | Pendente                        |
@@ -40,6 +41,7 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 - **Virtuoso não é prova visual**: `rangeChanged/itemsRendered` pode reportar itens sem DOM útil. Se há bot final esperado e nenhum conteúdo de bot visível, ativar `forceStaticTimelineFallback`.
 - **Sentry para anomalia não-exception**: usar `captureMessage('Scout360 blank panel detected')` com tags `area/source/reason/session_id`; não esperar exceção JS para abrir issue.
 - **Sanitizer de diagnostics**: strings sensíveis continuam bloqueadas, mas métricas numéricas/booleanas seguras com nomes `body/text/content` devem ser preservadas.
+- **Cancelamento de pesquisa e contrato de produto**: clique em `Interromper` durante a pesquisa inicial não pode criar histórico, manter mensagem "Investigando..." nem salvar/renderizar relatório atrasado. Abort deve virar `AbortError` e parar antes de benchmark/reconciliação/consolidação/persistência.
 - **Waterfall intacto**: verificar `git diff main -- waterfall-orchestrator.ts` apos cada rebase
 
 ## Proximo passo
