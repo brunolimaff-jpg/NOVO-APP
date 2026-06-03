@@ -144,6 +144,32 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   `handleStopGeneration` limpa UI e delete `activeGenerationRef[sessionId]`; waterfall checa antes de `updateSessionById` final.
 
 
+
+- **expectedBotCharsMax deve incluir texto em isThinking** [blank-panel, virtuoso, telemetria]
+  `computeExpectedBotContent` ignorava preview do bot com `isThinking:true`. Timers e fallback proativo subestimavam o dossiê em formação. Incluir `isThinking` na contagem de chars.
+
+- **Fallback estático proativo para dossiês grandes (≥4k chars)** [virtuoso, blank-panel, performance]
+  Ao fim do loading hero, se o bot já tem ≥4.000 caracteres, ativar timeline estática antes do Virtuoso. Evita painel branco pós-waterfall em Scheffer (~30k chars) sem depender só do detector reativo.
+
+- **Primeiro delay de blank-panel em 750ms, não 0ms** [virtuoso, false-positive, blank-panel]
+  Checagem em 0ms pega Virtuoso antes de montar `message-row` → falsos positivos de fallback. O proativo já cobre dossiês grandes; manter `[750, 2000, 5000, 9000]`.
+
+- **Virtuoso mount com viewport 0×0 no handoff pós-loading** [virtuoso, blank-panel, diagnostico]
+  Logs: `virtuoso:mount` com `viewportWidth/Height: 0` seguido de `static-fallback-rendered`. `itemsRendered` não prova DOM visível — validar `PostCompletion` e fallback.
+
+- **Gemini 500 em módulo opcional não aborta waterfall** [gemini, modular-dossier, resiliencia]
+  Bordas de Controle 500 → ignorado; retry PORTA depois conclui. Não confundir erro de módulo opcional com falha total do dossiê.
+
+- **Burst CNPJ sócios com AbortSignal pós-dossiê** [cnpj, societary-map, react]
+  Após fim do loading, dezenas de `iniciando lookup` + `signal is aborted without reason` em CNPJs de sócios. Causa provável: effect com `[graph, cnaeMap]` remontando e abortando batch — PR separada.
+
+- **Sentry vazio não invalida incidente de UI** [sentry, supabase, observabilidade]
+  7d sem eventos Sentry para blank/gemini; tudo em `scout_diagnostics`. Triagem de regressão visual: Supabase primeiro.
+
+- **E2E sem PII real nos defaults** [e2e, seguranca, playwright]
+  Defaults `E2E Operator` / `e2e.operator@example.com`; identidade real só via env em smoke local.
+
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

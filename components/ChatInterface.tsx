@@ -15,6 +15,10 @@ import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
 import { cleanTitle } from '../utils/textCleaners';
+import {
+  maxExpectedBotChars,
+  shouldPreferStaticTimelineForBotVolume,
+} from '../utils/expectedBotContent';
 import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
@@ -346,16 +350,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     isLoading,
     hasError: hasErrorInMessages,
   });
-  const expectedBotCharsMax = useMemo(
-    () =>
-      Math.max(
-        0,
-        ...safeMessages
-          .filter(message => message.sender === Sender.Bot && !message.isThinking && !message.isError)
-          .map(message => String(message.text || '').trim().length),
-      ),
-    [safeMessages],
-  );
+  const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
+  const prevIsLoadingRef = useRef(isLoading);
 
   const panelSnapshotSignatureRef = useRef('');
   useEffect(() => {
@@ -420,6 +416,28 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     setForceStaticTimelineFallback(false);
     staticTimelineFallbackSessionRef.current = null;
   }, [expectedBotCharsMax, isLoading, shouldSuspendVirtualizedList, showInitialHome]);
+
+  useEffect(() => {
+    const wasLoading = prevIsLoadingRef.current;
+    prevIsLoadingRef.current = isLoading;
+    if (!currentSession?.id || showInitialHome || shouldSuspendVirtualizedList) return;
+    if (!wasLoading || isLoading) return;
+    if (!shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax)) return;
+
+    staticTimelineFallbackSessionRef.current = currentSession.id;
+    setForceStaticTimelineFallback(true);
+    scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
+      sessionId: currentSession.id,
+      expectedBotCharsMax,
+      threshold: 4_000,
+    });
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    isLoading,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+  ]);
 
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;

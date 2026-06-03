@@ -1,14 +1,73 @@
-## Atualização 03/06/2026 — fix freeze dossiê hero (Compliance / main thread)
+## Handoff — 03/06/2026 — PR #330 VALIDADA (aguardando MERGE)
 
-Branch: `fix/hero-loading-freeze-session`
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**, validada) |
+| Branch | `fix/blank-panel-static-fallback-post-waterfall` |
+| Commit validação | `bda08162` (review bots endereçados) |
+| Doc detalhada | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
+| Vault | `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md` |
 
-- Suspende timeline enquanto `isLoading && loadingVariant !== 'inline'` (inclui gap pós-`completeLoadingProgress`).
-- Remove preview por módulo no waterfall; spacer hero em `MessageRow`.
-- Interromper invalida `activeGenerationRef` e bloqueia persistência final do waterfall.
-- SocietaryMap: só matriz, `MAX_CNAE_LOOKUPS=24`, gate `!isLoading`.
-- Validação: 43 testes focados + typecheck OK.
+**Validação:** Bruno confirmou preview pós-fix (delay 750ms + PII E2E). Merge com token **MERGE** na mensagem.
+
+**Lições:** `CALIBER_LEARNINGS.md` + `Bruno Vault/30-LICOES/LICOES-BLANK-PANEL-PR330-2026-06-03.md`
+
+**Pendente pós-merge:** smoke produção; PR separada timer/SocietaryMap; migration blank_panel se aplicável.
 
 ---
+
+## Handoff — 03/06/2026 — PR #330 (arquivado — ver VALIDADA acima)
+
+## Handoff — 03/06/2026 — PR #330 (painel branco pós-waterfall)
+
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**) |
+| Branch | `fix/blank-panel-static-fallback-post-waterfall` |
+| Último push | Review bots: delay blank-panel `750ms` (sem `0ms`); E2E operador placeholder |
+
+### O que a PR faz
+
+- `expectedBotCharsMax` inclui preview `isThinking` (`utils/expectedBotContent.ts`).
+- Fallback timeline estática proativa se bot ≥ 4.000 chars ao fim do loading hero.
+- E2E Scheffer com stubs (`tests-e2e/scheffer-cnpj-blank-panel.spec.ts`).
+
+### Evidência Supabase (sessão Scheffer)
+
+- `session_id`: `eac8d331-dc3c-4f79-b438-31afe1130e94`
+- Preview: `scoutagro-git-fix-blank-panel-61a9e6-…vercel.app`
+- Gemini 500 em Bordas de Controle → retry PORTA OK; waterfall `completed`; `proactive-static-fallback` ~29k chars; **sem** `blank-panel-detected` em 7d
+- Burst CNPJ sócios: `signal is aborted without reason` pós-dossiê (não coberto pela #330)
+
+### Sentry
+
+7d sem errors/logs para `scout-360` neste fluxo — telemetria principal: `scout_diagnostics`.
+
+### Próxima sessão
+
+1. Smoke manual Scheffer no preview pós-push.
+2. Marcar threads GitHub resolvidas.
+3. MERGE com token **MERGE** se aprovado.
+4. Opcional PR separada: timer etapa (`loadingBackoff`), `SocietaryMap` deps CNAE.
+
+---
+
+## Handoff pós-merge — 03/06/2026 — PR #329 em `main`
+
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/329 (**MERGED** squash) |
+| Commit em `main` | `2cd2cffa` |
+| Validação | Bruno validou no preview Vercel |
+| Reviews | Gemini 3 threads resolvidas (`d642f868`); Qodo walkthrough = já-enderecado |
+| Skill | `gh-resolve-pr-comments` atualizada para Gemini **e** Qodo |
+
+**Em produção após deploy Vercel:** freeze hero (timeline suspensa, stop robusto, SocietaryMap adiado). Monitorar `dossier_completed` e ausência de freeze em Compliance.
+
+**Próxima sessão:** P0 `withTimeout` em `api/gemini.ts`; P1 `documentExtractor.ts`; migration `supabase/migrations/20260603_blank_panel_observability.sql` se ainda não aplicada.
+
+---
+
 
 # Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
 

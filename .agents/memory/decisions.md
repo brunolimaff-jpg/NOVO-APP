@@ -1,3 +1,11 @@
+## 2026-06-03 — PR #330: fallback estático proativo pós-waterfall (VALIDADO)
+
+Decision: (1) `expectedBotCharsMax` inclui chars de bot com `isThinking`; (2) ao fim do loading hero, se bot ≥ 4.000 chars, ativar timeline estática sem Virtuoso; (3) detector reativo de painel branco mantém primeiro delay 750ms; (4) E2E sem PII nos defaults.
+
+Reason: Scheffer no preview pós-#329: waterfall OK (~30k chars) mas Virtuoso 0×0 / painel branco; logs Supabase confirmam `proactive-static-fallback`; Sentry sem eventos.
+
+Refs: PR #330, `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`, `utils/expectedBotContent.ts`, `components/ChatInterface.tsx`.
+
 # Decisions
 
 Last updated: 2026-06-03 — freeze dossiê hero + PR #327
