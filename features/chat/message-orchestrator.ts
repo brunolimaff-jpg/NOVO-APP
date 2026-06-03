@@ -156,6 +156,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
   const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
   const pendingInitialSendRef = useRef<PendingInitialSend | null>(null);
+  const latestLoadingRef = useRef<{
+    isLoading: boolean;
+    loadingVariant: LoadingVariant | null | undefined;
+  }>({
+    isLoading: chatStore?.isLoading ?? false,
+    loadingVariant: chatStore?.loadingVariant ?? null,
+  });
+  latestLoadingRef.current = {
+    isLoading: chatStore?.isLoading ?? false,
+    loadingVariant: chatStore?.loadingVariant ?? null,
+  };
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -180,13 +191,15 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             0,
             ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0),
           );
+          const postCompletionIsLoading = latestLoadingRef.current.isLoading;
+          const postCompletionLoadingVariant = latestLoadingRef.current.loadingVariant ?? null;
           const blankPanelSnapshot = collectBlankPanelSnapshot({
             sessionId,
             source: `PostCompletion:${delay}ms`,
             messageCount: botMessages.length,
             expectedBotCharsMax: botTextMaxLen,
-            isLoading: false,
-            loadingVariant: null,
+            isLoading: postCompletionIsLoading,
+            loadingVariant: postCompletionLoadingVariant,
           });
 
           const currentGuard = getWaterfallGuardState(sessionId);
@@ -195,6 +208,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
           const payload = {
             sessionId,
+            storeIsLoading: postCompletionIsLoading,
+            storeLoadingVariant: postCompletionLoadingVariant,
             bodyLen: bodyText.length,
             containsDossie: /dossi[eê]/i.test(bodyText),
             containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),

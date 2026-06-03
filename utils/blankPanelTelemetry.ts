@@ -164,12 +164,11 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
   const suspendedViewportVisible = isVisible(root.querySelector('[data-testid="messages-viewport-suspended"]'));
   const placeholderVisible = isVisible(root.querySelector('[data-testid="messages-viewport-placeholder"]'));
   const heroFallbackVisible = isVisible(root.querySelector('[data-testid="hero-loading-inline-fallback"]'));
+  // Placeholder/suspend are intermediate handoff states — not valid when we expect visible dossier content.
   const validVisualState =
     loadingOverlayVisible ||
     controlledErrorVisible ||
     emptyStateVisible ||
-    suspendedViewportVisible ||
-    placeholderVisible ||
     heroFallbackVisible ||
     visibleBotWithCharsCount > 0;
 
@@ -184,6 +183,10 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
   let reason: string | null = null;
   if (shouldCheck && !panelMetric.visible) {
     reason = 'main-panel-not-visible';
+  } else if (shouldCheck && placeholderVisible) {
+    reason = 'stuck-viewport-placeholder';
+  } else if (shouldCheck && suspendedViewportVisible) {
+    reason = 'stuck-viewport-suspended';
   } else if (shouldCheck && !validVisualState && rows.length === 0) {
     reason = 'no-message-rows-in-panel';
   } else if (shouldCheck && !validVisualState && visibleRowCount === 0) {

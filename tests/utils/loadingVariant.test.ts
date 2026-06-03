@@ -102,14 +102,14 @@ describe('shouldSuspendHeroMessageTimeline', () => {
 
   it('suspende a timeline enquanto o hero está carregando sem resposta renderizável', () => {
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
-    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
   });
 
-  it('mantém overlay e timeline suspensa durante todo o hero loading (mesmo com preview/final em memória)', () => {
+  it('mantém overlay hero mas não suspende timeline quando há preview renderizável', () => {
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
-    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
-    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
   });
 
 });

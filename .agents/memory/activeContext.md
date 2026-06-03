@@ -1,24 +1,22 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #330 MERGEADA em `main`
+Last updated: 2026-06-03 — fix raiz spinner handoff pós-#330 (local)
 
 ## Boot
 
-`HANDOFF_AI.md` → `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
+`docs/ai-context/refactor/loading-panel-contract.md`
 
 ## Estado
 
-- **main:** `d4849aa7` (squash merge PR #330)
-- Fix em produção após deploy Vercel: fallback estático proativo + expectedBotCharsMax com isThinking
-- WIP local não mergeado: LoadingSmart, SocietaryMap, loadingBackoff
+- Patch local: handoff estático síncrono (`preferStaticForLargeDossier`), deps viewport sem `safeMessages.length`, suspend respeita preview ≥200 chars, telemetria não trata placeholder como OK
+- Contrato: `docs/ai-context/refactor/loading-panel-contract.md`
 
 ## Próximo passo
 
-1. Confirmar deploy production Vercel
-2. Smoke Scheffer em produção
-3. PR futura: timer etapa + SocietaryMap deps
+1. Branch `fix/post-waterfall-handoff-static-sync` + PR
+2. Smoke Scheffer no preview
+3. Performance trace manual se lentidão persistir (SocietaryMap — PR separada)
 
 ## Ponteiros
 
 - PR #330 (merged): https://github.com/brunolimaff-jpg/NOVO-APP/pull/330
-- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md`

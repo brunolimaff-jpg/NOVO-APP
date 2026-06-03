@@ -40,10 +40,10 @@ export function shouldShowHeroLoadingOverlay(isLoading: boolean, loadingVariant:
 export function shouldSuspendHeroMessageTimeline(
   isLoading: boolean,
   loadingVariant: LoadingVariant | undefined,
-  _hasRenderableBotMessage?: boolean,
+  hasRenderableBotMessage = false,
 ): boolean {
   if (!isLoading) return false;
-  void _hasRenderableBotMessage;
+  if (hasRenderableBotMessage) return false;
   // Cobre hero explícito e janela pós-completeLoadingProgress (variant undefined, isLoading ainda true).
   return loadingVariant !== 'inline';
 }

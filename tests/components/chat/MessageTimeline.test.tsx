@@ -336,4 +336,57 @@ describe('MessageTimeline', () => {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
+
+  it('não reativa placeholder quando safeMessages.length muda após viewport pronta (regressão PR #303)', async () => {
+    vi.useFakeTimers();
+    // @ts-expect-error test fallback path
+    global.ResizeObserver = undefined;
+    window.requestAnimationFrame = vi.fn(() => 1);
+    window.cancelAnimationFrame = vi.fn();
+
+    const initialMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'Resumo inicial'),
+    ];
+
+    const { rerender } = render(
+      <MessageTimeline
+        {...buildProps({
+          messages: initialMessages,
+          currentSession: buildSession(initialMessages),
+        })}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+
+    const extendedMessages = [
+      ...initialMessages,
+      buildMessage('m3', Sender.User, 'Follow-up'),
+    ];
+
+    rerender(
+      <MessageTimeline
+        {...buildProps({
+          messages: extendedMessages,
+          currentSession: buildSession(extendedMessages),
+        })}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
 });
+
