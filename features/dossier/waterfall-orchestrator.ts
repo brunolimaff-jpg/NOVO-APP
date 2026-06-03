@@ -47,6 +47,7 @@ import {
   type DossierSourceRef,
 } from '../../utils/dossierSourcePool';
 import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
+import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -81,6 +82,7 @@ interface TeiaResearchContext {
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
+  activeGenerationRef?: MutableRefObject<Record<string, string>>;
   setLoadingVariant?: (variant: 'hero' | 'inline') => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null | void;
   resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
@@ -390,6 +392,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
   );
   const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
+  const activeGenerationRef = options.activeGenerationRef ?? chatStore?.activeGenerationRef;
 
   const runMegaPromptWaterfall = useCallback(
     async ({
@@ -553,29 +556,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ...(foundationCacheName ? { foundationCacheName } : {}),
         };
 
-        const WATERFALL_PREVIEW_MIN_CHARS = 200;
-
-        const flushWaterfallPreview = () => {
-          if (accumulatedText.trim().length < WATERFALL_PREVIEW_MIN_CHARS) return;
-          updateSessionById(sessionId, session => ({
-            ...session,
-            messages: session.messages.map(message =>
-              message.id === botMessageId
-                ? {
-                    ...message,
-                    text: accumulatedText,
-                    isThinking: true,
-                  }
-                : message,
-            ),
-          }));
-        };
-
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
           if (!normalizedChunk) return;
           accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
-          flushWaterfallPreview();
         };
 
         const modules: DossierWaterfallModule[] = [
@@ -1027,6 +1011,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
         assertNotAborted();
 
+        const generationStillActive =
+          !activeGenerationRef || activeGenerationRef.current[sessionId] === botMessageId;
+        if (!generationStillActive) {
+          scoutDiag.warn('WaterfallLifecycle', 'generation-stopped-before-persist', {
+            sessionId,
+            botMessageId,
+            activeBotId: activeGenerationRef?.current[sessionId] ?? 'undefined',
+          });
+          return;
+        }
+
         sessionToPersist = null;
         let originalMsgCount = -1;
         const updatedSession = updateSessionById(sessionId, session => {
@@ -1171,8 +1166,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        completeLoadingProgress();
-
         // Fire-and-forget: persistência no Supabase não deve bloquear o retorno
         // do waterfall nem atrasar setIsLoading(false) no message-orchestrator.
         // O dossiê já está no React state — a UI não depende do Supabase.
@@ -1294,7 +1287,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     [
       advanceLoadingProgress,
       canUseLookup,
-      completeLoadingProgress,
+      activeGenerationRef,
       replaceLoadingProgressStage,
       resetLoadingProgress,
       resolvedOperatorName,

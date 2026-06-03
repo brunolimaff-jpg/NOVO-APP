@@ -13,7 +13,6 @@ import { useChatMessageOrchestrator } from './features/chat/message-orchestrator
 import DossierErrorBoundary from './features/dossier/DossierErrorBoundary';
 import { useDossierWaterfallOrchestrator } from './features/dossier/waterfall-orchestrator';
 import { useUpdateNotification } from './hooks/useUpdateNotification';
-import { useMigrationNotice } from './hooks/useMigrationNotice';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
@@ -30,11 +29,6 @@ const FollowUpModal = React.lazy(() =>
 const UpdateNotificationModal = React.lazy(() =>
   loadWithChunkRetry(() =>
     import('./components/UpdateNotificationModal').then(m => ({ default: m.UpdateNotificationModal })),
-  ),
-);
-const MigrationNoticeModal = React.lazy(() =>
-  loadWithChunkRetry(() =>
-    import('./components/MigrationNoticeModal').then(m => ({ default: m.MigrationNoticeModal })),
   ),
 );
 
@@ -105,6 +99,7 @@ const App: React.FC = () => {
     updateCurrentSession,
     lastActionRef,
     abortControllerRef,
+    activeGenerationRef,
     isLoading,
     setIsLoading,
     loadingStatus,
@@ -118,6 +113,7 @@ const App: React.FC = () => {
     loadingPinnedLabel,
     setLoadingPinnedLabel,
     resetLoadingProgress,
+    completeLoadingProgress,
   } = useChatStore();
   const {
     exportStatus,
@@ -137,9 +133,6 @@ const App: React.FC = () => {
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
-
-  // Migration notice (Supabase)
-  const { showMigrationNotice, dismissMigrationNotice } = useMigrationNotice(operatorId);
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
   const radar = useRadar(toast);
@@ -260,18 +253,54 @@ const App: React.FC = () => {
   };
 
   const handleStopGeneration = useCallback(() => {
+    const sessionId = currentSessionId;
+    const activeBotId = sessionId ? activeGenerationRef.current[sessionId] : undefined;
+
     if (abortControllerRef.current) {
       scoutDiag.info('Abort', 'user-stopped-generation', {
-        sessionId: currentSessionId,
+        sessionId,
         loadingVariant,
         msgCount: currentSession?.messages?.length ?? 0,
       });
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+    } else if (isLoading) {
+      scoutDiag.warn('Abort', 'stop-called-without-controller', {
+        sessionId,
+        isLoading,
+        activeBotId: activeBotId ?? null,
+      });
+    }
+
+    if (sessionId && activeBotId) {
+      delete activeGenerationRef.current[sessionId];
+      updateSessionById(sessionId, session => ({
+        ...session,
+        messages: (session.messages || []).filter(
+          message => message.id !== activeBotId || message.text.trim().length > 0,
+        ),
+      }));
+    }
+
+    if (isLoading) {
       setIsLoading(false);
       setLoadingPinnedLabel(null);
+      setRequestKind('default');
+      setLoadingVariant(undefined);
+      completeLoadingProgress();
     }
-  }, []);
+  }, [
+    isLoading,
+    completeLoadingProgress,
+    currentSessionId,
+    loadingVariant,
+    currentSession,
+    activeGenerationRef,
+    updateSessionById,
+    setLoadingPinnedLabel,
+    setRequestKind,
+    setLoadingVariant,
+  ]);
 
   const handleRetry = () => {
     if (!lastActionRef.current) return;
@@ -527,17 +556,7 @@ const App: React.FC = () => {
         </React.Suspense>
       )}
 
-      {showMigrationNotice && (
-        <React.Suspense fallback={null}>
-          <MigrationNoticeModal
-            isDarkMode={isDarkMode}
-            onDismiss={dismissMigrationNotice}
-            isOpen={showMigrationNotice}
-          />
-        </React.Suspense>
-      )}
-
-      {updateAvailable && !showMigrationNotice && (
+      {updateAvailable && (
         <React.Suspense fallback={null}>
           <UpdateNotificationModal
             currentVersion={currentVersion}

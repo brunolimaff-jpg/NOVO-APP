@@ -126,7 +126,6 @@ export function useChatLoadingProgress() {
       ...next,
       totalStages: loadingProgressRef.current.totalStages,
     });
-    setLoadingVariant(undefined);
   }, [commitLoadingProgress]);
 
   return {

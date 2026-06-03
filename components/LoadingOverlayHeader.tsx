@@ -46,7 +46,7 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.m
           </span>
         )}
       </div>
-      <div className="ml-0 flex w-full flex-wrap items-center justify-end gap-2 md:ml-2 md:w-auto md:gap-3">
+      <div className="relative z-20 ml-0 flex w-full flex-wrap items-center justify-end gap-2 md:ml-2 md:w-auto md:gap-3">
         <span
           className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-lg ${
             isDarkMode
@@ -64,6 +64,7 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.m
                 Interromper?
               </span>
               <button
+                type="button"
                 onClick={() => {
                   onCancelStop();
                   onStop();
@@ -73,6 +74,7 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.m
                 Sim
               </button>
               <button
+                type="button"
                 onClick={onCancelStop}
                 className={`px-3 py-1.5 rounded-full transition-all text-xs font-bold border ${
                   isDarkMode
@@ -85,6 +87,7 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.m
             </div>
           ) : (
             <button
+              type="button"
               onClick={onRequestStop}
               className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold"
             >

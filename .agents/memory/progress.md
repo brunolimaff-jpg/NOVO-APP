@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
+Last updated: 2026-06-03 — fix freeze dossiê hero
 
 Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ver `docs/OBSIDIAN_VAULT.md`.
 **Historico detalhado (snapshot):** `Bruno Vault/90-SISTEMA/archive/REPO-PROGRESS-SNAPSHOT-2026-05-26.md`
@@ -12,6 +12,7 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 | PR #328 — Tela branca pos-waterfall         | **ABERTA**, branch `fix/waterfall-session-persist-race-condition`, aguardando novo CI remoto | PR #328, HANDOFF_AI.md |
 | sessionToPersist null — causa raiz primaria | **CORRIGIDA LOCALMENTE** — monitorar preview/Supabase diagnostics     | PR #328                |
 | Sessao orfa por disparo inicial duplicado   | **CORRIGIDA LOCALMENTE** — validar preview apos push                  | PR #328                |
+| Freeze dossiê hero — main thread + Virtuoso durante Compliance | **PR aberta** — overlay/stop/guard persist | fix/hero-loading-freeze-session |
 | PR #327 — Socio-search decomposition        | **ABERTA**, branch `refactor/socio-search-decompose`, com rastreio de painel branco + fallback estático + gates E2E longos adicionados | PR #327, HANDOFF_AI.md |
 | Interromper pesquisa inicial                | **CORRIGIDO LOCALMENTE** — abort remove sessão temporária e impede consolidação/save tardio | PR #327, `message-orchestrator`, `waterfall-orchestrator` |
 | 3 god modules restantes                     | docExtractor (533L), textCleaners (630L), clientLookupService (741L) | HANDOFF_AI.md          |

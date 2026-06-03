@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MarkdownRenderer from '../../components/MarkdownRenderer';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { normalizeCnpj } from '../../utils/cnpj';
 import {
   buildSocietaryGraph,
-  buildSocietaryMermaid,
   describeSocietaryCompanyType,
   formatSocietaryCnpj,
   type SocietaryCompany,
@@ -17,7 +15,6 @@ import {
   RejectedSocioSearchResult,
   RootData,
   normalizePartnerKey,
-  firstGivenName,
   collectPartnerCompanies,
   countCompaniesByScope,
   describeEvidencePartner,
@@ -27,6 +24,8 @@ import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
 
+const MAX_CNAE_LOOKUPS = 24;
+
 interface SocietaryMapProps {
   cnpj?: string | null;
   empresaAlvo?: string | null;
@@ -35,12 +34,6 @@ interface SocietaryMapProps {
   traceId?: string;
   traceEnabled?: boolean;
 }
-
-const filterButtonBaseClass = 'rounded-md border px-2.5 py-1 text-[11px] font-semibold cursor-pointer transition';
-const filterButtonActiveClass =
-  'border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-300';
-const filterButtonIdleClass =
-  'border-slate-200 bg-white text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400';
 
 const SocietaryMap: React.FC<SocietaryMapProps> = ({
   cnpj,
@@ -63,11 +56,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
   const [cnaeEnriching, setCnaeEnriching] = useState(false);
   const failedCnaeRef = useRef<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
-  const [debouncedMermaid, setDebouncedMermaid] = useState<string>('');
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const mermaidDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
 
@@ -445,7 +434,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
     const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))];
-    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj));
+    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj)).slice(0, MAX_CNAE_LOOKUPS);
 
     if (pending.length === 0) return;
 
@@ -514,26 +503,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     [rejectedReferences],
   );
 
-  const mermaid = useMemo(() => {
-    if (!graph) return '';
-    return buildSocietaryMermaid(graph, { selectedPartnerId: selectedPartner?.id });
-  }, [graph, selectedPartner]);
-
-  // Debounce mermaid rebuild only during active drill-down to avoid SVG flicker from
-  // rapid incremental API responses. Partner selection changes must update immediately.
-  useEffect(() => {
-    if (mermaidDebounceRef.current) clearTimeout(mermaidDebounceRef.current);
-    if (drillProgress !== null) {
-      mermaidDebounceRef.current = setTimeout(() => {
-        setDebouncedMermaid(mermaid);
-      }, 350);
-      return () => {
-        if (mermaidDebounceRef.current) clearTimeout(mermaidDebounceRef.current);
-      };
-    }
-    setDebouncedMermaid(mermaid);
-  }, [mermaid, drillProgress]);
-
   if (state === 'idle') return null;
 
   const shellClass = isDarkMode
@@ -543,58 +512,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   return (
     <section className={`mb-4 rounded-xl border p-3 shadow-sm ${shellClass}`} data-testid="societary-map-shell">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Mapa de poder societario</p>
-          <div className="mt-2 flex gap-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('matrix')}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
-                viewMode === 'matrix'
-                  ? 'bg-emerald-600 text-white'
-                  : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              Tabela
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('mermaid')}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
-                viewMode === 'mermaid'
-                  ? 'bg-emerald-600 text-white'
-                  : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              Grafo
-            </button>
-          </div>
-        </div>
-        {viewMode === 'mermaid' && graph?.partners.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setSelectedPartnerName(undefined)}
-              className={`${filterButtonBaseClass} ${
-                !selectedPartner ? filterButtonActiveClass : filterButtonIdleClass
-              }`}
-            >
-              Todos
-            </button>
-            {graph.partners.map(partner => (
-              <button
-                key={partner.id}
-                type="button"
-                onClick={() => setSelectedPartnerName(partner.name)}
-                className={`${filterButtonBaseClass} ${
-                  selectedPartner?.id === partner.id ? filterButtonActiveClass : filterButtonIdleClass
-                }`}
-              >
-                {firstGivenName(partner.name)}
-              </button>
-            ))}
-          </div>
-        ) : null}
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Mapa de poder societario</p>
       </div>
 
       {state === 'loading' ? <p className="text-xs text-slate-500">Montando teia societaria...</p> : null}
@@ -617,7 +535,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
       {notice ? <p className="mb-3 text-xs text-slate-500">{notice}</p> : null}
 
-      {viewMode === 'matrix' && graph ? (
+      {graph ? (
         <SocietaryMatrix
           graph={graph}
           cnaeMap={cnaeMap}
@@ -630,108 +548,58 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           traceEnabled={traceActive}
           onSelectPartner={handleSelectPartner}
         />
-      ) : (
-        <>
-          {debouncedMermaid ? (
-            <div
-              className="relative max-h-[min(70vh,720px)] min-h-[360px] w-full overflow-auto rounded-lg border border-slate-200/80 bg-white p-3 select-text dark:border-slate-700 dark:bg-slate-900"
-              data-testid="societary-mermaid-shell"
-            >
-              <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Diminuir zoom"
-                  onClick={() => setZoomLevel(z => Math.max(0.4, z - 0.2))}
-                  className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  aria-label="Aumentar zoom"
-                  onClick={() => setZoomLevel(z => Math.min(2.5, z + 0.2))}
-                  className="flex h-6 w-6 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                >
-                  +
-                </button>
-                {zoomLevel !== 1 ? (
-                  <button
-                    type="button"
-                    aria-label="Resetar zoom"
-                    onClick={() => setZoomLevel(1)}
-                    className="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-500 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                  >
-                    {Math.round(zoomLevel * 100)}%
-                  </button>
-                ) : null}
-              </div>
-              <div style={{ zoom: zoomLevel }}>
-                <MarkdownRenderer
-                  content={`\`\`\`mermaid\n${debouncedMermaid}\n\`\`\``}
-                  isDarkMode={isDarkMode}
-                  variant="compact"
-                />
-              </div>
+      ) : null}
+
+      {selectedCompanies.length > 0 && graph ? (
+        <div className="mt-3" data-testid="societary-evidence-panel">
+          <button
+            type="button"
+            aria-expanded={isEvidenceOpen}
+            onClick={() => setIsEvidenceOpen(open => !open)}
+            className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+            data-testid="societary-evidence-toggle"
+          >
+            {isEvidenceOpen ? 'Recolher evidências' : `Ver evidências (${selectedCompanies.length})`}
+          </button>
+
+          {isEvidenceOpen ? (
+            <div className="mt-2 space-y-2" data-testid="societary-evidence-list">
+              {selectedCompanies.map(company => (
+                <article key={company.id} className="rounded-lg border border-slate-200/70 p-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-bold text-slate-700">{company.name}</span>
+                    {company.rawCnpjLabel || company.cnpj ? (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
+                        CNPJ {company.rawCnpjLabel || formatSocietaryCnpj(company.cnpj || '')}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    Sócio/admin: {describeEvidencePartner(company, partnersById)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-600">Escopo: {describeRelationshipScope(company)}</p>
+                  <p className="mt-1 text-[11px] text-slate-600">Tipo: {describeSocietaryCompanyType(company)}</p>
+                  {company.sourceUrl ? (
+                    <a
+                      className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline"
+                      href={company.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {company.sourceTitle || company.sourceUrl}
+                    </a>
+                  ) : company.sourceTitle ? (
+                    <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
+                  ) : null}
+                  {company.snippet ? (
+                    <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p>
+                  ) : null}
+                </article>
+              ))}
             </div>
           ) : null}
-          {!selectedPartner && graph && graph.partners.length > 1 ? (
-            <p className="mt-2 text-center text-[11px] text-slate-400 dark:text-slate-500">
-              Selecione um sócio para ver os CNPJs vinculados
-            </p>
-          ) : null}
-
-          {selectedCompanies.length > 0 && graph ? (
-            <div className="mt-3" data-testid="societary-evidence-panel">
-              <button
-                type="button"
-                aria-expanded={isEvidenceOpen}
-                onClick={() => setIsEvidenceOpen(open => !open)}
-                className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                data-testid="societary-evidence-toggle"
-              >
-                {isEvidenceOpen ? 'Recolher evidências' : `Ver evidências (${selectedCompanies.length})`}
-              </button>
-
-              {isEvidenceOpen ? (
-                <div className="mt-2 space-y-2" data-testid="societary-evidence-list">
-                  {selectedCompanies.map(company => (
-                    <article key={company.id} className="rounded-lg border border-slate-200/70 p-2 text-xs">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-bold text-slate-700">{company.name}</span>
-                        {company.rawCnpjLabel || company.cnpj ? (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">
-                            CNPJ {company.rawCnpjLabel || formatSocietaryCnpj(company.cnpj || '')}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-[11px] text-slate-600">
-                        Sócio/admin: {describeEvidencePartner(company, partnersById)}
-                      </p>
-                      <p className="mt-1 text-[11px] text-slate-600">Escopo: {describeRelationshipScope(company)}</p>
-                      <p className="mt-1 text-[11px] text-slate-600">Tipo: {describeSocietaryCompanyType(company)}</p>
-                      {company.sourceUrl ? (
-                        <a
-                          className="mt-1 block text-[11px] font-semibold text-blue-600 underline-offset-2 hover:underline"
-                          href={company.sourceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {company.sourceTitle || company.sourceUrl}
-                        </a>
-                      ) : company.sourceTitle ? (
-                        <p className="mt-1 text-[11px] font-semibold text-slate-500">{company.sourceTitle}</p>
-                      ) : null}
-                      {company.snippet ? (
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{company.snippet}</p>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </>
-      )}
+        </div>
+      ) : null}
     </section>
   );
 };

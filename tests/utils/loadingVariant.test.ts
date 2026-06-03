@@ -80,6 +80,10 @@ describe('shouldShowHeroLoadingOverlay', () => {
   it('esconde overlay em follow-up inline', () => {
     expect(shouldShowHeroLoadingOverlay(true, 'inline')).toBe(false);
   });
+  it('mantém overlay na janela pós-completeLoadingProgress (variant undefined, isLoading true)', () => {
+    expect(shouldShowHeroLoadingOverlay(true, undefined)).toBe(true);
+  });
+
 
   it('mantém overlay mesmo com preview parcial do waterfall (>200 chars)', () => {
     // Regressão PR #301: gate antigo escondia hero ao flushWaterfallPreview.
@@ -88,18 +92,24 @@ describe('shouldShowHeroLoadingOverlay', () => {
 });
 
 describe('shouldSuspendHeroMessageTimeline', () => {
+  it('não suspende quando não está carregando', () => {
+    expect(shouldSuspendHeroMessageTimeline(false, 'hero', false)).toBe(false);
+  });
+
+  it('não suspende em follow-up inline', () => {
+    expect(shouldSuspendHeroMessageTimeline(true, 'inline', false)).toBe(false);
+  });
+
   it('suspende a timeline enquanto o hero está carregando sem resposta renderizável', () => {
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(true);
   });
 
-  it('mantém o overlay, mas libera a timeline quando o dossiê final já existe', () => {
+  it('mantém overlay e timeline suspensa durante todo o hero loading (mesmo com preview/final em memória)', () => {
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
-    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
+    expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(true);
   });
 
-  it('libera a timeline quando há preview do waterfall com texto suficiente (isThinking=true, >=200 chars)', () => {
-    // The hasRenderableBotMessage=true scenario: waterfall preview with >=200 chars
-    // Even with isLoading=true, timeline should not be suspended
-    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
-  });
 });

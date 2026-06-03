@@ -116,8 +116,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
-  const hasSubstantiveText = Boolean(msg.text && msg.text.trim().length > 200);
-  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero' && !hasSubstantiveText;
+  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
   const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
   const renderBranch = showHeroLoading
@@ -305,6 +304,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
                   empresaAlvo={empresaAlvo}
                   cnpj={cnpj}
                   auditableSources={auditableSources}
+                  isLoading={isLoading}
                   onPreFillInput={text => {
                     if (onSendMessage) {
                       onSendMessage(text);
