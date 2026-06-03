@@ -11,6 +11,14 @@
 - Migration Supabase `20260603_blank_panel_observability.sql` aplicada no projeto `vmqfcaoirjcfucvlnpig`, com índices em `scout_diagnostics` por sessão, área/evento, operador e índice parcial `BlankPanel`.
 - E2E de painel branco/loading agora usa dossiê determinístico longo e exige `bot-message-content` visível, `data-text-length > 30000`, dimensões reais e ausência de placeholder/suspensão/erro/empty-state.
 
+### Follow-up 03/06 — tela branca ainda ativa no preview
+
+Nova evidência real do preview mostrou `messageCount=2`, `botMessageUpdated=true`, `waterfallFinalTextLen≈30k`, `panelState='content'`, `Virtuoso itemsRendered { firstIndex: 0, lastIndex: 1 }`, mas o painel central continuava visualmente branco. A assinatura indica que o estado e a virtualização reportavam sucesso, porém o DOM do conteúdo de bot não materializava.
+
+Mudança aplicada: `ChatInterface` agora ativa `forceStaticTimelineFallback` quando há bot final esperado e o snapshot do painel não encontra nós/linhas de bot visíveis. `MessageTimeline` recebe essa flag e renderiza uma lista estática com `MessageRow`, pulando o Virtuoso apenas nesse caso anômalo. O fallback é resetado ao trocar sessão, voltar para loading, home ou suspensão.
+
+Contrato novo: não confiar em `Virtuoso rangeChanged/itemsRendered` como prova de render. A prova de recuperação é `messages-static-fallback` ou `bot-message-content` visível no `chat-main-panel`.
+
 ### Evidencia local
 
 ```bash
@@ -24,6 +32,16 @@ npm run build
 ```
 
 Resultado: todos passaram. Build enviou sourcemaps para Sentry (`s-3j/scout-360`, release `v1.0.0`).
+
+Evidência adicional do follow-up:
+
+```bash
+npm test -- tests/components/ChatInterface.test.tsx tests/components/chat/MessageTimeline.test.tsx tests/utils/blankPanelTelemetry.test.ts
+npm run test:e2e:blank
+npm run test:e2e:loading
+```
+
+Resultado: todos passaram; `blank-center-panel-regression` 3/3 e `loading-smart-recovery` 3/3.
 
 ### Como investigar se voltar a tela branca
 

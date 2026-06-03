@@ -8,7 +8,7 @@ import { storage } from '../services/storage';
 import { type ChatSession, Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
-import { reportBlankPanelIfDetected } from '../utils/blankPanelTelemetry';
+import { reportBlankPanelIfDetected, type BlankPanelSnapshot } from '../utils/blankPanelTelemetry';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
@@ -49,6 +49,20 @@ const shouldIncludeBudgetPrompt = (
   if ((radar?.alerts?.length || 0) > 0) return true;
   return false;
 };
+
+function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
+  if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
+  if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
+  if (snapshot.loadingOverlayVisible || snapshot.controlledErrorVisible || snapshot.emptyStateVisible) return false;
+
+  if (snapshot.blankDetected) return true;
+
+  const panelHasAlmostNoContent = snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
+  if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
+  if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
+
+  return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
+}
 
 const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
   if (!radar) return '';
@@ -125,7 +139,9 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
+  const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
+  const staticTimelineFallbackSessionRef = useRef<string | null>(null);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
@@ -351,6 +367,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       showInitialHome ? 'home' : 'no-home',
       showOperatorGate ? 'operator-gate' : 'operator-ready',
       shouldSuspendVirtualizedList ? 'suspended' : 'timeline',
+      forceStaticTimelineFallback ? 'static-fallback' : 'virtualized',
       expectedBotCharsMax,
     ].join('|');
 
@@ -370,10 +387,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       showInitialHome,
       showOperatorGate,
       shouldSuspendVirtualizedList,
+      forceStaticTimelineFallback,
     });
   }, [
     currentSession?.id,
     expectedBotCharsMax,
+    forceStaticTimelineFallback,
     hasActiveSession,
     hasDossierContent,
     isLoading,
@@ -387,12 +406,25 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   ]);
 
   useEffect(() => {
-    if (!currentSession?.id || expectedBotCharsMax <= 0) return;
+    setForceStaticTimelineFallback(false);
+    staticTimelineFallbackSessionRef.current = null;
+  }, [currentSession?.id]);
 
-    const delays = [250, 1_000, 3_000, 8_000];
+  useEffect(() => {
+    if (!isLoading && expectedBotCharsMax > 0 && !showInitialHome && !shouldSuspendVirtualizedList) return;
+
+    setForceStaticTimelineFallback(false);
+    staticTimelineFallbackSessionRef.current = null;
+  }, [expectedBotCharsMax, isLoading, shouldSuspendVirtualizedList, showInitialHome]);
+
+  useEffect(() => {
+    if (!currentSession?.id || expectedBotCharsMax <= 0) return;
+    if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
+
+    const delays = [750, 2_000, 5_000, 9_000];
     const timers = delays.map(delay =>
       window.setTimeout(() => {
-        reportBlankPanelIfDetected({
+        const snapshot = reportBlankPanelIfDetected({
           sessionId: currentSession.id,
           source: `ChatInterface:${delay}ms`,
           messageCount: safeMessages.length,
@@ -403,6 +435,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           showInitialHome,
           shouldSuspendVirtualizedList,
         });
+
+        if (!snapshot || !shouldActivateStaticTimelineFallback(snapshot)) return;
+        if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
+
+        staticTimelineFallbackSessionRef.current = currentSession.id;
+        setForceStaticTimelineFallback(true);
+        scoutDiag.warn('BlankPanel', 'static-timeline-fallback-activated', {
+          ...snapshot,
+          delay,
+        } as unknown as Record<string, unknown>);
       }, delay),
     );
 
@@ -511,6 +553,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+                forceStaticTimelineFallback={forceStaticTimelineFallback}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);

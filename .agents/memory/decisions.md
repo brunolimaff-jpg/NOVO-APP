@@ -1,6 +1,16 @@
 # Decisions
 
-Last updated: 2026-06-03 — PR #327: Observabilidade de Painel Branco
+Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branco
+
+## 2026-06-03 — Fallback estatico quando Virtuoso nao materializa o DOM (APLICADO LOCALMENTE)
+
+Decision: quando existe sessão ativa com bot final esperado, `isLoading=false`, `panelState='content'`, mas o snapshot do `chat-main-panel` não encontra linhas/nós de bot visíveis, `ChatInterface` ativa `forceStaticTimelineFallback`. `MessageTimeline` recebe a flag e renderiza `MessageRow` em lista estática com scroll próprio, pulando o Virtuoso somente nessa anomalia.
+
+Reason: nova evidência do preview mostrou `messageCount=2`, bot final com ~30k caracteres, waterfall finalizado, `Virtuoso itemsRendered { firstIndex: 0, lastIndex: 1 }` e painel visualmente branco. Portanto `rangeChanged/itemsRendered` não prova que o DOM útil foi materializado.
+
+Contract: regressões de tela branca devem testar dois níveis: (1) detector/observabilidade captura ausência de conteúdo visível; (2) fallback estático recupera a UI quando a virtualização falha. Fallback deve resetar em troca de sessão, novo loading, home ou suspensão. Não ativar fallback por persistência Supabase, texto no body ou item no histórico/sidebar.
+
+Refs: `components/ChatInterface.tsx`, `components/chat/MessageTimeline.tsx`, `tests/components/ChatInterface.test.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, PR #327.
 
 ## 2026-06-03 — Painel branco precisa de rastreio visual, nao so persistencia (APLICADO LOCALMENTE)
 

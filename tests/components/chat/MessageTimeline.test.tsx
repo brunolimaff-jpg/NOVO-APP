@@ -272,6 +272,23 @@ describe('MessageTimeline', () => {
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
   });
 
+  it('renderiza timeline estatica quando a virtualizacao falha em materializar o DOM', () => {
+    const props = buildProps({
+      forceStaticTimelineFallback: true,
+      hasMore: true,
+    });
+
+    render(<MessageTimeline {...props} />);
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-scroller')).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial');
+
+    fireEvent.click(screen.getByRole('button', { name: /carregar mensagens anteriores/i }));
+    expect(props.onLoadMore).toHaveBeenCalled();
+  });
+
   it('mantem auto-scroll desativado no chat principal mesmo com novas mensagens', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path

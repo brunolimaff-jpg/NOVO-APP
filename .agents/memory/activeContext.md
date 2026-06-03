@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #327: Observabilidade de Painel Branco
+Last updated: 2026-06-03 — PR #327: Observabilidade + fallback de Painel Branco
 
 ## Boot
 
@@ -9,7 +9,7 @@ Last updated: 2026-06-03 — PR #327: Observabilidade de Painel Branco
 
 ## Fase atual
 
-**PR #327 aberta — socio-search decomposto + observabilidade de painel branco.** O incidente atual não foi tratado como falha de persistência: Supabase tinha dossiê final e mensagens limpas, mas a UI podia ficar visualmente branca no painel central. A branch agora adiciona detector `BlankPanel`, evento explícito no Sentry, métricas seguras no `scout_diagnostics`, índices Supabase para investigação e E2E que exige bot longo visível.
+**PR #327 aberta — socio-search decomposto + observabilidade/fallback de painel branco.** O incidente atual não foi tratado como falha de persistência: Supabase tinha dossiê final e mensagens limpas, mas a UI podia ficar visualmente branca no painel central. A branch agora adiciona detector `BlankPanel`, evento explícito no Sentry, métricas seguras no `scout_diagnostics`, índices Supabase para investigação, E2E que exige bot longo visível e fallback estático quando Virtuoso reporta range mas o DOM de mensagem não materializa.
 
 Branch atual: `refactor/socio-search-decompose` (PR #327).
 
@@ -17,8 +17,8 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 
 | Item                                                             | Status                          |
 | ---------------------------------------------------------------- | ------------------------------- |
-| PR #327 — socio-search decomposto + rastreio tela branca          | **ABERTA**, aguardando push/CI/preview |
-| Painel branco pos-dossie                                          | **RASTREIO APLICADO LOCALMENTE** — detector DOM + Sentry + Supabase |
+| PR #327 — socio-search decomposto + rastreio/fallback tela branca | **ABERTA**, aguardando push/CI/preview |
+| Painel branco pos-dossie                                          | **TRAVA APLICADA LOCALMENTE** — detector DOM + Sentry + Supabase + fallback estático |
 | PR #328 — tela branca waterfall                                  | **CONTEXTO HISTORICO** — fixes de snapshot/sessao orfa ja incorporados em main |
 | P0 withTimeout (api/gemini.ts:416, :491)                         | **NAO CORRIGIDO** — documentado |
 | 3 god modules restantes (docExtractor P1, textCleaners P2, etc.) | Pendente                        |
@@ -37,6 +37,7 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 - **Trava de envio inicial pendente**: primeira investigacao deve reaproveitar sessao pendente se uma segunda chamada chegar antes do re-render aplicar `currentSessionId`.
 - **CI E2E critico obrigatorio**: `E2E Critical Browser` roda painel branco, erro controlado e loading com Gemini stubado.
 - **Painel branco precisa de prova visual**: wrapper estrutural, `document.body.textContent` ou persistência Supabase não bastam. Exigir bot visível no `chat-main-panel`, texto longo, dimensões reais e sem placeholder/suspensão.
+- **Virtuoso não é prova visual**: `rangeChanged/itemsRendered` pode reportar itens sem DOM útil. Se há bot final esperado e nenhum conteúdo de bot visível, ativar `forceStaticTimelineFallback`.
 - **Sentry para anomalia não-exception**: usar `captureMessage('Scout360 blank panel detected')` com tags `area/source/reason/session_id`; não esperar exceção JS para abrir issue.
 - **Sanitizer de diagnostics**: strings sensíveis continuam bloqueadas, mas métricas numéricas/booleanas seguras com nomes `body/text/content` devem ser preservadas.
 - **Waterfall intacto**: verificar `git diff main -- waterfall-orchestrator.ts` apos cada rebase
@@ -44,7 +45,7 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 ## Proximo passo
 
 1. Push da PR #327 e aguardar CI/preview remoto; não mergear sem Bruno escrever `MERGE`
-2. Validar preview: se painel branco ocorrer, procurar Sentry `Scout360 blank panel detected` e Supabase `scout_diagnostics` area `BlankPanel`
+2. Validar preview: se painel branco ocorrer, procurar Sentry `Scout360 blank panel detected`, Supabase `scout_diagnostics` area `BlankPanel` e log `static-timeline-fallback-activated`
 3. Decompor 3 god modules restantes (P1 primeiro: documentExtractor.ts 533L)
 4. Corrigir P0 withTimeout
 

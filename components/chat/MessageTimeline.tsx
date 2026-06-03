@@ -21,6 +21,7 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
+  forceStaticTimelineFallback?: boolean;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
@@ -66,6 +67,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   showOperatorGate,
   showInitialHome,
   shouldSuspendVirtualizedList,
+  forceStaticTimelineFallback = false,
   onConfirmOperatorName,
   onStartInvestigation,
   radar,
@@ -104,7 +106,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const curr = safeMessages.length;
     prevTimelineLenRef.current = curr;
 
-    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !isLoading) {
+    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !forceStaticTimelineFallback && !isLoading) {
       console.error(
         '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
         JSON.stringify({
@@ -113,11 +115,20 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           after: curr,
           showInitialHome,
           shouldSuspendVirtualizedList,
+          forceStaticTimelineFallback,
           isDarkMode,
         }),
       );
     }
-  }, [safeMessages.length, showInitialHome, shouldSuspendVirtualizedList, isLoading, currentSession?.id, isDarkMode]);
+  }, [
+    safeMessages.length,
+    showInitialHome,
+    shouldSuspendVirtualizedList,
+    forceStaticTimelineFallback,
+    isLoading,
+    currentSession?.id,
+    isDarkMode,
+  ]);
 
   // Use larger overscan when any bot message looks like a dossier (long text) to
   // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
@@ -204,7 +215,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   );
 
   useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList) {
+    if (showInitialHome || shouldSuspendVirtualizedList || forceStaticTimelineFallback) {
       setIsMessagesViewportReady(false);
       return;
     }
@@ -231,6 +242,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       totalItems: safeMessages.length,
       showInitialHome,
       shouldSuspendVirtualizedList,
+      forceStaticTimelineFallback,
     });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = (reason: string) => {
@@ -284,7 +296,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, safeMessages.length, showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages.length, showInitialHome, shouldSuspendVirtualizedList]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -354,6 +366,16 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
+  useEffect(() => {
+    if (!forceStaticTimelineFallback) return;
+
+    scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
+      sessionId: currentSession?.id ?? null,
+      totalItems: safeMessages.length,
+      hasBotMessage: safeMessages.some(message => message.sender === Sender.Bot),
+    });
+  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
+
   return (
     <div className="flex-1 min-h-0 relative">
       {showOperatorGate ? (
@@ -386,6 +408,27 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               Preparando investigação...
             </p>
           </div>
+        </div>
+      ) : forceStaticTimelineFallback ? (
+        <div
+          className="h-full min-h-0 w-full overflow-y-auto custom-scrollbar"
+          data-testid="messages-static-fallback"
+          data-scout-virtuoso="static-fallback"
+        >
+          {hasMore ? (
+            <div className="flex justify-center py-3">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+              >
+                Carregar mensagens anteriores
+              </button>
+            </div>
+          ) : null}
+          {safeMessages.map((message, index) => (
+            <MessageRow key={message.id} index={index} data={itemData} />
+          ))}
         </div>
       ) : (
         <div ref={messagesViewportRef} className="h-full min-h-0 w-full" data-scout-virtuoso="timeline">
