@@ -12,9 +12,17 @@ import { DossierStoreProvider } from './stores/dossierStore';
 import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './utils/diagnosticLog';
 
 // ── Sentry: monitoramento de erros em producao ──
+const sentryRelease =
+  import.meta.env.VITE_SENTRY_RELEASE ||
+  import.meta.env.VITE_APP_VERSION ||
+  import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA ||
+  undefined;
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.PROD ? 'production' : 'development',
+  release: sentryRelease,
+  dist: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || undefined,
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration({

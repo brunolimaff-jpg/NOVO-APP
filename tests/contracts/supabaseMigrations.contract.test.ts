@@ -5,7 +5,13 @@ import { resolve } from 'path';
 
 const MIGRATIONS_DIR = resolve(__dirname, '../../supabase/migrations');
 
-const CRITICAL_MIGRATIONS = ['20260528_operator_tracking.sql'];
+const CRITICAL_MIGRATIONS = ['20260528_operator_tracking.sql', '20260603_blank_panel_observability.sql'];
+
+const CRITICAL_INDEXES = [
+  'idx_scout_diagnostics_session_created',
+  'idx_scout_diagnostics_area_event_created',
+  'idx_scout_diagnostics_blank_panel_created',
+];
 
 const CRITICAL_TABLES = ['operator_sessions', 'operator_events'];
 
@@ -22,6 +28,15 @@ describe('supabaseMigrations contract — estrutura', () => {
   it.each(CRITICAL_MIGRATIONS)('migration crítica existe: %s', filename => {
     const filePath = resolve(MIGRATIONS_DIR, filename);
     expect(existsSync(filePath)).toBe(true);
+  });
+
+  it.each(CRITICAL_INDEXES)('índice crítico existe: %s', indexName => {
+    const allContent = readdirSync(MIGRATIONS_DIR)
+      .filter(f => f.endsWith('.sql'))
+      .map(f => readFileSync(resolve(MIGRATIONS_DIR, f), 'utf-8'))
+      .join('\n');
+
+    expect(allContent).toContain(indexName);
   });
 });
 

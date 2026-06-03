@@ -1,4 +1,41 @@
-# Handoff — [NOVO-APP] — 02/06/2026 — PR #328: Tela Branca Pos-Waterfall
+# Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
+
+## Atualizacao 03/06/2026 — PR #327
+
+### O que mudou
+
+- PR #327 continua na branch `refactor/socio-search-decompose`, agora com rastreio permanente para a regressão de tela branca.
+- Adicionado `utils/blankPanelTelemetry.ts`: mede o DOM do `chat-main-panel` e dispara `BlankPanel/blank-panel-detected` quando há sessão ativa com bot final esperado, mas sem conteúdo de bot visível.
+- Sentry agora recebe `captureMessage('Scout360 blank panel detected')` com tags `area`, `source`, `reason`, `session_id` e contexto `blank_panel`.
+- `serverDiagnostics` passa a preservar métricas numéricas/booleanas seguras (`bodyLen`, `botTextMaxLen`, `mainPanelChars`, alturas, contagens), sem liberar strings de prompt/response/body/text/content.
+- Migration Supabase `20260603_blank_panel_observability.sql` aplicada no projeto `vmqfcaoirjcfucvlnpig`, com índices em `scout_diagnostics` por sessão, área/evento, operador e índice parcial `BlankPanel`.
+- E2E de painel branco/loading agora usa dossiê determinístico longo e exige `bot-message-content` visível, `data-text-length > 30000`, dimensões reais e ausência de placeholder/suspensão/erro/empty-state.
+
+### Evidencia local
+
+```bash
+npm run typecheck
+npm test -- tests/utils/blankPanelTelemetry.test.ts tests/utils/serverDiagnostics.test.ts tests/contracts/supabaseMigrations.contract.test.ts tests/components/ChatInterface.test.tsx tests/components/chat/MessageTimeline.test.tsx tests/components/MessageRow.test.tsx tests/features/chat/message-orchestrator.test.ts
+npm test -- tests/api-socio-search.test.ts tests/features/dossier/SocietaryMap.test.tsx
+npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/stores/chatStore.test.tsx tests/features/chat/message-orchestrator.test.ts
+npm run test:e2e:blank
+npm run test:e2e:loading
+npm run build
+```
+
+Resultado: todos passaram. Build enviou sourcemaps para Sentry (`s-3j/scout-360`, release `v1.0.0`).
+
+### Como investigar se voltar a tela branca
+
+1. Sentry: procurar mensagem `Scout360 blank panel detected`.
+2. Supabase: consultar `scout_diagnostics` com `area = 'BlankPanel'` ou `session_id = <id_da_sessao>`.
+3. Campos chave: `reason`, `rowCount`, `visibleRowCount`, `botNodeCount`, `visibleBotWithCharsCount`, `botCharsMax`, `mainPanelChars`, `panelRect`, `scrollerHeight`, `centerElementTestId`.
+4. Não aceitar como evidência suficiente: dossiê salvo no Supabase, `document.body.textContent`, item no histórico/sidebar, `dossier-content` isolado ou `message-row` estrutural.
+
+### LocalStorage
+
+- Não foi removido nesta mudança porque a evidência atual não aponta `localStorage` como causa raiz: o dossiê real já estava no Supabase com mensagens finais e transientes limpos.
+- Próxima limpeza possível: retirar fallback legado `scout360_sessions_v1` de `useSessionStorage` em uma PR separada, com migração/rollback próprios.
 
 ## Objetivo da Proxima Sessao
 

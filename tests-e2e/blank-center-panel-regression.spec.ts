@@ -1,5 +1,6 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
+import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
 import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
@@ -13,6 +14,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   test.beforeEach(async ({ page }) => {
     consoleErrors.length = 0;
     pageErrors.length = 0;
+    await installFastGeminiStubs(page);
 
     page.on('console', msg => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -22,10 +24,11 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
 
   async function fullOnboard(page: import('@playwright/test').Page) {
     await completeOnboarding(page);
-    // Preenche formulario de investigacao mas NAO submete (depende da API Gemini)
     await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
+    await page.getByTestId('investigation-submit-button').click();
+    await expect(page.getByTestId('loading-smart-overlay')).toBeVisible({ timeout: 30_000 });
   }
 
   async function collectDiagnostics(page: import('@playwright/test').Page) {
@@ -53,6 +56,23 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       .getByTestId('empty-state')
       .isVisible()
       .catch(() => false);
+    const botMetrics = await page
+      .getByTestId('chat-main-panel')
+      .getByTestId('bot-message-content')
+      .last()
+      .evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return {
+          height: rect.height,
+          opacity: Number(style.opacity),
+          textLength: Number(el.getAttribute('data-text-length') || 0),
+          visibleArea: Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)),
+          visible: rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden',
+          width: rect.width,
+        };
+      })
+      .catch(() => null);
 
     return {
       url: page.url(),
@@ -62,9 +82,53 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       loadingSmartVisible: loadingSmart,
       controlledErrorVisible: controlledError,
       emptyStateVisible: emptyState,
+      botMetrics,
       consoleErrors: [...consoleErrors],
       pageErrors: pageErrors.map(e => e.message),
     };
+  }
+
+  async function expectVisibleLongBotContent(page: import('@playwright/test').Page) {
+    const panel = page.getByTestId('chat-main-panel');
+    await expect(panel).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: 120_000 });
+    await expect(panel.getByTestId('empty-state')).toHaveCount(0);
+    await expect(panel.getByTestId('controlled-error')).toHaveCount(0);
+    await expect(panel.getByTestId('messages-viewport-placeholder')).toHaveCount(0);
+    await expect(panel.getByTestId('messages-viewport-suspended')).toHaveCount(0);
+
+    const bot = panel.getByTestId('bot-message-content').last();
+    await expect(bot).toBeVisible({ timeout: 15_000 });
+    await expect(bot).toContainText(E2E_DOSSIER_SENTINEL);
+    await expect
+      .poll(async () => Number(await bot.getAttribute('data-text-length')), {
+        message: 'Dossie precisa ser longo para reproduzir o risco real de painel branco',
+      })
+      .toBeGreaterThan(E2E_DOSSIER_MIN_CHARS);
+
+    const metrics = await bot.evaluate(el => {
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return {
+        display: style.display,
+        height: rect.height,
+        opacity: Number(style.opacity),
+        scrollHeight: el.scrollHeight,
+        text: el.textContent?.trim().slice(0, 200) ?? '',
+        visibleArea: Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)),
+        visibility: style.visibility,
+        width: rect.width,
+      };
+    });
+
+    expect(metrics.width).toBeGreaterThan(300);
+    expect(metrics.height).toBeGreaterThan(120);
+    expect(metrics.scrollHeight).toBeGreaterThan(120);
+    expect(metrics.display).not.toBe('none');
+    expect(metrics.visibility).toBe('visible');
+    expect(metrics.opacity).toBeGreaterThan(0.9);
+    expect(metrics.text).toContain(E2E_DOSSIER_SENTINEL);
+    expect(metrics.visibleArea).toBeGreaterThan(24);
   }
 
   test('app abre sem tela branca — shell visível', async ({ page }) => {
@@ -107,10 +171,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   test('painel central nunca fica vazio com sessão ativa', async ({ page }) => {
     await fullOnboard(page);
 
-    await expect(page.getByTestId('chat-main-panel')).toBeVisible({ timeout: 30_000 });
-
-    // Aguarda estabilização (8s é o limite definido no spec)
-    await page.waitForTimeout(8_000);
+    await expectVisibleLongBotContent(page);
 
     // Verifica se o breadcrumb tem empresa ativa
     const breadcrumb = page.getByTestId('app-breadcrumb');
@@ -121,29 +182,12 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       const hasCompany = breadcrumbText && breadcrumbText.includes('→');
 
       if (hasCompany) {
-        // Se tem empresa ativa no breadcrumb, o painel NUNCA pode estar vazio
-        const hasContent = await page
-          .getByTestId('message-row')
-          .first()
-          .isVisible()
-          .catch(() => false);
-        const hasLoading = await page
-          .getByTestId('loading-smart-overlay')
-          .isVisible()
-          .catch(() => false);
-        const hasError = await page
-          .getByTestId('controlled-error')
-          .isVisible()
-          .catch(() => false);
-        const hasEmptyState = await page
-          .getByTestId('empty-state')
-          .isVisible()
-          .catch(() => false);
-
         const diagnostics = await collectDiagnostics(page);
 
         expect(
-          hasContent || hasLoading || hasError || hasEmptyState,
+          diagnostics.botMetrics?.visible &&
+            diagnostics.botMetrics.visibleArea > 24 &&
+            diagnostics.botMetrics.textLength > E2E_DOSSIER_MIN_CHARS,
           `PAINEL BRANCO DETECTADO!\nDiagnóstico: ${JSON.stringify(diagnostics, null, 2)}`,
         ).toBe(true);
       }
@@ -152,6 +196,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
 
   test('sem console.error no fluxo principal', async ({ page }) => {
     await fullOnboard(page);
+    await expectVisibleLongBotContent(page);
 
     const unexpectedErrors = consoleErrors.filter(
       err => !ALLOWED_CONSOLE_ERRORS.some(allowed => err.includes(allowed)),

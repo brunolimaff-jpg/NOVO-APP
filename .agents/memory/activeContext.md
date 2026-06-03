@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall (causas raiz corrigidas localmente, aguardando novo CI remoto)
+Last updated: 2026-06-03 — PR #327: Observabilidade de Painel Branco
 
 ## Boot
 
@@ -9,18 +9,17 @@ Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall (causas raiz cor
 
 ## Fase atual
 
-**PR #328 aberta — correcao de tela branca pos-waterfall.** Causa raiz primaria corrigida localmente: `setSessions` agora sincroniza `sessionsRef.current` imediatamente, `updateSessionById` retorna a sessao atualizada, e o waterfall usa esse snapshot em vez de depender de side effect dentro de updater React. Fallback sessionsRef fica como airbag. Segunda causa identificada no preview: disparo inicial duplicado criava uma sessao orfa antes do re-render de `currentSessionId`; `pendingInitialSendRef` agora impede essa duplicacao.
+**PR #327 aberta — socio-search decomposto + observabilidade de painel branco.** O incidente atual não foi tratado como falha de persistência: Supabase tinha dossiê final e mensagens limpas, mas a UI podia ficar visualmente branca no painel central. A branch agora adiciona detector `BlankPanel`, evento explícito no Sentry, métricas seguras no `scout_diagnostics`, índices Supabase para investigação e E2E que exige bot longo visível.
 
-Branch atual: `fix/waterfall-session-persist-race-condition` (PR #328).
+Branch atual: `refactor/socio-search-decompose` (PR #327).
 
 ### Pendencias ativas
 
 | Item                                                             | Status                          |
 | ---------------------------------------------------------------- | ------------------------------- |
-| PR #328 — tela branca waterfall                                  | **ABERTA**, aguardando novo CI remoto/preview |
-| sessionToPersist null — causa raiz primaria                      | **CORRIGIDA LOCALMENTE**, monitorar diagnostics |
-| Sessao orfa por disparo inicial duplicado                        | **CORRIGIDA LOCALMENTE**, validar preview |
-| PR #327 — socio-search decomposto                                | **ABERTA**, mergeavel           |
+| PR #327 — socio-search decomposto + rastreio tela branca          | **ABERTA**, aguardando push/CI/preview |
+| Painel branco pos-dossie                                          | **RASTREIO APLICADO LOCALMENTE** — detector DOM + Sentry + Supabase |
+| PR #328 — tela branca waterfall                                  | **CONTEXTO HISTORICO** — fixes de snapshot/sessao orfa ja incorporados em main |
 | P0 withTimeout (api/gemini.ts:416, :491)                         | **NAO CORRIGIDO** — documentado |
 | 3 god modules restantes (docExtractor P1, textCleaners P2, etc.) | Pendente                        |
 | Branch `feat/crm-supabase-migration` stashed                     | Nao decidido                    |
@@ -37,12 +36,15 @@ Branch atual: `fix/waterfall-session-persist-race-condition` (PR #328).
 - **Snapshot sincrono para updateSessionById**: helpers que atualizam sessao critica devem retornar a sessao resultante; nao depender de side effects em callback de `setState`.
 - **Trava de envio inicial pendente**: primeira investigacao deve reaproveitar sessao pendente se uma segunda chamada chegar antes do re-render aplicar `currentSessionId`.
 - **CI E2E critico obrigatorio**: `E2E Critical Browser` roda painel branco, erro controlado e loading com Gemini stubado.
+- **Painel branco precisa de prova visual**: wrapper estrutural, `document.body.textContent` ou persistência Supabase não bastam. Exigir bot visível no `chat-main-panel`, texto longo, dimensões reais e sem placeholder/suspensão.
+- **Sentry para anomalia não-exception**: usar `captureMessage('Scout360 blank panel detected')` com tags `area/source/reason/session_id`; não esperar exceção JS para abrir issue.
+- **Sanitizer de diagnostics**: strings sensíveis continuam bloqueadas, mas métricas numéricas/booleanas seguras com nomes `body/text/content` devem ser preservadas.
 - **Waterfall intacto**: verificar `git diff main -- waterfall-orchestrator.ts` apos cada rebase
 
 ## Proximo passo
 
-1. Validar novo CI remoto da PR #328 e confirmar preview sem sessao orfa; se houver disparo duplicado, esperar log `envio inicial duplicado bloqueado`
-2. Fechar PR #327 (socio-search decomposto)
+1. Push da PR #327 e aguardar CI/preview remoto; não mergear sem Bruno escrever `MERGE`
+2. Validar preview: se painel branco ocorrer, procurar Sentry `Scout360 blank panel detected` e Supabase `scout_diagnostics` area `BlankPanel`
 3. Decompor 3 god modules restantes (P1 primeiro: documentExtractor.ts 533L)
 4. Corrigir P0 withTimeout
 

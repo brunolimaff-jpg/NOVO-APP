@@ -8,6 +8,7 @@ import { storage } from '../services/storage';
 import { type ChatSession, Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { reportBlankPanelIfDetected } from '../utils/blankPanelTelemetry';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
@@ -325,6 +326,97 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     isLoading,
     hasError: hasErrorInMessages,
   });
+  const expectedBotCharsMax = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...safeMessages
+          .filter(message => message.sender === Sender.Bot && !message.isThinking && !message.isError)
+          .map(message => String(message.text || '').trim().length),
+      ),
+    [safeMessages],
+  );
+
+  const panelSnapshotSignatureRef = useRef('');
+  useEffect(() => {
+    const signature = [
+      currentSession?.id ?? 'no-session',
+      panelState,
+      hasActiveSession ? 'active' : 'inactive',
+      safeMessages.length,
+      messages.length,
+      hasDossierContent ? 'dossier' : 'no-dossier',
+      isLoading ? 'loading' : 'idle',
+      loadingVariant ?? 'none',
+      showInitialHome ? 'home' : 'no-home',
+      showOperatorGate ? 'operator-gate' : 'operator-ready',
+      shouldSuspendVirtualizedList ? 'suspended' : 'timeline',
+      expectedBotCharsMax,
+    ].join('|');
+
+    if (panelSnapshotSignatureRef.current === signature) return;
+    panelSnapshotSignatureRef.current = signature;
+
+    scoutDiag.info('ChatInterface', 'panel:snapshot', {
+      sessionId: currentSession?.id ?? null,
+      panelState,
+      hasActiveSession,
+      safeMessageCount: safeMessages.length,
+      propMessageCount: messages.length,
+      hasDossierContent,
+      expectedBotCharsMax,
+      isLoading,
+      loadingVariant,
+      showInitialHome,
+      showOperatorGate,
+      shouldSuspendVirtualizedList,
+    });
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    hasActiveSession,
+    hasDossierContent,
+    isLoading,
+    loadingVariant,
+    messages.length,
+    panelState,
+    safeMessages.length,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+    showOperatorGate,
+  ]);
+
+  useEffect(() => {
+    if (!currentSession?.id || expectedBotCharsMax <= 0) return;
+
+    const delays = [250, 1_000, 3_000, 8_000];
+    const timers = delays.map(delay =>
+      window.setTimeout(() => {
+        reportBlankPanelIfDetected({
+          sessionId: currentSession.id,
+          source: `ChatInterface:${delay}ms`,
+          messageCount: safeMessages.length,
+          expectedBotCharsMax,
+          isLoading,
+          loadingVariant,
+          panelState,
+          showInitialHome,
+          shouldSuspendVirtualizedList,
+        });
+      }, delay),
+    );
+
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    isLoading,
+    loadingVariant,
+    panelState,
+    safeMessages.length,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+  ]);
 
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);

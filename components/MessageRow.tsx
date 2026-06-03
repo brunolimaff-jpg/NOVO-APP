@@ -120,6 +120,15 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero' && !hasSubstantiveText;
   const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
   const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
+  const renderBranch = showHeroLoading
+    ? 'hero-loading'
+    : showInlineLoading
+      ? 'inline-loading'
+      : msg.isError && msg.errorDetails
+        ? 'error-card'
+        : showGhostContent
+          ? 'ghost-content'
+          : 'normal-content';
   const contentRef = useRef<HTMLDivElement | null>(null);
   let content: React.ReactNode;
 
@@ -145,9 +154,10 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     const handle = requestAnimationFrame(() => {
       const rect = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
-      scoutDiag.info('MessageRow', 'commit:dimensions', {
+      const payload = {
         messageId: msg.id?.slice(0, 8),
         sender: msg.sender,
+        branch: renderBranch,
         textLen: msg.text.length,
         rectW: Math.round(rect.width),
         rectH: Math.round(rect.height),
@@ -158,11 +168,25 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
         visibility: cs.visibility,
         opacity: cs.opacity,
         overflow: cs.overflow,
-      });
+      };
+      const isInvisibleBotText =
+        isBot &&
+        msg.text.length > 0 &&
+        (rect.width <= 0 ||
+          rect.height <= 0 ||
+          cs.display === 'none' ||
+          cs.visibility === 'hidden' ||
+          Number(cs.opacity || '1') <= 0.01);
+
+      if (isInvisibleBotText) {
+        scoutDiag.warn('MessageRow', 'commit:invisible-bot-content', payload);
+      } else {
+        scoutDiag.info('MessageRow', 'commit:dimensions', payload);
+      }
     });
 
     return () => cancelAnimationFrame(handle);
-  }, [msg.text, msg.id, msg.sender]);
+  }, [isBot, msg.text, msg.id, msg.sender, renderBranch]);
 
   if (showHeroLoading) {
     // LoadingSmart should cover this path, but stale preview/runtime state can expose

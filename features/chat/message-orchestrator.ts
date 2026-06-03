@@ -8,6 +8,7 @@ import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
+import { collectBlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { extractCompanyName } from '../../utils/companyNameExtractor';
 import { cleanTitle, sanitizeLoadingContextText } from '../../utils/textCleaners';
@@ -175,6 +176,18 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
           const composer = document.querySelector('[data-testid="composer-input"]');
           const scroller = document.querySelector('[data-virtuoso-scroller]');
+          const botTextMaxLen = Math.max(
+            0,
+            ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0),
+          );
+          const blankPanelSnapshot = collectBlankPanelSnapshot({
+            sessionId,
+            source: `PostCompletion:${delay}ms`,
+            messageCount: botMessages.length,
+            expectedBotCharsMax: botTextMaxLen,
+            isLoading: false,
+            loadingVariant: null,
+          });
 
           const currentGuard = getWaterfallGuardState(sessionId);
           const genDelta = (currentGuard?.generationCount ?? baselineGen) - baselineGen;
@@ -187,9 +200,19 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),
             loadingOverlayExists: Boolean(loadingOverlay),
             botMessageCount: botMessages.length,
-            botTextMaxLen: Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0)),
+            botTextMaxLen,
             composerDisabled: (composer as HTMLInputElement)?.disabled || false,
             scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
+            scrollerScrollHeight: (scroller as HTMLElement)?.scrollHeight || 0,
+            blankPanelDetected: blankPanelSnapshot?.blankDetected ?? false,
+            blankPanelReason: blankPanelSnapshot?.reason ?? null,
+            mainPanelChars: blankPanelSnapshot?.mainPanelChars ?? 0,
+            panelVisible: blankPanelSnapshot?.panelVisible ?? false,
+            rowCount: blankPanelSnapshot?.rowCount ?? 0,
+            visibleRowCount: blankPanelSnapshot?.visibleRowCount ?? 0,
+            visibleBotNodeCount: blankPanelSnapshot?.visibleBotNodeCount ?? 0,
+            visibleBotWithCharsCount: blankPanelSnapshot?.visibleBotWithCharsCount ?? 0,
+            centerElementTestId: blankPanelSnapshot?.centerElementTestId ?? null,
             documentReadyState: document.readyState,
             activeElement: document.activeElement?.tagName || '',
             waterfallGenCount: currentGuard?.generationCount ?? 'n/a',
@@ -206,8 +229,20 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           } else {
             scoutDiag.info('PostCompletion', `check:${delay}ms`, payload);
           }
-        } catch {
-          /* non-critical DOM check */
+
+          if (blankPanelSnapshot?.blankDetected) {
+            scoutDiag.warn(
+              'PostCompletion',
+              `blank-panel-detected:check:${delay}ms`,
+              blankPanelSnapshot as unknown as Record<string, unknown>,
+            );
+            flushDiagnosticsNow(`blank-panel-detected:${delay}ms`, true);
+          }
+        } catch (error) {
+          scoutDiag.warn('PostCompletion', `check-failed:${delay}ms`, {
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }, delay);
       timerIds.push(id);

@@ -92,6 +92,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const pendingDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportReadySignatureRef = useRef('');
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
@@ -221,22 +222,44 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     let rafB: number | null = null;
     let emergencyTimer: number | null = null;
 
+    const readViewportMetrics = () => ({
+      sessionId: currentSession?.id ?? null,
+      viewportWidth: viewport.clientWidth,
+      viewportHeight: viewport.clientHeight,
+      offsetHeight: viewport.offsetHeight,
+      scrollHeight: viewport.scrollHeight,
+      totalItems: safeMessages.length,
+      showInitialHome,
+      shouldSuspendVirtualizedList,
+    });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
-    const markReady = () => {
-      if (!cancelled) {
-        setIsMessagesViewportReady(true);
+    const markReady = (reason: string) => {
+      if (cancelled) return;
+
+      const metrics = readViewportMetrics();
+      const signature = `${reason}|${metrics.viewportWidth}|${metrics.viewportHeight}|${metrics.totalItems}`;
+      if (viewportReadySignatureRef.current !== signature) {
+        viewportReadySignatureRef.current = signature;
+        const logPayload = { reason, ...metrics };
+        if (metrics.viewportWidth <= 0 || metrics.viewportHeight <= 0) {
+          scoutDiag.warn('Virtuoso', 'viewport-ready-with-invalid-size', logPayload);
+        } else {
+          scoutDiag.info('Virtuoso', 'viewport-ready', logPayload);
+        }
       }
+
+      setIsMessagesViewportReady(true);
     };
 
     setIsMessagesViewportReady(false);
-    emergencyTimer = window.setTimeout(markReady, 180);
+    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 180);
 
     if (hasValidSize()) {
-      markReady();
+      markReady('initial-size');
     } else if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(() => {
         if (hasValidSize()) {
-          markReady();
+          markReady('resize-observer');
         }
       });
       observer.observe(viewport);
@@ -245,7 +268,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     if (typeof window.requestAnimationFrame === 'function') {
       rafA = window.requestAnimationFrame(() => {
         if (typeof window.requestAnimationFrame === 'function') {
-          rafB = window.requestAnimationFrame(markReady);
+          rafB = window.requestAnimationFrame(() => markReady('double-raf'));
         }
       });
     }
@@ -261,7 +284,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, safeMessages.length, showInitialHome, shouldSuspendVirtualizedList]);
 
   const hideSuggestionsForMessageId =
     isLoading &&

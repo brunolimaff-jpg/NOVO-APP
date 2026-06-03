@@ -1,6 +1,16 @@
 # Decisions
 
-Last updated: 2026-06-02 — PR #328: Tela Branca Pos-Waterfall
+Last updated: 2026-06-03 — PR #327: Observabilidade de Painel Branco
+
+## 2026-06-03 — Painel branco precisa de rastreio visual, nao so persistencia (APLICADO LOCALMENTE)
+
+Decision: bugs de tela branca devem emitir um evento explícito `BlankPanel/blank-panel-detected` quando existe sessão ativa com texto final de bot esperado, mas o painel central não mostra conteúdo de bot visível. O detector mede somente sinais seguros do DOM (`rowCount`, `visibleBotWithCharsCount`, alturas, scroll, `centerElementTestId`) e envia `captureMessage('Scout360 blank panel detected')` para Sentry com tags `area`, `source`, `reason` e `session_id`.
+
+Reason: no preview da PR #327/PR #328, Supabase e waterfall indicavam sucesso (`messageCount=2`, bot final persistido, Virtuoso montado), mas a UI podia ficar visualmente branca. `document.body.textContent` e `dossier-content` não bastam porque sidebar/histórico e wrappers estruturais podem esconder o problema real do painel central.
+
+Contract: validação de tela branca deve provar conteúdo de bot pintado no `chat-main-panel`: `bot-message-content` visível, `data-text-length > 30000`, dimensões reais, sem `empty-state`, sem `controlled-error`, sem placeholder/suspensão e com área visível positiva. Supabase deve preservar métricas numéricas/booleanas seguras mesmo quando o nome da chave contém `body/text/content`, mas continuar removendo strings de prompt, response, body e conteúdo.
+
+Refs: `utils/blankPanelTelemetry.ts`, `components/ChatInterface.tsx`, `features/chat/message-orchestrator.ts`, `tests-e2e/blank-center-panel-regression.spec.ts`, `tests-e2e/loading-smart-recovery.spec.ts`, `supabase/migrations/20260603_blank_panel_observability.sql`, PR #327.
 
 ## 2026-06-02 — Trava de envio inicial pendente contra sessao orfa (APLICADO LOCALMENTE)
 
