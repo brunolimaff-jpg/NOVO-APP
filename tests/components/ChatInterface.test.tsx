@@ -785,7 +785,7 @@ describe('ChatInterface shell regression', () => {
         'static-timeline-fallback-activated',
         expect.objectContaining({
           reason: 'no-message-rows-in-panel',
-          delay: 0,
+          delay: 750,
         }),
       );
     } finally {

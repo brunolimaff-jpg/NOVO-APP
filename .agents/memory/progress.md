@@ -7,12 +7,15 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 
 ## Em andamento
 
+| 2026-06-03 | **PR #330** — review fixes (delay 750ms, E2E PII placeholder); Bruno retesta preview | PR #330 |
+| 2026-06-03 | **PR #329 MERGEADA** — freeze dossiê hero: timeline suspend, stop+activeGenerationRef, SocietaryMap cap 24. Validado Bruno. Commit `2cd2cffa`. | PR #329 |
+
 | Item                                        | Status                                                               | Link                   |
 | ------------------------------------------- | -------------------------------------------------------------------- | ---------------------- |
 | PR #328 — Tela branca pos-waterfall         | **ABERTA**, branch `fix/waterfall-session-persist-race-condition`, aguardando novo CI remoto | PR #328, HANDOFF_AI.md |
 | sessionToPersist null — causa raiz primaria | **CORRIGIDA LOCALMENTE** — monitorar preview/Supabase diagnostics     | PR #328                |
 | Sessao orfa por disparo inicial duplicado   | **CORRIGIDA LOCALMENTE** — validar preview apos push                  | PR #328                |
-| Freeze dossiê hero — main thread + Virtuoso durante Compliance | **PR aberta** — overlay/stop/guard persist | fix/hero-loading-freeze-session |
+| ~~Freeze dossiê hero~~ **MERGEADA #329** — main thread + Virtuoso durante Compliance | **PR aberta** — overlay/stop/guard persist | fix/hero-loading-freeze-session |
 | PR #327 — Socio-search decomposition        | **ABERTA**, branch `refactor/socio-search-decompose`, com rastreio de painel branco + fallback estático + gates E2E longos adicionados | PR #327, HANDOFF_AI.md |
 | Interromper pesquisa inicial                | **CORRIGIDO LOCALMENTE** — abort remove sessão temporária e impede consolidação/save tardio | PR #327, `message-orchestrator`, `waterfall-orchestrator` |
 | 3 god modules restantes                     | docExtractor (533L), textCleaners (630L), clientLookupService (741L) | HANDOFF_AI.md          |

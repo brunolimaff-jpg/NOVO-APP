@@ -3,8 +3,8 @@ import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } f
 import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
 
 const SCHEFFER_CNPJ = '04.733.767/0001-80';
-const OPERATOR_NAME = process.env.E2E_OPERATOR_NAME || 'Bruno Lima';
-const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL || 'bruno.ferreira@senior.com.br';
+const OPERATOR_NAME = process.env.E2E_OPERATOR_NAME ?? 'E2E Operator';
+const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? 'e2e.operator@example.com';
 
 test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
   test.describe.configure({ timeout: 180_000 });

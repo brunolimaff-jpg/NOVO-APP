@@ -443,7 +443,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
     if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
 
-    const delays = [0, 750, 2_000, 5_000, 9_000];
+    const delays = [750, 2_000, 5_000, 9_000];
     const timers = delays.map(delay =>
       window.setTimeout(() => {
         const snapshot = reportBlankPanelIfDetected({
