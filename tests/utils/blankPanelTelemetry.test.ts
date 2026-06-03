@@ -146,6 +146,28 @@ describe('blankPanelTelemetry', () => {
     expect(snapshot?.reason).toBeNull();
   });
 
+  it('classifica placeholder como stuck-viewport-placeholder', () => {
+    document.body.innerHTML = `
+      <div data-testid="chat-main-panel" data-width="900" data-height="600">
+        <div data-testid="messages-viewport-placeholder"></div>
+      </div>
+    `;
+
+    const snapshot = collectBlankPanelSnapshot({
+      sessionId: 'sess-1',
+      source: 'unit-test',
+      messageCount: 2,
+      expectedBotCharsMax: 32_000,
+      isLoading: false,
+      loadingVariant: null,
+      showInitialHome: false,
+      shouldSuspendVirtualizedList: false,
+    });
+
+    expect(snapshot?.reason).toBe('stuck-viewport-placeholder');
+    expect(snapshot?.blankDetected).toBe(true);
+  });
+
   it('detecta painel preso em placeholder quando o bot final é esperado', () => {
     document.body.innerHTML = `
       <div data-testid="chat-main-panel" data-width="900" data-height="600">
@@ -166,10 +188,10 @@ describe('blankPanelTelemetry', () => {
 
     expect(snapshot?.blankDetected).toBe(true);
     expect(snapshot?.placeholderVisible).toBe(true);
-    expect(snapshot?.reason).toBe('no-message-rows-in-panel');
+    expect(snapshot?.reason).toBe('stuck-viewport-placeholder');
   });
 
-    it('envia warning para Supabase/Sentry e limita duplicata por sessão e fonte', () => {
+  it('envia warning para Supabase/Sentry e limita duplicata por sessão e fonte', () => {
     document.body.innerHTML = '<div data-testid="chat-main-panel" data-width="900" data-height="600"></div>';
 
     const input = {

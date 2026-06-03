@@ -29,3 +29,9 @@ Ordem observada na sessão `f7f8c634-ad51-430d-82f3-117f822c26eb`:
 ## Investigação performance (Inv 4)
 
 Manual: Chrome Performance entre `processMessage:finally` e primeiro `bot-message-content` com `data-text-length` alto. Follow-up: SocietaryMap/CNAE em PR separada se long tasks dominarem.
+## P0 pós-#331 (2026-06-03)
+
+- `forceStatic` proativo com `expectedBotCharsMax >= 4000` (não só `preferStatic` pós-`isLoading`).
+- `shouldSuspendVirtualizedListForTimeline = suspend && !effectiveStatic` — static vence suspended.
+- Watchdog 2s: `SpinnerStuck/post-waterfall-watchdog` se placeholder/suspended com overlay ausente.
+- Telemetria: `stuck-viewport-placeholder` / `stuck-viewport-suspended`.

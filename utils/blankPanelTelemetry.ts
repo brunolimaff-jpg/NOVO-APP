@@ -183,6 +183,10 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
   let reason: string | null = null;
   if (shouldCheck && !panelMetric.visible) {
     reason = 'main-panel-not-visible';
+  } else if (shouldCheck && placeholderVisible) {
+    reason = 'stuck-viewport-placeholder';
+  } else if (shouldCheck && suspendedViewportVisible) {
+    reason = 'stuck-viewport-suspended';
   } else if (shouldCheck && !validVisualState && rows.length === 0) {
     reason = 'no-message-rows-in-panel';
   } else if (shouldCheck && !validVisualState && visibleRowCount === 0) {

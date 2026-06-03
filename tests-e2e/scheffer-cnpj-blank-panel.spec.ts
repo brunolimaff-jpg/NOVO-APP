@@ -35,10 +35,10 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await expect(panel.getByTestId('messages-viewport-placeholder')).toHaveCount(0);
 
     await expect
-      .poll(async () => panel.getByTestId('messages-viewport-placeholder').count())
+      .poll(async () => panel.getByTestId('messages-viewport-placeholder').count(), { timeout: 5_000 })
       .toBe(0);
     await expect
-      .poll(async () => panel.getByTestId('messages-viewport-suspended').count())
+      .poll(async () => panel.getByTestId('messages-viewport-suspended').count(), { timeout: 5_000 })
       .toBe(0);
 
     const bot = panel.getByTestId('bot-message-content').last();

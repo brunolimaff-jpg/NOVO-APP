@@ -162,9 +162,13 @@ vi.mock('../../utils/diagnosticLog', () => ({
   scoutDiag: { warn: warnMock, info: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('../../utils/blankPanelTelemetry', () => ({
-  reportBlankPanelIfDetected: reportBlankPanelIfDetectedMock,
-}));
+vi.mock('../../utils/blankPanelTelemetry', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../utils/blankPanelTelemetry')>();
+  return {
+    ...actual,
+    reportBlankPanelIfDetected: reportBlankPanelIfDetectedMock,
+  };
+});
 
 function buildMessage(id: string, sender: Sender, text: string): Message {
   return {
@@ -861,4 +865,113 @@ describe('ChatInterface shell regression', () => {
       expect(screen.getByTestId('message-row-1')).toBeInTheDocument();
     });
   });
+
+  it('mantém fallback estático durante hero loading com preview >= 4000 chars (não suspende)', async () => {
+    const largeText = 'D'.repeat(5_000);
+    const messages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      {
+        ...buildMessage('m2', Sender.Bot, largeText),
+        isThinking: true,
+        loadingVariant: 'hero' as const,
+      },
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+    });
+  });
+
+  it('watchdog pós-overlay força static quando DOM ainda está em placeholder', async () => {
+    vi.useFakeTimers();
+    const collectSpy = vi.spyOn(await import('../../utils/blankPanelTelemetry'), 'collectBlankPanelSnapshot');
+    const largeText = 'D'.repeat(5_000);
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: false },
+    ];
+
+    collectSpy.mockReturnValue({
+      sessionId: 'session-1',
+      source: 'unit',
+      route: '/',
+      messageCount: 2,
+      expectedBotCharsMax: 5_000,
+      isLoading: false,
+      loadingVariant: null,
+      panelState: 'content',
+      showInitialHome: false,
+      shouldSuspendVirtualizedList: false,
+      panelVisible: true,
+      mainPanelChars: 0,
+      rowCount: 0,
+      visibleRowCount: 0,
+      botNodeCount: 0,
+      visibleBotNodeCount: 0,
+      visibleBotWithCharsCount: 0,
+      botCharsMax: 0,
+      dossierNodeVisible: false,
+      controlledErrorVisible: false,
+      emptyStateVisible: false,
+      loadingOverlayVisible: false,
+      centerElementTag: 'DIV',
+      centerElementTestId: 'messages-viewport-placeholder',
+      centerElementRole: null,
+      centerElementClass: null,
+      suspendedViewportVisible: false,
+      placeholderVisible: true,
+      heroFallbackVisible: false,
+      scrollerHeight: 0,
+      scrollerScrollHeight: 0,
+      scrollerScrollTop: 0,
+      panelRect: { width: 900, height: 600, top: 0, left: 0, inViewport: true },
+      reason: 'stuck-viewport-placeholder',
+      blankDetected: true,
+    });
+
+    try {
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+            isLoading: false,
+          })}
+        />,
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(2_100);
+      });
+
+      expect(warnMock).toHaveBeenCalledWith(
+        'SpinnerStuck',
+        'post-waterfall-watchdog',
+        expect.objectContaining({
+          expectedBotCharsMax: 5_000,
+          centerElementTestId: 'messages-viewport-placeholder',
+        }),
+      );
+    } finally {
+      collectSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+
 });

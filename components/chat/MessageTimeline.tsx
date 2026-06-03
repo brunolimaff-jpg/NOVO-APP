@@ -98,6 +98,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const safeMessagesLengthRef = useRef(safeMessages.length);
+  safeMessagesLengthRef.current = safeMessages.length;
 
   // ── Instrumentação: detecta timeline renderizando vazia ──
   const prevTimelineLenRef = useRef(safeMessages.length);
@@ -171,7 +173,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     scoutDiag.info('Virtuoso', 'virtuoso:mount', {
       viewportWidth: viewport?.clientWidth ?? 0,
       viewportHeight: viewport?.clientHeight ?? 0,
-      totalItems: safeMessages.length,
+      totalItems: safeMessagesLengthRef.current,
       overscan: virtuosoOverscan,
     });
     return () => {

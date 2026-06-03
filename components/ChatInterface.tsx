@@ -8,7 +8,18 @@ import { storage } from '../services/storage';
 import { type ChatSession, Sender, type RadarAlert } from '../types';
 import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
-import { reportBlankPanelIfDetected, type BlankPanelSnapshot } from '../utils/blankPanelTelemetry';
+import {
+  collectBlankPanelSnapshot,
+  reportBlankPanelIfDetected,
+  type BlankPanelSnapshot,
+} from '../utils/blankPanelTelemetry';
+import {
+  buildHandoffPanelDiag,
+  isPostWaterfallStuckHandoff,
+  POST_WATERFALL_WATCHDOG_MS,
+  shouldApplyProactiveForceStatic,
+  shouldResetForceStaticOnLoadingStart,
+} from '../utils/postWaterfallHandoff';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import { trackOperatorEvent } from '../services/operatorTracking';
@@ -59,6 +70,7 @@ function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boo
   if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
   if (snapshot.loadingOverlayVisible || snapshot.controlledErrorVisible || snapshot.emptyStateVisible) return false;
 
+  if (isPostWaterfallStuckHandoff(snapshot)) return true;
   if (snapshot.blankDetected) return true;
 
   const panelHasAlmostNoContent = snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
@@ -146,6 +158,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
   const staticTimelineFallbackSessionRef = useRef<string | null>(null);
+  const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasOperatorName = operatorName.trim().length > 0;
@@ -357,6 +370,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     !shouldSuspendVirtualizedList &&
     shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
   const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
+  const shouldSuspendVirtualizedListForTimeline =
+    shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
 
   const panelSnapshotSignatureRef = useRef('');
@@ -380,6 +395,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     if (panelSnapshotSignatureRef.current === signature) return;
     panelSnapshotSignatureRef.current = signature;
 
+    const domSnapshot =
+      typeof document !== 'undefined'
+        ? collectBlankPanelSnapshot({
+            sessionId: currentSession?.id ?? null,
+            source: 'ChatInterface:panel-snapshot',
+            messageCount: safeMessages.length,
+            expectedBotCharsMax,
+            isLoading,
+            loadingVariant,
+            panelState,
+            showInitialHome,
+            shouldSuspendVirtualizedList: shouldSuspendVirtualizedListForTimeline,
+          })
+        : null;
+
     scoutDiag.info('ChatInterface', 'panel:snapshot', {
       sessionId: currentSession?.id ?? null,
       panelState,
@@ -393,9 +423,15 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       showInitialHome,
       showOperatorGate,
       shouldSuspendVirtualizedList,
+      shouldSuspendVirtualizedListForTimeline,
       forceStaticTimelineFallback,
       preferStaticForLargeDossier,
       effectiveStaticTimelineFallback,
+      ...buildHandoffPanelDiag(domSnapshot, {
+        shouldSuspendVirtualizedList,
+        forceStaticTimelineFallback,
+        expectedBotCharsMax,
+      }),
     });
   }, [
     currentSession?.id,
@@ -411,6 +447,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     panelState,
     safeMessages.length,
     shouldSuspendVirtualizedList,
+    shouldSuspendVirtualizedListForTimeline,
     showInitialHome,
     showOperatorGate,
   ]);
@@ -418,28 +455,104 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   useEffect(() => {
     setForceStaticTimelineFallback(false);
     staticTimelineFallbackSessionRef.current = null;
+    postWaterfallWatchdogLoggedRef.current = null;
   }, [currentSession?.id]);
 
   useEffect(() => {
     const wasLoading = prevIsLoadingForStaticResetRef.current;
     prevIsLoadingForStaticResetRef.current = isLoading;
-    if (isLoading && !wasLoading) {
+    if (
+      shouldResetForceStaticOnLoadingStart({
+        expectedBotCharsMax,
+        isLoading,
+        wasLoading,
+      })
+    ) {
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
+      postWaterfallWatchdogLoggedRef.current = null;
     }
-  }, [isLoading]);
+  }, [expectedBotCharsMax, isLoading]);
 
   useEffect(() => {
-    if (!preferStaticForLargeDossier || !currentSession?.id) return;
+    if (
+      !shouldApplyProactiveForceStatic({
+        expectedBotCharsMax,
+        showInitialHome,
+        sessionId: currentSession?.id,
+      })
+    ) {
+      return;
+    }
 
-    staticTimelineFallbackSessionRef.current = currentSession.id;
+    setForceStaticTimelineFallback(true);
+    staticTimelineFallbackSessionRef.current = currentSession!.id;
     scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
-      sessionId: currentSession.id,
+      sessionId: currentSession!.id,
       expectedBotCharsMax,
       threshold: 4_000,
       syncOnRender: true,
+      preferStaticForLargeDossier,
+      shouldSuspendVirtualizedList,
     });
-  }, [currentSession?.id, expectedBotCharsMax, preferStaticForLargeDossier]);
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    preferStaticForLargeDossier,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+  ]);
+
+  useEffect(() => {
+    if (!currentSession?.id || expectedBotCharsMax < 4_000) return;
+    if (isLoading || showInitialHome) return;
+
+    const watchdogTimer = window.setTimeout(() => {
+      const snapshot = collectBlankPanelSnapshot({
+        sessionId: currentSession.id,
+        source: 'ChatInterface:post-waterfall-watchdog',
+        messageCount: safeMessages.length,
+        expectedBotCharsMax,
+        isLoading,
+        loadingVariant,
+        panelState,
+        showInitialHome,
+        shouldSuspendVirtualizedList: shouldSuspendVirtualizedListForTimeline,
+      });
+
+      if (!isPostWaterfallStuckHandoff(snapshot)) return;
+
+      staticTimelineFallbackSessionRef.current = currentSession.id;
+      setForceStaticTimelineFallback(true);
+
+      if (postWaterfallWatchdogLoggedRef.current === currentSession.id) return;
+      postWaterfallWatchdogLoggedRef.current = currentSession.id;
+
+      scoutDiag.warn('SpinnerStuck', 'post-waterfall-watchdog', {
+        sessionId: currentSession.id,
+        delayMs: POST_WATERFALL_WATCHDOG_MS,
+        ...buildHandoffPanelDiag(snapshot, {
+          shouldSuspendVirtualizedList,
+          forceStaticTimelineFallback,
+          expectedBotCharsMax,
+        }),
+        reason: snapshot?.reason,
+      } as unknown as Record<string, unknown>);
+    }, POST_WATERFALL_WATCHDOG_MS);
+
+    return () => window.clearTimeout(watchdogTimer);
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    forceStaticTimelineFallback,
+    isLoading,
+    loadingVariant,
+    panelState,
+    safeMessages.length,
+    shouldSuspendVirtualizedList,
+    shouldSuspendVirtualizedListForTimeline,
+    showInitialHome,
+  ]);
 
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
@@ -576,7 +689,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 mode={mode}
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
-                shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
+                shouldSuspendVirtualizedList={shouldSuspendVirtualizedListForTimeline}
                 forceStaticTimelineFallback={effectiveStaticTimelineFallback}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
