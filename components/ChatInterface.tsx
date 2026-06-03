@@ -351,7 +351,13 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasError: hasErrorInMessages,
   });
   const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
-  const prevIsLoadingRef = useRef(isLoading);
+  const preferStaticForLargeDossier =
+    !isLoading &&
+    !showInitialHome &&
+    !shouldSuspendVirtualizedList &&
+    shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
+  const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
+  const prevIsLoadingForStaticResetRef = useRef(isLoading);
 
   const panelSnapshotSignatureRef = useRef('');
   useEffect(() => {
@@ -367,7 +373,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       showInitialHome ? 'home' : 'no-home',
       showOperatorGate ? 'operator-gate' : 'operator-ready',
       shouldSuspendVirtualizedList ? 'suspended' : 'timeline',
-      forceStaticTimelineFallback ? 'static-fallback' : 'virtualized',
+      effectiveStaticTimelineFallback ? 'static-fallback' : 'virtualized',
       expectedBotCharsMax,
     ].join('|');
 
@@ -388,11 +394,15 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       showOperatorGate,
       shouldSuspendVirtualizedList,
       forceStaticTimelineFallback,
+      preferStaticForLargeDossier,
+      effectiveStaticTimelineFallback,
     });
   }, [
     currentSession?.id,
     expectedBotCharsMax,
+    effectiveStaticTimelineFallback,
     forceStaticTimelineFallback,
+    preferStaticForLargeDossier,
     hasActiveSession,
     hasDossierContent,
     isLoading,
@@ -411,33 +421,25 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   }, [currentSession?.id]);
 
   useEffect(() => {
-    if (!isLoading && expectedBotCharsMax > 0 && !showInitialHome && !shouldSuspendVirtualizedList) return;
-
-    setForceStaticTimelineFallback(false);
-    staticTimelineFallbackSessionRef.current = null;
-  }, [expectedBotCharsMax, isLoading, shouldSuspendVirtualizedList, showInitialHome]);
+    const wasLoading = prevIsLoadingForStaticResetRef.current;
+    prevIsLoadingForStaticResetRef.current = isLoading;
+    if (isLoading && !wasLoading) {
+      setForceStaticTimelineFallback(false);
+      staticTimelineFallbackSessionRef.current = null;
+    }
+  }, [isLoading]);
 
   useEffect(() => {
-    const wasLoading = prevIsLoadingRef.current;
-    prevIsLoadingRef.current = isLoading;
-    if (!currentSession?.id || showInitialHome || shouldSuspendVirtualizedList) return;
-    if (!wasLoading || isLoading) return;
-    if (!shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax)) return;
+    if (!preferStaticForLargeDossier || !currentSession?.id) return;
 
     staticTimelineFallbackSessionRef.current = currentSession.id;
-    setForceStaticTimelineFallback(true);
     scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
       sessionId: currentSession.id,
       expectedBotCharsMax,
       threshold: 4_000,
+      syncOnRender: true,
     });
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    isLoading,
-    shouldSuspendVirtualizedList,
-    showInitialHome,
-  ]);
+  }, [currentSession?.id, expectedBotCharsMax, preferStaticForLargeDossier]);
 
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
@@ -575,7 +577,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedList}
-                forceStaticTimelineFallback={forceStaticTimelineFallback}
+                forceStaticTimelineFallback={effectiveStaticTimelineFallback}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);

@@ -305,7 +305,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages.length, showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, forceStaticTimelineFallback, showInitialHome, shouldSuspendVirtualizedList]);
 
   const hideSuggestionsForMessageId =
     isLoading &&

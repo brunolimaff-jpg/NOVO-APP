@@ -180,13 +180,15 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             0,
             ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0),
           );
+          const postCompletionIsLoading = chatStore?.isLoading ?? false;
+          const postCompletionLoadingVariant = chatStore?.loadingVariant ?? null;
           const blankPanelSnapshot = collectBlankPanelSnapshot({
             sessionId,
             source: `PostCompletion:${delay}ms`,
             messageCount: botMessages.length,
             expectedBotCharsMax: botTextMaxLen,
-            isLoading: false,
-            loadingVariant: null,
+            isLoading: postCompletionIsLoading,
+            loadingVariant: postCompletionLoadingVariant,
           });
 
           const currentGuard = getWaterfallGuardState(sessionId);
@@ -195,6 +197,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
           const payload = {
             sessionId,
+            storeIsLoading: postCompletionIsLoading,
+            storeLoadingVariant: postCompletionLoadingVariant,
             bodyLen: bodyText.length,
             containsDossie: /dossi[eê]/i.test(bodyText),
             containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),

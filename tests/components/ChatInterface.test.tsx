@@ -516,11 +516,11 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
+      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
     });
     expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
-    // Com timeline suspensa, MessageRow do placeholder nao monta — hero fica no overlay do App.
-    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
+    // Com resposta bot anterior renderizável, a timeline monta e o placeholder hero aparece na linha.
+    expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
   });
 
   it('oculta CTA de Deep Dive quando canDeepDive=false', async () => {
@@ -816,7 +816,7 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
 
     rerender(
       <ChatInterface
@@ -829,12 +829,11 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-    });
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
   });
 
-  it('suspende timeline durante hero loading mesmo com preview >= 200 chars (anti-freeze PR #329)', async () => {
+  it('não suspende timeline durante hero loading quando preview >= 200 chars', async () => {
     const previewText = 'A'.repeat(201);
     const messages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
@@ -858,7 +857,8 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
+      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+      expect(screen.getByTestId('message-row-1')).toBeInTheDocument();
     });
   });
 });

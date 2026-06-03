@@ -34,6 +34,13 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await expect(panel.getByTestId('messages-viewport-suspended')).toHaveCount(0);
     await expect(panel.getByTestId('messages-viewport-placeholder')).toHaveCount(0);
 
+    await expect
+      .poll(async () => panel.getByTestId('messages-viewport-placeholder').count())
+      .toBe(0);
+    await expect
+      .poll(async () => panel.getByTestId('messages-viewport-suspended').count())
+      .toBe(0);
+
     const bot = panel.getByTestId('bot-message-content').last();
     await expect(bot).toBeVisible({ timeout: 20_000 });
     await expect(bot).toContainText(E2E_DOSSIER_SENTINEL);
