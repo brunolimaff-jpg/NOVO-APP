@@ -785,12 +785,53 @@ describe('ChatInterface shell regression', () => {
         'static-timeline-fallback-activated',
         expect.objectContaining({
           reason: 'no-message-rows-in-panel',
-          delay: 750,
+          delay: 0,
         }),
       );
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('ativa fallback estatico ao terminar loading com dossiê grande (proativo)', async () => {
+    const largeText = 'D'.repeat(5_000);
+    const loadingMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: true, loadingVariant: 'hero' },
+    ];
+    const finalMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: false },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(loadingMessages),
+          sessions: [buildSession(loadingMessages)],
+          messages: loadingMessages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(finalMessages),
+          sessions: [buildSession(finalMessages)],
+          messages: finalMessages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    });
   });
 
   it('suspende timeline durante hero loading mesmo com preview >= 200 chars (anti-freeze PR #329)', async () => {
