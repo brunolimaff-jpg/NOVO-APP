@@ -266,7 +266,7 @@ describe('useChatMessageOrchestrator', () => {
       expect.objectContaining({ sessionId: 'session-1', isFollowUp: true }),
       true,
     );
-    expect(harness.state.loadingVariant).toBe('inline');
+    expect(harness.state.loadingVariant).toBeUndefined();
   });
 
   it('insere placeholder thinking antes da resposta padrão', async () => {

@@ -1,3 +1,15 @@
+## Atualização 03/06/2026 — fix freeze dossiê hero (Compliance / main thread)
+
+Branch: `fix/hero-loading-freeze-session`
+
+- Suspende timeline enquanto `isLoading && loadingVariant !== 'inline'` (inclui gap pós-`completeLoadingProgress`).
+- Remove preview por módulo no waterfall; spacer hero em `MessageRow`.
+- Interromper invalida `activeGenerationRef` e bloqueia persistência final do waterfall.
+- SocietaryMap: só matriz, `MAX_CNAE_LOOKUPS=24`, gate `!isLoading`.
+- Validação: 43 testes focados + typecheck OK.
+
+---
+
 # Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
 
 ## Atualização 03/06/2026 — fixes estruturais PR #327 (teia + CNPJ + UX)

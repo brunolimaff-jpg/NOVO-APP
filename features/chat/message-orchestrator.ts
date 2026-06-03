@@ -425,7 +425,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const waterfallRan = generationAfter > generationBefore;
 
           if (waterfallRan) {
-            completeLoadingProgress();
             trackOperatorEvent('dossier_completed', {
               operatorId,
               email: operatorEmail || undefined,
@@ -537,7 +536,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             ),
           };
         });
-        completeLoadingProgress();
 
         if (!investigationLogged && finalResponseText.length > 500) {
           setInvestigationLogged(true);
@@ -635,6 +633,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
 
         setIsLoading(false);
+        setLoadingVariant(undefined);
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);

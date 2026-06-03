@@ -42,8 +42,6 @@ export async function completeOnboarding(page: Page, options: CompleteOnboarding
     await page.goto('/');
   }
 
-  await dismissMigrationNotice(page);
-
   const greeting = page.getByTestId('greeting-card');
   const investigationInput = page.getByTestId('investigation-company-input');
 

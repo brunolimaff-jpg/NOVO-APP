@@ -31,18 +31,19 @@ export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): Re
   return hasCompletedBotResponse ? 'deep_dive' : 'default';
 }
 
-/** Hero overlay: permanece até `isLoading` false, mesmo com preview parcial do waterfall. */
+/** Hero overlay: permanece até `isLoading` false; inline é a única exceção. */
 export function shouldShowHeroLoadingOverlay(isLoading: boolean, loadingVariant: LoadingVariant | undefined): boolean {
-  return isLoading && loadingVariant === 'hero';
+  if (!isLoading) return false;
+  return loadingVariant !== 'inline';
 }
 
 export function shouldSuspendHeroMessageTimeline(
   isLoading: boolean,
   loadingVariant: LoadingVariant | undefined,
-  hasRenderableBotMessage: boolean,
+  _hasRenderableBotMessage?: boolean,
 ): boolean {
-  // Se não está carregando, NUNCA suspender o timeline — a timeline é o conteúdo real.
-  // Isso evita tela branca quando loadingVariant fica residual ('hero') após o waterfall.
   if (!isLoading) return false;
-  return loadingVariant === 'hero' && !hasRenderableBotMessage;
+  void _hasRenderableBotMessage;
+  // Cobre hero explícito e janela pós-completeLoadingProgress (variant undefined, isLoading ainda true).
+  return loadingVariant !== 'inline';
 }

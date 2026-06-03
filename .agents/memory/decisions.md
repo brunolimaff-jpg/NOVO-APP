@@ -1,6 +1,15 @@
 # Decisions
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
+Last updated: 2026-06-03 — freeze dossiê hero + PR #327
+## 2026-06-03 — Freeze dossiê hero: suspender Virtuoso até fim do loading (APLICADO)
+
+Decision: durante investigação hero (`loadingVariant !== 'inline'`), não montar Virtuoso/SectionalBotMessage pesado; `completeLoadingProgress` não zera `loadingVariant` (só no `finally` com `setIsLoading(false)`); Interromper sem AbortController invalida `activeGenerationRef` e bloqueia persistência final do waterfall; SocietaryMap só matriz com cap 24 CNAE e gate `!isLoading`.
+
+Reason: preview mostrou `POST /api/gemini` pendente + `[Virtuoso] itemsRendered` + main thread bloqueada; cronômetro e Interromper sem efeito.
+
+Refs: `utils/loadingVariant.ts`, `App.tsx`, `waterfall-orchestrator.ts`, `message-orchestrator.ts`, PR fix/hero-loading-freeze-session.
+
+
 
 ## 2026-06-03 — Interromper pesquisa deve descartar sessao temporaria (APLICADO LOCALMENTE)
 

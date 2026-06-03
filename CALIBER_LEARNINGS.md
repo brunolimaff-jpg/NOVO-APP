@@ -120,8 +120,8 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **generationBefore/After guard evita dossier:completed falso** [eventbus, guard, waterfall, restart-loop]
   `processMessage` salvava `generationBefore` no inicio e comparava com `generationAfter` antes de emitir `dossier:completed`. Se a geracao mudou durante a execucao (outro waterfall foi iniciado), o evento nao e emitido. Isso evita que o consumidor receba um `dossier:completed` de uma sessao que ja foi substituida.
 
-- **completeLoadingProgress deve resetar loadingVariant para undefined** [loading, progress, variant, stale]
-  `completeLoadingProgress()` em `loading-progress.ts` setava `setIsLoading(false)` e `setProgress(100)` mas nao resetava `loadingVariant`. No proximo loading, o componente exibia o variant anterior em vez do novo. Solucao: adicionar `setLoadingVariant(undefined)` no reset.
+- **loadingVariant zera no finally, não em completeLoadingProgress** [loading, freeze, hero, virtuoso]
+  `completeLoadingProgress()` só finaliza etapas. `setLoadingVariant(undefined)` junto de `setIsLoading(false)` no `finally`. Overlay/timeline usam `isLoading && variant !== 'inline'` para cobrir janela com variant undefined.
 
 
 - **lookupCnpj é server-only — browser deve usar fetchCompanyByCnpj via /api/cnpj** [cnpj, cors, browser, proxy]
@@ -135,6 +135,14 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 - **virtuosoOverscan 1400 agrava freeze quando dossie tem SocietaryMap** [performance, virtuoso, overscan, teia]
   `virtuosoOverscan=1400` para dossies longos causava re-montagem do SocietaryMap ao rolar, disparando novos lotes de QSA + CNAE. Fix: detectar mensagens com "teia societaria" e reduzir overscan para 600 nesses casos.
+
+
+- **Não fazer flushWaterfallPreview por módulo no waterfall** [performance, freeze, virtuoso]
+  Re-render da sessão inteira a cada módulo (>200 chars) montava Virtuoso durante hero loading. Remover flush por módulo; consolidar no final.
+
+- **Stop sem AbortController deve invalidar activeGenerationRef** [abort, stop, waterfall]
+  `handleStopGeneration` limpa UI e delete `activeGenerationRef[sessionId]`; waterfall checa antes de `updateSessionById` final.
+
 
 <!-- caliber:managed:learnings -->
 

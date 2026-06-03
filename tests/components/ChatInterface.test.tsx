@@ -450,6 +450,7 @@ describe('ChatInterface shell regression', () => {
           sessions: [buildSession(secondRoundMessages)],
           messages: secondRoundMessages,
           isLoading: true,
+          loadingVariant: 'inline',
         })}
       />,
     );
@@ -507,6 +508,7 @@ describe('ChatInterface shell regression', () => {
           sessions: [buildSession(deepDiveThinkingMessages)],
           messages: deepDiveThinkingMessages,
           isLoading: true,
+          loadingVariant: 'hero',
           onDeepDive,
           canDeepDive: true,
         })}
@@ -514,10 +516,11 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
-      expect(screen.getByTestId('loading-smart-hero-3')).toBeInTheDocument();
-      expect(screen.getByText('loading-smart-hero')).toBeInTheDocument();
+      expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
     });
+    expect(screen.queryByTestId('loading-inline-3')).not.toBeInTheDocument();
+    // Com timeline suspensa, MessageRow do placeholder nao monta — hero fica no overlay do App.
+    expect(screen.queryByTestId('loading-smart-hero-3')).not.toBeInTheDocument();
   });
 
   it('oculta CTA de Deep Dive quando canDeepDive=false', async () => {
@@ -790,8 +793,8 @@ describe('ChatInterface shell regression', () => {
     }
   });
 
-  it('exibe timeline (nao suspende) durante waterfall quando preview tem >= 200 chars com isThinking=true', async () => {
-    const previewText = 'A'.repeat(201); // >= WATERFALL_PREVIEW_MIN_CHARS
+  it('suspende timeline durante hero loading mesmo com preview >= 200 chars (anti-freeze PR #329)', async () => {
+    const previewText = 'A'.repeat(201);
     const messages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
       {
@@ -813,12 +816,8 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    // Timeline must NOT be suspended — messages-viewport-suspended should be absent
     await waitFor(() => {
-      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+      expect(screen.getByTestId('messages-viewport-suspended')).toBeInTheDocument();
     });
-
-    // isMessagesViewportReady=false in JSDOM (no ResizeObserver), so Virtuoso placeholder shows —
-    // the key assertion is that messages-viewport-suspended is absent (timeline unlocked).
   });
 });

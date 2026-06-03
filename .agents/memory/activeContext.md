@@ -1,6 +1,6 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #327: Observabilidade + cancelamento de pesquisa
+Last updated: 2026-06-03 — fix freeze dossiê hero (branch fix/hero-loading-freeze-session)
 
 ## Boot
 
@@ -17,6 +17,7 @@ Branch atual: `refactor/socio-search-decompose` (PR #327).
 
 | Item                                                             | Status                          |
 | ---------------------------------------------------------------- | ------------------------------- |
+| Freeze dossiê hero (Compliance travado, setInterval parado) | **PR ABERTA** — suspend timeline todo isLoading≠inline, stop invalida activeGenerationRef, SocietaryMap só matriz cap 24 CNAE | `fix/hero-loading-freeze-session` |
 | PR #327 — socio-search decomposto + rastreio/fallback tela branca | **ABERTA**, aguardando push/CI/preview |
 | Painel branco pos-dossie                                          | **TRAVA APLICADA LOCALMENTE** — detector DOM + Sentry + Supabase + fallback estático |
 | Interromper pesquisa inicial                                      | **CORRIGIDO LOCALMENTE** — abort remove sessão temporária e bloqueia consolidação/save tardio |

@@ -22,6 +22,7 @@ interface SectionalBotMessageProps {
   empresaAlvo?: string | null;
   cnpj?: string | null;
   auditableSources?: AuditableSource[];
+  isLoading?: boolean;
 }
 
 const CopyButton: React.FC<{ text: string; isDarkMode: boolean }> = ({ text, isDarkMode }) => {
@@ -285,6 +286,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   empresaAlvo,
   cnpj,
   auditableSources = [],
+  isLoading = false,
 }) => {
   const content = message.text || '';
 
@@ -458,7 +460,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   </span>
                 </div>
               )}
-              {idx === societaryMapSectionIndex ? (
+              {idx === societaryMapSectionIndex && !isLoading ? (
                 <SocietaryMap
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
