@@ -165,9 +165,24 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   }, [msg.text, msg.id, msg.sender]);
 
   if (showHeroLoading) {
-    // Hero loading lives in App.tsx via the fullscreen LoadingSmart overlay.
-    // Keep a measurable virtual row so react-virtuoso does not warn about zero-sized items.
-    return <div aria-hidden="true" className="h-px w-full overflow-hidden" data-testid="hero-loading-spacer" />;
+    // LoadingSmart should cover this path, but stale preview/runtime state can expose
+    // the timeline. Keep a visible row so an active session never becomes a blank panel.
+    content = (
+      <div className="flex justify-start animate-fade-in">
+        <div
+          className={`rounded-2xl p-4 shadow-sm w-full ${
+            isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
+          } px-3 md:px-5 py-3 md:py-4`}
+          data-testid="hero-loading-inline-fallback"
+        >
+          <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
+            <span>{assistantLabel}</span>
+            <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
+        </div>
+      </div>
+    );
   } else if (showInlineLoading) {
     content = (
       <div className="flex justify-start animate-fade-in">
