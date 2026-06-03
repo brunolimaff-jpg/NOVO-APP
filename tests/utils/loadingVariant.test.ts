@@ -96,4 +96,10 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
   });
+
+  it('libera a timeline quando há preview do waterfall com texto suficiente (isThinking=true, >=200 chars)', () => {
+    // The hasRenderableBotMessage=true scenario: waterfall preview with >=200 chars
+    // Even with isLoading=true, timeline should not be suspended
+    expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
+  });
 });

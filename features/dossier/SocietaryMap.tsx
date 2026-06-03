@@ -11,7 +11,6 @@ import {
   type SocietaryCompanyInput,
   type SocietaryPartnerInput,
 } from './societaryGraph';
-import { lookupCnpj, type CnpjResult } from '../../lib/cnpjLookup';
 import {
   LoadState,
   SocioSearchResponse,
@@ -62,6 +61,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const searchedPartnerKeysRef = useRef<Record<string, boolean>>({});
   const loadingPartnerKeysRef = useRef<Record<string, boolean>>({});
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
+  const [cnaeEnriching, setCnaeEnriching] = useState(false);
   const failedCnaeRef = useRef<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'matrix' | 'mermaid'>('matrix');
   const [debouncedMermaid, setDebouncedMermaid] = useState<string>('');
@@ -449,22 +449,24 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     if (pending.length === 0) return;
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function enrich() {
+      setCnaeEnriching(true);
       const batchSize = 5;
       const results: Record<string, { cnae: string; cnaeDescricao: string }> = {};
 
       for (let i = 0; i < pending.length; i += batchSize) {
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         const batch = pending.slice(i, i + batchSize);
         const batchResults = await Promise.allSettled(
-          batch.map(cnpj => lookupCnpj(cnpj, { timeoutMs: 3500, maxSources: 1 })),
+          // fetchCompanyByCnpj routes via /api/cnpj proxy — avoids CORS from browser direct calls
+          batch.map(cnpj => fetchCompanyByCnpj(cnpj, controller.signal)),
         );
         for (let j = 0; j < batch.length; j++) {
           const result = batchResults[j];
           if (result.status === 'fulfilled' && result.value) {
-            const cnpjData = result.value as CnpjResult;
+            const cnpjData = result.value;
             results[batch[j]] = {
               cnae: cnpjData.cnae || cnpjData.cnaeDescricao || '',
               cnaeDescricao: cnpjData.cnaeDescricao || cnpjData.cnae || '',
@@ -475,14 +477,24 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         }
       }
 
-      if (!cancelled && Object.keys(results).length > 0) {
+      if (!controller.signal.aborted && Object.keys(results).length > 0) {
         setCnaeMap(prev => ({ ...prev, ...results }));
       }
+      if (!controller.signal.aborted) setCnaeEnriching(false);
     }
 
-    enrich();
+    // Defer CNAE enrichment to idle time to avoid blocking main thread post-waterfall
+    const scheduleEnrich =
+      typeof requestIdleCallback !== 'undefined'
+        ? (fn: () => void) => requestIdleCallback(fn, { timeout: 5000 })
+        : (fn: () => void) => setTimeout(fn, 0);
+
+    scheduleEnrich(() => {
+      if (!controller.signal.aborted) void enrich();
+    });
+
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [graph, cnaeMap]);
 
@@ -609,6 +621,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         <SocietaryMatrix
           graph={graph}
           cnaeMap={cnaeMap}
+          isEnrichingCnae={cnaeEnriching}
           isDarkMode={isDarkMode}
           rootName={rootData?.name || 'Empresa analisada'}
           selectedPartnerId={selectedPartner?.id || null}

@@ -130,9 +130,18 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     isDarkMode,
   ]);
 
-  // Use larger overscan when any bot message looks like a dossier (long text) to
-  // avoid Mermaid/SocietaryMap remounting when the user scrolls near the boundary.
+  // Overscan tuned per content type:
+  // - Messages with teia societária (SocietaryMap) use a reduced overscan to avoid
+  //   triggering SocietaryMap remounts + heavy QSA batch calls while scrolling.
+  // - Long dossiers without teia use 1400 to prevent Mermaid remounts.
   const virtuosoOverscan = useMemo(() => {
+    const hasTeia = safeMessages.some(
+      m =>
+        m.sender === Sender.Bot &&
+        typeof m.text === 'string' &&
+        /teia\s+societ[aá]ria/i.test(m.text),
+    );
+    if (hasTeia) return 600;
     const hasDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000);
     return hasDossier ? 1400 : 400;
   }, [safeMessages]);

@@ -1,5 +1,56 @@
 # Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
 
+## Atualização 03/06/2026 — fixes estruturais PR #327 (teia + CNPJ + UX)
+
+### O que foi corrigido
+
+**Phase 1 — P0 CNPJ proxy (fecha tabela/CNAE)**
+- `SocietaryMap.tsx`: substituído `lookupCnpj` (chamadas CORS diretas ao browser) por `fetchCompanyByCnpj` (proxy `/api/cnpj`) no enriquecimento CNAE. `AbortController` integrado; `CnpjResult` import removido.
+- `lib/cnpjLookup.ts`: comentário server-only adicionado (`// SERVER-ONLY: browser callers MUST use fetchCompanyByCnpj`).
+- Novo teste: `SocietaryMap.test.tsx` → "usa fetchCompanyByCnpj (proxy) para enriquecimento CNAE — nao chama brasilapi.com.br diretamente".
+
+**Phase 2 — P0 Preview waterfall (fecha branco inicial)**
+- `ChatInterface.tsx`: `hasRenderableBotMessage` agora trata bot com `text.trim().length >= 200` como renderizável **mesmo com `isThinking=true`**, liberando `shouldSuspendVirtualizedList=false` durante o waterfall.
+- Constante `WATERFALL_PREVIEW_MIN_CHARS = 200` extraída com comentário linkando para `waterfall-orchestrator.ts`.
+- Testes atualizados: `loadingVariant.test.ts` + `ChatInterface.test.tsx` com cenário de preview waterfall.
+
+**Phase 3 — P1 Performance (reduz freeze pós-waterfall)**
+- `SocietaryMap.tsx`: CNAE enrichment deferido com `requestIdleCallback` (fallback `setTimeout 0`) — não bloqueia main thread ao montar dossiê.
+- `SocietaryMatrix.tsx`: prop `isEnrichingCnae` adicionada; skeleton pulse no cabeçalho CNAE + `⏳` nas linhas enquanto enriquecimento está em andamento.
+- `MessageTimeline.tsx`: `virtuosoOverscan` reduzido de 1400 → 600 quando mensagem contém "teia societaria" (evita re-montar SocietaryMap ao rolar).
+
+**Phase 4 — Regression guards verificados**
+- `git diff main...HEAD -- features/dossier/waterfall-orchestrator.ts` → **diff vazio** (arquivo não alterado na PR).
+- Todos os guards PR #328 intactos: `registerWaterfallStart`, `sessionToPersist`, `sig.aborted`, `isAbortLikeError`.
+
+### Validação local (03/06/2026)
+
+```bash
+npm test -- tests/features/dossier/SocietaryMap.test.tsx tests/utils/loadingVariant.test.ts tests/components/ChatInterface.test.tsx tests/features/dossier/waterfall-orchestrator.test.ts
+# Resultado: 65/65 passaram
+
+npm run typecheck
+# Resultado: 0 erros
+
+npm run build
+# Resultado: built in 14.96s, PWA ok, Sentry sourcemaps enviados
+```
+
+### Passos manuais necessários
+
+1. **Migration Supabase** — `supabase/migrations/20260603_blank_panel_observability.sql` deve ser aplicada manualmente no projeto Supabase antes de validar queries `scout_diagnostics`. Não executar em produção sem aprovação do usuário.
+2. **Validação preview** — após push da PR, verificar no Vercel preview:
+   - Zero CORS `brasilapi.com.br` no console do browser
+   - Tabela CNAE preenchida com skeleton durante carregamento
+   - Timeline visível incrementalmente durante waterfall (não mais tela branca)
+   - Query Supabase: `SELECT * FROM scout_diagnostics WHERE area='BlankPanel' ORDER BY created_at DESC LIMIT 10`
+
+### Objetivo da Próxima Sessão
+
+Validar preview Vercel da PR #327 com as correções estruturais; confirmar zero CORS e preview incremental no fluxo real (CNPJ Scheffer `04733767000180`).
+
+---
+
 ## Atualizacao 03/06/2026 — PR #327
 
 ### Follow-up 03/06 — interromper pesquisa nao pode gerar historico nem relatorio

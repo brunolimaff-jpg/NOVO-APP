@@ -1,5 +1,9 @@
 import { normalizeCnpj } from '../utils/cnpj.js';
 
+// SERVER-ONLY: lookupCnpj calls external APIs (BrasilAPI, CNPJ.ws, MinhaReceita) directly.
+// Browser callers MUST use fetchCompanyByCnpj from services/brasilApiService (routes via /api/cnpj proxy).
+// Direct external calls from the browser will be blocked by CORS.
+
 export type CnpjPartnerSource = 'BrasilAPI' | 'CNPJ.ws' | 'MinhaReceita';
 export type CnpjPartnerConfidence = 'official';
 

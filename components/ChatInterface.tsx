@@ -147,12 +147,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const hasOperatorName = operatorName.trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
+  // A waterfall preview (isThinking=true) with enough text is renderable — show timeline incrementally.
+  // Mirrors WATERFALL_PREVIEW_MIN_CHARS = 200 from waterfall-orchestrator.ts.
+  const WATERFALL_PREVIEW_MIN_CHARS = 200;
   const hasRenderableBotMessage = safeMessages.some(
     message =>
       message.sender === Sender.Bot &&
-      !message.isThinking &&
       !message.isError &&
-      Boolean(String(message.text || '').trim()),
+      Boolean(String(message.text || '').trim()) &&
+      (!message.isThinking ||
+        String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
   );
   const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
     isLoading,

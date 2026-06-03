@@ -789,4 +789,36 @@ describe('ChatInterface shell regression', () => {
       vi.useRealTimers();
     }
   });
+
+  it('exibe timeline (nao suspende) durante waterfall quando preview tem >= 200 chars com isThinking=true', async () => {
+    const previewText = 'A'.repeat(201); // >= WATERFALL_PREVIEW_MIN_CHARS
+    const messages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      {
+        ...buildMessage('m2', Sender.Bot, previewText),
+        isThinking: true,
+        loadingVariant: 'hero' as const,
+      },
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    // Timeline must NOT be suspended — messages-viewport-suspended should be absent
+    await waitFor(() => {
+      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+    });
+
+    // isMessagesViewportReady=false in JSDOM (no ResizeObserver), so Virtuoso placeholder shows —
+    // the key assertion is that messages-viewport-suspended is absent (timeline unlocked).
+  });
 });
