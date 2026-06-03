@@ -11,6 +11,7 @@ import {
 import { sanitizeLoadingContextText, stripInternalMarkers } from '../utils/textCleaners';
 import { ClockIcon, StepSpinner } from './LoadingShared';
 import { formatElapsed } from './loading/hooks';
+import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../utils/loadingBackoff';
 import { LoadingOverlayHeader } from './LoadingOverlayHeader';
 import { LoadingStepsList } from './LoadingStepsList';
 import { LoadingInsightCarousel } from './LoadingInsightCarousel';
@@ -316,13 +317,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       queueRef.current = [...queueRef.current, ...newStages.map(stage => stage.label)];
       newStages.forEach(stage => queuedStageKeysRef.current.add(stage.key));
     }
-    const getBackoffMessage = (count: number) => {
-      if (count === 1) return 'Refinando sinais para alta precisão...';
-      if (count === 2) return 'Ajustando filtros de profundidade executiva...';
-      if (count >= 3) return 'Finalizando orquestração de dados complexos...';
-      return null;
-    };
-    const backoffMsg = getBackoffMessage(processing?.failureCount || 0);
+    const backoffMsg = getLoadingBackoffMessage(processing?.failureCount || 0);
     setDisplayedCurrent(backoffMsg || realCurrent);
     const revealNext = () => {
       if (queueRef.current.length === 0) return;
@@ -365,9 +360,15 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
     const realCurrent =
       stripInternalMarkers(processing?.stage || 'Preparando análise...').trim() || 'Preparando análise...';
-    const currentKey = getLoadingStageIdentity(realCurrent);
-    if (currentKey && stageStartedAtRef.current[currentKey] === undefined) {
-      stageStartedAtRef.current[currentKey] = elapsedTime;
+    const activeLabel = resolveActiveLoadingStageLabel(realCurrent, processing?.failureCount || 0);
+    const activeKey = getLoadingStageIdentity(activeLabel);
+    if (activeKey && stageStartedAtRef.current[activeKey] === undefined) {
+      stageStartedAtRef.current[activeKey] = elapsedTime;
+    }
+
+    const backendKey = getLoadingStageIdentity(realCurrent);
+    if (backendKey && backendKey !== activeKey && stageStartedAtRef.current[backendKey] === undefined) {
+      stageStartedAtRef.current[backendKey] = elapsedTime;
     }
 
     for (const stage of processing?.completedStages || []) {

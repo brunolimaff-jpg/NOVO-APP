@@ -850,6 +850,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let portaIntegrityHold = false;
         let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
+        replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
+
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
         try {
           const result = await Promise.race([

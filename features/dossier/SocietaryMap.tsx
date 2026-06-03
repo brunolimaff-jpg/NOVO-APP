@@ -56,6 +56,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const [cnaeMap, setCnaeMap] = useState<Record<string, { cnae: string; cnaeDescricao: string }>>({});
   const [cnaeEnriching, setCnaeEnriching] = useState(false);
   const failedCnaeRef = useRef<Set<string>>(new Set());
+  const cnaeMapRef = useRef(cnaeMap);
+  cnaeMapRef.current = cnaeMap;
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
@@ -434,7 +436,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
     const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))].slice(0, MAX_CNAE_LOOKUPS);
-    const pending = uniqueCnpjs.filter(cnpj => !cnaeMap[cnpj] && !failedCnaeRef.current.has(cnpj));
+    const pending = uniqueCnpjs.filter(
+      cnpj => !cnaeMapRef.current[cnpj] && !failedCnaeRef.current.has(cnpj),
+    );
 
     if (pending.length === 0) return;
 
@@ -485,7 +489,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     return () => {
       controller.abort();
     };
-  }, [graph, cnaeMap]);
+  }, [graph]);
 
   const selectedPartner = useMemo(() => {
     if (!graph || !selectedPartnerName) return undefined;

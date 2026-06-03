@@ -96,6 +96,42 @@ describe('LoadingSmart (variante hero)', () => {
     expect(screen.queryByText(/próxima etapa/i)).not.toBeInTheDocument();
   });
 
+  it('incrementa cronômetro da etapa de backoff quando failureCount > 0', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        processing={{
+          stage: 'Finalizando cards de auditoria...',
+          completedStages: [
+            'Mapeando conta real e teia societária...',
+            'Mapeando operação e cadeia de valor...',
+            'Identificando bordas de controle...',
+            'Verificando pressões e compliance...',
+            'Mapeando caminho de venda...',
+            'Cruzando referências de mercado...',
+          ],
+          totalStages: 7,
+          failureCount: 1,
+        }}
+        searchQuery="Scheffer"
+        empresaAlvo="Grupo Scheffer"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(8000);
+    });
+
+    const timers = screen.getAllByText(/\d+s|\d+m \d+s/);
+    const hasNonZero = timers.some(node => {
+      const t = node.textContent || '';
+      return !/^0s$/.test(t.trim());
+    });
+    expect(hasNonZero).toBe(true);
+  });
+
   it('mostra contador de segundos em cada etapa (concluída, ativa e pendente)', async () => {
     render(
       <LoadingSmart

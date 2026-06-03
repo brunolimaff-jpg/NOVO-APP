@@ -2,6 +2,7 @@
 // Hooks extraídos de LoadingSmart.tsx para reduzir tamanho do componente principal.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../../utils/loadingBackoff';
 import { getLoadingStageIdentity, LOADING_STAGE_ORDER_BY_KEY } from '../../utils/loadingSmartViewModel';
 import { stripInternalMarkers } from '../../utils/textCleaners';
 import { generateLoadingCuriosities } from '../../services/geminiService';
@@ -93,14 +94,7 @@ export function useStageRevealQueue(options: StageRevealOptions) {
       newStages.forEach(s => queuedStageKeysRef.current.add(s.key));
     }
 
-    const getBackoffMessage = (count: number) => {
-      if (count === 1) return 'Refinando sinais para alta precisão...';
-      if (count === 2) return 'Ajustando filtros de profundidade executiva...';
-      if (count >= 3) return 'Finalizando orquestração de dados complexos...';
-      return null;
-    };
-
-    const backoffMsg = getBackoffMessage(failureCount);
+    const backoffMsg = getLoadingBackoffMessage(failureCount);
     setDisplayedCurrent(backoffMsg || realCurrent);
 
     const revealNext = () => {
@@ -153,6 +147,7 @@ export function useStageDurations(
   processingKey: string,
   processingStage?: string,
   completedStages?: string[],
+  failureCount = 0,
 ) {
   const stageStartedAtRef = useRef<Record<string, number>>({});
   const stageDurationsRef = useRef<Record<string, number>>({});
@@ -162,9 +157,10 @@ export function useStageDurations(
 
     const realCurrent =
       stripInternalMarkers(processingStage || 'Preparando análise...').trim() || 'Preparando análise...';
-    const currentKey = getLoadingStageIdentity(realCurrent);
-    if (currentKey && stageStartedAtRef.current[currentKey] === undefined) {
-      stageStartedAtRef.current[currentKey] = elapsedTime;
+    const activeLabel = resolveActiveLoadingStageLabel(realCurrent, failureCount);
+    const activeKey = getLoadingStageIdentity(activeLabel);
+    if (activeKey && stageStartedAtRef.current[activeKey] === undefined) {
+      stageStartedAtRef.current[activeKey] = elapsedTime;
     }
 
     for (const stage of completedStages || []) {

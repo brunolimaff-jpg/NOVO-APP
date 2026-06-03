@@ -1,3 +1,28 @@
+## Handoff — 03/06/2026 — PR #331 MERGEADA em `main` (`eab12e20`)
+
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (**MERGED** squash) |
+| Commit `main` | `eab12e20` |
+| Contrato | `docs/ai-context/refactor/loading-panel-contract.md` |
+| Handoff #330 | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
+
+**Validação Bruno (preview pós-#331):** overlay some → dossiê visível (PORTA, Cliente Senior, mapa societário). Travada **apenas** durante hero em "Bordas de controle" (~53s); `gemini` pendente no Network — **backlog PR separada**, não regressão pós-overlay.
+
+**Entregue na #331:** static síncrono ≥4k, `shouldSuspendVirtualizedListForTimeline`, watchdog `SpinnerStuck/post-waterfall-watchdog`, telemetria `stuck-viewport-placeholder|suspended`, `latestLoadingRef` + `safeMessagesLengthRef` (review Qodo/Gemini).
+
+**WIP local não mergeado:** `LoadingSmart.tsx`, `loading/hooks.ts`, `loadingBackoff.ts`, `SocietaryMap.tsx`, `waterfall-orchestrator.ts`, arquivo `0`.
+
+### Próxima sessão
+
+1. Smoke Scheffer em produção/preview de `main` pós-deploy Vercel.
+2. PR opcional **loading hero** (Bordas/Compliance, curiosidades paralelas).
+3. Não reabrir #331 salvo regressão pós-overlay documentada.
+
+**Skills:** boot `HANDOFF_AI.md` + `.agents/memory/activeContext.md`; gates `npm test` / `scheffer-cnpj-blank-panel.spec.ts`; `gh-resolve-pr-comments` se nova PR.
+
+---
+
 ## Handoff — 03/06/2026 — PR #330 MERGEADA em `main` (`d4849aa7`)
 
 | Item | Valor |
