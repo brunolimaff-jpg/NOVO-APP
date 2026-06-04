@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
 import {
+  isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   shouldApplyProactiveForceStatic,
   shouldResetForceStaticOnLoadingStart,
@@ -83,10 +84,22 @@ describe('postWaterfallHandoff', () => {
   });
 
   it('ignora handoff preso enquanto overlay ainda está visível', () => {
-    expect(
-      isPostWaterfallStuckHandoff(
-        snapshot({ loadingOverlayVisible: true, placeholderVisible: true }),
-      ),
-    ).toBe(false);
+    expect(isPostWaterfallStuckHandoff(snapshot({ loadingOverlayVisible: true, placeholderVisible: true }))).toBe(
+      false,
+    );
+  });
+
+  describe('isOverlayStuckPostWaterfall', () => {
+    it('detecta overlay preso com isLoading=false', () => {
+      expect(isOverlayStuckPostWaterfall(snapshot({ loadingOverlayVisible: true, isLoading: false }))).toBe(true);
+    });
+
+    it('ignora overlay quando isLoading=true', () => {
+      expect(isOverlayStuckPostWaterfall(snapshot({ loadingOverlayVisible: true, isLoading: true }))).toBe(false);
+    });
+
+    it('ignora quando overlay não está visível', () => {
+      expect(isOverlayStuckPostWaterfall(snapshot({ loadingOverlayVisible: false }))).toBe(false);
+    });
   });
 });

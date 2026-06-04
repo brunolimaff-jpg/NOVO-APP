@@ -20,6 +20,8 @@ const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
 const STEP_REVEAL_DELAY_MS = 1200;
 const STEP_REVEAL_MIN_MS = 800;
+const OVERLAY_STUCK_SAFETY_MS = 5_000;
+const MAX_LOADING_DURATION_MS = 180_000;
 const SOURCE_LINKS: Record<string, string> = {
   ibge: 'https://www.ibge.gov.br/',
   conab: 'https://www.conab.gov.br/',
@@ -168,6 +170,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const [confirmStop, setConfirmStop] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const curiositiesRef = useRef<string[]>([]);
   const [displayedCompleted, setDisplayedCompleted] = useState<string[]>([]);
   const [displayedCurrent, setDisplayedCurrent] = useState<string>('Preparando análise...');
@@ -479,15 +482,38 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       setIsFadingOut(false);
       setConfirmStop(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
+
+      maxLoadingTimerRef.current = setTimeout(() => {
+        setIsVisible(false);
+        setIsFadingOut(false);
+      }, MAX_LOADING_DURATION_MS);
     } else {
       clearInsightTimer();
+      if (maxLoadingTimerRef.current) {
+        clearTimeout(maxLoadingTimerRef.current);
+        maxLoadingTimerRef.current = null;
+      }
       setIsFadingOut(true);
       setTimeout(() => setIsVisible(false), FADE_DURATION);
     }
     return () => {
       clearInsightTimer();
+      if (maxLoadingTimerRef.current) {
+        clearTimeout(maxLoadingTimerRef.current);
+        maxLoadingTimerRef.current = null;
+      }
     };
   }, [clearInsightTimer, goToInsight, isLoading, loadingContextKey]);
+
+  // ── 4b. Safety: force-remove overlay if still visible after isLoading=false ──
+  useEffect(() => {
+    if (isLoading || !isVisible) return;
+    const stuckTimer = setTimeout(() => {
+      setIsVisible(false);
+      setIsFadingOut(false);
+    }, OVERLAY_STUCK_SAFETY_MS);
+    return () => clearTimeout(stuckTimer);
+  }, [isLoading, isVisible]);
 
   const handleRequestStop = useCallback(() => setConfirmStop(true), []);
   const handleCancelStop = useCallback(() => setConfirmStop(false), []);

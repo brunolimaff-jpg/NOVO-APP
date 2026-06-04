@@ -15,6 +15,7 @@ import {
 } from '../utils/blankPanelTelemetry';
 import {
   buildHandoffPanelDiag,
+  isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   POST_WATERFALL_WATCHDOG_MS,
   shouldApplyProactiveForceStatic,
@@ -26,10 +27,7 @@ import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
 import { cleanTitle } from '../utils/textCleaners';
-import {
-  maxExpectedBotChars,
-  shouldPreferStaticTimelineForBotVolume,
-} from '../utils/expectedBotContent';
+import { maxExpectedBotChars, shouldPreferStaticTimelineForBotVolume } from '../utils/expectedBotContent';
 import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
@@ -73,7 +71,8 @@ function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boo
   if (isPostWaterfallStuckHandoff(snapshot)) return true;
   if (snapshot.blankDetected) return true;
 
-  const panelHasAlmostNoContent = snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
+  const panelHasAlmostNoContent =
+    snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
   if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
   if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
 
@@ -172,8 +171,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
       message.sender === Sender.Bot &&
       !message.isError &&
       Boolean(String(message.text || '').trim()) &&
-      (!message.isThinking ||
-        String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
+      (!message.isThinking || String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
   );
   const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
     isLoading,
@@ -370,8 +368,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     !shouldSuspendVirtualizedList &&
     shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
   const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
-  const shouldSuspendVirtualizedListForTimeline =
-    shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
+  const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
 
   const panelSnapshotSignatureRef = useRef('');
@@ -520,7 +517,20 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         shouldSuspendVirtualizedList: shouldSuspendVirtualizedListForTimeline,
       });
 
-      if (!isPostWaterfallStuckHandoff(snapshot)) return;
+      if (!isPostWaterfallStuckHandoff(snapshot)) {
+        if (isOverlayStuckPostWaterfall(snapshot)) {
+          scoutDiag.warn('SpinnerStuck', 'overlay-persisted-post-waterfall', {
+            sessionId: currentSession.id,
+            delayMs: POST_WATERFALL_WATCHDOG_MS,
+            ...buildHandoffPanelDiag(snapshot, {
+              shouldSuspendVirtualizedList,
+              forceStaticTimelineFallback,
+              expectedBotCharsMax,
+            }),
+          } as unknown as Record<string, unknown>);
+        }
+        return;
+      }
 
       staticTimelineFallbackSessionRef.current = currentSession.id;
       setForceStaticTimelineFallback(true);
