@@ -165,6 +165,27 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **E2E sem PII real nos defaults** [e2e, seguranca, playwright]
   Defaults `E2E Operator` / `e2e.operator@example.com`; identidade real só via env em smoke local.
 
+- **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
+  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuários em versões antigas. Preview sem SW nunca reproduz o bug. Solução: remover PWA/SW ou usar NetworkFirst com asset versioning.
+
+- **Preview sem SW vs Produção com SW cria falsa confiança** [pwa, validacao, homologacao]
+  Concluir que "preview funcionou = produção vai funcionar" sem checar configuração de SW/PWA é enganoso. Toda validação pré-produção deve verificar se o cache de SW está ativo.
+
+- **DOM cleanup com .remove() quebra reconciliação do React** [react, dom, overlay, cleanup]
+  Remover elemento do DOM via `.remove()` sem React saber causa desync entre virtual DOM e real DOM. Overlay continua visualmente presente mesmo com `setIsLoading(false)`. Usar `display:none` no elemento raiz.
+
+- **useMemo deve ser puro; side effects pertencem ao useEffect** [react, usememo, performance]
+  `useMemo` é para computação derivada síncrona. Colocar manipulação de DOM, chamadas assíncronas ou leitura de `window.location` dentro de `useMemo` quebra o contrato do React.
+
+- **Optional chaining deve ir até o fim da cadeia** [typescript, null-safety, optional-chaining]
+  `text?.trim()` não previne erro se `trim` retornar null. Cadeia completa: `text?.trim()?.length`. O último acesso também precisa de `?.`.
+
+- **Sempre incluir hostname em logs de diagnóstico** [debug, logging, ambiente]
+  Logs de produção e preview parecem idênticos sem o hostname. Incluir `window.location.hostname` em todo log de diagnóstico que depende de ambiente.
+
+- **Hard invariant como airbag contra UI quebrada** [react, invariante, ui, safety-net, waterfall]
+  Quando o estado React pode falhar (race condition, desync), um hard invariant que forçadamente libera o estado (setIsLoading(false) + display:none) funciona como última barreira. Deve ser acionado por condições observáveis (waterfallEndStatus completed/failed/partial, botMsgTextLen > 0), não por chain de estado.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

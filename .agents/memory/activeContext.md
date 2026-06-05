@@ -1,24 +1,23 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #331 MERGED em `main`
-
-## Boot
-
-`docs/ai-context/refactor/loading-panel-contract.md`
+Last updated: 2026-06-05 — Bug P0 overlay hero resolvido, PWA/SW removido
 
 ## Estado
 
-- **PR #331** mergeada (`eab12e20`): handoff estático síncrono pós-waterfall, P0 watchdog, refs PostCompletion, telemetria stuck-viewport-*.
-- **Validação Bruno (preview):** pós-overlay OK (PORTA, mapa societário, dossiê visível). Travada só durante loading em Bordas de Controle (~53s) — backlog separado.
-- **PR #330** já em `main` (`d4849aa7`).
+- **PR #333, #334, #335** mergeadas em `main`: overlay hero preso em producao corrigido via remocao PWA/SW + hard invariant no waterfall
+- Service Worker CacheFirst era a causa raiz primaria: servia bundles antigos em producao
+- Preview nunca teve SW, por isso o bug era invisivel em homologacao
+- Hard invariant no waterfall-orchestrator forcadamente libera o overlay quando condicoes observaveis indicam fim do waterfall
 
-## Próximo passo
+## Proximo passo
 
-1. Smoke produção Scheffer após deploy Vercel de `main`.
-2. PR separada: loading hero (Bordas/Compliance + `gemini` pendente) e/ou SocietaryMap performance.
-3. WIP local fora do merge: `LoadingSmart`, `SocietaryMap`, `waterfall-orchestrator` (não commitados).
+1. Smoke producao no fluxo Scheffer
+2. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`
+3. Ajustar logs de `overlay-force-removed` de error para warn/info (PR futura)
+4. Remover kill-switch sw.js apos 1-2 releases
 
 ## Ponteiros
 
-- PR #331: https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (MERGED)
-- Handoff #330: `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
+- PR #334: Remocao PWA/SW (principal)
+- PR #335: Follow-up Gemini (display:none, useMemo, optional chaining)
+- Vault: `20-SESSOES/2026-06/2026-06-05T15-30-00-NOVO-APP-overlay-hero-pwa-removal.md`

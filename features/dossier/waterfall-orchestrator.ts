@@ -1272,36 +1272,29 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // "Preparando investigação...", "Gerando resposta...", Interromper.
         const botMsgTextLen =
           typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
-        const shouldFinalize =
-          waterfallEndStatus === 'completed' ||
-          waterfallEndStatus === 'failed' ||
-          waterfallEndStatus === 'partial' ||
-          botMsgTextLen > 0;
 
-        if (shouldFinalize) {
-          finalizeWaterfallUI({
-            store: {
-              setIsLoading,
-              setLoadingVariant,
-              completeLoadingProgress,
-              setFailureCount,
-              activeGenerationRef,
-              abortControllerRef: chatStore?.abortControllerRef as { current: AbortController | null } | undefined,
-            },
-            sessionId,
-            reason: `waterfall:${waterfallEndStatus}`,
-            waterfallEndStatus,
-            botMsgTextLen,
-            log: (area, event, payload) => scoutDiag.info(area, event, payload),
-          });
-          // Mantém log legado para transição
-          scoutDiag.warn('WaterfallLifecycle', 'overlay-force-removed', {
-            sessionId,
-            waterfallRunId,
-            waterfallEndStatus,
-            botMsgTextLen,
-          });
-        }
+        finalizeWaterfallUI({
+          store: {
+            setIsLoading,
+            setLoadingVariant,
+            completeLoadingProgress,
+            setFailureCount,
+            activeGenerationRef,
+            abortControllerRef: chatStore?.abortControllerRef as { current: AbortController | null } | undefined,
+          },
+          sessionId,
+          reason: `waterfall:${waterfallEndStatus}`,
+          waterfallEndStatus,
+          botMsgTextLen,
+          log: (area, event, payload) => scoutDiag.info(area, event, payload),
+        });
+        // Mantém log legado para transição
+        scoutDiag.warn('WaterfallLifecycle', 'overlay-force-removed', {
+          sessionId,
+          waterfallRunId,
+          waterfallEndStatus,
+          botMsgTextLen,
+        });
       }
     },
     [
