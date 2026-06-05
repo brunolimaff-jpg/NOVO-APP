@@ -151,6 +151,7 @@ function scheduleFlush(reason: string): void {
 async function flushToServer(_reason: string, force = false): Promise<void> {
   if (diagFlushing) {
     if (!force) return;
+    // force=true: não inicia flush concorrente — agenda dreno pós-flush atual
     pendingForceFlush = true;
     return;
   }
@@ -190,7 +191,7 @@ async function flushToServer(_reason: string, force = false): Promise<void> {
   } finally {
     diagFlushing = false;
     // Reagenda se novos eventos chegaram durante o flush
-    // ou se um force flush pediu um dreno pós-flush.
+    // ou se um force flush foi solicitado (ex: PostCompletion após finally)
     const needsDrain = getBuffer().length > 0 || pendingForceFlush;
     pendingForceFlush = false;
     if (needsDrain && !diagFlushTimer) {

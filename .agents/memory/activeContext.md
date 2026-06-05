@@ -1,24 +1,24 @@
 # Active Context
 
-Last updated: 2026-06-05 — root fix local dossiê sem Pinecone + force flush
+Last updated: 2026-06-03 — PR #331 MERGED em `main`
+
+## Boot
+
+`docs/ai-context/refactor/loading-panel-contract.md`
 
 ## Estado
 
-- **`main`:** `84b3f7f7`; worktree segue suja fora do escopo deste fix
-- **FIX LOCAL APLICADO:** `pendingForceFlush` em `utils/diagnosticLog.ts` + Pinecone removido do dossiê (`waterfall-orchestrator` + `investigation-orchestration`)
-- **War Room preservado:** local browser confirmou `/api/rag` + `/api/docs-rag`
-- **Dossiê preservado sem Pinecone:** local browser Scheffer confirmou `/api/cnpj` + `/api/gemini`, sem `/api/rag`/`/api/docs-rag`
-- **Ainda falta:** preview/prod com Supabase para confirmar `PostCompletion>=6`
+- **PR #331** mergeada (`eab12e20`): handoff estático síncrono pós-waterfall, P0 watchdog, refs PostCompletion, telemetria stuck-viewport-*.
+- **Validação Bruno (preview):** pós-overlay OK (PORTA, mapa societário, dossiê visível). Travada só durante loading em Bordas de Controle (~53s) — backlog separado.
+- **PR #330** já em `main` (`d4849aa7`).
 
 ## Próximo passo
 
-1. Fazer preview/deploy desta mudança
-2. Repetir Scheffer (`04.733.767/0001-80`) em preview/prod
-3. Validar no Supabase: `processMessage:finally=1`, `PostCompletion>=6`, sem `overlay=true` preso
-4. Manter auditoria Sentry como trilha paralela, não bloqueante
+1. Smoke produção Scheffer após deploy Vercel de `main`.
+2. PR separada: loading hero (Bordas/Compliance + `gemini` pendente) e/ou SocietaryMap performance.
+3. WIP local fora do merge: `LoadingSmart`, `SocietaryMap`, `waterfall-orchestrator` (não commitados).
 
 ## Ponteiros
 
-- Incidente: `docs/handoffs/2026-06-05-prod-scheffer-stuck-compliance-consolidando.md`
-- Fix local: `docs/handoffs/2026-06-05-dossier-root-fix-force-flush-pinecone.md`
-- Merge validado: `docs/handoffs/2026-06-05-pr332-merge-prod-validation.md`
+- PR #331: https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (MERGED)
+- Handoff #330: `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`

@@ -657,7 +657,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         if (!isAbort) {
           // Flush imediato dos diagnósticos — garante que eventos após o finally
           // cheguem ao Supabase mesmo se a UI travar em seguida.
-          flushDiagnosticsNow('processMessage:finally');
+          flushDiagnosticsNow('processMessage:finally', true);
         }
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
@@ -817,9 +817,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const createdSession = sessionsRef.current.find(session => session.id === createdInitialSessionId);
           const messages = createdSession?.messages || [];
           const shouldDiscardAbortedInitialSession =
-            messages.length === 1 &&
-            messages[0].sender === Sender.User &&
-            messages[0].text === resolvedDisplayText;
+            messages.length === 1 && messages[0].sender === Sender.User && messages[0].text === resolvedDisplayText;
 
           if (shouldDiscardAbortedInitialSession) {
             setSessions(prev => prev.filter(session => session.id !== createdInitialSessionId));

@@ -1,109 +1,11 @@
-## FIX LOCAL — dossiê sem Pinecone + dreno pós-flush restaurado (2026-06-05)
-
-| Item | Valor |
-|------|-------|
-| Doc | `docs/handoffs/2026-06-05-dossier-root-fix-force-flush-pinecone.md` |
-| Escopo | `pendingForceFlush` no diagnostics + remoção Pinecone do dossiê + health check honesto |
-| Validado | vitest focado, regressão War Room, `typecheck`, `build`, browser local |
-| Browser local | War Room ainda chamou `/api/rag` + `/api/docs-rag`; dossiê Scheffer chamou só `/api/cnpj` + `/api/gemini` |
-| Pendente | preview Vercel + produção com Supabase `PostCompletion >= 6` |
-
-### Próximo passo
-
-1. Deploy/preview da mudança.
-2. Repetir Scheffer em preview e produção.
-3. Confirmar `processMessage:finally=1` e `PostCompletion>=6` no `scout_diagnostics`.
-
----
-
-## INCIDENTE PROD — Scheffer travou (2026-06-05) — INVESTIGAR
-
-| Item | Valor |
-|------|-------|
-| Doc | `docs/handoffs/2026-06-05-prod-scheffer-stuck-compliance-consolidando.md` |
-| Sessão | `6ad684da-0323-4a4a-8b5c-43b03511f69b` |
-| Sintoma | UI ~50% compliance + ~93% consolidando; gemini pendente |
-| Servidor | waterfall completed; **PostCompletion=0**; health-check overlay=true, domBodyLen=841, botText=27256 |
-| Próximo | Mapear módulo Riscos & Compliance; verificar deploy `83414a81`; **sem fix nesta sessão** |
-
----
-
-## PR #332 — Fix hero preso (overlay pós-waterfall) — MERGEADA + VALIDADA PROD
-
-| Item     | Valor                                                                                                  |
-| -------- | ------------------------------------------------------------------------------------------------------ |
-| PR       | https://github.com/brunolimaff-jpg/NOVO-APP/pull/332 (**MERGED** 2026-06-05)                           |
-| `main`   | `83414a81`                                                                                             |
-| Handoff  | `docs/handoffs/2026-06-05-pr332-merge-prod-validation.md`                                              |
-| Findings | `docs/investigation/2026-06-04-hero-stuck-findings.md`                                                 |
-
-### Validação prod
-
-| Fonte    | Ref | Resultado |
-| -------- | --- | --------- |
-| Supabase | `1c786d20-a6ef-4298-bd5e-5e21bc13ae95` | PostCompletion=6, dossiê OK |
-| Sentry   | release `83414a81` | 0 erros 24h |
-
-Fix: timeout LoadingSmart, force flush + pendingForceFlush, telemetria overlay. Ver `decisions.md` 2026-06-05.
-
-### Pendências
-
-- ~26 arquivos WIP — PR separada (blank panel / R3–R7)
-- H-C3/H-C4 — só se reincidir
-
-### Próximo passo
-
-1. PR WIP **ou** P0 diagnostics fora de `/api/gemini`
-2. Monitorar PostCompletion=0 em prod
-
----
-
-## Investigação — hero preso (2026-06-04) — APLICADO na PR #332
-
-**Plano de hipóteses:** [docs/investigation/2026-06-04-hero-stuck-hypothesis-validation.md](docs/investigation/2026-06-04-hero-stuck-hypothesis-validation.md)
-**Findings:** [docs/investigation/2026-06-04-hero-stuck-findings.md](docs/investigation/2026-06-04-hero-stuck-findings.md)
-
----
-
-## Handoff — 03/06/2026 — Travamento hero produção (investigação, sem fix)
-
-| Item        | Valor                                                                                                                                                                             |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Prod `main` | `eab12e20` (#331) — confirmado via Sentry `release`                                                                                                                               |
-| Sintoma     | Hero ~2min+ em "Finalizando cards de auditoria…"; Network: `/api/gemini` pendente `recordDiagnostics`                                                                             |
-| Telemetria  | Supabase `scout_diagnostics` projeto `vmqfcaoirjcfucvlnpig` — `waterfall:end` + `processMessage:finally` OK; **PostCompletion ausente** nas sessões travadas                      |
-| Sessões     | Travadas: `6d40891c-b01b-40c4-9179-a2c0fb443789`, `5b3e0eeb-0f9d-4134-b46f-529a711af06e` — Recuperou: `448a3802-27d1-4ed2-ae75-741c384a7f23` (~78s até viewport, static fallback) |
-
-**Não é:** deploy desatualizado; waterfall que não termina no servidor.
-
-**Hipótese (4 eixos):** (A) hero longo + label etapa 6; (B) handoff UI pós-finally / `latestLoadingRef` stale; (C/D) `recordDiagnostics` na mesma rota `/api/gemini` + mutex `diagFlushing`.
-
-**Código:** `message-orchestrator.ts` (finally), `utils/diagnosticLog.ts`, `api/gemini.ts`, `ChatInterface.tsx` (watchdog #331 sem evento nas travadas).
-
-**PRs sugeridos (aguarda OK):** P0 diagnostics fora de `/api/gemini` + `flushDiagnosticsNow(..., force: true)`; P0 handoff panel <5s; P1 UI "Consolidando…"; P1 semáforo `generateContent`.
-
-**WIP local** (`LoadingSmart`, `waterfall-orchestrator`, etc.) — não misturar com fix prod sem pedido.
-
-**Doc detalhada:** `docs/handoffs/2026-06-03-prod-hero-stuck-recordDiagnostics.md`
-
-### Boot próxima sessão
-
-1. Este bloco + `docs/ai-context/refactor/loading-panel-contract.md`
-2. Se implementar: P0 diagnostics + handoff (`message-orchestrator`, `diagnosticLog`)
-3. Validar: CNPJ Scheffer prod — após ~2m05s, +90s: DOM + query `PostCompletion` por `sessionId`
-
-**Skills:** `implementer`; merge só com token **MERGE**.
-
----
-
 ## Handoff — 03/06/2026 — PR #331 MERGEADA em `main` (`eab12e20`)
 
-| Item          | Valor                                                                    |
-| ------------- | ------------------------------------------------------------------------ |
-| PR            | https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (**MERGED** squash) |
-| Commit `main` | `eab12e20`                                                               |
-| Contrato      | `docs/ai-context/refactor/loading-panel-contract.md`                     |
-| Handoff #330  | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`                 |
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (**MERGED** squash) |
+| Commit `main` | `eab12e20` |
+| Contrato | `docs/ai-context/refactor/loading-panel-contract.md` |
+| Handoff #330 | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
 
 **Validação Bruno (preview pós-#331):** overlay some → dossiê visível (PORTA, Cliente Senior, mapa societário). Travada **apenas** durante hero em "Bordas de controle" (~53s); `gemini` pendente no Network — **backlog PR separada**, não regressão pós-overlay.
 
@@ -123,13 +25,13 @@ Fix: timeout LoadingSmart, force flush + pendingForceFlush, telemetria overlay. 
 
 ## Handoff — 03/06/2026 — PR #330 MERGEADA em `main` (`d4849aa7`)
 
-| Item             | Valor                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| PR               | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**MERGED** squash)                    |
-| Branch           | `fix/blank-panel-static-fallback-post-waterfall`                                            |
-| Commit validação | `bda08162` (review bots endereçados)                                                        |
-| Doc detalhada    | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`                                    |
-| Vault            | `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md` |
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**MERGED** squash) |
+| Branch | `fix/blank-panel-static-fallback-post-waterfall` |
+| Commit validação | `bda08162` (review bots endereçados) |
+| Doc detalhada | `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md` |
+| Vault | `Bruno Vault/20-SESSOES/2026-06/2026-06-03T20-30-00-NOVO-APP-PR330-blank-panel-validado.md` |
 
 **Validação:** Bruno confirmou preview pós-fix (delay 750ms + PII E2E). Merge com token **MERGE** na mensagem.
 
@@ -143,10 +45,10 @@ Fix: timeout LoadingSmart, force flush + pendingForceFlush, telemetria overlay. 
 
 ## Handoff — 03/06/2026 — PR #330 (painel branco pós-waterfall)
 
-| Item        | Valor                                                                        |
-| ----------- | ---------------------------------------------------------------------------- |
-| PR          | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**)              |
-| Branch      | `fix/blank-panel-static-fallback-post-waterfall`                             |
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/330 (**OPEN**) |
+| Branch | `fix/blank-panel-static-fallback-post-waterfall` |
 | Último push | Review bots: delay blank-panel `750ms` (sem `0ms`); E2E operador placeholder |
 
 ### O que a PR faz
@@ -177,19 +79,20 @@ Fix: timeout LoadingSmart, force flush + pendingForceFlush, telemetria overlay. 
 
 ## Handoff pós-merge — 03/06/2026 — PR #329 em `main`
 
-| Item             | Valor                                                                      |
-| ---------------- | -------------------------------------------------------------------------- |
-| PR               | https://github.com/brunolimaff-jpg/NOVO-APP/pull/329 (**MERGED** squash)   |
-| Commit em `main` | `2cd2cffa`                                                                 |
-| Validação        | Bruno validou no preview Vercel                                            |
-| Reviews          | Gemini 3 threads resolvidas (`d642f868`); Qodo walkthrough = já-enderecado |
-| Skill            | `gh-resolve-pr-comments` atualizada para Gemini **e** Qodo                 |
+| Item | Valor |
+| --- | --- |
+| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/329 (**MERGED** squash) |
+| Commit em `main` | `2cd2cffa` |
+| Validação | Bruno validou no preview Vercel |
+| Reviews | Gemini 3 threads resolvidas (`d642f868`); Qodo walkthrough = já-enderecado |
+| Skill | `gh-resolve-pr-comments` atualizada para Gemini **e** Qodo |
 
 **Em produção após deploy Vercel:** freeze hero (timeline suspensa, stop robusto, SocietaryMap adiado). Monitorar `dossier_completed` e ausência de freeze em Compliance.
 
 **Próxima sessão:** P0 `withTimeout` em `api/gemini.ts`; P1 `documentExtractor.ts`; migration `supabase/migrations/20260603_blank_panel_observability.sql` se ainda não aplicada.
 
 ---
+
 
 # Handoff — [NOVO-APP] — 03/06/2026 — PR #327: Socio-search + Observabilidade de Painel Branco
 
@@ -198,25 +101,21 @@ Fix: timeout LoadingSmart, force flush + pendingForceFlush, telemetria overlay. 
 ### O que foi corrigido
 
 **Phase 1 — P0 CNPJ proxy (fecha tabela/CNAE)**
-
 - `SocietaryMap.tsx`: substituído `lookupCnpj` (chamadas CORS diretas ao browser) por `fetchCompanyByCnpj` (proxy `/api/cnpj`) no enriquecimento CNAE. `AbortController` integrado; `CnpjResult` import removido.
 - `lib/cnpjLookup.ts`: comentário server-only adicionado (`// SERVER-ONLY: browser callers MUST use fetchCompanyByCnpj`).
 - Novo teste: `SocietaryMap.test.tsx` → "usa fetchCompanyByCnpj (proxy) para enriquecimento CNAE — nao chama brasilapi.com.br diretamente".
 
 **Phase 2 — P0 Preview waterfall (fecha branco inicial)**
-
 - `ChatInterface.tsx`: `hasRenderableBotMessage` agora trata bot com `text.trim().length >= 200` como renderizável **mesmo com `isThinking=true`**, liberando `shouldSuspendVirtualizedList=false` durante o waterfall.
 - Constante `WATERFALL_PREVIEW_MIN_CHARS = 200` extraída com comentário linkando para `waterfall-orchestrator.ts`.
 - Testes atualizados: `loadingVariant.test.ts` + `ChatInterface.test.tsx` com cenário de preview waterfall.
 
 **Phase 3 — P1 Performance (reduz freeze pós-waterfall)**
-
 - `SocietaryMap.tsx`: CNAE enrichment deferido com `requestIdleCallback` (fallback `setTimeout 0`) — não bloqueia main thread ao montar dossiê.
 - `SocietaryMatrix.tsx`: prop `isEnrichingCnae` adicionada; skeleton pulse no cabeçalho CNAE + `⏳` nas linhas enquanto enriquecimento está em andamento.
 - `MessageTimeline.tsx`: `virtuosoOverscan` reduzido de 1400 → 600 quando mensagem contém "teia societaria" (evita re-montar SocietaryMap ao rolar).
 
 **Phase 4 — Regression guards verificados**
-
 - `git diff main...HEAD -- features/dossier/waterfall-orchestrator.ts` → **diff vazio** (arquivo não alterado na PR).
 - Todos os guards PR #328 intactos: `registerWaterfallStart`, `sessionToPersist`, `sig.aborted`, `isAbortLikeError`.
 
@@ -372,15 +271,15 @@ O fluxo primario deixou de depender de side effects dentro de `setSessions`. Ago
 
 ### Arquivos novos/alterados neste follow-up
 
-| Arquivo                                    | Mudanca                                                               |
-| ------------------------------------------ | --------------------------------------------------------------------- |
-| `hooks/useSessionStorage.ts`               | Wrapper `setSessions` sincroniza `sessionsRef.current` imediatamente  |
-| `stores/chatStore.tsx`                     | `updateSessionById` retorna `ChatSession \| null` e atualiza a ref    |
-| `waterfall-orchestrator.ts`                | Usa retorno de `updateSessionById` como `sessionToPersist` primario   |
-| `message-orchestrator.ts`                  | Limpa `activeGenerationRef` no `finally` para nao bloquear novo envio |
-| `tests-e2e/helpers/*`                      | Onboarding e Gemini stubs deterministicos para E2E critico            |
-| `tests-e2e/*blank/errors/loading*.spec.ts` | Fluxos criticos passam pelo onboarding atual e testid real do overlay |
-| `.github/workflows/ci.yml`                 | Novo job `E2E Critical Browser` em PR/push main                       |
+| Arquivo                                      | Mudanca                                                                 |
+| -------------------------------------------- | ----------------------------------------------------------------------- |
+| `hooks/useSessionStorage.ts`                 | Wrapper `setSessions` sincroniza `sessionsRef.current` imediatamente    |
+| `stores/chatStore.tsx`                       | `updateSessionById` retorna `ChatSession \| null` e atualiza a ref       |
+| `waterfall-orchestrator.ts`                  | Usa retorno de `updateSessionById` como `sessionToPersist` primario      |
+| `message-orchestrator.ts`                    | Limpa `activeGenerationRef` no `finally` para nao bloquear novo envio    |
+| `tests-e2e/helpers/*`                        | Onboarding e Gemini stubs deterministicos para E2E critico              |
+| `tests-e2e/*blank/errors/loading*.spec.ts`   | Fluxos criticos passam pelo onboarding atual e testid real do overlay    |
+| `.github/workflows/ci.yml`                   | Novo job `E2E Critical Browser` em PR/push main                         |
 
 ### Validacao local
 
@@ -467,14 +366,14 @@ O diagnostico acima foi a pista decisiva: a sessao existia na ref e o Supabase p
 
 ## Licoes Aprendidas
 
-| #   | Licao                                                           | Anti-padrao                                              | Onde aplicar                                        |
-| --- | --------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------- |
-| 1   | Merge funcional previne perda de sessao na inicializacao        | `setSessions(() => data)` sobrescreve estado anterior    | Toda chamada a setSessions que carrega dados        |
-| 2   | sessionsRef sync em render-phase e mais confiavel que useEffect | Sync em useEffect tem delay de 1 frame                   | Hooks que precisam de ref sincrona                  |
-| 3   | Fallback como airbag: renderiza mesmo se fluxo primario falha   | Assumir que updateSessionById sempre funciona            | Todo ponto de falha critico merece fallback         |
-| 4   | 10 diagnosticos revelaram exatamente onde o bug acontece        | Debug sem log = cego                                     | Todo bug P0 merece diagnostic pack                  |
-| 5   | Nao ler resultado final de callback de setState React           | Side effect dentro de updater para persistir fluxo       | Retornar snapshot sincronico de helpers             |
-| 6   | E2E de CI deve ser deterministico                               | Usar Gemini real para regressao de loading               | Stub de `/api/gemini` em testes criticos            |
+| #   | Licao                                                           | Anti-padrao                                           | Onde aplicar                                 |
+| --- | --------------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------- |
+| 1   | Merge funcional previne perda de sessao na inicializacao        | `setSessions(() => data)` sobrescreve estado anterior | Toda chamada a setSessions que carrega dados |
+| 2   | sessionsRef sync em render-phase e mais confiavel que useEffect | Sync em useEffect tem delay de 1 frame                | Hooks que precisam de ref sincrona           |
+| 3   | Fallback como airbag: renderiza mesmo se fluxo primario falha   | Assumir que updateSessionById sempre funciona         | Todo ponto de falha critico merece fallback  |
+| 4   | 10 diagnosticos revelaram exatamente onde o bug acontece        | Debug sem log = cego                                  | Todo bug P0 merece diagnostic pack           |
+| 5   | Nao ler resultado final de callback de setState React           | Side effect dentro de updater para persistir fluxo    | Retornar snapshot sincronico de helpers      |
+| 6   | E2E de CI deve ser deterministico                               | Usar Gemini real para regressao de loading            | Stub de `/api/gemini` em testes criticos     |
 | 7   | Disparo inicial duplicado deve reaproveitar sessao pendente     | Criar nova sessao antes do re-render do currentSessionId | `handleSendMessage`/fluxos de primeira investigacao |
 
 ## Links
