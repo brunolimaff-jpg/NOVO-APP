@@ -50,7 +50,7 @@ function HeroLoadingChunkFallback({ isDarkMode }: { isDarkMode: boolean }) {
 import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
-import { ExportFormat, ReportType } from './types';
+import { ExportFormat, ReportType, Sender } from './types';
 import { generateContinuityQuestion } from './services/geminiService';
 
 import { APP_NAME } from './constants';
@@ -126,10 +126,35 @@ const App: React.FC = () => {
   } = useDossierStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const showFullscreenLoadingSmart = useMemo(
-    () => shouldShowHeroLoadingOverlay(isLoading, loadingVariant),
-    [isLoading, loadingVariant],
-  );
+  const showFullscreenLoadingSmart = useMemo(() => {
+    const WATERFALL_PREVIEW_MIN_CHARS = 200;
+    const hasRenderableBotMessage = allMessages.some(
+      m =>
+        m.sender === Sender.Bot &&
+        !m.isError &&
+        Boolean(String(m.text || '').trim()) &&
+        (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
+    );
+    return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
+  }, [isLoading, loadingVariant, allMessages]);
+
+  // Invariante de segurança: se isLoading=false, o overlay NUNCA deve estar no DOM.
+  // Se estiver, força remoção e loga o erro para diagnóstico.
+  useEffect(() => {
+    if (isLoading) return;
+    const checkTimer = setTimeout(() => {
+      const stuck = document.querySelector('[data-testid="loading-smart-overlay"]');
+      if (stuck) {
+        scoutDiag.error('App', 'overlay-stuck-after-loading', {
+          isLoading,
+          loadingVariant,
+          domOverlayFound: true,
+        });
+        stuck.remove();
+      }
+    }, 500);
+    return () => clearTimeout(checkTimer);
+  }, [isLoading, loadingVariant]);
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
