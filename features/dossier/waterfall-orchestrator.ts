@@ -29,6 +29,7 @@ import { storage } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
+import { finalizeWaterfallUI } from '../../utils/finalizeWaterfallUI';
 import { stripPortaMarkers } from '../../utils/porta';
 import { normalizeCnpj } from '../../utils/cnpj';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
@@ -1264,50 +1265,41 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           cacheWasCleaned: foundationCacheName !== null,
         });
 
-        // ── Hard invariant: waterfall terminou → overlay NUNCA deve persistir ──
-        // Motivo: PR #333 fix React-level não foi suficiente em produção.
-        // O gap entre waterfall:end e setIsLoading(false) no processMessage:finally
-        // permitia que o overlay hero ficasse preso sobre conteúdo já renderizado.
-        // Esta invariante força limpeza IMEDIATA de todo estado de loading,
-        // independente do ciclo de render do React.
+        // ── Hard invariant: waterfall terminou → zera TODOS os estados de loading ──
+        // finalizeWaterfallUI limpa atomicamente: isLoading, loadingVariant,
+        // loadingProgress, failureCount, activeGeneration, abortController,
+        // e overlay DOM. PR #334/#335 corrigiram só o overlay — persistiam
+        // "Preparando investigação...", "Gerando resposta...", Interromper.
         const botMsgTextLen =
           typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
-        const overrideNeeded =
+        const shouldFinalize =
           waterfallEndStatus === 'completed' ||
           waterfallEndStatus === 'failed' ||
           waterfallEndStatus === 'partial' ||
-          botMsgTextLen > 0 ||
-          Boolean(healthBotMsg);
+          botMsgTextLen > 0;
 
-        if (overrideNeeded && typeof document !== 'undefined') {
-          // 1. Força React state: setIsLoading(false) + zera loadingVariant
-          setIsLoading?.(false);
-          setLoadingVariant?.(undefined);
-
-          // 2. Força DOM: remove overlay se React ainda não removeu
-          const stuckOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
-          if (stuckOverlay) {
-            scoutDiag.error('WaterfallLifecycle', 'overlay-force-removed', {
-              sessionId,
-              waterfallRunId,
-              waterfallEndStatus,
-              botMsgTextLen,
-              isLoadingBefore: chatStore?.isLoading,
-              loadingVariantBefore: chatStore?.loadingVariant,
-            });
-            (stuckOverlay as HTMLElement).style.display = 'none';
-          }
-
-          // 3. Log render-decision com todos os booleanos
-          scoutDiag.info('WaterfallLifecycle', 'overlay:render-decision', {
+        if (shouldFinalize) {
+          finalizeWaterfallUI({
+            store: {
+              setIsLoading,
+              setLoadingVariant,
+              completeLoadingProgress,
+              setFailureCount,
+              activeGenerationRef,
+              abortControllerRef: chatStore?.abortControllerRef as { current: AbortController | null } | undefined,
+            },
             sessionId,
+            reason: `waterfall:${waterfallEndStatus}`,
             waterfallEndStatus,
             botMsgTextLen,
-            botMsgFound: Boolean(healthBotMsg),
-            isLoading: chatStore?.isLoading ?? 'unknown',
-            loadingVariant: chatStore?.loadingVariant ?? 'unknown',
-            domHadOverlay: Boolean(stuckOverlay),
-            overrideApplied: true,
+            log: (area, event, payload) => scoutDiag.info(area, event, payload),
+          });
+          // Mantém log legado para transição
+          scoutDiag.warn('WaterfallLifecycle', 'overlay-force-removed', {
+            sessionId,
+            waterfallRunId,
+            waterfallEndStatus,
+            botMsgTextLen,
           });
         }
       }
