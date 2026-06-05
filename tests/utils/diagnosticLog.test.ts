@@ -9,6 +9,17 @@ import {
   isScoutTraceEnabled,
 } from '../../utils/diagnosticLog';
 
+/** Promise.withResolvers() polyfill para Node.js 20 (CI). */
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 vi.mock('../../utils/diagnosticLog', async () => {
   // Use the actual module but intercept import.meta.env
   const actual = await vi.importActual<typeof import('../../utils/diagnosticLog')>('../../utils/diagnosticLog');
@@ -172,7 +183,7 @@ describe('scoutDiag', () => {
     it('agenda dreno pós-flush quando force=true chega durante um flush ativo', async () => {
       vi.useFakeTimers();
 
-      const firstFlushResponse = Promise.withResolvers<{ ok: boolean }>();
+      const firstFlushResponse = createDeferred<{ ok: boolean }>();
       const fetchMock = vi
         .fn<typeof fetch>()
         .mockImplementationOnce(() => firstFlushResponse.promise as Promise<Response>)
