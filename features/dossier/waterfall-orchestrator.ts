@@ -82,7 +82,8 @@ export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
   activeGenerationRef?: MutableRefObject<Record<string, string>>;
-  setLoadingVariant?: (variant: 'hero' | 'inline') => void;
+  setIsLoading?: Dispatch<SetStateAction<boolean>>;
+  setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null | void;
   resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;
@@ -369,6 +370,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     'completeLoadingProgress',
   );
   const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
+  const setIsLoading = options.setIsLoading ?? chatStore?.setIsLoading;
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
   const activeGenerationRef = options.activeGenerationRef ?? chatStore?.activeGenerationRef;
 
@@ -1261,6 +1263,53 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           dossierWasPersisted: sessionToPersist !== null,
           cacheWasCleaned: foundationCacheName !== null,
         });
+
+        // ── Hard invariant: waterfall terminou → overlay NUNCA deve persistir ──
+        // Motivo: PR #333 fix React-level não foi suficiente em produção.
+        // O gap entre waterfall:end e setIsLoading(false) no processMessage:finally
+        // permitia que o overlay hero ficasse preso sobre conteúdo já renderizado.
+        // Esta invariante força limpeza IMEDIATA de todo estado de loading,
+        // independente do ciclo de render do React.
+        const botMsgTextLen =
+          typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
+        const overrideNeeded =
+          waterfallEndStatus === 'completed' ||
+          waterfallEndStatus === 'failed' ||
+          waterfallEndStatus === 'partial' ||
+          botMsgTextLen > 0 ||
+          Boolean(healthBotMsg);
+
+        if (overrideNeeded && typeof document !== 'undefined') {
+          // 1. Força React state: setIsLoading(false) + zera loadingVariant
+          setIsLoading?.(false);
+          setLoadingVariant?.(undefined);
+
+          // 2. Força DOM: remove overlay se React ainda não removeu
+          const stuckOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
+          if (stuckOverlay) {
+            scoutDiag.error('WaterfallLifecycle', 'overlay-force-removed', {
+              sessionId,
+              waterfallRunId,
+              waterfallEndStatus,
+              botMsgTextLen,
+              isLoadingBefore: chatStore?.isLoading,
+              loadingVariantBefore: chatStore?.loadingVariant,
+            });
+            stuckOverlay.remove();
+          }
+
+          // 3. Log render-decision com todos os booleanos
+          scoutDiag.info('WaterfallLifecycle', 'overlay:render-decision', {
+            sessionId,
+            waterfallEndStatus,
+            botMsgTextLen,
+            botMsgFound: Boolean(healthBotMsg),
+            isLoading: chatStore?.isLoading ?? 'unknown',
+            loadingVariant: chatStore?.loadingVariant ?? 'unknown',
+            domHadOverlay: Boolean(stuckOverlay),
+            overrideApplied: true,
+          });
+        }
       }
     },
     [
@@ -1271,6 +1320,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       resetLoadingProgress,
       resolvedOperatorName,
       setFailureCount,
+      setIsLoading,
       setLoadingVariant,
       updateSessionById,
     ],
