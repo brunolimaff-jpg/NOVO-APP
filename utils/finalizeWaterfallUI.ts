@@ -14,7 +14,6 @@ export interface WaterfallUIStore {
   completeLoadingProgress?: () => void;
   setFailureCount?: (value: number) => void;
   activeGenerationRef?: { current: Record<string, string> };
-  abortControllerRef?: { current: AbortController | null };
 }
 
 export interface FinalizeWaterfallUIParams {
@@ -36,7 +35,9 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   store.completeLoadingProgress?.();
   store.setFailureCount?.(0);
 
-  // 2. Limpa refs de geração ativa
+  // 2. Limpa refs de geração ativa (NÃO mexe em abortController —
+  //    processMessage:finally é o dono do abortController e usa isAbort
+  //    para decidir se flusha diagnósticos. Limpar aqui causava isAbort=true.)
   if (store.activeGenerationRef?.current) {
     const botId = store.activeGenerationRef.current[sessionId];
     if (botId) {
@@ -44,17 +45,7 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
     }
   }
 
-  // 3. Cancela e limpa abort controller
-  if (store.abortControllerRef?.current) {
-    try {
-      store.abortControllerRef.current.abort();
-    } catch {
-      // abort pode lançar se já cancelado — seguro ignorar
-    }
-    store.abortControllerRef.current = null;
-  }
-
-  // 4. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
+  // 3. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
   //    requestAnimationFrame garante execução após o commit do React, sem bloquear.
   if (typeof document !== 'undefined') {
     const HIDE_SELECTORS = [

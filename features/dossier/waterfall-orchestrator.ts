@@ -1280,7 +1280,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             completeLoadingProgress,
             setFailureCount,
             activeGenerationRef,
-            abortControllerRef: chatStore?.abortControllerRef as { current: AbortController | null } | undefined,
           },
           sessionId,
           reason: `waterfall:${waterfallEndStatus}`,
