@@ -54,8 +54,8 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
     store.abortControllerRef.current = null;
   }
 
-  // 4. DOM cleanup: esconde overlay e elementos de loading via seletores diretos.
-  //    Apenas querySelector — sem TreeWalker/varredura textual (bloqueia main thread).
+  // 4. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
+  //    requestAnimationFrame garante execução após o commit do React, sem bloquear.
   if (typeof document !== 'undefined') {
     const HIDE_SELECTORS = [
       '[data-testid="loading-smart-overlay"]',
@@ -65,15 +65,16 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
 
     const hideLoadingDOM = () => {
       for (const sel of HIDE_SELECTORS) {
-        const el = document.querySelector<HTMLElement>(sel);
-        if (el) el.style.display = 'none';
+        document.querySelector<HTMLElement>(sel)?.style.setProperty('display', 'none');
       }
     };
 
-    // Imediato: antes do React re-render
-    hideLoadingDOM();
-    // Deferido: após React ter chance de re-renderizar
-    setTimeout(hideLoadingDOM, 100);
+    // Após o React commitar o re-render (isLoading=false → unmount LoadingSmart)
+    requestAnimationFrame(() => {
+      hideLoadingDOM();
+      // Duplo RAF: garante que passou pelo ciclo completo de paint
+      requestAnimationFrame(hideLoadingDOM);
+    });
   }
 
   // 5. Log ui-finalize-state com todos os booleanos para diagnóstico

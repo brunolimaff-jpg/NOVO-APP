@@ -117,10 +117,23 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
   });
 
-  it('mantém overlay hero mas não suspende timeline quando há preview renderizável', () => {
+  it('mantém overlay hero mas não suspende timeline quando há preview renderizável (sem hasRenderableBotMessage)', () => {
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', true)).toBe(false);
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
     expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
+  });
+
+  it('invariante: com conteúdo de bot renderizável, nenhum estado de loading persiste', () => {
+    // Cenário: waterfall completou, botMsgTextLen > 0, mas isLoading ainda true (gap)
+    const isLoading = true;
+    const hasContent = true;
+    // Overlay NÃO deve mostrar
+    expect(shouldShowHeroLoadingOverlay(isLoading, 'hero', hasContent)).toBe(false);
+    // Timeline NÃO deve suspender
+    expect(shouldSuspendHeroMessageTimeline(isLoading, 'hero', hasContent)).toBe(false);
+    // Mesmo com loadingVariant undefined (pós-completeLoadingProgress)
+    expect(shouldShowHeroLoadingOverlay(isLoading, undefined, hasContent)).toBe(false);
+    expect(shouldSuspendHeroMessageTimeline(isLoading, undefined, hasContent)).toBe(false);
   });
 });
