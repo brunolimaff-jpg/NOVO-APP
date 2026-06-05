@@ -399,12 +399,15 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     // LayoutTrace: para dossiê grande, verificar se container tem dimensões válidas
     if (hasLargeBot) {
       requestAnimationFrame(() => {
-        const { traceLayout } = require('../../utils/layoutTraceTelemetry');
-        traceLayout(scoutDiag.info.bind(scoutDiag), 'static-fallback-mount', {
-          sessionId: currentSession?.id ?? null,
-          totalItems: safeMessages.length,
-          botTextLen: botMsg?.text?.length ?? 0,
-        });
+        import('../../utils/layoutTraceTelemetry')
+          .then(({ traceLayout }) => {
+            traceLayout(scoutDiag.info.bind(scoutDiag), 'static-fallback-mount', {
+              sessionId: currentSession?.id ?? null,
+              totalItems: safeMessages.length,
+              botTextLen: botMsg?.text?.length ?? 0,
+            });
+          })
+          .catch(() => {}); // falha silenciosa em testes
       });
     }
   }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);

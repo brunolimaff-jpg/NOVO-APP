@@ -95,7 +95,7 @@ function readElementRect(el: Element): LayoutRect {
     zIndex: cs.zIndex,
     transform: cs.transform,
     contain: cs.contain,
-    contentVisibility: (cs as Record<string, string>).contentVisibility || 'visible',
+    contentVisibility: (cs as unknown as Record<string, string>).contentVisibility || 'visible',
   };
 }
 

@@ -178,21 +178,20 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
           Number(cs.opacity || '1') <= 0.01);
 
       if (isInvisibleBotText) {
-        // LayoutTrace: import dinâmico para não poluir bundle principal
-        let ancestorTrace = null;
-        try {
-          const { findFirstZeroDimensionAncestor } = require('../../utils/layoutTraceTelemetry');
-          ancestorTrace = findFirstZeroDimensionAncestor(el);
-          if (ancestorTrace) {
-            ancestorTrace.renderBranch = renderBranch;
-          }
-        } catch {
-          // módulo pode não existir ainda no bundle
-        }
-        scoutDiag.error('MessageRow', 'commit:invisible-bot-content', {
-          ...payload,
-          ancestorTrace,
-        });
+        scoutDiag.error('MessageRow', 'commit:invisible-bot-content', payload);
+        // LayoutTrace assíncrono: busca ancestral com dimensão zero
+        import('../utils/layoutTraceTelemetry')
+          .then(({ findFirstZeroDimensionAncestor }) => {
+            const trace = findFirstZeroDimensionAncestor(el);
+            if (trace) {
+              trace.renderBranch = renderBranch;
+              scoutDiag.error('MessageRow', 'commit:zero-dimension-ancestor', {
+                messageId: msg.id?.slice(0, 8),
+                ancestorTrace: trace,
+              });
+            }
+          })
+          .catch(() => {});
       } else {
         scoutDiag.info('MessageRow', 'commit:dimensions', payload);
       }
