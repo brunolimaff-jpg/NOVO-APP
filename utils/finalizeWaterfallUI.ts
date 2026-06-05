@@ -54,48 +54,26 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
     store.abortControllerRef.current = null;
   }
 
-  // 4. DOM cleanup: esconde overlay e elementos de loading se React ainda não removeu.
-  //    setTimeout garante que o check roda DEPOIS do ciclo de render do React.
+  // 4. DOM cleanup: esconde overlay e elementos de loading via seletores diretos.
+  //    Apenas querySelector — sem TreeWalker/varredura textual (bloqueia main thread).
   if (typeof document !== 'undefined') {
+    const HIDE_SELECTORS = [
+      '[data-testid="loading-smart-overlay"]',
+      '[data-testid="messages-viewport-suspended"]',
+      '[data-testid="loading-stop-button"]',
+    ];
+
     const hideLoadingDOM = () => {
-      // Overlay principal
-      const overlay = document.querySelector<HTMLElement>('[data-testid="loading-smart-overlay"]');
-      if (overlay) overlay.style.display = 'none';
-
-      // Viewport suspenso (spinner "Preparando investigação...")
-      const suspended = document.querySelector<HTMLElement>('[data-testid="messages-viewport-suspended"]');
-      if (suspended) suspended.style.display = 'none';
-
-      // Botão Interromper dentro do overlay (fallback se overlay não foi escondido)
-      const stopBtn = document.querySelector<HTMLElement>('[data-testid="loading-stop-button"]');
-      if (stopBtn) stopBtn.style.display = 'none';
-
-      // Textos de loading residuais
-      const loadingTexts = ['Consolidando informações', 'Preparando investigação', 'Gerando resposta'];
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-      const nodesToHide: Text[] = [];
-      let node: Text | null;
-      while ((node = walker.nextNode() as Text | null)) {
-        for (const text of loadingTexts) {
-          if (node.textContent?.includes(text)) {
-            nodesToHide.push(node);
-            break;
-          }
-        }
-      }
-      for (const n of nodesToHide) {
-        const parent = n.parentElement;
-        if (parent && !parent.closest('[data-testid="bot-message-content"]')) {
-          parent.style.display = 'none';
-        }
+      for (const sel of HIDE_SELECTORS) {
+        const el = document.querySelector<HTMLElement>(sel);
+        if (el) el.style.display = 'none';
       }
     };
 
-    // Imediato: pega overlay antes do React re-render
+    // Imediato: antes do React re-render
     hideLoadingDOM();
-    // Deferido: pega overlay se React não removeu após re-render
+    // Deferido: após React ter chance de re-renderizar
     setTimeout(hideLoadingDOM, 100);
-    setTimeout(hideLoadingDOM, 500);
   }
 
   // 5. Log ui-finalize-state com todos os booleanos para diagnóstico
@@ -108,9 +86,6 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
         domHasStopButton: Boolean(document.querySelector('[data-testid="loading-stop-button"]')),
         domComposerDisabled: Boolean(
           (document.querySelector('[data-testid="composer-input"]') as HTMLInputElement)?.disabled,
-        ),
-        domBodyContainsLoading: /Consolidando|Preparando|Gerando resposta/i.test(
-          document.body?.textContent || '',
         ),
       };
     };
