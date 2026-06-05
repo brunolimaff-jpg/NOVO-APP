@@ -447,7 +447,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : forceStaticTimelineFallback ? (
         <div
-          className="absolute inset-0 overflow-y-auto custom-scrollbar"
+          className="h-full w-full overflow-y-auto custom-scrollbar"
           data-testid="messages-static-fallback"
           data-scout-virtuoso="static-fallback"
         >
