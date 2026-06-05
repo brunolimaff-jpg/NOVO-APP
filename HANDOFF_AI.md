@@ -20,7 +20,7 @@ Bug P0: overlay hero/spinner preso apos waterfall completar em **producao**. Pre
 
 ## O que foi adicionado
 
-- `waterfall-orchestrator.ts`: hard invariant — se `waterfallEndStatus` completed/failed/partial OU `botMsgTextLen>0`, forca `setIsLoading(false)` + `setLoadingVariant(undefined)` + `display:none` no overlay
+- `waterfall-orchestrator.ts`: `finalizeWaterfallUI()` executada incondicionalmente no `finally` — zera atomicamente `isLoading`, `loadingVariant`, `loadingProgress`, `failureCount`, `activeGeneration`, `abortController` e overlay DOM
 - `App.tsx`: `hasRenderableBotMessage` no `shouldShowHeroLoadingOverlay` + `useEffect` seguranca + SW/cache cleanup + build-info + `overlay:render-decision`
 - `loadingVariant.ts`: `shouldShowHeroLoadingOverlay` com parametro `hasRenderableBotMessage`
 - `build-globals.d.ts`: types para `__BUILD_SHA__`, `__VERCEL_ENV__`, `__BUILD_TS__`

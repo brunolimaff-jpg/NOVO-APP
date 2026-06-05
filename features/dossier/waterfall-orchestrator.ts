@@ -1288,8 +1288,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           botMsgTextLen,
           log: (area, event, payload) => scoutDiag.info(area, event, payload),
         });
-        // Mantém log legado para transição
-        scoutDiag.warn('WaterfallLifecycle', 'overlay-force-removed', {
+        scoutDiag.info('WaterfallLifecycle', 'ui-finalized', {
           sessionId,
           waterfallRunId,
           waterfallEndStatus,
@@ -1301,6 +1300,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       advanceLoadingProgress,
       canUseLookup,
       activeGenerationRef,
+      completeLoadingProgress,
       replaceLoadingProgressStage,
       resetLoadingProgress,
       resolvedOperatorName,
