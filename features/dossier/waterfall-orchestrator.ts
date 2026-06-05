@@ -1295,7 +1295,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               isLoadingBefore: chatStore?.isLoading,
               loadingVariantBefore: chatStore?.loadingVariant,
             });
-            stuckOverlay.remove();
+            (stuckOverlay as HTMLElement).style.display = 'none';
           }
 
           // 3. Log render-decision com todos os booleanos

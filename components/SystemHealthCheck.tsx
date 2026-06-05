@@ -81,7 +81,7 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       const resultado = await buscarContextoPinecone('teste senior');
       const duration = Date.now() - start;
 
-      if (resultado && resultado.context?.trim().length > 0) {
+      if (resultado && resultado.context?.trim()?.length > 0) {
         updateTest('🧠 War Room - Base Interna (opcional)', {
           status: 'success',
           message: `Online (${duration}ms)`,
@@ -107,7 +107,7 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       const resultado = await buscarContextoDocsPinecone('ERP');
       const duration = Date.now() - start;
 
-      if (resultado && resultado.context?.trim().length > 0) {
+      if (resultado && resultado.context?.trim()?.length > 0) {
         updateTest('📚 War Room - Documentação (opcional)', {
           status: 'success',
           message: `Online (${duration}ms)`,
