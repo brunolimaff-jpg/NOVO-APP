@@ -1,55 +1,64 @@
-# Handoff — 05/06/2026 — PRs #333, #334, #335 MERGEADAS em `main`
+# Handoff — 05/06/2026 — Bug P0 overlay hero RESOLVIDO, PR #342 aberta
 
 Bug P0: overlay hero/spinner preso apos waterfall completar em **producao**. Preview funcionava, producao nao.
 
-| Item | Valor |
-| --- | --- |
-| PRs | #333 (review fixes), #334 (PWA/SW removal), #335 (Gemini follow-up) -- TODAS MERGED |
-| Branch base | `main` |
+## Status PRs
 
-## Root Cause (2 camadas)
+| PR | Status | Descricao |
+|----|--------|-----------|
+| #333 | MERGED | Review fixes Gemini + Qodo (null checks, useEffect, import facade) |
+| #334 | MERGED | Remove PWA/SW (VitePWA, manifest.json, sw.js) + hard invariant inicial |
+| #335 | MERGED | Gemini follow-up (display:none, useMemo, ES2024, optional chaining) |
+| #342 | **ABERTA** | `codex/finalize-waterfall-ui` — finalizeWaterfallUI zera atomicamente TODOS os estados de loading |
 
-1. **Service Worker CacheFirst**: `public/sw.js` manual + VitePWA registravam SW com CacheFirst em producao. Servia bundles **antigos** do cache. Preview nunca teve SW (gate `!isPreviewBuild`).
-2. **Gap waterfall vs setIsLoading**: `setIsLoading(false)` no `processMessage:finally` rodava depois do `health-check-final`. Conteudo visivel mas overlay ainda bloqueando.
+## Root Cause (3 camadas)
 
-## O que foi removido
+1. **Service Worker CacheFirst**: servia bundles JS/CSS antigos em producao. Preview sem SW nunca reproduzia o bug.
+2. **Gap waterfall vs setIsLoading**: `finalizeWaterfallUI` chamado incondicionalmente no `finally` — gap entre waterfall completar e overlay ser liberado.
+3. **abortControllerRef nullificado pelo finalizeWaterfallUI**: `isAbort=true` no `processMessage:finally` → `flushDiagnosticsNow` nunca chamado. **FIX: removida nullificacao do finalizeWaterfallUI.**
 
-- VitePWA plugin + vite-plugin-pwa do `package.json`
+## O que finalizeWaterfallUI faz (PR #342)
+
+- `setIsLoading(false)` + `setLoadingVariant(undefined)`
+- `completeLoadingProgress()` + `setFailureCount(0)`
+- `delete activeGenerationRef[sessionId]`
+- DOM safety net: `requestAnimationFrame` + `querySelector` direto (3 seletores, sem TreeWalker)
+- Log `ui-finalize-state` + `ui-finalize-post-render`
+
+## Bugs secundarios corrigidos (PR #342)
+
+- AbortError pos-render → `debug` (nao `error`)
+- ContinuityQuestion JSON parse fail → `debug` (nao `warn`)
+
+## O que foi removido (PRs #333-#335)
+
+- VitePWA plugin + `vite-plugin-pwa` do `package.json`
 - `public/manifest.json`
-- `public/sw.js` antigo (CacheFirst) → substituido por kill-switch
-
-## O que foi adicionado
-
-- `waterfall-orchestrator.ts`: `finalizeWaterfallUI()` executada incondicionalmente no `finally` — zera atomicamente `isLoading`, `loadingVariant`, `loadingProgress`, `failureCount`, `activeGeneration`, `abortController` e overlay DOM
-- `App.tsx`: `hasRenderableBotMessage` no `shouldShowHeroLoadingOverlay` + `useEffect` seguranca + SW/cache cleanup + build-info + `overlay:render-decision`
-- `loadingVariant.ts`: `shouldShowHeroLoadingOverlay` com parametro `hasRenderableBotMessage`
-- `build-globals.d.ts`: types para `__BUILD_SHA__`, `__VERCEL_ENV__`, `__BUILD_TS__`
-- `vite.config.ts`: `define` com build metadata
-- `tsconfig.json`: ES2022 → ES2024
-- Testes: hard invariant test + overlay regression tests
-
-## Pendencias Nao Bloqueantes
-
-1. Trocar log `overlay-force-removed` de `error` para `warn`/`info`
-2. Manter kill-switch `sw.js` por 1-2 releases, depois remover
-3. Ajustar `ContinuityQuestion` para evitar JSON truncado
-4. Tratar `AbortError` dos CNPJ lookups como `debug`/`info`
-5. Investigar `foundationCacheName` null em producao
+- `public/sw.js` antigo (CacheFirst) → kill-switch
+- Dependencia Pinecone do dossie (War Room mantem RAG)
 
 ## Licoes-chave
 
-- Service Worker CacheFirst e perigoso em apps com deploy frequente
-- Preview sem SW vs Producao com SW cria falsa confianca
-- DOM cleanup com `.remove()` quebra React; usar `display:none`
-- `useMemo` deve ser puro; side effects em `useEffect`
+- NUNCA nullificar `abortControllerRef` fora do `processMessage:finally`
+- NUNCA usar `TreeWalker`/`document.body` scan para DOM cleanup (bloqueia main thread)
+- DOM cleanup DOM `display:none` e **safety net**; React render condition e o mecanismo primario
+- `hasRenderableBotMessage` deve ser condicao em TODOS os gates de loading
 - Optional chaining deve ir ate o fim da cadeia (`.trim()?.length`)
-- Sempre verificar `hostname` nos logs para confirmar ambiente
+- `useMemo` deve ser puro; side effects em `useEffect`
+- Sempre incluir `hostname` em logs de diagnostico
 - Hard invariant como airbag contra UI quebrada apos waterfall
+
+## Proximo passo
+
+1. Code review da PR #342 — branch `codex/finalize-waterfall-ui`
+2. Smoke producao apos merge
+3. Monitorar `scout_diagnostics` para `overlay-force-removed`
+4. Remover kill-switch `sw.js` apos 1-2 releases
+5. Ajustar logs `ContinuityQuestion` e `AbortError` para `debug`
 
 ## Links
 
 - **PR #333**: https://github.com/brunolimaff-jpg/NOVO-APP/pull/333 (MERGED)
 - **PR #334**: https://github.com/brunolimaff-jpg/NOVO-APP/pull/334 (MERGED)
 - **PR #335**: https://github.com/brunolimaff-jpg/NOVO-APP/pull/335 (MERGED)
-- **Vault sessao**: `20-SESSOES/2026-06/2026-06-05T15-30-00-NOVO-APP-overlay-hero-pwa-removal.md`
-- **Vault licoes**: `30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md`
+- **PR #342**: https://github.com/brunolimaff-jpg/NOVO-APP/pull/342 (ABERTA — branch `codex/finalize-waterfall-ui`)

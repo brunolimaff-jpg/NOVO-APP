@@ -1,3 +1,15 @@
+## 2026-06-05 — abortControllerRef nao deve ser nullificado no finalizeWaterfallUI (APLICADO na PR #342)
+
+Decision: remover `delete activeAbortControllerRef.current[sessionId]` do `finalizeWaterfallUI()`. O `abortControllerRef` so deve ser nullificado no proprio `processMessage:finally`, NUNCA no helper de finalizacao de UI.
+
+Reason: `finalizeWaterfallUI` e chamado no `finally` do `processMessage`. Se ele nullifica `abortControllerRef` antes do `processMessage:finally` rodar, o `isAbort` detecta `abortControllerRef.current[sessionId] === undefined` como abort, e `flushDiagnosticsNow` nunca e chamado. O diagnostico fica preso, mascarando outros problemas.
+
+Contract: `finalizeWaterfallUI` manipula apenas estados de UI (isLoading, loadingVariant, loadingProgress, failureCount, activeGeneration). `abortControllerRef` pertence ao ciclo de vida do `processMessage` e deve ser gerenciado exclusivamente por ele.
+
+Refs: PR #342, `features/dossier/waterfall-orchestrator.ts`.
+
+---
+
 ## 2026-06-05 — PWA/SW removido em favor de bundles frescos (APLICADO)
 
 Decision: remover VitePWA plugin, `vite-plugin-pwa`, `public/sw.js` manual e `public/manifest.json`. Substituir por kill-switch `public/sw.js` que apenas desregistra caches antigos.

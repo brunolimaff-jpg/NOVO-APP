@@ -51,7 +51,7 @@ vi.mock('../../services/investigationStore', () => ({
 }));
 
 vi.mock('../../utils/diagnosticLog', () => ({
-  scoutDiag: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), time: vi.fn(), timeEnd: vi.fn() },
+  scoutDiag: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), time: vi.fn(), timeEnd: vi.fn() },
 }));
 
 // Mock withAutoRetry para não aplicar delays reais nos testes

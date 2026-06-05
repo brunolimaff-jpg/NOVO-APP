@@ -186,6 +186,18 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Hard invariant como airbag contra UI quebrada** [react, invariante, ui, safety-net, waterfall]
   Quando o estado React pode falhar (race condition, desync), um hard invariant que forçadamente libera o estado (setIsLoading(false) + display:none) funciona como última barreira. Deve ser acionado por condições observáveis (waterfallEndStatus completed/failed/partial, botMsgTextLen > 0), não por chain de estado.
 
+- **NUNCA nullificar abortControllerRef fora do processMessage:finally** [waterfall, abort, processmessage, bleeding-edge]
+  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) não deve nullificar `abortControllerRef`. Se o ref é limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca é chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, não ao helper de UI.
+
+- **NUNCA usar TreeWalker/document.body scan para DOM cleanup** [performance, dom, treewalker, main-thread]
+  `document.createTreeWalker(document.body)` percorre o DOM inteiro em busca de seletores — bloqueia a main thread por dezenas de ms em arvores grandes. Substituir por `querySelector` direto com 3 seletores alvo, sem escanear o body inteiro.
+
+- **DOM cleanup DOM display:none é safety net; React render condition é primário** [react, dom, cleanup, overlay, safety-net]
+  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net para casos onde o React não conseguiu renderizar (erro, crash). Mas o mecanismo PRIMÁRIO de liberação do overlay é a condição de renderização React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
+
+- **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
+  `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

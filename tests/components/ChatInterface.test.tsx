@@ -159,7 +159,7 @@ vi.mock('../../components/GreetingWelcomeScreen', () => ({
 }));
 
 vi.mock('../../utils/diagnosticLog', () => ({
-  scoutDiag: { warn: warnMock, info: vi.fn(), error: vi.fn() },
+  scoutDiag: { warn: warnMock, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
 vi.mock('../../utils/blankPanelTelemetry', async importOriginal => {
