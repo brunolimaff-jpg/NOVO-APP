@@ -38,8 +38,8 @@ describe('SystemHealthCheck', () => {
     vi.useRealTimers();
     proxyGeminiHealthMock.mockResolvedValue({ ok: true });
     lookupClienteMock.mockResolvedValue({ ok: true });
-    buscarContextoPineconeMock.mockResolvedValue({ context: '', failed: false });
-    buscarContextoDocsPineconeMock.mockResolvedValue({ context: '', failed: false });
+    buscarContextoPineconeMock.mockResolvedValue({ context: '', failed: true });
+    buscarContextoDocsPineconeMock.mockResolvedValue({ context: '', failed: true });
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({

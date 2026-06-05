@@ -57,7 +57,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const [cnaeEnriching, setCnaeEnriching] = useState(false);
   const failedCnaeRef = useRef<Set<string>>(new Set());
   const cnaeMapRef = useRef(cnaeMap);
-  cnaeMapRef.current = cnaeMap;
+  useEffect(() => {
+    cnaeMapRef.current = cnaeMap;
+  }, [cnaeMap]);
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');

@@ -162,6 +162,10 @@ export function useStageDurations(
     if (activeKey && stageStartedAtRef.current[activeKey] === undefined) {
       stageStartedAtRef.current[activeKey] = elapsedTime;
     }
+    const backendKey = getLoadingStageIdentity(realCurrent);
+    if (backendKey && backendKey !== activeKey && stageStartedAtRef.current[backendKey] === undefined) {
+      stageStartedAtRef.current[backendKey] = elapsedTime;
+    }
 
     for (const stage of completedStages || []) {
       const stageKey = getLoadingStageIdentity(stripInternalMarkers(stage).trim());

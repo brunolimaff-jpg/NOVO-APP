@@ -81,7 +81,7 @@ vi.mock('../../utils/textCleaners', async () => {
   };
 });
 
-import { generateDossierModule, sendMessageToGemini } from '../../services/gemini/investigation-orchestration';
+import { generateDossierModule, sendMessageToGemini } from '../../services/geminiService';
 import { Sender } from '../../types';
 
 describe('investigation-orchestration', () => {
