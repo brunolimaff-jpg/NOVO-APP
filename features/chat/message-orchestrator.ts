@@ -647,6 +647,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           delete activeGenerationRef.current[sessionId];
         }
 
+        const t0 = performance.now();
+
         setIsLoading(false);
         setLoadingVariant(undefined);
         completeLoadingProgress();
@@ -654,10 +656,25 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
 
+        scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
+
         if (!isAbort) {
-          // Flush imediato dos diagnósticos — garante que eventos após o finally
-          // cheguem ao Supabase mesmo se a UI travar em seguida.
-          flushDiagnosticsNow('processMessage:finally', true);
+          // Adia flush para o próximo tick — deixa o React re-renderizar primeiro
+          setTimeout(() => {
+            scoutDiag.info('MessageOrchestrator', 'post-render-fired', {
+              sessionId,
+              delayMs: Math.round(performance.now() - t0),
+            });
+            scoutDiag.info('MessageOrchestrator', 'processMessage:finally:before-flush', {
+              sessionId,
+              bufferSize: -1,
+            });
+            flushDiagnosticsNow('processMessage:finally', true);
+            scoutDiag.info('MessageOrchestrator', 'processMessage:finally:after-flush', {
+              sessionId,
+              flushDurationMs: Math.round(performance.now() - t0),
+            });
+          }, 0);
         }
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
