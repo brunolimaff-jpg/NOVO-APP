@@ -179,6 +179,46 @@ const App: React.FC = () => {
     return () => clearTimeout(checkTimer);
   }, [isLoading, loadingVariant]);
 
+  // Cleanup de Service Worker antigo (PR #334).
+  // PWA foi removido — desregistra SWs existentes e limpa caches
+  // para garantir que produção sirva sempre o bundle mais recente.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const buildSha = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'unknown';
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      if (registrations.length === 0) return;
+      scoutDiag.info('App', 'sw-cleanup', {
+        buildSha,
+        vercelEnv: typeof __VERCEL_ENV__ !== 'undefined' ? __VERCEL_ENV__ : 'unknown',
+        swCount: registrations.length,
+      });
+      for (const reg of registrations) {
+        reg.unregister().catch(() => {});
+      }
+    });
+    // Limpa caches do Workbox (padrão: workbox-precache-v2-*)
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        const workboxKeys = keys.filter(k => k.startsWith('workbox-'));
+        if (workboxKeys.length === 0) return;
+        scoutDiag.info('App', 'cache-cleanup', { cacheKeys: workboxKeys });
+        for (const key of workboxKeys) {
+          caches.delete(key).catch(() => {});
+        }
+      });
+    }
+  }, []);
+
+  // Diagnóstico de build — log único no mount
+  useEffect(() => {
+    scoutDiag.info('App', 'build-info', {
+      buildSha: typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'unknown',
+      vercelEnv: typeof __VERCEL_ENV__ !== 'undefined' ? __VERCEL_ENV__ : 'unknown',
+      buildTs: typeof __BUILD_TS__ !== 'undefined' ? __BUILD_TS__ : 'unknown',
+      hostname: typeof location !== 'undefined' ? location.hostname : 'ssr',
+    });
+  }, []);
+
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 

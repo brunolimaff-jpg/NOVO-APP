@@ -1,7 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
-import { VitePWA } from 'vite-plugin-pwa';
 import ReactCompilerPlugin from 'babel-plugin-react-compiler';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { readFileSync, writeFileSync } from 'fs';
@@ -14,13 +13,10 @@ function generateVersionPlugin(): Plugin {
     name: 'generate-version',
     apply: 'build',
     writeBundle() {
-      // Ler versão do package.json
       const packageJson = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')) as {
         version?: string;
       };
       const version = packageJson.version || '0.0.0';
-
-      // Criar versão em formato legível (APP_VERSION)
       const appVersion = `v${version}`;
 
       const versionData = {
@@ -28,7 +24,6 @@ function generateVersionPlugin(): Plugin {
         timestamp: new Date().toISOString(),
       };
 
-      // Escrever version.json no diretório dist
       writeFileSync(resolve(__dirname, 'dist/version.json'), JSON.stringify(versionData, null, 2), 'utf-8');
 
       console.log(`✅ version.json gerado: ${appVersion}`);
@@ -38,7 +33,6 @@ function generateVersionPlugin(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const isPreviewBuild = process.env.VERCEL_ENV === 'preview';
   const localApiProxyTarget = env.LOCAL_DEV_API_PROXY_TARGET || LOCAL_DEV_API_PROXY_TARGET;
   const localApiProxyHeaders = env.VERCEL_AUTOMATION_BYPASS_SECRET
     ? { 'x-vercel-protection-bypass': env.VERCEL_AUTOMATION_BYPASS_SECRET }
@@ -56,97 +50,27 @@ export default defineConfig(({ mode }) => {
   );
 
   return {
+    // Build metadata exposto em runtime para diagnóstico client-side
+    define: {
+      __BUILD_SHA__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || 'local'),
+      __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV || 'local'),
+      __BUILD_TS__: JSON.stringify(new Date().toISOString()),
+    },
     server: {
       port: 3000,
       host: '0.0.0.0',
-      // Em dev local, evita CORS e aproxima o Vite das rotas serverless do Vercel.
       proxy: localApiProxy,
     },
     plugins: [
       generateVersionPlugin(),
       react({
         babel: {
-          // FIX: React Compiler ativo APENAS em desenvolvimento.
-          // Em produção, reescreve closures e causa TDZ:
-          // "Cannot access 'Sn' before initialization" (símbolo minificado).
-          // Usa mode !== 'production' (parâmetro do callback defineConfig)
-          // em vez de process.env.NODE_ENV, por ser a forma nativa do Vite
-          // e não depender de substituição de variável de ambiente externa.
           plugins: mode !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
-      !isPreviewBuild &&
-        VitePWA({
-          registerType: 'autoUpdate',
-          includeAssets: ['icons/icon-192.svg', 'icons/icon-512.svg'],
-          manifest: {
-            name: '🦅 Senior Scout 360',
-            short_name: 'Scout 360',
-            description: 'Inteligência Comercial para Agronegócio · Sênior Sistemas',
-            theme_color: '#059669',
-            background_color: '#ffffff',
-            display: 'standalone',
-            orientation: 'portrait-primary',
-            start_url: '/',
-            scope: '/',
-            lang: 'pt-BR',
-            icons: [
-              {
-                src: '/icons/icon-192.svg',
-                sizes: '192x192',
-                type: 'image/svg+xml',
-                purpose: 'any maskable',
-              },
-              {
-                src: '/icons/icon-512.svg',
-                sizes: '512x512',
-                type: 'image/svg+xml',
-                purpose: 'any maskable',
-              },
-            ],
-          },
-          workbox: {
-            maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MiB — mermaid chunk ~3.1 MB
-            cleanupOutdatedCaches: true,
-            clientsClaim: true,
-            skipWaiting: true,
-            // Estratégias por tipo de recurso
-            runtimeCaching: [
-              // CDN externos (Tailwind, fonts, html2pdf) → NetworkFirst, cache 7 dias
-              {
-                urlPattern:
-                  /^https:\/\/(cdn\.tailwindcss\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)/,
-                handler: 'NetworkFirst',
-                options: {
-                  cacheName: 'cdn-cache',
-                  expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 },
-                  networkTimeoutSeconds: 5,
-                },
-              },
-              // API Gemini → NetworkOnly (respostas de IA nunca cacheadas)
-              {
-                urlPattern: /^https:\/\/generativelanguage\.googleapis\.com/,
-                handler: 'NetworkOnly',
-              },
-              // Assets estáticos do próprio app → CacheFirst, 30 dias
-              {
-                urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf)$/,
-                handler: 'CacheFirst',
-                options: {
-                  cacheName: 'static-assets',
-                  expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
-                },
-              },
-            ],
-            // Não cacheamos rotas de API ou tokens de sessão
-            navigateFallback: 'index.html',
-            navigateFallbackDenylist: [/^\/api\//],
-          },
-          devOptions: {
-            // Ativa SW em desenvolvimento para facilitar testes
-            enabled: false,
-          },
-        }),
+      // PWA/Service Worker removido (PR #334).
+      // Production estava servindo bundles antigos via SW cache,
+      // causando overlay hero preso após deploys.
       Boolean(env.SENTRY_AUTH_TOKEN) &&
         sentryVitePlugin({
           org: env.SENTRY_ORG || 's-3j',
@@ -170,17 +94,11 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: true,
-      // FIX: modulePreload polyfill garante carregamento dos chunks na ordem correta
       modulePreload: { polyfill: true },
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         external: [],
         output: {
-          // FIX: função manualChunks para capturar TODOS os sub-módulos internos
-          // do mermaid (styles, edges, graph, flowDiagram, layout, etc.) em um
-          // único chunk. O formato objeto (`mermaid: ['mermaid']`) só isola o
-          // entry point — os dynamic imports internos geravam sub-chunks com
-          // hashes que não coincidiam após novo deploy no Vercel (404s).
           manualChunks(id) {
             if (id.includes('/node_modules/mermaid/')) return 'mermaid';
             if (id.includes('/node_modules/framer-motion/')) return 'vendor-anim';
