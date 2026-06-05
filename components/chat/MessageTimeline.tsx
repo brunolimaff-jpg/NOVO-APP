@@ -384,11 +384,29 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   useEffect(() => {
     if (!forceStaticTimelineFallback) return;
 
+    const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
+    const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
+    const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) > 4000;
+
     scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
       sessionId: currentSession?.id ?? null,
       totalItems: safeMessages.length,
-      hasBotMessage: safeMessages.some(message => message.sender === Sender.Bot),
+      hasBotMessage,
+      botTextLen: botMsg?.text?.length ?? 0,
+      hasLargeBot,
     });
+
+    // LayoutTrace: para dossiê grande, verificar se container tem dimensões válidas
+    if (hasLargeBot) {
+      requestAnimationFrame(() => {
+        const { traceLayout } = require('../../utils/layoutTraceTelemetry');
+        traceLayout(scoutDiag.info.bind(scoutDiag), 'static-fallback-mount', {
+          sessionId: currentSession?.id ?? null,
+          totalItems: safeMessages.length,
+          botTextLen: botMsg?.text?.length ?? 0,
+        });
+      });
+    }
   }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
 
   return (

@@ -178,7 +178,21 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
           Number(cs.opacity || '1') <= 0.01);
 
       if (isInvisibleBotText) {
-        scoutDiag.warn('MessageRow', 'commit:invisible-bot-content', payload);
+        // LayoutTrace: import dinâmico para não poluir bundle principal
+        let ancestorTrace = null;
+        try {
+          const { findFirstZeroDimensionAncestor } = require('../../utils/layoutTraceTelemetry');
+          ancestorTrace = findFirstZeroDimensionAncestor(el);
+          if (ancestorTrace) {
+            ancestorTrace.renderBranch = renderBranch;
+          }
+        } catch {
+          // módulo pode não existir ainda no bundle
+        }
+        scoutDiag.error('MessageRow', 'commit:invisible-bot-content', {
+          ...payload,
+          ancestorTrace,
+        });
       } else {
         scoutDiag.info('MessageRow', 'commit:dimensions', payload);
       }
