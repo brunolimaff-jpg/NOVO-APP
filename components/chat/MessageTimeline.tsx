@@ -413,7 +413,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
 
   return (
-    <div className="flex-1 min-h-0 relative">
+    <div className="flex flex-col flex-1 min-h-0 relative">
       {showOperatorGate ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
           <GreetingWelcomeScreen isDarkMode={isDarkMode} onConfirmOperator={onConfirmOperatorName} />
@@ -433,7 +433,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : shouldSuspendVirtualizedList ? (
         <div
-          className="h-full min-h-0 w-full flex items-center justify-center"
+          className="flex-1 min-h-0 w-full flex items-center justify-center"
           data-testid="messages-viewport-suspended"
         >
           <div className="flex flex-col items-center gap-3">
@@ -447,7 +447,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : forceStaticTimelineFallback ? (
         <div
-          className="h-full w-full overflow-y-auto custom-scrollbar"
+          className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
           data-testid="messages-static-fallback"
           data-scout-virtuoso="static-fallback"
         >
@@ -467,7 +467,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           ))}
         </div>
       ) : (
-        <div ref={messagesViewportRef} className="h-full min-h-0 w-full" data-scout-virtuoso="timeline">
+        <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">
           {isMessagesViewportReady ? (
             <Virtuoso
               ref={virtuosoRef}
