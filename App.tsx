@@ -135,31 +135,30 @@ const App: React.FC = () => {
         Boolean(String(m.text || '').trim()) &&
         (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
     );
-    const decision = shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
-
-    // Log render-decision: todos os fatores que decidem mostrar/esconder o overlay
-    if (decision) {
-      const botMsgCount = allMessages.filter(m => m.sender === Sender.Bot).length;
-      const botWithText = allMessages.filter(
-        m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()),
-      );
-      scoutDiag.info('App', 'overlay:render-decision', {
-        decision: 'show',
-        isLoading,
-        loadingVariant,
-        hasRenderableBotMessage,
-        allMessagesCount: allMessages.length,
-        botMsgCount,
-        botWithTextCount: botWithText.length,
-        maxBotTextLen: botWithText.reduce(
-          (max, m) => Math.max(max, String(m.text || '').length),
-          0,
-        ),
-      });
-    }
-
-    return decision;
+    return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
   }, [isLoading, loadingVariant, allMessages]);
+
+  // Log render-decision: todos os fatores que decidem mostrar/esconder o overlay.
+  // Movido para useEffect — useMemo deve ser puro (sem side effects).
+  useEffect(() => {
+    if (!showFullscreenLoadingSmart) return;
+    const botMsgCount = allMessages.filter(m => m.sender === Sender.Bot).length;
+    const botWithText = allMessages.filter(
+      m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()),
+    );
+    scoutDiag.info('App', 'overlay:render-decision', {
+      decision: 'show',
+      isLoading,
+      loadingVariant,
+      allMessagesCount: allMessages.length,
+      botMsgCount,
+      botWithTextCount: botWithText.length,
+      maxBotTextLen: botWithText.reduce(
+        (max, m) => Math.max(max, String(m.text || '').length),
+        0,
+      ),
+    });
+  }, [showFullscreenLoadingSmart, isLoading, loadingVariant, allMessages]);
 
   // Invariante de segurança: se isLoading=false, o overlay NUNCA deve estar no DOM.
   // Se estiver, força remoção e loga o erro para diagnóstico.
@@ -173,7 +172,7 @@ const App: React.FC = () => {
           loadingVariant,
           domOverlayFound: true,
         });
-        stuck.remove();
+        (stuck as HTMLElement).style.display = 'none';
       }
     }, 500);
     return () => clearTimeout(checkTimer);
