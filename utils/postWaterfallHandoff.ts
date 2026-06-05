@@ -35,6 +35,14 @@ export function isPostWaterfallStuckHandoff(snapshot: BlankPanelSnapshot | null)
   return snapshot.placeholderVisible || snapshot.suspendedViewportVisible;
 }
 
+/** Overlay preso: visível mesmo com isLoading=false após waterfall (desync store/DOM). */
+export function isOverlayStuckPostWaterfall(snapshot: BlankPanelSnapshot | null): boolean {
+  if (!snapshot) return false;
+  if (snapshot.expectedBotCharsMax < LARGE_DOSSIER_STATIC_FALLBACK_CHARS) return false;
+  if (snapshot.isLoading || snapshot.showInitialHome) return false;
+  return snapshot.loadingOverlayVisible;
+}
+
 export function buildHandoffPanelDiag(
   domSnapshot: BlankPanelSnapshot | null,
   ui: {
