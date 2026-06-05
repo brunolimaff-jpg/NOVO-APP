@@ -1099,4 +1099,62 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     dispatchSpy.mockRestore();
   });
+
+  it('hard invariant: força setIsLoading(false) e setLoadingVariant(undefined) ao fim do waterfall com conteúdo', async () => {
+    // Regressão PR #334: overlay hero preso após waterfall completar.
+    // health-check-final deve garantir domHasLoadingOverlay=false quando
+    // waterfallEndStatus=completed e botMsgTextLen > 0.
+    const score = makeScorePorta(72);
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: ['Dossiê consolidado. [[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]'].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const setIsLoadingSpy = vi.fn();
+    const setLoadingVariantSpy = vi.fn();
+
+    maybeChatStoreRef.current = {
+      sessionsRef: {
+        current: [
+          makeSession({
+            id: 'session-1',
+            title: 'Acme Agro',
+            empresaAlvo: 'Acme Agro',
+            messages: [
+              makeMessage({ id: 'user-1', sender: Sender.User, text: 'Investigue Acme Agro' }),
+              makeMessage({ id: 'bot-1', sender: Sender.Bot, text: '', isThinking: true }),
+            ],
+          }),
+        ],
+      },
+      setSessions: vi.fn(),
+      setIsLoading: setIsLoadingSpy,
+      setLoadingVariant: setLoadingVariantSpy,
+    };
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    // Hard invariant: setIsLoading(false) e setLoadingVariant(undefined)
+    // devem ser chamados ao fim do waterfall com conteúdo.
+    expect(setIsLoadingSpy).toHaveBeenCalledWith(false);
+    expect(setLoadingVariantSpy).toHaveBeenCalledWith(undefined);
+
+    // health-check-final deve ter sido logado
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'WaterfallLifecycle',
+      'health-check-final',
+      expect.objectContaining({
+        waterfallEndStatus: 'completed',
+        dossierWasPersisted: true,
+      }),
+    );
+
+    maybeChatStoreRef.current = undefined;
+  });
 });
