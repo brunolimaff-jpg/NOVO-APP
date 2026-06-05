@@ -84,10 +84,22 @@ describe('shouldShowHeroLoadingOverlay', () => {
     expect(shouldShowHeroLoadingOverlay(true, undefined)).toBe(true);
   });
 
-
   it('mantém overlay mesmo com preview parcial do waterfall (>200 chars)', () => {
     // Regressão PR #301: gate antigo escondia hero ao flushWaterfallPreview.
+    // Sem hasRenderableBotMessage explícito, comportamento padrão permanece.
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
+  });
+
+  it('esconde overlay hero quando já existe conteúdo de bot renderizável', () => {
+    // Regressão: hero overlay preso após waterfall completar com conteúdo visível.
+    // Invariante: se botMsgTextLen > 0, overlay NUNCA deve bloquear.
+    expect(shouldShowHeroLoadingOverlay(true, 'hero', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(false, 'hero', true)).toBe(false);
+  });
+
+  it('mantém overlay hero sem conteúdo de bot (loading ainda em progresso)', () => {
+    expect(shouldShowHeroLoadingOverlay(true, 'hero', false)).toBe(true);
+    expect(shouldShowHeroLoadingOverlay(true, undefined, false)).toBe(true);
   });
 });
 
@@ -111,5 +123,4 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
     expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
   });
-
 });

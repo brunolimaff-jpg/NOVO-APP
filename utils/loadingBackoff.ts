@@ -7,7 +7,6 @@ export function getLoadingBackoffMessage(failureCount: number): string | null {
 }
 
 export function resolveActiveLoadingStageLabel(processingStage: string, failureCount: number): string {
-  const real =
-    processingStage.trim() || 'Preparando análise...';
+  const real = processingStage.trim() || 'Preparando análise...';
   return getLoadingBackoffMessage(failureCount) ?? real;
 }

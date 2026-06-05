@@ -1,15 +1,76 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { proxyGenerateContentMock, executeOpenWebSearchToolMock, applyPromptLeakShieldMock } = vi.hoisted(() => ({
+const {
+  proxyGenerateContentMock,
+  proxyChatSendMessageMock,
+  executeOpenWebSearchToolMock,
+  applyPromptLeakShieldMock,
+  buscarContextoPineconeMock,
+  buscarContextoDocsPineconeMock,
+  lookupClienteMock,
+} = vi.hoisted(() => ({
   proxyGenerateContentMock: vi.fn(),
+  proxyChatSendMessageMock: vi.fn(),
   executeOpenWebSearchToolMock: vi.fn(),
   applyPromptLeakShieldMock: vi.fn(),
+  buscarContextoPineconeMock: vi.fn(),
+  buscarContextoDocsPineconeMock: vi.fn(),
+  lookupClienteMock: vi.fn(),
 }));
 
 vi.mock('../../services/geminiProxy', () => ({
   proxyGenerateContent: proxyGenerateContentMock,
-  proxyChatSendMessage: vi.fn(),
+  proxyChatSendMessage: proxyChatSendMessageMock,
   executeOpenWebSearchTool: executeOpenWebSearchToolMock,
+}));
+
+vi.mock('../../services/ragService', () => ({
+  buscarContextoPinecone: buscarContextoPineconeMock,
+  buscarContextoDocsPinecone: buscarContextoDocsPineconeMock,
+}));
+
+vi.mock('../../services/clientLookupService', async () => {
+  const actual = await vi.importActual<typeof import('../../services/clientLookupService')>(
+    '../../services/clientLookupService',
+  );
+  return {
+    ...actual,
+    lookupCliente: lookupClienteMock,
+    formatarParaPrompt: vi.fn().mockReturnValue('Lookup formatado'),
+    isConcorrenteOuPropria: vi.fn().mockReturnValue(false),
+    benchmarkClientes: vi.fn().mockResolvedValue([]),
+    formatarBenchmarkParaPrompt: vi.fn().mockReturnValue(''),
+    formatarComexParaPrompt: vi.fn().mockReturnValue(''),
+  };
+});
+
+vi.mock('../../services/portaStateService', async () => {
+  const actual = await vi.importActual<typeof import('../../services/portaStateService')>(
+    '../../services/portaStateService',
+  );
+  return {
+    ...actual,
+    generatePortaContextForDeepDive: vi.fn().mockReturnValue('PORTA Score atual 74'),
+    initPortaState: vi.fn(),
+    resetPortaState: vi.fn(),
+    setBaseScore: vi.fn(),
+    getPortaState: vi.fn().mockReturnValue(null),
+    addFeedAdjustment: vi.fn(),
+    addFlagFeed: vi.fn(),
+    addSegmentFeed: vi.fn(),
+  };
+});
+
+vi.mock('../../utils/diagnosticLog', () => ({
+  scoutDiag: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+vi.mock('../../utils/retry', () => ({
+  withAutoRetry: vi.fn(async (_name: string, action: () => Promise<unknown>) => action()),
 }));
 
 vi.mock('../../utils/textCleaners', async () => {
@@ -20,11 +81,36 @@ vi.mock('../../utils/textCleaners', async () => {
   };
 });
 
-import { generateDossierModule } from '../../services/gemini/investigation-orchestration';
+import { generateDossierModule, sendMessageToGemini } from '../../services/geminiService';
+import { Sender } from '../../types';
 
 describe('investigation-orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lookupClienteMock.mockResolvedValue({
+      ok: true,
+      query: 'SCHEFFER & CIA LTDA',
+      encontrado: true,
+      total: 1,
+      results: [
+        {
+          grupo: 'SCHEFFER & CIA LTDA',
+          razoes_sociais: ['SCHEFFER & CIA LTDA'],
+          linhas_produto: [],
+          familias_presentes: [],
+          modulos_por_familia: {},
+          gaps_crosssell: [],
+          total_modulos: 0,
+          eh_cliente_senior: false,
+          tem_gatec: false,
+          tem_erp: false,
+          tem_hcm: false,
+          tem_logistica: false,
+          matchType: 'exact',
+        },
+      ],
+    });
+    proxyChatSendMessageMock.mockResolvedValue({ text: 'Resposta consolidada.' });
     proxyGenerateContentMock.mockResolvedValue({
       text: 'Conclusão parcial.\n[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]',
     });
@@ -117,5 +203,25 @@ describe('investigation-orchestration', () => {
     );
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
+  });
+
+  it('não consulta Pinecone quando o dossiê segue pela trilha mega prompt', async () => {
+    await sendMessageToGemini(
+      'Dossiê completo de [SCHEFFER & CIA LTDA]. Contexto cadastral obrigatório: CNPJ 04.733.767/0001-80.',
+      [{ id: 'user-1', sender: Sender.User, text: 'Investigue Scheffer', timestamp: new Date() }],
+      'system',
+      {
+        onText: vi.fn(),
+        onStatus: vi.fn(),
+        hintedCompany: 'SCHEFFER & CIA LTDA',
+      },
+      true,
+    );
+
+    expect(buscarContextoPineconeMock).not.toHaveBeenCalled();
+    expect(buscarContextoDocsPineconeMock).not.toHaveBeenCalled();
+    expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
+    expect(proxyChatSendMessageMock.mock.calls[0][0].systemInstruction).not.toContain('[CONTEXTO RAG]');
+    expect(proxyChatSendMessageMock.mock.calls[0][0].systemInstruction).not.toContain('[DOCS RAG]');
   });
 });

@@ -18,7 +18,9 @@ export async function dismissMigrationNotice(page: Page) {
 
   if (await migrationDismiss.isVisible({ timeout: 3000 }).catch(() => false)) {
     await migrationDismiss.click({ force: true });
-    await expect(migrationDismiss).toBeHidden({ timeout: 5000 }).catch(() => undefined);
+    await expect(migrationDismiss)
+      .toBeHidden({ timeout: 5000 })
+      .catch(() => undefined);
   }
 }
 
@@ -30,12 +32,7 @@ interface CompleteOnboardingOptions {
 }
 
 export async function completeOnboarding(page: Page, options: CompleteOnboardingOptions = {}) {
-  const {
-    email = e2eOperatorEmail(),
-    expectInvestigationForm = true,
-    goto = true,
-    name = 'Test Bot Senior',
-  } = options;
+  const { email = e2eOperatorEmail(), expectInvestigationForm = true, goto = true, name = 'Test Bot Senior' } = options;
 
   if (goto) {
     await preventMigrationNotice(page);

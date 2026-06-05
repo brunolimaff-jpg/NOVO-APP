@@ -19,9 +19,7 @@ export function useSessionStorage() {
 
   const setSessions = useCallback<Dispatch<SetStateAction<ChatSession[]>>>(next => {
     const resolved =
-      typeof next === 'function'
-        ? (next as (prev: ChatSession[]) => ChatSession[])(sessionsRef.current)
-        : next;
+      typeof next === 'function' ? (next as (prev: ChatSession[]) => ChatSession[])(sessionsRef.current) : next;
 
     sessionsRef.current = resolved;
     setSessionsState(resolved);
@@ -71,7 +69,7 @@ export function useSessionStorage() {
         const parsed = JSON.parse(raw);
         const localSessions = parsed.map((s: Record<string, unknown>) => ({
           ...s,
-          messages: (((s.messages as Array<Record<string, unknown>>) || []) as unknown) as ChatSession['messages'],
+          messages: ((s.messages as Array<Record<string, unknown>>) || []) as unknown as ChatSession['messages'],
         })) as ChatSession[];
         return sanitizeLoadedSessions(localSessions);
       }

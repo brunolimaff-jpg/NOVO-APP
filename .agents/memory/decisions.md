@@ -1,3 +1,29 @@
+## 2026-06-05 — Dossiê não deve depender de Pinecone; War Room sim (APLICADO LOCALMENTE)
+
+Decision: remover `buscarContextoPinecone` e `buscarContextoDocsPinecone` apenas do fluxo do dossiê (`features/dossier/waterfall-orchestrator.ts` e `services/gemini/investigation-orchestration.ts`), mantendo War Room com RAG Pinecone. O health check passa a tratar RAG como check opcional do War Room; resultado vazio/degradado não conta mais como sucesso do fluxo principal.
+
+Reason: a investigação do incidente Scheffer mostrou duas trilhas separadas. A causa raiz do overlay preso está no handoff pós-`finally`/telemetria; já o Pinecone em produção apresenta warnings recorrentes de índice inválido e adiciona ruído ao dossiê sem ser necessário para fechar o relatório. Misturar a correção do overlay com uma dependência RAG instável manteria hipótese aberta desnecessariamente.
+
+Contract: dossiê deve operar com lookup/CNPJ/QSA, benchmark, concorrentes, PORTA, grounding e contexto acumulado dos módulos. War Room continua chamando `/api/rag` e `/api/docs-rag`. Validação local obrigatória: War Room ainda emite RAG; dossiê não emite mais `/api/rag`/`/api/docs-rag`.
+
+Refs: `docs/handoffs/2026-06-05-dossier-root-fix-force-flush-pinecone.md`, `features/dossier/waterfall-orchestrator.ts`, `services/gemini/investigation-orchestration.ts`, `components/SystemHealthCheck.tsx`.
+
+---
+
+## 2026-06-05 — PR #332: overlay preso pós-waterfall — timeout + force flush + pendingForceFlush (APLICADO)
+
+Decision: (1) LoadingSmart ganha timeout autolimpeza: 3min para loading normal, 5s extra se isLoading=false mas overlay ainda visível; (2) flushDiagnosticsNow no finally do processMessage usa force:true para bypassar mutex diagFlushing; (3) diagnosticLog ganha pendingForceFlush para serializar flushes concorrentes e garantir dreno pós-flush; (4) postWaterfallHandoff detecta isOverlayStuckPostWaterfall + telemetria overlay-persisted; (5) watchdog do ChatInterface emite telemetria.
+
+Reason: 5 hipóteses confirmadas via evidência Supabase + código: mutex diagFlushing sem force descartava PostCompletion (H-C2); desync store/DOM com isLoading=false mas overlay visível e domBodyLen=816 (H-U2); health-check capturava DOM antes do re-render (H-U3); watchdog cego exigia overlay ausente (H-U4); LoadingSmart sem timeout (H-O1). Smoke preview + prod confirmaram: PostCompletion=6 (sessões `147b7209`, `1c786d20`).
+
+**Validação prod (2026-06-05):** merge `83414a81`; Sentry 0 erros; sessão `1c786d20` PostCompletion=6.
+
+Refs: PR #332 (merged), `docs/handoffs/2026-06-05-pr332-merge-prod-validation.md`
+
+Refs: PR #332, `docs/investigation/2026-06-04-hero-stuck-findings.md`, `components/LoadingSmart.tsx`, `features/chat/message-orchestrator.ts`, `utils/diagnosticLog.ts`, `utils/postWaterfallHandoff.ts`, `components/ChatInterface.tsx`.
+
+---
+
 ## 2026-06-03 — PR #330: fallback estático proativo pós-waterfall (VALIDADO)
 
 Decision: (1) `expectedBotCharsMax` inclui chars de bot com `isThinking`; (2) ao fim do loading hero, se bot ≥ 4.000 chars, ativar timeline estática sem Virtuoso; (3) detector reativo de painel branco mantém primeiro delay 750ms; (4) E2E sem PII nos defaults.
@@ -8,7 +34,8 @@ Refs: PR #330, `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`, `utils/
 
 # Decisions
 
-Last updated: 2026-06-03 — freeze dossiê hero + PR #327
+Last updated: 2026-06-05 — dossiê sem Pinecone + force flush local
+
 ## 2026-06-03 — Freeze dossiê hero: suspender Virtuoso até fim do loading (APLICADO)
 
 Decision: durante investigação hero (`loadingVariant !== 'inline'`), não montar Virtuoso/SectionalBotMessage pesado; `completeLoadingProgress` não zera `loadingVariant` (só no `finally` com `setIsLoading(false)`); Interromper sem AbortController invalida `activeGenerationRef` e bloqueia persistência final do waterfall; SocietaryMap só matriz com cap 24 CNAE e gate `!isLoading`.
@@ -16,8 +43,6 @@ Decision: durante investigação hero (`loadingVariant !== 'inline'`), não mont
 Reason: preview mostrou `POST /api/gemini` pendente + `[Virtuoso] itemsRendered` + main thread bloqueada; cronômetro e Interromper sem efeito.
 
 Refs: `utils/loadingVariant.ts`, `App.tsx`, `waterfall-orchestrator.ts`, `message-orchestrator.ts`, PR fix/hero-loading-freeze-session.
-
-
 
 ## 2026-06-03 — Interromper pesquisa deve descartar sessao temporaria (APLICADO LOCALMENTE)
 

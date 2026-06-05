@@ -57,7 +57,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const [cnaeEnriching, setCnaeEnriching] = useState(false);
   const failedCnaeRef = useRef<Set<string>>(new Set());
   const cnaeMapRef = useRef(cnaeMap);
-  cnaeMapRef.current = cnaeMap;
+  useEffect(() => {
+    cnaeMapRef.current = cnaeMap;
+  }, [cnaeMap]);
   const [drillProgress, setDrillProgress] = useState<{ done: number; total: number } | null>(null);
   const traceIdRef = useRef(traceId || createScoutTraceId('teia'));
   const traceActive = traceEnabled ?? isScoutTraceEnabled('teia');
@@ -436,9 +438,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
 
     const companiesWithCnpj = graph.companies.filter(c => c.cnpj && isValidCnpj(c.cnpj));
     const uniqueCnpjs = [...new Set(companiesWithCnpj.map(c => c.cnpj!))].slice(0, MAX_CNAE_LOOKUPS);
-    const pending = uniqueCnpjs.filter(
-      cnpj => !cnaeMapRef.current[cnpj] && !failedCnaeRef.current.has(cnpj),
-    );
+    const pending = uniqueCnpjs.filter(cnpj => !cnaeMapRef.current[cnpj] && !failedCnaeRef.current.has(cnpj));
 
     if (pending.length === 0) return;
 

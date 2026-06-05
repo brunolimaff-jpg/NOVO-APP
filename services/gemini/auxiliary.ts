@@ -386,22 +386,82 @@ export async function generateContinuityQuestion(
       .map(entry => entry.item);
   };
 
+  const tryRepairTruncatedJsonArray = (raw: string): string | null => {
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith('[')) return null;
+
+    // Encontra a última string JSON completa (fecha com " não escapada)
+    let lastCompleteEnd = -1;
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < trimmed.length; i++) {
+      const ch = trimmed[i];
+      if (inString) {
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\') { escaped = true; continue; }
+        if (ch === '"') {
+          inString = false;
+          lastCompleteEnd = i;
+          continue;
+        }
+        continue;
+      }
+      if (ch === '"') { inString = true; continue; }
+      if (ch === ']') lastCompleteEnd = i;
+    }
+
+    if (lastCompleteEnd <= 0) return null;
+
+    // Reconstrói: pega até o último token completo, remove vírgula trailing, fecha array
+    let repaired = trimmed.slice(0, lastCompleteEnd + 1).trimEnd();
+    if (repaired.endsWith(',')) repaired = repaired.slice(0, -1).trimEnd();
+    if (!repaired.endsWith(']')) repaired += ']';
+
+    try {
+      JSON.parse(repaired); // valida que o reparo gerou JSON válido
+      return repaired;
+    } catch {
+      return null;
+    }
+  };
+
   const parseQuestionArray = (raw: string): string[] => {
     if (!raw?.trim()) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter((item): item is string => typeof item === 'string')
-        .map(item => normalizeQuestionCandidate(item))
-        .filter(item => isValidQuestionCandidate(item));
-    } catch (err) {
-      scoutDiag.warn('Auxiliary', 'Falha ao parsear array de perguntas', {
-        error: err instanceof Error ? err.message : String(err),
-        preview: raw?.slice(0, 100),
-      });
-      return [];
+    const tryParse = (text: string, stage: string): string[] | null => {
+      try {
+        const parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) return null;
+        return parsed
+          .filter((item): item is string => typeof item === 'string')
+          .map(item => normalizeQuestionCandidate(item))
+          .filter(item => isValidQuestionCandidate(item));
+      } catch (err) {
+        scoutDiag.warn('Auxiliary', 'Falha ao parsear array de perguntas', {
+          error: err instanceof Error ? err.message : String(err),
+          stage,
+          preview: raw?.slice(0, 100),
+        });
+        return null;
+      }
+    };
+
+    const direct = tryParse(raw, 'direct');
+    if (direct && direct.length > 0) return direct;
+
+    const repaired = tryRepairTruncatedJsonArray(raw);
+    if (repaired) {
+      const fromRepair = tryParse(repaired, 'repaired');
+      if (fromRepair && fromRepair.length > 0) {
+        scoutDiag.info('Auxiliary', 'JSON truncado reparado com sucesso', {
+          originalLen: raw.length,
+          repairedLen: repaired.length,
+          questionsRecovered: fromRepair.length,
+        });
+        return fromRepair;
+      }
     }
+
+    return [];
   };
 
   const extractBalancedJsonArrays = (raw: string): string[] => {

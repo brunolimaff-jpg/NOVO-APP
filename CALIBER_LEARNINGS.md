@@ -123,7 +123,6 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **loadingVariant zera no finally, não em completeLoadingProgress** [loading, freeze, hero, virtuoso]
   `completeLoadingProgress()` só finaliza etapas. `setLoadingVariant(undefined)` junto de `setIsLoading(false)` no `finally`. Overlay/timeline usam `isLoading && variant !== 'inline'` para cobrir janela com variant undefined.
 
-
 - **lookupCnpj é server-only — browser deve usar fetchCompanyByCnpj via /api/cnpj** [cnpj, cors, browser, proxy]
   `lib/cnpjLookup.ts:lookupCnpj` chama APIs externas (BrasilAPI, CNPJ.ws, MinhaReceita) diretamente — causa CORS garantido quando chamado do browser. Sintoma: console com "Access-Control-Allow-Origin", coluna CNAE vazia, "todas as fontes falharam". Solucao: no browser, sempre usar `fetchCompanyByCnpj` de `services/brasilApiService` que roteia via `/api/cnpj` (proxy Vercel). O `lookupCnpj` deve ser usado apenas em contexto server (API routes ou scripts Node). Adicionado comentario server-only em `lib/cnpjLookup.ts` e guardas no codigo.
 
@@ -136,14 +135,11 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **virtuosoOverscan 1400 agrava freeze quando dossie tem SocietaryMap** [performance, virtuoso, overscan, teia]
   `virtuosoOverscan=1400` para dossies longos causava re-montagem do SocietaryMap ao rolar, disparando novos lotes de QSA + CNAE. Fix: detectar mensagens com "teia societaria" e reduzir overscan para 600 nesses casos.
 
-
 - **Não fazer flushWaterfallPreview por módulo no waterfall** [performance, freeze, virtuoso]
   Re-render da sessão inteira a cada módulo (>200 chars) montava Virtuoso durante hero loading. Remover flush por módulo; consolidar no final.
 
 - **Stop sem AbortController deve invalidar activeGenerationRef** [abort, stop, waterfall]
   `handleStopGeneration` limpa UI e delete `activeGenerationRef[sessionId]`; waterfall checa antes de `updateSessionById` final.
-
-
 
 - **expectedBotCharsMax deve incluir texto em isThinking** [blank-panel, virtuoso, telemetria]
   `computeExpectedBotContent` ignorava preview do bot com `isThinking:true`. Timers e fallback proativo subestimavam o dossiê em formação. Incluir `isThinking` na contagem de chars.
@@ -168,7 +164,6 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 - **E2E sem PII real nos defaults** [e2e, seguranca, playwright]
   Defaults `E2E Operator` / `e2e.operator@example.com`; identidade real só via env em smoke local.
-
 
 <!-- caliber:managed:learnings -->
 

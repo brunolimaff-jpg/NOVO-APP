@@ -972,6 +972,4 @@ describe('ChatInterface shell regression', () => {
       vi.useRealTimers();
     }
   });
-
-
 });

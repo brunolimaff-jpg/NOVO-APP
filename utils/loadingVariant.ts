@@ -31,9 +31,16 @@ export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): Re
   return hasCompletedBotResponse ? 'deep_dive' : 'default';
 }
 
-/** Hero overlay: permanece até `isLoading` false; inline é a única exceção. */
-export function shouldShowHeroLoadingOverlay(isLoading: boolean, loadingVariant: LoadingVariant | undefined): boolean {
+/** Hero overlay: permanece até `isLoading` false; inline é a única exceção.
+ *  Invariante: se já existe conteúdo de bot renderizado (hasRenderableBotMessage),
+ *  o overlay NUNCA deve bloquear — mesmo que isLoading ainda esteja true. */
+export function shouldShowHeroLoadingOverlay(
+  isLoading: boolean,
+  loadingVariant: LoadingVariant | undefined,
+  hasRenderableBotMessage = false,
+): boolean {
   if (!isLoading) return false;
+  if (hasRenderableBotMessage) return false;
   return loadingVariant !== 'inline';
 }
 

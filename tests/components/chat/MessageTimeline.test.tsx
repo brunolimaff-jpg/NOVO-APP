@@ -365,10 +365,7 @@ describe('MessageTimeline', () => {
     expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
 
-    const extendedMessages = [
-      ...initialMessages,
-      buildMessage('m3', Sender.User, 'Follow-up'),
-    ];
+    const extendedMessages = [...initialMessages, buildMessage('m3', Sender.User, 'Follow-up')];
 
     rerender(
       <MessageTimeline
@@ -389,4 +386,3 @@ describe('MessageTimeline', () => {
     vi.useRealTimers();
   });
 });
-

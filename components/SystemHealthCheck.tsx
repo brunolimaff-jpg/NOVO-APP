@@ -10,6 +10,7 @@ interface TestResult {
   status: 'pending' | 'running' | 'success' | 'error';
   message?: string;
   duration?: number;
+  optional?: boolean;
 }
 
 interface SystemHealthCheckProps {
@@ -37,8 +38,8 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
 
     const tests: TestResult[] = [
       { name: '🤖 Gemini API', status: 'pending' },
-      { name: '🧠 RAG - Base Interna', status: 'pending' },
-      { name: '📚 RAG - Documentação', status: 'pending' },
+      { name: '🧠 War Room - Base Interna (opcional)', status: 'pending', optional: true },
+      { name: '📚 War Room - Documentação (opcional)', status: 'pending', optional: true },
       { name: '🔍 Lookup de Clientes', status: 'pending' },
       { name: '☁️ Backend Cloud', status: 'pending' },
       { name: '💾 LocalStorage', status: 'pending' },
@@ -73,41 +74,53 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
       });
     }
 
-    // Teste 2: RAG Base Interna
+    // Teste 2: War Room / RAG Base Interna (opcional)
     try {
-      updateTest('🧠 RAG - Base Interna', { status: 'running' });
+      updateTest('🧠 War Room - Base Interna (opcional)', { status: 'running' });
       const start = Date.now();
       const resultado = await buscarContextoPinecone('teste senior');
       const duration = Date.now() - start;
 
-      updateTest('🧠 RAG - Base Interna', {
-        status: 'success',
-        message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
-        duration,
-      });
+      if (resultado && resultado.context?.trim().length > 0) {
+        updateTest('🧠 War Room - Base Interna (opcional)', {
+          status: 'success',
+          message: `Online (${duration}ms)`,
+          duration,
+        });
+      } else {
+        updateTest('🧠 War Room - Base Interna (opcional)', {
+          status: 'error',
+          message: `Vazio (${duration}ms)`,
+        });
+      }
     } catch (error: unknown) {
-      hasError = true;
-      updateTest('🧠 RAG - Base Interna', {
+      updateTest('🧠 War Room - Base Interna (opcional)', {
         status: 'error',
         message: getErrorMessage(error, 'Falha no RAG'),
       });
     }
 
-    // Teste 3: RAG Documentação
+    // Teste 3: War Room / RAG Documentação (opcional)
     try {
-      updateTest('📚 RAG - Documentação', { status: 'running' });
+      updateTest('📚 War Room - Documentação (opcional)', { status: 'running' });
       const start = Date.now();
       const resultado = await buscarContextoDocsPinecone('ERP');
       const duration = Date.now() - start;
 
-      updateTest('📚 RAG - Documentação', {
-        status: 'success',
-        message: `${resultado.context.length > 0 ? 'Online' : 'Vazio'} (${duration}ms)`,
-        duration,
-      });
+      if (resultado && resultado.context?.trim().length > 0) {
+        updateTest('📚 War Room - Documentação (opcional)', {
+          status: 'success',
+          message: `Online (${duration}ms)`,
+          duration,
+        });
+      } else {
+        updateTest('📚 War Room - Documentação (opcional)', {
+          status: 'error',
+          message: `Vazio (${duration}ms)`,
+        });
+      }
     } catch (error: unknown) {
-      hasError = true;
-      updateTest('📚 RAG - Documentação', {
+      updateTest('📚 War Room - Documentação (opcional)', {
         status: 'error',
         message: getErrorMessage(error, 'Falha no RAG Docs'),
       });
@@ -246,8 +259,10 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
     }
   };
 
-  const successCount = results.filter(r => r.status === 'success').length;
-  const totalTests = results.length;
+  const criticalResults = results.filter(result => !result.optional);
+  const successCount = criticalResults.filter(result => result.status === 'success').length;
+  const totalTests = criticalResults.length;
+  const optionalIssuesCount = results.filter(result => result.optional && result.status === 'error').length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -322,8 +337,13 @@ const SystemHealthCheck: React.FC<SystemHealthCheckProps> = ({ isDarkMode, onClo
                             : 'text-red-600 dark:text-red-500'
                         }`}
                       >
-                        {successCount}/{totalTests} testes passaram
+                        {successCount}/{totalTests} checks críticos passaram
                       </p>
+                      {optionalIssuesCount > 0 && (
+                        <p className="text-xs mt-1 text-amber-600 dark:text-amber-400">
+                          {optionalIssuesCount} check opcional do War Room está degradado
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <div

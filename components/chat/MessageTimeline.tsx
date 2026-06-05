@@ -108,7 +108,14 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const curr = safeMessages.length;
     prevTimelineLenRef.current = curr;
 
-    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !forceStaticTimelineFallback && !isLoading) {
+    if (
+      prev > 0 &&
+      curr === 0 &&
+      !showInitialHome &&
+      !shouldSuspendVirtualizedList &&
+      !forceStaticTimelineFallback &&
+      !isLoading
+    ) {
       console.error(
         '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
         JSON.stringify({
@@ -138,10 +145,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   // - Long dossiers without teia use 1400 to prevent Mermaid remounts.
   const virtuosoOverscan = useMemo(() => {
     const hasTeia = safeMessages.some(
-      m =>
-        m.sender === Sender.Bot &&
-        typeof m.text === 'string' &&
-        /teia\s+societ[aá]ria/i.test(m.text),
+      m => m.sender === Sender.Bot && typeof m.text === 'string' && /teia\s+societ[aá]ria/i.test(m.text),
     );
     if (hasTeia) return 600;
     const hasDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000);
