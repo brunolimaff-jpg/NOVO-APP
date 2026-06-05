@@ -148,7 +148,12 @@ function scheduleFlush(reason: string): void {
 }
 
 async function flushToServer(_reason: string, force = false): Promise<void> {
-  if (diagFlushing && !force) return;
+  if (diagFlushing) {
+    if (!force) return;
+    // force=true: não inicia flush concorrente — o finally do flush em
+    // andamento já agenda drain (linha ~188) se houver eventos no buffer.
+    return;
+  }
   const buffer = getBuffer();
   if (buffer.length === 0) return;
 
