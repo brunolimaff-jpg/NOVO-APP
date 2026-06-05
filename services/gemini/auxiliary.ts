@@ -436,7 +436,8 @@ export async function generateContinuityQuestion(
           .map(item => normalizeQuestionCandidate(item))
           .filter(item => isValidQuestionCandidate(item));
       } catch (err) {
-        scoutDiag.warn('Auxiliary', 'Falha ao parsear array de perguntas', {
+        // debug: falha de parse em um estágio é esperada — repair/free_text/fallback cobrem
+        scoutDiag.debug('Auxiliary', 'Falha ao parsear array de perguntas', {
           error: err instanceof Error ? err.message : String(err),
           stage,
           preview: raw?.slice(0, 100),
