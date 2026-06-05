@@ -89,6 +89,7 @@ export const LoadingOverlayHeader: React.FC<LoadingOverlayHeaderProps> = React.m
             <button
               type="button"
               onClick={onRequestStop}
+              data-testid="loading-stop-button"
               className="bg-red-500/10 hover:bg-red-500 border border-red-500/30 text-red-500 hover:text-white px-3 md:px-4 py-1.5 rounded-full transition-all text-xs font-bold"
             >
               Interromper

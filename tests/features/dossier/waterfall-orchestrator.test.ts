@@ -404,7 +404,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[5], 7);
     expect(harness.advanceLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[6], 7);
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_CONSOLIDATION_STAGE, 7);
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
     expect(finalSession.scoreOportunidade).toBe(74);
     expect(finalBotMessage.isThinking).toBe(false);
     expect(finalBotMessage.scorePorta).toEqual(score);
@@ -789,7 +789,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.text).toContain('Nota operacional');
     expect(finalBotMessage.text).toContain('Bordas de Controle');
     expect(finalBotMessage.scorePorta?.score).toBe(68);
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
   });
 
   it('preserva a continuidade quando o benchmark falha como etapa opcional', async () => {
@@ -825,7 +825,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.text).toContain('Nota operacional');
     expect(finalBotMessage.text).toContain('Benchmark de mercado');
     expect(getSession(harness).scoreOportunidade).toBe(65);
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
   });
 
   it('mantém scoreOportunidade intacto quando a integridade PORTA entra em hold', async () => {
@@ -848,7 +848,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(ensureWaterfallScorePortaMock).not.toHaveBeenCalled();
     expect(finalSession.scoreOportunidade).toBe(41);
     expect(finalBotMessage.scorePorta).toBeUndefined();
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
   });
 
   it('propaga abort como erro terminal sem concluir o loading', async () => {
@@ -1065,7 +1065,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('FALLBACK TAMBEM VAZIO'), expect.any(String));
 
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
     maybeChatStoreRef.current = undefined;

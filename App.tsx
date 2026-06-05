@@ -138,25 +138,30 @@ const App: React.FC = () => {
     return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
   }, [isLoading, loadingVariant, allMessages]);
 
-  // Log render-decision: todos os fatores que decidem mostrar/esconder o overlay.
-  // Movido para useEffect — useMemo deve ser puro (sem side effects).
+  // Log render-decision: captura AMBOS os casos (show/hide) para diagnóstico.
   useEffect(() => {
-    if (!showFullscreenLoadingSmart) return;
     const botMsgCount = allMessages.filter(m => m.sender === Sender.Bot).length;
     const botWithText = allMessages.filter(
       m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()),
     );
+    const maxLen = botWithText.reduce((max, m) => Math.max(max, String(m.text || '').length), 0);
+    const WATERFALL_PREVIEW_MIN_CHARS = 200;
+    const hasRenderable = allMessages.some(
+      m =>
+        m.sender === Sender.Bot &&
+        !m.isError &&
+        Boolean(String(m.text || '').trim()) &&
+        (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
+    );
     scoutDiag.info('App', 'overlay:render-decision', {
-      decision: 'show',
+      decision: showFullscreenLoadingSmart ? 'show' : 'hide',
       isLoading,
       loadingVariant,
+      hasRenderableBotMessage: hasRenderable,
       allMessagesCount: allMessages.length,
       botMsgCount,
       botWithTextCount: botWithText.length,
-      maxBotTextLen: botWithText.reduce(
-        (max, m) => Math.max(max, String(m.text || '').length),
-        0,
-      ),
+      maxBotTextLen: maxLen,
     });
   }, [showFullscreenLoadingSmart, isLoading, loadingVariant, allMessages]);
 

@@ -1,24 +1,25 @@
 # Active Context
 
-Last updated: 2026-06-03 — PR #331 MERGED em `main`
-
-## Boot
-
-`docs/ai-context/refactor/loading-panel-contract.md`
+Last updated: 2026-06-05 — Bug P0 resolvido. PR #342 aberta (finalizeWaterfallUI).
 
 ## Estado
 
-- **PR #331** mergeada (`eab12e20`): handoff estático síncrono pós-waterfall, P0 watchdog, refs PostCompletion, telemetria stuck-viewport-*.
-- **Validação Bruno (preview):** pós-overlay OK (PORTA, mapa societário, dossiê visível). Travada só durante loading em Bordas de Controle (~53s) — backlog separado.
-- **PR #330** já em `main` (`d4849aa7`).
+- **PRs #333, #334, #335** mergeadas em `main`: overlay hero preso em producao corrigido
+- **PR #342** aberta (branch `codex/finalize-waterfall-ui`): finalizeWaterfallUI refatorada com DOM safety net, TreeWalker removido, abortControllerRef nao nullificado, logs AbortError/ContinuityQuestion como debug
+- Root Cause 3 camadas identificada: SW CacheFirst → gap waterfall/setIsLoading → abortControllerRef nullificado pelo finalizeWaterfallUI
 
-## Próximo passo
+## Root Cause camada 3 (nova)
 
-1. Smoke produção Scheffer após deploy Vercel de `main`.
-2. PR separada: loading hero (Bordas/Compliance + `gemini` pendente) e/ou SocietaryMap performance.
-3. WIP local fora do merge: `LoadingSmart`, `SocietaryMap`, `waterfall-orchestrator` (não commitados).
+FinalizeWaterfallUI nullificava `abortControllerRef`, o que fazia `isAbort=true` no `processMessage:finally` → `flushDiagnosticsNow` nunca era chamado. FIX: removida nullificacao do finalizeWaterfallUI. `abortControllerRef` so deve ser nullificado no proprio `processMessage:finally`.
+
+## Proximo passo
+
+1. Code review e merge da PR #342
+2. Smoke producao no fluxo Scheffer
+3. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`
+4. Remover kill-switch sw.js apos 1-2 releases
 
 ## Ponteiros
 
-- PR #331: https://github.com/brunolimaff-jpg/NOVO-APP/pull/331 (MERGED)
-- Handoff #330: `docs/handoffs/2026-06-03-pr330-scheffer-blank-panel.md`
+- PR #342: https://github.com/brunolimaff-jpg/NOVO-APP/pull/342 (ABERTA)
+- Branch: `codex/finalize-waterfall-ui`

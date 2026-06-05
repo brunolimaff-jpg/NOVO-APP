@@ -384,15 +384,36 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   useEffect(() => {
     if (!forceStaticTimelineFallback) return;
 
+    const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
+    const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
+    const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) > 4000;
+
     scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
       sessionId: currentSession?.id ?? null,
       totalItems: safeMessages.length,
-      hasBotMessage: safeMessages.some(message => message.sender === Sender.Bot),
+      hasBotMessage,
+      botTextLen: botMsg?.text?.length ?? 0,
+      hasLargeBot,
     });
+
+    // LayoutTrace: para dossiê grande, verificar se container tem dimensões válidas
+    if (hasLargeBot) {
+      requestAnimationFrame(() => {
+        import('../../utils/layoutTraceTelemetry')
+          .then(({ traceLayout }) => {
+            traceLayout(scoutDiag.info.bind(scoutDiag), 'static-fallback-mount', {
+              sessionId: currentSession?.id ?? null,
+              totalItems: safeMessages.length,
+              botTextLen: botMsg?.text?.length ?? 0,
+            });
+          })
+          .catch(() => {}); // falha silenciosa em testes
+      });
+    }
   }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
 
   return (
-    <div className="flex-1 min-h-0 relative">
+    <div className="flex flex-col flex-1 min-h-0 relative">
       {showOperatorGate ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
           <GreetingWelcomeScreen isDarkMode={isDarkMode} onConfirmOperator={onConfirmOperatorName} />
@@ -412,7 +433,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : shouldSuspendVirtualizedList ? (
         <div
-          className="h-full min-h-0 w-full flex items-center justify-center"
+          className="flex-1 min-h-0 w-full flex items-center justify-center"
           data-testid="messages-viewport-suspended"
         >
           <div className="flex flex-col items-center gap-3">
@@ -426,7 +447,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : forceStaticTimelineFallback ? (
         <div
-          className="h-full min-h-0 w-full overflow-y-auto custom-scrollbar"
+          className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
           data-testid="messages-static-fallback"
           data-scout-virtuoso="static-fallback"
         >
@@ -446,7 +467,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           ))}
         </div>
       ) : (
-        <div ref={messagesViewportRef} className="h-full min-h-0 w-full" data-scout-virtuoso="timeline">
+        <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">
           {isMessagesViewportReady ? (
             <Virtuoso
               ref={virtuosoRef}

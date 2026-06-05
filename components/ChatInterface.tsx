@@ -407,7 +407,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           })
         : null;
 
-    scoutDiag.info('ChatInterface', 'panel:snapshot', {
+    const snapshotPayload = {
       sessionId: currentSession?.id ?? null,
       panelState,
       hasActiveSession,
@@ -429,7 +429,22 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         forceStaticTimelineFallback,
         expectedBotCharsMax,
       }),
-    });
+    };
+
+    scoutDiag.info('ChatInterface', 'panel:snapshot', snapshotPayload);
+
+    // LayoutTrace: quando static fallback ativo com dossiê grande, rastrear layout
+    if (effectiveStaticTimelineFallback && expectedBotCharsMax > 4000) {
+      requestAnimationFrame(() => {
+        import('../utils/layoutTraceTelemetry')
+          .then(({ traceLayout }) => {
+            traceLayout(scoutDiag.info.bind(scoutDiag), 'chat-interface-static-fallback', {
+              ...snapshotPayload,
+            });
+          })
+          .catch(() => {}); // falha silenciosa em testes
+      });
+    }
   }, [
     currentSession?.id,
     expectedBotCharsMax,

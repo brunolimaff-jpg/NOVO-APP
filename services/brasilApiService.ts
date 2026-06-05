@@ -144,11 +144,22 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
     };
   } catch (error) {
     timer.fail(error);
-    scoutDiag.error('CnpjLookup', 'falha no lookup de CNPJ', {
-      cnpj,
-      endpoint,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    const isAbort = error instanceof Error && error.name === 'AbortError';
+    if (isAbort) {
+      // AbortError é esperado: ocorre quando o componente desmonta ou
+      // re-renderiza durante enriquecimento CNAE (SocietaryMap.tsx).
+      // Não é erro — o lookup foi cancelado intencionalmente.
+      scoutDiag.debug('CnpjLookup', 'lookup cancelado (AbortError)', {
+        cnpj,
+        endpoint,
+      });
+    } else {
+      scoutDiag.error('CnpjLookup', 'falha no lookup de CNPJ', {
+        cnpj,
+        endpoint,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
     throw error;
   }
 }
