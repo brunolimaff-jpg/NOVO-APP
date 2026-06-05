@@ -7,7 +7,6 @@ vi.mock('../../../services/brasilApiService', () => ({
   fetchCompanyByCnpj: fetchCompanyByCnpjMock,
 }));
 
-
 import SocietaryMap from '../../../features/dossier/SocietaryMap';
 
 describe('SocietaryMap', () => {
@@ -197,9 +196,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Fonte societaria');
 
     fireEvent.click(screen.getByRole('button', { name: 'Luciano' }));
-    await waitFor(() =>
-      expect(screen.queryByText('Scheffer Colombia S.A.S.')).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText('Scheffer Colombia S.A.S.')).not.toBeInTheDocument());
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
   });
 
@@ -591,9 +588,7 @@ describe('SocietaryMap', () => {
     expect(screen.getByTestId('societary-evidence-list')).not.toHaveTextContent('Escopo: Empresa do grupo');
 
     fireEvent.click(screen.getByRole('button', { name: 'Gislayne' }));
-    await waitFor(() =>
-      expect(screen.queryByText(/Agropecu[aá]ria Norte LTDA/)).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.queryByText(/Agropecu[aá]ria Norte LTDA/)).not.toBeInTheDocument());
     expect(screen.getByText('Associacao Scheffer de Lazer')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Escopo: Sócio admin');
@@ -804,9 +799,7 @@ describe('SocietaryMap', () => {
         companyName: 'Scheffer & Cia Ltda',
         city: 'Sapezal',
         state: 'MT',
-        qsa: [
-          { name: 'Guilherme M. Scheffer', role: 'Administrador', source: 'BrasilAPI', confidence: 'official' },
-        ],
+        qsa: [{ name: 'Guilherme M. Scheffer', role: 'Administrador', source: 'BrasilAPI', confidence: 'official' }],
       })
       // CNAE enrichment for partner company
       .mockResolvedValue({
@@ -842,17 +835,15 @@ describe('SocietaryMap', () => {
     render(<SocietaryMap cnpj="04733767000180" empresaAlvo="Scheffer & Cia" isDarkMode={false} />);
 
     // Wait for table to render (default view)
-    await waitFor(() =>
-      expect(screen.getByTestId('societary-summary-metrics')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('societary-summary-metrics')).toBeInTheDocument());
 
     // fetchCompanyByCnpj must have been called for CNAE enrichment
     await waitFor(() => expect(fetchCompanyByCnpjMock).toHaveBeenCalled());
 
     // Ensure fetch() was NOT called with brasilapi.com.br directly (CORS violation)
-    const directBrasilApiCalls = vi.mocked(fetch).mock.calls.filter(
-      ([url]) => typeof url === 'string' && url.includes('brasilapi.com.br'),
-    );
+    const directBrasilApiCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => typeof url === 'string' && url.includes('brasilapi.com.br'));
     expect(directBrasilApiCalls).toHaveLength(0);
   });
 });

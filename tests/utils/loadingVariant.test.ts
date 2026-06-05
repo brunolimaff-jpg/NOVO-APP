@@ -84,7 +84,6 @@ describe('shouldShowHeroLoadingOverlay', () => {
     expect(shouldShowHeroLoadingOverlay(true, undefined)).toBe(true);
   });
 
-
   it('mantém overlay mesmo com preview parcial do waterfall (>200 chars)', () => {
     // Regressão PR #301: gate antigo escondia hero ao flushWaterfallPreview.
     expect(shouldShowHeroLoadingOverlay(true, 'hero')).toBe(true);
@@ -111,5 +110,4 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     expect(shouldSuspendHeroMessageTimeline(true, 'hero', false)).toBe(true);
     expect(shouldSuspendHeroMessageTimeline(true, undefined, true)).toBe(false);
   });
-
 });

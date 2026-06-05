@@ -255,9 +255,7 @@ function makeHarness(
     }
     let updatedSession: ChatSession | null = null;
     state.sessions = state.sessions.map(session =>
-      session.id === sessionId
-        ? (updatedSession = { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP })
-        : session,
+      session.id === sessionId ? (updatedSession = { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP }) : session,
     );
     return updatedSession;
   });
@@ -532,7 +530,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     ]);
   });
 
-  it('executa módulo 1b quando o gateway do 1a retorna MEDIA e passa contexto RAG/Docs/PORTA', async () => {
+  it('executa módulo 1b quando o gateway do 1a retorna MEDIA e monta contexto sem Pinecone', async () => {
     buscarContextoPineconeMock.mockResolvedValue({
       context: 'RAG holding socios QSA Grupo Acme',
       failed: false,
@@ -576,9 +574,10 @@ describe('useDossierWaterfallOrchestrator', () => {
     ]);
     const identityExtraContext = generateDossierModuleMock.mock.calls[0][4] as string;
     const deepExtraContext = generateDossierModuleMock.mock.calls[1][4] as string;
-    expect(identityExtraContext).toContain('[CONTEXTO RAG]');
-    expect(identityExtraContext).toContain('RAG holding socios QSA Grupo Acme');
-    expect(identityExtraContext).toContain('[DOCS RAG]');
+    expect(buscarContextoPineconeMock).not.toHaveBeenCalled();
+    expect(buscarContextoDocsPineconeMock).not.toHaveBeenCalled();
+    expect(identityExtraContext).not.toContain('[CONTEXTO RAG]');
+    expect(identityExtraContext).not.toContain('[DOCS RAG]');
     expect(identityExtraContext).toContain('[CONCORRENTES]');
     expect(identityExtraContext).toContain('[PORTA STATE]');
     expect(identityExtraContext).toContain('[QSA OFICIAL]');

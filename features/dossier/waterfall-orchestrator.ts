@@ -22,7 +22,6 @@ import {
   joinDossierExtraContext,
 } from '../../services/gemini/foundation-cache';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
-import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../../services/ragService';
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
@@ -139,7 +138,6 @@ async function buildTeiaResearchContext(params: {
 }): Promise<TeiaResearchContext> {
   const { company, sessionCnpjDigits, signal } = params;
   const blocks: string[] = [];
-  const query = `holding socios QSA grupo economico ${company}`.trim();
   let qsaCount = 0;
   let hasHolding = false;
   let stateHint = '';
@@ -178,26 +176,6 @@ async function buildTeiaResearchContext(params: {
       });
     }
   }
-
-  const [ragContext, docsContext] = await Promise.all([
-    buscarContextoPinecone(query, company).catch(error => {
-      scoutDiag.warn('TeiaSocietaria', 'RAG da teia falhou', {
-        company,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { context: '', failed: true };
-    }),
-    buscarContextoDocsPinecone(query).catch(error => {
-      scoutDiag.warn('TeiaSocietaria', 'Docs RAG da teia falhou', {
-        company,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { context: '', failed: true };
-    }),
-  ]);
-
-  if (ragContext.context) blocks.push(`[CONTEXTO RAG]\n${ragContext.context}`);
-  if (docsContext.context) blocks.push(`[DOCS RAG]\n${docsContext.context}`);
 
   try {
     const concorrentesContext = getContextoConcorrentesRegionais(stateHint || company);
@@ -1013,8 +991,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
         assertNotAborted();
 
-        const generationStillActive =
-          !activeGenerationRef || activeGenerationRef.current[sessionId] === botMessageId;
+        const generationStillActive = !activeGenerationRef || activeGenerationRef.current[sessionId] === botMessageId;
         if (!generationStillActive) {
           scoutDiag.warn('WaterfallLifecycle', 'generation-stopped-before-persist', {
             sessionId,

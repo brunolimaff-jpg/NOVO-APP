@@ -21,16 +21,16 @@ Regressão após #329: waterfall completa (~2 min), telemetria mostra bot com ~3
 **Sessão:** `eac8d331-dc3c-4f79-b438-31afe1130e94`  
 **Preview:** `scoutagro-git-fix-blank-panel-61a9e6-…vercel.app`
 
-| UTC | Área | Evento |
-|-----|------|--------|
-| 20:04:13 | GeminiProxy | HTTP 500 `/api/gemini` |
-| 20:04:18 | ModularDossier | Bordas de Controle falhou (opcional, 500) |
-| 20:04:58 | ModularDossier | PORTA dim **T** ausente → retry |
-| 20:05:25 | WaterfallLifecycle | `completed`, texto ~29.590 chars |
-| 20:05:25 | health-check-final | `domHasLoadingOverlay: true` + bot OK |
-| 20:05:27 | ChatInterface | `proactive-static-fallback-large-dossier` |
-| 20:05:27 | Virtuoso | mount 0×0 → static-fallback → unmount |
-| 20:05:27+ | CnpjLookup | abort `signal is aborted without reason` (sócios) |
+| UTC       | Área               | Evento                                            |
+| --------- | ------------------ | ------------------------------------------------- |
+| 20:04:13  | GeminiProxy        | HTTP 500 `/api/gemini`                            |
+| 20:04:18  | ModularDossier     | Bordas de Controle falhou (opcional, 500)         |
+| 20:04:58  | ModularDossier     | PORTA dim **T** ausente → retry                   |
+| 20:05:25  | WaterfallLifecycle | `completed`, texto ~29.590 chars                  |
+| 20:05:25  | health-check-final | `domHasLoadingOverlay: true` + bot OK             |
+| 20:05:27  | ChatInterface      | `proactive-static-fallback-large-dossier`         |
+| 20:05:27  | Virtuoso           | mount 0×0 → static-fallback → unmount             |
+| 20:05:27+ | CnpjLookup         | abort `signal is aborted without reason` (sócios) |
 
 7d: **sem** `blank-panel-detected`.
 

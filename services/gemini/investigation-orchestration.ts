@@ -20,7 +20,6 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
 import { buildSocioRuralInstructionContext } from '../../utils/socioRuralResearch';
 import { deriveVerificationStatusFromSources } from '../../utils/webVerification';
-import { buscarContextoDocsPinecone, buscarContextoPinecone } from '../ragService';
 import {
   addFeedAdjustment,
   addFlagFeed,
@@ -72,12 +71,10 @@ A mensagem atual e uma pergunta dentro de uma investigacao ja aberta.
 function buildExtraContext(params: {
   clienteData: LookupResponse | null;
   comexData: unknown;
-  ragContext: string;
-  ragDocsContext: string;
   concorrentesContext: string;
   portaContext: string;
 }): string {
-  const { clienteData, comexData, ragContext, ragDocsContext, concorrentesContext, portaContext } = params;
+  const { clienteData, comexData, concorrentesContext, portaContext } = params;
   const clienteFormatado = clienteData ? formatarParaPrompt(clienteData) : '';
   const comexFormatado = (comexData as { isExportador?: boolean } | null)?.isExportador
     ? formatarComexParaPrompt(comexData as never)
@@ -86,8 +83,6 @@ function buildExtraContext(params: {
   return [
     clienteFormatado,
     comexFormatado,
-    ragContext ? `\n[CONTEXTO RAG]\n${ragContext}` : '',
-    ragDocsContext ? `\n[DOCS RAG]\n${ragDocsContext}` : '',
     concorrentesContext ? `\n[CONCORRENTES]\n${concorrentesContext}` : '',
     portaContext ? `\n[PORTA STATE]\n${portaContext}` : '',
   ]
@@ -169,7 +164,6 @@ export async function sendMessageToGemini(
     onStatus,
     onScorePorta,
     onCompetitor,
-    onRagFailed,
     nomeVendedor = 'Vendedor',
     sessionId,
     hintedCompany = null,
@@ -213,9 +207,6 @@ export async function sendMessageToGemini(
   let comexData: unknown = null;
   emitDossieStatus(onStatus, 'context');
   emitDossieStatus(onStatus, 'enrichment');
-
-  let ragContext = '';
-  let ragDocsContext = '';
 
   const portaSessionId = sessionId || 'session-unknown';
   const isMegaPromptMessage = isMegaPromptRequest(userMessage, systemPrompt);
@@ -318,23 +309,6 @@ export async function sendMessageToGemini(
     }
   }
 
-  if (isMegaPromptMessage || isDeepDive) {
-    emitDossieStatus(onStatus, 'rag');
-    try {
-      const [pinecone, docs] = await Promise.all([
-        withAbortSignal(buscarContextoPinecone(userMessage, empresaAlvo || ''), signal),
-        withAbortSignal(buscarContextoDocsPinecone(userMessage), signal),
-      ]);
-      ragContext = pinecone.context;
-      ragDocsContext = docs.context;
-      if (pinecone.failed || docs.failed) onRagFailed?.();
-    } catch (error: unknown) {
-      scoutDiag.error('RAG', 'exceção ao buscar contexto Pinecone/docs', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
   let concorrentesContext = '';
   if (isMegaPromptMessage) {
     emitDossieStatus(onStatus, 'concorrentes');
@@ -364,8 +338,6 @@ export async function sendMessageToGemini(
   const extraContext = buildExtraContext({
     clienteData,
     comexData,
-    ragContext,
-    ragDocsContext,
     concorrentesContext,
     portaContext,
   });

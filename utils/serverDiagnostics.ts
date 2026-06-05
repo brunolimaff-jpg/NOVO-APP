@@ -118,11 +118,7 @@ function sanitizePayload(obj: unknown, depth: number = 0): unknown {
     for (const key of keys) {
       const lower = key.toLowerCase();
       const value = (obj as Record<string, unknown>)[key];
-      if (
-        isSensitivePayloadKey(lower) &&
-        !isSafeTelemetryMetric(lower, value) &&
-        !isSafeTelemetryLabel(lower, value)
-      ) {
+      if (isSensitivePayloadKey(lower) && !isSafeTelemetryMetric(lower, value) && !isSafeTelemetryLabel(lower, value)) {
         continue;
       }
       result[key] = sanitizePayload(value, depth + 1);

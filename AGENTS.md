@@ -65,6 +65,25 @@ npm run lint
 - Do not revert unrelated local changes.
 - **Merge guard**: NEVER run `gh pr merge` or any PR merge/squash/auto-merge unless the user's message contains the word **MERGE** (case-insensitive). Push branch and open/edit PR are allowed without it. When uncertain, ask: "Confirma com MERGE se quiser mergear."
 
+## Learned User Preferences
+
+- Comunicação com o Bruno em pt-BR (chat, PRs e handoff).
+- Investigar causa raiz com evidência (código + telemetria ordenada) antes de corrigir; evitar planos só com hipóteses soltas, mitigação de sintoma sem contrato, ou watchdog sem fechar a cadeia causal.
+- Cruzar relato com Supabase (`operator_events`, `scout_diagnostics`, `user_context`) e, em regressões de loading/overlay em produção, também Sentry e logs Vercel; não fechar diagnóstico só com snapshot instantâneo de health-check.
+- Entregas grandes: implementar em fases, validar por fase (`validator`), e fechar com handoff listando pendências para análise posterior.
+- Subagentes no modelo da sessão (Composer); não sugerir troca de modelo no chat.
+- PR focada: não misturar WIP local amplo (checkpoint em branch) com escopo da PR; tratar WIP em branch/PR separada e validar merge pelo diff líquido contra `main`.
+
+## Learned Workspace Facts
+
+- Travamento, painel branco ou spinner pós-waterfall em produção: priorizar `scout_diagnostics` e `operator_events`; Sentry costuma não capturar freeze de main thread nesse fluxo.
+- LoadingSmart pós-waterfall: `health-check` no flush imediato pode registrar `overlay=true` com `domBodyLen` baixo (H-U3); critério de recuperação do overlay é evento `PostCompletion` em `scout_diagnostics`, não só o health-check.
+- CNPJ no browser: `fetchCompanyByCnpj` via `/api/cnpj`; não usar `lib/cnpjLookup` com fetch direto à BrasilAPI no cliente (CORS no preview/prod Vercel).
+- Contrato de loading/timeline/blank panel: `docs/ai-context/refactor/loading-panel-contract.md` (preview durante waterfall, static handoff, telemetria PostCompletion).
+- Preview Vercel é gate obrigatório para regressões de UX, rede e performance; testes unitários não substituem.
+- Handoff e memória canônica: `HANDOFF_AI.md` e `.agents/memory/*` prevalecem sobre vault Obsidian para implementação.
+- Branch com checkpoint WIP no histórico pode inflar a aba Files da PR no GitHub; o que entra em `main` é o diff líquido contra `main`, não a lista bruta de commits intermediários.
+
 <claude-mem-context>
 # Memory Context
 

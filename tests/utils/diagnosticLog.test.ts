@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   scoutDiag,
   createScoutTraceId,
+  flushDiagnosticsNow,
   getScoutTraceTarget,
   isScoutDiagEnabled,
   isScoutTraceEnabled,
@@ -25,6 +26,8 @@ describe('scoutDiag', () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
+    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    (window as typeof window & { __SCOUT_DIAG_HISTORY__?: unknown[] }).__SCOUT_DIAG_HISTORY__ = [];
     consoleSpy = {
       debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
       info: vi.spyOn(console, 'info').mockImplementation(() => {}),
@@ -162,6 +165,48 @@ describe('scoutDiag', () => {
 
     it('gera traceId com prefixo do alvo', () => {
       expect(createScoutTraceId('teia')).toMatch(/^teia-[a-z0-9]+-[a-z0-9]+$/);
+    });
+  });
+
+  describe('flushDiagnosticsNow', () => {
+    it('agenda dreno pós-flush quando force=true chega durante um flush ativo', async () => {
+      vi.useFakeTimers();
+
+      const firstFlushResponse = Promise.withResolvers<{ ok: boolean }>();
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockImplementationOnce(() => firstFlushResponse.promise as Promise<Response>)
+        .mockResolvedValueOnce({ ok: true } as Response);
+      vi.stubGlobal('fetch', fetchMock);
+
+      scoutDiag.warn('PostCompletion', 'flush-a');
+      flushDiagnosticsNow('flush-a');
+      await Promise.resolve();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      flushDiagnosticsNow('processMessage:finally', true);
+      await Promise.resolve();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      firstFlushResponse.resolve({ ok: true });
+      await Promise.resolve();
+
+      scoutDiag.warn('PostCompletion', 'check:0ms');
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const firstBody = JSON.parse(String(fetchMock.mock.calls[0][0] && (fetchMock.mock.calls[0][1] as RequestInit)?.body));
+      const secondBody = JSON.parse(String(fetchMock.mock.calls[1][0] && (fetchMock.mock.calls[1][1] as RequestInit)?.body));
+
+      expect(firstBody.events).toHaveLength(1);
+      expect(firstBody.events[0].event).toBe('flush-a');
+      expect(secondBody.events).toHaveLength(1);
+      expect(secondBody.events[0].event).toBe('check:0ms');
+
+      vi.useRealTimers();
     });
   });
 });

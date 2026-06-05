@@ -52,6 +52,7 @@ let diagRunId: string | null = null;
 let diagSessionId: string | null = null;
 let diagFlushTimer: ReturnType<typeof setTimeout> | null = null;
 let diagFlushing = false;
+let pendingForceFlush = false;
 let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getDiagnosticsRunId(): string {
@@ -148,7 +149,11 @@ function scheduleFlush(reason: string): void {
 }
 
 async function flushToServer(_reason: string, force = false): Promise<void> {
-  if (diagFlushing && !force) return;
+  if (diagFlushing) {
+    if (!force) return;
+    pendingForceFlush = true;
+    return;
+  }
   const buffer = getBuffer();
   if (buffer.length === 0) return;
 
@@ -185,7 +190,10 @@ async function flushToServer(_reason: string, force = false): Promise<void> {
   } finally {
     diagFlushing = false;
     // Reagenda se novos eventos chegaram durante o flush
-    if (getBuffer().length > 0 && !diagFlushTimer) {
+    // ou se um force flush pediu um dreno pós-flush.
+    const needsDrain = getBuffer().length > 0 || pendingForceFlush;
+    pendingForceFlush = false;
+    if (needsDrain && !diagFlushTimer) {
       diagFlushTimer = setTimeout(() => {
         diagFlushTimer = null;
         void flushToServer('drain');

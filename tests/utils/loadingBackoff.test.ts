@@ -9,9 +9,9 @@ describe('loadingBackoff', () => {
   });
 
   it('prioriza backoff sobre processing.stage', () => {
-    expect(
-      resolveActiveLoadingStageLabel('Finalizando cards de auditoria...', 1),
-    ).toBe('Refinando sinais para alta precisão...');
+    expect(resolveActiveLoadingStageLabel('Finalizando cards de auditoria...', 1)).toBe(
+      'Refinando sinais para alta precisão...',
+    );
     expect(resolveActiveLoadingStageLabel('Finalizando cards de auditoria...', 0)).toBe(
       'Finalizando cards de auditoria...',
     );
