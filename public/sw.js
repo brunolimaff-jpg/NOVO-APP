@@ -1,44 +1,40 @@
-// Service Worker para PWA
-const CACHE_NAME = 'scout360-v1';
-const STATIC_ASSETS = ['/', '/manifest.json'];
+// Kill-switch: Service Worker temporário para limpar cache antigo (PR #334)
+// O SW anterior usava CacheFirst e servia bundles obsoletos após deploys.
+// Este SW remove todos os caches, desregistra a si mesmo, e libera os clients.
+// Manter por 1-2 releases até produção estabilizar, depois remover este arquivo.
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
-    }),
-  );
+self.addEventListener('install', () => {
+  // Toma controle imediatamente, sem esperar o SW antigo terminar
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name)));
-    }),
+    (async () => {
+      // 1. Força controle sobre todos os clients
+      await self.clients.claim();
+
+      // 2. Remove TODOS os caches conhecidos
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map(name => caches.delete(name)));
+
+      // 3. Desregistra este SW para que não persista
+      await self.registration.unregister();
+
+      // 4. Notifica todos os clients abertos para recarregar
+      const clients = await self.clients.matchAll({ includeUncontrolled: true });
+      for (const client of clients) {
+        client.postMessage({ type: 'SW_KILLSWITCH', action: 'reload' });
+        // Tenta forçar navegação do client para a versão mais recente
+        if ('navigate' in client) {
+          client.navigate(client.url);
+        }
+      }
+    })(),
   );
-  self.clients.claim();
 });
 
+// Pass-through: nunca cachear, sempre ir direto na rede
 self.addEventListener('fetch', event => {
-  // Network-first strategy para API calls
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-    return;
-  }
-
-  // Cache-first strategy para assets estáticos
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return (
-        response ||
-        fetch(event.request).then(fetchResponse => {
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, fetchResponse.clone());
-            return fetchResponse;
-          });
-        })
-      );
-    }),
-  );
+  event.respondWith(fetch(event.request));
 });

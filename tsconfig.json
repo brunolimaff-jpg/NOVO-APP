@@ -24,6 +24,7 @@
     "App.tsx",
     "index.tsx",
     "types.ts",
+    "build-globals.d.ts",
     "constants.ts",
     "vite.config.ts",
     "vitest.config.ts",

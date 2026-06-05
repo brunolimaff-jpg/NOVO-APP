@@ -135,7 +135,30 @@ const App: React.FC = () => {
         Boolean(String(m.text || '').trim()) &&
         (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
     );
-    return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
+    const decision = shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
+
+    // Log render-decision: todos os fatores que decidem mostrar/esconder o overlay
+    if (decision) {
+      const botMsgCount = allMessages.filter(m => m.sender === Sender.Bot).length;
+      const botWithText = allMessages.filter(
+        m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()),
+      );
+      scoutDiag.info('App', 'overlay:render-decision', {
+        decision: 'show',
+        isLoading,
+        loadingVariant,
+        hasRenderableBotMessage,
+        allMessagesCount: allMessages.length,
+        botMsgCount,
+        botWithTextCount: botWithText.length,
+        maxBotTextLen: botWithText.reduce(
+          (max, m) => Math.max(max, String(m.text || '').length),
+          0,
+        ),
+      });
+    }
+
+    return decision;
   }, [isLoading, loadingVariant, allMessages]);
 
   // Invariante de segurança: se isLoading=false, o overlay NUNCA deve estar no DOM.
@@ -155,6 +178,46 @@ const App: React.FC = () => {
     }, 500);
     return () => clearTimeout(checkTimer);
   }, [isLoading, loadingVariant]);
+
+  // Cleanup de Service Worker antigo (PR #334).
+  // PWA foi removido — desregistra SWs existentes e limpa caches
+  // para garantir que produção sirva sempre o bundle mais recente.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    const buildSha = typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'unknown';
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      if (registrations.length === 0) return;
+      scoutDiag.info('App', 'sw-cleanup', {
+        buildSha,
+        vercelEnv: typeof __VERCEL_ENV__ !== 'undefined' ? __VERCEL_ENV__ : 'unknown',
+        swCount: registrations.length,
+      });
+      for (const reg of registrations) {
+        reg.unregister().catch(() => {});
+      }
+    });
+    // Limpa caches do Workbox (padrão: workbox-precache-v2-*)
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        const workboxKeys = keys.filter(k => k.startsWith('workbox-'));
+        if (workboxKeys.length === 0) return;
+        scoutDiag.info('App', 'cache-cleanup', { cacheKeys: workboxKeys });
+        for (const key of workboxKeys) {
+          caches.delete(key).catch(() => {});
+        }
+      });
+    }
+  }, []);
+
+  // Diagnóstico de build — log único no mount
+  useEffect(() => {
+    scoutDiag.info('App', 'build-info', {
+      buildSha: typeof __BUILD_SHA__ !== 'undefined' ? __BUILD_SHA__ : 'unknown',
+      vercelEnv: typeof __VERCEL_ENV__ !== 'undefined' ? __VERCEL_ENV__ : 'unknown',
+      buildTs: typeof __BUILD_TS__ !== 'undefined' ? __BUILD_TS__ : 'unknown',
+      hostname: typeof location !== 'undefined' ? location.hostname : 'ssr',
+    });
+  }, []);
 
   // Update notification state
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
