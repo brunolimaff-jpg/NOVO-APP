@@ -225,25 +225,84 @@ export async function validateInlineSourcesForPromotion(
   text: string,
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
-  const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
-  if (candidates.length === 0 || typeof fetch !== 'function') return [];
+  const opStart = performance.now();
 
+  // ── Fase 1: Extração síncrona de fontes inline ──
+  scoutDiag.info('FreezeDiag', 'inline-validation:extract:start', {
+    textLength: text?.length ?? 0,
+    existingSourcesCount: existingSources?.length ?? 0,
+  });
+
+  const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
+
+  const extractDuration = performance.now() - opStart;
+  scoutDiag.info('FreezeDiag', 'inline-validation:extract:end', {
+    durationMs: Math.round(extractDuration),
+    textLength: text?.length ?? 0,
+    candidateCount: candidates.length,
+  });
+
+  if (candidates.length === 0 || typeof fetch !== 'function') {
+    scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+      reason: candidates.length === 0 ? 'no-candidates' : 'no-fetch',
+      durationMs: Math.round(extractDuration),
+    });
+    return [];
+  }
+
+  // ── Fase 2: Validação HTTP com timeout explícito ──
+  // AbortController próprio cobre fetch + leitura do body.
+  // Timeout separado para leitura do body como safety net contra
+  // streams que nunca terminam (ex: Vercel function interrompida).
   const controller = new AbortController();
   const totalTimeoutId = setTimeout(() => {
+    scoutDiag.info('FreezeDiag', 'inline-validation:timeout', {
+      durationMs: Math.round(performance.now() - opStart),
+      candidateCount: candidates.length,
+    });
     controller.abort();
   }, VALIDATE_INLINE_TOTAL_TIMEOUT_MS);
 
   try {
+    // ── Fase 2a: Fetch ──
+    const fetchStart = performance.now();
+    scoutDiag.info('FreezeDiag', 'inline-validation:fetch:start', {
+      urlCount: candidates.length,
+      timestamp: Date.now(),
+    });
+
     const response = await fetch('/api/link-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
       signal: controller.signal,
     });
+
+    const fetchDuration = performance.now() - fetchStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:fetch:headers', {
+      durationMs: Math.round(fetchDuration),
+      httpStatus: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') ?? undefined,
+      contentLength: response.headers.get('content-length') ?? undefined,
+      bodyUsed: response.bodyUsed,
+    });
+
     if (!response.ok) {
       clearTimeout(totalTimeoutId);
+      scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+        reason: 'http-not-ok',
+        httpStatus: response.status,
+        durationMs: Math.round(performance.now() - opStart),
+      });
       return [];
     }
+
+    // ── Fase 2b: Leitura do body com timeout próprio ──
+    const bodyStart = performance.now();
+    scoutDiag.info('FreezeDiag', 'inline-validation:body:start', {
+      totalElapsedMs: Math.round(bodyStart - opStart),
+    });
 
     const bodyText = await new Promise<string>((resolve, reject) => {
       const bodyTimeoutId = setTimeout(() => {
@@ -262,19 +321,50 @@ export async function validateInlineSourcesForPromotion(
         });
     });
 
+    const bodyDuration = performance.now() - bodyStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:body:text-read', {
+      durationMs: Math.round(bodyDuration),
+      bodySizeChars: bodyText.length,
+    });
+
+    // ── Fase 2c: Parse JSON ──
     let data: { results?: Record<string, { status?: string }> };
     try {
       data = JSON.parse(bodyText) as { results?: Record<string, { status?: string }> };
-    } catch {
+      scoutDiag.info('FreezeDiag', 'inline-validation:json:parsed', {
+        resultKeys: Object.keys(data?.results || {}).length,
+      });
+    } catch (parseErr) {
+      scoutDiag.info('FreezeDiag', 'inline-validation:json:error', {
+        error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        bodySizeChars: bodyText.length,
+      });
       clearTimeout(totalTimeoutId);
       return [];
     }
 
     clearTimeout(totalTimeoutId);
     const results = data?.results || {};
-    return candidates.filter(source => results[source.url]?.status === 'valid');
+    const valid = candidates.filter(source => results[source.url]?.status === 'valid');
+
+    const totalDuration = performance.now() - opStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+      reason: 'success',
+      validCount: valid.length,
+      totalCandidateCount: candidates.length,
+      totalDurationMs: Math.round(totalDuration),
+    });
+
+    return valid;
   } catch (err) {
     clearTimeout(totalTimeoutId);
+    const errorDuration = performance.now() - opStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:error', {
+      error: err instanceof Error ? err.message : String(err),
+      errorName: err instanceof Error ? err.name : 'unknown',
+      durationMs: Math.round(errorDuration),
+      candidateCount: candidates.length,
+    });
     scoutDiag.warn('Waterfall', 'Falha ao processar fontes do dossiê', {
       error: err instanceof Error ? err.message : String(err),
       candidates: candidates.length,
@@ -944,10 +1034,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallClienteSeniorData,
         );
         let waterfallPrepared = waterfallNarrativeBase;
+        scoutDiag.info('FreezeDiag', 'pre-validate-inline', {
+          sessionId,
+          waterfallRunId,
+          textLength: waterfallPrepared.length,
+          groundingSourcesCount: waterfallGroundingSources.length,
+        });
         const promotedInlineSources = await validateInlineSourcesForPromotion(
           waterfallPrepared,
           waterfallGroundingSources,
         );
+        scoutDiag.info('FreezeDiag', 'post-validate-inline', {
+          sessionId,
+          waterfallRunId,
+          promotedCount: promotedInlineSources.length,
+        });
         assertNotAborted();
         appendGroundingSources(promotedInlineSources, 'Promoção inline');
 
@@ -955,7 +1056,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
         }
 
+        scoutDiag.info('FreezeDiag', 'pre-finalize-markdown', {
+          sessionId,
+          waterfallRunId,
+          textLength: waterfallPrepared.length,
+          groundingSourcesCount: waterfallGroundingSources.length,
+          poolSize: sessionSourcePool.length,
+        });
         const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
+          sessionId,
+          waterfallRunId,
+          resultLength: finalized.text?.length ?? 0,
+          auditableSourcesCount: finalized.auditableSources?.length ?? 0,
+        });
         const waterfallFinalText =
           finalized.text ||
           accumulatedText ||
@@ -977,6 +1091,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         let waterfallSuggestions: string[] = [];
         const CONTINUITY_QUESTION_TIMEOUT_MS = 20_000;
+        scoutDiag.info('FreezeDiag', 'pre-continuity-question-ready', {
+          sessionId,
+          waterfallRunId,
+          finalTextLength: waterfallFinalText.length,
+          hasGroundingSources: waterfallGroundingSources.length > 0,
+          webVerificationStatus,
+        });
         scoutDiag.info('WaterfallLifecycle', 'pre-continuity-question', { sessionId, waterfallRunId });
         try {
           let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
