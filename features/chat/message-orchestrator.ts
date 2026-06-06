@@ -647,6 +647,33 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           delete activeGenerationRef.current[sessionId];
         }
 
+        const t0 = performance.now();
+
+        // Agenda flush ANTES de disparar React render.
+        // setIsLoading(false) dispara render síncrono que bloqueia a thread.
+        // Se o setTimeout for agendado DEPOIS, o callback nunca roda até
+        // o render terminar. Agendando ANTES, o timer já está na macrotask
+        // queue quando o React começa, e dispara assim que o render termina.
+        if (!isAbort) {
+          setTimeout(() => {
+            scoutDiag.info('MessageOrchestrator', 'post-render-fired', {
+              sessionId,
+              delayMs: Math.round(performance.now() - t0),
+            });
+            scoutDiag.info('MessageOrchestrator', 'processMessage:finally:before-flush', {
+              sessionId,
+            });
+            flushDiagnosticsNow('processMessage:finally', true);
+            scoutDiag.info('MessageOrchestrator', 'processMessage:finally:after-flush', {
+              sessionId,
+              flushDurationMs: Math.round(performance.now() - t0),
+            });
+          }, 0);
+        }
+
+        // Dispara React render DEPOIS de agendar o setTimeout.
+        // O timer já está na macrotask queue — dispara assim que
+        // o render síncrono terminar e devolver controle ao event loop.
         setIsLoading(false);
         setLoadingVariant(undefined);
         completeLoadingProgress();
@@ -654,11 +681,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
 
-        if (!isAbort) {
-          // Flush imediato dos diagnósticos — garante que eventos após o finally
-          // cheguem ao Supabase mesmo se a UI travar em seguida.
-          flushDiagnosticsNow('processMessage:finally', true);
-        }
+        scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
         if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();

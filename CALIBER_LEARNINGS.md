@@ -198,6 +198,44 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
   `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
 
+## Bug P0 overlay hero (Junho 2026) — 12 novos aprendizados
+
+- **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
+  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuários em versões antigas. Preview sem SW nunca reproduz o bug. Solução: remover PWA/SW ou usar NetworkFirst com asset versioning.
+
+- **Preview sem SW vs Produção com SW cria falsa confiança** [pwa, validacao, homologacao]
+  Concluir que "preview funcionou = produção vai funcionar" sem checar configuração de SW/PWA é enganoso. Toda validação pré-produção deve verificar se o cache de SW está ativo.
+
+- **DOM cleanup com .remove() quebra reconciliação do React** [react, dom, overlay, cleanup]
+  Remover elemento do DOM via `.remove()` sem React saber causa desync entre virtual DOM e real DOM. Overlay continua visualmente presente mesmo com `setIsLoading(false)`. Usar `display:none` no elemento raiz.
+
+- **NUNCA nullificar abortControllerRef fora do processMessage:finally** [waterfall, abort, processmessage, bleeding-edge]
+  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) não deve nullificar `abortControllerRef`. Se o ref é limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca é chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, não ao helper de UI.
+
+- **NUNCA usar TreeWalker/document.body scan para DOM cleanup** [performance, dom, treewalker, main-thread]
+  `document.createTreeWalker(document.body)` percorre o DOM inteiro em busca de seletores — bloqueia a main thread por dezenas de ms em árvores grandes. Substituir por `querySelector` direto com 3 seletores alvo, sem escanear o body inteiro.
+
+- **DOM cleanup DOM display:none é safety net; React render condition é primário** [react, dom, cleanup, overlay, safety-net]
+  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net. Mas o mecanismo PRIMÁRIO de liberação do overlay é a condição de renderização React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
+
+- **h-full não funciona em filho de flex item com flex-basis:0%** [css, flexbox, layout, display-none]
+  `height:100%` de um pai com `flex-basis:0%` (via `flex-1`) = 0px. Browser colapsa o elemento com `display:none`. O filho deve usar `flex-1` em vez de `h-full` para herdar altura real.
+
+- **absolute inset-0 causa display:none em certos contextos de flex** [css, flexbox, layout, display-none]
+  `absolute inset-0` como fallback de layout pode colapsar em contextos de flex container. Testar sempre com conteúdo real grande (>20KB). Preferir `h-full w-full` + `flex-col` parent.
+
+- **Preview Vercel revela bugs de layout que testes unitários não pegam** [css, layout, testing, vercel]
+  Layout rendering, CSS cascata, flex box só aparecem em browser real com dados reais. Smoke visual no preview é gate obrigatório antes de merge para mudanças de CSS/layout.
+
+- **Mock de scoutDiag precisa incluir debug: vi.fn()** [testing, mock, debug, scoutDiag]
+  Se `scoutDiag.debug()` é adicionado ao código de produção, os mocks nos testes precisam incluir `debug: vi.fn()` senão a chamada quebra silenciosamente. Toda vez que adicionar `scoutDiag.debug()`, verificar/atualizar os mocks.
+
+- **Sempre incluir hostname em logs de diagnóstico** [debug, logging, ambiente]
+  Logs de produção e preview parecem idênticos sem o hostname. `scoutagro.vercel.app` alias pode servir código sem estar no projeto. Incluir `window.location.hostname` em todo log de diagnóstico.
+
+- **Vercel alias órfão pode servir código sem estar no projeto** [vercel, deploy, domains, alias]
+  O alias `scoutagro.vercel.app` servia o mesmo código mas não estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estão registrados.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
