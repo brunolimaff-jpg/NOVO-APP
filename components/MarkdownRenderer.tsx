@@ -23,6 +23,7 @@ import {
   cleanFakeSourcesBlock,
 } from '../utils/linkFixer';
 import { sanitizeSvgHtml } from '../utils/privacy';
+import { m } from '../utils/freezeDiag';
 
 // Module-level constants prevent new array references on every render, which would
 // bypass react-markdown's internal memoisation and force a full re-parse each render.
@@ -288,6 +289,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   allowRawHtml = false,
   variant = 'default',
 }) => {
+  const _mrk = content?.slice(0, 30)?.replace(/[^a-zA-Z0-9]/g, '_') || 'empty';
+  m(`Section:${_mrk}:renderer:start`, { c: content?.length || 0 });
   const resolvedGroundingSources = useMemo(() => coerceGroundingSources(groundingSources), [groundingSources]);
 
   const integrityBase = useMemo(() => {
@@ -372,7 +375,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       },
     );
 
-    return restoreMermaid(text);
+    const result = restoreMermaid(text);
+    m(`Section:${_mrk}:processed`, { c: content.length, out: result.length });
+    return result;
   }, [content, citationMap, groundingSources, integrityBase]);
 
   // useMemo prevents a new object reference on every render. Without this, ReactMarkdown
@@ -625,6 +630,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     [isDarkMode, citationMap, titleMap, variant],
   );
 
+  m(`Section:${_mrk}:renderer:return`, { c: content?.length || 0 });
   return (
     <div className="markdown-body">
       <ReactMarkdown
