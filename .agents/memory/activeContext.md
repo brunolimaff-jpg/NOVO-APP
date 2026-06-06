@@ -1,25 +1,35 @@
 # Active Context
 
-Last updated: 2026-06-05 — Bug P0 resolvido. PR #342 aberta (finalizeWaterfallUI).
+Last updated: 2026-06-05 — Bug P0 overlay hero COMPLETAMENTE RESOLVIDO. TODAS as 4 PRs mergeadas.
 
 ## Estado
 
-- **PRs #333, #334, #335** mergeadas em `main`: overlay hero preso em producao corrigido
-- **PR #342** aberta (branch `codex/finalize-waterfall-ui`): finalizeWaterfallUI refatorada com DOM safety net, TreeWalker removido, abortControllerRef nao nullificado, logs AbortError/ContinuityQuestion como debug
-- Root Cause 3 camadas identificada: SW CacheFirst → gap waterfall/setIsLoading → abortControllerRef nullificado pelo finalizeWaterfallUI
+- **Bug P0 FECHADO**: overlay hero nunca mais trava em producao com waterfall Scheffer
+- **4 PRs mergeadas** (#333, #334, #335, #342) — nenhuma branch aberta
+- **Root Cause 4 camadas** identificada e corrigida:
+  1. SW CacheFirst servia bundles antigos
+  2. Gap waterfall vs setIsLoading sem bridge
+  3. abortControllerRef nullificado (isAbort=true falso)
+  4. Static fallback display:none: flex-basis:0% + h-full = 0px de altura
 
-## Root Cause camada 3 (nova)
+## Decisoes arquiteturais ativas
 
-FinalizeWaterfallUI nullificava `abortControllerRef`, o que fazia `isAbort=true` no `processMessage:finally` → `flushDiagnosticsNow` nunca era chamado. FIX: removida nullificacao do finalizeWaterfallUI. `abortControllerRef` so deve ser nullificado no proprio `processMessage:finally`.
+- `abortControllerRef` pertence ao `processMessage`, NUNCA ao helper de UI
+- DOM cleanup via querySelector direto (3 seletores), NUNCA TreeWalker(document.body)
+- DOM cleanup display:none e safety net; React render condition e primario
+- Hard invariant como airbag: condicoes observaveis forcadamente liberam a UI
+- LayoutTrace como ferramenta de diagnostico
 
-## Proximo passo
+## Pendencias nao bloqueantes
 
-1. Code review e merge da PR #342
-2. Smoke producao no fluxo Scheffer
-3. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`
-4. Remover kill-switch sw.js apos 1-2 releases
+- Kill-switch sw.js: manter 1-2 releases, depois remover
+- ContinuityQuestion JSON truncado: log como debug, fallback funcional
+- AbortError CNPJ lookup: debug, nao error
+- foundationCacheName null em producao
+- `scoutagro.vercel.app` alias orfao — NÃO esta nos domains do projeto Vercel
 
-## Ponteiros
+## Links
 
-- PR #342: https://github.com/brunolimaff-jpg/NOVO-APP/pull/342 (ABERTA)
-- Branch: `codex/finalize-waterfall-ui`
+- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-05T19-30-00-NOVO-APP-overlay-hero-camada4-static-fallback.md`
+- Licoes (16): `Bruno Vault/30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md`
+- CALIBER_LEARNINGS.md: secoes atualizadas com 12 novos aprendizados

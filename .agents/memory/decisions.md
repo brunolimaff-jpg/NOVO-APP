@@ -1,3 +1,27 @@
+## 2026-06-05 — Static fallback: parent flex-col + child flex-1 (APLICADO na PR #342)
+
+Decision: o container outer de MessageTimeline deve ser `flex-col` (nao `display:block`) e o filho static-fallback deve usar `flex-1` (nao `h-full`).
+
+Reason: o outer container recebia altura via `flex-1` (flex-basis:0%). O filho usava `h-full` (height:100%). Como o pai tinha altura calculada de 0px (flex-basis:0%), `height:100%` do filho = 0px. O browser colapsava o elemento com `display:none`. Isso fazia a timeline ficar vazia e o overlay permanecer preso.
+
+Contract: filhos de flex container com `flex-1` devem usar `flex-1` para herdar altura real, nunca `h-full`. `absolute inset-0` tambem deve ser evitado nesses contextos; preferir `h-full w-full`.
+
+Refs: PR #342, `components/MessageTimeline.tsx`.
+
+---
+
+## 2026-06-05 — LayoutTrace como ferramenta de diagnostico (APLICADO na PR #342)
+
+Decision: adicionar `LayoutTrace` — instrumentacao que loga dimensoes do container de mensagens (`MessageTimeline.tsx`) apos cada render, para diagnosticar painel branco pos-waterfall.
+
+Reason: sem a instrumentacao, nao era possivel saber se o Virtuoso estava montado com viewport 0x0, se o fallback estatico estava invisivel, ou se o overlay hero continuava bloqueando. LayoutTrace revelou que o static-fallback tinha display:none e viewport zero.
+
+Contract: LayoutTrace deve ser ativado apenas em desenvolvimento ou com flag explicita, nunca em producao.
+
+Refs: PR #342, `components/MessageTimeline.tsx`.
+
+---
+
 ## 2026-06-05 — abortControllerRef nao deve ser nullificado no finalizeWaterfallUI (APLICADO na PR #342)
 
 Decision: remover `delete activeAbortControllerRef.current[sessionId]` do `finalizeWaterfallUI()`. O `abortControllerRef` so deve ser nullificado no proprio `processMessage:finally`, NUNCA no helper de finalizacao de UI.
