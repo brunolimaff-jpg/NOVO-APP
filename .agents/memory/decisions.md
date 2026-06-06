@@ -58,6 +58,18 @@ Refs: `features/dossier/waterfall-orchestrator.ts`, PR #334.
 
 ---
 
+## 2026-06-05 — flushDiagnosticsNow deferred com setTimeout(0); agendar ANTES do setState (APLICADO na PR #343)
+
+Decision: `flushDiagnosticsNow('processMessage:finally', true)` deve ser deferido com `setTimeout(0)` e agendado ANTES de `setIsLoading(false)`, nao depois.
+
+Reason: o codigo original chamava `flushDiagnosticsNow` sincronamente no mesmo tick que `setIsLoading(false)`. O setState disparava React re-render síncrono, mas o flushDiagnosticsNow executava antes do render completar, bloqueando a main thread. Com o `setTimeout(0)` agendado ANTES do setState, o timer ja esta na macrotask queue quando o React comeca a renderizar. O React render ocorre. Quando o render termina e o controle volta ao event loop, o setTimeout dispara. Playwright confirmou: sem o defer, zero eventos pos-render (static-fallback-rendered, MessageRow commit).
+
+Contract: todo `flushDiagnosticsNow` no hot path de `processMessage:finally` deve ser deferido com `setTimeout(0)`. O setTimeout deve ser agendado ANTES do setState para garantir que o timer ja esteja na fila. NUNCA depois.
+
+Refs: PR #343, `features/chat/message-orchestrator.ts`.
+
+---
+
 ## 2026-06-05 — Dossie nao deve depender de Pinecone; War Room sim (APLICADO LOCALMENTE)
 
 Decision: remover `buscarContextoPinecone` e `buscarContextoDocsPinecone` apenas do fluxo do dossie (`features/dossier/waterfall-orchestrator.ts` e `services/gemini/investigation-orchestration.ts`), mantendo War Room com RAG Pinecone. O health check passa a tratar RAG como check opcional do War Room; resultado vazio/degradado nao conta mais como sucesso do fluxo principal.

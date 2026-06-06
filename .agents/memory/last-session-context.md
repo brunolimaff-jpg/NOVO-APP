@@ -1,41 +1,43 @@
 # Last Session Context
 
-Saved: 2026-06-03 12:40
+Saved: 2026-06-05 20:30
 
 ## Git
 
-Branch de trabalho: `refactor/socio-search-decompose` (PR #327)
+Branch de trabalho: `codex/finalize-waterfall-ui` (PR #343)
 Base: `main`
-PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/327
+PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/343
 
 ## Estado
 
-PR #327 recebeu follow-up de cancelamento de pesquisa:
+Bug P0 overlay hero **completamente resolvido**. 4 PRs mergeadas (#333, #334, #335, #342).
 
-- `Interromper` durante a pesquisa inicial não deve criar item no histórico.
-- Sessão temporária com apenas mensagem do usuário "Investigando..." é descartada.
-- `currentSessionId` volta para `null`, deixando a home inicial.
-- Waterfall não pode continuar para benchmark, reconciliação PORTA, consolidação, `updateSessionById` ou `saveDossier` depois do abort.
-- Clicar em `Nova investigação` durante loading cancela e volta para home, sem criar sessão vazia.
+PR #343 aberta na mesma branch da #342 (ja mergeada). setTimeout swap: `flushDiagnosticsNow` era chamado sincronamente no mesmo tick de `setIsLoading(false)` e bloqueava o React re-render. Fix: agendar `setTimeout(0)` com o flush ANTES do setState, nao depois.
 
-## Validação local
+## Root Cause completa (5 camadas)
+
+| # | Causa | Fix |
+|---|-------|-----|
+| 1 | SW CacheFirst servia bundles antigos | PR #334: remover PWA/SW |
+| 2 | Gap waterfall vs setIsLoading sem bridge | PR #342: finalizeWaterfallUI no finally |
+| 3 | abortControllerRef nullificado (isAbort=true falso) | PR #342: ref so no processMessage:finally |
+| 4 | Static fallback display:none (flex-basis:0% + h-full = 0px) | PR #342: parent flex-col, child flex-1 |
+| 5 | flushDiagnosticsNow sincrono pos-setState bloqueia React render | PR #343: setTimeout(0) ANTES do setState |
+
+## Validacao local
 
 ```bash
-npm test -- tests/features/dossier/waterfall-orchestrator.test.ts tests/features/chat/message-orchestrator.test.ts tests/features/chat/session-controller.test.ts tests/components/ChatInterface.test.tsx
+npm test
 npm run typecheck
 npm run build
 ```
 
-Resultado:
+1336/1336 testes passando. Typecheck limpo. Build limpo.
 
-- 62 testes focados passaram.
-- Typecheck passou.
-- Build Vite concluiu com exit code 0.
-- Sourcemaps enviados ao Sentry (`s-3j/scout-360`, release `v1.0.0`).
+## Proximo passo
 
-## Próximo Passo
-
-1. Push na PR #327.
-2. Aguardar CI/preview remoto.
-3. Validar no preview: iniciar pesquisa, clicar `Interromper`, confirmar que volta para home e o sidebar não ganha item novo.
-4. Não mergear sem validação visual do fluxo e confirmação explícita do Bruno.
+1. Code review da PR #343
+2. Merge da PR #343
+3. Remover kill-switch sw.js apos 1-2 releases
+4. Smoke producao no fluxo Scheffer
+5. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`

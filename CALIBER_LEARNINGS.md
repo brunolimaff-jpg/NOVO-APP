@@ -198,7 +198,7 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
   `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
 
-## Bug P0 overlay hero (Junho 2026) — 12 novos aprendizados
+## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 
 - **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
   CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuários em versões antigas. Preview sem SW nunca reproduz o bug. Solução: remover PWA/SW ou usar NetworkFirst com asset versioning.
@@ -236,7 +236,16 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Vercel alias órfão pode servir código sem estar no projeto** [vercel, deploy, domains, alias]
   O alias `scoutagro.vercel.app` servia o mesmo código mas não estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estão registrados.
 
-<!-- caliber:managed:learnings -->
+- **flushDiagnosticsNow sincrono pos-setState bloqueia React re-render** [react, setstate, render, settimeout, freeze]
+	  `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
+
+- **Agendar setTimeout ANTES do setState, nao depois** [react, settimeout, macrotask, event-loop]
+	  Se o `setTimeout` com `flushDiagnosticsNow` for agendado DEPOIS do `setState`, o callback nunca roda ate o render terminar. Agendando ANTES, o timer ja esta na macrotask queue quando o React comeca a renderizar, e dispara assim que o render sincrono termina. O `setTimeout(0)` vira ponto de handoff entre render sincrono e flush assincrono.
+
+- **createDeferred polyfill para Promise.withResolvers** [node, vitest, compatibilidade, polyfill]
+		  `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
+
+	<!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
