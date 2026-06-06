@@ -732,11 +732,20 @@ describe('useDossierWaterfallOrchestrator', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        bodyUsed: false,
         json: async () => ({
           results: {
             'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
           },
         }),
+        text: async () =>
+          JSON.stringify({
+            results: {
+              'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
+            },
+          }),
       }),
     );
 
