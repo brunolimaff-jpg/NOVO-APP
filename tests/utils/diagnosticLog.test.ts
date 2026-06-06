@@ -209,8 +209,12 @@ describe('scoutDiag', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
 
-      const firstBody = JSON.parse(String(fetchMock.mock.calls[0][0] && (fetchMock.mock.calls[0][1] as RequestInit)?.body));
-      const secondBody = JSON.parse(String(fetchMock.mock.calls[1][0] && (fetchMock.mock.calls[1][1] as RequestInit)?.body));
+      const firstBody = JSON.parse(
+        String(fetchMock.mock.calls[0][0] && (fetchMock.mock.calls[0][1] as RequestInit)?.body),
+      );
+      const secondBody = JSON.parse(
+        String(fetchMock.mock.calls[1][0] && (fetchMock.mock.calls[1][1] as RequestInit)?.body),
+      );
 
       expect(firstBody.events).toHaveLength(1);
       expect(firstBody.events[0].event).toBe('flush-a');

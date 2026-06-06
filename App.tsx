@@ -141,9 +141,7 @@ const App: React.FC = () => {
   // Log render-decision: captura AMBOS os casos (show/hide) para diagnóstico.
   useEffect(() => {
     const botMsgCount = allMessages.filter(m => m.sender === Sender.Bot).length;
-    const botWithText = allMessages.filter(
-      m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()),
-    );
+    const botWithText = allMessages.filter(m => m.sender === Sender.Bot && Boolean(String(m.text || '').trim()));
     const maxLen = botWithText.reduce((max, m) => Math.max(max, String(m.text || '').length), 0);
     const WATERFALL_PREVIEW_MIN_CHARS = 200;
     const hasRenderable = allMessages.some(

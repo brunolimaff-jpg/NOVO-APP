@@ -1270,8 +1270,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // loadingProgress, failureCount, activeGeneration, abortController,
         // e overlay DOM. PR #334/#335 corrigiram só o overlay — persistiam
         // "Preparando investigação...", "Gerando resposta...", Interromper.
-        const botMsgTextLen =
-          typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
+        const botMsgTextLen = typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
 
         finalizeWaterfallUI({
           store: {

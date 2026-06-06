@@ -365,4 +365,50 @@ describe('SectionalBotMessage', () => {
       expect(secondRefs[i]).toBe(firstRefs[i]);
     }
   });
+
+  it('reseta isDossierExpanded quando message.id muda (evita vazamento de estado)', () => {
+    const dossierWith4Sections = [
+      '# Introdução',
+      'Conteúdo da introdução.',
+      '# Módulo 1: Identidade',
+      'Conteúdo do módulo 1.',
+      '# Módulo 2: Profundidade',
+      'Conteúdo do módulo 2.',
+      '# Módulo 3: Operação',
+      'Conteúdo do módulo 3.',
+    ].join('\n');
+
+    const message1: Message = {
+      id: 'bot-dossier-1',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: dossierWith4Sections,
+    };
+
+    const { rerender, getByRole, queryByRole } = render(<SectionalBotMessage message={message1} isDarkMode={false} />);
+
+    // 4 seções > threshold 3 → botão de expansão aparece
+    expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
+
+    // Clica para expandir
+    act(() => {
+      getByRole('button', { name: /Ver relatório completo/ }).click();
+    });
+
+    // Após expandir, botão deve desaparecer (todas as seções visíveis)
+    expect(queryByRole('button', { name: /Ver relatório completo/ })).not.toBeInTheDocument();
+
+    // Simula troca de mensagem (nova empresa/sessão)
+    const message2: Message = {
+      id: 'bot-dossier-2',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: dossierWith4Sections,
+    };
+
+    rerender(<SectionalBotMessage message={message2} isDarkMode={false} />);
+
+    // Com novo message.id, deve resetar e truncar novamente
+    expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
+  });
 });
