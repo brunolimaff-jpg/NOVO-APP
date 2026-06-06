@@ -331,6 +331,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   const processedContent = useMemo(() => {
     if (!content) return '';
+    m(`Section:${_mrk}:processedContent:start`, { c: content.length });
 
     let text = integrityBase || '';
     const preservedMermaidBlocks: string[] = [];

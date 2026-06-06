@@ -26,27 +26,26 @@ export interface FinalizeWaterfallUIParams {
   log?: (area: string, event: string, payload: Record<string, unknown>) => void;
 }
 
-import { installLongTaskObserver, watchdogHeartbeat } from './freezeDiag';
+import { m, installLongTaskObserver, watchdogHeartbeat } from './freezeDiag';
 
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
   const T = performance.now();
+  const sid8 = sessionId?.slice(0, 8);
 
-  // [FreezeDiag] Observers instalados ANTES do setIsLoading — cleanup após 60s
-  installLongTaskObserver(sessionId);
-  watchdogHeartbeat(sessionId);
-  setTimeout(() => {
-    performance.mark('[FreezeDiag] diagnostic-timeout-60s');
-  }, 60_000);
+  m('finalize:before-setIsLoading', { sid: sid8, len: botMsgTextLen, status: waterfallEndStatus });
 
-  // [FreezeDiag] antes de setIsLoading
-  performance.mark(`[FreezeDiag] finalize:before-setIsLoading`, { detail: { t: T, sessionId, botMsgTextLen } });
+  // [FreezeDiag] Observers instalados ANTES do setIsLoading
+  installLongTaskObserver();
+  watchdogHeartbeat();
+  setTimeout(() => m('diagnostic-timeout-60s'), 60_000);
 
   // 1. Zera React state de loading
   store.setIsLoading?.(false);
   store.setLoadingVariant?.(undefined);
   store.completeLoadingProgress?.();
   store.setFailureCount?.(0);
+  m('finalize:after-setIsLoading', { sid: sid8 });
 
   // 2. Limpa refs de geração ativa (NÃO mexe em abortController —
   //    processMessage:finally é o dono do abortController e usa isAbort

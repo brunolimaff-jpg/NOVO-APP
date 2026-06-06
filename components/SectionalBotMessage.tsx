@@ -302,7 +302,9 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     return stripUnsafeSocietarySections(cleanText);
   }, [cleanText]);
   const sections = useMemo(() => {
-    return parseMarkdownSections(displayText);
+    const result = parseMarkdownSections(displayText);
+    m('SectionalBotMessage:after-parse', { n: result.length, mid: message.id?.slice(0, 8) });
+    return result;
   }, [displayText]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
