@@ -218,28 +218,63 @@ async function buildTeiaResearchContext(params: {
   };
 }
 
-async function validateInlineSourcesForPromotion(
+const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 30_000;
+const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 15_000;
+
+export async function validateInlineSourcesForPromotion(
   text: string,
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
   const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
   if (candidates.length === 0 || typeof fetch !== 'function') return [];
 
+  const controller = new AbortController();
+  const totalTimeoutId = setTimeout(() => {
+    controller.abort();
+  }, VALIDATE_INLINE_TOTAL_TIMEOUT_MS);
+
   try {
     const response = await fetch('/api/link-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
-      signal: AbortSignal.timeout(25_000),
+      signal: controller.signal,
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+      clearTimeout(totalTimeoutId);
+      return [];
+    }
 
-    const data = (await response.json()) as {
-      results?: Record<string, { status?: string }>;
-    };
+    const bodyText = await new Promise<string>((resolve, reject) => {
+      const bodyTimeoutId = setTimeout(() => {
+        reject(new Error('Body read timeout after ' + VALIDATE_INLINE_BODY_READ_TIMEOUT_MS + 'ms'));
+      }, VALIDATE_INLINE_BODY_READ_TIMEOUT_MS);
+
+      response
+        .text()
+        .then(text => {
+          clearTimeout(bodyTimeoutId);
+          resolve(text);
+        })
+        .catch(err => {
+          clearTimeout(bodyTimeoutId);
+          reject(err);
+        });
+    });
+
+    let data: { results?: Record<string, { status?: string }> };
+    try {
+      data = JSON.parse(bodyText) as { results?: Record<string, { status?: string }> };
+    } catch {
+      clearTimeout(totalTimeoutId);
+      return [];
+    }
+
+    clearTimeout(totalTimeoutId);
     const results = data?.results || {};
     return candidates.filter(source => results[source.url]?.status === 'valid');
   } catch (err) {
+    clearTimeout(totalTimeoutId);
     scoutDiag.warn('Waterfall', 'Falha ao processar fontes do dossiê', {
       error: err instanceof Error ? err.message : String(err),
       candidates: candidates.length,
