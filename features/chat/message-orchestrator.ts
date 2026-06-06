@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
+import { m } from '../../utils/freezeDiag';
 import { sendMessageToGemini } from '../../services/geminiService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
@@ -635,7 +636,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
-        performance.mark('[FreezeDiag] finally:start', { detail: { t: performance.now() } });
+        m('finally:start', { sid: sessionId?.slice(0, 8) });
         const isAbort = !abortControllerRef.current;
 
         scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
@@ -657,6 +658,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // queue quando o React começa, e dispara assim que o render termina.
         if (!isAbort) {
           setTimeout(() => {
+            m('post-render-fired', { sid: sessionId?.slice(0, 8), delay: Math.round(performance.now() - t0) });
+            m('diagnostic-done');
             scoutDiag.info('MessageOrchestrator', 'post-render-fired', {
               sessionId,
               delayMs: Math.round(performance.now() - t0),
@@ -675,14 +678,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // Dispara React render DEPOIS de agendar o setTimeout.
         // O timer já está na macrotask queue — dispara assim que
         // o render síncrono terminar e devolver controle ao event loop.
-        performance.mark('[FreezeDiag] finally:before-setState', { detail: { t: performance.now(), sessionId } });
+        m('finally:before-setState', { sid: sessionId?.slice(0, 8) });
         setIsLoading(false);
         setLoadingVariant(undefined);
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
-        performance.mark('[FreezeDiag] finally:after-setState', { detail: { t: performance.now(), sessionId } });
+        m('finally:after-setState', { sid: sessionId?.slice(0, 8) });
 
         scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
 

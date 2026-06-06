@@ -383,9 +383,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   // [FreezeDiag] commit tracking
   useLayoutEffect(() => {
-    performance.mark('[FreezeDiag] SectionalBotMessage:commit', {
-      detail: { t: performance.now(), sections: sections.length, chars: content.length, mid: message.id?.slice(0, 8) },
-    });
+    m('SectionalBotMessage:commit', { n: sections.length, c: content.length, mid: message.id?.slice(0, 8) });
   });
 
   // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)

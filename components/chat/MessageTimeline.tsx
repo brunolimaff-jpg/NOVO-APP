@@ -1,6 +1,6 @@
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { m, rc } from '../../utils/freezeDiag';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
 import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
@@ -102,6 +102,17 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const safeMessages = Array.isArray(messages) ? messages : [];
   const safeMessagesLengthRef = useRef(safeMessages.length);
   safeMessagesLengthRef.current = safeMessages.length;
+
+  // [FreezeDiag] Commit da timeline (static ou virtuoso)
+  useLayoutEffect(() => {
+    if (forceStaticTimelineFallback) {
+      const el = document.querySelector('[data-testid="messages-static-fallback"]');
+      if (el) {
+        const r = el.getBoundingClientRect();
+        m('static-fallback:commit', { w: Math.round(r.width), h: Math.round(r.height) });
+      }
+    }
+  });
 
   // ── Instrumentação: detecta timeline renderizando vazia ──
   const prevTimelineLenRef = useRef(safeMessages.length);

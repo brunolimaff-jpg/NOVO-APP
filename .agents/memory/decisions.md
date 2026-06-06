@@ -70,6 +70,30 @@ Refs: PR #343, `features/chat/message-orchestrator.ts`.
 
 ---
 
+## 2026-06-06 — Foundation Cache habilitado em producao (MITIGACAO)
+
+Decision: ativar `GEMINI_FOUNDATION_CACHE_ENABLED=1` e `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` em producao.
+
+Reason: reduz latencia das chamadas Gemini, diminuindo probabilidade de timeout/abort que contribui para o freeze intermitente pos-waterfall. Mitigacao, nao causa raiz.
+
+Contract: se foundationCacheName retornar null em producao, a feature falha silenciosamente (cache nao e critico). Bug separado registrado.
+
+Refs: env vars em Vercel, `services/gemini/auxiliary.ts`.
+
+---
+
+## 2026-06-06 — freezeDiag.ts e TEMPORARIO
+
+Decision: modulo `freezeDiag.ts` com `performance.mark()`, `PerformanceObserver(longtask)`, watchdog heartbeat, e render counter deve ser removido ou condicionado a `__DEV__` antes de qualquer PR da branch `fix/diagnostic-render-freeze`.
+
+Reason: instrumentacao adiciona overhead de `console.info()` e `performance.mark()` em cada render. Em producao, `console.info` persiste nos logs do Sentry e `performance.mark` acumula entradas no buffer.
+
+Contract: remover importacoes de freezeDiag de todos os componentes, ou criar gate `if (import.meta.env.DEV)`. Nao mergear instrumentacao em producao.
+
+Refs: `utils/freezeDiag.ts`, `components/*.tsx`, `features/chat/*.ts`.
+
+---
+
 ## 2026-06-05 — Dossie nao deve depender de Pinecone; War Room sim (APLICADO LOCALMENTE)
 
 Decision: remover `buscarContextoPinecone` e `buscarContextoDocsPinecone` apenas do fluxo do dossie (`features/dossier/waterfall-orchestrator.ts` e `services/gemini/investigation-orchestration.ts`), mantendo War Room com RAG Pinecone. O health check passa a tratar RAG como check opcional do War Room; resultado vazio/degradado nao conta mais como sucesso do fluxo principal.

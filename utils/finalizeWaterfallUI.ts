@@ -118,5 +118,5 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
     }, 600);
   }
 
-  performance.mark(`[FreezeDiag] finalize:done`, { detail: { t: performance.now() } });
+  m('finalize:done', { sid: sid8 });
 }

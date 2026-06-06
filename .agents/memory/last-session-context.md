@@ -1,28 +1,37 @@
 # Last Session Context
 
-Saved: 2026-06-05 20:30
+Saved: 2026-06-06 10:00
 
 ## Git
 
-Branch de trabalho: `codex/finalize-waterfall-ui` (PR #343)
-Base: `main`
-PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/343
+Branch de trabalho: `fix/diagnostic-render-freeze` (6 commits apos main)
+Base: `main` (8526982f)
+PR #345: https://github.com/brunolimaff-jpg/NOVO-APP/pull/345 (ABERTA, fix CSS)
 
 ## Estado
 
-Bug P0 overlay hero **completamente resolvido**. 4 PRs mergeadas (#333, #334, #335, #342).
+Bug P0 overlay hero resolvido (5 camadas). Nova frente: freeze intermitente pos-waterfall.
 
-PR #343 aberta na mesma branch da #342 (ja mergeada). setTimeout swap: `flushDiagnosticsNow` era chamado sincronamente no mesmo tick de `setIsLoading(false)` e bloqueava o React re-render. Fix: agendar `setTimeout(0)` com o flush ANTES do setState, nao depois.
+PR #344 mergeda (truncamento frontend dossie). Foundation Cache habilitado em producao.
+PR #345 criada e validada (fix CSS static fallback).
 
-## Root Cause completa (5 camadas)
+Branch `fix/diagnostic-render-freeze` criada com instrumentacao para capturar o freeze:
 
-| #   | Causa                                                           | Fix                                       |
-| --- | --------------------------------------------------------------- | ----------------------------------------- |
-| 1   | SW CacheFirst servia bundles antigos                            | PR #334: remover PWA/SW                   |
-| 2   | Gap waterfall vs setIsLoading sem bridge                        | PR #342: finalizeWaterfallUI no finally   |
-| 3   | abortControllerRef nullificado (isAbort=true falso)             | PR #342: ref so no processMessage:finally |
-| 4   | Static fallback display:none (flex-basis:0% + h-full = 0px)     | PR #342: parent flex-col, child flex-1    |
-| 5   | flushDiagnosticsNow sincrono pos-setState bloqueia React render | PR #343: setTimeout(0) ANTES do setState  |
+- `utils/freezeDiag.ts`: m(), mQuiet(), installLongTaskObserver(), watchdogHeartbeat(), rc()
+- Marks em finalizeWaterfallUI, message-orchestrator:finally, MessageTimeline, SectionalBotMessage, MarkdownRenderer
+
+Hipotese: react-markdown processa ~8k chars por secao sincronamente na main thread durante React re-render pos setIsLoading(false).
+
+## Root Cause freeze intermitente (hipotese)
+
+Trigger: react-markdown bloco sincrono de ~8k chars por secao durante re-render.
+Mecanismo: mesmo da Camada 5 (PR #343) — main thread ocupada impede React de commitar.
+
+Evidencias:
+
+- post-render-scheduled ocorreu (finally completou)
+- post-render-fired NUNCA ocorreu (setTimeout nunca executou)
+- DOM em 93% + botao Interromper (React nunca commitou)
 
 ## Validacao local
 
@@ -32,12 +41,11 @@ npm run typecheck
 npm run build
 ```
 
-1336/1336 testes passando. Typecheck limpo. Build limpo.
+1336+/1336 testes passando. Typecheck limpo. Build limpo.
 
 ## Proximo passo
 
-1. Code review da PR #343
-2. Merge da PR #343
-3. Remover kill-switch sw.js apos 1-2 releases
-4. Smoke producao no fluxo Scheffer
-5. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`
+1. Reproduzir freeze com [FreezeDiag] ativo para identificar secao/bloco exato
+2. Merge PR #345
+3. Avaliar accordion + renderizacao progressiva como solucao definitiva
+4. Limpar instrumentacao diagnostica antes de PR da branch fix/diagnostic-render-freeze

@@ -1,31 +1,33 @@
 # Progress
 
-Last updated: 2026-06-05 -- Bug P0 OVERLAY RESOLVIDO. PR #343 ABERTA (setTimeout swap).
+Last updated: 2026-06-06 -- Investigacao freeze intermitente. PR #344 mergeda.
 
 Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ver `docs/OBSIDIAN_VAULT.md`.
 **Historico detalhado (snapshot):** `Bruno Vault/90-SISTEMA/archive/REPO-PROGRESS-SNAPSHOT-2026-05-26.md`
 
 ## Em andamento
 
-- **PR #343** setTimeout swap: flushDiagnosticsNow deferido com setTimeout(0) para desbloquear React re-render pos-waterfall (branch: `codex/finalize-waterfall-ui`)
+- **Freeze intermitente pos-waterfall**: instrumentacao diagnostica em `fix/diagnostic-render-freeze` com `freezeDiag.ts`
+- **PR #345**: fix CSS static fallback (`absolute inset-0` -> `flex-1 min-h-0 w-full`), validada, aguardando merge
 
 ## Concluido
 
-| Data       | Marco                                                                                                             |
-| ---------- | ----------------------------------------------------------------------------------------------------------------- |
-| 2026-06-05 | **Camada 5 descoberta**: flushDiagnosticsNow sincrono pos-setState bloqueava React re-render                      |
-| 2026-06-05 | **PR #343 ABERTA** -- setTimeout swap: agendar flush ANTES do setState, nao depois                                |
-| 2026-06-05 | **PR #342 MERGEADA** -- finalizeWaterfallUI sem nullificar abortControllerRef + static fallback fix + LayoutTrace |
-| 2026-06-05 | **Camada 4 descoberta**: static fallback display:none por height:100% de flex-basis:0% = 0px                      |
-| 2026-06-05 | **Bug P0 completamente resolvido**: 4 camadas de causa, 4 PRs mergeadas (#333, #334, #335, #342)                  |
-| 2026-06-05 | PWA/SW removido do projeto. CacheFirst em producao era causa raiz primaria                                        |
-| 2026-06-05 | Hard invariant adicionado ao waterfall-orchestrator como airbag                                                   |
-| 2026-06-03 | PR #331 mergeada -- handoff estatico sincrono pos-waterfall                                                       |
-| 2026-06-03 | PR #330 mergeada -- blank panel fix                                                                               |
+| Data       | Marco                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| 2026-06-06 | **PR #344 mergeda** — truncamento frontend de dossie (3 secoes + Ver relatorio completo)             |
+| 2026-06-06 | **Foundation Cache habilitado em producao** — mitigacao de latencia Gemini                           |
+| 2026-06-06 | **PR #345 criada e validada** — fix CSS static fallback (2/2 manual SUCESSO)                         |
+| 2026-06-06 | **Branch `fix/diagnostic-render-freeze` criada** — instrumentacao diagnostica do freeze intermitente |
+| 2026-06-06 | **Hipotese freeze**: react-markdown processa ~8k chars por secao sincronamente, bloquela main thread |
+| 2026-06-05 | **Camada 5 descoberta**: flushDiagnosticsNow sincrono pos-setState bloqueava React re-render         |
+| 2026-06-05 | **PR #343 MERGEADA** — setTimeout swap (flush ANTES do setState)                                     |
+| 2026-06-05 | **PR #342 MERGEADA** — finalizeWaterfallUI + static fallback fix + LayoutTrace                       |
+| 2026-06-05 | **Bug P0 completamente resolvido** (4 camadas, 4 PRs mergeadas #333-#342)                            |
 
 ## Licoes registradas
 
-17 licoes do bug P0 + setTimeout swap em `Bruno Vault/30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md` e `CALIBER_LEARNINGS.md`.
+Vault: `Bruno Vault/30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md`
+Nova (freeze intermitente): a ser registrada quando reproduzido com instrumentacao.
 
 ## Comandos de validacao
 
