@@ -274,6 +274,8 @@ function stripUnsafeSocietarySections(markdown: string): string {
     .trim();
 }
 
+const TRUNCATION_SECTION_THRESHOLD = 3;
+
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId,
@@ -372,8 +374,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // e botão "Ver relatório completo" com expansão sob demanda.
   // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
   // de markdown de uma só vez.
-  const TRUNCATION_SECTION_THRESHOLD = 3;
   const [isDossierExpanded, setIsDossierExpanded] = useState(false);
+
+  // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)
+  useEffect(() => {
+    setIsDossierExpanded(false);
+  }, [message.id]);
+
   const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !isDossierExpanded;
   const visibleSections = shouldTruncateDossier ? sections.slice(0, TRUNCATION_SECTION_THRESHOLD) : sections;
   const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
