@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -290,6 +290,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   auditableSources = [],
   isLoading = false,
 }) => {
+  const _t0 = performance.now();
+  performance.mark('[FreezeDiag] SectionalBotMessage:render:start', {
+    detail: { t: _t0, mid: message.id?.slice(0, 8) },
+  });
   const content = message.text || '';
 
   const { cleanText, options: parsedOptions } = useMemo(() => {
@@ -375,6 +379,13 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
   // de markdown de uma só vez.
   const [isDossierExpanded, setIsDossierExpanded] = useState(false);
+
+  // [FreezeDiag] commit tracking
+  useLayoutEffect(() => {
+    performance.mark('[FreezeDiag] SectionalBotMessage:commit', {
+      detail: { t: performance.now(), sections: sections.length, chars: content.length, mid: message.id?.slice(0, 8) },
+    });
+  });
 
   // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)
   useEffect(() => {

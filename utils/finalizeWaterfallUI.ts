@@ -28,6 +28,10 @@ export interface FinalizeWaterfallUIParams {
 
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
+  const T = performance.now();
+
+  // [FreezeDiag] antes de setIsLoading
+  performance.mark(`[FreezeDiag] finalize:before-setIsLoading`, { detail: { t: T, sessionId, botMsgTextLen } });
 
   // 1. Zera React state de loading
   store.setIsLoading?.(false);
@@ -105,4 +109,6 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
       });
     }, 600);
   }
+
+  performance.mark(`[FreezeDiag] finalize:done`, { detail: { t: performance.now() } });
 }

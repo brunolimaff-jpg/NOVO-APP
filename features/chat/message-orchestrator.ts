@@ -635,6 +635,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
+        performance.mark('[FreezeDiag] finally:start', { detail: { t: performance.now() } });
         const isAbort = !abortControllerRef.current;
 
         scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
