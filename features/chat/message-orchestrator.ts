@@ -649,17 +649,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
         const t0 = performance.now();
 
-        setIsLoading(false);
-        setLoadingVariant(undefined);
-        completeLoadingProgress();
-        setRequestKind('default');
-        setLoadingPinnedLabel(null);
-        abortControllerRef.current = null;
-
-        scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
-
+        // Agenda flush ANTES de disparar React render.
+        // setIsLoading(false) dispara render síncrono que bloqueia a thread.
+        // Se o setTimeout for agendado DEPOIS, o callback nunca roda até
+        // o render terminar. Agendando ANTES, o timer já está na macrotask
+        // queue quando o React começa, e dispara assim que o render termina.
         if (!isAbort) {
-          // Adia flush para o próximo tick — deixa o React re-renderizar primeiro
           setTimeout(() => {
             scoutDiag.info('MessageOrchestrator', 'post-render-fired', {
               sessionId,
@@ -667,7 +662,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             });
             scoutDiag.info('MessageOrchestrator', 'processMessage:finally:before-flush', {
               sessionId,
-              bufferSize: -1,
             });
             flushDiagnosticsNow('processMessage:finally', true);
             scoutDiag.info('MessageOrchestrator', 'processMessage:finally:after-flush', {
@@ -676,6 +670,18 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             });
           }, 0);
         }
+
+        // Dispara React render DEPOIS de agendar o setTimeout.
+        // O timer já está na macrotask queue — dispara assim que
+        // o render síncrono terminar e devolver controle ao event loop.
+        setIsLoading(false);
+        setLoadingVariant(undefined);
+        completeLoadingProgress();
+        setRequestKind('default');
+        setLoadingPinnedLabel(null);
+        abortControllerRef.current = null;
+
+        scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
 
         // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
         if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
