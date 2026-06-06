@@ -397,14 +397,8 @@ export async function generateContinuityQuestion(
     for (let i = 0; i < trimmed.length; i++) {
       const ch = trimmed[i];
       if (inString) {
-        if (escaped) {
-          escaped = false;
-          continue;
-        }
-        if (ch === '\\') {
-          escaped = true;
-          continue;
-        }
+        if (escaped) { escaped = false; continue; }
+        if (ch === '\\') { escaped = true; continue; }
         if (ch === '"') {
           inString = false;
           lastCompleteEnd = i;
@@ -412,10 +406,7 @@ export async function generateContinuityQuestion(
         }
         continue;
       }
-      if (ch === '"') {
-        inString = true;
-        continue;
-      }
+      if (ch === '"') { inString = true; continue; }
       if (ch === ']') lastCompleteEnd = i;
     }
 
