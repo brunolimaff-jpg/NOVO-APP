@@ -25,14 +25,14 @@ Last updated: 2026-06-05 -- Bug P0 OVERLAY RESOLVIDO. 4 PRs mergeadas. PR #343 A
 
 ## Pendencias
 
-| Item | Status | Acao |
-|------|--------|------|
-| PR #343 setTimeout swap | ABERTA | Code review + merge |
-| Kill-switch sw.js | MANTER 1-2 RELEASES | Remover depois |
-| ContinuityQuestion JSON truncado | DEBUG LOG | Ja feito |
-| AbortError CNPJ lookup | DEBUG LOG | Ja feito |
-| foundationCacheName null | INVESTIGAR | Separado |
-| `scoutagro.vercel.app` alias | INVESTIGAR | Nao esta nos domains |
+| Item                             | Status              | Acao                 |
+| -------------------------------- | ------------------- | -------------------- |
+| PR #343 setTimeout swap          | ABERTA              | Code review + merge  |
+| Kill-switch sw.js                | MANTER 1-2 RELEASES | Remover depois       |
+| ContinuityQuestion JSON truncado | DEBUG LOG           | Ja feito             |
+| AbortError CNPJ lookup           | DEBUG LOG           | Ja feito             |
+| foundationCacheName null         | INVESTIGAR          | Separado             |
+| `scoutagro.vercel.app` alias     | INVESTIGAR          | Nao esta nos domains |
 
 ## Links
 

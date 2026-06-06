@@ -6,14 +6,14 @@ Abrir PR do **WIP local** (blank panel / contrato R3–R7) ou iniciar **P0 diagn
 
 ## State of play
 
-| Item | Status |
-|------|--------|
-| PR #332 | **MERGEADA** (squash) → `main` `83414a81` |
-| Deploy prod | Vercel OK; release Sentry `83414a81` |
-| Validação Bruno | Manual OK |
-| Supabase prod | `1c786d20-a6ef-4298-bd5e-5e21bc13ae95` — PostCompletion=6 |
-| Sentry | 0 erros no release |
-| WIP local | ~26 arquivos unstaged |
+| Item            | Status                                                    |
+| --------------- | --------------------------------------------------------- |
+| PR #332         | **MERGEADA** (squash) → `main` `83414a81`                 |
+| Deploy prod     | Vercel OK; release Sentry `83414a81`                      |
+| Validação Bruno | Manual OK                                                 |
+| Supabase prod   | `1c786d20-a6ef-4298-bd5e-5e21bc13ae95` — PostCompletion=6 |
+| Sentry          | 0 erros no release                                        |
+| WIP local       | ~26 arquivos unstaged                                     |
 
 ## Evidência (resumo)
 
@@ -23,12 +23,12 @@ Abrir PR do **WIP local** (blank panel / contrato R3–R7) ou iniciar **P0 diagn
 
 ## Roadmap
 
-| Fase | Escopo |
-|------|--------|
-| Feito | #332 overlay + flush + telemetria |
-| P0 | Diagnostics fora de `/api/gemini` |
-| P1 | State machine fase loading |
-| P2 | Contrato R3–R7 + e2e Scheffer (WIP) |
+| Fase  | Escopo                              |
+| ----- | ----------------------------------- |
+| Feito | #332 overlay + flush + telemetria   |
+| P0    | Diagnostics fora de `/api/gemini`   |
+| P1    | State machine fase loading          |
+| P2    | Contrato R3–R7 + e2e Scheffer (WIP) |
 
 ## Artifacts
 

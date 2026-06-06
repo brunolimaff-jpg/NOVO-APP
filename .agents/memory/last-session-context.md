@@ -16,13 +16,13 @@ PR #343 aberta na mesma branch da #342 (ja mergeada). setTimeout swap: `flushDia
 
 ## Root Cause completa (5 camadas)
 
-| # | Causa | Fix |
-|---|-------|-----|
-| 1 | SW CacheFirst servia bundles antigos | PR #334: remover PWA/SW |
-| 2 | Gap waterfall vs setIsLoading sem bridge | PR #342: finalizeWaterfallUI no finally |
-| 3 | abortControllerRef nullificado (isAbort=true falso) | PR #342: ref so no processMessage:finally |
-| 4 | Static fallback display:none (flex-basis:0% + h-full = 0px) | PR #342: parent flex-col, child flex-1 |
-| 5 | flushDiagnosticsNow sincrono pos-setState bloqueia React render | PR #343: setTimeout(0) ANTES do setState |
+| #   | Causa                                                           | Fix                                       |
+| --- | --------------------------------------------------------------- | ----------------------------------------- |
+| 1   | SW CacheFirst servia bundles antigos                            | PR #334: remover PWA/SW                   |
+| 2   | Gap waterfall vs setIsLoading sem bridge                        | PR #342: finalizeWaterfallUI no finally   |
+| 3   | abortControllerRef nullificado (isAbort=true falso)             | PR #342: ref so no processMessage:finally |
+| 4   | Static fallback display:none (flex-basis:0% + h-full = 0px)     | PR #342: parent flex-col, child flex-1    |
+| 5   | flushDiagnosticsNow sincrono pos-setState bloqueia React render | PR #343: setTimeout(0) ANTES do setState  |
 
 ## Validacao local
 

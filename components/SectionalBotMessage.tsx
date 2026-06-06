@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Message } from '../types';
+import { m, rc } from '../utils/freezeDiag';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
 import { ChatMode } from '../constants';
@@ -290,10 +291,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   auditableSources = [],
   isLoading = false,
 }) => {
-  const _t0 = performance.now();
-  performance.mark('[FreezeDiag] SectionalBotMessage:render:start', {
-    detail: { t: _t0, mid: message.id?.slice(0, 8) },
-  });
+  const _rc = rc('SectionalBotMessage');
+  m('SectionalBotMessage:render:start', { mid: message.id?.slice(0, 8), rc: _rc });
   const content = message.text || '';
 
   const { cleanText, options: parsedOptions } = useMemo(() => {
@@ -507,6 +506,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   traceEnabled={teiaTraceEnabled}
                 />
               ) : null}
+              {(() => {
+                m(`Section:${section.key}:start`, { chars: section.content.length, title: section.title.slice(0, 40) });
+                return null;
+              })()}
               <MarkdownRenderer
                 content={(() => {
                   const raw =

@@ -26,9 +26,18 @@ export interface FinalizeWaterfallUIParams {
   log?: (area: string, event: string, payload: Record<string, unknown>) => void;
 }
 
+import { installLongTaskObserver, watchdogHeartbeat } from './freezeDiag';
+
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
   const T = performance.now();
+
+  // [FreezeDiag] Observers instalados ANTES do setIsLoading — cleanup após 60s
+  installLongTaskObserver(sessionId);
+  watchdogHeartbeat(sessionId);
+  setTimeout(() => {
+    performance.mark('[FreezeDiag] diagnostic-timeout-60s');
+  }, 60_000);
 
   // [FreezeDiag] antes de setIsLoading
   performance.mark(`[FreezeDiag] finalize:before-setIsLoading`, { detail: { t: T, sessionId, botMsgTextLen } });

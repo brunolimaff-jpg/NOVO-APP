@@ -4,24 +4,24 @@
 
 ## Root Cause (5 camadas)
 
-| # | Causa | Onde | Fix (PR) |
-|---|-------|------|----------|
-| 1 | **Service Worker CacheFirst** servia bundles JS/CSS antigos em producao. Preview sem SW nunca reproduzia. | VitePWA + `public/sw.js` | #334: remove PWA/SW |
-| 2 | **Gap waterfall vs setIsLoading**: `finalizeWaterfallUI` no finally sem bridge entre completar waterfall e liberar overlay | `waterfall-orchestrator.ts` | #342: finalizeWaterfallUI incondicional no finally |
-| 3 | **abortControllerRef nullificado** pelo finalizeWaterfallUI: `isAbort=true` falso -> `flushDiagnosticsNow` nunca chamado | `waterfall-orchestrator.ts` | #342: abortControllerRef so no processMessage:finally |
-| 4 | **Static fallback display:none**: `flex-1` pai com `flex-basis:0%` + filho `h-full` = altura 0. Browser colapsava fallback invisivel. | `MessageTimeline.tsx` | #342: parent flex-col, child flex-1 |
-| 5 | **flushDiagnosticsNow sincrono bloqueia React render**: chamado no mesmo tick que `setIsLoading(false)`. setState disparava render sincrono, mas flush ocupava main thread antes do render completar. Playwright reproduziu: `post-render-scheduled` aparecia, `post-render-fired` nunca. | `message-orchestrator.ts` | #343: setTimeout(0) agendado ANTES do setState |
+| #   | Causa                                                                                                                                                                                                                                                                                     | Onde                        | Fix (PR)                                              |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------- |
+| 1   | **Service Worker CacheFirst** servia bundles JS/CSS antigos em producao. Preview sem SW nunca reproduzia.                                                                                                                                                                                 | VitePWA + `public/sw.js`    | #334: remove PWA/SW                                   |
+| 2   | **Gap waterfall vs setIsLoading**: `finalizeWaterfallUI` no finally sem bridge entre completar waterfall e liberar overlay                                                                                                                                                                | `waterfall-orchestrator.ts` | #342: finalizeWaterfallUI incondicional no finally    |
+| 3   | **abortControllerRef nullificado** pelo finalizeWaterfallUI: `isAbort=true` falso -> `flushDiagnosticsNow` nunca chamado                                                                                                                                                                  | `waterfall-orchestrator.ts` | #342: abortControllerRef so no processMessage:finally |
+| 4   | **Static fallback display:none**: `flex-1` pai com `flex-basis:0%` + filho `h-full` = altura 0. Browser colapsava fallback invisivel.                                                                                                                                                     | `MessageTimeline.tsx`       | #342: parent flex-col, child flex-1                   |
+| 5   | **flushDiagnosticsNow sincrono bloqueia React render**: chamado no mesmo tick que `setIsLoading(false)`. setState disparava render sincrono, mas flush ocupava main thread antes do render completar. Playwright reproduziu: `post-render-scheduled` aparecia, `post-render-fired` nunca. | `message-orchestrator.ts`   | #343: setTimeout(0) agendado ANTES do setState        |
 
 O timer entra na macrotask queue antes do React render comecar. O render ocorre. O timer dispara depois que o render termina e devolve controle ao event loop.
 
 ## PRs
 
-| PR | Branch | Status | O que fez |
-|----|--------|--------|-----------|
-| #333 | `main` | MERGED | Review fixes Gemini + Qodo (null checks, useEffect, import facade, backendKey) |
-| #334 | `main` | MERGED | Remove PWA/SW (VitePWA, manifest.json, sw.js) + hard invariant |
-| #335 | `main` | MERGED | Gemini follow-up: display:none, useMemo puro, ES2024, optional chaining |
-| #342 | `codex/finalize-waterfall-ui` | MERGED | finalizeWaterfallUI + static fallback fix + LayoutTrace + DOM safety net |
+| PR   | Branch                        | Status | O que fez                                                                                        |
+| ---- | ----------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+| #333 | `main`                        | MERGED | Review fixes Gemini + Qodo (null checks, useEffect, import facade, backendKey)                   |
+| #334 | `main`                        | MERGED | Remove PWA/SW (VitePWA, manifest.json, sw.js) + hard invariant                                   |
+| #335 | `main`                        | MERGED | Gemini follow-up: display:none, useMemo puro, ES2024, optional chaining                          |
+| #342 | `codex/finalize-waterfall-ui` | MERGED | finalizeWaterfallUI + static fallback fix + LayoutTrace + DOM safety net                         |
 | #343 | `codex/finalize-waterfall-ui` | MERGED | setTimeout swap: flushDiagnosticsNow deferido com setTimeout(0) para desbloquear React re-render |
 
 ## Bugs secundarios corrigidos
@@ -43,43 +43,43 @@ O timer entra na macrotask queue antes do React render comecar. O render ocorre.
 
 ## Pendencias
 
-| Item | Status | Acao |
-|------|--------|------|
-| PR #343 setTimeout swap | ABERTA | Code review + merge |
-| Kill-switch sw.js | MANTER 1-2 RELEASES | Remover depois |
-| ContinuityQuestion JSON truncado | DEBUG LOG | Ja feito |
-| AbortError CNPJ lookup | DEBUG LOG | Ja feito |
-| foundationCacheName null em producao | INVESTIGAR | Separado |
-| `scoutagro.vercel.app` alias orfao | INVESTIGAR | Nao esta nos domains do projeto |
+| Item                                 | Status              | Acao                            |
+| ------------------------------------ | ------------------- | ------------------------------- |
+| PR #343 setTimeout swap              | ABERTA              | Code review + merge             |
+| Kill-switch sw.js                    | MANTER 1-2 RELEASES | Remover depois                  |
+| ContinuityQuestion JSON truncado     | DEBUG LOG           | Ja feito                        |
+| AbortError CNPJ lookup               | DEBUG LOG           | Ja feito                        |
+| foundationCacheName null em producao | INVESTIGAR          | Separado                        |
+| `scoutagro.vercel.app` alias orfao   | INVESTIGAR          | Nao esta nos domains do projeto |
 
 ## Licoes-chave (17)
 
-| # | Licao |
-|---|-------|
-| 1 | NUNCA nullificar `abortControllerRef` fora do `processMessage:finally` |
-| 2 | NUNCA usar `TreeWalker`/`document.body` scan para DOM cleanup (bloqueia main thread) |
-| 3 | DOM cleanup DOM display:none e safety net; React render condition e primario |
-| 4 | `h-full` nao funciona em filho de flex item com `flex-basis:0%` (height:100% de 0 = 0) |
-| 5 | `absolute inset-0` causa display:none em certos contextos de flex |
-| 6 | Service Worker CacheFirst e perigoso em apps com deploy frequente |
-| 7 | Preview sem SW vs Producao com SW cria falsa confianca |
-| 8 | Preview Vercel revela bugs que testes unitarios nao pegam |
-| 9 | Optional chaining deve ir ate o fim da cadeia (`.trim()?.length`) |
-| 10 | `useMemo` deve ser puro; side effects em `useEffect` |
-| 11 | Mock de scoutDiag precisa incluir `debug: vi.fn()` |
-| 12 | Sempre verificar hostname em logs de diagnostico |
-| 13 | Hard invariant como airbag contra UI quebrada apos waterfall |
-| 14 | DOM cleanup com `.remove()` quebra reconciliacao do React |
-| 15 | `hasRenderableBotMessage` deve ser condicao em TODOS os gates de loading |
-| 16 | Vercel alias orfao pode servir codigo sem estar no projeto |
-| 17 | **`flushDiagnosticsNow` sincrono pos-setState bloqueia React re-render. Agendar `setTimeout(0)` ANTES do `setState`, nao depois. Se agendado depois, o setTimeout nunca roda ate o render terminar.** |
+| #   | Licao                                                                                                                                                                                                 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | NUNCA nullificar `abortControllerRef` fora do `processMessage:finally`                                                                                                                                |
+| 2   | NUNCA usar `TreeWalker`/`document.body` scan para DOM cleanup (bloqueia main thread)                                                                                                                  |
+| 3   | DOM cleanup DOM display:none e safety net; React render condition e primario                                                                                                                          |
+| 4   | `h-full` nao funciona em filho de flex item com `flex-basis:0%` (height:100% de 0 = 0)                                                                                                                |
+| 5   | `absolute inset-0` causa display:none em certos contextos de flex                                                                                                                                     |
+| 6   | Service Worker CacheFirst e perigoso em apps com deploy frequente                                                                                                                                     |
+| 7   | Preview sem SW vs Producao com SW cria falsa confianca                                                                                                                                                |
+| 8   | Preview Vercel revela bugs que testes unitarios nao pegam                                                                                                                                             |
+| 9   | Optional chaining deve ir ate o fim da cadeia (`.trim()?.length`)                                                                                                                                     |
+| 10  | `useMemo` deve ser puro; side effects em `useEffect`                                                                                                                                                  |
+| 11  | Mock de scoutDiag precisa incluir `debug: vi.fn()`                                                                                                                                                    |
+| 12  | Sempre verificar hostname em logs de diagnostico                                                                                                                                                      |
+| 13  | Hard invariant como airbag contra UI quebrada apos waterfall                                                                                                                                          |
+| 14  | DOM cleanup com `.remove()` quebra reconciliacao do React                                                                                                                                             |
+| 15  | `hasRenderableBotMessage` deve ser condicao em TODOS os gates de loading                                                                                                                              |
+| 16  | Vercel alias orfao pode servir codigo sem estar no projeto                                                                                                                                            |
+| 17  | **`flushDiagnosticsNow` sincrono pos-setState bloqueia React re-render. Agendar `setTimeout(0)` ANTES do `setState`, nao depois. Se agendado depois, o setTimeout nunca roda ate o render terminar.** |
 
 ## Arquivos alterados (PR #343)
 
-| Arquivo | Mudanca |
-|---------|---------|
+| Arquivo                                 | Mudanca                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------ |
 | `features/chat/message-orchestrator.ts` | flushDiagnosticsNow movido para setTimeout(0); agendado ANTES de setIsLoading(false) |
-| `components/chat/MessageTimeline.tsx` | Ajuste LayoutTrace (1 linha) |
+| `components/chat/MessageTimeline.tsx`   | Ajuste LayoutTrace (1 linha)                                                         |
 
 ## Links
 

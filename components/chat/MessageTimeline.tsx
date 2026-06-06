@@ -1,4 +1,5 @@
 import { scoutDiag } from '../../utils/diagnosticLog';
+import { m, rc } from '../../utils/freezeDiag';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
@@ -91,6 +92,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   canDeepDive,
   theme,
 }) => {
+  m('MT:render', { msgs: messages?.length, static: forceStaticTimelineFallback, susp: shouldSuspendVirtualizedList });
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const pendingDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

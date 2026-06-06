@@ -675,12 +675,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // Dispara React render DEPOIS de agendar o setTimeout.
         // O timer já está na macrotask queue — dispara assim que
         // o render síncrono terminar e devolver controle ao event loop.
+        performance.mark('[FreezeDiag] finally:before-setState', { detail: { t: performance.now(), sessionId } });
         setIsLoading(false);
         setLoadingVariant(undefined);
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
+        performance.mark('[FreezeDiag] finally:after-setState', { detail: { t: performance.now(), sessionId } });
 
         scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
 
