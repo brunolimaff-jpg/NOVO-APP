@@ -362,6 +362,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasError: hasErrorInMessages,
   });
   const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
+
   const preferStaticForLargeDossier =
     !isLoading &&
     !showInitialHome &&

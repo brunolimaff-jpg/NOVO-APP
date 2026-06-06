@@ -182,7 +182,7 @@ export function findFirstZeroDimensionAncestor(
 
   return {
     culpritElement: culprit ? `${culprit.tagName}${culprit.id ? '#' + culprit.id : ''}` : 'unknown',
-    culpritClassName: culprit ? (culprit.className?.toString?.()?.slice(0, 200) || '') : '',
+    culpritClassName: culprit ? culprit.className?.toString?.()?.slice(0, 200) || '' : '',
     culpritRect: { width: Math.round(r.width), height: Math.round(r.height) },
     culpritComputedStyle: culprit
       ? {

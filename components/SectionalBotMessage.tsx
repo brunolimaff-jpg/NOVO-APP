@@ -290,9 +290,15 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 }) => {
   const content = message.text || '';
 
-  const { cleanText, options: parsedOptions } = useMemo(() => parseSmartOptions(content), [content]);
-  const displayText = useMemo(() => stripUnsafeSocietarySections(cleanText), [cleanText]);
-  const sections = useMemo(() => parseMarkdownSections(displayText), [displayText]);
+  const { cleanText, options: parsedOptions } = useMemo(() => {
+    return parseSmartOptions(content);
+  }, [content]);
+  const displayText = useMemo(() => {
+    return stripUnsafeSocietarySections(cleanText);
+  }, [cleanText]);
+  const sections = useMemo(() => {
+    return parseMarkdownSections(displayText);
+  }, [displayText]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
@@ -303,7 +309,9 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     [sections, auditableSources],
   );
 
-  const parsedTeiaData = useMemo(() => parseTeiaText(cleanText), [cleanText]);
+  const parsedTeiaData = useMemo(() => {
+    return parseTeiaText(cleanText);
+  }, [cleanText]);
   const geminiCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
@@ -359,6 +367,17 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     }
   };
 
+  // ── Truncamento frontend (Opção 5) ──
+  // Para dossiês grandes (>3 seções), exibe preview das 3 primeiras seções
+  // e botão "Ver relatório completo" com expansão sob demanda.
+  // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
+  // de markdown de uma só vez.
+  const TRUNCATION_SECTION_THRESHOLD = 3;
+  const [isDossierExpanded, setIsDossierExpanded] = useState(false);
+  const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !isDossierExpanded;
+  const visibleSections = shouldTruncateDossier ? sections.slice(0, TRUNCATION_SECTION_THRESHOLD) : sections;
+  const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
+
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = displayText.length > 300;
 
@@ -396,7 +415,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         </div>
       )}
 
-      {sections.map((section, idx) => {
+      {visibleSections.map((section, idx) => {
         const sellerSectionKind = getSellerSectionKind(section.title);
         const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
         const isPrimaryModule = section.level === 1 && section.kind === 'module';
@@ -507,6 +526,30 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
           </div>
         );
       })}
+
+      {shouldTruncateDossier && (
+        <button
+          onClick={() => setIsDossierExpanded(true)}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed
+            font-medium text-sm transition-all duration-200
+            ${
+              isDarkMode
+                ? 'border-slate-600 hover:border-emerald-500/50 text-slate-400 hover:text-emerald-300 bg-slate-800/50 hover:bg-slate-800'
+                : 'border-slate-300 hover:border-emerald-400 text-slate-500 hover:text-emerald-600 bg-slate-50 hover:bg-white'
+            }`}
+          aria-label={`Ver relatório completo (mais ${hiddenSectionCount} seções)`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+          <span>
+            Ver relatório completo
+            <span className={`ml-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              (+{hiddenSectionCount} seç{hiddenSectionCount > 1 ? 'ões' : 'ão'})
+            </span>
+          </span>
+        </button>
+      )}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
         <div className="mt-4 min-w-0 border-t border-dashed border-gray-500/20 pt-2">
