@@ -1426,7 +1426,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               : false,
           domComposerDisabled:
             typeof document !== 'undefined'
-              ? ((document.querySelector('[data-testid="composer-input"]') as HTMLInputElement)?.disabled ?? false)
+              ? ((
+                  document.querySelector('[data-testid="chat-input"], [data-testid="composer-input"]') as
+                    | HTMLInputElement
+                    | HTMLTextAreaElement
+                    | null
+                )?.disabled ?? false)
               : false,
           dossierWasPersisted: sessionToPersist !== null,
           cacheWasCleaned: foundationCacheName !== null,

@@ -77,7 +77,12 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
         domHasSuspended: Boolean(document.querySelector('[data-testid="messages-viewport-suspended"]')),
         domHasStopButton: Boolean(document.querySelector('[data-testid="loading-stop-button"]')),
         domComposerDisabled: Boolean(
-          (document.querySelector('[data-testid="composer-input"]') as HTMLInputElement)?.disabled,
+          (
+            document.querySelector('[data-testid="chat-input"], [data-testid="composer-input"]') as
+              | HTMLInputElement
+              | HTMLTextAreaElement
+              | null
+          )?.disabled,
         ),
       };
     };
