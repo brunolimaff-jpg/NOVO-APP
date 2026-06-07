@@ -4,6 +4,7 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
 import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
 import { Sender } from '../../types';
+import { shouldPreferStaticTimelineForBotVolume } from '../../utils/expectedBotContent';
 import EmptyStateHome from '../EmptyStateHome';
 import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
 import HelpCenterFloating from '../HelpCenterFloating';
@@ -98,6 +99,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const hasLargeBotMessage = safeMessages.some(
+    message =>
+      message.sender === Sender.Bot &&
+      shouldPreferStaticTimelineForBotVolume(String(message.text || '').trim().length),
+  );
+  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback || hasLargeBotMessage;
+  const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
   const safeMessagesLengthRef = useRef(safeMessages.length);
   safeMessagesLengthRef.current = safeMessages.length;
 
@@ -112,8 +120,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       prev > 0 &&
       curr === 0 &&
       !showInitialHome &&
-      !shouldSuspendVirtualizedList &&
-      !forceStaticTimelineFallback &&
+      !shouldRenderSuspendedViewport &&
+      !shouldRenderStaticTimelineFallback &&
       !isLoading
     ) {
       console.error(
@@ -123,8 +131,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           before: prev,
           after: curr,
           showInitialHome,
-          shouldSuspendVirtualizedList,
-          forceStaticTimelineFallback,
+          shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
+          forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
           isDarkMode,
         }),
       );
@@ -132,8 +140,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   }, [
     safeMessages.length,
     showInitialHome,
-    shouldSuspendVirtualizedList,
-    forceStaticTimelineFallback,
+    shouldRenderSuspendedViewport,
+    shouldRenderStaticTimelineFallback,
     isLoading,
     currentSession?.id,
     isDarkMode,
@@ -230,7 +238,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   );
 
   useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList || forceStaticTimelineFallback) {
+    if (showInitialHome || shouldRenderSuspendedViewport || shouldRenderStaticTimelineFallback) {
       setIsMessagesViewportReady(false);
       return;
     }
@@ -256,8 +264,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       scrollHeight: viewport.scrollHeight,
       totalItems: safeMessages.length,
       showInitialHome,
-      shouldSuspendVirtualizedList,
-      forceStaticTimelineFallback,
+      shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
+      forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
     });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = (reason: string) => {
@@ -311,7 +319,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, forceStaticTimelineFallback, showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, shouldRenderStaticTimelineFallback, shouldRenderSuspendedViewport, showInitialHome]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -382,7 +390,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
   useEffect(() => {
-    if (!forceStaticTimelineFallback) return;
+    if (!shouldRenderStaticTimelineFallback) return;
 
     const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
     const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
@@ -410,7 +418,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           .catch(() => {}); // falha silenciosa em testes
       });
     }
-  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
+  }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
@@ -431,21 +439,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
-      ) : shouldSuspendVirtualizedList ? (
-        <div
-          className="flex-1 min-h-0 w-full flex items-center justify-center"
-          data-testid="messages-viewport-suspended"
-        >
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
-            />
-            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Preparando investigação...
-            </p>
-          </div>
-        </div>
-      ) : forceStaticTimelineFallback ? (
+      ) : shouldRenderStaticTimelineFallback ? (
         <div
           className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
           data-testid="messages-static-fallback"
@@ -465,6 +459,20 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           {safeMessages.map((message, index) => (
             <MessageRow key={message.id} index={index} data={itemData} />
           ))}
+        </div>
+      ) : shouldRenderSuspendedViewport ? (
+        <div
+          className="flex-1 min-h-0 w-full flex items-center justify-center"
+          data-testid="messages-viewport-suspended"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
+            />
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Preparando investigação...
+            </p>
+          </div>
         </div>
       ) : (
         <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">

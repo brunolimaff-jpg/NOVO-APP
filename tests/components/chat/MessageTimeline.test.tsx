@@ -289,6 +289,25 @@ describe('MessageTimeline', () => {
     expect(props.onLoadMore).toHaveBeenCalled();
   });
 
+  it('prioriza fallback estatico para bot gigante mesmo se a viewport ainda estiver suspensa', () => {
+    const largeMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+    ];
+
+    const props = buildProps({
+      messages: largeMessages,
+      currentSession: buildSession(largeMessages),
+      shouldSuspendVirtualizedList: true,
+    });
+
+    render(<MessageTimeline {...props} />);
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('SCHEFFER_E2E_SENTINEL');
+  });
+
   it('mantem auto-scroll desativado no chat principal mesmo com novas mensagens', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path

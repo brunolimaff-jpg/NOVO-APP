@@ -148,6 +148,7 @@ export interface ContinuityQuestionOptions {
 
 function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): {
   signal: AbortSignal;
+  abort: () => void;
   cleanup: () => void;
 } {
   const controller = new AbortController();
@@ -162,6 +163,7 @@ function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeou
 
   return {
     signal: controller.signal,
+    abort: () => controller.abort(),
     cleanup: () => {
       clearTimeout(timeoutId);
       parentSignal?.removeEventListener('abort', forwardAbort);
@@ -611,22 +613,32 @@ export async function generateContinuityQuestion(
     attempt: 'primary' | 'retry' | 'novelty_retry',
   ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
     throwIfContinuityAborted(options.signal);
-    const attemptSignal = createLinkedTimeoutSignal(options.signal, 15000);
+    const attemptTimeoutMs = 15_000;
+    const attemptSignal = createLinkedTimeoutSignal(options.signal, attemptTimeoutMs);
+    let localTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     try {
-      const response = await proxyGenerateContent(
-        {
-          model: ROUTER_MODEL_ID,
-          contents: prompt,
-          config: {
-            temperature: 0.8,
-            maxOutputTokens: 900,
-            systemInstruction: systemPrompt,
-            responseMimeType: 'application/json',
+      const response = await Promise.race([
+        proxyGenerateContent(
+          {
+            model: ROUTER_MODEL_ID,
+            contents: prompt,
+            config: {
+              temperature: 0.8,
+              maxOutputTokens: 900,
+              systemInstruction: systemPrompt,
+              responseMimeType: 'application/json',
+            },
           },
-        },
-        attemptSignal.signal,
-      );
+          attemptSignal.signal,
+        ),
+        new Promise<never>((_, reject) => {
+          localTimeoutId = setTimeout(() => {
+            attemptSignal.abort();
+            reject(new DOMException('The operation was aborted', 'AbortError'));
+          }, attemptTimeoutMs);
+        }),
+      ]);
 
       throwIfContinuityAborted(options.signal);
 
@@ -643,6 +655,7 @@ export async function generateContinuityQuestion(
       });
       return { ...parsed, raw };
     } finally {
+      if (localTimeoutId) clearTimeout(localTimeoutId);
       attemptSignal.cleanup();
     }
   };
