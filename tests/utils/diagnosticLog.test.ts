@@ -37,7 +37,6 @@ describe('scoutDiag', () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
-    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
     (window as typeof window & { __SCOUT_DIAG_HISTORY__?: unknown[] }).__SCOUT_DIAG_HISTORY__ = [];
     consoleSpy = {
       debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
@@ -180,6 +179,31 @@ describe('scoutDiag', () => {
   });
 
   describe('flushDiagnosticsNow', () => {
+    beforeEach(() => {
+      window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    });
+
+    it('envia evento único abaixo do batch size no flush diferido', async () => {
+      vi.useFakeTimers();
+
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true } as Response);
+      vi.stubGlobal('fetch', fetchMock);
+
+      scoutDiag.warn('PostCompletion', 'check:10000ms');
+
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+      expect(body.events).toHaveLength(1);
+      expect(body.events[0].event).toBe('check:10000ms');
+
+      vi.useRealTimers();
+    });
+
     it('agenda dreno pós-flush quando force=true chega durante um flush ativo', async () => {
       vi.useFakeTimers();
 
