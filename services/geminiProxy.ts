@@ -110,6 +110,32 @@ export function resolveGeminiApiEndpoint(
 // de módulo. Cada função resolve seu endpoint de forma lazy (na primeira chamada),
 // garantindo que window e import.meta estejam disponíveis no momento da avaliação.
 
+function buildAbortError(): Error {
+  if (typeof DOMException !== 'undefined') {
+    return new DOMException('The operation was aborted', 'AbortError');
+  }
+  const error = new Error('The operation was aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+async function readResponseText(response: Response, signal: AbortSignal): Promise<string> {
+  if (signal.aborted) throw buildAbortError();
+
+  let cleanupAbortListener: (() => void) | undefined;
+  const abortPromise = new Promise<never>((_, reject) => {
+    const rejectOnAbort = () => reject(buildAbortError());
+    signal.addEventListener('abort', rejectOnAbort, { once: true });
+    cleanupAbortListener = () => signal.removeEventListener('abort', rejectOnAbort);
+  });
+
+  try {
+    return await Promise.race([response.text(), abortPromise]);
+  } finally {
+    cleanupAbortListener?.();
+  }
+}
+
 async function callGeminiApi<TResponse>(
   endpoint: string,
   payload:
@@ -154,7 +180,7 @@ async function callGeminiApi<TResponse>(
         signal: controller.signal,
       });
 
-      responseText = await response.text();
+      responseText = await readResponseText(response, controller.signal);
     } catch (error: unknown) {
       if (timedOut) {
         scoutDiag.error('GeminiProxy', 'timeout no proxy', {

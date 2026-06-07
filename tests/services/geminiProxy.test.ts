@@ -36,4 +36,25 @@ describe('proxyGenerateContent', () => {
     expect(text).toHaveBeenCalledTimes(1);
     expect(json).not.toHaveBeenCalled();
   });
+
+  it('interrompe leitura de body pendente quando o signal externo aborta', async () => {
+    const text = vi.fn(() => new Promise<string>(() => {}));
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, text }) as unknown as Response);
+    const controller = new AbortController();
+
+    const pending = proxyGenerateContent({ model: 'test-model', contents: 'prompt' }, controller.signal);
+    await Promise.resolve();
+
+    controller.abort();
+
+    const result = await Promise.race([
+      pending.then(
+        () => 'resolved',
+        error => error,
+      ),
+      new Promise(resolve => setTimeout(() => resolve('pending'), 20)),
+    ]);
+
+    expect(result).toMatchObject({ name: 'AbortError' });
+  });
 });
