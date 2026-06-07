@@ -143,6 +143,35 @@ export interface ContinuityQuestionOptions {
   mode?: 'default' | 'regenerate';
   avoidSuggestions?: string[];
   ensureFresh?: boolean;
+  signal?: AbortSignal;
+}
+
+function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): {
+  signal: AbortSignal;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const forwardAbort = () => controller.abort();
+
+  if (parentSignal?.aborted) {
+    controller.abort();
+  } else {
+    parentSignal?.addEventListener('abort', forwardAbort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      parentSignal?.removeEventListener('abort', forwardAbort);
+    },
+  };
+}
+
+function throwIfContinuityAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('The operation was aborted', 'AbortError');
 }
 
 export async function generateContinuityQuestion(
@@ -151,6 +180,8 @@ export async function generateContinuityQuestion(
   nomeVendedor: string,
   options: ContinuityQuestionOptions = {},
 ): Promise<string[]> {
+  throwIfContinuityAborted(options.signal);
+
   const CONTINUITY_TARGET = 4;
   const normalizedCompany = (empresaAlvo || '').trim();
   const companyReference = normalizedCompany || 'a operação';
@@ -397,8 +428,14 @@ export async function generateContinuityQuestion(
     for (let i = 0; i < trimmed.length; i++) {
       const ch = trimmed[i];
       if (inString) {
-        if (escaped) { escaped = false; continue; }
-        if (ch === '\\') { escaped = true; continue; }
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaped = true;
+          continue;
+        }
         if (ch === '"') {
           inString = false;
           lastCompleteEnd = i;
@@ -406,7 +443,10 @@ export async function generateContinuityQuestion(
         }
         continue;
       }
-      if (ch === '"') { inString = true; continue; }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
       if (ch === ']') lastCompleteEnd = i;
     }
 
@@ -570,32 +610,41 @@ export async function generateContinuityQuestion(
     prompt: string,
     attempt: 'primary' | 'retry' | 'novelty_retry',
   ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
-    const response = await proxyGenerateContent(
-      {
-        model: ROUTER_MODEL_ID,
-        contents: prompt,
-        config: {
-          temperature: 0.8,
-          maxOutputTokens: 900,
-          systemInstruction: systemPrompt,
-          responseMimeType: 'application/json',
-        },
-      },
-      AbortSignal.timeout(15000),
-    );
+    throwIfContinuityAborted(options.signal);
+    const attemptSignal = createLinkedTimeoutSignal(options.signal, 15000);
 
-    const raw = (response.text || '').trim();
-    const parsed = parseContinuityQuestions(raw);
-    scoutDiag.info?.('ContinuityQuestion', 'parse de sugestões concluído', {
-      attempt,
-      company: empresaAlvo || null,
-      rawChars: raw.length,
-      questionCount: parsed.questions.length,
-      stageHits: parsed.stageHits,
-      blockedCount: blockedQuestionKeys.size,
-      mode: options.mode || 'default',
-    });
-    return { ...parsed, raw };
+    try {
+      const response = await proxyGenerateContent(
+        {
+          model: ROUTER_MODEL_ID,
+          contents: prompt,
+          config: {
+            temperature: 0.8,
+            maxOutputTokens: 900,
+            systemInstruction: systemPrompt,
+            responseMimeType: 'application/json',
+          },
+        },
+        attemptSignal.signal,
+      );
+
+      throwIfContinuityAborted(options.signal);
+
+      const raw = (response.text || '').trim();
+      const parsed = parseContinuityQuestions(raw);
+      scoutDiag.info?.('ContinuityQuestion', 'parse de sugestões concluído', {
+        attempt,
+        company: empresaAlvo || null,
+        rawChars: raw.length,
+        questionCount: parsed.questions.length,
+        stageHits: parsed.stageHits,
+        blockedCount: blockedQuestionKeys.size,
+        mode: options.mode || 'default',
+      });
+      return { ...parsed, raw };
+    } finally {
+      attemptSignal.cleanup();
+    }
   };
 
   let collectedQuestions: string[] = [];
@@ -633,6 +682,7 @@ export async function generateContinuityQuestion(
       }
     }
   } catch (error) {
+    if (options.signal?.aborted) throw error;
     scoutDiag.warn('ContinuityQuestion', 'falha ao gerar perguntas de continuidade', {
       company: empresaAlvo || null,
       error: error instanceof Error ? error.message : String(error),

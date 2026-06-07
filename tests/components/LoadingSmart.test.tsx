@@ -282,7 +282,8 @@ describe('LoadingSmart (variante hero)', () => {
       vi.advanceTimersByTime(2000);
     });
 
-    expect(screen.getAllByText('Verificando sinais de risco e conformidade...')).toHaveLength(2);
+    expect(screen.getAllByText('Verificando sinais de risco e conformidade...')).toHaveLength(1);
+    expect(screen.queryByText('Investigando riscos & compliance...')).not.toBeInTheDocument();
   });
 
   it('reseta o insight imediatamente quando o contexto muda de empresa', async () => {

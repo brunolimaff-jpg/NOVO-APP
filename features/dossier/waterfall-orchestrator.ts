@@ -1099,10 +1099,22 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           webVerificationStatus,
         });
         scoutDiag.info('WaterfallLifecycle', 'pre-continuity-question', { sessionId, waterfallRunId });
+        let continuityTimedOut = false;
         try {
-          let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          waterfallSuggestions = await Promise.race([
-            generateContinuityQuestion(
+          const continuityController = new AbortController();
+          const forwardContinuityAbort = () => continuityController.abort();
+          const continuityTimeoutId = setTimeout(() => {
+            continuityTimedOut = true;
+            continuityController.abort();
+          }, CONTINUITY_QUESTION_TIMEOUT_MS);
+          if (signal.aborted) {
+            continuityController.abort();
+          } else {
+            signal.addEventListener('abort', forwardContinuityAbort, { once: true });
+          }
+
+          try {
+            waterfallSuggestions = await generateContinuityQuestion(
               [
                 ...historyToPass,
                 {
@@ -1121,20 +1133,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ],
               resolvedMegaCompany || null,
               resolvedOperatorName,
-            ),
-            new Promise<never>((_, reject) => {
-              continuityTimeoutId = setTimeout(
-                () => reject(new Error('generateContinuityQuestion timeout')),
-                CONTINUITY_QUESTION_TIMEOUT_MS,
-              );
-            }),
-          ]);
-          if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
+              { signal: continuityController.signal },
+            );
+          } finally {
+            clearTimeout(continuityTimeoutId);
+            signal.removeEventListener('abort', forwardContinuityAbort);
+          }
         } catch (error) {
-          if (isAbortLikeError(error)) throw error;
+          if (signal.aborted) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
+            timedOut: continuityTimedOut,
+            isAbortLike: isAbortLikeError(error),
             error: error instanceof Error ? error.message : String(error),
           });
         }

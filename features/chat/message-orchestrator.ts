@@ -597,11 +597,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           return;
         }
 
-        if (activeGenerationRef.current[sessionId] !== botMessageId) {
+        const activeBotMessageId = activeGenerationRef.current[sessionId];
+        if (activeBotMessageId && activeBotMessageId !== botMessageId) {
           scoutDiag.warn('MessageOrchestrator', 'error-treatment-skipped-generation-mismatch', {
             sessionId,
             expectedBotId: botMessageId,
-            actualBotId: activeGenerationRef.current[sessionId] ?? 'undefined',
+            actualBotId: activeBotMessageId,
           });
           return;
         }

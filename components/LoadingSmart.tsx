@@ -15,6 +15,7 @@ import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../uti
 import { LoadingOverlayHeader } from './LoadingOverlayHeader';
 import { LoadingStepsList } from './LoadingStepsList';
 import { LoadingInsightCarousel } from './LoadingInsightCarousel';
+import { scoutDiag } from '../utils/diagnosticLog';
 
 const FADE_DURATION = 400;
 const INSIGHT_CYCLE_MS = 12000;
@@ -181,6 +182,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const stageDurationsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
+  const loggedStageStartsRef = useRef<Set<string>>(new Set());
+  const loggedStageCompletionsRef = useRef<Set<string>>(new Set());
   const insightRequestIdRef = useRef(0);
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
@@ -241,6 +244,31 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     }
   }, []);
 
+  const logStageTimerStart = useCallback((stageKey: string, label: string, source: string, elapsedMs: number) => {
+    if (!stageKey || loggedStageStartsRef.current.has(stageKey)) return;
+    loggedStageStartsRef.current.add(stageKey);
+    scoutDiag.info('LoadingStageTimer', 'stage-start', {
+      stageKey,
+      label,
+      source,
+      elapsedMs,
+    });
+  }, []);
+
+  const logStageTimerComplete = useCallback(
+    (stageKey: string, label: string, startedAtMs: number, durationMs: number) => {
+      if (!stageKey || loggedStageCompletionsRef.current.has(stageKey)) return;
+      loggedStageCompletionsRef.current.add(stageKey);
+      scoutDiag.info('LoadingStageTimer', 'stage-complete', {
+        stageKey,
+        label,
+        startedAtMs,
+        durationMs,
+      });
+    },
+    [],
+  );
+
   const renderInsight = useCallback(
     (insight: string): React.ReactNode => {
       const sourceMatch = insight.match(/^(.*?)(?:\s+[—-]\s*Fonte:\s*)(.+)$/i);
@@ -291,6 +319,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       queueRef.current = [];
       displayedStageKeysRef.current = new Set();
       queuedStageKeysRef.current = new Set();
+      loggedStageStartsRef.current = new Set();
+      loggedStageCompletionsRef.current = new Set();
       lastRevealTimeRef.current = 0;
       stageStartedAtRef.current = {};
       stageDurationsRef.current = {};
@@ -340,7 +370,9 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
             displayedStageKeysRef.current.add(nextKey);
             const startedAt = stageStartedAtRef.current[nextKey];
             if (startedAt !== undefined && stageDurationsRef.current[nextKey] === undefined) {
-              stageDurationsRef.current[nextKey] = Math.max(0, elapsedTime - startedAt);
+              const duration = Math.max(0, elapsedTime - startedAt);
+              stageDurationsRef.current[nextKey] = duration;
+              logStageTimerComplete(nextKey, next, startedAt, duration);
             }
             return [...prev, next];
           });
@@ -367,11 +399,13 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     const activeKey = getLoadingStageIdentity(activeLabel);
     if (activeKey && stageStartedAtRef.current[activeKey] === undefined) {
       stageStartedAtRef.current[activeKey] = elapsedTime;
+      logStageTimerStart(activeKey, activeLabel, 'active-stage', elapsedTime);
     }
 
     const backendKey = getLoadingStageIdentity(realCurrent);
     if (backendKey && backendKey !== activeKey && stageStartedAtRef.current[backendKey] === undefined) {
       stageStartedAtRef.current[backendKey] = elapsedTime;
+      logStageTimerStart(backendKey, realCurrent, 'backend-stage', elapsedTime);
     }
 
     for (const stage of processing?.completedStages || []) {
@@ -380,9 +414,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
       const startedAt = stageStartedAtRef.current[stageKey] ?? 0;
       stageStartedAtRef.current[stageKey] = startedAt;
-      stageDurationsRef.current[stageKey] = Math.max(0, elapsedTime - startedAt);
+      const duration = Math.max(0, elapsedTime - startedAt);
+      stageDurationsRef.current[stageKey] = duration;
+      logStageTimerComplete(stageKey, stripInternalMarkers(stage).trim(), startedAt, duration);
     }
-  }, [elapsedTime, isLoading, processingKey]);
+  }, [elapsedTime, isLoading, logStageTimerComplete, logStageTimerStart, processingKey]);
 
   useEffect(
     () => () => {

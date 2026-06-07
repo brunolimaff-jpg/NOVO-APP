@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { resolveGeminiApiEndpoint } from '../../services/geminiProxy';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { proxyGenerateContent, resolveGeminiApiEndpoint } from '../../services/geminiProxy';
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  globalThis.fetch = originalFetch;
+});
 
 describe('resolveGeminiApiEndpoint', () => {
   it('uses same-origin /api endpoint for localhost in dev', () => {
@@ -12,5 +19,21 @@ describe('resolveGeminiApiEndpoint', () => {
 
   it('keeps relative endpoint outside local dev', () => {
     expect(resolveGeminiApiEndpoint('scoutagro.vercel.app', false)).toBe('/api/gemini');
+  });
+});
+
+describe('proxyGenerateContent', () => {
+  it('le o body como texto antes de parsear JSON da resposta OK', async () => {
+    const text = vi.fn(async () => JSON.stringify({ text: 'ok', usageMetadata: { totalTokenCount: 12 } }));
+    const json = vi.fn(async () => ({ text: 'json-path' }));
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, text, json }) as unknown as Response);
+
+    await expect(proxyGenerateContent({ model: 'test-model', contents: 'prompt' })).resolves.toEqual({
+      text: 'ok',
+      usageMetadata: { totalTokenCount: 12 },
+    });
+
+    expect(text).toHaveBeenCalledTimes(1);
+    expect(json).not.toHaveBeenCalled();
   });
 });
