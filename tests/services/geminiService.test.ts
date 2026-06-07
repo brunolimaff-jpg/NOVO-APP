@@ -243,6 +243,37 @@ describe('generateContinuityQuestion', () => {
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(1);
   });
 
+  it('encadeia o AbortSignal externo nas chamadas de continuidade', async () => {
+    let chainedSignal: AbortSignal | undefined;
+    let resolveResponse!: (value: { text: string }) => void;
+    proxyGenerateContentMock.mockImplementationOnce((_payload, signal: AbortSignal) => {
+      chainedSignal = signal;
+      return new Promise(resolve => {
+        resolveResponse = resolve;
+      });
+    });
+    const controller = new AbortController();
+
+    const pending = generateContinuityQuestion([], 'Acme Agro', 'Bruno', { signal: controller.signal });
+    await Promise.resolve();
+
+    expect(chainedSignal).toBeInstanceOf(AbortSignal);
+
+    controller.abort();
+
+    expect(chainedSignal?.aborted).toBe(true);
+
+    resolveResponse({
+      text: JSON.stringify([
+        'Qual custo fiscal hoje ameaça o resultado da operação?',
+        'Onde a margem da Acme Agro mais vaza sem virar prioridade?',
+        'Quem da diretoria precisa assumir essa decisão antes da próxima expansão?',
+        'Qual investimento fica travado enquanto o impacto financeiro não aparece?',
+      ]),
+    });
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('extrai array JSON embutido em texto adicional e permite citar a empresa quando fortalece a pergunta', async () => {
     proxyGenerateContentMock.mockResolvedValueOnce({
       text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque em Acme Agro perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
@@ -276,6 +307,39 @@ describe('generateContinuityQuestion', () => {
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
     expectStrongContinuitySet(result);
     expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('usa fallback quando o retry de continuidade fica pendente após resposta incompleta', async () => {
+    vi.useFakeTimers();
+
+    proxyGenerateContentMock
+      .mockResolvedValueOnce({
+        text: '["Qual processo crítico fica sem visibilidade hoje?"]',
+      })
+      .mockImplementationOnce(() => new Promise(() => {}));
+
+    const pending = generateContinuityQuestion(
+      [
+        {
+          id: '1',
+          sender: Sender.Bot,
+          text: 'Há pressão fiscal, retrabalho operacional, perda de margem e decisão de diretoria pendente.',
+          timestamp: new Date(),
+        },
+      ],
+      'Acme Agro',
+      'Bruno',
+    );
+
+    await vi.waitFor(() => expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    const result = await pending;
+
+    expectStrongContinuitySet(result);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
   });
 
   it('usa fallback guiado pelos sinais do dossie e mantém pressão comercial sem depender de 90 dias', async () => {

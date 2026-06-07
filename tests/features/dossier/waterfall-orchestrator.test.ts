@@ -308,6 +308,7 @@ function getBotMessage(harness: ReturnType<typeof makeHarness>): Message {
 describe('useDossierWaterfallOrchestrator', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   beforeEach(async () => {
@@ -732,11 +733,20 @@ describe('useDossierWaterfallOrchestrator', () => {
       'fetch',
       vi.fn().mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        bodyUsed: false,
         json: async () => ({
           results: {
             'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
           },
         }),
+        text: async () =>
+          JSON.stringify({
+            results: {
+              'https://www.bndes.gov.br/noticia': { status: 'valid', httpStatus: 200 },
+            },
+          }),
       }),
     );
 
@@ -928,6 +938,54 @@ describe('useDossierWaterfallOrchestrator', () => {
         /margem|diretoria|fiscal|risco|custo|investimento|or[cç]amento/i.test(suggestion),
       ),
     ).toBe(true);
+  });
+
+  it('finaliza o waterfall quando sugestões finais ficam pendentes após timeout local', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const score = makeScorePorta(70);
+    let continuitySignal: AbortSignal | undefined;
+    generateContinuityQuestionMock.mockImplementation(
+      (_messages, _company, _seller, options?: { signal?: AbortSignal }) => {
+        continuitySignal = options?.signal;
+        return new Promise<string[]>(() => {});
+      },
+    );
+    reconcileWaterfallPortaMock.mockResolvedValue({
+      accumulatedText: [
+        'Texto consolidado para Acme Agro com margem, risco fiscal, diretoria e fechamento manual.',
+        '---',
+        '[[PORTA:70:P7:O7:R5:T7:A6:PRD:NONE]]',
+      ].join('\n\n'),
+      resolution: makeResolution(score),
+      portaIntegrityHold: false,
+    });
+    ensureWaterfallScorePortaMock.mockReturnValue(score);
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    let runPromise!: Promise<void>;
+    act(() => {
+      runPromise = harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    await vi.waitFor(() => expect(generateContinuityQuestionMock).toHaveBeenCalled(), { timeout: 1000 });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_100);
+      await runPromise;
+    });
+    vi.useRealTimers();
+
+    const finalBotMessage = getBotMessage(harness);
+
+    expect(continuitySignal?.aborted).toBe(true);
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
+    expect(finalBotMessage.isThinking).toBe(false);
+    expect(finalBotMessage.suggestions).toHaveLength(4);
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'ModularDossier',
+      'timeout nas sugestões finais do waterfall',
+      expect.objectContaining({ sessionId: 'session-1', timeoutMs: 20_000 }),
+    );
   });
 
   // ── Testes do fallback de recuperação de sessão ──

@@ -143,6 +143,37 @@ export interface ContinuityQuestionOptions {
   mode?: 'default' | 'regenerate';
   avoidSuggestions?: string[];
   ensureFresh?: boolean;
+  signal?: AbortSignal;
+}
+
+function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): {
+  signal: AbortSignal;
+  abort: () => void;
+  cleanup: () => void;
+} {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const forwardAbort = () => controller.abort();
+
+  if (parentSignal?.aborted) {
+    controller.abort();
+  } else {
+    parentSignal?.addEventListener('abort', forwardAbort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    abort: () => controller.abort(),
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      parentSignal?.removeEventListener('abort', forwardAbort);
+    },
+  };
+}
+
+function throwIfContinuityAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('The operation was aborted', 'AbortError');
 }
 
 export async function generateContinuityQuestion(
@@ -151,6 +182,8 @@ export async function generateContinuityQuestion(
   nomeVendedor: string,
   options: ContinuityQuestionOptions = {},
 ): Promise<string[]> {
+  throwIfContinuityAborted(options.signal);
+
   const CONTINUITY_TARGET = 4;
   const normalizedCompany = (empresaAlvo || '').trim();
   const companyReference = normalizedCompany || 'a operação';
@@ -397,8 +430,14 @@ export async function generateContinuityQuestion(
     for (let i = 0; i < trimmed.length; i++) {
       const ch = trimmed[i];
       if (inString) {
-        if (escaped) { escaped = false; continue; }
-        if (ch === '\\') { escaped = true; continue; }
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaped = true;
+          continue;
+        }
         if (ch === '"') {
           inString = false;
           lastCompleteEnd = i;
@@ -406,7 +445,10 @@ export async function generateContinuityQuestion(
         }
         continue;
       }
-      if (ch === '"') { inString = true; continue; }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
       if (ch === ']') lastCompleteEnd = i;
     }
 
@@ -570,32 +612,52 @@ export async function generateContinuityQuestion(
     prompt: string,
     attempt: 'primary' | 'retry' | 'novelty_retry',
   ): Promise<{ questions: string[]; stageHits: string[]; raw: string }> => {
-    const response = await proxyGenerateContent(
-      {
-        model: ROUTER_MODEL_ID,
-        contents: prompt,
-        config: {
-          temperature: 0.8,
-          maxOutputTokens: 900,
-          systemInstruction: systemPrompt,
-          responseMimeType: 'application/json',
-        },
-      },
-      AbortSignal.timeout(15000),
-    );
+    throwIfContinuityAborted(options.signal);
+    const attemptTimeoutMs = 15_000;
+    const attemptSignal = createLinkedTimeoutSignal(options.signal, attemptTimeoutMs);
+    let localTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const raw = (response.text || '').trim();
-    const parsed = parseContinuityQuestions(raw);
-    scoutDiag.info?.('ContinuityQuestion', 'parse de sugestões concluído', {
-      attempt,
-      company: empresaAlvo || null,
-      rawChars: raw.length,
-      questionCount: parsed.questions.length,
-      stageHits: parsed.stageHits,
-      blockedCount: blockedQuestionKeys.size,
-      mode: options.mode || 'default',
-    });
-    return { ...parsed, raw };
+    try {
+      const response = await Promise.race([
+        proxyGenerateContent(
+          {
+            model: ROUTER_MODEL_ID,
+            contents: prompt,
+            config: {
+              temperature: 0.8,
+              maxOutputTokens: 900,
+              systemInstruction: systemPrompt,
+              responseMimeType: 'application/json',
+            },
+          },
+          attemptSignal.signal,
+        ),
+        new Promise<never>((_, reject) => {
+          localTimeoutId = setTimeout(() => {
+            attemptSignal.abort();
+            reject(new DOMException('The operation was aborted', 'AbortError'));
+          }, attemptTimeoutMs);
+        }),
+      ]);
+
+      throwIfContinuityAborted(options.signal);
+
+      const raw = (response.text || '').trim();
+      const parsed = parseContinuityQuestions(raw);
+      scoutDiag.info?.('ContinuityQuestion', 'parse de sugestões concluído', {
+        attempt,
+        company: empresaAlvo || null,
+        rawChars: raw.length,
+        questionCount: parsed.questions.length,
+        stageHits: parsed.stageHits,
+        blockedCount: blockedQuestionKeys.size,
+        mode: options.mode || 'default',
+      });
+      return { ...parsed, raw };
+    } finally {
+      if (localTimeoutId) clearTimeout(localTimeoutId);
+      attemptSignal.cleanup();
+    }
   };
 
   let collectedQuestions: string[] = [];
@@ -633,6 +695,7 @@ export async function generateContinuityQuestion(
       }
     }
   } catch (error) {
+    if (options.signal?.aborted) throw error;
     scoutDiag.warn('ContinuityQuestion', 'falha ao gerar perguntas de continuidade', {
       company: empresaAlvo || null,
       error: error instanceof Error ? error.message : String(error),

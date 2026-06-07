@@ -110,6 +110,32 @@ export function resolveGeminiApiEndpoint(
 // de módulo. Cada função resolve seu endpoint de forma lazy (na primeira chamada),
 // garantindo que window e import.meta estejam disponíveis no momento da avaliação.
 
+function buildAbortError(): Error {
+  if (typeof DOMException !== 'undefined') {
+    return new DOMException('The operation was aborted', 'AbortError');
+  }
+  const error = new Error('The operation was aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+async function readResponseText(response: Response, signal: AbortSignal): Promise<string> {
+  if (signal.aborted) throw buildAbortError();
+
+  let cleanupAbortListener: (() => void) | undefined;
+  const abortPromise = new Promise<never>((_, reject) => {
+    const rejectOnAbort = () => reject(buildAbortError());
+    signal.addEventListener('abort', rejectOnAbort, { once: true });
+    cleanupAbortListener = () => signal.removeEventListener('abort', rejectOnAbort);
+  });
+
+  try {
+    return await Promise.race([response.text(), abortPromise]);
+  } finally {
+    cleanupAbortListener?.();
+  }
+}
+
 async function callGeminiApi<TResponse>(
   endpoint: string,
   payload:
@@ -125,6 +151,13 @@ async function callGeminiApi<TResponse>(
   const timeoutMs =
     Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0 ? GEMINI_PROXY_TIMEOUT_MS : 90000;
   let timedOut = false;
+  const action = typeof payload.action === 'string' ? payload.action : 'unknown';
+  const requestClass =
+    action === 'generateContent' || action === 'chatSendMessage'
+      ? 'ai'
+      : action === 'recordDiagnostics'
+        ? 'diagnostics'
+        : 'control';
 
   const timeoutId = setTimeout(() => {
     timedOut = true;
@@ -134,42 +167,82 @@ async function callGeminiApi<TResponse>(
   const forwardAbort = () => controller.abort();
   signal?.addEventListener('abort', forwardAbort, { once: true });
 
-  let response: Response;
+  let response: Response | null = null;
+  let responseText = '';
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-  } catch (error: unknown) {
-    if (timedOut) {
-      scoutDiag.error('GeminiProxy', 'timeout no proxy', { timeoutMs, endpoint });
-      throw new Error(`Gemini proxy timeout after ${timeoutMs}ms`, {
-        cause: error,
+    try {
+      scoutDiag.info('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
+
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+
+      responseText = await readResponseText(response, controller.signal);
+    } catch (error: unknown) {
+      if (timedOut) {
+        scoutDiag.error('GeminiProxy', 'timeout no proxy', {
+          timeoutMs,
+          endpoint,
+          action,
+          requestClass,
+          phase: response ? 'body-read' : 'fetch',
+        });
+        throw new Error(
+          response ? `Gemini proxy body read timeout after ${timeoutMs}ms` : `Gemini proxy timeout after ${timeoutMs}ms`,
+          { cause: error },
+        );
+      }
+      scoutDiag.error('GeminiProxy', 'falha de rede, abort ou leitura do body', {
+        endpoint,
+        action,
+        requestClass,
+        phase: response ? 'body-read' : 'fetch',
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
-    scoutDiag.error('GeminiProxy', 'falha de rede ou abort no fetch', {
+
+    scoutDiag.info('GeminiProxy', 'response:body-read', {
       endpoint,
-      error: error instanceof Error ? error.message : String(error),
+      action,
+      requestClass,
+      status: response.status,
+      bodyChars: responseText.length,
     });
-    throw error;
+
+    if (!response.ok) {
+      scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
+        status: response.status,
+        endpoint,
+        action,
+        requestClass,
+        bodyPreview: (responseText || '').slice(0, 200),
+      });
+      throw new Error(`Gemini proxy failed (${response.status}): ${responseText || 'unknown error'}`);
+    }
+
+    const trimmedBody = responseText.trim();
+    if (!trimmedBody) return {} as TResponse;
+
+    try {
+      return JSON.parse(trimmedBody) as TResponse;
+    } catch (error: unknown) {
+      scoutDiag.error('GeminiProxy', 'JSON invalido na resposta do proxy', {
+        endpoint,
+        action,
+        requestClass,
+        bodyPreview: trimmedBody.slice(0, 200),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error('Gemini proxy returned invalid JSON', { cause: error });
+    }
   } finally {
     clearTimeout(timeoutId);
     signal?.removeEventListener('abort', forwardAbort);
   }
-
-  if (!response.ok) {
-    const text = await response.text();
-    scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
-      status: response.status,
-      endpoint,
-      bodyPreview: (text || '').slice(0, 200),
-    });
-    throw new Error(`Gemini proxy failed (${response.status}): ${text || 'unknown error'}`);
-  }
-
-  return response.json() as Promise<TResponse>;
 }
 
 export async function proxyGenerateContent(

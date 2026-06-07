@@ -355,8 +355,26 @@ export function startIncrementalLoadingProgress(
   };
 }
 
+const STATUS_KEY_ALIASES: Array<[string, StatusPhaseKey]> = [
+  ['mapeando conta real e teia societaria', 'corporate'],
+  ['mapeando operacao e cadeia de valor', 'tech'],
+  ['identificando bordas de controle', 'validation'],
+  ['verificando pressoes e compliance', 'compliance'],
+  ['mapeando caminho de venda', 'hooks'],
+  ['finalizando cards de auditoria', 'finalReview'],
+];
+
+function getStatusKeyAlias(raw: string): StatusPhaseKey | null {
+  const normalizedRaw = normalizeStatusForCanonicalMatch(raw).replace(/\.+$/, '').trim();
+  const matchedAlias = STATUS_KEY_ALIASES.find(([label]) => normalizedRaw === label);
+  return matchedAlias?.[1] ?? null;
+}
+
 export function statusKey(status: string): string {
   const raw = (status || '').trim();
+  const alias = getStatusKeyAlias(raw);
+  if (alias) return alias;
+
   const rich = toRichStatus(status);
   if (!rich) {
     if (!raw) return 'unknown';

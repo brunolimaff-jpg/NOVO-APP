@@ -185,7 +185,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const bodyText = document.body?.textContent || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
           const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
-          const composer = document.querySelector('[data-testid="composer-input"]');
+          const composer = document.querySelector('[data-testid="chat-input"], [data-testid="composer-input"]');
           const scroller = document.querySelector('[data-virtuoso-scroller]');
           const botTextMaxLen = Math.max(
             0,
@@ -597,11 +597,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           return;
         }
 
-        if (activeGenerationRef.current[sessionId] !== botMessageId) {
+        const activeBotMessageId = activeGenerationRef.current[sessionId];
+        if (activeBotMessageId && activeBotMessageId !== botMessageId) {
           scoutDiag.warn('MessageOrchestrator', 'error-treatment-skipped-generation-mismatch', {
             sessionId,
             expectedBotId: botMessageId,
-            actualBotId: activeGenerationRef.current[sessionId] ?? 'undefined',
+            actualBotId: activeBotMessageId,
           });
           return;
         }
