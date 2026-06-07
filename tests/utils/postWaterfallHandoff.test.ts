@@ -83,6 +83,23 @@ describe('postWaterfallHandoff', () => {
     expect(isPostWaterfallStuckHandoff(snapshot({ placeholderVisible: true }))).toBe(true);
   });
 
+  it('detecta painel branco quando bot tem texto mas nenhum nó visível', () => {
+    expect(
+      isPostWaterfallStuckHandoff(
+        snapshot({
+          placeholderVisible: false,
+          centerElementTestId: null,
+          botNodeCount: 1,
+          botCharsMax: 25_154,
+          visibleBotNodeCount: 0,
+          visibleBotWithCharsCount: 0,
+          reason: 'bot-nodes-have-no-visible-chars',
+          blankDetected: true,
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it('ignora handoff preso enquanto overlay ainda está visível', () => {
     expect(isPostWaterfallStuckHandoff(snapshot({ loadingOverlayVisible: true, placeholderVisible: true }))).toBe(
       false,

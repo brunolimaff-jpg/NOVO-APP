@@ -32,7 +32,7 @@ export function isPostWaterfallStuckHandoff(snapshot: BlankPanelSnapshot | null)
   if (snapshot.expectedBotCharsMax < LARGE_DOSSIER_STATIC_FALLBACK_CHARS) return false;
   if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
   if (snapshot.loadingOverlayVisible) return false;
-  return snapshot.placeholderVisible || snapshot.suspendedViewportVisible;
+  return snapshot.blankDetected || snapshot.placeholderVisible || snapshot.suspendedViewportVisible;
 }
 
 /** Overlay preso: visível mesmo com isLoading=false após waterfall (desync store/DOM). */
