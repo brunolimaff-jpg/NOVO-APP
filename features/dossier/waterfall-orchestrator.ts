@@ -1103,10 +1103,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         try {
           const continuityController = new AbortController();
           const forwardContinuityAbort = () => continuityController.abort();
-          const continuityTimeoutId = setTimeout(() => {
-            continuityTimedOut = true;
-            continuityController.abort();
-          }, CONTINUITY_QUESTION_TIMEOUT_MS);
+          let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
           if (signal.aborted) {
             continuityController.abort();
           } else {
@@ -1114,7 +1111,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
 
           try {
-            waterfallSuggestions = await generateContinuityQuestion(
+            const continuityPromise = generateContinuityQuestion(
               [
                 ...historyToPass,
                 {
@@ -1135,8 +1132,33 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               resolvedOperatorName,
               { signal: continuityController.signal },
             );
+
+            void continuityPromise.catch(error => {
+              if (!continuityTimedOut) return;
+              scoutDiag.warn('ModularDossier', 'continuidade encerrou apos timeout local', {
+                sessionId,
+                company: resolvedMegaCompany || null,
+                isAbortLike: isAbortLikeError(error),
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+
+            const timeoutFallbackPromise = new Promise<string[]>(resolve => {
+              continuityTimeoutId = setTimeout(() => {
+                continuityTimedOut = true;
+                continuityController.abort();
+                scoutDiag.warn('ModularDossier', 'timeout nas sugestões finais do waterfall', {
+                  sessionId,
+                  company: resolvedMegaCompany || null,
+                  timeoutMs: CONTINUITY_QUESTION_TIMEOUT_MS,
+                });
+                resolve([]);
+              }, CONTINUITY_QUESTION_TIMEOUT_MS);
+            });
+
+            waterfallSuggestions = await Promise.race([continuityPromise, timeoutFallbackPromise]);
           } finally {
-            clearTimeout(continuityTimeoutId);
+            if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
             signal.removeEventListener('abort', forwardContinuityAbort);
           }
         } catch (error) {
