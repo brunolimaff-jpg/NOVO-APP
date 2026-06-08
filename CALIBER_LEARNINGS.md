@@ -4,10 +4,11 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
-- **Supabase + IDB como cache offline** [react, typescript, supabase, offline]
+- **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
-  Aplicado com sucesso — migracao completa de idb-keyval para Supabase.
+  ~~Aplicado com sucesso — migracao completa de idb-keyval para Supabase.~~
+  **Removido na PR #317 (31/05/2026).** Substituído por Supabase direto como fonte única.
 
 - **Validar intencao de produto alem do evento tecnico** [ux, feedback, supabase, produto]
   Ao validar fluxos de produto, confirmar se o comportamento real representa a intencao esperada, nao apenas se o evento chegou no destino tecnico.
@@ -51,8 +52,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Catch silencioso em consulta cria duplicata no Supabase** [supabase, catch, duplicata]
   `findExistingDossier` retorna `null` no catch. O caller interpreta null como "nao existe" e cria novo registro. Nunca usar `return null` em catch de funcao de consulta sem log ou fallback.
 
-- **Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
-  `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
+- **[HISTÓRICO] Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
+  ~~`findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.~~
+  Este anti-padrão era específico da arquitetura IDB removida na PR #317. O princípio geral (não ter duas fontes de verdade) permanece válido.
 
 - **Componente condicional sem `key` causa estado stale** [react, key, componente]
   `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossier anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
@@ -78,8 +80,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **.single() gera erro falso PGRST116 no console** [supabase, ux, log]
   `.single()` do Supabase retorna erro HTTP quando registro nao existe — mesmo em fluxo normal de "dossier ainda nao criado". Trocar por `.maybeSingle()` elimina erro falso.
 
-- **Migracao IDB→Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
-  `saveDossier` retorna void sem throw quando `!isSupabaseAvailable()`. Migracao incrementa contador e seta flag permanente sem verificar se upsert real ocorreu. Solucao: verificar `isSupabaseAvailable()` no topo da migracao, retornar sem setar flag.
+- **[HISTÓRICO] Migracao IDB→Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
+  ~~`saveDossier` retorna void sem throw quando `!isSupabaseAvailable()`. Migracao incrementa contador e seta flag permanente sem verificar se upsert real ocorreu. Solucao: verificar `isSupabaseAvailable()` no topo da migracao, retornar sem setar flag.~~
+  Migração concluída. Flag permanente já setada. Não aplicável ao código atual.
 
 - **deleteDossier nunca chamado pelo fluxo de UI** [delete, controller, persistencia]
   `handleDeleteSession` removia apenas do estado React. `storage.deleteDossier` existia mas nunca era chamado. Dossie "deletado" reaparecia no reload. Solucao: fire-and-forget `storage.deleteDossier(id)` no controller.
@@ -244,6 +247,23 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 - **Validacao final deve confirmar intencao de produto** [ux, validacao]
   Checks verdes, Supabase persistido e logs saudaveis nao bastam. Fechamento exige overlay fora, input habilitado, cards/bot visiveis e ausencia de stuck/blank.
+
+### Sessao 2026-06-08 — resolucao PR #347 e investigacao tela branca
+
+- **Nunca commitar codigo visual sem antes commitar as dependencias** [commit, ci, typecheck]
+  `MessageTimeline.tsx` importava `debugStaticFallbackDisplay` de `layoutTraceTelemetry.ts`, mas o arquivo de util nao foi commitado. CI quebrou com typecheck. Sempre verificar `git status` antes do commit para garantir que todos os arquivos novos estao inclusos.
+
+- **git merge com working tree sujo contamina o merge commit** [git, merge, working-tree, auto-merge]
+  Ao fazer merge com `origin/main`, arquivos modificados no working tree (gemini_usage) vazaram para o merge via `--ours`. `waterfall-orchestrator.ts` ganhou `operatorId` que quebrou typecheck porque `types.ts` nao tinha o campo. Sempre fazer merge com working tree limpa ou usar `git stash`.
+
+- **display:none em flex colapsado foi REFUTADO** [css, layout, debug, flexbox]
+  A hipótese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` é FALSA. Reprodução mínima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injeção de runtime, ou race condition com React hydration).
+
+- **traceFullAncestorChain é superior a trace de culpado único** [diagnóstico, debug, layout]
+  `findFirstZeroDimensionAncestor` retorna apenas um nó. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensão zero aparece. Preferir cadeia completa sobre busca de culpado único em diagnósticos de layout.
+
+- **CodeQL não bloqueia merge quando não é check obrigatório** [ci, codeql, merge, pr]
+  30 alertas pré-existentes em main não impediram merge porque CodeQL não está na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuração de branch protection, não apenas o estado do check.
 
 ## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 

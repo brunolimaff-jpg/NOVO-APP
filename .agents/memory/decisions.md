@@ -127,3 +127,49 @@ Reason: validacao de fontes inline e um enriquecimento, nao uma etapa critica pa
 Contract: todo modulo opcional que faz fetch externo deve ter timeout proprio + fallback que nao quebra o pipeline. `validate-inline-sources` retorna `ValidatedSource[]` (pode ser vazio) em vez de `throw`.
 
 Refs: PR #346, `features/dossier/waterfall-orchestrator.ts`.
+
+---
+
+## 2026-06-08 — Safety net display:none como airbag contra origem desconhecida (APLICADO)
+
+Decision: adicionar useEffect em `MessageTimeline` que detecta `display:none` no `messages-static-fallback` e força recovery com `el.style.setProperty('display', 'block', 'important')`.
+
+Reason: a tela branca no preview mostrou `messages-static-fallback` com `display:none`, `width=0`, `height=0` mesmo com waterfall concluído e overlay removido. Nenhuma origem JS foi encontrada. A hipótese de "browser computa display:none em flex colapsado" foi REFUTADA por reprodução mínima. A origem permanece não identificada. A safety net funciona como airbag.
+
+Contract: safety net é mecanismo defensivo, não fluxo primário. Avaliar em sprint futura se mantém ou remove. Não substitui investigação de causa raiz.
+
+Refs: `components/chat/MessageTimeline.tsx`, `tests/components/chat/MessageTimeline.test.tsx`.
+
+---
+
+## 2026-06-08 — traceFullAncestorChain como diagnostico de layout preferido (APLICADO)
+
+Decision: usar `traceFullAncestorChain` em vez de `findFirstZeroDimensionAncestor` para diagnosticos de elementos ocultos.
+
+Reason: `findFirstZeroDimensionAncestor` retorna apenas um no. `traceFullAncestorChain` captura TODOS os ancestrais com computedStyle completo (display, width, height, visibility), permitindo identificar exatamente onde display:none ou dimensao zero aparece.
+
+Contract: gera 5 entradas por waterfall. Em producao estavel, filtrar para executar so quando display:none for detectado.
+
+Refs: `utils/layoutTraceTelemetry.ts`, `components/chat/MessageTimeline.tsx`.
+
+---
+
+## 2026-06-08 — Resolucao de comentarios PR #347 concluida (APLICADO)
+
+Decision: 7 comentarios acionaveis do CodeRabbit resolvidos: paths absolutos substituidos, fallback DOMException, Controller.abort(), tipo estrutural, no-useless-assignment corrigido.
+
+Reason: revisao apontou problemas reais de qualidade. Nenhum blocker, mas todos enderecados para manter padrao.
+
+Refs: PR #347, commit `638112bc`.
+
+---
+
+## 2026-06-08 — Hipotese "display:none em flex colapsado" REFUTADA (APLICADO)
+
+Decision: documentar que a hipotese foi testada e refutada via reproducao minima local.
+
+Reason: agentes futuros podem reabrir a mesma hipotese. A reproducao minima provou que `getComputedStyle(el).display` permanece `block`/`flex` mesmo com `flex-basis:0%` + `min-h-0`.
+
+Contract: se display:none reincidir, investigar: (1) Vercel runtime injection, (2) race condition com React hydration, (3) CSS injection de terceiros.
+
+Refs: `components/chat/MessageTimeline.tsx`, `utils/layoutTraceTelemetry.ts`.
