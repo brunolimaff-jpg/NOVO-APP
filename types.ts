@@ -220,6 +220,10 @@ export interface RunMegaPromptWaterfallArgs {
   signal: AbortSignal;
   isFirstInteraction: boolean;
   sessionCnpjDigits: string;
+  // Cost tracking (optional — waterfall may not have all fields)
+  operatorId?: string;
+  operatorEmail?: string;
+  operatorSessionId?: string;
 }
 
 export interface ChatState {

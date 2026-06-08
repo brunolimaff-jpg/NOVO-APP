@@ -1,43 +1,37 @@
 # Last Session Context
 
-Saved: 2026-06-05 20:30
+Saved: 2026-06-08 08:44
 
 ## Git
 
-Branch de trabalho: `codex/finalize-waterfall-ui` (PR #343)
+Branch de trabalho: `codex/pr346-p0-handoff-docs` (docs-only follow-up)
 Base: `main`
-PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/343
+PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
+Codigo validado: `992ece9f`
+Commits posteriores: documentacao/handoff somente
 
 ## Estado
 
-Bug P0 overlay hero **completamente resolvido**. 4 PRs mergeadas (#333, #334, #335, #342).
+PR #346 foi mergeada pelo Bruno em 2026-06-07T20:43:57Z, merge commit `af9cd468`. O codigo foi validado no commit `992ece9f`; commits posteriores sao documentacao/handoff somente. O incidente P0 producao travada vs preview OK foi documentado em:
 
-PR #343 aberta na mesma branch da #342 (ja mergeada). setTimeout swap: `flushDiagnosticsNow` era chamado sincronamente no mesmo tick de `setIsLoading(false)` e bloqueava o React re-render. Fix: agendar `setTimeout(0)` com o flush ANTES do setState, nao depois.
+- `HANDOFF_AI.md`
+- `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
+- `CALIBER_LEARNINGS.md`
+- Bruno Vault: `40-HANDOFFS/NOVO-APP-handoff.md`
+- Bruno Vault: `30-LICOES/LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md`
 
-## Root Cause completa (5 camadas)
+Fixes chave: `/api/link-status` e `/api/gemini` com timeout ate body read + parse; continuity-question com abort real + race local; flush diferido de eventos finais; loading stage canonico; static fallback para bot gigante; erro controlado renderiza `ErrorMessageCard`.
 
-| # | Causa | Fix |
-|---|-------|-----|
-| 1 | SW CacheFirst servia bundles antigos | PR #334: remover PWA/SW |
-| 2 | Gap waterfall vs setIsLoading sem bridge | PR #342: finalizeWaterfallUI no finally |
-| 3 | abortControllerRef nullificado (isAbort=true falso) | PR #342: ref so no processMessage:finally |
-| 4 | Static fallback display:none (flex-basis:0% + h-full = 0px) | PR #342: parent flex-col, child flex-1 |
-| 5 | flushDiagnosticsNow sincrono pos-setState bloqueia React render | PR #343: setTimeout(0) ANTES do setState |
+## Validacao
 
-## Validacao local
+Local: `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e:errors`, `npx playwright test tests-e2e/scheffer-cnpj-blank-panel.spec.ts`.
 
-```bash
-npm test
-npm run typecheck
-npm run build
-```
+CI: Typecheck, Tests, Build, Dossier Golden, Smoke preview, CodeQL, Vercel e `E2E Critical Browser` PASS.
 
-1336/1336 testes passando. Typecheck limpo. Build limpo.
+Preview Scheffer 3x: `PostCompletion=6`, `check:10000ms=1`, `ui-finalized=1`, `stuck_or_blank=0`.
 
 ## Proximo passo
 
-1. Code review da PR #343
-2. Merge da PR #343
-3. Remover kill-switch sw.js apos 1-2 releases
-4. Smoke producao no fluxo Scheffer
-5. Monitorar Sentry/scout_diagnostics para `overlay-force-removed`
+1. Decidir se `FreezeDiag` fica, reduz ou sai antes do merge.
+2. Follow-up docs-only tambem deve respeitar merge somente com autorizacao explicita do Bruno contendo `MERGE`.
+3. Se producao voltar a divergir do preview, investigar service worker/cache/deploy e `scout_diagnostics` antes de reabrir waterfall.

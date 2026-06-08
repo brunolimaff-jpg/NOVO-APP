@@ -82,6 +82,10 @@ interface TeiaResearchContext {
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
+  // Cost tracking
+  operatorId?: string;
+  operatorEmail?: string;
+  operatorSessionId?: string;
   activeGenerationRef?: MutableRefObject<Record<string, string>>;
   setIsLoading?: Dispatch<SetStateAction<boolean>>;
   setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
@@ -306,6 +310,7 @@ export async function validateInlineSourcesForPromotion(
 
     const bodyText = await new Promise<string>((resolve, reject) => {
       const bodyTimeoutId = setTimeout(() => {
+        controller.abort();
         reject(new Error('Body read timeout after ' + VALIDATE_INLINE_BODY_READ_TIMEOUT_MS + 'ms'));
       }, VALIDATE_INLINE_BODY_READ_TIMEOUT_MS);
 
@@ -512,6 +517,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       signal,
       isFirstInteraction,
       sessionCnpjDigits,
+      operatorId: waterfallOperatorId,
+      operatorEmail: waterfallOperatorEmail,
+      operatorSessionId: waterfallOperatorSessionId,
     }: RunMegaPromptWaterfallArgs) => {
       const guardCheck = registerWaterfallStart(sessionId);
       if (!guardCheck.allowed) {
@@ -660,6 +668,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
           ...(foundationCacheName ? { foundationCacheName } : {}),
+          // Cost tracking (via message-orchestrator args + sessionStorage fallback)
+          operatorId: waterfallOperatorId,
+          operatorEmail: waterfallOperatorEmail,
+          operatorSessionId:
+            waterfallOperatorSessionId ||
+            (typeof window !== 'undefined'
+              ? (window.sessionStorage?.getItem('scout:current_session_id') ?? undefined)
+              : undefined),
+          sessionId,
+          companyCnpj: sessionCnpjDigits || undefined,
+          companyName: resolvedMegaCompany || undefined,
         };
 
         const appendWaterfallChunk = (chunk: string) => {

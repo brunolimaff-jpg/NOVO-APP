@@ -101,8 +101,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const safeMessages = Array.isArray(messages) ? messages : [];
   const hasLargeBotMessage = safeMessages.some(
     message =>
-      message.sender === Sender.Bot &&
-      shouldPreferStaticTimelineForBotVolume(String(message.text || '').trim().length),
+      message.sender === Sender.Bot && shouldPreferStaticTimelineForBotVolume(String(message.text || '').trim().length),
   );
   const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback || hasLargeBotMessage;
   const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
@@ -417,7 +416,62 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           })
           .catch(() => {}); // falha silenciosa em testes
       });
+      // PR #347: debug display:none — cadeia completa com múltiplos timings
+      requestAnimationFrame(() => {
+        import('../../utils/layoutTraceTelemetry')
+          .then(({ debugStaticFallbackDisplay }) => {
+            debugStaticFallbackDisplay(scoutDiag.warn.bind(scoutDiag), {
+              sessionId: currentSession?.id ?? null,
+              totalItems: safeMessages.length,
+              botTextLen: botMsg?.text?.length ?? 0,
+              source: 'MessageTimeline:static-fallback-rendered',
+            });
+          })
+          .catch(() => {});
+      });
     }
+
+    // PR #347: safety net — se o static fallback montar com display:none,
+    // força recovery. A origem exata do display:none não foi encontrada no
+    // código (nem JS inline, nem CSS), mas o Supabase confirmou o estado
+    // em sessão real de preview.
+    const recoveryTimer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('[data-testid="messages-static-fallback"]');
+      if (!el) return;
+
+      const cs = getComputedStyle(el);
+      if (cs.display !== 'none') return;
+
+      const previousDisplay = cs.display;
+      const previousRect = el.getBoundingClientRect();
+
+      // Passo 1: limpa inline style display (caso venha de style.display = 'none')
+      el.style.display = '';
+
+      const afterResetCs = getComputedStyle(el);
+      let forcedDisplayApplied = false;
+
+      // Passo 2: se ainda estiver none (veio de CSS cascade), força com !important
+      if (afterResetCs.display === 'none') {
+        el.style.setProperty('display', 'block', 'important');
+        forcedDisplayApplied = true;
+      }
+
+      const afterRect = el.getBoundingClientRect();
+
+      scoutDiag.warn('Virtuoso', 'static-fallback-display-recovery', {
+        sessionId: currentSession?.id ?? null,
+        previousDisplay,
+        afterResetDisplay: afterResetCs.display,
+        forcedDisplayApplied,
+        previousRect: { w: Math.round(previousRect.width), h: Math.round(previousRect.height) },
+        afterRect: { w: Math.round(afterRect.width), h: Math.round(afterRect.height) },
+        hasBotMessage,
+        botTextLen: botMsg?.text?.length ?? 0,
+      } as unknown as Record<string, unknown>);
+    }, 0);
+
+    return () => clearTimeout(recoveryTimer);
   }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
 
   return (

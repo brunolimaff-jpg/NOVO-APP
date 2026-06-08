@@ -11,6 +11,14 @@ interface GeminiGenerateRequest extends GeminiApiBaseRequest {
   model: string;
   contents: unknown;
   config?: Record<string, unknown>;
+  // Cost tracking fields (all optional)
+  operatorId?: string;
+  operatorEmail?: string;
+  operatorSessionId?: string;
+  chatSessionId?: string;
+  companyCnpj?: string;
+  companyName?: string;
+  module?: string;
 }
 
 interface GeminiChatRequest extends GeminiApiBaseRequest {
@@ -25,6 +33,14 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   useOpenWebSearch?: boolean;
   temperature?: number;
   stopSequences?: string[];
+  // Cost tracking fields (all optional)
+  operatorId?: string;
+  operatorEmail?: string;
+  operatorSessionId?: string;
+  chatSessionId?: string;
+  companyCnpj?: string;
+  companyName?: string;
+  module?: string;
 }
 
 interface GeminiHealthRequest extends GeminiApiBaseRequest {
@@ -168,7 +184,7 @@ async function callGeminiApi<TResponse>(
   signal?.addEventListener('abort', forwardAbort, { once: true });
 
   let response: Response | null = null;
-  let responseText = '';
+  let responseText: string;
   try {
     try {
       scoutDiag.info('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
@@ -191,7 +207,9 @@ async function callGeminiApi<TResponse>(
           phase: response ? 'body-read' : 'fetch',
         });
         throw new Error(
-          response ? `Gemini proxy body read timeout after ${timeoutMs}ms` : `Gemini proxy timeout after ${timeoutMs}ms`,
+          response
+            ? `Gemini proxy body read timeout after ${timeoutMs}ms`
+            : `Gemini proxy timeout after ${timeoutMs}ms`,
           { cause: error },
         );
       }

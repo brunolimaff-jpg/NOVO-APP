@@ -1,3 +1,111 @@
+## 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
+
+Decision: fechar o incidente P0 em duas camadas: repo canonico (`HANDOFF_AI.md`, `.agents/memory/*`, `docs/handoffs/*`, `CALIBER_LEARNINGS.md`) e espelho navegavel no Bruno Vault (`40-HANDOFFS`, `20-SESSOES`, `30-LICOES`).
+
+Reason: o incidente levou quase duas semanas e misturou bugs de body-read, abort, diagnostics, loading, Virtuoso e diferenca preview/producao. Sem handoff duravel, agentes futuros tendem a reabrir hipoteses ja fechadas ou validar so evento tecnico.
+
+Contract: fechamento de P0 visual deve referenciar evidencias por path/URL, registrar licoes de "o que nao fazer" e apontar explicitamente para o Bruno Vault.
+
+Refs: `HANDOFF_AI.md`, `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`, `CALIBER_LEARNINGS.md`, `Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md`.
+
+---
+
+## 2026-06-08 — Bot gigante deve vencer viewport suspensa (APLICADO na PR #346)
+
+Decision: em `MessageTimeline`, mensagem de bot acima do limiar de fallback estatico deve renderizar `messages-static-fallback` mesmo quando `shouldSuspendVirtualizedList` ainda esta true.
+
+Reason: o E2E Scheffer mostrou bot de ~50k chars no DOM, mas invisivel quando a arvore visual ainda privilegiava estado suspenso/virtualizado. O contrato de produto e dossie visivel, nao Virtuoso tecnicamente montado.
+
+Contract: para dossie grande, `messages-static-fallback` e o caminho de recuperacao preferido; validar `bot-message-content` visivel no `chat-main-panel`.
+
+Refs: `components/chat/MessageTimeline.tsx`, `tests/components/chat/MessageTimeline.test.tsx`, `tests-e2e/scheffer-cnpj-blank-panel.spec.ts`.
+
+---
+
+## 2026-06-08 — Continuity retry precisa liquidar mesmo se abort nao resolver promise (APLICADO na PR #346)
+
+Decision: cada tentativa de `generateContinuityQuestion` tem race local de 15s que aborta o signal encadeado e rejeita localmente, permitindo fallback deterministico.
+
+Reason: uma execucao real de preview ficou sem `ui-finalized` porque o retry de continuity gerou request Gemini pendente apos resposta JSON truncada. Apenas abortar o fetch nao garantia que a promise do proxy liquidaria a tempo.
+
+Contract: sugestoes finais sao opcionais; timeout nelas nunca pode impedir salvar/renderizar o dossie.
+
+Refs: `services/gemini/auxiliary.ts`, `tests/services/geminiService.test.ts`.
+
+---
+
+## 2026-06-07 — `/api/gemini` deve manter timeout ate body read + parse (APLICADO localmente na PR #346)
+
+Decision: aplicar no `services/geminiProxy.ts` o mesmo principio descoberto no `/api/link-status`: timeout total so termina depois de `response.text()` + `JSON.parse()`, nunca logo apos headers.
+
+Reason: em producao havia request `/api/gemini` pendente em `geminiProxy.ts`; preview ja tinha protecao no `/api/link-status`, mas a chamada de IA ainda podia ficar presa na leitura do body.
+
+Contract: logs do proxy devem expor `action`, `requestClass` e fase (`fetch` ou `body-read`) para separar chamadas de IA (`generateContent`/`chatSendMessage`) da telemetria raw (`recordDiagnostics` em `diagnosticLog.ts`).
+
+Refs: `services/geminiProxy.ts`, `tests/services/geminiProxy.test.ts`.
+
+---
+
+## 2026-06-07 — Continuity question precisa receber abort real (APLICADO localmente na PR #346)
+
+Decision: `generateContinuityQuestion` aceita `AbortSignal`; waterfall cria controller proprio de 20s e passa o signal para a chamada Gemini.
+
+Reason: `Promise.race` encerrava a espera, mas deixava a chamada Gemini viva em background. Isso podia explicar request pendente em `geminiProxy.ts` depois do waterfall desistir.
+
+Contract: timeout local das sugestoes finais nao derruba o waterfall; abort do usuario continua terminal.
+
+Refs: `services/gemini/auxiliary.ts`, `features/dossier/waterfall-orchestrator.ts`, `tests/services/geminiService.test.ts`.
+
+---
+
+## 2026-06-07 — Finalizer do waterfall nao pode impedir ErrorMessageCard (APLICADO localmente na PR #346)
+
+Decision: no `processMessage:catch`, tratar `activeGenerationRef` vazio como "finalizer ja limpou", nao como mismatch. So pular tratamento quando existir outro bot ativo diferente.
+
+Reason: o E2E controlled-error-state falhava porque `finalizeWaterfallUI` limpava `activeGenerationRef`; o erro voltava ao `processMessage`, que pulava o card por mismatch `undefined`.
+
+Contract: falha controlada de `/api/gemini` deve remover loading e renderizar `error-message-card`, mantendo input utilizavel.
+
+Refs: `features/chat/message-orchestrator.ts`, `tests/features/chat/message-orchestrator.test.ts`, `tests-e2e/controlled-error-state.spec.ts`.
+
+---
+
+## 2026-06-07 — Labels modulares precisam de identidade canonica sem trocar texto visivel (APLICADO localmente na PR #346)
+
+Decision: normalizar chaves (`statusKey`) dos labels modulares para categorias canonicas, preservando o texto exibido na UI. `Verificando pressoes e compliance...` passa a ser `compliance`.
+
+Reason: o timer global andava, mas o timer da etapa podia parecer atrasado quando backend/UI usavam labels equivalentes com chaves diferentes.
+
+Contract: `LoadingStageTimer` registra `stage-start` e `stage-complete` para comparar stage de backend, stage ativo e duracao por chave canonica.
+
+Refs: `utils/loadingStatus.ts`, `components/LoadingSmart.tsx`, `tests/utils/loadingSmartViewModel.test.ts`, `tests/components/LoadingSmart.test.tsx`.
+
+---
+
+## 2026-06-06 — AbortSignal.timeout cobre apenas conexao; usar AbortController + body read timeout separado (APLICADO na PR #346)
+
+Decision: substituir `AbortSignal.timeout(25_000)` em `fetch('/api/link-status')` por `AbortController` explicito com timeout total de 30s, combinado com timeout dedicado de leitura do body (15s) via `response.text()` + `JSON.parse()`.
+
+Reason: `AbortSignal.timeout()` no `fetch()` cobre apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora, o fetch nao aborta e `response.json()` fica bloqueada indefinidamente. O waterfall inteiro trava entre `pos-porta-reconciliation` e `pre-continuity-question`.
+
+Contract: `validate-inline-sources` e modulo opcional. Timeout no body read deve retornar fallback seguro (array vazio de fontes) sem abortar o waterfall. Usar `response.text()` em vez de `response.json()` porque `.text()` permite inspecao + parse manual com timeout dedicado.
+
+Refs: PR #346, `features/dossier/waterfall-orchestrator.ts`, `tests/features/validate-inline-sources-freeze-diag.test.ts`.
+
+---
+
+## 2026-06-06 — FreezeDiag como telemetria temporaria para diagnostico de freeze (APLICADO na PR #346)
+
+Decision: adicionar marcos FreezeDiag (fase + timestamp) em pontos estrategicos do `waterfall-orchestrator.ts` para medir timing entre fases do waterfall.
+
+Reason: sem a instrumentacao, nao era possivel identificar onde exatamente o waterfall congelava. Os 18 marcos cobrem desde o inicio do `processMessage` ate o `finally`, permitindo analise pos-mortem de gargalos de tempo.
+
+Contract: FreezeDiag e telemetria temporaria para investigacao. Decidir antes do merge se mantem (como diagnostico permanente) ou remove (para nao poluir logs).
+
+Refs: PR #346, `features/dossier/waterfall-orchestrator.ts`.
+
+---
+
 ## 2026-06-05 — Static fallback: parent flex-col + child flex-1 (APLICADO na PR #342)
 
 Decision: o container outer de MessageTimeline deve ser `flex-col` (nao `display:block`) e o filho static-fallback deve usar `flex-1` (nao `h-full`).
@@ -10,72 +118,12 @@ Refs: PR #342, `components/MessageTimeline.tsx`.
 
 ---
 
-## 2026-06-05 — LayoutTrace como ferramenta de diagnostico (APLICADO na PR #342)
+## 2026-06-06 — Validate Inline Sources e modulo opcional do waterfall (APLICADO na PR #346)
 
-Decision: adicionar `LayoutTrace` — instrumentacao que loga dimensoes do container de mensagens (`MessageTimeline.tsx`) apos cada render, para diagnosticar painel branco pos-waterfall.
+Decision: timeout ou falha no `validate-inline-sources` nao deve abortar o waterfall. Retornar array vazio de fontes como fallback seguro.
 
-Reason: sem a instrumentacao, nao era possivel saber se o Virtuoso estava montado com viewport 0x0, se o fallback estatico estava invisivel, ou se o overlay hero continuava bloqueando. LayoutTrace revelou que o static-fallback tinha display:none e viewport zero.
+Reason: validacao de fontes inline e um enriquecimento, nao uma etapa critica para o dossie. Se a API `/api/link-status` esta lenta ou indisponivel, o waterfall deve continuar com as outras etapas (continuity-question, output consolidation). Bloquear o waterfall inteiro por causa de um modulo opcional seria perda de dados maior que rodar sem fontes validadas.
 
-Contract: LayoutTrace deve ser ativado apenas em desenvolvimento ou com flag explicita, nunca em producao.
+Contract: todo modulo opcional que faz fetch externo deve ter timeout proprio + fallback que nao quebra o pipeline. `validate-inline-sources` retorna `ValidatedSource[]` (pode ser vazio) em vez de `throw`.
 
-Refs: PR #342, `components/MessageTimeline.tsx`.
-
----
-
-## 2026-06-05 — abortControllerRef nao deve ser nullificado no finalizeWaterfallUI (APLICADO na PR #342)
-
-Decision: remover `delete activeAbortControllerRef.current[sessionId]` do `finalizeWaterfallUI()`. O `abortControllerRef` so deve ser nullificado no proprio `processMessage:finally`, NUNCA no helper de finalizacao de UI.
-
-Reason: `finalizeWaterfallUI` e chamado no `finally` do `processMessage`. Se ele nullifica `abortControllerRef` antes do `processMessage:finally` rodar, o `isAbort` detecta `abortControllerRef.current[sessionId] === undefined` como abort, e `flushDiagnosticsNow` nunca e chamado. O diagnostico fica preso, mascarando outros problemas.
-
-Contract: `finalizeWaterfallUI` manipula apenas estados de UI (isLoading, loadingVariant, loadingProgress, failureCount, activeGeneration). `abortControllerRef` pertence ao ciclo de vida do `processMessage` e deve ser gerenciado exclusivamente por ele.
-
-Refs: PR #342, `features/dossier/waterfall-orchestrator.ts`.
-
----
-
-## 2026-06-05 — PWA/SW removido em favor de bundles frescos (APLICADO)
-
-Decision: remover VitePWA plugin, `vite-plugin-pwa`, `public/sw.js` manual e `public/manifest.json`. Substituir por kill-switch `public/sw.js` que apenas desregistra caches antigos.
-
-Reason: Service Worker com CacheFirst servia bundles JS/CSS antigos em producao a partir do cache, mesmo quando novos deploys estavam no ar. Preview nunca registrava SW, entao o bug era invisivel em homologacao. Para um app SPA com deploy frequente (multiplas vezes ao dia durante desenvolvimento ativo), cache de service worker e contraproducente — usuarios ficam presos em versoes antigas sem saber.
-
-Contract: app sem PWA. Se no futuro houver necessidade de offline/instalacao, implementar com NetworkFirst (nao CacheFirst) e asset versioning explicito. Kill-switch sw.js mantido por 1-2 releases para limpar caches de usuarios existentes.
-
-Refs: PR #334, `vite.config.ts`, `public/sw.js`.
-
----
-
-## 2026-06-05 — Hard invariant no waterfall como airbag contra overlay preso (APLICADO)
-
-Decision: ao final do waterfall, se `waterfallEndStatus` for `completed`, `failed` ou `partial`, OU `botMsgTextLen > 0`, forcadamente chamar `setIsLoading(false)` + `setLoadingVariant(undefined)` + `display:none` no elemento DOM do overlay. Isso independe do fluxo normal de `processMessage:finally`.
-
-Reason: a cadeia de estado React (setIsLoading -> re-render -> overlay some) pode falhar por race condition, react batching, ou desync DOM/estado. O hard invariant usa condicoes observaveis do proprio waterfall (status final, texto do bot) para garantir que o overlay nunca fique preso. Funciona como airbag: se o fluxo normal falha, o invariant forcadamente desobstrui a UI.
-
-Contract: hard invariant deve ser acionado por condicoes observaveis, nao por chain de estado. Nao deve depender de `isLoading` ou `loadingVariant` para decidir. Logar `overlay-force-removed` quando acionado.
-
-Refs: `features/dossier/waterfall-orchestrator.ts`, PR #334.
-
----
-
-## 2026-06-05 — flushDiagnosticsNow deferred com setTimeout(0); agendar ANTES do setState (APLICADO na PR #343)
-
-Decision: `flushDiagnosticsNow('processMessage:finally', true)` deve ser deferido com `setTimeout(0)` e agendado ANTES de `setIsLoading(false)`, nao depois.
-
-Reason: o codigo original chamava `flushDiagnosticsNow` sincronamente no mesmo tick que `setIsLoading(false)`. O setState disparava React re-render síncrono, mas o flushDiagnosticsNow executava antes do render completar, bloqueando a main thread. Com o `setTimeout(0)` agendado ANTES do setState, o timer ja esta na macrotask queue quando o React comeca a renderizar. O React render ocorre. Quando o render termina e o controle volta ao event loop, o setTimeout dispara. Playwright confirmou: sem o defer, zero eventos pos-render (static-fallback-rendered, MessageRow commit).
-
-Contract: todo `flushDiagnosticsNow` no hot path de `processMessage:finally` deve ser deferido com `setTimeout(0)`. O setTimeout deve ser agendado ANTES do setState para garantir que o timer ja esteja na fila. NUNCA depois.
-
-Refs: PR #343, `features/chat/message-orchestrator.ts`.
-
----
-
-## 2026-06-05 — Dossie nao deve depender de Pinecone; War Room sim (APLICADO LOCALMENTE)
-
-Decision: remover `buscarContextoPinecone` e `buscarContextoDocsPinecone` apenas do fluxo do dossie (`features/dossier/waterfall-orchestrator.ts` e `services/gemini/investigation-orchestration.ts`), mantendo War Room com RAG Pinecone. O health check passa a tratar RAG como check opcional do War Room; resultado vazio/degradado nao conta mais como sucesso do fluxo principal.
-
-Reason: a investigacao do incidente Scheffer mostrou duas trilhas separadas. A causa raiz do overlay preso esta no handoff pos-`finally`/telemetria; ja o Pinecone em producao apresenta warnings recorrentes de indice invalido e adiciona ruido ao dossie sem ser necessario para fechar o relatorio. Misturar a correcao do overlay com uma dependencia RAG instavel manteria hipotese aberta desnecessariamente.
-
-Contract: dossie deve operar com lookup/CNPJ/QSA, benchmark, concorrentes, PORTA, grounding e contexto acumulado dos modulos. War Room continua chamando `/api/rag` e `/api/docs-rag`. Validacao local obrigatoria: War Room ainda emite RAG; dossie nao emite mais `/api/rag`/`/api/docs-rag`.
-
-Refs: `docs/handoffs/2026-06-05-dossier-root-fix-force-flush-pinecone.md`, `features/dossier/waterfall-orchestrator.ts`, `services/gemini/investigation-orchestration.ts`, `components/SystemHealthCheck.tsx`.
+Refs: PR #346, `features/dossier/waterfall-orchestrator.ts`.

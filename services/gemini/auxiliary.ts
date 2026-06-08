@@ -146,7 +146,10 @@ export interface ContinuityQuestionOptions {
   signal?: AbortSignal;
 }
 
-function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): {
+function createLinkedTimeoutSignal(
+  parentSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): {
   signal: AbortSignal;
   abort: () => void;
   cleanup: () => void;
@@ -173,7 +176,12 @@ function createLinkedTimeoutSignal(parentSignal: AbortSignal | undefined, timeou
 
 function throwIfContinuityAborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
-  throw new DOMException('The operation was aborted', 'AbortError');
+  if (typeof DOMException !== 'undefined') {
+    throw new DOMException('The operation was aborted', 'AbortError');
+  }
+  const error = new Error('The operation was aborted');
+  error.name = 'AbortError';
+  throw error;
 }
 
 export async function generateContinuityQuestion(
@@ -618,6 +626,10 @@ export async function generateContinuityQuestion(
     let localTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     try {
+      // O Promise.race com setTimeout manual é redundante com createLinkedTimeoutSignal,
+      // mas mantido como safety net: no incidente P0, AbortSignal nem sempre propagava
+      // corretamente para o fetch. A dupla cobertura garante que a promise sempre rejeita
+      // em <= attemptTimeoutMs, mesmo se o signal não abortar a operação interna.
       const response = await Promise.race([
         proxyGenerateContent(
           {

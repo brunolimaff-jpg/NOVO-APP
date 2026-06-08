@@ -198,6 +198,53 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
   `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
 
+- **AbortSignal.timeout() cobre apenas conexao, nao leitura do body** [fetch, timeout, abort, body-read]
+  `fetch(url, { signal: AbortSignal.timeout(N) })` aborta apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora (ou e grande), `response.json()` fica bloqueada indefinidamente. Solucao: `AbortController` explicito para timeout total + `response.text()` com race contra timeout dedicado + `JSON.parse()` manual.
+
+## P0 producao travada vs preview OK (Junho 2026) — licoes consolidadas
+
+- **Timeout de operacao termina depois do body + parse** [fetch, timeout, body-read]
+  `fetch()` resolver com headers nao significa que a operacao acabou. Qualquer chamada critica deve cobrir conexao, `response.text()`, parse e fallback.
+
+- **Promise.race sem abort real e mitigacao falsa** [abort, gemini, waterfall]
+  Encerrar a espera local sem abortar a request deixa Gemini rodando em background e pode manter recursos/telemetria pendentes. Sempre propagar `AbortSignal`.
+
+- **Abort pode nao resolver promise pendente; adicione race local por tentativa** [abort, fallback, resiliencia]
+  Mesmo apos abort, uma promise pode nao liquidar na janela esperada. Etapas opcionais como continuity-question precisam de timeout local por tentativa e fallback deterministico.
+
+- **Diagnostics nao pode bloquear finalizacao de UI** [telemetria, loading, supabase]
+  `recordDiagnostics` e flush devem ser fire-and-forget. `PostCompletion` precisa persistir, mas a UI nao pode depender da chamada para liberar overlay/input.
+
+- **PostCompletion check:10000ms e gate obrigatorio para loading P0** [observabilidade, supabase, ui]
+  Para regressao de overlay/blank panel, validar `PostCompletion=6` com `check:10000ms=1`. Sem isso, a sessao pode ter finalizado cedo demais para provar recuperacao real.
+
+- **Separar IA, controle/cache e diagnostics na telemetria** [observabilidade, gemini]
+  Logs de `/api/gemini` precisam carregar `action`, `requestClass` e `phase`; senao uma chamada de diagnostic parece uma chamada de IA travada.
+
+- **Virtuoso renderizado nao prova bot visivel** [virtuoso, blank-panel, ux]
+  `itemsRendered` e `rangeChanged` podem existir com painel ainda inutil. Validar `bot-message-content` visivel ou `messages-static-fallback`.
+
+- **Fallback estatico para dossie gigante e safety net de produto** [virtuoso, performance, ux]
+  Para bot >=4k chars, preferir static fallback quando a viewport virtualizada esta suspensa evita dossie no DOM porem invisivel.
+
+- **Stage timer usa chave canonica, nao texto da label** [loading, telemetry]
+  Labels equivalentes como "Verificando pressoes e compliance..." precisam mapear para chave `compliance`; o timer da etapa deve acompanhar `processing.stage`.
+
+- **Preview OK nao prova producao se SW/cache/deploy divergem** [vercel, producao, pwa]
+  Antes de reabrir waterfall, confirmar bundle real, service worker/cache e release em producao. Preview pode estar correto e producao antiga.
+
+- **Sentry vazio nao encerra incidente visual** [sentry, supabase, ui]
+  Freeze de main thread, overlay preso e blank panel podem nao gerar evento Sentry. `scout_diagnostics` e browser real sao fonte primaria.
+
+- **E2E de erro controlado e contrato de produto** [playwright, error-recovery]
+  Falha controlada de `/api/gemini` deve mostrar `error-message-card`, remover overlay e liberar input. Nao ajustar teste para aceitar estado preso.
+
+- **Modulo opcional deve falhar aberto** [waterfall, resiliencia]
+  `validate-inline-sources`, benchmark e continuity-question nao podem bloquear todo o dossie. Timeout retorna fallback seguro.
+
+- **Validacao final deve confirmar intencao de produto** [ux, validacao]
+  Checks verdes, Supabase persistido e logs saudaveis nao bastam. Fechamento exige overlay fora, input habilitado, cards/bot visiveis e ausencia de stuck/blank.
+
 ## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 
 - **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
@@ -237,15 +284,15 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   O alias `scoutagro.vercel.app` servia o mesmo código mas não estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estão registrados.
 
 - **flushDiagnosticsNow sincrono pos-setState bloqueia React re-render** [react, setstate, render, settimeout, freeze]
-	  `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
+  `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
 
 - **Agendar setTimeout ANTES do setState, nao depois** [react, settimeout, macrotask, event-loop]
-	  Se o `setTimeout` com `flushDiagnosticsNow` for agendado DEPOIS do `setState`, o callback nunca roda ate o render terminar. Agendando ANTES, o timer ja esta na macrotask queue quando o React comeca a renderizar, e dispara assim que o render sincrono termina. O `setTimeout(0)` vira ponto de handoff entre render sincrono e flush assincrono.
+  Se o `setTimeout` com `flushDiagnosticsNow` for agendado DEPOIS do `setState`, o callback nunca roda ate o render terminar. Agendando ANTES, o timer ja esta na macrotask queue quando o React comeca a renderizar, e dispara assim que o render sincrono termina. O `setTimeout(0)` vira ponto de handoff entre render sincrono e flush assincrono.
 
 - **createDeferred polyfill para Promise.withResolvers** [node, vitest, compatibilidade, polyfill]
-		  `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
+  `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
 
-	<!-- caliber:managed:learnings -->
+<!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
