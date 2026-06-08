@@ -268,22 +268,35 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
   // PR #349: probes de estado real pos-finalizacao do waterfall.
   // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
-  function scheduleLoadingStuckProbes(sessionId: string): void {
+  // Retorna cleanup que cancela RAF + timers; caller deve compor com cleanupPostCompletionRef.
+  function scheduleLoadingStuckProbes(sessionId: string, botMessageId: string): () => void {
     const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    const timerIds: ReturnType<typeof setTimeout>[] = [];
+    const capturedSessionId = sessionId;
+    const capturedBotId = botMessageId;
     let rafSafetyNetFired = false;
+    let rafHandle = 0;
 
-    const rafHandle = requestAnimationFrame(() => {
-      rafSafetyNetFired = true;
-      setIsLoading(false);
-      (setLoadingVariant as (v: string | undefined) => void)(undefined);
-      completeLoadingProgress();
-      scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
-        sessionId,
-      } as unknown as Record<string, unknown>);
+    const isCurrentGeneration = () => activeGenerationRef.current[capturedSessionId] === capturedBotId;
+
+    rafHandle = requestAnimationFrame(() => {
+      // So dispara se o loading ainda estiver ativo E for a mesma geracao
+      if (latestLoadingRef.current.isLoading && isCurrentGeneration()) {
+        rafSafetyNetFired = true;
+        setIsLoading(false);
+        (setLoadingVariant as (v: string | undefined) => void)(undefined);
+        completeLoadingProgress();
+        scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
+          sessionId: capturedSessionId,
+        } as unknown as Record<string, unknown>);
+      }
     });
 
     for (const delay of delays) {
-      setTimeout(() => {
+      const id = setTimeout(() => {
+        // So reporta se for a mesma geracao
+        if (!isCurrentGeneration()) return;
+
         try {
           const bodyText = document.body?.textContent || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
@@ -305,7 +318,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             domHasOverlay || domHasStopButton || domComposerDisabled || storeIsLoading || storeLoadingVariant !== null;
 
           const payload = {
-            sessionId,
+            sessionId: capturedSessionId,
             timing: delay,
             rafSafetyNetFired,
             storeIsLoading,
@@ -330,13 +343,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           } else {
             scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
           }
-        } catch (error) {
+        } catch (_err) {
           // falha silenciosa — probe nao pode quebrar o fluxo
         }
       }, delay);
+      timerIds.push(id);
     }
 
-    setTimeout(() => cancelAnimationFrame(rafHandle), 15_000);
+    return () => {
+      if (rafHandle) cancelAnimationFrame(rafHandle);
+      timerIds.forEach(tid => clearTimeout(tid));
+    };
   }
 
   const processMessage = useCallback(
@@ -761,10 +778,15 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        cleanupPostCompletionRef.current = schedulePostCompletionChecks(sessionId);
+        const cleanupChecks = schedulePostCompletionChecks(sessionId);
 
         // PR #349: probes de estado real + RAF safety net contra loading preso
-        scheduleLoadingStuckProbes(sessionId);
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId);
+
+        cleanupPostCompletionRef.current = () => {
+          cleanupChecks();
+          cleanupProbes();
+        };
       }
     },
     [
