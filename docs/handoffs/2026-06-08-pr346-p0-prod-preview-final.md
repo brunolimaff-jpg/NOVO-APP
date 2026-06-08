@@ -2,21 +2,21 @@
 
 ## Goal da proxima sessao
 
-PR #346 ja foi mergeada pelo Bruno. A proxima sessao nao deve rediagnosticar do zero; deve usar este doc, `HANDOFF_AI.md`, `.agents/memory/*`, `CALIBER_LEARNINGS.md` e o espelho no Bruno Vault para monitorar producao ou revisar o follow-up docs-only.
+PR #346 ja foi mergeada pelo Bruno. A proxima sessao nao deve rediagnosticar do zero; comece por `HANDOFF_AI.md` e depois consulte `.agents/memory/*`, `CALIBER_LEARNINGS.md` e o espelho no Bruno Vault para monitorar producao ou revisar o follow-up docs-only.
 
 ## State of play
 
-| Item | Estado |
-| --- | --- |
-| Branch | `fix/validate-inline-sources-timeout` |
-| Branch docs | `codex/pr346-p0-handoff-docs` |
-| Codigo validado | `992ece9f` |
-| Commits posteriores | documentacao/handoff somente |
-| PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/346 |
-| Merge | Feito pelo Bruno em 2026-06-07T20:43:57Z, commit `af9cd468` |
-| CI | Verde no codigo validado `992ece9f`; commits posteriores apenas documentam o fechamento |
-| Preview real | Scheffer 3x PASS no alias da branch |
-| Producao antiga | Confirmada a diferenca: sem `PostCompletion` nas sessoes ruins |
+| Item                | Estado                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| Branch              | `fix/validate-inline-sources-timeout`                                                   |
+| Branch docs         | `codex/pr346-p0-handoff-docs`                                                           |
+| Codigo validado     | `992ece9f`                                                                              |
+| Commits posteriores | documentacao/handoff somente                                                            |
+| PR                  | https://github.com/brunolimaff-jpg/NOVO-APP/pull/346                                    |
+| Merge               | Feito pelo Bruno em 2026-06-07T20:43:57Z, commit `af9cd468`                             |
+| CI                  | Verde no codigo validado `992ece9f`; commits posteriores apenas documentam o fechamento |
+| Preview real        | Scheffer 3x PASS no alias da branch                                                     |
+| Producao antiga     | Confirmada a diferenca: sem `PostCompletion` nas sessoes ruins                          |
 
 ## Cadeia causal resolvida
 
@@ -64,11 +64,11 @@ Preview real:
 - `version.json`: `2026-06-07T20:13:53.885Z`
 - Artefatos: `test-results/preview-scheffer-992ece9f/`
 
-| Ciclo | Session diag | Evidencia |
-| --- | --- | --- |
-| 1 | `4186a7b8-24f0-4929-9195-d740c0971212` | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0`, bot 36.654 chars |
-| 2 | `c191a5a8-cea5-425c-80cd-35d08821aff4` | mesmos marcadores, bot 32.074 chars |
-| 3 | `5a82bfa9-ef2d-4da9-aacd-beb9c28c0f62` | mesmos marcadores, bot 33.172 chars |
+| Ciclo | Session diag                           | Evidencia                                                                                                                            |
+| ----- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1     | `4186a7b8-24f0-4929-9195-d740c0971212` | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0`, bot 36.654 chars |
+| 2     | `c191a5a8-cea5-425c-80cd-35d08821aff4` | mesmos marcadores, bot 32.074 chars                                                                                                  |
+| 3     | `5a82bfa9-ef2d-4da9-aacd-beb9c28c0f62` | mesmos marcadores, bot 33.172 chars                                                                                                  |
 
 Comparacao ruim:
 
@@ -119,6 +119,6 @@ Estas licoes foram espelhadas em `CALIBER_LEARNINGS.md` e no Bruno Vault.
 - `docs/handoffs/2026-06-05-pr332-merge-prod-validation.md`
 - `docs/ai-context/refactor/loading-panel-contract.md`
 - `docs/investigation/2026-06-04-hero-stuck-findings.md`
-- Bruno Vault handoff: `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
-- Bruno Vault sessao: `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-08T08-44-09-NOVO-APP-pr346-fechamento-p0.md`
-- Bruno Vault licoes: `/Users/brunolima/Documents/Bruno Vault/30-LICOES/LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md`
+- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
+- Bruno Vault > 20-SESSOES > 2026-06 > 2026-06-08T08-44-09-NOVO-APP-pr346-fechamento-p0.md
+- Bruno Vault > 30-LICOES > LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md

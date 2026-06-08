@@ -197,7 +197,7 @@ describe('scoutDiag', () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+      const body = JSON.parse(String((fetchMock.mock.calls[0][1] as { body?: unknown }).body));
       expect(body.events).toHaveLength(1);
       expect(body.events[0].event).toBe('check:10000ms');
 
@@ -234,10 +234,10 @@ describe('scoutDiag', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
 
       const firstBody = JSON.parse(
-        String(fetchMock.mock.calls[0][0] && (fetchMock.mock.calls[0][1] as RequestInit)?.body),
+        String(fetchMock.mock.calls[0][0] && (fetchMock.mock.calls[0][1] as { body?: unknown })?.body),
       );
       const secondBody = JSON.parse(
-        String(fetchMock.mock.calls[1][0] && (fetchMock.mock.calls[1][1] as RequestInit)?.body),
+        String(fetchMock.mock.calls[1][0] && (fetchMock.mock.calls[1][1] as { body?: unknown })?.body),
       );
 
       expect(firstBody.events).toHaveLength(1);
