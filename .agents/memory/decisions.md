@@ -132,11 +132,11 @@ Refs: PR #346, `features/dossier/waterfall-orchestrator.ts`.
 
 ## 2026-06-08 — Safety net display:none como airbag contra origem desconhecida (APLICADO)
 
-Decision: adicionar useEffect em `MessageTimeline` que detecta `display:none` no `messages-static-fallback` e forca recovery com `el.style.setProperty('display', 'block', 'important')`.
+Decision: adicionar useEffect em `MessageTimeline` que detecta `display:none` no `messages-static-fallback` e força recovery com `el.style.setProperty('display', 'block', 'important')`.
 
-Reason: a tela branca no preview mostrou `messages-static-fallback` com `display:none`, `width=0`, `height=0` mesmo com waterfall concluido e overlay removido. Nenhuma origem JS foi encontrada. A hipotese de "browser computa display:none em flex colapsado" foi REFUTADA por reproducao minima. A origem permanece nao identificada. A safety net funciona como airbag.
+Reason: a tela branca no preview mostrou `messages-static-fallback` com `display:none`, `width=0`, `height=0` mesmo com waterfall concluído e overlay removido. Nenhuma origem JS foi encontrada. A hipótese de "browser computa display:none em flex colapsado" foi REFUTADA por reprodução mínima. A origem permanece não identificada. A safety net funciona como airbag.
 
-Contract: safety net e mecanismo defensivo, nao fluxo primario. Avaliar em sprint futura se mantem ou remove. Nao substitui investigacao de causa raiz.
+Contract: safety net é mecanismo defensivo, não fluxo primário. Avaliar em sprint futura se mantém ou remove. Não substitui investigação de causa raiz.
 
 Refs: `components/chat/MessageTimeline.tsx`, `tests/components/chat/MessageTimeline.test.tsx`.
 

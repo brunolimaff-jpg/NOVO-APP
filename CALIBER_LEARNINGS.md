@@ -257,13 +257,13 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Ao fazer merge com `origin/main`, arquivos modificados no working tree (gemini_usage) vazaram para o merge via `--ours`. `waterfall-orchestrator.ts` ganhou `operatorId` que quebrou typecheck porque `types.ts` nao tinha o campo. Sempre fazer merge com working tree limpa ou usar `git stash`.
 
 - **display:none em flex colapsado foi REFUTADO** [css, layout, debug, flexbox]
-  A hipotese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` e FALSA. Reproducao minima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injeção de runtime, ou race condition com React hydration).
+  A hipótese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` é FALSA. Reprodução mínima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injeção de runtime, ou race condition com React hydration).
 
-- **traceFullAncestorChain e superior a trace de culprit unico** [diagnostico, debug, layout]
-  `findFirstZeroDimensionAncestor` retorna apenas um no. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensao zero aparece. Preferir cadeia completa sobre busca de culpado unico em diagnosticos de layout.
+- **traceFullAncestorChain é superior a trace de culpado único** [diagnóstico, debug, layout]
+  `findFirstZeroDimensionAncestor` retorna apenas um nó. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensão zero aparece. Preferir cadeia completa sobre busca de culpado único em diagnósticos de layout.
 
-- **CodeQL nao bloqueia merge quando nao e check obrigatorio** [ci, codeql, merge, pr]
-  30 alertas pre-existentes em main nao impediram merge porque CodeQL nao esta na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuracao de branch protection, nao apenas o estado do check.
+- **CodeQL não bloqueia merge quando não é check obrigatório** [ci, codeql, merge, pr]
+  30 alertas pré-existentes em main não impediram merge porque CodeQL não está na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuração de branch protection, não apenas o estado do check.
 
 ## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 
