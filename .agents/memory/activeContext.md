@@ -4,8 +4,9 @@ Last updated: 2026-06-08 -- PR #346: P0 producao travada vs preview OK
 
 ## Atualizacao 2026-06-08 -- PR #346 verde + handoff final
 
-- **Branch mantida:** `fix/validate-inline-sources-timeout` / PR #346.
-- **Nao mergear:** ainda exige autorizacao explicita `MERGE`.
+- **PR #346:** mergeada pelo Bruno em 2026-06-07T20:43:57Z; merge commit `af9cd468`.
+- **Branch docs follow-up:** `codex/pr346-p0-handoff-docs`.
+- **Nao mergear docs follow-up:** exige autorizacao explicita `MERGE`.
 - **Codigo validado:** `992ece9f` (`fix(dossier): timeout continuity retries and prefer static timeline`).
 - **Commits posteriores:** documentacao/handoff somente, sem mudanca de codigo.
 - **Implementado e publicado:** timeout total de `/api/gemini` agora cobre `response.text()` + `JSON.parse()` em `services/geminiProxy.ts`; telemetria separa `action` e classe `ai/control`.
@@ -40,7 +41,8 @@ Last updated: 2026-06-08 -- PR #346: P0 producao travada vs preview OK
 
 | Item               | Status   | Acao                                         |
 | ------------------ | -------- | -------------------------------------------- |
-| PR #346            | ABERTA   | Aguardar autorizacao explicita para MERGE    |
+| PR #346            | MERGEADA | Codigo entrou em `main` via `af9cd468`       |
+| Docs follow-up     | ABERTA   | Branch `codex/pr346-p0-handoff-docs`         |
 | Preview Exec #2    | PASS     | Supabase `PostCompletion=6`                  |
 | Preview Exec #3    | PASS     | Supabase `PostCompletion=6`                  |
 | FreezeDiag markers | DECIDIR  | Remover ou manter antes do merge             |

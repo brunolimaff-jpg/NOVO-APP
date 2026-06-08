@@ -4,8 +4,9 @@
 **Codigo validado:** `992ece9f`
 **Commits posteriores:** documentacao/handoff somente
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
-**Status:** codigo da PR verde em `992ece9f`, preview real validado 3x, sem merge.
-**Regra:** merge somente com autorizacao explicita do Bruno contendo `MERGE`.
+**Status:** PR #346 mergeada pelo Bruno em 2026-06-07T20:43:57Z; merge commit `af9cd468`.
+**Docs follow-up:** branch `codex/pr346-p0-handoff-docs`.
+**Regra:** qualquer PR docs-only posterior tambem exige autorizacao explicita do Bruno contendo `MERGE`.
 
 ## Entrada rapida para proximo agente
 
@@ -104,7 +105,7 @@ Resumo curto. A versao completa esta em `CALIBER_LEARNINGS.md` e no Vault.
 
 ## Decisoes abertas
 
-- Manter `FreezeDiag` como diagnostico permanente ou remover/reduzir antes do merge.
+- `FreezeDiag` entrou no merge da #346; decidir em follow-up se mantem, reduz ou remove.
 - Se producao voltar a divergir do preview, investigar primeiro Service Worker/cache/deploy e `scout_diagnostics`; Sentry pode ficar vazio nesse tipo de freeze.
 - Nao modularizar prompt de Compliance nesta PR. So reabrir se `LoadingStageTimer` mostrar lentidao real persistente, nao percepcao de label.
 

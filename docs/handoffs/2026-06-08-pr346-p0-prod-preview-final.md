@@ -2,17 +2,18 @@
 
 ## Goal da proxima sessao
 
-Decidir se a PR #346 pode ser mergeada ou continuar investigacao se aparecer nova evidencia em producao. A proxima sessao nao deve rediagnosticar do zero; deve usar este doc, `HANDOFF_AI.md`, `.agents/memory/*`, `CALIBER_LEARNINGS.md` e o espelho no Bruno Vault.
+PR #346 ja foi mergeada pelo Bruno. A proxima sessao nao deve rediagnosticar do zero; deve usar este doc, `HANDOFF_AI.md`, `.agents/memory/*`, `CALIBER_LEARNINGS.md` e o espelho no Bruno Vault para monitorar producao ou revisar o follow-up docs-only.
 
 ## State of play
 
 | Item | Estado |
 | --- | --- |
 | Branch | `fix/validate-inline-sources-timeout` |
+| Branch docs | `codex/pr346-p0-handoff-docs` |
 | Codigo validado | `992ece9f` |
 | Commits posteriores | documentacao/handoff somente |
 | PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/346 |
-| Merge | Nao feito. Exige mensagem do Bruno com `MERGE`. |
+| Merge | Feito pelo Bruno em 2026-06-07T20:43:57Z, commit `af9cd468` |
 | CI | Verde no codigo validado `992ece9f`; commits posteriores apenas documentam o fechamento |
 | Preview real | Scheffer 3x PASS no alias da branch |
 | Producao antiga | Confirmada a diferenca: sem `PostCompletion` nas sessoes ruins |
@@ -96,7 +97,7 @@ Estas licoes foram espelhadas em `CALIBER_LEARNINGS.md` e no Bruno Vault.
 
 ## Open decisions
 
-- `FreezeDiag`: manter, reduzir ou remover antes do merge.
+- `FreezeDiag`: entrou em `main` pela #346; decidir em follow-up se mantem, reduz ou remove.
 - Service Worker/cache: se producao voltar a divergir, investigar antes de reabrir waterfall.
 - Compliance: nao dividir prompt nesta PR; so abrir PR separada com evidencia de `LoadingStageTimer`.
 
