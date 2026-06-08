@@ -7,8 +7,8 @@ Timeline **curto** no repo. Sessoes e narrativa: Bruno Vault `20-SESSOES/` -- ve
 
 ## Em andamento
 
-- **PR #346** fix/validate-inline-sources-timeout: publicada no commit `992ece9f`, sem merge. `/api/link-status` e `/api/gemini` cobrem body read + parse com timeout/abort; continuity-question recebe abort real + race local de 15s; loading timer ganhou identidade canonica + `LoadingStageTimer`; timeline prefere fallback estatico para bot gigante.
-- **Status 2026-06-08**: PR verde no head `992ece9f` (`E2E Critical Browser` PASS 3m53s); preview real Scheffer validada 3x com `PostCompletion=6`, `ui-finalized=1`, `check:10000ms=1` e `stuck_or_blank=0`; doc handoff + licoes espelhados no Bruno Vault.
+- **PR #346** fix/validate-inline-sources-timeout: publicada sem merge. Codigo validado em `992ece9f`; commits posteriores sao documentacao/handoff somente. `/api/link-status` e `/api/gemini` cobrem body read + parse com timeout/abort; continuity-question recebe abort real + race local de 15s; loading timer ganhou identidade canonica + `LoadingStageTimer`; timeline prefere fallback estatico para bot gigante.
+- **Status 2026-06-08**: PR verde no codigo validado `992ece9f` (`E2E Critical Browser` PASS 3m53s); preview real Scheffer validada 3x com `PostCompletion=6`, `ui-finalized=1`, `check:10000ms=1` e `stuck_or_blank=0`; doc handoff + licoes espelhados no Bruno Vault.
 
 ## Concluido
 

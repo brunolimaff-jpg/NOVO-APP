@@ -9,10 +9,11 @@ Decidir se a PR #346 pode ser mergeada ou continuar investigacao se aparecer nov
 | Item | Estado |
 | --- | --- |
 | Branch | `fix/validate-inline-sources-timeout` |
-| Head | `992ece9f` |
+| Codigo validado | `992ece9f` |
+| Commits posteriores | documentacao/handoff somente |
 | PR | https://github.com/brunolimaff-jpg/NOVO-APP/pull/346 |
 | Merge | Nao feito. Exige mensagem do Bruno com `MERGE`. |
-| CI | Verde no head `992ece9f` |
+| CI | Verde no codigo validado `992ece9f`; commits posteriores apenas documentam o fechamento |
 | Preview real | Scheffer 3x PASS no alias da branch |
 | Producao antiga | Confirmada a diferenca: sem `PostCompletion` nas sessoes ruins |
 
@@ -44,7 +45,7 @@ Referenciar commits e diffs para detalhes. Nao duplicar codigo aqui.
 
 ## Validacao que fecha o incidente
 
-Local no head `992ece9f`:
+Local no commit de codigo `992ece9f`:
 
 - `npm run typecheck`
 - `npm test` - 156 arquivos / 1360 testes

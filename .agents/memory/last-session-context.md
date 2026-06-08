@@ -7,11 +7,12 @@ Saved: 2026-06-08 08:44
 Branch de trabalho: `fix/validate-inline-sources-timeout` (PR #346)
 Base: `main`
 PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
-Head: `992ece9f`
+Codigo validado: `992ece9f`
+Commits posteriores: documentacao/handoff somente
 
 ## Estado
 
-PR #346 esta verde e publicada no head `992ece9f`, sem merge. O incidente P0 producao travada vs preview OK foi documentado em:
+PR #346 esta publicada sem merge. O codigo foi validado no commit `992ece9f`; commits posteriores sao documentacao/handoff somente. O incidente P0 producao travada vs preview OK foi documentado em:
 
 - `HANDOFF_AI.md`
 - `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`

@@ -1,9 +1,10 @@
 # Handoff - PR #346 P0 producao travada vs preview OK
 
 **Branch:** `fix/validate-inline-sources-timeout`
-**Head:** `992ece9f`
+**Codigo validado:** `992ece9f`
+**Commits posteriores:** documentacao/handoff somente
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
-**Status:** PR verde, preview real validado 3x, sem merge.
+**Status:** codigo da PR verde em `992ece9f`, preview real validado 3x, sem merge.
 **Regra:** merge somente com autorizacao explicita do Bruno contendo `MERGE`.
 
 ## Entrada rapida para proximo agente
@@ -46,8 +47,11 @@ A regressao vinha de uma cadeia, nao de um unico bug:
 - `65190101` - recovery de dossie oculto pos-waterfall
 - `6c213183` - flush de eventos finais
 - `992ece9f` - retry de continuidade com timeout local + static timeline para bot gigante
+- apos `992ece9f` - handoff final e licoes, sem mudanca de codigo
 
-## Validacao no head `992ece9f`
+## Validacao de codigo no commit `992ece9f`
+
+A branch pode ter commit(s) docs-only apos `992ece9f`. A validacao forte abaixo foi executada no commit de codigo `992ece9f`.
 
 Local:
 
