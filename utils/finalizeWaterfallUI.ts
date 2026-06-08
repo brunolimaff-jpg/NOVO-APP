@@ -92,13 +92,14 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
       reason,
       waterfallEndStatus,
       botMsgTextLen,
-      isLoading: false,
-      loadingVariant: null,
-      hasAbortController: false,
-      composerDisabled: false,
-      stopButtonVisible: false,
-      panelState: botMsgTextLen > 0 ? 'content' : 'error',
-      suspendedViewportVisible: false,
+      // NOTA: valores abaixo sao o estado INTENDED apos finalize, nao leitura real.
+      // Para estado real pos-render, ver ui-finalize-post-render e LoadingStuckProbe.
+      intendedIsLoading: false,
+      intendedLoadingVariant: null,
+      intendedComposerDisabled: false,
+      intendedStopButtonVisible: false,
+      intendedPanelState: botMsgTextLen > 0 ? 'content' : 'error',
+      intendedSuspendedViewportVisible: false,
       ...snapshot(),
     });
 

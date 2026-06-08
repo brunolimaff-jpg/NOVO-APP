@@ -266,6 +266,79 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     return () => timerIds.forEach(id => clearTimeout(id));
   }
 
+  // PR #349: probes de estado real pos-finalizacao do waterfall.
+  // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
+  function scheduleLoadingStuckProbes(sessionId: string): void {
+    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    let rafSafetyNetFired = false;
+
+    const rafHandle = requestAnimationFrame(() => {
+      rafSafetyNetFired = true;
+      setIsLoading(false);
+      (setLoadingVariant as (v: string | undefined) => void)(undefined);
+      completeLoadingProgress();
+      scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
+        sessionId,
+      } as unknown as Record<string, unknown>);
+    });
+
+    for (const delay of delays) {
+      setTimeout(() => {
+        try {
+          const bodyText = document.body?.textContent || '';
+          const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
+          const stopButton = document.querySelector('[data-testid="loading-stop-button"]');
+          const composer = document.querySelector(
+            '[data-testid="chat-input"], [data-testid="composer-input"]',
+          ) as HTMLInputElement | null;
+          const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
+          const storeIsLoading = latestLoadingRef.current.isLoading;
+          const storeLoadingVariant = latestLoadingRef.current.loadingVariant ?? null;
+
+          const domHasOverlay = Boolean(loadingOverlay);
+          const domHasStopButton = Boolean(stopButton);
+          const domComposerDisabled = composer?.disabled ?? false;
+          const botTextLen = Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0));
+          const containsDossie = /dossi[eê]/i.test(bodyText);
+
+          const isStuck =
+            domHasOverlay || domHasStopButton || domComposerDisabled || storeIsLoading || storeLoadingVariant !== null;
+
+          const payload = {
+            sessionId,
+            timing: delay,
+            rafSafetyNetFired,
+            storeIsLoading,
+            storeLoadingVariant,
+            domHasOverlay,
+            domHasStopButton,
+            domComposerDisabled,
+            composerPlaceholder: composer?.placeholder ?? null,
+            botMessageCount: botMessages.length,
+            botTextLen,
+            bodyTextLen: bodyText.length,
+            containsDossie,
+            hostname: typeof window !== 'undefined' ? window.location.hostname : 'ssr',
+          };
+
+          if (isStuck) {
+            scoutDiag.warn(
+              'LoadingStuckProbe',
+              `stuck-after-completed:${delay}ms`,
+              payload as unknown as Record<string, unknown>,
+            );
+          } else {
+            scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
+          }
+        } catch (error) {
+          // falha silenciosa — probe nao pode quebrar o fluxo
+        }
+      }, delay);
+    }
+
+    setTimeout(() => cancelAnimationFrame(rafHandle), 15_000);
+  }
+
   const processMessage = useCallback(
     async (
       text: string,
@@ -676,7 +749,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // O timer já está na macrotask queue — dispara assim que
         // o render síncrono terminar e devolver controle ao event loop.
         setIsLoading(false);
-        setLoadingVariant(undefined);
+        (setLoadingVariant as (v: string | undefined) => void)(undefined);
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
@@ -689,6 +762,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
         cleanupPostCompletionRef.current = schedulePostCompletionChecks(sessionId);
+
+        // PR #349: probes de estado real + RAF safety net contra loading preso
+        scheduleLoadingStuckProbes(sessionId);
       }
     },
     [
