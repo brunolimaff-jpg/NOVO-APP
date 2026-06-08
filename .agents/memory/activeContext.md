@@ -1,57 +1,77 @@
 # Active Context
 
-Last updated: 2026-06-08 -- PR #346: P0 producao travada vs preview OK
+Last updated: 2026-06-08 — Tela branca: mitigada, raiz aberta
 
-## Atualizacao 2026-06-08 -- PR #346 verde + handoff final
+## Atualizacao 2026-06-08 — Fechamento da investigacao de tela branca
 
-- **PR #346:** mergeada pelo Bruno em 2026-06-07T20:43:57Z; merge commit `af9cd468`.
-- **Branch docs follow-up:** `codex/pr346-p0-handoff-docs`.
-- **Nao mergear docs follow-up:** exige autorizacao explicita `MERGE`.
-- **Codigo validado:** `992ece9f` (`fix(dossier): timeout continuity retries and prefer static timeline`).
-- **Commits posteriores:** documentacao/handoff somente, sem mudanca de codigo.
-- **Implementado e publicado:** timeout total de `/api/gemini` agora cobre `response.text()` + `JSON.parse()` em `services/geminiProxy.ts`; telemetria separa `action` e classe `ai/control`.
-- **Continuity abort:** `generateContinuityQuestion` aceita `signal`; o timeout de 20s do waterfall aborta a request real, e cada tentativa tem race local de 15s para cair em fallback se o promise nao resolver apos abort.
-- **Erro controlado:** se `finalizeWaterfallUI` limpa `activeGenerationRef` antes do erro voltar ao `processMessage`, o catch ainda renderiza `ErrorMessageCard`.
-- **Timeline pos-waterfall:** bot gigante prefere `messages-static-fallback` mesmo se a viewport virtualizada ainda estiver suspensa.
-- **Loading timer:** labels modulares agora tem identidade canonica; `Verificando pressoes e compliance...` normaliza para `compliance`; `LoadingStageTimer` loga `stage-start`/`stage-complete`.
-- **Validacao local:** `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e:errors`, `npx playwright test tests-e2e/scheffer-cnpj-blank-panel.spec.ts`.
-- **Validacao preview real:** alias `https://scoutagro-git-fix-validate-in-45ab1a-brunolimaff-3629s-projects.vercel.app`; 3 execucoes Scheffer fecharam com tela final, overlay removido, input habilitado e Supabase `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0`.
-- **CI:** PR #346 verde no codigo validado; `E2E Critical Browser` PASS no commit `992ece9f`.
-- **Doc handoff fechado:** `HANDOFF_AI.md`, `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`, `CALIBER_LEARNINGS.md` e Bruno Vault (`40-HANDOFFS`, `20-SESSOES`, `30-LICOES`) apontam para o fechamento do P0.
+**Status:** Bug mitigado com safety net. Causa raiz NAO IDENTIFICADA.
+
+### O que foi feito
+
+- **PR #347 mergeada** (`f3f08890`): 7 comentarios de review resolvidos, corrections pos-merge commitadas
+- **Safety net** `static-fallback-display-recovery`: useEffect que detecta `display:none` no `messages-static-fallback` e forca recovery com `style.setProperty('display', 'block', 'important')`
+- **Instrumentacao**: `debugStaticFallbackDisplay` + `traceFullAncestorChain` em `layoutTraceTelemetry.ts`, conectado em 4 pontos da UI
+- **TDD**: 3 testes para safety net
+
+### Sessoes analisadas
+
+| Sessao | Resultado |
+|--------|-----------|
+| `ac5890b0` | OK apos recovery (previousDisplay "none" → afterResetDisplay "block") |
+| `9595fc30` | OK direto |
+| `2bfe06a1` | OK direto |
+| `f0c9dd91` | Travado (diagnosticos truncados) |
+
+### Hipoteses descartadas
+
+- Browser computa display:none em flex colapsado — REFUTADA por reproducao minima
+- deleteCachedContent
+- Request pendente bloqueia render
+- RAF extra em setIsLoading
+- Falha do Composer
+
+### Gatilhos de reabertura
+
+Qualquer condicao verdadeira em producao = priorizar investigacao:
+
+1. `static-fallback-display-recovery` > 5% das sessoes
+2. `PostCompletion check:10000ms` ausente com waterfall completed
+3. `domComposerDisabled: true` apos `ui-finalize-post-render`
+4. `blank-panel-detected` > 3 checks consecutivos
+
+### Proximo passo
+
+Monitorar producao. Nao atuar sem reincidencia. Se nova sessao travada: coletar sessionId, waterfallRunId, PostCompletion, LayoutTrace, BlankPanelDebug, DOM snapshot, Sentry/Vercel/Supabase.
 
 ## Estado
 
-- **Branch:** `fix/validate-inline-sources-timeout` (PR #346)
-- **Bug diagnosticado**: `fetch('/api/link-status')` com `AbortSignal.timeout(25_000)` cobria apenas conexao; `response.json()` sem timeout bloqueava waterfall
-- **Correcao**: AbortController explicito (30s) + body read timeout (15s) via `response.text()` + `JSON.parse()`
-- **FreezeDiag**: 18 marcos de telemetria adicionados
-- **13 novos testes** para timeout/conexao/fallback/FreezeDiag
-- **Mock fix**: `fetch` mock nos testes existentes (adicionado `response.text()` + `headers` + `bodyUsed`)
-- **Preview Exec #1**: PASS (CNPJ Scheffer)
-- **CI**: verde no codigo validado `992ece9f`
-- **CodeRabbit review**: concluido sem bloquear
+- **Branch:** `codex/pr346-p0-handoff-docs`
+- **Working tree:** 13 arquivos modificados + 4 untracked (trabalho paralelo `gemini_usage`)
+- **Tela branca preview:** mitigada, raiz aberta
+- **Safety net display:none:** ativa como airbag
+- **PR #346:** mergeada em `main` via `af9cd468` — P0 producao travada corrigido
+- **PR #347:** mergeada em `main` via `f3f08890` — safety net + instrumentacao
 
 ## Decisoes arquiteturais ativas
 
-- `validate-inline-sources` e modulo opcional — timeout nao quebra waterfall
-- FreezeDiag: telemetria temporaria para investigacao
-- Body read com timeout separado via `response.text()` + `JSON.parse()` (nao `response.json()`)
+- Safety net: useEffect com setProperty contra origem desconhecida (DECISAO: manter ate causa raiz)
+- traceFullAncestorChain: diagnostico de cadeia completa (DECISAO: manter, filtrar por display:none em producao estavel)
+- FreezeDiag: telemetria temporaria (DECISAO: reavaliar na proxima sprint)
+- display:none no flex colapsado: REFUTADA (DECISAO: documentado para agentes futuros nao reabrirem)
+- CodeQL: 30 alertas pre-existentes, nao e check obrigatorio
 
 ## Pendencias
 
-| Item               | Status   | Acao                                   |
-| ------------------ | -------- | -------------------------------------- |
-| PR #346            | MERGEADA | Codigo entrou em `main` via `af9cd468` |
-| Docs follow-up     | ABERTA   | Branch `codex/pr346-p0-handoff-docs`   |
-| Preview Exec #2    | PASS     | Supabase `PostCompletion=6`            |
-| Preview Exec #3    | PASS     | Supabase `PostCompletion=6`            |
-| FreezeDiag markers | DECIDIR  | Remover ou manter antes do merge       |
-| CodeRabbit review  | OK       | Sem bloqueio no rollup                 |
+| Item | Status | Acao |
+|------|--------|------|
+| Tela branca preview | MITIGADA, RAIZ ABERTA | Monitorar producao. Gatilhos de reabertura definidos |
+| Safety net display:none | ATIVA | Manter ate causa raiz identificada |
+| traceFullAncestorChain | ATIVO | Filtrar por condicao display:none quando producao estavel |
+| Gemini usage tracking | PARALELO | 13 arquivos modificados + 4 untracked |
+| Branch codex/pr346-p0-handoff-docs | ABERTA | Decidir se deleta ou mantem |
 
 ## Links
 
 - PR #346: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
-- Preview: https://scoutagro-git-fix-validate-in-45ab1a-brunolimaff-3629s-projects.vercel.app
-- Handoff final: `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
-- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
-- Bruno Vault > 30-LICOES > LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md
+- PR #347: https://github.com/brunolimaff-jpg/NOVO-APP/pull/347
+- Handoff final PR #346: `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
