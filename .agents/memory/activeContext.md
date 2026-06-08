@@ -39,19 +39,19 @@ Last updated: 2026-06-08 -- PR #346: P0 producao travada vs preview OK
 
 ## Pendencias
 
-| Item               | Status   | Acao                                         |
-| ------------------ | -------- | -------------------------------------------- |
-| PR #346            | MERGEADA | Codigo entrou em `main` via `af9cd468`       |
-| Docs follow-up     | ABERTA   | Branch `codex/pr346-p0-handoff-docs`         |
-| Preview Exec #2    | PASS     | Supabase `PostCompletion=6`                  |
-| Preview Exec #3    | PASS     | Supabase `PostCompletion=6`                  |
-| FreezeDiag markers | DECIDIR  | Remover ou manter antes do merge             |
-| CodeRabbit review  | OK       | Sem bloqueio no rollup                       |
+| Item               | Status   | Acao                                   |
+| ------------------ | -------- | -------------------------------------- |
+| PR #346            | MERGEADA | Codigo entrou em `main` via `af9cd468` |
+| Docs follow-up     | ABERTA   | Branch `codex/pr346-p0-handoff-docs`   |
+| Preview Exec #2    | PASS     | Supabase `PostCompletion=6`            |
+| Preview Exec #3    | PASS     | Supabase `PostCompletion=6`            |
+| FreezeDiag markers | DECIDIR  | Remover ou manter antes do merge       |
+| CodeRabbit review  | OK       | Sem bloqueio no rollup                 |
 
 ## Links
 
 - PR #346: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
 - Preview: https://scoutagro-git-fix-validate-in-45ab1a-brunolimaff-3629s-projects.vercel.app
 - Handoff final: `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
-- Bruno Vault handoff: `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
-- Bruno Vault licoes: `/Users/brunolima/Documents/Bruno Vault/30-LICOES/LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md`
+- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
+- Bruno Vault > 30-LICOES > LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md

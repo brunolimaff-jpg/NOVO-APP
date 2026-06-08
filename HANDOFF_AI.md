@@ -21,9 +21,9 @@ Leia nesta ordem:
 
 Espelho no Bruno Vault:
 
-- `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
-- `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-08T08-44-09-NOVO-APP-pr346-fechamento-p0.md`
-- `/Users/brunolima/Documents/Bruno Vault/30-LICOES/LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md`
+- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
+- Bruno Vault > 20-SESSOES > 2026-06 > 2026-06-08T08-44-09-NOVO-APP-pr346-fechamento-p0.md
+- Bruno Vault > 30-LICOES > LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md
 
 Em conflito, a fonte canonica de implementacao e o repo. O Vault e espelho navegavel para memoria humana.
 
@@ -73,11 +73,11 @@ Preview real:
 - `version.json`: `2026-06-07T20:13:53.885Z`
 - Artefatos locais: `test-results/preview-scheffer-992ece9f/`
 
-| Ciclo | Session app | Session diag | Bot chars | Supabase |
-| --- | --- | --- | ---: | --- |
-| 1 | `635305ec-0067-4bc6-b4c0-3c2eef4fa410` | `4186a7b8-24f0-4929-9195-d740c0971212` | 36.654 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
-| 2 | `a10f6da3-2a04-4064-a0e8-b91c91924de0` | `c191a5a8-cea5-425c-80cd-35d08821aff4` | 32.074 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
-| 3 | `5f5af197-7f76-4259-88d5-57e252545ea5` | `5a82bfa9-ef2d-4da9-aacd-beb9c28c0f62` | 33.172 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
+| Ciclo | Session app                            | Session diag                           | Bot chars | Supabase                                                                                                           |
+| ----- | -------------------------------------- | -------------------------------------- | --------: | ------------------------------------------------------------------------------------------------------------------ |
+| 1     | `635305ec-0067-4bc6-b4c0-3c2eef4fa410` | `4186a7b8-24f0-4929-9195-d740c0971212` |    36.654 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
+| 2     | `a10f6da3-2a04-4064-a0e8-b91c91924de0` | `c191a5a8-cea5-425c-80cd-35d08821aff4` |    32.074 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
+| 3     | `5f5af197-7f76-4259-88d5-57e252545ea5` | `5a82bfa9-ef2d-4da9-aacd-beb9c28c0f62` |    33.172 | `FreezeDiag=13`, `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0` |
 
 Comparacao de producao antiga:
 

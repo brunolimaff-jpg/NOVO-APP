@@ -6,7 +6,7 @@ A regressao voltou em producao e foi fechada na PR #346 (`fix/validate-inline-so
 
 - `HANDOFF_AI.md`
 - `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
-- Bruno Vault: `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
+- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
 
 ## Goal próxima sessão
 

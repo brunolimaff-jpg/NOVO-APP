@@ -6,7 +6,7 @@ Reason: o incidente levou quase duas semanas e misturou bugs de body-read, abort
 
 Contract: fechamento de P0 visual deve referenciar evidencias por path/URL, registrar licoes de "o que nao fazer" e apontar explicitamente para o Bruno Vault.
 
-Refs: `HANDOFF_AI.md`, `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`, `CALIBER_LEARNINGS.md`, `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`.
+Refs: `HANDOFF_AI.md`, `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`, `CALIBER_LEARNINGS.md`, `Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md`.
 
 ---
 
