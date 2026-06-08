@@ -1,42 +1,54 @@
 # Active Context
 
-Last updated: 2026-06-05 -- Bug P0 OVERLAY RESOLVIDO. 4 PRs mergeadas. PR #343 ABERTA (setTimeout swap).
+Last updated: 2026-06-08 -- PR #346: P0 producao travada vs preview OK
+
+## Atualizacao 2026-06-08 -- PR #346 verde + handoff final
+
+- **Branch mantida:** `fix/validate-inline-sources-timeout` / PR #346.
+- **Nao mergear:** ainda exige autorizacao explicita `MERGE`.
+- **Head atual:** `992ece9f` (`fix(dossier): timeout continuity retries and prefer static timeline`), publicado no PR #346.
+- **Implementado e publicado:** timeout total de `/api/gemini` agora cobre `response.text()` + `JSON.parse()` em `services/geminiProxy.ts`; telemetria separa `action` e classe `ai/control`.
+- **Continuity abort:** `generateContinuityQuestion` aceita `signal`; o timeout de 20s do waterfall aborta a request real, e cada tentativa tem race local de 15s para cair em fallback se o promise nao resolver apos abort.
+- **Erro controlado:** se `finalizeWaterfallUI` limpa `activeGenerationRef` antes do erro voltar ao `processMessage`, o catch ainda renderiza `ErrorMessageCard`.
+- **Timeline pos-waterfall:** bot gigante prefere `messages-static-fallback` mesmo se a viewport virtualizada ainda estiver suspensa.
+- **Loading timer:** labels modulares agora tem identidade canonica; `Verificando pressoes e compliance...` normaliza para `compliance`; `LoadingStageTimer` loga `stage-start`/`stage-complete`.
+- **Validacao local:** `npm run typecheck`, `npm test`, `npm run build`, `npm run test:e2e:errors`, `npx playwright test tests-e2e/scheffer-cnpj-blank-panel.spec.ts`.
+- **Validacao preview real:** alias `https://scoutagro-git-fix-validate-in-45ab1a-brunolimaff-3629s-projects.vercel.app`; 3 execucoes Scheffer fecharam com tela final, overlay removido, input habilitado e Supabase `pos-register-end=1`, `ui-finalized=1`, `PostCompletion=6`, `check:10000ms=1`, `stuck_or_blank=0`.
+- **CI:** PR #346 verde; `E2E Critical Browser` PASS no commit `992ece9f`.
+- **Doc handoff fechado:** `HANDOFF_AI.md`, `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`, `CALIBER_LEARNINGS.md` e Bruno Vault (`40-HANDOFFS`, `20-SESSOES`, `30-LICOES`) apontam para o fechamento do P0.
 
 ## Estado
 
-- **Bug P0 FECHADO**: overlay hero nunca mais trava em producao com waterfall Scheffer
-- **4 PRs mergeadas** (#333, #334, #335, #342) -- todas em main
-- **PR #343 ABERTA** (branch `codex/finalize-waterfall-ui`): setTimeout swap para flushDiagnosticsNow
-- **Root Cause 5 camadas** identificada:
-  1. SW CacheFirst servia bundles antigos
-  2. Gap waterfall vs setIsLoading sem bridge (PR #342)
-  3. abortControllerRef nullificado (isAbort=true falso) (PR #342)
-  4. Static fallback display:none: flex-basis:0% + h-full = 0px de altura (PR #342)
-  5. **(NOVA)** flushDiagnosticsNow sincrono no mesmo tick pos-setState bloqueava React re-render (PR #343)
+- **Branch:** `fix/validate-inline-sources-timeout` (PR #346)
+- **Bug diagnosticado**: `fetch('/api/link-status')` com `AbortSignal.timeout(25_000)` cobria apenas conexao; `response.json()` sem timeout bloqueava waterfall
+- **Correcao**: AbortController explicito (30s) + body read timeout (15s) via `response.text()` + `JSON.parse()`
+- **FreezeDiag**: 18 marcos de telemetria adicionados
+- **13 novos testes** para timeout/conexao/fallback/FreezeDiag
+- **Mock fix**: `fetch` mock nos testes existentes (adicionado `response.text()` + `headers` + `bodyUsed`)
+- **Preview Exec #1**: PASS (CNPJ Scheffer)
+- **CI**: verde no head `992ece9f`
+- **CodeRabbit review**: concluido sem bloquear
 
 ## Decisoes arquiteturais ativas
 
-- `abortControllerRef` pertence ao `processMessage`, NUNCA ao helper de UI
-- DOM cleanup via querySelector direto (3 seletores), NUNCA TreeWalker(document.body)
-- DOM cleanup display:none e safety net; React render condition e primario
-- Hard invariant como airbag: condicoes observaveis forcadamente liberam a UI
-- LayoutTrace como ferramenta de diagnostico
-- `flushDiagnosticsNow` deve ser deferido com `setTimeout(0)`; agendar ANTES do setState, nao depois
+- `validate-inline-sources` e modulo opcional — timeout nao quebra waterfall
+- FreezeDiag: telemetria temporaria para investigacao
+- Body read com timeout separado via `response.text()` + `JSON.parse()` (nao `response.json()`)
 
 ## Pendencias
 
-| Item | Status | Acao |
-|------|--------|------|
-| PR #343 setTimeout swap | ABERTA | Code review + merge |
-| Kill-switch sw.js | MANTER 1-2 RELEASES | Remover depois |
-| ContinuityQuestion JSON truncado | DEBUG LOG | Ja feito |
-| AbortError CNPJ lookup | DEBUG LOG | Ja feito |
-| foundationCacheName null | INVESTIGAR | Separado |
-| `scoutagro.vercel.app` alias | INVESTIGAR | Nao esta nos domains |
+| Item               | Status   | Acao                                         |
+| ------------------ | -------- | -------------------------------------------- |
+| PR #346            | ABERTA   | Aguardar autorizacao explicita para MERGE    |
+| Preview Exec #2    | PASS     | Supabase `PostCompletion=6`                  |
+| Preview Exec #3    | PASS     | Supabase `PostCompletion=6`                  |
+| FreezeDiag markers | DECIDIR  | Remover ou manter antes do merge             |
+| CodeRabbit review  | OK       | Sem bloqueio no rollup                       |
 
 ## Links
 
-- PR #343: https://github.com/brunolimaff-jpg/NOVO-APP/pull/343 (ABERTA)
-- Vault sessoes: `Bruno Vault/20-SESSOES/2026-06/2026-06-05T19-30-00-NOVO-APP-overlay-hero-camada4-static-fallback.md`
-- Licoes (16): `Bruno Vault/30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md`
-- CALIBER_LEARNINGS.md: secoes atualizadas com bug P0 + setTimeout swap
+- PR #346: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
+- Preview: https://scoutagro-git-fix-validate-in-45ab1a-brunolimaff-3629s-projects.vercel.app
+- Handoff final: `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
+- Bruno Vault handoff: `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
+- Bruno Vault licoes: `/Users/brunolima/Documents/Bruno Vault/30-LICOES/LICOES-P0-PRODUCAO-TRAVADA-PREVIEW-OK-2026-06-08.md`

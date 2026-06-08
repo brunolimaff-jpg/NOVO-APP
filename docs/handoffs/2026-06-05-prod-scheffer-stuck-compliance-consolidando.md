@@ -2,26 +2,38 @@
 
 **Escopo deste doc:** relato + evidências do Bruno. **Sem fix aplicado nesta sessão.**
 
+## Resolucao posterior (2026-06-08)
+
+Este handoff foi encerrado pela PR #346 no head `992ece9f`. A causa final nao foi "Compliance travado" isoladamente, mas uma cadeia envolvendo body-read sem timeout, abort incompleto, flush final, timer visual e renderizacao de dossie grande.
+
+Continuar por:
+
+- `HANDOFF_AI.md`
+- `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
+- `CALIBER_LEARNINGS.md`
+- Bruno Vault: `/Users/brunolima/Documents/Bruno Vault/40-HANDOFFS/NOVO-APP-handoff.md`
+
 ## Goal próxima sessão
 
 Entender como o módulo **Riscos & Compliance** / etapa UI **"Verificando pressões e compliance..."** funciona no waterfall modular e se faz sentido **dividir** (prompt, timeout, paralelismo). Investigar por que a sessão abaixo repetiu padrão de desync pós-`finally` (**PostCompletion ausente**) apesar do merge #332.
 
 ## State of play
 
-| Item | Status |
-|------|--------|
-| `main` | `83414a81` (#332 mergeada ~15:51 UTC) |
-| Ambiente | **Produção** `scoutagro.vercel.app` |
-| Empresa | SCHEFFER & CIA LTDA (CNPJ `04733767000180`) |
-| Sessão | `6ad684da-0323-4a4a-8b5c-43b03511f69b` |
-| Sintoma relatado | Parece travar em **compliance** (~50%, ~1m24s) e depois em **Consolidando** (~93%, ~2m12s) |
-| Servidor | Waterfall **completou**; `processMessage:finally` executou |
-| Telemetria | **PostCompletion=0**; health-check com `overlay=true`, `domBodyLen=841`, `botMsgTextLen=27256` |
-| Sentry (2h) | Sem erros |
+| Item             | Status                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `main`           | `83414a81` (#332 mergeada ~15:51 UTC)                                                          |
+| Ambiente         | **Produção** `scoutagro.vercel.app`                                                            |
+| Empresa          | SCHEFFER & CIA LTDA (CNPJ `04733767000180`)                                                    |
+| Sessão           | `6ad684da-0323-4a4a-8b5c-43b03511f69b`                                                         |
+| Sintoma relatado | Parece travar em **compliance** (~50%, ~1m24s) e depois em **Consolidando** (~93%, ~2m12s)     |
+| Servidor         | Waterfall **completou**; `processMessage:finally` executou                                     |
+| Telemetria       | **PostCompletion=0**; health-check com `overlay=true`, `domBodyLen=841`, `botMsgTextLen=27256` |
+| Sentry (2h)      | Sem erros                                                                                      |
 
 ## Relato visual (screenshots)
 
 Assets locais (Cursor):
+
 - `assets/Captura_de_Tela_2026-06-05_a_s_12.03.50-*.png` — ~50%, etapa **Verificando pressões e compliance...**, timer ~1m24s, Network com request **gemini (pendente)**
 - `assets/Captura_de_Tela_2026-06-05_a_s_12.04.05-*.png` — mesma fase, ~1m38s, gemini pendente
 - `assets/image-6cdf20ad-*.png` — ~93%, **Consolidando informações...**, timer ~2m12s; etapas anteriores (incl. compliance 16s) marcadas OK; gemini pendente
@@ -31,6 +43,7 @@ Assets locais (Cursor):
 ## Console (trecho fornecido pelo Bruno)
 
 Ordem resumida:
+
 1. `processMessage:start` / `waterfall:start`
 2. Módulos concluídos com durações: Identidade 10,4s; Profundidade 24,3s; Operação 20,9s; Bordas 18,4s; **Riscos & Compliance 16,5s**; Caminho de Venda 15,7s
 3. Warnings: Teia CNPJ (7/7 não confirmados); prompt elevado em Bordas/Compliance/Caminho (~80k chars)
@@ -43,27 +56,27 @@ Ordem resumida:
 
 **session_id:** `6ad684da-0323-4a4a-8b5c-43b03511f69b`
 
-| Evento | Achado |
-|--------|--------|
-| `waterfall:end` | completed |
-| `processMessage:finally` | OK (`isAbort: false`) |
-| `health-check-final` | `isLoading=false`, `domHasLoadingOverlay=true`, `domBodyLen=841`, `botMsgTextLen=27256`, `botMsgFound=true` |
-| `PostCompletion` | **ausente (0 eventos)** |
-| `overlay-persisted` | ausente |
+| Evento                   | Achado                                                                                                      |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `waterfall:end`          | completed                                                                                                   |
+| `processMessage:finally` | OK (`isAbort: false`)                                                                                       |
+| `health-check-final`     | `isLoading=false`, `domHasLoadingOverlay=true`, `domBodyLen=841`, `botMsgTextLen=27256`, `botMsgFound=true` |
+| `PostCompletion`         | **ausente (0 eventos)**                                                                                     |
+| `overlay-persisted`      | ausente                                                                                                     |
 
 **Comparação:** sessão validada pós-#332 (`1c786d20`) tinha PostCompletion=6. Esta sessão **repete padrão pré-fix** no health-check.
 
 ## Como a etapa "compliance" funciona (mapa para investigação)
 
-| Camada | Valor |
-|--------|-------|
-| Label UI | `MODULAR_DOSSIER_STAGES[3]` → `Verificando pressões e compliance...` (`constants/loadingStages.ts`) |
-| Módulo waterfall | `Riscos & Compliance` (`features/dossier/waterfall-orchestrator.ts`) |
-| Prompt | `PROMPT_RISCOS_COMPLIANCE_GOD_MODE` (`prompts/mega/specialist-prompts.ts`) |
-| Execução | `generateDossierModule` → `services/gemini/investigation-orchestration.ts` → `geminiProxy` → `/api/gemini` |
-| Timeout módulo | `MODULAR_OPTIONAL_STEP_TIMEOUT_MS` = **60s** |
-| optional | `true` (falha não aborta waterfall) |
-| Contexto acumulado | `foundationChars` ~43k + `extraContextChars` ~27k → `promptChars` ~80k (warn elevado) |
+| Camada             | Valor                                                                                                      |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Label UI           | `MODULAR_DOSSIER_STAGES[3]` → `Verificando pressões e compliance...` (`constants/loadingStages.ts`)        |
+| Módulo waterfall   | `Riscos & Compliance` (`features/dossier/waterfall-orchestrator.ts`)                                       |
+| Prompt             | `PROMPT_RISCOS_COMPLIANCE_GOD_MODE` (`prompts/mega/specialist-prompts.ts`)                                 |
+| Execução           | `generateDossierModule` → `services/gemini/investigation-orchestration.ts` → `geminiProxy` → `/api/gemini` |
+| Timeout módulo     | `MODULAR_OPTIONAL_STEP_TIMEOUT_MS` = **60s**                                                               |
+| optional           | `true` (falha não aborta waterfall)                                                                        |
+| Contexto acumulado | `foundationChars` ~43k + `extraContextChars` ~27k → `promptChars` ~80k (warn elevado)                      |
 
 Etapas **após** compliance no mesmo waterfall: Caminho de Venda → benchmark → PORTA → continuity → consolidação UI (`Consolidando informações...`).
 
