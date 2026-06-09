@@ -38,7 +38,6 @@ describe('loadingVariant flow rules', () => {
       resolvePlaceholderLoadingVariant({
         requestKind: 'deep_dive',
         isFollowUp: true,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });
@@ -47,22 +46,20 @@ describe('loadingVariant flow rules', () => {
     expect(resolveDeepDiveRequestKind(false)).toBe('default');
   });
 
-  it('keeps regular follow-up placeholders inline when the session already has a bot answer', () => {
+  it('resolvePlaceholderLoadingVariant é alias de resolveEffectiveLoadingVariant', () => {
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'default',
         isFollowUp: true,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });
 
-  it('keeps placeholder aligned with inline for first investigation when flag is active', () => {
+  it('primeira investigação com flag inlineLoading ativa retorna inline', () => {
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'default',
         isFollowUp: false,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });

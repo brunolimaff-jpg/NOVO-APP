@@ -50,9 +50,7 @@ vi.mock('../../utils/diagnosticLog', () => ({
   scoutDiag: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const mockChatStore = vi.hoisted(() =>
-  vi.fn(),
-);
+const mockChatStore = vi.hoisted(() => vi.fn());
 
 vi.mock('../../stores/chatStore', () => ({
   useMaybeChatStore: mockChatStore,
@@ -87,16 +85,16 @@ describe('formatCnpj', () => {
     expect(formatCnpj(null as unknown as string)).toBe('');
   });
 
-  it('retorna raw se menos de 14 dígitos', () => {
-    expect(formatCnpj('123')).toBe('123');
-    expect(formatCnpj('0473376700018')).toBe('0473376700018');
+  it('formata progressivamente para menos de 14 dígitos', () => {
+    expect(formatCnpj('123')).toBe('12.3');
+    expect(formatCnpj('0473376700018')).toBe('04.733.767/0001-8');
   });
 
-  it('retorna raw se mais de 14 dígitos', () => {
-    expect(formatCnpj('04733767000180000')).toBe('04733767000180000');
+  it('normaliza para 14 dígitos e formata quando excede', () => {
+    expect(formatCnpj('04733767000180000')).toBe('04.733.767/0001-80');
   });
 
-  it('remove pontuação mas não formata se dígitos !== 14', () => {
+  it('formata progressivamente com pontuação parcial', () => {
     expect(formatCnpj('04.733')).toBe('04.733');
   });
 });
@@ -170,9 +168,7 @@ describe('InlineLoadingBubble — contrato', () => {
 
 describe('InlineLoadingBubble — CNPJ', () => {
   it('exibe CNPJ formatado quando prop cnpj é fornecida', () => {
-    render(
-      <InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj="04733767000180" />,
-    );
+    render(<InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj="04733767000180" />);
     expect(screen.getByText('04.733.767/0001-80')).toBeInTheDocument();
   });
 
@@ -182,9 +178,7 @@ describe('InlineLoadingBubble — CNPJ', () => {
   });
 
   it('não exibe CNPJ quando prop cnpj é null', () => {
-    render(
-      <InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj={null as unknown as undefined} />,
-    );
+    render(<InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj={null as unknown as undefined} />);
     expect(screen.queryByText(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)).not.toBeInTheDocument();
   });
 

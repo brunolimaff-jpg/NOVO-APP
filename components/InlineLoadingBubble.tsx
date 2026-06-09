@@ -10,6 +10,9 @@ import { stripInternalMarkers } from '../utils/textCleaners';
 import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../utils/loadingBackoff';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { useMaybeChatStore } from '../stores/chatStore';
+import { formatCnpj } from '../utils/cnpj';
+
+export { formatCnpj };
 
 interface InlineLoadingBubbleProps {
   isDarkMode: boolean;
@@ -25,12 +28,6 @@ interface InlineLoadingBubbleProps {
   cnpj?: string | null;
   lastUserQuery?: string;
   onStop?: () => void;
-}
-
-export function formatCnpj(raw: string): string {
-  const digits = raw?.replace(/\D/g, '') || '';
-  if (digits.length !== 14) return raw || '';
-  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
 
 function getStageElapsedMs(

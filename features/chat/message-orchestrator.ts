@@ -454,15 +454,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const botMessageId = uuidv4();
       activeGenerationRef.current[sessionId] = botMessageId;
-      const hasConsolidatedBotResponse = historyToPass.some(
-        message =>
-          message.sender === Sender.Bot && !message.isError && !message.isThinking && Boolean(message.text?.trim()),
-      );
-
       const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
-        hasConsolidatedBotResponse,
       });
 
       const botMessagePlaceholder: Message = {
