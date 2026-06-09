@@ -1,12 +1,4 @@
-const ALLOWED_ORIGINS = new Set(
-  [
-    process.env.ALLOWED_ORIGIN,
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-    'https://scoutagro.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ].filter(Boolean) as string[],
-);
+import { ALLOWED_ORIGINS } from './api/_allowed-origins.js';
 
 export default function middleware(request: Request) {
   const url = new URL(request.url);
@@ -26,6 +18,7 @@ export default function middleware(request: Request) {
   const headers = new Headers();
   if (isAllowed) {
     headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Vary', 'Origin');
   }
   headers.set('Access-Control-Allow-Credentials', 'true');
   headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');

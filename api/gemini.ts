@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
+import { applyCors } from './_cors-headers.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -517,6 +518,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  applyCors(req, res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

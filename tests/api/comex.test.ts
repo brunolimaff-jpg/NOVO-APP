@@ -106,7 +106,7 @@ describe('comex handler — OPTIONS preflight', () => {
     handler = mod.default;
   });
 
-  it('retorna 405 para OPTIONS — middleware.ts faz o preflight', async () => {
+  it('retorna 405 para OPTIONS — handler responde com 405', async () => {
     const req = { method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } };
     const res = makeMockRes();
 
