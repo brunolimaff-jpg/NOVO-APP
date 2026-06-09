@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useElapsedTimer, formatElapsed } from './loading/hooks';
 import { ClockIcon, StepSpinner, StepPending, StepCheckIcon } from './LoadingShared';
 import {
@@ -55,6 +55,8 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   const stageDurationsRef = React.useRef<Record<string, number>>({});
   const loggedStartsRef = React.useRef<Set<string>>(new Set());
   const loggedCompletionsRef = React.useRef<Set<string>>(new Set());
+
+  const [stopClicked, setStopClicked] = useState(false);
 
   const companyFocus = (empresaAlvo || lastUserQuery || '').trim();
 
@@ -262,7 +264,11 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
       {/* Botão Interromper */}
       <div className="mx-4 md:mx-5 mb-3">
         <button
-          onClick={onStop}
+          onClick={() => {
+            setStopClicked(true);
+            onStop?.();
+          }}
+          disabled={stopClicked}
           type="button"
           className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-[11px] font-semibold
             bg-white border border-red-200 text-red-600

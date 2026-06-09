@@ -26,7 +26,7 @@ export function resolvePlaceholderLoadingVariant({
   hasConsolidatedBotResponse: _hasConsolidatedBotResponse,
 }: ResolvePlaceholderLoadingVariantOptions): LoadingVariant {
   void _hasConsolidatedBotResponse;
-  return resolveLoadingVariant({ requestKind, isFollowUp });
+  return resolveEffectiveLoadingVariant({ requestKind, isFollowUp });
 }
 
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {
