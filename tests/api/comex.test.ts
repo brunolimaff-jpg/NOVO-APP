@@ -106,10 +106,12 @@ describe('comex handler — OPTIONS preflight', () => {
     handler = mod.default;
   });
 
-  it('nao trata OPTIONS — middleware.ts faz isso', async () => {
-    const req = { method: 'OPTIONS', headers: {} };
+  it('retorna 405 para OPTIONS — middleware.ts faz o preflight', async () => {
+    const req = { method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } };
     const res = makeMockRes();
 
-    await expect(handler(req, res)).rejects.toThrow();
+    await handler(req, res);
+
+    expect(mockStatus).toHaveBeenCalledWith(405);
   });
 });

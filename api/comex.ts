@@ -23,6 +23,10 @@ interface ComexResult {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
 
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   const raw = typeof req.query.cnpj === 'string' ? req.query.cnpj : '';
   const cleanCnpj = normalizeCnpj(raw);
 

@@ -1,7 +1,3 @@
-export const config = {
-  runtime: 'nodejs',
-};
-
 const ALLOWED_ORIGINS = new Set(
   [
     process.env.ALLOWED_ORIGIN,
@@ -33,7 +29,10 @@ export default function middleware(request: Request) {
   }
   headers.set('Access-Control-Allow-Credentials', 'true');
   headers.set('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, X-Requested-With, Accept');
+  headers.set(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
+  );
 
   return new Response(null, { status: 204, headers });
 }
