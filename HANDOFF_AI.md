@@ -5,6 +5,7 @@
 - **RAF safety net e LoadingStuckProbes:** [#349](https://github.com/brunolimaff-jpg/NOVO-APP/pull/349) — merge `cbffab54` em `main`
 - **Estado atual do código:** mergeado em `main`
 - **Branch desta atualização documental:** `docs/wiki-auditoria-final`
+- **PR documental:** [#350](https://github.com/brunolimaff-jpg/NOVO-APP/pull/350)
 - **Status:** INCIDENTE MITIGADO — MONITORAMENTO
 - **Causa raiz:** não identificada
 - **Correção funcional pendente:** não

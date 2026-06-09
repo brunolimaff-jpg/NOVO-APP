@@ -3,6 +3,7 @@
 **Data:** 2026-06-08
 **Branch:** `docs/wiki-auditoria-final`
 **Base:** `origin/main` (cbffab54)
+**PR:** [#350](https://github.com/brunolimaff-jpg/NOVO-APP/pull/350)
 
 ---
 
