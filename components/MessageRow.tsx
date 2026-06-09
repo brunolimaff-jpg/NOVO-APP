@@ -222,7 +222,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     );
   } else if (showInlineLoading) {
     content = (
-      <div className="flex justify-start animate-fade-in">
+      <div className="flex justify-start animate-fade-in mt-4">
         <div
           className={`rounded-2xl p-4 shadow-sm w-full ${
             isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
@@ -236,6 +236,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             isDarkMode={isDarkMode}
             processing={processing}
             empresaAlvo={empresaAlvo}
+            cnpj={cnpj}
             lastUserQuery={data.lastUserQuery}
             onStop={data.onStop}
           />

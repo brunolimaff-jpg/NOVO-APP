@@ -22,8 +22,15 @@ interface InlineLoadingBubbleProps {
     isIncremental?: boolean;
   };
   empresaAlvo?: string | null;
+  cnpj?: string | null;
   lastUserQuery?: string;
   onStop?: () => void;
+}
+
+function formatCnpj(raw: string): string {
+  const digits = raw?.replace(/\D/g, '') || '';
+  if (digits.length !== 14) return raw || '';
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
 }
 
 function getStageElapsedMs(
@@ -46,6 +53,7 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   isDarkMode,
   processing: processingProp,
   empresaAlvo,
+  cnpj,
   lastUserQuery,
   onStop,
 }) => {
@@ -143,6 +151,11 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
           <span className={`text-sm font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
             {companyFocus || 'Análise'}
           </span>
+          {cnpj ? (
+            <span className={`text-xs ml-2 font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              {formatCnpj(cnpj)}
+            </span>
+          ) : null}
           <span className={`text-xs ml-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
             · Dossiê em construção
           </span>
