@@ -67,7 +67,9 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   const companyFocus = (empresaAlvo || lastUserQuery || '').trim();
 
   const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s).trim()).filter(Boolean);
-  const realCurrent = stripInternalMarkers(processing?.stage || '').trim() || 'Preparando análise...';
+  const realCurrentRaw = stripInternalMarkers(processing?.stage || '').trim();
+  const realCurrent =
+    realCurrentRaw || (elapsedTime > 15_000 ? 'Processando dados estruturais...' : 'Consultando fontes e registros...');
   const backoffMsg = getLoadingBackoffMessage(processing?.failureCount || 0);
   const displayedCurrent = backoffMsg || realCurrent;
 
@@ -115,7 +117,7 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   return (
     <div
       data-testid="inline-loading-bubble"
-      className={`animate-fade-in rounded-2xl border w-full ${
+      className={`animate-fade-in rounded-2xl border w-full mt-3 ${
         isDarkMode ? 'bg-slate-900 border-slate-700/30' : 'bg-white border-slate-200'
       }`}
     >
