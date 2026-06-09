@@ -13,7 +13,7 @@
       "id": "page-overview",
       "title": "Visão geral",
       "description": "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável.",
-      "path": "pages/01-vis-o-geral.md",
+      "path": "pages/01-visao-geral.md",
       "sourceFiles": [
         "README.md",
         "package.json",
@@ -27,7 +27,7 @@
       "id": "page-installation",
       "title": "Instalação",
       "description": "Pré-requisitos, instalação npm, variáveis locais, porta Vite, proxy de APIs e sinais esperados de boot em ambiente local.",
-      "path": "pages/02-instala-o.md",
+      "path": "pages/02-instalacao.md",
       "sourceFiles": [
         "README.md",
         "package.json",
@@ -42,7 +42,7 @@
       "id": "page-primeira-execucao",
       "title": "Primeira execução",
       "description": "Fluxo inicial do operador, criação de sessão, shell de investigação, inputs de empresa/CNPJ e primeiro estado visível esperado.",
-      "path": "pages/03-primeira-execu-o.md",
+      "path": "pages/03-primeira-execucao.md",
       "sourceFiles": [
         "components/GreetingWelcomeScreen.tsx",
         "components/ChatInterface.tsx",
@@ -57,7 +57,7 @@
       "id": "page-fontes-canonicas",
       "title": "Fontes canônicas",
       "description": "Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian.",
-      "path": "pages/04-fontes-can-nicas.md",
+      "path": "pages/04-fontes-canonicas.md",
       "sourceFiles": [
         "AGENTS.md",
         "HANDOFF_AI.md",
@@ -87,7 +87,7 @@
       "id": "page-sessoes-mensagens",
       "title": "Sessões e mensagens",
       "description": "Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado.",
-      "path": "pages/06-sess-es-e-mensagens.md",
+      "path": "pages/06-sessoes-e-mensagens.md",
       "sourceFiles": [
         "types.ts",
         "stores/chatStore.tsx",
@@ -101,7 +101,7 @@
       "id": "page-dossie-waterfall",
       "title": "Waterfall de dossiê",
       "description": "Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI.",
-      "path": "pages/07-waterfall-de-dossi.md",
+      "path": "pages/07-waterfall-de-dossie.md",
       "sourceFiles": [
         "features/dossier/waterfall-orchestrator.ts",
         "features/dossier/waterfall-guard.ts",
@@ -131,7 +131,7 @@
       "id": "page-teia-societaria",
       "title": "Teia societária",
       "description": "Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais.",
-      "path": "pages/09-teia-societ-ria.md",
+      "path": "pages/09-teia-societaria.md",
       "sourceFiles": [
         "features/dossier/societaryGraph.ts",
         "features/dossier/teiaTextParser.ts",
@@ -161,7 +161,7 @@
       "id": "page-gerar-dossie-cnpj",
       "title": "Gerar dossiê por CNPJ",
       "description": "Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ.",
-      "path": "pages/11-gerar-dossi-por-cnpj.md",
+      "path": "pages/11-gerar-dossie-por-cnpj.md",
       "sourceFiles": [
         "components/ChatInterface.tsx",
         "services/brasilApiService.ts",
@@ -205,7 +205,7 @@
       "id": "page-ingerir-docs-rag",
       "title": "Ingerir documentação para RAG",
       "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`.",
-      "path": "pages/14-ingerir-documenta-o-para-rag.md",
+      "path": "pages/14-ingerir-documentacao-para-rag.md",
       "sourceFiles": [
         "scripts/crawlAndIngestSeniorDocs.ts",
         "scripts/ingestErpDocs.ts",
@@ -251,7 +251,7 @@
       "id": "page-configuracao-reference",
       "title": "Referência de configuração",
       "description": "Variáveis `.env`, defaults, overrides Vite, flags, modelos, proxy local, Supabase, Sentry e fronteiras entre frontend e serverless.",
-      "path": "pages/17-refer-ncia-de-configura-o.md",
+      "path": "pages/17-referencia-de-configuracao.md",
       "sourceFiles": [
         ".env.example",
         "vite.config.ts",
@@ -266,7 +266,7 @@
       "id": "page-api-serverless-reference",
       "title": "Referência de APIs serverless",
       "description": "Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`.",
-      "path": "pages/18-refer-ncia-de-apis-serverless.md",
+      "path": "pages/18-referencia-de-apis-serverless.md",
       "sourceFiles": [
         "api/gemini.ts",
         "api/cnpj.ts",
@@ -297,7 +297,7 @@
       "id": "page-rag-reference",
       "title": "Referência de RAG",
       "description": "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
-      "path": "pages/20-refer-ncia-de-rag.md",
+      "path": "pages/20-referencia-de-rag.md",
       "sourceFiles": [
         "services/ragService.ts",
         "api/rag.ts",
@@ -312,7 +312,7 @@
       "id": "page-socio-search-reference",
       "title": "Busca societária",
       "description": "Request schema, resposta estruturada, cache em memória e persistente, deadline, enriquecimento por CNPJ, trace diagnostics e razões de rejeição.",
-      "path": "pages/21-busca-societ-ria.md",
+      "path": "pages/21-busca-societaria.md",
       "sourceFiles": [
         "api/socio-search.ts",
         "services/socio-search/types.ts",
@@ -327,7 +327,7 @@
       "id": "page-prompts-reference",
       "title": "Prompts de investigação",
       "description": "Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`.",
-      "path": "pages/22-prompts-de-investiga-o.md",
+      "path": "pages/22-prompts-de-investigacao.md",
       "sourceFiles": [
         "prompts/mega/contracts.ts",
         "prompts/mega/builders.ts",
@@ -391,7 +391,7 @@
       "id": "page-observabilidade",
       "title": "Observabilidade e diagnósticos",
       "description": "Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout.",
-      "path": "pages/26-observabilidade-e-diagn-sticos.md",
+      "path": "pages/26-observabilidade-e-diagnosticos.md",
       "sourceFiles": [
         "index.tsx",
         "utils/diagnosticLog.ts",
@@ -407,7 +407,7 @@
       "id": "page-seguranca-api",
       "title": "Segurança de API",
       "description": "Chaves no servidor, headers comuns, CORS de CNPJ/Comex, SSRF guard, validação de URL pública, quotas Gemini e limites de payload.",
-      "path": "pages/27-seguran-a-de-api.md",
+      "path": "pages/27-seguranca-de-api.md",
       "sourceFiles": [
         "docs/SEGURANCA-API.md",
         "api/_security-headers.ts",
@@ -423,7 +423,7 @@
       "id": "page-governanca-documentacao",
       "title": "Governança de documentação",
       "description": "Contrato do grafo Obsidian, manifesto obrigatório, checker local, fontes canônicas, handoff de fechamento e regras de atualização por tarefa relevante.",
-      "path": "pages/28-governan-a-de-documenta-o.md",
+      "path": "pages/28-governanca-de-documentacao.md",
       "sourceFiles": [
         "docs/obsidian/00-MASTER.md",
         "docs/obsidian/_meta/manifest.json",

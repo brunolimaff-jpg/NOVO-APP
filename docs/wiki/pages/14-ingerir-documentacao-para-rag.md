@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-ingerir-docs-rag"
 title: "Ingerir documentação para RAG"
+description: "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/ragService.ts"
   - "services/war-room/retrieval.ts"
   - "tests/api-docs-rag.test.ts"
----
-
----
-title: "Ingerir documentação para RAG"
-description: "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`."
 ---
 
 A ingestão documental do Senior Scout 360 roda por scripts CLI em `scripts/`, gera embeddings com `gemini-embedding-001` e grava vetores no Pinecone; a consulta em runtime passa por `/api/docs-rag`, que só monta contexto evidencial quando o match possui `metadata.text` ou `metadata.content`.
@@ -307,12 +303,6 @@ Variáveis `.env`, defaults, proxy local e fronteiras frontend/serverless.
 Chaves no servidor, headers comuns, SSRF guard e limites de payload.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-rag-reference
-- page-usar-war-room
-
 
 ## Source files
 

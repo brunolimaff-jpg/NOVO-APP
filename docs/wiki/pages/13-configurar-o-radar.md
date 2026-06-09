@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-configurar-radar"
 title: "Configurar o Radar"
+description: "Configuração de categorias e UFs, varredura, deduplicação, persistência, erros recuperáveis e contrato do endpoint `/api/radar-scan`."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "components/RadarPanel.tsx"
   - "components/RadarSettings.tsx"
   - "tests/hooks/useRadar.test.ts"
----
-
----
-title: "Configurar o Radar"
-description: "Configuração de categorias e UFs, varredura, deduplicação, persistência, erros recuperáveis e contrato do endpoint `/api/radar-scan`."
 ---
 
 O Radar roda como boundary de feature em `features/radar`, com estado e orquestração no hook `useRadar`, cliente HTTP em `fetchRadarAlerts` e execução serverless em `/api/radar-scan`. A UI ainda vive em `components/RadarPanel.tsx`, `components/RadarSettings.tsx` e `components/RadarBell.tsx`, carregados sob demanda pelo shell de chat.
@@ -318,12 +314,6 @@ Checklist de mudança segura:
     Comandos npm, Vitest, contratos e critérios de validação por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-api-serverless-reference
-- page-sessoes-mensagens
-
 
 ## Source files
 

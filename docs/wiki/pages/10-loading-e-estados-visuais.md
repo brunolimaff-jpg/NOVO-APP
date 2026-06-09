@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-loading-estados-visuais"
 title: "Loading e estados visuais"
+description: "Contrato de overlay, timeline, fallback estático, painel branco, estados válidos, testids críticos e sinais de recuperação pós-waterfall."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "utils/blankPanelTelemetry.ts"
   - "docs/ai-context/refactor/loading-panel-contract.md"
   - "tests-e2e/loading-smart-recovery.spec.ts"
----
-
----
-title: "Loading e estados visuais"
-description: "Contrato de overlay, timeline, fallback estático, painel branco, estados válidos, testids críticos e sinais de recuperação pós-waterfall."
 ---
 
 O contrato visual do chat central é dividido entre `App.tsx`, `components/ChatInterface.tsx`, `components/chat/MessageTimeline.tsx`, `components/LoadingSmart.tsx` e utilitários de diagnóstico. O overlay fullscreen é decidido no app, o estado do painel é classificado no chat, a timeline escolhe entre Virtuoso, suspensão e fallback estático, e os sinais pós-waterfall confirmam se existe conteúdo útil no DOM.
@@ -218,12 +214,6 @@ Matriz de estados e seletores estáveis para regressões de interface.
 Eventos, traces e fontes operacionais usados para investigar stuck states.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-depurar-painel-branco
-- page-ui-contracts-reference
-
 
 ## Source files
 

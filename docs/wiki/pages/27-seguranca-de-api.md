@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-seguranca-api"
 title: "Segurança de API"
+description: "Chaves no servidor, headers comuns, CORS de CNPJ/Comex, SSRF guard, validação de URL pública, quotas Gemini e limites de payload."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "api/extract-content.ts"
   - "tests/api/security-headers.test.ts"
   - "tests/utils/documentExtractor.test.ts"
----
-
----
-title: "Segurança de API"
-description: "Chaves no servidor, headers comuns, CORS de CNPJ/Comex, SSRF guard, validação de URL pública, quotas Gemini e limites de payload."
 ---
 
 A camada de API do Senior Scout 360 roda em Vercel Functions `nodejs`, concentra segredos em `process.env`, aplica headers comuns via `setSecurityHeaders(res)` e usa validação Zod nas rotas que recebem JSON. O navegador deve chamar os proxies locais (`/api/gemini`, `/api/cnpj`, `/api/open-web-search`, `/api/extract-content`, `/api/rag`, `/api/docs-rag`) em vez de chamar provedores externos com chaves ou URLs diretas.
@@ -238,6 +234,10 @@ A sanitização server-side remove chaves sensíveis cujo nome contenha `token`,
 | Número de chaves por objeto | 30 |
 | Eventos por batch | `MAX_EVENTS_PER_BATCH` |
 
+## Risco de privacidade pendente
+
+O Sentry Replay utiliza atualmente `maskAllText: false` e `blockAllMedia: false`. Como a aplicação pode exibir nomes, CNPJs, pesquisas, relatórios e informações comerciais, essa configuração deve ser revisada em uma PR técnica separada, considerando LGPD, mascaramento de texto, bloqueio de mídia e máscaras seletivas. Esta Wiki descreve a configuração atual e não a considera aprovada como segura.
+
 ## Limites de payload por rota
 
 | Rota | Método | Runtime | Limites e comportamento |
@@ -338,12 +338,6 @@ npm run test:contracts
     Sentry, `scoutDiag`, Supabase diagnostics, eventos de operador e traces de layout.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-api-serverless-reference
-- page-configuracao-reference
-
 
 ## Source files
 

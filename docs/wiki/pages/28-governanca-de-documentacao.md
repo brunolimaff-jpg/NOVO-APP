@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-governanca-documentacao"
 title: "Governança de documentação"
+description: "Contrato do grafo Obsidian, manifesto obrigatório, checker local, fontes canônicas, handoff de fechamento e regras de atualização por tarefa relevante."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - ".agents/memory/activeContext.md"
   - "docs/SKILLS-GOVERNANCE.md"
   - "AGENTS.md"
----
-
----
-title: "Governança de documentação"
-description: "Contrato do grafo Obsidian, manifesto obrigatório, checker local, fontes canônicas, handoff de fechamento e regras de atualização por tarefa relevante."
 ---
 
 A governança documental do NOVO-APP combina fontes operacionais no repositório (`HANDOFF_AI.md`, `.agents/memory/*`, `docs/ai-context/refactor/*`) com uma camada versionada de navegação em grafo em `docs/obsidian/`, validada pelo comando `npm run docs:obsidian:check`.
@@ -34,7 +30,7 @@ A documentação que orienta agentes e mantenedores tem uma hierarquia explícit
 | Progresso | `.agents/memory/progress.md` | Timeline curta, marcos concluídos e comandos de validação usados |
 | Decisões duráveis | `.agents/memory/decisions.md` | Decisões que sobrevivem ao sprint atual |
 | Grafo local | `docs/obsidian/00-MASTER.md` | Navegação visual para arquitetura, roadmap e decisões |
-| Biblioteca central | `~/Documents/Senior IA/docs/obsidian` | Índice central externo ao repo; pode indexar o projeto, mas não sobrepõe as fontes operacionais |
+| Bruno Vault (pessoal) | `~/Documents/Bruno Vault` | Vault Obsidian pessoal do Bruno. Memória entre projetos, sessões curadas, lições pessoais. Externo ao repo — não é requisito operacional. |
 
 <Warning>
 Não trate `docs/obsidian/00-MASTER.md`, a biblioteca central Obsidian ou `PLAN.md` como fonte operacional superior. Eles só entram como fonte principal quando os handoffs ou memórias canônicas apontam explicitamente para eles.
@@ -226,6 +222,51 @@ Regras para páginas geradas:
 - não transforme skills globais ou snapshots externos em dependência operacional do repo;
 - quando uma página alterar o entendimento canônico, atualize o handoff e a memória local no fechamento da tarefa.
 
+## Vault pessoal (Bruno Vault)
+
+O caminho `~/Documents/Bruno Vault` é um vault Obsidian pessoal do Bruno, localizado fora do repositório. Ele **não é um requisito operacional** do NOVO-APP.
+
+### O que cada um contém
+
+**Repositório (`brunolimaff-jpg/NOVO-APP`):**
+- Documentação técnica do projeto
+- Wiki versionada em `docs/wiki/`
+- Handoffs canônicos (`HANDOFF_AI.md`)
+- Memória próxima ao código (`.agents/memory/*`)
+- Arquitetura e contratos
+- Documentação acessível por agentes
+
+**Bruno Vault (`~/Documents/Bruno Vault`):**
+- Memória pessoal entre múltiplos projetos
+- Sessões curadas e organizadas
+- Decisões pessoais e lições aprendidas
+- Apontadores para projetos (ex: `README.md`, `HANDOFF_AI.md`, `docs/wiki/README.md`)
+- Referência para PRs relevantes do NOVO-APP (ex: #347, #349, #350)
+- Contexto entre repositórios não relacionados
+
+### Regra de independência
+
+O repositório não pode depender da existência do Bruno Vault para funcionar. Toda informação necessária para operar o NOVO-APP deve estar contida dentro do repositório. O Bruno Vault é um acréscimo de conveniência pessoal do Bruno, não uma dependência do projeto.
+
+Outros desenvolvedores ou agentes que acessarem este repositório não precisam do Bruno Vault para entender, modificar ou validar o código.
+
+## Convenção de nomenclatura de arquivos
+
+Arquivos da Wiki e documentos do repositório seguem estas regras de nomenclatura:
+
+- Usar letras minúsculas ASCII (`a-z`)
+- Usar hífens entre palavras (`-`)
+- Transliterar letras acentuadas:
+  - `ç` → `c`
+  - `á`, `à`, `ã`, `â` → `a`
+  - `é`, `ê` → `e`
+  - `í` → `i`
+  - `ó`, `ô`, `õ` → `o`
+  - `ú` → `u`
+- Nunca remover a letra completamente (evitar "instala-o" — usar "instalacao")
+
+Essa convenção garante compatibilidade com sistemas de arquivos, URLs e ferramentas de indexação que não suportam caracteres acentuados ou letras maiúsculas.
+
 ## Procedimento de fechamento documental
 
 <Steps>
@@ -261,12 +302,6 @@ Comandos npm, gates de validação e critérios por tipo de mudança.
 Superfície pública do Senior Scout 360 e caminho mínimo de checkout limpo para app validável.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-fontes-canonicas
-- page-testes-gates
-
 
 ## Source files
 

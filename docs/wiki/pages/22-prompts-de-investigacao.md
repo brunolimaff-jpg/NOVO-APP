@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-prompts-reference"
 title: "Prompts de investigação"
+description: "Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "prompts/mega/teia-deep.ts"
   - "prompts/systemPrompts.ts"
   - "scripts/validate-prompts.sh"
----
-
----
-title: "Prompts de investigação"
-description: "Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`."
 ---
 
 A superfície de prompts de investigação fica concentrada em `prompts/mega/*`, exposta pela fachada `prompts/megaPrompts.ts` e consumida pela tela principal, deep dives e waterfall modular de dossiê. O contrato combina builders TypeScript, blocos compartilhados, prompts especialistas, markers internos `[[PORTA_*]]`, prompts específicos de teia societária e o gate `npm run validate:prompts`.
@@ -309,12 +305,6 @@ Fachada de geração, grounding, cache foundation e chamadas serverless.
 Comandos de validação, Vitest, Playwright e critérios por tipo de mudança.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-dossie-waterfall
-- page-score-porta
-
 
 ## Source files
 

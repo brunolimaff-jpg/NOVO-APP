@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-sessoes-mensagens"
 title: "Sessões e mensagens"
+description: "Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -12,11 +13,6 @@ source_files:
   - "features/chat/session-controller.ts"
   - "services/storage/dossiers.ts"
   - "tests/contracts/renderState.contract.test.tsx"
----
-
----
-title: "Sessões e mensagens"
-description: "Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado."
 ---
 
 `ChatSession` é o agregado de conversa persistido pelo app: a store em memória fica em `stores/chatStore.tsx`, a carga e gravação automática ficam em `hooks/useSessionStorage.ts`, o ciclo de criar/selecionar/deletar fica em `features/chat/session-controller.ts`, e o conteúdo persistente é salvo como dossiê em `services/storage/dossiers.ts`.
@@ -125,7 +121,7 @@ Se uma sessão inicial criada pelo envio for abortada e ficar apenas com a mensa
 
 ### Seleção
 
-`handleSelectSession(sessionId)` aborta geração em andamento antes de trocar de sessão, limpa loading/pinned label, define `currentSessionId`, reseta a UI e registra `dossier_opened` quando há operador. Se a sessão selecionada existe mas está sem mensagens, faz lazy load por `getRemoteSession(sessionId)` e substitui a sessão quando o payload completo chega.
+`handleSelectSession(sessionId)` aborta geração em andamento antes de trocar de sessão, limpa loading/pinned label, define `currentSessionId`, reseta a UI e registra `dossier_opened` quando há operador. Se a sessão selecionada existe, mas está sem mensagens, faz lazy load por `getRemoteSession(sessionId)` e substitui a sessão quando o payload completo chega.
 
 A sidebar (`SessionsSidebar`) filtra por empresa, CNPJ, título ou nome exibido, ordena por `updatedAt` descendente e mostra preview com a última mensagem do bot quando houver.
 
@@ -284,12 +280,6 @@ npm run test:flow
     Procedimento para investigar fallback invisível, `PostCompletion`, `FreezeDiag` e validação visual.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-configurar-supabase
-- page-ui-contracts-reference
-
 
 ## Source files
 

@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-configurar-supabase"
 title: "Configurar Supabase"
+description: "Variáveis, degradação quando indisponível, tabelas críticas, migração IDB para Supabase, tracking de operador e persistência de dossiês."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "lib/migration/idbToSupabase.ts"
   - "docs/superpowers/schema-supabase.sql"
   - "tests/contracts/supabaseMigrations.contract.test.ts"
----
-
----
-title: "Configurar Supabase"
-description: "Variáveis, degradação quando indisponível, tabelas críticas, migração IDB para Supabase, tracking de operador e persistência de dossiês."
 ---
 
 No NOVO-APP, Supabase é a camada remota de persistência e telemetria: o frontend cria um cliente opcional com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`, enquanto rotas serverless usam `SUPABASE_SERVICE_ROLE_KEY` para diagnósticos persistentes e cache server-side.
@@ -250,12 +246,6 @@ Sinais esperados em runtime:
 <Card title="Referência de configuração" href="/configuracao-reference">Mapa completo de `.env`, defaults, flags e fronteiras frontend/serverless.</Card>
 <Card title="Testes e gates" href="/testes-gates">Comandos npm, contratos, E2E críticos e critérios por tipo de mudança.</Card>
 </CardGroup>
-
-## Related pages
-
-- page-sessoes-mensagens
-- page-observabilidade
-
 
 ## Source files
 

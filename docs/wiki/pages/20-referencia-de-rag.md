@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-rag-reference"
 title: "Referência de RAG"
+description: "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "scripts/ingestPdfDocs.ts"
   - "tests/api-docs-rag.test.ts"
   - "tests/services/ragService.test.ts"
----
-
----
-title: "Referência de RAG"
-description: "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room."
 ---
 
 A superfície de RAG do Senior Scout 360 passa por duas Vercel Functions (`/api/rag` e `/api/docs-rag`) e por um cliente browser-safe em `services/ragService.ts`; a UI não fala direto com Pinecone nem com o provedor de embeddings.
@@ -315,12 +311,6 @@ Regras comuns de runtime, validação, headers e degradação das rotas `api/*.t
 Variáveis `.env`, proxy local, Vercel e fronteiras entre frontend e serverless.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-ingerir-docs-rag
-- page-usar-war-room
-
 
 ## Source files
 

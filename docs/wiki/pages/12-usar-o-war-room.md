@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-usar-war-room"
 title: "Usar o War Room"
+description: "Como abrir, consultar, cancelar, repetir, alternar modo técnico ou benchmark, carregar contexto documental e tratar resposta fora de escopo."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/war-room/retrieval.ts"
   - "components/war-room/WarRoomComposer.tsx"
   - "tests/services/warRoomService.test.ts"
----
-
----
-title: "Usar o War Room"
-description: "Como abrir, consultar, cancelar, repetir, alternar modo técnico ou benchmark, carregar contexto documental e tratar resposta fora de escopo."
 ---
 
 O War Room é um painel React carregado sob demanda a partir do chat principal, exposto pela fachada `services/warRoomService.ts` e executado pela função `queryWarRoom`. A UI operacional roteia perguntas para dois modos: `tech` para dúvidas técnicas sobre Senior ERP e `benchmark` para comparativos contra concorrentes.
@@ -269,12 +265,6 @@ npm run build
     Comandos de validação para UI, serviços, contratos e E2E.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-rag-reference
-- page-prompts-reference
-
 
 ## Source files
 

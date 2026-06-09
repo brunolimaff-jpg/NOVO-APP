@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-overview"
 title: "Visão geral"
+description: "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -12,11 +13,6 @@ source_files:
   - "index.tsx"
   - "ARQUITETURA.md"
   - "HANDOFF_AI.md"
----
-
----
-title: "Visão geral"
-description: "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável."
 ---
 
 Senior Scout 360 é uma SPA React 19 + TypeScript + Vite, montada em `index.tsx`, orquestrada por `App.tsx` e publicada com funções serverless em `api/*.ts` para IA, RAG, CNPJ, Radar e integrações de apoio. O checkout local roda a UI em `http://localhost:3000`; as rotas `/api/*` podem ser servidas por Vercel em produção/preview ou encaminhadas pelo proxy local configurado no Vite.
@@ -226,7 +222,6 @@ Ordem de leitura para handoff, memória local, decisões duráveis e governança
 - page-installation
 - page-primeira-execucao
 - page-arquitetura-app
-
 
 ## Source files
 

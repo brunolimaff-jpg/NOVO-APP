@@ -81,13 +81,13 @@ O incidente histórico de `display:none` no fallback estático está mitigado pe
 1. [HANDOFF_AI.md](HANDOFF_AI.md) — estado atual, gatilhos de reabertura e prompt de retomada
 2. [docs/wiki/README.md](docs/wiki/README.md) — índice da Wiki técnica
 3. [docs/wiki/pages/05-arquitetura-do-app.md](docs/wiki/pages/05-arquitetura-do-app.md) — arquitetura do app
-4. [docs/wiki/pages/06-sess-es-e-mensagens.md](docs/wiki/pages/06-sess-es-e-mensagens.md) — sessões e mensagens
-5. [docs/wiki/pages/07-waterfall-de-dossi.md](docs/wiki/pages/07-waterfall-de-dossi.md) — waterfall de dossiê
+4. [docs/wiki/pages/06-sessoes-e-mensagens.md](docs/wiki/pages/06-sessoes-e-mensagens.md) — sessões e mensagens
+5. [docs/wiki/pages/07-waterfall-de-dossie.md](docs/wiki/pages/07-waterfall-de-dossie.md) — waterfall de dossiê
 6. [docs/wiki/pages/10-loading-e-estados-visuais.md](docs/wiki/pages/10-loading-e-estados-visuais.md) — loading e estados visuais
 7. [docs/wiki/pages/16-depurar-painel-branco.md](docs/wiki/pages/16-depurar-painel-branco.md) — depuração de painel branco
 8. [docs/wiki/pages/23-contratos-de-ui.md](docs/wiki/pages/23-contratos-de-ui.md) — contratos de UI
 9. [docs/wiki/pages/24-testes-e-gates.md](docs/wiki/pages/24-testes-e-gates.md) — testes e gates
-10. [docs/wiki/pages/26-observabilidade-e-diagn-sticos.md](docs/wiki/pages/26-observabilidade-e-diagn-sticos.md) — observabilidade e diagnósticos
+10. [docs/wiki/pages/26-observabilidade-e-diagnosticos.md](docs/wiki/pages/26-observabilidade-e-diagnosticos.md) — observabilidade e diagnósticos
 
 ## Obsidian repo graph
 

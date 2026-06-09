@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-gemini-proxy-reference"
 title: "Proxy Gemini"
+description: "Ações aceitas por `/api/gemini`, fallback de chave, cache foundation, grounding, Open Web Search tool, timeout até body read e fachada `geminiService`."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/gemini/runtime.ts"
   - "services/gemini/foundation-cache.ts"
   - "tests/services/geminiProxy.test.ts"
----
-
----
-title: "Proxy Gemini"
-description: "Ações aceitas por `/api/gemini`, fallback de chave, cache foundation, grounding, Open Web Search tool, timeout até body read e fachada `geminiService`."
 ---
 
 `/api/gemini` é a rota serverless Node.js que concentra chamadas ao Gemini, cache foundation do waterfall e ingestão de diagnósticos. O frontend não usa chave Gemini diretamente: `services/geminiProxy.ts` resolve o endpoint, envia `POST` JSON, aplica timeout até leitura do body e entrega funções consumidas pela fachada pública `services/geminiService.ts`.
@@ -114,7 +110,7 @@ Quando `config.cachedContent` é string, o serverless prioriza o cache e não re
 | --- | --- |
 | `message` | Obrigatório, `1` a `200000` caracteres |
 | `systemInstruction` | Opcional, até `100000` caracteres |
-| `history` | Opcional, itens `{ role: "user" | "model", text }` |
+| `history` | Opcional, itens `{ role: "user" ou "model", text }` |
 | `useGrounding` | Opcional, padrão `true` |
 | `thinkingLevel` | `low`, `medium` ou `high` |
 | `thinkingMode` | Legado: `true` vira `high`, `false` vira `low` |
@@ -299,13 +295,6 @@ Use os testes focados quando alterar `api/gemini.ts`, `services/geminiProxy.ts`,
     `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics e sinais de investigação.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-dossie-waterfall
-- page-configuracao-reference
-- page-seguranca-api
-
 
 ## Source files
 

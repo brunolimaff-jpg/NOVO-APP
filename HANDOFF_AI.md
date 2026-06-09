@@ -145,6 +145,8 @@ Reabrir a investigação apenas se ocorrer pelo menos uma destas condições:
 
 Os mecanismos de recovery são defensivos. Removê-los sem causa raiz identificada é arriscado. Manter até avaliação de incidência em produção.
 
+**Privacidade no Sentry Replay:** O Sentry Replay está configurado com `maskAllText: false` e `blockAllMedia: false`. Como o app exibe dados comerciais e pessoais (nomes, CNPJs, relatorios), essa configuracao precisa ser revisada em PR tecnica futura considerando LGPD, antes que o monitoramento seja considerado seguro para producao.
+
 ---
 
 ## Próximo passo
@@ -155,7 +157,7 @@ Os mecanismos de recovery são defensivos. Removê-los sem causa raiz identifica
 
 ## Prompt de retomada
 
-```
+```text
 ▎ Retome a sessão no NOVO-APP a partir de main.
 ▎ Incidente visual display:none: MITIGADO, raiz ABERTA.
 ▎ Recovery static-fallback-display-recovery em MessageTimeline.tsx

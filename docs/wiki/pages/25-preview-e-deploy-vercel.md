@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-preview-deploy-vercel"
 title: "Preview e deploy Vercel"
+description: "Build metadata, `version.json`, proxy local para APIs, smoke de preview, bypass de proteção, deploy preview e limites de validação local."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "playwright.config.ts"
   - "public/_headers"
   - "docs/CHECKLIST-PRODUCAO.md"
----
-
----
-title: "Preview e deploy Vercel"
-description: "Build metadata, `version.json`, proxy local para APIs, smoke de preview, bypass de proteção, deploy preview e limites de validação local."
 ---
 
 O runtime de deploy do NOVO-APP combina SPA Vite, Vercel Functions em `api/*.ts`, rewrites de fallback para `index.html`, metadata de build injetada no bundle e validações separadas para build local, smoke HTTP de preview e E2E visual com Playwright.
@@ -316,12 +312,6 @@ Sentry, `scoutDiag`, diagnósticos Supabase, eventos de operador e traces de lay
 Procedimento para overlay travado, fallback invisível, `PostCompletion` e validação visual final.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-installation
-- page-depurar-painel-branco
-
 
 ## Source files
 

@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-socio-search-reference"
 title: "Busca societária"
+description: "Request schema, resposta estruturada, cache em memória e persistente, deadline, enriquecimento por CNPJ, trace diagnostics e razões de rejeição."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/socio-search/parser.ts"
   - "services/socio-search/cache.ts"
   - "tests/api-socio-search.test.ts"
----
-
----
-title: "Busca societária"
-description: "Request schema, resposta estruturada, cache em memória e persistente, deadline, enriquecimento por CNPJ, trace diagnostics e razões de rejeição."
 ---
 
 `POST /api/socio-search` é a rota serverless Node.js que faz o drill-down de um sócio da empresa raiz, retorna CNPJs relacionados com escopo explícito e alimenta a Teia societária sem expor chamadas diretas de lookup cadastral no browser.
@@ -321,12 +317,6 @@ Variáveis, tabelas críticas e persistência usada pelo cache server-side.
 `scoutDiag`, traces, flush para Supabase e leitura de sinais operacionais.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-teia-societaria
-- page-api-serverless-reference
-
 
 ## Source files
 

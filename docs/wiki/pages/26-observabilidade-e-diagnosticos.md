@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-observabilidade"
 title: "Observabilidade e diagnósticos"
+description: "Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "utils/layoutTraceTelemetry.ts"
   - "tests/utils/diagnosticLog.test.ts"
   - "tests/services/operatorTracking.test.ts"
----
-
----
-title: "Observabilidade e diagnósticos"
-description: "Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout."
 ---
 
 A observabilidade do Senior Scout 360 combina três trilhas independentes: Sentry para exceções React e replay, `scoutDiag` para telemetria estruturada com flush para `/api/gemini`, e tracking de operador em Supabase via `operator_sessions` e `operator_events`.
@@ -75,6 +71,10 @@ O replay está configurado com:
 maskAllText: false
 blockAllMedia: false
 ```
+
+## Risco de privacidade pendente
+
+O Sentry Replay utiliza atualmente `maskAllText: false` e `blockAllMedia: false`. Como a aplicação pode exibir nomes, CNPJs, pesquisas, relatórios e informações comerciais, essa configuração deve ser revisada em uma PR técnica separada, considerando LGPD, mascaramento de texto, bloqueio de mídia e máscaras seletivas. Esta Wiki descreve a configuração atual e não a considera aprovada como segura.
 
 `beforeSend` descarta erros de chunk conhecidos, incluindo `ChunkLoadError`, `Loading chunk` e `Failed to fetch dynamically imported module`. URLs de extensões de navegador também são negadas.
 
@@ -421,12 +421,6 @@ Contratos das rotas em `api/*.ts`, incluindo comportamento degradado e validaç�
 Comandos de Vitest, Playwright, contratos e critérios por tipo de mudança.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-depurar-painel-branco
-- page-configurar-supabase
-
 
 ## Source files
 

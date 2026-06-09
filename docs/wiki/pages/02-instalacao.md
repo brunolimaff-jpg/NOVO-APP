@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-installation"
 title: "Instalação"
+description: "Pré-requisitos, instalação npm, variáveis locais, porta Vite, proxy de APIs e sinais esperados de boot em ambiente local."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "vite.config.ts"
   - "config/localDevApiProxy.ts"
   - "docs/GUIA-INICIANTE.md"
----
-
----
-title: "Instalação"
-description: "Pré-requisitos, instalação npm, variáveis locais, porta Vite, proxy de APIs e sinais esperados de boot em ambiente local."
 ---
 
 A instalação local do Senior Scout 360 roda o frontend React 19 pelo Vite em `http://localhost:3000` e encaminha as rotas `/api/*` para um alvo Vercel configurável. O checkout não usa `src/` como raiz da aplicação: `index.html`, `index.tsx`, `App.tsx`, `components/`, `services/`, `api/` e `tests/` ficam na raiz do repositório.
@@ -246,7 +242,6 @@ Proxy local para APIs, smoke de preview, bypass de proteção e limites da valid
 
 - page-configuracao-reference
 - page-preview-deploy-vercel
-
 
 ## Source files
 

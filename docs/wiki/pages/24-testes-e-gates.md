@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-testes-gates"
 title: "Testes e gates"
+description: "Comandos npm, Vitest, Playwright, contratos, E2E críticos, CI GitHub Actions, setup de Chromium e critérios por tipo de mudança."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - ".github/workflows/ci.yml"
   - "scripts/ensure-playwright.sh"
   - "tests/setup.ts"
----
-
----
-title: "Testes e gates"
-description: "Comandos npm, Vitest, Playwright, contratos, E2E críticos, CI GitHub Actions, setup de Chromium e critérios por tipo de mudança."
 ---
 
 A validação do Senior Scout 360 é composta por scripts npm, Vitest em `jsdom`, Playwright em Chromium, contratos de UI/tracking/migrations e dois workflows GitHub Actions: `CI` para pull requests e `push` em `main`, e `Preview Smoke` para deploy previews ou execução manual.
@@ -175,6 +171,10 @@ O workflow `CI` roda em pull requests e em `push` para `main`.
 
 O workflow `Preview Smoke` roda em `deployment_status`, `/smoke <url>` em comentário de PR ou `workflow_dispatch`. Ele resolve `PREVIEW_URL`, testa rotas `/,/login,/dashboard` e envia `POST /api/link-status` com uma URL exemplo. Quando `VERCEL_AUTOMATION_BYPASS_SECRET` existe, o smoke adiciona o header `x-vercel-protection-bypass`; quando o preview protegido retorna 401 em `deployment_status` sem secret e `SMOKE_ALLOW_PROTECTED_SKIP=true`, o smoke pode ser ignorado de forma explícita.
 
+## Drift conhecido
+
+**Node.js:** O `package.json` declara Node.js 24.x, enquanto os workflows atuais do GitHub Actions utilizam Node.js 20. Essa divergência deve ser resolvida em uma PR técnica separada. A PR #350 é exclusivamente documental e não altera o ambiente de CI.
+
 ## Critérios por tipo de mudança
 
 | Mudança | Gate mínimo | Gate adicional quando houver risco |
@@ -198,7 +198,7 @@ Para bugs visuais, logs saudáveis e status de API não bastam. O critério úti
 | --- | --- |
 | Chromium ausente | Rode `bash scripts/ensure-playwright.sh` ou `npx playwright install chromium`; em Linux use `--with-deps` |
 | Preview protegido retorna 401 | Use o workflow `Preview Smoke` com `VERCEL_AUTOMATION_BYPASS_SECRET` ou registre skip protegido quando permitido pelo workflow |
-| `validate:preview` passa no health check mas falha no CNPJ | Investigue `/api/cnpj`; JSON sem `companyName` é falha funcional |
+| `validate:preview` passa no health check, mas falha no CNPJ | Investigue `/api/cnpj`; JSON sem `companyName` é falha funcional |
 | Contrato de migration falha | Adicione `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` ou comentário `-- RLS exception: <justificativa>` |
 | Painel branco intermitente | Rode `test:e2e:blank`, confira `bot-message-content` no `chat-main-panel` e use a página de depuração antes de concluir por telemetria isolada |
 | Prompt/parser quebrou snapshot | Não atualize baseline automaticamente; verifique vocabulário compartilhado entre prompt, parser, grafo e UI |
@@ -223,12 +223,6 @@ Preview protegido, smoke de deploy, bypass de automação e limites da validaç�
 Estados válidos, testids oficiais, composer, timeline e matriz anti-regressão.
 </Card>
 </CardGroup>
-
-## Related pages
-
-- page-ui-contracts-reference
-- page-preview-deploy-vercel
-
 
 ## Source files
 

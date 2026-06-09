@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-primeira-execucao"
 title: "Primeira execução"
+description: "Fluxo inicial do operador, criação de sessão, shell de investigação, inputs de empresa/CNPJ e primeiro estado visível esperado."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "tests-e2e/smoke.greeting.spec.ts"
   - "tests-e2e/smoke.investigation-shell.spec.ts"
   - "hooks/useSessionStorage.ts"
----
-
----
-title: "Primeira execução"
-description: "Fluxo inicial do operador, criação de sessão, shell de investigação, inputs de empresa/CNPJ e primeiro estado visível esperado."
 ---
 
 A primeira execução do Senior Scout 360 passa por `index.tsx` → `App.tsx` → `ChatInterface`: a árvore monta `ChatStoreProvider`, `DossierStoreProvider`, `OperatorProvider` e `ModeProvider`, carrega sessões persistidas, exige operador local quando não há nome salvo e só depois mostra a home de investigação com os inputs de empresa, CNPJ, cidade e UF.
@@ -219,12 +215,6 @@ Critérios mínimos de aceite:
     Contrato de overlay, timeline, fallback estático e recuperação pós-waterfall.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-sessoes-mensagens
-- page-gerar-dossie-cnpj
-
 
 ## Source files
 

@@ -18,7 +18,7 @@
 
 ### DI-2026-06-08-04: Auditorias devem conter autorrefutacao obrigatoria
 - **Decisao:** Toda auditoria de codigo deve incluir etapa de validacao adversarial.
-- **Motivo:** A auditoria inicial encontrou 7 achados "graves"; a autorrefutacao derrubou 5 como falsos positivos.
+- **Motivo:** A auditoria inicial encontrou 7 achados "graves"; a autorrefutacao derrubou 6 como falsos positivos.
 
 ### DI-2026-06-08-05: Documentacao e runtime em PRs distintas
 - **Decisao:** Separar alteracoes documentais de alteracoes funcionais.

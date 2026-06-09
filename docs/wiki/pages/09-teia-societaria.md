@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-teia-societaria"
 title: "Teia societária"
+description: "Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/socio-search/types.ts"
   - "tests/features/dossier/societaryGraph.test.ts"
   - "tests/features/dossier/teiaTextParser.test.ts"
----
-
----
-title: "Teia societária"
-description: "Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais."
 ---
 
 A Teia societária é montada no runtime do dossiê por `components/SectionalBotMessage.tsx`, que detecta seções de teia no markdown, extrai CNPJs estruturados com `parseTeiaText`, renderiza `SocietaryMap` quando há `cnpj` da empresa-alvo e delega o drill-down por sócio para `POST /api/socio-search`.
@@ -248,7 +244,7 @@ Ao adicionar uma fonte nova, emita `relationshipScope`, `rootContext`, `sourceTi
 | Sintoma | Verificação |
 | --- | --- |
 | Mapa não aparece | Confirme que a mensagem tem seção com “teia societária” ou “mapa de poder societário” e que `cnpj` existe |
-| Shell aparece sem empresas | Veja se a raiz retornou QSA; se não houver QSA nem `geminiCnpjs`, o estado esperado é “QSA ainda nao disponivel” |
+| Shell aparece sem empresas | Veja se a raiz retornou QSA; se não houver QSA nem `geminiCnpjs`, o estado esperado é “QSA ainda não disponível” |
 | Lateral aparece como grupo | Inspecione `relationshipScope`, `rootContext`, `rootRelationStatus` e `operationalThesisAllowed`; cache antigo exige nova versão de chave |
 | Todas as buscas retornam vazio | Cheque `diagnostics.searchNoResultCount`, `searchFailureCount`, `queriesRun`, `degraded` e `trace.providers` |
 | CNPJs textuais não entram na matriz | Se vieram de seção “Outros CNPJs”, é intencional; laterais devem vir de busca estruturada |
@@ -291,12 +287,6 @@ Para mudança de UX ou regressão de inventário societário, a validação mín
     Comandos Vitest, Playwright, typecheck e critérios de validação por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-socio-search-reference
-- page-gerar-dossie-cnpj
-
 
 ## Source files
 

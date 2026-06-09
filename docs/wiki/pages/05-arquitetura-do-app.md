@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-arquitetura-app"
 title: "Arquitetura do app"
+description: "Bootstrap React, providers globais, stores, orquestrador principal, fronteiras de features e fachadas públicas preservadas."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "features/chat/message-orchestrator.ts"
   - "docs/obsidian/architecture/ARCH-App-Orchestration.md"
   - "ARQUITETURA.md"
----
-
----
-title: "Arquitetura do app"
-description: "Bootstrap React, providers globais, stores, orquestrador principal, fronteiras de features e fachadas públicas preservadas."
 ---
 
 O app é uma SPA React 19 + TypeScript + Vite montada por `index.tsx`, com `App.tsx` ainda atuando como orquestrador principal entre shell de chat, stores globais, waterfall de dossiê, Radar, modais, loading e fachadas de serviços.
@@ -292,13 +288,6 @@ Regressões de loading, overlay ou painel branco exigem validação visual final
     Comandos npm, Vitest, Playwright, contratos, E2E críticos e critérios por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-sessoes-mensagens
-- page-dossie-waterfall
-- page-api-serverless-reference
-
 
 ## Source files
 

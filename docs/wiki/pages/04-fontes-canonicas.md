@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-fontes-canonicas"
 title: "Fontes canônicas"
+description: "Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - ".agents/memory/decisions.md"
   - "docs/PROJECT-CARD.md"
   - "docs/SKILLS-GOVERNANCE.md"
----
-
----
-title: "Fontes canônicas"
-description: "Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian."
 ---
 
 O NOVO-APP mantém a continuidade operacional em arquivos versionados do próprio repositório: `HANDOFF_AI.md` para entrada rápida, `.agents/memory/*` para estado vivo e decisões, `docs/ai-context/refactor/*` para trilhas estruturais e `docs/obsidian/*` apenas como navegação visual validável.
@@ -212,12 +208,6 @@ Use este checklist curto:
     Superfície pública, runtime principal, rotas de maior valor e caminho mínimo para app validável.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-governanca-documentacao
-- page-depurar-painel-branco
-
 
 ## Source files
 

@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-configuracao-reference"
 title: "Referência de configuração"
+description: "Variáveis `.env`, defaults, overrides Vite, flags, modelos, proxy local, Supabase, Sentry e fronteiras entre frontend e serverless."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "config/localDevApiProxy.ts"
   - "lib/supabaseClient.ts"
   - "utils/featureFlags.ts"
----
-
----
-title: "Referência de configuração"
-description: "Variáveis `.env`, defaults, overrides Vite, flags, modelos, proxy local, Supabase, Sentry e fronteiras entre frontend e serverless."
 ---
 
 A configuração do Senior Scout 360 fica dividida entre variáveis expostas pelo Vite no navegador, variáveis serverless lidas por `api/*.ts`, defaults versionados em módulos TypeScript e o proxy local que conecta o frontend Vite a rotas `/api` remotas ou locais.
@@ -273,13 +269,6 @@ Use `npm run test:contracts` sem `--runInBand`; o runner é Vitest e esse flag n
     Chaves no servidor, CORS, SSRF guard, quotas e limites de payload.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-installation
-- page-gemini-proxy-reference
-- page-seguranca-api
-
 
 ## Source files
 

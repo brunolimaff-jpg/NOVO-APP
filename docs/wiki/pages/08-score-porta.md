@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-score-porta"
 title: "Score PORTA"
+description: "Dimensões, pesos, markers, feeds, consolidação, flags, segmentos e regras de integridade do score comercial 0-100."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "features/dossier/porta-reconciliation.ts"
   - "docs/ai-context/METODOLOGIA_PORTA.md"
   - "tests/services/portaParser.test.ts"
----
-
----
-title: "Score PORTA"
-description: "Dimensões, pesos, markers, feeds, consolidação, flags, segmentos e regras de integridade do score comercial 0-100."
 ---
 
 O Score PORTA é o contrato de qualificação comercial renderizado nas mensagens do bot e persistido como `scorePorta`/`scoreOportunidade` ao final do dossiê. A implementação calcula um valor final de 0 a 100 a partir de cinco notas inteiras de 0 a 10, segmento aplicado, flags penalizadoras e markers internos removidos antes da exibição do texto.
@@ -239,12 +235,6 @@ npm run validate:prompts
     Comandos npm, Vitest, Playwright e critérios por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-dossie-waterfall
-- page-prompts-reference
-
 
 ## Source files
 

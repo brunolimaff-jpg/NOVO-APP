@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-api-serverless-reference"
 title: "Referência de APIs serverless"
+description: "Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "api/link-status.ts"
   - "api/radar-scan.ts"
   - "api/socio-search.ts"
----
-
----
-title: "Referência de APIs serverless"
-description: "Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`."
 ---
 
 As rotas serverless do app ficam em `api/*.ts`, rodam com `runtime: "nodejs"` quando declarado e expõem contratos HTTP JSON consumidos pelo frontend Vite, por testes Vitest e pelo preview Vercel. A maioria das rotas aplica `setSecurityHeaders(res)` no início do handler; validação de body usa Zod nas rotas novas e validação manual nas rotas legadas de CNPJ, Comex e status de link.
@@ -145,6 +141,7 @@ curl -sS -X POST /api/gemini \
 | quota, rate limit ou billing na chave primária com fallback disponível | tenta `GEMINI_API_KEY_FALLBACK` |
 | `createCachedContent` ou `deleteCachedContent` sem `GEMINI_FOUNDATION_CACHE_ENABLED=1` | `403 Foundation cache disabled` |
 | erro Gemini com código HTTP detectável | propaga `429`, `403` ou outro status entre `400` e `599` |
+
 :::
 
 :::endpoint POST /api/gerar-dossie Geração longa de dossiê
@@ -489,13 +486,6 @@ Para validar comportamento integrado no app, prefira preview Vercel quando a mud
     Validação em runtime real, bypass de proteção e limites do ambiente local.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-seguranca-api
-- page-gemini-proxy-reference
-- page-rag-reference
-
 
 ## Source files
 

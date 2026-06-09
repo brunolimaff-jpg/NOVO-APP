@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-depurar-painel-branco"
 title: "Depurar painel branco"
+description: "Procedimento de investigação para overlay travado, fallback estático invisível, `PostCompletion`, `FreezeDiag`, `LayoutTrace` e validação visual final."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "features/chat/message-orchestrator.ts"
   - "docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md"
   - "tests-e2e/scheffer-cnpj-blank-panel.spec.ts"
----
-
----
-title: "Depurar painel branco"
-description: "Procedimento de investigação para overlay travado, fallback estático invisível, `PostCompletion`, `FreezeDiag`, `LayoutTrace` e validação visual final."
 ---
 
 O painel branco no Senior Scout 360 é tratado como falha de handoff visual pós-waterfall: o dossiê pode ter sido gerado e persistido, mas o `chat-main-panel` ainda não mostra `bot-message-content` visível, mantém overlay/placeholder preso ou monta `messages-static-fallback` com `display:none`.
@@ -275,13 +271,6 @@ O critério final é visual e funcional: overlay fora, composer habilitado, pain
     Comandos Vitest, Playwright, E2E críticos e critérios por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-loading-estados-visuais
-- page-observabilidade
-- page-preview-deploy-vercel
-
 
 ## Source files
 

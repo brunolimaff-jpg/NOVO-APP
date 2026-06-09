@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-dossie-waterfall"
 title: "Waterfall de dossiê"
+description: "Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -13,11 +14,6 @@ source_files:
   - "services/gemini/investigation-orchestration.ts"
   - "constants/loadingStages.ts"
   - "tests/features/dossier/waterfall-orchestrator.test.ts"
----
-
----
-title: "Waterfall de dossiê"
-description: "Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI."
 ---
 
 O waterfall de dossiê é executado pela fronteira `useDossierWaterfallOrchestrator`, acionada pelo orquestrador de mensagens quando a entrada normalizada contém `DOSSIE COMPLETO` fora do modo `deep_dive`. O fluxo gera blocos especializados, consolida Score PORTA, promove fontes verificadas, atualiza a mensagem de bot e força a finalização visual do loading no `finally`.
@@ -216,7 +212,7 @@ Logs úteis para investigar regressões:
 | Etapa opcional some do dossiê | Verifique `optionalStepFailures`; a nota operacional deve listar o módulo ignorado. |
 | Score não aparece | Veja `portaIntegrityHold`, `missingDimensions` e logs `ModularDossier` de reconciliação. Score antigo da sessão deve ser preservado. |
 | Congelamento entre PORTA e sugestões | Use `FreezeDiag` em `pre-validate-inline`, `post-validate-inline`, `pre-continuity-question` e timeout de continuidade. |
-| Dossiê salvo no estado mas não no Supabase | Procure `falha ao persistir dossiê final; mantendo sessão em memória`; a UI não depende desse save. |
+| Dossiê salvo no estado, mas não no Supabase | Procure `falha ao persistir dossiê final; mantendo sessão em memória`; a UI não depende desse save. |
 | Overlay ou composer ficam presos | Verifique `ui-finalize-state`, `ui-finalize-post-render`, `health-check-final` e os contratos de painel/loading. |
 | Fontes desaparecem | Cheque `webVerificationStatus`, `/api/link-status`, timeouts de body read e se `finalizeDossierMarkdown` removeu links não auditáveis. |
 
@@ -262,13 +258,6 @@ Para regressões de preview, validação local não substitui Vercel. O estado e
     Comandos npm, Vitest, Playwright e critérios por tipo de mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-score-porta
-- page-loading-estados-visuais
-- page-gemini-proxy-reference
-
 
 ## Source files
 

@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-ui-contracts-reference"
 title: "Contratos de UI"
+description: "Estados válidos do painel, `data-testid` oficiais, shell de chat, composer, timeline, erro controlado e matriz de proteção anti-regressão."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -14,11 +15,6 @@ source_files:
   - "components/ErrorMessageCard.tsx"
   - "tests-e2e/smoke.data-testids.spec.ts"
   - "tests/contracts/renderState.contract.test.tsx"
----
-
----
-title: "Contratos de UI"
-description: "Estados válidos do painel, `data-testid` oficiais, shell de chat, composer, timeline, erro controlado e matriz de proteção anti-regressão."
 ---
 
 Os contratos de UI do Senior Scout 360 ficam concentrados em `App.tsx`, `components/ChatInterface.tsx`, `components/chat/*`, `features/chat/ChatErrorBoundary.tsx` e nos gates Playwright/Vitest. `App` monta `app-shell` e decide o overlay de loading; `ChatInterface` classifica o estado do painel central; `ChatShell` organiza sidebar, header, timeline, composer e painéis lazy; `MessageTimeline` escolhe entre Virtuoso, fallback estático, placeholder e viewport suspensa.
@@ -191,12 +187,6 @@ Não use `message-list`, `chat-header-title` ou `loading-smart` como novo contra
     Eventos `scoutDiag`, Sentry, Supabase diagnostics e traces usados para fechar regressões visuais.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-loading-estados-visuais
-- page-testes-gates
-
 
 ## Source files
 

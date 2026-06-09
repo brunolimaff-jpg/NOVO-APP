@@ -49,7 +49,7 @@ Foram identificados 7 achados que pareciam graves:
 
 ## Validação Adversarial
 
-Uma segunda rodada reconstruiu as cadeias alcançáveis e refutou 5 dos 7 achados:
+Uma segunda rodada reconstruiu as cadeias alcançáveis e refutou 6 dos 7 achados:
 
 | Achado | Resultado | Motivo |
 |--------|----------|--------|

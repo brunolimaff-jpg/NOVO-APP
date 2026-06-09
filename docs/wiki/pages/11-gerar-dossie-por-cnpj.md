@@ -2,6 +2,7 @@
 grok_wiki: true
 page_id: "page-gerar-dossie-cnpj"
 title: "Gerar dossiê por CNPJ"
+description: "Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ."
 repository: "local/NOVO-APP"
 branch: "default"
 generated_at: "2026-06-08T23:39:43.629Z"
@@ -12,11 +13,6 @@ source_files:
   - "features/chat/message-orchestrator.ts"
   - "features/dossier/waterfall-orchestrator.ts"
   - "tests-e2e/cnpj-investigation-flow.spec.ts"
----
-
----
-title: "Gerar dossiê por CNPJ"
-description: "Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ."
 ---
 
 O fluxo CNPJ começa no formulário `EmptyStateHome`, consulta dados cadastrais pelo proxy serverless `GET /api/cnpj`, preenche `companyName`, `city` e `state`, e envia um `StartInvestigationPayload` para `ChatInterface`, que dispara o dossiê completo pelo caminho `App.handleDeepDive` → `useChatMessageOrchestrator` → `useDossierWaterfallOrchestrator`.
@@ -346,12 +342,6 @@ O fluxo CNPJ não depende de skill pack, conector proprietário ou estado da wik
     Comandos npm, E2E críticos e critérios de validação por mudança.
   </Card>
 </CardGroup>
-
-## Related pages
-
-- page-dossie-waterfall
-- page-api-serverless-reference
-
 
 ## Source files
 
