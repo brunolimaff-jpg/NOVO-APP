@@ -104,5 +104,8 @@ describe('loadingSmartViewModel', () => {
     expect(getLoadingStageIdentity('Investigando riscos & compliance...')).toBe(
       getLoadingStageIdentity('Verificando sinais de risco e conformidade...'),
     );
+    expect(getLoadingStageIdentity('Verificando pressões e compliance...')).toBe(
+      getLoadingStageIdentity('Verificando sinais de risco e conformidade...'),
+    );
   });
 });

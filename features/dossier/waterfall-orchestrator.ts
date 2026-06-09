@@ -82,6 +82,10 @@ interface TeiaResearchContext {
 export interface UseDossierWaterfallOrchestratorOptions {
   canUseLookup: boolean;
   resolvedOperatorName: string;
+  // Cost tracking
+  operatorId?: string;
+  operatorEmail?: string;
+  operatorSessionId?: string;
   activeGenerationRef?: MutableRefObject<Record<string, string>>;
   setIsLoading?: Dispatch<SetStateAction<boolean>>;
   setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
@@ -218,28 +222,154 @@ async function buildTeiaResearchContext(params: {
   };
 }
 
-async function validateInlineSourcesForPromotion(
+const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 30_000;
+const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 15_000;
+
+export async function validateInlineSourcesForPromotion(
   text: string,
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
+  const opStart = performance.now();
+
+  // ── Fase 1: Extração síncrona de fontes inline ──
+  scoutDiag.info('FreezeDiag', 'inline-validation:extract:start', {
+    textLength: text?.length ?? 0,
+    existingSourcesCount: existingSources?.length ?? 0,
+  });
+
   const candidates = extractPromotableInlineSources(text, existingSources, MAX_INLINE_SOURCES_TO_VALIDATE);
-  if (candidates.length === 0 || typeof fetch !== 'function') return [];
+
+  const extractDuration = performance.now() - opStart;
+  scoutDiag.info('FreezeDiag', 'inline-validation:extract:end', {
+    durationMs: Math.round(extractDuration),
+    textLength: text?.length ?? 0,
+    candidateCount: candidates.length,
+  });
+
+  if (candidates.length === 0 || typeof fetch !== 'function') {
+    scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+      reason: candidates.length === 0 ? 'no-candidates' : 'no-fetch',
+      durationMs: Math.round(extractDuration),
+    });
+    return [];
+  }
+
+  // ── Fase 2: Validação HTTP com timeout explícito ──
+  // AbortController próprio cobre fetch + leitura do body.
+  // Timeout separado para leitura do body como safety net contra
+  // streams que nunca terminam (ex: Vercel function interrompida).
+  const controller = new AbortController();
+  const totalTimeoutId = setTimeout(() => {
+    scoutDiag.info('FreezeDiag', 'inline-validation:timeout', {
+      durationMs: Math.round(performance.now() - opStart),
+      candidateCount: candidates.length,
+    });
+    controller.abort();
+  }, VALIDATE_INLINE_TOTAL_TIMEOUT_MS);
 
   try {
+    // ── Fase 2a: Fetch ──
+    const fetchStart = performance.now();
+    scoutDiag.info('FreezeDiag', 'inline-validation:fetch:start', {
+      urlCount: candidates.length,
+      timestamp: Date.now(),
+    });
+
     const response = await fetch('/api/link-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
-      signal: AbortSignal.timeout(25_000),
+      signal: controller.signal,
     });
-    if (!response.ok) return [];
 
-    const data = (await response.json()) as {
-      results?: Record<string, { status?: string }>;
-    };
+    const fetchDuration = performance.now() - fetchStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:fetch:headers', {
+      durationMs: Math.round(fetchDuration),
+      httpStatus: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') ?? undefined,
+      contentLength: response.headers.get('content-length') ?? undefined,
+      bodyUsed: response.bodyUsed,
+    });
+
+    if (!response.ok) {
+      clearTimeout(totalTimeoutId);
+      scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+        reason: 'http-not-ok',
+        httpStatus: response.status,
+        durationMs: Math.round(performance.now() - opStart),
+      });
+      return [];
+    }
+
+    // ── Fase 2b: Leitura do body com timeout próprio ──
+    const bodyStart = performance.now();
+    scoutDiag.info('FreezeDiag', 'inline-validation:body:start', {
+      totalElapsedMs: Math.round(bodyStart - opStart),
+    });
+
+    const bodyText = await new Promise<string>((resolve, reject) => {
+      const bodyTimeoutId = setTimeout(() => {
+        controller.abort();
+        reject(new Error('Body read timeout after ' + VALIDATE_INLINE_BODY_READ_TIMEOUT_MS + 'ms'));
+      }, VALIDATE_INLINE_BODY_READ_TIMEOUT_MS);
+
+      response
+        .text()
+        .then(text => {
+          clearTimeout(bodyTimeoutId);
+          resolve(text);
+        })
+        .catch(err => {
+          clearTimeout(bodyTimeoutId);
+          reject(err);
+        });
+    });
+
+    const bodyDuration = performance.now() - bodyStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:body:text-read', {
+      durationMs: Math.round(bodyDuration),
+      bodySizeChars: bodyText.length,
+    });
+
+    // ── Fase 2c: Parse JSON ──
+    let data: { results?: Record<string, { status?: string }> };
+    try {
+      data = JSON.parse(bodyText) as { results?: Record<string, { status?: string }> };
+      scoutDiag.info('FreezeDiag', 'inline-validation:json:parsed', {
+        resultKeys: Object.keys(data?.results || {}).length,
+      });
+    } catch (parseErr) {
+      scoutDiag.info('FreezeDiag', 'inline-validation:json:error', {
+        error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        bodySizeChars: bodyText.length,
+      });
+      clearTimeout(totalTimeoutId);
+      return [];
+    }
+
+    clearTimeout(totalTimeoutId);
     const results = data?.results || {};
-    return candidates.filter(source => results[source.url]?.status === 'valid');
+    const valid = candidates.filter(source => results[source.url]?.status === 'valid');
+
+    const totalDuration = performance.now() - opStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:return', {
+      reason: 'success',
+      validCount: valid.length,
+      totalCandidateCount: candidates.length,
+      totalDurationMs: Math.round(totalDuration),
+    });
+
+    return valid;
   } catch (err) {
+    clearTimeout(totalTimeoutId);
+    const errorDuration = performance.now() - opStart;
+    scoutDiag.info('FreezeDiag', 'inline-validation:error', {
+      error: err instanceof Error ? err.message : String(err),
+      errorName: err instanceof Error ? err.name : 'unknown',
+      durationMs: Math.round(errorDuration),
+      candidateCount: candidates.length,
+    });
     scoutDiag.warn('Waterfall', 'Falha ao processar fontes do dossiê', {
       error: err instanceof Error ? err.message : String(err),
       candidates: candidates.length,
@@ -387,6 +517,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       signal,
       isFirstInteraction,
       sessionCnpjDigits,
+      operatorId: waterfallOperatorId,
+      operatorEmail: waterfallOperatorEmail,
+      operatorSessionId: waterfallOperatorSessionId,
     }: RunMegaPromptWaterfallArgs) => {
       const guardCheck = registerWaterfallStart(sessionId);
       if (!guardCheck.allowed) {
@@ -535,6 +668,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
           ...(foundationCacheName ? { foundationCacheName } : {}),
+          // Cost tracking (via message-orchestrator args + sessionStorage fallback)
+          operatorId: waterfallOperatorId,
+          operatorEmail: waterfallOperatorEmail,
+          operatorSessionId:
+            waterfallOperatorSessionId ||
+            (typeof window !== 'undefined'
+              ? (window.sessionStorage?.getItem('scout:current_session_id') ?? undefined)
+              : undefined),
+          sessionId,
+          companyCnpj: sessionCnpjDigits || undefined,
+          companyName: resolvedMegaCompany || undefined,
         };
 
         const appendWaterfallChunk = (chunk: string) => {
@@ -909,10 +1053,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallClienteSeniorData,
         );
         let waterfallPrepared = waterfallNarrativeBase;
+        scoutDiag.info('FreezeDiag', 'pre-validate-inline', {
+          sessionId,
+          waterfallRunId,
+          textLength: waterfallPrepared.length,
+          groundingSourcesCount: waterfallGroundingSources.length,
+        });
         const promotedInlineSources = await validateInlineSourcesForPromotion(
           waterfallPrepared,
           waterfallGroundingSources,
         );
+        scoutDiag.info('FreezeDiag', 'post-validate-inline', {
+          sessionId,
+          waterfallRunId,
+          promotedCount: promotedInlineSources.length,
+        });
         assertNotAborted();
         appendGroundingSources(promotedInlineSources, 'Promoção inline');
 
@@ -920,7 +1075,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
         }
 
+        scoutDiag.info('FreezeDiag', 'pre-finalize-markdown', {
+          sessionId,
+          waterfallRunId,
+          textLength: waterfallPrepared.length,
+          groundingSourcesCount: waterfallGroundingSources.length,
+          poolSize: sessionSourcePool.length,
+        });
         const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
+          sessionId,
+          waterfallRunId,
+          resultLength: finalized.text?.length ?? 0,
+          auditableSourcesCount: finalized.auditableSources?.length ?? 0,
+        });
         const waterfallFinalText =
           finalized.text ||
           accumulatedText ||
@@ -942,11 +1110,27 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         let waterfallSuggestions: string[] = [];
         const CONTINUITY_QUESTION_TIMEOUT_MS = 20_000;
+        scoutDiag.info('FreezeDiag', 'pre-continuity-question-ready', {
+          sessionId,
+          waterfallRunId,
+          finalTextLength: waterfallFinalText.length,
+          hasGroundingSources: waterfallGroundingSources.length > 0,
+          webVerificationStatus,
+        });
         scoutDiag.info('WaterfallLifecycle', 'pre-continuity-question', { sessionId, waterfallRunId });
+        let continuityTimedOut = false;
         try {
+          const continuityController = new AbortController();
+          const forwardContinuityAbort = () => continuityController.abort();
           let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          waterfallSuggestions = await Promise.race([
-            generateContinuityQuestion(
+          if (signal.aborted) {
+            continuityController.abort();
+          } else {
+            signal.addEventListener('abort', forwardContinuityAbort, { once: true });
+          }
+
+          try {
+            const continuityPromise = generateContinuityQuestion(
               [
                 ...historyToPass,
                 {
@@ -965,20 +1149,44 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ],
               resolvedMegaCompany || null,
               resolvedOperatorName,
-            ),
-            new Promise<never>((_, reject) => {
-              continuityTimeoutId = setTimeout(
-                () => reject(new Error('generateContinuityQuestion timeout')),
-                CONTINUITY_QUESTION_TIMEOUT_MS,
-              );
-            }),
-          ]);
-          if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
+              { signal: continuityController.signal },
+            );
+
+            void continuityPromise.catch(error => {
+              if (!continuityTimedOut) return;
+              scoutDiag.warn('ModularDossier', 'continuidade encerrou apos timeout local', {
+                sessionId,
+                company: resolvedMegaCompany || null,
+                isAbortLike: isAbortLikeError(error),
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+
+            const timeoutFallbackPromise = new Promise<string[]>(resolve => {
+              continuityTimeoutId = setTimeout(() => {
+                continuityTimedOut = true;
+                continuityController.abort();
+                scoutDiag.warn('ModularDossier', 'timeout nas sugestões finais do waterfall', {
+                  sessionId,
+                  company: resolvedMegaCompany || null,
+                  timeoutMs: CONTINUITY_QUESTION_TIMEOUT_MS,
+                });
+                resolve([]);
+              }, CONTINUITY_QUESTION_TIMEOUT_MS);
+            });
+
+            waterfallSuggestions = await Promise.race([continuityPromise, timeoutFallbackPromise]);
+          } finally {
+            if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
+            signal.removeEventListener('abort', forwardContinuityAbort);
+          }
         } catch (error) {
-          if (isAbortLikeError(error)) throw error;
+          if (signal.aborted) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
+            timedOut: continuityTimedOut,
+            isAbortLike: isAbortLikeError(error),
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -1259,7 +1467,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               : false,
           domComposerDisabled:
             typeof document !== 'undefined'
-              ? ((document.querySelector('[data-testid="composer-input"]') as HTMLInputElement)?.disabled ?? false)
+              ? ((
+                  document.querySelector('[data-testid="chat-input"], [data-testid="composer-input"]') as
+                    | HTMLInputElement
+                    | HTMLTextAreaElement
+                    | null
+                )?.disabled ?? false)
               : false,
           dossierWasPersisted: sessionToPersist !== null,
           cacheWasCleaned: foundationCacheName !== null,

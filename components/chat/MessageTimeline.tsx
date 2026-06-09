@@ -4,6 +4,7 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
 import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
 import { Sender } from '../../types';
+import { shouldPreferStaticTimelineForBotVolume } from '../../utils/expectedBotContent';
 import EmptyStateHome from '../EmptyStateHome';
 import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
 import HelpCenterFloating from '../HelpCenterFloating';
@@ -98,6 +99,12 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const hasLargeBotMessage = safeMessages.some(
+    message =>
+      message.sender === Sender.Bot && shouldPreferStaticTimelineForBotVolume(String(message.text || '').trim().length),
+  );
+  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback || hasLargeBotMessage;
+  const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
   const safeMessagesLengthRef = useRef(safeMessages.length);
   safeMessagesLengthRef.current = safeMessages.length;
 
@@ -112,8 +119,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       prev > 0 &&
       curr === 0 &&
       !showInitialHome &&
-      !shouldSuspendVirtualizedList &&
-      !forceStaticTimelineFallback &&
+      !shouldRenderSuspendedViewport &&
+      !shouldRenderStaticTimelineFallback &&
       !isLoading
     ) {
       console.error(
@@ -123,8 +130,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           before: prev,
           after: curr,
           showInitialHome,
-          shouldSuspendVirtualizedList,
-          forceStaticTimelineFallback,
+          shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
+          forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
           isDarkMode,
         }),
       );
@@ -132,8 +139,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   }, [
     safeMessages.length,
     showInitialHome,
-    shouldSuspendVirtualizedList,
-    forceStaticTimelineFallback,
+    shouldRenderSuspendedViewport,
+    shouldRenderStaticTimelineFallback,
     isLoading,
     currentSession?.id,
     isDarkMode,
@@ -230,7 +237,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   );
 
   useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList || forceStaticTimelineFallback) {
+    if (showInitialHome || shouldRenderSuspendedViewport || shouldRenderStaticTimelineFallback) {
       setIsMessagesViewportReady(false);
       return;
     }
@@ -256,8 +263,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       scrollHeight: viewport.scrollHeight,
       totalItems: safeMessages.length,
       showInitialHome,
-      shouldSuspendVirtualizedList,
-      forceStaticTimelineFallback,
+      shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
+      forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
     });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = (reason: string) => {
@@ -311,7 +318,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, forceStaticTimelineFallback, showInitialHome, shouldSuspendVirtualizedList]);
+  }, [currentSession?.id, shouldRenderStaticTimelineFallback, shouldRenderSuspendedViewport, showInitialHome]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -382,7 +389,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
   useEffect(() => {
-    if (!forceStaticTimelineFallback) return;
+    if (!shouldRenderStaticTimelineFallback) return;
 
     const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
     const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
@@ -409,8 +416,63 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           })
           .catch(() => {}); // falha silenciosa em testes
       });
+      // PR #347: debug display:none — cadeia completa com múltiplos timings
+      requestAnimationFrame(() => {
+        import('../../utils/layoutTraceTelemetry')
+          .then(({ debugStaticFallbackDisplay }) => {
+            debugStaticFallbackDisplay(scoutDiag.warn.bind(scoutDiag), {
+              sessionId: currentSession?.id ?? null,
+              totalItems: safeMessages.length,
+              botTextLen: botMsg?.text?.length ?? 0,
+              source: 'MessageTimeline:static-fallback-rendered',
+            });
+          })
+          .catch(() => {});
+      });
     }
-  }, [currentSession?.id, forceStaticTimelineFallback, safeMessages]);
+
+    // PR #347: safety net — se o static fallback montar com display:none,
+    // força recovery. A origem exata do display:none não foi encontrada no
+    // código (nem JS inline, nem CSS), mas o Supabase confirmou o estado
+    // em sessão real de preview.
+    const recoveryTimer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('[data-testid="messages-static-fallback"]');
+      if (!el) return;
+
+      const cs = getComputedStyle(el);
+      if (cs.display !== 'none') return;
+
+      const previousDisplay = cs.display;
+      const previousRect = el.getBoundingClientRect();
+
+      // Passo 1: limpa inline style display (caso venha de style.display = 'none')
+      el.style.display = '';
+
+      const afterResetCs = getComputedStyle(el);
+      let forcedDisplayApplied = false;
+
+      // Passo 2: se ainda estiver none (veio de CSS cascade), força com !important
+      if (afterResetCs.display === 'none') {
+        el.style.setProperty('display', 'block', 'important');
+        forcedDisplayApplied = true;
+      }
+
+      const afterRect = el.getBoundingClientRect();
+
+      scoutDiag.warn('Virtuoso', 'static-fallback-display-recovery', {
+        sessionId: currentSession?.id ?? null,
+        previousDisplay,
+        afterResetDisplay: afterResetCs.display,
+        forcedDisplayApplied,
+        previousRect: { w: Math.round(previousRect.width), h: Math.round(previousRect.height) },
+        afterRect: { w: Math.round(afterRect.width), h: Math.round(afterRect.height) },
+        hasBotMessage,
+        botTextLen: botMsg?.text?.length ?? 0,
+      } as unknown as Record<string, unknown>);
+    }, 0);
+
+    return () => clearTimeout(recoveryTimer);
+  }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
@@ -431,21 +493,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
-      ) : shouldSuspendVirtualizedList ? (
-        <div
-          className="flex-1 min-h-0 w-full flex items-center justify-center"
-          data-testid="messages-viewport-suspended"
-        >
-          <div className="flex flex-col items-center gap-3">
-            <div
-              className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
-            />
-            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Preparando investigação...
-            </p>
-          </div>
-        </div>
-      ) : forceStaticTimelineFallback ? (
+      ) : shouldRenderStaticTimelineFallback ? (
         <div
           className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
           data-testid="messages-static-fallback"
@@ -465,6 +513,20 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           {safeMessages.map((message, index) => (
             <MessageRow key={message.id} index={index} data={itemData} />
           ))}
+        </div>
+      ) : shouldRenderSuspendedViewport ? (
+        <div
+          className="flex-1 min-h-0 w-full flex items-center justify-center"
+          data-testid="messages-viewport-suspended"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className={`w-8 h-8 border-4 rounded-full animate-spin ${isDarkMode ? 'border-emerald-500/20 border-t-emerald-500' : 'border-emerald-600/20 border-t-emerald-600'}`}
+            />
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Preparando investigação...
+            </p>
+          </div>
         </div>
       ) : (
         <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">

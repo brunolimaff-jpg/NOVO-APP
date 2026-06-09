@@ -4,10 +4,11 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
-- **Supabase + IDB como cache offline** [react, typescript, supabase, offline]
+- **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
-  Aplicado com sucesso — migracao completa de idb-keyval para Supabase.
+  ~~Aplicado com sucesso — migracao completa de idb-keyval para Supabase.~~
+  **Removido na PR #317 (31/05/2026).** Substituído por Supabase direto como fonte única.
 
 - **Validar intencao de produto alem do evento tecnico** [ux, feedback, supabase, produto]
   Ao validar fluxos de produto, confirmar se o comportamento real representa a intencao esperada, nao apenas se o evento chegou no destino tecnico.
@@ -51,8 +52,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Catch silencioso em consulta cria duplicata no Supabase** [supabase, catch, duplicata]
   `findExistingDossier` retorna `null` no catch. O caller interpreta null como "nao existe" e cria novo registro. Nunca usar `return null` em catch de funcao de consulta sem log ou fallback.
 
-- **Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
-  `findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.
+- **[HISTÓRICO] Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
+  ~~`findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.~~
+  Este anti-padrão era específico da arquitetura IDB removida na PR #317. O princípio geral (não ter duas fontes de verdade) permanece válido.
 
 - **Componente condicional sem `key` causa estado stale** [react, key, componente]
   `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossier anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
@@ -78,8 +80,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **.single() gera erro falso PGRST116 no console** [supabase, ux, log]
   `.single()` do Supabase retorna erro HTTP quando registro nao existe — mesmo em fluxo normal de "dossier ainda nao criado". Trocar por `.maybeSingle()` elimina erro falso.
 
-- **Migracao IDB→Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
-  `saveDossier` retorna void sem throw quando `!isSupabaseAvailable()`. Migracao incrementa contador e seta flag permanente sem verificar se upsert real ocorreu. Solucao: verificar `isSupabaseAvailable()` no topo da migracao, retornar sem setar flag.
+- **[HISTÓRICO] Migracao IDB→Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
+  ~~`saveDossier` retorna void sem throw quando `!isSupabaseAvailable()`. Migracao incrementa contador e seta flag permanente sem verificar se upsert real ocorreu. Solucao: verificar `isSupabaseAvailable()` no topo da migracao, retornar sem setar flag.~~
+  Migração concluída. Flag permanente já setada. Não aplicável ao código atual.
 
 - **deleteDossier nunca chamado pelo fluxo de UI** [delete, controller, persistencia]
   `handleDeleteSession` removia apenas do estado React. `storage.deleteDossier` existia mas nunca era chamado. Dossie "deletado" reaparecia no reload. Solucao: fire-and-forget `storage.deleteDossier(id)` no controller.
@@ -198,6 +201,70 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
   `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
 
+- **AbortSignal.timeout() cobre apenas conexao, nao leitura do body** [fetch, timeout, abort, body-read]
+  `fetch(url, { signal: AbortSignal.timeout(N) })` aborta apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora (ou e grande), `response.json()` fica bloqueada indefinidamente. Solucao: `AbortController` explicito para timeout total + `response.text()` com race contra timeout dedicado + `JSON.parse()` manual.
+
+## P0 producao travada vs preview OK (Junho 2026) — licoes consolidadas
+
+- **Timeout de operacao termina depois do body + parse** [fetch, timeout, body-read]
+  `fetch()` resolver com headers nao significa que a operacao acabou. Qualquer chamada critica deve cobrir conexao, `response.text()`, parse e fallback.
+
+- **Promise.race sem abort real e mitigacao falsa** [abort, gemini, waterfall]
+  Encerrar a espera local sem abortar a request deixa Gemini rodando em background e pode manter recursos/telemetria pendentes. Sempre propagar `AbortSignal`.
+
+- **Abort pode nao resolver promise pendente; adicione race local por tentativa** [abort, fallback, resiliencia]
+  Mesmo apos abort, uma promise pode nao liquidar na janela esperada. Etapas opcionais como continuity-question precisam de timeout local por tentativa e fallback deterministico.
+
+- **Diagnostics nao pode bloquear finalizacao de UI** [telemetria, loading, supabase]
+  `recordDiagnostics` e flush devem ser fire-and-forget. `PostCompletion` precisa persistir, mas a UI nao pode depender da chamada para liberar overlay/input.
+
+- **PostCompletion check:10000ms e gate obrigatorio para loading P0** [observabilidade, supabase, ui]
+  Para regressao de overlay/blank panel, validar `PostCompletion=6` com `check:10000ms=1`. Sem isso, a sessao pode ter finalizado cedo demais para provar recuperacao real.
+
+- **Separar IA, controle/cache e diagnostics na telemetria** [observabilidade, gemini]
+  Logs de `/api/gemini` precisam carregar `action`, `requestClass` e `phase`; senao uma chamada de diagnostic parece uma chamada de IA travada.
+
+- **Virtuoso renderizado nao prova bot visivel** [virtuoso, blank-panel, ux]
+  `itemsRendered` e `rangeChanged` podem existir com painel ainda inutil. Validar `bot-message-content` visivel ou `messages-static-fallback`.
+
+- **Fallback estatico para dossie gigante e safety net de produto** [virtuoso, performance, ux]
+  Para bot >=4k chars, preferir static fallback quando a viewport virtualizada esta suspensa evita dossie no DOM porem invisivel.
+
+- **Stage timer usa chave canonica, nao texto da label** [loading, telemetry]
+  Labels equivalentes como "Verificando pressoes e compliance..." precisam mapear para chave `compliance`; o timer da etapa deve acompanhar `processing.stage`.
+
+- **Preview OK nao prova producao se SW/cache/deploy divergem** [vercel, producao, pwa]
+  Antes de reabrir waterfall, confirmar bundle real, service worker/cache e release em producao. Preview pode estar correto e producao antiga.
+
+- **Sentry vazio nao encerra incidente visual** [sentry, supabase, ui]
+  Freeze de main thread, overlay preso e blank panel podem nao gerar evento Sentry. `scout_diagnostics` e browser real sao fonte primaria.
+
+- **E2E de erro controlado e contrato de produto** [playwright, error-recovery]
+  Falha controlada de `/api/gemini` deve mostrar `error-message-card`, remover overlay e liberar input. Nao ajustar teste para aceitar estado preso.
+
+- **Modulo opcional deve falhar aberto** [waterfall, resiliencia]
+  `validate-inline-sources`, benchmark e continuity-question nao podem bloquear todo o dossie. Timeout retorna fallback seguro.
+
+- **Validacao final deve confirmar intencao de produto** [ux, validacao]
+  Checks verdes, Supabase persistido e logs saudaveis nao bastam. Fechamento exige overlay fora, input habilitado, cards/bot visiveis e ausencia de stuck/blank.
+
+### Sessao 2026-06-08 — resolucao PR #347 e investigacao tela branca
+
+- **Nunca commitar codigo visual sem antes commitar as dependencias** [commit, ci, typecheck]
+  `MessageTimeline.tsx` importava `debugStaticFallbackDisplay` de `layoutTraceTelemetry.ts`, mas o arquivo de util nao foi commitado. CI quebrou com typecheck. Sempre verificar `git status` antes do commit para garantir que todos os arquivos novos estao inclusos.
+
+- **git merge com working tree sujo contamina o merge commit** [git, merge, working-tree, auto-merge]
+  Ao fazer merge com `origin/main`, arquivos modificados no working tree (gemini_usage) vazaram para o merge via `--ours`. `waterfall-orchestrator.ts` ganhou `operatorId` que quebrou typecheck porque `types.ts` nao tinha o campo. Sempre fazer merge com working tree limpa ou usar `git stash`.
+
+- **display:none em flex colapsado foi REFUTADO** [css, layout, debug, flexbox]
+  A hipótese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` é FALSA. Reprodução mínima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injeção de runtime, ou race condition com React hydration).
+
+- **traceFullAncestorChain é superior a trace de culpado único** [diagnóstico, debug, layout]
+  `findFirstZeroDimensionAncestor` retorna apenas um nó. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensão zero aparece. Preferir cadeia completa sobre busca de culpado único em diagnósticos de layout.
+
+- **CodeQL não bloqueia merge quando não é check obrigatório** [ci, codeql, merge, pr]
+  30 alertas pré-existentes em main não impediram merge porque CodeQL não está na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuração de branch protection, não apenas o estado do check.
+
 ## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 
 - **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
@@ -237,15 +304,46 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   O alias `scoutagro.vercel.app` servia o mesmo código mas não estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estão registrados.
 
 - **flushDiagnosticsNow sincrono pos-setState bloqueia React re-render** [react, setstate, render, settimeout, freeze]
-	  `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
+  `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
 
 - **Agendar setTimeout ANTES do setState, nao depois** [react, settimeout, macrotask, event-loop]
-	  Se o `setTimeout` com `flushDiagnosticsNow` for agendado DEPOIS do `setState`, o callback nunca roda ate o render terminar. Agendando ANTES, o timer ja esta na macrotask queue quando o React comeca a renderizar, e dispara assim que o render sincrono termina. O `setTimeout(0)` vira ponto de handoff entre render sincrono e flush assincrono.
+  Se o `setTimeout` com `flushDiagnosticsNow` for agendado DEPOIS do `setState`, o callback nunca roda ate o render terminar. Agendando ANTES, o timer ja esta na macrotask queue quando o React comeca a renderizar, e dispara assim que o render sincrono termina. O `setTimeout(0)` vira ponto de handoff entre render sincrono e flush assincrono.
 
 - **createDeferred polyfill para Promise.withResolvers** [node, vitest, compatibilidade, polyfill]
-		  `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
+  `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
 
-	<!-- caliber:managed:learnings -->
+---
+
+## Auditoria por exploração paralela
+
+- Dividir a auditoria por territórios aumenta a cobertura e reduz a navegação sequencial.
+- Cada explorador deve informar os arquivos efetivamente lidos.
+- Resultados paralelos precisam ser consolidados sem duplicidade.
+- Toda auditoria deve terminar com uma etapa de autorrefutação.
+- Código suspeito não é automaticamente bug.
+- Uma cadeia de concorrência precisa ser alcançável, não apenas teoricamente imaginável.
+- Timer sem cleanup não é defeito sem efeito colateral demonstrável.
+- Documentação gerada por IA deve ser confrontada com código e testes.
+
+## Classificação de incidentes mitigados
+
+Não classificar automaticamente como P0 ativo um incidente que:
+
+- ocorreu historicamente;
+- possui recovery funcional;
+- não reincidiu após a mitigação;
+- continua apenas com causa raiz aberta.
+
+A classificação adequada é `incidente mitigado com causa aberta`, acompanhada de gatilhos objetivos de reabertura.
+
+## Fidelidade dos testes de interface
+
+- jsdom não reproduz integralmente layout, CSS computado, ResizeObserver e timing do navegador.
+- Virtuoso mockado não comprova comportamento do virtual scroller real.
+- RAF síncrono em teste pode esconder condições temporais do navegador.
+- Incidentes de geometria e renderização devem ser confirmados por E2E em navegador real quando houver reincidência.
+
+<!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 

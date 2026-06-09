@@ -1,19 +1,27 @@
 # Handoff — PR #332 mergeada + validação prod (2026-06-05)
 
+## Resolucao posterior (2026-06-08)
+
+A regressao voltou em producao e foi fechada na PR #346 (`fix/validate-inline-sources-timeout`, head `992ece9f`). Este doc fica como contexto historico da camada #332; o handoff atual e:
+
+- `HANDOFF_AI.md`
+- `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
+- Bruno Vault > 40-HANDOFFS > NOVO-APP-handoff.md
+
 ## Goal próxima sessão
 
 Abrir PR do **WIP local** (blank panel / contrato R3–R7) ou iniciar **P0 diagnostics fora de `/api/gemini`**.
 
 ## State of play
 
-| Item | Status |
-|------|--------|
-| PR #332 | **MERGEADA** (squash) → `main` `83414a81` |
-| Deploy prod | Vercel OK; release Sentry `83414a81` |
-| Validação Bruno | Manual OK |
-| Supabase prod | `1c786d20-a6ef-4298-bd5e-5e21bc13ae95` — PostCompletion=6 |
-| Sentry | 0 erros no release |
-| WIP local | ~26 arquivos unstaged |
+| Item            | Status                                                    |
+| --------------- | --------------------------------------------------------- |
+| PR #332         | **MERGEADA** (squash) → `main` `83414a81`                 |
+| Deploy prod     | Vercel OK; release Sentry `83414a81`                      |
+| Validação Bruno | Manual OK                                                 |
+| Supabase prod   | `1c786d20-a6ef-4298-bd5e-5e21bc13ae95` — PostCompletion=6 |
+| Sentry          | 0 erros no release                                        |
+| WIP local       | ~26 arquivos unstaged                                     |
 
 ## Evidência (resumo)
 
@@ -23,12 +31,12 @@ Abrir PR do **WIP local** (blank panel / contrato R3–R7) ou iniciar **P0 diagn
 
 ## Roadmap
 
-| Fase | Escopo |
-|------|--------|
-| Feito | #332 overlay + flush + telemetria |
-| P0 | Diagnostics fora de `/api/gemini` |
-| P1 | State machine fase loading |
-| P2 | Contrato R3–R7 + e2e Scheffer (WIP) |
+| Fase  | Escopo                              |
+| ----- | ----------------------------------- |
+| Feito | #332 overlay + flush + telemetria   |
+| P0    | Diagnostics fora de `/api/gemini`   |
+| P1    | State machine fase loading          |
+| P2    | Contrato R3–R7 + e2e Scheffer (WIP) |
 
 ## Artifacts
 

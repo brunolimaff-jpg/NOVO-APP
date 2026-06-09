@@ -395,6 +395,30 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
+  it('anexa mensagem de erro quando waterfall falha após limpar activeGeneration', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot')
+      .mockReturnValueOnce('message-error');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
+      delete harness.activeGenerationRef.current['session-new'];
+      throw new Error('api gemini indisponivel');
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
+      id: 'message-error',
+      sender: Sender.Bot,
+      isError: true,
+      text: 'Erro no processamento',
+    });
+  });
+
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
     const deferred = createDeferred<void>();
     uuidv4Mock

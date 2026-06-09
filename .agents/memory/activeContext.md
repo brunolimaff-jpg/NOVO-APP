@@ -1,42 +1,48 @@
 # Active Context
 
-Last updated: 2026-06-05 -- Bug P0 OVERLAY RESOLVIDO. 4 PRs mergeadas. PR #343 ABERTA (setTimeout swap).
+Last updated: 2026-06-08 — Wiki versionada, auditoria concluida, incidente mitigado
 
-## Estado
+## Estado Atual
 
-- **Bug P0 FECHADO**: overlay hero nunca mais trava em producao com waterfall Scheffer
-- **4 PRs mergeadas** (#333, #334, #335, #342) -- todas em main
-- **PR #343 ABERTA** (branch `codex/finalize-waterfall-ui`): setTimeout swap para flushDiagnosticsNow
-- **Root Cause 5 camadas** identificada:
-  1. SW CacheFirst servia bundles antigos
-  2. Gap waterfall vs setIsLoading sem bridge (PR #342)
-  3. abortControllerRef nullificado (isAbort=true falso) (PR #342)
-  4. Static fallback display:none: flex-basis:0% + h-full = 0px de altura (PR #342)
-  5. **(NOVA)** flushDiagnosticsNow sincrono no mesmo tick pos-setState bloqueava React re-render (PR #343)
+- **Status:** INCIDENTE VISUAL MITIGADO — MONITORAMENTO
+- **Branch documental:** `docs/wiki-auditoria-final`
+- **Base:** `origin/main` (cbffab54)
+- **Nenhum patch funcional pendente**
+- **Recovery `static-fallback-display-recovery` mantido no codigo**
+- **Nao reabrir investigacao sem gatilho objetivo**
 
-## Decisoes arquiteturais ativas
+## Contexto do Incidente
 
-- `abortControllerRef` pertence ao `processMessage`, NUNCA ao helper de UI
-- DOM cleanup via querySelector direto (3 seletores), NUNCA TreeWalker(document.body)
-- DOM cleanup display:none e safety net; React render condition e primario
-- Hard invariant como airbag: condicoes observaveis forcadamente liberam a UI
-- LayoutTrace como ferramenta de diagnostico
-- `flushDiagnosticsNow` deve ser deferido com `setTimeout(0)`; agendar ANTES do setState, nao depois
+- Incidente `display:none` no `messages-static-fallback` observado antes da PR #347
+- Recovery funcional: `none → block !important` confirmado em sessao `ac5890b0`
+- Causa raiz NAO IDENTIFICADA — MutationObserver nao capturou origem
+- PR #347 (merge `f3f08890`) implementou o recovery
+- PR #349 (merge `cbffab54`) adicionou RAF safety net e LoadingStuckProbes
 
-## Pendencias
+## Conclusao da Auditoria (2026-06-08)
 
-| Item | Status | Acao |
-|------|--------|------|
-| PR #343 setTimeout swap | ABERTA | Code review + merge |
-| Kill-switch sw.js | MANTER 1-2 RELEASES | Remover depois |
-| ContinuityQuestion JSON truncado | DEBUG LOG | Ja feito |
-| AbortError CNPJ lookup | DEBUG LOG | Ja feito |
-| foundationCacheName null | INVESTIGAR | Separado |
-| `scoutagro.vercel.app` alias | INVESTIGAR | Nao esta nos domains |
+- Auditoria estrutural com 7 exploradores paralelos concluida
+- Validacao adversarial refutou 6 falsos positivos
+- Unico incidente real: display:none — mitigado, sem reincidencia
+- Decisao: MONITORAR PRODUCAO, nao atuar sem reincidencia
 
-## Links
+## Wiki
 
-- PR #343: https://github.com/brunolimaff-jpg/NOVO-APP/pull/343 (ABERTA)
-- Vault sessoes: `Bruno Vault/20-SESSOES/2026-06/2026-06-05T19-30-00-NOVO-APP-overlay-hero-camada4-static-fallback.md`
-- Licoes (16): `Bruno Vault/30-LICOES/LICOES-SW-CACHEFIRST-OVERLAY-PWA-2026-06-05.md`
-- CALIBER_LEARNINGS.md: secoes atualizadas com bug P0 + setTimeout swap
+- Wiki tecnica versionada em `docs/wiki/` (28 paginas)
+- Gerada por Grok Wiki em 2026-06-08
+- Branch de origem da geracao: "default" (nao registrado SHA exato)
+- Serve como mapa arquitetural, nao como fonte de verdade
+
+## Frentes paralelas
+
+- `gemini_usage` (tracking de custo) NAO pertence a este escopo documental
+- Esta em arquivos modificados no working tree original e deve ir para branch separada
+
+## Gatilhos de Reabertura (ver HANDOFF_AI.md)
+
+1. `static-fallback-display-recovery` > 5% das sessoes
+2. Painel branco APOS recovery
+3. ≥3 blank-panel checks consecutivos
+4. Composer desabilitado apos finalizacao
+5. PostCompletion ausente apos waterfall
+6. Nova sessao travada posterior a PR #347

@@ -125,9 +125,11 @@ function pushToBuffer(entry: DiagEntry): void {
     scheduleFlush('error');
   }
 
-  // Flush on batch size
+  // Always schedule a deferred flush so tail events below batch size do not die with the tab.
   if (buffer.length % DIAG_FLUSH_BATCH_SIZE === 0) {
     scheduleFlush('batch');
+  } else {
+    scheduleFlush('buffer');
   }
 }
 

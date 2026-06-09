@@ -4,7 +4,7 @@ import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } fr
 
 const SCHEFFER_CNPJ = '04.733.767/0001-80';
 const OPERATOR_NAME = process.env.E2E_OPERATOR_NAME ?? 'E2E Operator';
-const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? 'e2e.operator@example.com';
+const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? 'e2e.operator@senior.com.br';
 
 test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
   test.describe.configure({ timeout: 180_000 });
