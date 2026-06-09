@@ -216,85 +216,87 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
         </div>
       </div>
 
-      {/* Lista de etapas */}
-      <div className="mx-4 md:mx-5 mb-3">
-        <div className="flex flex-col gap-1.5">
-          {visiblePlannedStages.map((step, i) => {
-            const key = getLoadingStageIdentity(step.label);
-            const done = completedStageKeys.has(key);
-            const active = !done && key === currentStageKey;
-            const stepMs = getStageElapsedMs(
-              key,
-              done,
-              active,
-              stageDurationsRef.current,
-              stageStartedAtRef.current,
-              elapsedTime,
-            );
-            return (
-              <div key={`${key || 'step'}-${i}`} className="flex items-center gap-2.5 text-xs">
-                {done ? (
-                  <StepCheckIcon isDarkMode={isDarkMode} />
-                ) : active ? (
-                  <StepSpinner isDarkMode={isDarkMode} />
-                ) : (
-                  <StepPending isDarkMode={isDarkMode} />
-                )}
-                <span
-                  className={`flex-1 ${
-                    done
-                      ? isDarkMode
-                        ? 'text-slate-500'
-                        : 'text-slate-400'
-                      : active
+      {/* Lista de etapas — só na construção inicial do dossiê, nunca em follow-up */}
+      {!processing?.isIncremental && (
+        <div className="mx-4 md:mx-5 mb-3">
+          <div className="flex flex-col gap-1.5">
+            {visiblePlannedStages.map((step, i) => {
+              const key = getLoadingStageIdentity(step.label);
+              const done = completedStageKeys.has(key);
+              const active = !done && key === currentStageKey;
+              const stepMs = getStageElapsedMs(
+                key,
+                done,
+                active,
+                stageDurationsRef.current,
+                stageStartedAtRef.current,
+                elapsedTime,
+              );
+              return (
+                <div key={`${key || 'step'}-${i}`} className="flex items-center gap-2.5 text-xs">
+                  {done ? (
+                    <StepCheckIcon isDarkMode={isDarkMode} />
+                  ) : active ? (
+                    <StepSpinner isDarkMode={isDarkMode} />
+                  ) : (
+                    <StepPending isDarkMode={isDarkMode} />
+                  )}
+                  <span
+                    className={`flex-1 ${
+                      done
                         ? isDarkMode
-                          ? 'text-slate-200 font-medium'
-                          : 'text-slate-700 font-medium'
+                          ? 'text-slate-500'
+                          : 'text-slate-400'
+                        : active
+                          ? isDarkMode
+                            ? 'text-slate-200 font-medium'
+                            : 'text-slate-700 font-medium'
+                          : isDarkMode
+                            ? 'text-slate-600'
+                            : 'text-slate-400'
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                  <span
+                    className={`font-mono text-[10px] ${
+                      active
+                        ? isDarkMode
+                          ? 'text-emerald-400'
+                          : 'text-emerald-600'
                         : isDarkMode
                           ? 'text-slate-600'
                           : 'text-slate-400'
-                  }`}
-                >
-                  {step.label}
+                    }`}
+                  >
+                    {stepMs !== null && stepMs > 0 ? formatElapsed(stepMs) : done ? formatElapsed(stepMs ?? 0) : '--'}
+                  </span>
+                </div>
+              );
+            })}
+            {shouldAppendCurrentStage && (
+              <div className="flex items-center gap-2.5 text-xs">
+                <StepSpinner isDarkMode={isDarkMode} />
+                <span className={`flex-1 font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {displayedCurrent}
                 </span>
-                <span
-                  className={`font-mono text-[10px] ${
-                    active
-                      ? isDarkMode
-                        ? 'text-emerald-400'
-                        : 'text-emerald-600'
-                      : isDarkMode
-                        ? 'text-slate-600'
-                        : 'text-slate-400'
-                  }`}
-                >
-                  {stepMs !== null && stepMs > 0 ? formatElapsed(stepMs) : done ? formatElapsed(stepMs ?? 0) : '--'}
+                <span className={`font-mono text-[10px] ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  {formatElapsed(
+                    getStageElapsedMs(
+                      currentStageKey,
+                      false,
+                      true,
+                      stageDurationsRef.current,
+                      stageStartedAtRef.current,
+                      elapsedTime,
+                    ) ?? 0,
+                  )}
                 </span>
               </div>
-            );
-          })}
-          {shouldAppendCurrentStage && (
-            <div className="flex items-center gap-2.5 text-xs">
-              <StepSpinner isDarkMode={isDarkMode} />
-              <span className={`flex-1 font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                {displayedCurrent}
-              </span>
-              <span className={`font-mono text-[10px] ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                {formatElapsed(
-                  getStageElapsedMs(
-                    currentStageKey,
-                    false,
-                    true,
-                    stageDurationsRef.current,
-                    stageStartedAtRef.current,
-                    elapsedTime,
-                  ) ?? 0,
-                )}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Botão Interromper */}
       <div className="mx-4 md:mx-5 mb-3">
