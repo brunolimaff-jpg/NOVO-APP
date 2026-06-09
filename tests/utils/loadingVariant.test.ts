@@ -26,21 +26,21 @@ describe('loadingVariant flow rules', () => {
     ).toBe('inline');
   });
 
-  it('keeps deep dives in hero mode even after a consolidated answer exists', () => {
+  it('follow-up sempre usa inline, mesmo para deep_dive', () => {
     expect(resolveDeepDiveRequestKind(true)).toBe('deep_dive');
     expect(
       resolveLoadingVariant({
         requestKind: 'deep_dive',
         isFollowUp: true,
       }),
-    ).toBe('hero');
+    ).toBe('inline');
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'deep_dive',
         isFollowUp: true,
         hasConsolidatedBotResponse: true,
       }),
-    ).toBe('hero');
+    ).toBe('inline');
   });
 
   it('routes the first home investigation back to the hero flow', () => {

@@ -14,8 +14,9 @@ export function resolveLoadingVariant({
   requestKind,
   isFollowUp = false,
 }: ResolveLoadingVariantOptions): LoadingVariant {
+  if (isFollowUp) return 'inline';
   if (requestKind === 'deep_dive') return 'hero';
-  return isFollowUp ? 'inline' : 'hero';
+  return 'hero';
 }
 
 export function resolvePlaceholderLoadingVariant({

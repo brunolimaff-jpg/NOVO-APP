@@ -89,6 +89,8 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
+  const firstBotIndex = messages.findIndex(m => m.sender === Sender.Bot && !m.isError && !m.isThinking);
+  const isFirstBotMessage = isBot && index === firstBotIndex;
   const displayScore = isBot ? msg.scorePorta : undefined;
   const groundingSources = useMemo(() => coerceGroundingSources(msg.groundingSources), [msg.groundingSources]);
 
@@ -305,8 +307,8 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <DossierErrorBoundary isDarkMode={isDarkMode}>
               <>
                 {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
-                {msg.clienteSeniorData?.encontrado && (
-                  <ClienteSeniorScore data={msg.clienteSeniorData} isDarkMode={isDarkMode} />
+                {msg.clienteSeniorData?.encontrado && isFirstBotMessage && (
+                  <ClienteSeniorScore data={msg.clienteSeniorData} cnpj={cnpj} isDarkMode={isDarkMode} />
                 )}
                 <SectionalBotMessage
                   message={{ ...msg, groundingSources: msg.groundingSources || [] }}
@@ -466,7 +468,8 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     );
   }
 
-  return <div className="pb-3 px-2 md:px-6 lg:px-8">{content}</div>;
+  const isFirstTimelineMessage = index === 0;
+  return <div className={`pb-3 px-2 md:px-6 lg:px-8 ${isFirstTimelineMessage ? 'pt-6' : ''}`}>{content}</div>;
 });
 
 MessageRowBody.displayName = 'MessageRowBody';
