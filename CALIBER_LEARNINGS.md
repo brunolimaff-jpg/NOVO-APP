@@ -312,6 +312,37 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **createDeferred polyfill para Promise.withResolvers** [node, vitest, compatibilidade, polyfill]
   `Promise.withResolvers()` e API Node 22+. CI do GitHub Actions roda Node 20. Testes que usam `Promise.withResolvers()` quebram em runtime com `TypeError`. Solucao: helper `createDeferred<T>()` local com `new Promise` + resolve/reject manuais. Nao basta `ES2024` no `lib` do tsconfig — isso so resolve typecheck, nao runtime.
 
+---
+
+## Auditoria por exploração paralela
+
+- Dividir a auditoria por territórios aumenta a cobertura e reduz a navegação sequencial.
+- Cada explorador deve informar os arquivos efetivamente lidos.
+- Resultados paralelos precisam ser consolidados sem duplicidade.
+- Toda auditoria deve terminar com uma etapa de autorrefutação.
+- Código suspeito não é automaticamente bug.
+- Uma cadeia de concorrência precisa ser alcançável, não apenas teoricamente imaginável.
+- Timer sem cleanup não é defeito sem efeito colateral demonstrável.
+- Documentação gerada por IA deve ser confrontada com código e testes.
+
+## Classificação de incidentes mitigados
+
+Não classificar automaticamente como P0 ativo um incidente que:
+
+- ocorreu historicamente;
+- possui recovery funcional;
+- não reincidiu após a mitigação;
+- continua apenas com causa raiz aberta.
+
+A classificação adequada é `incidente mitigado com causa aberta`, acompanhada de gatilhos objetivos de reabertura.
+
+## Fidelidade dos testes de interface
+
+- jsdom não reproduz integralmente layout, CSS computado, ResizeObserver e timing do navegador.
+- Virtuoso mockado não comprova comportamento do virtual scroller real.
+- RAF síncrono em teste pode esconder condições temporais do navegador.
+- Incidentes de geometria e renderização devem ser confirmados por E2E em navegador real quando houver reincidência.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

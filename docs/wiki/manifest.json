@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-06-08T23:40:18.877Z",
+  "title": "Documentação do Senior Scout 360",
+  "description": "Referência técnica do app React, APIs serverless, orquestração de dossiês, RAG, Radar, War Room, persistência e gates operacionais do NOVO-APP. Feita para agentes e mantenedores que precisam configurar, validar, depurar e evoluir o produto sem depender só do README.",
+  "repository": "local/NOVO-APP",
+  "branch": null,
+  "generatedAt": "2026-06-08T23:39:43.629Z",
+  "format": "obsidian-markdown-vault",
+  "privacy": "local-export",
+  "pages": [
+    {
+      "id": "page-overview",
+      "title": "Visão geral",
+      "description": "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável.",
+      "path": "pages/01-vis-o-geral.md",
+      "sourceFiles": [
+        "README.md",
+        "package.json",
+        "App.tsx",
+        "index.tsx",
+        "ARQUITETURA.md",
+        "HANDOFF_AI.md"
+      ]
+    },
+    {
+      "id": "page-installation",
+      "title": "Instalação",
+      "description": "Pré-requisitos, instalação npm, variáveis locais, porta Vite, proxy de APIs e sinais esperados de boot em ambiente local.",
+      "path": "pages/02-instala-o.md",
+      "sourceFiles": [
+        "README.md",
+        "package.json",
+        ".env.example",
+        "DEV_LOCAL_README.md",
+        "vite.config.ts",
+        "config/localDevApiProxy.ts",
+        "docs/GUIA-INICIANTE.md"
+      ]
+    },
+    {
+      "id": "page-primeira-execucao",
+      "title": "Primeira execução",
+      "description": "Fluxo inicial do operador, criação de sessão, shell de investigação, inputs de empresa/CNPJ e primeiro estado visível esperado.",
+      "path": "pages/03-primeira-execu-o.md",
+      "sourceFiles": [
+        "components/GreetingWelcomeScreen.tsx",
+        "components/ChatInterface.tsx",
+        "features/chat/session-controller.ts",
+        "features/chat/message-orchestrator.ts",
+        "tests-e2e/smoke.greeting.spec.ts",
+        "tests-e2e/smoke.investigation-shell.spec.ts",
+        "hooks/useSessionStorage.ts"
+      ]
+    },
+    {
+      "id": "page-fontes-canonicas",
+      "title": "Fontes canônicas",
+      "description": "Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian.",
+      "path": "pages/04-fontes-can-nicas.md",
+      "sourceFiles": [
+        "AGENTS.md",
+        "HANDOFF_AI.md",
+        ".agents/memory/activeContext.md",
+        ".agents/memory/progress.md",
+        ".agents/memory/decisions.md",
+        "docs/PROJECT-CARD.md",
+        "docs/SKILLS-GOVERNANCE.md"
+      ]
+    },
+    {
+      "id": "page-arquitetura-app",
+      "title": "Arquitetura do app",
+      "description": "Bootstrap React, providers globais, stores, orquestrador principal, fronteiras de features e fachadas públicas preservadas.",
+      "path": "pages/05-arquitetura-do-app.md",
+      "sourceFiles": [
+        "index.tsx",
+        "App.tsx",
+        "stores/chatStore.tsx",
+        "stores/dossierStore.tsx",
+        "features/chat/message-orchestrator.ts",
+        "docs/obsidian/architecture/ARCH-App-Orchestration.md",
+        "ARQUITETURA.md"
+      ]
+    },
+    {
+      "id": "page-sessoes-mensagens",
+      "title": "Sessões e mensagens",
+      "description": "Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado.",
+      "path": "pages/06-sess-es-e-mensagens.md",
+      "sourceFiles": [
+        "types.ts",
+        "stores/chatStore.tsx",
+        "hooks/useSessionStorage.ts",
+        "features/chat/session-controller.ts",
+        "services/storage/dossiers.ts",
+        "tests/contracts/renderState.contract.test.tsx"
+      ]
+    },
+    {
+      "id": "page-dossie-waterfall",
+      "title": "Waterfall de dossiê",
+      "description": "Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI.",
+      "path": "pages/07-waterfall-de-dossi.md",
+      "sourceFiles": [
+        "features/dossier/waterfall-orchestrator.ts",
+        "features/dossier/waterfall-guard.ts",
+        "features/dossier/benchmark-stage.ts",
+        "features/dossier/porta-reconciliation.ts",
+        "services/gemini/investigation-orchestration.ts",
+        "constants/loadingStages.ts",
+        "tests/features/dossier/waterfall-orchestrator.test.ts"
+      ]
+    },
+    {
+      "id": "page-score-porta",
+      "title": "Score PORTA",
+      "description": "Dimensões, pesos, markers, feeds, consolidação, flags, segmentos e regras de integridade do score comercial 0-100.",
+      "path": "pages/08-score-porta.md",
+      "sourceFiles": [
+        "types.ts",
+        "utils/porta.ts",
+        "services/portaStateService.ts",
+        "services/gemini/porta.ts",
+        "features/dossier/porta-reconciliation.ts",
+        "docs/ai-context/METODOLOGIA_PORTA.md",
+        "tests/services/portaParser.test.ts"
+      ]
+    },
+    {
+      "id": "page-teia-societaria",
+      "title": "Teia societária",
+      "description": "Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais.",
+      "path": "pages/09-teia-societ-ria.md",
+      "sourceFiles": [
+        "features/dossier/societaryGraph.ts",
+        "features/dossier/teiaTextParser.ts",
+        "features/dossier/SocietaryMap.tsx",
+        "features/dossier/SocietaryMatrix.tsx",
+        "services/socio-search/types.ts",
+        "tests/features/dossier/societaryGraph.test.ts",
+        "tests/features/dossier/teiaTextParser.test.ts"
+      ]
+    },
+    {
+      "id": "page-loading-estados-visuais",
+      "title": "Loading e estados visuais",
+      "description": "Contrato de overlay, timeline, fallback estático, painel branco, estados válidos, testids críticos e sinais de recuperação pós-waterfall.",
+      "path": "pages/10-loading-e-estados-visuais.md",
+      "sourceFiles": [
+        "components/LoadingSmart.tsx",
+        "components/chat/MessageTimeline.tsx",
+        "components/ChatInterface.tsx",
+        "utils/loadingStatus.ts",
+        "utils/blankPanelTelemetry.ts",
+        "docs/ai-context/refactor/loading-panel-contract.md",
+        "tests-e2e/loading-smart-recovery.spec.ts"
+      ]
+    },
+    {
+      "id": "page-gerar-dossie-cnpj",
+      "title": "Gerar dossiê por CNPJ",
+      "description": "Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ.",
+      "path": "pages/11-gerar-dossi-por-cnpj.md",
+      "sourceFiles": [
+        "components/ChatInterface.tsx",
+        "services/brasilApiService.ts",
+        "api/cnpj.ts",
+        "features/chat/message-orchestrator.ts",
+        "features/dossier/waterfall-orchestrator.ts",
+        "tests-e2e/cnpj-investigation-flow.spec.ts"
+      ]
+    },
+    {
+      "id": "page-usar-war-room",
+      "title": "Usar o War Room",
+      "description": "Como abrir, consultar, cancelar, repetir, alternar modo técnico ou benchmark, carregar contexto documental e tratar resposta fora de escopo.",
+      "path": "pages/12-usar-o-war-room.md",
+      "sourceFiles": [
+        "components/WarRoom.tsx",
+        "services/warRoomService.ts",
+        "services/war-room/query.ts",
+        "services/war-room/intent.ts",
+        "services/war-room/retrieval.ts",
+        "components/war-room/WarRoomComposer.tsx",
+        "tests/services/warRoomService.test.ts"
+      ]
+    },
+    {
+      "id": "page-configurar-radar",
+      "title": "Configurar o Radar",
+      "description": "Configuração de categorias e UFs, varredura, deduplicação, persistência, erros recuperáveis e contrato do endpoint `/api/radar-scan`.",
+      "path": "pages/13-configurar-o-radar.md",
+      "sourceFiles": [
+        "features/radar/README.md",
+        "features/radar/useRadar.ts",
+        "features/radar/service.ts",
+        "api/radar-scan.ts",
+        "components/RadarPanel.tsx",
+        "components/RadarSettings.tsx",
+        "tests/hooks/useRadar.test.ts"
+      ]
+    },
+    {
+      "id": "page-ingerir-docs-rag",
+      "title": "Ingerir documentação para RAG",
+      "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`.",
+      "path": "pages/14-ingerir-documenta-o-para-rag.md",
+      "sourceFiles": [
+        "scripts/crawlAndIngestSeniorDocs.ts",
+        "scripts/ingestErpDocs.ts",
+        "scripts/ingestPdfDocs.ts",
+        "api/docs-rag.ts",
+        "services/ragService.ts",
+        "services/war-room/retrieval.ts",
+        "tests/api-docs-rag.test.ts"
+      ]
+    },
+    {
+      "id": "page-configurar-supabase",
+      "title": "Configurar Supabase",
+      "description": "Variáveis, degradação quando indisponível, tabelas críticas, migração IDB para Supabase, tracking de operador e persistência de dossiês.",
+      "path": "pages/15-configurar-supabase.md",
+      "sourceFiles": [
+        "lib/supabaseClient.ts",
+        "services/storage/index.ts",
+        "services/storage/dossiers.ts",
+        "services/storage/userContext.ts",
+        "services/operatorTracking.ts",
+        "lib/migration/idbToSupabase.ts",
+        "docs/superpowers/schema-supabase.sql",
+        "tests/contracts/supabaseMigrations.contract.test.ts"
+      ]
+    },
+    {
+      "id": "page-depurar-painel-branco",
+      "title": "Depurar painel branco",
+      "description": "Procedimento de investigação para overlay travado, fallback estático invisível, `PostCompletion`, `FreezeDiag`, `LayoutTrace` e validação visual final.",
+      "path": "pages/16-depurar-painel-branco.md",
+      "sourceFiles": [
+        "HANDOFF_AI.md",
+        "utils/diagnosticLog.ts",
+        "utils/blankPanelTelemetry.ts",
+        "utils/layoutTraceTelemetry.ts",
+        "features/chat/message-orchestrator.ts",
+        "docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md",
+        "tests-e2e/scheffer-cnpj-blank-panel.spec.ts"
+      ]
+    },
+    {
+      "id": "page-configuracao-reference",
+      "title": "Referência de configuração",
+      "description": "Variáveis `.env`, defaults, overrides Vite, flags, modelos, proxy local, Supabase, Sentry e fronteiras entre frontend e serverless.",
+      "path": "pages/17-refer-ncia-de-configura-o.md",
+      "sourceFiles": [
+        ".env.example",
+        "vite.config.ts",
+        "config/models.ts",
+        "services/apiConfig.ts",
+        "config/localDevApiProxy.ts",
+        "lib/supabaseClient.ts",
+        "utils/featureFlags.ts"
+      ]
+    },
+    {
+      "id": "page-api-serverless-reference",
+      "title": "Referência de APIs serverless",
+      "description": "Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`.",
+      "path": "pages/18-refer-ncia-de-apis-serverless.md",
+      "sourceFiles": [
+        "api/gemini.ts",
+        "api/cnpj.ts",
+        "api/comex.ts",
+        "api/open-web-search.ts",
+        "api/extract-content.ts",
+        "api/link-status.ts",
+        "api/radar-scan.ts",
+        "api/socio-search.ts"
+      ]
+    },
+    {
+      "id": "page-gemini-proxy-reference",
+      "title": "Proxy Gemini",
+      "description": "Ações aceitas por `/api/gemini`, fallback de chave, cache foundation, grounding, Open Web Search tool, timeout até body read e fachada `geminiService`.",
+      "path": "pages/19-proxy-gemini.md",
+      "sourceFiles": [
+        "api/gemini.ts",
+        "services/geminiProxy.ts",
+        "services/geminiService.ts",
+        "services/gemini/contracts.ts",
+        "services/gemini/runtime.ts",
+        "services/gemini/foundation-cache.ts",
+        "tests/services/geminiProxy.test.ts"
+      ]
+    },
+    {
+      "id": "page-rag-reference",
+      "title": "Referência de RAG",
+      "description": "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
+      "path": "pages/20-refer-ncia-de-rag.md",
+      "sourceFiles": [
+        "services/ragService.ts",
+        "api/rag.ts",
+        "api/docs-rag.ts",
+        "services/war-room/retrieval.ts",
+        "scripts/ingestPdfDocs.ts",
+        "tests/api-docs-rag.test.ts",
+        "tests/services/ragService.test.ts"
+      ]
+    },
+    {
+      "id": "page-socio-search-reference",
+      "title": "Busca societária",
+      "description": "Request schema, resposta estruturada, cache em memória e persistente, deadline, enriquecimento por CNPJ, trace diagnostics e razões de rejeição.",
+      "path": "pages/21-busca-societ-ria.md",
+      "sourceFiles": [
+        "api/socio-search.ts",
+        "services/socio-search/types.ts",
+        "services/socio-search/orchestration.ts",
+        "services/socio-search/scoring.ts",
+        "services/socio-search/parser.ts",
+        "services/socio-search/cache.ts",
+        "tests/api-socio-search.test.ts"
+      ]
+    },
+    {
+      "id": "page-prompts-reference",
+      "title": "Prompts de investigação",
+      "description": "Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`.",
+      "path": "pages/22-prompts-de-investiga-o.md",
+      "sourceFiles": [
+        "prompts/mega/contracts.ts",
+        "prompts/mega/builders.ts",
+        "prompts/mega/foundation.ts",
+        "prompts/mega/specialist-prompts.ts",
+        "prompts/mega/teia-identity.ts",
+        "prompts/mega/teia-deep.ts",
+        "prompts/systemPrompts.ts",
+        "scripts/validate-prompts.sh"
+      ]
+    },
+    {
+      "id": "page-ui-contracts-reference",
+      "title": "Contratos de UI",
+      "description": "Estados válidos do painel, `data-testid` oficiais, shell de chat, composer, timeline, erro controlado e matriz de proteção anti-regressão.",
+      "path": "pages/23-contratos-de-ui.md",
+      "sourceFiles": [
+        "docs/contracts/scout-360-contracts.md",
+        "components/chat/ChatShell.tsx",
+        "components/chat/ChatPanels.tsx",
+        "components/chat/MessageTimeline.tsx",
+        "components/chat/Composer.tsx",
+        "components/ErrorMessageCard.tsx",
+        "tests-e2e/smoke.data-testids.spec.ts",
+        "tests/contracts/renderState.contract.test.tsx"
+      ]
+    },
+    {
+      "id": "page-testes-gates",
+      "title": "Testes e gates",
+      "description": "Comandos npm, Vitest, Playwright, contratos, E2E críticos, CI GitHub Actions, setup de Chromium e critérios por tipo de mudança.",
+      "path": "pages/24-testes-e-gates.md",
+      "sourceFiles": [
+        "package.json",
+        "vitest.config.ts",
+        "playwright.config.ts",
+        "docs/testing-strategy.md",
+        "docs/contracts/PR-CHECKLIST.md",
+        ".github/workflows/ci.yml",
+        "scripts/ensure-playwright.sh",
+        "tests/setup.ts"
+      ]
+    },
+    {
+      "id": "page-preview-deploy-vercel",
+      "title": "Preview e deploy Vercel",
+      "description": "Build metadata, `version.json`, proxy local para APIs, smoke de preview, bypass de proteção, deploy preview e limites de validação local.",
+      "path": "pages/25-preview-e-deploy-vercel.md",
+      "sourceFiles": [
+        "vite.config.ts",
+        "config/localDevApiProxy.ts",
+        "scripts/validate-preview.sh",
+        "scripts/smoke-preview.mjs",
+        ".github/workflows/preview-smoke.yml",
+        "playwright.config.ts",
+        "public/_headers",
+        "docs/CHECKLIST-PRODUCAO.md"
+      ]
+    },
+    {
+      "id": "page-observabilidade",
+      "title": "Observabilidade e diagnósticos",
+      "description": "Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout.",
+      "path": "pages/26-observabilidade-e-diagn-sticos.md",
+      "sourceFiles": [
+        "index.tsx",
+        "utils/diagnosticLog.ts",
+        "utils/serverDiagnostics.ts",
+        "api/gemini.ts",
+        "services/operatorTracking.ts",
+        "utils/layoutTraceTelemetry.ts",
+        "tests/utils/diagnosticLog.test.ts",
+        "tests/services/operatorTracking.test.ts"
+      ]
+    },
+    {
+      "id": "page-seguranca-api",
+      "title": "Segurança de API",
+      "description": "Chaves no servidor, headers comuns, CORS de CNPJ/Comex, SSRF guard, validação de URL pública, quotas Gemini e limites de payload.",
+      "path": "pages/27-seguran-a-de-api.md",
+      "sourceFiles": [
+        "docs/SEGURANCA-API.md",
+        "api/_security-headers.ts",
+        "api/_gemini-key-utils.ts",
+        "utils/documentExtractor.ts",
+        "api/open-web-search.ts",
+        "api/extract-content.ts",
+        "tests/api/security-headers.test.ts",
+        "tests/utils/documentExtractor.test.ts"
+      ]
+    },
+    {
+      "id": "page-governanca-documentacao",
+      "title": "Governança de documentação",
+      "description": "Contrato do grafo Obsidian, manifesto obrigatório, checker local, fontes canônicas, handoff de fechamento e regras de atualização por tarefa relevante.",
+      "path": "pages/28-governan-a-de-documenta-o.md",
+      "sourceFiles": [
+        "docs/obsidian/00-MASTER.md",
+        "docs/obsidian/_meta/manifest.json",
+        "scripts/obsidian/check.mjs",
+        "docs/PROJECT-CARD.md",
+        "HANDOFF_AI.md",
+        ".agents/memory/activeContext.md",
+        "docs/SKILLS-GOVERNANCE.md",
+        "AGENTS.md"
+      ]
+    }
+  ]
+}
