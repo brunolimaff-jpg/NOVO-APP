@@ -32,13 +32,13 @@ describe('applyCors', () => {
   });
 
   it('define headers CORS para preview Vercel', () => {
-    const req = mockReq('https://scoutagro-git-feat-test-abc123.vercel.app');
+    const req = mockReq('https://scoutagro-git-feat-test-brunolimaff-3629s-projects.vercel.app');
     const { res, headers } = mockRes();
 
     applyCors(req, res);
 
     expect(headers['Access-Control-Allow-Origin']).toBe(
-      'https://scoutagro-git-feat-test-abc123.vercel.app',
+      'https://scoutagro-git-feat-test-brunolimaff-3629s-projects.vercel.app',
     );
     expect(headers['Access-Control-Allow-Credentials']).toBe('true');
   });

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ALLOWED_ORIGINS } from './_allowed-origins.js';
+import { ALLOWED_ORIGINS, isVercelPreview } from './_allowed-origins.js';
 
 /**
  * Aplica headers CORS na resposta.
@@ -7,9 +7,9 @@ import { ALLOWED_ORIGINS } from './_allowed-origins.js';
  */
 export function applyCors(req: VercelRequest, res: VercelResponse): void {
   const origin = req.headers.origin ?? '';
-  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
+  const isVercelPreviewMatch = isVercelPreview(origin);
 
-  if (ALLOWED_ORIGINS.has(origin) || isVercelPreview) {
+  if (ALLOWED_ORIGINS.has(origin) || isVercelPreviewMatch) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }

@@ -46,7 +46,7 @@ describe('middleware', () => {
     const req = createRequest({
       pathname: '/api/gemini',
       method: 'OPTIONS',
-      origin: 'https://scoutagro-git-feat-test.vercel.app',
+      origin: 'https://scoutagro-git-feat-test-brunolimaff-3629s-projects.vercel.app',
     });
     const result = await middleware(req);
     expect(result).toBeInstanceOf(Response);

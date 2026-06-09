@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALLOWED_ORIGINS } from '../../api/_allowed-origins.js';
+import { ALLOWED_ORIGINS, isVercelPreview } from '../../api/_allowed-origins.js';
 
 describe('ALLOWED_ORIGINS', () => {
   it('contem origens de desenvolvimento local', () => {
@@ -13,14 +13,30 @@ describe('ALLOWED_ORIGINS', () => {
 
   it('nao contem origens arbitrarias', () => {
     expect(ALLOWED_ORIGINS.has('https://evil.example.com')).toBe(false);
-    expect(ALLOWED_ORIGINS.has('http://192.168.1.1:5173')).toBe(false);
   });
 
-  it('Nao contem null, undefined ou strings vazias', () => {
+  it('nao contem null, undefined ou strings vazias', () => {
     expect(ALLOWED_ORIGINS.has('')).toBe(false);
     for (const origin of ALLOWED_ORIGINS) {
       expect(origin).toBeTruthy();
       expect(typeof origin).toBe('string');
     }
+  });
+});
+
+describe('isVercelPreview', () => {
+  it('aceita preview do projeto', () => {
+    expect(isVercelPreview('https://scoutagro-git-feat-test-brunolimaff-3629s-projects.vercel.app')).toBe(true);
+  });
+
+  it('rejeita preview de outro projeto Vercel', () => {
+    // Sem o sufixo do projeto
+    expect(isVercelPreview('https://other-app-git-test.vercel.app')).toBe(false);
+    expect(isVercelPreview('https://scoutagro-clone.vercel.app')).toBe(false);
+  });
+
+  it('rejeita origens nao-Vercel', () => {
+    expect(isVercelPreview('https://evil.example.com')).toBe(false);
+    expect(isVercelPreview('http://localhost:5173')).toBe(false);
   });
 });

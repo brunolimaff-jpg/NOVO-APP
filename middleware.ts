@@ -1,4 +1,4 @@
-import { ALLOWED_ORIGINS } from './api/_allowed-origins.js';
+import { ALLOWED_ORIGINS, isVercelPreview } from './api/_allowed-origins.js';
 
 export default function middleware(request: Request) {
   const url = new URL(request.url);
@@ -12,8 +12,7 @@ export default function middleware(request: Request) {
   }
 
   const origin = request.headers.get('origin') || '';
-  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
-  const isAllowed = ALLOWED_ORIGINS.has(origin) || isVercelPreview;
+  const isAllowed = ALLOWED_ORIGINS.has(origin) || isVercelPreview(origin);
 
   const headers = new Headers();
   if (isAllowed) {
