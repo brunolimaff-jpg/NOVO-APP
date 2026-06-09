@@ -89,7 +89,10 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
   const isBot = msg.sender === Sender.Bot;
   const isLast = index === messages.length - 1;
-  const firstBotIndex = messages.findIndex(m => m.sender === Sender.Bot && !m.isError && !m.isThinking);
+  const firstBotIndex = useMemo(
+    () => messages.findIndex(m => m.sender === Sender.Bot && !m.isError && !m.isThinking),
+    [messages],
+  );
   const isFirstBotMessage = isBot && index === firstBotIndex;
   const displayScore = isBot ? msg.scorePorta : undefined;
   const groundingSources = useMemo(() => coerceGroundingSources(msg.groundingSources), [msg.groundingSources]);
