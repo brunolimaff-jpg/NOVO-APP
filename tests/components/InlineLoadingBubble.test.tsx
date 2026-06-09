@@ -81,8 +81,8 @@ describe('formatCnpj', () => {
   });
 
   it('retorna vazio para undefined/null-like', () => {
-    expect(formatCnpj(undefined as unknown as string)).toBe('');
-    expect(formatCnpj(null as unknown as string)).toBe('');
+    expect(formatCnpj(undefined)).toBe('');
+    expect(formatCnpj(null)).toBe('');
   });
 
   it('formata progressivamente para menos de 14 dígitos', () => {
@@ -178,7 +178,7 @@ describe('InlineLoadingBubble — CNPJ', () => {
   });
 
   it('não exibe CNPJ quando prop cnpj é null', () => {
-    render(<InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj={null as unknown as undefined} />);
+    render(<InlineLoadingBubble isDarkMode={false} empresaAlvo="Scheffer" cnpj={null} />);
     expect(screen.queryByText(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)).not.toBeInTheDocument();
   });
 

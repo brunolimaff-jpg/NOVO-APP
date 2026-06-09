@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   resolveDeepDiveRequestKind,
   resolveLoadingVariant,
@@ -6,6 +6,10 @@ import {
   shouldShowHeroLoadingOverlay,
   shouldSuspendHeroMessageTimeline,
 } from '../../utils/loadingVariant';
+
+vi.mock('../../utils/featureFlags', () => ({
+  getFlag: vi.fn((key: string) => key === 'inlineLoading'),
+}));
 
 describe('loadingVariant flow rules', () => {
   it('keeps the first investigation in hero mode', () => {
