@@ -58,6 +58,12 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
 
   const [stopClicked, setStopClicked] = useState(false);
 
+  React.useEffect(() => {
+    if (!stopClicked) return;
+    const timer = setTimeout(() => setStopClicked(false), 10_000);
+    return () => clearTimeout(timer);
+  }, [stopClicked]);
+
   const companyFocus = (empresaAlvo || lastUserQuery || '').trim();
 
   const realCompleted = (processing?.completedStages || []).map(s => stripInternalMarkers(s).trim()).filter(Boolean);
@@ -270,16 +276,18 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
           }}
           disabled={stopClicked}
           type="button"
-          className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-[11px] font-semibold
-            bg-white border border-red-200 text-red-600
-            hover:bg-red-50 hover:border-red-300
-            active:bg-red-100 active:border-red-400 active:scale-[0.97]
-            focus-visible:ring-[3px] focus-visible:ring-red-500/15
+          className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-bold
+            bg-red-500/10 border border-red-500/30 text-red-500
+            hover:bg-red-500 hover:text-white hover:border-red-500
+            active:bg-red-600 active:scale-[0.97]
+            focus-visible:ring-2 focus-visible:ring-red-500/30 focus-visible:outline-none
             disabled:opacity-40 disabled:cursor-not-allowed
+            dark:bg-red-500/15 dark:text-red-400 dark:border-red-500/30
+            dark:hover:bg-red-500 dark:hover:text-white
             transition-all duration-150"
         >
-          <svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10">
-            <rect x="4" y="4" width="16" height="16" rx="2" />
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
           </svg>
           Interromper
         </button>
