@@ -66,7 +66,13 @@ const shouldIncludeBudgetPrompt = (
 function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
   if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
   if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
-  if (snapshot.loadingOverlayVisible || snapshot.controlledErrorVisible || snapshot.emptyStateVisible) return false;
+  if (
+    snapshot.loadingOverlayVisible ||
+    snapshot.inlineBubbleVisible ||
+    snapshot.controlledErrorVisible ||
+    snapshot.emptyStateVisible
+  )
+    return false;
 
   if (isPostWaterfallStuckHandoff(snapshot)) return true;
   if (snapshot.blankDetected) return true;

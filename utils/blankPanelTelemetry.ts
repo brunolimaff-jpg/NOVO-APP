@@ -57,6 +57,7 @@ export interface BlankPanelSnapshot {
   controlledErrorVisible: boolean;
   emptyStateVisible: boolean;
   loadingOverlayVisible: boolean;
+  inlineBubbleVisible: boolean;
   centerElementTag: string | null;
   centerElementTestId: string | null;
   centerElementRole: string | null;
@@ -158,6 +159,7 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
   const botCharsMax = Math.max(0, ...botMetrics.map(metric => metric.chars));
   const centerElement = getPanelCenterElement(panel);
   const loadingOverlayVisible = isVisible(document.querySelector('[data-testid="loading-smart-overlay"]'));
+  const inlineBubbleVisible = isVisible(document.querySelector('[data-testid="inline-loading-bubble"]'));
   const controlledErrorVisible = isVisible(root.querySelector('[data-testid="controlled-error"]'));
   const emptyStateVisible = isVisible(root.querySelector('[data-testid="empty-state"]'));
   const dossierNodeVisible = isVisible(root.querySelector('[data-testid="dossier-content"]'));
@@ -167,6 +169,7 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
   // Placeholder/suspend are intermediate handoff states — not valid when we expect visible dossier content.
   const validVisualState =
     loadingOverlayVisible ||
+    inlineBubbleVisible ||
     controlledErrorVisible ||
     emptyStateVisible ||
     heroFallbackVisible ||
@@ -220,6 +223,7 @@ export function collectBlankPanelSnapshot(input: BlankPanelInput): BlankPanelSna
     controlledErrorVisible,
     emptyStateVisible,
     loadingOverlayVisible,
+    inlineBubbleVisible,
     centerElementTag: centerElement?.tagName ?? null,
     centerElementTestId: centerElement?.getAttribute('data-testid') ?? null,
     centerElementRole: centerElement?.getAttribute('role') ?? null,
