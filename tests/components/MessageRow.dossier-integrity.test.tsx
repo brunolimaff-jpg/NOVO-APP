@@ -36,6 +36,7 @@ function makeData(messages: Message[]) {
     hideSuggestionsForMessageId: null,
     setInput: vi.fn(),
     onRegenerateSuggestions: vi.fn(),
+    firstBotIndex: 0,
   };
 }
 
