@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-gemini-proxy-reference"
-title: "Proxy Gemini"
-description: "Ações aceitas por `/api/gemini`, fallback de chave, cache foundation, grounding, Open Web Search tool, timeout até body read e fachada `geminiService`."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-gemini-proxy-reference'
+title: 'Proxy Gemini'
+description: 'Ações aceitas por `/api/gemini`, fallback de chave, cache foundation, grounding, Open Web Search tool, timeout até body read e fachada `geminiService`.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "api/gemini.ts"
-  - "services/geminiProxy.ts"
-  - "services/geminiService.ts"
-  - "services/gemini/contracts.ts"
-  - "services/gemini/runtime.ts"
-  - "services/gemini/foundation-cache.ts"
-  - "tests/services/geminiProxy.test.ts"
+  - 'api/gemini.ts'
+  - 'services/geminiProxy.ts'
+  - 'services/geminiService.ts'
+  - 'services/gemini/contracts.ts'
+  - 'services/gemini/runtime.ts'
+  - 'services/gemini/foundation-cache.ts'
+  - 'tests/services/geminiProxy.test.ts'
 ---
 
 `/api/gemini` é a rota serverless Node.js que concentra chamadas ao Gemini, cache foundation do waterfall e ingestão de diagnósticos. O frontend não usa chave Gemini diretamente: `services/geminiProxy.ts` resolve o endpoint, envia `POST` JSON, aplica timeout até leitura do body e entrega funções consumidas pela fachada pública `services/geminiService.ts`.
@@ -38,16 +38,16 @@ Presente em erro HTTP controlado, como método inválido, payload inválido, cac
 
 :::
 
-| Propriedade | Valor atual |
-| --- | --- |
-| Runtime | `nodejs` |
-| Duração máxima Vercel | `300` segundos |
-| Método aceito | `POST` |
-| Chave primária | `GEMINI_API_KEY` |
-| Chave fallback | `GEMINI_API_KEY_FALLBACK` |
-| Modelo padrão | `gemini-3-flash-preview` |
-| Timeout do cliente proxy | `VITE_GEMINI_PROXY_TIMEOUT_MS` ou `210000` ms |
-| Endpoint local customizável | `VITE_GEMINI_PROXY_URL` |
+| Propriedade                 | Valor atual                                   |
+| --------------------------- | --------------------------------------------- |
+| Runtime                     | `nodejs`                                      |
+| Duração máxima Vercel       | `300` segundos                                |
+| Método aceito               | `POST`                                        |
+| Chave primária              | `GEMINI_API_KEY`                              |
+| Chave fallback              | `GEMINI_API_KEY_FALLBACK`                     |
+| Modelo padrão               | `gemini-3-flash-preview`                      |
+| Timeout do cliente proxy    | `VITE_GEMINI_PROXY_TIMEOUT_MS` ou `210000` ms |
+| Endpoint local customizável | `VITE_GEMINI_PROXY_URL`                       |
 
 <Warning>
 `GEMINI_API_KEY` deve ficar no servidor. O frontend chama `/api/gemini` via proxy; não há contrato seguro para expor chave Gemini com prefixo `VITE_`.
@@ -55,14 +55,14 @@ Presente em erro HTTP controlado, como método inválido, payload inválido, cac
 
 ## Ações aceitas
 
-| Ação | Uso | Entrada principal | Resposta |
-| --- | --- | --- | --- |
-| `health` | Canary simples do modelo | Nenhum campo além de `action` | `{ ok, text }` |
-| `generateContent` | Geração direta, módulos do dossiê e chamadas com `cachedContent` | `contents`, `model?`, `config?` | `{ text, candidates, usageMetadata }` |
-| `chatSendMessage` | Chat com histórico, grounding e tool calls | `message`, `systemInstruction?`, `history?` | `{ text, groundingChunks, groundingUsed }` |
-| `createCachedContent` | Criação do cache foundation do waterfall | `systemInstruction`, `ttl?`, `displayName?`, `tools?` | `{ name, expireTime, usageMetadata }` |
-| `deleteCachedContent` | Remoção explícita do cache foundation | `name` | `{ ok: true }` |
-| `recordDiagnostics` | Flush de `scoutDiag` para Supabase | `runId`, `events[]` | `{ inserted }` ou `{ inserted: 0, degraded: true }` |
+| Ação                  | Uso                                                              | Entrada principal                                     | Resposta                                            |
+| --------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------- |
+| `health`              | Canary simples do modelo                                         | Nenhum campo além de `action`                         | `{ ok, text }`                                      |
+| `generateContent`     | Geração direta, módulos do dossiê e chamadas com `cachedContent` | `contents`, `model?`, `config?`                       | `{ text, candidates, usageMetadata }`               |
+| `chatSendMessage`     | Chat com histórico, grounding e tool calls                       | `message`, `systemInstruction?`, `history?`           | `{ text, groundingChunks, groundingUsed }`          |
+| `createCachedContent` | Criação do cache foundation do waterfall                         | `systemInstruction`, `ttl?`, `displayName?`, `tools?` | `{ name, expireTime, usageMetadata }`               |
+| `deleteCachedContent` | Remoção explícita do cache foundation                            | `name`                                                | `{ ok: true }`                                      |
+| `recordDiagnostics`   | Flush de `scoutDiag` para Supabase                               | `runId`, `events[]`                                   | `{ inserted }` ou `{ inserted: 0, degraded: true }` |
 
 ## `generateContent`
 
@@ -106,15 +106,15 @@ Quando `config.cachedContent` é string, o serverless prioriza o cache e não re
 
 `chatSendMessage` cria uma sessão `ai.chats.create` com histórico normalizado no formato `{ role, parts: [{ text }] }`. `history` aceita papéis `user` e `model`; mensagens vazias são removidas.
 
-| Campo | Regra |
-| --- | --- |
-| `message` | Obrigatório, `1` a `200000` caracteres |
-| `systemInstruction` | Opcional, até `100000` caracteres |
-| `history` | Opcional, itens `{ role: "user" ou "model", text }` |
-| `useGrounding` | Opcional, padrão `true` |
-| `thinkingLevel` | `low`, `medium` ou `high` |
-| `thinkingMode` | Legado: `true` vira `high`, `false` vira `low` |
-| `useOpenWebSearch` | Opcional, padrão `false` |
+| Campo               | Regra                                               |
+| ------------------- | --------------------------------------------------- |
+| `message`           | Obrigatório, `1` a `200000` caracteres              |
+| `systemInstruction` | Opcional, até `100000` caracteres                   |
+| `history`           | Opcional, itens `{ role: "user" ou "model", text }` |
+| `useGrounding`      | Opcional, padrão `true`                             |
+| `thinkingLevel`     | `low`, `medium` ou `high`                           |
+| `thinkingMode`      | Legado: `true` vira `high`, `false` vira `low`      |
+| `useOpenWebSearch`  | Opcional, padrão `false`                            |
 
 A prioridade de raciocínio é: `thinkingLevel` explícito, depois `thinkingMode`, depois `high`. A temperatura efetiva é definida no servidor: `0.1` para `high` e `0.15` para os demais níveis. Campos do tipo cliente como `temperature` e `stopSequences` não controlam a chamada serverless atual de `chatSendMessage`.
 
@@ -147,10 +147,10 @@ Em produção, a tool usa `https://${VERCEL_URL}/api/open-web-search`. Sem `VERC
 
 O cache foundation é opcional e precisa de duas flags ligadas:
 
-| Camada | Variável | Valor |
-| --- | --- | --- |
-| Serverless | `GEMINI_FOUNDATION_CACHE_ENABLED` | `1` |
-| Frontend/build Vite | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` | `1` |
+| Camada              | Variável                               | Valor |
+| ------------------- | -------------------------------------- | ----- |
+| Serverless          | `GEMINI_FOUNDATION_CACHE_ENABLED`      | `1`   |
+| Frontend/build Vite | `VITE_GEMINI_FOUNDATION_CACHE_ENABLED` | `1`   |
 
 Sem a flag serverless, `createCachedContent` e `deleteCachedContent` retornam `403` com erro de cache desabilitado. Sem a flag frontend, o waterfall não tenta criar cache.
 
@@ -177,24 +177,24 @@ Se a criação do cache falhar sem abort do usuário, o waterfall registra warni
 
 `services/geminiService.ts` preserva a superfície pública usada por `App.tsx`, `ChatInterface`, `LoadingSmart` e testes. A implementação interna fica em `services/gemini/*`.
 
-| Export | Origem interna | Uso |
-| --- | --- | --- |
-| `sendMessageToGemini` | `services/gemini/investigation-orchestration.ts` | Chat principal, follow-up e investigação |
-| `generateDossierModule` | `services/gemini/investigation-orchestration.ts` | Módulos do waterfall |
-| `generateContinuityQuestion` | `services/gemini/auxiliary.ts` | Sugestões finais |
-| `isMegaPromptRequest` | `services/gemini/runtime.ts` | Detecção de dossiê completo |
-| `GeminiRequestOptions` | `services/gemini/contracts.ts` | Opções de grounding, thinking, callbacks e abort |
+| Export                       | Origem interna                                   | Uso                                              |
+| ---------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| `sendMessageToGemini`        | `services/gemini/investigation-orchestration.ts` | Chat principal, follow-up e investigação         |
+| `generateDossierModule`      | `services/gemini/investigation-orchestration.ts` | Módulos do waterfall                             |
+| `generateContinuityQuestion` | `services/gemini/auxiliary.ts`                   | Sugestões finais                                 |
+| `isMegaPromptRequest`        | `services/gemini/runtime.ts`                     | Detecção de dossiê completo                      |
+| `GeminiRequestOptions`       | `services/gemini/contracts.ts`                   | Opções de grounding, thinking, callbacks e abort |
 
 O cliente de baixo nível fica em `services/geminiProxy.ts`:
 
-| Função | Ação ou rota |
-| --- | --- |
-| `proxyGenerateContent` | `/api/gemini`, `action: "generateContent"` |
-| `proxyChatSendMessage` | `/api/gemini`, `action: "chatSendMessage"` |
-| `proxyCreateCachedContent` | `/api/gemini`, `action: "createCachedContent"` |
-| `proxyDeleteCachedContent` | `/api/gemini`, `action: "deleteCachedContent"` |
-| `proxyGeminiHealth` | `/api/gemini`, `action: "health"` |
-| `proxyGerarDossie` | `/api/gerar-dossie` |
+| Função                     | Ação ou rota                                         |
+| -------------------------- | ---------------------------------------------------- |
+| `proxyGenerateContent`     | `/api/gemini`, `action: "generateContent"`           |
+| `proxyChatSendMessage`     | `/api/gemini`, `action: "chatSendMessage"`           |
+| `proxyCreateCachedContent` | `/api/gemini`, `action: "createCachedContent"`       |
+| `proxyDeleteCachedContent` | `/api/gemini`, `action: "deleteCachedContent"`       |
+| `proxyGeminiHealth`        | `/api/gemini`, `action: "health"`                    |
+| `proxyGerarDossie`         | `/api/gerar-dossie`                                  |
 | `executeOpenWebSearchTool` | `/api/open-web-search` ou `VITE_OPEN_WEB_SEARCH_URL` |
 
 ## Timeout até body read
@@ -248,16 +248,16 @@ A persistência usa Supabase server-side com `SUPABASE_URL` ou `VITE_SUPABASE_UR
 
 ## Erros e fallback de chave
 
-| Condição | Status esperado | Observação |
-| --- | --- | --- |
-| Método diferente de `POST` | `405` | `{ error: "Method not allowed" }` |
-| Payload fora do schema | `400` | `{ error: "Invalid request", details }` |
-| `generateContent` sem `contents` útil | `400` | `{ error: "Missing contents" }` |
-| Cache foundation desligado | `403` | Em `createCachedContent` e `deleteCachedContent` |
-| Sem `GEMINI_API_KEY` | `500` | Detalhe indica variável ausente |
-| Quota ou rate limit Gemini | `429` quando detectado | Pode tentar `GEMINI_API_KEY_FALLBACK` antes de falhar |
-| Billing ou permissão negada | `403` ou fallback de chave | Fallback roda se houver segunda chave |
-| Resposta não JSON no cliente proxy | Exceção frontend | `Gemini proxy returned invalid JSON` |
+| Condição                              | Status esperado            | Observação                                            |
+| ------------------------------------- | -------------------------- | ----------------------------------------------------- |
+| Método diferente de `POST`            | `405`                      | `{ error: "Method not allowed" }`                     |
+| Payload fora do schema                | `400`                      | `{ error: "Invalid request", details }`               |
+| `generateContent` sem `contents` útil | `400`                      | `{ error: "Missing contents" }`                       |
+| Cache foundation desligado            | `403`                      | Em `createCachedContent` e `deleteCachedContent`      |
+| Sem `GEMINI_API_KEY`                  | `500`                      | Detalhe indica variável ausente                       |
+| Quota ou rate limit Gemini            | `429` quando detectado     | Pode tentar `GEMINI_API_KEY_FALLBACK` antes de falhar |
+| Billing ou permissão negada           | `403` ou fallback de chave | Fallback roda se houver segunda chave                 |
+| Resposta não JSON no cliente proxy    | Exceção frontend           | `Gemini proxy returned invalid JSON`                  |
 
 O fallback de chave só troca para `GEMINI_API_KEY_FALLBACK` quando o erro indica quota, rate limit, billing ou permissão negada. Outros erros da primeira chave são propagados.
 

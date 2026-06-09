@@ -245,6 +245,7 @@ describe('ChatInterface shell regression', () => {
       blankDetected: false,
       visibleBotWithCharsCount: 1,
       loadingOverlayVisible: false,
+      inlineBubbleVisible: false,
       controlledErrorVisible: false,
       emptyStateVisible: false,
     });
@@ -747,6 +748,7 @@ describe('ChatInterface shell regression', () => {
       controlledErrorVisible: false,
       emptyStateVisible: false,
       loadingOverlayVisible: false,
+      inlineBubbleVisible: false,
       centerElementTag: 'DIV',
       centerElementTestId: null,
       centerElementRole: null,
@@ -928,6 +930,7 @@ describe('ChatInterface shell regression', () => {
       controlledErrorVisible: false,
       emptyStateVisible: false,
       loadingOverlayVisible: false,
+      inlineBubbleVisible: false,
       centerElementTag: 'DIV',
       centerElementTestId: 'messages-viewport-placeholder',
       centerElementRole: null,

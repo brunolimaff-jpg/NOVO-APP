@@ -1,33 +1,33 @@
 ---
 grok_wiki: true
-page_id: "page-sessoes-mensagens"
-title: "Sessões e mensagens"
-description: "Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-sessoes-mensagens'
+title: 'Sessões e mensagens'
+description: 'Modelo `ChatSession`, `Message`, ciclo de sessão, persistência, seleção, deleção, fallback local e contratos de estado renderizado.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "types.ts"
-  - "stores/chatStore.tsx"
-  - "hooks/useSessionStorage.ts"
-  - "features/chat/session-controller.ts"
-  - "services/storage/dossiers.ts"
-  - "tests/contracts/renderState.contract.test.tsx"
+  - 'types.ts'
+  - 'stores/chatStore.tsx'
+  - 'hooks/useSessionStorage.ts'
+  - 'features/chat/session-controller.ts'
+  - 'services/storage/dossiers.ts'
+  - 'tests/contracts/renderState.contract.test.tsx'
 ---
 
 `ChatSession` é o agregado de conversa persistido pelo app: a store em memória fica em `stores/chatStore.tsx`, a carga e gravação automática ficam em `hooks/useSessionStorage.ts`, o ciclo de criar/selecionar/deletar fica em `features/chat/session-controller.ts`, e o conteúdo persistente é salvo como dossiê em `services/storage/dossiers.ts`.
 
 ## Superfícies principais
 
-| Superfície | Papel |
-| --- | --- |
-| `types.ts` | Define `Sender`, `Message`, `ChatSession` e contratos de props do chat. |
-| `stores/chatStore.tsx` | Expõe `sessions`, `currentSessionId`, `currentSession`, `allMessages`, refs de geração e estado de loading. |
-| `hooks/useSessionStorage.ts` | Carrega sessões, sanitiza mensagens, migra IDB para Supabase, persiste com debounce e fallback local. |
-| `features/chat/session-controller.ts` | Implementa `handleNewSession`, `handleSelectSession`, `handleDeleteSession` e `handleSaveRemote`. |
+| Superfície                              | Papel                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`                              | Define `Sender`, `Message`, `ChatSession` e contratos de props do chat.                                               |
+| `stores/chatStore.tsx`                  | Expõe `sessions`, `currentSessionId`, `currentSession`, `allMessages`, refs de geração e estado de loading.           |
+| `hooks/useSessionStorage.ts`            | Carrega sessões, sanitiza mensagens, migra IDB para Supabase, persiste com debounce e fallback local.                 |
+| `features/chat/session-controller.ts`   | Implementa `handleNewSession`, `handleSelectSession`, `handleDeleteSession` e `handleSaveRemote`.                     |
 | `features/chat/message-orchestrator.ts` | Cria sessão no primeiro envio, adiciona mensagens, controla placeholder do bot, retry, erro e finalização de loading. |
-| `components/ChatInterface.tsx` | Converte sessão e mensagens em estado visual do painel. |
-| `components/chat/MessageTimeline.tsx` | Renderiza home, gate de operador, timeline Virtuoso, viewport suspenso e fallback estático. |
+| `components/ChatInterface.tsx`          | Converte sessão e mensagens em estado visual do painel.                                                               |
+| `components/chat/MessageTimeline.tsx`   | Renderiza home, gate de operador, timeline Virtuoso, viewport suspenso e fallback estático.                           |
 
 <Note>
 O modelo de sessão é portável: `ChatSession` e `Message` não carregam chave, SDK ou configuração de provedor. A geração atual passa por fachadas como `sendMessageToGemini`, mas o contrato persistido guarda texto, fontes, status, score, feedback e metadados de dossiê.
@@ -37,37 +37,37 @@ O modelo de sessão é portável: `ChatSession` e `Message` não carregam chave,
 
 ### `ChatSession`
 
-| Campo | Tipo | Uso |
-| --- | --- | --- |
-| `id` | `string` | Identificador da sessão e chave do dossiê persistido. |
-| `title` | `string` | Nome exibido no histórico; pode ser reescrito a partir da empresa detectada. |
-| `empresaAlvo` | `string \| null` | Empresa principal da investigação. |
-| `cnpj` | `string \| null` | CNPJ associado ao alvo quando disponível. |
-| `modoPrincipal` | `string \| null` | Modo atual da investigação, inicializado com `DEFAULT_MODE`. |
-| `scoreOportunidade` | `number \| null` | Score comercial consolidado. |
-| `resumoDossie` | `string \| null` | Resumo persistido do dossiê. |
-| `createdAt` | `string` | Data ISO de criação. |
-| `updatedAt` | `string` | Data ISO atualizada em mutações de sessão. |
-| `messages` | `Message[]` | Histórico de mensagens renderizável. |
-| `companyContext` | `string` opcional | Contexto adicional da empresa. |
+| Campo               | Tipo              | Uso                                                                          |
+| ------------------- | ----------------- | ---------------------------------------------------------------------------- |
+| `id`                | `string`          | Identificador da sessão e chave do dossiê persistido.                        |
+| `title`             | `string`          | Nome exibido no histórico; pode ser reescrito a partir da empresa detectada. |
+| `empresaAlvo`       | `string \| null`  | Empresa principal da investigação.                                           |
+| `cnpj`              | `string \| null`  | CNPJ associado ao alvo quando disponível.                                    |
+| `modoPrincipal`     | `string \| null`  | Modo atual da investigação, inicializado com `DEFAULT_MODE`.                 |
+| `scoreOportunidade` | `number \| null`  | Score comercial consolidado.                                                 |
+| `resumoDossie`      | `string \| null`  | Resumo persistido do dossiê.                                                 |
+| `createdAt`         | `string`          | Data ISO de criação.                                                         |
+| `updatedAt`         | `string`          | Data ISO atualizada em mutações de sessão.                                   |
+| `messages`          | `Message[]`       | Histórico de mensagens renderizável.                                         |
+| `companyContext`    | `string` opcional | Contexto adicional da empresa.                                               |
 
 ### `Message`
 
-| Campo | Tipo | Uso |
-| --- | --- | --- |
-| `id` | `string` | Identificador da mensagem, usado como chave de renderização. |
-| `sender` | `Sender.User` ou `Sender.Bot` | Define lado visual e comportamento. |
-| `text` | `string` | Conteúdo renderizado e persistido. |
-| `timestamp` | `Date` | Horário usado na UI; strings carregadas da persistência são convertidas para `Date`. |
-| `isThinking` | `boolean` opcional | Placeholder transitório de geração; é normalizado para `false` ao persistir/carregar. |
-| `loadingVariant` | `'hero' \| 'inline'` opcional | Estado transitório de UI, removido da persistência. |
-| `isError` / `errorDetails` | opcionais | Renderizam `ErrorMessageCard`. |
-| `groundingSources` | array opcional | Fontes consultadas/citadas. |
-| `suggestions` | `string[]` opcional | Sugestões de continuidade. |
-| `scorePorta` | `ScorePortaData` opcional | Score anexado à resposta do bot. |
-| `clienteSeniorData` | opcional | Dados de lookup Senior. |
-| `groundingUsed` / `webVerificationStatus` | opcionais | Status de verificação web. |
-| `feedback` / `sectionFeedback` | opcionais | Feedback por mensagem ou seção. |
+| Campo                                     | Tipo                          | Uso                                                                                   |
+| ----------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| `id`                                      | `string`                      | Identificador da mensagem, usado como chave de renderização.                          |
+| `sender`                                  | `Sender.User` ou `Sender.Bot` | Define lado visual e comportamento.                                                   |
+| `text`                                    | `string`                      | Conteúdo renderizado e persistido.                                                    |
+| `timestamp`                               | `Date`                        | Horário usado na UI; strings carregadas da persistência são convertidas para `Date`.  |
+| `isThinking`                              | `boolean` opcional            | Placeholder transitório de geração; é normalizado para `false` ao persistir/carregar. |
+| `loadingVariant`                          | `'hero' \| 'inline'` opcional | Estado transitório de UI, removido da persistência.                                   |
+| `isError` / `errorDetails`                | opcionais                     | Renderizam `ErrorMessageCard`.                                                        |
+| `groundingSources`                        | array opcional                | Fontes consultadas/citadas.                                                           |
+| `suggestions`                             | `string[]` opcional           | Sugestões de continuidade.                                                            |
+| `scorePorta`                              | `ScorePortaData` opcional     | Score anexado à resposta do bot.                                                      |
+| `clienteSeniorData`                       | opcional                      | Dados de lookup Senior.                                                               |
+| `groundingUsed` / `webVerificationStatus` | opcionais                     | Status de verificação web.                                                            |
+| `feedback` / `sectionFeedback`            | opcionais                     | Feedback por mensagem ou seção.                                                       |
 
 ## Ciclo de sessão
 
@@ -102,9 +102,9 @@ stateDiagram-v2
 
 `handleNewSession()` tem dois comportamentos:
 
-| Condição | Comportamento |
-| --- | --- |
-| `isLoading === true` | Aborta `abortControllerRef.current`, limpa loading, zera `currentSessionId` e reseta a UI. Não cria nova sessão. |
+| Condição              | Comportamento                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isLoading === true`  | Aborta `abortControllerRef.current`, limpa loading, zera `currentSessionId` e reseta a UI. Não cria nova sessão.                                                          |
 | `isLoading === false` | Cria `ChatSession` com `uuidv4()`, título `Nova Investigação`, `DEFAULT_MODE`, campos de dossiê nulos e `messages: []`; adiciona no início da lista e seleciona a sessão. |
 
 O reset de UI restaura `visibleCount` para `20`, limpa status de salvamento/exportação, `pdfReportContent`, `investigationLogged`, `lastActionRef`, `lastQuery` e reinicia o progresso com `Iniciando análise`.
@@ -131,11 +131,11 @@ A sidebar (`SessionsSidebar`) filtra por empresa, CNPJ, título ou nome exibido,
 
 Se a sessão deletada era a atual:
 
-| Resultado | Comportamento |
-| --- | --- |
-| Ainda há sessões | Promove a primeira sessão restante, reseta a UI e faz lazy load se ela não tiver mensagens. |
-| Lista ficou vazia | Chama `handleNewSession()`. |
-| Estava carregando | Aborta o controller ativo e seta `isLoading(false)`. |
+| Resultado         | Comportamento                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| Ainda há sessões  | Promove a primeira sessão restante, reseta a UI e faz lazy load se ela não tiver mensagens. |
+| Lista ficou vazia | Chama `handleNewSession()`.                                                                 |
+| Estava carregando | Aborta o controller ativo e seta `isLoading(false)`.                                        |
 
 ## Persistência
 
@@ -143,13 +143,13 @@ Se a sessão deletada era a atual:
 
 `services/storage/dossiers.ts` usa a tabela `dossies` quando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `scout360:operator_id` estão disponíveis.
 
-| Operação | Contrato |
-| --- | --- |
-| `getDossiers()` | Seleciona `content` por `operator_id`, ignora `deleted_at`, ordena por `updated_at desc` e retorna `ChatSession[]`. |
-| `getDossier(id)` | Busca um dossiê por `id` e `operator_id`, ignorando `deleted_at`. |
-| `saveDossier(session)` | Faz upsert de uma sessão individual. |
-| `saveAllDossiers(sessions)` | Faz upsert em lote das sessões atuais. |
-| `deleteDossier(id)` | Marca `deleted_at` e atualiza `updated_at`; não remove fisicamente. |
+| Operação                    | Contrato                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `getDossiers()`             | Seleciona `content` por `operator_id`, ignora `deleted_at`, ordena por `updated_at desc` e retorna `ChatSession[]`. |
+| `getDossier(id)`            | Busca um dossiê por `id` e `operator_id`, ignorando `deleted_at`.                                                   |
+| `saveDossier(session)`      | Faz upsert de uma sessão individual.                                                                                |
+| `saveAllDossiers(sessions)` | Faz upsert em lote das sessões atuais.                                                                              |
+| `deleteDossier(id)`         | Marca `deleted_at` e atualiza `updated_at`; não remove fisicamente.                                                 |
 
 O payload de upsert grava colunas indexáveis (`title`, `empresa_alvo`, `cnpj`, `modo_principal`, `score_oportunidade`, `resumo_dossie`, `operator_email`) e o agregado completo em `content`.
 
@@ -157,13 +157,13 @@ O payload de upsert grava colunas indexáveis (`title`, `empresa_alvo`, `cnpj`, 
 
 Antes de persistir ou devolver sessões carregadas, o storage remove estado transitório de mensagem:
 
-| Campo | Normalização |
-| --- | --- |
-| `isThinking` | Forçado para `false`. |
-| `loadingVariant` | Removido. |
-| `isSourcesOpen` | Removido. |
+| Campo                         | Normalização                            |
+| ----------------------------- | --------------------------------------- |
+| `isThinking`                  | Forçado para `false`.                   |
+| `loadingVariant`              | Removido.                               |
+| `isSourcesOpen`               | Removido.                               |
 | marcadores internos em `text` | Removidos por `stripInternalMarkers()`. |
-| `timestamp` carregado | Convertido para `Date`. |
+| `timestamp` carregado         | Convertido para `Date`.                 |
 
 ### Fallback local
 
@@ -185,11 +185,11 @@ O evento `operator-relinked` recarrega sessões. Quando a carga retorna dados, o
 
 `sessionRemoteStore` conversa com `BACKEND_URL` usando envelopes de ação:
 
-| Ação | Método | Observação |
-| --- | --- | --- |
-| `listSessions` | GET querystring, com fallback POST | Retorna sessões sem mensagens completas. |
-| `getSession` | POST | Retorna sessão completa e parseia `messagesJson`. |
-| `saveSession` | POST | Envia `session` com mensagens, score e resumo. |
+| Ação           | Método                             | Observação                                        |
+| -------------- | ---------------------------------- | ------------------------------------------------- |
+| `listSessions` | GET querystring, com fallback POST | Retorna sessões sem mensagens completas.          |
+| `getSession`   | POST                               | Retorna sessão completa e parseia `messagesJson`. |
+| `saveSession`  | POST                               | Envia `session` com mensagens, score e resumo.    |
 
 Quando o endpoint remoto está indisponível, incompatível ou responde payload de lookup, a listagem retorna `[]` e a sessão completa retorna `null`; o app continua pelo cache local/Supabase.
 
@@ -197,12 +197,12 @@ Quando o endpoint remoto está indisponível, incompatível ou responde payload 
 
 `classifyPanelState()` limita o painel central a quatro estados válidos:
 
-| Prioridade | Estado | Condição |
-| --- | --- | --- |
-| 1 | `error` | `hasError === true`. |
-| 2 | `loading` | `isLoading === true`. |
-| 3 | `content` | `messages.length > 0` ou `hasDossierContent === true`. |
-| 4 | `empty` | Nenhuma condição acima. |
+| Prioridade | Estado    | Condição                                               |
+| ---------- | --------- | ------------------------------------------------------ |
+| 1          | `error`   | `hasError === true`.                                   |
+| 2          | `loading` | `isLoading === true`.                                  |
+| 3          | `content` | `messages.length > 0` ou `hasDossierContent === true`. |
+| 4          | `empty`   | Nenhuma condição acima.                                |
 
 `ChatInterface` usa essa classificação com `safeMessages`, `hasErrorInMessages`, `isLoading` e `currentSession?.resumoDossie`. Se existe sessão ativa, não é home inicial e o estado é `empty`, renderiza `empty-state` explícito em vez de deixar o centro branco.
 
@@ -210,13 +210,13 @@ Quando o endpoint remoto está indisponível, incompatível ou responde payload 
 
 `MessageTimeline` renderiza uma destas superfícies:
 
-| Superfície | Quando aparece |
-| --- | --- |
-| `GreetingWelcomeScreen` | `showOperatorGate`. |
-| `EmptyStateHome` | `showInitialHome`. |
-| Virtuoso | Fluxo normal com viewport pronta. |
-| `messages-viewport-suspended` | Timeline suspensa durante hero loading sem conteúdo renderizável. |
-| `messages-static-fallback` | `forceStaticTimelineFallback` ou dossiê grande que deve evitar Virtuoso. |
+| Superfície                    | Quando aparece                                                           |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `GreetingWelcomeScreen`       | `showOperatorGate`.                                                      |
+| `EmptyStateHome`              | `showInitialHome`.                                                       |
+| Virtuoso                      | Fluxo normal com viewport pronta.                                        |
+| `messages-viewport-suspended` | Timeline suspensa durante hero loading sem conteúdo renderizável.        |
+| `messages-static-fallback`    | `forceStaticTimelineFallback` ou dossiê grande que deve evitar Virtuoso. |
 
 Dossiês grandes preferem fallback estático quando há bot com texto acima do limite de volume esperado. O fallback estático também tem safety net: se `messages-static-fallback` montar com `display: none`, o componente limpa `style.display` e, se necessário, força `display: block !important`, registrando `static-fallback-display-recovery`.
 
@@ -224,26 +224,26 @@ Dossiês grandes preferem fallback estático quando há bot com texto acima do l
 
 O painel principal é `chat-main-panel`. O estado visual válido precisa apresentar pelo menos um destes sinais:
 
-| Sinal | Interpretação |
-| --- | --- |
-| `loading-smart-overlay` ou `loading-smart` | Loading intencional. |
-| `controlled-error` | Erro controlado. |
-| `empty-state` | Sessão ativa sem conteúdo renderizável, mas com fallback explícito. |
-| `bot-message-content` visível com texto | Conteúdo real do bot. |
+| Sinal                                      | Interpretação                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| `loading-smart-overlay` ou `loading-smart` | Loading intencional.                                                |
+| `controlled-error`                         | Erro controlado.                                                    |
+| `empty-state`                              | Sessão ativa sem conteúdo renderizável, mas com fallback explícito. |
+| `bot-message-content` visível com texto    | Conteúdo real do bot.                                               |
 
 `dossier-content` vazio não é prova suficiente de renderização. Placeholders ou viewport suspenso depois do fim do loading são tratados como falha quando já se espera conteúdo de bot.
 
 Razões diagnosticadas por `collectBlankPanelSnapshot()` incluem:
 
-| Razão | Condição típica |
-| --- | --- |
-| `main-panel-not-visible` | `chat-main-panel` existe, mas sem dimensão/visibilidade. |
-| `stuck-viewport-placeholder` | Placeholder ficou preso após conteúdo esperado. |
-| `stuck-viewport-suspended` | Viewport suspenso ficou preso após conteúdo esperado. |
-| `no-message-rows-in-panel` | Nenhuma linha de mensagem no painel. |
-| `message-rows-not-visible` | Linhas existem, mas não são visíveis. |
-| `no-bot-nodes-in-panel` | Não há nó de bot renderizado. |
-| `bot-nodes-have-no-visible-chars` | Nó de bot existe, mas sem texto visível. |
+| Razão                             | Condição típica                                          |
+| --------------------------------- | -------------------------------------------------------- |
+| `main-panel-not-visible`          | `chat-main-panel` existe, mas sem dimensão/visibilidade. |
+| `stuck-viewport-placeholder`      | Placeholder ficou preso após conteúdo esperado.          |
+| `stuck-viewport-suspended`        | Viewport suspenso ficou preso após conteúdo esperado.    |
+| `no-message-rows-in-panel`        | Nenhuma linha de mensagem no painel.                     |
+| `message-rows-not-visible`        | Linhas existem, mas não são visíveis.                    |
+| `no-bot-nodes-in-panel`           | Não há nó de bot renderizado.                            |
+| `bot-nodes-have-no-visible-chars` | Nó de bot existe, mas sem texto visível.                 |
 
 ## Validação
 

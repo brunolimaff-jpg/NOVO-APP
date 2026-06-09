@@ -57,14 +57,14 @@ describe('loadingVariant flow rules', () => {
     ).toBe('inline');
   });
 
-  it('keeps placeholder aligned with hero for first investigation even if session has past bot answers', () => {
+  it('keeps placeholder aligned with inline for first investigation when flag is active', () => {
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'default',
         isFollowUp: false,
         hasConsolidatedBotResponse: true,
       }),
-    ).toBe('hero');
+    ).toBe('inline');
   });
 });
 

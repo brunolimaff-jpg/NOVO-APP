@@ -1,51 +1,51 @@
 ---
 grok_wiki: true
-page_id: "page-dossie-waterfall"
-title: "Waterfall de dossiê"
-description: "Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-dossie-waterfall'
+title: 'Waterfall de dossiê'
+description: 'Pipeline modular de dossiê, módulos obrigatórios e opcionais, timeouts, guard anti-restart, reconciliação PORTA e finalização de UI.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "features/dossier/waterfall-orchestrator.ts"
-  - "features/dossier/waterfall-guard.ts"
-  - "features/dossier/benchmark-stage.ts"
-  - "features/dossier/porta-reconciliation.ts"
-  - "services/gemini/investigation-orchestration.ts"
-  - "constants/loadingStages.ts"
-  - "tests/features/dossier/waterfall-orchestrator.test.ts"
+  - 'features/dossier/waterfall-orchestrator.ts'
+  - 'features/dossier/waterfall-guard.ts'
+  - 'features/dossier/benchmark-stage.ts'
+  - 'features/dossier/porta-reconciliation.ts'
+  - 'services/gemini/investigation-orchestration.ts'
+  - 'constants/loadingStages.ts'
+  - 'tests/features/dossier/waterfall-orchestrator.test.ts'
 ---
 
 O waterfall de dossiê é executado pela fronteira `useDossierWaterfallOrchestrator`, acionada pelo orquestrador de mensagens quando a entrada normalizada contém `DOSSIE COMPLETO` fora do modo `deep_dive`. O fluxo gera blocos especializados, consolida Score PORTA, promove fontes verificadas, atualiza a mensagem de bot e força a finalização visual do loading no `finally`.
 
 ## Superfície de execução
 
-| Superfície | Papel |
-| --- | --- |
-| `App.tsx` | Instancia `useDossierWaterfallOrchestrator({ canUseLookup, resolvedOperatorName })`. |
-| `features/chat/message-orchestrator.ts` | Detecta megaprompt, cria placeholder `isThinking`, rastreia eventos de operador e chama `runMegaPromptWaterfall`. |
-| `features/dossier/waterfall-orchestrator.ts` | Executa módulos, timeouts, fontes, PORTA, persistência e finalização de UI. |
-| `features/dossier/waterfall-guard.ts` | Bloqueia restart simultâneo por sessão e globalmente. |
-| `features/dossier/porta-reconciliation.ts` | Reexecuta módulos donos de dimensões PORTA ausentes e aciona reconciliador final. |
-| `utils/finalizeWaterfallUI.ts` | Zera loading React, refs e seletores DOM de overlay após conclusão ou falha do waterfall. |
+| Superfície                                   | Papel                                                                                                             |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `App.tsx`                                    | Instancia `useDossierWaterfallOrchestrator({ canUseLookup, resolvedOperatorName })`.                              |
+| `features/chat/message-orchestrator.ts`      | Detecta megaprompt, cria placeholder `isThinking`, rastreia eventos de operador e chama `runMegaPromptWaterfall`. |
+| `features/dossier/waterfall-orchestrator.ts` | Executa módulos, timeouts, fontes, PORTA, persistência e finalização de UI.                                       |
+| `features/dossier/waterfall-guard.ts`        | Bloqueia restart simultâneo por sessão e globalmente.                                                             |
+| `features/dossier/porta-reconciliation.ts`   | Reexecuta módulos donos de dimensões PORTA ausentes e aciona reconciliador final.                                 |
+| `utils/finalizeWaterfallUI.ts`               | Zera loading React, refs e seletores DOM de overlay após conclusão ou falha do waterfall.                         |
 
 ### Entrada pública
 
 `runMegaPromptWaterfall` recebe o contrato `RunMegaPromptWaterfallArgs`.
 
-| Campo | Tipo | Uso |
-| --- | --- | --- |
-| `sessionId` | `string` | Chave do guard, updates de sessão, logs e persistência. |
-| `text` | `string` | Prompt completo oculto usado como seed cadastral/radar. |
-| `safeVisibleText` | `string` | Texto visível usado no histórico das perguntas finais. |
-| `hintedCompany` | `string \| null` | Empresa inferida antes da normalização. |
-| `normalizedCompany` | `string` | Empresa final para lookup, módulos e payload persistido. |
-| `historyToPass` | `Message[]` | Histórico entregue à geração de continuidade. |
-| `botMessageId` | `string` | Placeholder que será substituído pelo dossiê final. |
-| `signal` | `AbortSignal` | Cancelamento terminal do waterfall. |
-| `isFirstInteraction` | `boolean` | Define reset simples ou incremental da timeline de loading. |
-| `sessionCnpjDigits` | `string` | CNPJ normalizado para QSA, contexto e tracking. |
-| `operatorId`, `operatorEmail`, `operatorSessionId` | opcionais | Repasse para tracking de custo e geração. |
+| Campo                                              | Tipo             | Uso                                                         |
+| -------------------------------------------------- | ---------------- | ----------------------------------------------------------- |
+| `sessionId`                                        | `string`         | Chave do guard, updates de sessão, logs e persistência.     |
+| `text`                                             | `string`         | Prompt completo oculto usado como seed cadastral/radar.     |
+| `safeVisibleText`                                  | `string`         | Texto visível usado no histórico das perguntas finais.      |
+| `hintedCompany`                                    | `string \| null` | Empresa inferida antes da normalização.                     |
+| `normalizedCompany`                                | `string`         | Empresa final para lookup, módulos e payload persistido.    |
+| `historyToPass`                                    | `Message[]`      | Histórico entregue à geração de continuidade.               |
+| `botMessageId`                                     | `string`         | Placeholder que será substituído pelo dossiê final.         |
+| `signal`                                           | `AbortSignal`    | Cancelamento terminal do waterfall.                         |
+| `isFirstInteraction`                               | `boolean`        | Define reset simples ou incremental da timeline de loading. |
+| `sessionCnpjDigits`                                | `string`         | CNPJ normalizado para QSA, contexto e tracking.             |
+| `operatorId`, `operatorEmail`, `operatorSessionId` | opcionais        | Repasse para tracking de custo e geração.                   |
 
 ## Fluxo runtime
 
@@ -74,17 +74,17 @@ A persistência em Supabase não é pré-condição para a UI. O dossiê final e
 
 O total declarado do loading modular é `7`. As labels vêm de `MODULAR_DOSSIER_STAGES` e a etapa final de consolidação usa `MODULAR_DOSSIER_CONSOLIDATION_STAGE`.
 
-| Ordem | Label de loading | Módulo ou operação | Obrigatório | Timeout |
-| --- | --- | --- | --- | --- |
-| 1 | `Mapeando conta real e teia societária...` | `Teia Societaria — Identidade`; fallback para `Porte / Teia Societária` se identidade falhar | Sim | `90_000ms` |
-| 1b | Avança para operação/profundidade quando aplicável | `Teia Societaria — Profundidade` se complexidade `MEDIA` ou `ALTA` | Não | `90_000ms` |
-| 2 | `Mapeando operação e cadeia de valor...` | `Operação / Cadeia de Valor` | Sim | `90_000ms` |
-| 3 | `Identificando bordas de controle...` | `Bordas de Controle` | Não | `60_000ms` |
-| 4 | `Verificando pressões e compliance...` | `Riscos & Compliance` | Não | `60_000ms` |
-| 5 | `Mapeando caminho de venda...` | `Caminho de Venda` | Não | `60_000ms` |
-| 6 | `Cruzando referências de mercado...` | `runDossierBenchmarkStage` | Não | `20_000ms` |
-| 7 | `Finalizando cards de auditoria...` | Preparação para reconciliação e finalização | Sim para UI | Controlado pelas fases seguintes |
-| Consolidação | `Consolidando informações...` | PORTA, fontes, markdown, sugestões e update final | Sim para fechamento | PORTA `120_000ms`; sugestões `20_000ms` |
+| Ordem        | Label de loading                                   | Módulo ou operação                                                                           | Obrigatório         | Timeout                                 |
+| ------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------- |
+| 1            | `Mapeando conta real e teia societária...`         | `Teia Societaria — Identidade`; fallback para `Porte / Teia Societária` se identidade falhar | Sim                 | `90_000ms`                              |
+| 1b           | Avança para operação/profundidade quando aplicável | `Teia Societaria — Profundidade` se complexidade `MEDIA` ou `ALTA`                           | Não                 | `90_000ms`                              |
+| 2            | `Mapeando operação e cadeia de valor...`           | `Operação / Cadeia de Valor`                                                                 | Sim                 | `90_000ms`                              |
+| 3            | `Identificando bordas de controle...`              | `Bordas de Controle`                                                                         | Não                 | `60_000ms`                              |
+| 4            | `Verificando pressões e compliance...`             | `Riscos & Compliance`                                                                        | Não                 | `60_000ms`                              |
+| 5            | `Mapeando caminho de venda...`                     | `Caminho de Venda`                                                                           | Não                 | `60_000ms`                              |
+| 6            | `Cruzando referências de mercado...`               | `runDossierBenchmarkStage`                                                                   | Não                 | `20_000ms`                              |
+| 7            | `Finalizando cards de auditoria...`                | Preparação para reconciliação e finalização                                                  | Sim para UI         | Controlado pelas fases seguintes        |
+| Consolidação | `Consolidando informações...`                      | PORTA, fontes, markdown, sugestões e update final                                            | Sim para fechamento | PORTA `120_000ms`; sugestões `20_000ms` |
 
 Módulos opcionais que falham entram em `optionalStepFailures`, incrementam `failureCount` e não derrubam a rodada. Ao final, o texto recebe uma nota operacional com as frentes não concluídas. Módulos obrigatórios e aborts propagam erro.
 
@@ -99,11 +99,11 @@ Antes dos módulos, o orquestrador monta:
 
 Quando `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1`, o frontend tenta criar um cache foundation com TTL `600s`. O servidor também precisa de `GEMINI_FOUNDATION_CACHE_ENABLED=1`; sem a flag server, a API rejeita criação de cache. Falha de criação registra `warn` e o waterfall continua sem cache.
 
-| Configuração | Camada | Efeito |
-| --- | --- | --- |
-| `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` | Vite/frontend | Permite que o waterfall tente criar e reutilizar `foundationCacheName`. |
-| `GEMINI_FOUNDATION_CACHE_ENABLED=1` | API Vercel | Habilita actions de create/delete do cache. |
-| TTL `600s` | API/cache | Dá margem para módulos, teia e reconciliação PORTA; delete é best-effort no `finally`. |
+| Configuração                             | Camada        | Efeito                                                                                 |
+| ---------------------------------------- | ------------- | -------------------------------------------------------------------------------------- |
+| `VITE_GEMINI_FOUNDATION_CACHE_ENABLED=1` | Vite/frontend | Permite que o waterfall tente criar e reutilizar `foundationCacheName`.                |
+| `GEMINI_FOUNDATION_CACHE_ENABLED=1`      | API Vercel    | Habilita actions de create/delete do cache.                                            |
+| TTL `600s`                               | API/cache     | Dá margem para módulos, teia e reconciliação PORTA; delete é best-effort no `finally`. |
 
 A implementação atual usa a fachada `services/geminiService.ts`. Para manter portabilidade BYOK/BYOC, qualquer adaptação de provedor deve preservar o contrato de `generateDossierModule`: `signal`, `timeoutMs`, `useGrounding`, callbacks de fontes, status de verificação e `foundationCacheName` opcional.
 
@@ -111,13 +111,13 @@ A implementação atual usa a fachada `services/geminiService.ts`. Para manter p
 
 `WaterfallGuard` mantém estado em memória por sessão e um lock global.
 
-| Condição | Resultado |
-| --- | --- |
-| Outro waterfall global ativo | Bloqueia com reason `already_running`. |
-| Mesma sessão já tem `activeRunId` | Bloqueia com reason `already_running` e incrementa `blockedCount`. |
-| Menos de `5_000ms` desde conclusão global ou da sessão | Bloqueia com reason `cooldown`. |
-| Run permitido | Gera `runId` no formato `sessionId-genN-timestampBase36`. |
-| `registerWaterfallEnd` com run divergente | Registra `warn` e não limpa o estado esperado. |
+| Condição                                               | Resultado                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Outro waterfall global ativo                           | Bloqueia com reason `already_running`.                             |
+| Mesma sessão já tem `activeRunId`                      | Bloqueia com reason `already_running` e incrementa `blockedCount`. |
+| Menos de `5_000ms` desde conclusão global ou da sessão | Bloqueia com reason `cooldown`.                                    |
+| Run permitido                                          | Gera `runId` no formato `sessionId-genN-timestampBase36`.          |
+| `registerWaterfallEnd` com run divergente              | Registra `warn` e não limpa o estado esperado.                     |
 
 Quando o guard bloqueia, o placeholder de bot criado para aquela tentativa é removido da sessão. O `message-orchestrator` compara `generationCount` antes e depois para não registrar `dossier_completed` quando a execução foi barrada.
 
@@ -144,12 +144,12 @@ Não force um score quando `portaIntegrityHold` estiver ativo. O contrato atual 
 
 Cada módulo especializado pode retornar fontes de grounding. O waterfall deduplica URLs normalizadas, monta `sessionSourcePool` e calcula `webVerificationStatus`.
 
-| Status | Quando aparece |
-| --- | --- |
-| `verified` | Há fontes de grounding e nenhuma fonte de fallback domina. |
+| Status              | Quando aparece                                                           |
+| ------------------- | ------------------------------------------------------------------------ |
+| `verified`          | Há fontes de grounding e nenhuma fonte de fallback domina.               |
 | `fallback_verified` | Há fonte promovida por fallback ou status de módulo `fallback_verified`. |
-| `unverified` | Módulo com grounding não retornou fontes verificáveis. |
-| `not_applicable` | Não houve grounding nem sinal de fonte pendente. |
+| `unverified`        | Módulo com grounding não retornou fontes verificáveis.                   |
+| `not_applicable`    | Não houve grounding nem sinal de fonte pendente.                         |
 
 Após preparar o texto final, `validateInlineSourcesForPromotion` tenta promover links públicos inline via `POST /api/link-status`. Essa etapa é opcional e defensiva:
 
@@ -165,16 +165,16 @@ Quando não há fontes no pool nem grounding, o dossiê recebe uma nota avisando
 
 O payload final remove markers PORTA com `stripPortaMarkers`, aplica privacidade, reforça evidência Senior, finaliza markdown auditável e atualiza o bot placeholder:
 
-| Campo da mensagem de bot | Valor final |
-| --- | --- |
-| `text` | Markdown final do dossiê. |
-| `scorePorta` | Score consolidado, exceto em hold de integridade. |
-| `clienteSeniorData` | Dados extraídos do lookup Senior, quando disponíveis. |
-| `groundingSources` | Fontes verificadas ou fallback. |
-| `webVerificationStatus` | Status consolidado da rodada. |
-| `groundingUsed` | `true` para `verified` ou `fallback_verified`; indefinido para `not_applicable`. |
-| `suggestions` | Quatro perguntas finais, geradas ou preenchidas por fallback contextual. |
-| `isThinking` | `false`. |
+| Campo da mensagem de bot | Valor final                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| `text`                   | Markdown final do dossiê.                                                        |
+| `scorePorta`             | Score consolidado, exceto em hold de integridade.                                |
+| `clienteSeniorData`      | Dados extraídos do lookup Senior, quando disponíveis.                            |
+| `groundingSources`       | Fontes verificadas ou fallback.                                                  |
+| `webVerificationStatus`  | Status consolidado da rodada.                                                    |
+| `groundingUsed`          | `true` para `verified` ou `fallback_verified`; indefinido para `not_applicable`. |
+| `suggestions`            | Quatro perguntas finais, geradas ou preenchidas por fallback contextual.         |
+| `isThinking`             | `false`.                                                                         |
 
 Se `updateSessionById` não retorna uma sessão persistível ou não encontra `botMessageId`, o orquestrador tenta recuperar a sessão em `chatStore.sessionsRef.current` e reaplicar o update via `setSessions`. Essa recuperação existe para cobrir batching/race de React em primeira carga.
 
@@ -193,28 +193,28 @@ O helper não limpa `abortController`; esse ownership fica no `processMessage:fi
 
 Logs úteis para investigar regressões:
 
-| Área | Eventos importantes |
-| --- | --- |
-| `WaterfallGuard` | `waterfall:start`, `waterfall:end`, floodgate por `already_running` ou `cooldown`. |
+| Área                 | Eventos importantes                                                                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WaterfallGuard`     | `waterfall:start`, `waterfall:end`, floodgate por `already_running` ou `cooldown`.                                                                             |
 | `WaterfallLifecycle` | `pre-benchmark`, `pos-benchmark`, `pre-porta-reconciliation`, `pos-porta-reconciliation`, `messages-state-after-update`, `health-check-final`, `ui-finalized`. |
-| `FreezeDiag` | Marcos de validação inline, pré/pós markdown e pré/pós continuidade. |
-| `DossierModule` | Início, conclusão, prompt elevado, `usage metadata`, status de fontes. |
-| `FoundationCache` | Criação, remoção e falha de remoção do cache. |
-| `TeiaSocietaria` | Falhas de QSA/contexto, ajuste de complexidade e warnings de validação CNPJ. |
+| `FreezeDiag`         | Marcos de validação inline, pré/pós markdown e pré/pós continuidade.                                                                                           |
+| `DossierModule`      | Início, conclusão, prompt elevado, `usage metadata`, status de fontes.                                                                                         |
+| `FoundationCache`    | Criação, remoção e falha de remoção do cache.                                                                                                                  |
+| `TeiaSocietaria`     | Falhas de QSA/contexto, ajuste de complexidade e warnings de validação CNPJ.                                                                                   |
 
 `health-check-final` é o snapshot mais importante após o waterfall. Ele registra presença de sessão/ref, texto do bot, `isLoading`, `loadingVariant`, `domHasBotContent`, `domHasLoadingOverlay`, composer desabilitado e se o dossiê foi persistido em memória.
 
 ## Falhas comuns
 
-| Sintoma | Verificação |
-| --- | --- |
-| Nova geração não começa | Procure `WaterfallGuard` com `already_running` ou `cooldown`; aguarde o cooldown de 5s ou confirme se há run global ativo. |
-| Etapa opcional some do dossiê | Verifique `optionalStepFailures`; a nota operacional deve listar o módulo ignorado. |
-| Score não aparece | Veja `portaIntegrityHold`, `missingDimensions` e logs `ModularDossier` de reconciliação. Score antigo da sessão deve ser preservado. |
-| Congelamento entre PORTA e sugestões | Use `FreezeDiag` em `pre-validate-inline`, `post-validate-inline`, `pre-continuity-question` e timeout de continuidade. |
-| Dossiê salvo no estado, mas não no Supabase | Procure `falha ao persistir dossiê final; mantendo sessão em memória`; a UI não depende desse save. |
-| Overlay ou composer ficam presos | Verifique `ui-finalize-state`, `ui-finalize-post-render`, `health-check-final` e os contratos de painel/loading. |
-| Fontes desaparecem | Cheque `webVerificationStatus`, `/api/link-status`, timeouts de body read e se `finalizeDossierMarkdown` removeu links não auditáveis. |
+| Sintoma                                     | Verificação                                                                                                                            |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Nova geração não começa                     | Procure `WaterfallGuard` com `already_running` ou `cooldown`; aguarde o cooldown de 5s ou confirme se há run global ativo.             |
+| Etapa opcional some do dossiê               | Verifique `optionalStepFailures`; a nota operacional deve listar o módulo ignorado.                                                    |
+| Score não aparece                           | Veja `portaIntegrityHold`, `missingDimensions` e logs `ModularDossier` de reconciliação. Score antigo da sessão deve ser preservado.   |
+| Congelamento entre PORTA e sugestões        | Use `FreezeDiag` em `pre-validate-inline`, `post-validate-inline`, `pre-continuity-question` e timeout de continuidade.                |
+| Dossiê salvo no estado, mas não no Supabase | Procure `falha ao persistir dossiê final; mantendo sessão em memória`; a UI não depende desse save.                                    |
+| Overlay ou composer ficam presos            | Verifique `ui-finalize-state`, `ui-finalize-post-render`, `health-check-final` e os contratos de painel/loading.                       |
+| Fontes desaparecem                          | Cheque `webVerificationStatus`, `/api/link-status`, timeouts de body read e se `finalizeDossierMarkdown` removeu links não auditáveis. |
 
 ## Validação
 

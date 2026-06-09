@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-usar-war-room"
-title: "Usar o War Room"
-description: "Como abrir, consultar, cancelar, repetir, alternar modo técnico ou benchmark, carregar contexto documental e tratar resposta fora de escopo."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-usar-war-room'
+title: 'Usar o War Room'
+description: 'Como abrir, consultar, cancelar, repetir, alternar modo técnico ou benchmark, carregar contexto documental e tratar resposta fora de escopo.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "components/WarRoom.tsx"
-  - "services/warRoomService.ts"
-  - "services/war-room/query.ts"
-  - "services/war-room/intent.ts"
-  - "services/war-room/retrieval.ts"
-  - "components/war-room/WarRoomComposer.tsx"
-  - "tests/services/warRoomService.test.ts"
+  - 'components/WarRoom.tsx'
+  - 'services/warRoomService.ts'
+  - 'services/war-room/query.ts'
+  - 'services/war-room/intent.ts'
+  - 'services/war-room/retrieval.ts'
+  - 'components/war-room/WarRoomComposer.tsx'
+  - 'tests/services/warRoomService.test.ts'
 ---
 
 O War Room é um painel React carregado sob demanda a partir do chat principal, exposto pela fachada `services/warRoomService.ts` e executado pela função `queryWarRoom`. A UI operacional roteia perguntas para dois modos: `tech` para dúvidas técnicas sobre Senior ERP e `benchmark` para comparativos contra concorrentes.
@@ -32,15 +32,15 @@ ChatShell
        -> /api/gemini
 ```
 
-| Área | Contrato atual |
-| --- | --- |
-| Abertura | Botão com `aria-label="Abrir War Room"` no cabeçalho do chat, visível somente com `canWarRoom=true`. |
-| Fechamento | Botão `✕` no painel lateral; ao fechar, a UI aborta requisição em andamento. |
-| Envio | `Enter` envia; `Shift+Enter` mantém quebra de linha. O botão `▶` fica desabilitado sem texto ou durante loading. |
-| Modos | A rota é automática: `tech` por padrão, `benchmark` quando a mensagem contém intenção comparativa. |
-| Cancelamento | O botão `Parar` aborta o `AbortController` da consulta ativa. |
-| Repetição | Respostas com erro `retryable` exibem `Tentar novamente`, reenviando a última mensagem de usuário antes do erro. |
-| Fontes | Respostas podem exibir bloco `Fontes` com auditoria de link: `CONFIRMADO`, `OFF-LINE`, `AUDITORIA EM CURSO` ou `ANÁLISE INFERIDA`. |
+| Área         | Contrato atual                                                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Abertura     | Botão com `aria-label="Abrir War Room"` no cabeçalho do chat, visível somente com `canWarRoom=true`.                               |
+| Fechamento   | Botão `✕` no painel lateral; ao fechar, a UI aborta requisição em andamento.                                                       |
+| Envio        | `Enter` envia; `Shift+Enter` mantém quebra de linha. O botão `▶` fica desabilitado sem texto ou durante loading.                   |
+| Modos        | A rota é automática: `tech` por padrão, `benchmark` quando a mensagem contém intenção comparativa.                                 |
+| Cancelamento | O botão `Parar` aborta o `AbortController` da consulta ativa.                                                                      |
+| Repetição    | Respostas com erro `retryable` exibem `Tentar novamente`, reenviando a última mensagem de usuário antes do erro.                   |
+| Fontes       | Respostas podem exibir bloco `Fontes` com auditoria de link: `CONFIRMADO`, `OFF-LINE`, `AUDITORIA EM CURSO` ou `ANÁLISE INFERIDA`. |
 
 ## Abrir e fechar
 
@@ -99,13 +99,13 @@ queryWarRoom(
 
 Não existe toggle manual. O modo muda por intenção textual.
 
-| Entrada | Modo resolvido |
-| --- | --- |
-| Sem marcador comparativo | `tech` |
-| `benchmark` | `benchmark` |
-| `compare`, `comparar`, `comparativo` | `benchmark` |
-| `versus`, `vs`, `contra` | `benchmark` |
-| `concorr...`, `diferença` | `benchmark` |
+| Entrada                              | Modo resolvido |
+| ------------------------------------ | -------------- |
+| Sem marcador comparativo             | `tech`         |
+| `benchmark`                          | `benchmark`    |
+| `compare`, `comparar`, `comparativo` | `benchmark`    |
+| `versus`, `vs`, `contra`             | `benchmark`    |
+| `concorr...`, `diferença`            | `benchmark`    |
 
 No modo `benchmark`, o alvo é extraído de padrões como `Senior vs TOTVS`, `TOTVS vs Senior`, `compare Senior com TOTVS` ou `benchmark contra Protheus`.
 
@@ -113,27 +113,27 @@ No modo `benchmark`, o alvo é extraído de padrões como `Senior vs TOTVS`, `TO
 
 O carregamento documental é automático para `tech` e `benchmark`.
 
-| Configuração | Valor |
-| --- | --- |
-| Namespace técnico padrão | `senior-erp-docs` |
-| Namespace adicional em benchmark | `competitor-pdfs` |
-| Cache de contexto | `120000ms` |
-| Corte máximo de docs no prompt | `6000` caracteres |
-| Histórico recente | até `8` turnos e `4000` caracteres |
-| Pergunta do usuário no prompt | até `1600` caracteres |
-| Timeout War Room técnico | `90000ms` |
-| Timeout War Room benchmark | `120000ms` |
-| Timeout cliente RAG | `15000ms` |
-| Score mínimo em `/api/docs-rag` | `0.6` |
+| Configuração                     | Valor                              |
+| -------------------------------- | ---------------------------------- |
+| Namespace técnico padrão         | `senior-erp-docs`                  |
+| Namespace adicional em benchmark | `competitor-pdfs`                  |
+| Cache de contexto                | `120000ms`                         |
+| Corte máximo de docs no prompt   | `6000` caracteres                  |
+| Histórico recente                | até `8` turnos e `4000` caracteres |
+| Pergunta do usuário no prompt    | até `1600` caracteres              |
+| Timeout War Room técnico         | `90000ms`                          |
+| Timeout War Room benchmark       | `120000ms`                         |
+| Timeout cliente RAG              | `15000ms`                          |
+| Score mínimo em `/api/docs-rag`  | `0.6`                              |
 
 O War Room consulta documentação oficial e base interna em paralelo. Para perguntas específicas, ele reforça buscas e priorização de blocos:
 
-| Intenção | Reforço aplicado |
-| --- | --- |
-| Processo agrícola | Busca termos como `simplefarm`, `ordem de serviço`, `safra`, `monitoramento`, `irrigação`. |
-| Fercus | Trata `Fercus` como termo técnico válido e injeta referência oficial se o RAG não trouxer `gatec-modulo-fercus`. |
-| Talhão | Prioriza `consulta-analitica-de-talhao`. |
-| GAtec agrícola | Prioriza manual agrícola do SimpleFarm quando a pergunta não pede integração. |
+| Intenção                 | Reforço aplicado                                                                                                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Processo agrícola        | Busca termos como `simplefarm`, `ordem de serviço`, `safra`, `monitoramento`, `irrigação`.                                  |
+| Fercus                   | Trata `Fercus` como termo técnico válido e injeta referência oficial se o RAG não trouxer `gatec-modulo-fercus`.            |
+| Talhão                   | Prioriza `consulta-analitica-de-talhao`.                                                                                    |
+| GAtec agrícola           | Prioriza manual agrícola do SimpleFarm quando a pergunta não pede integração.                                               |
 | ERP Banking em benchmark | Prioriza `ERP Banking`, `CNAB`, `pagamento eletrônico` e normaliza respostas para evitar termos legados como `Senior Bank`. |
 
 <Warning>
@@ -167,12 +167,12 @@ No modo técnico, o serviço recusa consultas que pertencem ao chat principal, s
 
 Padrões tratados como fora de escopo:
 
-| Sinal na mensagem | Tratamento |
-| --- | --- |
-| `CNPJ` | Redireciona para o Chat Principal. |
-| `dossiê` | Redireciona para investigação principal. |
-| `Score PORTA` | Redireciona para fluxo de dossiê. |
-| `prospecção`, `varredura`, `capivara` | Redireciona para fluxo principal. |
+| Sinal na mensagem                                | Tratamento                               |
+| ------------------------------------------------ | ---------------------------------------- |
+| `CNPJ`                                           | Redireciona para o Chat Principal.       |
+| `dossiê`                                         | Redireciona para investigação principal. |
+| `Score PORTA`                                    | Redireciona para fluxo de dossiê.        |
+| `prospecção`, `varredura`, `capivara`            | Redireciona para fluxo principal.        |
 | `quadro societário`, `sócios`, `Receita Federal` | Redireciona para investigação principal. |
 
 A resposta explica que o War Room é focado em dúvidas técnicas sobre ERP Senior, módulos, processos e integrações, e orienta fechar o painel para pesquisar no chat principal.
@@ -191,12 +191,12 @@ Respostas do modelo passam por `MarkdownRenderer` com HTML bruto desabilitado. O
 
 O bloco `Fontes` combina fontes retornadas pelo grounding com URLs detectadas no texto. Depois da resposta, a UI chama validação de links e atualiza o status de cada fonte.
 
-| Status | Significado |
-| --- | --- |
-| `CONFIRMADO` | A URL validou como disponível. |
-| `OFF-LINE` | A URL foi classificada como quebrada ou indisponível. |
-| `AUDITORIA EM CURSO` | A validação ainda não retornou. |
-| `ANÁLISE INFERIDA` | A resposta tem referência inferida sem URL explícita. |
+| Status               | Significado                                           |
+| -------------------- | ----------------------------------------------------- |
+| `CONFIRMADO`         | A URL validou como disponível.                        |
+| `OFF-LINE`           | A URL foi classificada como quebrada ou indisponível. |
+| `AUDITORIA EM CURSO` | A validação ainda não retornou.                       |
+| `ANÁLISE INFERIDA`   | A resposta tem referência inferida sem URL explícita. |
 
 ## Pré-condições de ambiente
 
@@ -239,15 +239,15 @@ npm run build
 
 ## Troubleshooting
 
-| Sintoma | Verificação |
-| --- | --- |
-| Botão War Room não aparece | Confirme `canWarRoom=true` no fluxo que monta `ChatInterface` e `ChatShell`. |
-| Resposta sempre técnica | A mensagem não contém marcador de benchmark reconhecido. Use `compare`, `vs`, `versus`, `contra` ou `benchmark`. |
-| Benchmark usa alvo genérico | Informe o concorrente na frase, por exemplo `Senior vs TOTVS`. |
-| Status fica em Pinecone indisponível | Verifique `/api/docs-rag`, `/api/rag`, `PINECONE_API_KEY`, `PINECONE_DOCS_KEY`, índice e namespaces. |
-| Resposta mostra aviso de conhecimento complementar | O RAG retornou vazio, falhou ou respondeu parcialmente. |
-| Erro com botão de retry | Expanda `Ver detalhes` para ver `source`, `code`, `status` e mensagem normalizada. |
-| Consulta travou visualmente | Use `Parar`; se persistir, feche o War Room para abortar o controller ativo. |
+| Sintoma                                            | Verificação                                                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Botão War Room não aparece                         | Confirme `canWarRoom=true` no fluxo que monta `ChatInterface` e `ChatShell`.                                     |
+| Resposta sempre técnica                            | A mensagem não contém marcador de benchmark reconhecido. Use `compare`, `vs`, `versus`, `contra` ou `benchmark`. |
+| Benchmark usa alvo genérico                        | Informe o concorrente na frase, por exemplo `Senior vs TOTVS`.                                                   |
+| Status fica em Pinecone indisponível               | Verifique `/api/docs-rag`, `/api/rag`, `PINECONE_API_KEY`, `PINECONE_DOCS_KEY`, índice e namespaces.             |
+| Resposta mostra aviso de conhecimento complementar | O RAG retornou vazio, falhou ou respondeu parcialmente.                                                          |
+| Erro com botão de retry                            | Expanda `Ver detalhes` para ver `source`, `code`, `status` e mensagem normalizada.                               |
+| Consulta travou visualmente                        | Use `Parar`; se persistir, feche o War Room para abortar o controller ativo.                                     |
 
 ## Related pages
 

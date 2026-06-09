@@ -1,20 +1,20 @@
 ---
 grok_wiki: true
-page_id: "page-api-serverless-reference"
-title: "Referência de APIs serverless"
-description: "Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-api-serverless-reference'
+title: 'Referência de APIs serverless'
+description: 'Métodos, payloads, validação Zod, erros, timeouts, runtime Node.js, headers comuns e respostas degradadas das rotas em `api/*.ts`.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "api/gemini.ts"
-  - "api/cnpj.ts"
-  - "api/comex.ts"
-  - "api/open-web-search.ts"
-  - "api/extract-content.ts"
-  - "api/link-status.ts"
-  - "api/radar-scan.ts"
-  - "api/socio-search.ts"
+  - 'api/gemini.ts'
+  - 'api/cnpj.ts'
+  - 'api/comex.ts'
+  - 'api/open-web-search.ts'
+  - 'api/extract-content.ts'
+  - 'api/link-status.ts'
+  - 'api/radar-scan.ts'
+  - 'api/socio-search.ts'
 ---
 
 As rotas serverless do app ficam em `api/*.ts`, rodam com `runtime: "nodejs"` quando declarado e expõem contratos HTTP JSON consumidos pelo frontend Vite, por testes Vitest e pelo preview Vercel. A maioria das rotas aplica `setSecurityHeaders(res)` no início do handler; validação de body usa Zod nas rotas novas e validação manual nas rotas legadas de CNPJ, Comex e status de link.
@@ -25,50 +25,50 @@ Em desenvolvimento local, `config/localDevApiProxy.ts` mantém a lista de rotas 
 
 ## Inventário de rotas
 
-| Rota | Métodos aceitos | Validação | Limite declarado | Comportamento principal |
-| --- | --- | --- | --- | --- |
-| `/api/gemini` | `POST` | Zod por `action`; `recordDiagnostics` manual | `300s` | Proxy Gemini, cache foundation, tool call Open Web Search e ingestão de diagnósticos |
-| `/api/gerar-dossie` | `POST` | Zod | `300s` | `generateContent` dedicado para dossiês longos |
-| `/api/open-web-search` | `POST` | Zod | `60s` | Busca web ou extração de URL pública com resposta degradada em `200` |
-| `/api/extract-content` | `POST` | Zod | `60s` | Extração de URL, PDF, DOCX, HTML ou texto base64 |
-| `/api/link-status` | `POST` | Manual | padrão Vercel | Validação defensiva de até 25 URLs, `HEAD` com fallback `GET` |
-| `/api/radar-scan` | `GET`, `POST` | Zod | `120s` | Varredura de RSS/Google News por categorias e classificação Gemini |
-| `/api/socio-search` | `POST` | Zod em `services/socio-search/types.ts` | `60s` | Busca societária lateral, enriquecimento por CNPJ e cache volátil/persistente |
-| `/api/cnpj` | `GET`, `OPTIONS` | Manual | padrão Vercel | Proxy CNPJ com CORS explícito e cache HTTP de 1 hora |
-| `/api/comex` | `OPTIONS` e requisições com `query.cnpj` | Manual | padrão Vercel | Simulação determinística de exportador com cache HTTP de 24 horas |
-| `/api/rag` | `POST` | Zod | `60s` | Consulta Pinecone genérica com embeddings Gemini |
-| `/api/docs-rag` | `POST` | Zod | `60s` | Consulta RAG documental com namespaces permitidos |
-| `/api/pulse-news` | `POST` | Zod | padrão Vercel | Resumo comercial Gemini por `companyName` |
+| Rota                   | Métodos aceitos                          | Validação                                    | Limite declarado | Comportamento principal                                                              |
+| ---------------------- | ---------------------------------------- | -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------ |
+| `/api/gemini`          | `POST`                                   | Zod por `action`; `recordDiagnostics` manual | `300s`           | Proxy Gemini, cache foundation, tool call Open Web Search e ingestão de diagnósticos |
+| `/api/gerar-dossie`    | `POST`                                   | Zod                                          | `300s`           | `generateContent` dedicado para dossiês longos                                       |
+| `/api/open-web-search` | `POST`                                   | Zod                                          | `60s`            | Busca web ou extração de URL pública com resposta degradada em `200`                 |
+| `/api/extract-content` | `POST`                                   | Zod                                          | `60s`            | Extração de URL, PDF, DOCX, HTML ou texto base64                                     |
+| `/api/link-status`     | `POST`                                   | Manual                                       | padrão Vercel    | Validação defensiva de até 25 URLs, `HEAD` com fallback `GET`                        |
+| `/api/radar-scan`      | `GET`, `POST`                            | Zod                                          | `120s`           | Varredura de RSS/Google News por categorias e classificação Gemini                   |
+| `/api/socio-search`    | `POST`                                   | Zod em `services/socio-search/types.ts`      | `60s`            | Busca societária lateral, enriquecimento por CNPJ e cache volátil/persistente        |
+| `/api/cnpj`            | `GET`, `OPTIONS`                         | Manual                                       | padrão Vercel    | Proxy CNPJ com CORS explícito e cache HTTP de 1 hora                                 |
+| `/api/comex`           | `OPTIONS` e requisições com `query.cnpj` | Manual                                       | padrão Vercel    | Simulação determinística de exportador com cache HTTP de 24 horas                    |
+| `/api/rag`             | `POST`                                   | Zod                                          | `60s`            | Consulta Pinecone genérica com embeddings Gemini                                     |
+| `/api/docs-rag`        | `POST`                                   | Zod                                          | `60s`            | Consulta RAG documental com namespaces permitidos                                    |
+| `/api/pulse-news`      | `POST`                                   | Zod                                          | padrão Vercel    | Resumo comercial Gemini por `companyName`                                            |
 
 ## Headers comuns
 
 Todas as rotas principais chamam `setSecurityHeaders(res)` antes de responder:
 
-| Header | Valor |
-| --- | --- |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `X-XSS-Protection` | `1; mode=block` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| Header                   | Valor                             |
+| ------------------------ | --------------------------------- |
+| `X-Content-Type-Options` | `nosniff`                         |
+| `X-Frame-Options`        | `DENY`                            |
+| `X-XSS-Protection`       | `1; mode=block`                   |
+| `Referrer-Policy`        | `strict-origin-when-cross-origin` |
 
 `/api/cnpj` e `/api/comex` também aplicam CORS para `ALLOWED_ORIGIN`, preview Vercel, `https://scoutagro.vercel.app`, `http://localhost:5173` e `http://localhost:3000`. `/api/cnpj` permite `GET,OPTIONS`; `/api/comex` anuncia `GET,OPTIONS,POST` e inclui `Access-Control-Allow-Credentials: true`.
 
 `Cache-Control` só é definido por rotas idempotentes específicas:
 
-| Rota | Cache |
-| --- | --- |
-| `/api/cnpj` | `public, max-age=3600, s-maxage=3600` |
+| Rota         | Cache                                   |
+| ------------ | --------------------------------------- |
+| `/api/cnpj`  | `public, max-age=3600, s-maxage=3600`   |
 | `/api/comex` | `public, max-age=86400, s-maxage=86400` |
 
 ## Validação e erros padrão
 
-| Caso | Resposta típica |
-| --- | --- |
-| Método não aceito | `405 { "error": "Method not allowed" }` |
-| Body inválido em rota Zod | `400 { "error": "Invalid request", "details": ... }` |
-| CNPJ inválido em `/api/cnpj` | `400 { "error": "CNPJ inválido — verifique os dígitos informados." }` |
-| CNPJ inválido em `/api/comex` | `400 { "error": "CNPJ inválido." }` |
-| URL privada/restrita | `403`, quando a rota bloqueia SSRF diretamente |
+| Caso                               | Resposta típica                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------- |
+| Método não aceito                  | `405 { "error": "Method not allowed" }`                                   |
+| Body inválido em rota Zod          | `400 { "error": "Invalid request", "details": ... }`                      |
+| CNPJ inválido em `/api/cnpj`       | `400 { "error": "CNPJ inválido — verifique os dígitos informados." }`     |
+| CNPJ inválido em `/api/comex`      | `400 { "error": "CNPJ inválido." }`                                       |
+| URL privada/restrita               | `403`, quando a rota bloqueia SSRF diretamente                            |
 | Falha controlada com fallback útil | `200` com `degraded: true`, `context` vazio, `providerStatus` ou `detail` |
 
 <Warning>
@@ -82,28 +82,28 @@ Nem toda falha operacional vira status HTTP de erro. `/api/open-web-search`, `/a
 
 ### Ações aceitas
 
-| `action` | Campos principais | Resposta |
-| --- | --- | --- |
-| `health` | nenhum campo adicional | `{ ok, text }` |
-| `generateContent` | `model?`, `contents`, `config?` | `{ text, candidates, usageMetadata }` |
-| `createCachedContent` | `model?`, `systemInstruction`, `ttl?`, `displayName?`, `tools?` | `{ name, expireTime, usageMetadata }` |
-| `deleteCachedContent` | `name` | `{ ok: true }` |
-| `chatSendMessage` | `model?`, `systemInstruction?`, `history?`, `message`, `useGrounding?`, `thinkingLevel?`, `thinkingMode?`, `useOpenWebSearch?` | `{ text, groundingChunks, groundingUsed }` |
-| `recordDiagnostics` | `runId`, `events`, metadados opcionais | `{ inserted }` ou `{ inserted: 0, degraded: true, reason }` |
+| `action`              | Campos principais                                                                                                              | Resposta                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `health`              | nenhum campo adicional                                                                                                         | `{ ok, text }`                                              |
+| `generateContent`     | `model?`, `contents`, `config?`                                                                                                | `{ text, candidates, usageMetadata }`                       |
+| `createCachedContent` | `model?`, `systemInstruction`, `ttl?`, `displayName?`, `tools?`                                                                | `{ name, expireTime, usageMetadata }`                       |
+| `deleteCachedContent` | `name`                                                                                                                         | `{ ok: true }`                                              |
+| `chatSendMessage`     | `model?`, `systemInstruction?`, `history?`, `message`, `useGrounding?`, `thinkingLevel?`, `thinkingMode?`, `useOpenWebSearch?` | `{ text, groundingChunks, groundingUsed }`                  |
+| `recordDiagnostics`   | `runId`, `events`, metadados opcionais                                                                                         | `{ inserted }` ou `{ inserted: 0, degraded: true, reason }` |
 
 `recordDiagnostics` é tratado antes do schema Gemini. O batch aceita até `MAX_EVENTS_PER_BATCH` eventos e grava em `scout_diagnostics` quando `SUPABASE_URL` ou `VITE_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` existem.
 
 ### Defaults e timeouts internos
 
-| Item | Valor |
-| --- | --- |
-| Modelo padrão | `gemini-3-flash-preview` |
-| `generateContent.config.temperature` | `0.2` |
-| `generateContent.config.maxOutputTokens` | `65536` |
-| Chat com grounding | timeout local de `55_000ms` |
-| Chat sem grounding | timeout local de `180_000ms` |
-| Tool call `/api/open-web-search` | `30_000ms` |
-| Frontend `services/geminiProxy.ts` | `VITE_GEMINI_PROXY_TIMEOUT_MS` ou `210000ms` |
+| Item                                     | Valor                                        |
+| ---------------------------------------- | -------------------------------------------- |
+| Modelo padrão                            | `gemini-3-flash-preview`                     |
+| `generateContent.config.temperature`     | `0.2`                                        |
+| `generateContent.config.maxOutputTokens` | `65536`                                      |
+| Chat com grounding                       | timeout local de `55_000ms`                  |
+| Chat sem grounding                       | timeout local de `180_000ms`                 |
+| Tool call `/api/open-web-search`         | `30_000ms`                                   |
+| Frontend `services/geminiProxy.ts`       | `VITE_GEMINI_PROXY_TIMEOUT_MS` ou `210000ms` |
 
 <RequestExample>
 
@@ -135,12 +135,12 @@ curl -sS -X POST /api/gemini \
 
 ### Erros específicos
 
-| Condição | Status |
-| --- | --- |
-| `GEMINI_API_KEY` ausente | `500` com `Gemini proxy failed` |
-| quota, rate limit ou billing na chave primária com fallback disponível | tenta `GEMINI_API_KEY_FALLBACK` |
-| `createCachedContent` ou `deleteCachedContent` sem `GEMINI_FOUNDATION_CACHE_ENABLED=1` | `403 Foundation cache disabled` |
-| erro Gemini com código HTTP detectável | propaga `429`, `403` ou outro status entre `400` e `599` |
+| Condição                                                                               | Status                                                   |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `GEMINI_API_KEY` ausente                                                               | `500` com `Gemini proxy failed`                          |
+| quota, rate limit ou billing na chave primária com fallback disponível                 | tenta `GEMINI_API_KEY_FALLBACK`                          |
+| `createCachedContent` ou `deleteCachedContent` sem `GEMINI_FOUNDATION_CACHE_ENABLED=1` | `403 Foundation cache disabled`                          |
+| erro Gemini com código HTTP detectável                                                 | propaga `429`, `403` ou outro status entre `400` e `599` |
 
 :::
 
@@ -187,9 +187,7 @@ Aceita `query`, `url` ou ambos. O schema exige pelo menos um dos campos. Quando 
   "source": "OpenWebSearch/DuckDuckGo",
   "sources": [],
   "degraded": false,
-  "providerStatus": [
-    { "provider": "duckduckgo", "ok": true }
-  ]
+  "providerStatus": [{ "provider": "duckduckgo", "ok": true }]
 }
 ```
 
@@ -204,9 +202,7 @@ Se a busca não encontra conteúdo ou o provedor falha, a rota ainda retorna `20
   "sources": [],
   "degraded": true,
   "detail": "Search failed: 503",
-  "providerStatus": [
-    { "provider": "duckduckgo", "ok": false, "reason": "unknown" }
-  ]
+  "providerStatus": [{ "provider": "duckduckgo", "ok": false, "reason": "unknown" }]
 }
 ```
 
@@ -336,12 +332,12 @@ curl -sS '/api/cnpj?cnpj=04.252.011/0001-10'
 
 </RequestExample>
 
-| Condição | Status |
-| --- | --- |
+| Condição                 | Status                                         |
+| ------------------------ | ---------------------------------------------- |
 | CNPJ válido e encontrado | `200` com os dados retornados por `lookupCnpj` |
-| CNPJ inválido | `400` |
-| CNPJ não encontrado | `404` |
-| falha de fonte externa | `503` com mensagem recuperável e `detail` |
+| CNPJ inválido            | `400`                                          |
+| CNPJ não encontrado      | `404`                                          |
+| falha de fonte externa   | `503` com mensagem recuperável e `detail`      |
 
 O frontend espera que dados de QSA retornados pelo proxy sejam preservados.
 :::
@@ -407,9 +403,9 @@ A rota busca Google News RSS e feeds fixos, deduplica títulos e usa Gemini para
 
 `/api/rag` e `/api/docs-rag` usam embeddings Gemini (`gemini-embedding-001`) e Pinecone. Ambas retornam `200` degradado em falhas operacionais para não quebrar o War Room.
 
-| Rota | Entrada | Saída de sucesso | Degradação |
-| --- | --- | --- | --- |
-| `/api/rag` | `{ "query": string }` | `{ "context": string }` | `{ "context": "", "degraded": true, "detail": "..." }` |
+| Rota            | Entrada                                     | Saída de sucesso                          | Degradação                                                                         |
+| --------------- | ------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `/api/rag`      | `{ "query": string }`                       | `{ "context": string }`                   | `{ "context": "", "degraded": true, "detail": "..." }`                             |
 | `/api/docs-rag` | `{ "query": string, "namespace"?: string }` | `{ "context": string, "matches": [...] }` | `{ "context": "", "degraded": true, "detail": "..." }` ou sinal explícito sem docs |
 
 `/api/docs-rag` só aceita namespaces `senior-erp-docs` e `competitor-pdfs`; namespace inválido retorna `400 { "error": "Invalid namespace", "allowed": [...] }`. Matches abaixo de `0.6` ou sem texto indexado retornam o sinal:
@@ -424,31 +420,31 @@ A rota busca Google News RSS e feeds fixos, deduplica títulos e usa Gemini para
 
 ## Variáveis de ambiente server-side
 
-| Variável | Usada por | Observação |
-| --- | --- | --- |
-| `GEMINI_API_KEY` | `gemini`, `gerar-dossie`, `radar-scan`, `rag`, `docs-rag`, `pulse-news`, busca web via utilitário | Obrigatória nas rotas que chamam Gemini diretamente |
-| `GEMINI_API_KEY_FALLBACK` | `gemini`, `gerar-dossie` | Usada em quota, billing ou permissão quando a chave primária falha |
-| `GEMINI_FOUNDATION_CACHE_ENABLED` | `gemini` | Deve ser `1` para `createCachedContent` e `deleteCachedContent` |
-| `SUPABASE_URL` ou `VITE_SUPABASE_URL` | `recordDiagnostics`, cache persistente de `socio-search` | URL REST Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | `recordDiagnostics`, cache persistente de `socio-search` | Chave server-side; não expor no frontend |
-| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `rag`, `docs-rag` | Chave Pinecone |
-| `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX` | `rag`, `docs-rag` | Índice inválido cai para `scout-arsenal` |
-| `PINECONE_NAMESPACE` | `rag`, fallback de `docs-rag` | Namespace opcional |
-| `PINECONE_DOCS_NAMESPACE` | `docs-rag` | Default efetivo para docs quando permitido |
-| `CNPJABERTO_API_KEY` | `socio-search` via `documentExtractor` | Habilita busca estruturada por sócio |
-| `ALLOWED_ORIGIN` e `VERCEL_URL` | `cnpj`, `comex` | Compõem lista CORS permitida |
+| Variável                                  | Usada por                                                                                         | Observação                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `GEMINI_API_KEY`                          | `gemini`, `gerar-dossie`, `radar-scan`, `rag`, `docs-rag`, `pulse-news`, busca web via utilitário | Obrigatória nas rotas que chamam Gemini diretamente                |
+| `GEMINI_API_KEY_FALLBACK`                 | `gemini`, `gerar-dossie`                                                                          | Usada em quota, billing ou permissão quando a chave primária falha |
+| `GEMINI_FOUNDATION_CACHE_ENABLED`         | `gemini`                                                                                          | Deve ser `1` para `createCachedContent` e `deleteCachedContent`    |
+| `SUPABASE_URL` ou `VITE_SUPABASE_URL`     | `recordDiagnostics`, cache persistente de `socio-search`                                          | URL REST Supabase                                                  |
+| `SUPABASE_SERVICE_ROLE_KEY`               | `recordDiagnostics`, cache persistente de `socio-search`                                          | Chave server-side; não expor no frontend                           |
+| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `rag`, `docs-rag`                                                                                 | Chave Pinecone                                                     |
+| `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX` | `rag`, `docs-rag`                                                                                 | Índice inválido cai para `scout-arsenal`                           |
+| `PINECONE_NAMESPACE`                      | `rag`, fallback de `docs-rag`                                                                     | Namespace opcional                                                 |
+| `PINECONE_DOCS_NAMESPACE`                 | `docs-rag`                                                                                        | Default efetivo para docs quando permitido                         |
+| `CNPJABERTO_API_KEY`                      | `socio-search` via `documentExtractor`                                                            | Habilita busca estruturada por sócio                               |
+| `ALLOWED_ORIGIN` e `VERCEL_URL`           | `cnpj`, `comex`                                                                                   | Compõem lista CORS permitida                                       |
 
 ## Respostas degradadas por design
 
-| Superfície | Resposta degradada | Motivo |
-| --- | --- | --- |
-| `/api/open-web-search` | `200`, `content: ""`, `degraded: true`, `providerStatus` | Busca pública é enriquecimento, não deve travar o dossiê |
-| `/api/socio-search` | `200`, `companies: []`, `degraded: true`, `detail` | Drill-down societário lateral deve falhar de forma controlada |
-| `/api/rag` | `200`, `context: ""`, `degraded: true` | War Room pode seguir sem contexto RAG |
-| `/api/docs-rag` | `200` com sinal sem documentação ou `degraded: true` | Evita completar resposta com fonte fraca ou ausente |
-| `/api/gemini` `recordDiagnostics` | `200`, `inserted: 0`, `degraded: true` | Ausência de Supabase não deve quebrar telemetria do cliente |
-| `/api/link-status` | item `unknown` | Validação de fonte é opcional e revisável manualmente |
-| `/api/radar-scan` | `partialFailures` ou fallback de RSS bruto | Falha parcial por categoria não invalida o scan inteiro |
+| Superfície                        | Resposta degradada                                       | Motivo                                                        |
+| --------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------- |
+| `/api/open-web-search`            | `200`, `content: ""`, `degraded: true`, `providerStatus` | Busca pública é enriquecimento, não deve travar o dossiê      |
+| `/api/socio-search`               | `200`, `companies: []`, `degraded: true`, `detail`       | Drill-down societário lateral deve falhar de forma controlada |
+| `/api/rag`                        | `200`, `context: ""`, `degraded: true`                   | War Room pode seguir sem contexto RAG                         |
+| `/api/docs-rag`                   | `200` com sinal sem documentação ou `degraded: true`     | Evita completar resposta com fonte fraca ou ausente           |
+| `/api/gemini` `recordDiagnostics` | `200`, `inserted: 0`, `degraded: true`                   | Ausência de Supabase não deve quebrar telemetria do cliente   |
+| `/api/link-status`                | item `unknown`                                           | Validação de fonte é opcional e revisável manualmente         |
+| `/api/radar-scan`                 | `partialFailures` ou fallback de RSS bruto               | Falha parcial por categoria não invalida o scan inteiro       |
 
 ## Verificação local
 

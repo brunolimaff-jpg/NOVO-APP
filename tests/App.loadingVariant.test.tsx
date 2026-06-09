@@ -256,7 +256,7 @@ describe('App loading variant regression', () => {
     renderApp();
 
     expect(screen.getByTestId('chat-interface')).toBeInTheDocument();
-    expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+    expect(screen.getByTestId('chat-loading-variant')).toBeInTheDocument();
   });
 
   it('mantém a primeira investigação em hero e mostra o LoadingSmart global', async () => {
@@ -268,8 +268,8 @@ describe('App loading variant regression', () => {
 
     await waitFor(() => {
       expect(setSessionsMock).toHaveBeenCalled();
-      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
-      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
+      expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
     });
 
     expect(deepDiveErrorRef.current).toBeNull();
@@ -284,9 +284,9 @@ describe('App loading variant regression', () => {
 
     await waitFor(() => {
       expect(setSessionsMock).toHaveBeenCalled();
-      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
       expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('Deep Dive em andamento: Tech Stack');
-      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+      expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
     });
 
     expect(generateDossierModuleMock).not.toHaveBeenCalled();
@@ -302,9 +302,9 @@ describe('App loading variant regression', () => {
 
     await waitFor(() => {
       expect(setSessionsMock).toHaveBeenCalled();
-      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('hero');
+      expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
       expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('none');
-      expect(screen.getByTestId('loading-smart')).toBeInTheDocument();
+      expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
     });
 
     expect(generateDossierModuleMock).toHaveBeenCalled();

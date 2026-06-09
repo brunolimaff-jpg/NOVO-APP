@@ -69,12 +69,14 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
 
-    // Verifica que LoadingSmart aparece
-    const loadingSmart = page.getByTestId('loading-smart-overlay');
-    await expect(loadingSmart).toBeVisible({ timeout: 30_000 });
+    // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
+    await expect(
+      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
+    ).toBeVisible({ timeout: 30_000 });
 
-    // Aguarda LoadingSmart desaparecer (timeout generoso)
-    await expect(loadingSmart).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    // Aguarda todos os indicadores de loading desaparecerem
+    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
 
     // Após LoadingSmart desaparecer, um estado válido precisa estar presente no painel central.
     await expectValidMainPanelState(page);
@@ -94,9 +96,9 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     // Input deve estar visível durante e após o loading
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
 
-    // Aguarda loading terminar
-    const loadingSmart = page.getByTestId('loading-smart-overlay');
-    await expect(loadingSmart).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    // Aguarda todos os indicadores de loading desaparecerem
+    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
 
     // Input continua acessível
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 10_000 });
@@ -120,8 +122,8 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
 
-    const loadingSmart = page.getByTestId('loading-smart-overlay');
-    await expect(loadingSmart).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
 
     expect(unexpectedErrors).toHaveLength(0);
   });

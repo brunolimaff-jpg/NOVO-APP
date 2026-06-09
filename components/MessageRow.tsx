@@ -6,6 +6,7 @@ import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
 import InlineTypingResponse from './InlineTypingResponse';
+import InlineLoadingBubble from './InlineLoadingBubble';
 import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
@@ -226,18 +227,15 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     );
   } else if (showInlineLoading) {
     content = (
-      <div className="flex justify-start animate-fade-in">
-        <div
-          className={`rounded-2xl p-4 shadow-sm w-full ${
-            isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
-          } px-3 md:px-5 py-3 md:py-4`}
-        >
-          <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
-            <span>{assistantLabel}</span>
-            <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-          <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
-        </div>
+      <div className="flex justify-start animate-fade-in mt-4 w-full">
+        <InlineLoadingBubble
+          isDarkMode={isDarkMode}
+          processing={processing}
+          empresaAlvo={empresaAlvo}
+          cnpj={cnpj}
+          lastUserQuery={data.lastUserQuery}
+          onStop={data.onStop}
+        />
       </div>
     );
   } else if (msg.isError && msg.errorDetails) {

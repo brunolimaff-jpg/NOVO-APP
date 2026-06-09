@@ -1,33 +1,33 @@
 ---
 grok_wiki: true
-page_id: "page-gerar-dossie-cnpj"
-title: "Gerar dossiê por CNPJ"
-description: "Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-gerar-dossie-cnpj'
+title: 'Gerar dossiê por CNPJ'
+description: 'Passos, pré-condições, lookup cadastral, preenchimento do alvo, envio da investigação, estados esperados e validação E2E do fluxo CNPJ.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "components/ChatInterface.tsx"
-  - "services/brasilApiService.ts"
-  - "api/cnpj.ts"
-  - "features/chat/message-orchestrator.ts"
-  - "features/dossier/waterfall-orchestrator.ts"
-  - "tests-e2e/cnpj-investigation-flow.spec.ts"
+  - 'components/ChatInterface.tsx'
+  - 'services/brasilApiService.ts'
+  - 'api/cnpj.ts'
+  - 'features/chat/message-orchestrator.ts'
+  - 'features/dossier/waterfall-orchestrator.ts'
+  - 'tests-e2e/cnpj-investigation-flow.spec.ts'
 ---
 
 O fluxo CNPJ começa no formulário `EmptyStateHome`, consulta dados cadastrais pelo proxy serverless `GET /api/cnpj`, preenche `companyName`, `city` e `state`, e envia um `StartInvestigationPayload` para `ChatInterface`, que dispara o dossiê completo pelo caminho `App.handleDeepDive` → `useChatMessageOrchestrator` → `useDossierWaterfallOrchestrator`.
 
 ## Superfície do fluxo
 
-| Camada | Identificador | Responsabilidade |
-| --- | --- | --- |
-| Formulário inicial | `components/EmptyStateHome.tsx` | Captura empresa, CNPJ, cidade e UF; executa lookup cadastral; valida cidade/UF antes do submit. |
-| Cliente CNPJ | `services/brasilApiService.ts` | Normaliza, valida e chama `/api/cnpj`; trata JSON inválido, timeout e ambiente local sem proxy. |
-| API serverless | `api/cnpj.ts` | Aplica CORS e headers de segurança, valida método e CNPJ, chama `lookupCnpj` e retorna JSON normalizado. |
-| Lookup oficial | `lib/cnpjLookup.ts` | Consulta BrasilAPI, CNPJ.ws e MinhaReceita no servidor, com cache em memória. |
-| Orquestração de chat | `features/chat/message-orchestrator.ts` | Cria sessão, adiciona placeholder do bot, detecta mensagem `DOSSIE COMPLETO` e dispara o waterfall. |
-| Waterfall de dossiê | `features/dossier/waterfall-orchestrator.ts` | Usa CNPJ da sessão para contexto QSA/teia, roda módulos do dossiê e finaliza UI/persistência. |
-| E2E | `tests-e2e/cnpj-investigation-flow.spec.ts` | Valida lookup, autopreenchimento, submit, resposta renderizada e rejeição de CNPJ inválido. |
+| Camada               | Identificador                                | Responsabilidade                                                                                         |
+| -------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Formulário inicial   | `components/EmptyStateHome.tsx`              | Captura empresa, CNPJ, cidade e UF; executa lookup cadastral; valida cidade/UF antes do submit.          |
+| Cliente CNPJ         | `services/brasilApiService.ts`               | Normaliza, valida e chama `/api/cnpj`; trata JSON inválido, timeout e ambiente local sem proxy.          |
+| API serverless       | `api/cnpj.ts`                                | Aplica CORS e headers de segurança, valida método e CNPJ, chama `lookupCnpj` e retorna JSON normalizado. |
+| Lookup oficial       | `lib/cnpjLookup.ts`                          | Consulta BrasilAPI, CNPJ.ws e MinhaReceita no servidor, com cache em memória.                            |
+| Orquestração de chat | `features/chat/message-orchestrator.ts`      | Cria sessão, adiciona placeholder do bot, detecta mensagem `DOSSIE COMPLETO` e dispara o waterfall.      |
+| Waterfall de dossiê  | `features/dossier/waterfall-orchestrator.ts` | Usa CNPJ da sessão para contexto QSA/teia, roda módulos do dossiê e finaliza UI/persistência.            |
+| E2E                  | `tests-e2e/cnpj-investigation-flow.spec.ts`  | Valida lookup, autopreenchimento, submit, resposta renderizada e rejeição de CNPJ inválido.              |
 
 ```mermaid
 sequenceDiagram
@@ -129,12 +129,12 @@ curl "http://localhost:3000/api/cnpj?cnpj=04733767000180"
 
 Erros esperados:
 
-| Status | Condição | Corpo |
-| --- | --- | --- |
-| `400` | CNPJ inválido | `{ "error": "CNPJ inválido — verifique os dígitos informados." }` |
-| `404` | Todas as fontes indicam não encontrado | `{ "error": "CNPJ ... não encontrado na base da Receita Federal." }` |
-| `405` | Método diferente de `GET` ou `OPTIONS` | `{ "error": "Method not allowed" }` |
-| `503` | Fontes indisponíveis ou falha agregada | `{ "error": "Serviço de consulta de CNPJ temporariamente indisponível...", "detail": "..." }` |
+| Status | Condição                               | Corpo                                                                                         |
+| ------ | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `400`  | CNPJ inválido                          | `{ "error": "CNPJ inválido — verifique os dígitos informados." }`                             |
+| `404`  | Todas as fontes indicam não encontrado | `{ "error": "CNPJ ... não encontrado na base da Receita Federal." }`                          |
+| `405`  | Método diferente de `GET` ou `OPTIONS` | `{ "error": "Method not allowed" }`                                                           |
+| `503`  | Fontes indisponíveis ou falha agregada | `{ "error": "Serviço de consulta de CNPJ temporariamente indisponível...", "detail": "..." }` |
 
 :::
 
@@ -142,11 +142,11 @@ Erros esperados:
 
 `lookupCnpj` roda somente no servidor. O comentário do módulo é explícito: callers de browser devem usar `fetchCompanyByCnpj`, porque chamadas diretas para BrasilAPI, CNPJ.ws ou MinhaReceita podem falhar por CORS.
 
-| Fonte | Timeout padrão | Campos mínimos exigidos |
-| --- | ---: | --- |
-| `BrasilAPI` | 8s | `companyName`, `city`, `state` |
-| `CNPJ.ws` | 10s | `companyName`, `city`, `state` |
-| `MinhaReceita` | 10s | `companyName`, `city`, `state` |
+| Fonte          | Timeout padrão | Campos mínimos exigidos        |
+| -------------- | -------------: | ------------------------------ |
+| `BrasilAPI`    |             8s | `companyName`, `city`, `state` |
+| `CNPJ.ws`      |            10s | `companyName`, `city`, `state` |
+| `MinhaReceita` |            10s | `companyName`, `city`, `state` |
 
 O cache em memória usa TTL de 7 dias, versão interna `2` e limite de 1000 entradas com remoção da entrada mais antiga.
 
@@ -172,14 +172,14 @@ O cache em memória usa TTL de 7 dias, versão interna `2` e limite de 1000 entr
 
 ### Mensagens de erro do formulário
 
-| Condição | Mensagem ou estado esperado | Efeito |
-| --- | --- | --- |
-| CNPJ com dígitos inválidos | Botão de validar desabilitado | Lookup não inicia. |
-| CNPJ não encontrado | `CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.` | CNPJ não fica travado; preenchimento manual continua disponível. |
-| Local sem proxy | `Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.` | O operador pode preencher manualmente ou corrigir o proxy. |
-| Serviço indisponível | `Serviço de consulta indisponível no momento. Preencha os campos manualmente.` | O fluxo não bloqueia a investigação manual. |
-| Cidade/UF inválida | `Cidade não encontrada para a UF informada. Verifique o cadastro.` | Submit é interrompido. |
-| IBGE indisponível | Sem bloqueio rígido | `validateCityInState` retorna válido para não impedir o operador por indisponibilidade externa. |
+| Condição                   | Mensagem ou estado esperado                                                                 | Efeito                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| CNPJ com dígitos inválidos | Botão de validar desabilitado                                                               | Lookup não inicia.                                                                              |
+| CNPJ não encontrado        | `CNPJ não encontrado na Receita Federal. Preencha os campos manualmente.`                   | CNPJ não fica travado; preenchimento manual continua disponível.                                |
+| Local sem proxy            | `Ambiente local sem proxy para consulta de CNPJ. Rode via vercel dev ou configure o proxy.` | O operador pode preencher manualmente ou corrigir o proxy.                                      |
+| Serviço indisponível       | `Serviço de consulta indisponível no momento. Preencha os campos manualmente.`              | O fluxo não bloqueia a investigação manual.                                                     |
+| Cidade/UF inválida         | `Cidade não encontrada para a UF informada. Verifique o cadastro.`                          | Submit é interrompido.                                                                          |
+| IBGE indisponível          | Sem bloqueio rígido                                                                         | `validateCityInState` retorna válido para não impedir o operador por indisponibilidade externa. |
 
 ## Envio da investigação
 
@@ -205,11 +205,11 @@ Antes de disparar a geração, `ChatInterface` toca o contexto do operador e cha
 
 Quando encontra duplicidade, aparece `DuplicateDossierModal` com três caminhos:
 
-| Ação | Resultado |
-| --- | --- |
+| Ação                       | Resultado                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `Acessar Dossiê Existente` | Carrega do storage local; se ausente, busca `content` em Supabase, salva localmente e seleciona a sessão existente. |
-| `Nova Pesquisa do Zero` | Executa nova investigação e depois remove o dossiê anterior. |
-| `Cancelar` | Fecha o modal e descarta o payload pendente. |
+| `Nova Pesquisa do Zero`    | Executa nova investigação e depois remove o dossiê anterior.                                                        |
+| `Cancelar`                 | Fecha o modal e descarta o payload pendente.                                                                        |
 
 ### Construção do prompt
 
@@ -245,16 +245,16 @@ Durante a execução, o CNPJ salvo na sessão entra como `sessionCnpjDigits`. O 
 
 As etapas visuais do dossiê são:
 
-| Ordem | Etapa |
-| ---: | --- |
-| 1 | `Mapeando conta real e teia societária...` |
-| 2 | `Mapeando operação e cadeia de valor...` |
-| 3 | `Identificando bordas de controle...` |
-| 4 | `Verificando pressões e compliance...` |
-| 5 | `Mapeando caminho de venda...` |
-| 6 | `Cruzando referências de mercado...` |
-| 7 | `Finalizando cards de auditoria...` |
-| Final | `Consolidando informações...` |
+| Ordem | Etapa                                      |
+| ----: | ------------------------------------------ |
+|     1 | `Mapeando conta real e teia societária...` |
+|     2 | `Mapeando operação e cadeia de valor...`   |
+|     3 | `Identificando bordas de controle...`      |
+|     4 | `Verificando pressões e compliance...`     |
+|     5 | `Mapeando caminho de venda...`             |
+|     6 | `Cruzando referências de mercado...`       |
+|     7 | `Finalizando cards de auditoria...`        |
+| Final | `Consolidando informações...`              |
 
 Na conclusão, o bot deixa `isThinking=false`, recebe `text`, `scorePorta`, `clienteSeniorData`, `groundingSources`, `webVerificationStatus` e `suggestions`. A persistência em `storage.saveDossier` é fire-and-forget; se falhar, a sessão permanece em memória e o evento `dossier:completed` não é disparado.
 
@@ -280,16 +280,16 @@ BASE_URL=https://seu-preview.vercel.app npx playwright test tests-e2e/cnpj-inves
 
 O teste cobre:
 
-| Passo | Assert principal |
-| --- | --- |
-| Abrir app | Texto `Dados do alvo` visível em até 15s. |
-| Preencher Scheffer `04.733.767/0001-80` | Campo `investigation-cnpj-input` aceita máscara. |
-| Validar CNPJ | Mensagem `Dados preenchidos automaticamente via Receita Federal` visível em até 30s. |
-| Conferir alvo | `investigation-company-input`, `investigation-city-input` e `investigation-uf-input` não ficam vazios. |
-| Enviar | `investigation-submit-button` habilitado e clicável. |
-| Receber dossiê | Primeiro `.prose` visível em até 120s. |
-| Qualidade mínima | Texto renderizado maior que 50 caracteres. |
-| CNPJ inválido | `00.000.000/0000-00` mantém o botão de validar desabilitado. |
+| Passo                                   | Assert principal                                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Abrir app                               | Texto `Dados do alvo` visível em até 15s.                                                              |
+| Preencher Scheffer `04.733.767/0001-80` | Campo `investigation-cnpj-input` aceita máscara.                                                       |
+| Validar CNPJ                            | Mensagem `Dados preenchidos automaticamente via Receita Federal` visível em até 30s.                   |
+| Conferir alvo                           | `investigation-company-input`, `investigation-city-input` e `investigation-uf-input` não ficam vazios. |
+| Enviar                                  | `investigation-submit-button` habilitado e clicável.                                                   |
+| Receber dossiê                          | Primeiro `.prose` visível em até 120s.                                                                 |
+| Qualidade mínima                        | Texto renderizado maior que 50 caracteres.                                                             |
+| CNPJ inválido                           | `00.000.000/0000-00` mantém o botão de validar desabilitado.                                           |
 
 ### Regressão visual pós-waterfall
 
@@ -310,14 +310,14 @@ Esse teste usa stubs rápidos de `/api/gemini`, mas mantém o fluxo CNPJ e valid
 
 ## Troubleshooting
 
-| Sintoma | Verificação | Correção esperada |
-| --- | --- | --- |
-| Botão `Validar CNPJ` desabilitado | `normalizeCnpj(cnpj).length === 14` e `isValidCnpj(cnpj)` | Corrigir dígitos ou usar preenchimento manual sem CNPJ. |
-| Lookup retorna HTML no local | Erro `Local dev sem proxy para /api/cnpj` | Rodar pelo Vite na porta `3000`, usar `vercel dev` ou configurar `VITE_CNPJ_PROXY_URL`. |
-| CNPJ existe, mas API retorna `503` | Logs `[api/cnpj] request:error` e `[cnpjLookup] todas as fontes falharam` | Repetir depois ou preencher manualmente; não chamar fonte externa direto do browser. |
-| Modal de duplicidade aparece | Busca em `dossies` encontrou CNPJ ou `empresa_alvo` para o mesmo operador | Acessar existente ou iniciar nova pesquisa explicitamente. |
+| Sintoma                                 | Verificação                                                                                                         | Correção esperada                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Botão `Validar CNPJ` desabilitado       | `normalizeCnpj(cnpj).length === 14` e `isValidCnpj(cnpj)`                                                           | Corrigir dígitos ou usar preenchimento manual sem CNPJ.                                      |
+| Lookup retorna HTML no local            | Erro `Local dev sem proxy para /api/cnpj`                                                                           | Rodar pelo Vite na porta `3000`, usar `vercel dev` ou configurar `VITE_CNPJ_PROXY_URL`.      |
+| CNPJ existe, mas API retorna `503`      | Logs `[api/cnpj] request:error` e `[cnpjLookup] todas as fontes falharam`                                           | Repetir depois ou preencher manualmente; não chamar fonte externa direto do browser.         |
+| Modal de duplicidade aparece            | Busca em `dossies` encontrou CNPJ ou `empresa_alvo` para o mesmo operador                                           | Acessar existente ou iniciar nova pesquisa explicitamente.                                   |
 | Dossiê termina, mas painel parece vazio | Procurar `WaterfallLifecycle/health-check-final`, `PostCompletion`, `ui-finalize-state` e `ui-finalize-post-render` | Validar com o teste de Scheffer e a página de loading antes de concluir regressão corrigida. |
-| Supabase indisponível | `findExistingDossier` retorna `null`; persistência final pode falhar sem bloquear UI | Confirmar dossiê no estado visual antes de depender de sincronização remota. |
+| Supabase indisponível                   | `findExistingDossier` retorna `null`; persistência final pode falhar sem bloquear UI                                | Confirmar dossiê no estado visual antes de depender de sincronização remota.                 |
 
 ## Portabilidade
 

@@ -14,14 +14,7 @@
       "title": "Visão geral",
       "description": "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável.",
       "path": "pages/01-visao-geral.md",
-      "sourceFiles": [
-        "README.md",
-        "package.json",
-        "App.tsx",
-        "index.tsx",
-        "ARQUITETURA.md",
-        "HANDOFF_AI.md"
-      ]
+      "sourceFiles": ["README.md", "package.json", "App.tsx", "index.tsx", "ARQUITETURA.md", "HANDOFF_AI.md"]
     },
     {
       "id": "page-installation",

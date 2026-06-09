@@ -26,8 +26,11 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await page.getByTestId('investigation-uf-input').fill('SC');
     await page.getByTestId('investigation-submit-button').click();
 
-    await expect(page.getByTestId('loading-smart-overlay')).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
+    ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: 120_000 });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: 120_000 });
 
     const panel = page.getByTestId('chat-main-panel');
     await expect(panel).toBeVisible();
