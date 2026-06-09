@@ -28,7 +28,9 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
-    await expect(page.getByTestId('loading-smart-overlay')).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
+    ).toBeVisible({ timeout: 30_000 });
   }
 
   async function collectDiagnostics(page: import('@playwright/test').Page) {
@@ -46,6 +48,10 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       .catch(() => -1);
     const loadingSmart = await page
       .getByTestId('loading-smart-overlay')
+      .isVisible()
+      .catch(() => false);
+    const inlineBubble = await page
+      .getByTestId('inline-loading-bubble')
       .isVisible()
       .catch(() => false);
     const controlledError = await page
@@ -80,6 +86,8 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
       mainPanelPreview: (mainPanel?.trim() ?? '(ausente)').substring(0, 200),
       messageRowCount: messageRows,
       loadingSmartVisible: loadingSmart,
+      inlineBubbleVisible: inlineBubble,
+      anyLoadingVisible: loadingSmart || inlineBubble,
       controlledErrorVisible: controlledError,
       emptyStateVisible: emptyState,
       botMetrics,
@@ -92,6 +100,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
     const panel = page.getByTestId('chat-main-panel');
     await expect(panel).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: 120_000 });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: 120_000 });
     await expect(panel.getByTestId('empty-state')).toHaveCount(0);
     await expect(panel.getByTestId('controlled-error')).toHaveCount(0);
     await expect(panel.getByTestId('messages-viewport-placeholder')).toHaveCount(0);

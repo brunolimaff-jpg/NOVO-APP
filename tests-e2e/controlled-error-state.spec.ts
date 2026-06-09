@@ -23,6 +23,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
 
     await expect(page.getByTestId('error-message-card')).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: 10_000 });
   }
 
   test('falha de API não gera tela branca', async ({ page }) => {
