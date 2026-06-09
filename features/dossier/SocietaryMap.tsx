@@ -454,7 +454,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         const batch = pending.slice(i, i + batchSize);
         const batchResults = await Promise.allSettled(
           // fetchCompanyByCnpj routes via /api/cnpj proxy — avoids CORS from browser direct calls
-          batch.map(cnpj => fetchCompanyByCnpj(cnpj, controller.signal)),
+          batch.map(cnpj => fetchCompanyByCnpj(cnpj)),
         );
         for (let j = 0; j < batch.length; j++) {
           const result = batchResults[j];

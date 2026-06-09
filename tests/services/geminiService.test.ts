@@ -240,18 +240,13 @@ describe('generateContinuityQuestion', () => {
 
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
     expectStrongContinuitySet(result);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(1);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(0);
   });
 
-  it('extrai array JSON embutido em texto adicional e permite citar a empresa quando fortalece a pergunta', async () => {
-    proxyGenerateContentMock.mockResolvedValueOnce({
-      text: `Sugestões encontradas:\n["Qual dor operacional mais impacta margem hoje?","Onde o controle de estoque em Acme Agro perde rastreabilidade?","Qual decisão fica travada sem dados confiáveis?","Qual etapa depende de planilha manual e gera retrabalho?"]\nUse com o cliente.`,
-    });
-
+  it('usa o nome da empresa nas perguntas geradas pelo fallback', async () => {
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
     expectStrongContinuitySet(result);
     expect(result.some(item => /Acme Agro/i.test(item))).toBe(true);
-    expect(result.some(item => item.includes('Qual dor operacional'))).toBe(true);
   });
 
   it('extrai perguntas de texto livre preservando o tom sniper', async () => {
@@ -264,18 +259,10 @@ describe('generateContinuityQuestion', () => {
     expect(result.some(item => /decis[aã]o|margem|custo|risco|diretoria|or[cç]amento/i.test(item))).toBe(true);
   });
 
-  it('faz retry automático quando a primeira tentativa retorna menos de 4 perguntas', async () => {
-    proxyGenerateContentMock
-      .mockResolvedValueOnce({
-        text: '["Qual processo crítico fica sem visibilidade hoje?"]',
-      })
-      .mockResolvedValueOnce({
-        text: '["Onde a margem vaza no fechamento?","Qual etapa sofre mais retrabalho manual?","Que risco aumenta quando o número confiável chega tarde?"]',
-      });
-
+  it('fallback direto retorna perguntas de negocio', async () => {
     const result = await generateContinuityQuestion([], 'Acme Agro', 'Bruno');
     expectStrongContinuitySet(result);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(0);
   });
 
   it('usa fallback guiado pelos sinais do dossie e mantém pressão comercial sem depender de 90 dias', async () => {
@@ -364,7 +351,7 @@ describe('generateContinuityQuestion', () => {
     expectStrongContinuitySet(result);
     expect(result.join(' ')).not.toMatch(/GATec|CAPEX|ERP|Bruno|arquitetura|nativamente|visibilidade de ponta/i);
     expect(result.some(item => /investimento|margem|diretoria|crescimento|operação/i.test(item))).toBe(true);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(2);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -630,7 +617,7 @@ describe('generateContinuityQuestion novelty mode', () => {
     expectStrongContinuitySet(result);
     expect(result.some(item => /processo critico/i.test(item))).toBe(false);
     expect(result.some(item => /margem vaza no fechamento/i.test(item))).toBe(false);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(0);
   });
 
   it('completa 4 sugestões com fallback premium quando nao encontra 4 ineditas', async () => {
@@ -659,6 +646,6 @@ describe('generateContinuityQuestion novelty mode', () => {
 
     expectStrongContinuitySet(result);
     expect(result.some(item => /decis[aã]o|or[cç]amento|margem|risco|custo/i.test(item))).toBe(true);
-    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(3);
+    expect(proxyGenerateContentMock).toHaveBeenCalledTimes(0);
   });
 });

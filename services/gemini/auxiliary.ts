@@ -153,12 +153,15 @@ export async function generateContinuityQuestion(
 ): Promise<string[]> {
   const CONTINUITY_TARGET = 4;
   const normalizedCompany = (empresaAlvo || '').trim();
+  // Bypass: código abaixo preservado para reativação futura
+  /* eslint-disable no-useless-assignment */
   const companyReference = normalizedCompany || 'a operação';
   const shouldPrioritizeNovelty =
     options.mode === 'regenerate' ||
     Boolean(options.ensureFresh) ||
     (Array.isArray(options.avoidSuggestions) && options.avoidSuggestions.length > 0);
   const modelRequestedCount = shouldPrioritizeNovelty ? 8 : CONTINUITY_TARGET;
+  /* eslint-enable no-useless-assignment */
   const normalizedExcludedSuggestions = (options.avoidSuggestions || [])
     .filter((item): item is string => typeof item === 'string')
     .map(item => item.replace(/\s+/g, ' ').trim())
@@ -168,6 +171,17 @@ export async function generateContinuityQuestion(
     .slice(-6)
     .map(message => `${message.sender === Sender.User ? 'Vendedor' : 'Scout'}: ${message.text?.slice(0, 300) || ''}`)
     .join('\n');
+
+  // ── BYPASS 2026-06-09 ── generateContinuityQuestion pula Gemini.
+  // 100% das tentativas caíam no fallback (~20s latência sem retorno).
+  // O fallback buildContextualContinuityFallback tem 23 templates em 6
+  // temas — qualidade equivalente. Código Gemini mantido para reativação.
+  return ensureContinuitySuggestions([], normalizedCompany, {
+    contextText: recentMessages,
+    avoidSuggestions: normalizedExcludedSuggestions,
+  }).slice(0, CONTINUITY_TARGET);
+
+  /* eslint-disable no-unreachable */
   const contextCorpus = `${normalizedCompany}\n${recentMessages}`.toLowerCase();
   const contextNote = empresaAlvo ? `Empresa em análise: ${empresaAlvo}` : '';
   const systemPrompt = CONTINUITY_SYSTEM;
@@ -397,8 +411,14 @@ export async function generateContinuityQuestion(
     for (let i = 0; i < trimmed.length; i++) {
       const ch = trimmed[i];
       if (inString) {
-        if (escaped) { escaped = false; continue; }
-        if (ch === '\\') { escaped = true; continue; }
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === '\\') {
+          escaped = true;
+          continue;
+        }
         if (ch === '"') {
           inString = false;
           lastCompleteEnd = i;
@@ -406,7 +426,10 @@ export async function generateContinuityQuestion(
         }
         continue;
       }
-      if (ch === '"') { inString = true; continue; }
+      if (ch === '"') {
+        inString = true;
+        continue;
+      }
       if (ch === ']') lastCompleteEnd = i;
     }
 
@@ -668,4 +691,5 @@ export async function generateContinuityQuestion(
     contextText: recentMessages,
     avoidSuggestions: normalizedExcludedSuggestions,
   }).slice(0, CONTINUITY_TARGET);
+  /* eslint-enable no-unreachable */
 }
