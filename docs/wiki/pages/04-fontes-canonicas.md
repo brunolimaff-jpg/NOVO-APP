@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-fontes-canonicas"
-title: "Fontes canônicas"
-description: "Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-fontes-canonicas'
+title: 'Fontes canônicas'
+description: 'Ordem de leitura para agentes, handoff vivo, memória local, decisões duráveis, skill governance e limites do grafo Obsidian.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "AGENTS.md"
-  - "HANDOFF_AI.md"
-  - ".agents/memory/activeContext.md"
-  - ".agents/memory/progress.md"
-  - ".agents/memory/decisions.md"
-  - "docs/PROJECT-CARD.md"
-  - "docs/SKILLS-GOVERNANCE.md"
+  - 'AGENTS.md'
+  - 'HANDOFF_AI.md'
+  - '.agents/memory/activeContext.md'
+  - '.agents/memory/progress.md'
+  - '.agents/memory/decisions.md'
+  - 'docs/PROJECT-CARD.md'
+  - 'docs/SKILLS-GOVERNANCE.md'
 ---
 
 O NOVO-APP mantém a continuidade operacional em arquivos versionados do próprio repositório: `HANDOFF_AI.md` para entrada rápida, `.agents/memory/*` para estado vivo e decisões, `docs/ai-context/refactor/*` para trilhas estruturais e `docs/obsidian/*` apenas como navegação visual validável.
@@ -54,17 +54,17 @@ Não trate `PLAN.md` da raiz como fonte canônica a menos que `HANDOFF_AI.md`, `
 
 ## Função de cada fonte
 
-| Fonte | Papel operacional | Quando consultar | Quando atualizar |
-| --- | --- | --- | --- |
-| `AGENTS.md` | Protocolo principal do repo, layout, comandos, preferências do Bruno e merge guard | Início de sessão, tarefa nova, dúvida de regra | Quando regras de operação, comandos ou limites do repo mudarem |
-| `HANDOFF_AI.md` | Handoff vivo e entrada rápida para o próximo agente | Sempre antes de retomar trabalho | Fechamento de tarefa relevante, incidente, PR ou mudança de próximo passo |
-| `.agents/memory/activeContext.md` | Estado atual, pendências, gatilhos de reabertura e risco vivo | Antes de diagnosticar ou planejar | Ao mudar status, branch ativa, risco ou gatilho operacional |
-| `.agents/memory/progress.md` | Timeline curta, marcos concluídos e comandos de validação recentes | Antes de avaliar histórico ou regressão | Ao concluir etapa validada ou registrar novo marco |
-| `.agents/memory/decisions.md` | Decisões arquiteturais, contratos e hipóteses descartadas | Antes de tocar fluxo sensível, UI, waterfall, loading, prompts ou persistência | Quando uma decisão deve sobreviver ao chat atual |
-| `docs/PROJECT-CARD.md` | Identidade do projeto e lista resumida de fontes canônicas | Onboarding, indexação e integração com biblioteca central | Quando nome, status, caminho, nota central ou lista canônica mudar |
-| `docs/SKILLS-GOVERNANCE.md` | Política de skills, MCPs, integrações e dependências de agente | Antes de documentar ou exigir skill/conector | Quando uma skill ou integração virar requisito real |
-| `docs/obsidian/00-MASTER.md` | Mapa visual de arquitetura e roadmap | Depois das fontes canônicas, para navegar o grafo | Quando notas principais entram, saem ou mudam de relacionamento |
-| `docs/ai-context/refactor/*` | Trilha de refatoração, board, riscos, validação e handoff do programa | Tarefas de arquitetura, manutenção estrutural ou sprint | Ao mexer em estado de sprint, risco, validação ou alvo arquitetural |
+| Fonte                             | Papel operacional                                                                  | Quando consultar                                                               | Quando atualizar                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `AGENTS.md`                       | Protocolo principal do repo, layout, comandos, preferências do Bruno e merge guard | Início de sessão, tarefa nova, dúvida de regra                                 | Quando regras de operação, comandos ou limites do repo mudarem            |
+| `HANDOFF_AI.md`                   | Handoff vivo e entrada rápida para o próximo agente                                | Sempre antes de retomar trabalho                                               | Fechamento de tarefa relevante, incidente, PR ou mudança de próximo passo |
+| `.agents/memory/activeContext.md` | Estado atual, pendências, gatilhos de reabertura e risco vivo                      | Antes de diagnosticar ou planejar                                              | Ao mudar status, branch ativa, risco ou gatilho operacional               |
+| `.agents/memory/progress.md`      | Timeline curta, marcos concluídos e comandos de validação recentes                 | Antes de avaliar histórico ou regressão                                        | Ao concluir etapa validada ou registrar novo marco                        |
+| `.agents/memory/decisions.md`     | Decisões arquiteturais, contratos e hipóteses descartadas                          | Antes de tocar fluxo sensível, UI, waterfall, loading, prompts ou persistência | Quando uma decisão deve sobreviver ao chat atual                          |
+| `docs/PROJECT-CARD.md`            | Identidade do projeto e lista resumida de fontes canônicas                         | Onboarding, indexação e integração com biblioteca central                      | Quando nome, status, caminho, nota central ou lista canônica mudar        |
+| `docs/SKILLS-GOVERNANCE.md`       | Política de skills, MCPs, integrações e dependências de agente                     | Antes de documentar ou exigir skill/conector                                   | Quando uma skill ou integração virar requisito real                       |
+| `docs/obsidian/00-MASTER.md`      | Mapa visual de arquitetura e roadmap                                               | Depois das fontes canônicas, para navegar o grafo                              | Quando notas principais entram, saem ou mudam de relacionamento           |
+| `docs/ai-context/refactor/*`      | Trilha de refatoração, board, riscos, validação e handoff do programa              | Tarefas de arquitetura, manutenção estrutural ou sprint                        | Ao mexer em estado de sprint, risco, validação ou alvo arquitetural       |
 
 ## Rotina mínima de entrada
 
@@ -102,14 +102,14 @@ Se o handoff disser que há arquivos modificados, branches abertas ou pendência
 
 A pasta `docs/ai-context/refactor/` é a fonte de verdade apenas para o programa de refatoração estrutural. Dentro dela:
 
-| Arquivo | Responsabilidade |
-| --- | --- |
-| `00-README.md` | Ordem de leitura da trilha de refatoração |
-| `02-BOARD.md` | Status vivo do programa de refatoração |
-| `03-OPEN-ITEMS.md` | Riscos, warnings, decisões adiadas e itens abertos |
+| Arquivo            | Responsabilidade                                           |
+| ------------------ | ---------------------------------------------------------- |
+| `00-README.md`     | Ordem de leitura da trilha de refatoração                  |
+| `02-BOARD.md`      | Status vivo do programa de refatoração                     |
+| `03-OPEN-ITEMS.md` | Riscos, warnings, decisões adiadas e itens abertos         |
 | `05-VALIDATION.md` | Regra de parada, checklist automatizado e validação manual |
-| `06-HANDOFF.md` | Próximo passo seguro da trilha |
-| `07-SPRINT-LOG.md` | Histórico de execução |
+| `06-HANDOFF.md`    | Próximo passo seguro da trilha                             |
+| `07-SPRINT-LOG.md` | Histórico de execução                                      |
 
 A regra dessa pasta é explícita: se o chat divergir dos arquivos versionados, siga o repositório. Para trabalho fora da refatoração estrutural, prefira `HANDOFF_AI.md` e `.agents/memory/*`.
 
@@ -117,10 +117,10 @@ A regra dessa pasta é explícita: se o chat divergir dos arquivos versionados, 
 
 O repo não exige skills locais ativas para operar. `skills-lock.json` declara `allowlist` vazia e `skills` vazio; `.agents/skills/archive/` guarda material histórico, não runtime obrigatório.
 
-| Classificação | Significado no repo |
-| --- | --- |
-| `active` | Nenhuma skill operacional versionada é exigida |
-| `archived` | Material de referência preservado em `.agents/skills/archive/` |
+| Classificação | Significado no repo                                                                                   |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `active`      | Nenhuma skill operacional versionada é exigida                                                        |
+| `archived`    | Material de referência preservado em `.agents/skills/archive/`                                        |
 | `global-only` | Skills globais da máquina podem ajudar, mas não podem ser pré-requisito de docs, handoff ou automação |
 
 <Warning>
@@ -135,14 +135,14 @@ Para geração de wiki, Ask ou Grok-Wiki, perfis externos e snapshots empacotado
 
 O grafo tem contrato próprio:
 
-| Item | Contrato |
-| --- | --- |
-| Entrada | `docs/obsidian/00-MASTER.md` |
-| Manifesto | `docs/obsidian/_meta/manifest.json` |
+| Item                   | Contrato                                                             |
+| ---------------------- | -------------------------------------------------------------------- |
+| Entrada                | `docs/obsidian/00-MASTER.md`                                         |
+| Manifesto              | `docs/obsidian/_meta/manifest.json`                                  |
 | Metadados obrigatórios | `type`, `area`, `status`, `source_of_truth`, `last_reviewed`, `tags` |
-| Backlink obrigatório | Notas principais devem apontar para `[[00-MASTER]]` |
-| Escopo visual | `.obsidian/graph.json` filtra `path:"docs/obsidian"` |
-| Validação | `npm run docs:obsidian:check` |
+| Backlink obrigatório   | Notas principais devem apontar para `[[00-MASTER]]`                  |
+| Escopo visual          | `.obsidian/graph.json` filtra `path:"docs/obsidian"`                 |
+| Validação              | `npm run docs:obsidian:check`                                        |
 
 Comando esperado:
 
@@ -184,13 +184,13 @@ Use este checklist curto:
 
 ## Divergências e resolução
 
-| Sinal | Ação segura |
-| --- | --- |
-| `HANDOFF_AI.md` diverge de `activeContext.md` | Leia ambos, confirme no Git e atualize o arquivo stale no fechamento |
-| `docs/obsidian/*` contradiz `.agents/memory/*` | Siga `.agents/memory/*`; ajuste o grafo depois |
+| Sinal                                                        | Ação segura                                                                                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `HANDOFF_AI.md` diverge de `activeContext.md`                | Leia ambos, confirme no Git e atualize o arquivo stale no fechamento                                          |
+| `docs/obsidian/*` contradiz `.agents/memory/*`               | Siga `.agents/memory/*`; ajuste o grafo depois                                                                |
 | `docs/SKILLS-GOVERNANCE.md` contradiz README ou config local | Trate a governança como política; não promova conector local a requisito sem atualizar os documentos oficiais |
-| `PLAN.md` propõe tarefa não referenciada | Considere rascunho, não plano canônico |
-| Testes verdes contradizem UX observada | Priorize validação de produto visível, DOM e estado final esperado antes de fechar |
+| `PLAN.md` propõe tarefa não referenciada                     | Considere rascunho, não plano canônico                                                                        |
+| Testes verdes contradizem UX observada                       | Priorize validação de produto visível, DOM e estado final esperado antes de fechar                            |
 
 ## Related pages
 

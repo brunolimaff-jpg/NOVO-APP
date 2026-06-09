@@ -11,7 +11,7 @@ export const FEATURE_FLAGS: Record<FeatureFlagName, FeatureFlagConfig> = {
   warRoom: { default: true, removeBy: 'Sprint 14', envOverride: 'VITE_FF_WAR_ROOM' },
   newExportFlow: { default: false, removeBy: 'Sprint 12', envOverride: 'VITE_FF_NEW_EXPORT' },
   radarV2: { default: false, removeBy: 'Sprint 13', envOverride: 'VITE_FF_RADAR_V2' },
-  inlineLoading: { default: false, removeBy: 'Sprint 16', envOverride: 'VITE_FF_INLINE_LOADING' },
+  inlineLoading: { default: true, removeBy: 'Sprint 16', envOverride: 'VITE_FF_INLINE_LOADING' },
 };
 
 function readQueryOverride(name: string): boolean | null {

@@ -5,9 +5,15 @@ import InlineLoadingBubble from '../../components/InlineLoadingBubble';
 
 vi.mock('../../components/LoadingShared', () => ({
   ClockIcon: ({ className }: { className?: string }) => <span data-testid="clock-icon" className={className} />,
-  StepCheckIcon: ({ isDarkMode }: { isDarkMode: boolean }) => <span data-testid={isDarkMode ? 'check-dark' : 'check-light'} />,
-  StepSpinner: ({ isDarkMode }: { isDarkMode: boolean }) => <span data-testid={isDarkMode ? 'spinner-dark' : 'spinner-light'} />,
-  StepPending: ({ isDarkMode }: { isDarkMode: boolean }) => <span data-testid={isDarkMode ? 'pending-dark' : 'pending-light'} />,
+  StepCheckIcon: ({ isDarkMode }: { isDarkMode: boolean }) => (
+    <span data-testid={isDarkMode ? 'check-dark' : 'check-light'} />
+  ),
+  StepSpinner: ({ isDarkMode }: { isDarkMode: boolean }) => (
+    <span data-testid={isDarkMode ? 'spinner-dark' : 'spinner-light'} />
+  ),
+  StepPending: ({ isDarkMode }: { isDarkMode: boolean }) => (
+    <span data-testid={isDarkMode ? 'pending-dark' : 'pending-light'} />
+  ),
 }));
 
 vi.mock('../../utils/loadingSmartViewModel', () => ({

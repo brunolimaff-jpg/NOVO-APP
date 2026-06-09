@@ -53,12 +53,12 @@ A primeira passagem encontrou hipóteses que pareciam graves. A validação adve
 
 ### Sessões analisadas na investigação
 
-| Sessão ID | Resultado |
-|-----------|-----------|
+| Sessão ID  | Resultado                                                             |
+| ---------- | --------------------------------------------------------------------- |
 | `ac5890b0` | OK após recovery (previousDisplay "none" → afterResetDisplay "block") |
-| `9595fc30` | OK direto (bug não manifestou) |
-| `2bfe06a1` | OK direto (bug não manifestou) |
-| `f0c9dd91` | Travado (diagnósticos truncados no Supabase) |
+| `9595fc30` | OK direto (bug não manifestou)                                        |
+| `2bfe06a1` | OK direto (bug não manifestou)                                        |
+| `f0c9dd91` | Travado (diagnósticos truncados no Supabase)                          |
 
 ### Hipóteses descartadas
 

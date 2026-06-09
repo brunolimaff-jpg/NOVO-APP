@@ -1,9 +1,9 @@
 ---
 grok_wiki: true
-title: "Documentação do Senior Scout 360"
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+title: 'Documentação do Senior Scout 360'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 pages: 28
 ---
 

@@ -1,20 +1,20 @@
 ---
 grok_wiki: true
-page_id: "page-observabilidade"
-title: "Observabilidade e diagnósticos"
-description: "Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-observabilidade'
+title: 'Observabilidade e diagnósticos'
+description: 'Sentry, heartbeat, visibility tracking, `scoutDiag`, flush para `/api/gemini`, Supabase diagnostics, eventos de operador e traces de layout.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "index.tsx"
-  - "utils/diagnosticLog.ts"
-  - "utils/serverDiagnostics.ts"
-  - "api/gemini.ts"
-  - "services/operatorTracking.ts"
-  - "utils/layoutTraceTelemetry.ts"
-  - "tests/utils/diagnosticLog.test.ts"
-  - "tests/services/operatorTracking.test.ts"
+  - 'index.tsx'
+  - 'utils/diagnosticLog.ts'
+  - 'utils/serverDiagnostics.ts'
+  - 'api/gemini.ts'
+  - 'services/operatorTracking.ts'
+  - 'utils/layoutTraceTelemetry.ts'
+  - 'tests/utils/diagnosticLog.test.ts'
+  - 'tests/services/operatorTracking.test.ts'
 ---
 
 A observabilidade do Senior Scout 360 combina três trilhas independentes: Sentry para exceções React e replay, `scoutDiag` para telemetria estruturada com flush para `/api/gemini`, e tracking de operador em Supabase via `operator_sessions` e `operator_events`.
@@ -49,17 +49,17 @@ Vercel serverless
 
 ## Configuração
 
-| Área | Chave | Uso |
-| --- | --- | --- |
-| Sentry client | `VITE_SENTRY_DSN` | Ativa `Sentry.init`; sem DSN, o client fica desabilitado. |
-| Sentry release | `VITE_SENTRY_RELEASE`, `VITE_APP_VERSION`, `VITE_VERCEL_GIT_COMMIT_SHA` | Resolvem `release` e `dist` do evento Sentry. |
-| Sentry sourcemaps | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `APP_VERSION` | Ativam `sentryVitePlugin` no build e upload de sourcemaps. |
-| Console detalhado | `VITE_VERBOSE_LOGS`, `VITE_DEBUG_CONSOLE` | Ativam logs `info`/`debug` do `scoutDiag` fora de DEV. |
-| Diagnóstico persistente | `VITE_SCOUT_DIAGNOSTICS_ENABLED` | `true` ativa flush persistente; `false` desativa mesmo se houver flag local. |
-| Diagnóstico local | `localStorage.SCOUT_DIAG_ENABLED = "1"` | Ativa persistência em preview/local quando a env não foi definida. |
-| Trace seletivo | `?scoutTrace=teia`, `?scoutTrace=all`, `?scoutTrace=off` | Persiste ou limpa o alvo em `localStorage.scoutTrace`. |
-| Supabase client | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Usado no browser para eventos de operador. |
-| Supabase server | `SUPABASE_URL` ou `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Usado no serverless para inserir `scout_diagnostics`. |
+| Área                    | Chave                                                                   | Uso                                                                          |
+| ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Sentry client           | `VITE_SENTRY_DSN`                                                       | Ativa `Sentry.init`; sem DSN, o client fica desabilitado.                    |
+| Sentry release          | `VITE_SENTRY_RELEASE`, `VITE_APP_VERSION`, `VITE_VERCEL_GIT_COMMIT_SHA` | Resolvem `release` e `dist` do evento Sentry.                                |
+| Sentry sourcemaps       | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `APP_VERSION`      | Ativam `sentryVitePlugin` no build e upload de sourcemaps.                   |
+| Console detalhado       | `VITE_VERBOSE_LOGS`, `VITE_DEBUG_CONSOLE`                               | Ativam logs `info`/`debug` do `scoutDiag` fora de DEV.                       |
+| Diagnóstico persistente | `VITE_SCOUT_DIAGNOSTICS_ENABLED`                                        | `true` ativa flush persistente; `false` desativa mesmo se houver flag local. |
+| Diagnóstico local       | `localStorage.SCOUT_DIAG_ENABLED = "1"`                                 | Ativa persistência em preview/local quando a env não foi definida.           |
+| Trace seletivo          | `?scoutTrace=teia`, `?scoutTrace=all`, `?scoutTrace=off`                | Persiste ou limpa o alvo em `localStorage.scoutTrace`.                       |
+| Supabase client         | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`                           | Usado no browser para eventos de operador.                                   |
+| Supabase server         | `SUPABASE_URL` ou `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`      | Usado no serverless para inserir `scout_diagnostics`.                        |
 
 ## Sentry
 
@@ -68,8 +68,8 @@ Vercel serverless
 O replay está configurado com:
 
 ```ts
-maskAllText: false
-blockAllMedia: false
+maskAllText: false;
+blockAllMedia: false;
 ```
 
 ## Risco de privacidade pendente
@@ -88,22 +88,22 @@ Para regressões de painel branco, overlay preso ou freeze de UI, Sentry é sina
 
 `scoutDiag` é a fachada de diagnóstico client-side em `utils/diagnosticLog.ts`.
 
-| Método | Console | Persistência |
-| --- | --- | --- |
-| `scoutDiag.error(scope, message, details?)` | Sempre visível. | Entra no buffer se diagnóstico persistente estiver ativo e força flush imediato. |
-| `scoutDiag.warn(scope, message, details?)` | Sempre visível. | Entra no buffer se diagnóstico persistente estiver ativo. |
-| `scoutDiag.info(scope, message, details?)` | Apenas DEV ou flags verbosas. | Entra no buffer quando chamado e diagnóstico persistente está ativo. |
-| `scoutDiag.debug(scope, message, details?)` | Apenas DEV ou flags verbosas. | Entra no buffer quando chamado e diagnóstico persistente está ativo. |
-| `scoutDiag.trace(target, scope, message, details?)` | Só quando `scoutTrace` contém o alvo ou `all`. | Registra evento `debug` com `traceTarget`. |
-| `scoutDiag.startTimer(scope, label)` | Mede `end()` e `fail()`. | `fail()` loga erro no console. |
+| Método                                              | Console                                        | Persistência                                                                     |
+| --------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------- |
+| `scoutDiag.error(scope, message, details?)`         | Sempre visível.                                | Entra no buffer se diagnóstico persistente estiver ativo e força flush imediato. |
+| `scoutDiag.warn(scope, message, details?)`          | Sempre visível.                                | Entra no buffer se diagnóstico persistente estiver ativo.                        |
+| `scoutDiag.info(scope, message, details?)`          | Apenas DEV ou flags verbosas.                  | Entra no buffer quando chamado e diagnóstico persistente está ativo.             |
+| `scoutDiag.debug(scope, message, details?)`         | Apenas DEV ou flags verbosas.                  | Entra no buffer quando chamado e diagnóstico persistente está ativo.             |
+| `scoutDiag.trace(target, scope, message, details?)` | Só quando `scoutTrace` contém o alvo ou `all`. | Registra evento `debug` com `traceTarget`.                                       |
+| `scoutDiag.startTimer(scope, label)`                | Mede `end()` e `fail()`.                       | `fail()` loga erro no console.                                                   |
 
 O buffer mantém até 500 eventos em memória e salva os 50 mais recentes em `localStorage.scout_diag_fallback`. Falhas de flush geram chaves timestampadas `scout_diag_fallback_*`, podadas para no máximo 5.
 
 ### Helpers no browser
 
 ```js
-window.__SCOUT_DUMP_DIAG__()
-window.__SCOUT_FLUSH_DIAG__("motivo-manual")
+window.__SCOUT_DUMP_DIAG__();
+window.__SCOUT_FLUSH_DIAG__('motivo-manual');
 ```
 
 `__SCOUT_DUMP_DIAG__()` imprime uma tabela com os 50 eventos mais recentes e retorna o buffer. `__SCOUT_FLUSH_DIAG__()` força envio para `/api/gemini`.
@@ -201,13 +201,13 @@ O client agenda flush a cada 5 segundos para eventos abaixo do batch, faz flush 
 
 `utils/serverDiagnostics.ts` limita o que chega ao Supabase:
 
-| Regra | Valor |
-| --- | --- |
-| Eventos por lote | `100` |
-| Profundidade máxima de payload | `4` |
-| Comprimento máximo de string | `2000` |
-| Itens por array | `50` |
-| Chaves por objeto | `30` |
+| Regra                          | Valor  |
+| ------------------------------ | ------ |
+| Eventos por lote               | `100`  |
+| Profundidade máxima de payload | `4`    |
+| Comprimento máximo de string   | `2000` |
+| Itens por array                | `50`   |
+| Chaves por objeto              | `30`   |
 
 Campos sensíveis são removidos quando a chave contém `token`, `key`, `secret`, `password`, `auth`, `credential`, `prompt`, `response`, `content`, `text` ou `body`. Métricas e rótulos seguros são preservados, por exemplo `bodyLen`, `botTextMaxLen`, `visibleBotWithCharsCount`, `centerElementTestId`, `reason`, `state`, `source`, `variant` e `branch`.
 
@@ -221,12 +221,12 @@ Prefer: return=minimal
 
 A migration `20260603_blank_panel_observability.sql` não cria a tabela; ela adiciona índices de leitura para investigação:
 
-| Índice | Uso |
-| --- | --- |
-| `idx_scout_diagnostics_session_created` | Consultar timeline por `session_id`. |
-| `idx_scout_diagnostics_area_event_created` | Filtrar por área/evento, como `PostCompletion` ou `FreezeDiag`. |
-| `idx_scout_diagnostics_operator_created` | Cruzar incidência por operador. |
-| `idx_scout_diagnostics_blank_panel_created` | Buscar eventos de área `BlankPanel`. |
+| Índice                                      | Uso                                                             |
+| ------------------------------------------- | --------------------------------------------------------------- |
+| `idx_scout_diagnostics_session_created`     | Consultar timeline por `session_id`.                            |
+| `idx_scout_diagnostics_area_event_created`  | Filtrar por área/evento, como `PostCompletion` ou `FreezeDiag`. |
+| `idx_scout_diagnostics_operator_created`    | Cruzar incidência por operador.                                 |
+| `idx_scout_diagnostics_blank_panel_created` | Buscar eventos de área `BlankPanel`.                            |
 
 ## Heartbeat e visibility tracking
 
@@ -234,26 +234,20 @@ A migration `20260603_blank_panel_observability.sql` não cria a tabela; ela adi
 
 `setupVisibilityTracking()` registra:
 
-| Evento | Severidade | Flush |
-| --- | --- | --- |
-| `visibility:hidden` | `info` | `flushDiagnosticsNow("visibility-change")` |
-| `visibility:visible` | `info` | `flushDiagnosticsNow("visibility-change")` |
-| `pagehide` | `warn` | `flushDiagnosticsNow("pagehide", true)` |
-| `pageshow` | `info` | `flushDiagnosticsNow("pageshow")` |
-| `freeze` | `warn` | `flushDiagnosticsNow("freeze", true)` |
-| `resume` | `info` | `flushDiagnosticsNow("resume")` |
+| Evento               | Severidade | Flush                                      |
+| -------------------- | ---------- | ------------------------------------------ |
+| `visibility:hidden`  | `info`     | `flushDiagnosticsNow("visibility-change")` |
+| `visibility:visible` | `info`     | `flushDiagnosticsNow("visibility-change")` |
+| `pagehide`           | `warn`     | `flushDiagnosticsNow("pagehide", true)`    |
+| `pageshow`           | `info`     | `flushDiagnosticsNow("pageshow")`          |
+| `freeze`             | `warn`     | `flushDiagnosticsNow("freeze", true)`      |
+| `resume`             | `info`     | `flushDiagnosticsNow("resume")`            |
 
 O payload de visibilidade lê o estado sincronizado por `useChatLoadingProgress()`:
 
 ```ts
 {
-  isLoading,
-  loadingVariant,
-  requestKind,
-  visibilityState,
-  bodyLen,
-  containsDossie,
-  containsLoading
+  (isLoading, loadingVariant, requestKind, visibilityState, bodyLen, containsDossie, containsLoading);
 }
 ```
 
@@ -273,17 +267,17 @@ Além do buffer principal, os últimos 20 eventos de visibilidade são salvos em
 
 Eventos aceitos pelo tipo `OperatorEventName`:
 
-| Evento | Origem típica |
-| --- | --- |
-| `app_opened` | `initSessionTracking()` após sessão do operador. |
-| `operator_registered` | Registro inicial no `OperatorContext`. |
-| `dossier_started` | Início do waterfall de dossiê. |
-| `dossier_completed` | Waterfall executado e concluído. |
-| `dossier_failed` | Falha em dossiê. |
-| `dossier_opened` | Seleção de sessão existente. |
-| `dossier_shared` | Compartilhamento via UI ou link persistente. |
-| `dossier_reopened` | Reabertura de dossiê duplicado. |
-| `dossier_override` | Substituição de dossiê duplicado por nova investigação. |
+| Evento                | Origem típica                                           |
+| --------------------- | ------------------------------------------------------- |
+| `app_opened`          | `initSessionTracking()` após sessão do operador.        |
+| `operator_registered` | Registro inicial no `OperatorContext`.                  |
+| `dossier_started`     | Início do waterfall de dossiê.                          |
+| `dossier_completed`   | Waterfall executado e concluído.                        |
+| `dossier_failed`      | Falha em dossiê.                                        |
+| `dossier_opened`      | Seleção de sessão existente.                            |
+| `dossier_shared`      | Compartilhamento via UI ou link persistente.            |
+| `dossier_reopened`    | Reabertura de dossiê duplicado.                         |
+| `dossier_override`    | Substituição de dossiê duplicado por nova investigação. |
 
 `metadata` remove chaves com `prompt`, `gemini`, `response`, `token`, `secret`, `key` ou `password`. Strings são truncadas em aproximadamente 200 caracteres, arrays em 10 itens e objetos são sanitizados recursivamente.
 
@@ -293,51 +287,51 @@ A migration `20260528_operator_tracking.sql` cria `operator_sessions` e `operato
 
 A instrumentação de layout vive em `utils/layoutTraceTelemetry.ts` e é temporária para diagnóstico de painel branco pós-waterfall.
 
-| Área/evento | Origem | Sinal |
-| --- | --- | --- |
-| `App / overlay:render-decision` | `App.tsx` | Decisão de mostrar ou esconder overlay, contagem de mensagens e texto máximo de bot. |
-| `App / overlay-stuck-after-loading` | `App.tsx` | Overlay ainda no DOM 500 ms após `isLoading=false`; o elemento é escondido defensivamente. |
-| `PostCompletion / check:{delay}ms` | `message-orchestrator.ts` | Estado do DOM em `0`, `100`, `500`, `1000`, `3000` e `10000` ms após finalização. |
-| `PostCompletion / RESTART-DETECTED:*` | `message-orchestrator.ts` | Waterfall reiniciou após baseline de geração. |
-| `PostCompletion / blank-panel-detected:*` | `message-orchestrator.ts` | Snapshot detectou painel branco; força flush. |
-| `Virtuoso / static-fallback-rendered` | `MessageTimeline.tsx` | Fallback estático renderizado, principalmente para dossiê grande. |
-| `Virtuoso / static-fallback-display-recovery` | `MessageTimeline.tsx` | Safety net detectou `display:none` no fallback e forçou `display:block !important` se necessário. |
-| `LayoutTrace / static-fallback-mount` | `MessageTimeline.tsx` | Dimensões de raízes críticas após mount do fallback. |
-| `LayoutTrace / chat-interface-static-fallback` | `ChatInterface.tsx` | Snapshot de painel quando fallback estático está ativo. |
-| `BlankPanelDebug / probe:*` | `debugStaticFallbackDisplay()` | Probes em `sync`, `raf1`, `raf2`, `timeout50ms` e `timeout500ms`. |
-| `MessageRow / commit:invisible-bot-content` | `MessageRow.tsx` | Texto de bot existe, mas o nó está invisível ou com dimensão zero. |
-| `MessageRow / commit:zero-dimension-ancestor` | `MessageRow.tsx` | Primeiro ancestral com dimensão zero encontrado. |
+| Área/evento                                    | Origem                         | Sinal                                                                                             |
+| ---------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `App / overlay:render-decision`                | `App.tsx`                      | Decisão de mostrar ou esconder overlay, contagem de mensagens e texto máximo de bot.              |
+| `App / overlay-stuck-after-loading`            | `App.tsx`                      | Overlay ainda no DOM 500 ms após `isLoading=false`; o elemento é escondido defensivamente.        |
+| `PostCompletion / check:{delay}ms`             | `message-orchestrator.ts`      | Estado do DOM em `0`, `100`, `500`, `1000`, `3000` e `10000` ms após finalização.                 |
+| `PostCompletion / RESTART-DETECTED:*`          | `message-orchestrator.ts`      | Waterfall reiniciou após baseline de geração.                                                     |
+| `PostCompletion / blank-panel-detected:*`      | `message-orchestrator.ts`      | Snapshot detectou painel branco; força flush.                                                     |
+| `Virtuoso / static-fallback-rendered`          | `MessageTimeline.tsx`          | Fallback estático renderizado, principalmente para dossiê grande.                                 |
+| `Virtuoso / static-fallback-display-recovery`  | `MessageTimeline.tsx`          | Safety net detectou `display:none` no fallback e forçou `display:block !important` se necessário. |
+| `LayoutTrace / static-fallback-mount`          | `MessageTimeline.tsx`          | Dimensões de raízes críticas após mount do fallback.                                              |
+| `LayoutTrace / chat-interface-static-fallback` | `ChatInterface.tsx`            | Snapshot de painel quando fallback estático está ativo.                                           |
+| `BlankPanelDebug / probe:*`                    | `debugStaticFallbackDisplay()` | Probes em `sync`, `raf1`, `raf2`, `timeout50ms` e `timeout500ms`.                                 |
+| `MessageRow / commit:invisible-bot-content`    | `MessageRow.tsx`               | Texto de bot existe, mas o nó está invisível ou com dimensão zero.                                |
+| `MessageRow / commit:zero-dimension-ancestor`  | `MessageRow.tsx`               | Primeiro ancestral com dimensão zero encontrado.                                                  |
 
 ### Campos úteis em `PostCompletion`
 
 ```ts
 {
-  sessionId,
-  storeIsLoading,
-  storeLoadingVariant,
-  bodyLen,
-  containsDossie,
-  containsLoading,
-  loadingOverlayExists,
-  botMessageCount,
-  botTextMaxLen,
-  composerDisabled,
-  scrollerHeight,
-  scrollerScrollHeight,
-  blankPanelDetected,
-  blankPanelReason,
-  mainPanelChars,
-  panelVisible,
-  rowCount,
-  visibleRowCount,
-  visibleBotNodeCount,
-  visibleBotWithCharsCount,
-  centerElementTestId,
-  documentReadyState,
-  activeElement,
-  waterfallGenCount,
-  waterfallActiveRunId,
-  waterfallBlockedCount
+  (sessionId,
+    storeIsLoading,
+    storeLoadingVariant,
+    bodyLen,
+    containsDossie,
+    containsLoading,
+    loadingOverlayExists,
+    botMessageCount,
+    botTextMaxLen,
+    composerDisabled,
+    scrollerHeight,
+    scrollerScrollHeight,
+    blankPanelDetected,
+    blankPanelReason,
+    mainPanelChars,
+    panelVisible,
+    rowCount,
+    visibleRowCount,
+    visibleBotNodeCount,
+    visibleBotWithCharsCount,
+    centerElementTestId,
+    documentReadyState,
+    activeElement,
+    waterfallGenCount,
+    waterfallActiveRunId,
+    waterfallBlockedCount);
 }
 ```
 
@@ -380,26 +374,26 @@ npm run typecheck
 npm run build
 ```
 
-| Mudança | Gate mínimo |
-| --- | --- |
-| `scoutDiag`, buffer ou flush | `tests/utils/diagnosticLog.test.ts` |
-| Sanitização ou insert server-side | `tests/utils/serverDiagnostics.test.ts` |
-| Eventos de operador | `tests/services/operatorTracking.test.ts` e `tests/contracts/operatorTracking.contract.test.ts` |
-| Migrations Supabase | `tests/contracts/supabaseMigrations.contract.test.ts` |
-| Painel branco ou fallback visual | `npm run test:e2e:blank` |
-| Overlay/loading | `npm run test:e2e:loading` |
-| Release amplo | `npm run validate:release` |
+| Mudança                           | Gate mínimo                                                                                     |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `scoutDiag`, buffer ou flush      | `tests/utils/diagnosticLog.test.ts`                                                             |
+| Sanitização ou insert server-side | `tests/utils/serverDiagnostics.test.ts`                                                         |
+| Eventos de operador               | `tests/services/operatorTracking.test.ts` e `tests/contracts/operatorTracking.contract.test.ts` |
+| Migrations Supabase               | `tests/contracts/supabaseMigrations.contract.test.ts`                                           |
+| Painel branco ou fallback visual  | `npm run test:e2e:blank`                                                                        |
+| Overlay/loading                   | `npm run test:e2e:loading`                                                                      |
+| Release amplo                     | `npm run validate:release`                                                                      |
 
 ## Falhas esperadas e comportamento degradado
 
-| Falha | Comportamento |
-| --- | --- |
-| `VITE_SENTRY_DSN` ausente | Sentry fica desabilitado. |
-| `SENTRY_AUTH_TOKEN` ausente | Build não ativa upload de sourcemaps pelo plugin. |
-| `VITE_SCOUT_DIAGNOSTICS_ENABLED=false` | Diagnóstico persistente fica desligado mesmo com flag local. |
-| `/api/gemini` retorna erro no flush | Eventos voltam para fallback em `localStorage`. |
-| Supabase server-side sem service role | `recordDiagnostics` responde `200` com `degraded: true`. |
-| Supabase anon indisponível | Tracking de operador não lança exceção e não bloqueia UX. |
+| Falha                                    | Comportamento                                                                          |
+| ---------------------------------------- | -------------------------------------------------------------------------------------- |
+| `VITE_SENTRY_DSN` ausente                | Sentry fica desabilitado.                                                              |
+| `SENTRY_AUTH_TOKEN` ausente              | Build não ativa upload de sourcemaps pelo plugin.                                      |
+| `VITE_SCOUT_DIAGNOSTICS_ENABLED=false`   | Diagnóstico persistente fica desligado mesmo com flag local.                           |
+| `/api/gemini` retorna erro no flush      | Eventos voltam para fallback em `localStorage`.                                        |
+| Supabase server-side sem service role    | `recordDiagnostics` responde `200` com `degraded: true`.                               |
+| Supabase anon indisponível               | Tracking de operador não lança exceção e não bloqueia UX.                              |
 | Evento crítico chega durante flush ativo | `force=true` agenda dreno posterior, preservando eventos finais como `PostCompletion`. |
 
 ## Related pages
