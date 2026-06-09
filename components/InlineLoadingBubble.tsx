@@ -9,9 +9,11 @@ import {
 import { stripInternalMarkers } from '../utils/textCleaners';
 import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../utils/loadingBackoff';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { useMaybeChatStore } from '../stores/chatStore';
 
 interface InlineLoadingBubbleProps {
   isDarkMode: boolean;
+  /** Fallback para uso fora do ChatStoreProvider (ex: testes). Preferir o store quando disponivel. */
   processing?: {
     stage?: string;
     completedStages?: string[];
@@ -42,11 +44,25 @@ function getStageElapsedMs(
 
 const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   isDarkMode,
-  processing,
+  processing: processingProp,
   empresaAlvo,
   lastUserQuery,
   onStop,
 }) => {
+  const chatStore = useMaybeChatStore();
+
+  // Le o estado de loading direto do chatStore para bypass no prop drilling via Virtuoso.
+  // O processing via prop ainda funciona como fallback para testes e contextos sem provider.
+  const processing = chatStore
+    ? {
+        stage: chatStore.loadingStatus,
+        completedStages: chatStore.completedLoadingStatuses,
+        failureCount: chatStore.failureCount,
+        totalStages: chatStore.loadingTotalStages,
+        isIncremental: chatStore.loadingIsIncremental,
+      }
+    : processingProp;
+
   const isLoading = true;
   const elapsedTime = useElapsedTimer(isLoading);
   const elapsed = formatElapsed(elapsedTime);
