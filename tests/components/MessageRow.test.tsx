@@ -90,6 +90,7 @@ function makeData(messages: Message[], overrides: Partial<MessageRowData> = {}):
     pendingDeleteId: null,
     hideSuggestionsForMessageId: null,
     setInput: vi.fn(),
+    firstBotIndex: messages.findIndex(m => m.sender === Sender.Bot && !m.isError && !m.isThinking),
     ...overrides,
   };
 }

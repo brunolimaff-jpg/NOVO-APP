@@ -1,12 +1,12 @@
-function onlyDigits(value: string): string {
+function onlyDigits(value?: string | null): string {
   return (value || '').replace(/\D/g, '');
 }
 
-export function normalizeCnpj(value: string): string {
+export function normalizeCnpj(value?: string | null): string {
   return onlyDigits(value).slice(0, 14);
 }
 
-export function formatCnpj(value: string): string {
+export function formatCnpj(value?: string | null): string {
   const d = normalizeCnpj(value);
   if (d.length <= 2) return d;
   if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;

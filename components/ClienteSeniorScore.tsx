@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ClienteSeniorData } from '../types';
+import { formatCnpj } from '../utils/cnpj';
 
 interface ClienteSeniorScoreProps {
   data: ClienteSeniorData;
   isDarkMode?: boolean;
+  cnpj?: string | null;
 }
 
 const FAMILIA_ICONS: Record<string, string> = {
@@ -20,7 +22,7 @@ const FAMILIA_ICONS: Record<string, string> = {
 const isScoreDataAvailable = (data: ClienteSeniorScoreProps['data']): boolean =>
   Boolean(data.encontrado) && data.matchType === 'exact' && Boolean(data.familias?.length);
 
-const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMode = true }) => {
+const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMode = true, cnpj }) => {
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
 
   if (!isScoreDataAvailable(data)) return null;
@@ -75,6 +77,11 @@ const ClienteSeniorScore: React.FC<ClienteSeniorScoreProps> = ({ data, isDarkMod
           {data.grupo && (
             <div style={{ fontSize: '11px', color: labelColor, fontWeight: 500 }}>
               Grupo: <span style={{ color: valueColor, fontWeight: 600 }}>{data.grupo}</span>
+            </div>
+          )}
+          {cnpj && (
+            <div style={{ fontSize: '10px', color: labelColor, fontWeight: 400, opacity: 0.8 }}>
+              CNPJ: <span style={{ color: valueColor, fontWeight: 500 }}>{formatCnpj(cnpj)}</span>
             </div>
           )}
         </div>

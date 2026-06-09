@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   resolveDeepDiveRequestKind,
   resolveLoadingVariant,
@@ -6,6 +6,10 @@ import {
   shouldShowHeroLoadingOverlay,
   shouldSuspendHeroMessageTimeline,
 } from '../../utils/loadingVariant';
+
+vi.mock('../../utils/featureFlags', () => ({
+  getFlag: vi.fn((key: string) => key === 'inlineLoading'),
+}));
 
 describe('loadingVariant flow rules', () => {
   it('keeps the first investigation in hero mode', () => {
@@ -26,19 +30,18 @@ describe('loadingVariant flow rules', () => {
     ).toBe('inline');
   });
 
-  it('keeps deep dives in hero mode even after a consolidated answer exists', () => {
+  it('follow-up sempre usa inline, mesmo para deep_dive', () => {
     expect(resolveDeepDiveRequestKind(true)).toBe('deep_dive');
     expect(
       resolveLoadingVariant({
         requestKind: 'deep_dive',
         isFollowUp: true,
       }),
-    ).toBe('hero');
+    ).toBe('inline');
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'deep_dive',
         isFollowUp: true,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });
@@ -47,22 +50,20 @@ describe('loadingVariant flow rules', () => {
     expect(resolveDeepDiveRequestKind(false)).toBe('default');
   });
 
-  it('keeps regular follow-up placeholders inline when the session already has a bot answer', () => {
+  it('resolvePlaceholderLoadingVariant é alias de resolveEffectiveLoadingVariant', () => {
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'default',
         isFollowUp: true,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });
 
-  it('keeps placeholder aligned with inline for first investigation when flag is active', () => {
+  it('primeira investigação com flag inlineLoading ativa retorna inline', () => {
     expect(
       resolvePlaceholderLoadingVariant({
         requestKind: 'default',
         isFollowUp: false,
-        hasConsolidatedBotResponse: true,
       }),
     ).toBe('inline');
   });

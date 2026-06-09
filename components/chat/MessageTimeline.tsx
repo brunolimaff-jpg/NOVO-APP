@@ -328,6 +328,11 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       ? (safeMessages[lastBotWithSuggestionsIndex]?.id ?? null)
       : null;
 
+  const firstBotIndex = useMemo(
+    () => safeMessages.findIndex(m => m.sender === Sender.Bot && !m.isError && !m.isThinking),
+    [safeMessages],
+  );
+
   const itemData = useMemo<MessageRowData>(
     () => ({
       messages: safeMessages,
@@ -355,6 +360,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       empresaAlvo: currentSession?.empresaAlvo || null,
       cnpj: currentSession?.cnpj || null,
       loadingPinnedLabel,
+      firstBotIndex,
     }),
     [
       safeMessages,
@@ -383,6 +389,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       currentSession?.empresaAlvo,
       currentSession?.cnpj,
       loadingPinnedLabel,
+      firstBotIndex,
     ],
   );
 

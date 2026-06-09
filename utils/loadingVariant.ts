@@ -8,26 +8,18 @@ interface ResolveLoadingVariantOptions {
   isFollowUp?: boolean;
 }
 
-interface ResolvePlaceholderLoadingVariantOptions extends ResolveLoadingVariantOptions {
-  hasConsolidatedBotResponse: boolean;
-}
+type ResolvePlaceholderLoadingVariantOptions = ResolveLoadingVariantOptions;
 
 export function resolveLoadingVariant({
   requestKind,
   isFollowUp = false,
 }: ResolveLoadingVariantOptions): LoadingVariant {
+  if (isFollowUp) return 'inline';
   if (requestKind === 'deep_dive') return 'hero';
-  return isFollowUp ? 'inline' : 'hero';
+  return 'hero';
 }
 
-export function resolvePlaceholderLoadingVariant({
-  requestKind,
-  isFollowUp = false,
-  hasConsolidatedBotResponse: _hasConsolidatedBotResponse,
-}: ResolvePlaceholderLoadingVariantOptions): LoadingVariant {
-  void _hasConsolidatedBotResponse;
-  return resolveEffectiveLoadingVariant({ requestKind, isFollowUp });
-}
+export const resolvePlaceholderLoadingVariant = resolveEffectiveLoadingVariant;
 
 export function resolveDeepDiveRequestKind(hasCompletedBotResponse: boolean): RequestKind {
   return hasCompletedBotResponse ? 'deep_dive' : 'default';
