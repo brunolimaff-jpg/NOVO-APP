@@ -113,7 +113,8 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
     for (const stage of processing?.completedStages || []) {
       const key = getLoadingStageIdentity(stripInternalMarkers(stage).trim());
       if (!key || stageDurationsRef.current[key] !== undefined) continue;
-      const startedAt = stageStartedAtRef.current[key] ?? 0;
+      const startedAt = stageStartedAtRef.current[key];
+      if (startedAt === undefined) continue;
       const duration = Math.max(0, elapsedTime - startedAt);
       stageDurationsRef.current[key] = duration;
       if (!loggedCompletionsRef.current.has(key)) {
