@@ -1,77 +1,48 @@
 # Active Context
 
-Last updated: 2026-06-08 — Tela branca: mitigada, raiz aberta
+Last updated: 2026-06-08 — Wiki versionada, auditoria concluida, incidente mitigado
 
-## Atualizacao 2026-06-08 — Fechamento da investigacao de tela branca
+## Estado Atual
 
-**Status:** Bug mitigado com safety net. Causa raiz NAO IDENTIFICADA.
+- **Status:** INCIDENTE VISUAL MITIGADO — MONITORAMENTO
+- **Branch documental:** `docs/wiki-auditoria-final`
+- **Base:** `origin/main` (cbffab54)
+- **Nenhum patch funcional pendente**
+- **Recovery `static-fallback-display-recovery` mantido no codigo**
+- **Nao reabrir investigacao sem gatilho objetivo**
 
-### O que foi feito
+## Contexto do Incidente
 
-- **PR #347 mergeada** (`f3f08890`): 7 comentarios de review resolvidos, corrections pos-merge commitadas
-- **Safety net** `static-fallback-display-recovery`: useEffect que detecta `display:none` no `messages-static-fallback` e forca recovery com `style.setProperty('display', 'block', 'important')`
-- **Instrumentacao**: `debugStaticFallbackDisplay` + `traceFullAncestorChain` em `layoutTraceTelemetry.ts`, conectado em 4 pontos da UI
-- **TDD**: 3 testes para safety net
+- Incidente `display:none` no `messages-static-fallback` observado antes da PR #347
+- Recovery funcional: `none → block !important` confirmado em sessao `ac5890b0`
+- Causa raiz NAO IDENTIFICADA — MutationObserver nao capturou origem
+- PR #347 (merge `f3f08890`) implementou o recovery
+- PR #349 (merge `cbffab54`) adicionou RAF safety net e LoadingStuckProbes
 
-### Sessoes analisadas
+## Conclusao da Auditoria (2026-06-08)
 
-| Sessao | Resultado |
-|--------|-----------|
-| `ac5890b0` | OK apos recovery (previousDisplay "none" → afterResetDisplay "block") |
-| `9595fc30` | OK direto |
-| `2bfe06a1` | OK direto |
-| `f0c9dd91` | Travado (diagnosticos truncados) |
+- Auditoria estrutural com 7 exploradores paralelos concluida
+- Validacao adversarial refutou 6 falsos positivos
+- Unico incidente real: display:none — mitigado, sem reincidencia
+- Decisao: MONITORAR PRODUCAO, nao atuar sem reincidencia
 
-### Hipoteses descartadas
+## Wiki
 
-- Browser computa display:none em flex colapsado — REFUTADA por reproducao minima
-- deleteCachedContent
-- Request pendente bloqueia render
-- RAF extra em setIsLoading
-- Falha do Composer
+- Wiki tecnica versionada em `docs/wiki/` (28 paginas)
+- Gerada por Grok Wiki em 2026-06-08
+- Branch de origem da geracao: "default" (nao registrado SHA exato)
+- Serve como mapa arquitetural, nao como fonte de verdade
 
-### Gatilhos de reabertura
+## Frentes paralelas
 
-Qualquer condicao verdadeira em producao = priorizar investigacao:
+- `gemini_usage` (tracking de custo) NAO pertence a este escopo documental
+- Esta em arquivos modificados no working tree original e deve ir para branch separada
+
+## Gatilhos de Reabertura (ver HANDOFF_AI.md)
 
 1. `static-fallback-display-recovery` > 5% das sessoes
-2. `PostCompletion check:10000ms` ausente com waterfall completed
-3. `domComposerDisabled: true` apos `ui-finalize-post-render`
-4. `blank-panel-detected` > 3 checks consecutivos
-
-### Proximo passo
-
-Monitorar producao. Nao atuar sem reincidencia. Se nova sessao travada: coletar sessionId, waterfallRunId, PostCompletion, LayoutTrace, BlankPanelDebug, DOM snapshot, Sentry/Vercel/Supabase.
-
-## Estado
-
-- **Branch:** `codex/pr346-p0-handoff-docs`
-- **Working tree:** 13 arquivos modificados + 4 untracked (trabalho paralelo `gemini_usage`)
-- **Tela branca preview:** mitigada, raiz aberta
-- **Safety net display:none:** ativa como airbag
-- **PR #346:** mergeada em `main` via `af9cd468` — P0 producao travada corrigido
-- **PR #347:** mergeada em `main` via `f3f08890` — safety net + instrumentacao
-
-## Decisoes arquiteturais ativas
-
-- Safety net: useEffect com setProperty contra origem desconhecida (DECISAO: manter ate causa raiz)
-- traceFullAncestorChain: diagnostico de cadeia completa (DECISAO: manter, filtrar por display:none em producao estavel)
-- FreezeDiag: telemetria temporaria (DECISAO: reavaliar na proxima sprint)
-- display:none no flex colapsado: REFUTADA (DECISAO: documentado para agentes futuros nao reabrirem)
-- CodeQL: 30 alertas pre-existentes, nao e check obrigatorio
-
-## Pendencias
-
-| Item | Status | Acao |
-|------|--------|------|
-| Tela branca preview | MITIGADA, RAIZ ABERTA | Monitorar producao. Gatilhos de reabertura definidos |
-| Safety net display:none | ATIVA | Manter ate causa raiz identificada |
-| traceFullAncestorChain | ATIVO | Filtrar por condicao display:none quando producao estavel |
-| Gemini usage tracking | PARALELO | 13 arquivos modificados + 4 untracked |
-| Branch codex/pr346-p0-handoff-docs | ABERTA | Decidir se deleta ou mantem |
-
-## Links
-
-- PR #346: https://github.com/brunolimaff-jpg/NOVO-APP/pull/346
-- PR #347: https://github.com/brunolimaff-jpg/NOVO-APP/pull/347
-- Handoff final PR #346: `docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md`
+2. Painel branco APOS recovery
+3. ≥3 blank-panel checks consecutivos
+4. Composer desabilitado apos finalizacao
+5. PostCompletion ausente apos waterfall
+6. Nova sessao travada posterior a PR #347
