@@ -6,6 +6,7 @@ import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
 import InlineTypingResponse from './InlineTypingResponse';
+import InlineLoadingBubble from './InlineLoadingBubble';
 import ScorePorta from './ScorePorta';
 import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
@@ -231,7 +232,13 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <span>{assistantLabel}</span>
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
+          <InlineLoadingBubble
+            isDarkMode={isDarkMode}
+            processing={processing}
+            empresaAlvo={empresaAlvo}
+            lastUserQuery={data.lastUserQuery}
+            onStop={data.onStop}
+          />
         </div>
       </div>
     );

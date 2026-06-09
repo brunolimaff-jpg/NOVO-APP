@@ -1,6 +1,8 @@
 export type RequestKind = 'default' | 'deep_dive';
 export type LoadingVariant = 'hero' | 'inline';
 
+import { getFlag } from './featureFlags';
+
 interface ResolveLoadingVariantOptions {
   requestKind: RequestKind;
   isFollowUp?: boolean;
@@ -42,6 +44,12 @@ export function shouldShowHeroLoadingOverlay(
   if (!isLoading) return false;
   if (hasRenderableBotMessage) return false;
   return loadingVariant !== 'inline';
+}
+
+export function resolveEffectiveLoadingVariant(opts: ResolveLoadingVariantOptions): LoadingVariant {
+  const base = resolveLoadingVariant(opts);
+  if (base === 'hero' && getFlag('inlineLoading')) return 'inline';
+  return base;
 }
 
 export function shouldSuspendHeroMessageTimeline(
