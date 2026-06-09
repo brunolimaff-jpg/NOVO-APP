@@ -37,6 +37,9 @@ vi.mock('../../components/LoadingSmart', () => ({
 vi.mock('../../components/InlineTypingResponse', () => ({
   default: () => <div data-testid="inline-typing-response" />,
 }));
+vi.mock('../../components/InlineLoadingBubble', () => ({
+  default: () => <div data-testid="inline-loading-bubble" />,
+}));
 vi.mock('../../components/ScorePorta', () => ({
   default: () => <div data-testid="score-porta" />,
 }));
@@ -52,6 +55,7 @@ vi.mock('../../components/DeepDiveTopics', () => ({
 vi.mock('../../utils/textCleaners', () => ({
   buildAuditableSources: vi.fn().mockReturnValue([]),
   normalizeSourceUrl: vi.fn((url: string) => url),
+  stripInternalMarkers: vi.fn((s: string) => s),
 }));
 vi.mock('../../utils/linkValidation', () => ({
   fetchLinkStatuses: vi.fn().mockResolvedValue({}),
@@ -153,7 +157,7 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('inline-typing-response')).toBeInTheDocument();
   });
 
-  it('renderiza thinking state inline quando loadingVariant=inline', () => {
+  it('renderiza thinking state inline com InlineLoadingBubble quando loadingVariant=inline', () => {
     const msg = makeMessage({
       sender: Sender.Bot,
       isThinking: true,
@@ -161,7 +165,7 @@ describe('MessageRow', () => {
       text: '',
     });
     render(<MessageRow index={0} data={makeData([msg], { isLoading: true })} />);
-    expect(screen.getByTestId('inline-typing-response')).toBeInTheDocument();
+    expect(screen.getByTestId('inline-loading-bubble')).toBeInTheDocument();
     expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
   });
 

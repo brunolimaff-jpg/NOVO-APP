@@ -1,32 +1,32 @@
 ---
 grok_wiki: true
-page_id: "page-configurar-radar"
-title: "Configurar o Radar"
-description: "Configuração de categorias e UFs, varredura, deduplicação, persistência, erros recuperáveis e contrato do endpoint `/api/radar-scan`."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-configurar-radar'
+title: 'Configurar o Radar'
+description: 'Configuração de categorias e UFs, varredura, deduplicação, persistência, erros recuperáveis e contrato do endpoint `/api/radar-scan`.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "features/radar/README.md"
-  - "features/radar/useRadar.ts"
-  - "features/radar/service.ts"
-  - "api/radar-scan.ts"
-  - "components/RadarPanel.tsx"
-  - "components/RadarSettings.tsx"
-  - "tests/hooks/useRadar.test.ts"
+  - 'features/radar/README.md'
+  - 'features/radar/useRadar.ts'
+  - 'features/radar/service.ts'
+  - 'api/radar-scan.ts'
+  - 'components/RadarPanel.tsx'
+  - 'components/RadarSettings.tsx'
+  - 'tests/hooks/useRadar.test.ts'
 ---
 
 O Radar roda como boundary de feature em `features/radar`, com estado e orquestração no hook `useRadar`, cliente HTTP em `fetchRadarAlerts` e execução serverless em `/api/radar-scan`. A UI ainda vive em `components/RadarPanel.tsx`, `components/RadarSettings.tsx` e `components/RadarBell.tsx`, carregados sob demanda pelo shell de chat.
 
 ## Superfície principal
 
-| Área | Implementação | Responsabilidade |
-| --- | --- | --- |
-| Estado do Radar | `features/radar/useRadar.ts` | Configuração, scan manual/automático, deduplicação contra histórico, leitura/não lido e persistência |
-| Cliente HTTP | `features/radar/service.ts` | `POST /api/radar-scan`, timeout de 25s, parsing de resposta e mapeamento de erros recuperáveis |
-| Endpoint | `api/radar-scan.ts` | Busca RSS/Google News, resumo/classificação com Gemini, deduplicação entre categorias e resposta agregada |
-| Tipos | `types.ts` via `features/radar/types.ts` | `RadarCategory`, `RadarAlert`, `RadarConfig`, UFs e labels |
-| Compatibilidade | `hooks/useRadar.ts`, `services/radarService.ts` | Facades legadas; código novo deve importar de `features/radar` |
+| Área            | Implementação                                   | Responsabilidade                                                                                          |
+| --------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Estado do Radar | `features/radar/useRadar.ts`                    | Configuração, scan manual/automático, deduplicação contra histórico, leitura/não lido e persistência      |
+| Cliente HTTP    | `features/radar/service.ts`                     | `POST /api/radar-scan`, timeout de 25s, parsing de resposta e mapeamento de erros recuperáveis            |
+| Endpoint        | `api/radar-scan.ts`                             | Busca RSS/Google News, resumo/classificação com Gemini, deduplicação entre categorias e resposta agregada |
+| Tipos           | `types.ts` via `features/radar/types.ts`        | `RadarCategory`, `RadarAlert`, `RadarConfig`, UFs e labels                                                |
+| Compatibilidade | `hooks/useRadar.ts`, `services/radarService.ts` | Facades legadas; código novo deve importar de `features/radar`                                            |
 
 <Note>
 Os comentários antigos ainda citam IDB em alguns pontos, mas a configuração e os alertas atuais passam pelo barrel `services/storage` e usam Supabase quando disponível. `lastScanAt` e `metaInsight` ficam em `localStorage`.
@@ -36,24 +36,24 @@ Os comentários antigos ainda citam IDB em alguns pontos, mas a configuração e
 
 `RadarSettings` controla quatro campos de `RadarConfig`:
 
-| Campo | Tipo | Padrão | Comportamento |
-| --- | --- | --- | --- |
-| `enabled` | `boolean` | `false` | Liga ou desliga a varredura automática. |
-| `isConfigured` | `boolean` | `false` | Só vira `true` ao salvar com pelo menos uma categoria. |
-| `categories` | `RadarCategory[]` | `[]` | Define os temas monitorados. Sem categoria, o botão de salvar fica desabilitado. |
-| `estados` | `string[]` | `[]` | Lista de UFs. Vazio significa Brasil todo. |
-| `scanIntervalHours` | `number` | `12` | Intervalo do auto-scan. A UI oferece `6`, `8`, `12` e `24`. |
+| Campo               | Tipo              | Padrão  | Comportamento                                                                    |
+| ------------------- | ----------------- | ------- | -------------------------------------------------------------------------------- |
+| `enabled`           | `boolean`         | `false` | Liga ou desliga a varredura automática.                                          |
+| `isConfigured`      | `boolean`         | `false` | Só vira `true` ao salvar com pelo menos uma categoria.                           |
+| `categories`        | `RadarCategory[]` | `[]`    | Define os temas monitorados. Sem categoria, o botão de salvar fica desabilitado. |
+| `estados`           | `string[]`        | `[]`    | Lista de UFs. Vazio significa Brasil todo.                                       |
+| `scanIntervalHours` | `number`          | `12`    | Intervalo do auto-scan. A UI oferece `6`, `8`, `12` e `24`.                      |
 
 Categorias aceitas:
 
-| Valor | Label na UI |
-| --- | --- |
-| `concorrentes` | Radar da Concorrência |
-| `regulatorio` | Regulatório & Compliance |
-| `mercado` | Mercado & Commodities |
-| `ma_expansao` | M&A & Expansão |
-| `agro_tech` | Inovação & AgTech |
-| `rh_trabalho` | RH & Trabalhista |
+| Valor          | Label na UI              |
+| -------------- | ------------------------ |
+| `concorrentes` | Radar da Concorrência    |
+| `regulatorio`  | Regulatório & Compliance |
+| `mercado`      | Mercado & Commodities    |
+| `ma_expansao`  | M&A & Expansão           |
+| `agro_tech`    | Inovação & AgTech        |
+| `rh_trabalho`  | RH & Trabalhista         |
 
 A UI restringe estados à lista `BRASIL_UFS`. O endpoint valida apenas strings de 2 caracteres e no máximo 27 itens.
 
@@ -106,20 +106,20 @@ Durante `runScan()`, o hook usa um lock (`scanLockRef`) para evitar chamadas con
 
 O Radar deduplica em mais de uma camada:
 
-| Camada | Regra |
-| --- | --- |
-| Endpoint | Remove duplicatas entre categorias por título normalizado, sem acentos, sem pontuação e truncado em 80 caracteres. |
-| Gemini batch | Antes de resumir, reduz itens por chave de título em lower-case truncada em 60 caracteres. |
-| Hook | Rejeita alerta novo se o `id` já existir ou se o título tiver similaridade Jaccard de bigramas `>= 0.55` contra o histórico. |
+| Camada       | Regra                                                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Endpoint     | Remove duplicatas entre categorias por título normalizado, sem acentos, sem pontuação e truncado em 80 caracteres.           |
+| Gemini batch | Antes de resumir, reduz itens por chave de título em lower-case truncada em 60 caracteres.                                   |
+| Hook         | Rejeita alerta novo se o `id` já existir ou se o título tiver similaridade Jaccard de bigramas `>= 0.55` contra o histórico. |
 
 O hook mantém no máximo `100` alertas, sempre inserindo os novos no início. `unreadCount` é calculado por `alerts.filter(a => !a.read).length`.
 
 ## Contrato de `/api/radar-scan`
 
-| Método | Uso |
-| --- | --- |
-| `POST /api/radar-scan` | Caminho usado pelo frontend. Recebe categorias e UFs. |
-| `GET /api/radar-scan` | Existe no handler e executa todas as categorias com `estados: []`; não é o caminho usado pelo cliente. |
+| Método                 | Uso                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `POST /api/radar-scan` | Caminho usado pelo frontend. Recebe categorias e UFs.                                                  |
+| `GET /api/radar-scan`  | Existe no handler e executa todas as categorias com `estados: []`; não é o caminho usado pelo cliente. |
 
 :::endpoint POST /api/radar-scan Executa uma varredura do Radar
 
@@ -217,12 +217,12 @@ O frontend aborta a chamada a `/api/radar-scan` após 25 segundos. A função Ve
 
 Alertas e configuração usam `services/storage/radar.ts`:
 
-| Dado | Destino | Chave/tabela |
-| --- | --- | --- |
-| Alertas | Supabase | `radar_alerts.alert_data`, com `operator_id` |
-| Configuração | Supabase | `radar_configs.config`, com `operator_id` |
-| Último scan | Browser | `localStorage["scout360:radar_last_scan"]` |
-| Meta insight | Browser | `localStorage["scout360:radar_meta_insight"]` |
+| Dado         | Destino  | Chave/tabela                                  |
+| ------------ | -------- | --------------------------------------------- |
+| Alertas      | Supabase | `radar_alerts.alert_data`, com `operator_id`  |
+| Configuração | Supabase | `radar_configs.config`, com `operator_id`     |
+| Último scan  | Browser  | `localStorage["scout360:radar_last_scan"]`    |
+| Meta insight | Browser  | `localStorage["scout360:radar_meta_insight"]` |
 
 Quando `VITE_SUPABASE_URL` ou `VITE_SUPABASE_ANON_KEY` não existem, `isSupabaseAvailable()` retorna `false`. Nesse caso, leituras de Radar retornam `[]` ou `null`, gravações viram no-op e a UI continua funcional sem persistência remota de alertas/configuração.
 
@@ -230,27 +230,27 @@ Quando `VITE_SUPABASE_URL` ou `VITE_SUPABASE_ANON_KEY` não existem, `isSupabase
 
 `fetchRadarAlerts` converte falhas HTTP/rede em `RadarScanError` com `code`, `userMessage` e `retryable`.
 
-| Código | Origem | Recuperável | Efeito esperado |
-| --- | --- | --- | --- |
-| `RADAR_TIMEOUT` | Abort do frontend após 25s | Sim | UI mostra mensagem para tentar de novo. |
-| `RADAR_NETWORK` | Falha de conexão/fetch | Sim | UI mostra falha de conexão. |
-| `RADAR_BAD_REQUEST` | `400` ou `forceScan()` sem configuração | Não | Operador deve revisar categorias/UFs ou configurar o Radar. |
-| `RADAR_RATE_LIMIT` | `429` retornado por plataforma/proxy | Sim | Operador tenta novamente depois. |
-| `RADAR_SERVER` | `5xx` | Sim | UI mostra instabilidade temporária. |
-| `RADAR_UNKNOWN` | Status inesperado | Sim | UI mostra falha genérica. |
+| Código              | Origem                                  | Recuperável | Efeito esperado                                             |
+| ------------------- | --------------------------------------- | ----------- | ----------------------------------------------------------- |
+| `RADAR_TIMEOUT`     | Abort do frontend após 25s              | Sim         | UI mostra mensagem para tentar de novo.                     |
+| `RADAR_NETWORK`     | Falha de conexão/fetch                  | Sim         | UI mostra falha de conexão.                                 |
+| `RADAR_BAD_REQUEST` | `400` ou `forceScan()` sem configuração | Não         | Operador deve revisar categorias/UFs ou configurar o Radar. |
+| `RADAR_RATE_LIMIT`  | `429` retornado por plataforma/proxy    | Sim         | Operador tenta novamente depois.                            |
+| `RADAR_SERVER`      | `5xx`                                   | Sim         | UI mostra instabilidade temporária.                         |
+| `RADAR_UNKNOWN`     | Status inesperado                       | Sim         | UI mostra falha genérica.                                   |
 
 O painel exibe `scanWarning` para varreduras parciais e `scanError` para falhas controladas. Quando `retryable` é verdadeiro, aparece a ação “Tentar novamente”.
 
 ## Estados visuais
 
-| Estado | Condição | UI |
-| --- | --- | --- |
-| Não configurado | `config.isConfigured === false` | Painel pede seleção de categorias/estados e abre configurações. |
-| Varrendo sem alertas filtrados | `isScanning && filtered.length === 0` | Loader com texto “Buscando notícias do setor...”. |
-| Sem resultados | Configurado, sem scan ativo e lista filtrada vazia | Mensagem “Nenhum alerta encontrado”. |
-| Com alertas | `filtered.length > 0` | Cards por categoria, relevância, impacto, estágio, UF e fonte. |
-| Varredura parcial | `lastWarning` preenchido | Callout âmbar no header do painel. |
-| Erro controlado | `lastError` preenchido | Callout vermelho com código e retry quando aplicável. |
+| Estado                         | Condição                                           | UI                                                              |
+| ------------------------------ | -------------------------------------------------- | --------------------------------------------------------------- |
+| Não configurado                | `config.isConfigured === false`                    | Painel pede seleção de categorias/estados e abre configurações. |
+| Varrendo sem alertas filtrados | `isScanning && filtered.length === 0`              | Loader com texto “Buscando notícias do setor...”.               |
+| Sem resultados                 | Configurado, sem scan ativo e lista filtrada vazia | Mensagem “Nenhum alerta encontrado”.                            |
+| Com alertas                    | `filtered.length > 0`                              | Cards por categoria, relevância, impacto, estágio, UF e fonte.  |
+| Varredura parcial              | `lastWarning` preenchido                           | Callout âmbar no header do painel.                              |
+| Erro controlado                | `lastError` preenchido                             | Callout vermelho com código e retry quando aplicável.           |
 
 Abrir um alerta marca o item como lido e tenta abrir `sourceUrl` em nova aba quando a URL não é `#`. O botão de descartar remove o alerta da lista local.
 
@@ -289,14 +289,14 @@ Checklist de mudança segura:
 
 ## Troubleshooting
 
-| Sintoma | Verificação |
-| --- | --- |
-| `Missing GEMINI_API_KEY` | Configure `GEMINI_API_KEY` no ambiente serverless. Não use prefixo `VITE_` para essa chave. |
-| `RADAR_BAD_REQUEST` | Confirme que há 1 a 6 categorias e UFs de 2 caracteres. |
-| Timeout no frontend | A chamada passou de 25s no cliente. Reduza categorias ou tente novamente; a function tem limite maior, mas a UI aborta antes. |
-| Painel mostra varredura parcial | Inspecione `partialFailures` e `categoryStats` para identificar a categoria sem fonte ou com erro. |
-| Alertas/configuração somem entre sessões | Verifique `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e existência de `operator_id`; sem Supabase, gravações remotas são no-op. |
-| Resposta 200 sem alertas | Pode não haver itens RSS relevantes, o Gemini pode retornar `NENHUM_RESULTADO`, ou a deduplicação pode ter removido itens repetidos. |
+| Sintoma                                  | Verificação                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `Missing GEMINI_API_KEY`                 | Configure `GEMINI_API_KEY` no ambiente serverless. Não use prefixo `VITE_` para essa chave.                                          |
+| `RADAR_BAD_REQUEST`                      | Confirme que há 1 a 6 categorias e UFs de 2 caracteres.                                                                              |
+| Timeout no frontend                      | A chamada passou de 25s no cliente. Reduza categorias ou tente novamente; a function tem limite maior, mas a UI aborta antes.        |
+| Painel mostra varredura parcial          | Inspecione `partialFailures` e `categoryStats` para identificar a categoria sem fonte ou com erro.                                   |
+| Alertas/configuração somem entre sessões | Verifique `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e existência de `operator_id`; sem Supabase, gravações remotas são no-op.    |
+| Resposta 200 sem alertas                 | Pode não haver itens RSS relevantes, o Gemini pode retornar `NENHUM_RESULTADO`, ou a deduplicação pode ter removido itens repetidos. |
 
 ## Related pages
 

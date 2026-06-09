@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-loading-estados-visuais"
-title: "Loading e estados visuais"
-description: "Contrato de overlay, timeline, fallback estático, painel branco, estados válidos, testids críticos e sinais de recuperação pós-waterfall."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-loading-estados-visuais'
+title: 'Loading e estados visuais'
+description: 'Contrato de overlay, timeline, fallback estático, painel branco, estados válidos, testids críticos e sinais de recuperação pós-waterfall.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "components/LoadingSmart.tsx"
-  - "components/chat/MessageTimeline.tsx"
-  - "components/ChatInterface.tsx"
-  - "utils/loadingStatus.ts"
-  - "utils/blankPanelTelemetry.ts"
-  - "docs/ai-context/refactor/loading-panel-contract.md"
-  - "tests-e2e/loading-smart-recovery.spec.ts"
+  - 'components/LoadingSmart.tsx'
+  - 'components/chat/MessageTimeline.tsx'
+  - 'components/ChatInterface.tsx'
+  - 'utils/loadingStatus.ts'
+  - 'utils/blankPanelTelemetry.ts'
+  - 'docs/ai-context/refactor/loading-panel-contract.md'
+  - 'tests-e2e/loading-smart-recovery.spec.ts'
 ---
 
 O contrato visual do chat central é dividido entre `App.tsx`, `components/ChatInterface.tsx`, `components/chat/MessageTimeline.tsx`, `components/LoadingSmart.tsx` e utilitários de diagnóstico. O overlay fullscreen é decidido no app, o estado do painel é classificado no chat, a timeline escolhe entre Virtuoso, suspensão e fallback estático, e os sinais pós-waterfall confirmam se existe conteúdo útil no DOM.
@@ -50,23 +50,23 @@ Não trate `Virtuoso` montado, `PostCompletion` persistido ou texto em memória 
 
 `panelState` aceita somente `empty`, `loading`, `content` e `error`.
 
-| Estado | Condição esperada | DOM aceitável | DOM inválido |
-| --- | --- | --- | --- |
-| `empty` | Sem sessão ativa renderizável ou sessão ativa sem conteúdo | `empty-state` quando há sessão ativa vazia fora da home | Painel invisível ou sessão ativa sem fallback |
-| `loading` | `isLoading=true` | `loading-smart-overlay`, fallback inline, ou timeline suspensa antes de conteúdo renderizável | Overlay cobrindo bot já renderizável |
-| `content` | Há mensagens ou `resumoDossie` | `bot-message-content` visível com `data-text-length > 0`, via Virtuoso ou `messages-static-fallback` | `messages-viewport-placeholder` ou `messages-viewport-suspended` pós-waterfall |
-| `error` | Mensagem de erro ou boundary controlada | `error-message-card` no chat; `controlled-error` no boundary do shell | Overlay infinito ou painel branco após falha |
+| Estado    | Condição esperada                                          | DOM aceitável                                                                                        | DOM inválido                                                                   |
+| --------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `empty`   | Sem sessão ativa renderizável ou sessão ativa sem conteúdo | `empty-state` quando há sessão ativa vazia fora da home                                              | Painel invisível ou sessão ativa sem fallback                                  |
+| `loading` | `isLoading=true`                                           | `loading-smart-overlay`, fallback inline, ou timeline suspensa antes de conteúdo renderizável        | Overlay cobrindo bot já renderizável                                           |
+| `content` | Há mensagens ou `resumoDossie`                             | `bot-message-content` visível com `data-text-length > 0`, via Virtuoso ou `messages-static-fallback` | `messages-viewport-placeholder` ou `messages-viewport-suspended` pós-waterfall |
+| `error`   | Mensagem de erro ou boundary controlada                    | `error-message-card` no chat; `controlled-error` no boundary do shell                                | Overlay infinito ou painel branco após falha                                   |
 
 ## Overlay hero
 
 A decisão de mostrar `loading-smart-overlay` usa `shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage)`.
 
-| Regra | Comportamento |
-| --- | --- |
-| `isLoading=false` | Overlay não pode existir. O app aplica safety net depois de 500 ms se encontrar o DOM preso. |
-| `loadingVariant='inline'` | Overlay fullscreen não aparece. Follow-up deve usar carregamento inline. |
-| `loadingVariant='hero'` ou `undefined` | Overlay aparece enquanto não houver bot renderizável. |
-| Bot renderizável presente | Overlay não bloqueia a tela, mesmo se `isLoading` ainda estiver `true`. |
+| Regra                                  | Comportamento                                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `isLoading=false`                      | Overlay não pode existir. O app aplica safety net depois de 500 ms se encontrar o DOM preso. |
+| `loadingVariant='inline'`              | Overlay fullscreen não aparece. Follow-up deve usar carregamento inline.                     |
+| `loadingVariant='hero'` ou `undefined` | Overlay aparece enquanto não houver bot renderizável.                                        |
+| Bot renderizável presente              | Overlay não bloqueia a tela, mesmo se `isLoading` ainda estiver `true`.                      |
 
 Um bot é renderizável quando é mensagem de bot, não é erro, tem texto e não está em `isThinking`, ou quando está em `isThinking` com pelo menos `200` caracteres de preview waterfall.
 
@@ -78,12 +78,12 @@ Um bot é renderizável quando é mensagem de bot, não é erro, tem texto e nã
 
 O fallback estático é preferido para dossiês grandes. O limite é `LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 4000`.
 
-| Sinal | Resultado |
-| --- | --- |
-| `expectedBotCharsMax >= 4000`, sessão existente e fora da home | `forceStaticTimelineFallback` é ativado proativamente. |
-| `preferStaticForLargeDossier=true` após loading | A timeline renderiza `messages-static-fallback` no mesmo render. |
-| `shouldSuspendVirtualizedList=true` e fallback estático ativo | O fallback estático vence a suspensão. |
-| Virtuoso não materializa conteúdo | Snapshots podem ativar `static-timeline-fallback-activated`. |
+| Sinal                                                          | Resultado                                                        |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `expectedBotCharsMax >= 4000`, sessão existente e fora da home | `forceStaticTimelineFallback` é ativado proativamente.           |
+| `preferStaticForLargeDossier=true` após loading                | A timeline renderiza `messages-static-fallback` no mesmo render. |
+| `shouldSuspendVirtualizedList=true` e fallback estático ativo  | O fallback estático vence a suspensão.                           |
+| Virtuoso não materializa conteúdo                              | Snapshots podem ativar `static-timeline-fallback-activated`.     |
 
 `MessageTimeline` escolhe nesta ordem:
 
@@ -103,15 +103,15 @@ Depois do waterfall, `messages-viewport-placeholder` e `messages-viewport-suspen
 
 Razões conhecidas de painel branco:
 
-| `reason` | Interpretação |
-| --- | --- |
-| `main-panel-not-visible` | O painel central não tem área visível. |
-| `stuck-viewport-placeholder` | Virtuoso ficou no placeholder depois do conteúdo esperado. |
-| `stuck-viewport-suspended` | A timeline permaneceu suspensa depois do conteúdo esperado. |
-| `no-message-rows-in-panel` | Não há linhas de mensagem no painel. |
-| `message-rows-not-visible` | Há linhas, mas nenhuma visível. |
-| `no-bot-nodes-in-panel` | Não há `bot-message-content`. |
-| `bot-nodes-have-no-visible-chars` | Há nó de bot, mas nenhum texto visível. |
+| `reason`                          | Interpretação                                               |
+| --------------------------------- | ----------------------------------------------------------- |
+| `main-panel-not-visible`          | O painel central não tem área visível.                      |
+| `stuck-viewport-placeholder`      | Virtuoso ficou no placeholder depois do conteúdo esperado.  |
+| `stuck-viewport-suspended`        | A timeline permaneceu suspensa depois do conteúdo esperado. |
+| `no-message-rows-in-panel`        | Não há linhas de mensagem no painel.                        |
+| `message-rows-not-visible`        | Há linhas, mas nenhuma visível.                             |
+| `no-bot-nodes-in-panel`           | Não há `bot-message-content`.                               |
+| `bot-nodes-have-no-visible-chars` | Há nó de bot, mas nenhum texto visível.                     |
 
 `dossier-content` vazio não comprova renderização. A prova visual principal é `bot-message-content` visível com texto.
 
@@ -119,11 +119,11 @@ Razões conhecidas de painel branco:
 
 A recuperação combina três camadas:
 
-| Camada | Delay | Ação |
-| --- | --- | --- |
-| `PostCompletion` | `0`, `100`, `500`, `1000`, `3000`, `10000` ms | Captura overlay, bot, composer, scroller, painel branco e geração waterfall. |
-| `BlankPanel` no `ChatInterface` | `750`, `2000`, `5000`, `9000` ms | Reporta para diagnósticos/Sentry e pode ativar fallback estático. |
-| Watchdog pós-waterfall | `2000` ms | Para dossiê grande, força static fallback se o DOM ainda está preso em placeholder/suspensão. |
+| Camada                          | Delay                                         | Ação                                                                                          |
+| ------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `PostCompletion`                | `0`, `100`, `500`, `1000`, `3000`, `10000` ms | Captura overlay, bot, composer, scroller, painel branco e geração waterfall.                  |
+| `BlankPanel` no `ChatInterface` | `750`, `2000`, `5000`, `9000` ms              | Reporta para diagnósticos/Sentry e pode ativar fallback estático.                             |
+| Watchdog pós-waterfall          | `2000` ms                                     | Para dossiê grande, força static fallback se o DOM ainda está preso em placeholder/suspensão. |
 
 `MessageTimeline` também tem safety net específico para `messages-static-fallback`: se o elemento montar com `computedStyle.display === 'none'`, o recovery limpa `style.display`; se continuar `none`, aplica `display: block !important` e emite `static-fallback-display-recovery`.
 
@@ -133,21 +133,21 @@ A origem do `display:none` no fallback estático foi mitigada, mas não identifi
 
 ## Testids críticos
 
-| Testid | Responsabilidade |
-| --- | --- |
-| `chat-main-panel` | Região central avaliada por snapshots e E2E. |
-| `loading-smart-overlay` | Overlay hero fullscreen. Não pode persistir com `isLoading=false`. |
-| `loading-stop-button` | Botão de interrupção do overlay; escondido no finalize pós-waterfall. |
-| `messages-static-fallback` | Timeline não virtualizada para dossiês grandes ou recovery. |
-| `messages-viewport-suspended` | Estado transitório durante hero loading sem bot renderizável. |
-| `messages-viewport-placeholder` | Placeholder da viewport antes do Virtuoso ficar pronto. |
-| `message-row` | Linha renderizada da timeline. |
-| `bot-message-content` | Prova principal de resposta visível; expõe `data-text-length`. |
-| `hero-loading-inline-fallback` | Linha fallback quando preview hero aparece dentro da timeline. |
-| `empty-state` | Fallback controlado para sessão ativa sem conteúdo renderizável. |
-| `error-message-card` | Falha de investigação renderizada como erro controlado no chat. |
-| `controlled-error` | Boundary do shell do chat. |
-| `message-input` e `chat-input` | Acessibilidade do composer durante e após loading/falha. |
+| Testid                          | Responsabilidade                                                      |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `chat-main-panel`               | Região central avaliada por snapshots e E2E.                          |
+| `loading-smart-overlay`         | Overlay hero fullscreen. Não pode persistir com `isLoading=false`.    |
+| `loading-stop-button`           | Botão de interrupção do overlay; escondido no finalize pós-waterfall. |
+| `messages-static-fallback`      | Timeline não virtualizada para dossiês grandes ou recovery.           |
+| `messages-viewport-suspended`   | Estado transitório durante hero loading sem bot renderizável.         |
+| `messages-viewport-placeholder` | Placeholder da viewport antes do Virtuoso ficar pronto.               |
+| `message-row`                   | Linha renderizada da timeline.                                        |
+| `bot-message-content`           | Prova principal de resposta visível; expõe `data-text-length`.        |
+| `hero-loading-inline-fallback`  | Linha fallback quando preview hero aparece dentro da timeline.        |
+| `empty-state`                   | Fallback controlado para sessão ativa sem conteúdo renderizável.      |
+| `error-message-card`            | Falha de investigação renderizada como erro controlado no chat.       |
+| `controlled-error`              | Boundary do shell do chat.                                            |
+| `message-input` e `chat-input`  | Acessibilidade do composer durante e após loading/falha.              |
 
 ## Validação recomendada
 

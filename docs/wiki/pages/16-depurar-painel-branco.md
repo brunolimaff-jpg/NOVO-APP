@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-depurar-painel-branco"
-title: "Depurar painel branco"
-description: "Procedimento de investigação para overlay travado, fallback estático invisível, `PostCompletion`, `FreezeDiag`, `LayoutTrace` e validação visual final."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-depurar-painel-branco'
+title: 'Depurar painel branco'
+description: 'Procedimento de investigação para overlay travado, fallback estático invisível, `PostCompletion`, `FreezeDiag`, `LayoutTrace` e validação visual final.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "HANDOFF_AI.md"
-  - "utils/diagnosticLog.ts"
-  - "utils/blankPanelTelemetry.ts"
-  - "utils/layoutTraceTelemetry.ts"
-  - "features/chat/message-orchestrator.ts"
-  - "docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md"
-  - "tests-e2e/scheffer-cnpj-blank-panel.spec.ts"
+  - 'HANDOFF_AI.md'
+  - 'utils/diagnosticLog.ts'
+  - 'utils/blankPanelTelemetry.ts'
+  - 'utils/layoutTraceTelemetry.ts'
+  - 'features/chat/message-orchestrator.ts'
+  - 'docs/handoffs/2026-06-08-pr346-p0-prod-preview-final.md'
+  - 'tests-e2e/scheffer-cnpj-blank-panel.spec.ts'
 ---
 
 O painel branco no Senior Scout 360 é tratado como falha de handoff visual pós-waterfall: o dossiê pode ter sido gerado e persistido, mas o `chat-main-panel` ainda não mostra `bot-message-content` visível, mantém overlay/placeholder preso ou monta `messages-static-fallback` com `display:none`.
@@ -24,15 +24,15 @@ O estado atual do incidente é mitigado, não encerrado por causa raiz: a safety
 
 ## Superfície técnica
 
-| Área | Identificadores principais | Uso na investigação |
-| --- | --- | --- |
-| Diagnóstico persistente | `scoutDiag`, `recordDiagnostics`, `scout_diagnostics` | Linha do tempo por `sessionId`, `area`, `event`, `payload` |
-| Finalização do waterfall | `finalizeWaterfallUI`, `WaterfallLifecycle/ui-finalized`, `ui-finalize-post-render` | Confirma se loading, overlay, stop button e composer foram liberados |
-| Pós-finalização | `PostCompletion/check:*`, `LoadingStuckProbe` | Mede DOM real em `0`, `100`, `500`, `1000`, `3000` e `10000` ms |
-| Detecção de branco | `BlankPanel/blank-panel-detected`, `collectBlankPanelSnapshot` | Classifica ausência de linhas, bot invisível, placeholder ou viewport suspensa |
-| Layout | `LayoutTrace`, `BlankPanelDebug`, `traceFullAncestorChain` | Captura `display`, dimensões, overflow e ancestrais suspeitos |
-| Fallback visual | `messages-static-fallback`, `static-timeline-fallback-activated`, `static-fallback-display-recovery` | Força timeline estática para dossiês grandes e recupera `display:none` |
-| Validação E2E | `tests-e2e/scheffer-cnpj-blank-panel.spec.ts` | Garante overlay fora, painel visível, bot visível e texto mínimo |
+| Área                     | Identificadores principais                                                                           | Uso na investigação                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Diagnóstico persistente  | `scoutDiag`, `recordDiagnostics`, `scout_diagnostics`                                                | Linha do tempo por `sessionId`, `area`, `event`, `payload`                     |
+| Finalização do waterfall | `finalizeWaterfallUI`, `WaterfallLifecycle/ui-finalized`, `ui-finalize-post-render`                  | Confirma se loading, overlay, stop button e composer foram liberados           |
+| Pós-finalização          | `PostCompletion/check:*`, `LoadingStuckProbe`                                                        | Mede DOM real em `0`, `100`, `500`, `1000`, `3000` e `10000` ms                |
+| Detecção de branco       | `BlankPanel/blank-panel-detected`, `collectBlankPanelSnapshot`                                       | Classifica ausência de linhas, bot invisível, placeholder ou viewport suspensa |
+| Layout                   | `LayoutTrace`, `BlankPanelDebug`, `traceFullAncestorChain`                                           | Captura `display`, dimensões, overflow e ancestrais suspeitos                  |
+| Fallback visual          | `messages-static-fallback`, `static-timeline-fallback-activated`, `static-fallback-display-recovery` | Força timeline estática para dossiês grandes e recupera `display:none`         |
+| Validação E2E            | `tests-e2e/scheffer-cnpj-blank-panel.spec.ts`                                                        | Garante overlay fora, painel visível, bot visível e texto mínimo               |
 
 ## Pré-condições de diagnóstico
 
@@ -41,8 +41,8 @@ Ative a telemetria antes de tentar reproduzir o travamento. O frontend só persi
 <CodeGroup>
 
 ```js title="DevTools do preview ou produção"
-localStorage.setItem('SCOUT_DIAG_ENABLED', '1')
-location.reload()
+localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+location.reload();
 ```
 
 ```bash title="Ambiente com logs verbosos"
@@ -98,6 +98,7 @@ from scout_diagnostics
 where session_id = '<session-id>'
 order by created_at asc;
 ```
+
 </Step>
 
 <Step title="Compare marcadores obrigatórios">
@@ -113,6 +114,7 @@ select
 from scout_diagnostics
 where session_id = '<session-id>';
 ```
+
 </Step>
 
 <Step title="Classifique a assinatura">
@@ -127,45 +129,45 @@ A correção só está validada quando o overlay sai, o composer volta, `message
 
 ## Assinaturas de falha
 
-| Assinatura | Evidência típica | Interpretação |
-| --- | --- | --- |
-| `PostCompletion=0` com waterfall concluído | `WaterfallLifecycle` ou health-check terminal existe, mas não há `PostCompletion/check:*` | Finalização, flush ou main thread impediram probes pós-render |
-| `check:10000ms` ausente | Há checks iniciais, mas falta o check final | Reabrir investigação se o waterfall terminou; o check de 10s é o marcador de estabilidade |
-| Overlay travado | `LoadingStuckProbe/stuck-after-completed`, `SpinnerStuck/overlay-persisted-post-waterfall`, `domHasOverlay=true` | Store e DOM divergiram ou cleanup de overlay não aplicou |
-| Composer preso | `domComposerDisabled=true` em `ui-finalize-post-render` ou `LoadingStuckProbe` | UI não voltou ao estado utilizável mesmo após `setIsLoading(false)` |
-| Placeholder preso | `blankPanelReason=stuck-viewport-placeholder` | Virtuoso/viewport ficou em estado intermediário pós-loading |
-| Viewport suspensa presa | `blankPanelReason=stuck-viewport-suspended` | Handoff ainda mostra suspensão apesar de bot esperado |
-| Bot não renderizado | `no-message-rows-in-panel`, `no-bot-nodes-in-panel`, `bot-nodes-have-no-visible-chars` | Painel existe, mas não há conteúdo de bot visível |
-| Fallback estático invisível | `BlankPanelDebug` com `quickCheck.fallback.display='none'`, `rectW=0`, `rectH=0` | `messages-static-fallback` montou, mas CSS computado ocultou o elemento |
-| Recovery acionado | `Virtuoso/static-fallback-display-recovery` | Safety net recuperou o fallback; contar incidência antes de remover |
-| Conteúdo invisível no commit | `MessageRow/commit:invisible-bot-content` ou `commit:zero-dimension-ancestor` | O nó do bot existe, mas dimensões/visibilidade impedem leitura visual |
+| Assinatura                                 | Evidência típica                                                                                                 | Interpretação                                                                             |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `PostCompletion=0` com waterfall concluído | `WaterfallLifecycle` ou health-check terminal existe, mas não há `PostCompletion/check:*`                        | Finalização, flush ou main thread impediram probes pós-render                             |
+| `check:10000ms` ausente                    | Há checks iniciais, mas falta o check final                                                                      | Reabrir investigação se o waterfall terminou; o check de 10s é o marcador de estabilidade |
+| Overlay travado                            | `LoadingStuckProbe/stuck-after-completed`, `SpinnerStuck/overlay-persisted-post-waterfall`, `domHasOverlay=true` | Store e DOM divergiram ou cleanup de overlay não aplicou                                  |
+| Composer preso                             | `domComposerDisabled=true` em `ui-finalize-post-render` ou `LoadingStuckProbe`                                   | UI não voltou ao estado utilizável mesmo após `setIsLoading(false)`                       |
+| Placeholder preso                          | `blankPanelReason=stuck-viewport-placeholder`                                                                    | Virtuoso/viewport ficou em estado intermediário pós-loading                               |
+| Viewport suspensa presa                    | `blankPanelReason=stuck-viewport-suspended`                                                                      | Handoff ainda mostra suspensão apesar de bot esperado                                     |
+| Bot não renderizado                        | `no-message-rows-in-panel`, `no-bot-nodes-in-panel`, `bot-nodes-have-no-visible-chars`                           | Painel existe, mas não há conteúdo de bot visível                                         |
+| Fallback estático invisível                | `BlankPanelDebug` com `quickCheck.fallback.display='none'`, `rectW=0`, `rectH=0`                                 | `messages-static-fallback` montou, mas CSS computado ocultou o elemento                   |
+| Recovery acionado                          | `Virtuoso/static-fallback-display-recovery`                                                                      | Safety net recuperou o fallback; contar incidência antes de remover                       |
+| Conteúdo invisível no commit               | `MessageRow/commit:invisible-bot-content` ou `commit:zero-dimension-ancestor`                                    | O nó do bot existe, mas dimensões/visibilidade impedem leitura visual                     |
 
 ## Critérios de reabertura
 
 Reabra como incidente prioritário se qualquer condição aparecer em produção:
 
-| Critério | Como medir |
-| --- | --- |
-| `static-fallback-display-recovery` acima de 5% das sessões | Contagem de eventos `Virtuoso/static-fallback-display-recovery` sobre sessões com dossiê grande |
-| `PostCompletion/check:10000ms` ausente com waterfall concluído | `WaterfallLifecycle/ui-finalized=1` e `PostCompletion/check:10000ms=0` |
-| `domComposerDisabled=true` após `ui-finalize-post-render` | Payload de `WaterfallLifecycle/ui-finalize-post-render` |
-| `blank-panel-detected` em mais de três checks consecutivos | Eventos `BlankPanel` ou `PostCompletion/blank-panel-detected:*` na mesma sessão |
+| Critério                                                       | Como medir                                                                                      |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `static-fallback-display-recovery` acima de 5% das sessões     | Contagem de eventos `Virtuoso/static-fallback-display-recovery` sobre sessões com dossiê grande |
+| `PostCompletion/check:10000ms` ausente com waterfall concluído | `WaterfallLifecycle/ui-finalized=1` e `PostCompletion/check:10000ms=0`                          |
+| `domComposerDisabled=true` após `ui-finalize-post-render`      | Payload de `WaterfallLifecycle/ui-finalize-post-render`                                         |
+| `blank-panel-detected` em mais de três checks consecutivos     | Eventos `BlankPanel` ou `PostCompletion/blank-panel-detected:*` na mesma sessão                 |
 
 ## Estados válidos e inválidos
 
 `collectBlankPanelSnapshot` só deve acusar branco quando existe `sessionId`, há bot esperado, `isLoading=false`, a home inicial não está ativa e a lista não deveria estar suspensa.
 
-| Estado visual | Válido? | Observação |
-| --- | --- | --- |
-| `loadingOverlayVisible=true` durante loading | Sim | Overlay é esperado enquanto a geração está ativa |
-| `loadingOverlayVisible=true` após loading | Não para produto | `BlankPanel` pode não marcar como branco, mas `isOverlayStuckPostWaterfall` e `LoadingStuckProbe` devem capturar |
-| `controlledErrorVisible=true` | Sim | Falha controlada deve renderizar card de erro e liberar input |
-| `emptyStateVisible=true` sem sessão ativa | Sim | Estado inicial normal |
-| `heroFallbackVisible=true` com loading exposto | Sim | Evita painel vazio quando o overlay não cobre a timeline |
-| `visibleBotWithCharsCount>0` | Sim | Evidência mínima de dossiê visível |
-| `placeholderVisible=true` pós-waterfall | Não | Classifica `stuck-viewport-placeholder` |
-| `suspendedViewportVisible=true` pós-waterfall | Não | Classifica `stuck-viewport-suspended` |
-| `dossier-content` vazio | Não | Não substitui `bot-message-content` visível com texto |
+| Estado visual                                  | Válido?          | Observação                                                                                                       |
+| ---------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `loadingOverlayVisible=true` durante loading   | Sim              | Overlay é esperado enquanto a geração está ativa                                                                 |
+| `loadingOverlayVisible=true` após loading      | Não para produto | `BlankPanel` pode não marcar como branco, mas `isOverlayStuckPostWaterfall` e `LoadingStuckProbe` devem capturar |
+| `controlledErrorVisible=true`                  | Sim              | Falha controlada deve renderizar card de erro e liberar input                                                    |
+| `emptyStateVisible=true` sem sessão ativa      | Sim              | Estado inicial normal                                                                                            |
+| `heroFallbackVisible=true` com loading exposto | Sim              | Evita painel vazio quando o overlay não cobre a timeline                                                         |
+| `visibleBotWithCharsCount>0`                   | Sim              | Evidência mínima de dossiê visível                                                                               |
+| `placeholderVisible=true` pós-waterfall        | Não              | Classifica `stuck-viewport-placeholder`                                                                          |
+| `suspendedViewportVisible=true` pós-waterfall  | Não              | Classifica `stuck-viewport-suspended`                                                                            |
+| `dossier-content` vazio                        | Não              | Não substitui `bot-message-content` visível com texto                                                            |
 
 ## Fallback estático
 

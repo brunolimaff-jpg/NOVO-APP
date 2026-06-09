@@ -1,36 +1,36 @@
 ---
 grok_wiki: true
-page_id: "page-prompts-reference"
-title: "Prompts de investigação"
-description: "Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-prompts-reference'
+title: 'Prompts de investigação'
+description: 'Builders, payloads, modos, blocos compartilhados, módulos especialistas, prompts de teia, contrato de saída e gate `validate:prompts`.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "prompts/mega/contracts.ts"
-  - "prompts/mega/builders.ts"
-  - "prompts/mega/foundation.ts"
-  - "prompts/mega/specialist-prompts.ts"
-  - "prompts/mega/teia-identity.ts"
-  - "prompts/mega/teia-deep.ts"
-  - "prompts/systemPrompts.ts"
-  - "scripts/validate-prompts.sh"
+  - 'prompts/mega/contracts.ts'
+  - 'prompts/mega/builders.ts'
+  - 'prompts/mega/foundation.ts'
+  - 'prompts/mega/specialist-prompts.ts'
+  - 'prompts/mega/teia-identity.ts'
+  - 'prompts/mega/teia-deep.ts'
+  - 'prompts/systemPrompts.ts'
+  - 'scripts/validate-prompts.sh'
 ---
 
 A superfície de prompts de investigação fica concentrada em `prompts/mega/*`, exposta pela fachada `prompts/megaPrompts.ts` e consumida pela tela principal, deep dives e waterfall modular de dossiê. O contrato combina builders TypeScript, blocos compartilhados, prompts especialistas, markers internos `[[PORTA_*]]`, prompts específicos de teia societária e o gate `npm run validate:prompts`.
 
 ## Superfície pública
 
-| Área | Arquivo | Responsabilidade |
-|---|---|---|
-| Contratos de entrada | `prompts/mega/contracts.ts` | Tipos `InvestigationPayload` e `InvestigationBuildOptions`. |
-| Builder principal | `prompts/mega/builders.ts` | Monta o prompt oculto completo, modos, flags, módulos e versão. |
-| Blocos compartilhados | `prompts/mega/foundation.ts` | Governança, evidência, entidade, recência, parser guard, reconciliação e orquestração mestre. |
-| Módulos especialistas | `prompts/mega/specialist-prompts.ts` | Prompts por domínio e emissão de feeds PORTA. |
-| Teia societária | `prompts/mega/teia-identity.ts`, `prompts/mega/teia-deep.ts` | Módulo 1a de identidade e módulo 1b de profundidade. |
-| Fachada estável | `prompts/megaPrompts.ts` | Reexporta tipos, blocos, builders e prompts para consumidores. |
-| Prompt legado | `prompts/systemPrompts.ts` | Ponte temporária que reexporta `OPERACAO_PROMPT` de `constants.ts`. |
-| Gate local | `scripts/validate-prompts.sh` | Roda testes de prompts, prompt base, parser de teia e grafo societário. |
+| Área                  | Arquivo                                                      | Responsabilidade                                                                              |
+| --------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Contratos de entrada  | `prompts/mega/contracts.ts`                                  | Tipos `InvestigationPayload` e `InvestigationBuildOptions`.                                   |
+| Builder principal     | `prompts/mega/builders.ts`                                   | Monta o prompt oculto completo, modos, flags, módulos e versão.                               |
+| Blocos compartilhados | `prompts/mega/foundation.ts`                                 | Governança, evidência, entidade, recência, parser guard, reconciliação e orquestração mestre. |
+| Módulos especialistas | `prompts/mega/specialist-prompts.ts`                         | Prompts por domínio e emissão de feeds PORTA.                                                 |
+| Teia societária       | `prompts/mega/teia-identity.ts`, `prompts/mega/teia-deep.ts` | Módulo 1a de identidade e módulo 1b de profundidade.                                          |
+| Fachada estável       | `prompts/megaPrompts.ts`                                     | Reexporta tipos, blocos, builders e prompts para consumidores.                                |
+| Prompt legado         | `prompts/systemPrompts.ts`                                   | Ponte temporária que reexporta `OPERACAO_PROMPT` de `constants.ts`.                           |
+| Gate local            | `scripts/validate-prompts.sh`                                | Roda testes de prompts, prompt base, parser de teia e grafo societário.                       |
 
 <Note>
 `prompts/systemPrompts.ts` ainda não é o dono do prompt base: ele existe para isolar a futura migração e hoje apenas reexporta `OPERACAO_PROMPT` de `constants.ts`.
@@ -112,34 +112,34 @@ Depois do builder, a tela anexa `<radar_context>` quando há radar disponível. 
 
 `SHARED_FOUNDATION_BLOCK` é uma composição ordenada de blocos de `foundation.ts` mais `SELLER_BRIEF_MODULE_OUTPUT_CONTRACT`. Ele existe para manter todos os módulos sob o mesmo contrato de governança.
 
-| Bloco | Função prática |
-|---|---|
-| `SHARED_FOUNDATION_BLOCK_V5` | Define missão, anti-alucinação, protocolo de recusa, escopo de evidência, citações, amplitude de pesquisa e defesa contra prompt injection. |
-| `SHARED_ENTITY_RESOLUTION_BLOCK` | Exige validação por CNPJ, razão social, cidade/UF e setor antes de atribuir fatos à empresa. |
-| `SHARED_EVIDENCE_HIERARCHY_BLOCK` | Classifica fontes em tiers A/B/C/D e limita nota alta sem evidência forte. |
-| `SHARED_ABSENCE_SEMANTICS_BLOCK` | Diferencia evidência positiva, evidência de ausência e inconclusivo. |
-| `SHARED_RECENCY_POLICY_BLOCK` | Prioriza dados recentes e exige ressalva para dados antigos. |
-| `SHARED_CROSS_PROMPT_ARBITRATION_BLOCK` | Define dono de cada dimensão PORTA e de cada flag. |
-| `SHARED_COMMERCIAL_INTELLIGENCE_ENGINE` | Traduz fatos em dor de negócio, custo da demora, discrepância e vulnerabilidade do incumbente. |
-| `SHARED_ANTI_R_INFLATION_RULES_BLOCK` | Evita somar o mesmo risco múltiplas vezes na dimensão R. |
-| `SHARED_PARSER_GUARD_BLOCK` | Especifica a sintaxe exata dos markers `[[PORTA_*]]`. |
-| `SHARED_FINAL_RECONCILIATION_BLOCK` | Força checagem silenciosa de coerência, flags, score, utilidade comercial e Mermaid. |
-| `MASTER_INVESTIGATION_ORCHESTRATOR_V5` | Define fases globais de entidade, coleta, tradução, scoring, renderização e reconciliação. |
+| Bloco                                   | Função prática                                                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SHARED_FOUNDATION_BLOCK_V5`            | Define missão, anti-alucinação, protocolo de recusa, escopo de evidência, citações, amplitude de pesquisa e defesa contra prompt injection. |
+| `SHARED_ENTITY_RESOLUTION_BLOCK`        | Exige validação por CNPJ, razão social, cidade/UF e setor antes de atribuir fatos à empresa.                                                |
+| `SHARED_EVIDENCE_HIERARCHY_BLOCK`       | Classifica fontes em tiers A/B/C/D e limita nota alta sem evidência forte.                                                                  |
+| `SHARED_ABSENCE_SEMANTICS_BLOCK`        | Diferencia evidência positiva, evidência de ausência e inconclusivo.                                                                        |
+| `SHARED_RECENCY_POLICY_BLOCK`           | Prioriza dados recentes e exige ressalva para dados antigos.                                                                                |
+| `SHARED_CROSS_PROMPT_ARBITRATION_BLOCK` | Define dono de cada dimensão PORTA e de cada flag.                                                                                          |
+| `SHARED_COMMERCIAL_INTELLIGENCE_ENGINE` | Traduz fatos em dor de negócio, custo da demora, discrepância e vulnerabilidade do incumbente.                                              |
+| `SHARED_ANTI_R_INFLATION_RULES_BLOCK`   | Evita somar o mesmo risco múltiplas vezes na dimensão R.                                                                                    |
+| `SHARED_PARSER_GUARD_BLOCK`             | Especifica a sintaxe exata dos markers `[[PORTA_*]]`.                                                                                       |
+| `SHARED_FINAL_RECONCILIATION_BLOCK`     | Força checagem silenciosa de coerência, flags, score, utilidade comercial e Mermaid.                                                        |
+| `MASTER_INVESTIGATION_ORCHESTRATOR_V5`  | Define fases globais de entidade, coleta, tradução, scoring, renderização e reconciliação.                                                  |
 
 ## Módulos especialistas
 
 `ALL_SPECIALIST_PROMPTS` mantém oito prompts em ordem estável. Os testes garantem que a coleção tenha oito itens únicos e que a ordem não mude sem atualizar snapshots.
 
-| Módulo | Export | Ownership principal | Markers esperados |
-|---|---|---|---|
-| Raio-X Operacional | `PROMPT_RAIO_X_OPERACIONAL_ATAQUE` | `O`, componente operacional de `R`, flag `NOFIT` | `PORTA_FEED_O`, `PORTA_FEED_R`, `PORTA_FLAG:NOFIT` |
-| Tech Stack | `PROMPT_TECH_STACK_GOD_MODE_ATAQUE` | `T` | `PORTA_FEED_T` |
-| Riscos & Compliance | `PROMPT_RISCOS_COMPLIANCE_GOD_MODE` | componente fiscal/compliance de `R`, flag `TRAD` | `PORTA_FEED_R`, `PORTA_FLAG:TRAD` |
-| Radar Expansão | `PROMPT_RADAR_EXPANSAO_GOD_MODE` | `P`, segmento | `PORTA_FEED_P`, `PORTA_SEG` |
-| RH & Sindicatos | `PROMPT_RH_SINDICATOS_GOD_MODE` | proxy de `P`, componente trabalhista de `R`, timing `A2` | `PORTA_FEED_P_PROXY`, `PORTA_FEED_R_TRAB`, `PORTA_FEED_A2` |
-| Mapeamento Decisores | `PROMPT_MAPEAMENTO_DECISORES_GOD_MODE` | `A` | `PORTA_FEED_A` |
-| Orçamento e Janela | `PROMPT_ORCAMENTO_JANELA_GOD_MODE` | pressão financeira e timing | `PORTA_FEED_R`, `PORTA_FEED_A2` |
-| Caminho de Venda | `PROMPT_CAMINHO_DE_VENDA` | Síntese comercial final | Não é dono de nova dimensão PORTA. |
+| Módulo               | Export                                 | Ownership principal                                      | Markers esperados                                          |
+| -------------------- | -------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
+| Raio-X Operacional   | `PROMPT_RAIO_X_OPERACIONAL_ATAQUE`     | `O`, componente operacional de `R`, flag `NOFIT`         | `PORTA_FEED_O`, `PORTA_FEED_R`, `PORTA_FLAG:NOFIT`         |
+| Tech Stack           | `PROMPT_TECH_STACK_GOD_MODE_ATAQUE`    | `T`                                                      | `PORTA_FEED_T`                                             |
+| Riscos & Compliance  | `PROMPT_RISCOS_COMPLIANCE_GOD_MODE`    | componente fiscal/compliance de `R`, flag `TRAD`         | `PORTA_FEED_R`, `PORTA_FLAG:TRAD`                          |
+| Radar Expansão       | `PROMPT_RADAR_EXPANSAO_GOD_MODE`       | `P`, segmento                                            | `PORTA_FEED_P`, `PORTA_SEG`                                |
+| RH & Sindicatos      | `PROMPT_RH_SINDICATOS_GOD_MODE`        | proxy de `P`, componente trabalhista de `R`, timing `A2` | `PORTA_FEED_P_PROXY`, `PORTA_FEED_R_TRAB`, `PORTA_FEED_A2` |
+| Mapeamento Decisores | `PROMPT_MAPEAMENTO_DECISORES_GOD_MODE` | `A`                                                      | `PORTA_FEED_A`                                             |
+| Orçamento e Janela   | `PROMPT_ORCAMENTO_JANELA_GOD_MODE`     | pressão financeira e timing                              | `PORTA_FEED_R`, `PORTA_FEED_A2`                            |
+| Caminho de Venda     | `PROMPT_CAMINHO_DE_VENDA`              | Síntese comercial final                                  | Não é dono de nova dimensão PORTA.                         |
 
 <Warning>
 `LOCK` ainda aparece como flag legada em alguns parsers, mas é tratada como deprecated: `normalizePortaFlags` remove `LOCK` da lista efetiva.
@@ -278,13 +278,13 @@ Execute `npm run validate:prompts`. Para mudanças que afetam score renderizado 
 
 ## Falhas comuns
 
-| Sintoma | Causa provável | Verificação |
-|---|---|---|
-| Score PORTA ausente | Alguma dimensão `P/O/R/T/A` não emitiu feed ou marcador final | Checar `missingDimensions` em `resolvePortaScore` e logs do reconciliador PORTA. |
-| Teia não aprofunda | Módulo 1a emitiu `BAIXA` e não houve evidência objetiva elevando complexidade | Verificar marker `TEIA_COMPLEXIDADE` e `teiaResearchContext.objectiveComplexity`. |
-| Grafo mostra vínculo indevido | Texto promoveu CNPJ lateral de sócio para grupo econômico | Rodar `teiaTextParser.test.ts` e `societaryGraph.test.ts`; separar `CNPJ_LATERAL_SOCIO` de `GRUPO_CONFIRMADO`. |
-| Links falsos ou genéricos | Modelo citou URL fora de `[FONTES DISPONIVEIS PARA CITACAO]` | Conferir pool de fontes e instruções inline de citação. |
-| Saída bloqueada | `applyPromptLeakShield` detectou vazamento de prompt | Verificar logs `PromptLeakShield` e remover exposição de instruções internas. |
+| Sintoma                       | Causa provável                                                                | Verificação                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Score PORTA ausente           | Alguma dimensão `P/O/R/T/A` não emitiu feed ou marcador final                 | Checar `missingDimensions` em `resolvePortaScore` e logs do reconciliador PORTA.                               |
+| Teia não aprofunda            | Módulo 1a emitiu `BAIXA` e não houve evidência objetiva elevando complexidade | Verificar marker `TEIA_COMPLEXIDADE` e `teiaResearchContext.objectiveComplexity`.                              |
+| Grafo mostra vínculo indevido | Texto promoveu CNPJ lateral de sócio para grupo econômico                     | Rodar `teiaTextParser.test.ts` e `societaryGraph.test.ts`; separar `CNPJ_LATERAL_SOCIO` de `GRUPO_CONFIRMADO`. |
+| Links falsos ou genéricos     | Modelo citou URL fora de `[FONTES DISPONIVEIS PARA CITACAO]`                  | Conferir pool de fontes e instruções inline de citação.                                                        |
+| Saída bloqueada               | `applyPromptLeakShield` detectou vazamento de prompt                          | Verificar logs `PromptLeakShield` e remover exposição de instruções internas.                                  |
 
 ## Related pages
 

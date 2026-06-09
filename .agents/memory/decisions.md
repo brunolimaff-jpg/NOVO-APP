@@ -3,24 +3,29 @@
 ## Decisoes Ativas
 
 ### DI-2026-06-08-01: Nao alterar fluxo visual sem reincidencia
+
 - **Decisao:** Manter recovery atual. Nao implementar nova correcao funcional.
 - **Condicao:** Reabrir somente se gatilho objetivo disparar (ver HANDOFF_AI.md).
 - **Motivo:** Incidente mitigado, recovery funcional, sem evidencia de reincidencia.
 
 ### DI-2026-06-08-02: Manter recovery enquanto causa raiz nao for comprovada
+
 - **Decisao:** `static-fallback-display-recovery` permanece ativo.
 - **Motivo:** Remover sem causa raiz identificada e arriscado. O recovery e um airbag — nao atrapalha o fluxo normal.
 
 ### DI-2026-06-08-03: Wiki e indice arquitetural, nao fonte superior ao codigo
+
 - **Decisao:** A Wiki (docs/wiki/) serve como mapa de navegacao e ponto de entrada.
 - **Hierarquia:** Codigo atual > Testes > Configuracao > Logs > Handoff > Memoria > Wiki.
 - **Motivo:** Wiki gerada por IA a partir de "branch: default" sem SHA exato. Pode divergir.
 
 ### DI-2026-06-08-04: Auditorias devem conter autorrefutacao obrigatoria
+
 - **Decisao:** Toda auditoria de codigo deve incluir etapa de validacao adversarial.
 - **Motivo:** A auditoria inicial encontrou 7 achados "graves"; a autorrefutacao derrubou 6 como falsos positivos.
 
 ### DI-2026-06-08-05: Documentacao e runtime em PRs distintas
+
 - **Decisao:** Separar alteracoes documentais de alteracoes funcionais.
 - **Motivo:** Working tree atual tem 3 frentes misturadas (wiki, gemini_usage, handoff). Cada uma deve ir para branch/PR separada.
 

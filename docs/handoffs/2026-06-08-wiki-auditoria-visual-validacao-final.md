@@ -19,15 +19,15 @@ Paralelamente, a Wiki técnica do projeto foi gerada pelo Grok Wiki (28 páginas
 
 Sete exploradores independentes foram disparados em paralelo, cada um com território específico:
 
-| # | Território | Arquivos |
-|---|-----------|---------| 
-| 1 | Wiki e drift documental | docs/wiki/*, HANDOFF_AI.md, CALIBER_LEARNINGS.md, .agents/memory/* |
-| 2 | Estado global e ciclo de loading | chatStore, loading-progress, loadingVariant, finalizeWaterfallUI, App.tsx |
-| 3 | Orquestração assíncrona | message-orchestrator, waterfall-orchestrator, waterfall-guard, services/gemini/* |
-| 4 | Renderização e geometria | ChatInterface, LoadingSmart, ChatShell, MessageTimeline, Composer, MessageRow |
-| 5 | Observabilidade e safety nets | diagnosticLog, blankPanelTelemetry, layoutTraceTelemetry, finalizeWaterfallUI |
-| 6 | Testes e contratos | tests/, tests-e2e/ (22 arquivos relevantes) |
-| 7 | Busca transversal de riscos | grep em 12 padrões por todo o repositório |
+| #   | Território                       | Arquivos                                                                          |
+| --- | -------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | Wiki e drift documental          | docs/wiki/_, HANDOFF_AI.md, CALIBER_LEARNINGS.md, .agents/memory/_                |
+| 2   | Estado global e ciclo de loading | chatStore, loading-progress, loadingVariant, finalizeWaterfallUI, App.tsx         |
+| 3   | Orquestração assíncrona          | message-orchestrator, waterfall-orchestrator, waterfall-guard, services/gemini/\* |
+| 4   | Renderização e geometria         | ChatInterface, LoadingSmart, ChatShell, MessageTimeline, Composer, MessageRow     |
+| 5   | Observabilidade e safety nets    | diagnosticLog, blankPanelTelemetry, layoutTraceTelemetry, finalizeWaterfallUI     |
+| 6   | Testes e contratos               | tests/, tests-e2e/ (22 arquivos relevantes)                                       |
+| 7   | Busca transversal de riscos      | grep em 12 padrões por todo o repositório                                         |
 
 Cada explorador retornou resultados estruturados, que foram consolidados pelo coordenador.
 
@@ -51,28 +51,28 @@ Foram identificados 7 achados que pareciam graves:
 
 Uma segunda rodada reconstruiu as cadeias alcançáveis e refutou 6 dos 7 achados:
 
-| Achado | Resultado | Motivo |
-|--------|----------|--------|
-| BUG-01 | **Mantido (reclassificado)** | Incidente mitigado, recovery funcional, sem reincidência. Reclassificado de P0 ativo para P1 monitorado. |
-| BUG-02 | **Mantido (reclassificado)** | Código morto, não bug. P3. |
-| PROV-01 | **Refutado** | Zero listeners de `dossier:completed`. Evento inócuo. |
-| PROV-02 | **Refutado** | Timer é puramente diagnóstico. Snapshot read-only e null-safe. |
-| RISCO-01 | **Refutado** | Overlay e suspensão usam o mesmo gate. Ambos mudam no mesmo render. |
-| RISCO-02 | **Refutado** | Bloco `if (isLoading)` é independente do `activeBotId` — sempre executa. |
-| RISCO-03 | **Dívida P3** | Mantido como dívida menor, sem impacto funcional. |
+| Achado   | Resultado                    | Motivo                                                                                                   |
+| -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| BUG-01   | **Mantido (reclassificado)** | Incidente mitigado, recovery funcional, sem reincidência. Reclassificado de P0 ativo para P1 monitorado. |
+| BUG-02   | **Mantido (reclassificado)** | Código morto, não bug. P3.                                                                               |
+| PROV-01  | **Refutado**                 | Zero listeners de `dossier:completed`. Evento inócuo.                                                    |
+| PROV-02  | **Refutado**                 | Timer é puramente diagnóstico. Snapshot read-only e null-safe.                                           |
+| RISCO-01 | **Refutado**                 | Overlay e suspensão usam o mesmo gate. Ambos mudam no mesmo render.                                      |
+| RISCO-02 | **Refutado**                 | Bloco `if (isLoading)` é independente do `activeBotId` — sempre executa.                                 |
+| RISCO-03 | **Dívida P3**                | Mantido como dívida menor, sem impacto funcional.                                                        |
 
 ---
 
 ## Estado Atual do Incidente display:none
 
-| Dimensão | Situação |
-|----------|----------|
-| Observado | Sim — sessão `ac5890b0` (pré-PR #347) |
-| Recovery funcional | Sim — `none → block !important` |
-| Reincidência pós-PR #347 | Nenhuma registrada |
-| Causa raiz | Aberta — MutationObserver não capturou |
-| Severidade atual | P1 (monitorado) |
-| Ação imediata | Nenhuma — monitorar produção |
+| Dimensão                 | Situação                               |
+| ------------------------ | -------------------------------------- |
+| Observado                | Sim — sessão `ac5890b0` (pré-PR #347)  |
+| Recovery funcional       | Sim — `none → block !important`        |
+| Reincidência pós-PR #347 | Nenhuma registrada                     |
+| Causa raiz               | Aberta — MutationObserver não capturou |
+| Severidade atual         | P1 (monitorado)                        |
+| Ação imediata            | Nenhuma — monitorar produção           |
 
 ---
 
@@ -92,10 +92,11 @@ Esta PR é exclusivamente documental:
 - ✅ Atualiza o README.md com navegação para documentação
 - ✅ Atualiza o HANDOFF_AI.md com conclusões da auditoria
 - ✅ Atualiza o CALIBER_LEARNINGS.md com lições da auditoria
-- ✅ Atualiza as memórias duráveis (.agents/memory/*)
+- ✅ Atualiza as memórias duráveis (.agents/memory/\*)
 - ✅ Cria este handoff histórico
 
 Não inclui:
+
 - ❌ Alterações de runtime
 - ❌ Migrations ou tracking de custo
 - ❌ Testes funcionais

@@ -283,11 +283,11 @@ describe('useChatMessageOrchestrator', () => {
       pendingSend = harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
 
-    expect(harness.state.loadingVariant).toBe('hero');
+    expect(harness.state.loadingVariant).toBe('inline');
     expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
       id: 'message-bot',
       isThinking: true,
-      loadingVariant: 'hero',
+      loadingVariant: 'inline',
     });
 
     await act(async () => {
@@ -485,7 +485,7 @@ describe('useChatMessageOrchestrator', () => {
       );
     });
 
-    expect(harness.state.loadingVariant).toBe('hero');
+    expect(harness.state.loadingVariant).toBe('inline');
     expect(harness.state.loadingPinnedLabel).toBe('Deep Dive em andamento: Tech Stack');
     expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
     expect(sendMessageToGeminiMock).toHaveBeenCalledTimes(1);

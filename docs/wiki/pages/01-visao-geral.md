@@ -1,32 +1,32 @@
 ---
 grok_wiki: true
-page_id: "page-overview"
-title: "Visão geral"
-description: "Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-overview'
+title: 'Visão geral'
+description: 'Superfície pública do Senior Scout 360, runtime principal, rotas de maior valor e caminho mínimo para sair de checkout limpo para app validável.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "README.md"
-  - "package.json"
-  - "App.tsx"
-  - "index.tsx"
-  - "ARQUITETURA.md"
-  - "HANDOFF_AI.md"
+  - 'README.md'
+  - 'package.json'
+  - 'App.tsx'
+  - 'index.tsx'
+  - 'ARQUITETURA.md'
+  - 'HANDOFF_AI.md'
 ---
 
 Senior Scout 360 é uma SPA React 19 + TypeScript + Vite, montada em `index.tsx`, orquestrada por `App.tsx` e publicada com funções serverless em `api/*.ts` para IA, RAG, CNPJ, Radar e integrações de apoio. O checkout local roda a UI em `http://localhost:3000`; as rotas `/api/*` podem ser servidas por Vercel em produção/preview ou encaminhadas pelo proxy local configurado no Vite.
 
 ## Superfície pública
 
-| Superfície | Entrada principal | Responsabilidade |
-| --- | --- | --- |
-| App React | `index.tsx` → `App.tsx` | Providers globais, stores, shell de chat, loading, modais, Radar, War Room, analytics e diagnósticos. |
-| Chat e investigação | `components/ChatInterface.tsx` | Onboarding do operador, formulário de alvo, timeline, composer, Deep Dive, exportação, feedback e fallback visual. |
-| Dossiê waterfall | `features/dossier/waterfall-orchestrator.ts` | Execução modular do dossiê, enriquecimento cadastral, contexto PORTA, Teia, fontes e finalização da UI. |
-| Fachada Gemini | `services/geminiService.ts` | API pública estável para o app; a implementação interna fica em `services/gemini/`. |
-| APIs Vercel | `api/*.ts` | Proxy Gemini, RAG, CNPJ, Radar, busca aberta, link status e extração de conteúdo. |
-| Persistência | `services/storage/*`, `hooks/useSessionStorage.ts` | Dossiês, contexto de operador, Radar, favoritos e fallback local quando Supabase não está disponível. |
+| Superfície          | Entrada principal                                  | Responsabilidade                                                                                                   |
+| ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| App React           | `index.tsx` → `App.tsx`                            | Providers globais, stores, shell de chat, loading, modais, Radar, War Room, analytics e diagnósticos.              |
+| Chat e investigação | `components/ChatInterface.tsx`                     | Onboarding do operador, formulário de alvo, timeline, composer, Deep Dive, exportação, feedback e fallback visual. |
+| Dossiê waterfall    | `features/dossier/waterfall-orchestrator.ts`       | Execução modular do dossiê, enriquecimento cadastral, contexto PORTA, Teia, fontes e finalização da UI.            |
+| Fachada Gemini      | `services/geminiService.ts`                        | API pública estável para o app; a implementação interna fica em `services/gemini/`.                                |
+| APIs Vercel         | `api/*.ts`                                         | Proxy Gemini, RAG, CNPJ, Radar, busca aberta, link status e extração de conteúdo.                                  |
+| Persistência        | `services/storage/*`, `hooks/useSessionStorage.ts` | Dossiês, contexto de operador, Radar, favoritos e fallback local quando Supabase não está disponível.              |
 
 <Info>
 O repositório não usa um diretório `src/` para a aplicação. Os módulos de runtime ficam diretamente na raiz: `components/`, `features/`, `contexts/`, `hooks/`, `services/`, `stores/`, `api/`, `prompts/`, `utils/`, `tests/` e `tests-e2e/`.
@@ -59,10 +59,10 @@ index.tsx
 
 O app exige nome e email antes do shell de investigação. A tela `GreetingWelcomeScreen` valida:
 
-| Campo | Regra |
-| --- | --- |
-| Nome | Pelo menos duas palavras com 2+ caracteres. |
-| Email | Deve terminar com `@senior.com.br`. |
+| Campo             | Regra                                                             |
+| ----------------- | ----------------------------------------------------------------- |
+| Nome              | Pelo menos duas palavras com 2+ caracteres.                       |
+| Email             | Deve terminar com `@senior.com.br`.                               |
 | Usuário existente | `storage.findUserByEmail()` pode oferecer vínculo do dispositivo. |
 
 Sinais esperados para automação: `greeting-card`, `greeting-name-input`, `greeting-email-input` e `greeting-submit-button`.
@@ -71,14 +71,14 @@ Sinais esperados para automação: `greeting-card`, `greeting-name-input`, `gree
 
 Depois do onboarding, `EmptyStateHome` exibe o formulário `Dados do alvo`. Empresa, cidade e UF são obrigatórios; CNPJ é opcional, mas melhora o dossiê e o Score PORTA.
 
-| Campo/testid | Uso |
-| --- | --- |
-| `investigation-company-input` | Razão social ou nome fantasia. |
-| `investigation-cnpj-input` | CNPJ opcional, validado por `/api/cnpj`. |
+| Campo/testid                         | Uso                                                        |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `investigation-company-input`        | Razão social ou nome fantasia.                             |
+| `investigation-cnpj-input`           | CNPJ opcional, validado por `/api/cnpj`.                   |
 | `investigation-cnpj-validate-button` | Busca nome, cidade, UF, CNAE e QSA quando o CNPJ é válido. |
-| `investigation-city-input` | Município do alvo. |
-| `investigation-uf-input` | UF de dois caracteres. |
-| `investigation-submit-button` | Inicia a investigação completa. |
+| `investigation-city-input`           | Município do alvo.                                         |
+| `investigation-uf-input`             | UF de dois caracteres.                                     |
+| `investigation-submit-button`        | Inicia a investigação completa.                            |
 
 Antes de enviar, a UI valida cidade/UF via IBGE. Se o lookup de CNPJ falhar, o formulário permite preenchimento manual.
 
@@ -102,16 +102,16 @@ O estado vivo do handoff registra tela branca mitigada com safety net, mas causa
 
 ## APIs serverless de maior impacto
 
-| Rota | Método | Runtime | Papel |
-| --- | --- | --- | --- |
-| `/api/gemini` | `POST` | Node.js | Proxy Gemini com ações `health`, `generateContent`, `createCachedContent`, `deleteCachedContent` e `chatSendMessage`. |
-| `/api/cnpj` | `GET` | Node.js | Lookup cadastral por CNPJ, com CORS para produção, previews Vercel e dev local. |
-| `/api/rag` | `POST` | Node.js | Busca contexto interno no Pinecone usando embedding Gemini. |
-| `/api/docs-rag` | `POST` | Node.js | Busca documentação técnica em namespaces permitidos, com sinal explícito quando não há documentação. |
-| `/api/radar-scan` | `POST` | Node.js | Varredura RSS/Google News, deduplicação e resumo com Gemini. |
-| `/api/socio-search` | `POST` | Node.js | Busca societária estruturada para Teia e enriquecimento CNPJ. |
-| `/api/open-web-search` | `POST` | Node.js | Busca aberta controlada para fallback web. |
-| `/api/link-status` | `POST` | Node.js | Validação de links promovidos como fontes. |
+| Rota                   | Método | Runtime | Papel                                                                                                                 |
+| ---------------------- | ------ | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| `/api/gemini`          | `POST` | Node.js | Proxy Gemini com ações `health`, `generateContent`, `createCachedContent`, `deleteCachedContent` e `chatSendMessage`. |
+| `/api/cnpj`            | `GET`  | Node.js | Lookup cadastral por CNPJ, com CORS para produção, previews Vercel e dev local.                                       |
+| `/api/rag`             | `POST` | Node.js | Busca contexto interno no Pinecone usando embedding Gemini.                                                           |
+| `/api/docs-rag`        | `POST` | Node.js | Busca documentação técnica em namespaces permitidos, com sinal explícito quando não há documentação.                  |
+| `/api/radar-scan`      | `POST` | Node.js | Varredura RSS/Google News, deduplicação e resumo com Gemini.                                                          |
+| `/api/socio-search`    | `POST` | Node.js | Busca societária estruturada para Teia e enriquecimento CNPJ.                                                         |
+| `/api/open-web-search` | `POST` | Node.js | Busca aberta controlada para fallback web.                                                                            |
+| `/api/link-status`     | `POST` | Node.js | Validação de links promovidos como fontes.                                                                            |
 
 No desenvolvimento local, `vite.config.ts` cria proxy para as principais rotas `/api/*` apontando por padrão para `https://scoutagro.vercel.app`. O alvo pode ser sobrescrito por `LOCAL_DEV_API_PROXY_TARGET`; previews protegidos podem usar `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
@@ -124,6 +124,7 @@ Use npm no checkout limpo.
 ```bash
 npm install
 ```
+
 </Step>
 
 <Step title="Crie o ambiente local">
@@ -159,16 +160,16 @@ O primeiro estado visível esperado é o onboarding do operador ou, quando já h
 
 ## Comandos de validação
 
-| Comando | Quando usar |
-| --- | --- |
-| `npm run typecheck` | Mudanças TypeScript, contratos, props, stores e APIs. |
-| `npm run test` | Suite Vitest geral. |
-| `npm run test:contracts` | Contratos versionados em `tests/contracts/`. |
-| `npm run build` | Build Vite com sourcemap e `dist/version.json`. |
-| `npm run test:e2e:smoke` | Smoke local do onboarding e shell. |
-| `npm run test:e2e:cnpj` | Fluxo CNPJ → lookup → investigação → resposta. |
-| `npm run test:e2e:blank` | Regressão de painel branco. |
-| `npm run test:e2e:loading` | Recuperação de estados de loading. |
+| Comando                    | Quando usar                                             |
+| -------------------------- | ------------------------------------------------------- |
+| `npm run typecheck`        | Mudanças TypeScript, contratos, props, stores e APIs.   |
+| `npm run test`             | Suite Vitest geral.                                     |
+| `npm run test:contracts`   | Contratos versionados em `tests/contracts/`.            |
+| `npm run build`            | Build Vite com sourcemap e `dist/version.json`.         |
+| `npm run test:e2e:smoke`   | Smoke local do onboarding e shell.                      |
+| `npm run test:e2e:cnpj`    | Fluxo CNPJ → lookup → investigação → resposta.          |
+| `npm run test:e2e:blank`   | Regressão de painel branco.                             |
+| `npm run test:e2e:loading` | Recuperação de estados de loading.                      |
 | `npm run validate:preview` | Health check e lookup CNPJ contra URL local ou preview. |
 
 Para testar contra preview Vercel, defina `BASE_URL`. O Playwright não sobe `npm run dev` quando `BASE_URL` está presente.

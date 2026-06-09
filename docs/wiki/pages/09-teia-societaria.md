@@ -1,19 +1,19 @@
 ---
 grok_wiki: true
-page_id: "page-teia-societaria"
-title: "Teia societária"
-description: "Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais."
-repository: "local/NOVO-APP"
-branch: "default"
-generated_at: "2026-06-08T23:39:43.629Z"
+page_id: 'page-teia-societaria'
+title: 'Teia societária'
+description: 'Modelo de grafo societário, parse de texto, escopos `group_link` e `partner_other_cnpj`, matriz visual e validação de empresas laterais.'
+repository: 'local/NOVO-APP'
+branch: 'default'
+generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
-  - "features/dossier/societaryGraph.ts"
-  - "features/dossier/teiaTextParser.ts"
-  - "features/dossier/SocietaryMap.tsx"
-  - "features/dossier/SocietaryMatrix.tsx"
-  - "services/socio-search/types.ts"
-  - "tests/features/dossier/societaryGraph.test.ts"
-  - "tests/features/dossier/teiaTextParser.test.ts"
+  - 'features/dossier/societaryGraph.ts'
+  - 'features/dossier/teiaTextParser.ts'
+  - 'features/dossier/SocietaryMap.tsx'
+  - 'features/dossier/SocietaryMatrix.tsx'
+  - 'services/socio-search/types.ts'
+  - 'tests/features/dossier/societaryGraph.test.ts'
+  - 'tests/features/dossier/teiaTextParser.test.ts'
 ---
 
 A Teia societária é montada no runtime do dossiê por `components/SectionalBotMessage.tsx`, que detecta seções de teia no markdown, extrai CNPJs estruturados com `parseTeiaText`, renderiza `SocietaryMap` quando há `cnpj` da empresa-alvo e delega o drill-down por sócio para `POST /api/socio-search`.
@@ -39,11 +39,11 @@ CNPJs laterais não são prova de grupo econômico. A regra central do domínio 
 
 ## Contrato de escopos
 
-| Escopo | Entrada típica | Efeito no grafo | Efeito na UI |
-| --- | --- | --- | --- |
-| `group_link` | Mesmo radical de CNPJ ou evidência independente conectando empresa à raiz/grupo | Pode criar `Root -> company`; `rootLinked: true`; exige `rootContext` confirmado | Aparece como empresa do grupo; evidência mostra `Escopo: Empresa do grupo` |
+| Escopo               | Entrada típica                                                                                         | Efeito no grafo                                                                        | Efeito na UI                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `group_link`         | Mesmo radical de CNPJ ou evidência independente conectando empresa à raiz/grupo                        | Pode criar `Root -> company`; `rootLinked: true`; exige `rootContext` confirmado       | Aparece como empresa do grupo; evidência mostra `Escopo: Empresa do grupo`              |
 | `partner_other_cnpj` | QSA, CNPJ Aberto, Receita ou fonte societária confirma que o sócio aparece no CNPJ, sem prova de grupo | Cria somente vínculo `partner -> company`; `rootLinked: false`; exige sócio confirmado | Aparece na matriz como linha conectada ao sócio; evidência mostra `Escopo: Sócio admin` |
-| `unconfirmed` | CNPJ textual com `*`, CNPJ não validado oficialmente ou inferência pendente | Não cria aresta de raiz; usa `validationStatus: pending` quando aplicável | Mantém `rawCnpjLabel` com `*`; evidência mostra `Escopo: Validação pendente` |
+| `unconfirmed`        | CNPJ textual com `*`, CNPJ não validado oficialmente ou inferência pendente                            | Não cria aresta de raiz; usa `validationStatus: pending` quando aplicável              | Mantém `rawCnpjLabel` com `*`; evidência mostra `Escopo: Validação pendente`            |
 
 ### Campos de empresa
 
@@ -73,14 +73,14 @@ interface SocietaryCompanyInput {
 
 Regras importantes:
 
-| Caso no texto | Resultado |
-| --- | --- |
-| Tabela mestre com `GRUPO_CONFIRMADO`, `Empresa do Grupo Econômico`, `matriz`, `filial` ou `mesmo CNPJ raiz` | `relationshipScope: group_link`, `rootContext: true` |
-| Linha fora de “Outros CNPJs” com “Outro CNPJ”, “CNPJ lateral”, “grupo não confirmado”, “sem prova” ou “validar em reunião” | `relationshipScope: partner_other_cnpj`, `rootContext: false` |
-| CNPJ com asterisco | `rawCnpjLabel`, `validationStatus: pending`, `relationshipScope: unconfirmed` |
-| CNPJ inválido sem asterisco | Linha ignorada com warning |
-| Seção ou tabela textual “Outros CNPJs” | Ignorada; laterais devem vir da busca estruturada |
-| Bloco `**Sócio N:**` com `Empresas do Grupo Econômico` ou `Empresas Relacionadas` | Associa empresas já extraídas ao sócio textual |
+| Caso no texto                                                                                                              | Resultado                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Tabela mestre com `GRUPO_CONFIRMADO`, `Empresa do Grupo Econômico`, `matriz`, `filial` ou `mesmo CNPJ raiz`                | `relationshipScope: group_link`, `rootContext: true`                          |
+| Linha fora de “Outros CNPJs” com “Outro CNPJ”, “CNPJ lateral”, “grupo não confirmado”, “sem prova” ou “validar em reunião” | `relationshipScope: partner_other_cnpj`, `rootContext: false`                 |
+| CNPJ com asterisco                                                                                                         | `rawCnpjLabel`, `validationStatus: pending`, `relationshipScope: unconfirmed` |
+| CNPJ inválido sem asterisco                                                                                                | Linha ignorada com warning                                                    |
+| Seção ou tabela textual “Outros CNPJs”                                                                                     | Ignorada; laterais devem vir da busca estruturada                             |
+| Bloco `**Sócio N:**` com `Empresas do Grupo Econômico` ou `Empresas Relacionadas`                                          | Associa empresas já extraídas ao sócio textual                                |
 
 Essa separação impede que uma resposta textual do modelo promova uma lateral para empresa do grupo. O prompt da teia ainda pode mencionar “Outros CNPJs” como contexto narrativo, mas o componente visual não usa essa seção como fonte primária.
 
@@ -88,18 +88,18 @@ Essa separação impede que uma resposta textual do modelo promova uma lateral p
 
 `POST /api/socio-search` é a rota serverless que alimenta os CNPJs laterais e vínculos de grupo por sócio.
 
-| Propriedade | Valor |
-| --- | --- |
-| Runtime | `nodejs` |
-| Método aceito | `POST` |
-| Duração máxima | `60s` |
-| Deadline interno de busca | `45_000ms` |
-| Limite de empresas | `60` |
-| Limite de páginas abertas | `4` |
-| Limite de lookups oficiais por execução | `5` |
-| Timeout de lookup CNPJ | `3_500ms` |
-| Cache key version | `v7-structured-lateral-cnpj` |
-| TTL de cache | 7 dias |
+| Propriedade                             | Valor                        |
+| --------------------------------------- | ---------------------------- |
+| Runtime                                 | `nodejs`                     |
+| Método aceito                           | `POST`                       |
+| Duração máxima                          | `60s`                        |
+| Deadline interno de busca               | `45_000ms`                   |
+| Limite de empresas                      | `60`                         |
+| Limite de páginas abertas               | `4`                          |
+| Limite de lookups oficiais por execução | `5`                          |
+| Timeout de lookup CNPJ                  | `3_500ms`                    |
+| Cache key version                       | `v7-structured-lateral-cnpj` |
+| TTL de cache                            | 7 dias                       |
 
 <RequestExample>
 
@@ -179,16 +179,16 @@ interface SocietaryGraph {
 
 O builder rejeita entradas quando:
 
-| Condição | Razão operacional |
-| --- | --- |
-| `partnerName` não encontra sócio conhecido | Evita conectar empresa a pessoa não confirmada |
-| `partner_other_cnpj` sem sócio confirmado | Lateral não pode virar nó solto |
-| `unconfirmed` sem sócio nem `rootContext` | Pendência sem contexto não deve aparecer |
-| CNPJ matematicamente inválido | Evita inventário falso |
-| Nome sem identidade real, como `Cia Ltda` | Evita empresas truncadas |
-| CNPJ da própria raiz ou filial da raiz | Não renderiza matriz/filial da empresa-alvo como empresa relacionada |
-| `group_link` sem contexto da raiz | Evita homônimo tratado como grupo |
-| Evidência fraca ou sem fonte | Evita promover inferência visual |
+| Condição                                   | Razão operacional                                                    |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `partnerName` não encontra sócio conhecido | Evita conectar empresa a pessoa não confirmada                       |
+| `partner_other_cnpj` sem sócio confirmado  | Lateral não pode virar nó solto                                      |
+| `unconfirmed` sem sócio nem `rootContext`  | Pendência sem contexto não deve aparecer                             |
+| CNPJ matematicamente inválido              | Evita inventário falso                                               |
+| Nome sem identidade real, como `Cia Ltda`  | Evita empresas truncadas                                             |
+| CNPJ da própria raiz ou filial da raiz     | Não renderiza matriz/filial da empresa-alvo como empresa relacionada |
+| `group_link` sem contexto da raiz          | Evita homônimo tratado como grupo                                    |
+| Evidência fraca ou sem fonte               | Evita promover inferência visual                                     |
 
 ### Deduplicação e promoção
 
@@ -200,40 +200,40 @@ Quando o mesmo CNPJ chega primeiro como lateral e depois com prova forte de grup
 
 `SocietaryMatrix` recebe o grafo consolidado e renderiza a superfície principal da teia.
 
-| Área | Comportamento |
-| --- | --- |
-| Métricas | `Matrizes`, `Filiais`, `Em comum`, `Próprias` |
-| Filtros | `Todos`, categorias com contagem positiva e um botão por sócio usando o primeiro nome |
-| Colunas | `Empresa`, `CNPJ`, `CNAE` e uma coluna por sócio |
-| Laterais | Marcador tracejado na célula do sócio; sem coluna “Relação” e sem texto “CNPJs laterais” |
-| Pendentes | `rawCnpjLabel` com `*` e escopo “Validação pendente” no painel de evidências |
-| Inativos | Entram como referência rejeitada e aparecem em aviso, fora do inventário principal |
-| CNAE | Enriquecido depois do render por `fetchCompanyByCnpj`, via proxy, sem chamada direta do browser à BrasilAPI |
+| Área      | Comportamento                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| Métricas  | `Matrizes`, `Filiais`, `Em comum`, `Próprias`                                                               |
+| Filtros   | `Todos`, categorias com contagem positiva e um botão por sócio usando o primeiro nome                       |
+| Colunas   | `Empresa`, `CNPJ`, `CNAE` e uma coluna por sócio                                                            |
+| Laterais  | Marcador tracejado na célula do sócio; sem coluna “Relação” e sem texto “CNPJs laterais”                    |
+| Pendentes | `rawCnpjLabel` com `*` e escopo “Validação pendente” no painel de evidências                                |
+| Inativos  | Entram como referência rejeitada e aparecem em aviso, fora do inventário principal                          |
+| CNAE      | Enriquecido depois do render por `fetchCompanyByCnpj`, via proxy, sem chamada direta do browser à BrasilAPI |
 
 Testids úteis para validação automatizada:
 
-| Testid | Uso |
-| --- | --- |
-| `societary-map-shell` | Shell completo do mapa |
-| `societary-summary-metrics` | Linha de métricas |
-| `summary-metric-matrizes` | Total visível de linhas principais |
-| `summary-metric-filiais` | Total de filiais consolidadas |
-| `summary-metric-em-comum` | Empresas conectadas a 2+ sócios pessoa física |
-| `summary-metric-proprias` | Empresas conectadas a um sócio pessoa física |
-| `societary-evidence-toggle` | Abre/recolhe evidências |
-| `societary-evidence-list` | Lista nome, CNPJ, sócio/admin, escopo, tipo, fonte e snippet |
-| `branch-premium-badge` | Badge `Matriz · N filial/filiais` |
+| Testid                      | Uso                                                          |
+| --------------------------- | ------------------------------------------------------------ |
+| `societary-map-shell`       | Shell completo do mapa                                       |
+| `societary-summary-metrics` | Linha de métricas                                            |
+| `summary-metric-matrizes`   | Total visível de linhas principais                           |
+| `summary-metric-filiais`    | Total de filiais consolidadas                                |
+| `summary-metric-em-comum`   | Empresas conectadas a 2+ sócios pessoa física                |
+| `summary-metric-proprias`   | Empresas conectadas a um sócio pessoa física                 |
+| `societary-evidence-toggle` | Abre/recolhe evidências                                      |
+| `societary-evidence-list`   | Lista nome, CNPJ, sócio/admin, escopo, tipo, fonte e snippet |
+| `branch-premium-badge`      | Badge `Matriz · N filial/filiais`                            |
 
 ## Fallbacks e neutralidade de fonte
 
 A arquitetura é portável por shape de dados. A matriz e o grafo consomem `SocietaryCompanyInput`; a origem pode ser API estruturada, cache persistente, parser textual ou outro provider que emita os mesmos campos.
 
-| Fonte | Papel |
-| --- | --- |
-| QSA raiz via `fetchCompanyByCnpj` | Descobre sócios oficiais da empresa-alvo |
-| `/api/socio-search` | Descobre empresas por sócio e preserva escopo semântico |
+| Fonte                                  | Papel                                                                             |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| QSA raiz via `fetchCompanyByCnpj`      | Descobre sócios oficiais da empresa-alvo                                          |
+| `/api/socio-search`                    | Descobre empresas por sócio e preserva escopo semântico                           |
 | `geminiCnpjs` vindo de `parseTeiaText` | Fallback visual quando QSA oficial está ausente ou complemento para tabela mestre |
-| Cache em memória/Supabase | Evita scraping repetido, versionado por mudança semântica |
+| Cache em memória/Supabase              | Evita scraping repetido, versionado por mudança semântica                         |
 
 <Info>
 Ao adicionar uma fonte nova, emita `relationshipScope`, `rootContext`, `sourceTitle`, `sourceUrl`, `snippet`, `confidence` e `evidenceType`. Não acople a UI a um provider específico nem use texto livre como contrato de domínio.
@@ -241,15 +241,15 @@ Ao adicionar uma fonte nova, emita `relationshipScope`, `rootContext`, `sourceTi
 
 ## Modos de falha
 
-| Sintoma | Verificação |
-| --- | --- |
-| Mapa não aparece | Confirme que a mensagem tem seção com “teia societária” ou “mapa de poder societário” e que `cnpj` existe |
-| Shell aparece sem empresas | Veja se a raiz retornou QSA; se não houver QSA nem `geminiCnpjs`, o estado esperado é “QSA ainda não disponível” |
-| Lateral aparece como grupo | Inspecione `relationshipScope`, `rootContext`, `rootRelationStatus` e `operationalThesisAllowed`; cache antigo exige nova versão de chave |
-| Todas as buscas retornam vazio | Cheque `diagnostics.searchNoResultCount`, `searchFailureCount`, `queriesRun`, `degraded` e `trace.providers` |
-| CNPJs textuais não entram na matriz | Se vieram de seção “Outros CNPJs”, é intencional; laterais devem vir de busca estruturada |
-| Empresa baixada não aparece como linha | Verifique `rejected`; baixadas/inativas ficam fora do inventário principal |
-| CNAE não aparece imediatamente | Enriquecimento é assíncrono e adiado para idle time; a matriz pode renderizar antes da coluna completar |
+| Sintoma                                | Verificação                                                                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Mapa não aparece                       | Confirme que a mensagem tem seção com “teia societária” ou “mapa de poder societário” e que `cnpj` existe                                 |
+| Shell aparece sem empresas             | Veja se a raiz retornou QSA; se não houver QSA nem `geminiCnpjs`, o estado esperado é “QSA ainda não disponível”                          |
+| Lateral aparece como grupo             | Inspecione `relationshipScope`, `rootContext`, `rootRelationStatus` e `operationalThesisAllowed`; cache antigo exige nova versão de chave |
+| Todas as buscas retornam vazio         | Cheque `diagnostics.searchNoResultCount`, `searchFailureCount`, `queriesRun`, `degraded` e `trace.providers`                              |
+| CNPJs textuais não entram na matriz    | Se vieram de seção “Outros CNPJs”, é intencional; laterais devem vir de busca estruturada                                                 |
+| Empresa baixada não aparece como linha | Verifique `rejected`; baixadas/inativas ficam fora do inventário principal                                                                |
+| CNAE não aparece imediatamente         | Enriquecimento é assíncrono e adiado para idle time; a matriz pode renderizar antes da coluna completar                                   |
 
 ## Validação recomendada
 

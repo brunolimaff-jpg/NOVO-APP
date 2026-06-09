@@ -1,6 +1,6 @@
 ---
 grok_wiki: true
-title: "Documentação do Senior Scout 360 sources"
+title: 'Documentação do Senior Scout 360 sources'
 ---
 
 # Source file index

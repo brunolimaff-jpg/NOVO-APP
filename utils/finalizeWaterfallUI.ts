@@ -50,6 +50,7 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   if (typeof document !== 'undefined') {
     const HIDE_SELECTORS = [
       '[data-testid="loading-smart-overlay"]',
+      '[data-testid="inline-loading-bubble"]',
       '[data-testid="messages-viewport-suspended"]',
       '[data-testid="loading-stop-button"]',
     ];
@@ -74,6 +75,7 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
       if (typeof document === 'undefined') return {};
       return {
         domHasOverlay: Boolean(document.querySelector('[data-testid="loading-smart-overlay"]')),
+        domHasInlineBubble: Boolean(document.querySelector('[data-testid="inline-loading-bubble"]')),
         domHasSuspended: Boolean(document.querySelector('[data-testid="messages-viewport-suspended"]')),
         domHasStopButton: Boolean(document.querySelector('[data-testid="loading-stop-button"]')),
         domComposerDisabled: Boolean(

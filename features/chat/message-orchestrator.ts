@@ -15,6 +15,7 @@ import { cleanTitle, sanitizeLoadingContextText } from '../../utils/textCleaners
 import {
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
+  resolveEffectiveLoadingVariant,
   type LoadingVariant,
   type RequestKind,
 } from '../../utils/loadingVariant';
@@ -389,7 +390,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const resolvedRequestKind = options?.requestKind ?? requestKind;
       const fixedLoadingLine = options?.fixedLoadingLine ?? null;
-      const resolvedLoadingVariant = resolveLoadingVariant({
+      const resolvedLoadingVariant = resolveEffectiveLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
       });
@@ -479,7 +480,10 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           session.id === sessionId
             ? {
                 ...session,
-                messages: [...session.messages.filter(message => !message.isError), botMessagePlaceholder],
+                messages: [
+                  ...session.messages.filter(message => !message.isError && !message.isThinking),
+                  botMessagePlaceholder,
+                ],
                 updatedAt: new Date().toISOString(),
               }
             : session,

@@ -31,6 +31,7 @@ function snapshot(partial: Partial<BlankPanelSnapshot>): BlankPanelSnapshot {
     controlledErrorVisible: false,
     emptyStateVisible: false,
     loadingOverlayVisible: false,
+    inlineBubbleVisible: false,
     centerElementTag: null,
     centerElementTestId: 'messages-viewport-placeholder',
     centerElementRole: null,

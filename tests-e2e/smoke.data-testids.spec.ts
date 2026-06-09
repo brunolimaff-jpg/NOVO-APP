@@ -41,14 +41,19 @@ test.describe('Scout smoke — data-testid presence', () => {
     await page.getByTestId('chat-input').fill('Qual o CNAE principal?', { timeout: 15_000 });
     await page.getByTestId('send-message-button').click();
 
-    // loading-smart deve aparecer durante o processamento
+    // loading-smart ou inline-loading-bubble deve aparecer durante o processamento
     const loadingSmart = page.getByTestId('loading-smart-overlay');
-    const loadingAppeared = await loadingSmart.isVisible({ timeout: 15_000 }).catch(() => false);
+    const loadingBubble = page.getByTestId('inline-loading-bubble');
+    const loadingAppearedOverlay = await loadingSmart.isVisible({ timeout: 15_000 }).catch(() => false);
+    const loadingAppearedBubble = await loadingBubble.isVisible({ timeout: 5_000 }).catch(() => false);
 
-    if (loadingAppeared) {
+    if (loadingAppearedOverlay) {
       await expect(loadingSmart).toBeVisible({ timeout: 5_000 });
-      // Aguarda desaparecer (resposta concluída)
       await expect(loadingSmart).not.toBeVisible({ timeout: 120_000 });
+    }
+    if (loadingAppearedBubble) {
+      await expect(loadingBubble).toBeVisible({ timeout: 5_000 });
+      await expect(loadingBubble).not.toBeVisible({ timeout: 120_000 });
     }
 
     // Após resposta, message-list ou controlled-error devem estar visíveis
