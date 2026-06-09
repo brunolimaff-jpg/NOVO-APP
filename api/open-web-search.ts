@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor.js';
-import { setSecurityHeaders } from './_security-headers.js';
 
 const SearchRequestSchema = z
   .object({
@@ -78,7 +77,6 @@ async function performResilientSearch(query: string): Promise<{
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

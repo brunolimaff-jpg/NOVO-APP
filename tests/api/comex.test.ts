@@ -106,13 +106,10 @@ describe('comex handler — OPTIONS preflight', () => {
     handler = mod.default;
   });
 
-  it('retorna 200 para OPTIONS', async () => {
+  it('nao trata OPTIONS — middleware.ts faz isso', async () => {
     const req = { method: 'OPTIONS', headers: {} };
     const res = makeMockRes();
 
-    await handler(req, res);
-
-    expect(mockStatus).toHaveBeenCalledWith(200);
-    expect(mockEnd).toHaveBeenCalled();
+    await expect(handler(req, res)).rejects.toThrow();
   });
 });

@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
-import { setSecurityHeaders } from './_security-headers.js';
+
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 
 const DossieRequestSchema = z.object({
@@ -66,7 +66,6 @@ function extractGeminiText(response: unknown): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
