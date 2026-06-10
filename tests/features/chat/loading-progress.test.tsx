@@ -27,7 +27,7 @@ describe('useChatLoadingProgress', () => {
 
     expect(result.current.failureCount).toBe(0);
     expect(result.current.loadingStatus).toBe('Buscando dados');
-    expect(result.current.completedLoadingStatuses).toEqual([]);
+    expect(result.current.completedLoadingStatuses).toEqual(['Iniciando análise']);
     expect(result.current.loadingTotalStages).toBe(7);
     expect(result.current.loadingIsIncremental).toBe(false);
   });
@@ -44,7 +44,7 @@ describe('useChatLoadingProgress', () => {
     });
 
     expect(result.current.loadingStatus).toBe('Aprofundando análise...');
-    expect(result.current.completedLoadingStatuses).toEqual(['Buscando dados']);
+    expect(result.current.completedLoadingStatuses).toEqual(['Iniciando análise', 'Buscando dados']);
     expect(result.current.loadingTotalStages).toBe(6);
     expect(result.current.loadingIsIncremental).toBe(true);
   });
@@ -58,7 +58,7 @@ describe('useChatLoadingProgress', () => {
     });
 
     expect(result.current.loadingStatus).toBe('Validando resposta');
-    expect(result.current.completedLoadingStatuses).toEqual(['Buscando dados']);
+    expect(result.current.completedLoadingStatuses).toEqual(['Iniciando análise', 'Buscando dados']);
     expect(result.current.loadingTotalStages).toBe(5);
 
     act(() => {
@@ -66,7 +66,11 @@ describe('useChatLoadingProgress', () => {
     });
 
     expect(result.current.loadingStatus).toBe('');
-    expect(result.current.completedLoadingStatuses).toEqual(['Buscando dados', 'Validando resposta']);
+    expect(result.current.completedLoadingStatuses).toEqual([
+      'Iniciando análise',
+      'Buscando dados',
+      'Validando resposta',
+    ]);
     expect(result.current.loadingTotalStages).toBe(5);
   });
 

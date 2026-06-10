@@ -89,7 +89,17 @@ export function useChatLoadingProgress() {
       }
 
       setLoadingIsIncremental(false);
-      commitLoadingProgress({ stage, completedStages: [], totalStages });
+      // Preserva a etapa inicial como concluída para que o contador global
+      // bata com a soma dos tempos por etapa (evita gap entre início do
+      // loading e primeira etapa do waterfall).
+      const priorStage = loadingProgressRef.current.stage;
+      const priorCompleted = loadingProgressRef.current.completedStages;
+      const carryOver = priorStage && priorStage !== stage ? [priorStage] : [];
+      commitLoadingProgress({
+        stage,
+        completedStages: [...priorCompleted, ...carryOver],
+        totalStages,
+      });
     },
     [commitLoadingProgress],
   );
