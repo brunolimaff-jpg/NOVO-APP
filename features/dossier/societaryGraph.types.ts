@@ -98,6 +98,6 @@ export interface BuildSocietaryGraphInput {
 
 export interface BuildSocietaryMermaidOptions {
   selectedPartnerId?: string | null;
-  /** When true, render only Root → Partner hub (no companies). Auto-true when no selectedPartnerId. */
+  /** When true, render only Root → Partner hub (no companies). Auto-true when no selectedPartnerId and multiple partners exist. See buildSocietaryMermaid. */
   overviewOnly?: boolean;
 }
