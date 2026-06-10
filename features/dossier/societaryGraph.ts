@@ -1,112 +1,39 @@
 import { isValidCnpj, normalizeCnpj } from '../../utils/cnpj';
+import type {
+  BuildSocietaryGraphInput,
+  BuildSocietaryMermaidOptions,
+  RejectedSocietaryCompany,
+  SocietaryBadge,
+  SocietaryCompany,
+  SocietaryCompanyInput,
+  SocietaryConfidence,
+  SocietaryEvidenceType,
+  SocietaryGraph,
+  SocietaryPartner,
+  SocietaryPartnerInput,
+  SocietaryRelationshipScope,
+  SocietaryRootInput,
+} from './societaryGraph.types';
 
-export type SocietaryConfidence = 'official' | 'strong' | 'medium' | 'weak';
-export type SocietaryEvidenceType = 'qsa' | 'registry' | 'web' | 'trade' | 'institutional';
-export type SocietaryRelationshipScope = 'group_link' | 'partner_other_cnpj' | 'unconfirmed';
-export type SocietaryBadge = 'holding' | 'oficial' | 'internacional' | 'validar';
+export type {
+  SocietaryBadge,
+  SocietaryCompany,
+  SocietaryCompanyInput,
+  SocietaryConfidence,
+  SocietaryEvidenceType,
+  SocietaryGraph,
+  SocietaryPartner,
+  SocietaryPartnerInput,
+  SocietaryRelationshipScope,
+  RejectedSocietaryCompany,
+  SocietaryRootInput,
+  BuildSocietaryGraphInput,
+  BuildSocietaryMermaidOptions,
+} from './societaryGraph.types';
 
 export const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
 
 const DISPLAY_BADGE_ORDER: SocietaryBadge[] = ['holding', 'internacional', 'validar'];
-
-export interface SocietaryRootInput {
-  cnpj?: string | null;
-  name: string;
-}
-
-export interface SocietaryPartnerInput {
-  id?: string;
-  name: string;
-  role?: string;
-  document?: string;
-  sourceTitle?: string;
-  sourceUrl?: string;
-  snippet?: string;
-  confidence?: SocietaryConfidence;
-}
-
-export interface SocietaryCompanyInput {
-  name: string;
-  cnpj?: string | null;
-  rawCnpjLabel?: string;
-  country?: string | null;
-  partnerName: string;
-  role?: string;
-  branchCount?: number;
-  branchCnpjs?: string[];
-  sourceTitle?: string;
-  sourceUrl?: string;
-  snippet?: string;
-  confidence?: SocietaryConfidence;
-  evidenceType?: SocietaryEvidenceType;
-  relationshipScope?: SocietaryRelationshipScope;
-  validationStatus?: 'official' | 'pending' | 'rejected';
-  rootContext?: boolean;
-  rootCompanyName?: string;
-  rootCnpj?: string | null;
-}
-
-export interface SocietaryPartner {
-  id: string;
-  name: string;
-  role?: string;
-  document?: string;
-  sourceTitle?: string;
-  confidence: SocietaryConfidence;
-}
-
-export interface SocietaryCompany {
-  id: string;
-  name: string;
-  cnpj?: string;
-  rawCnpjLabel?: string;
-  branchCount?: number;
-  branchCnpjs?: string[];
-  country?: string;
-  role?: string;
-  sourceTitle?: string;
-  sourceUrl?: string;
-  snippet?: string;
-  confidence: SocietaryConfidence;
-  evidenceType: SocietaryEvidenceType;
-  relationshipScope: SocietaryRelationshipScope;
-  validationStatus?: 'official' | 'pending' | 'rejected';
-  rootContext: boolean;
-  rootCompanyName?: string;
-  rootCnpj?: string;
-  partnerIds: string[];
-  rootLinked?: boolean;
-  badges: SocietaryBadge[];
-}
-
-export interface RejectedSocietaryCompany {
-  input: SocietaryCompanyInput;
-  reason: string;
-}
-
-export interface SocietaryGraph {
-  root: {
-    id: 'root';
-    name: string;
-    cnpj?: string;
-  };
-  partners: SocietaryPartner[];
-  companies: SocietaryCompany[];
-  rejectedCompanies: RejectedSocietaryCompany[];
-  rootBranchCount: number;
-}
-
-export interface BuildSocietaryGraphInput {
-  root: SocietaryRootInput;
-  partners: SocietaryPartnerInput[];
-  companies?: SocietaryCompanyInput[];
-}
-
-export interface BuildSocietaryMermaidOptions {
-  selectedPartnerId?: string | null;
-  /** When true, render only Root → Partner hub (no companies). Auto-true when no selectedPartnerId. */
-  overviewOnly?: boolean;
-}
 
 export function countPartnerCompanies(graph: SocietaryGraph, partnerId: string): number {
   return graph.companies.filter(c => c.partnerIds.includes(partnerId)).length;
