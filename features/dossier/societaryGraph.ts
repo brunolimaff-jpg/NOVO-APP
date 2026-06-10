@@ -15,21 +15,7 @@ import type {
   SocietaryRootInput,
 } from './societaryGraph.types';
 
-export type {
-  SocietaryBadge,
-  SocietaryCompany,
-  SocietaryCompanyInput,
-  SocietaryConfidence,
-  SocietaryEvidenceType,
-  SocietaryGraph,
-  SocietaryPartner,
-  SocietaryPartnerInput,
-  SocietaryRelationshipScope,
-  RejectedSocietaryCompany,
-  SocietaryRootInput,
-  BuildSocietaryGraphInput,
-  BuildSocietaryMermaidOptions,
-} from './societaryGraph.types';
+export type * from './societaryGraph.types';
 
 export const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
 
