@@ -35,6 +35,10 @@ describe('isVercelPreview', () => {
     expect(isVercelPreview('https://scoutagro-clone.vercel.app')).toBe(false);
   });
 
+  it('aceita alias principal do projeto (sem segmento de branch)', () => {
+    expect(isVercelPreview('https://scoutagro-brunolimaff-3629s-projects.vercel.app')).toBe(true);
+  });
+
   it('rejeita origens nao-Vercel', () => {
     expect(isVercelPreview('https://evil.example.com')).toBe(false);
     expect(isVercelPreview('http://localhost:5173')).toBe(false);

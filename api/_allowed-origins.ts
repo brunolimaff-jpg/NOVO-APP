@@ -14,7 +14,10 @@ export const ALLOWED_ORIGINS = new Set(
  * garantindo que apenas previews DESTE projeto sejam permitidos.
  */
 export function isVercelPreview(origin: string): boolean {
-  // Padrao: scoutagro-git-*-brunolimaff-3629s-projects.vercel.app
-  // O sufixo "-brunolimaff-3629s-projects.vercel.app" e fixo do projeto
-  return /^https:\/\/scoutagro-[a-z0-9-]+-brunolimaff-3629s-projects\.vercel\.app$/.test(origin);
+  // Cobre dois formatos de preview Vercel do projeto:
+  // 1. Branch preview: scoutagro-git-feat-algo-brunolimaff-3629s-projects.vercel.app
+  // 2. Alias principal: scoutagro-brunolimaff-3629s-projects.vercel.app
+  // [a-z0-9]+(?:-[a-z0-9]+)* evita hifens consecutivos/inicio/fim,
+  // eliminando risco de backtracking catastrofico (ReDoS)
+  return /^https:\/\/scoutagro-(?:[a-z0-9]+(?:-[a-z0-9]+)*-)?brunolimaff-3629s-projects\.vercel\.app$/.test(origin);
 }
