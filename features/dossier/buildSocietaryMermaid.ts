@@ -1,4 +1,5 @@
 import { normalizeCnpj } from '../../utils/cnpj';
+import { SOCIETARY_LABEL_SOCIO_ADMIN } from './societaryGraph';
 import type {
   BuildSocietaryMermaidOptions,
   SocietaryCompany,
@@ -7,8 +8,6 @@ import type {
 } from './societaryGraph.types';
 
 // ── Constantes ───────────────────────────────────────────
-
-const SOCIETARY_LABEL_SOCIO_ADMIN = 'Sócio admin';
 const PARTNER_EDGE_COLORS = ['#7c3aed', '#0891b2', '#dc2626', '#ca8a04', '#16a34a', '#db2777', '#4f46e5', '#ea580c'];
 export const SOCIETARY_MERMAID_COMPANIES_PER_ROW = 2;
 const SOCIETARY_MERMAID_VERTICAL_THRESHOLD = 6;
@@ -163,25 +162,6 @@ function partnerSummary(company: SocietaryCompany, partnersById: Map<string, Soc
     .slice(0, 2);
   const role = visiblePartners.find(partner => partner.role)?.role || 'Sócio';
   return `${role} ${visiblePartners.map(partner => firstGivenName(partner.name)).join('/')}`;
-}
-
-function companyLabel(company: SocietaryCompany, partnersById: Map<string, SocietaryPartner>): string {
-  const ownerLine = partnerSummary(company, partnersById);
-  const cnpjLine = company.rawCnpjLabel
-    ? `CNPJ ${escapeMermaidLabel(company.rawCnpjLabel)}`
-    : company.cnpj
-      ? `CNPJ ${formatSocietaryCnpj(company.cnpj)}`
-      : company.country
-        ? `País ${escapeMermaidLabel(company.country)}`
-        : '';
-  return [
-    `<b>${escapeMermaidLabel(formatCompanyDisplayName(company.name))}</b>`,
-    cnpjLine,
-    ownerLine ? escapeMermaidLabel(ownerLine) : '',
-    escapeMermaidLabel(describeSocietaryCompanyType(company)),
-  ]
-    .filter(Boolean)
-    .join('<br/>');
 }
 
 function edgeLabel(value: string): string {

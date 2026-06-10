@@ -712,7 +712,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         updateSessionById(sessionId, session => ({
           ...session,
           messages: [
-            ...(session.messages || []).filter(message => message.id !== botMessageId),
+            ...(session.messages || []).filter(
+              message => message.id !== botMessageId || message.text.trim().length > 0,
+            ),
             {
               id: uuidv4(),
               sender: Sender.Bot,

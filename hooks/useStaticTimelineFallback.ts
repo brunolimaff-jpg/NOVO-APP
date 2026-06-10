@@ -213,6 +213,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
       postWaterfallWatchdogLoggedRef.current = null;
+      renderingModeLocked.current = false;
     }
   }, [expectedBotCharsMax, isLoading]);
 

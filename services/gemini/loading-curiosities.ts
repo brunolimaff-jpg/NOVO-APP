@@ -4,7 +4,14 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 import { proxyGenerateContent } from '../geminiProxy';
 import { LOADING_CURIOSITY_MODEL_ID, ROUTER_MODEL_ID } from './config';
 
-export async function generateLoadingCuriosities(loadingContext: string, searchQuery: string): Promise<string[]> {
+export async function generateLoadingCuriosities(
+  loadingContext: string,
+  searchQuery: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  if (signal?.aborted) {
+    return buildLoadingCuriositiesFallback(sanitizeLoadingContextText(loadingContext || ''));
+  }
   const safeContext = sanitizeLoadingContextText(loadingContext || '');
   const fallback = buildLoadingCuriositiesFallback(safeContext);
   const querySample = (searchQuery || '').slice(0, 240);
@@ -80,11 +87,14 @@ ${regionalRule}
 }
 </examples>`;
     try {
-      const flashResponse = await proxyGenerateContent({
-        model: LOADING_CURIOSITY_MODEL_ID,
-        contents: prompt,
-        config: { temperature: 0.6, maxOutputTokens: 900 },
-      });
+      const flashResponse = await proxyGenerateContent(
+        {
+          model: LOADING_CURIOSITY_MODEL_ID,
+          contents: prompt,
+          config: { temperature: 0.6, maxOutputTokens: 900 },
+        },
+        signal,
+      );
       const parsed = parseLoadingCuriosities(flashResponse.text || '', safeContext);
       if (parsed.length > 0) return parsed;
     } catch (err) {
@@ -93,11 +103,14 @@ ${regionalRule}
       });
     }
 
-    const routerResponse = await proxyGenerateContent({
-      model: ROUTER_MODEL_ID,
-      contents: prompt,
-      config: { temperature: 0.6, maxOutputTokens: 900 },
-    });
+    const routerResponse = await proxyGenerateContent(
+      {
+        model: ROUTER_MODEL_ID,
+        contents: prompt,
+        config: { temperature: 0.6, maxOutputTokens: 900 },
+      },
+      signal,
+    );
     return parseLoadingCuriosities(routerResponse.text || '', safeContext);
   } catch (err) {
     scoutDiag.warn('Auxiliary', 'Falha ao gerar curiosidades de loading (usando fallback)', {
