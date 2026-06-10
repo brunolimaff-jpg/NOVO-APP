@@ -1,4 +1,4 @@
-import { isValidCnpj, normalizeCnpj } from '../../utils/cnpj';
+import { normalizeCnpj } from '../../utils/cnpj';
 import type {
   BuildSocietaryMermaidOptions,
   SocietaryCompany,
@@ -25,7 +25,8 @@ function normalizeText(value: string): string {
 }
 
 function isHeadquartersCnpj(cnpj?: string): boolean {
-  return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
+  const normalized = normalizeCnpj(cnpj);
+  return normalized.length === 14 && normalized.slice(8, 12) === '0001';
 }
 
 function formatSocietaryCnpj(value?: string | null): string {
