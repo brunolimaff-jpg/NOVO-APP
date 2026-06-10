@@ -14,7 +14,7 @@ export interface UsePanelStateParams {
   currentSession: ChatSession | null | undefined;
   isLoading: boolean;
   loadingVariant: LoadingVariant | undefined;
-  operatorName: string;
+  operatorName: string | null | undefined;
   operatorLoading: boolean;
 }
 
@@ -44,7 +44,7 @@ export function usePanelState({
   operatorLoading,
 }: UsePanelStateParams): UsePanelStateResult {
   const safeMessages = Array.isArray(messages) ? messages : [];
-  const hasOperatorName = operatorName.trim().length > 0;
+  const hasOperatorName = (operatorName || '').trim().length > 0;
   const showOperatorGate = !operatorLoading && !hasOperatorName;
   const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
 
@@ -66,7 +66,7 @@ export function usePanelState({
 
   const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
   const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
-  const displayName = operatorName.trim() || 'Operador';
+  const displayName = (operatorName || '').trim() || 'Operador';
 
   const hasActiveSession = currentSession !== null && currentSession !== undefined;
   const hasErrorInMessages = safeMessages.some(msg => Boolean(msg.isError));
