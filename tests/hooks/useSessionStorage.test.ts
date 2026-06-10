@@ -144,7 +144,10 @@ describe('useSessionStorage', () => {
       result.current.setIsInitialized(true);
     });
 
-    const newSession = makeSession('s5', 'Fazenda Nova');
+    const newSession = makeSession('s5', 'Fazenda Nova', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date().toISOString() },
+      { id: 'm2', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date().toISOString() },
+    ]);
     act(() => {
       result.current.setSessions([newSession]);
     });
@@ -173,5 +176,4 @@ describe('useSessionStorage', () => {
       expect(result.current.sessionsRef.current[0].title).toBe('Empresa Ref');
     });
   });
-
 });

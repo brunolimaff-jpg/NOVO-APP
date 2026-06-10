@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
 import { storage } from '../services/storage';
-import { ChatSession } from '../types';
+import { ChatSession, Sender } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
+
+function hasPersistableContent(session: ChatSession): boolean {
+  return (session.messages || []).some(
+    m => m.sender === Sender.Bot && !m.isError && !m.isThinking && (m.text || '').trim().length > 0,
+  );
+}
 
 export function useSessionStorage() {
   const [sessions, setSessionsState] = useState<ChatSession[]>([]);
@@ -70,7 +76,10 @@ export function useSessionStorage() {
 
     debounceTimerRef.current = setTimeout(async () => {
       try {
-        await storage.saveAllDossiers(data);
+        const persistable = data.filter(hasPersistableContent);
+        if (persistable.length > 0) {
+          await storage.saveAllDossiers(persistable);
+        }
       } catch (e) {
         console.error('[useSessionStorage] Falha ao persistir sessões no Supabase:', e);
       }
