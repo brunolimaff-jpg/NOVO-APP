@@ -108,22 +108,3 @@ export function isValidBackupFile(backup: unknown): backup is SessionBackup {
     Array.isArray(b.sessions)
   );
 }
-
-/**
- * Obter tamanho estimado de sessões
- */
-export function getSessionsSize(): string {
-  const sessions = window.localStorage.getItem('scout360_sessions_v1');
-  if (!sessions) return '0 KB';
-
-  const bytes = new Blob([sessions]).size;
-  return formatBytes(bytes);
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-}
