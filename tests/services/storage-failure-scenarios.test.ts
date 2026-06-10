@@ -10,7 +10,7 @@
  * F5 - Promise.allSettled com erro Supabase → falhas invisíveis
  * F6 - getDossiers sem operador → retorna [], parece que não há dados
  * F7 - saveDossier com operador trocado → dados salvos no operador errado
- * F8 - localStorage fallback → garante que dados não somem completamente
+ * F8 - saveDossier sem Supabase → loga erro mas não propaga throw (sem fallback localStorage)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -36,11 +36,6 @@ const isSupabaseAvailableMock = vi.hoisted(() => vi.fn(() => true));
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: { from: supabaseMock.from },
   isSupabaseAvailable: isSupabaseAvailableMock,
-}));
-
-vi.mock('idb-keyval', () => ({
-  get: vi.fn(),
-  set: vi.fn(),
 }));
 
 import { storage } from '../../services/storage';

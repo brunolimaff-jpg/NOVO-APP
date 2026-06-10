@@ -2,9 +2,6 @@ import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateA
 import { storage } from '../services/storage';
 import { ChatSession } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
-import { runIdbToSupabaseMigration } from '../lib/migration/idbToSupabase';
-
-const SESSIONS_LEGACY_KEY = 'scout360_sessions_v1';
 
 export function useSessionStorage() {
   const [sessions, setSessionsState] = useState<ChatSession[]>([]);
@@ -42,16 +39,16 @@ export function useSessionStorage() {
         messages: (session.messages || []).map(sanitizeLoadedMessage),
       }));
 
-    // Executa migração IDB → Supabase (1x, guarded by flag)
+    // Limpeza única de dados órfãos da migração IDB→Supabase
     try {
-      await runIdbToSupabaseMigration({
-        upsertFn: async session => {
-          await storage.saveDossier(session);
-        },
-        getOperatorId: () => localStorage.getItem('scout360:operator_id'),
-      });
+      const legacyV1 = localStorage.getItem('scout360_sessions_v1');
+      const legacyFlag = localStorage.getItem('scout360:migration_v2_complete');
+      if (legacyV1 !== null || legacyFlag !== null) {
+        localStorage.removeItem('scout360_sessions_v1');
+        localStorage.removeItem('scout360:migration_v2_complete');
+      }
     } catch {
-      console.warn('[useSessionStorage] Migration IDB→Supabase failed, trying Supabase direct');
+      // localStorage indisponível — ignora
     }
 
     try {
@@ -60,21 +57,7 @@ export function useSessionStorage() {
         return sanitizeLoadedSessions(supabaseSessions);
       }
     } catch {
-      // Supabase unavailable, try localStorage fallback
-    }
-
-    try {
-      const raw = localStorage.getItem(SESSIONS_LEGACY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const localSessions = parsed.map((s: Record<string, unknown>) => ({
-          ...s,
-          messages: ((s.messages as Array<Record<string, unknown>>) || []) as unknown as ChatSession['messages'],
-        })) as ChatSession[];
-        return sanitizeLoadedSessions(localSessions);
-      }
-    } catch (e) {
-      console.error('Session load error', e);
+      console.error('[useSessionStorage] Falha ao carregar sessões do Supabase');
     }
 
     return [];
@@ -88,17 +71,8 @@ export function useSessionStorage() {
     debounceTimerRef.current = setTimeout(async () => {
       try {
         await storage.saveAllDossiers(data);
-      } catch {
-        try {
-          localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(data));
-        } catch (e: unknown) {
-          const storageErr = e as { name?: string; code?: number };
-          if (storageErr?.name === 'QuotaExceededError' || storageErr?.code === 22) {
-            console.warn('[Storage] Quota exceeded — trimming oldest sessions');
-            const trimmed = data.slice(0, Math.max(data.length - 5, 1));
-            localStorage.setItem(SESSIONS_LEGACY_KEY, JSON.stringify(trimmed));
-          }
-        }
+      } catch (e) {
+        console.error('[useSessionStorage] Falha ao persistir sessões no Supabase:', e);
       }
     }, 1000);
   }, []);

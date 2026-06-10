@@ -1,15 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-// Mock idb-keyval
-const idbGetMock = vi.hoisted(() => vi.fn());
-const idbSetMock = vi.hoisted(() => vi.fn());
-
-vi.mock('idb-keyval', () => ({
-  get: idbGetMock,
-  set: idbSetMock,
-}));
-
 const getDossiersMock = vi.hoisted(() => vi.fn());
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveAllDossiersMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -45,8 +36,6 @@ describe('useSessionStorage', () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     window.localStorage.clear();
-    idbGetMock.mockResolvedValue(undefined);
-    idbSetMock.mockResolvedValue(undefined);
     getDossiersMock.mockResolvedValue([]);
     saveDossierMock.mockResolvedValue(undefined);
     saveAllDossiersMock.mockResolvedValue(undefined);
@@ -58,7 +47,7 @@ describe('useSessionStorage', () => {
     expect(result.current.isInitialized).toBe(false);
   });
 
-  it('loadSessions retorna array vazio quando IDB e localStorage estão vazios', async () => {
+  it('loadSessions retorna array vazio quando Supabase está vazio', async () => {
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
     expect(sessions).toEqual([]);
@@ -75,16 +64,16 @@ describe('useSessionStorage', () => {
     expect(sessions[0].title).toBe('Fazenda Alpha');
   });
 
-  it('loadSessions usa localStorage como fallback quando Supabase falha', async () => {
+  it('loadSessions retorna array vazio quando Supabase falha (sem fallback localStorage)', async () => {
     getDossiersMock.mockRejectedValue(new Error('Supabase unavailable'));
-    const storedSessions = [makeSession('s2', 'Cooperativa Beta')];
-    window.localStorage.setItem('scout360_sessions_v1', JSON.stringify(storedSessions));
 
     const { result } = renderHook(() => useSessionStorage());
     const sessions = await result.current.loadSessions();
 
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0].title).toBe('Cooperativa Beta');
+    // Sem Supabase e sem fallback = array vazio
+    expect(sessions).toEqual([]);
+    // localStorage NÃO foi usado
+    expect(localStorage.getItem('scout360_sessions_v1')).toBeNull();
   });
 
   it('loadSessions stripa marcadores internos dos textos das mensagens', async () => {
@@ -185,13 +174,4 @@ describe('useSessionStorage', () => {
     });
   });
 
-  it('loadSessions retorna array vazio para localStorage com JSON inválido', async () => {
-    getDossiersMock.mockRejectedValue(new Error('Supabase unavailable'));
-    window.localStorage.setItem('scout360_sessions_v1', 'JSON_INVALIDO{{{');
-
-    const { result } = renderHook(() => useSessionStorage());
-    const sessions = await result.current.loadSessions();
-
-    expect(sessions).toEqual([]);
-  });
 });
