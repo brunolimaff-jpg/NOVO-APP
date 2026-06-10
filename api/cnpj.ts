@@ -2,38 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { lookupCnpj, CnpjNotFoundError } from '../lib/cnpjLookup.js';
 import { isValidCnpj, normalizeCnpj } from '../utils/cnpj.js';
 import { cacheHeaders } from './_cache-headers.js';
-import { setSecurityHeaders } from './_security-headers.js';
+import { applyCors } from './_cors-headers.js';
 
 export const config = { runtime: 'nodejs' };
 
-// Origens permitidas: domínio de produção + previews Vercel + dev local
-const ALLOWED_ORIGINS = new Set(
-  [
-    process.env.ALLOWED_ORIGIN,
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-    'https://scoutagro.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ].filter(Boolean) as string[],
-);
-
-function applyCors(req: VercelRequest, res: VercelResponse): boolean {
-  const origin = req.headers.origin ?? '';
-  // Permite qualquer subdomínio *.vercel.app do projeto (previews de PR)
-  const isVercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
-  if (ALLOWED_ORIGINS.has(origin) || isVercelPreview) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  return true;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setSecurityHeaders(res);
   applyCors(req, res);
-  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const raw = typeof req.query.cnpj === 'string' ? req.query.cnpj : '';

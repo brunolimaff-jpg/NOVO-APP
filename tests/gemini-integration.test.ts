@@ -43,6 +43,7 @@ describe('Gemini Function Calling Integration', () => {
     } as VercelRequest;
 
     const mockResponse = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -121,6 +122,7 @@ describe('Gemini Function Calling Integration', () => {
     } as VercelRequest;
 
     const mockResponse = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;

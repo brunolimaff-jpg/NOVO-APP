@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isValidPublicUrl } from '../utils/documentExtractor.js';
-import { setSecurityHeaders } from './_security-headers.js';
 
 type ValidationState = 'valid' | 'broken' | 'unknown';
 
@@ -64,7 +63,6 @@ async function checkUrl(url: string): Promise<ValidationResult> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setSecurityHeaders(res);
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

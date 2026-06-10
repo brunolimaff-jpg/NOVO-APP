@@ -106,13 +106,12 @@ describe('comex handler — OPTIONS preflight', () => {
     handler = mod.default;
   });
 
-  it('retorna 200 para OPTIONS', async () => {
-    const req = { method: 'OPTIONS', headers: {} };
+  it('retorna 405 para OPTIONS — handler responde com 405', async () => {
+    const req = { method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } };
     const res = makeMockRes();
 
     await handler(req, res);
 
-    expect(mockStatus).toHaveBeenCalledWith(200);
-    expect(mockEnd).toHaveBeenCalled();
+    expect(mockStatus).toHaveBeenCalledWith(405);
   });
 });

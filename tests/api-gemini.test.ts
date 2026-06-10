@@ -75,6 +75,7 @@ describe('api/gemini handler', () => {
     let statusCode = 0;
     let payload: unknown;
     const res = {
+      setHeader: vi.fn(),
       status: (code: number) => {
         statusCode = code;
         return {
@@ -121,6 +122,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -154,6 +156,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -186,6 +189,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -222,6 +226,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -262,6 +267,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -301,6 +307,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -329,6 +336,7 @@ describe('api/gemini handler', () => {
 
     let statusCode = 0;
     const res = {
+      setHeader: vi.fn(),
       status: (code: number) => {
         statusCode = code;
         return { json: vi.fn() };
@@ -361,6 +369,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -410,6 +419,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
@@ -449,6 +459,7 @@ describe('api/gemini handler', () => {
     } as VercelRequest;
 
     const res = {
+      setHeader: vi.fn(),
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
     } as unknown as VercelResponse;
