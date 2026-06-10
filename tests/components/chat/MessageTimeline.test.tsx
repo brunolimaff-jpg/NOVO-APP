@@ -299,6 +299,7 @@ describe('MessageTimeline', () => {
       messages: largeMessages,
       currentSession: buildSession(largeMessages),
       shouldSuspendVirtualizedList: true,
+      forceStaticTimelineFallback: true,
     });
 
     render(<MessageTimeline {...props} />);

@@ -1,113 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { APP_NAME } from '../constants';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
-import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
-import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
-import { type ChatSession, Sender, type RadarAlert } from '../types';
-import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
-import {
-  collectBlankPanelSnapshot,
-  reportBlankPanelIfDetected,
-  type BlankPanelSnapshot,
-} from '../utils/blankPanelTelemetry';
-import {
-  buildHandoffPanelDiag,
-  isOverlayStuckPostWaterfall,
-  isPostWaterfallStuckHandoff,
-  POST_WATERFALL_WATCHDOG_MS,
-  shouldApplyProactiveForceStatic,
-  shouldResetForceStaticOnLoadingStart,
-} from '../utils/postWaterfallHandoff';
-import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
-import { supabase } from '../lib/supabaseClient';
-import { trackOperatorEvent } from '../services/operatorTracking';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
-import { cleanTitle } from '../utils/textCleaners';
-import { maxExpectedBotChars, shouldPreferStaticTimelineForBotVolume } from '../utils/expectedBotContent';
-import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
 import Composer from './chat/Composer';
-import type { ChatTheme, ExtendedChatInterfaceProps, StartInvestigationPayload } from './chat/contracts';
+import type { ChatTheme, ExtendedChatInterfaceProps } from './chat/contracts';
 import MessageTimeline from './chat/MessageTimeline';
+import { useChatTheme } from '../hooks/useChatTheme';
+import { usePanelState } from '../hooks/usePanelState';
+import { useInvestigation } from '../hooks/useInvestigation';
+import { useChatActions } from '../hooks/useChatActions';
+import { useStaticTimelineFallback } from '../hooks/useStaticTimelineFallback';
 
 export type { RadarProps } from './chat/contracts';
-
-type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
-
-const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode => {
-  const raw = String(appMode || '').toLowerCase();
-
-  if (raw.includes('war')) return 'warMode';
-  if (raw.includes('ultra')) return 'ultraDepth';
-  if (raw.includes('deep')) return 'ultraDepth';
-  if (raw.includes('exec')) return 'executive';
-  if (canWarRoom) return 'executive';
-  return 'executive';
-};
-
-const shouldIncludeBudgetPrompt = (
-  payload: StartInvestigationPayload,
-  promptMode: PromptMode,
-  radar?: ExtendedChatInterfaceProps['radar'],
-): boolean => {
-  if (promptMode === 'warMode') return true;
-  if (promptMode === 'ultraDepth') return true;
-  if (payload.cnpj) return true;
-  if (radar?.metaInsight) return true;
-  if ((radar?.alerts?.length || 0) > 0) return true;
-  return false;
-};
-
-function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
-  if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
-  if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return false;
-  if (
-    snapshot.loadingOverlayVisible ||
-    snapshot.inlineBubbleVisible ||
-    snapshot.controlledErrorVisible ||
-    snapshot.emptyStateVisible
-  )
-    return false;
-
-  if (isPostWaterfallStuckHandoff(snapshot)) return true;
-  if (snapshot.blankDetected) return true;
-
-  const panelHasAlmostNoContent =
-    snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
-  if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
-  if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
-
-  return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
-}
-
-const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
-  if (!radar) return '';
-
-  const topAlerts = (radar.alerts || []).slice(0, 3).map((alert: RadarAlert, index) => {
-    const title = alert.title?.trim() || `Alerta ${index + 1}`;
-    const detail = alert.summary?.trim() || 'Sem detalhe adicional';
-    return `- ${title}: ${detail}`;
-  });
-
-  return [
-    '<radar_context>',
-    `RadarConfigured=${radar.config?.isConfigured ? 'SIM' : 'NAO'}`,
-    `RadarUnreadCount=${radar.unreadCount ?? 0}`,
-    `RadarIsScanning=${radar.isScanning ? 'SIM' : 'NAO'}`,
-    `RadarMetaInsight=${radar.metaInsight || 'N/D'}`,
-    `RadarLastWarning=${radar.lastWarning || 'N/D'}`,
-    `RadarLastError=${radar.lastError ? `${radar.lastError.code}: ${radar.lastError.message}` : 'N/D'}`,
-    topAlerts.length ? 'TopRadarAlerts:' : 'TopRadarAlerts: N/D',
-    ...(topAlerts.length ? topAlerts : []),
-    '</radar_context>',
-  ].join('\n');
-};
-
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   currentSession,
   sessions,
@@ -159,171 +68,54 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const [showWarRoom, setShowWarRoom] = useState(false);
   const [showRadarPanel, setShowRadarPanel] = useState(false);
   const [showRadarSettings, setShowRadarSettings] = useState(false);
-  const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
-  const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
-  const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
-  const staticTimelineFallbackSessionRef = useRef<string | null>(null);
-  const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
 
-  const safeMessages = Array.isArray(messages) ? messages : [];
-  const hasOperatorName = operatorName.trim().length > 0;
-  const showOperatorGate = !operatorLoading && !hasOperatorName;
-  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
-  // A waterfall preview (isThinking=true) with enough text is renderable — show timeline incrementally.
-  // Mirrors WATERFALL_PREVIEW_MIN_CHARS = 200 from waterfall-orchestrator.ts.
-  const WATERFALL_PREVIEW_MIN_CHARS = 200;
-  const hasRenderableBotMessage = safeMessages.some(
-    message =>
-      message.sender === Sender.Bot &&
-      !message.isError &&
-      Boolean(String(message.text || '').trim()) &&
-      (!message.isThinking || String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
-  );
-  const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
+  const {
+    safeMessages,
+    hasOperatorName,
+    showOperatorGate,
+    showInitialHome,
+    hasRenderableBotMessage,
+    shouldSuspendVirtualizedList,
+    headerTitle,
+    displayTitle,
+    displayName,
+    hasActiveSession,
+    hasErrorInMessages,
+    hasDossierContent,
+    panelState,
+    expectedBotCharsMax,
+  } = usePanelState({
+    messages,
+    currentSession,
     isLoading,
     loadingVariant,
-    hasRenderableBotMessage,
-  );
+    operatorName,
+    operatorLoading,
+  });
 
   useEffect(() => {
     if (!operatorId || !hasOperatorName) return;
     void storage.touchUserContext(operatorId);
   }, [hasOperatorName, operatorId]);
 
-  const executeInvestigation = useCallback(
-    async (payload: StartInvestigationPayload) => {
-      const prompt = `🔍 Investigando ${payload.companyName}...`;
-      const promptMode = resolvePromptMode(mode, canWarRoom);
+  const {
+    executeInvestigation,
+    handleStartInvestigation,
+    handleAccessExistingDossier,
+    handleNewResearchOverride,
+    duplicateDossier,
+    setDuplicateDossier,
+    pendingPayloadRef,
+  } = useInvestigation({
+    mode,
+    canWarRoom,
+    onDeepDive,
+    radar,
+    operatorId,
+    onSelectSession,
+  });
 
-      let segmentHint: string | undefined;
-      if (payload.cnpj) {
-        try {
-          const signal = AbortSignal.timeout(8000);
-          const companyData = await fetchCompanyByCnpj(payload.cnpj, signal);
-          if (companyData.cnaeDescricao) {
-            segmentHint = companyData.cnaeDescricao;
-          }
-        } catch (error) {
-          scoutDiag.warn('ChatInterface', 'Falha ao buscar CNAE', { cnpj: payload.cnpj, error });
-        }
-      }
-
-      const hiddenPromptBase = buildInvestigationHiddenPrompt(
-        {
-          companyName: payload.companyName,
-          cnpj: payload.cnpj || undefined,
-          city: payload.city,
-          state: payload.state,
-          segmentHint,
-        },
-        {
-          includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
-          mode: promptMode,
-          strictAudit: true,
-          enableDiscrepancyHunter: true,
-          enableCostOfDelay: true,
-          promptVersion: PROMPT_VERSION,
-        },
-      );
-      const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
-      await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj);
-    },
-    [mode, canWarRoom, onDeepDive, radar],
-  );
-
-  const handleStartInvestigation = useCallback(
-    async (payload: StartInvestigationPayload) => {
-      if (operatorId) {
-        void storage.touchUserContext(operatorId);
-      }
-
-      if (payload.cnpj || payload.companyName) {
-        const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
-        if (existing) {
-          pendingPayloadRef.current = payload;
-          setDuplicateDossier(existing);
-          return;
-        }
-      }
-
-      await executeInvestigation(payload);
-    },
-    [operatorId, executeInvestigation],
-  );
-
-  const handleAccessExistingDossier = useCallback(async () => {
-    if (!duplicateDossier || !operatorId) return;
-
-    let dossier = await storage.getDossier(duplicateDossier.id);
-    if (!dossier) {
-      if (!supabase) {
-        setDuplicateDossier(null);
-        pendingPayloadRef.current = null;
-        return;
-      }
-      const { data } = await supabase.from('dossies').select('content').eq('id', duplicateDossier.id).maybeSingle();
-      if (!data || !data.content) {
-        setDuplicateDossier(null);
-        pendingPayloadRef.current = null;
-        return;
-      }
-      dossier = data.content as ChatSession;
-      await storage.saveDossier(dossier!);
-    }
-
-    onSelectSession(duplicateDossier.id);
-    setDuplicateDossier(null);
-    pendingPayloadRef.current = null;
-    trackOperatorEvent('dossier_reopened', {
-      operatorId,
-      entityId: duplicateDossier.id,
-      entityType: 'dossier',
-      companyName: duplicateDossier.empresaAlvo,
-    });
-  }, [duplicateDossier, operatorId, onSelectSession]);
-
-  const handleNewResearchOverride = useCallback(async () => {
-    const payload = pendingPayloadRef.current;
-    const oldDossier = duplicateDossier;
-    if (!payload) return;
-
-    try {
-      await executeInvestigation(payload);
-
-      if (oldDossier) {
-        await storage.deleteDossier(oldDossier.id);
-      }
-
-      trackOperatorEvent('dossier_override', {
-        operatorId: operatorId || '',
-        previousDossierId: oldDossier?.id,
-        entityType: 'dossier',
-        companyName: payload.companyName,
-      });
-    } catch (error) {
-      scoutDiag.warn('ChatInterface', 'Falha ao sobrescrever dossiê', {
-        previousDossierId: oldDossier?.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setDuplicateDossier(null);
-      pendingPayloadRef.current = null;
-    }
-  }, [duplicateDossier, executeInvestigation, operatorId]);
-
-  const handleCopyMarkdown = useCallback(() => {
-    const text = safeMessages
-      .filter(message => !message.isError && !message.isThinking)
-      .map(message => `**${message.sender === Sender.User ? 'Você' : 'Scout 360'}:**\n${message.text}`)
-      .join('\n\n---\n\n')
-      .replace(/\[\[PORTA:[^\]]+\]\]/g, '');
-
-    void navigator.clipboard.writeText(text);
-  }, [safeMessages]);
-
-  const handlePrefillComposer = useCallback((text: string) => {
-    window.dispatchEvent(new CustomEvent('scout:prefill', { detail: { text } }));
-  }, []);
+  const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);
 
   const handleSendMessage = useCallback(
     (text: string) => {
@@ -336,299 +128,27 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     [onSendMessage, operatorId],
   );
 
-  const theme = useMemo<ChatTheme>(
-    () => ({
-      bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
-      surface: isDarkMode ? 'bg-slate-900' : 'bg-white',
-      border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-      textPrimary: isDarkMode ? 'text-slate-100' : 'text-slate-900',
-      textSecondary: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-      inputBg: isDarkMode ? 'bg-slate-800' : 'bg-white',
-      inputBorder: isDarkMode ? 'border-slate-700' : 'border-slate-300',
-      itemHover: isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100',
-      itemActive: isDarkMode ? 'bg-slate-800' : 'bg-slate-100',
-      btnSecondary: isDarkMode
-        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200',
-    }),
-    [isDarkMode],
-  );
+  const theme = useChatTheme(isDarkMode);
 
-  const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
-  const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
-  const displayName = operatorName.trim() || 'Operador';
-
-  const hasActiveSession = currentSession !== null && currentSession !== undefined;
-  const hasErrorInMessages = safeMessages.some(msg => Boolean(msg.isError));
-  const hasDossierContent = Boolean(currentSession?.resumoDossie);
-  const panelState = classifyPanelState({
-    messages: safeMessages,
-    hasDossierContent,
-    isLoading,
-    hasError: hasErrorInMessages,
-  });
-  const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
-
-  const preferStaticForLargeDossier =
-    !isLoading &&
-    !showInitialHome &&
-    !shouldSuspendVirtualizedList &&
-    shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
-  const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
-  const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
-  const prevIsLoadingForStaticResetRef = useRef(isLoading);
-
-  const panelSnapshotSignatureRef = useRef('');
-  useEffect(() => {
-    const signature = [
-      currentSession?.id ?? 'no-session',
-      panelState,
-      hasActiveSession ? 'active' : 'inactive',
-      safeMessages.length,
-      messages.length,
-      hasDossierContent ? 'dossier' : 'no-dossier',
-      isLoading ? 'loading' : 'idle',
-      loadingVariant ?? 'none',
-      showInitialHome ? 'home' : 'no-home',
-      showOperatorGate ? 'operator-gate' : 'operator-ready',
-      shouldSuspendVirtualizedList ? 'suspended' : 'timeline',
-      effectiveStaticTimelineFallback ? 'static-fallback' : 'virtualized',
-      expectedBotCharsMax,
-    ].join('|');
-
-    if (panelSnapshotSignatureRef.current === signature) return;
-    panelSnapshotSignatureRef.current = signature;
-
-    const domSnapshot =
-      typeof document !== 'undefined'
-        ? collectBlankPanelSnapshot({
-            sessionId: currentSession?.id ?? null,
-            source: 'ChatInterface:panel-snapshot',
-            messageCount: safeMessages.length,
-            expectedBotCharsMax,
-            isLoading,
-            loadingVariant,
-            panelState,
-            showInitialHome,
-            shouldSuspendVirtualizedList: shouldSuspendVirtualizedListForTimeline,
-          })
-        : null;
-
-    const snapshotPayload = {
-      sessionId: currentSession?.id ?? null,
-      panelState,
-      hasActiveSession,
-      safeMessageCount: safeMessages.length,
-      propMessageCount: messages.length,
-      hasDossierContent,
-      expectedBotCharsMax,
-      isLoading,
-      loadingVariant,
-      showInitialHome,
-      showOperatorGate,
-      shouldSuspendVirtualizedList,
-      shouldSuspendVirtualizedListForTimeline,
-      forceStaticTimelineFallback,
-      preferStaticForLargeDossier,
-      effectiveStaticTimelineFallback,
-      ...buildHandoffPanelDiag(domSnapshot, {
-        shouldSuspendVirtualizedList,
-        forceStaticTimelineFallback,
-        expectedBotCharsMax,
-      }),
-    };
-
-    scoutDiag.info('ChatInterface', 'panel:snapshot', snapshotPayload);
-
-    // LayoutTrace: quando static fallback ativo com dossiê grande, rastrear layout
-    if (effectiveStaticTimelineFallback && expectedBotCharsMax > 4000) {
-      requestAnimationFrame(() => {
-        import('../utils/layoutTraceTelemetry')
-          .then(({ traceLayout }) => {
-            traceLayout(scoutDiag.info.bind(scoutDiag), 'chat-interface-static-fallback', {
-              ...snapshotPayload,
-            });
-          })
-          .catch(() => {}); // falha silenciosa em testes
-      });
-    }
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    effectiveStaticTimelineFallback,
+  const {
     forceStaticTimelineFallback,
     preferStaticForLargeDossier,
+    effectiveStaticTimelineFallback,
+    shouldSuspendVirtualizedListForTimeline,
+  } = useStaticTimelineFallback({
+    currentSession,
+    isLoading,
+    showInitialHome,
+    shouldSuspendVirtualizedList,
+    expectedBotCharsMax,
+    safeMessagesLength: safeMessages.length,
+    messagesLength: messages.length,
+    panelState,
+    loadingVariant,
     hasActiveSession,
     hasDossierContent,
-    isLoading,
-    loadingVariant,
-    messages.length,
-    panelState,
-    safeMessages.length,
-    shouldSuspendVirtualizedList,
-    shouldSuspendVirtualizedListForTimeline,
-    showInitialHome,
     showOperatorGate,
-  ]);
-
-  useEffect(() => {
-    setForceStaticTimelineFallback(false);
-    staticTimelineFallbackSessionRef.current = null;
-    postWaterfallWatchdogLoggedRef.current = null;
-  }, [currentSession?.id]);
-
-  useEffect(() => {
-    const wasLoading = prevIsLoadingForStaticResetRef.current;
-    prevIsLoadingForStaticResetRef.current = isLoading;
-    if (
-      shouldResetForceStaticOnLoadingStart({
-        expectedBotCharsMax,
-        isLoading,
-        wasLoading,
-      })
-    ) {
-      setForceStaticTimelineFallback(false);
-      staticTimelineFallbackSessionRef.current = null;
-      postWaterfallWatchdogLoggedRef.current = null;
-    }
-  }, [expectedBotCharsMax, isLoading]);
-
-  useEffect(() => {
-    if (
-      !shouldApplyProactiveForceStatic({
-        expectedBotCharsMax,
-        showInitialHome,
-        sessionId: currentSession?.id,
-      })
-    ) {
-      return;
-    }
-
-    setForceStaticTimelineFallback(true);
-    staticTimelineFallbackSessionRef.current = currentSession!.id;
-    scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
-      sessionId: currentSession!.id,
-      expectedBotCharsMax,
-      threshold: 4_000,
-      syncOnRender: true,
-      preferStaticForLargeDossier,
-      shouldSuspendVirtualizedList,
-    });
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    preferStaticForLargeDossier,
-    shouldSuspendVirtualizedList,
-    showInitialHome,
-  ]);
-
-  useEffect(() => {
-    if (!currentSession?.id || expectedBotCharsMax < 4_000) return;
-    if (isLoading || showInitialHome) return;
-
-    const watchdogTimer = window.setTimeout(() => {
-      const snapshot = collectBlankPanelSnapshot({
-        sessionId: currentSession.id,
-        source: 'ChatInterface:post-waterfall-watchdog',
-        messageCount: safeMessages.length,
-        expectedBotCharsMax,
-        isLoading,
-        loadingVariant,
-        panelState,
-        showInitialHome,
-        shouldSuspendVirtualizedList: shouldSuspendVirtualizedListForTimeline,
-      });
-
-      if (!isPostWaterfallStuckHandoff(snapshot)) {
-        if (isOverlayStuckPostWaterfall(snapshot)) {
-          scoutDiag.warn('SpinnerStuck', 'overlay-persisted-post-waterfall', {
-            sessionId: currentSession.id,
-            delayMs: POST_WATERFALL_WATCHDOG_MS,
-            ...buildHandoffPanelDiag(snapshot, {
-              shouldSuspendVirtualizedList,
-              forceStaticTimelineFallback,
-              expectedBotCharsMax,
-            }),
-          } as unknown as Record<string, unknown>);
-        }
-        return;
-      }
-
-      staticTimelineFallbackSessionRef.current = currentSession.id;
-      setForceStaticTimelineFallback(true);
-
-      if (postWaterfallWatchdogLoggedRef.current === currentSession.id) return;
-      postWaterfallWatchdogLoggedRef.current = currentSession.id;
-
-      scoutDiag.warn('SpinnerStuck', 'post-waterfall-watchdog', {
-        sessionId: currentSession.id,
-        delayMs: POST_WATERFALL_WATCHDOG_MS,
-        ...buildHandoffPanelDiag(snapshot, {
-          shouldSuspendVirtualizedList,
-          forceStaticTimelineFallback,
-          expectedBotCharsMax,
-        }),
-        reason: snapshot?.reason,
-      } as unknown as Record<string, unknown>);
-    }, POST_WATERFALL_WATCHDOG_MS);
-
-    return () => window.clearTimeout(watchdogTimer);
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    forceStaticTimelineFallback,
-    isLoading,
-    loadingVariant,
-    panelState,
-    safeMessages.length,
-    shouldSuspendVirtualizedList,
-    shouldSuspendVirtualizedListForTimeline,
-    showInitialHome,
-  ]);
-
-  useEffect(() => {
-    if (!currentSession?.id || expectedBotCharsMax <= 0) return;
-    if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
-
-    const delays = [750, 2_000, 5_000, 9_000];
-    const timers = delays.map(delay =>
-      window.setTimeout(() => {
-        const snapshot = reportBlankPanelIfDetected({
-          sessionId: currentSession.id,
-          source: `ChatInterface:${delay}ms`,
-          messageCount: safeMessages.length,
-          expectedBotCharsMax,
-          isLoading,
-          loadingVariant,
-          panelState,
-          showInitialHome,
-          shouldSuspendVirtualizedList,
-        });
-
-        if (!snapshot || !shouldActivateStaticTimelineFallback(snapshot)) return;
-        if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
-
-        staticTimelineFallbackSessionRef.current = currentSession.id;
-        setForceStaticTimelineFallback(true);
-        scoutDiag.warn('BlankPanel', 'static-timeline-fallback-activated', {
-          ...snapshot,
-          delay,
-        } as unknown as Record<string, unknown>);
-      }, delay),
-    );
-
-    return () => timers.forEach(timer => window.clearTimeout(timer));
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    isLoading,
-    loadingVariant,
-    panelState,
-    safeMessages.length,
-    shouldSuspendVirtualizedList,
-    showInitialHome,
-  ]);
-
+  });
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);
   useEffect(() => {

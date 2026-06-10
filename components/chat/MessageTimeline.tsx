@@ -4,7 +4,6 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
 import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
 import { Sender } from '../../types';
-import { shouldPreferStaticTimelineForBotVolume } from '../../utils/expectedBotContent';
 import EmptyStateHome from '../EmptyStateHome';
 import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
 import HelpCenterFloating from '../HelpCenterFloating';
@@ -99,11 +98,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const safeMessages = Array.isArray(messages) ? messages : [];
-  const hasLargeBotMessage = safeMessages.some(
-    message =>
-      message.sender === Sender.Bot && shouldPreferStaticTimelineForBotVolume(String(message.text || '').trim().length),
-  );
-  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback || hasLargeBotMessage;
+  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback;
   const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
   const safeMessagesLengthRef = useRef(safeMessages.length);
   safeMessagesLengthRef.current = safeMessages.length;
