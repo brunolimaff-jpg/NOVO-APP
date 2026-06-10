@@ -6,7 +6,7 @@ import { ALLOWED_ORIGINS, isVercelPreview } from './_allowed-origins.js';
  * Usar em rotas que precisam de acesso cross-origin (chamadas do frontend).
  */
 export function applyCors(req: VercelRequest, res: VercelResponse): void {
-  const origin = req.headers.origin ?? '';
+  const origin = req.headers?.origin ?? '';
   const isVercelPreviewMatch = isVercelPreview(origin);
 
   if (ALLOWED_ORIGINS.has(origin) || isVercelPreviewMatch) {

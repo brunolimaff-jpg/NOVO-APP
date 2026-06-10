@@ -65,9 +65,7 @@ describe('middleware', () => {
     expect(result!.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 
-  it('define headers de seguranca no OPTIONS via middleware (nao via vercel.json)', async () => {
-    // Headers de seguranca agora sao do vercel.json, nao do middleware.
-    // O middleware foca apenas em CORS para OPTIONS.
+  it('define headers CORS no OPTIONS via middleware', async () => {
     const req = createRequest({
       pathname: '/api/gemini',
       method: 'OPTIONS',
