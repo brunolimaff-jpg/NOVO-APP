@@ -1,20 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { APP_NAME } from '../constants';
 import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
 import { storage } from '../services/storage';
-import { classifyPanelState } from '../utils/renderStateClassifier';
 import { scoutDiag } from '../utils/diagnosticLog';
-import {} from '../utils/blankPanelTelemetry';
-import {} from '../utils/postWaterfallHandoff';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
-import { cleanTitle } from '../utils/textCleaners';
-import { shouldSuspendHeroMessageTimeline } from '../utils/loadingVariant';
 import ChatPanels from './chat/ChatPanels';
 import ChatShell from './chat/ChatShell';
 import Composer from './chat/Composer';
-import type { ChatTheme, ExtendedChatInterfaceProps, StartInvestigationPayload } from './chat/contracts';
+import type { ChatTheme, ExtendedChatInterfaceProps } from './chat/contracts';
 import MessageTimeline from './chat/MessageTimeline';
 import { useChatTheme } from '../hooks/useChatTheme';
 import { usePanelState } from '../hooks/usePanelState';
