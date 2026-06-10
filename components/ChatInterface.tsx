@@ -34,34 +34,11 @@ import ChatShell from './chat/ChatShell';
 import Composer from './chat/Composer';
 import type { ChatTheme, ExtendedChatInterfaceProps, StartInvestigationPayload } from './chat/contracts';
 import MessageTimeline from './chat/MessageTimeline';
+import { useChatTheme } from '../hooks/useChatTheme';
+import { usePanelState } from '../hooks/usePanelState';
+import { resolvePromptMode, shouldIncludeBudgetPrompt, buildRadarContextBlock } from '../utils/promptResolvers';
 
 export type { RadarProps } from './chat/contracts';
-
-type PromptMode = 'standard' | 'executive' | 'ultraDepth' | 'warMode';
-
-const resolvePromptMode = (appMode: unknown, canWarRoom?: boolean): PromptMode => {
-  const raw = String(appMode || '').toLowerCase();
-
-  if (raw.includes('war')) return 'warMode';
-  if (raw.includes('ultra')) return 'ultraDepth';
-  if (raw.includes('deep')) return 'ultraDepth';
-  if (raw.includes('exec')) return 'executive';
-  if (canWarRoom) return 'executive';
-  return 'executive';
-};
-
-const shouldIncludeBudgetPrompt = (
-  payload: StartInvestigationPayload,
-  promptMode: PromptMode,
-  radar?: ExtendedChatInterfaceProps['radar'],
-): boolean => {
-  if (promptMode === 'warMode') return true;
-  if (promptMode === 'ultraDepth') return true;
-  if (payload.cnpj) return true;
-  if (radar?.metaInsight) return true;
-  if ((radar?.alerts?.length || 0) > 0) return true;
-  return false;
-};
 
 function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
   if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
@@ -84,29 +61,6 @@ function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boo
 
   return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
 }
-
-const buildRadarContextBlock = (radar?: ExtendedChatInterfaceProps['radar']): string => {
-  if (!radar) return '';
-
-  const topAlerts = (radar.alerts || []).slice(0, 3).map((alert: RadarAlert, index) => {
-    const title = alert.title?.trim() || `Alerta ${index + 1}`;
-    const detail = alert.summary?.trim() || 'Sem detalhe adicional';
-    return `- ${title}: ${detail}`;
-  });
-
-  return [
-    '<radar_context>',
-    `RadarConfigured=${radar.config?.isConfigured ? 'SIM' : 'NAO'}`,
-    `RadarUnreadCount=${radar.unreadCount ?? 0}`,
-    `RadarIsScanning=${radar.isScanning ? 'SIM' : 'NAO'}`,
-    `RadarMetaInsight=${radar.metaInsight || 'N/D'}`,
-    `RadarLastWarning=${radar.lastWarning || 'N/D'}`,
-    `RadarLastError=${radar.lastError ? `${radar.lastError.code}: ${radar.lastError.message}` : 'N/D'}`,
-    topAlerts.length ? 'TopRadarAlerts:' : 'TopRadarAlerts: N/D',
-    ...(topAlerts.length ? topAlerts : []),
-    '</radar_context>',
-  ].join('\n');
-};
 
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   currentSession,
@@ -165,25 +119,29 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const staticTimelineFallbackSessionRef = useRef<string | null>(null);
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
 
-  const safeMessages = Array.isArray(messages) ? messages : [];
-  const hasOperatorName = operatorName.trim().length > 0;
-  const showOperatorGate = !operatorLoading && !hasOperatorName;
-  const showInitialHome = !currentSession || (safeMessages.length === 0 && !isLoading);
-  // A waterfall preview (isThinking=true) with enough text is renderable — show timeline incrementally.
-  // Mirrors WATERFALL_PREVIEW_MIN_CHARS = 200 from waterfall-orchestrator.ts.
-  const WATERFALL_PREVIEW_MIN_CHARS = 200;
-  const hasRenderableBotMessage = safeMessages.some(
-    message =>
-      message.sender === Sender.Bot &&
-      !message.isError &&
-      Boolean(String(message.text || '').trim()) &&
-      (!message.isThinking || String(message.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
-  );
-  const shouldSuspendVirtualizedList = shouldSuspendHeroMessageTimeline(
+  const {
+    safeMessages,
+    hasOperatorName,
+    showOperatorGate,
+    showInitialHome,
+    hasRenderableBotMessage,
+    shouldSuspendVirtualizedList,
+    headerTitle,
+    displayTitle,
+    displayName,
+    hasActiveSession,
+    hasErrorInMessages,
+    hasDossierContent,
+    panelState,
+    expectedBotCharsMax,
+  } = usePanelState({
+    messages,
+    currentSession,
     isLoading,
     loadingVariant,
-    hasRenderableBotMessage,
-  );
+    operatorName,
+    operatorLoading,
+  });
 
   useEffect(() => {
     if (!operatorId || !hasOperatorName) return;
@@ -336,38 +294,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     [onSendMessage, operatorId],
   );
 
-  const theme = useMemo<ChatTheme>(
-    () => ({
-      bg: isDarkMode ? 'bg-slate-950' : 'bg-slate-50',
-      surface: isDarkMode ? 'bg-slate-900' : 'bg-white',
-      border: isDarkMode ? 'border-slate-800' : 'border-slate-200',
-      textPrimary: isDarkMode ? 'text-slate-100' : 'text-slate-900',
-      textSecondary: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-      inputBg: isDarkMode ? 'bg-slate-800' : 'bg-white',
-      inputBorder: isDarkMode ? 'border-slate-700' : 'border-slate-300',
-      itemHover: isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100',
-      itemActive: isDarkMode ? 'bg-slate-800' : 'bg-slate-100',
-      btnSecondary: isDarkMode
-        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200',
-    }),
-    [isDarkMode],
-  );
-
-  const headerTitle = cleanTitle(currentSession?.empresaAlvo || currentSession?.title || APP_NAME);
-  const displayTitle = headerTitle.length > 35 ? `${headerTitle.substring(0, 32)}...` : headerTitle;
-  const displayName = operatorName.trim() || 'Operador';
-
-  const hasActiveSession = currentSession !== null && currentSession !== undefined;
-  const hasErrorInMessages = safeMessages.some(msg => Boolean(msg.isError));
-  const hasDossierContent = Boolean(currentSession?.resumoDossie);
-  const panelState = classifyPanelState({
-    messages: safeMessages,
-    hasDossierContent,
-    isLoading,
-    hasError: hasErrorInMessages,
-  });
-  const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
+  const theme = useChatTheme(isDarkMode);
 
   const preferStaticForLargeDossier =
     !isLoading &&
