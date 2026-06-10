@@ -945,7 +945,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
           if (shouldDiscardFailedInitialSession) {
             setSessions(prev => prev.filter(session => session.id !== createdInitialSessionId));
-            setCurrentSessionId(null);
+            setCurrentSessionId(prev => (prev === createdInitialSessionId ? null : prev));
           }
         }
 
