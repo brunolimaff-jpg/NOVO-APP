@@ -41,8 +41,12 @@ export function useSessionStorage() {
 
     // Limpeza única de dados órfãos da migração IDB→Supabase
     try {
-      localStorage.removeItem('scout360_sessions_v1');
-      localStorage.removeItem('scout360:migration_v2_complete');
+      const legacyV1 = localStorage.getItem('scout360_sessions_v1');
+      const legacyFlag = localStorage.getItem('scout360:migration_v2_complete');
+      if (legacyV1 !== null || legacyFlag !== null) {
+        localStorage.removeItem('scout360_sessions_v1');
+        localStorage.removeItem('scout360:migration_v2_complete');
+      }
     } catch {
       // localStorage indisponível — ignora
     }
