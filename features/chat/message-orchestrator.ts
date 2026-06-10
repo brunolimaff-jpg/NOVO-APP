@@ -936,10 +936,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         if (createdInitialSessionId) {
           const createdSession = sessionsRef.current.find(session => session.id === createdInitialSessionId);
           const messages = createdSession?.messages || [];
-          const shouldDiscardAbortedInitialSession =
-            messages.length === 1 && messages[0].sender === Sender.User && messages[0].text === resolvedDisplayText;
+          const shouldDiscardFailedInitialSession =
+            (messages.length === 1 && messages[0].sender === Sender.User && messages[0].text === resolvedDisplayText) ||
+            (messages.length === 2 &&
+              messages[0].sender === Sender.User &&
+              messages[1].sender === Sender.Bot &&
+              messages[1].isError);
 
-          if (shouldDiscardAbortedInitialSession) {
+          if (shouldDiscardFailedInitialSession) {
             setSessions(prev => prev.filter(session => session.id !== createdInitialSessionId));
             setCurrentSessionId(null);
           }
