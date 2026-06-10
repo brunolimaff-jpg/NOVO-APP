@@ -427,6 +427,39 @@
         "docs/SKILLS-GOVERNANCE.md",
         "AGENTS.md"
       ]
+    },
+    {
+      "id": "page-chatinterface-refactor",
+      "title": "Refatoracao do ChatInterface",
+      "description": "Extracao de hooks, eliminacao de dupla fonte de verdade, infraestrutura anti-god-component e arquitetura resultante do ChatInterface.tsx (PR #359).",
+      "path": "pages/29-chatinterface-refactor.md",
+      "sourceFiles": [
+        "components/ChatInterface.tsx",
+        "components/chat/MessageTimeline.tsx",
+        "hooks/chat/useChatTheme.ts",
+        "hooks/chat/usePanelState.ts",
+        "hooks/chat/useInvestigation.ts",
+        "hooks/chat/useChatActions.ts",
+        "hooks/chat/useStaticTimelineFallback.ts",
+        "hooks/chat/promptResolvers.ts",
+        "CLAUDE.md",
+        ".claude/god-component-debt.json",
+        "scripts/component-health.sh"
+      ]
+    },
+    {
+      "id": "page-loading-stages",
+      "title": "Sistema de Etapas de Loading",
+      "description": "Arquitetura do sistema de etapas de loading, contador global vs. por etapa, waterfall de etapas e estados de transicao.",
+      "path": "pages/30-loading-stages.md",
+      "sourceFiles": [
+        "constants/loadingStages.ts",
+        "components/ChatInterface.tsx",
+        "hooks/chat/useStaticTimelineFallback.ts",
+        "hooks/chat/useInvestigation.ts",
+        "utils/loadingStatus.ts",
+        "components/LoadingSmart.tsx"
+      ]
     }
   ]
 }

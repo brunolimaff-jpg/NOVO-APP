@@ -1,5 +1,7 @@
 # NOVO-APP (Senior Scout 360) — CLAUDE.md
 
+> **⚠️ ANTES DE QUALQUER AÇÃO:** executar Checkpoint 1 do `~/.claude/rules/copiloto-proativo.md` — MCPs, viabilidade, premissas, risco, lições. Se risco 🟠 ou 🔴, pedir confirmação. Não é sugestão — é barreira.
+
 ## Identidade
 
 Senior Scout 360 — plataforma de inteligência comercial e sales intelligence para agronegócio. React 19 + TypeScript + Vite + Tailwind + Gemini + Pinecone.

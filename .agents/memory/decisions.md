@@ -2,6 +2,30 @@
 
 ## Decisoes Ativas
 
+### DI-2026-06-10-01: Dupla fonte de verdade eliminada
+
+- **Decisao:** `hasLargeBotMessage` removido de `MessageTimeline.tsx`. `useStaticTimelineFallback` e a unica fonte de verdade para decisao de fallback.
+- **Motivo:** Watchdog duplicado causava comportamento imprevisivel e bugs de renderizacao. ChatInterface e MessageTimeline podiam divergir.
+- **Impacto:** Um unico ponto de verdade para decisao de fallback. Hook testado com TDD.
+
+### DI-2026-06-10-02: Limite de props ajustado
+
+- **Decisao:** Componentes complexos podem ter ate 14 props; componentes complexos com props mais enxutas ate 8.
+- **Motivo:** ChatInterface tinha 9+ props naturais. Limite de 8 era artificial e forcava agrupamentos contra-intuitivos.
+- **Excecao:** `GOD_COMPONENT_SKIP` com tracking no `god-component-debt.json`.
+
+### DI-2026-06-10-03: Watchdogs consolidados em hook unico
+
+- **Decisao:** `useStaticTimelineFallback` contem todos os watchdogs de timeline.
+- **Motivo:** Antes o watchdog `forceStaticTimelineFallback` estava no ChatInterface e `hasLargeBotMessage` no MessageTimeline.
+- **Impacto:** 3 watchdogs consolidados em 1 hook, testados em TDD.
+
+### DI-2026-06-10-04: Copiloto referencia wiki e ai-context ao iniciar sessao
+
+- **Decisao:** Passo 7 do copiloto-memory.md inclui leitura de wiki e ai-context.
+- **Motivo:** Sessao de refatoracao mostrou que wiki e `docs/ai-context/` sao essenciais para contexto completo.
+- **Impacto:** Todo handoff de encerramento de sessao deve atualizar wiki (passo 5).
+
 ### DI-2026-06-08-01: Nao alterar fluxo visual sem reincidencia
 
 - **Decisao:** Manter recovery atual. Nao implementar nova correcao funcional.

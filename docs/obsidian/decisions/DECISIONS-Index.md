@@ -49,6 +49,8 @@ Voltar para [[00-MASTER]].
 
 ## Decisoes recentes
 
+- [[SESSAO-CHATINTERFACE-REFACTOR-2026-06-10]] — 2026-06-10 — Refatoracao do ChatInterface (PR #359): 811->331 linhas, 6 hooks extraidos, dupla fonte de verdade eliminada
+
 - [[FECHAMENTO-TEIA-CNPJ-PR285-2026-05-25]] — 2026-05-25 — fechamento da PR #285, validações finais, lições aprendidas e pendências de reestruturação
 - [[ACHADO-P0-TEIA-CNPJ-ESCOPO-2026-05-25]] — 2026-05-25 — QSA oficial confirma socio -> CNPJ, nao CNPJ -> grupo; decisao duravel da Teia CNPJ
 - [[MELHORIAS-DOSSIE-RAG]] — 2026-05-23 — 10 melhorias no fluxo de dossie (RAG + contexto) em 2 sprints

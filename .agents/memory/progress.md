@@ -1,15 +1,18 @@
 # Progress
 
-Last updated: 2026-06-08 — Wiki versionada, auditoria concluida
+Last updated: 2026-06-10 — ChatInterface refatorada, infraestrutura anti-god-component
 
 ## Timeline
 
-### 2026-06-08
+### 2026-06-10
 
-- **PR #347** (merge `f3f08890`): Safety net `static-fallback-display-recovery` + instrumentacao `layoutTraceTelemetry`
-- **PR #348** (merge `ed3db7e1`): Documentacao do handoff de investigacao de tela branca
-- **PR #349** (merge `cbffab54`): RAF safety net + LoadingStuckProbes + fix hardcoded fields em `finalizeWaterfallUI`
-- **Geracao da Wiki:** Grok Wiki gerou 28 paginas a partir de `main` (branch: "default", SHA exato nao registrado)
-- **Auditoria Estrutural:** 7 exploradores paralelos mapearam Wiki, estado, orquestracao, renderizacao, observabilidade, testes e riscos transversais
-- **Validacao Adversarial:** 6 falsos positivos refutados; reclassificacao do incidente para "mitigado com causa aberta"
-- **PR Documental:** Criacao da branch `docs/wiki-auditoria-final` — versionamento da Wiki, atualizacao do README, handoff consolidado
+- **PR #359** (merge `ccf49eb`): ChatInterface refactoring completo
+  - Extraiu 6 hooks (useChatTheme, usePanelState, useInvestigation, useChatActions, useStaticTimelineFallback)
+  - 1 util (promptResolvers)
+  - Removeu `hasLargeBotMessage` (dupla fonte de verdade)
+  - 811 -> 331 linhas (-59%)
+- **28 testes TDD:** useStaticTimelineFallback.test.ts
+- **3 bugs corrigidos:** forceStaticTimelineFallback loading guard, contador de etapas, operatorName null safety
+- **Infraestrutura anti-god-component:** 8 regras no CLAUDE.md, skill prevent-god-component, script component-health.sh, tracking god-component-debt.json
+- **Decisao arquitetural:** Limite de props expandido para 14 (complexos: 8)
+- **Copiloto:** Passo 7 do copiloto-memory.md inclui leitura de wiki e ai-context
