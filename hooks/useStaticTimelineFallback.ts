@@ -212,6 +212,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
   // ── Efeito #5: Força proativa para dossiês grandes ──
   useEffect(() => {
+    if (isLoading) return;
     if (
       !shouldApplyProactiveForceStatic({
         expectedBotCharsMax,
@@ -235,6 +236,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   }, [
     currentSession?.id,
     expectedBotCharsMax,
+    isLoading,
     preferStaticForLargeDossier,
     shouldSuspendVirtualizedList,
     showInitialHome,

@@ -472,11 +472,11 @@ describe('Valores derivados', () => {
   it('shouldSuspendVirtualizedListForTimeline = suspend && !effective', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: true, shouldSuspendVirtualizedList: true }),
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, shouldSuspendVirtualizedList: true }),
     });
 
-    // isThinking com texto < 200 → shouldSuspendVirtualizedList=true (via shouldSuspendHeroMessageTimeline)
-    // effectiveStaticTimelineFallback=true (preferStatic ativo)
+    // preferStaticForLargeDossier=true (5000 ≥ 4000, !isLoading, !showInitialHome)
+    // → effectiveStaticTimelineFallback=true
     // → shouldSuspendVirtualizedListForTimeline = true && !true = false
     act(() => vi.advanceTimersByTime(100));
     expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(false);

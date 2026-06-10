@@ -868,7 +868,7 @@ describe('ChatInterface shell regression', () => {
     });
   });
 
-  it('mantém fallback estático durante hero loading com preview >= 4000 chars (não suspende)', async () => {
+  it('mantém viewport suspensa durante hero loading mesmo com dossiê grande (fix: proativo não ativa em loading)', async () => {
     const largeText = 'D'.repeat(5_000);
     const messages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
@@ -892,9 +892,9 @@ describe('ChatInterface shell regression', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-      expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+      // Durante loading, proativo NÃO ativa → viewport permanece suspensa
+      // Isso evita o "pulo" visual (Virtuoso → static fallback) no meio do loading
+      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
     });
   });
 
