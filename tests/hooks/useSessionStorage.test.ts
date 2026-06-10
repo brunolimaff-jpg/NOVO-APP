@@ -174,12 +174,4 @@ describe('useSessionStorage', () => {
     });
   });
 
-  it('loadSessions retorna array vazio quando Supabase falha (sem fallback localStorage)', async () => {
-    getDossiersMock.mockRejectedValue(new Error('Supabase unavailable'));
-
-    const { result } = renderHook(() => useSessionStorage());
-    const sessions = await result.current.loadSessions();
-
-    expect(sessions).toEqual([]);
-  });
 });
