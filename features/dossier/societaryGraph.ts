@@ -81,7 +81,8 @@ function isRootEstablishment(company: SocietaryCompanyInput, root: SocietaryRoot
 }
 
 export function isHeadquartersCnpj(cnpj?: string): boolean {
-  return Boolean(cnpj && cnpj.slice(8, 12) === '0001');
+  const normalized = normalizeCnpj(cnpj);
+  return normalized.length === 14 && normalized.slice(8, 12) === '0001';
 }
 
 export function countCompanyFilials(company: Pick<SocietaryCompany, 'branchCount' | 'branchCnpjs'>): number {
