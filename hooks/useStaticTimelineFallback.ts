@@ -85,12 +85,17 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
   const panelSnapshotSignatureRef = useRef('');
+  const renderingModeLocked = useRef(false);
 
   const preferStaticForLargeDossier =
     !isLoading &&
     !showInitialHome &&
     !shouldSuspendVirtualizedList &&
+    !renderingModeLocked.current &&
     shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
+  if (!isLoading && !shouldSuspendVirtualizedList && !renderingModeLocked.current) {
+    renderingModeLocked.current = true;
+  }
   const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
@@ -191,6 +196,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     setForceStaticTimelineFallback(false);
     staticTimelineFallbackSessionRef.current = null;
     postWaterfallWatchdogLoggedRef.current = null;
+    renderingModeLocked.current = false;
   }, [currentSession?.id]);
 
   // ── Efeito #4: Reset ao iniciar loading com dossiê pequeno ──
