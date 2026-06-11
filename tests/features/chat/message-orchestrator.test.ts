@@ -315,7 +315,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.isLoading).toBe(false);
   });
 
-  it('descarta sessao inicial quando o envio falha com erro de rede', async () => {
+  it('anexa mensagem de erro quando o envio falha com erro de rede', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -328,9 +328,14 @@ describe('useChatMessageOrchestrator', () => {
       await harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
 
-    expect(harness.state.sessions).toHaveLength(0);
-    expect(harness.state.currentSessionId).toBeNull();
+    expect(harness.state.sessions).toHaveLength(1);
     expect(harness.state.isLoading).toBe(false);
+    expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
+      id: 'message-error',
+      sender: Sender.Bot,
+      isError: true,
+      text: 'Erro no processamento',
+    });
   });
 
   it('retryLastSendMessage remove ghost/error final e reenfileira o último texto', async () => {
@@ -392,7 +397,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
-  it('descarta sessao inicial quando waterfall falha com erro nao-abort', async () => {
+  it('anexa mensagem de erro quando waterfall falha apos limpar activeGeneration', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -408,9 +413,14 @@ describe('useChatMessageOrchestrator', () => {
       await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
     });
 
-    expect(harness.state.sessions).toHaveLength(0);
-    expect(harness.state.currentSessionId).toBeNull();
+    expect(harness.state.sessions).toHaveLength(1);
     expect(harness.state.isLoading).toBe(false);
+    expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
+      id: 'message-error',
+      sender: Sender.Bot,
+      isError: true,
+      text: 'Erro no processamento',
+    });
   });
 
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
