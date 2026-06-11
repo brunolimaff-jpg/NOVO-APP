@@ -712,9 +712,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         updateSessionById(sessionId, session => ({
           ...session,
           messages: [
-            ...(session.messages || []).filter(
-              message => message.id !== botMessageId || message.text.trim().length > 0,
-            ),
+            ...(session.messages || []).filter(message => message.id !== botMessageId),
             {
               id: uuidv4(),
               sender: Sender.Bot,
@@ -725,16 +723,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             },
           ],
         }));
-
-        const failedSession = sessionsRef.current.find(s => s.id === sessionId);
-        const failedMessages = failedSession?.messages || [];
-        const hasSuccessfulBotContent = failedMessages.some(
-          m => m.sender === Sender.Bot && !m.isError && !m.isThinking && m.text?.trim(),
-        );
-        if (!hasSuccessfulBotContent) {
-          setSessions(prev => prev.filter(s => s.id !== sessionId));
-          setCurrentSessionId(prev => (prev === sessionId ? null : prev));
-        }
       } finally {
         const isAbort = !abortControllerRef.current;
 

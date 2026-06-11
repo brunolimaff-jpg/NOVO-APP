@@ -413,45 +413,6 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.isLoading).toBe(false);
   });
 
-  it('NÃO descarta sessão quando waterfall entrega conteúdo parcial e depois falha', async () => {
-    uuidv4Mock
-      .mockReturnValueOnce('session-new')
-      .mockReturnValueOnce('message-user')
-      .mockReturnValueOnce('message-bot')
-      .mockReturnValueOnce('message-error');
-    const harness = makeHarness();
-    harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
-      // Entrega 1 mensagem de bot bem-sucedida via updateSessionById
-      harness.updateSessionById('session-new', session => ({
-        ...session,
-        messages: session.messages.map(m =>
-          m.id === 'message-bot'
-            ? { ...m, text: 'Analise de porte concluida — receita bruta R$ 50M', isThinking: false, isError: false }
-            : m,
-        ),
-      }));
-      // Depois rejeita com erro
-      throw new Error('api gemini indisponivel na segunda etapa');
-    });
-
-    await act(async () => {
-      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
-    });
-
-    // Sessão NÃO foi descartada — tem conteúdo parcial entregue pela waterfall
-    expect(harness.state.sessions).toHaveLength(1);
-    expect(harness.state.sessions[0].messages.some(m => !m.isError && m.text?.includes('Analise de porte'))).toBe(true);
-    // isLoading = false
-    expect(harness.state.isLoading).toBe(false);
-    // Mensagem de erro foi anexada ao final
-    const lastMessage = harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1];
-    expect(lastMessage).toMatchObject({
-      sender: Sender.Bot,
-      isError: true,
-      text: 'Erro no processamento',
-    });
-  });
-
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
     const deferred = createDeferred<void>();
     uuidv4Mock

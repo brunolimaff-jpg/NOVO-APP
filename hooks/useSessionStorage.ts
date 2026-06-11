@@ -60,7 +60,7 @@ export function useSessionStorage() {
     try {
       const supabaseSessions = await storage.getDossiers();
       if (supabaseSessions && supabaseSessions.length > 0) {
-        return sanitizeLoadedSessions(supabaseSessions);
+        return sanitizeLoadedSessions(supabaseSessions).filter(hasPersistableContent);
       }
     } catch {
       console.error('[useSessionStorage] Falha ao carregar sessões do Supabase');
@@ -123,8 +123,9 @@ export function useSessionStorage() {
       }
       // Flush pending write: fire-and-forget save of current sessions
       const pendingSessions = sessionsRef.current;
-      if (pendingSessions.length > 0) {
-        storage.saveAllDossiers(pendingSessions).catch(() => {});
+      const persistable = pendingSessions.filter(hasPersistableContent);
+      if (persistable.length > 0) {
+        storage.saveAllDossiers(persistable).catch(() => {});
       }
     };
   }, []);
