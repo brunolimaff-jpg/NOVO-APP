@@ -91,6 +91,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const didBackfillRef = useRef(false);
   const didTrackAppOpenRef = useRef(false);
   const didTrackInFlightRef = useRef(false);
+  const didBackfillInFlightRef = useRef(false);
 
   const setName = useCallback(
     (nextName: string) => {
@@ -227,28 +228,58 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   );
 
   useEffect(() => {
-    if (!shouldBackfillSavedProfileRef.current || didBackfillRef.current) return;
+    if (!shouldBackfillSavedProfileRef.current || didBackfillRef.current || didBackfillInFlightRef.current) return;
     if (!operatorId || !name || !email) return;
 
-    didBackfillRef.current = true;
-    void storage
-      .saveUserContext({ operatorId, name, email })
-      .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
+    didBackfillInFlightRef.current = true;
+    const capturedOperatorId = operatorId;
+    const capturedName = name;
+    const capturedEmail = email;
 
-    // Tracking de sessaoo — dispara apenas 1x por montagem do provider
-    if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
-      didTrackInFlightRef.current = true;
-      void initSessionTracking(operatorId, email)
-        .then(() => {
-          didTrackAppOpenRef.current = true;
-        })
-        .catch(err => {
-          warnOperator('[OperatorContext] initSessionTracking failed:', err);
-        })
-        .finally(() => {
-          didTrackInFlightRef.current = false;
-        });
-    }
+    void (async () => {
+      let effectiveOperatorId = capturedOperatorId;
+
+      try {
+        const existing = await storage.findUserByEmail(capturedEmail);
+        if (existing && existing.operatorId !== capturedOperatorId) {
+          effectiveOperatorId = existing.operatorId;
+          storageSet(OPERATOR_ID_KEY, existing.operatorId);
+          setOperatorId(existing.operatorId);
+          if (existing.displayName) {
+            storageSet(OPERATOR_NAME_KEY, existing.displayName);
+            setOperatorName(existing.displayName);
+          }
+        }
+      } catch (err) {
+        warnOperator('[OperatorContext] findUserByEmail failed during backfill:', err);
+        // Permite retry futuro — nao seta didBackfillRef
+        didBackfillInFlightRef.current = false;
+        return;
+      }
+
+      // Persiste com o operatorId canonico
+      void storage
+        .saveUserContext({ operatorId: effectiveOperatorId, name: capturedName, email: capturedEmail })
+        .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
+
+      // Tracking de sessaoo — dispara apenas 1x por montagem do provider
+      if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
+        didTrackInFlightRef.current = true;
+        void initSessionTracking(effectiveOperatorId, capturedEmail)
+          .then(() => {
+            didTrackAppOpenRef.current = true;
+          })
+          .catch(err => {
+            warnOperator('[OperatorContext] initSessionTracking failed:', err);
+          })
+          .finally(() => {
+            didTrackInFlightRef.current = false;
+          });
+      }
+
+      didBackfillRef.current = true;
+      didBackfillInFlightRef.current = false;
+    })();
   }, [email, name, operatorId]);
 
   // Listener de encerramento de sessao — apenas pagehide (fechar tab)

@@ -173,18 +173,30 @@ async function startOperatorSessionAsync(operatorId: string, email?: string): Pr
 
   const existingSessionId = sessionStorage.getItem('scout:current_session_id');
   if (existingSessionId) {
-    ff(
-      supabase!
-        .from('operator_sessions')
-        .update({
-          operator_id: operatorId,
-          email_normalized: email?.toLowerCase().trim() || null,
-          last_seen_at: new Date().toISOString(),
-        })
-        .eq('id', existingSessionId)
-        .is('ended_at', null),
-    );
-    return;
+    // Verifica se a sessao armazenada ainda esta ativa antes de reutilizar.
+    // auto_close_stale_sessions() pode ter fechado a sessao no servidor,
+    // e sem essa verificacao a aba fica presa a um session_id encerrado.
+    const { data: updated, error: updateError } = await supabase!
+      .from('operator_sessions')
+      .update({
+        operator_id: operatorId,
+        email_normalized: email?.toLowerCase().trim() || null,
+        last_seen_at: new Date().toISOString(),
+      })
+      .eq('id', existingSessionId)
+      .is('ended_at', null)
+      .select('id');
+
+    if (updateError) {
+      console.warn('[operatorTracking] session resume update failed:', updateError);
+      return;
+    }
+
+    if (updated && updated.length > 0) return; // Sessao ativa — reutilizada com sucesso
+
+    // Sessao encerrada no servidor — limpa e cria nova
+    sessionStorage.removeItem('scout:current_session_id');
+    sessionStorage.removeItem('scout:session_started_at');
   }
 
   const sessionId = getCurrentSessionId();

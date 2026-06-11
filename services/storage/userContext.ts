@@ -55,7 +55,8 @@ export const userContext = {
       .order('created_at', { ascending: true })
       .limit(1);
 
-    if (error || !data || data.length === 0) return null;
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
 
     return {
       operatorId: data[0].operator_id,

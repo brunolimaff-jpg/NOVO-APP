@@ -4,7 +4,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockInsert = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
 const mockUpsert = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
-const mockIs = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
+const mockSelect = vi.hoisted(() =>
+  vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ data: [{ id: 'mock-session' }], error: null }) })),
+);
+const mockIs = vi.hoisted(() =>
+  vi.fn(() => ({ select: mockSelect, then: (fn: (v: unknown) => void) => fn({ error: null }) })),
+);
 const mockEq = vi.hoisted(() => vi.fn(() => ({ is: mockIs, then: (fn: (v: unknown) => void) => fn({ error: null }) })));
 const mockUpdate = vi.hoisted(() => vi.fn(() => ({ eq: mockEq })));
 
