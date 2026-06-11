@@ -91,6 +91,22 @@ function requireDependency<T>(value: T | null | undefined, dependencyName: strin
   return value;
 }
 
+const REUSABLE_SESSION_MAX_AGE_MS = 5000;
+
+function findReusableEmptySession(sessions: ChatSession[]): ChatSession | null {
+  for (const s of sessions) {
+    if (s.empresaAlvo) continue;
+    if (s.cnpj) continue;
+    if (s.messages && s.messages.length > 0) continue;
+    const createdAtMs = new Date(s.createdAt).getTime();
+    if (!Number.isFinite(createdAtMs)) continue;
+    const age = Date.now() - createdAtMs;
+    if (age > REUSABLE_SESSION_MAX_AGE_MS) continue;
+    return s;
+  }
+  return null;
+}
+
 export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrchestratorOptions> = {}) {
   const chatStore = useMaybeChatStore();
   const modeContext = useMaybeMode();
@@ -864,25 +880,48 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const existingSession = sessionId ? sessionsRef.current.find(session => session.id === sessionId) : null;
       if (!sessionId || !existingSession) {
-        sessionId = uuidv4();
-        createdInitialSessionId = sessionId;
         const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
         const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
         immediateCompany = immediateTitle || null;
-        const newSession: ChatSession = {
-          id: sessionId,
-          title: immediateTitle || 'Nova Investigação',
-          empresaAlvo: immediateTitle || null,
-          cnpj: options?.cnpj ?? null,
-          modoPrincipal: DEFAULT_MODE,
-          scoreOportunidade: null,
-          resumoDossie: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: [],
-        };
-        setSessions(prev => [newSession, ...prev]);
-        setCurrentSessionId(sessionId);
+
+        // Tenta promover sessao vazia existente em vez de criar nova.
+        // Evita duplicatas quando usuario clicou "Nova investigacao" antes
+        // de submeter o formulario de pesquisa.
+        const reusable = findReusableEmptySession(sessionsRef.current);
+        if (reusable) {
+          sessionId = reusable.id;
+          createdInitialSessionId = sessionId;
+          setSessions(prev =>
+            prev.map(s =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    title: immediateTitle || s.title,
+                    empresaAlvo: immediateTitle || null,
+                    cnpj: options?.cnpj ?? s.cnpj ?? null,
+                  }
+                : s,
+            ),
+          );
+          setCurrentSessionId(sessionId);
+        } else {
+          sessionId = uuidv4();
+          createdInitialSessionId = sessionId;
+          const newSession: ChatSession = {
+            id: sessionId,
+            title: immediateTitle || 'Nova Investigação',
+            empresaAlvo: immediateTitle || null,
+            cnpj: options?.cnpj ?? null,
+            modoPrincipal: DEFAULT_MODE,
+            scoreOportunidade: null,
+            resumoDossie: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [],
+          };
+          setSessions(prev => [newSession, ...prev]);
+          setCurrentSessionId(sessionId);
+        }
         pendingInitialSendRef.current = { sessionId };
         currentHistory = [];
       } else {

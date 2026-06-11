@@ -93,6 +93,19 @@ export function useSessionRemoteSave(options: UseSessionRemoteSaveOptions = {}) 
   };
 }
 
+const REUSABLE_SESSION_MAX_AGE_MS = 5000;
+
+function isSessionReusable(session: ChatSession): boolean {
+  if (session.empresaAlvo) return false;
+  if (session.cnpj) return false;
+  if (session.messages && session.messages.length > 0) return false;
+  const createdAtMs = new Date(session.createdAt).getTime();
+  if (!Number.isFinite(createdAtMs)) return false;
+  const age = Date.now() - createdAtMs;
+  if (age > REUSABLE_SESSION_MAX_AGE_MS) return false;
+  return true;
+}
+
 /**
  * Manages session lifecycle: create, select, delete.
  * Extracted from App.tsx to reduce its complexity.
@@ -156,7 +169,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setInvestigationLogged(false);
     lastActionRef.current = null;
     setLastQuery('');
-    resetLoadingProgress('Iniciando an\u00e1lise');
+    resetLoadingProgress('Iniciando análise');
   }, [
     lastActionRef,
     resetLoadingProgress,
@@ -180,9 +193,18 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       return;
     }
 
+    // Idempotência: se currentSessionId já aponta para sessão vazia
+    // recém-criada, reutiliza em vez de criar uuid novo.
+    const currentSession = currentSessionId ? sessions.find(s => s.id === currentSessionId) : null;
+    if (currentSession && isSessionReusable(currentSession)) {
+      setCurrentSessionId(currentSession.id);
+      resetSessionUI();
+      return;
+    }
+
     const newSession: ChatSession = {
       id: uuidv4(),
-      title: 'Nova Investiga\u00e7\u00e3o',
+      title: 'Nova Investigação',
       empresaAlvo: null,
       cnpj: null,
       modoPrincipal: DEFAULT_MODE,
@@ -196,7 +218,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
     setCurrentSessionId(newSession.id);
     resetSessionUI();
-  }, [abortControllerRef, isLoading, resetSessionUI, setCurrentSessionId, setIsLoading, setSessions]);
+  }, [
+    abortControllerRef,
+    currentSessionId,
+    isLoading,
+    resetSessionUI,
+    sessions,
+    setCurrentSessionId,
+    setIsLoading,
+    setSessions,
+  ]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
