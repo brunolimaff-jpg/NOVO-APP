@@ -4,9 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockInsert = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
 const mockUpsert = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
-const mockUpdate = vi.hoisted(() =>
-  vi.fn(() => ({ eq: vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })) })),
-);
+const mockIs = vi.hoisted(() => vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })));
+const mockEq = vi.hoisted(() => vi.fn(() => ({ is: mockIs, then: (fn: (v: unknown) => void) => fn({ error: null }) })));
+const mockUpdate = vi.hoisted(() => vi.fn(() => ({ eq: mockEq })));
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(() => ({
@@ -119,7 +119,7 @@ describe('operatorTracking contract — payload insert real', () => {
     vi.mocked(isSupabaseAvailable).mockReturnValue(true);
     mockInsert.mockReturnValue({ then: (fn: (v: unknown) => void) => fn({ error: null }) });
     mockUpsert.mockReturnValue({ then: (fn: (v: unknown) => void) => fn({ error: null }) });
-    mockUpdate.mockReturnValue({ eq: vi.fn(() => ({ then: (fn: (v: unknown) => void) => fn({ error: null }) })) });
+    mockUpdate.mockReturnValue({ eq: mockEq });
     supabaseMock.from.mockReturnValue({
       insert: mockInsert,
       upsert: mockUpsert,

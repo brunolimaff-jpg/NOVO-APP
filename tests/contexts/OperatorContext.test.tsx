@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const saveUserContextMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+const findUserByEmailMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ operatorId: string; displayName: string } | null>>(() => Promise.resolve(null)),
+);
 
 vi.mock('../../services/storage', () => ({
   storage: {
     saveUserContext: saveUserContextMock,
+    findUserByEmail: findUserByEmailMock,
   },
 }));
 
@@ -46,6 +50,8 @@ describe('OperatorProvider', () => {
   beforeEach(() => {
     window.localStorage.clear();
     saveUserContextMock.mockClear();
+    findUserByEmailMock.mockReset();
+    findUserByEmailMock.mockResolvedValue(null);
   });
 
   it('starts without a name but with a stable operator id', () => {
@@ -111,5 +117,43 @@ describe('OperatorProvider', () => {
     expect(screen.getByTestId('name')).toHaveTextContent('empty');
     expect(screen.getByTestId('operator-id').textContent).toBe(initialOperatorId);
     expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
+  });
+
+  it('links to canonical operator when email exists with different operatorId', async () => {
+    const CANONICAL_OP = 'op_canonical';
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: CANONICAL_OP,
+      displayName: 'Existing',
+    });
+
+    renderProvider();
+
+    fireEvent.click(screen.getByRole('button', { name: 'register-operator' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent(CANONICAL_OP);
+    });
+
+    // saveUserContext deve ser chamado com o canonical operatorId
+    expect(saveUserContextMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ operatorId: CANONICAL_OP, name: 'Bruno Lima', email: 'bruno@senior.com.br' }),
+    );
+  });
+
+  it('keeps same operatorId when email exists with same operatorId', async () => {
+    renderProvider();
+
+    const currentOpId = screen.getByTestId('operator-id').textContent!;
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: currentOpId,
+      displayName: 'Bruno Lima',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'register-operator' }));
+
+    // Aguarda um tick para o async IIFE rodar
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(screen.getByTestId('operator-id').textContent).toBe(currentOpId);
   });
 });
