@@ -111,11 +111,9 @@ function handleHbVisibilityChange(): void {
       touchOperatorSession(); // renova ao reexibir a aba — evita timeout falso
       hbTimer = setInterval(() => touchOperatorSession(), 5 * 60 * 1000);
     }
-    hbStarted = true;
   } else if (hbTimer !== null) {
     clearInterval(hbTimer);
     hbTimer = null;
-    hbStarted = false;
   }
 }
 
@@ -126,13 +124,19 @@ function handleHbVisibilityChange(): void {
  */
 function startHeartbeat(): void {
   if (typeof document === 'undefined') return; // SSR guard
-  if (hbTimer !== null) return;
   if (hbStarted) return;
 
   hbStarted = true;
-  touchOperatorSession();
-  hbTimer = setInterval(() => touchOperatorSession(), 5 * 60 * 1000);
   document.addEventListener('visibilitychange', handleHbVisibilityChange);
+
+  if (document.visibilityState === 'visible') {
+    touchOperatorSession();
+    if (hbTimer === null) {
+      hbTimer = setInterval(() => touchOperatorSession(), 5 * 60 * 1000);
+    }
+  }
+  // Se hidden: listener instalado, intervalo nao inicia. Quando a aba
+  // voltar visible, handleHbVisibilityChange inicia o timer.
 }
 
 /**
@@ -220,9 +224,6 @@ export function touchOperatorSession(): void {
       .from('operator_sessions')
       .update({
         last_seen_at: new Date().toISOString(),
-        ended_at: null,
-        ended_reason: null,
-        duration_seconds: null,
       })
       .eq('id', sessionId)
       .is('ended_at', null),
@@ -246,6 +247,10 @@ export function endOperatorSession(reason: 'pagehide' | 'visibility_hidden' | 'm
     !isNaN(parsedStart) && parsedStart > 0 && Date.now() > parsedStart
       ? Math.max(0, Math.floor((Date.now() - parsedStart) / 1000))
       : null;
+
+  // Limpa sessionStorage para permitir nova sessao na mesma aba
+  sessionStorage.removeItem('scout:current_session_id');
+  sessionStorage.removeItem('scout:session_started_at');
 
   const now = new Date().toISOString();
 

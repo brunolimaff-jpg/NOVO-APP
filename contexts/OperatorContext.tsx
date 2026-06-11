@@ -30,6 +30,23 @@ interface OperatorContextType {
   linkToExistingOperator: (operatorId: string, name: string, email: string) => void;
 }
 
+// ===================================================================
+// IMPORTANTE DE SEGURANCA
+// ===================================================================
+// operatorId NAO e identidade autenticada. Email e auto-reportado
+// (nao verificado). findUserByEmail client-side so e seguro porque
+// operatorId e usado EXCLUSIVAMENTE para analytics/tracking.
+//
+// NUNCA usar operatorId para:
+//   - RLS policies de autorizacao
+//   - Controle de acesso a recursos protegidos
+//   - Permissoes de escrita/leitura no banco
+//   - Qualquer decisao de seguranca
+//
+// Se no futuro o app precisar de identidade real, implementar auth
+// via Supabase Auth (magic link, OAuth, OTP) e usar auth.uid().
+// ===================================================================
+
 const OPERATOR_NAME_KEY = 'operator_name';
 const OPERATOR_ID_KEY = 'operator_id';
 const OPERATOR_EMAIL_KEY = 'operator_email';
@@ -55,6 +72,15 @@ function getSavedOperatorEmail(): string {
   return storageGet(OPERATOR_EMAIL_KEY)?.trim() || '';
 }
 
+// Helper de logging: em producao nao expoe objeto de erro (evita vazamento de PII)
+function warnOperator(message: string, err?: unknown): void {
+  if (import.meta.env.DEV && err instanceof Error) {
+    console.warn(message, err.message);
+  } else {
+    console.warn(message);
+  }
+}
+
 const OperatorContext = createContext<OperatorContextType | undefined>(undefined);
 
 export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -64,6 +90,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
   const didBackfillRef = useRef(false);
   const didTrackAppOpenRef = useRef(false);
+  const didTrackInFlightRef = useRef(false);
 
   const setName = useCallback(
     (nextName: string) => {
@@ -77,7 +104,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       if (email) {
         void storage
           .saveUserContext({ operatorId, name: normalizedName, email })
-          .catch(err => console.warn('[OperatorContext] saveUserContext failed:', err));
+          .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
       }
     },
     [operatorId, email],
@@ -94,7 +121,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Sync to Supabase (fire and forget)
       void storage
         .saveUserContext({ operatorId, name, email: normalizedEmail })
-        .catch(err => console.warn('[OperatorContext] saveUserContext failed:', err));
+        .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
     },
     [operatorId, name],
   );
@@ -111,17 +138,25 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Sync to Supabase
       void storage
         .saveUserContext({ operatorId: existingOperatorId, name: existingName, email: existingEmail })
-        .catch(err => console.warn('[OperatorContext] saveUserContext failed:', err));
+        .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
 
       // Tracking (se ainda nao disparou nesta sessao)
-      if (!didTrackAppOpenRef.current) {
-        didTrackAppOpenRef.current = true;
-        void initSessionTracking(existingOperatorId, existingEmail).catch(err =>
-          console.warn('[OperatorContext] initSessionTracking failed:', err),
-        );
+      if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
+        didTrackInFlightRef.current = true;
+        void initSessionTracking(existingOperatorId, existingEmail)
+          .then(() => {
+            didTrackAppOpenRef.current = true;
+          })
+          .catch(err => {
+            warnOperator('[OperatorContext] initSessionTracking failed:', err);
+            // Permite retry futuro
+          })
+          .finally(() => {
+            didTrackInFlightRef.current = false;
+          });
       }
 
-      // Notificar sessões para recarregar com o novo operatorId
+      // Notificar sessoes para recarregar com o novo operatorId
       window.dispatchEvent(new CustomEvent('operator-relinked'));
     },
     [],
@@ -139,41 +174,51 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       setOperatorName(normalizedName);
       setOperatorEmail(normalizedEmail);
 
-      // 2. Sync to Supabase (fire-and-forget)
-      void storage
-        .saveUserContext({
-          operatorId,
-          name: normalizedName,
-          email: normalizedEmail,
-        })
-        .catch((err: unknown) => console.warn('[OperatorContext] saveUserContext failed:', err));
-
-      // 3. Resolve canonical operatorId before initSessionTracking
       const capturedOperatorId = operatorId;
-      (async () => {
+
+      // 2. Resolve canonical operatorId — depois persiste e inicia tracking
+      void (async () => {
+        let effectiveOperatorId = capturedOperatorId;
+
         try {
           const existing = await storage.findUserByEmail(normalizedEmail);
           if (existing && existing.operatorId !== capturedOperatorId) {
-            // Different canonical operator found — link (handles initSessionTracking)
+            // Canonical operator encontrado — delegar para linkToExistingOperator
+            // (que chama saveUserContext + initSessionTracking com ID canonico)
             linkToExistingOperator(existing.operatorId, normalizedName, normalizedEmail);
             return;
           }
+          // Se encontrou com mesmo operatorId ou nao encontrou:
+          // effectiveOperatorId permanece capturedOperatorId
         } catch (err) {
-          console.warn('[OperatorContext] findUserByEmail failed:', err);
-          // Fall through: use capturedOperatorId
+          warnOperator('[OperatorContext] findUserByEmail failed, using current operatorId:', err);
+          // Fall through: usa capturedOperatorId
         }
 
-        // 4. No linking needed — init session tracking with current operatorId
-        if (!didTrackAppOpenRef.current) {
-          didTrackAppOpenRef.current = true;
+        // 3. Persiste no Supabase com o operatorId efetivo
+        void storage
+          .saveUserContext({
+            operatorId: effectiveOperatorId,
+            name: normalizedName,
+            email: normalizedEmail,
+          })
+          .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
+
+        // 4. Inicia tracking APENAS se ainda nao foi iniciado
+        if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
+          didTrackInFlightRef.current = true;
           try {
-            await initSessionTracking(capturedOperatorId, normalizedEmail);
+            await initSessionTracking(effectiveOperatorId, normalizedEmail);
+            didTrackAppOpenRef.current = true;
             trackOperatorEvent('operator_registered', {
-              operatorId: capturedOperatorId,
+              operatorId: effectiveOperatorId,
               email: normalizedEmail,
             });
           } catch (err) {
-            console.warn('[OperatorContext] initSessionTracking failed:', err);
+            warnOperator('[OperatorContext] initSessionTracking failed:', err);
+            // Permite retry futuro (didTrackAppOpenRef continua false)
+          } finally {
+            didTrackInFlightRef.current = false;
           }
         }
       })();
@@ -188,14 +233,21 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     didBackfillRef.current = true;
     void storage
       .saveUserContext({ operatorId, name, email })
-      .catch(err => console.warn('[OperatorContext] saveUserContext failed:', err));
+      .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
 
     // Tracking de sessaoo — dispara apenas 1x por montagem do provider
-    if (!didTrackAppOpenRef.current) {
-      didTrackAppOpenRef.current = true;
-      void initSessionTracking(operatorId, email).catch(err =>
-        console.warn('[OperatorContext] initSessionTracking failed:', err),
-      );
+    if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
+      didTrackInFlightRef.current = true;
+      void initSessionTracking(operatorId, email)
+        .then(() => {
+          didTrackAppOpenRef.current = true;
+        })
+        .catch(err => {
+          warnOperator('[OperatorContext] initSessionTracking failed:', err);
+        })
+        .finally(() => {
+          didTrackInFlightRef.current = false;
+        });
     }
   }, [email, name, operatorId]);
 
