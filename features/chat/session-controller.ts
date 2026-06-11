@@ -262,6 +262,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
         } catch (error) {
           console.error('Lazy load error', error);
         }
+      } else if (!targetSession) {
+        // Sessão não está em sessions[] — carrega do remoto e injeta
+        try {
+          const fullSession = await getRemoteSession(sessionId);
+          if (fullSession) {
+            setSessions(prev => [fullSession, ...prev]);
+          }
+        } catch (error) {
+          console.error('Lazy load error (orphan session)', error);
+        }
       }
     },
     [
@@ -272,6 +282,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       setCurrentSessionId,
       setIsLoading,
       setLoadingPinnedLabel,
+      setSessions,
       updateSessionById,
     ],
   );
