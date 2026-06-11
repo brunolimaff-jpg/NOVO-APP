@@ -315,19 +315,21 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.isLoading).toBe(false);
   });
 
-  it('anexa mensagem de erro quando o envio falha', async () => {
+  it('anexa mensagem de erro quando o envio falha com erro de rede', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot')
       .mockReturnValueOnce('message-error');
-    sendMessageToGeminiMock.mockRejectedValue(new Error('boom'));
+    sendMessageToGeminiMock.mockRejectedValue(new Error('Failed to fetch'));
     const harness = makeHarness();
 
     await act(async () => {
       await harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
 
+    expect(harness.state.sessions).toHaveLength(1);
+    expect(harness.state.isLoading).toBe(false);
     expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
       id: 'message-error',
       sender: Sender.Bot,
@@ -395,7 +397,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
-  it('anexa mensagem de erro quando waterfall falha após limpar activeGeneration', async () => {
+  it('anexa mensagem de erro quando waterfall falha apos limpar activeGeneration', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -411,6 +413,8 @@ describe('useChatMessageOrchestrator', () => {
       await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
     });
 
+    expect(harness.state.sessions).toHaveLength(1);
+    expect(harness.state.isLoading).toBe(false);
     expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
       id: 'message-error',
       sender: Sender.Bot,

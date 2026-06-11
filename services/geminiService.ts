@@ -8,6 +8,7 @@ export type { GeminiRequestOptions, SendMessageToGeminiResult, SpotterExtractedD
 export type { ParsedPortaFeeds } from './gemini/porta';
 
 export { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from './gemini/porta';
-export { generateContinuityQuestion, generateLoadingCuriosities } from './gemini/auxiliary';
+export { generateContinuityQuestion } from './gemini/auxiliary';
+export { generateLoadingCuriosities } from './gemini/loading-curiosities';
 export { generateDossierModule, getIsolatedBenchmark, sendMessageToGemini } from './gemini/investigation-orchestration';
 export { isMegaPromptRequest } from './gemini/runtime';

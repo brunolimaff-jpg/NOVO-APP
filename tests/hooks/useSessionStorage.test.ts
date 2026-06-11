@@ -54,7 +54,11 @@ describe('useSessionStorage', () => {
   });
 
   it('loadSessions carrega sessions do Supabase quando disponível', async () => {
-    const storedSessions = [makeSession('s1', 'Fazenda Alpha')];
+    const storedSessions = [
+      makeSession('s1', 'Fazenda Alpha', [
+        { id: 'm1', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+      ]),
+    ];
     getDossiersMock.mockResolvedValue(storedSessions);
 
     const { result } = renderHook(() => useSessionStorage());
@@ -100,7 +104,10 @@ describe('useSessionStorage', () => {
     const dateStr = '2025-01-15T10:00:00.000Z';
     const sessionWithStringTimestamp = {
       ...makeSession('s4', 'Empresa D'),
-      messages: [{ id: 'm1', sender: 'user', text: 'Olá', timestamp: dateStr }],
+      messages: [
+        { id: 'm1', sender: 'user', text: 'Olá', timestamp: dateStr },
+        { id: 'm2', sender: Sender.Bot, text: 'Resposta', timestamp: new Date() },
+      ],
     };
     getDossiersMock.mockResolvedValue([sessionWithStringTimestamp]);
 
@@ -116,6 +123,12 @@ describe('useSessionStorage', () => {
       messages: [
         {
           id: 'm1',
+          sender: Sender.Bot,
+          text: 'Conteúdo real',
+          timestamp: new Date(),
+        },
+        {
+          id: 'm2',
           sender: Sender.Bot,
           text: '',
           timestamp: '2025-01-15T10:00:00.000Z',
@@ -144,7 +157,10 @@ describe('useSessionStorage', () => {
       result.current.setIsInitialized(true);
     });
 
-    const newSession = makeSession('s5', 'Fazenda Nova');
+    const newSession = makeSession('s5', 'Fazenda Nova', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date() },
+      { id: 'm2', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+    ]);
     act(() => {
       result.current.setSessions([newSession]);
     });
@@ -160,6 +176,94 @@ describe('useSessionStorage', () => {
     expect(saveAllDossiersMock).toHaveBeenCalled();
   });
 
+  it('NÃO persiste sessão com apenas mensagem user (sem bot)', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => result.current.setIsInitialized(true));
+
+    const session = makeSession('s7', 'Sem Bot', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date() },
+    ]);
+    act(() => result.current.setSessions([session]));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+  });
+
+  it('NÃO persiste sessão com user + bot thinking (sem conteúdo real)', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => result.current.setIsInitialized(true));
+
+    const session = makeSession('s8', 'Thinking Only', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date() },
+      { id: 'm2', sender: Sender.Bot, text: '', timestamp: new Date(), isThinking: true },
+    ]);
+    act(() => result.current.setSessions([session]));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+  });
+
+  it('NÃO persiste sessão com user + bot isError (sem conteúdo real)', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => result.current.setIsInitialized(true));
+
+    const session = makeSession('s9', 'Error Only', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date() },
+      { id: 'm2', sender: Sender.Bot, text: 'Erro', timestamp: new Date(), isError: true },
+    ]);
+    act(() => result.current.setSessions([session]));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+  });
+
+  it('Persiste sessão com bot real (não-error, não-thinking, com texto)', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => result.current.setIsInitialized(true));
+
+    const session = makeSession('s10', 'Dossiê Real', [
+      { id: 'm1', sender: Sender.User, text: 'Investigar', timestamp: new Date() },
+      { id: 'm2', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+    ]);
+    act(() => result.current.setSessions([session]));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(saveAllDossiersMock).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ title: 'Dossiê Real' })]),
+    );
+  });
+
+  it('loadSessions filtra ghosts antigos do Supabase (sem bot real)', async () => {
+    const ghostSession = makeSession('ghost-1', 'Ghost sem bot');
+    const validSession = makeSession('valid-1', 'Dossiê válido', [
+      { id: 'm1', sender: Sender.Bot, text: 'Conteúdo real', timestamp: new Date() },
+    ]);
+    getDossiersMock.mockResolvedValue([ghostSession, validSession]);
+
+    const { result } = renderHook(() => useSessionStorage());
+    const sessions = await result.current.loadSessions();
+
+    // Ghost sem bot real é filtrado; só o válido permanece
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].title).toBe('Dossiê válido');
+  });
+
   it('sessionsRef é mantido sincronizado com sessions', async () => {
     const { result } = renderHook(() => useSessionStorage());
     const session = makeSession('s6', 'Empresa Ref');
@@ -173,5 +277,4 @@ describe('useSessionStorage', () => {
       expect(result.current.sessionsRef.current[0].title).toBe('Empresa Ref');
     });
   });
-
 });
