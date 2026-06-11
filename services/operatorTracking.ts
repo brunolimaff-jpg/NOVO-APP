@@ -97,6 +97,65 @@ function ff<T>(promiseLike: PromiseLike<T>): void {
 }
 
 // ===================================================================
+// HEARTBEAT — mantém last_seen_at atualizado via touch a cada 5 min
+// Pausa quando a aba fica oculta, retoma quando visível.
+// Fire-and-forget: nunca bloqueia UX.
+// ===================================================================
+
+let hbTimer: ReturnType<typeof setInterval> | null = null;
+let hbStarted = false;
+
+function handleHbVisibilityChange(): void {
+  if (document.visibilityState === 'visible') {
+    if (hbTimer === null) {
+      touchOperatorSession(); // renova ao reexibir a aba — evita timeout falso
+      hbTimer = setInterval(() => touchOperatorSession(), 5 * 60 * 1000);
+    }
+  } else if (hbTimer !== null) {
+    clearInterval(hbTimer);
+    hbTimer = null;
+  }
+}
+
+/**
+ * Inicia o heartbeat periodico (fire-and-forget).
+ * Toca a sessao imediatamente, depois a cada 5 min enquanto a aba estiver visivel.
+ * Seguro chamar multiplas vezes — apenas o primeiro call tem efeito.
+ */
+function startHeartbeat(): void {
+  if (typeof document === 'undefined') return; // SSR guard
+  if (hbStarted) return;
+
+  hbStarted = true;
+  document.addEventListener('visibilitychange', handleHbVisibilityChange);
+
+  if (document.visibilityState === 'visible') {
+    touchOperatorSession();
+    if (hbTimer === null) {
+      hbTimer = setInterval(() => touchOperatorSession(), 5 * 60 * 1000);
+    }
+  }
+  // Se hidden: listener instalado, intervalo nao inicia. Quando a aba
+  // voltar visible, handleHbVisibilityChange inicia o timer.
+}
+
+/**
+ * Para o heartbeat e remove o listener de visibilitychange.
+ */
+function stopHeartbeat(): void {
+  if (typeof document === 'undefined') return;
+
+  hbStarted = false;
+
+  if (hbTimer !== null) {
+    clearInterval(hbTimer);
+    hbTimer = null;
+  }
+
+  document.removeEventListener('visibilitychange', handleHbVisibilityChange);
+}
+
+// ===================================================================
 // PUBLIC API
 // ===================================================================
 
@@ -114,8 +173,30 @@ async function startOperatorSessionAsync(operatorId: string, email?: string): Pr
 
   const existingSessionId = sessionStorage.getItem('scout:current_session_id');
   if (existingSessionId) {
-    touchOperatorSession();
-    return;
+    // Verifica se a sessao armazenada ainda esta ativa antes de reutilizar.
+    // auto_close_stale_sessions() pode ter fechado a sessao no servidor,
+    // e sem essa verificacao a aba fica presa a um session_id encerrado.
+    const { data: updated, error: updateError } = await supabase!
+      .from('operator_sessions')
+      .update({
+        operator_id: operatorId,
+        email_normalized: email?.toLowerCase().trim() || null,
+        last_seen_at: new Date().toISOString(),
+      })
+      .eq('id', existingSessionId)
+      .is('ended_at', null)
+      .select('id');
+
+    if (updateError) {
+      console.warn('[operatorTracking] session resume update failed:', updateError);
+      return;
+    }
+
+    if (updated && updated.length > 0) return; // Sessao ativa — reutilizada com sucesso
+
+    // Sessao encerrada no servidor — limpa e cria nova
+    sessionStorage.removeItem('scout:current_session_id');
+    sessionStorage.removeItem('scout:session_started_at');
   }
 
   const sessionId = getCurrentSessionId();
@@ -155,11 +236,9 @@ export function touchOperatorSession(): void {
       .from('operator_sessions')
       .update({
         last_seen_at: new Date().toISOString(),
-        ended_at: null,
-        ended_reason: null,
-        duration_seconds: null,
       })
-      .eq('id', sessionId),
+      .eq('id', sessionId)
+      .is('ended_at', null),
   );
 }
 
@@ -172,12 +251,18 @@ export function endOperatorSession(reason: 'pagehide' | 'visibility_hidden' | 'm
   const sessionId = sessionStorage.getItem('scout:current_session_id');
   if (!sessionId) return;
 
+  stopHeartbeat();
+
   const startedAt = sessionStorage.getItem('scout:session_started_at');
   const parsedStart = startedAt ? Date.parse(startedAt) : NaN;
   const durationSeconds =
     !isNaN(parsedStart) && parsedStart > 0 && Date.now() > parsedStart
       ? Math.max(0, Math.floor((Date.now() - parsedStart) / 1000))
       : null;
+
+  // Limpa sessionStorage para permitir nova sessao na mesma aba
+  sessionStorage.removeItem('scout:current_session_id');
+  sessionStorage.removeItem('scout:session_started_at');
 
   const now = new Date().toISOString();
 
@@ -236,6 +321,8 @@ export async function initSessionTracking(operatorId: string, email?: string): P
 
   await startOperatorSessionAsync(operatorId, email);
 
+  startHeartbeat();
+
   trackOperatorEvent('app_opened', {
     operatorId,
     email,
@@ -272,4 +359,14 @@ export function sanitizeMetadata(meta?: Record<string, unknown>): Record<string,
   }
 
   return safe;
+}
+
+// ===================================================================
+// HMR CLEANUP — evita intervals orfaos em desenvolvimento
+// ===================================================================
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    stopHeartbeat();
+  });
 }

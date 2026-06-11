@@ -44,17 +44,23 @@ export const userContext = {
     const emailNormalized = email?.toLowerCase().trim() || '';
     if (!emailNormalized) return null;
 
+    // .limit(1) + .order() em vez de .maybeSingle() porque o banco real
+    // tem duplicados por email_normalized (ate 288 linhas). maybeSingle()
+    // retorna erro 406 com >1 linha, tratado como "nao encontrado".
+    // Pegamos o registro mais antigo como canonico.
     const { data, error } = await supabase!
       .from('user_context')
-      .select('operator_id, display_name')
+      .select('operator_id, display_name, created_at')
       .eq('email_normalized', emailNormalized)
-      .maybeSingle();
+      .order('created_at', { ascending: true })
+      .limit(1);
 
-    if (error || !data) return null;
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
 
     return {
-      operatorId: data.operator_id,
-      displayName: data.display_name || '',
+      operatorId: data[0].operator_id,
+      displayName: data[0].display_name || '',
     };
   },
 };
