@@ -39,6 +39,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
   const isMobile = useIsMobile();
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const asideRef = useRef<HTMLElement>(null);
+  const newSessionDebounceRef = useRef(0);
   const searchControlled = searchTermProp !== undefined && onSearchChange !== undefined;
   const searchTerm = searchControlled ? searchTermProp! : internalSearchTerm;
   const setSearchTerm = (v: string) => {
@@ -170,6 +171,9 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={() => {
+                  const now = Date.now();
+                  if (now - newSessionDebounceRef.current < 500) return;
+                  newSessionDebounceRef.current = now;
                   onNewSession();
                   if (isMobile) onCloseMobile();
                 }}
