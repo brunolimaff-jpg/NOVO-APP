@@ -3,6 +3,7 @@ import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaP
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
 import { trackOperatorEvent } from '../services/operatorTracking';
+import { logDossierAccess } from '../services/dossierAccessService';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { resolvePromptMode, shouldIncludeBudgetPrompt, buildRadarContextBlock } from '../utils/promptResolvers';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
@@ -94,6 +95,9 @@ export function useInvestigation({
   const handleAccessExistingDossier = useCallback(async () => {
     if (!duplicateDossier || !operatorId) return;
 
+    // Registra acesso ao dossie existente (historico cross-operator)
+    logDossierAccess(duplicateDossier.id, operatorId, pendingPayloadRef.current?.cnpj);
+
     let dossier = await storage.getDossier(duplicateDossier.id);
     if (!dossier) {
       if (!supabase) {
@@ -125,7 +129,12 @@ export function useInvestigation({
   const handleNewResearchOverride = useCallback(async () => {
     const payload = pendingPayloadRef.current;
     const oldDossier = duplicateDossier;
-    if (!payload) return;
+    if (!payload || !operatorId) return;
+
+    // Registra override antes de deletar o antigo
+    if (oldDossier) {
+      logDossierAccess(oldDossier.id, operatorId, payload.cnpj);
+    }
 
     try {
       await executeInvestigation(payload);

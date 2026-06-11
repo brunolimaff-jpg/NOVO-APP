@@ -7,6 +7,7 @@ export interface ExistingDossier {
   empresaAlvo: string;
   createdAt: string;
   scoreOportunidade: number | null;
+  operatorId: string;
 }
 
 function mapDossierRow(row: Record<string, unknown>): ExistingDossier {
@@ -16,6 +17,7 @@ function mapDossierRow(row: Record<string, unknown>): ExistingDossier {
     empresaAlvo: row.empresa_alvo as string,
     createdAt: row.created_at as string,
     scoreOportunidade: (row.score_oportunidade as number) ?? null,
+    operatorId: row.operator_id as string,
   };
 }
 
@@ -24,17 +26,17 @@ export async function findExistingDossier(
   empresaAlvo: string | null | undefined,
   operatorId: string,
 ): Promise<ExistingDossier | null> {
-  if (!isSupabaseAvailable() || !operatorId) return null;
+  if (!isSupabaseAvailable()) return null;
 
   const cnpjDigits = cnpj?.replace(/\D/g, '') || '';
 
   if (cnpjDigits.length >= 11) {
     const { data, error } = await supabase!
       .from('dossies')
-      .select('id, title, empresa_alvo, created_at, score_oportunidade')
-      .eq('operator_id', operatorId)
+      .select('id, title, empresa_alvo, created_at, score_oportunidade, operator_id')
       .eq('cnpj', cnpjDigits)
       .is('deleted_at', null)
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -51,10 +53,10 @@ export async function findExistingDossier(
   if (empresaAlvo?.trim()) {
     const { data, error } = await supabase!
       .from('dossies')
-      .select('id, title, empresa_alvo, created_at, score_oportunidade')
-      .eq('operator_id', operatorId)
+      .select('id, title, empresa_alvo, created_at, score_oportunidade, operator_id')
       .eq('empresa_alvo', empresaAlvo.trim())
       .is('deleted_at', null)
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
