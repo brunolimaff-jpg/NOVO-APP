@@ -8,6 +8,7 @@ const existingFixture = {
   empresaAlvo: 'Empresa Teste',
   createdAt: '2026-05-29T10:00:00Z',
   scoreOportunidade: 75,
+  operatorId: 'op-creator',
 };
 
 describe('DuplicateDossierModal', () => {
