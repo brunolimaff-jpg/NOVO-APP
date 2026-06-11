@@ -120,8 +120,9 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const [linkStatuses, setLinkStatuses] = useState<Record<string, LinkValidationResult>>({});
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
-  const showHeroLoading = isBot && msg.isThinking && loadingVariant === 'hero';
-  const showInlineLoading = isBot && msg.isThinking && loadingVariant === 'inline';
+  const hasRenderableText = Boolean(msg.text?.trim());
+  const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero';
+  const showInlineLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline';
   const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
   const renderBranch = showHeroLoading
     ? 'hero-loading'

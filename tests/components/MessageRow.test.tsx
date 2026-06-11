@@ -298,4 +298,18 @@ describe('MessageRow', () => {
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.getByTestId('ghost-block')).toBeInTheDocument();
   });
+
+  it('NÃO mostra inline loading quando msg já tem texto final (isThinking true mas hasRenderableText)', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Dossiê completo com análise de porte e operação',
+      isThinking: true,
+      loadingVariant: 'inline',
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    // inline-loading-bubble NÃO deve aparecer porque há texto renderizável
+    expect(screen.queryByTestId('inline-loading-bubble')).not.toBeInTheDocument();
+    // conteúdo normal deve aparecer
+    expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
+  });
 });

@@ -1236,6 +1236,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                         : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
                     suggestions: waterfallSuggestions,
                     isThinking: false,
+                    loadingVariant: undefined,
+                    isError: false,
+                    errorDetails: undefined,
                   }
                 : message,
             ),
@@ -1260,6 +1263,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           messageCount: persistMsgCount,
           botMessageUpdated: persistBotUpdated,
           waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
+        });
+
+        const finalBotMsg = (sessionToPersist as ChatSession | null)?.messages?.find(
+          (m: { id: string }) => m.id === botMessageId,
+        );
+        scoutDiag.info('WaterfallLifecycle', 'final-bot-message-state', {
+          sessionId,
+          waterfallRunId,
+          messageId: botMessageId,
+          textLen: (finalBotMsg as any)?.text?.length ?? 0,
+          isThinking: (finalBotMsg as any)?.isThinking,
+          loadingVariant: (finalBotMsg as any)?.loadingVariant,
+          isError: (finalBotMsg as any)?.isError,
+          renderShouldBe: 'normal-content',
         });
 
         // ⚠ Fallback: updateSessionById pode perder a sessão quando React faz batch
@@ -1321,6 +1338,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                           : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
                       suggestions: waterfallSuggestions,
                       isThinking: false,
+                      loadingVariant: undefined,
+                      isError: false,
+                      errorDetails: undefined,
                     }
                   : message,
               ),

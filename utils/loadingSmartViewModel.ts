@@ -91,11 +91,11 @@ export function buildLoadingSmartViewModel({
 }: LoadingSmartViewModelInput): LoadingSmartViewModel {
   const completedRich = displayedCompleted.map(enrichLoadingStage);
   const currentRich = enrichLoadingStage(displayedCurrent);
-  const completedCount = completedRich.length;
   const realCompletedStages = processing?.completedStages || [];
   const realTotalCompleted = realCompletedStages.length;
   const realCompletedStageKeys = new Set(realCompletedStages.map(getLoadingStageIdentity).filter(Boolean));
   const declaredTotalStages = getDeclaredTotalStages(processing?.totalStages);
+  const completedCount = Math.min(completedRich.length, declaredTotalStages ?? completedRich.length);
   const isIncremental = Boolean(processing?.isIncremental);
   const observedLabels = [...displayedCompleted, displayedCurrent]
     .map(step => stripInternalMarkers(step).trim())
