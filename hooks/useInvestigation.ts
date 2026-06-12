@@ -11,6 +11,19 @@ import { supabase } from '../lib/supabaseClient';
 import type { ChatSession } from '../types';
 import type { RadarProps, StartInvestigationPayload } from '../components/chat/contracts';
 
+/** Telemetria best-effort — nunca bloqueia reopen/override. */
+async function safeLogDossierAccess(
+  dossierId: string,
+  operatorId: string,
+  cnpj?: string | null,
+): Promise<void> {
+  try {
+    await safeLogDossierAccess(dossierId, operatorId, cnpj);
+  } catch {
+    // logDossierAccess já faz warn interno; exceções inesperadas não travam UX.
+  }
+}
+
 interface UseInvestigationParams {
   mode: unknown;
   canWarRoom: boolean;
@@ -112,7 +125,7 @@ export function useInvestigation({
       await storage.saveDossier(dossier!);
     }
 
-    await logDossierAccess(duplicateDossier.id, operatorId, pendingPayloadRef.current?.cnpj);
+    await safeLogDossierAccess(duplicateDossier.id, operatorId, pendingPayloadRef.current?.cnpj);
 
     onSelectSession(duplicateDossier.id);
     setDuplicateDossier(null);
@@ -134,7 +147,7 @@ export function useInvestigation({
       await executeInvestigation(payload);
 
       if (oldDossier) {
-        await logDossierAccess(oldDossier.id, operatorId, payload.cnpj);
+        await safeLogDossierAccess(oldDossier.id, operatorId, payload.cnpj);
         await storage.deleteDossier(oldDossier.id);
       }
 
