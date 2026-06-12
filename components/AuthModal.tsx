@@ -11,7 +11,7 @@ interface AuthModalProps {
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return 'Email é obrigatório.';
-  if (!email.includes('@') || !email.includes('.')) return 'Email inválido.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) return 'Email inválido.';
   return null;
 }
 
