@@ -70,9 +70,9 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-submit-button').click();
 
     // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
-    await expect(
-      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
+      timeout: 30_000,
+    });
 
     // Aguarda todos os indicadores de loading desaparecerem
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });

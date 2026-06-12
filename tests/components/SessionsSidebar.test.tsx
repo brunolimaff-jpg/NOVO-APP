@@ -113,7 +113,6 @@ describe('SessionsSidebar', () => {
     expect(screen.queryByText('Fazenda B')).not.toBeInTheDocument();
   });
 
-
   it('ignora cliques rápidos consecutivos em Nova Investigação', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));

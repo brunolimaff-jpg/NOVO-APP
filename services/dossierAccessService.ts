@@ -15,11 +15,7 @@ function persistedCnpj(cnpj?: string | null): string | null {
   return digits.length === 14 ? digits : null;
 }
 
-export async function logDossierAccess(
-  dossierId: string,
-  operatorId: string,
-  cnpj?: string | null,
-): Promise<void> {
+export async function logDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): Promise<void> {
   if (!isSupabaseAvailable() || !dossierId || !operatorId) return;
 
   const { error } = await supabase!.from('dossier_accesses').insert({
