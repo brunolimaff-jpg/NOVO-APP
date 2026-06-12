@@ -6,6 +6,7 @@ import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
+import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
 import { collectBlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
@@ -864,25 +865,48 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const existingSession = sessionId ? sessionsRef.current.find(session => session.id === sessionId) : null;
       if (!sessionId || !existingSession) {
-        sessionId = uuidv4();
-        createdInitialSessionId = sessionId;
         const rawTitle = cleanTitle(hintedCompanyOverride || extractCompanyName(resolvedDisplayText));
         const immediateTitle = rawTitle && !isGenericCompanyLabel(rawTitle) ? rawTitle : '';
         immediateCompany = immediateTitle || null;
-        const newSession: ChatSession = {
-          id: sessionId,
-          title: immediateTitle || 'Nova Investigação',
-          empresaAlvo: immediateTitle || null,
-          cnpj: options?.cnpj ?? null,
-          modoPrincipal: DEFAULT_MODE,
-          scoreOportunidade: null,
-          resumoDossie: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: [],
-        };
-        setSessions(prev => [newSession, ...prev]);
-        setCurrentSessionId(sessionId);
+
+        // Tenta promover sessao vazia existente em vez de criar nova.
+        // Evita duplicatas quando usuario clicou "Nova investigacao" antes
+        // de submeter o formulario de pesquisa.
+        const reusable = findReusableEmptySession(sessionsRef.current);
+        if (reusable) {
+          sessionId = reusable.id;
+          createdInitialSessionId = sessionId;
+          setSessions(prev =>
+            prev.map(s =>
+              s.id === sessionId
+                ? {
+                    ...s,
+                    title: immediateTitle || s.title,
+                    empresaAlvo: immediateTitle || null,
+                    cnpj: options?.cnpj ?? s.cnpj ?? null,
+                  }
+                : s,
+            ),
+          );
+          setCurrentSessionId(sessionId);
+        } else {
+          sessionId = uuidv4();
+          createdInitialSessionId = sessionId;
+          const newSession: ChatSession = {
+            id: sessionId,
+            title: immediateTitle || 'Nova Investigação',
+            empresaAlvo: immediateTitle || null,
+            cnpj: options?.cnpj ?? null,
+            modoPrincipal: DEFAULT_MODE,
+            scoreOportunidade: null,
+            resumoDossie: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [],
+          };
+          setSessions(prev => [newSession, ...prev]);
+          setCurrentSessionId(sessionId);
+        }
         pendingInitialSendRef.current = { sessionId };
         currentHistory = [];
       } else {

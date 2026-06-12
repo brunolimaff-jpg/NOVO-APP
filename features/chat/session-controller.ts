@@ -7,6 +7,7 @@ import { storage } from '../../services/storage';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
+import { isSessionReusable } from './session-reuse';
 import type { ChatSession } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -156,7 +157,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setInvestigationLogged(false);
     lastActionRef.current = null;
     setLastQuery('');
-    resetLoadingProgress('Iniciando an\u00e1lise');
+    resetLoadingProgress('Iniciando análise');
   }, [
     lastActionRef,
     resetLoadingProgress,
@@ -180,9 +181,18 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       return;
     }
 
+    // Idempotência: se currentSessionId já aponta para sessão vazia
+    // recém-criada, reutiliza em vez de criar uuid novo.
+    const currentSession = currentSessionId ? sessions.find(s => s.id === currentSessionId) : null;
+    if (currentSession && isSessionReusable(currentSession)) {
+      setCurrentSessionId(currentSession.id);
+      resetSessionUI();
+      return;
+    }
+
     const newSession: ChatSession = {
       id: uuidv4(),
-      title: 'Nova Investiga\u00e7\u00e3o',
+      title: 'Nova Investigação',
       empresaAlvo: null,
       cnpj: null,
       modoPrincipal: DEFAULT_MODE,
@@ -196,7 +206,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     setSessions(prev => [newSession, ...(Array.isArray(prev) ? prev : [])]);
     setCurrentSessionId(newSession.id);
     resetSessionUI();
-  }, [abortControllerRef, isLoading, resetSessionUI, setCurrentSessionId, setIsLoading, setSessions]);
+  }, [
+    abortControllerRef,
+    currentSessionId,
+    isLoading,
+    resetSessionUI,
+    sessions,
+    setCurrentSessionId,
+    setIsLoading,
+    setSessions,
+  ]);
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
@@ -231,6 +250,16 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
         } catch (error) {
           console.error('Lazy load error', error);
         }
+      } else if (!targetSession) {
+        // Sessão não está em sessions[] — carrega do remoto e injeta
+        try {
+          const fullSession = await getRemoteSession(sessionId);
+          if (fullSession) {
+            setSessions(prev => [fullSession, ...prev]);
+          }
+        } catch (error) {
+          console.error('Lazy load error (orphan session)', error);
+        }
       }
     },
     [
@@ -241,6 +270,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
       setCurrentSessionId,
       setIsLoading,
       setLoadingPinnedLabel,
+      setSessions,
       updateSessionById,
     ],
   );

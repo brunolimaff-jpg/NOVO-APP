@@ -3,12 +3,22 @@ import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaP
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
 import { trackOperatorEvent } from '../services/operatorTracking';
+import { logDossierAccess } from '../services/dossierAccessService';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { resolvePromptMode, shouldIncludeBudgetPrompt, buildRadarContextBlock } from '../utils/promptResolvers';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import type { ChatSession } from '../types';
 import type { RadarProps, StartInvestigationPayload } from '../components/chat/contracts';
+
+/** Telemetria best-effort — nunca bloqueia reopen/override. */
+async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): Promise<void> {
+  try {
+    await logDossierAccess(dossierId, operatorId, cnpj);
+  } catch {
+    // logDossierAccess já faz warn interno; exceções inesperadas não travam UX.
+  }
+}
 
 interface UseInvestigationParams {
   mode: unknown;
@@ -29,6 +39,7 @@ export function useInvestigation({
 }: UseInvestigationParams) {
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
+  const processingRef = useRef(false);
 
   const executeInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
@@ -73,81 +84,105 @@ export function useInvestigation({
 
   const handleStartInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
+      if (processingRef.current) return;
+
       if (operatorId) {
         void storage.touchUserContext(operatorId);
       }
 
       if (payload.cnpj || payload.companyName) {
-        const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
-        if (existing) {
-          pendingPayloadRef.current = payload;
-          setDuplicateDossier(existing);
-          return;
+        processingRef.current = true;
+        try {
+          const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
+          if (existing) {
+            pendingPayloadRef.current = payload;
+            setDuplicateDossier(existing);
+            return;
+          }
+        } finally {
+          processingRef.current = false;
         }
       }
 
-      await executeInvestigation(payload);
+      processingRef.current = true;
+      try {
+        await executeInvestigation(payload);
+      } finally {
+        processingRef.current = false;
+      }
     },
     [operatorId, executeInvestigation],
   );
 
   const handleAccessExistingDossier = useCallback(async () => {
-    if (!duplicateDossier || !operatorId) return;
+    if (processingRef.current || !duplicateDossier || !operatorId) return;
+    processingRef.current = true;
 
-    let dossier = await storage.getDossier(duplicateDossier.id);
-    if (!dossier) {
-      if (!supabase) {
-        setDuplicateDossier(null);
-        pendingPayloadRef.current = null;
-        return;
-      }
-      const { data } = await supabase.from('dossies').select('content').eq('id', duplicateDossier.id).maybeSingle();
-      if (!data || !data.content) {
-        setDuplicateDossier(null);
-        pendingPayloadRef.current = null;
-        return;
-      }
-      dossier = data.content as ChatSession;
-      await storage.saveDossier(dossier!);
-    }
-
-    onSelectSession(duplicateDossier.id);
+    // Esconde modal IMEDIATAMENTE — antes de qualquer await
+    const dossierId = duplicateDossier.id;
+    const dossierEmpresaAlvo = duplicateDossier.empresaAlvo;
+    const cnpj = pendingPayloadRef.current?.cnpj;
     setDuplicateDossier(null);
     pendingPayloadRef.current = null;
-    trackOperatorEvent('dossier_reopened', {
-      operatorId,
-      entityId: duplicateDossier.id,
-      entityType: 'dossier',
-      companyName: duplicateDossier.empresaAlvo,
-    });
+
+    try {
+      let dossier = await storage.getDossier(dossierId);
+      if (!dossier) {
+        if (!supabase) return;
+        const { data } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
+        if (!data || !data.content) return;
+        dossier = data.content as ChatSession;
+        await storage.saveDossier(dossier!);
+      }
+
+      void safeLogDossierAccess(dossierId, operatorId, cnpj);
+
+      onSelectSession(dossierId);
+      trackOperatorEvent('dossier_reopened', {
+        operatorId,
+        entityId: dossierId,
+        entityType: 'dossier',
+        companyName: dossierEmpresaAlvo,
+      });
+    } finally {
+      processingRef.current = false;
+    }
   }, [duplicateDossier, operatorId, onSelectSession]);
 
   const handleNewResearchOverride = useCallback(async () => {
+    if (processingRef.current) return;
     const payload = pendingPayloadRef.current;
     const oldDossier = duplicateDossier;
-    if (!payload) return;
+    if (!payload || !operatorId) return;
+    processingRef.current = true;
+
+    // Esconde modal IMEDIATAMENTE — antes da geração que leva minutos
+    const oldDossierId = oldDossier?.id;
+    const oldDossierCnpj = payload.cnpj;
+    setDuplicateDossier(null);
+    pendingPayloadRef.current = null;
 
     try {
       await executeInvestigation(payload);
 
-      if (oldDossier) {
-        await storage.deleteDossier(oldDossier.id);
+      if (oldDossierId) {
+        void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
+        await storage.deleteDossier(oldDossierId);
       }
 
       trackOperatorEvent('dossier_override', {
         operatorId: operatorId || '',
-        previousDossierId: oldDossier?.id,
+        previousDossierId: oldDossierId,
         entityType: 'dossier',
         companyName: payload.companyName,
       });
     } catch (error) {
       scoutDiag.warn('ChatInterface', 'Falha ao sobrescrever dossiê', {
-        previousDossierId: oldDossier?.id,
+        previousDossierId: oldDossierId,
         error: error instanceof Error ? error.message : String(error),
       });
     } finally {
-      setDuplicateDossier(null);
-      pendingPayloadRef.current = null;
+      processingRef.current = false;
     }
   }, [duplicateDossier, executeInvestigation, operatorId]);
 

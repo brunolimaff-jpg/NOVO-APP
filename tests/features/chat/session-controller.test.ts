@@ -70,7 +70,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
 function makeRemoteSaveOptions(overrides: Partial<Parameters<typeof useSessionRemoteSave>[0]> = {}) {
   return {
     currentSession: {
-      ...makeSession('s1', 'SessÃ£o 1', true),
+      ...makeSession('s1', 'Sessão 1', true),
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
@@ -89,7 +89,7 @@ describe('useSessionManager session controller', () => {
   });
 
   it('handleNewSession adiciona nova sessão ao início da lista', () => {
-    const options = makeOptions();
+    const options = makeOptions({ currentSessionId: null });
     const { result } = renderHook(() => useSessionManager(options));
 
     act(() => {
@@ -98,6 +98,38 @@ describe('useSessionManager session controller', () => {
 
     expect(options.setSessions).toHaveBeenCalled();
     expect(options.setCurrentSessionId).toHaveBeenCalled();
+  });
+
+  it('handleNewSession reutiliza sessão vazia existente em vez de criar nova', () => {
+    const options = makeOptions({ currentSessionId: 's1' });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    act(() => {
+      result.current.handleNewSession();
+    });
+
+    // Não cria nova sessão — reutiliza a existente
+    expect(options.setSessions).not.toHaveBeenCalled();
+    // Mas ainda seta o currentSessionId e reseta UI
+    expect(options.setCurrentSessionId).toHaveBeenCalledWith('s1');
+    expect(options.resetLoadingProgress).toHaveBeenCalled();
+  });
+
+  it('handleNewSession não reutiliza sessão com empresa ou mensagens', () => {
+    const s3 = makeSession('s3', 'Com Empresa');
+    s3.empresaAlvo = 'Senior';
+    const options = makeOptions({
+      currentSessionId: 's3',
+      sessions: [s3],
+    });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    act(() => {
+      result.current.handleNewSession();
+    });
+
+    // Sessão tem empresa — não é reutilizável, cria nova
+    expect(options.setSessions).toHaveBeenCalled();
   });
 
   it('handleNewSession aborta geração em andamento', () => {
@@ -119,7 +151,7 @@ describe('useSessionManager session controller', () => {
   });
 
   it('handleNewSession reseta todos os estados de UI', () => {
-    const options = makeOptions();
+    const options = makeOptions({ currentSessionId: null });
     const { result } = renderHook(() => useSessionManager(options));
 
     act(() => {
@@ -285,7 +317,7 @@ describe('useSessionRemoteSave', () => {
     saveRemoteSessionMock.mockResolvedValue({ ok: true });
   });
 
-  it('handleSaveRemote nÃ£o chama serviÃ§o quando nÃ£o hÃ¡ sessÃ£o atual', async () => {
+  it('handleSaveRemote não chama serviço quando não há sessão atual', async () => {
     const options = makeRemoteSaveOptions({ currentSession: null });
     const { result } = renderHook(() => useSessionRemoteSave(options));
 
@@ -315,14 +347,14 @@ describe('useSessionRemoteSave', () => {
       );
       expect(updatedSession).toMatchObject({
         id: 's1',
-        title: 'SessÃ£o 1',
+        title: 'Sessão 1',
       });
       expect(updatedSession.updatedAt).not.toBe((options.currentSession as ChatSession).updatedAt);
 
       expect(saveRemoteSessionMock).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 's1',
-          title: 'SessÃ£o 1',
+          title: 'Sessão 1',
         }),
         'op-1',
         'Bruno Lima',
