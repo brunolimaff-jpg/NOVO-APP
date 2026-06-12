@@ -20,7 +20,11 @@ export interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  signUp: (email: string, password: string, name: string) => Promise<{ error: AuthError | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+  ) => Promise<{ error: AuthError | null; needsConfirmation?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
@@ -87,12 +91,15 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       return { error: signUpError };
     }
 
-    if (data.user) {
+    // Com confirmacao de email ativada, data.session vem null
+    const needsConfirmation = data.user !== null && data.session === null;
+
+    if (data.user && data.session) {
       setSession(data.session);
       setUser(data.user);
     }
 
-    return { error: null };
+    return { error: null, needsConfirmation };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {

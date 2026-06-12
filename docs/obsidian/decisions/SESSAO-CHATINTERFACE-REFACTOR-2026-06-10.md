@@ -27,14 +27,14 @@ O `ChatInterface.tsx` foi reduzido de **811 para 331 linhas** (-59%). Seis hooks
 
 ### Extracao de hooks
 
-| Hook | Arquivo | Linhas |
-|------|---------|--------|
-| `useChatTheme` | `hooks/chat/useChatTheme.ts` | 24 |
-| `usePanelState` | `hooks/chat/usePanelState.ts` | 48 |
-| `useInvestigation` | `hooks/chat/useInvestigation.ts` | 63 |
-| `useChatActions` | `hooks/chat/useChatActions.ts` | 83 |
-| `useStaticTimelineFallback` | `hooks/chat/useStaticTimelineFallback.ts` | 111 |
-| `promptResolvers` (util) | `hooks/chat/promptResolvers.ts` | 44 |
+| Hook                        | Arquivo                                   | Linhas |
+| --------------------------- | ----------------------------------------- | ------ |
+| `useChatTheme`              | `hooks/chat/useChatTheme.ts`              | 24     |
+| `usePanelState`             | `hooks/chat/usePanelState.ts`             | 48     |
+| `useInvestigation`          | `hooks/chat/useInvestigation.ts`          | 63     |
+| `useChatActions`            | `hooks/chat/useChatActions.ts`            | 83     |
+| `useStaticTimelineFallback` | `hooks/chat/useStaticTimelineFallback.ts` | 111    |
+| `promptResolvers` (util)    | `hooks/chat/promptResolvers.ts`           | 44     |
 
 ### Dupla fonte de verdade eliminada
 
@@ -51,11 +51,11 @@ O `ChatInterface.tsx` foi reduzido de **811 para 331 linhas** (-59%). Seis hooks
 
 ## Bugs corrigidos
 
-| Bug | Causa | Correcao |
-|-----|-------|----------|
-| Fallback estatico durante loading | Efeito #5 sem guard `isLoading` | Adicionado `if (isLoading) return` |
-| Contador de etapas descartando inicio | `resetLoadingProgress` usava `[]` | Preservar etapa anterior como concluida |
-| operatorName null safety | `usePanelState` nao protegia contra null | Adicionado `(operatorName || '')` |
+| Bug                                   | Causa                                    | Correcao                                |
+| ------------------------------------- | ---------------------------------------- | --------------------------------------- | --- | ---- |
+| Fallback estatico durante loading     | Efeito #5 sem guard `isLoading`          | Adicionado `if (isLoading) return`      |
+| Contador de etapas descartando inicio | `resetLoadingProgress` usava `[]`        | Preservar etapa anterior como concluida |
+| operatorName null safety              | `usePanelState` nao protegia contra null | Adicionado `(operatorName               |     | '')` |
 
 ---
 
@@ -80,13 +80,13 @@ O `ChatInterface.tsx` foi reduzido de **811 para 331 linhas** (-59%). Seis hooks
 
 ## Licoes aprendidas
 
-| # | Licao | Anti-padrao | Onde aplicar |
-|---|-------|-------------|--------------|
-| 1 | **Extrair hooks antes de criar testes para o componente original** | Tentar testar god component e mais dificil que testar hooks extraidos isoladamente | Toda extracao de hook deve vir com TDD do hook, nao do componente original |
-| 2 | **Dupla fonte de verdade entre pai e filho e fragil** | Componente filho tinha logica duplicada do pai para decidir fallback | Um unico hook de watchdog. Nao duplicar estado entre pai e filho |
-| 3 | **Guard de loading em watchdogs previne regressao visual** | Watchdog sem `if(isLoading)return` ativava fallback durante loading inline | Todo efeito colateral que modifica estado visual deve verificar se esta em loading |
-| 4 | **Reset de estado deve preservar contexto anterior** | `resetLoadingProgress` com `[]` descartava etapa inicial | Reset deve preservar ultimo estado conhecido como concluido |
-| 5 | **Checkpoints proativos nao seguidos geram retrabalho** | CHECKPOINT 1-2-3 do copiloto-proativo.md nao foram seguidos nesta sessao | Seguir checkpoints para evitar acumulo de mudancas nao verificadas |
+| #   | Licao                                                              | Anti-padrao                                                                        | Onde aplicar                                                                       |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | **Extrair hooks antes de criar testes para o componente original** | Tentar testar god component e mais dificil que testar hooks extraidos isoladamente | Toda extracao de hook deve vir com TDD do hook, nao do componente original         |
+| 2   | **Dupla fonte de verdade entre pai e filho e fragil**              | Componente filho tinha logica duplicada do pai para decidir fallback               | Um unico hook de watchdog. Nao duplicar estado entre pai e filho                   |
+| 3   | **Guard de loading em watchdogs previne regressao visual**         | Watchdog sem `if(isLoading)return` ativava fallback durante loading inline         | Todo efeito colateral que modifica estado visual deve verificar se esta em loading |
+| 4   | **Reset de estado deve preservar contexto anterior**               | `resetLoadingProgress` com `[]` descartava etapa inicial                           | Reset deve preservar ultimo estado conhecido como concluido                        |
+| 5   | **Checkpoints proativos nao seguidos geram retrabalho**            | CHECKPOINT 1-2-3 do copiloto-proativo.md nao foram seguidos nesta sessao           | Seguir checkpoints para evitar acumulo de mudancas nao verificadas                 |
 
 ---
 

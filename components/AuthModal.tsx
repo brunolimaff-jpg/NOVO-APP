@@ -85,7 +85,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
     setSubmitting(true);
 
     if (activeTab === 'criar-conta') {
-      const { error } = await signUp(email.trim(), password, name.trim());
+      const { error, needsConfirmation } = await signUp(email.trim(), password, name.trim());
       setSubmitting(false);
       if (error) {
         if (error.message.includes('already registered') || error.message.includes('already exists')) {
@@ -94,13 +94,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
         } else {
           setFieldError(error.message);
         }
+      } else if (needsConfirmation) {
+        setSuccessMessage('Conta criada! Verifique seu email para confirmar o cadastro.');
       }
+      // Se não precisa de confirmação, o AuthGate fecha o modal automaticamente
     } else {
       const { error } = await signIn(email.trim(), password);
       setSubmitting(false);
       if (error) {
         setFieldError('Email ou senha incorretos.');
       }
+      // Se login bem-sucedido, AuthGate fecha o modal automaticamente
     }
   };
 

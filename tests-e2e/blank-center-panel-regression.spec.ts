@@ -28,9 +28,9 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
-    await expect(
-      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
+      timeout: 30_000,
+    });
   }
 
   async function collectDiagnostics(page: import('@playwright/test').Page) {
