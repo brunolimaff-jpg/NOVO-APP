@@ -1,137 +1,125 @@
-# Handoff — ChatInterface Refactored (PR #359)
+# Handoff — Supabase Auth Migration (PR #372)
 
-- **PR #359** (merge `ccf49eb`): ChatInterface refactoring — extraiu 6 hooks, removeu dupla fonte de verdade
-- **Branch de trabalho:** `fix+chatinterface-refactor` (worktree)
-- **Projeto ativo:** NOVO-APP (Senior Scout 360)
-- **Status:** MERGEADO — componente saudavel, monitoramento passivo
+- **PR #372** (branch `feature/supabase-auth`): Migracao de auth local (localStorage) para Supabase Auth
+- **Status:** PR aberta, nao mergeada — code review P0/P1 corrigido (commit `07aa30de`)
+- **CI:** Typecheck OK, Build OK, Tests 1447/1448 (1 falha pre-existente `CnpjGraphResponds`)
+- **Preview:** https://scoutagro-o8hbhgepk-brunolimaff-3629s-projects.vercel.app
+- **Deadline:** 18/06/2026 — usuarios existentes precisam cadastrar senha
 
 ---
 
 ## Entrada rapida para proximo agente
 
-1. Este arquivo (resumo executivo e estado do componente)
-2. `.agents/memory/activeContext.md` — estado detalhado
-3. `.agents/memory/decisions.md` — decisoes ativas
-4. `docs/wiki/pages/29-chatinterface-refactor.md` — arquitetura resultante
-5. `docs/wiki/pages/30-loading-stages.md` — sistema de etapas de loading
-6. `docs/ai-context/refactor/02-BOARD.md` — board de refatoracao
+1. Este arquivo (resumo executivo)
+2. `.agents/memory/activeContext.md` — estado atual do projeto
+3. `.agents/memory/decisions.md` — decisoes arquiteturais ativas
+4. `Bruno Vault/30-DECISOES/DECISAO-AUTH-HIBRIDO-SUPABASE-2026-06-12.md` — decisao principal de auth
+5. `Bruno Vault/30-DECISOES/DECISAO-CANONICAL-OPERATORID-FINDUSERBYEMAIL-2026-06-11.md` — canonical operatorId
+6. `Bruno Vault/20-SESSOES/2026-06/2026-06-12T18-00-00-auth-migration-sprint4-pr372.md` — sessao completa de encerramento
 
 ---
 
-## O que foi feito — PR #359
+## O que foi feito — 4 Sprints
 
-### ChatInterface.tsx: 811 -> 331 linhas (-59%)
+### Sprint 0: Diagnostico + Prototipo
+- Auditoria: **430 operator_ids** unicos, **117 emails** unicos, **292 IDs fragmentados** para Bruno
+- Prototipo funcional validado pelo Bruno em worktree `prototipo-auth`
 
-Extracao de 6 hooks e 1 util:
+### Sprint 1: Infraestrutura Supabase Auth
+- Tabela `profiles`, trigger `on_auth_user_created`, RLS
+- `AuthContext` (signUp, signIn, signOut, resetPassword)
+- `AuthModal`, `AuthGate`, `MigrationBanner`, `useAuthGate`
+- `OperatorProvider` adaptado para `AuthContext`
+- PR #367 (base: `main`) — 894 linhas adicionadas, 179 removidas
 
-| Hook                        | Responsabilidade                                                      | Linhas |
-| --------------------------- | --------------------------------------------------------------------- | ------ |
-| `useChatTheme`              | Tema (dark/light), classes CSS, debug mode                            | 24     |
-| `usePanelState`             | Painel de contexto (operador, sessao, abrir/fechar painel lateral)    | 48     |
-| `useInvestigation`          | Disparo de investigacao, callback de sucesso, controle de loading     | 63     |
-| `useChatActions`            | Acoes de chat (nova investigacao, nova pesquisa, follow-up)           | 83     |
-| `useStaticTimelineFallback` | Watchdog de timeline estatica, consolidacao de dupla fonte de verdade | 111    |
-| `promptResolvers` (util)    | Resolucao de prompts por tipo de mensagem, resolucao de etapa         | 44     |
+### Sprint 2: Validacao Email + Cron
+- Regex de email, cron de confirmacao 48h (`api/cron-email-confirmation.ts`)
+- `vercel.json` com schedule a cada 6h + 30s maxDuration
+- PR #368 (base: `worktree-sprint1-auth-infra`) — 205 linhas +, 72 -
 
-### 28 testes novos (TDD)
+### Sprint 3: Migracao de Usuarios
+- Script reescrito **3x** (`execute_sql` stateless — temp table nao sobrevive)
+- Tabela REAL `_migration_canonical` + safety net (passo 5)
+- **user_context: 430 -> 125** (-71%), **Bruno: 292 IDs -> 1 canonical**
+- PR #369 (base: `main`) — `supabase/migrations/20260612_consolidate_operators.sql`
 
-- `tests/hooks/useStaticTimelineFallback.test.ts` — 6 blocos de teste
-- Cobre: watchdogs, fontes de verdade, efeitos colaterais, cleanup, estados de loading
+### Sprint 4: Testes + Graceful Fallback
+- **8 -> 1 falha** de teste (`AuthGate` com `expect.assertions` corrigido)
+- AuthGate com graceful fallback sem `AuthContext`
+- `operatorContext.ok || userContext` no OperatorProvider
 
-### Mudancas estruturais
-
-- `MessageTimeline.tsx`: removeu `hasLargeBotMessage` (era dupla fonte de verdade duplicada com ChatInterface)
-- `ChatInterface.tsx`: dupla fonte de verdade UNSHIFTED — consolidada no `useStaticTimelineFallback`
-- `useStaticTimelineFallback`: hook unico de watchdog, contem Efeito #5 (antigo `forceStaticTimelineFallback`) e `showEmptyStateFallback`
-
-### Infraestrutura anti-god-component criada
-
-- 8 regras no CLAUDE.md contra god components
-- Skill `prevent-god-component` (carregada automaticamente ao editar TSX)
-- Script `component-health.sh` — dashboard de saude de componentes
-- `GOD_COMPONENT_SKIP`: max 3 por arquivo, tracking persistente
-- `.claude/god-component-debt.json` — divida tecnica rastreada
-
----
-
-## Bugs corrigidos durante a sessao
-
-### Bug 1: forceStaticTimelineFallback proativo durante loading
-
-- **Sintoma:** etapas de loading "pulavam" — o fallback estatico ativava durante o loading inline
-- **Causa:** Efeito #5 (`forceStaticTimelineFallback`) nao tinha guard `if (isLoading) return`
-- **Correcao:** adicionado guard `if (isLoading) return` no inicio do Efeito #5 do `useStaticTimelineFallback`
-- **Testado:** TDD validou que fallback nao ativa durante loading inline
-
-### Bug 2: Contador global vs. por etapa no loading
-
-- **Sintoma:** `resetLoadingProgress` descartava a etapa inicial com `completedStages: []`
-- **Causa:** o contador de etapas era global, nao preservava estado anterior
-- **Correcao:** `resetLoadingProgress` agora preserva a etapa anterior como concluida. O tempo entre inicio do loading e primeira etapa do waterfall e atribuido a etapa "Iniciando analise"
-- **Testado:** TDD validou progresso correto por etapa
-
-### Bug 3: operatorName null safety
-
-- **Sintoma:** potencial crash com `operatorName` null/undefined
-- **Causa:** `usePanelState` nao protegia contra valores nulos
-- **Correcao:** adicionado `(operatorName || '')` no hook
-- **Origem:** reportado pelo Gemini Code Assist
+### PR #372 Unificado
+- Merge de Sprints 1+2+3+4 em PR unica
+- **14 arquivos**, 1261 linhas +, 248 -
+- Code review Gemini + CodeRabbit: P0/P1 corrigidos
 
 ---
 
-## Decisoes arquiteturais ativas
+## Decisoes do Bruno
 
-### DI-2026-06-10-01: Dupla fonte de verdade eliminada
-
-- **Decisao:** `hasLargeBotMessage` removido de `MessageTimeline.tsx` — agora so `useStaticTimelineFallback` controla estado de fallback
-- **Motivo:** Watchdog duplicado causava comportamento imprevisivel e bugs de renderizacao
-- **Impacto:** Um unico ponto de verdade para decisao de fallback
-
-### DI-2026-06-10-02: Limite de props ajustado (8 -> 14)
-
-- **Decisao:** Componentes complexos podem ter ate 14 props, complexos ate 8
-- **Motivo:** ChatInterface tinha 9+ props naturais devido a natureza do componente. Limite de 8 era artificial e forcava agrupamentos contra-intuitivos
-- **Excecao:** `GOD_COMPONENT_SKIP` com tracking no `god-component-debt.json`
-
-### DI-2026-06-10-03: Watchdogs consolidados em hook unico
-
-- **Decisao:** `useStaticTimelineFallback` contem todos os watchdogs de timeline (Efeito #5 antes espalhado)
-- **Motivo:** Antes o watchdog `forceStaticTimelineFallback` estava no ChatInterface e `hasLargeBotMessage` no MessageTimeline — dois lugares, duas logicas
-- **Impacto:** 3 watchdogs consolidados em 1 hook, testados em TDD
-
-### DI-2026-06-10-04: Copiloto deve referenciar wiki e ai-context
-
-- **Decisao:** Passo 7 do copiloto-memory.md agora inclui leitura de wiki e ai-context ao iniciar sessao
-- **Motivo:** Sessao atual mostrou que wiki e docs/ai-context/ sao essenciais para contexto completo
-- **Impacto:** Todo handoff de encerramento de sessao deve atualizar wiki (passo 5)
+| Decisao | Opcao Escolhida | Alternativa |
+|---------|----------------|-------------|
+| Confirmacao de email | Hibrida: auto-confirm ativo, cron remove em 48h | Estrita (bloqueia) ou auto-confirm total (sem validacao) |
+| Obrigatoriedade | Obrigatorio para novos, opcional para existentes ate 18/06 | Obrigatorio para todos (quebra) ou opcional indefinido |
+| Deadline | **18/06/2026** | Sem prazo |
+| Senha Bruno | `Scout360@2026!` | — |
+| Estrategia de PR | PR unificada (Sprints 1+2+3+4) | PRs separadas por sprint |
 
 ---
 
-## Arquivos alterados (PR #359)
+## Bugs corrigidos na code review
 
-| Arquivo                                         | Mudanca                                    | Status |
-| ----------------------------------------------- | ------------------------------------------ | ------ |
-| `components/ChatInterface.tsx`                  | 811 -> 331 linhas, extraiu 6 hooks         | MERGED |
-| `components/chat/MessageTimeline.tsx`           | Removeu `hasLargeBotMessage` (dupla fonte) | MERGED |
-| `hooks/chat/useChatTheme.ts`                    | Novo hook                                  | MERGED |
-| `hooks/chat/usePanelState.ts`                   | Novo hook + fix operatorName null safety   | MERGED |
-| `hooks/chat/useInvestigation.ts`                | Novo hook                                  | MERGED |
-| `hooks/chat/useChatActions.ts`                  | Novo hook                                  | MERGED |
-| `hooks/chat/useStaticTimelineFallback.ts`       | Novo hook + guard de loading               | MERGED |
-| `hooks/chat/promptResolvers.ts`                 | Nova util                                  | MERGED |
-| `tests/hooks/useStaticTimelineFallback.test.ts` | 28 testes TDD                              | MERGED |
+1. **P0:** `getSession` sem catch no `AuthContext` — adicionado try/catch
+2. **P0:** `App.tsx` inline `finally` sem `currentUser` — adicionado `userRef.current`
+3. **P1:** `error.code` vs `error.message` para "User already registered" — usar `error.code`
+4. **P1:** Codigo morto — tratativas de erro `err` sem uso removidas
+5. **Minor:** `useEffect` sem `currentUser` na dependencia — adicionado
+
+---
+
+## Arquivos alterados (PR #372)
+
+| Arquivo | Mudanca | Status |
+|---------|---------|--------|
+| `contexts/AuthContext.tsx` | AuthProvider completo | CRIADO |
+| `components/AuthModal.tsx` | Modal login/cadastro/recuperacao | CRIADO |
+| `components/AuthGate.tsx` | Gate de autenticacao | CRIADO |
+| `components/MigrationBanner.tsx` | Banner prazo 18/06 | CRIADO |
+| `hooks/useAuthGate.ts` | Logica de gating | CRIADO |
+| `api/cron-email-confirmation.ts` | Cron remocao 48h | CRIADO |
+| `supabase/migrations/20260612_auth_profiles.sql` | Profiles + trigger + RLS | CRIADO |
+| `supabase/migrations/20260612_consolidate_operators.sql` | Consolidacao 430->125 | CRIADO |
+| `supabase/migrations/20260612_cron_cleanup_function.sql` | Funcao cleanup | CRIADO |
+| `contexts/OperatorContext.tsx` | Adaptado + graceful fallback | MODIFICADO |
+| `App.tsx` | Integracao AuthGate/AuthModal | MODIFICADO |
+| `index.tsx` | Provider wrapping | MODIFICADO |
+| `services/dossierAccessService.ts` | Auth uid no acesso | MODIFICADO |
+| `vercel.json` | Cron schedule + maxDuration | MODIFICADO |
+
+---
+
+## Riscos residuais
+
+| Risco | Severidade | Proximo Passo |
+|-------|-----------|---------------|
+| Deadline 18/06 sem comunicacao usuarios existentes | Media | Sprint 5: comunicar, UX pos-login |
+| 1 teste falhando (CnpjGraphResponds) | Baixa | Pre-existente, nao relacionado a auth |
+| RLS ainda nao restritiva | Media | Apos 18/06, tornar RLS obrigatoria |
+| Operadores antigos perdem acesso apos 18/06 | Media | Migration campaign |
+| **Dossiês não vinculam ao novo operator_id ao recriar conta** | **Alta** | Se usuario deleta conta Supabase e recria, ganha novo `auth.uid` → novo `operator_id`. Dossiês antigos ficam órfãos. Sprint 5 precisa de: (a) enrolar email→operator_id no user_context ao recriar conta; (b) script de re-link de dossiês por email |
 
 ---
 
 ## Prompt de retomada
 
 ```text
-▎ Retome a sessao no NOVO-APP a partir de main.
-▎ PR #359 mergeada: ChatInterface refatorada (811->331 linhas, -59%).
-▎ 6 hooks extraidos, dupla fonte de verdade eliminada.
-▎ 28 testes TDD em useStaticTimelineFallback.test.ts.
-▎ 3 bugs corrigidos: loading proativo, contador de etapas, null safety.
-▎ Infraestrutura anti-god-component criada (8 regras, skill, tracking).
-▎ Proximo passo: revisar wiki e ai-context no inicio de cada sessao.
-▎ Ver docs/wiki/pages/29-chatinterface-refactor.md para arquitetura.
+▎ Retome a sessao no NOVO-APP a partir de feature/supabase-auth.
+▎ PR #372 aberta: migracao de auth local para Supabase Auth completa.
+▎ 4 Sprints entregues: infra, UI+cron, migracao 430->125, testes.
+▎ Code review P0/P1 corrigido (commit 07aa30de).
+▎ CI: Typecheck/Build OK, Tests 1447/1448.
+▎ Deadline 18/06/2026.
+▎ Decisao: modelo hibrido auto-confirm + cron 48h.
+▎ Proximo passo: Sprint 5 — feedback de dossie salvo e UX pos-login.
+▎ Ver Bruno Vault/30-DECISOES/DECISAO-AUTH-HIBRIDO-SUPABASE-2026-06-12.md
 ```
