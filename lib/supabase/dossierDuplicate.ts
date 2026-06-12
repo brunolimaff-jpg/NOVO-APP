@@ -26,7 +26,7 @@ export async function findExistingDossier(
   empresaAlvo: string | null | undefined,
   operatorId: string,
 ): Promise<ExistingDossier | null> {
-  if (!isSupabaseAvailable()) return null;
+  if (!isSupabaseAvailable() || !operatorId) return null;
 
   const cnpjDigits = cnpj?.replace(/\D/g, '') || '';
 

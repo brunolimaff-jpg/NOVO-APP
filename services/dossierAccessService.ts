@@ -1,8 +1,8 @@
 // services/dossierAccessService.ts
-// Fire-and-forget logging de acesso a dossies.
-// NUNCA bloqueia UX — falhas sao silenciosas.
+// Logging de acesso a dossies. Falhas sao silenciosas (nao bloqueiam UX).
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+import { normalizeCnpj } from '../utils/cnpj';
 
 export interface DossierAccessEntry {
   operatorId: string;
@@ -10,22 +10,30 @@ export interface DossierAccessEntry {
   accessedAt: string;
 }
 
-export function logDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): void {
-  if (!isSupabaseAvailable() || !dossierId || !operatorId) return;
-
-  void (async () => {
-    const { error } = await supabase!.from('dossier_accesses').insert({
-      dossier_id: dossierId,
-      operator_id: operatorId,
-      cnpj: cnpj || null,
-    });
-
-    if (error) {
-      console.warn('[dossierAccessService] logDossierAccess failed:', error.message);
-    }
-  })();
+function persistedCnpj(cnpj?: string | null): string | null {
+  const digits = normalizeCnpj(cnpj);
+  return digits.length === 14 ? digits : null;
 }
 
+export async function logDossierAccess(
+  dossierId: string,
+  operatorId: string,
+  cnpj?: string | null,
+): Promise<void> {
+  if (!isSupabaseAvailable() || !dossierId || !operatorId) return;
+
+  const { error } = await supabase!.from('dossier_accesses').insert({
+    dossier_id: dossierId,
+    operator_id: operatorId,
+    cnpj: persistedCnpj(cnpj),
+  });
+
+  if (error) {
+    console.warn('[dossierAccessService] logDossierAccess failed:', error.message);
+  }
+}
+
+/** Requer leitura server-side (service_role); RLS bloqueia SELECT no client anon. */
 export async function getDossierAccessHistory(dossierId: string): Promise<DossierAccessEntry[]> {
   if (!isSupabaseAvailable() || !dossierId) return [];
 
@@ -43,11 +51,12 @@ export async function getDossierAccessHistory(dossierId: string): Promise<Dossie
   }));
 }
 
+/** Requer leitura server-side (service_role); RLS bloqueia SELECT no client anon. */
 export async function getCompanyAccessCount(cnpj: string): Promise<number> {
   if (!isSupabaseAvailable() || !cnpj) return 0;
 
-  const cnpjDigits = cnpj.replace(/\D/g, '');
-  if (cnpjDigits.length < 11) return 0;
+  const cnpjDigits = normalizeCnpj(cnpj);
+  if (cnpjDigits.length !== 14) return 0;
 
   const { count, error } = await supabase!
     .from('dossier_accesses')

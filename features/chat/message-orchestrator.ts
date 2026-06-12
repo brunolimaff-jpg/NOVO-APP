@@ -6,6 +6,7 @@ import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToGemini } from '../../services/geminiService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
+import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
 import { collectBlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
@@ -89,22 +90,6 @@ function requireDependency<T>(value: T | null | undefined, dependencyName: strin
   }
 
   return value;
-}
-
-const REUSABLE_SESSION_MAX_AGE_MS = 5000;
-
-function findReusableEmptySession(sessions: ChatSession[]): ChatSession | null {
-  for (const s of sessions) {
-    if (s.empresaAlvo) continue;
-    if (s.cnpj) continue;
-    if (s.messages && s.messages.length > 0) continue;
-    const createdAtMs = new Date(s.createdAt).getTime();
-    if (!Number.isFinite(createdAtMs)) continue;
-    const age = Date.now() - createdAtMs;
-    if (age > REUSABLE_SESSION_MAX_AGE_MS) continue;
-    return s;
-  }
-  return null;
 }
 
 export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrchestratorOptions> = {}) {

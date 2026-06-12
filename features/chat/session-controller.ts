@@ -7,6 +7,7 @@ import { storage } from '../../services/storage';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
+import { isSessionReusable } from './session-reuse';
 import type { ChatSession } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -91,19 +92,6 @@ export function useSessionRemoteSave(options: UseSessionRemoteSaveOptions = {}) 
     setRemoteSaveStatus,
     handleSaveRemote,
   };
-}
-
-const REUSABLE_SESSION_MAX_AGE_MS = 5000;
-
-function isSessionReusable(session: ChatSession): boolean {
-  if (session.empresaAlvo) return false;
-  if (session.cnpj) return false;
-  if (session.messages && session.messages.length > 0) return false;
-  const createdAtMs = new Date(session.createdAt).getTime();
-  if (!Number.isFinite(createdAtMs)) return false;
-  const age = Date.now() - createdAtMs;
-  if (age > REUSABLE_SESSION_MAX_AGE_MS) return false;
-  return true;
 }
 
 /**

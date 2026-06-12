@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import SessionsSidebar from '../../components/SessionsSidebar';
+import SessionsSidebar, { NEW_SESSION_DEBOUNCE_MS } from '../../components/SessionsSidebar';
 import type { ChatSession } from '../../types';
 
 // Mock ConfirmPopover using its render-prop contract.
@@ -111,6 +111,36 @@ describe('SessionsSidebar', () => {
 
     expect(screen.getByText('Fazenda A')).toBeInTheDocument();
     expect(screen.queryByText('Fazenda B')).not.toBeInTheDocument();
+  });
+
+
+  it('ignora cliques rápidos consecutivos em Nova Investigação', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const onNewSession = vi.fn();
+    render(<SessionsSidebar {...defaultProps} onNewSession={onNewSession} />);
+    const btn = screen.getByRole('button', { name: /nova investigação/i });
+
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+
+    expect(onNewSession).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
+  it('permite novo clique após o debounce de Nova Investigação', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const onNewSession = vi.fn();
+    render(<SessionsSidebar {...defaultProps} onNewSession={onNewSession} />);
+    const btn = screen.getByRole('button', { name: /nova investigação/i });
+
+    fireEvent.click(btn);
+    vi.advanceTimersByTime(NEW_SESSION_DEBOUNCE_MS);
+    fireEvent.click(btn);
+
+    expect(onNewSession).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   it('chama onNewSession ao clicar em Nova Investigação', () => {

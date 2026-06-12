@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
@@ -17,12 +17,22 @@ vi.mock('../../../lib/supabaseClient', () => ({
   isSupabaseAvailable: vi.fn(() => true),
 }));
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('findExistingDossier', () => {
   it('retorna null quando Supabase indisponível', async () => {
     const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
     vi.mocked(isSupabaseAvailable).mockReturnValueOnce(false);
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
     const result = await findExistingDossier('123', 'Empresa X', 'op-1');
+    expect(result).toBeNull();
+  });
+
+  it('retorna null quando operatorId vazio', async () => {
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    const result = await findExistingDossier('12345678000199', 'Empresa X', '');
     expect(result).toBeNull();
   });
 

@@ -95,9 +95,6 @@ export function useInvestigation({
   const handleAccessExistingDossier = useCallback(async () => {
     if (!duplicateDossier || !operatorId) return;
 
-    // Registra acesso ao dossie existente (historico cross-operator)
-    logDossierAccess(duplicateDossier.id, operatorId, pendingPayloadRef.current?.cnpj);
-
     let dossier = await storage.getDossier(duplicateDossier.id);
     if (!dossier) {
       if (!supabase) {
@@ -115,6 +112,8 @@ export function useInvestigation({
       await storage.saveDossier(dossier!);
     }
 
+    await logDossierAccess(duplicateDossier.id, operatorId, pendingPayloadRef.current?.cnpj);
+
     onSelectSession(duplicateDossier.id);
     setDuplicateDossier(null);
     pendingPayloadRef.current = null;
@@ -131,15 +130,11 @@ export function useInvestigation({
     const oldDossier = duplicateDossier;
     if (!payload || !operatorId) return;
 
-    // Registra override antes de deletar o antigo
-    if (oldDossier) {
-      logDossierAccess(oldDossier.id, operatorId, payload.cnpj);
-    }
-
     try {
       await executeInvestigation(payload);
 
       if (oldDossier) {
+        await logDossierAccess(oldDossier.id, operatorId, payload.cnpj);
         await storage.deleteDossier(oldDossier.id);
       }
 

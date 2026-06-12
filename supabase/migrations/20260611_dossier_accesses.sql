@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS dossier_accesses (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dossier_id  UUID NOT NULL REFERENCES dossies(id) ON DELETE CASCADE,
+  dossier_id  UUID REFERENCES dossies(id) ON DELETE SET NULL,
   operator_id TEXT NOT NULL,
   cnpj        TEXT,
   accessed_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -30,15 +30,12 @@ CREATE INDEX IF NOT EXISTS idx_dossies_cnpj_created
   ON dossies(cnpj, created_at DESC)
   WHERE deleted_at IS NULL;
 
--- RLS: mesma estrategia das demais tabelas (operator_id IS NOT NULL)
+-- RLS: espelha operator_events (20260528_operator_tracking.sql).
+-- anon pode apenas INSERT; SELECT negado no client.
+-- Leituras (historico/contagem) via service_role quando a UI precisar.
 ALTER TABLE dossier_accesses ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY anon_insert_dossier_accesses
   ON dossier_accesses FOR INSERT
   TO anon
-  WITH CHECK (operator_id IS NOT NULL);
-
-CREATE POLICY anon_select_dossier_accesses
-  ON dossier_accesses FOR SELECT
-  TO anon
-  USING (operator_id IS NOT NULL);
+  WITH CHECK (true);

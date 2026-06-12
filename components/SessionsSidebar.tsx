@@ -5,6 +5,8 @@ import { cleanTitle } from '../utils/textCleaners';
 import { useIsMobile } from '../hooks/useIsMobile';
 import ConfirmPopover from './ConfirmPopover';
 
+export const NEW_SESSION_DEBOUNCE_MS = 500;
+
 interface SessionsSidebarProps {
   sessions: ChatSession[];
   currentSessionId: string | null;
@@ -172,7 +174,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
               <button
                 onClick={() => {
                   const now = Date.now();
-                  if (now - newSessionDebounceRef.current < 500) return;
+                  if (now - newSessionDebounceRef.current < NEW_SESSION_DEBOUNCE_MS) return;
                   newSessionDebounceRef.current = now;
                   onNewSession();
                   if (isMobile) onCloseMobile();
