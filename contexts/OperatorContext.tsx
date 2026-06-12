@@ -11,6 +11,7 @@ import React, {
 import { storageGet, storageRemove, storageSet } from '../utils/localStorage';
 import { storage } from '../services/storage';
 import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
+import { useMaybeAuth } from './AuthContext';
 
 export interface OperatorProfile {
   operatorId: string;
@@ -84,9 +85,20 @@ function warnOperator(message: string, err?: unknown): void {
 const OperatorContext = createContext<OperatorContextType | undefined>(undefined);
 
 export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [name, setOperatorName] = useState<string>(() => getSavedOperatorName());
+  const auth = useMaybeAuth();
+  const authUser = auth?.user ?? null;
+  const authLoading = auth?.loading ?? false;
+  const isAuthenticated = !authLoading && authUser !== null;
+
+  const [name, setOperatorName] = useState<string>(() => {
+    if (authUser?.user_metadata?.name) return authUser.user_metadata.name;
+    return getSavedOperatorName();
+  });
   const [operatorId, setOperatorId] = useState<string>(() => getOrCreateOperatorId());
-  const [email, setOperatorEmail] = useState<string>(() => getSavedOperatorEmail());
+  const [email, setOperatorEmail] = useState<string>(() => {
+    if (authUser?.email) return authUser.email;
+    return getSavedOperatorEmail();
+  });
   const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
   const didBackfillRef = useRef(false);
   const didTrackAppOpenRef = useRef(false);
@@ -282,6 +294,27 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     })();
   }, [email, name, operatorId]);
 
+  // Sincroniza dados do Auth quando usuario loga
+  useEffect(() => {
+    if (authUser?.email) {
+      const authName = authUser.user_metadata?.name || '';
+      const authEmail = authUser.email || '';
+      if (authName) {
+        storageSet(OPERATOR_NAME_KEY, authName);
+        setOperatorName(authName);
+      }
+      if (authEmail) {
+        storageSet(OPERATOR_EMAIL_KEY, authEmail);
+        setOperatorEmail(authEmail);
+      }
+      // Sincroniza com Supabase
+      void storage
+        .saveUserContext({ operatorId, name: authName || name, email: authEmail })
+        .catch(err => warnOperator('[OperatorContext] auth sync failed:', err));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id]);
+
   // Listener de encerramento de sessao — apenas pagehide (fechar tab)
   // NOTA: visibilitychange NAO encerra sessao — trocar de aba nao deve quebrar metricas
   useEffect(() => {
@@ -302,14 +335,14 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       name,
       operatorId,
       email,
-      loading: false,
+      loading: authLoading,
       setName,
       setEmail,
       registerOperator,
       clearName,
       linkToExistingOperator,
     }),
-    [clearName, email, linkToExistingOperator, name, operatorId, registerOperator, setEmail, setName],
+    [clearName, email, linkToExistingOperator, name, operatorId, registerOperator, setEmail, setName, authLoading],
   );
 
   return <OperatorContext.Provider value={value}>{children}</OperatorContext.Provider>;
