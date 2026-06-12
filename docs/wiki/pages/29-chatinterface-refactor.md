@@ -40,12 +40,14 @@ ChatInterface.tsx (331 linhas)
 ### Mapa de hooks
 
 #### useChatTheme
+
 - **Arquivo:** `hooks/chat/useChatTheme.ts`
 - **Props:** nenhuma (usa contexto global)
 - **Retorno:** `chatClasses`, `debugMode`, `isDark`, `chatContainerClass`
 - **Responsabilidade:** tema dark/light, classes CSS condicionais, indicacao visual de debug
 
 #### usePanelState
+
 - **Arquivo:** `hooks/chat/usePanelState.ts`
 - **Props:** `operatorName` | `sessionId`
 - **Retorno:** `session`, `operatorNameSafe`, `isContextSidebarOpen`, toggle
@@ -53,12 +55,14 @@ ChatInterface.tsx (331 linhas)
 - **Bug corrigido:** `operatorName` null safety — adicionado `|| ''`
 
 #### useInvestigation
+
 - **Arquivo:** `hooks/chat/useInvestigation.ts`
 - **Props:** `sessionId`
 - **Retorno:** `isLoading`, `handleInvestigation`, `handleInvestigationSuccess`
 - **Responsabilidade:** disparo de investigacao por CNPJ/empresa, callback de sucesso, controle de estado de loading
 
 #### useChatActions
+
 - **Arquivo:** `hooks/chat/useChatActions.ts`
 - **Props:** variadas (8-10 props)
 - **Retorno:** `handleNewInvestigation`, `handleNewSearch`, `handleFollowUp`, `handleStopGeneration`
@@ -66,6 +70,7 @@ ChatInterface.tsx (331 linhas)
 - **Nota:** hook mais denso em props
 
 #### useStaticTimelineFallback
+
 - **Arquivo:** `hooks/chat/useStaticTimelineFallback.ts`
 - **Props:** `isLoading`, `messages`, `sessions`
 - **Retorno:** `showStaticFallback`, `showEmptyStateFallback`
@@ -77,6 +82,7 @@ ChatInterface.tsx (331 linhas)
   4. Atualiza `showEmptyStateFallback` quando sessao fica vazia apos delecao
 
 #### promptResolvers
+
 - **Arquivo:** `hooks/chat/promptResolvers.ts`
 - **Funcoes:** `resolvePromptForMessage`, `resolveLoadingStageLabel`
 - **Responsabilidade:** resolver prompts de acordo com o tipo de mensagem, rotular etapas de loading
@@ -95,16 +101,19 @@ ChatInterface.tsx (331 linhas)
 ## Bugs corrigidos
 
 ### Bug 1: forceStaticTimelineFallback proativo durante loading
+
 - Efeito #5 ativava `showStaticFallback = true` durante loading inline
 - Adicionado guard `if (isLoading) return`
 - Causava "etapas pulando" visualmente
 
 ### Bug 2: Contador global vs. por etapa
+
 - `resetLoadingProgress` usava `completedStages: []` — descartava etapa anterior
 - Agora preserva etapa anterior como concluida
 - Tempo entre inicio do loading e primeira etapa do waterfall atribuido a "Iniciando analise"
 
 ### Bug 3: operatorName null safety
+
 - `usePanelState` protege contra null/undefined
 - Reportado pelo Gemini Code Assist
 
@@ -122,30 +131,33 @@ ChatInterface.tsx (331 linhas)
 8. Componentes >500 linhas exigem GOD_COMPONENT_SKIP
 
 ### Skill prevent-god-component
+
 - Carregada automaticamente ao editar arquivos `.tsx`
 - Verifica tamanho do componente e sugere extracao
 - Documentada em `docs/SKILLS-GOVERNANCE.md`
 
 ### Script component-health.sh
+
 - Dashboard de saude: linhas por componente, props, hooks
 - Alerta componentes acima do limite
 - Uso: `bash scripts/component-health.sh`
 
 ### GOD_COMPONENT_SKIP e debt.json
+
 - Maximo 3 GOD_COMPONENT_SKIP por arquivo
 - Tracking persistente em `.claude/god-component-debt.json`
 - Cada skip documenta: componente, linhas, props, motivo, data
 
 ## Metricas da refatoracao
 
-| Metrica | Antes | Depois |
-|---------|-------|--------|
-| Linhas do ChatInterface | 811 | 331 |
-| Hooks extraidos | 0 | 6 |
-| Utils extraidas | 0 | 1 |
-| Dupla fonte de verdade | Sim | Nao |
-| Testes do fallback | 0 | 28 |
-| Bugs conhecidos | 3 | 0 |
+| Metrica                 | Antes | Depois |
+| ----------------------- | ----- | ------ |
+| Linhas do ChatInterface | 811   | 331    |
+| Hooks extraidos         | 0     | 6      |
+| Utils extraidas         | 0     | 1      |
+| Dupla fonte de verdade  | Sim   | Nao    |
+| Testes do fallback      | 0     | 28     |
+| Bugs conhecidos         | 3     | 0      |
 
 ## Proximos passos
 

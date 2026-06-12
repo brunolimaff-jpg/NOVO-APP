@@ -17,6 +17,7 @@ import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
 import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
+import { AuthGate } from './components/AuthGate';
 
 // Lazy-loaded — não críticos para a primeira paint
 const LoadingSmart = React.lazy(() => loadWithChunkRetry(() => import('./components/LoadingSmart')));
@@ -511,186 +512,188 @@ const App: React.FC = () => {
   }
 
   return (
-    <>
-      {!isOnline && (
-        <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-amber-950 text-xs font-semibold py-1.5 px-4 shadow-lg">
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M8.464 8.464a5 5 0 000 7.072M5.636 5.636a9 9 0 000 12.728M12 12v.01"
-            />
-          </svg>
-          Sem conexão — algumas funções ficam indisponíveis offline
-        </div>
-      )}
+    <AuthGate>
+      <>
+        {!isOnline && (
+          <div className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-amber-500 text-amber-950 text-xs font-semibold py-1.5 px-4 shadow-lg">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M8.464 8.464a5 5 0 000 7.072M5.636 5.636a9 9 0 000 12.728M12 12v.01"
+              />
+            </svg>
+            Sem conexão — algumas funções ficam indisponíveis offline
+          </div>
+        )}
 
-      {isOnline && wasOffline && (
+        {isOnline && wasOffline && (
+          <div
+            className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-emerald-600 text-white text-xs font-semibold py-1.5 px-4 shadow-lg cursor-pointer"
+            onClick={clearWasOffline}
+          >
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Conexão restabelecida ✕
+          </div>
+        )}
+
         <div
-          className="fixed top-0 inset-x-0 z-[100] flex items-center justify-center gap-2 bg-emerald-600 text-white text-xs font-semibold py-1.5 px-4 shadow-lg cursor-pointer"
-          onClick={clearWasOffline}
+          data-testid="app-shell"
+          className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
         >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          Conexão restabelecida ✕
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ChatErrorBoundary isDarkMode={isDarkMode}>
+              <ChatInterface
+                currentSession={currentSession}
+                sessions={sessions}
+                onNewSession={handleNewSession}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+                isSidebarOpen={isSidebarOpen}
+                onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
+                messages={allMessages.slice(-visibleCount)}
+                isLoading={isLoading}
+                hasMore={allMessages.length > visibleCount}
+                onSendMessage={handleSendMessage}
+                onDeepDive={handleDeepDive}
+                onFeedback={handleFeedback}
+                onSendFeedback={handleSendFeedback}
+                onSectionFeedback={handleSectionFeedback}
+                onLoadMore={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                onExportConversation={handleExportConversation}
+                onExportPDF={handleExportPDF}
+                onExportMessage={() => {}}
+                onRetry={handleRetry}
+                onStop={handleStopGeneration}
+                onReportError={handleReportError}
+                onClearChat={handleClearChat}
+                onRegenerateSuggestions={handleRegenerateSuggestions}
+                isDarkMode={isDarkMode}
+                onToggleTheme={toggleTheme}
+                onToggleMessageSources={handleToggleMessageSources}
+                exportStatus={exportStatus}
+                exportError={exportError}
+                pdfReportContent={pdfReportContent}
+                loadingVariant={loadingVariant}
+                loadingPinnedLabel={loadingPinnedLabel}
+                onOpenEmailModal={emailModal.open}
+                onOpenFollowUpModal={followUpModal.open}
+                onSaveRemote={handleSaveRemote}
+                isSavingRemote={isSavingRemote}
+                remoteSaveStatus={remoteSaveStatus}
+                canAccessIntegrityCheck={canAccessIntegrityCheck}
+                canDeepDive={canDeepDive}
+                canWarRoom={canWarRoom}
+                onClearOperator={clearName}
+                lastUserQuery={lastQuery}
+                onDeleteMessage={handleDeleteMessage}
+                radar={{
+                  alerts: radar.alerts,
+                  config: radar.config,
+                  unreadCount: radar.unreadCount,
+                  isScanning: radar.isScanning,
+                  lastScanAt: radar.lastScanAt,
+                  lastError: radar.lastError,
+                  lastWarning: radar.lastWarning,
+                  onUpdateConfig: radar.updateConfig,
+                  onMarkAsRead: radar.markAsRead,
+                  onMarkAllAsRead: radar.markAllAsRead,
+                  onDismiss: radar.dismissAlert,
+                  onForceScan: radar.forceScan,
+                  metaInsight: null,
+                }}
+              />
+            </ChatErrorBoundary>
+          </main>
+          <div className="flex-none">
+            <FooterCredits />
+          </div>
         </div>
-      )}
 
-      <div
-        data-testid="app-shell"
-        className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
-      >
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ChatErrorBoundary isDarkMode={isDarkMode}>
-            <ChatInterface
-              currentSession={currentSession}
-              sessions={sessions}
-              onNewSession={handleNewSession}
-              onSelectSession={handleSelectSession}
-              onDeleteSession={handleDeleteSession}
-              isSidebarOpen={isSidebarOpen}
-              onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
-              messages={allMessages.slice(-visibleCount)}
-              isLoading={isLoading}
-              hasMore={allMessages.length > visibleCount}
-              onSendMessage={handleSendMessage}
-              onDeepDive={handleDeepDive}
-              onFeedback={handleFeedback}
-              onSendFeedback={handleSendFeedback}
-              onSectionFeedback={handleSectionFeedback}
-              onLoadMore={() => setVisibleCount(prev => prev + PAGE_SIZE)}
-              onExportConversation={handleExportConversation}
-              onExportPDF={handleExportPDF}
-              onExportMessage={() => {}}
-              onRetry={handleRetry}
-              onStop={handleStopGeneration}
-              onReportError={handleReportError}
-              onClearChat={handleClearChat}
-              onRegenerateSuggestions={handleRegenerateSuggestions}
-              isDarkMode={isDarkMode}
-              onToggleTheme={toggleTheme}
-              onToggleMessageSources={handleToggleMessageSources}
-              exportStatus={exportStatus}
-              exportError={exportError}
-              pdfReportContent={pdfReportContent}
-              loadingVariant={loadingVariant}
-              loadingPinnedLabel={loadingPinnedLabel}
-              onOpenEmailModal={emailModal.open}
-              onOpenFollowUpModal={followUpModal.open}
-              onSaveRemote={handleSaveRemote}
-              isSavingRemote={isSavingRemote}
-              remoteSaveStatus={remoteSaveStatus}
-              canAccessIntegrityCheck={canAccessIntegrityCheck}
-              canDeepDive={canDeepDive}
-              canWarRoom={canWarRoom}
-              onClearOperator={clearName}
-              lastUserQuery={lastQuery}
-              onDeleteMessage={handleDeleteMessage}
-              radar={{
-                alerts: radar.alerts,
-                config: radar.config,
-                unreadCount: radar.unreadCount,
-                isScanning: radar.isScanning,
-                lastScanAt: radar.lastScanAt,
-                lastError: radar.lastError,
-                lastWarning: radar.lastWarning,
-                onUpdateConfig: radar.updateConfig,
-                onMarkAsRead: radar.markAsRead,
-                onMarkAllAsRead: radar.markAllAsRead,
-                onDismiss: radar.dismissAlert,
-                onForceScan: radar.forceScan,
-                metaInsight: null,
-              }}
-            />
-          </ChatErrorBoundary>
-        </main>
-        <div className="flex-none">
-          <FooterCredits />
-        </div>
-      </div>
-
-      {emailModal.isOpen && (
-        <React.Suspense fallback={null}>
-          <EmailModal
-            emailTo={emailModal.emailTo}
-            onEmailToChange={emailModal.setEmailTo}
-            emailSubject={emailModal.emailSubject}
-            onEmailSubjectChange={emailModal.setEmailSubject}
-            emailStatus={emailModal.emailStatus}
-            onSend={emailModal.handleSend}
-            onClose={emailModal.close}
-          />
-        </React.Suspense>
-      )}
-
-      {followUpModal.isOpen && (
-        <React.Suspense fallback={null}>
-          <FollowUpModal
-            emailTo={followUpModal.emailTo}
-            onEmailToChange={followUpModal.setEmailTo}
-            followUpDias={followUpModal.followUpDias}
-            onDiasChange={followUpModal.setFollowUpDias}
-            followUpNotas={followUpModal.followUpNotas}
-            onNotasChange={followUpModal.setFollowUpNotas}
-            followUpStatus={followUpModal.followUpStatus}
-            companyName={
-              cleanTitle(extractCompanyName(currentSession?.title)) ||
-              currentSession?.empresaAlvo ||
-              'Conta em prospecção'
-            }
-            onSchedule={followUpModal.handleSchedule}
-            onClose={followUpModal.close}
-          />
-        </React.Suspense>
-      )}
-
-      {updateAvailable && (
-        <React.Suspense fallback={null}>
-          <UpdateNotificationModal
-            currentVersion={currentVersion}
-            newVersion={newVersion}
-            isDarkMode={isDarkMode}
-            onDismiss={dismissUpdate}
-            onUpdate={updateNow}
-            isOpen={updateAvailable}
-          />
-        </React.Suspense>
-      )}
-
-      {showFullscreenLoadingSmart && (
-        <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
-          <React.Suspense fallback={<HeroLoadingChunkFallback isDarkMode={isDarkMode} />}>
-            <LoadingSmart
-              isLoading={isLoading}
-              mode={mode}
-              isDarkMode={isDarkMode}
-              loadingVariant={loadingVariant}
-              fixedStatusLine={loadingPinnedLabel || undefined}
-              onStop={handleStopGeneration}
-              processing={{
-                stage: loadingStatus,
-                completedStages: completedLoadingStatuses,
-                failureCount: failureCount,
-                totalStages: loadingTotalStages,
-                isIncremental: loadingIsIncremental,
-              }}
-              searchQuery={lastQuery}
-              empresaAlvo={currentSession?.empresaAlvo}
+        {emailModal.isOpen && (
+          <React.Suspense fallback={null}>
+            <EmailModal
+              emailTo={emailModal.emailTo}
+              onEmailToChange={emailModal.setEmailTo}
+              emailSubject={emailModal.emailSubject}
+              onEmailSubjectChange={emailModal.setEmailSubject}
+              emailStatus={emailModal.emailStatus}
+              onSend={emailModal.handleSend}
+              onClose={emailModal.close}
             />
           </React.Suspense>
-        </DossierErrorBoundary>
-      )}
+        )}
 
-      <InstallPrompt />
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        {followUpModal.isOpen && (
+          <React.Suspense fallback={null}>
+            <FollowUpModal
+              emailTo={followUpModal.emailTo}
+              onEmailToChange={followUpModal.setEmailTo}
+              followUpDias={followUpModal.followUpDias}
+              onDiasChange={followUpModal.setFollowUpDias}
+              followUpNotas={followUpModal.followUpNotas}
+              onNotasChange={followUpModal.setFollowUpNotas}
+              followUpStatus={followUpModal.followUpStatus}
+              companyName={
+                cleanTitle(extractCompanyName(currentSession?.title)) ||
+                currentSession?.empresaAlvo ||
+                'Conta em prospecção'
+              }
+              onSchedule={followUpModal.handleSchedule}
+              onClose={followUpModal.close}
+            />
+          </React.Suspense>
+        )}
 
-      {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
-      <Analytics />
-      {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}
-      <SpeedInsights />
-    </>
+        {updateAvailable && (
+          <React.Suspense fallback={null}>
+            <UpdateNotificationModal
+              currentVersion={currentVersion}
+              newVersion={newVersion}
+              isDarkMode={isDarkMode}
+              onDismiss={dismissUpdate}
+              onUpdate={updateNow}
+              isOpen={updateAvailable}
+            />
+          </React.Suspense>
+        )}
+
+        {showFullscreenLoadingSmart && (
+          <DossierErrorBoundary isDarkMode={isDarkMode} variant="overlay">
+            <React.Suspense fallback={<HeroLoadingChunkFallback isDarkMode={isDarkMode} />}>
+              <LoadingSmart
+                isLoading={isLoading}
+                mode={mode}
+                isDarkMode={isDarkMode}
+                loadingVariant={loadingVariant}
+                fixedStatusLine={loadingPinnedLabel || undefined}
+                onStop={handleStopGeneration}
+                processing={{
+                  stage: loadingStatus,
+                  completedStages: completedLoadingStatuses,
+                  failureCount: failureCount,
+                  totalStages: loadingTotalStages,
+                  isIncremental: loadingIsIncremental,
+                }}
+                searchQuery={lastQuery}
+                empresaAlvo={currentSession?.empresaAlvo}
+              />
+            </React.Suspense>
+          </DossierErrorBoundary>
+        )}
+
+        <InstallPrompt />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+        {/* VERCEL ANALYTICS RENDERIZADO NO FINAL DO APP */}
+        <Analytics />
+        {/* VERCEL SPEED INSIGHTS RENDERIZADO NO FINAL DO APP */}
+        <SpeedInsights />
+      </>
+    </AuthGate>
   );
 };
 

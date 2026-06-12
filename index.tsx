@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
+import { SupabaseAuthProvider } from './contexts/AuthContext';
 import { OperatorProvider } from './contexts/OperatorContext';
 import { ModeProvider } from './contexts/ModeContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -178,11 +179,13 @@ root.render(
     <QueryClientProvider client={queryClient}>
       <ChatStoreProvider>
         <DossierStoreProvider>
-          <OperatorProvider>
-            <ModeProvider>
-              <App />
-            </ModeProvider>
-          </OperatorProvider>
+          <SupabaseAuthProvider>
+            <OperatorProvider>
+              <ModeProvider>
+                <App />
+              </ModeProvider>
+            </OperatorProvider>
+          </SupabaseAuthProvider>
         </DossierStoreProvider>
       </ChatStoreProvider>
     </QueryClientProvider>

@@ -31,6 +31,7 @@ O contador vive no `ChatInterface.tsx` e gerencia:
 ### Bug corrigido: Contador global vs. por etapa
 
 **Problema:** `resetLoadingProgress` usava `completedStages: []`, descartando completamente o estado anterior. Isso fazia com que:
+
 - A etapa inicial fosse perdida sempre que um novo ciclo de loading comecava
 - O tempo entre inicio do loading e primeira etapa do waterfall nao era atribuido a nenhuma etapa
 - Visualmente, as etapas "pulavam" — sumiam e reapareciam
@@ -65,13 +66,13 @@ Cada etapa pode ter subtarefas que sao executadas em paralelo dentro do waterfal
 
 ## Estados de transicao
 
-| Estado | Descricao | Componente |
-|--------|-----------|------------|
-| `idle` | Aguardando acao do usuario | GreetingWelcomeScreen |
-| `loading` | Investigacao em andamento | LoadingSmart + MessageTimeline |
-| `streaming` | Resposta sendo gerada | MessageTimeline (bot message) |
-| `complete` | Investigacao concluida | MessageTimeline (mensagens finais) |
-| `error` | Erro na investigacao | ErrorMessageCard |
+| Estado      | Descricao                  | Componente                         |
+| ----------- | -------------------------- | ---------------------------------- |
+| `idle`      | Aguardando acao do usuario | GreetingWelcomeScreen              |
+| `loading`   | Investigacao em andamento  | LoadingSmart + MessageTimeline     |
+| `streaming` | Resposta sendo gerada      | MessageTimeline (bot message)      |
+| `complete`  | Investigacao concluida     | MessageTimeline (mensagens finais) |
+| `error`     | Erro na investigacao       | ErrorMessageCard                   |
 
 ## Loading inline
 

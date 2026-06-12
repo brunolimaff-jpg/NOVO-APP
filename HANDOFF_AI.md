@@ -24,14 +24,14 @@
 
 Extracao de 6 hooks e 1 util:
 
-| Hook | Responsabilidade | Linhas |
-|------|-----------------|--------|
-| `useChatTheme` | Tema (dark/light), classes CSS, debug mode | 24 |
-| `usePanelState` | Painel de contexto (operador, sessao, abrir/fechar painel lateral) | 48 |
-| `useInvestigation` | Disparo de investigacao, callback de sucesso, controle de loading | 63 |
-| `useChatActions` | Acoes de chat (nova investigacao, nova pesquisa, follow-up) | 83 |
-| `useStaticTimelineFallback` | Watchdog de timeline estatica, consolidacao de dupla fonte de verdade | 111 |
-| `promptResolvers` (util) | Resolucao de prompts por tipo de mensagem, resolucao de etapa | 44 |
+| Hook                        | Responsabilidade                                                      | Linhas |
+| --------------------------- | --------------------------------------------------------------------- | ------ |
+| `useChatTheme`              | Tema (dark/light), classes CSS, debug mode                            | 24     |
+| `usePanelState`             | Painel de contexto (operador, sessao, abrir/fechar painel lateral)    | 48     |
+| `useInvestigation`          | Disparo de investigacao, callback de sucesso, controle de loading     | 63     |
+| `useChatActions`            | Acoes de chat (nova investigacao, nova pesquisa, follow-up)           | 83     |
+| `useStaticTimelineFallback` | Watchdog de timeline estatica, consolidacao de dupla fonte de verdade | 111    |
+| `promptResolvers` (util)    | Resolucao de prompts por tipo de mensagem, resolucao de etapa         | 44     |
 
 ### 28 testes novos (TDD)
 
@@ -109,17 +109,17 @@ Extracao de 6 hooks e 1 util:
 
 ## Arquivos alterados (PR #359)
 
-| Arquivo | Mudanca | Status |
-|---------|---------|--------|
-| `components/ChatInterface.tsx` | 811 -> 331 linhas, extraiu 6 hooks | MERGED |
-| `components/chat/MessageTimeline.tsx` | Removeu `hasLargeBotMessage` (dupla fonte) | MERGED |
-| `hooks/chat/useChatTheme.ts` | Novo hook | MERGED |
-| `hooks/chat/usePanelState.ts` | Novo hook + fix operatorName null safety | MERGED |
-| `hooks/chat/useInvestigation.ts` | Novo hook | MERGED |
-| `hooks/chat/useChatActions.ts` | Novo hook | MERGED |
-| `hooks/chat/useStaticTimelineFallback.ts` | Novo hook + guard de loading | MERGED |
-| `hooks/chat/promptResolvers.ts` | Nova util | MERGED |
-| `tests/hooks/useStaticTimelineFallback.test.ts` | 28 testes TDD | MERGED |
+| Arquivo                                         | Mudanca                                    | Status |
+| ----------------------------------------------- | ------------------------------------------ | ------ |
+| `components/ChatInterface.tsx`                  | 811 -> 331 linhas, extraiu 6 hooks         | MERGED |
+| `components/chat/MessageTimeline.tsx`           | Removeu `hasLargeBotMessage` (dupla fonte) | MERGED |
+| `hooks/chat/useChatTheme.ts`                    | Novo hook                                  | MERGED |
+| `hooks/chat/usePanelState.ts`                   | Novo hook + fix operatorName null safety   | MERGED |
+| `hooks/chat/useInvestigation.ts`                | Novo hook                                  | MERGED |
+| `hooks/chat/useChatActions.ts`                  | Novo hook                                  | MERGED |
+| `hooks/chat/useStaticTimelineFallback.ts`       | Novo hook + guard de loading               | MERGED |
+| `hooks/chat/promptResolvers.ts`                 | Nova util                                  | MERGED |
+| `tests/hooks/useStaticTimelineFallback.test.ts` | 28 testes TDD                              | MERGED |
 
 ---
 
