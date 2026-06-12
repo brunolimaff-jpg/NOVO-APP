@@ -58,5 +58,5 @@ CREATE POLICY "Usuario atualiza proprio perfil"
 -- Politica: service_role le todos os perfis (funcoes serverless)
 CREATE POLICY "service_role le todos os perfis"
   ON public.profiles FOR SELECT
-  TO authenticated
+  TO service_role
   USING (true);
