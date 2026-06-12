@@ -88,7 +88,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const auth = useMaybeAuth();
   const authUser = auth?.user ?? null;
   const authLoading = auth?.loading ?? false;
-  const isAuthenticated = !authLoading && authUser !== null;
 
   const [name, setOperatorName] = useState<string>(() => {
     if (authUser?.user_metadata?.name) return authUser.user_metadata.name;

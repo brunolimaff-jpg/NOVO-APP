@@ -56,6 +56,9 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       setSession(currentSession ?? null);
       setUser(currentSession?.user ?? null);
       setLoading(false);
+    }).catch((err: unknown) => {
+      console.error('[Auth] getSession() rejeitada:', err instanceof Error ? err.message : err);
+      setLoading(false);
     });
 
     const {

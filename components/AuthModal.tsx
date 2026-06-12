@@ -84,27 +84,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
 
     setSubmitting(true);
 
-    if (activeTab === 'criar-conta') {
-      const { error, needsConfirmation } = await signUp(email.trim(), password, name.trim());
-      setSubmitting(false);
-      if (error) {
-        if (error.message.includes('already registered') || error.message.includes('already exists')) {
-          setFieldError('Este email já tem conta. Faça login na aba "Entrar".');
-          setActiveTab('entrar');
-        } else {
-          setFieldError(error.message);
+    try {
+      if (activeTab === 'criar-conta') {
+        const { error, needsConfirmation } = await signUp(email.trim(), password, name.trim());
+        if (error) {
+          if (error.code === 'user_already_exists' || error.message?.includes('already registered')) {
+            setFieldError('Este email já tem conta. Faça login na aba "Entrar".');
+            setActiveTab('entrar');
+          } else {
+            setFieldError(error.message);
+          }
+        } else if (needsConfirmation) {
+          setSuccessMessage('Conta criada! Verifique seu email para confirmar o cadastro.');
         }
-      } else if (needsConfirmation) {
-        setSuccessMessage('Conta criada! Verifique seu email para confirmar o cadastro.');
+        // Se não precisa de confirmação, o AuthGate fecha o modal automaticamente
+      } else {
+        const { error } = await signIn(email.trim(), password);
+        if (error) {
+          setFieldError('Email ou senha incorretos.');
+        }
+        // Se login bem-sucedido, AuthGate fecha o modal automaticamente
       }
-      // Se não precisa de confirmação, o AuthGate fecha o modal automaticamente
-    } else {
-      const { error } = await signIn(email.trim(), password);
+    } finally {
       setSubmitting(false);
-      if (error) {
-        setFieldError('Email ou senha incorretos.');
-      }
-      // Se login bem-sucedido, AuthGate fecha o modal automaticamente
     }
   };
 
