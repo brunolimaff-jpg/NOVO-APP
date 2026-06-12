@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthGate } from '../hooks/useAuthGate';
-
-const DEADLINE = new Date('2026-06-18T23:59:59-03:00');
+import { useAuthGate, MIGRATION_DEADLINE } from '../hooks/useAuthGate';
 
 function daysUntil(date: Date): number {
   return Math.max(0, Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
@@ -9,10 +7,10 @@ function daysUntil(date: Date): number {
 
 export const MigrationBanner: React.FC = () => {
   const { openAuthModal } = useAuthGate();
-  const [remaining, setRemaining] = useState(() => daysUntil(DEADLINE));
+  const [remaining, setRemaining] = useState(() => daysUntil(MIGRATION_DEADLINE));
 
   useEffect(() => {
-    const t = setInterval(() => setRemaining(daysUntil(DEADLINE)), 60_000);
+    const t = setInterval(() => setRemaining(daysUntil(MIGRATION_DEADLINE)), 60_000);
     return () => clearInterval(t);
   }, []);
 

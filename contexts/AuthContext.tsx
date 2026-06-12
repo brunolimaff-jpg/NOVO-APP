@@ -32,7 +32,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(() => isSupabaseAvailable());
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
   const initRef = useRef(false);
 
@@ -122,6 +122,7 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    window.dispatchEvent(new CustomEvent('operator-signed-out'));
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -134,7 +135,7 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (resetError) {
       setError(resetError);
     }
-    return { error: resetError };
+    return { error: resetError ?? null };
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

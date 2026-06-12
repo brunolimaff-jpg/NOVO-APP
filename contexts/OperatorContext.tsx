@@ -294,11 +294,19 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     })();
   }, [email, name, operatorId]);
 
+  // Refs para evitar stale closure no effect de sync com auth
+  const operatorIdRef = useRef(operatorId);
+  operatorIdRef.current = operatorId;
+  const nameRef = useRef(name);
+  nameRef.current = name;
+
   // Sincroniza dados do Auth quando usuario loga
   useEffect(() => {
     if (authUser?.email) {
       const authName = authUser.user_metadata?.name || '';
       const authEmail = authUser.email || '';
+      const currentOperatorId = operatorIdRef.current;
+      const currentName = nameRef.current;
       if (authName) {
         storageSet(OPERATOR_NAME_KEY, authName);
         setOperatorName(authName);
@@ -307,13 +315,23 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         storageSet(OPERATOR_EMAIL_KEY, authEmail);
         setOperatorEmail(authEmail);
       }
-      // Sincroniza com Supabase
       void storage
-        .saveUserContext({ operatorId, name: authName || name, email: authEmail })
+        .saveUserContext({ operatorId: currentOperatorId, name: authName || currentName, email: authEmail })
         .catch(err => warnOperator('[OperatorContext] auth sync failed:', err));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.id]);
+
+  // Limpa dados do operador ao fazer logout
+  useEffect(() => {
+    const handleSignedOut = () => {
+      storageRemove(OPERATOR_NAME_KEY);
+      storageRemove(OPERATOR_EMAIL_KEY);
+      setOperatorName('');
+      setOperatorEmail('');
+    };
+    window.addEventListener('operator-signed-out', handleSignedOut);
+    return () => window.removeEventListener('operator-signed-out', handleSignedOut);
+  }, []);
 
   // Listener de encerramento de sessao — apenas pagehide (fechar tab)
   // NOTA: visibilitychange NAO encerra sessao — trocar de aba nao deve quebrar metricas
