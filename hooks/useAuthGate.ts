@@ -35,8 +35,8 @@ export function useAuthGate(): AuthGateState {
   const canSkip = hasStoredEmail && !pastDeadline;
   const checking = loading;
 
-  const showAuthModal = !loading && isGuest && !dismissed;
-  const showBanner = !loading && isGuest && hasStoredEmail && dismissed;
+  const showAuthModal = auth !== undefined && !loading && isGuest && !dismissed;
+  const showBanner = auth !== undefined && !loading && isGuest && hasStoredEmail && dismissed;
 
   const openAuthModal = useCallback(() => setDismissed(false), []);
   const closeAuthModal = useCallback(() => {

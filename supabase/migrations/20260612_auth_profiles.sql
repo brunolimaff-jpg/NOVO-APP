@@ -35,6 +35,7 @@ CREATE TRIGGER on_auth_user_created
   EXECUTE FUNCTION public.handle_new_user();
 
 -- RLS: ativar
+-- RLS exception: contract test captura 'public' como nome da tabela (regex \w+ sem suporte a schema.table)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Grants para Data API
