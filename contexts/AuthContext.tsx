@@ -69,7 +69,8 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
     if (!supabase) {
-      return { error: null }; // fallback silencioso
+      console.warn('[Auth] signUp ignorado: Supabase indisponível');
+      return { error: null };
     }
 
     setError(null);
@@ -96,6 +97,7 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
+      console.warn('[Auth] signIn ignorado: Supabase indisponível');
       return { error: null };
     }
 
@@ -127,6 +129,7 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) {
+      console.warn('[Auth] resetPassword ignorado: Supabase indisponível');
       return { error: null };
     }
 

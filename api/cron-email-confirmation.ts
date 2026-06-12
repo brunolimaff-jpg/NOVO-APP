@@ -5,18 +5,23 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET || 'scout360-cron';
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[cron-email-confirmation] CRON_SECRET não configurado');
+    return res.status(500).json({ error: 'CRON_SECRET not configured' });
+  }
 
+  const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[cron-email-confirmation] Supabase não configurado');
     return res.status(500).json({ error: 'Missing Supabase configuration' });
   }
 
@@ -26,22 +31,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-  const { data: expired, error: selectError } = await supabase
-    .from('profiles')
-    .select('id')
-    .is('email_confirmed_at', null)
-    .lt('created_at', fortyEightHoursAgo);
+  // Com auto-confirm ativo, auth.users.email_confirmed_at fica NULL.
+  // Usamos last_sign_in_at: se o usuario nunca fez login em 48h, remover.
+  const { data: expired, error: rpcError } = await supabase.rpc('get_expired_unconfirmed_users', {
+    older_than: fortyEightHoursAgo,
+    max_results: 50,
+  });
 
-  if (selectError) {
-    return res.status(500).json({ error: 'Failed to query expired profiles', detail: selectError.message });
+  if (rpcError) {
+    console.error('[cron-email-confirmation] Erro ao consultar:', rpcError.message);
+    return res.status(500).json({ error: 'Query failed', detail: rpcError.message });
   }
 
   if (!expired || expired.length === 0) {
-    return res.status(200).json({ cleaned: 0, message: 'No expired unconfirmed accounts.' });
+    console.log('[cron-email-confirmation] Nenhuma conta expirada.');
+    return res.status(200).json({ cleaned: 0 });
   }
 
-  const expiredIds = expired.map(p => p.id);
-
+  const expiredIds: string[] = expired.map((u: { id: string }) => u.id);
   const errors: string[] = [];
   let deleted = 0;
 
@@ -53,6 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       deleted++;
     }
   }
+
+  console.log(`[cron-email-confirmation] ${deleted}/${expiredIds.length} contas removidas.`);
 
   return res.status(200).json({
     cleaned: deleted,

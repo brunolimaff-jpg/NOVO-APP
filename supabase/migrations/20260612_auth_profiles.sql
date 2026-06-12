@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   operator_id TEXT UNIQUE NOT NULL,
   email TEXT,
   name TEXT,
-  email_confirmed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -40,7 +39,6 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Grants para Data API
 GRANT SELECT, UPDATE ON public.profiles TO authenticated;
-GRANT SELECT ON public.profiles TO anon;
 
 -- Politica: usuario le o proprio perfil
 CREATE POLICY "Usuario le proprio perfil"
@@ -56,7 +54,8 @@ CREATE POLICY "Usuario atualiza proprio perfil"
   WITH CHECK (id = (SELECT auth.uid()));
 
 -- Politica: service_role le todos os perfis (funcoes serverless)
+-- NOTA: service_role tem bypassrls por padrao — esta policy e documental
 CREATE POLICY "service_role le todos os perfis"
   ON public.profiles FOR SELECT
-  TO authenticated
+  TO service_role
   USING (true);
