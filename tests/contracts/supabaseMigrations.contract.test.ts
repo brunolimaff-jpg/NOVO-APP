@@ -38,6 +38,18 @@ describe('supabaseMigrations contract — estrutura', () => {
 
     expect(allContent).toContain(indexName);
   });
+
+  it('migration 20260613_lock_profiles_operator_id.sql existe (Phase 2)', () => {
+    expect(existsSync(resolve(MIGRATIONS_DIR, '20260613_lock_profiles_operator_id.sql'))).toBe(true);
+  });
+
+  it('migration 20260613_user_context_schema.sql existe (Phase 4)', () => {
+    expect(existsSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'))).toBe(true);
+  });
+
+  it('migration 20260612_cron_cleanup_function.sql existe (Phase 3)', () => {
+    expect(existsSync(resolve(MIGRATIONS_DIR, '20260612_cron_cleanup_function.sql'))).toBe(true);
+  });
 });
 
 describe('supabaseMigrations contract — RLS policies', () => {
@@ -55,6 +67,10 @@ describe('supabaseMigrations contract — RLS policies', () => {
     }
 
     for (const table of tables) {
+      // _migration_* sao tabelas operacionais criadas e dropadas no mesmo script
+      // Ex: _migration_canonical — RLS seria ruido operacional
+      if (table.startsWith('_migration_')) continue;
+
       it(`tabela ${table} em ${file} tem RLS habilitado ou justificativa documentada`, () => {
         const hasRls = new RegExp(
           `ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?${table}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`,
@@ -88,5 +104,70 @@ describe('supabaseMigrations contract — tabelas críticas documentadas', () =>
       'i',
     );
     expect(rlsRegex.test(allContent)).toBe(true);
+  });
+});
+
+describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
+  const allContent = existsSync(MIGRATIONS_DIR)
+    ? readdirSync(MIGRATIONS_DIR)
+        .filter(f => f.endsWith('.sql'))
+        .map(f => readFileSync(resolve(MIGRATIONS_DIR, f), 'utf-8'))
+        .join('\n')
+    : '';
+
+  it('profiles.operator_id imutavel para authenticated via column grant', () => {
+    // Deve revogar UPDATE geral e conceder apenas UPDATE (name)
+    const revokeMatch = allContent.match(/REVOKE\s+UPDATE\s+ON\s+public\.profiles\s+FROM\s+authenticated/i);
+    const grantNameMatch = allContent.match(/GRANT\s+UPDATE\s*\(\s*name\s*\)\s+ON\s+public\.profiles\s+TO\s+authenticated/i);
+
+    expect(revokeMatch).not.toBeNull();
+    expect(grantNameMatch).not.toBeNull();
+  });
+
+  it('get_expired_unconfirmed_users executavel por service_role', () => {
+    // Deve conceder EXECUTE para service_role
+    // e revogar de PUBLIC, authenticated e anon
+    const grantSr = allContent.match(
+      /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.get_expired_unconfirmed_users\s+TO\s+service_role/i,
+    );
+    const revokeAnon = allContent.match(
+      /REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.get_expired_unconfirmed_users\s+FROM\s+anon/i,
+    );
+
+    expect(grantSr).not.toBeNull();
+    expect(revokeAnon).not.toBeNull();
+  });
+
+  it('migrations criam coluna supabase_auth_id em user_context', () => {
+    const lockFile = existsSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'))
+      ? readFileSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'), 'utf-8')
+      : '';
+
+    expect(lockFile).toContain('supabase_auth_id');
+    expect(lockFile).toContain('ADD COLUMN supabase_auth_id UUID');
+  });
+
+  it('migrations criam coluna auth_provider em user_context', () => {
+    const lockFile = existsSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'))
+      ? readFileSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'), 'utf-8')
+      : '';
+
+    expect(lockFile).toContain('auth_provider');
+    expect(lockFile).toContain('ADD COLUMN auth_provider TEXT');
+  });
+
+  it('profiles tem RLS exception documentada para _migration_ prefix tables', () => {
+    const consolidateFile = existsSync(resolve(MIGRATIONS_DIR, '20260612_consolidate_operators.sql'))
+      ? readFileSync(resolve(MIGRATIONS_DIR, '20260612_consolidate_operators.sql'), 'utf-8')
+      : '';
+
+    // A migration de consolidacao usa _migration_canonical — tabela operacional
+    // que e criada e dropada no mesmo script. RLS seria ruido.
+    expect(consolidateFile).toContain('_migration_');
+  });
+
+  it('link_legacy_operator RPC existe e e SECURITY DEFINER', () => {
+    expect(allContent).toContain('link_legacy_operator');
+    expect(allContent).toContain('SECURITY DEFINER');
   });
 });

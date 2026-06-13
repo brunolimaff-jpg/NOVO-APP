@@ -21,7 +21,10 @@ BEGIN
 END;
 $$;
 
--- Revoga execucao publica — apenas service_role (que tem bypassrls) pode chamar
+-- Revoga execucao publica — apenas service_role pode chamar
 REVOKE EXECUTE ON FUNCTION public.get_expired_unconfirmed_users FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.get_expired_unconfirmed_users FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.get_expired_unconfirmed_users FROM anon;
+
+-- Concede execucao para service_role (usada pelo cron Vercel com service_role key)
+GRANT EXECUTE ON FUNCTION public.get_expired_unconfirmed_users TO service_role;

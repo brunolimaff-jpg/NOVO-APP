@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthGate, MIGRATION_DEADLINE } from '../hooks/useAuthGate';
+import { MIGRATION_DEADLINE } from '../hooks/useAuthGate';
 
 function daysUntil(date: Date): number {
   return Math.max(0, Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 }
 
-export const MigrationBanner: React.FC = () => {
-  const { openAuthModal } = useAuthGate();
+interface MigrationBannerProps {
+  openAuthModal: () => void;
+}
+
+export const MigrationBanner: React.FC<MigrationBannerProps> = ({ openAuthModal }) => {
   const [remaining, setRemaining] = useState(() => daysUntil(MIGRATION_DEADLINE));
 
   useEffect(() => {

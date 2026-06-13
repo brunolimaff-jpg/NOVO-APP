@@ -10,6 +10,9 @@
 
 -- ============================================================================
 -- PASSO 0: Tabela de mapeamento (REAL, não TEMP — execute_sql é stateless)
+-- RLS exception: _migration_canonical é tabela operacional criada e dropada
+-- no mesmo script. Executada uma vez e descartada — RLS seria ruido.
+-- O test contract aceita tabelas com prefixo _migration_ como excecao.
 -- ============================================================================
 DROP TABLE IF EXISTS _migration_canonical;
 CREATE TABLE _migration_canonical (
@@ -115,6 +118,11 @@ WHERE sd2.operator_id IN (
     AND uc.operator_id != mc.canonical_operator_id
 );
 
+-- Radar alerts e configs: NÃO remapeamos — serão resetados no relink
+-- Decisao: "Radar pode resetar (nao precisa preservar radar_alerts/radar_configs no relink)"
+-- Se o operador for relinkado, os registros antigos ficam orfaos e sao
+-- substituidos por novos scans na proxima execucao do radar.
+
 -- ============================================================================
 -- PASSO 4: Remover user_context duplicados
 -- ============================================================================
@@ -155,11 +163,11 @@ UNION ALL SELECT 'radar_alerts', COUNT(*), NULL FROM radar_alerts
 UNION ALL SELECT 'radar_configs', COUNT(*), NULL FROM radar_configs;
 
 -- Órfãos (operator_ids que não existem mais no user_context)
+-- NOTA: radar_alerts e radar_configs excluidos da checagem de orfaos:
+-- serao resetados no relink (decisao DI-2026-06-12-05).
 SELECT 'dossies' AS t, COUNT(*) AS orfaos FROM dossies WHERE operator_id NOT IN (SELECT operator_id FROM user_context)
 UNION ALL SELECT 'sessions', COUNT(*) FROM operator_sessions WHERE operator_id NOT IN (SELECT operator_id FROM user_context)
-UNION ALL SELECT 'events', COUNT(*) FROM operator_events WHERE operator_id NOT IN (SELECT operator_id FROM user_context)
-UNION ALL SELECT 'radar_alerts', COUNT(*) FROM radar_alerts WHERE operator_id NOT IN (SELECT operator_id FROM user_context)
-UNION ALL SELECT 'radar_configs', COUNT(*) FROM radar_configs WHERE operator_id NOT IN (SELECT operator_id FROM user_context);
+UNION ALL SELECT 'events', COUNT(*) FROM operator_events WHERE operator_id NOT IN (SELECT operator_id FROM user_context);
 
 -- Limpeza
 DROP TABLE IF EXISTS _migration_canonical;

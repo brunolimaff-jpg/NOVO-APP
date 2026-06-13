@@ -12,6 +12,8 @@ import { storageGet, storageRemove, storageSet } from '../utils/localStorage';
 import { storage } from '../services/storage';
 import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 import { useMaybeAuth } from './AuthContext';
+import { supabase } from '../lib/supabaseClient';
+import type { User } from '@supabase/supabase-js';
 
 export interface OperatorProfile {
   operatorId: string;
@@ -82,6 +84,83 @@ function warnOperator(message: string, err?: unknown): void {
   }
 }
 
+// ===================================================================
+// resolveOperatorFromAuth — contrato de identidade
+// ===================================================================
+// Busca o operator_id canonico para um usuario autenticado:
+// 1. profiles.operator_id por auth.uid() (fonte canonica)
+// 2. user_context por email (operador legado, fallback)
+// 3. Retorna null se nada encontrado (primeiro login)
+//
+// NOTA: nao atualiza profiles — o trigger on_auth_user_created ja cria
+// o profile no signup. Para legacy linking, a migration de consolidacao
+// (20260612_consolidate_operators) ja trata o backfill. O RPC
+// link_legacy_operator fica disponivel para casos pontuais.
+// ===================================================================
+async function resolveOperatorFromAuth(
+  authUser: User,
+): Promise<{ operatorId: string; name: string; email: string } | null> {
+  if (!supabase) return null;
+
+  try {
+    // Step 1: Ler profiles.operator_id (fonte canonica)
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('operator_id, email, name')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (error) {
+      warnOperator('[OperatorContext] profiles query error:', error);
+      return null;
+    }
+
+    if (profile?.operator_id) {
+      return {
+        operatorId: profile.operator_id,
+        name: profile.name || authUser.user_metadata?.name || '',
+        email: profile.email || authUser.email || '',
+      };
+    }
+
+    // Step 2: Profile sem operator_id — buscar user_context por email
+    const authEmail = authUser.email?.toLowerCase().trim();
+    if (!authEmail) return null;
+
+    const existing = await storage.findUserByEmail(authEmail);
+    if (existing) {
+      // Operador legado encontrado — usar operator_id como canonico
+      // O profile sera atualizado via migration ou link_legacy_operator RPC
+      return {
+        operatorId: existing.operatorId,
+        name: existing.displayName || authUser.user_metadata?.name || '',
+        email: authUser.email || '',
+      };
+    }
+
+    // Step 3: Nada encontrado — profile deveria existir do trigger
+    // Tenta re-ler (caso o trigger tenha sido executado entre nossa consulta)
+    const { data: retryProfile } = await supabase
+      .from('profiles')
+      .select('operator_id, email, name')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (retryProfile?.operator_id) {
+      return {
+        operatorId: retryProfile.operator_id,
+        name: retryProfile.name || '',
+        email: retryProfile.email || '',
+      };
+    }
+
+    return null;
+  } catch (err) {
+    warnOperator('[OperatorContext] resolveOperatorFromAuth error:', err);
+    return null;
+  }
+}
+
 const OperatorContext = createContext<OperatorContextType | undefined>(undefined);
 
 export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -103,6 +182,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const didTrackAppOpenRef = useRef(false);
   const didTrackInFlightRef = useRef(false);
   const didBackfillInFlightRef = useRef(false);
+  const operatorResolvedRef = useRef(false); // Ja resolveu operator_id do auth?
 
   const setName = useCallback(
     (nextName: string) => {
@@ -176,6 +256,9 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const registerOperator = useCallback(
     (nextName: string, nextEmail: string) => {
+      // Se ja resolvido via auth, nao recria user_context com ID temporario
+      if (operatorResolvedRef.current) return;
+
       const normalizedName = nextName.trim();
       const normalizedEmail = nextEmail.trim();
       if (!normalizedName || !normalizedEmail) return;
@@ -238,7 +321,98 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     [operatorId, linkToExistingOperator],
   );
 
+  // Refs para evitar stale closure nos effects
+  const operatorIdRef = useRef(operatorId);
+  operatorIdRef.current = operatorId;
+  const nameRef = useRef(name);
+  nameRef.current = name;
+  const emailRef = useRef(email);
+  emailRef.current = email;
+
+  // ===================================================================
+  // Resolucao de operator_id para usuario autenticado (Phase 1)
+  // ===================================================================
+  // ORDEM CRITICA: Este effect DEVE vir antes do backfill effect.
+  // React executa effects na ordem de declaracao. Este effect marca
+  // operatorResolvedRef=true de forma sincrona (antes do async),
+  // prevenindo que o backfill effect rode para auth users.
+  //
+  // Quando o usuario esta autenticado, busca o operator_id canonico
+  // via profiles.operator_id. Nao cria user_context com ID temporario.
+  //
+  // Fluxo:
+  //   auth.uid() → profiles.operator_id → se existe → usa
+  //   se nao → user_context por email → se acha → usa legado
+  //   se nao acha → mantem localStorage (primeiro login, trigger ja criou profile)
+  // ===================================================================
   useEffect(() => {
+    if (!authUser || operatorResolvedRef.current || authLoading) return;
+
+    operatorResolvedRef.current = true; // Sincrono — protege backfill effect abaixo
+
+    void (async () => {
+      try {
+        const resolved = await resolveOperatorFromAuth(authUser);
+        if (!resolved) {
+          // Nao conseguiu resolver — mantem valores atuais do localStorage
+          return;
+        }
+
+        const currentOpId = operatorIdRef.current;
+        const needsRelink = resolved.operatorId !== currentOpId;
+
+        // Atualiza localStorage com valores canonicos
+        storageSet(OPERATOR_ID_KEY, resolved.operatorId);
+        if (resolved.name) storageSet(OPERATOR_NAME_KEY, resolved.name);
+        if (resolved.email) storageSet(OPERATOR_EMAIL_KEY, resolved.email);
+
+        // Atualiza estado do React se necessario
+        if (needsRelink) setOperatorId(resolved.operatorId);
+        if (resolved.name && resolved.name !== nameRef.current) setOperatorName(resolved.name);
+        if (resolved.email && resolved.email !== emailRef.current) setOperatorEmail(resolved.email);
+
+        // Persiste user_context com operator_id canonico (NUNCA com ID temporario)
+        void storage
+          .saveUserContext({
+            operatorId: resolved.operatorId,
+            name: resolved.name || nameRef.current,
+            email: resolved.email || emailRef.current,
+          })
+          .catch(err => warnOperator('[OperatorContext] saveUserContext after resolution failed:', err));
+
+        // Dispara relink se operator_id mudou (recarrega dossies etc.)
+        if (needsRelink) {
+          window.dispatchEvent(new CustomEvent('operator-relinked'));
+        }
+
+        // Inicia tracking se ainda nao iniciado
+        if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
+          didTrackInFlightRef.current = true;
+          try {
+            await initSessionTracking(resolved.operatorId, resolved.email || emailRef.current);
+            didTrackAppOpenRef.current = true;
+          } catch (err) {
+            warnOperator('[OperatorContext] initSessionTracking after resolution failed:', err);
+          } finally {
+            didTrackInFlightRef.current = false;
+          }
+        }
+      } catch (err) {
+        warnOperator('[OperatorContext] operator resolution error:', err);
+      }
+    })();
+  }, [authUser?.id, authLoading]);
+
+  // ===================================================================
+  // Backfill — apenas para usuarios nao autenticados (guest)
+  // ===================================================================
+  // Se operatorResolvedRef.current esta true, o usuario ja foi resolvido
+  // via auth. Este effect nao executa. O guard e sincrono porque o effect
+  // de resolucao acima ja marcou o ref antes de iniciar o async.
+  // ===================================================================
+  useEffect(() => {
+    // Auth user: resolution effect ja cuidou
+    if (operatorResolvedRef.current) return;
     if (!shouldBackfillSavedProfileRef.current || didBackfillRef.current || didBackfillInFlightRef.current) return;
     if (!operatorId || !name || !email) return;
 
@@ -263,17 +437,14 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       } catch (err) {
         warnOperator('[OperatorContext] findUserByEmail failed during backfill:', err);
-        // Permite retry futuro — nao seta didBackfillRef
         didBackfillInFlightRef.current = false;
         return;
       }
 
-      // Persiste com o operatorId canonico
       void storage
         .saveUserContext({ operatorId: effectiveOperatorId, name: capturedName, email: capturedEmail })
         .catch(err => warnOperator('[OperatorContext] saveUserContext failed:', err));
 
-      // Tracking de sessaoo — dispara apenas 1x por montagem do provider
       if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
         didTrackInFlightRef.current = true;
         void initSessionTracking(effectiveOperatorId, capturedEmail)
@@ -292,33 +463,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       didBackfillInFlightRef.current = false;
     })();
   }, [email, name, operatorId]);
-
-  // Refs para evitar stale closure no effect de sync com auth
-  const operatorIdRef = useRef(operatorId);
-  operatorIdRef.current = operatorId;
-  const nameRef = useRef(name);
-  nameRef.current = name;
-
-  // Sincroniza dados do Auth quando usuario loga
-  useEffect(() => {
-    if (authUser?.email) {
-      const authName = authUser.user_metadata?.name || '';
-      const authEmail = authUser.email || '';
-      const currentOperatorId = operatorIdRef.current;
-      const currentName = nameRef.current;
-      if (authName) {
-        storageSet(OPERATOR_NAME_KEY, authName);
-        setOperatorName(authName);
-      }
-      if (authEmail) {
-        storageSet(OPERATOR_EMAIL_KEY, authEmail);
-        setOperatorEmail(authEmail);
-      }
-      void storage
-        .saveUserContext({ operatorId: currentOperatorId, name: authName || currentName, email: authEmail })
-        .catch(err => warnOperator('[OperatorContext] auth sync failed:', err));
-    }
-  }, [authUser?.id]);
 
   // Limpa dados do operador ao fazer logout
   useEffect(() => {
