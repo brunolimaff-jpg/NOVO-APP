@@ -9,6 +9,18 @@
 -- 4. Manter plano B: restaurar canônicos via profiles se DELETE for agressivo.
 
 -- ============================================================================
+-- PASSO -1: Garantir schema de auth antes da consolidacao
+-- ============================================================================
+-- A consolidacao usa user_context.supabase_auth_id/auth_provider. Estes campos
+-- tambem existem em 20260613_user_context_schema.sql para ambientes ja
+-- migrados, mas precisam existir aqui para replay limpo em ordem cronologica.
+ALTER TABLE public.user_context
+  ADD COLUMN IF NOT EXISTS supabase_auth_id UUID;
+
+ALTER TABLE public.user_context
+  ADD COLUMN IF NOT EXISTS auth_provider TEXT;
+
+-- ============================================================================
 -- PASSO 0: Tabela de mapeamento (REAL, não TEMP — execute_sql é stateless)
 -- RLS exception: _migration_canonical é tabela operacional criada e dropada
 -- no mesmo script. Executada uma vez e descartada — RLS seria ruido.

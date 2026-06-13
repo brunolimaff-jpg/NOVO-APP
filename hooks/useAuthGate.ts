@@ -25,6 +25,7 @@ export function useAuthGate(): AuthGateState {
   const isGuest = auth ? auth.isGuest : true;
   const hasStoredEmail = Boolean(storageGet('operator_email')?.trim());
   const pastDeadline = new Date() > MIGRATION_DEADLINE;
+  const [forcedOpen, setForcedOpen] = useState(false);
 
   const [dismissed, setDismissed] = useState(() => {
     const skipUntil = storageGet(MIGRATION_SKIP_KEY);
@@ -42,13 +43,16 @@ export function useAuthGate(): AuthGateState {
   const canSkip = hasStoredEmail && !pastDeadline;
   const checking = loading;
 
-  // Apos o prazo, showAuthModal ignora dismissed (nao permite postergar)
-  const showAuthModal = auth !== undefined && !loading && isGuest && (pastDeadline || !dismissed);
+  const showAuthModal = auth !== undefined && !loading && isGuest && (forcedOpen || (!pastDeadline && !dismissed));
   const showBanner = auth !== undefined && !loading && isGuest && hasStoredEmail && dismissed && !pastDeadline;
 
-  const openAuthModal = useCallback(() => setDismissed(false), []);
+  const openAuthModal = useCallback(() => {
+    setDismissed(false);
+    setForcedOpen(true);
+  }, []);
   const closeAuthModal = useCallback(() => {
     if (canSkip) setDismissed(true);
+    setForcedOpen(false);
   }, [canSkip]);
 
   const continueAsGuest = useCallback(() => {

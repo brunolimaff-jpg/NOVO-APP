@@ -65,13 +65,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
       return;
     }
 
-    const passErr = validatePassword(password);
-    if (passErr) {
-      setFieldError(passErr);
+    if (!password) {
+      setFieldError('Senha é obrigatória.');
       return;
     }
 
     if (activeTab === 'criar-conta') {
+      const passErr = validatePassword(password);
+      if (passErr) {
+        setFieldError(passErr);
+        return;
+      }
       if (password !== confirmPassword) {
         setFieldError('As senhas não conferem.');
         return;

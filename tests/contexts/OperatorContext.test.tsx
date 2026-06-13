@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const saveUserContextMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const findUserByEmailMock = vi.hoisted(() =>
@@ -28,9 +28,10 @@ const mockMaybeSingle = vi.hoisted(() => vi.fn());
 const mockEq = vi.hoisted(() => vi.fn(() => ({ maybeSingle: mockMaybeSingle })));
 const mockSupabaseSelect = vi.hoisted(() => vi.fn(() => ({ eq: mockEq })));
 const mockSupabaseFrom = vi.hoisted(() => vi.fn(() => ({ select: mockSupabaseSelect })));
+const mockSupabaseRpc = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: null, error: null })));
 
 vi.mock('../../lib/supabaseClient', () => ({
-  supabase: { from: mockSupabaseFrom },
+  supabase: { from: mockSupabaseFrom, rpc: mockSupabaseRpc },
   isSupabaseAvailable: true,
 }));
 
@@ -82,6 +83,8 @@ describe('OperatorProvider', () => {
     mockUseMaybeAuth.mockReset();
     mockUseMaybeAuth.mockReturnValue(undefined); // Sem auth provider
     mockSupabaseSelect.mockReset();
+    mockSupabaseRpc.mockReset();
+    mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
     mockSupabaseFrom.mockClear();
   });
 
@@ -219,6 +222,8 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     mockSupabaseFrom.mockClear();
     mockEq.mockClear();
     mockMaybeSingle.mockReset();
+    mockSupabaseRpc.mockReset();
+    mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
     mockUseMaybeAuth.mockReturnValue(AUTH_STATE);
   });
 
@@ -277,6 +282,51 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     window.removeEventListener('operator-relinked', relinkSpy);
   });
 
+  it('authUser com profile novo e operador legado por email — prefere legado e chama RPC de relink', async () => {
+    mockProfileResult({ operator_id: 'op_trigger_novo', email: 'auth@agro.com', name: 'Auth User' });
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: 'op_legacy_456',
+      displayName: 'Legacy User',
+    });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_legacy_456');
+    });
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('link_legacy_operator', {
+      p_auth_user_id: AUTH_USER.id,
+      p_operator_id: 'op_legacy_456',
+      p_email: 'auth@agro.com',
+      p_name: 'Legacy User',
+    });
+  });
+
+  it('logout limpa operator_id local e cria identidade guest nova', async () => {
+    window.localStorage.setItem('scout360:operator_id', 'op_auth');
+    window.localStorage.setItem('scout360:operator_name', 'Auth User');
+    window.localStorage.setItem('scout360:operator_email', 'auth@agro.com');
+    mockProfileResult({ operator_id: 'op_auth', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_auth');
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('operator-signed-out'));
+    });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
+    });
+    expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_id')).not.toBe('op_auth');
+    expect(screen.getByTestId('email')).toHaveTextContent('empty');
+  });
+
   it('tracking inicia uma vez apos resolucao — nao duplica para guest', async () => {
     mockProfileResult({ operator_id: 'op_unique', email: 'auth@agro.com', name: 'Auth User' });
 
@@ -286,8 +336,7 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('operator-id')).toHaveTextContent('op_unique');
     });
-    // Nao deve ter chamado findUserByEmail (resolveu direto por profiles)
-    expect(findUserByEmailMock).not.toHaveBeenCalled();
+    expect(findUserByEmailMock).toHaveBeenCalledWith('auth@agro.com');
   });
 
   it('profile sem operator_id e sem email — mantem localStorage atual', async () => {

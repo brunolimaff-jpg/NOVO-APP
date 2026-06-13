@@ -103,6 +103,8 @@ async function resolveOperatorFromAuth(
   if (!supabase) return null;
 
   try {
+    const authEmail = authUser.email?.toLowerCase().trim();
+
     // Step 1: Ler profiles.operator_id (fonte canonica)
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -115,7 +117,34 @@ async function resolveOperatorFromAuth(
       return null;
     }
 
+    // Step 2: Buscar operador legado por email antes de aceitar um operator_id
+    // recém-criado pelo trigger. Isso preserva dossiês de contas recriadas.
+    const legacyOperator = authEmail ? await storage.findUserByEmail(authEmail) : null;
+
     if (profile?.operator_id) {
+      if (legacyOperator && legacyOperator.operatorId !== profile.operator_id) {
+        const resolvedName = legacyOperator.displayName || profile.name || authUser.user_metadata?.name || '';
+
+        void (async () => {
+          const { error: linkError } = await supabase.rpc('link_legacy_operator', {
+            p_auth_user_id: authUser.id,
+            p_operator_id: legacyOperator.operatorId,
+            p_email: authEmail,
+            p_name: resolvedName,
+          });
+
+          if (linkError) {
+            warnOperator('[OperatorContext] link_legacy_operator failed:', linkError);
+          }
+        })();
+
+        return {
+          operatorId: legacyOperator.operatorId,
+          name: resolvedName,
+          email: profile.email || authUser.email || '',
+        };
+      }
+
       return {
         operatorId: profile.operator_id,
         name: profile.name || authUser.user_metadata?.name || '',
@@ -123,17 +152,14 @@ async function resolveOperatorFromAuth(
       };
     }
 
-    // Step 2: Profile sem operator_id — buscar user_context por email
-    const authEmail = authUser.email?.toLowerCase().trim();
     if (!authEmail) return null;
 
-    const existing = await storage.findUserByEmail(authEmail);
-    if (existing) {
+    if (legacyOperator) {
       // Operador legado encontrado — usar operator_id como canonico
-      // O profile sera atualizado via migration ou link_legacy_operator RPC
+      // O profile sera atualizado por link_legacy_operator quando existir profile.
       return {
-        operatorId: existing.operatorId,
-        name: existing.displayName || authUser.user_metadata?.name || '',
+        operatorId: legacyOperator.operatorId,
+        name: legacyOperator.displayName || authUser.user_metadata?.name || '',
         email: authUser.email || '',
       };
     }
@@ -346,6 +372,10 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   //   se nao acha → mantem localStorage (primeiro login, trigger ja criou profile)
   // ===================================================================
   useEffect(() => {
+    if (!authUser) {
+      operatorResolvedRef.current = false;
+      return;
+    }
     if (!authUser || operatorResolvedRef.current || authLoading) return;
 
     operatorResolvedRef.current = true; // Sincrono — protege backfill effect abaixo
@@ -467,10 +497,16 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Limpa dados do operador ao fazer logout
   useEffect(() => {
     const handleSignedOut = () => {
+      storageRemove(OPERATOR_ID_KEY);
       storageRemove(OPERATOR_NAME_KEY);
       storageRemove(OPERATOR_EMAIL_KEY);
+      const nextGuestOperatorId = getOrCreateOperatorId();
+      operatorResolvedRef.current = false;
+      didBackfillRef.current = false;
+      didTrackAppOpenRef.current = false;
       setOperatorName('');
       setOperatorEmail('');
+      setOperatorId(nextGuestOperatorId);
     };
     window.addEventListener('operator-signed-out', handleSignedOut);
     return () => window.removeEventListener('operator-signed-out', handleSignedOut);

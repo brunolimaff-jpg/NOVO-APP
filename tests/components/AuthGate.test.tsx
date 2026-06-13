@@ -201,7 +201,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
     expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
-  it('novo guest sem email — clicar em criar conta NAO abre modal (tela full-blocking)', () => {
+  it('novo guest sem email — clicar em criar conta abre modal obrigatório', () => {
     renderGate();
 
     expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
@@ -209,12 +209,20 @@ describe('AuthGate — apos o prazo de migracao', () => {
 
     fireEvent.click(screen.getByText('Criar minha conta agora'));
 
-    // Apos o deadline, a tela e full-blocking (o AuthGate retorna antes do modal).
-    // O botao existe como call-to-action visual; o modal nao aparece ate que
-    // o usuario se autentique (quando AuthGate renderiza fluxo normal).
-    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
-    // A tela de bloqueio continua visivel
+    expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
+  });
+
+  it('guest com email apos deadline — clicar em criar senha abre modal obrigatório', () => {
+    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
+
+    renderGate();
+
+    fireEvent.click(screen.getByText('Criar minha senha'));
+
+    expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
   });
 });
 

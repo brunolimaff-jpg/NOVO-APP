@@ -147,6 +147,18 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
     expect(lockFile).toContain('ADD COLUMN supabase_auth_id UUID');
   });
 
+  it('consolidacao garante colunas auth antes de usa-las', () => {
+    const consolidateFile = existsSync(resolve(MIGRATIONS_DIR, '20260612_consolidate_operators.sql'))
+      ? readFileSync(resolve(MIGRATIONS_DIR, '20260612_consolidate_operators.sql'), 'utf-8')
+      : '';
+
+    const firstAdd = consolidateFile.indexOf('ADD COLUMN IF NOT EXISTS supabase_auth_id UUID');
+    const firstUse = consolidateFile.indexOf('SET supabase_auth_id');
+
+    expect(firstAdd).toBeGreaterThanOrEqual(0);
+    expect(firstUse).toBeGreaterThan(firstAdd);
+  });
+
   it('migrations criam coluna auth_provider em user_context', () => {
     const lockFile = existsSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'))
       ? readFileSync(resolve(MIGRATIONS_DIR, '20260613_user_context_schema.sql'), 'utf-8')
@@ -169,5 +181,16 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
   it('link_legacy_operator RPC existe e e SECURITY DEFINER', () => {
     expect(allContent).toContain('link_legacy_operator');
     expect(allContent).toContain('SECURITY DEFINER');
+  });
+
+  it('link_legacy_operator exige email autenticado e nao aceita claim sem prova', () => {
+    const lockFile = existsSync(resolve(MIGRATIONS_DIR, '20260613_lock_profiles_operator_id.sql'))
+      ? readFileSync(resolve(MIGRATIONS_DIR, '20260613_lock_profiles_operator_id.sql'), 'utf-8')
+      : '';
+
+    expect(lockFile).toContain('p_email TEXT,');
+    expect(lockFile).toContain('Email is required to link legacy operator');
+    expect(lockFile).toContain('Email does not match authenticated profile');
+    expect(lockFile).toContain('email_normalized = LOWER(caller_email)');
   });
 });

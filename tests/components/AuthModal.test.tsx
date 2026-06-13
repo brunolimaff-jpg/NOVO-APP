@@ -141,6 +141,18 @@ describe('AuthModal', () => {
     expect(screen.getAllByText('Entrar').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('signin aceita senha simples e deixa Supabase validar credenciais', async () => {
+    renderModal(true);
+
+    await fillSigninForm('existente@agro.com', 'abc');
+    const entrarButtons = screen.getAllByText('Entrar');
+    fireEvent.click(entrarButtons[entrarButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(signInMock).toHaveBeenCalledWith('existente@agro.com', 'abc');
+    });
+  });
+
   it('botao Continuar sem cadastro aparece quando showGuestOption=true', () => {
     renderModal(true);
 

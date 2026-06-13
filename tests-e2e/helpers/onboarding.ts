@@ -1,16 +1,32 @@
 import { expect, type Page } from '@playwright/test';
 
 const MIGRATION_SEEN_KEY = 'scout360:supabase_migration_seen';
+const AUTH_SKIP_KEY = 'scout360:auth_skip_until';
+const OPERATOR_EMAIL_KEY = 'scout360:operator_email';
 
 export function e2eOperatorEmail(prefix = 'qa.e2e') {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return `${prefix}.${suffix}@senior.com.br`;
 }
 
+export function e2eCompanyName(prefix = 'Fazenda E2E') {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix} ${suffix}`;
+}
+
 export async function preventMigrationNotice(page: Page) {
-  await page.addInitScript(key => {
-    localStorage.setItem(key, 'true');
-  }, MIGRATION_SEEN_KEY);
+  await page.addInitScript(
+    ({ migrationSeenKey, authSkipKey, operatorEmailKey }) => {
+      localStorage.setItem(migrationSeenKey, 'true');
+      localStorage.setItem(operatorEmailKey, 'qa.e2e@senior.com.br');
+      localStorage.setItem(authSkipKey, new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
+    },
+    {
+      migrationSeenKey: MIGRATION_SEEN_KEY,
+      authSkipKey: AUTH_SKIP_KEY,
+      operatorEmailKey: OPERATOR_EMAIL_KEY,
+    },
+  );
 }
 
 export async function dismissMigrationNotice(page: Page) {
