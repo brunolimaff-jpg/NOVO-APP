@@ -1,125 +1,91 @@
-# Handoff — Supabase Auth Migration (PR #372)
+# Handoff — PR #372 Supabase Auth pronta para merge
 
-- **PR #372** (branch `feature/supabase-auth`): Migracao de auth local (localStorage) para Supabase Auth
-- **Status:** PR aberta, nao mergeada — code review P0/P1 corrigido (commit `07aa30de`)
-- **CI:** Typecheck OK, Build OK, Tests 1447/1448 (1 falha pre-existente `CnpjGraphResponds`)
-- **Preview:** https://scoutagro-o8hbhgepk-brunolimaff-3629s-projects.vercel.app
-- **Deadline:** 18/06/2026 — usuarios existentes precisam cadastrar senha
+- **PR:** #372 — `feature/supabase-auth`
+- **Codigo runtime validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
+- **Status GitHub:** `CLEAN`, todos os checks verdes, **nao mergeada**
+- **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
+- **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
+- **Supabase project:** `vmqfcaoirjcfucvlnpig` (`NOVO-APP`)
+- **Deadline de migracao:** 18/06/2026
 
----
+## Resumo
 
-## Entrada rapida para proximo agente
+A PR #372 migra o fluxo local de operador para Supabase Auth e fecha os bloqueadores encontrados antes do merge. A cadeia final de identidade e:
 
-1. Este arquivo (resumo executivo)
-2. `.agents/memory/activeContext.md` — estado atual do projeto
-3. `.agents/memory/decisions.md` — decisoes arquiteturais ativas
-4. `Bruno Vault/30-DECISOES/DECISAO-AUTH-HIBRIDO-SUPABASE-2026-06-12.md` — decisao principal de auth
-5. `Bruno Vault/30-DECISOES/DECISAO-CANONICAL-OPERATORID-FINDUSERBYEMAIL-2026-06-11.md` — canonical operatorId
-6. `Bruno Vault/20-SESSOES/2026-06/2026-06-12T18-00-00-auth-migration-sprint4-pr372.md` — sessao completa de encerramento
+`Supabase Auth auth.uid()` -> `profiles.operator_id` -> dados do operador/dossies.
 
----
+O app nao grava mais identidade autenticada (`operator_id`, nome, email) no localStorage proprio. A sessao fica salva pelo token do Supabase Auth no navegador.
 
-## O que foi feito — 4 Sprints
+## Commits relevantes da revisao final
 
-### Sprint 0: Diagnostico + Prototipo
-- Auditoria: **430 operator_ids** unicos, **117 emails** unicos, **292 IDs fragmentados** para Bruno
-- Prototipo funcional validado pelo Bruno em worktree `prototipo-auth`
+- `6d7b89c1` — fecha bloqueadores de auth remediation: restaura `/api/link-status`, remove `/api/pulse-news`, corrige AuthGate pos-deadline, login com senha simples, E2E e migrations.
+- `2fd6f3f8` — remove cache local de identidade derivada de auth para resolver alerta CodeQL de clear-text storage.
+- `c86fd0dd` — aguarda RPC de relink legado, adiciona RLS authenticated para `user_context`/radar e reduz radar para aviso nao bloqueante.
 
-### Sprint 1: Infraestrutura Supabase Auth
-- Tabela `profiles`, trigger `on_auth_user_created`, RLS
-- `AuthContext` (signUp, signIn, signOut, resetPassword)
-- `AuthModal`, `AuthGate`, `MigrationBanner`, `useAuthGate`
-- `OperatorProvider` adaptado para `AuthContext`
-- PR #367 (base: `main`) — 894 linhas adicionadas, 179 removidas
+## Migrations aplicadas
 
-### Sprint 2: Validacao Email + Cron
-- Regex de email, cron de confirmacao 48h (`api/cron-email-confirmation.ts`)
-- `vercel.json` com schedule a cada 6h + 30s maxDuration
-- PR #368 (base: `worktree-sprint1-auth-infra`) — 205 linhas +, 72 -
+No Supabase remoto (`vmqfcaoirjcfucvlnpig`):
 
-### Sprint 3: Migracao de Usuarios
-- Script reescrito **3x** (`execute_sql` stateless — temp table nao sobrevive)
-- Tabela REAL `_migration_canonical` + safety net (passo 5)
-- **user_context: 430 -> 125** (-71%), **Bruno: 292 IDs -> 1 canonical**
-- PR #369 (base: `main`) — `supabase/migrations/20260612_consolidate_operators.sql`
+- `20260613_user_context_schema`
+- `20260613_lock_profiles_operator_id`
+- `auth_storage_rls_policies`
 
-### Sprint 4: Testes + Graceful Fallback
-- **8 -> 1 falha** de teste (`AuthGate` com `expect.assertions` corrigido)
-- AuthGate com graceful fallback sem `AuthContext`
-- `operatorContext.ok || userContext` no OperatorProvider
+A ultima migration permite que usuario autenticado:
 
-### PR #372 Unificado
-- Merge de Sprints 1+2+3+4 em PR unica
-- **14 arquivos**, 1261 linhas +, 248 -
-- Code review Gemini + CodeRabbit: P0/P1 corrigidos
+- leia `user_context` proprio ou legado pelo proprio email;
+- grave/atualize apenas o `operator_id` ligado ao seu `profiles`;
+- use radar apenas quando o `operator_id` bate com `profiles.operator_id`.
 
----
+## Validacao local
 
-## Decisoes do Bruno
+Rodado em worktree limpa `/tmp/novo-app-validate-a0yzFv` antes da limpeza:
 
-| Decisao | Opcao Escolhida | Alternativa |
-|---------|----------------|-------------|
-| Confirmacao de email | Hibrida: auto-confirm ativo, cron remove em 48h | Estrita (bloqueia) ou auto-confirm total (sem validacao) |
-| Obrigatoriedade | Obrigatorio para novos, opcional para existentes ate 18/06 | Obrigatorio para todos (quebra) ou opcional indefinido |
-| Deadline | **18/06/2026** | Sem prazo |
-| Senha Bruno | `Scout360@2026!` | — |
-| Estrategia de PR | PR unificada (Sprints 1+2+3+4) | PRs separadas por sprint |
+- `npm run typecheck` — passou
+- `npm run test` — 162 arquivos, 1498 testes passaram
+- `npm run build` — passou, com aviso conhecido de chunk grande
+- `npx eslint` nos arquivos alterados — 0 erros, 1 warning antigo em teste (`mockProfileError`)
+- `git diff --check HEAD~1..HEAD` — passou
 
----
+Observacao: o typecheck na pasta principal ainda e poluido por `components/MetricsDashboard.tsx` nao rastreado, fora da PR.
 
-## Bugs corrigidos na code review
+## Checks GitHub/Vercel
 
-1. **P0:** `getSession` sem catch no `AuthContext` — adicionado try/catch
-2. **P0:** `App.tsx` inline `finally` sem `currentUser` — adicionado `userRef.current`
-3. **P1:** `error.code` vs `error.message` para "User already registered" — usar `error.code`
-4. **P1:** Codigo morto — tratativas de erro `err` sem uso removidas
-5. **Minor:** `useEffect` sem `currentUser` na dependencia — adicionado
+Todos passaram no commit runtime `c86fd0dd` antes do commit documental final:
 
----
+- Build
+- Typecheck
+- Tests
+- Dossier Golden
+- E2E Critical Browser
+- CodeQL
+- CodeRabbit
+- GitGuardian
+- Smoke preview
+- Vercel
+- Vercel Preview Comments
 
-## Arquivos alterados (PR #372)
+## Validacao manual no preview
 
-| Arquivo | Mudanca | Status |
-|---------|---------|--------|
-| `contexts/AuthContext.tsx` | AuthProvider completo | CRIADO |
-| `components/AuthModal.tsx` | Modal login/cadastro/recuperacao | CRIADO |
-| `components/AuthGate.tsx` | Gate de autenticacao | CRIADO |
-| `components/MigrationBanner.tsx` | Banner prazo 18/06 | CRIADO |
-| `hooks/useAuthGate.ts` | Logica de gating | CRIADO |
-| `api/cron-email-confirmation.ts` | Cron remocao 48h | CRIADO |
-| `supabase/migrations/20260612_auth_profiles.sql` | Profiles + trigger + RLS | CRIADO |
-| `supabase/migrations/20260612_consolidate_operators.sql` | Consolidacao 430->125 | CRIADO |
-| `supabase/migrations/20260612_cron_cleanup_function.sql` | Funcao cleanup | CRIADO |
-| `contexts/OperatorContext.tsx` | Adaptado + graceful fallback | MODIFICADO |
-| `App.tsx` | Integracao AuthGate/AuthModal | MODIFICADO |
-| `index.tsx` | Provider wrapping | MODIFICADO |
-| `services/dossierAccessService.ts` | Auth uid no acesso | MODIFICADO |
-| `vercel.json` | Cron schedule + maxDuration | MODIFICADO |
+Preview testado: https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 
----
+Fluxo validado:
+
+1. Login com a conta do Bruno funcionou.
+2. Reload manteve a sessao salva via Supabase Auth.
+3. `scout360:operator_id`, `scout360:operator_name` e `scout360:operator_email` ficaram `null` no localStorage.
+4. Token Supabase presente (`sb-vmqfcaoirjcfucvlnpig-auth-token`).
+5. CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, cidade `Sapezal`, UF `MT`.
+6. Investigacao completa iniciou, criou historico, concluiu o waterfall e gerou dossie com Score 84.
+7. Console sem erros de RLS, `saveUserContext`, `saveRadar`, `row-level security` ou `violates`.
+8. Logs de `FreezeDiag`/`BlankPanelDebug` apareceram apenas como diagnostico; a UI renderizou o dossie, sem painel branco.
 
 ## Riscos residuais
 
-| Risco | Severidade | Proximo Passo |
-|-------|-----------|---------------|
-| Deadline 18/06 sem comunicacao usuarios existentes | Media | Sprint 5: comunicar, UX pos-login |
-| 1 teste falhando (CnpjGraphResponds) | Baixa | Pre-existente, nao relacionado a auth |
-| RLS ainda nao restritiva | Media | Apos 18/06, tornar RLS obrigatoria |
-| Operadores antigos perdem acesso apos 18/06 | Media | Migration campaign |
-| **Dossiês não vinculam ao novo operator_id ao recriar conta** | **Alta** | Se usuario deleta conta Supabase e recria, ganha novo `auth.uid` → novo `operator_id`. Dossiês antigos ficam órfãos. Sprint 5 precisa de: (a) enrolar email→operator_id no user_context ao recriar conta; (b) script de re-link de dossiês por email |
+- Radar continua usando storage legado em partes do fluxo; nesta PR ele foi tratado como nao bloqueante, conforme decisao do Bruno.
+- Backend/operacao de recuperacao assistida pos-deadline ainda precisa ser fechado fora desta PR.
+- `CRON_SECRET` deve permanecer configurado nos ambientes Vercel onde o cron real rodar.
+- Arquivos locais nao relacionados seguem fora da PR: `.claude/worktrees/`, `components/MetricsDashboard.tsx`, `docs/planos/2026-06-13-pr372-auth-remediation-plan.md`.
 
----
+## Proximo passo
 
-## Prompt de retomada
-
-```text
-▎ Retome a sessao no NOVO-APP a partir de feature/supabase-auth.
-▎ PR #372 aberta: migracao de auth local para Supabase Auth completa.
-▎ 4 Sprints entregues: infra, UI+cron, migracao 430->125, testes.
-▎ Code review P0/P1 corrigido (commit 07aa30de).
-▎ CI: Typecheck/Build OK, Tests 1447/1448.
-▎ Deadline 18/06/2026.
-▎ Decisao: modelo hibrido auto-confirm + cron 48h.
-▎ Proximo passo: Sprint 5 — feedback de dossie salvo e UX pos-login.
-▎ Ver Bruno Vault/30-DECISOES/DECISAO-AUTH-HIBRIDO-SUPABASE-2026-06-12.md
-```
+Se Bruno quiser concluir, confirmar explicitamente com **MERGE**. Sem essa palavra, nao executar merge por causa do merge guard do repo.

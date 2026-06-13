@@ -204,6 +204,32 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **AbortSignal.timeout() cobre apenas conexao, nao leitura do body** [fetch, timeout, abort, body-read]
   `fetch(url, { signal: AbortSignal.timeout(N) })` aborta apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora (ou e grande), `response.json()` fica bloqueada indefinidamente. Solucao: `AbortController` explicito para timeout total + `response.text()` com race contra timeout dedicado + `JSON.parse()` manual.
 
+## Auth Migration Supabase (12 Jun 2026) — licoes consolidadas
+
+- **Sessao Supabase salva nao exige cache proprio de identidade** [supabase, auth, localstorage, security]
+  Depois do login, a persistencia correta fica no token do Supabase Auth. Gravar `operator_id`, nome ou email autenticados no localStorage proprio do app cria alerta de clear-text storage e mistura cache com autoridade. Solucao aplicada na PR #372: remover `scout360:operator_*` para usuarios autenticados e resolver identidade por `auth.uid() -> profiles.operator_id`.
+
+- **RLS de auth precisa cobrir o primeiro saveUserContext pos-login** [supabase, rls, auth, user_context]
+  Login bem-sucedido nao prova que o contexto do operador ficou salvo. No preview, a conta autenticava e validava CNPJ, mas `saveUserContext` falhava com row-level security. Solucao: policy authenticated para ler legado pelo proprio email, escrever apenas o `operator_id` do profile e aguardar `link_legacy_operator` antes do upsert.
+
+- **execute_sql do Supabase MCP e stateless** [supabase, migration, execute_sql, mcp]
+  Cada chamada do `execute_sql` no Supabase MCP abre uma nova sessao de banco. `CREATE TEMP TABLE` nao sobrevive entre chamadas. Scripts multi-passo precisam usar tabelas REAIS (com prefixo `_migration_`) para manter estado intermediario. Na versao final, criou-se `_migration_canonical` como tabela real + safety net (passo 5) para restaurar canonicos em caso de erro.
+
+- **Migration de dados precisa de safety net pos-DELETE** [supabase, migration, safety-net]
+  DELETE em producao sem passo de restauracao e risco critico. O script de consolidacao tinha PASSO 5 que restaurava registros canonicos via `profiles` em caso de remocao incorreta. Toda migracao que remove dados deve ter um passo de rollback automatico.
+
+- **error.code e mais estavel que error.message no Supabase Auth** [supabase, auth, error-handling]
+  `error.message` do Supabase pode mudar entre versoes (ex: "User already registered" vs "User already exists"). `error.code` (ex: `user_already_exists`) e estavel e documentado. Sempre preferir `error.code` para identificar erros de autenticacao.
+
+- **AuthGate com graceful fallback sem provider** [react, auth, fallback, component]
+  Componente de gate de acesso nao deve assumir que seu contexto sempre existe. Se AuthContext estiver ausente (erro, fallback, loading), o AuthGate deve renderizar `children` em vez de travar ou mostrar modal vazio. OperatorProvider usa `operatorContext.ok || userContext` como fallback.
+
+- **Modelo hibrido de auth equilibra experiencia e seguranca** [auth, saas, strategy]
+  Auto-confirm total e conveniente mas nao valida emails. Confirmacao estrita bloqueia usuarios de teste. Modelo hibrido (auto-confirm ativo + cron que remove contas nao confirmadas apos 48h) equilibra os dois. Prazo de migracao (deadline 18/06) com deadline clara forca acao sem quebrar experiencia atual.
+
+- **Fragmentacao de identidade e inevitavel sem auth real** [auth, identity, localStorage, fragmentacao]
+  `localStorage` como unica fonte de identidade gera um novo `operator_id` toda vez que o storage e perdido (cache limpo, outro dispositivo). 430 operator_ids para 117 emails unicos (292 IDs para 1 usuario). Auth real (Supabase Auth com UID estavel) elimina a fragmentacao na origem.
+
 ## P0 producao travada vs preview OK (Junho 2026) — licoes consolidadas
 
 - **Timeout de operacao termina depois do body + parse** [fetch, timeout, body-read]
@@ -342,6 +368,29 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
 - Virtuoso mockado não comprova comportamento do virtual scroller real.
 - RAF síncrono em teste pode esconder condições temporais do navegador.
 - Incidentes de geometria e renderização devem ser confirmados por E2E em navegador real quando houver reincidência.
+
+## Auth Remediation PR #372 (13 Jun 2026) — licoes consolidadas
+
+- **Contrato de identidade: auth.uid como autoridade unica, localStorage como cache** [auth, identidade, supabase, react]
+  O app autenticava via Supabase mas usava `operator_id` do localStorage como autoridade de dados. Isso criava risco de dossies invisiveis (se o localStorage tivesse um ID diferente do auth.uid) e bypass de autorizacao. A cadeia correta e: `auth.uid() -> profiles.operator_id -> user_context -> dados de negocio`. localStorage deve ser apenas cache, nunca fonte de verdade para identidade. `resolveOperatorFromAuth()` implementa essa cadeia com fallback para user_context por email.
+
+- **profiles.operator_id deve ser imutavel apos criacao** [supabase, rls, seguranca, migration]
+  Se `profiles.operator_id` pode ser atualizado, qualquer funcao com acesso a tabela pode alterar o vinculo de identidade de um usuario, permitindo acesso cruzado a dossies. `REVOKE UPDATE on profiles` + `GRANT UPDATE(name) only from auth.users` + RPC `link_legacy_operator` com `SECURITY DEFINER` protege a integridade. Toda migration que toca coluna de identidade deve verificar permissoes.
+
+- **RPC SECURITY DEFINER com anti-IDOR obrigatorio** [supabase, rpc, seguranca, idor]
+  `link_legacy_operator` usa `SECURITY DEFINER` (executa como dono da funcao, nao como quem chamou). Sem verificacao explicita de `auth.uid()`, QUALQUER usuario autenticado poderia chamar o RPC com qualquer `target_user_id` e roubar o vinculo de outro operador. A verificacao `auth.uid() = (SELECT id FROM auth.users WHERE email = p_email)` previne ataque IDOR (Insecure Direct Object Reference). Todo RPC com SECURITY DEFINER deve verificar auth.uid() contra o recurso acessado.
+
+- **Vercel Hobby limita serverless functions a 12** [vercel, deploy, limite, hobby]
+  O plano Hobby da Vercel permite no maximo 12 serverless functions. NOVO-APP tem 11 apos remover `api/link-status.ts`. Ao adicionar novas rotas em `api/`, e necessario verificar o total atual. Se bater o limite, o deploy falha silenciosamente. Solucoes: consolidar rotas, migrar para plano Pro, ou remover funcoes nao utilizadas.
+
+- **Cron Vercel Hobby: maximo 1 schedule por projeto, 1x/dia** [vercel, cron, hobby, schedule]
+  O plano Hobby da Vercel suporta apenas 1 cron job por projeto com frequencia maxima de 1 vez ao dia (`0 0 * * *`). O schedule original `0 */6 * * *` (4x/dia) funciona no plano Pro mas e ignorado no Hobby. A documentacao da Vercel sobre limites do Hobby e pouco explicita — validar no dashboard apos configurar.
+
+- **Handler de cron deve aceitar GET e POST** [vercel, cron, api, handler]
+  O Vercel Cron Jobs pode disparar requests como GET ou POST dependendo da configuracao. Se o handler so aceita POST, o cron falha silenciosamente quando o Vercel envia GET. O handler `api/cron-email-confirmation.ts` foi corrigido para aceitar ambos os metodos e validar `CRON_SECRET` via header `Authorization: Bearer`.
+
+- **GRANT EXECUTE ON FUNCTION TO service_role para cron SQL** [supabase, cron, permission, service_role]
+  Funcoes chamadas por cron precisam de `GRANT EXECUTE ON FUNCTION ... TO service_role` para executar no contexto do servico. Sem isso, a funcao lancaria `permission denied for function` quando chamada pelo cron mesmo com `SECURITY DEFINER`.
 
 <!-- caliber:managed:learnings -->
 
