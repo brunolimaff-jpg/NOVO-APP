@@ -391,10 +391,11 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         const currentOpId = operatorIdRef.current;
         const needsRelink = resolved.operatorId !== currentOpId;
 
-        // Atualiza localStorage com valores canonicos
-        storageSet(OPERATOR_ID_KEY, resolved.operatorId);
-        if (resolved.name) storageSet(OPERATOR_NAME_KEY, resolved.name);
-        if (resolved.email) storageSet(OPERATOR_EMAIL_KEY, resolved.email);
+        // Sessao autenticada persiste pelo Supabase Auth. Nao duplicar dados
+        // derivados do login no localStorage proprio do app.
+        storageRemove(OPERATOR_ID_KEY);
+        storageRemove(OPERATOR_NAME_KEY);
+        storageRemove(OPERATOR_EMAIL_KEY);
 
         // Atualiza estado do React se necessario
         if (needsRelink) setOperatorId(resolved.operatorId);

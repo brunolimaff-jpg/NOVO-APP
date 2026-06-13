@@ -240,6 +240,9 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
 
     // Deve ter consultado profiles via Supabase
     expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
+    expect(window.localStorage.getItem('scout360:operator_id')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
   });
 
   it('authUser com email existente — não cria operador duplicado no storage', async () => {
