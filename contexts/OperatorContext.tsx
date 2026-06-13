@@ -125,18 +125,22 @@ async function resolveOperatorFromAuth(
       if (legacyOperator && legacyOperator.operatorId !== profile.operator_id) {
         const resolvedName = legacyOperator.displayName || profile.name || authUser.user_metadata?.name || '';
 
-        void (async () => {
-          const { error: linkError } = await supabase.rpc('link_legacy_operator', {
-            p_auth_user_id: authUser.id,
-            p_operator_id: legacyOperator.operatorId,
-            p_email: authEmail,
-            p_name: resolvedName,
-          });
+        const { error: linkError } = await supabase.rpc('link_legacy_operator', {
+          p_auth_user_id: authUser.id,
+          p_operator_id: legacyOperator.operatorId,
+          p_email: authEmail,
+          p_name: resolvedName,
+        });
 
-          if (linkError) {
-            warnOperator('[OperatorContext] link_legacy_operator failed:', linkError);
-          }
-        })();
+        if (linkError) {
+          warnOperator('[OperatorContext] link_legacy_operator failed:', linkError);
+
+          return {
+            operatorId: profile.operator_id,
+            name: profile.name || authUser.user_metadata?.name || '',
+            email: profile.email || authUser.email || '',
+          };
+        }
 
         return {
           operatorId: legacyOperator.operatorId,

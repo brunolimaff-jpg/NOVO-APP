@@ -28,7 +28,11 @@ const mockMaybeSingle = vi.hoisted(() => vi.fn());
 const mockEq = vi.hoisted(() => vi.fn(() => ({ maybeSingle: mockMaybeSingle })));
 const mockSupabaseSelect = vi.hoisted(() => vi.fn(() => ({ eq: mockEq })));
 const mockSupabaseFrom = vi.hoisted(() => vi.fn(() => ({ select: mockSupabaseSelect })));
-const mockSupabaseRpc = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: null, error: null })));
+const mockSupabaseRpc = vi.hoisted(() =>
+  vi.fn<() => Promise<{ data: null; error: { message: string } | null }>>(() =>
+    Promise.resolve({ data: null, error: null }),
+  ),
+);
 
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: { from: mockSupabaseFrom, rpc: mockSupabaseRpc },
@@ -296,6 +300,28 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('operator-id')).toHaveTextContent('op_legacy_456');
+    });
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('link_legacy_operator', {
+      p_auth_user_id: AUTH_USER.id,
+      p_operator_id: 'op_legacy_456',
+      p_email: 'auth@agro.com',
+      p_name: 'Legacy User',
+    });
+  });
+
+  it('authUser com relink legado negado — preserva profile autenticado', async () => {
+    mockProfileResult({ operator_id: 'op_trigger_novo', email: 'auth@agro.com', name: 'Auth User' });
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: 'op_legacy_456',
+      displayName: 'Legacy User',
+    });
+    mockSupabaseRpc.mockResolvedValueOnce({ data: null, error: { message: 'RLS denied' } });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_trigger_novo');
     });
 
     expect(mockSupabaseRpc).toHaveBeenCalledWith('link_legacy_operator', {

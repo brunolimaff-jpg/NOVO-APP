@@ -193,4 +193,23 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
     expect(lockFile).toContain('Email does not match authenticated profile');
     expect(lockFile).toContain('email_normalized = LOWER(caller_email)');
   });
+
+  it('auth storage policies permitem contexto proprio sem confiar em localStorage', () => {
+    expect(allContent).toContain('authenticated_select_own_user_context');
+    expect(allContent).toContain('authenticated_insert_own_user_context');
+    expect(allContent).toContain('authenticated_update_own_user_context');
+    expect(allContent).toContain('p.operator_id = user_context.operator_id');
+    expect(allContent).toContain('user_context.email_normalized = LOWER(p.email)');
+  });
+
+  it('radar autenticado fica limitado ao operator_id do profile', () => {
+    expect(allContent).toContain('authenticated_select_own_radar_alerts');
+    expect(allContent).toContain('authenticated_insert_own_radar_alerts');
+    expect(allContent).toContain('authenticated_update_own_radar_alerts');
+    expect(allContent).toContain('authenticated_select_own_radar_configs');
+    expect(allContent).toContain('authenticated_insert_own_radar_configs');
+    expect(allContent).toContain('authenticated_update_own_radar_configs');
+    expect(allContent).toContain('p.operator_id = radar_alerts.operator_id');
+    expect(allContent).toContain('p.operator_id = radar_configs.operator_id');
+  });
 });

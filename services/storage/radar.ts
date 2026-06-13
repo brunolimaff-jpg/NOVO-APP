@@ -2,6 +2,15 @@
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
 import { getOperatorId } from './_shared';
 
+function warnRadar(message: string, error: unknown): void {
+  if (import.meta.env.DEV) {
+    console.warn(message, error);
+    return;
+  }
+
+  console.warn(message);
+}
+
 export const radar = {
   async getRadarAlerts(): Promise<unknown[]> {
     if (!isSupabaseAvailable()) return [];
@@ -17,7 +26,7 @@ export const radar = {
       .maybeSingle();
 
     if (error) {
-      console.error('[Storage] getRadarAlerts failed:', error);
+      warnRadar('[Storage] getRadarAlerts skipped', error);
       return [];
     }
     return (data?.alert_data as unknown[]) || [];
@@ -31,7 +40,7 @@ export const radar = {
       .from('radar_alerts')
       .upsert({ alert_data: alerts, operator_id: operatorId }, { onConflict: 'operator_id' });
 
-    if (error) console.error('[Storage] saveRadarAlerts failed:', error);
+    if (error) warnRadar('[Storage] saveRadarAlerts skipped', error);
   },
 
   async getRadarConfig(): Promise<unknown | null> {
@@ -46,7 +55,7 @@ export const radar = {
       .maybeSingle();
 
     if (error) {
-      console.error('[Storage] getRadarConfig failed:', error);
+      warnRadar('[Storage] getRadarConfig skipped', error);
       return null;
     }
     return data?.config ?? null;
@@ -60,6 +69,6 @@ export const radar = {
       .from('radar_configs')
       .upsert({ config, operator_id: operatorId }, { onConflict: 'operator_id' });
 
-    if (error) console.error('[Storage] saveRadarConfig failed:', error);
+    if (error) warnRadar('[Storage] saveRadarConfig skipped', error);
   },
 };
