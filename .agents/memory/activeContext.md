@@ -1,12 +1,13 @@
 # Active Context
 
-Last updated: 2026-06-14 — PR #372 com fix de travamento no fechamento do waterfall
+Last updated: 2026-06-14 — PR #372 validada com fix de travamento no preview
 
 ## Estado Atual
 
 - **Branch:** `feature/supabase-auth`
 - **PR #372:** aberta, branch `feature/supabase-auth`, sem merge executado
-- **Status:** fix `f6ff864d` enviado para `feature/supabase-auth`; aguardando deployment/checks finais do preview
+- **Status:** fix validado no preview da branch; sem merge executado
+- **Codigo runtime validado:** `c3fb8d14` no deployment `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA`
 - **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 - **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
 - **Supabase project:** `vmqfcaoirjcfucvlnpig`
@@ -37,6 +38,9 @@ Last updated: 2026-06-14 — PR #372 com fix de travamento no fechamento do wate
   - `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` passou.
   - `npm run build` passou, com aviso conhecido de chunk grande.
   - `npm run typecheck` na pasta principal falha apenas pelo arquivo nao rastreado fora de escopo `components/MetricsDashboard.tsx`; `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario excluindo esse arquivo passou.
+  - Preview validado no alias da branch com login Bruno e CNPJ `04.733.767/0001-80`: `SCHEFFER & CIA LTDA` concluiu, saiu do loading, sem `Interromper`/`Consolidando`.
+  - Supabase confirmou `dossier_started` e `dossier_completed` para `04733767000180`; `scout_diagnostics` registrou `post-validate-inline`, `health-check-final`, `ui-finalized` e `PostCompletion`.
+  - Sentry sem issues unresolved nas ultimas 24h; Vercel runtime sem error/fatal no deployment validado.
 - Local limpo: `npm run typecheck`, `npm run test` (1498 testes), `npm run build`, lint de arquivos alterados sem erro.
 - Supabase remoto: migration `auth_storage_rls_policies` aplicada.
 - GitHub: Build, Typecheck, Tests, Dossier Golden, E2E Critical Browser, CodeQL, CodeRabbit, GitGuardian, Smoke preview e Vercel passaram.

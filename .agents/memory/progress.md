@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-06-14 — fix local para travamento do waterfall no preview
+Last updated: 2026-06-14 — fix do waterfall validado no preview
 
 ## Timeline
 
@@ -16,6 +16,11 @@ Last updated: 2026-06-14 — fix local para travamento do waterfall no preview
   - `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` passou: 21 testes.
   - `npm run build` passou, com aviso conhecido de chunk grande.
   - `npm run typecheck` segue bloqueado pelo arquivo nao rastreado `components/MetricsDashboard.tsx`; checagem temporaria excluindo apenas esse arquivo passou.
+- **Validacao preview do fix:**
+  - Deployment Vercel `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` ficou `READY` no commit `c3fb8d14`.
+  - Smoke HTTP: `/` 200 e `POST /api/link-status` 200.
+  - Fluxo Scheffer (`04.733.767/0001-80`) com login Bruno concluiu em preview: UI saiu de loading, sem `Interromper`, sem `Consolidando informações...`.
+  - Console/diagnostico: `post-validate-inline`, `health-check-final`, `ui-finalized`, `PostCompletion`; `operator_events` registrou `dossier_completed`.
 
 ### 2026-06-13
 

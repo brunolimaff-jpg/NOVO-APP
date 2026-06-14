@@ -2,7 +2,8 @@
 
 - **PR:** #372 — `feature/supabase-auth`
 - **Codigo runtime base validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
-- **Status:** fix local 2026-06-14 implementado para destravar waterfall; **nao mergeada**
+- **Status:** fix 2026-06-14 validado no preview da branch; **nao mergeada**
+- **Deployment validado:** `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` (`c3fb8d14`)
 - **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 - **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
 - **Supabase project:** `vmqfcaoirjcfucvlnpig` (`NOVO-APP`)
@@ -59,6 +60,18 @@ Rodado em 2026-06-14 na pasta principal:
 - `npm run build` — passou, com aviso conhecido de chunk grande.
 - `npm run typecheck` — falhou apenas por `components/MetricsDashboard.tsx` nao rastreado e fora da PR.
 - `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario, excluindo apenas `components/MetricsDashboard.tsx` — passou; o arquivo temporario foi removido.
+
+## Validacao preview 2026-06-14
+
+Preview/alias: https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app/
+
+- Vercel deployment `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` ficou `READY`.
+- Smoke HTTP: `/` retornou 200; `POST /api/link-status` com `https://www.gov.br/` retornou 200 e status `valid`.
+- Fluxo autenticado Bruno + Scheffer (`04.733.767/0001-80`) validou CNPJ como `SCHEFFER & CIA LTDA`, concluiu o waterfall e renderizou dossie.
+- Resultado de UI: sem `Interromper`, sem `Consolidando informações...`, sem pagina sem resposta.
+- Console/diagnostico: `post-validate-inline`, `health-check-final`, `ui-finalized`, `PostCompletion`; `botMsgTextLen=24199`.
+- Supabase `operator_events`: `dossier_started` e `dossier_completed` para `04733767000180` no ambiente `preview`.
+- Sentry: sem issues unresolved nas ultimas 24h; Vercel runtime sem `error`/`fatal` no periodo validado.
 
 Rodado em worktree limpa `/tmp/novo-app-validate-a0yzFv` antes da limpeza:
 
