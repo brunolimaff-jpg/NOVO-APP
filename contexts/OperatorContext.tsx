@@ -383,10 +383,12 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (!authUser || operatorResolvedRef.current || authLoading) return;
 
     operatorResolvedRef.current = true; // Sincrono — protege backfill effect abaixo
+    const abort = new AbortController();
 
     void (async () => {
       try {
         const resolved = await resolveOperatorFromAuth(authUser);
+        if (abort.signal.aborted) return;
         if (!resolved) {
           // Nao conseguiu resolver — mantem valores atuais do localStorage
           return;
@@ -401,10 +403,14 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         storageRemove(OPERATOR_NAME_KEY);
         storageRemove(OPERATOR_EMAIL_KEY);
 
+        if (abort.signal.aborted) return;
+
         // Atualiza estado do React se necessario
         if (needsRelink) setOperatorId(resolved.operatorId);
         if (resolved.name && resolved.name !== nameRef.current) setOperatorName(resolved.name);
         if (resolved.email && resolved.email !== emailRef.current) setOperatorEmail(resolved.email);
+
+        if (abort.signal.aborted) return;
 
         // Persiste user_context com operator_id canonico (NUNCA com ID temporario)
         void storage
@@ -414,6 +420,8 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
             email: resolved.email || emailRef.current,
           })
           .catch(err => warnOperator('[OperatorContext] saveUserContext after resolution failed:', err));
+
+        if (abort.signal.aborted) return;
 
         // Dispara relink se operator_id mudou (recarrega dossies etc.)
         if (needsRelink) {
@@ -436,6 +444,8 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         warnOperator('[OperatorContext] operator resolution error:', err);
       }
     })();
+
+    return () => abort.abort();
   }, [authUser?.id, authLoading]);
 
   // ===================================================================

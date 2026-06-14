@@ -301,6 +301,9 @@ export async function validateInlineSourcesForPromotion(
       signal: controller.signal,
     });
 
+    // Prevent unhandled rejection when Promise.race discards this promise
+    fetchPromise.catch(() => {});
+
     const response = await withInlineValidationBudget(
       fetchPromise,
       VALIDATE_INLINE_TOTAL_TIMEOUT_MS,

@@ -9,7 +9,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
-import type { AuthError, Session, User } from '@supabase/supabase-js';
+import { AuthError, type Session, type User } from '@supabase/supabase-js';
 
 export interface AuthState {
   session: Session | null;
@@ -131,10 +131,16 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (!supabase) return;
 
     setError(null);
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    window.dispatchEvent(new CustomEvent('operator-signed-out'));
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[Auth] Erro ao chamar signOut no Supabase:', err);
+      setError(err instanceof AuthError ? err : new AuthError('Falha ao desconectar'));
+    } finally {
+      setSession(null);
+      setUser(null);
+      window.dispatchEvent(new CustomEvent('operator-signed-out'));
+    }
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
