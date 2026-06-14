@@ -371,6 +371,9 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
 
 ## Auth Remediation PR #372 (13 Jun 2026) — licoes consolidadas
 
+- **Doc handoff duravel vai para Bruno Vault, nao para mktemp** [handoff, memoria, bruno-vault, agentes]
+  Para projeto ativo, `mktemp` e apenas scratch. O artefato duravel deve ir em `Bruno Vault/20-SESSOES/YYYY-MM/...`, o indice mensal precisa ser atualizado, e qualquer correcao de processo deve gerar licao em `30-LICOES/` com ponteiro aqui no Caliber. Licao canonica: `/Users/brunolima/Documents/Bruno Vault/30-LICOES/LICOES-DOC-HANDOFF-BRUNO-VAULT-2026-06-14.md`.
+
 - **Contrato de identidade: auth.uid como autoridade unica, localStorage como cache** [auth, identidade, supabase, react]
   O app autenticava via Supabase mas usava `operator_id` do localStorage como autoridade de dados. Isso criava risco de dossies invisiveis (se o localStorage tivesse um ID diferente do auth.uid) e bypass de autorizacao. A cadeia correta e: `auth.uid() -> profiles.operator_id -> user_context -> dados de negocio`. localStorage deve ser apenas cache, nunca fonte de verdade para identidade. `resolveOperatorFromAuth()` implementa essa cadeia com fallback para user_context por email.
 
