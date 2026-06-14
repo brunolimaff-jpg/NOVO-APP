@@ -1,12 +1,12 @@
 # Active Context
 
-Last updated: 2026-06-13 — PR #372 pronta para merge, sem merge executado
+Last updated: 2026-06-14 — PR #372 com fix de travamento no fechamento do waterfall
 
 ## Estado Atual
 
 - **Branch:** `feature/supabase-auth`
-- **PR #372:** aberta, codigo runtime validado em `c86fd0dd`, merge state `CLEAN`
-- **Status:** todos os checks GitHub/Vercel passaram; aguardando confirmacao explicita com `MERGE`
+- **PR #372:** aberta, branch `feature/supabase-auth`, sem merge executado
+- **Status:** fix local implementado para travamento do preview no fim do waterfall Scheffer; aguardando commit/push e checks finais
 - **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 - **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
 - **Supabase project:** `vmqfcaoirjcfucvlnpig`
@@ -23,8 +23,20 @@ Last updated: 2026-06-13 — PR #372 pronta para merge, sem merge executado
 - Radar recebeu policies authenticated e falhas de persistencia viraram aviso nao bloqueante.
 - `/api/link-status` foi mantida com protecao SSRF; `/api/pulse-news` foi removida para respeitar limite Vercel Hobby.
 
+## Fix 2026-06-14 — travamento no preview da branch
+
+- Sintoma: alias da branch travava em `Consolidando informações...` no fim do waterfall Scheffer (`04.733.767/0001-80`).
+- Evidencia: Vercel `READY`, `/api/gemini` e `/api/link-status` com HTTP 200, Sentry sem issue unresolved recente, Supabase com `dossier_started` mas sem conclusao.
+- Causa pratica: etapa opcional de promocao/validacao de fontes inline podia segurar o fechamento do waterfall antes de `PostCompletion`.
+- Correcao: `validateInlineSourcesForPromotion` agora limita candidatos a 8, tem budget duro de 5s, loga `inline-validation:skipped-or-timeout` e segue com `[]`; `/api/link-status` responde parcial com `Promise.allSettled`.
+
 ## Validacao final
 
+- 2026-06-14 fix waterfall:
+  - `npx vitest run tests/features/validate-inline-sources-freeze-diag.test.ts tests/api-link-status.test.ts` passou.
+  - `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` passou.
+  - `npm run build` passou, com aviso conhecido de chunk grande.
+  - `npm run typecheck` na pasta principal falha apenas pelo arquivo nao rastreado fora de escopo `components/MetricsDashboard.tsx`; `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario excluindo esse arquivo passou.
 - Local limpo: `npm run typecheck`, `npm run test` (1498 testes), `npm run build`, lint de arquivos alterados sem erro.
 - Supabase remoto: migration `auth_storage_rls_policies` aplicada.
 - GitHub: Build, Typecheck, Tests, Dossier Golden, E2E Critical Browser, CodeQL, CodeRabbit, GitGuardian, Smoke preview e Vercel passaram.

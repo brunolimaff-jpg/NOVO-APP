@@ -1,8 +1,8 @@
-# Handoff — PR #372 Supabase Auth pronta para merge
+# Handoff — PR #372 Supabase Auth + fix de travamento no preview
 
 - **PR:** #372 — `feature/supabase-auth`
-- **Codigo runtime validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
-- **Status GitHub:** `CLEAN`, todos os checks verdes, **nao mergeada**
+- **Codigo runtime base validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
+- **Status:** fix local 2026-06-14 implementado para destravar waterfall; **nao mergeada**
 - **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 - **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
 - **Supabase project:** `vmqfcaoirjcfucvlnpig` (`NOVO-APP`)
@@ -15,6 +15,20 @@ A PR #372 migra o fluxo local de operador para Supabase Auth e fecha os bloquead
 `Supabase Auth auth.uid()` -> `profiles.operator_id` -> dados do operador/dossies.
 
 O app nao grava mais identidade autenticada (`operator_id`, nome, email) no localStorage proprio. A sessao fica salva pelo token do Supabase Auth no navegador.
+
+## Fix 2026-06-14 — travamento em `Consolidando informações...`
+
+O alias da branch travou no fim do waterfall Scheffer (`04.733.767/0001-80`). A investigacao mostrou:
+
+- Vercel `READY`, `/` 200, `/api/gemini` 200 e `/api/link-status` 200.
+- Sentry sem issue unresolved recente em `prod`.
+- Supabase registrou `dossier_started`, módulos do waterfall e `inline-validation:fetch:start`, mas nao registrou conclusao/persistencia.
+
+Correcao aplicada:
+
+- `features/dossier/waterfall-orchestrator.ts`: a promocao de fontes inline agora valida no maximo 8 URLs, tem budget duro de 5s e, em timeout/falha, registra `inline-validation:skipped-or-timeout` e segue com `[]`.
+- `api/link-status.ts`: validacao de URLs usa `Promise.allSettled`; uma URL lenta/falha vira `unknown` sem impedir resposta parcial das demais.
+- Contrato publico mantido: `POST /api/link-status` continua recebendo `{ urls }` e retornando `{ results }`.
 
 ## Commits relevantes da revisao final
 
@@ -37,6 +51,14 @@ A ultima migration permite que usuario autenticado:
 - use radar apenas quando o `operator_id` bate com `profiles.operator_id`.
 
 ## Validacao local
+
+Rodado em 2026-06-14 na pasta principal:
+
+- `npx vitest run tests/features/validate-inline-sources-freeze-diag.test.ts tests/api-link-status.test.ts` — passou: 16 testes.
+- `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` — passou: 21 testes.
+- `npm run build` — passou, com aviso conhecido de chunk grande.
+- `npm run typecheck` — falhou apenas por `components/MetricsDashboard.tsx` nao rastreado e fora da PR.
+- `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario, excluindo apenas `components/MetricsDashboard.tsx` — passou; o arquivo temporario foi removido.
 
 Rodado em worktree limpa `/tmp/novo-app-validate-a0yzFv` antes da limpeza:
 

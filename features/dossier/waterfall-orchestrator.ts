@@ -69,7 +69,7 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
-const MAX_INLINE_SOURCES_TO_VALIDATE = 40;
+const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
 
 type TeiaComplexity = 'BAIXA' | 'MEDIA' | 'ALTA';
@@ -222,8 +222,27 @@ async function buildTeiaResearchContext(params: {
   };
 }
 
-const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 30_000;
-const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 15_000;
+const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 5_000;
+const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 3_000;
+
+function withInlineValidationBudget<T>(
+  promise: Promise<T>,
+  ms: number,
+  onTimeout: () => void,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      onTimeout();
+      reject(new Error(message));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
 
 export async function validateInlineSourcesForPromotion(
   text: string,
@@ -275,12 +294,19 @@ export async function validateInlineSourcesForPromotion(
       timestamp: Date.now(),
     });
 
-    const response = await fetch('/api/link-status', {
+    const fetchPromise = fetch('/api/link-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ urls: candidates.map(source => source.url) }),
       signal: controller.signal,
     });
+
+    const response = await withInlineValidationBudget(
+      fetchPromise,
+      VALIDATE_INLINE_TOTAL_TIMEOUT_MS,
+      () => controller.abort(),
+      `Inline source validation timeout after ${VALIDATE_INLINE_TOTAL_TIMEOUT_MS}ms`,
+    );
 
     const fetchDuration = performance.now() - fetchStart;
     scoutDiag.info('FreezeDiag', 'inline-validation:fetch:headers', {
@@ -308,23 +334,12 @@ export async function validateInlineSourcesForPromotion(
       totalElapsedMs: Math.round(bodyStart - opStart),
     });
 
-    const bodyText = await new Promise<string>((resolve, reject) => {
-      const bodyTimeoutId = setTimeout(() => {
-        controller.abort();
-        reject(new Error('Body read timeout after ' + VALIDATE_INLINE_BODY_READ_TIMEOUT_MS + 'ms'));
-      }, VALIDATE_INLINE_BODY_READ_TIMEOUT_MS);
-
-      response
-        .text()
-        .then(text => {
-          clearTimeout(bodyTimeoutId);
-          resolve(text);
-        })
-        .catch(err => {
-          clearTimeout(bodyTimeoutId);
-          reject(err);
-        });
-    });
+    const bodyText = await withInlineValidationBudget(
+      response.text(),
+      VALIDATE_INLINE_BODY_READ_TIMEOUT_MS,
+      () => controller.abort(),
+      `Inline source validation body timeout after ${VALIDATE_INLINE_BODY_READ_TIMEOUT_MS}ms`,
+    );
 
     const bodyDuration = performance.now() - bodyStart;
     scoutDiag.info('FreezeDiag', 'inline-validation:body:text-read', {
@@ -364,12 +379,21 @@ export async function validateInlineSourcesForPromotion(
   } catch (err) {
     clearTimeout(totalTimeoutId);
     const errorDuration = performance.now() - opStart;
+    const timedOut =
+      err instanceof Error && /timeout|aborted|abort/i.test(`${err.name || ''} ${err.message || ''}`);
     scoutDiag.info('FreezeDiag', 'inline-validation:error', {
       error: err instanceof Error ? err.message : String(err),
       errorName: err instanceof Error ? err.name : 'unknown',
       durationMs: Math.round(errorDuration),
       candidateCount: candidates.length,
     });
+    if (timedOut) {
+      scoutDiag.info('FreezeDiag', 'inline-validation:skipped-or-timeout', {
+        reason: 'timeout-or-abort',
+        durationMs: Math.round(errorDuration),
+        candidateCount: candidates.length,
+      });
+    }
     scoutDiag.warn('Waterfall', 'Falha ao processar fontes do dossiê', {
       error: err instanceof Error ? err.message : String(err),
       candidates: candidates.length,

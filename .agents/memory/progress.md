@@ -1,8 +1,21 @@
 # Progress
 
-Last updated: 2026-06-13 — PR #372 validada em preview e checks verdes
+Last updated: 2026-06-14 — fix local para travamento do waterfall no preview
 
 ## Timeline
+
+### 2026-06-14
+
+- **Fix do travamento no preview da PR #372:**
+  - Investigacao Scheffer no alias da branch travava em `Consolidando informações...` antes de `PostCompletion`.
+  - Evidencia cruzada: Vercel `READY`, `/api/gemini` 200, `/api/link-status` 200, Sentry sem issue unresolved recente, Supabase com `dossier_started` sem conclusao.
+  - `features/dossier/waterfall-orchestrator.ts`: promocao de fontes inline virou etapa estritamente opcional, com 8 candidatos maximos, budget de 5s e log `inline-validation:skipped-or-timeout`.
+  - `api/link-status.ts`: validacao de URLs usa `Promise.allSettled` e devolve resultado parcial; falhas viram `unknown`.
+- **Validacao local do fix:**
+  - `npx vitest run tests/features/validate-inline-sources-freeze-diag.test.ts tests/api-link-status.test.ts` passou: 16 testes.
+  - `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` passou: 21 testes.
+  - `npm run build` passou, com aviso conhecido de chunk grande.
+  - `npm run typecheck` segue bloqueado pelo arquivo nao rastreado `components/MetricsDashboard.tsx`; checagem temporaria excluindo apenas esse arquivo passou.
 
 ### 2026-06-13
 
