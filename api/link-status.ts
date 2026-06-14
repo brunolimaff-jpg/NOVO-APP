@@ -16,32 +16,39 @@ export const config = {
 const REQUEST_TIMEOUT_MS = 5000;
 const MAX_URLS_PER_REQUEST = 25;
 
-function withTimeout(ms: number): AbortSignal {
+function withTimeout(ms: number): { signal: AbortSignal; clear: () => void } {
   const controller = new AbortController();
-  setTimeout(() => controller.abort(), ms);
-  return controller.signal;
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timeoutId),
+  };
+}
+
+async function fetchUrlWithTimeout(url: string, method: 'HEAD' | 'GET'): Promise<Response> {
+  const timeout = withTimeout(REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      method,
+      redirect: 'follow',
+      signal: timeout.signal,
+    });
+  } finally {
+    timeout.clear();
+  }
 }
 
 async function checkUrl(url: string): Promise<ValidationResult> {
-  // isValidPublicUrl bloqueia localhost, 127.0.0.1, 169.254.169.254 (AWS metadata),
-  // ranges privados (10.x, 172.16-31.x, 192.168.x), .local, .internal
+  // isValidPublicUrl bloqueia localhost, ranges privados e metadados cloud.
   if (!isValidPublicUrl(url)) {
     return { status: 'unknown', note: 'URL inválida ou restrita para validação.' };
   }
 
   try {
-    let res = await fetch(url, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: withTimeout(REQUEST_TIMEOUT_MS),
-    });
+    let res = await fetchUrlWithTimeout(url, 'HEAD');
 
     if (res.status === 405 || res.status === 403) {
-      res = await fetch(url, {
-        method: 'GET',
-        redirect: 'follow',
-        signal: withTimeout(REQUEST_TIMEOUT_MS),
-      });
+      res = await fetchUrlWithTimeout(url, 'GET');
     }
 
     if (res.status >= 200 && res.status < 400) {
@@ -71,11 +78,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sanitized = urls.filter((u: unknown): u is string => typeof u === 'string').slice(0, MAX_URLS_PER_REQUEST);
 
   const results: Record<string, ValidationResult> = {};
-  await Promise.all(
-    sanitized.map(async (url: string) => {
-      results[url] = await checkUrl(url);
-    }),
-  );
+  const settled = await Promise.allSettled(sanitized.map((url: string) => checkUrl(url)));
+
+  settled.forEach((result, index) => {
+    const url = sanitized[index];
+    if (!url) return;
+    results[url] =
+      result.status === 'fulfilled'
+        ? result.value
+        : { status: 'unknown', note: 'Não foi possível validar agora; revisar manualmente.' };
+  });
 
   return res.status(200).json({ results });
 }

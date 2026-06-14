@@ -80,11 +80,19 @@ async function run() {
     expected: '200',
   });
 
+  const cnpjTarget = `${baseUrl}/api/cnpj?cnpj=04.733.767/0001-80`;
+  checks.push({
+    name: 'endpoint crítico /api/cnpj',
+    target: cnpjTarget,
+    ...(await getStatus(cnpjTarget)),
+    expected: '200',
+  });
+
   let hasFailure = false;
 
   console.log(`\n🔎 Smoke test em: ${baseUrl}`);
   for (const check of checks) {
-    const pass = check.name.includes('/api/link-status')
+    const pass = check.name.includes('/api/link-status') || check.name.includes('/api/cnpj')
       ? check.status === 200
       : check.ok && check.status >= 200 && check.status < 400;
 

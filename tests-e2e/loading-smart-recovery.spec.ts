@@ -1,7 +1,7 @@
 // tests-e2e/loading-smart-recovery.spec.ts
 import { expect, test } from '@playwright/test';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
-import { completeOnboarding } from './helpers/onboarding';
+import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
@@ -64,15 +64,15 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await completeOnboarding(page);
 
     // Inicia investigação
-    await page.getByTestId('investigation-company-input').fill('Fazenda Modelo');
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
 
     // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
-    await expect(
-      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
+      timeout: 30_000,
+    });
 
     // Aguarda todos os indicadores de loading desaparecerem
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
@@ -88,7 +88,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
   test('input inferior permanece acessível durante loading', async ({ page }) => {
     await completeOnboarding(page);
 
-    await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
@@ -117,7 +117,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
 
     await completeOnboarding(page);
 
-    await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();

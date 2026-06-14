@@ -1,6 +1,6 @@
 // tests-e2e/controlled-error-state.spec.ts
 import { expect, test } from '@playwright/test';
-import { completeOnboarding } from './helpers/onboarding';
+import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 
 test.describe('Anti-Regressão: Erro Controlado', () => {
   test.describe.configure({ timeout: 120_000 });
@@ -16,7 +16,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
   }
 
   async function startFailingInvestigation(page: import('@playwright/test').Page) {
-    await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Erro E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();

@@ -1,137 +1,126 @@
-# Handoff — ChatInterface Refactored (PR #359)
+# Handoff — PR #372 Supabase Auth + fix de travamento no preview
 
-- **PR #359** (merge `ccf49eb`): ChatInterface refactoring — extraiu 6 hooks, removeu dupla fonte de verdade
-- **Branch de trabalho:** `fix+chatinterface-refactor` (worktree)
-- **Projeto ativo:** NOVO-APP (Senior Scout 360)
-- **Status:** MERGEADO — componente saudavel, monitoramento passivo
+- **PR:** #372 — `feature/supabase-auth`
+- **Codigo runtime base validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
+- **Status:** fix 2026-06-14 validado no preview da branch; **nao mergeada**
+- **Deployment validado:** `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` (`c3fb8d14`)
+- **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
+- **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
+- **Supabase project:** `vmqfcaoirjcfucvlnpig` (`NOVO-APP`)
+- **Deadline de migracao:** 18/06/2026
 
----
+## Resumo
 
-## Entrada rapida para proximo agente
+A PR #372 migra o fluxo local de operador para Supabase Auth e fecha os bloqueadores encontrados antes do merge. A cadeia final de identidade e:
 
-1. Este arquivo (resumo executivo e estado do componente)
-2. `.agents/memory/activeContext.md` — estado detalhado
-3. `.agents/memory/decisions.md` — decisoes ativas
-4. `docs/wiki/pages/29-chatinterface-refactor.md` — arquitetura resultante
-5. `docs/wiki/pages/30-loading-stages.md` — sistema de etapas de loading
-6. `docs/ai-context/refactor/02-BOARD.md` — board de refatoracao
+`Supabase Auth auth.uid()` -> `profiles.operator_id` -> dados do operador/dossies.
 
----
+O app nao grava mais identidade autenticada (`operator_id`, nome, email) no localStorage proprio. A sessao fica salva pelo token do Supabase Auth no navegador.
 
-## O que foi feito — PR #359
+## Fix 2026-06-14 — travamento em `Consolidando informações...`
 
-### ChatInterface.tsx: 811 -> 331 linhas (-59%)
+O alias da branch travou no fim do waterfall Scheffer (`04.733.767/0001-80`). A investigacao mostrou:
 
-Extracao de 6 hooks e 1 util:
+- Vercel `READY`, `/` 200, `/api/gemini` 200 e `/api/link-status` 200.
+- Sentry sem issue unresolved recente em `prod`.
+- Supabase registrou `dossier_started`, módulos do waterfall e `inline-validation:fetch:start`, mas nao registrou conclusao/persistencia.
 
-| Hook | Responsabilidade | Linhas |
-|------|-----------------|--------|
-| `useChatTheme` | Tema (dark/light), classes CSS, debug mode | 24 |
-| `usePanelState` | Painel de contexto (operador, sessao, abrir/fechar painel lateral) | 48 |
-| `useInvestigation` | Disparo de investigacao, callback de sucesso, controle de loading | 63 |
-| `useChatActions` | Acoes de chat (nova investigacao, nova pesquisa, follow-up) | 83 |
-| `useStaticTimelineFallback` | Watchdog de timeline estatica, consolidacao de dupla fonte de verdade | 111 |
-| `promptResolvers` (util) | Resolucao de prompts por tipo de mensagem, resolucao de etapa | 44 |
+Correcao aplicada:
 
-### 28 testes novos (TDD)
+- `features/dossier/waterfall-orchestrator.ts`: a promocao de fontes inline agora valida no maximo 8 URLs, tem budget duro de 5s e, em timeout/falha, registra `inline-validation:skipped-or-timeout` e segue com `[]`.
+- `api/link-status.ts`: validacao de URLs usa `Promise.allSettled`; uma URL lenta/falha vira `unknown` sem impedir resposta parcial das demais.
+- Contrato publico mantido: `POST /api/link-status` continua recebendo `{ urls }` e retornando `{ results }`.
 
-- `tests/hooks/useStaticTimelineFallback.test.ts` — 6 blocos de teste
-- Cobre: watchdogs, fontes de verdade, efeitos colaterais, cleanup, estados de loading
+## Commits relevantes da revisao final
 
-### Mudancas estruturais
+- `6d7b89c1` — fecha bloqueadores de auth remediation: restaura `/api/link-status`, remove `/api/pulse-news`, corrige AuthGate pos-deadline, login com senha simples, E2E e migrations.
+- `2fd6f3f8` — remove cache local de identidade derivada de auth para resolver alerta CodeQL de clear-text storage.
+- `c86fd0dd` — aguarda RPC de relink legado, adiciona RLS authenticated para `user_context`/radar e reduz radar para aviso nao bloqueante.
 
-- `MessageTimeline.tsx`: removeu `hasLargeBotMessage` (era dupla fonte de verdade duplicada com ChatInterface)
-- `ChatInterface.tsx`: dupla fonte de verdade UNSHIFTED — consolidada no `useStaticTimelineFallback`
-- `useStaticTimelineFallback`: hook unico de watchdog, contem Efeito #5 (antigo `forceStaticTimelineFallback`) e `showEmptyStateFallback`
+## Migrations aplicadas
 
-### Infraestrutura anti-god-component criada
+No Supabase remoto (`vmqfcaoirjcfucvlnpig`):
 
-- 8 regras no CLAUDE.md contra god components
-- Skill `prevent-god-component` (carregada automaticamente ao editar TSX)
-- Script `component-health.sh` — dashboard de saude de componentes
-- `GOD_COMPONENT_SKIP`: max 3 por arquivo, tracking persistente
-- `.claude/god-component-debt.json` — divida tecnica rastreada
+- `20260613_user_context_schema`
+- `20260613_lock_profiles_operator_id`
+- `auth_storage_rls_policies`
 
----
+A ultima migration permite que usuario autenticado:
 
-## Bugs corrigidos durante a sessao
+- leia `user_context` proprio ou legado pelo proprio email;
+- grave/atualize apenas o `operator_id` ligado ao seu `profiles`;
+- use radar apenas quando o `operator_id` bate com `profiles.operator_id`.
 
-### Bug 1: forceStaticTimelineFallback proativo durante loading
+## Validacao local
 
-- **Sintoma:** etapas de loading "pulavam" — o fallback estatico ativava durante o loading inline
-- **Causa:** Efeito #5 (`forceStaticTimelineFallback`) nao tinha guard `if (isLoading) return`
-- **Correcao:** adicionado guard `if (isLoading) return` no inicio do Efeito #5 do `useStaticTimelineFallback`
-- **Testado:** TDD validou que fallback nao ativa durante loading inline
+Rodado em 2026-06-14 na pasta principal:
 
-### Bug 2: Contador global vs. por etapa no loading
+- `npx vitest run tests/features/validate-inline-sources-freeze-diag.test.ts tests/api-link-status.test.ts` — passou: 16 testes.
+- `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` — passou: 21 testes.
+- `npm run build` — passou, com aviso conhecido de chunk grande.
+- `npm run typecheck` — falhou apenas por `components/MetricsDashboard.tsx` nao rastreado e fora da PR.
+- `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario, excluindo apenas `components/MetricsDashboard.tsx` — passou; o arquivo temporario foi removido.
 
-- **Sintoma:** `resetLoadingProgress` descartava a etapa inicial com `completedStages: []`
-- **Causa:** o contador de etapas era global, nao preservava estado anterior
-- **Correcao:** `resetLoadingProgress` agora preserva a etapa anterior como concluida. O tempo entre inicio do loading e primeira etapa do waterfall e atribuido a etapa "Iniciando analise"
-- **Testado:** TDD validou progresso correto por etapa
+## Validacao preview 2026-06-14
 
-### Bug 3: operatorName null safety
+Preview/alias: https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app/
 
-- **Sintoma:** potencial crash com `operatorName` null/undefined
-- **Causa:** `usePanelState` nao protegia contra valores nulos
-- **Correcao:** adicionado `(operatorName || '')` no hook
-- **Origem:** reportado pelo Gemini Code Assist
+- Vercel deployment `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` ficou `READY`.
+- Smoke HTTP: `/` retornou 200; `POST /api/link-status` com `https://www.gov.br/` retornou 200 e status `valid`.
+- Fluxo autenticado Bruno + Scheffer (`04.733.767/0001-80`) validou CNPJ como `SCHEFFER & CIA LTDA`, concluiu o waterfall e renderizou dossie.
+- Resultado de UI: sem `Interromper`, sem `Consolidando informações...`, sem pagina sem resposta.
+- Console/diagnostico: `post-validate-inline`, `health-check-final`, `ui-finalized`, `PostCompletion`; `botMsgTextLen=24199`.
+- Supabase `operator_events`: `dossier_started` e `dossier_completed` para `04733767000180` no ambiente `preview`.
+- Sentry: sem issues unresolved nas ultimas 24h; Vercel runtime sem `error`/`fatal` no periodo validado.
 
----
+Rodado em worktree limpa `/tmp/novo-app-validate-a0yzFv` antes da limpeza:
 
-## Decisoes arquiteturais ativas
+- `npm run typecheck` — passou
+- `npm run test` — 162 arquivos, 1498 testes passaram
+- `npm run build` — passou, com aviso conhecido de chunk grande
+- `npx eslint` nos arquivos alterados — 0 erros, 1 warning antigo em teste (`mockProfileError`)
+- `git diff --check HEAD~1..HEAD` — passou
 
-### DI-2026-06-10-01: Dupla fonte de verdade eliminada
+Observacao: o typecheck na pasta principal ainda e poluido por `components/MetricsDashboard.tsx` nao rastreado, fora da PR.
 
-- **Decisao:** `hasLargeBotMessage` removido de `MessageTimeline.tsx` — agora so `useStaticTimelineFallback` controla estado de fallback
-- **Motivo:** Watchdog duplicado causava comportamento imprevisivel e bugs de renderizacao
-- **Impacto:** Um unico ponto de verdade para decisao de fallback
+## Checks GitHub/Vercel
 
-### DI-2026-06-10-02: Limite de props ajustado (8 -> 14)
+Todos passaram no commit runtime `c86fd0dd` antes do commit documental final:
 
-- **Decisao:** Componentes complexos podem ter ate 14 props, complexos ate 8
-- **Motivo:** ChatInterface tinha 9+ props naturais devido a natureza do componente. Limite de 8 era artificial e forcava agrupamentos contra-intuitivos
-- **Excecao:** `GOD_COMPONENT_SKIP` com tracking no `god-component-debt.json`
+- Build
+- Typecheck
+- Tests
+- Dossier Golden
+- E2E Critical Browser
+- CodeQL
+- CodeRabbit
+- GitGuardian
+- Smoke preview
+- Vercel
+- Vercel Preview Comments
 
-### DI-2026-06-10-03: Watchdogs consolidados em hook unico
+## Validacao manual no preview
 
-- **Decisao:** `useStaticTimelineFallback` contem todos os watchdogs de timeline (Efeito #5 antes espalhado)
-- **Motivo:** Antes o watchdog `forceStaticTimelineFallback` estava no ChatInterface e `hasLargeBotMessage` no MessageTimeline — dois lugares, duas logicas
-- **Impacto:** 3 watchdogs consolidados em 1 hook, testados em TDD
+Preview testado: https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 
-### DI-2026-06-10-04: Copiloto deve referenciar wiki e ai-context
+Fluxo validado:
 
-- **Decisao:** Passo 7 do copiloto-memory.md agora inclui leitura de wiki e ai-context ao iniciar sessao
-- **Motivo:** Sessao atual mostrou que wiki e docs/ai-context/ sao essenciais para contexto completo
-- **Impacto:** Todo handoff de encerramento de sessao deve atualizar wiki (passo 5)
+1. Login com a conta do Bruno funcionou.
+2. Reload manteve a sessao salva via Supabase Auth.
+3. `scout360:operator_id`, `scout360:operator_name` e `scout360:operator_email` ficaram `null` no localStorage.
+4. Token Supabase presente (`sb-vmqfcaoirjcfucvlnpig-auth-token`).
+5. CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, cidade `Sapezal`, UF `MT`.
+6. Investigacao completa iniciou, criou historico, concluiu o waterfall e gerou dossie com Score 84.
+7. Console sem erros de RLS, `saveUserContext`, `saveRadar`, `row-level security` ou `violates`.
+8. Logs de `FreezeDiag`/`BlankPanelDebug` apareceram apenas como diagnostico; a UI renderizou o dossie, sem painel branco.
 
----
+## Riscos residuais
 
-## Arquivos alterados (PR #359)
+- Radar continua usando storage legado em partes do fluxo; nesta PR ele foi tratado como nao bloqueante, conforme decisao do Bruno.
+- Backend/operacao de recuperacao assistida pos-deadline ainda precisa ser fechado fora desta PR.
+- `CRON_SECRET` deve permanecer configurado nos ambientes Vercel onde o cron real rodar.
+- Arquivos locais nao relacionados seguem fora da PR: `.claude/worktrees/`, `components/MetricsDashboard.tsx`, `docs/planos/2026-06-13-pr372-auth-remediation-plan.md`.
 
-| Arquivo | Mudanca | Status |
-|---------|---------|--------|
-| `components/ChatInterface.tsx` | 811 -> 331 linhas, extraiu 6 hooks | MERGED |
-| `components/chat/MessageTimeline.tsx` | Removeu `hasLargeBotMessage` (dupla fonte) | MERGED |
-| `hooks/chat/useChatTheme.ts` | Novo hook | MERGED |
-| `hooks/chat/usePanelState.ts` | Novo hook + fix operatorName null safety | MERGED |
-| `hooks/chat/useInvestigation.ts` | Novo hook | MERGED |
-| `hooks/chat/useChatActions.ts` | Novo hook | MERGED |
-| `hooks/chat/useStaticTimelineFallback.ts` | Novo hook + guard de loading | MERGED |
-| `hooks/chat/promptResolvers.ts` | Nova util | MERGED |
-| `tests/hooks/useStaticTimelineFallback.test.ts` | 28 testes TDD | MERGED |
+## Proximo passo
 
----
-
-## Prompt de retomada
-
-```text
-▎ Retome a sessao no NOVO-APP a partir de main.
-▎ PR #359 mergeada: ChatInterface refatorada (811->331 linhas, -59%).
-▎ 6 hooks extraidos, dupla fonte de verdade eliminada.
-▎ 28 testes TDD em useStaticTimelineFallback.test.ts.
-▎ 3 bugs corrigidos: loading proativo, contador de etapas, null safety.
-▎ Infraestrutura anti-god-component criada (8 regras, skill, tracking).
-▎ Proximo passo: revisar wiki e ai-context no inicio de cada sessao.
-▎ Ver docs/wiki/pages/29-chatinterface-refactor.md para arquitetura.
-```
+Se Bruno quiser concluir, confirmar explicitamente com **MERGE**. Sem essa palavra, nao executar merge por causa do merge guard do repo.

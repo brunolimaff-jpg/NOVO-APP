@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { extractPromotableInlineSources } from '../../utils/webVerification';
 import { validateInlineSourcesForPromotion } from '../../features/dossier/waterfall-orchestrator';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -139,8 +140,8 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total de 30s
-    await vi.advanceTimersByTimeAsync(31_000);
+    // Avança o timer para disparar o timeout total de 5s
+    await vi.advanceTimersByTimeAsync(6_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
@@ -166,11 +167,32 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança 31s para disparar o AbortController de timeout total
-    await vi.advanceTimersByTimeAsync(31_000);
+    // Avança 6s para disparar o AbortController de timeout total
+    await vi.advanceTimersByTimeAsync(6_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
+  }, 10_000);
+
+  it('retorna [] quando fetch nunca resolve mesmo ignorando AbortSignal', async () => {
+    const infoSpy = vi.spyOn(scoutDiag, 'info');
+    globalThis.fetch = vi.fn(() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+
+    const text = '[Gov](https://www.gov.br/doc)';
+    const resultPromise = validateInlineSourcesForPromotion(text, []);
+
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    const result = await resultPromise;
+    expect(result).toEqual([]);
+    expect(infoSpy).toHaveBeenCalledWith(
+      'FreezeDiag',
+      'inline-validation:skipped-or-timeout',
+      expect.objectContaining({
+        reason: 'timeout-or-abort',
+        candidateCount: 1,
+      }),
+    );
   }, 10_000);
 
   it('retorna [] quando body nunca termina (response.text() pendente)', async () => {
@@ -260,8 +282,8 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total (30s)
-    await vi.advanceTimersByTimeAsync(31_000);
+    // Avança o timer para disparar o timeout total (5s)
+    await vi.advanceTimersByTimeAsync(6_000);
 
     const result = await resultPromise;
     // Deve retornar [] (timeout capturado) em vez de travar

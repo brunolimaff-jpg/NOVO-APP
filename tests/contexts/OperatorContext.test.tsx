@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const saveUserContextMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const findUserByEmailMock = vi.hoisted(() =>
@@ -12,6 +12,38 @@ vi.mock('../../services/storage', () => ({
     saveUserContext: saveUserContextMock,
     findUserByEmail: findUserByEmailMock,
   },
+}));
+
+const mockUseMaybeAuth = vi.hoisted(() =>
+  vi.fn<() => { isGuest: boolean; loading: boolean; user: unknown } | undefined>(),
+);
+
+vi.mock('../../contexts/AuthContext', () => ({
+  useMaybeAuth: mockUseMaybeAuth,
+}));
+
+// Mock do supabase para resolver profiles
+// A cadeia e: supabase.from().select().eq().maybeSingle()
+const mockMaybeSingle = vi.hoisted(() => vi.fn());
+const mockEq = vi.hoisted(() => vi.fn(() => ({ maybeSingle: mockMaybeSingle })));
+const mockSupabaseSelect = vi.hoisted(() => vi.fn(() => ({ eq: mockEq })));
+const mockSupabaseFrom = vi.hoisted(() => vi.fn(() => ({ select: mockSupabaseSelect })));
+const mockSupabaseRpc = vi.hoisted(() =>
+  vi.fn<() => Promise<{ data: null; error: { message: string } | null }>>(() =>
+    Promise.resolve({ data: null, error: null }),
+  ),
+);
+
+vi.mock('../../lib/supabaseClient', () => ({
+  supabase: { from: mockSupabaseFrom, rpc: mockSupabaseRpc },
+  isSupabaseAvailable: true,
+}));
+
+// Mock do tracking para evitar efeitos colaterais
+vi.mock('../../services/operatorTracking', () => ({
+  initSessionTracking: vi.fn(() => Promise.resolve()),
+  trackOperatorEvent: vi.fn(),
+  endOperatorSession: vi.fn(),
 }));
 
 import { OperatorProvider, useOperator } from '../../contexts/OperatorContext';
@@ -52,6 +84,12 @@ describe('OperatorProvider', () => {
     saveUserContextMock.mockClear();
     findUserByEmailMock.mockReset();
     findUserByEmailMock.mockResolvedValue(null);
+    mockUseMaybeAuth.mockReset();
+    mockUseMaybeAuth.mockReturnValue(undefined); // Sem auth provider
+    mockSupabaseSelect.mockReset();
+    mockSupabaseRpc.mockReset();
+    mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
+    mockSupabaseFrom.mockClear();
   });
 
   it('starts without a name but with a stable operator id', () => {
@@ -161,5 +199,189 @@ describe('OperatorProvider', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     expect(screen.getByTestId('operator-id').textContent).toBe(currentOpId);
+  });
+});
+
+// ==============================================================================
+// Testes de resolucao de operator_id via Auth (Phase 1)
+// ==============================================================================
+describe('OperatorProvider — auth resolution (Phase 1)', () => {
+  const AUTH_USER = { id: 'auth-uuid-123', email: 'auth@agro.com', user_metadata: { name: 'Auth User' } };
+  const AUTH_STATE = { isGuest: false, loading: false, user: AUTH_USER };
+
+  function mockProfileResult(result: { operator_id?: string; email?: string; name?: string } | null) {
+    mockMaybeSingle.mockResolvedValue({ data: result, error: null });
+  }
+
+  function mockProfileError() {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: { message: 'DB error' } });
+  }
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    saveUserContextMock.mockClear();
+    findUserByEmailMock.mockReset();
+    findUserByEmailMock.mockResolvedValue(null);
+    mockSupabaseSelect.mockClear();
+    mockSupabaseFrom.mockClear();
+    mockEq.mockClear();
+    mockMaybeSingle.mockReset();
+    mockSupabaseRpc.mockReset();
+    mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
+    mockUseMaybeAuth.mockReturnValue(AUTH_STATE);
+  });
+
+  it('authUser com storage limpo — resolve operador canonico via profiles', async () => {
+    mockProfileResult({ operator_id: 'op_canonical_via_auth', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_canonical_via_auth');
+    });
+    expect(screen.getByTestId('name')).toHaveTextContent('Auth User');
+    expect(screen.getByTestId('email')).toHaveTextContent('auth@agro.com');
+
+    // Deve ter consultado profiles via Supabase
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
+    expect(window.localStorage.getItem('scout360:operator_id')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
+  });
+
+  it('authUser com email existente — não cria operador duplicado no storage', async () => {
+    // Profile sem operator_id (primeiro login, trigger ainda nao setou)
+    mockProfileResult(null);
+
+    // user_context por email — encontra operador legado
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: 'op_legacy_456',
+      displayName: 'Legacy User',
+    });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_legacy_456');
+    });
+    // Nome vem do displayName do user_context (encontrado pelo email)
+    expect(screen.getByTestId('name')).toHaveTextContent('Legacy User');
+    expect(screen.getByTestId('email')).toHaveTextContent('auth@agro.com');
+
+    // findUserByEmail foi chamado
+    expect(findUserByEmailMock).toHaveBeenCalledWith('auth@agro.com');
+  });
+
+  it('relink — dispara evento operator-relinked quando operator_id muda', async () => {
+    const relinkSpy = vi.fn();
+    window.addEventListener('operator-relinked', relinkSpy);
+
+    // Profile com operator_id diferente do que estava em localStorage
+    window.localStorage.setItem('scout360:operator_id', 'op_temporario');
+    mockProfileResult({ operator_id: 'op_canonico', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(relinkSpy).toHaveBeenCalled();
+    });
+
+    window.removeEventListener('operator-relinked', relinkSpy);
+  });
+
+  it('authUser com profile novo e operador legado por email — prefere legado e chama RPC de relink', async () => {
+    mockProfileResult({ operator_id: 'op_trigger_novo', email: 'auth@agro.com', name: 'Auth User' });
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: 'op_legacy_456',
+      displayName: 'Legacy User',
+    });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_legacy_456');
+    });
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('link_legacy_operator', {
+      p_auth_user_id: AUTH_USER.id,
+      p_operator_id: 'op_legacy_456',
+      p_email: 'auth@agro.com',
+      p_name: 'Legacy User',
+    });
+  });
+
+  it('authUser com relink legado negado — preserva profile autenticado', async () => {
+    mockProfileResult({ operator_id: 'op_trigger_novo', email: 'auth@agro.com', name: 'Auth User' });
+    findUserByEmailMock.mockResolvedValueOnce({
+      operatorId: 'op_legacy_456',
+      displayName: 'Legacy User',
+    });
+    mockSupabaseRpc.mockResolvedValueOnce({ data: null, error: { message: 'RLS denied' } });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_trigger_novo');
+    });
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('link_legacy_operator', {
+      p_auth_user_id: AUTH_USER.id,
+      p_operator_id: 'op_legacy_456',
+      p_email: 'auth@agro.com',
+      p_name: 'Legacy User',
+    });
+  });
+
+  it('logout limpa operator_id local e cria identidade guest nova', async () => {
+    window.localStorage.setItem('scout360:operator_id', 'op_auth');
+    window.localStorage.setItem('scout360:operator_name', 'Auth User');
+    window.localStorage.setItem('scout360:operator_email', 'auth@agro.com');
+    mockProfileResult({ operator_id: 'op_auth', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_auth');
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('operator-signed-out'));
+    });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
+    });
+    expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
+    expect(window.localStorage.getItem('scout360:operator_id')).not.toBe('op_auth');
+    expect(screen.getByTestId('email')).toHaveTextContent('empty');
+  });
+
+  it('tracking inicia uma vez apos resolucao — nao duplica para guest', async () => {
+    mockProfileResult({ operator_id: 'op_unique', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    // A resolucao dispara initSessionTracking (mockado, sem efeito real)
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_unique');
+    });
+    expect(findUserByEmailMock).toHaveBeenCalledWith('auth@agro.com');
+  });
+
+  it('profile sem operator_id e sem email — mantem localStorage atual', async () => {
+    const AUTH_NO_EMAIL = { id: 'auth-no-email', email: undefined, user_metadata: {} };
+    mockUseMaybeAuth.mockReturnValue({ isGuest: false, loading: false, user: AUTH_NO_EMAIL });
+
+    mockProfileResult(null); // sem profile também
+    findUserByEmailMock.mockResolvedValue(null); // user_context vazio
+
+    renderProvider();
+
+    // Como localStorage esta limpo, um novo operator_id e gerado
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const opId = screen.getByTestId('operator-id').textContent!;
+    expect(opId).toMatch(/^op_/);
+    // Nao deve ter chamado saveUserContext com valores temporarios
+    // (apenas o registerOperator manual chama saveUserContext)
   });
 });

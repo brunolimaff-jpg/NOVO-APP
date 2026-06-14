@@ -1,7 +1,7 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
-import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
+import { completeOnboarding, dismissMigrationNotice, e2eCompanyName, preventMigrationNotice } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
@@ -24,13 +24,13 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
 
   async function fullOnboard(page: import('@playwright/test').Page) {
     await completeOnboarding(page);
-    await page.getByTestId('investigation-company-input').fill('Fazenda Teste');
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName());
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click();
-    await expect(
-      page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
+      timeout: 30_000,
+    });
   }
 
   async function collectDiagnostics(page: import('@playwright/test').Page) {
