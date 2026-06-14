@@ -15,6 +15,12 @@ vi.mock('../../../services/geminiService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
 }));
 
+// Outros testes mockam useToast e chatStore globalmente com vi.mock().
+// Como vitest nao restaura mocks de modulo entre arquivos, esses mocks
+// vazam para este teste e quebram o renderHook se nao desfeitos.
+vi.unmock('../../../hooks/useToast');
+vi.unmock('../../../stores/chatStore');
+
 function applyStateUpdate<T>(current: T, next: T | ((prev: T) => T)): T {
   return typeof next === 'function' ? (next as (prev: T) => T)(current) : next;
 }

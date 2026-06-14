@@ -4,6 +4,8 @@ import { resolve } from 'path';
 export default defineConfig({
   test: {
     globals: true,
+    restoreMocks: true,
+    clearMocks: true,
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
