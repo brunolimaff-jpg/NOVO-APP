@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearCnpjCache,
   fetchCompanyByCnpj,
   formatCnpj,
   isValidCnpj,
@@ -11,6 +12,7 @@ import {
 describe('brasilApiService helpers', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearCnpjCache();
   });
 
   it('normalizes and formats cnpj', () => {
