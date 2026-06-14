@@ -173,9 +173,10 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
   })();
 
   cnpjCache.set(cnpj, promise);
-  promise.finally(() => {
-    setTimeout(() => cnpjCache.delete(cnpj), CNPJ_CACHE_TTL_MS);
-  });
+  promise.then(
+    () => setTimeout(() => cnpjCache.delete(cnpj), CNPJ_CACHE_TTL_MS),
+    () => { cnpjCache.delete(cnpj); },
+  );
 
   return promise;
 }
