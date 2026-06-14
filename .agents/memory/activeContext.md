@@ -6,7 +6,7 @@ Last updated: 2026-06-14 — PR #372 com fix de travamento no fechamento do wate
 
 - **Branch:** `feature/supabase-auth`
 - **PR #372:** aberta, branch `feature/supabase-auth`, sem merge executado
-- **Status:** fix local implementado para travamento do preview no fim do waterfall Scheffer; aguardando commit/push e checks finais
+- **Status:** fix `f6ff864d` enviado para `feature/supabase-auth`; aguardando deployment/checks finais do preview
 - **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
 - **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
 - **Supabase project:** `vmqfcaoirjcfucvlnpig`
