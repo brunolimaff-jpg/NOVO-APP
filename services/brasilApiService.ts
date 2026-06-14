@@ -4,6 +4,13 @@ import type { CnpjPartner } from '../lib/cnpjLookup';
 
 export { normalizeCnpj, formatCnpj, isValidCnpj };
 
+const cnpjCache = new Map<string, Promise<BrasilApiCompanyData>>();
+const CNPJ_CACHE_TTL_MS = 30_000;
+
+export function clearCnpjCache(): void {
+  cnpjCache.clear();
+}
+
 export interface BrasilApiCompanyData {
   cnpj: string;
   companyName: string;
@@ -101,67 +108,76 @@ export async function fetchCompanyByCnpj(cnpjValue: string, signal?: AbortSignal
     throw new Error('CNPJ inválido');
   }
 
-  const endpoint = `${resolveCnpjApiEndpoint()}?cnpj=${cnpj}`;
-  const timer = scoutDiag.startTimer('CnpjLookup', `fetchCompanyByCnpj:${cnpj}`);
-  scoutDiag.info('CnpjLookup', 'iniciando lookup de CNPJ', {
-    cnpj,
-    endpoint,
-    hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
-    isDev: import.meta.env.DEV,
-  });
+  const cached = cnpjCache.get(cnpj);
+  if (cached) return cached;
 
-  try {
-    const data = await fetchJsonWithTimeout<{
-      cnpj: string;
-      companyName: string;
-      city: string;
-      state: string;
-      cnae?: string;
-      cnaeDescricao?: string;
-      qsa?: CnpjPartner[];
-      error?: string;
-    }>(endpoint, 30000, signal);
-
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    timer.end({
+  const promise = (async () => {
+    const endpoint = `${resolveCnpjApiEndpoint()}?cnpj=${cnpj}`;
+    const timer = scoutDiag.startTimer('CnpjLookup', `fetchCompanyByCnpj:${cnpj}`);
+    scoutDiag.info('CnpjLookup', 'iniciando lookup de CNPJ', {
+      cnpj,
       endpoint,
-      city: data.city,
-      state: data.state,
-      cnae: data.cnae,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+      isDev: import.meta.env.DEV,
     });
 
-    return {
-      cnpj: data.cnpj,
-      companyName: data.companyName,
-      city: data.city,
-      state: data.state,
-      cnae: data.cnae,
-      cnaeDescricao: data.cnaeDescricao,
-      qsa: data.qsa,
-    };
-  } catch (error) {
-    timer.fail(error);
-    const isAbort = error instanceof Error && error.name === 'AbortError';
-    if (isAbort) {
-      // AbortError é esperado: ocorre quando o componente desmonta ou
-      // re-renderiza durante enriquecimento CNAE (SocietaryMap.tsx).
-      // Não é erro — o lookup foi cancelado intencionalmente.
-      scoutDiag.debug('CnpjLookup', 'lookup cancelado (AbortError)', {
-        cnpj,
+    try {
+      const data = await fetchJsonWithTimeout<{
+        cnpj: string;
+        companyName: string;
+        city: string;
+        state: string;
+        cnae?: string;
+        cnaeDescricao?: string;
+        qsa?: CnpjPartner[];
+        error?: string;
+      }>(endpoint, 30_000, signal);
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      timer.end({
         endpoint,
+        city: data.city,
+        state: data.state,
+        cnae: data.cnae,
       });
-    } else {
-      scoutDiag.error('CnpjLookup', 'falha no lookup de CNPJ', {
-        cnpj,
-        endpoint,
-        message: error instanceof Error ? error.message : String(error),
-      });
+
+      return {
+        cnpj: data.cnpj,
+        companyName: data.companyName,
+        city: data.city,
+        state: data.state,
+        cnae: data.cnae,
+        cnaeDescricao: data.cnaeDescricao,
+        qsa: data.qsa,
+      };
+    } catch (error) {
+      timer.fail(error);
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (isAbort) {
+        scoutDiag.debug('CnpjLookup', 'lookup cancelado (AbortError)', {
+          cnpj,
+          endpoint,
+        });
+      } else {
+        scoutDiag.error('CnpjLookup', 'falha no lookup de CNPJ', {
+          cnpj,
+          endpoint,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
     }
-    throw error;
-  }
+  })();
+
+  cnpjCache.set(cnpj, promise);
+  promise.finally(() => {
+    setTimeout(() => cnpjCache.delete(cnpj), CNPJ_CACHE_TTL_MS);
+  });
+
+  return promise;
 }
 
 export async function validateCityInState(

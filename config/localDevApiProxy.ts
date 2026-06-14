@@ -5,7 +5,6 @@ export const LOCAL_DEV_API_PROXY_PATHS = [
   '/api/radar-scan',
   '/api/gerar-dossie',
   '/api/cnpj',
-  '/api/comex',
   '/api/open-web-search',
   '/api/link-status',
   '/api/extract-content',

@@ -250,11 +250,6 @@ export async function sendMessageToGemini(
     });
     try {
       const lookupPromises: Promise<unknown>[] = [withAbortSignal(lookupCliente(targetCompanyForLookup), signal)];
-      const cleanCnpj = cnpjDetected || '';
-      if (cleanCnpj.length === 14) {
-        // TODO: A API /api/comex atual usa um mock determinístico para simular exportadores.
-      }
-
       const results = await Promise.allSettled(lookupPromises);
 
       if (results[0].status === 'rejected') {
@@ -288,9 +283,6 @@ export async function sendMessageToGemini(
         });
       }
 
-      if (results.length > 1 && results[1].status === 'fulfilled' && results[1].value) {
-        comexData = results[1].value;
-      }
     } catch (error: unknown) {
       scoutDiag.error('Cadastral', 'exceção no bloco de lookup', {
         target: String(targetCompanyForLookup).slice(0, 80),
