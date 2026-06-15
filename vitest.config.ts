@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     restoreMocks: true,
     clearMocks: true,
+    testTimeout: 15_000,
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
