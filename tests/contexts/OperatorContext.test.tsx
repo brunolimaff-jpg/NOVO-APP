@@ -244,7 +244,9 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
 
     // Deve ter consultado profiles via Supabase
     expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
-    expect(window.localStorage.getItem('scout360:operator_id')).toBeNull();
+    // PR #376: operator_id é restaurado no localStorage após resolução de auth
+    // para que getOperatorId() em _shared.ts consiga ler (loadSessions depende disso)
+    expect(window.localStorage.getItem('scout360:operator_id')).toBe('op_canonical_via_auth');
     expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
   });
