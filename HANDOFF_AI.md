@@ -11,16 +11,16 @@
 
 ## Resumo da Sessao
 
-| #   | Tarefa                                                                                                       | Status |
-| --- | ------------------------------------------------------------------------------------------------------------ | ------ |
-| 1   | Fechar 3 PRs obsoletas de worktrees (#367 Sprint1, #368 Sprint2, #370 Sprint4)                               | OK     |
-| 2   | Confirmar que PRs #372 e #373 ja estavam mergeadas em origin/main                                            | OK     |
-| 3   | Commitar 7 arquivos pendentes (handoff, memory, MetricsDashboard, plano PR372, gitignore, ajustes residuais) | OK     |
-| 4   | Sincronizar main local (estava 31 commits atras)                                                             | OK     |
-| 5   | Merge feature/supabase-auth → main (2 commits + merge commit)                                                | OK     |
-| 6   | Push origin/main + origin/feature/supabase-auth                                                              | OK     |
-| 7   | Vercel deploy automatico disparado                                                                           | OK     |
-| 8   | Adicionar .claude/worktrees/ ao .gitignore                                                                   | OK     |
+| # | Tarefa | Status |
+|---|--------|--------|
+| 1 | Fechar 3 PRs obsoletas de worktrees (#367 Sprint1, #368 Sprint2, #370 Sprint4) | OK |
+| 2 | Confirmar que PRs #372 e #373 ja estavam mergeadas em origin/main | OK |
+| 3 | Commitar 7 arquivos pendentes (handoff, memory, MetricsDashboard, plano PR372, gitignore, ajustes residuais) | OK |
+| 4 | Sincronizar main local (estava 31 commits atras) | OK |
+| 5 | Merge feature/supabase-auth → main (2 commits + merge commit) | OK |
+| 6 | Push origin/main + origin/feature/supabase-auth | OK |
+| 7 | Vercel deploy automatico disparado | OK |
+| 8 | Adicionar .claude/worktrees/ ao .gitignore | OK |
 
 ## Correcoes aplicadas
 
