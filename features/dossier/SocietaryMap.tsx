@@ -519,13 +519,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Mapa de poder societario</p>
       </div>
 
-      {state === 'loading' ? <p className="text-xs text-slate-500">Montando teia societaria...</p> : null}
+      {state === 'loading' ? <p className="text-xs text-slate-500">Carregando dados da empresa...</p> : null}
 
       {drillProgress && drillProgress.total > 0 ? (
-        <div className="mb-3" aria-label={`Buscando sócios: ${drillProgress.done} de ${drillProgress.total}`}>
+        <div
+          className="mb-3"
+          aria-label={`Analisando rede societária: ${drillProgress.done} de ${drillProgress.total} CNPJs verificados`}
+        >
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>
-              {drillProgress.done}/{drillProgress.total} sócios
+              Analisando sócios: {drillProgress.done} de {drillProgress.total} CNPJs verificados
             </span>
             <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 4 }}>
               <div
