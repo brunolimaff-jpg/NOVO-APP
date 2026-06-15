@@ -1,126 +1,69 @@
-# Handoff — PR #372 Supabase Auth + fix de travamento no preview
+# Handoff Final — Sessao 2026-06-14 (PR #372 + #373)
 
-- **PR:** #372 — `feature/supabase-auth`
-- **Codigo runtime base validado:** `c86fd0dd` (`fix: allow authenticated storage writes`)
-- **Status:** fix 2026-06-14 validado no preview da branch; **nao mergeada**
-- **Deployment validado:** `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` (`c3fb8d14`)
-- **Preview final:** https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
-- **Alias da branch:** https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app
-- **Supabase project:** `vmqfcaoirjcfucvlnpig` (`NOVO-APP`)
-- **Deadline de migracao:** 18/06/2026
+> **Estado:** Ambos os PRs merged no remote `main` e deployed em producao.
+> **Branch atual (local):** `feature/supabase-auth` (pode ser deletada)
+> **Vercel production:** `dpl_GxMyFoiXYLtZYKL6V3qJhLEC4LoF` — 12 lambdas, slot comex liberado.
+> **Supabase project:** `vmqfcaoirjcfucvlnpig` (NOVO-APP)
+> **Deadline de migracao:** 18/06/2026 — usuarios existentes precisam cadastrar senha.
 
-## Resumo
+---
 
-A PR #372 migra o fluxo local de operador para Supabase Auth e fecha os bloqueadores encontrados antes do merge. A cadeia final de identidade e:
+## Resumo da Sessao
 
-`Supabase Auth auth.uid()` -> `profiles.operator_id` -> dados do operador/dossies.
+| #   | Tarefa                                              | Status |
+| --- | --------------------------------------------------- | ------ |
+| 1   | Code Review PR #372 (5 agentes, 3 bugs)             | OK     |
+| 2   | Corrigir 3 bugs (signOut, race, unhandled)          | OK     |
+| 3   | Merge PR #372 em main                               | OK     |
+| 4   | PR #373: remover comex + cache CNPJ + codigo orfao  | OK     |
+| 5   | 5 ciclos de review Gemini+CodeRabbit (4 bugs cache) | OK     |
+| 6   | CI verde (restoreMocks globais)                     | OK     |
+| 7   | Preview validado (Chrome DevTools)                  | OK     |
+| 8   | Merge PR #373 em main                               | OK     |
 
-O app nao grava mais identidade autenticada (`operator_id`, nome, email) no localStorage proprio. A sessao fica salva pelo token do Supabase Auth no navegador.
+## Correcoes aplicadas
 
-## Fix 2026-06-14 — travamento em `Consolidando informações...`
+| Correcao                                      | Origem              |
+| --------------------------------------------- | ------------------- |
+| signOut sem try/catch                         | Git blame           |
+| IIFE async sem AbortController                | CodeRabbit          |
+| fetchPromise orfao sem .catch()               | Git blame           |
+| promises rejeitadas no cache bloqueavam retry | Gemini + CodeRabbit |
+| AbortSignal contaminava cache entre callers   | CodeRabbit          |
+| timer stale deletava entrada nova             | CodeRabbit          |
+| CI tests quebrado por mock leakage            | Gemini              |
 
-O alias da branch travou no fim do waterfall Scheffer (`04.733.767/0001-80`). A investigacao mostrou:
+## Decisoes desta sessao
 
-- Vercel `READY`, `/` 200, `/api/gemini` 200 e `/api/link-status` 200.
-- Sentry sem issue unresolved recente em `prod`.
-- Supabase registrou `dossier_started`, módulos do waterfall e `inline-validation:fetch:start`, mas nao registrou conclusao/persistencia.
+1. **DI-2026-06-14-02: CNPJ cache com Map<string, Promise>, TTL 30s, sem signal do caller, identity check no delete** — cache rejeitado e removido imediatamente; chamadores individuais fazem race do proprio signal contra a promise compartilhada.
+2. **DI-2026-06-14-03: vitest.config.ts com restoreMocks + clearMocks globais** — mock leakage entre arquivos de teste por `vi.mock()` persistente; solucao global em config.
+3. **DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual** — commit direto na branch de PR sem worktree.
 
-Correcao aplicada:
+## Arquivos alterados nesta sessao
 
-- `features/dossier/waterfall-orchestrator.ts`: a promocao de fontes inline agora valida no maximo 8 URLs, tem budget duro de 5s e, em timeout/falha, registra `inline-validation:skipped-or-timeout` e segue com `[]`.
-- `api/link-status.ts`: validacao de URLs usa `Promise.allSettled`; uma URL lenta/falha vira `unknown` sem impedir resposta parcial das demais.
-- Contrato publico mantido: `POST /api/link-status` continua recebendo `{ urls }` e retornando `{ results }`.
+| Arquivo                                      | Mudanca                                   |
+| -------------------------------------------- | ----------------------------------------- |
+| `contexts/AuthContext.tsx`                   | signOut com try/catch/finally             |
+| `contexts/OperatorContext.tsx`               | AbortController na IIFE async             |
+| `features/dossier/waterfall-orchestrator.ts` | fetchPromise.catch()                      |
+| `api/comex.ts`                               | removida (fake morta)                     |
+| `api/cnpj-cache.ts`                          | criado — Map<string, Promise> com TTL 30s |
+| `services/brasilApiService.ts`               | cache CNPJ refatorado com identity check  |
+| `vitest.config.ts`                           | restoreMocks + clearMocks globais         |
+| `localDevApiProxy.ts`                        | comex endpoint removido                   |
 
-## Commits relevantes da revisao final
+## Vault
 
-- `6d7b89c1` — fecha bloqueadores de auth remediation: restaura `/api/link-status`, remove `/api/pulse-news`, corrige AuthGate pos-deadline, login com senha simples, E2E e migrations.
-- `2fd6f3f8` — remove cache local de identidade derivada de auth para resolver alerta CodeQL de clear-text storage.
-- `c86fd0dd` — aguarda RPC de relink legado, adiciona RLS authenticated para `user_context`/radar e reduz radar para aviso nao bloqueante.
-
-## Migrations aplicadas
-
-No Supabase remoto (`vmqfcaoirjcfucvlnpig`):
-
-- `20260613_user_context_schema`
-- `20260613_lock_profiles_operator_id`
-- `auth_storage_rls_policies`
-
-A ultima migration permite que usuario autenticado:
-
-- leia `user_context` proprio ou legado pelo proprio email;
-- grave/atualize apenas o `operator_id` ligado ao seu `profiles`;
-- use radar apenas quando o `operator_id` bate com `profiles.operator_id`.
-
-## Validacao local
-
-Rodado em 2026-06-14 na pasta principal:
-
-- `npx vitest run tests/features/validate-inline-sources-freeze-diag.test.ts tests/api-link-status.test.ts` — passou: 16 testes.
-- `npx vitest run tests/features/dossier/waterfall-orchestrator.test.ts` — passou: 21 testes.
-- `npm run build` — passou, com aviso conhecido de chunk grande.
-- `npm run typecheck` — falhou apenas por `components/MetricsDashboard.tsx` nao rastreado e fora da PR.
-- `npx tsc --noEmit -p tsconfig.codex-validate.json` temporario, excluindo apenas `components/MetricsDashboard.tsx` — passou; o arquivo temporario foi removido.
-
-## Validacao preview 2026-06-14
-
-Preview/alias: https://scoutagro-git-feature-supabase-auth-brunolimaff-3629s-projects.vercel.app/
-
-- Vercel deployment `dpl_9EMsNL6fD1nZzFv8z4idXjtvQJZA` ficou `READY`.
-- Smoke HTTP: `/` retornou 200; `POST /api/link-status` com `https://www.gov.br/` retornou 200 e status `valid`.
-- Fluxo autenticado Bruno + Scheffer (`04.733.767/0001-80`) validou CNPJ como `SCHEFFER & CIA LTDA`, concluiu o waterfall e renderizou dossie.
-- Resultado de UI: sem `Interromper`, sem `Consolidando informações...`, sem pagina sem resposta.
-- Console/diagnostico: `post-validate-inline`, `health-check-final`, `ui-finalized`, `PostCompletion`; `botMsgTextLen=24199`.
-- Supabase `operator_events`: `dossier_started` e `dossier_completed` para `04733767000180` no ambiente `preview`.
-- Sentry: sem issues unresolved nas ultimas 24h; Vercel runtime sem `error`/`fatal` no periodo validado.
-
-Rodado em worktree limpa `/tmp/novo-app-validate-a0yzFv` antes da limpeza:
-
-- `npm run typecheck` — passou
-- `npm run test` — 162 arquivos, 1498 testes passaram
-- `npm run build` — passou, com aviso conhecido de chunk grande
-- `npx eslint` nos arquivos alterados — 0 erros, 1 warning antigo em teste (`mockProfileError`)
-- `git diff --check HEAD~1..HEAD` — passou
-
-Observacao: o typecheck na pasta principal ainda e poluido por `components/MetricsDashboard.tsx` nao rastreado, fora da PR.
-
-## Checks GitHub/Vercel
-
-Todos passaram no commit runtime `c86fd0dd` antes do commit documental final:
-
-- Build
-- Typecheck
-- Tests
-- Dossier Golden
-- E2E Critical Browser
-- CodeQL
-- CodeRabbit
-- GitGuardian
-- Smoke preview
-- Vercel
-- Vercel Preview Comments
-
-## Validacao manual no preview
-
-Preview testado: https://scoutagro-48emv2pdu-brunolimaff-3629s-projects.vercel.app
-
-Fluxo validado:
-
-1. Login com a conta do Bruno funcionou.
-2. Reload manteve a sessao salva via Supabase Auth.
-3. `scout360:operator_id`, `scout360:operator_name` e `scout360:operator_email` ficaram `null` no localStorage.
-4. Token Supabase presente (`sb-vmqfcaoirjcfucvlnpig-auth-token`).
-5. CNPJ `04.733.767/0001-80` validou como `SCHEFFER & CIA LTDA`, cidade `Sapezal`, UF `MT`.
-6. Investigacao completa iniciou, criou historico, concluiu o waterfall e gerou dossie com Score 84.
-7. Console sem erros de RLS, `saveUserContext`, `saveRadar`, `row-level security` ou `violates`.
-8. Logs de `FreezeDiag`/`BlankPanelDebug` apareceram apenas como diagnostico; a UI renderizou o dossie, sem painel branco.
+- `Bruno Vault/20-SESSOES/2026-06/...` — nota de sessao pendente
+- `30-LICOES/` — 2 licoes (cache TTL, mock leakage)
 
 ## Riscos residuais
 
-- Radar continua usando storage legado em partes do fluxo; nesta PR ele foi tratado como nao bloqueante, conforme decisao do Bruno.
-- Backend/operacao de recuperacao assistida pos-deadline ainda precisa ser fechado fora desta PR.
-- `CRON_SECRET` deve permanecer configurado nos ambientes Vercel onde o cron real rodar.
-- Arquivos locais nao relacionados seguem fora da PR: `.claude/worktrees/`, `components/MetricsDashboard.tsx`, `docs/planos/2026-06-13-pr372-auth-remediation-plan.md`.
+- Local `main` atrasado (origin/main tem merges #372 e #373); `git pull` necessario.
+- Branch `feature/supabase-auth` pode ser deletada apos confirmacao remota.
+- Deadline 18/06: usuarios existentes sem senha perdem acesso — banner ativo, cron remove contas nao confirmadas 48h.
+- CodeQL alerta pre-existente em `api/link-status.ts` (SSRF, mitigado com `isValidPublicUrl`).
 
 ## Proximo passo
 
-Se Bruno quiser concluir, confirmar explicitamente com **MERGE**. Sem essa palavra, nao executar merge por causa do merge guard do repo.
+Rodar `git checkout main && git pull` para sincronizar local com remote. Deletar `feature/supabase-auth` se desejado.
