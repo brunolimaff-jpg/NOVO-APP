@@ -74,7 +74,11 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
   const storeSaysDone = chatStore && !chatStore.isLoading;
   const [graceExpired, setGraceExpired] = useState(false);
   React.useEffect(() => {
-    if (!storeSaysDone) return;
+    if (!storeSaysDone) {
+      // Novo ciclo de loading iniciou — reseta o grace para a próxima finalização
+      setGraceExpired(false);
+      return;
+    }
     const id = setTimeout(() => setGraceExpired(true), 200);
     return () => clearTimeout(id);
   }, [storeSaysDone]);
