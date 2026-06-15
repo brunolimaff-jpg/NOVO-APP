@@ -791,6 +791,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }
         const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
 
+        // Só limpa activeGenerationRef DEPOIS dos probes agendados.
+        // Os probes usam isCurrentGeneration() que depende dessa ref —
+        // deletar antes tornaria todos os probes no-ops silenciosos.
+        if (activeGenerationRef.current[sessionId] === botMessageId) {
+          delete activeGenerationRef.current[sessionId];
+        }
+
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();
           cleanupProbes();
