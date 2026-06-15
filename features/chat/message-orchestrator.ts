@@ -1,4 +1,5 @@
 import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
@@ -342,6 +343,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
               `stuck-after-completed:${delay}ms`,
               payload as unknown as Record<string, unknown>,
             );
+            if (delay === 10_000) {
+              Sentry.captureMessage('Scout360 loading stuck — safety probe timed out', {
+                level: 'warning',
+                tags: { area: 'loading-stuck', session_id: capturedSessionId, probe_delay: '10000' },
+                extra: payload as unknown as Record<string, unknown>,
+              });
+            }
           } else {
             scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
           }
@@ -733,10 +741,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           isAbort,
         });
 
-        if (activeGenerationRef.current[sessionId] === botMessageId) {
-          delete activeGenerationRef.current[sessionId];
-        }
-
         const t0 = performance.now();
 
         // Agenda flush ANTES de disparar React render.
@@ -781,6 +785,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
         // PR #349: probes de estado real + RAF safety net contra loading preso
         const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId);
+
+        // Só limpa activeGenerationRef DEPOIS dos probes agendados.
+        // Os probes usam isCurrentGeneration() que depende dessa ref —
+        // deletar antes tornaria todos os probes no-ops silenciosos.
+        if (activeGenerationRef.current[sessionId] === botMessageId) {
+          delete activeGenerationRef.current[sessionId];
+        }
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();

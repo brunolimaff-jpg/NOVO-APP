@@ -3,6 +3,8 @@
 // quando o waterfall termina (completed/failed/partial).
 //
 // Motivação: PR #334 e PR #335 corrigiram o overlay hero, mas outros estados
+
+import * as Sentry from '@sentry/react';
 // de UI (spinner "Preparando investigação...", botão Interromper, composer disabled)
 // permaneciam ativos porque cada um era controlado por uma variável diferente.
 // Esta função garante invariante: se waterfall terminou e botMsgTextLen > 0,
@@ -35,17 +37,7 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   store.completeLoadingProgress?.();
   store.setFailureCount?.(0);
 
-  // 2. Limpa refs de geração ativa (NÃO mexe em abortController —
-  //    processMessage:finally é o dono do abortController e usa isAbort
-  //    para decidir se flusha diagnósticos. Limpar aqui causava isAbort=true.)
-  if (store.activeGenerationRef?.current) {
-    const botId = store.activeGenerationRef.current[sessionId];
-    if (botId) {
-      delete store.activeGenerationRef.current[sessionId];
-    }
-  }
-
-  // 3. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
+  // 2. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
   //    requestAnimationFrame garante execução após o commit do React, sem bloquear.
   if (typeof document !== 'undefined') {
     const HIDE_SELECTORS = [
@@ -107,10 +99,23 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
 
     // Log pós-render: verifica DOM após React ter chance de re-renderizar
     setTimeout(() => {
+      const dom = snapshot();
       log('WaterfallLifecycle', 'ui-finalize-post-render', {
         sessionId,
-        ...snapshot(),
+        ...dom,
       });
+
+      if (dom.domHasOverlay || dom.domHasInlineBubble || dom.domComposerDisabled || dom.domHasStopButton) {
+        Sentry.captureMessage('Scout360 waterfall UI leak — loading elements still visible post-render', {
+          level: 'warning',
+          tags: {
+            area: 'waterfall-ui-leak',
+            session_id: sessionId,
+            waterfall_end_status: waterfallEndStatus ?? 'unknown',
+          },
+          extra: dom as unknown as Record<string, unknown>,
+        });
+      }
     }, 600);
   }
 }

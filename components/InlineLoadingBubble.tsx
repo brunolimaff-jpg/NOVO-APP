@@ -68,7 +68,13 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
       }
     : processingProp;
 
-  const isLoading = true;
+  // Se a store já liberou o loading mas o componente ainda está montado,
+  // é um stale mount — auto-destrói após grace period para evitar flicker.
+  const mountedAtRef = React.useRef(Date.now());
+  const storeSaysDone = chatStore && !chatStore.isLoading;
+  const shouldSelfDestruct = storeSaysDone && Date.now() - mountedAtRef.current > 200;
+
+  const isLoading = shouldSelfDestruct ? false : true;
   const elapsedTime = useElapsedTimer(isLoading);
   const elapsed = formatElapsed(elapsedTime);
 
@@ -134,7 +140,11 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
     });
 
   const totalStages = processing?.totalStages || 7;
-  const completedCount = realCompleted.length;
+  const completedCount = Math.min(realCompleted.length, totalStages);
+
+  // Auto-destruição: se a store já liberou o loading após grace period,
+  // retorna null (todos os hooks já foram chamados antes deste ponto).
+  if (shouldSelfDestruct) return null;
 
   return (
     <div

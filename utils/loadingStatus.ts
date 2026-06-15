@@ -322,9 +322,12 @@ export function finalizeLoadingProgress(
   completedStages: string[] = [],
 ): LoadingProgressSnapshot {
   const safeCompleted = Array.isArray(completedStages) ? [...completedStages] : [];
+  // "Consolidando informações..." é um meta-estágio de montagem final, não uma etapa
+  // concluída. Contá-la como completedStage causava o bug visual "8/7".
+  const shouldAppend = Boolean(currentStage) && currentStage !== 'Consolidando informações...';
   return {
     stage: '',
-    completedStages: appendCompletedStage(safeCompleted, currentStage),
+    completedStages: shouldAppend ? appendCompletedStage(safeCompleted, currentStage) : safeCompleted,
   };
 }
 

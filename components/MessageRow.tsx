@@ -121,9 +121,12 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
   const hasRenderableText = Boolean(msg.text?.trim());
-  const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero';
-  const showInlineLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline';
-  const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
+  const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero' && data.isLoading;
+  const showInlineLoading =
+    isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline' && data.isLoading;
+  // Stale-thinking: msg acha que está carregando mas a store já liberou — trata como ghost content
+  const showGhostContent =
+    isBot && !msg.isError && (!msg.text || msg.text.trim() === '') && (!msg.isThinking || !data.isLoading);
   const renderBranch = showHeroLoading
     ? 'hero-loading'
     : showInlineLoading

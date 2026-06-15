@@ -102,4 +102,21 @@ describe('loadingStatus', () => {
       ],
     });
   });
+
+  it('NÃO conta "Consolidando informações..." como etapa concluída (trava Bug B — 8/7)', () => {
+    const result = finalizeLoadingProgress('Consolidando informações...', [
+      'Consolidando perímetro da conta alvo...',
+      'Mapeando poder societário...',
+      'Analisando maturidade digital...',
+      'Rastreando riscos e compliance...',
+      'Mapeando adoção tecnológica...',
+      'Analisando retorno sobre operação...',
+      'Materializando recomendações práticas...',
+    ]);
+
+    // Trava: completedStages NÃO pode crescer com "Consolidando informações..."
+    expect(result.completedStages).toHaveLength(7);
+    expect(result.completedStages).not.toContain('Consolidando informações...');
+    expect(result.stage).toBe('');
+  });
 });
