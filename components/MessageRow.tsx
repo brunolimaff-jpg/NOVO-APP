@@ -121,18 +121,24 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const assistantLabel = '\uD83E\uDD85 Scout 360';
   const loadingVariant = msg.loadingVariant ?? 'hero';
   const hasRenderableText = Boolean(msg.text?.trim());
-  const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero';
-  const showInlineLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline';
+  const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero' && data.isLoading;
+  const showInlineLoading =
+    isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline' && data.isLoading;
+  // Stale-thinking: msg acha que está carregando mas a store já liberou.
+  // Não é erro de rede — é bug de propagação de estado. Só esconde o loading.
+  const isStaleThinking = isBot && msg.isThinking && !data.isLoading && !hasRenderableText;
   const showGhostContent = isBot && !msg.isThinking && !msg.isError && (!msg.text || msg.text.trim() === '');
-  const renderBranch = showHeroLoading
-    ? 'hero-loading'
-    : showInlineLoading
-      ? 'inline-loading'
-      : msg.isError && msg.errorDetails
-        ? 'error-card'
-        : showGhostContent
-          ? 'ghost-content'
-          : 'normal-content';
+  const renderBranch = isStaleThinking
+    ? 'stale-thinking'
+    : showHeroLoading
+      ? 'hero-loading'
+      : showInlineLoading
+        ? 'inline-loading'
+        : msg.isError && msg.errorDetails
+          ? 'error-card'
+          : showGhostContent
+            ? 'ghost-content'
+            : 'normal-content';
   const contentRef = useRef<HTMLDivElement | null>(null);
   let content: React.ReactNode;
 
@@ -205,7 +211,10 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
     return () => cancelAnimationFrame(handle);
   }, [isBot, msg.text, msg.id, msg.sender, renderBranch]);
 
-  if (showHeroLoading) {
+  if (isStaleThinking) {
+    // Stale-thinking: loading acabou mas msg não atualizou — sem erro, sem loading
+    return null;
+  } else if (showHeroLoading) {
     // LoadingSmart should cover this path, but stale preview/runtime state can expose
     // the timeline. Keep a visible row so an active session never becomes a blank panel.
     content = (

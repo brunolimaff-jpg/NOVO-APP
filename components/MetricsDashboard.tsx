@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 /* ── Tipos ──────────────────────────────────── */
 
 interface OperatorRanking {
+  [key: string]: unknown;
   email: string;
   total_eventos: number;
   total_sessoes: number;
@@ -27,6 +28,7 @@ interface DailyUsage {
 }
 
 interface CompanyRanking {
+  [key: string]: unknown;
   cnpj: string;
   nome_empresa: string;
   total_pesquisas: number;

@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { registerWaterfallStart, registerWaterfallEnd } from './waterfall-guard';
 import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
@@ -1235,6 +1236,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             botMessageId,
             activeBotId: activeGenerationRef?.current?.[sessionId] ?? 'undefined',
           });
+          Sentry.captureMessage('Scout360 generation ref cleared before waterfall persist', {
+            level: 'warning',
+            tags: { area: 'generation-ref-cleared', session_id: sessionId },
+            extra: {
+              botMessageId,
+              activeBotId: activeGenerationRef?.current?.[sessionId] ?? 'undefined',
+            },
+          });
           return;
         }
 
@@ -1311,6 +1320,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // Cenário B: prev[] tem a sessão mas botMessageId não casa → texto nunca escrito
         // sessionsRef.current é sincronizado via render-phase (useSessionStorage.ts).
         if (!sessionToPersist || !persistBotUpdated) {
+          Sentry.captureMessage('Scout360 waterfall session persist failed', {
+            level: 'warning',
+            tags: { area: 'waterfall-session-persist', session_id: sessionId },
+            extra: {
+              sessionToPersistIsNull: sessionToPersist === null,
+              persistBotUpdated,
+              originalMsgCount,
+              botMessageId,
+              waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
+            },
+          });
           if (!persistBotUpdated && persistMsgCount > 0) {
             console.error(
               '[Scout360][WaterfallLifecycle] ⚠ botMessageId nao encontrado na sessao',

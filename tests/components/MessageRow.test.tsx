@@ -312,4 +312,21 @@ describe('MessageRow', () => {
     // conteúdo normal deve aparecer
     expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
   });
+
+  it('NÃO mostra bolha inline quando store já liberou loading mas msg ainda tem isThinking (trava Bug C — stale thinking)', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '',
+      isThinking: true,
+      loadingVariant: 'inline',
+    });
+    // Simula: store diz que loading acabou, mas msg ainda está com isThinking=true (bug de propagação)
+    const data = { ...makeData([msg]), isLoading: false };
+    const { container } = render(<MessageRow index={0} data={data} />);
+
+    // Trava: bolha NÃO deve aparecer quando store.isLoading é false
+    expect(screen.queryByTestId('inline-loading-bubble')).not.toBeInTheDocument();
+    // Stale-thinking retorna null — não renderiza erro alarmista (Finding 3 adversarial)
+    expect(container.innerHTML).toBe('');
+  });
 });

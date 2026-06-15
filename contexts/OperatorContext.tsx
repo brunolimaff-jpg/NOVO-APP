@@ -410,6 +410,11 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (resolved.name && resolved.name !== nameRef.current) setOperatorName(resolved.name);
         if (resolved.email && resolved.email !== emailRef.current) setOperatorEmail(resolved.email);
 
+        // O storage layer (getOperatorId em _shared.ts) só lê do localStorage.
+        // Sem esta escrita, loadSessions() → getDossiers() → getOperatorId()
+        // retorna null após a resolução de auth e o sidebar fica vazio (PR #376).
+        storageSet(OPERATOR_ID_KEY, resolved.operatorId);
+
         if (abort.signal.aborted) return;
 
         // Persiste user_context com operator_id canonico (NUNCA com ID temporario)

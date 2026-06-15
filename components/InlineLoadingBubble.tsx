@@ -68,7 +68,23 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
       }
     : processingProp;
 
-  const isLoading = true;
+  // Se a store já liberou o loading mas o componente ainda está montado,
+  // é um stale mount — auto-destrói após grace period. useEffect garante
+  // re-render mesmo sem re-render do pai (Gemini code review feedback).
+  const storeSaysDone = chatStore && !chatStore.isLoading;
+  const [graceExpired, setGraceExpired] = useState(false);
+  React.useEffect(() => {
+    if (!storeSaysDone) {
+      // Novo ciclo de loading iniciou — reseta o grace para a próxima finalização
+      setGraceExpired(false);
+      return;
+    }
+    const id = setTimeout(() => setGraceExpired(true), 200);
+    return () => clearTimeout(id);
+  }, [storeSaysDone]);
+  const shouldSelfDestruct = storeSaysDone && graceExpired;
+
+  const isLoading = shouldSelfDestruct ? false : true;
   const elapsedTime = useElapsedTimer(isLoading);
   const elapsed = formatElapsed(elapsedTime);
 
@@ -134,7 +150,11 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
     });
 
   const totalStages = processing?.totalStages || 7;
-  const completedCount = realCompleted.length;
+  const completedCount = Math.min(realCompleted.length, totalStages);
+
+  // Auto-destruição: se a store já liberou o loading após grace period,
+  // retorna null (todos os hooks já foram chamados antes deste ponto).
+  if (shouldSelfDestruct) return null;
 
   return (
     <div

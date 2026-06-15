@@ -23,4 +23,19 @@ describe('finalizeWaterfallUI', () => {
       }),
     );
   });
+
+  it('NÃO deleta activeGenerationRef — responsabilidade exclusiva do processMessage.finally', () => {
+    const activeGenRef = { current: { 'session-1': 'bot-msg-123' } };
+
+    finalizeWaterfallUI({
+      store: { activeGenerationRef: activeGenRef },
+      sessionId: 'session-1',
+      reason: 'completed',
+      waterfallEndStatus: 'success',
+      botMsgTextLen: 500,
+    });
+
+    // Trava: a ref deve continuar intacta para os probes de segurança
+    expect(activeGenRef.current['session-1']).toBe('bot-msg-123');
+  });
 });
