@@ -118,7 +118,9 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
   it('profiles.operator_id imutavel para authenticated via column grant', () => {
     // Deve revogar UPDATE geral e conceder apenas UPDATE (name)
     const revokeMatch = allContent.match(/REVOKE\s+UPDATE\s+ON\s+public\.profiles\s+FROM\s+authenticated/i);
-    const grantNameMatch = allContent.match(/GRANT\s+UPDATE\s*\(\s*name\s*\)\s+ON\s+public\.profiles\s+TO\s+authenticated/i);
+    const grantNameMatch = allContent.match(
+      /GRANT\s+UPDATE\s*\(\s*name\s*\)\s+ON\s+public\.profiles\s+TO\s+authenticated/i,
+    );
 
     expect(revokeMatch).not.toBeNull();
     expect(grantNameMatch).not.toBeNull();

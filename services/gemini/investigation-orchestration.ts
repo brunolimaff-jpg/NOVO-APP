@@ -282,7 +282,6 @@ export async function sendMessageToGemini(
           totalModulos: clienteSeniorData?.totalModulos ?? null,
         });
       }
-
     } catch (error: unknown) {
       scoutDiag.error('Cadastral', 'exceção no bloco de lookup', {
         target: String(targetCompanyForLookup).slice(0, 80),

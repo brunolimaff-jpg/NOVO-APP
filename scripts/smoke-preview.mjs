@@ -92,9 +92,10 @@ async function run() {
 
   console.log(`\n🔎 Smoke test em: ${baseUrl}`);
   for (const check of checks) {
-    const pass = check.name.includes('/api/link-status') || check.name.includes('/api/cnpj')
-      ? check.status === 200
-      : check.ok && check.status >= 200 && check.status < 400;
+    const pass =
+      check.name.includes('/api/link-status') || check.name.includes('/api/cnpj')
+        ? check.status === 200
+        : check.ok && check.status >= 200 && check.status < 400;
 
     if (!pass) hasFailure = true;
 
