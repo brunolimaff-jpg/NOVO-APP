@@ -272,19 +272,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   // PR #349: probes de estado real pos-finalizacao do waterfall.
   // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
   // Retorna cleanup que cancela RAF + timers; caller deve compor com cleanupPostCompletionRef.
-  function scheduleLoadingStuckProbes(sessionId: string, botMessageId: string): () => void {
+  function scheduleLoadingStuckProbes(sessionId: string, generationValid: boolean): () => void {
     const delays = [0, 100, 500, 1_000, 3_000, 10_000];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
     const capturedSessionId = sessionId;
-    const capturedBotId = botMessageId;
     let rafSafetyNetFired = false;
     let rafHandle = 0;
 
-    const isCurrentGeneration = () => activeGenerationRef.current[capturedSessionId] === capturedBotId;
+    if (!generationValid) return () => {};
 
     rafHandle = requestAnimationFrame(() => {
-      // So dispara se o loading ainda estiver ativo E for a mesma geracao
-      if (latestLoadingRef.current.isLoading && isCurrentGeneration()) {
+      if (latestLoadingRef.current.isLoading) {
         rafSafetyNetFired = true;
         setIsLoading(false);
         (setLoadingVariant as (v: string | undefined) => void)(undefined);
@@ -297,9 +295,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
     for (const delay of delays) {
       const id = setTimeout(() => {
-        // So reporta se for a mesma geracao
-        if (!isCurrentGeneration()) return;
-
         try {
           const bodyText = document.body?.textContent || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
@@ -783,15 +778,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
         const cleanupChecks = schedulePostCompletionChecks(sessionId);
 
-        // PR #349: probes de estado real + RAF safety net contra loading preso
-        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId);
-
-        // Só limpa activeGenerationRef DEPOIS dos probes agendados.
-        // Os probes usam isCurrentGeneration() que depende dessa ref —
-        // deletar antes tornaria todos os probes no-ops silenciosos.
+        // PR #349: probes de estado real + RAF safety net contra loading preso.
+        // Captura validade ANTES de deletar a ref — probes são assíncronos
+        // (setTimeout/RAF) e não podem depender da ref viva.
+        const generationValid = activeGenerationRef.current[sessionId] === botMessageId;
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();
