@@ -1,51 +1,52 @@
-# Handoff - P0 Playbook Revisado
+# Handoff Final — Sessao 2026-06-15 (Merge feature/supabase-auth → main)
 
-**Atualizado:** 2026-06-18
-**Branch:** `codex/p0-playbook-foundation`
-**Base:** `origin/main` (`ce40644a`)
-**Worktree:** `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/p0-playbook-foundation`
+> **Estado:** `feature/supabase-auth` merged em `main`, pushado, git status limpo.
+> **Branch atual (local):** `main` (`ce444a2e`) — sincronizado com `origin/main`.
+> **Branch `feature/supabase-auth`:** `515f786f` — pushado, pode ser deletado.
+> **Vercel production:** deploy automatico disparado apos push em `main`.
+> **Supabase project:** `vmqfcaoirjcfucvlnpig` (NOVO-APP)
+> **Deadline de migracao:** 18/06/2026 — usuarios existentes precisam cadastrar senha.
 
-## Objetivo
+---
 
-Executar o P0 operacional e consolidar o Playbook de Execucao a Prova de IA como roadmap priorizado, sem bloquear mudancas de assunto.
+## Resumo da Sessao
 
-## Estado
+| # | Tarefa | Status |
+|---|--------|--------|
+| 1 | Fechar 3 PRs obsoletas de worktrees (#367 Sprint1, #368 Sprint2, #370 Sprint4) | OK |
+| 2 | Confirmar que PRs #372 e #373 ja estavam mergeadas em origin/main | OK |
+| 3 | Commitar 7 arquivos pendentes (handoff, memory, MetricsDashboard, plano PR372, gitignore, ajustes residuais) | OK |
+| 4 | Sincronizar main local (estava 31 commits atras) | OK |
+| 5 | Merge feature/supabase-auth → main (2 commits + merge commit) | OK |
+| 6 | Push origin/main + origin/feature/supabase-auth | OK |
+| 7 | Vercel deploy automatico disparado | OK |
+| 8 | Adicionar .claude/worktrees/ ao .gitignore | OK |
 
-- A trava criada por DI-2026-06-17-01 foi revogada por decisao do Bruno.
-- Plano revisado: `docs/superpowers/plans/2026-06-18-ai-proof-execution-playbook-revised.md`.
-- Vault: `20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`.
-- `CODEX.md` consolidado sem trava global de agentes.
-- Rotacao de API keys ficou fora do escopo atual por decisao do Bruno; nao foi marcada como resolvida.
-- PR #377 permanece aberta e `CLEAN`; nao houve merge.
+## Correcoes aplicadas
 
-## P0 de Senha e Cron
+Nenhuma correcao de codigo nesta sessao — apenas merge, cleanup e documentacao.
 
-- Deadline no codigo: `2026-06-18T23:59:59-03:00` em `hooks/useAuthGate.ts`.
-- Banner antes do prazo e bloqueio/recuperacao depois do prazo possuem testes.
-- Producao responde 200 na aplicacao.
-- O endpoint `/api/cron-email-confirmation` respondeu 500: `CRON_SECRET not configured`.
-- Correcao local: cron agora e dry-run por padrao; exclusao exige `CRON_DELETE_ENABLED=true`.
-- Nao configurar `CRON_SECRET` antes de publicar essa protecao, pois a versao atual de producao apaga candidatos diretamente.
+## Decisoes desta sessao
 
-## Validacao
+Nenhuma decisao arquitetural nova. Sessao de encerramento e sincronizacao.
 
-- Suite final: `npm test` -> 162 arquivos, 1.502 testes verdes.
-- RED do cron: 2 testes falharam antes da protecao dry-run.
-- GREEN do cron: 9 testes verdes apos a protecao.
-- Typecheck, build e `docs:obsidian:check` passaram.
-- Lint permanece vermelho por 7 erros preexistentes mapeados para a Fase 0.
-- Validador global do Vault permanece vermelho por transcricoes legadas sem frontmatter; os arquivos novos passaram na verificacao estrutural isolada.
-- Preview/producao do novo codigo: **NAO VALIDADO**, ainda sem deploy.
+## Arquivos alterados nesta sessao
 
-## Proximos Passos
+Os commits finais incluiam ajustes residuais em `contexts/AuthGate.tsx`, `contexts/AuthContext.tsx`, `contexts/OperatorContext.tsx`, `features/dossier/waterfall-orchestrator.ts` e `components/MetricsDashboard.tsx` (novo), alem da documentacao e `.gitignore`.
 
-1. Finalizar docs/memoria/Vault e validar os indices.
-2. Revisar diff, commitar e abrir PR desta branch.
-3. Apos Preview verde, configurar `CRON_SECRET` e chamar o endpoint em dry-run.
-4. Revisar a contagem de candidatos antes de autorizar `CRON_DELETE_ENABLED=true`.
+## Branch Health
 
-## Guardas
+- `main` local = `main` remoto (`ce444a2e`) — sincronizado.
+- `feature/supabase-auth` local = remoto (`515f786f`) — pushado, nenhum commit local pendente.
+- Nenhuma worktree ativa.
+- .claude/worktrees/ ignorado pelo git.
 
-- Nao descartar a `main` local suja em `/Users/brunolima/Documents/NOVO-APP`.
-- Nao habilitar exclusao do cron sem dry-run revisado.
-- Nao mergear PR sem `MERGE` explicito.
+## Riscos residuais
+
+- Branch `feature/supabase-auth` pode e deve ser deletada (local e remote).
+- Deadline 18/06: usuarios existentes sem senha perdem acesso — banner ativo, cron remove contas nao confirmadas 48h.
+- CodeQL alerta pre-existente em `api/link-status.ts` (SSRF, mitigado com `isValidPublicUrl`).
+
+## Proximo passo
+
+Deletar branch `feature/supabase-auth` (local: `git branch -d feature/supabase-auth`; remote: `git push origin --delete feature/supabase-auth`).
