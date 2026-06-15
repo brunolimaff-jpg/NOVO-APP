@@ -429,8 +429,12 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (abort.signal.aborted) return;
 
         // Dispara relink se operator_id mudou (recarrega dossies etc.)
+        // setTimeout(0) garante que child components ja registraram
+        // seus listeners antes do evento disparar (race condition fix).
         if (needsRelink) {
-          window.dispatchEvent(new CustomEvent('operator-relinked'));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('operator-relinked'));
+          }, 0);
         }
 
         // Inicia tracking se ainda nao iniciado
