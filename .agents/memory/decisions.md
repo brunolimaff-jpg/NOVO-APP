@@ -2,6 +2,29 @@
 
 ## Decisoes Ativas
 
+### DI-2026-06-14-03: restoreMocks + clearMocks globais no vitest.config.ts
+
+- **Decisao:** Ativar `restoreMocks: true` e `clearMocks: true` no `vitest.config.ts` para prevenir que mocks de modulo (`vi.mock`) vazem entre arquivos de teste.
+- **Contexto:** Testes `App/*.test.tsx` mockavam `useToast` via `vi.mock`, e `message-orchestrator.test.ts` usava `useToast` real. O mock vazado quebrava `renderHook` no CI de forma intermitente.
+- **Impacto:** CI 100% verde; 162/162 arquivos, 1497/1497 testes passando.
+- **Referencia:** commit `9e9d3367`, `vitest.config.ts`
+
+### DI-2026-06-14-02: CNPJ cache com identity check e sem AbortSignal do chamador
+
+- **Decisao:** Cache CNPJ implementado como `Map<string, Promise>`, TTL 30s. O signal do primeiro chamador NAO e passado para os demais. Cada caller faz race do proprio signal contra a promise compartilhada. Rejeicoes removem a promise do cache imediatamente. Delete verifica identity (`===`) para evitar que timer stale sobrescreva entrada nova.
+- **Contexto:** Codigo anterior criava nova promise a cada chamada sem cache; 2-3 chamadas simultaneas para o mesmo CNPJ batiam na BrasilAPI em paralelo. O AbortSignal do primeiro chamador contaminava callers posteriores, e promises rejeitadas ficavam em cache por 30s bloqueando retry.
+- **Impacto:** `api/cnpj-cache.ts` criado; `brasilApiService.ts` usa cache compartilhado.
+- **Referencia:** commits `f834794e`, `14f26d7f`, `6727783e`
+
+### DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual
+
+### DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual
+
+- **Decisao:** Worktree isolado e usado apenas para implementar features novas do zero. Correcoes de bug ou ajustes em PR ja aberta sao feitas diretamente na branch de trabalho, sem worktree.
+- **Contexto:** O projeto usa worktrees por padrao (MEMORY.md — feedback_always-worktrees). Mas para correcoes em PR ja aberta, o custo de setup/teardown do worktree supera o beneficio de isolamento, especialmente quando o review ja esta em andamento.
+- **Impacto:** Commit `ed2d8b17` foi feito direto na branch `feature/supabase-auth` sem worktree.
+- **Referencia:** feedback_always-worktrees no MEMORY.md
+
 ### DI-2026-06-13-07: Identidade autenticada nao fica no localStorage proprio
 
 - **Decisao:** `scout360:operator_id`, `scout360:operator_name` e `scout360:operator_email` nao devem armazenar dados derivados de Supabase Auth. A sessao autenticada fica no storage do Supabase Auth.

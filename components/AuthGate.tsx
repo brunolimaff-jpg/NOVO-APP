@@ -57,8 +57,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
             <div className="max-w-md text-center space-y-4">
               <h1 className="text-xl font-semibold text-gray-100">Acesso temporariamente bloqueado</h1>
               <p className="text-sm text-gray-400 leading-relaxed">
-                O prazo de migração se encerrou. Para continuar usando o Senior Scout 360,
-                crie sua conta com e-mail e senha.
+                O prazo de migração se encerrou. Para continuar usando o Senior Scout 360, crie sua conta com e-mail e
+                senha.
               </p>
               <button
                 onClick={openAuthModal}
@@ -79,8 +79,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
           <div className="max-w-md text-center space-y-4">
             <h1 className="text-xl font-semibold text-gray-100">Recuperação de acesso</h1>
             <p className="text-sm text-gray-400 leading-relaxed">
-              Identificamos seu e-mail nos nossos registros. Para continuar usando o
-              Senior Scout 360, crie uma senha para sua conta.
+              Identificamos seu e-mail nos nossos registros. Para continuar usando o Senior Scout 360, crie uma senha
+              para sua conta.
             </p>
             <button
               onClick={openAuthModal}

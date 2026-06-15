@@ -382,8 +382,7 @@ export async function validateInlineSourcesForPromotion(
   } catch (err) {
     clearTimeout(totalTimeoutId);
     const errorDuration = performance.now() - opStart;
-    const timedOut =
-      err instanceof Error && /timeout|aborted|abort/i.test(`${err.name || ''} ${err.message || ''}`);
+    const timedOut = err instanceof Error && /timeout|aborted|abort/i.test(`${err.name || ''} ${err.message || ''}`);
     scoutDiag.info('FreezeDiag', 'inline-validation:error', {
       error: err instanceof Error ? err.message : String(err),
       errorName: err instanceof Error ? err.name : 'unknown',

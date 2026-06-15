@@ -49,17 +49,20 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session: currentSession }, error: sessionError }) => {
-      if (sessionError) {
-        console.warn('[Auth] Erro ao recuperar sessão:', sessionError.message);
-      }
-      setSession(currentSession ?? null);
-      setUser(currentSession?.user ?? null);
-      setLoading(false);
-    }).catch((err: unknown) => {
-      console.error('[Auth] getSession() rejeitada:', err instanceof Error ? err.message : err);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: currentSession }, error: sessionError }) => {
+        if (sessionError) {
+          console.warn('[Auth] Erro ao recuperar sessão:', sessionError.message);
+        }
+        setSession(currentSession ?? null);
+        setUser(currentSession?.user ?? null);
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        console.error('[Auth] getSession() rejeitada:', err instanceof Error ? err.message : err);
+        setLoading(false);
+      });
 
     const {
       data: { subscription },

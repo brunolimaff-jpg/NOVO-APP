@@ -1,7 +1,12 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
-import { completeOnboarding, dismissMigrationNotice, e2eCompanyName, preventMigrationNotice } from './helpers/onboarding';
+import {
+  completeOnboarding,
+  dismissMigrationNotice,
+  e2eCompanyName,
+  preventMigrationNotice,
+} from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 

@@ -42,6 +42,9 @@ backup/
 # TokenMiser cache
 .tokenmiser/
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # CI/CD artefatos gerados — nunca comitar
 playwright-report/
 test-results/
