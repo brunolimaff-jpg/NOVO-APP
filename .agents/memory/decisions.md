@@ -2,6 +2,27 @@
 
 ## Decisoes Ativas
 
+### DI-2026-06-15-07: Debug de sidebar vazia comeca pela network layer, nao pelo state React
+
+- **Decisao:** Ao investigar sidebar vazia com dados intactos no banco, o primeiro passo e inspecionar o network request (payload, content-length, status code), nao o estado React. Sidebar vazia com dados no banco = cadeia de bugs onde cada um mascara o proximo.
+- **Contexto:** Ananda e Wuender tinham historico vazio no app. Network request mostrava `content-length: 2` com payload `[]`. Isso revelou a cadeia: localStorage vazio -> query com temp operator_id -> RLS filtra por role authenticated -> retorna []. Cada bug individual passava despercebido porque o resultado final (`[]`) parecia normal.
+- **Impacto:** 3 bugs identificados em sequencia. Debug comecando pelo state React nao teria revelado a RLS.
+- **Referencia:** commits `4ca4339a`, `9ba0a2cc`, `fe6c6f9b`
+
+### DI-2026-06-15-06: RLS policy de dossies deve cobrir anon + authenticated
+
+- **Decisao:** Toda RLS policy que protege dados de negocios (dossies, user_context) deve explicitar `TO anon, authenticated`. Policy criada apenas com `TO anon` bloqueia silenciosamente usuarios logados (role `authenticated`) retornando `[]`.
+- **Contexto:** A policy `operator_own_dossies` foi criada com `TO anon`. Usuarios logados no Supabase usam role `authenticated`. O Supabase nao gera erro — simplesmente aplica RLS e retorna 0 rows. O sintoma era historico vazio (`HISTORICO (0)`) mesmo com 18 ou 47 dossies no banco.
+- **Impacto:** Migration aplicada. Historico de Ananda e Wuender restaurado.
+- **Referencia:** commit `fe6c6f9b`, `supabase/migrations/20260615_fix_dossies_rls_authenticated.sql`
+
+### DI-2026-06-15-05: Evento operator-relinked deve usar setTimeout(0) para garantir listeners montados
+
+- **Decisao:** `window.dispatchEvent(new CustomEvent('operator-relinked'))` deve ser encapsulado em `setTimeout(() => window.dispatchEvent(...), 0)` para garantir que os listeners dos componentes filhos ja estejam registrados.
+- **Contexto:** React executa useEffect dos pais antes dos efeitos dos filhos. Quando o dispatch era sincrono no useEffect do OperatorContext (pai), nenhum listener dos componentes filhos tinha sido registrado ainda. O evento era disparado e perdido para sempre.
+- **Impacto:** Componentes que escutam `operator-relinked` (sidebar, historico) agora recebem o evento corretamente.
+- **Referencia:** commit `9ba0a2cc`, `contexts/OperatorContext.tsx`
+
 ### DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage apos resolucao de auth
 
 - **Decisao:** Apos `resolveOperatorFromAuth()` encontrar o operator_id, o valor deve ser gravado de volta no localStorage via `storageSet(OPERATOR_ID_KEY, resolved.operatorId)`.

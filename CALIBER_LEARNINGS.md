@@ -415,6 +415,28 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
 - **E2E auth flow precisa de helper dedicado** [e2e, playwright, auth, supabase]
   `setupE2EAuth` + `loginViaSupabase` no `tests-e2e/helpers/auth.ts` padronizam o fluxo de login E2E. Antes, cada teste lidava com auth de forma diferente. Helper unico com force clicks, timeouts configurados e API stubs reduziu falhas intermitentes. 10 arquivos E2E atualizados, 6/6 passando no preview Vercel.
 
+## Sessao 2026-06-15 — 3 bugs de historico apos login
+
+- **RLS policy deve cobrir `authenticated` alem de `anon`** [supabase, rls, auth, authenticated]
+  Usuarios logados no Supabase usam role `authenticated`, nao `anon`. Politicas criadas so com `TO anon` bloqueiam silenciosamente qualquer usuario autenticado, retornando `[]` sem erro. `ALTER POLICY ... TO anon, authenticated` corrige. Network request mostra `content-length: 2` com payload `[]` — sinal diagnostico.
+  Afeta: `supabase/migrations/20260615_fix_dossies_rls_authenticated.sql`, toda policy RLS futura.
+
+- **`content-length: 2` em resposta Supabase = RLS bloqueando** [supabase, debug, network, rls]
+  Quando o body da resposta Supabase e `[]` (2 bytes) mas voce sabe que ha dados, a causa e RLS filtrando as rows. O Supabase nao gera erro HTTP — apenas retorna 0 rows. Verificar content-length no network panel e o primeiro passo diagnostico.
+  Afeta: debug de queries Supabase.
+
+- **`window.dispatchEvent` em efeito pai NUNCA alcanca listeners em efeitos filhos** [react, useEffect, evento, dispatch, race-condition]
+  React executa useEffect dos pais antes dos efeitos dos filhos. Eventos sincronos (`new CustomEvent`) disparados no useEffect pai sao perdidos porque os listeners dos filhos ainda nao foram registrados. Solucao: `setTimeout(() => window.dispatchEvent(...), 0)` ou `queueMicrotask`.
+  Afeta: `contexts/OperatorContext.tsx`, qualquer pai-filho com event dispatch.
+
+- **`getOperatorId()` depende exclusivamente de localStorage** [auth, localStorage, operator, sidebar-vazia]
+  `getOperatorId()` so le de `localStorage`. Se o `storageSet` nao for chamado apos resolucao de auth (porque `storageRemove` limpou no inicio do fluxo), toda a camada de storage falha silenciosamente retornando arrays vazios. Toda funcao que le storage precisa de fallback ou reconhecimento de que o dado pode nao estar la.
+  Afeta: `contexts/OperatorContext.tsx`.
+
+- **Sidebar vazia com dados intactos = 3 bugs em cadeia** [debug, diagnostico, cadeia, sidebar]
+  Nenhum bug individual explica a sidebar vazia. Sao 3 bugs que se mascaram: (1) localStorage vazio porque operator_id nao foi restaurado, (2) query com temp operator_id retorna [], (3) RLS filtra o que restava. Cada um parece inofensivo isoladamente. Debuggar a network layer (nao apenas o state React) e essencial para quebrar a cadeia.
+  Afeta: fluxo de diagnostico de sidebar/historico vazio.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
