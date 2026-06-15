@@ -1,8 +1,20 @@
 # Progress
 
-Last updated: 2026-06-14 — sessao finalizada com ambas PRs merged e deployed
+Last updated: 2026-06-15 — sessao de encerramento: merge final, push, cleanup
 
 ## Timeline
+
+### 2026-06-15 (Sessao de encerramento — feature/supabase-auth cleanup)
+
+- **Fechamento de 3 PRs obsoletas** (#367 Sprint1, #368 Sprint2, #370 Sprint4) — merges ja feitos direto na feature/supabase-auth, PRs fechadas sem merge
+- **Confirmacao PRs #372 e #373** — ja estavam mergeadas em origin/main
+- **Commit de 7 arquivos pendentes** — handoff, memory, MetricsDashboard.tsx, plano PR372, gitignore, ajustes residuais em AuthGate/AuthContext/OperatorContext/waterfall/smoke/tests
+- **Sincronizacao main local** — de 31 commits atras para `ce444a2e` (atualizado com origin/main)
+- **Merge feature/supabase-auth → main** — 2 novos commits + merge commit
+- **Push** — origin/main + origin/feature/supabase-auth
+- **Vercel deploy** — automatico apos push em main
+- **.gitignore** — .claude/worktrees/ adicionado
+- **Estado final:** git status limpo, branch sincronizada, nada pendente
 
 ### 2026-06-14 (Sessao longa — PR #372 + #373)
 

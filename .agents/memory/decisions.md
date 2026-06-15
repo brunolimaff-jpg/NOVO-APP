@@ -18,8 +18,6 @@
 
 ### DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual
 
-### DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual
-
 - **Decisao:** Worktree isolado e usado apenas para implementar features novas do zero. Correcoes de bug ou ajustes em PR ja aberta sao feitas diretamente na branch de trabalho, sem worktree.
 - **Contexto:** O projeto usa worktrees por padrao (MEMORY.md — feedback_always-worktrees). Mas para correcoes em PR ja aberta, o custo de setup/teardown do worktree supera o beneficio de isolamento, especialmente quando o review ja esta em andamento.
 - **Impacto:** Commit `ed2d8b17` foi feito direto na branch `feature/supabase-auth` sem worktree.
