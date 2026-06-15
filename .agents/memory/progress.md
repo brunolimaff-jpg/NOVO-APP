@@ -1,54 +1,55 @@
 # Progress
 
-Last updated: 2026-06-15 — sessao de encerramento: merge final, push, cleanup
+Last updated: 2026-06-15 — sessao PR #376: 4 bugs, Sentry, E2E, diagnostico Ananda/Wuender
 
 ## Timeline
 
+### 2026-06-15 (Sessao longa — PR #376 + PR #374 + diagnosticos)
+
+- **PR #376 criada e mergeada** — Correcao de 4 bugs:
+  - Bug A: Safety net desarmada — activeGenerationRef deletado antes dos probes (`finalizeWaterfallUI.ts`, `message-orchestrator.ts`)
+  - Bug B: Contador "8/7" — "Consolidando..." contava como etapa (`loadingStatus.ts`, `InlineLoadingBubble.tsx`)
+  - Bug C: Bolha inline travada (stale thinking) — guard + auto-destruicao (`MessageRow.tsx`, `InlineLoadingBubble.tsx`)
+  - Bug D: Sidebar vazia apos criar conta — operator_id nao restaurado (`OperatorContext.tsx`)
+- **PR #374 unificada na #376** — Texto mapa societario + ARIA progressbar
+- **Diagnostico Ananda:** erro de email (@uxor vs @senior), 22 dossies, 80 eventos
+- **Diagnostico Wuender:** "Consolidando informacoes" travado, waterfall sem end, 47 dossies
+- **Sentry — 4 novos alertas:** loading stuck timeout, waterfall leak, session persist, generation ref
+- **Typecheck:** MetricsDashboard.tsx index signature
+- **Test timeout:** vitest.config.ts 15s para CI
+- **E2E:** auth helper criado (setupE2EAuth + loginViaSupabase), 10 arquivos, 6/6 preview Vercel
+- **Code review:** Gemini + CodeRabbit feedback — useEffect self-destruct, normalize stage, sentry originalMsgCount, probe error log, graceExpired reset
+- **Deploy Vercel:** build + typecheck + 1501 testes passando
+- **Decisoes registradas:**
+  - DI-2026-06-15-01: activeGenerationRef sobrevive aos probes
+  - DI-2026-06-15-02: "Consolidando..." e rotulo de UI
+  - DI-2026-06-15-03: stale-thinking retorna null
+  - DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage
+
 ### 2026-06-15 (Sessao de encerramento — feature/supabase-auth cleanup)
 
-- **Fechamento de 3 PRs obsoletas** (#367 Sprint1, #368 Sprint2, #370 Sprint4) — merges ja feitos direto na feature/supabase-auth, PRs fechadas sem merge
-- **Confirmacao PRs #372 e #373** — ja estavam mergeadas em origin/main
-- **Commit de 7 arquivos pendentes** — handoff, memory, MetricsDashboard.tsx, plano PR372, gitignore, ajustes residuais em AuthGate/AuthContext/OperatorContext/waterfall/smoke/tests
-- **Sincronizacao main local** — de 31 commits atras para `ce444a2e` (atualizado com origin/main)
-- **Merge feature/supabase-auth → main** — 2 novos commits + merge commit
-- **Push** — origin/main + origin/feature/supabase-auth
-- **Vercel deploy** — automatico apos push em main
-- **.gitignore** — .claude/worktrees/ adicionado
-- **Estado final:** git status limpo, branch sincronizada, nada pendente
+- Fechamento de 3 PRs obsoletas (#367 Sprint1, #368 Sprint2, #370 Sprint4)
+- Confirmacao PRs #372 e #373 ja mergeadas em origin/main
+- Commit de 7 arquivos pendentes
+- Sincronizacao main local (31 commits atras)
+- Merge feature/supabase-auth → main + push
+- Limpeza de 8 worktrees e 9 branches
 
 ### 2026-06-14 (Sessao longa — PR #372 + #373)
 
-- **Code Review PR #372** — 5 agentes paralelos:
-  - CLAUDE.md compliance, Bug scan, Git blame issues, PR anteriores, Code comments
-  - 3 bugs corrigidos no commit `ed2d8b17` (signOut try/catch, AbortController, fetchPromise)
-- **Merge PR #372** (`e3234855`) — 16:11 UTC, deploy producao Vercel
-- **PR #373 criado** — remove comex morta + cache CNPJ TTL 30s + codigo orfao
-- **5 ciclos de review** — Gemini + CodeRabbit apontaram 4 bugs no cache:
-  - Promises rejeitadas bloqueavam retry (`f834794e`)
-  - AbortSignal contaminava cache entre callers (`14f26d7f`)
-  - Timer stale deletava entrada nova (`14f26d7f`)
-  - CI quebrado por mock leakage (`9e9d3367`, `vitest.config.ts`)
-- **Validacao preview** — Chrome DevTools: login, CNPJ, waterfall, console limpo
-- **Merge PR #373** (`53b948dd`) — 17:47 UTC, deploy producao Vercel (12 lambdas)
-- **Decisoes registradas:**
-  - DI-2026-06-14-01: Worktree so para features novas
-  - DI-2026-06-14-02: CNPJ cache sem AbortSignal + identity check
-  - DI-2026-06-14-03: restoreMocks + clearMocks globais
-
-### 2026-06-14 (antes do merge — fix waterfall + preview)
-
-- Fix do travamento no preview da PR #372 (inline sources non-blocking)
-- Validacao local e preview do fix
+- Code Review PR #372 — 5 agentes paralelos, 3 bugs corrigidos
+- Merge PR #372, PR #373 criado e mergeado
+- 5 ciclos de review, 4 bugs no cache CNPJ
+- Validacao preview Chrome DevTools
 
 ### 2026-06-13
 
 - PR #372 pronta para merge, todos os checks passando
 - 3 migrations aplicadas no Supabase remoto
-- Validacao manual preview final
 
 ### 2026-06-12
 
-- PR #372 (feature/supabase-auth): Migracao de auth local para Supabase Auth completa
+- PR #372 (feature/supabase-auth): Migracao auth local para Supabase Auth completa
 - Sprint 0-4: diagnostico, auth context, validacao email, consolidacao, graceful fallback
 
 ### 2026-06-10 a 2026-06-08

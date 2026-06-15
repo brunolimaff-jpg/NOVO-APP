@@ -2,6 +2,34 @@
 
 ## Decisoes Ativas
 
+### DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage apos resolucao de auth
+
+- **Decisao:** Apos `resolveOperatorFromAuth()` encontrar o operator_id, o valor deve ser gravado de volta no localStorage via `storageSet(OPERATOR_ID_KEY, resolved.operatorId)`.
+- **Contexto:** `storageRemove()` no inicio do fluxo limpava `scout360:operator_id` do localStorage. `getOperatorId()` so lia de la, entao a sidebar ficava vazia porque nenhum operator_id estava disponivel. A resolucao de auth pelo Supabase encontrava o valor correto, mas nao o escrevia de volta.
+- **Impacto:** Sidebar exibe historico de dossies normalmente apos criar conta.
+- **Referencia:** commit `4ca4339a`, `contexts/OperatorContext.tsx`
+
+### DI-2026-06-15-03: stale-thinking retorna null, nao erro alarmista
+
+- **Decisao:** Quando a bolha inline detecta stale thinking, retorna `null` (nada renderizado) em vez de mostrar erro. O estado `graceExpired` reseta entre ciclos de loading via useEffect.
+- **Contexto:** A bolha inline podia ficar travada exibindo "thinking..." mesmo apos o waterfall terminar. Em vez de mostrar erro para o usuario, o componente se auto-destroi silenciosamente.
+- **Impacto:** Bolha inline some sem alarme falso quando o estado de loading fica stale.
+- **Referencia:** commits `e2d6bbc4`, `abd12e50`, `components/MessageRow.tsx`, `components/InlineLoadingBubble.tsx`
+
+### DI-2026-06-15-02: "Consolidando informacoes..." e rotulo de UI, nao etapa de loading
+
+- **Decisao:** `finalizeLoadingProgress` nao conta "Consolidando informacoes..." como etapa real de progresso. O contador usa `Math.min(completed, total)` como safety cap para nunca exceder 100%.
+- **Contexto:** O contador de progresso exibia "8/7" porque o rotulo "Consolidando informacoes..." era contado como etapa extra. Esse rotulo e apenas um status de UI exibido apos todas as etapas reais (score PORTA, bordas de controle, etc.) terminarem.
+- **Impacto:** Contador nunca mostra "8/7" ou percentual acima de 100%.
+- **Referencia:** commits `4a102b10`, `abd12e50`, `utils/loadingStatus.ts`
+
+### DI-2026-06-15-01: activeGenerationRef sobrevive aos probes; generationValid capturado antes do cleanup
+
+- **Decisao:** `scheduleLoadingStuckProbes` recebe `generationValid` como parametro, capturado ANTES de `activeGenerationRef.current` ser deletado. O `observer` nao depende mais do ref para validar geracao.
+- **Contexto:** `finalizeWaterfallUI` deletava `activeGenerationRef.current` no inicio. Os probes (`scheduleLoadingStuckProbes`) nunca conseguiam validar geracao porque o ref ja era `null`. Isso deixava a safety net de loading desarmada por 6 dias.
+- **Impacto:** LoadingStuckProbes finalmente funcionam — se o loading travar por mais de 10s, o Sentry alerta.
+- **Referencia:** commits `e2d6bbc4`, `270d7d05`, `utils/finalizeWaterfallUI.ts`, `features/chat/message-orchestrator.ts`
+
 ### DI-2026-06-14-03: restoreMocks + clearMocks globais no vitest.config.ts
 
 - **Decisao:** Ativar `restoreMocks: true` e `clearMocks: true` no `vitest.config.ts` para prevenir que mocks de modulo (`vi.mock`) vazem entre arquivos de teste.

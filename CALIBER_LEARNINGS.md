@@ -395,6 +395,26 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
 - **GRANT EXECUTE ON FUNCTION TO service_role para cron SQL** [supabase, cron, permission, service_role]
   Funcoes chamadas por cron precisam de `GRANT EXECUTE ON FUNCTION ... TO service_role` para executar no contexto do servico. Sem isso, a funcao lancaria `permission denied for function` quando chamada pelo cron mesmo com `SECURITY DEFINER`.
 
+## Sessao 2026-06-15 — PR #376: 4 bugs, Sentry, E2E
+
+- **activeGenerationRef nao pode ser deletado antes dos probes capturarem generationValid** [waterfall, loading, probes, safety-net]
+  `finalizeWaterfallUI` deletava `activeGenerationRef.current` no inicio. `scheduleLoadingStuckProbes` (os probes) nunca conseguiam validar geracao porque o ref ja era `null`. A safety net ficou desarmada por 6 dias — o Sentry nunca alertava loading travado. Solucao: capturar `generationValid` como parametro ANTES de limpar o ref, passar para os probes por closure. O observer nao depende mais do ref.
+
+- **"Consolidando informacoes..." e rotulo de UI, nao etapa de loading** [loading, progress, ui, contador]
+  `finalizeLoadingProgress` contava "Consolidando informacoes..." como etapa de progresso. Como esse rotulo aparece apos todas as etapas reais, o contador exibia "8/7" (7 etapas + 1 rotulo). Solucao: finalizeLoadingProgress ignora esse rotulo especifico. `Math.min(completed, total)` como safety cap contra overflow.
+
+- **Bolha inline trada deve degradar silenciosamente, nao mostrar erro** [inline-loading, stale-thinking, ux, degradacao]
+  Quando o estado de loading fica stale (isThinking=true apos waterfall terminar), a bolha inline mostra "thinking..." para sempre. Em vez de mostrar erro ou mensagem alarmista, o guard `data.isLoading + stale-thinking` retorna `null` (nada renderizado). O `graceExpired` reseta entre ciclos via useEffect. O usuario nunca ve erro falso.
+
+- **OperatorContext deve restaurar operator_id no localStorage apos resolucao de auth** [auth, operator, localStorage, sidebar-vazia]
+  `storageRemove()` no inicio do login limpava `scout360:operator_id`. `getOperatorId()` so lia do localStorage. `resolveOperatorFromAuth()` encontrava o operator_id correto pelo Supabase mas nao o escrevia de volta. Resultado: sidebar vazia apos criar conta. Solucao: `storageSet(OPERATOR_ID_KEY, resolved.operatorId)` apos resolucao de auth.
+
+- **Sentry de loading travado precisa de probes funcionais como pre-requisito** [sentry, observabilidade, monitoramento]
+  4 novos alertas Sentry foram adicionados (loading stuck timeout, waterfall UI leak, session persist failed, generation ref cleared). Mas o alerta de loading travado so funciona se os probes (`scheduleLoadingStuckProbes`) conseguirem rodar — o que estava quebrado pelo Bug A. Sentry alerta sem probe funcional = falso negativo.
+
+- **E2E auth flow precisa de helper dedicado** [e2e, playwright, auth, supabase]
+  `setupE2EAuth` + `loginViaSupabase` no `tests-e2e/helpers/auth.ts` padronizam o fluxo de login E2E. Antes, cada teste lidava com auth de forma diferente. Helper unico com force clicks, timeouts configurados e API stubs reduziu falhas intermitentes. 10 arquivos E2E atualizados, 6/6 passando no preview Vercel.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
