@@ -524,6 +524,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       {drillProgress && drillProgress.total > 0 ? (
         <div
           className="mb-3"
+          role="progressbar"
+          aria-valuenow={drillProgress.done}
+          aria-valuemin={0}
+          aria-valuemax={drillProgress.total}
           aria-label={`Analisando rede societária: ${drillProgress.done} de ${drillProgress.total} CNPJs verificados`}
         >
           <div className="flex items-center gap-2 text-xs text-slate-500">
