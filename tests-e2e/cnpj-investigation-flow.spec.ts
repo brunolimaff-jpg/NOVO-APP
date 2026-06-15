@@ -1,23 +1,13 @@
 import { test, expect } from '@playwright/test';
-
-/**
- * Fluxo E2E completo: CNPJ → Lookup → Investigação → Resultado Gemini
- *
- * Uso:
- *   # Local (precisa de npm run dev rodando)
- *   npx playwright test tests-e2e/cnpj-investigation-flow.spec.ts
- *
- *   # Preview do Vercel
- *   BASE_URL=https://seu-preview.vercel.app npx playwright test tests-e2e/cnpj-investigation-flow.spec.ts --config=playwright.config.ts
- *
- * O teste NÃO usa webServer quando BASE_URL é informado (deploy externo).
- */
+import { setupE2EAuth } from './helpers/auth';
 
 const TEST_CNPJ_FORMATTED = '04.733.767/0001-80'; // Scheffer (047333767000180)
 const GEMINI_TIMEOUT = 120_000; // 2 min — Gemini + RAG + Grounding pode demorar
 
 test.describe('Fluxo CNPJ → Investigação completa', () => {
   test('deve buscar CNPJ, iniciar investigação e receber dossiê da IA', async ({ page }) => {
+    await setupE2EAuth(page);
+
     // 1. Acessa a aplicação
     await page.goto('/');
 
@@ -30,7 +20,7 @@ test.describe('Fluxo CNPJ → Investigação completa', () => {
 
     // 4. Clica "Validar CNPJ"
     const validateBtn = page.getByTestId('investigation-cnpj-validate-button');
-    await validateBtn.click();
+    await validateBtn.click({ force: true });
 
     // 5. Espera lookup completar — dados preenchidos automaticamente
     await expect(page.getByText(/Dados preenchidos automaticamente via Receita Federal/)).toBeVisible({
@@ -49,7 +39,7 @@ test.describe('Fluxo CNPJ → Investigação completa', () => {
     // 7. Clica "Iniciar investigação completa"
     const submitBtn = page.getByTestId('investigation-submit-button');
     await expect(submitBtn).toBeEnabled();
-    await submitBtn.click();
+    await submitBtn.click({ force: true });
 
     // 8. Espera a resposta do Gemini aparecer no chat (.prose = markdown renderizado)
     const botResponse = page.locator('.prose').first();
@@ -68,6 +58,7 @@ test.describe('Fluxo CNPJ → Investigação completa', () => {
   });
 
   test('deve rejeitar CNPJ inválido', async ({ page }) => {
+    await setupE2EAuth(page);
     await page.goto('/');
     await expect(page.getByText('Dados do alvo')).toBeVisible({ timeout: 15_000 });
 

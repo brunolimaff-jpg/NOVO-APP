@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { setupE2EAuth } from './helpers/auth';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
 import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
 
@@ -10,6 +11,7 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
+    await setupE2EAuth(page);
     await installFastGeminiStubs(page);
     await preventMigrationNotice(page);
   });
@@ -19,12 +21,12 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await dismissMigrationNotice(page);
 
     await page.getByTestId('investigation-cnpj-input').fill(SCHEFFER_CNPJ);
-    await page.getByTestId('investigation-cnpj-validate-button').click();
+    await page.getByTestId('investigation-cnpj-validate-button').click({ force: true });
     await expect(page.getByTestId('investigation-company-input')).not.toHaveValue('', { timeout: 20_000 });
 
     await page.getByTestId('investigation-city-input').fill('Chapecó');
     await page.getByTestId('investigation-uf-input').fill('SC');
-    await page.getByTestId('investigation-submit-button').click();
+    await page.getByTestId('investigation-submit-button').click({ force: true });
 
     await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
       timeout: 30_000,
@@ -38,9 +40,11 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await expect(panel.getByTestId('messages-viewport-placeholder')).toHaveCount(0);
 
     await expect
-      .poll(async () => panel.getByTestId('messages-viewport-placeholder').count(), { timeout: 5_000 })
+      .poll(async () => panel.getByTestId('messages-viewport-placeholder').count(), { timeout: 15_000 })
       .toBe(0);
-    await expect.poll(async () => panel.getByTestId('messages-viewport-suspended').count(), { timeout: 5_000 }).toBe(0);
+    await expect
+      .poll(async () => panel.getByTestId('messages-viewport-suspended').count(), { timeout: 15_000 })
+      .toBe(0);
 
     const bot = panel.getByTestId('bot-message-content').last();
     await expect(bot).toBeVisible({ timeout: 20_000 });

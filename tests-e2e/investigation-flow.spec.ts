@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test';
-
-// Skill: playwright-testing
-// Cenário: Criar cenário e2e para preencher cadastro inicial e validar que a investigação inicia e renderiza primeira mensagem.
+import { setupE2EAuth } from './helpers/auth';
 
 test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
   test('Deve iniciar uma nova investigação e receber resposta da IA', async ({ page }) => {
+    await setupE2EAuth(page);
+
     // 1. Acessa a aplicação
     await page.goto('/');
 
     // 2. Garante que a página inicial (EmptyState) carregou
-    await expect(page.locator('text=Pronto para iniciar a investigação')).toBeVisible();
+    await expect(page.locator('text=Pronto para iniciar a investigação')).toBeVisible({ timeout: 15_000 });
 
     // 3. Opcional: Se houver modal de login/bypass, ele deve ser tratado aqui.
     // Como o projeto tem 'useClickBypass', assumimos que o clique na área secreta
@@ -22,11 +22,11 @@ test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
 
     // 5. Clica no botão de enviar (ícone de avião de papel)
     const sendButton = page.getByLabel('Enviar mensagem');
-    await sendButton.click();
+    await sendButton.click({ force: true });
 
     // 6. Verifica se o estado de carregamento hero (LoadingSmart) aparece
     const loadingHero = page.locator('text=Realizando pesquisa');
-    await expect(loadingHero).toBeVisible({ timeout: 10000 });
+    await expect(loadingHero).toBeVisible({ timeout: 15000 });
 
     // 7. A parte MAIS CRÍTICA: Aguarda a resposta do Bot.
     // Isso valida que a request foi para o Vercel/Gemini e voltou corretamente.

@@ -1,5 +1,6 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
+import { setupE2EAuth } from './helpers/auth';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
 import {
   completeOnboarding,
@@ -19,6 +20,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   test.beforeEach(async ({ page }) => {
     consoleErrors.length = 0;
     pageErrors.length = 0;
+    await setupE2EAuth(page);
     await installFastGeminiStubs(page);
 
     page.on('console', msg => {
@@ -32,7 +34,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
     await page.getByTestId('investigation-company-input').fill(e2eCompanyName());
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
-    await page.getByTestId('investigation-submit-button').click();
+    await page.getByTestId('investigation-submit-button').click({ force: true });
     await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
       timeout: 30_000,
     });

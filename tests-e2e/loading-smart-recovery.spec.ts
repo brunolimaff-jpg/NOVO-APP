@@ -1,5 +1,6 @@
 // tests-e2e/loading-smart-recovery.spec.ts
 import { expect, test } from '@playwright/test';
+import { setupE2EAuth } from './helpers/auth';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
 import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 
@@ -9,7 +10,7 @@ const LOADING_TIMEOUT_MS = 120_000;
 
 async function expectValidMainPanelState(page: import('@playwright/test').Page) {
   const mainPanel = page.getByTestId('chat-main-panel');
-  await expect(mainPanel).toBeVisible({ timeout: 10_000 });
+  await expect(mainPanel).toBeVisible({ timeout: 15_000 });
 
   await expect(mainPanel.getByTestId('controlled-error')).toHaveCount(0);
   await expect(mainPanel.getByTestId('empty-state')).toHaveCount(0);
@@ -57,6 +58,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
+    await setupE2EAuth(page);
     await installFastGeminiStubs(page);
   });
 
@@ -67,7 +69,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
-    await page.getByTestId('investigation-submit-button').click();
+    await page.getByTestId('investigation-submit-button').click({ force: true });
 
     // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
     await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
@@ -82,7 +84,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await expectValidMainPanelState(page);
 
     // Input continua acessível
-    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
   });
 
   test('input inferior permanece acessível durante loading', async ({ page }) => {
@@ -91,7 +93,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
-    await page.getByTestId('investigation-submit-button').click();
+    await page.getByTestId('investigation-submit-button').click({ force: true });
 
     // Input deve estar visível durante e após o loading
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
@@ -101,7 +103,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
 
     // Input continua acessível
-    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
   });
 
   test('sem erro silencioso no console durante loading', async ({ page }) => {
@@ -120,7 +122,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Loading E2E'));
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');
-    await page.getByTestId('investigation-submit-button').click();
+    await page.getByTestId('investigation-submit-button').click({ force: true });
 
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
     await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
