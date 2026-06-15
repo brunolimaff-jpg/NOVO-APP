@@ -528,11 +528,11 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           aria-valuenow={drillProgress.done}
           aria-valuemin={0}
           aria-valuemax={drillProgress.total}
-          aria-label={`Analisando rede societária: ${drillProgress.done} de ${drillProgress.total} CNPJs verificados`}
+          aria-label={`Analisando rede societária: ${drillProgress.done} de ${drillProgress.total} sócios verificados`}
         >
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>
-              Analisando sócios: {drillProgress.done} de {drillProgress.total} CNPJs verificados
+              Analisando sócios: {drillProgress.done} de {drillProgress.total} verificados
             </span>
             <div className="flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" style={{ height: 4 }}>
               <div
