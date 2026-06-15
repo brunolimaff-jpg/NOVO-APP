@@ -348,8 +348,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           } else {
             scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
           }
-        } catch (_err) {
-          // falha silenciosa — probe nao pode quebrar o fluxo
+        } catch (err: unknown) {
+          scoutDiag.warn('LoadingStuckProbe', 'probe-error', {
+            sessionId: capturedSessionId,
+            delay,
+            error: err instanceof Error ? err.message : String(err),
+          } as unknown as Record<string, unknown>);
         }
       }, delay);
       timerIds.push(id);

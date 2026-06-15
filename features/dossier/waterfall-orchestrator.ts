@@ -1326,7 +1326,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             extra: {
               sessionToPersistIsNull: sessionToPersist === null,
               persistBotUpdated,
-              originalMsgCount: persistMsgCount,
+              originalMsgCount,
               botMessageId,
               waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
             },

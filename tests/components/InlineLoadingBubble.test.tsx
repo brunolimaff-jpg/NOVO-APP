@@ -311,26 +311,18 @@ describe('InlineLoadingBubble — regressão', () => {
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
-  it('auto-destrói quando store diz que loading acabou (trava Bug A — stale mount)', () => {
-    let tick = 0;
-    const realNow = Date.now.bind(Date);
-    const startTime = realNow();
-    vi.spyOn(Date, 'now').mockImplementation(() => startTime + tick);
-
+  it('auto-destrói quando store diz que loading acabou (trava Bug A — stale mount)', async () => {
     // Monta com store dizendo que loading acabou
     mockChatStore.mockReturnValue({ isLoading: false });
-    const { rerender } = render(<InlineLoadingBubble isDarkMode={false} />);
+    render(<InlineLoadingBubble isDarkMode={false} />);
 
     // Grace period de 200ms ainda não passou — ainda renderiza
     expect(screen.getByTestId('inline-loading-bubble')).toBeInTheDocument();
 
-    // Após 201ms, deve auto-destruir
-    tick = 201;
-    rerender(<InlineLoadingBubble isDarkMode={false} />);
+    // Aguarda o useEffect disparar o setTimeout(200) → setGraceExpired → re-render → null
+    await new Promise(r => setTimeout(r, 250));
 
     // Trava: componente deve retornar null quando store.isLoading é false após grace period
     expect(screen.queryByTestId('inline-loading-bubble')).not.toBeInTheDocument();
-
-    vi.restoreAllMocks();
   });
 });

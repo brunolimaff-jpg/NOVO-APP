@@ -69,10 +69,16 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
     : processingProp;
 
   // Se a store já liberou o loading mas o componente ainda está montado,
-  // é um stale mount — auto-destrói após grace period para evitar flicker.
-  const mountedAtRef = React.useRef(Date.now());
+  // é um stale mount — auto-destrói após grace period. useEffect garante
+  // re-render mesmo sem re-render do pai (Gemini code review feedback).
   const storeSaysDone = chatStore && !chatStore.isLoading;
-  const shouldSelfDestruct = storeSaysDone && Date.now() - mountedAtRef.current > 200;
+  const [graceExpired, setGraceExpired] = useState(false);
+  React.useEffect(() => {
+    if (!storeSaysDone) return;
+    const id = setTimeout(() => setGraceExpired(true), 200);
+    return () => clearTimeout(id);
+  }, [storeSaysDone]);
+  const shouldSelfDestruct = storeSaysDone && graceExpired;
 
   const isLoading = shouldSelfDestruct ? false : true;
   const elapsedTime = useElapsedTimer(isLoading);
