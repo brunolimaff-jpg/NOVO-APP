@@ -56,7 +56,8 @@ export default defineConfig(({ mode }) => {
       __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV || 'local'),
       __BUILD_TS__: JSON.stringify(new Date().toISOString()),
       // Expor SENTRY_DSN da integracao Vercel para o client (Vite so expoe vars com prefixo VITE_)
-      'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(env.SENTRY_DSN || env.VITE_SENTRY_DSN || ''),
+      // So aplica quando SENTRY_DSN existe (build Vercel); local dev usa VITE_SENTRY_DSN do .env nativo
+      ...(env.SENTRY_DSN ? { 'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(env.SENTRY_DSN) } : {}),
     },
     server: {
       port: 3000,
