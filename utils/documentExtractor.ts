@@ -397,7 +397,15 @@ function extractCnpjAbertoRecords(data: unknown): CnpjAbertoApiRecord[] {
  */
 export async function searchCnpjAbertoCompanies(socioName: string): Promise<CnpjAbertoCompanyResult[] | null> {
   const apiKey = process.env.CNPJABERTO_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: API key ausente no ambiente', {
+      hasEnv: 'CNPJABERTO_API_KEY' in (process.env || {}),
+      envKeys: Object.keys(process.env || {})
+        .filter(k => k.includes('CNPJ') || k.includes('API'))
+        .join(','),
+    });
+    return null;
+  }
 
   scoutDiag.info('DocumentExtractor', `CNPJ Aberto — companies_by_owner: ${socioName}`);
 
@@ -415,7 +423,10 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
     );
 
     if (!response.ok) {
-      scoutDiag.warn('DocumentExtractor', `CNPJ Aberto API error: ${response.status}`);
+      scoutDiag.warn('DocumentExtractor', `CNPJ Aberto API error: ${response.status}`, {
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+      });
       return null;
     }
 
@@ -478,9 +489,12 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
     }
     return results;
   } catch (error) {
+    const isTimeout = error instanceof DOMException && error.name === 'TimeoutError';
     scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
       socioName,
       message: error instanceof Error ? error.message : String(error),
+      isTimeout,
+      isAbort: error instanceof DOMException && error.name === 'AbortError',
     });
     return null;
   }
