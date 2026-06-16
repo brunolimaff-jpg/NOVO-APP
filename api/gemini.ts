@@ -350,10 +350,15 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       }
 
       const deletePromise = ai.caches.delete({ name: body.name });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('deleteCachedContent timeout')), 15_000),
-      );
-      await Promise.race([deletePromise, timeoutPromise]);
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('deleteCachedContent timeout')), 15_000);
+      });
+      try {
+        await Promise.race([deletePromise, timeoutPromise]);
+      } finally {
+        clearTimeout(timeoutId!);
+      }
       return res.status(200).json({ ok: true });
     }
 
