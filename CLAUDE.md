@@ -46,6 +46,14 @@ npm run lint       # ESLint
 11. **Push diário obrigatório**: Ao final de cada sessão, commits devem estar pushados ou em PR aberta. Nunca encerrar sessão com +5 commits locais sem PR.
 12. **Checkpoint de branch**: A cada 5 commits, rodar `git log main..HEAD --oneline` e verificar se já não é hora de abrir PR.
 
+## Fluxo de branches
+
+- Abrir branch nova para cada mudança fechável, partindo de `origin/main`.
+- Usar prefixo `codex/` e nome alinhado ao objetivo da entrega.
+- Não misturar objetivos diferentes na mesma PR.
+- Correções de review da mesma PR continuam na mesma branch.
+- Antes de abrir PR, conferir que a branch contém só os arquivos do escopo.
+
 ## Agent Dispatch
 
 - Bug / erro → `debugger`
@@ -61,5 +69,5 @@ npm run lint       # ESLint
 - `ARQUITETURA.md` — arquitetura em 10 seções
 - `CALIBER_LEARNINGS.md` — padrões confirmados e anti-padrões
 - `docs/SKILLS-GOVERNANCE.md` — governança de skills
-- `docs/ai-context/refactor/` — programa de refatoração (Sprints 1-12)
+- `docs/archive/refactor-program/` — programa de refatoração concluído (Sprints 1-11)
 - `docs/obsidian/00-MASTER.md` — navegação visual

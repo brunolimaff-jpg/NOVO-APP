@@ -1,21 +1,19 @@
 # Last Session Context
 
-Saved: 2026-06-08
+Saved: 2026-06-15
 
 ## Status
 
-A investigacao de tela branca nao esta ativa.
+Branch `main` limpa e sincronizada com `origin/main` (commit `aeab303f`).
 
-Nao abrir correcao de runtime.
+3 bugs do historico corrigidos: operator_id localStorage, race condition operator-relinked, RLS authenticated.
 
-Monitorar os gatilhos registrados no HANDOFF_AI.md.
+Quick wins aplicados: scripts locais corrigidos (porta 3000), checklist CRM removido, wiki atualizada.
 
-A Wiki esta em docs/wiki/ e serve como mapa inicial.
+## Proxima sessao
 
-O codigo e os testes atuais permanecem como fonte de verdade.
+Monitorar Sentry para confirmar que usuarios com historico vazio agora veem seus dossies.
 
-Incidente display:none: MITIGADO. Recovery funcional. Causa raiz aberta.
+Branch `feature/supabase-auth` deletada.
 
-Validacao adversarial concluida — 6 falsos positivos removidos.
-
-Proxima acao: monitorar producao. Nao implementar correcao sem reincidencia.
+Deadline 18/06: usuarios existentes sem senha perdem acesso — migration de senha pendente.

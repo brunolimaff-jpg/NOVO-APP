@@ -13,8 +13,6 @@ sourceFiles:
   - hooks/chat/useStaticTimelineFallback.ts
   - hooks/chat/promptResolvers.ts
   - CLAUDE.md
-  - .claude/god-component-debt.json
-  - scripts/component-health.sh
 ---
 
 # Refatoracao do ChatInterface
@@ -135,18 +133,6 @@ ChatInterface.tsx (331 linhas)
 - Carregada automaticamente ao editar arquivos `.tsx`
 - Verifica tamanho do componente e sugere extracao
 - Documentada em `docs/SKILLS-GOVERNANCE.md`
-
-### Script component-health.sh
-
-- Dashboard de saude: linhas por componente, props, hooks
-- Alerta componentes acima do limite
-- Uso: `bash scripts/component-health.sh`
-
-### GOD_COMPONENT_SKIP e debt.json
-
-- Maximo 3 GOD_COMPONENT_SKIP por arquivo
-- Tracking persistente em `.claude/god-component-debt.json`
-- Cada skip documenta: componente, linhas, props, motivo, data
 
 ## Metricas da refatoracao
 
