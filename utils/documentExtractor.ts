@@ -403,7 +403,7 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
 
   try {
     const response = await fetch(
-      `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=50`,
+      `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=200`,
       {
         headers: {
           'X-API-Key': apiKey,
@@ -465,6 +465,17 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
 
     if (results.length === 0) return null;
     scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${results.length} empresas encontradas`);
+    if (results.length >= 190) {
+      scoutDiag.warn(
+        'DocumentExtractor',
+        'CNPJ Aberto retornou proximo ao limite de 200; pode haver empresas nao listadas',
+        {
+          socioName,
+          count: results.length,
+          limit: 200,
+        },
+      );
+    }
     return results;
   } catch (error) {
     scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {

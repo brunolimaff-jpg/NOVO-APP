@@ -371,7 +371,7 @@ export async function runSearch(
     }
   }
 
-  if (!cnpjAbertoStructuredReturned && socioIsPessoaFisica && companies.length === 0 && hasSearchBudget()) {
+  if (socioIsPessoaFisica && hasSearchBudget() && companies.length < MAX_COMPANIES) {
     queriesRun.push('consultasocio.com/direct');
     const before = snapshotCounts();
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);

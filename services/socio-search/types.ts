@@ -131,9 +131,9 @@ export const PAGE_EXTRACT_LIMIT = 6000;
 export const SEARCH_DEADLINE_MS = 45_000;
 export const CNPJ_LOOKUP_TIMEOUT_MS = 3_500;
 export const MAX_CNPJ_LOOKUPS = 5;
-export const MAX_COMPANIES = 60;
+export const MAX_COMPANIES = 200;
 export const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
-export const CACHE_KEY_VERSION = 'v7-structured-lateral-cnpj';
+export const CACHE_KEY_VERSION = 'v8-limit200-consulta-socio';
 
 export const cache = new Map<string, CacheEntry>();
 

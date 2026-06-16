@@ -261,6 +261,10 @@ describe('api/socio-search', () => {
             returnedCount: 1,
             acceptedCount: 1,
           }),
+          expect.objectContaining({
+            provider: 'consultasocio',
+            attempted: true,
+          }),
         ],
         totals: expect.objectContaining({
           companiesCount: 1,
@@ -923,12 +927,10 @@ describe('api/socio-search', () => {
       degraded?: boolean;
       diagnostics?: { totalCnpjsFound?: number; truncated?: boolean; truncatedReason?: string };
     };
-    expect(payload.companies).toHaveLength(60);
-    expect(payload.degraded).toBe(true);
+    expect(payload.companies).toHaveLength(62);
+    expect(payload.degraded).toBe(false);
     expect(payload.diagnostics).toMatchObject({
       totalCnpjsFound: 62,
-      truncated: true,
-      truncatedReason: 'company_limit',
     });
   });
 
@@ -1415,7 +1417,7 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
-    expect(upsertBody.id).toContain('socio-search:v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
+    expect(upsertBody.id).toContain('socio-search:v8-limit200-consulta-socio::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
