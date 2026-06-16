@@ -15,13 +15,19 @@ Objetivo: manter o repo operável sem depender de skills versionadas dentro do r
 
 ## Allowlist oficial
 
-Nenhuma skill local ativa e nenhuma integração externa são obrigatórias neste repo.
+Skills locais ativas em `.claude/skills/`:
+
+- `supabase-migration` — migrações Supabase
+- `validate-gates` — gates de validação
+
+Nenhuma integração externa é obrigatória neste repo.
 
 ## Classificação operacional
 
 ### `active`
 
-- Nenhuma skill operacional fica versionada em `.agents/skills/`
+- `supabase-migration` — migrações Supabase versionadas em `.claude/skills/supabase-migration/`
+- `validate-gates` — gates de validação versionados em `.claude/skills/validate-gates/`
 
 ### `archived`
 
@@ -53,8 +59,9 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 
 ## Estado esperado do repo
 
-- `.agents/skills/` contém apenas materiais históricos e de referência
-- `skills-lock.json` reflete ausência de skills locais ativas
+- `.claude/skills/` contém 2 skills ativas (`supabase-migration`, `validate-gates`)
+- `.agents/skills/` contém materiais históricos e de referência arquivados
+- `skills-lock.json` reflete as skills locais ativas
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
