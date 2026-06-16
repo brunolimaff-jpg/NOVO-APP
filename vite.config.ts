@@ -55,6 +55,8 @@ export default defineConfig(({ mode }) => {
       __BUILD_SHA__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || 'local'),
       __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV || 'local'),
       __BUILD_TS__: JSON.stringify(new Date().toISOString()),
+      // Expor SENTRY_DSN da integracao Vercel para o client (Vite so expoe vars com prefixo VITE_)
+      'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(env.SENTRY_DSN || env.VITE_SENTRY_DSN || ''),
     },
     server: {
       port: 3000,
