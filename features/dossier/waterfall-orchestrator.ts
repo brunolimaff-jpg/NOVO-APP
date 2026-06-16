@@ -1002,6 +1002,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         let portaIntegrityHold = false;
         let portaTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
@@ -1226,6 +1227,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           { contextText: waterfallFinalText },
         );
 
+        advanceLoadingProgress(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
         assertNotAborted();
 
@@ -1482,7 +1484,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
           }, 15_000);
 
-          deleteWaterfallFoundationCache(foundationCacheName)
+          const deleteSignal = AbortSignal.timeout(10_000);
+
+          deleteWaterfallFoundationCache(foundationCacheName, deleteSignal)
             .then(() => {
               cacheResolved = true;
               clearTimeout(cacheTimeoutId);

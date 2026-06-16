@@ -349,7 +349,11 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         return res.status(403).json({ error: 'Foundation cache disabled' });
       }
 
-      await ai.caches.delete({ name: body.name });
+      const deletePromise = ai.caches.delete({ name: body.name });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('deleteCachedContent timeout')), 15_000),
+      );
+      await Promise.race([deletePromise, timeoutPromise]);
       return res.status(200).json({ ok: true });
     }
 
