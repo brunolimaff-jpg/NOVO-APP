@@ -893,7 +893,7 @@ describe('api/socio-search', () => {
   });
 
   it('sinaliza truncamento quando a fonte tem mais CNPJs validos que o limite de retorno', async () => {
-    const cnpjList = Array.from({ length: 62 }, (_, index) => {
+    const cnpjList = Array.from({ length: 210 }, (_, index) => {
       return [`Empresa ${index + 1} LTDA`, formatTestCnpj(buildValidCnpj(index + 100))] as const;
     });
     performWebSearchMock.mockResolvedValueOnce(
@@ -927,10 +927,12 @@ describe('api/socio-search', () => {
       degraded?: boolean;
       diagnostics?: { totalCnpjsFound?: number; truncated?: boolean; truncatedReason?: string };
     };
-    expect(payload.companies).toHaveLength(62);
-    expect(payload.degraded).toBe(false);
+    expect(payload.companies).toHaveLength(200);
+    expect(payload.degraded).toBe(true);
     expect(payload.diagnostics).toMatchObject({
-      totalCnpjsFound: 62,
+      totalCnpjsFound: 210,
+      truncated: true,
+      truncatedReason: 'company_limit',
     });
   });
 

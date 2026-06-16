@@ -400,45 +400,57 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
   if (!apiKey) {
     scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: API key ausente no ambiente', {
       hasEnv: 'CNPJABERTO_API_KEY' in (process.env || {}),
-      envKeys: Object.keys(process.env || {})
-        .filter(k => k.includes('CNPJ') || k.includes('API'))
-        .join(','),
     });
     return null;
   }
 
-  scoutDiag.info('DocumentExtractor', `CNPJ Aberto — companies_by_owner: ${socioName}`);
+  const MAX_PAGES = 4;
+  const PER_PAGE = 50;
+  const allResults: CnpjAbertoCompanyResult[] = [];
+  const seenCnpjs = new Set<string>();
 
-  try {
-    const response = await fetch(
-      `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=50`,
-      {
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const url = `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=${PER_PAGE}&page=${page}`;
+
+    scoutDiag.info('DocumentExtractor', `CNPJ Aberto — page ${page}: ${socioName}`);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
         headers: {
           'X-API-Key': apiKey,
           Accept: 'application/json',
           'User-Agent': 'ScoutAgro/1.0',
         },
         signal: AbortSignal.timeout(15000),
-      },
-    );
+      });
+    } catch (error) {
+      const isTimeout = error instanceof DOMException && error.name === 'TimeoutError';
+      scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
+        socioName,
+        page,
+        message: error instanceof Error ? error.message : String(error),
+        isTimeout,
+        isAbort: error instanceof DOMException && error.name === 'AbortError',
+      });
+      break;
+    }
 
     if (!response.ok) {
       scoutDiag.warn('DocumentExtractor', `CNPJ Aberto API error: ${response.status}`, {
+        page,
         statusText: response.statusText,
         contentType: response.headers.get('content-type'),
       });
-      return null;
+      break;
     }
 
     const data = (await response.json()) as unknown;
     const companies = extractCnpjAbertoRecords(data);
 
-    if (!Array.isArray(companies) || companies.length === 0) {
-      scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto: sem empresas encontradas');
-      return null;
-    }
+    if (!Array.isArray(companies) || companies.length === 0) break;
 
-    const results: CnpjAbertoCompanyResult[] = [];
+    let newOnPage = 0;
     for (const company of companies) {
       const name = readString(company, ['razao_social', 'razão_social', 'nome', 'name']);
       const cnpjRaw = readString(company, ['cnpj', 'cnpj_formatado']);
@@ -448,12 +460,16 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
         'situacao',
         'situação',
         'situacao_cadastral',
-        'situação_cadastral',
         'descricao_situacao_cadastral',
         'status',
         'status_receita',
       ]);
       if (!name && !cnpj) continue;
+
+      const dedupKey = cnpj || `${name}:${cnpjRaw || ''}`;
+      if (seenCnpjs.has(dedupKey)) continue;
+      seenCnpjs.add(dedupKey);
+      newOnPage += 1;
 
       const sourceTitle = `CNPJ Aberto — ${name || `CNPJ ${cnpjRaw}`}${cnpjRaw ? ` (CNPJ ${cnpjRaw})` : ''}`;
       const sourceUrl = cnpj
@@ -463,7 +479,7 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
       if (cnpjRaw) summaryParts.push(`CNPJ ${cnpjRaw}`);
       if (role) summaryParts.push(role);
       if (registrationStatus) summaryParts.push(`Situação ${registrationStatus}`);
-      results.push({
+      allResults.push({
         name: name || `Empresa CNPJ ${cnpjRaw}`,
         cnpj: cnpj || cnpjRaw || undefined,
         role: role || undefined,
@@ -474,30 +490,31 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
       });
     }
 
-    if (results.length === 0) return null;
-    scoutDiag.info('DocumentExtractor', `CNPJ Aberto: ${results.length} empresas encontradas`);
-    if (results.length >= 190) {
-      scoutDiag.warn(
-        'DocumentExtractor',
-        'CNPJ Aberto retornou proximo ao limite de 200; pode haver empresas nao listadas',
-        {
-          socioName,
-          count: results.length,
-          limit: 200,
-        },
-      );
-    }
-    return results;
-  } catch (error) {
-    const isTimeout = error instanceof DOMException && error.name === 'TimeoutError';
-    scoutDiag.warn('DocumentExtractor', 'CNPJ Aberto indisponível', {
-      socioName,
-      message: error instanceof Error ? error.message : String(error),
-      isTimeout,
-      isAbort: error instanceof DOMException && error.name === 'AbortError',
-    });
-    return null;
+    scoutDiag.info('DocumentExtractor', `CNPJ Aberto page ${page}: ${newOnPage} novas (total ${allResults.length})`);
+
+    // Se veio menos que o page size, é a última página
+    if (companies.length < PER_PAGE) break;
   }
+
+  if (allResults.length === 0) return null;
+
+  scoutDiag.info(
+    'DocumentExtractor',
+    `CNPJ Aberto: ${allResults.length} empresas em ${allResults.length >= 190 ? '4+' : Math.ceil(allResults.length / PER_PAGE)} páginas`,
+  );
+
+  if (allResults.length >= 190) {
+    scoutDiag.warn(
+      'DocumentExtractor',
+      'CNPJ Aberto retornou próximo ao limite de 200; pode haver empresas não listadas',
+      {
+        socioName,
+        count: allResults.length,
+      },
+    );
+  }
+
+  return allResults;
 }
 
 /**

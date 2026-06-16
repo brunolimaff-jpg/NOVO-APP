@@ -371,7 +371,12 @@ export async function runSearch(
     }
   }
 
-  if (socioIsPessoaFisica && hasSearchBudget() && companies.length < MAX_COMPANIES) {
+  if (
+    socioIsPessoaFisica &&
+    hasSearchBudget() &&
+    remainingSearchBudget() >= 15_000 &&
+    companies.length < MAX_COMPANIES
+  ) {
     queriesRun.push('consultasocio.com/direct');
     const before = snapshotCounts();
     const consultasocioContent = await searchConsultasocioDirect(params.socioName);
