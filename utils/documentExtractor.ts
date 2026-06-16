@@ -411,7 +411,7 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
 
   try {
     const response = await fetch(
-      `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=100`,
+      `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}&limit=50`,
       {
         headers: {
           'X-API-Key': apiKey,

@@ -23,7 +23,11 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     cnpjStatus = response.status;
     if (response.ok) {
       const text = await response.text();
-      try { cnpjResult = JSON.parse(text); } catch { cnpjResult = text.substring(0, 500); }
+      try {
+        cnpjResult = JSON.parse(text);
+      } catch {
+        cnpjResult = text.substring(0, 500);
+      }
     } else {
       cnpjError = `HTTP ${response.status}: ${response.statusText}`;
     }
@@ -38,7 +42,11 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     cnpjApiTest: {
       status: cnpjStatus,
       error: cnpjError,
-      resultType: cnpjResult ? (Array.isArray(cnpjResult) ? `array[${(cnpjResult as unknown[]).length}]` : typeof cnpjResult) : null,
+      resultType: cnpjResult
+        ? Array.isArray(cnpjResult)
+          ? `array[${(cnpjResult as unknown[]).length}]`
+          : typeof cnpjResult
+        : null,
       resultPreview: JSON.stringify(cnpjResult).substring(0, 300),
     },
   });
