@@ -2,17 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 function createAbortController() {
   const controller = new AbortController();
-  const start = Date.now();
-  return { controller, start };
+  return { controller };
 }
 
 async function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
   signal?: AbortSignal,
-): Promise<{ result?: T; timedOut: boolean; aborted: boolean }> {
+): Promise<{ result?: T; timedOut: boolean; aborted: boolean; error?: string }> {
   let timedOut = false;
   let aborted = false;
+  let error: string | undefined;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     const id = setTimeout(() => {
@@ -33,8 +33,14 @@ async function withTimeout<T>(
   try {
     const result = await Promise.race([promise, timeoutPromise]);
     return { result, timedOut: false, aborted: false };
-  } catch {
-    return { timedOut, aborted };
+  } catch (err) {
+    // Propaga o erro real, nao apenas timeout/abort
+    const message = err instanceof Error ? err.message : String(err);
+    // Se nao foi timeout nem abort, e um erro real da promise — reporta
+    if (!timedOut && !aborted) {
+      error = message;
+    }
+    return { timedOut, aborted, error };
   }
 }
 
@@ -115,13 +121,24 @@ describe('timeout edge cases', () => {
   });
 
   describe('network failure', () => {
-    it('promessa rejeitada retorna erro sem timedOut', async () => {
+    it('promessa rejeitada reporta erro sem timedOut', async () => {
       const promise = withTimeout(asyncThatTakes(100, true), 2_000);
       await vi.advanceTimersByTimeAsync(101);
       const result = await promise;
-      // O erro forçado deve propagar como erro, não como timeout
+      // Erro real da promise: nao e timeout nem abort
       expect(result.timedOut).toBe(false);
       expect(result.aborted).toBe(false);
+      expect(result.error).toBe('Forced failure');
+    });
+
+    it('promessa rejeitada NAO confunde com timeout', async () => {
+      // Timeout em 500ms, promise falha em 100ms
+      const promise = withTimeout(asyncThatTakes(100, true), 500);
+      await vi.advanceTimersByTimeAsync(101);
+      const result = await promise;
+      // Falha real deve ser distinguivel de timeout
+      expect(result.timedOut).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 
@@ -149,11 +166,18 @@ describe('timeout edge cases', () => {
   });
 
   describe('limites', () => {
-    it('timeout de Number.MAX_SAFE_INTEGER nao estoura', () => {
-      // Deve aceitar valores grandes sem crash
+    it('timeout de Number.MAX_SAFE_INTEGER nao estoura (sync)', () => {
       expect(() => {
         withTimeout(asyncThatTakes(100), Number.MAX_SAFE_INTEGER);
       }).not.toThrow();
+    });
+
+    it('timeout de Number.MAX_SAFE_INTEGER resolve com resultado (async)', async () => {
+      const promise = withTimeout(asyncThatTakes(1), Number.MAX_SAFE_INTEGER);
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await promise;
+      expect(result.timedOut).toBe(false);
+      expect(result.result).toBe('completed');
     });
 
     it('timeout fracionario funciona', async () => {

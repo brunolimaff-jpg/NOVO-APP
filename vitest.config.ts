@@ -28,6 +28,7 @@ export default defineConfig({
         'contexts/**/*.tsx',
         'stores/**/*.tsx',
         'api/**/*.ts',
+        'prompts/**/*.ts',
       ],
       exclude: [
         '**/node_modules/**',

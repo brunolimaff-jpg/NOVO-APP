@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # check-bundle-budget.sh — CI gate: verifica se o bundle JS+CSS respeita o orçamento
 # Exclui source maps (Sentry) e PNGs grandes (assets estaticos do War Room)
+# Portavel: usa wc -c (POSIX) em vez de stat -f%z (macOS-only)
 set -euo pipefail
 
 DIST_DIR="dist"
@@ -10,9 +11,23 @@ if [ ! -d "$DIST_DIR" ]; then
   exit 1
 fi
 
-# Apenas JS e CSS (exclui .map e assets estaticos como PNGs)
-TOTAL_JS_KB=$(find "$DIST_DIR" -name '*.js' ! -name '*.map' -exec stat -f%z {} \; 2>/dev/null | awk '{sum+=$1} END {printf "%.0f", sum/1024}')
-TOTAL_CSS_KB=$(find "$DIST_DIR" -name '*.css' ! -name '*.map' -exec stat -f%z {} \; 2>/dev/null | awk '{sum+=$1} END {printf "%.0f", sum/1024}')
+file_size_kb() {
+  local file="$1"
+  # wc -c funciona em Linux e macOS; stat -f%z so funciona em macOS
+  local bytes
+  bytes=$(wc -c < "$file" 2>/dev/null || echo 0)
+  echo "$bytes"
+}
+
+TOTAL_JS_KB=0
+while IFS= read -r -d '' f; do
+  TOTAL_JS_KB=$((TOTAL_JS_KB + $(file_size_kb "$f") / 1024))
+done < <(find "$DIST_DIR" -name '*.js' ! -name '*.map' -print0 2>/dev/null)
+
+TOTAL_CSS_KB=0
+while IFS= read -r -d '' f; do
+  TOTAL_CSS_KB=$((TOTAL_CSS_KB + $(file_size_kb "$f") / 1024))
+done < <(find "$DIST_DIR" -name '*.css' ! -name '*.map' -print0 2>/dev/null)
 
 # Budgets com 7-15% de folga sobre o valor atual (Jun 2026)
 MAX_JS_KB=5500

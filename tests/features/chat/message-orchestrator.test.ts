@@ -460,8 +460,7 @@ describe('useChatMessageOrchestrator', () => {
       .map(([event]) => event)
       .find(
         event =>
-          event.type === 'scout:cofre-render-ready' &&
-          (event as CustomEvent).detail?.sessionId === 'session-new',
+          event.type === 'scout:cofre-render-ready' && (event as CustomEvent).detail?.sessionId === 'session-new',
       ) as CustomEvent | undefined;
     expect(readyEvent?.detail).toEqual({ sessionId: 'session-new' });
   });
