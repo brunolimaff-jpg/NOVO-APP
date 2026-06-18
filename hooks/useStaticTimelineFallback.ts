@@ -10,10 +10,7 @@ import {
   isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   POST_WATERFALL_WATCHDOG_MS,
-  shouldApplyProactiveForceStatic,
-  shouldResetForceStaticOnLoadingStart,
 } from '../utils/postWaterfallHandoff';
-import { shouldPreferStaticTimelineForBotVolume } from '../utils/expectedBotContent';
 
 function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
   if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
@@ -50,16 +47,11 @@ export interface UseStaticTimelineFallbackParams {
   hasActiveSession: boolean;
   hasDossierContent: boolean;
   showOperatorGate: boolean;
-  forceStaticTimelineFallback?: boolean;
-  preferStaticForLargeDossier?: boolean;
-  effectiveStaticTimelineFallback?: boolean;
-  shouldSuspendVirtualizedListForTimeline?: boolean;
 }
 
 export interface UseStaticTimelineFallbackResult {
   forceStaticTimelineFallback: boolean;
   setForceStaticTimelineFallback: (value: boolean) => void;
-  preferStaticForLargeDossier: boolean;
   effectiveStaticTimelineFallback: boolean;
   shouldSuspendVirtualizedListForTimeline: boolean;
 }
@@ -85,18 +77,8 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
   const panelSnapshotSignatureRef = useRef('');
-  const renderingModeLocked = useRef(false);
 
-  const preferStaticForLargeDossier =
-    !isLoading &&
-    !showInitialHome &&
-    !shouldSuspendVirtualizedList &&
-    !renderingModeLocked.current &&
-    shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
-  if (!isLoading && !shouldSuspendVirtualizedList && !renderingModeLocked.current) {
-    renderingModeLocked.current = true;
-  }
-  const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
+  const effectiveStaticTimelineFallback = forceStaticTimelineFallback;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
   // ── Efeito #2: Panel snapshot telemetry ──
@@ -150,11 +132,8 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
       shouldSuspendVirtualizedList,
       shouldSuspendVirtualizedListForTimeline,
       forceStaticTimelineFallback,
-      preferStaticForLargeDossier,
-      effectiveStaticTimelineFallback,
       ...buildHandoffPanelDiag(domSnapshot, {
         shouldSuspendVirtualizedList,
-        forceStaticTimelineFallback,
         expectedBotCharsMax,
       }),
     };
@@ -165,7 +144,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     expectedBotCharsMax,
     effectiveStaticTimelineFallback,
     forceStaticTimelineFallback,
-    preferStaticForLargeDossier,
     hasActiveSession,
     hasDossierContent,
     isLoading,
@@ -184,62 +162,22 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     setForceStaticTimelineFallback(false);
     staticTimelineFallbackSessionRef.current = null;
     postWaterfallWatchdogLoggedRef.current = null;
-    renderingModeLocked.current = false;
   }, [currentSession?.id]);
 
-  // ── Efeito #4: Reset ao iniciar loading com dossiê pequeno ──
+  // ── Efeito #4: Reset ao iniciar loading ──
   useEffect(() => {
     const wasLoading = prevIsLoadingForStaticResetRef.current;
     prevIsLoadingForStaticResetRef.current = isLoading;
-    if (
-      shouldResetForceStaticOnLoadingStart({
-        expectedBotCharsMax,
-        isLoading,
-        wasLoading,
-      })
-    ) {
+    if (isLoading && !wasLoading) {
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
       postWaterfallWatchdogLoggedRef.current = null;
-      renderingModeLocked.current = false;
     }
-  }, [expectedBotCharsMax, isLoading]);
+  }, [isLoading]);
 
-  // ── Efeito #5: Força proativa para dossiês grandes ──
+  // ── Efeito #5: Watchdog pós-waterfall ──
   useEffect(() => {
-    if (isLoading) return;
-    if (
-      !shouldApplyProactiveForceStatic({
-        expectedBotCharsMax,
-        showInitialHome,
-        sessionId: currentSession?.id,
-      })
-    ) {
-      return;
-    }
-
-    setForceStaticTimelineFallback(true);
-    staticTimelineFallbackSessionRef.current = currentSession!.id;
-    scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
-      sessionId: currentSession!.id,
-      expectedBotCharsMax,
-      threshold: 4_000,
-      syncOnRender: true,
-      preferStaticForLargeDossier,
-      shouldSuspendVirtualizedList,
-    });
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    isLoading,
-    preferStaticForLargeDossier,
-    shouldSuspendVirtualizedList,
-    showInitialHome,
-  ]);
-
-  // ── Efeito #6: Watchdog pós-waterfall ──
-  useEffect(() => {
-    if (!currentSession?.id || expectedBotCharsMax < 4_000) return;
+    if (!currentSession?.id) return;
     if (isLoading || showInitialHome) return;
 
     const watchdogTimer = window.setTimeout(() => {
@@ -262,7 +200,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
             delayMs: POST_WATERFALL_WATCHDOG_MS,
             ...buildHandoffPanelDiag(snapshot, {
               shouldSuspendVirtualizedList,
-              forceStaticTimelineFallback,
               expectedBotCharsMax,
             }),
           } as unknown as Record<string, unknown>);
@@ -281,7 +218,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
         delayMs: POST_WATERFALL_WATCHDOG_MS,
         ...buildHandoffPanelDiag(snapshot, {
           shouldSuspendVirtualizedList,
-          forceStaticTimelineFallback,
           expectedBotCharsMax,
         }),
         reason: snapshot?.reason,
@@ -302,7 +238,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     showInitialHome,
   ]);
 
-  // ── Efeito #7: Detecção de blank panel (4 timers) ──
+  // ── Efeito #6: Detecção de blank panel (4 timers) ──
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
     if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
@@ -349,7 +285,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   return {
     forceStaticTimelineFallback,
     setForceStaticTimelineFallback,
-    preferStaticForLargeDossier,
     effectiveStaticTimelineFallback,
     shouldSuspendVirtualizedListForTimeline,
   };

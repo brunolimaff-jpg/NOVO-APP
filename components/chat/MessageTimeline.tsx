@@ -21,7 +21,6 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
-  forceStaticTimelineFallback?: boolean;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
@@ -67,7 +66,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   showOperatorGate,
   showInitialHome,
   shouldSuspendVirtualizedList,
-  forceStaticTimelineFallback = false,
   onConfirmOperatorName,
   onStartInvestigation,
   radar,
@@ -97,11 +95,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const viewportReadySignatureRef = useRef('');
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [virtuosoKey, setVirtuosoKey] = useState(0);
   const safeMessages = Array.isArray(messages) ? messages : [];
-  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback;
-  const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
-  const safeMessagesLengthRef = useRef(safeMessages.length);
-  safeMessagesLengthRef.current = safeMessages.length;
 
   // ── Instrumentação: detecta timeline renderizando vazia ──
   const prevTimelineLenRef = useRef(safeMessages.length);
@@ -110,14 +105,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const curr = safeMessages.length;
     prevTimelineLenRef.current = curr;
 
-    if (
-      prev > 0 &&
-      curr === 0 &&
-      !showInitialHome &&
-      !shouldRenderSuspendedViewport &&
-      !shouldRenderStaticTimelineFallback &&
-      !isLoading
-    ) {
+    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !isLoading) {
       console.error(
         '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
         JSON.stringify({
@@ -125,21 +113,12 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           before: prev,
           after: curr,
           showInitialHome,
-          shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
-          forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
+          shouldSuspendVirtualizedList,
           isDarkMode,
         }),
       );
     }
-  }, [
-    safeMessages.length,
-    showInitialHome,
-    shouldRenderSuspendedViewport,
-    shouldRenderStaticTimelineFallback,
-    isLoading,
-    currentSession?.id,
-    isDarkMode,
-  ]);
+  }, [safeMessages.length, showInitialHome, shouldSuspendVirtualizedList, isLoading, currentSession?.id, isDarkMode]);
 
   // Overscan tuned per content type:
   // - Messages with teia societária (SocietaryMap) use a reduced overscan to avoid
@@ -147,12 +126,15 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   // - Long dossiers without teia use 1400 to prevent Mermaid remounts.
   const virtuosoOverscan = useMemo(() => {
     const hasTeia = safeMessages.some(
-      m => m.sender === Sender.Bot && typeof m.text === 'string' && /teia\s+societ[aá]ria/i.test(m.text),
+      m => m.sender === Sender.Bot && typeof m.text === 'string' && /teia\s+societ[áa]ria/i.test(m.text),
     );
     if (hasTeia) return 600;
     const hasDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 3000);
     return hasDossier ? 1400 : 400;
   }, [safeMessages]);
+
+  const safeMessagesLengthRef = useRef(safeMessages.length);
+  safeMessagesLengthRef.current = safeMessages.length;
 
   const handleDeleteWithUndo = useCallback(
     (messageId: string) => {
@@ -231,18 +213,15 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     [safeMessages],
   );
 
+  // ── Virtuoso ready signal ──
   useEffect(() => {
-    if (showInitialHome || shouldRenderSuspendedViewport || shouldRenderStaticTimelineFallback) {
+    if (showInitialHome || shouldSuspendVirtualizedList) {
       setIsMessagesViewportReady(false);
       return;
     }
 
     const viewport = messagesViewportRef.current;
-    if (!viewport) {
-      // Container ainda não existe no DOM — não marca como ready.
-      // O emergency timer (180ms) ou o ResizeObserver vão resolver quando o elemento aparecer.
-      return;
-    }
+    if (!viewport) return;
 
     let cancelled = false;
     let observer: ResizeObserver | null = null;
@@ -258,8 +237,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       scrollHeight: viewport.scrollHeight,
       totalItems: safeMessages.length,
       showInitialHome,
-      shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
-      forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
+      shouldSuspendVirtualizedList,
     });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = (reason: string) => {
@@ -281,7 +259,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     };
 
     setIsMessagesViewportReady(false);
-    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 180);
+    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 100);
 
     if (hasValidSize()) {
       markReady('initial-size');
@@ -313,7 +291,28 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, shouldRenderStaticTimelineFallback, shouldRenderSuspendedViewport, showInitialHome]);
+  }, [currentSession?.id, shouldSuspendVirtualizedList, showInitialHome]);
+
+  // ── Virtuoso display:none recovery watchdog ──
+  useEffect(() => {
+    if (!isMessagesViewportReady) return;
+
+    const timer = window.setTimeout(() => {
+      const scroller = document.querySelector<HTMLElement>('[data-testid="messages-scroller"]');
+      if (!scroller) return;
+
+      const cs = getComputedStyle(scroller);
+      if (cs.display !== 'none') return;
+
+      scoutDiag.warn('Virtuoso', 'virtuoso-scroller-display-none', {
+        sessionId: currentSession?.id ?? null,
+      });
+
+      setVirtuosoKey(k => k + 1);
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [isMessagesViewportReady, currentSession?.id]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -390,64 +389,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
-  useEffect(() => {
-    if (!shouldRenderStaticTimelineFallback) return;
-
-    const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
-    const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
-    const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) > 4000;
-
-    scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
-      sessionId: currentSession?.id ?? null,
-      totalItems: safeMessages.length,
-      hasBotMessage,
-      botTextLen: botMsg?.text?.length ?? 0,
-      hasLargeBot,
-    });
-
-    // PR #347: safety net — se o static fallback montar com display:none,
-    // força recovery. A origem exata do display:none não foi encontrada no
-    // código (nem JS inline, nem CSS), mas o Supabase confirmou o estado
-    // em sessão real de preview.
-    const recoveryTimer = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>('[data-testid="messages-static-fallback"]');
-      if (!el) return;
-
-      const cs = getComputedStyle(el);
-      if (cs.display !== 'none') return;
-
-      const previousDisplay = cs.display;
-      const previousRect = el.getBoundingClientRect();
-
-      // Passo 1: limpa inline style display (caso venha de style.display = 'none')
-      el.style.display = '';
-
-      const afterResetCs = getComputedStyle(el);
-      let forcedDisplayApplied = false;
-
-      // Passo 2: se ainda estiver none (veio de CSS cascade), força com !important
-      if (afterResetCs.display === 'none') {
-        el.style.setProperty('display', 'block', 'important');
-        forcedDisplayApplied = true;
-      }
-
-      const afterRect = el.getBoundingClientRect();
-
-      scoutDiag.warn('Virtuoso', 'static-fallback-display-recovery', {
-        sessionId: currentSession?.id ?? null,
-        previousDisplay,
-        afterResetDisplay: afterResetCs.display,
-        forcedDisplayApplied,
-        previousRect: { w: Math.round(previousRect.width), h: Math.round(previousRect.height) },
-        afterRect: { w: Math.round(afterRect.width), h: Math.round(afterRect.height) },
-        hasBotMessage,
-        botTextLen: botMsg?.text?.length ?? 0,
-      } as unknown as Record<string, unknown>);
-    }, 0);
-
-    return () => clearTimeout(recoveryTimer);
-  }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
-
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
       {showOperatorGate ? (
@@ -467,28 +408,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
-      ) : shouldRenderStaticTimelineFallback ? (
-        <div
-          className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
-          data-testid="messages-static-fallback"
-          data-scout-virtuoso="static-fallback"
-        >
-          {hasMore ? (
-            <div className="flex justify-center py-3">
-              <button
-                type="button"
-                onClick={onLoadMore}
-                className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
-              >
-                Carregar mensagens anteriores
-              </button>
-            </div>
-          ) : null}
-          {safeMessages.map((message, index) => (
-            <MessageRow key={message.id} index={index} data={itemData} />
-          ))}
-        </div>
-      ) : shouldRenderSuspendedViewport ? (
+      ) : shouldSuspendVirtualizedList ? (
         <div
           className="flex-1 min-h-0 w-full flex items-center justify-center"
           data-testid="messages-viewport-suspended"
@@ -506,11 +426,11 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">
           {isMessagesViewportReady ? (
             <Virtuoso
+              key={virtuosoKey}
               ref={virtuosoRef}
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
-              // UX contract: never auto-scroll the main chat timeline on new messages.
               followOutput={false}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}

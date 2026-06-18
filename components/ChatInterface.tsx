@@ -130,25 +130,21 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const theme = useChatTheme(isDarkMode);
 
-  const {
-    forceStaticTimelineFallback,
-    preferStaticForLargeDossier,
-    effectiveStaticTimelineFallback,
-    shouldSuspendVirtualizedListForTimeline,
-  } = useStaticTimelineFallback({
-    currentSession,
-    isLoading,
-    showInitialHome,
-    shouldSuspendVirtualizedList,
-    expectedBotCharsMax,
-    safeMessagesLength: safeMessages.length,
-    messagesLength: messages.length,
-    panelState,
-    loadingVariant,
-    hasActiveSession,
-    hasDossierContent,
-    showOperatorGate,
-  });
+  const { forceStaticTimelineFallback, effectiveStaticTimelineFallback, shouldSuspendVirtualizedListForTimeline } =
+    useStaticTimelineFallback({
+      currentSession,
+      isLoading,
+      showInitialHome,
+      shouldSuspendVirtualizedList,
+      expectedBotCharsMax,
+      safeMessagesLength: safeMessages.length,
+      messagesLength: messages.length,
+      panelState,
+      loadingVariant,
+      hasActiveSession,
+      hasDossierContent,
+      showOperatorGate,
+    });
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);
   useEffect(() => {
@@ -242,7 +238,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedListForTimeline}
-                forceStaticTimelineFallback={effectiveStaticTimelineFallback}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);
