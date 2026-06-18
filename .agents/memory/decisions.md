@@ -2,6 +2,25 @@
 
 ## Novas Decisoes (Sessao 2026-06-18)
 
+### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
+
+- **Decisao:** O intervalo do deploy poll no fluxo de deploy local deve ser 2s (nao 5s). O polling mais rapido reduz o tempo de espera sem impacto significativo no rate limit da API Vercel.
+- **Contexto:** Durante o deploy da PR #379, o polling de 5s atrasava a deteccao de "Ready". O deploy polling e uma operacao local de baixa frequencia (max 1 deploy por execucao).
+- **Impacto:** Deploys ficam 3s mais rapidos em media.
+
+### DI-2026-06-18-05: Codex/CodeRabbit nao modifica config de infraestrutura local
+
+- **Decisao:** Ferramentas de codigo automatizado (Codex, CodeRabbit, Gemini Code Assist, etc.) nao devem modificar `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`, `docs/superpowers/` ou quaisquer arquivos de configuracao local/plugins — a menos que o Bruno peca explicitamente.
+- **Contexto:** O Codex modificou `.mcp.json` (substituiu deepseek, vercel, sentry), `nimbalyst-local/`, `.claude/plugins/`, escreveu `docs/superpowers/` e criou `CODEX.md` (duplicata de CLAUDE.md) sem solicitacao.
+- **Impacto:** `.mcp.json` restaurado com deepseek, vercel, sentry; `ai-actions.md` restaurado; manifest.json e 4 planos restaurados; CODEX.md removido.
+
+### DI-2026-06-18-04: CRON_DELETE_ENABLED nunca configurado
+
+- **Decisao:** `CRON_DELETE_ENABLED` nunca sera configurado em nenhum ambiente. O cron existira apenas como painel de observacao (dry-run permanente), retornando a contagem de candidatos sem excluir.
+- **Contexto:** Bruno decidiu que o cron nao deve deletar contas nao confirmadas. A flag `CRON_DELETE_ENABLED=true` que ativaria a exclusao nunca sera setada.
+- **Impacto:** Cron retorna `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`. Usuarios com contas nao confirmadas permanecem no banco.
+- **Referencia:** `api/cron-email-confirmation.ts`, `CRON_DELETE_ENABLED` env var.
+
 ### DI-2026-06-18-03: Hook de conclusao e consultivo, nao bloqueante
 
 - **Decisao:** O hook global usa a versao do repo em `scripts/hooks/completion-check.sh`, retorna `decision: null` e apresenta pendencias como aviso.
