@@ -1,6 +1,20 @@
 # decisions.md — NOVO-APP
 
-## Novas Decisoes (Sessao 2026-06-18)
+## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
+
+### DI-2026-06-18-08: Fix de pipeline deve cobrir o fluxo completo do dado (Set -> consumidores)
+
+- **Decisao:** Correcoes de validacao de dados devem rastrear o fluxo completo da entrada ate o consumidor final. Nao basta adicionar ao Set intermediario se o consumidor extrai do texto formatado (`partnerText`).
+- **Contexto:** T-B.2 inicial so adicionava CNPJs validados ao Set em `knownCnpjs`, mas `validateTeiaCnpjsOutput` extrai CNPJs do `partnerText` por regex. Sem incluir no partnerText, os falsos-positivos de "CNPJ nao confirmado" continuavam. O fix real foi formatar o `partner.document` validado dentro do partnerText.
+- **Impacto:** Falsos-positivos eliminados. Validacao cross-checks partnerText + knownCnpjs para cada CNPJ.
+- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
+
+### DI-2026-06-18-07: Documentos de QSA validados como CNPJ (14 digitos) antes de usar
+
+- **Decisao:** `partner.document` de QSA deve ser validado com `length === 14` antes de ser tratado como CNPJ. CPFs mascarados (`***.123.456-**`) nao devem ser passados como CNPJ para `deriveObjectiveComplexity`.
+- **Contexto:** `pickPublicDocument` suprime IDs completos por seguranca. QSA de pessoa fisica retorna CPF mascarado que infla `deriveObjectiveComplexity` como "CNPJ nao encontrado". A validacao `length === 14` filtra CPFs mascarados (11 digitos) e outros formatos invalidos.
+- **Impacto:** `deriveObjectiveComplexity` recebe apenas CNPJs reais. Complexidade do dossie calculada corretamente.
+- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
 
 ### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
 

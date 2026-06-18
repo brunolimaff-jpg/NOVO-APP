@@ -190,19 +190,6 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
       if (isInvisibleBotText) {
         scoutDiag.error('MessageRow', 'commit:invisible-bot-content', payload);
-        // LayoutTrace assíncrono: busca ancestral com dimensão zero
-        import('../utils/layoutTraceTelemetry')
-          .then(({ findFirstZeroDimensionAncestor }) => {
-            const trace = findFirstZeroDimensionAncestor(el);
-            if (trace) {
-              trace.renderBranch = renderBranch;
-              scoutDiag.error('MessageRow', 'commit:zero-dimension-ancestor', {
-                messageId: msg.id?.slice(0, 8),
-                ancestorTrace: trace,
-              });
-            }
-          })
-          .catch(() => {});
       } else {
         scoutDiag.info('MessageRow', 'commit:dimensions', payload);
       }

@@ -160,18 +160,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     };
 
     scoutDiag.info('ChatInterface', 'panel:snapshot', snapshotPayload);
-
-    if (effectiveStaticTimelineFallback && expectedBotCharsMax > 4000) {
-      requestAnimationFrame(() => {
-        import('../utils/layoutTraceTelemetry')
-          .then(({ traceLayout }) => {
-            traceLayout(scoutDiag.info.bind(scoutDiag), 'chat-interface-static-fallback', {
-              ...snapshotPayload,
-            });
-          })
-          .catch(() => {});
-      });
-    }
   }, [
     currentSession?.id,
     expectedBotCharsMax,
