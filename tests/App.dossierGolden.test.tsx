@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
@@ -303,6 +303,18 @@ describe('App dossier markdown golden flow', () => {
       const text = screen.getByTestId('last-bot-message').textContent ?? '';
       expect(text.length).toBeGreaterThan(500);
       expect(text).toContain('Scheffer');
+    });
+
+    const completedSession = (sessionStateRef.current as ChatSession[])[0];
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('scout:cofre-render-ready', {
+          detail: { sessionId: completedSession.id },
+        }),
+      );
+    });
+    await waitFor(() => expect(screen.queryByTestId('cofre-overlay')).not.toBeInTheDocument(), {
+      timeout: 1_000,
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'export-dossier-md' }));
