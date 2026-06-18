@@ -31,7 +31,7 @@ npm run validate:preview
 6. Testar Preview Vercel para regressao de UI, rede e performance.
 7. Subagentes podem planejar, revisar e validar em paralelo sem bloquear o agente principal. Antes de commitar, o agente principal incorpora os achados ja disponiveis e confirma que nao ha edicoes concorrentes no mesmo arquivo.
 8. Nunca fazer merge sem `MERGE` explicito do Bruno.
-9. Usar branches `codex/<objetivo>` e manter uma mudanca fechavel por PR.
+9. Usar branches com prefixo por tipo (feat/, fix/, docs/, refactor/, perf/, chore/) e manter uma mudanca fechavel por PR.
 10. Handoff canonico: `HANDOFF_AI.md`, `.agents/memory/*` e Bruno Vault.
 
 ## Documentacao

@@ -13,7 +13,11 @@ fail() {
 
 file_mode() {
   local file=$1
-  stat -f '%Lp' "$file" 2>/dev/null || stat -c '%a' "$file"
+  if [[ "${OSTYPE:-}" == "darwin"* ]]; then
+    stat -f '%Lp' "$file"
+  else
+    stat -c '%a' "$file"
+  fi
 }
 
 prepare_repo() {
@@ -126,8 +130,10 @@ assert_missing_jq_has_valid_fallback_json() {
   printf 'pendente\n' > "$repo/pendente.txt"
   payload=$(jq -cn --arg cwd "$repo" --arg session_id "sem-jq" \
     '{cwd: $cwd, session_id: $session_id}')
-  for command_name in bash basename cat chmod cksum cut date dirname git grep mkdir mktemp mv rm shasum stat tr wc; do
-    ln -s "$(command -v "$command_name")" "$bin/$command_name"
+  for command_name in bash basename cat chmod cksum cut date dirname git grep mkdir mktemp mv rm stat tr wc; do
+    command_path=$(command -v "$command_name" || true)
+    [ -n "$command_path" ] || continue
+    ln -s "$command_path" "$bin/$command_name"
   done
 
   output=$(cd "$repo" && printf '%s\n' "$payload" | PATH="$bin" HOME="$home" "$HOOK")

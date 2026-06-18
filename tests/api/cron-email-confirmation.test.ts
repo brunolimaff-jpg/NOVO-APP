@@ -78,7 +78,7 @@ describe('cron-email-confirmation', () => {
     await handler(makeMockReq(), res);
 
     expect(state.statusCode).toBe(200);
-    expect(state.body).toMatchObject({ cleaned: 0 });
+    expect(state.body).toMatchObject({ dryRun: true, candidates: 0, cleaned: 0, total: 0 });
   });
 
   it('GET sem bearer — retorna 401', async () => {
@@ -102,7 +102,7 @@ describe('cron-email-confirmation', () => {
     await handler(makeMockReq({ method: 'POST' }), res);
 
     expect(state.statusCode).toBe(200);
-    expect(state.body).toMatchObject({ cleaned: 0 });
+    expect(state.body).toMatchObject({ dryRun: true, candidates: 0, cleaned: 0, total: 0 });
   });
 
   it('PUT — retorna 405', async () => {

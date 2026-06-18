@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!expired || expired.length === 0) {
     console.log('[cron-email-confirmation] Nenhuma conta expirada.');
-    return res.status(200).json({ dryRun: !deletionEnabled, candidates: 0, cleaned: 0, total: 0 });
+    return res.status(200).json({ dryRun: true, candidates: 0, cleaned: 0, total: 0 });
   }
 
   const expiredIds: string[] = expired.map((u: { id: string }) => u.id);
