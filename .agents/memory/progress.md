@@ -1,26 +1,8 @@
 # Progress
 
-Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
+Last updated: 2026-06-18 - P0 validado no Preview; producao aguarda MERGE
 
 ## Timeline
-
-### 2026-06-18 (PR #379 mergeada + playbook verification)
-
-- PR #379 mergeada (db5a9a8d) e em producao.
-- CRON_SECRET configurado no Vercel Production. CRON_DELETE_ENABLED nunca configurado (decisao do Bruno).
-- Cron validado em producao: `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`.
-- Hook completion-check.sh consultivo com `decision: null` em producao.
-- Shell test adicionado ao CI: `bash tests/scripts/completion-check.test.sh`.
-- Codex revertido: `.mcp.json` restaurado (deepseek, vercel, sentry), `ai-actions.md` restaurado, manifest.json e 4 planos restaurados.
-- CODEX.md removido (duplicata de CLAUDE.md). Playbook em `docs/superpowers/` removido.
-- Branch protection restaurada (required_conversation_resolution: true).
-- Playbook verificado: 16 tarefas em 5 fases. Fase 0 CONCLUIDA. Fases A-D com status.
-- Playwright E2E validado no preview Vercel: login -> CNPJ Scheffer -> waterfall -> Score 82/100.
-- Decisao: Codex/CodeRabbit nao modifica `.mcp.json`, `nimbalyst-local/` ou `.claude/plugins/`.
-- Decisao: Vercel deploy poll em 2s, nao 5s.
-- 4 novas licoes: branch protection merge, Vercel environments orfaos, OAuth MCP expira, gh api boolean.
-- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`.
-- Proximo passo: decidir qual fase do playbook atacar (A-D).
 
 ### 2026-06-18 (Trava removida + inicio do P0)
 

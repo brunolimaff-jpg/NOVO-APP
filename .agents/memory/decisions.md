@@ -1,58 +1,6 @@
 # decisions.md — NOVO-APP
 
-## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
-
-### DI-2026-06-18-08: Fix de pipeline deve cobrir o fluxo completo do dado (Set -> consumidores)
-
-- **Decisao:** Correcoes de validacao de dados devem rastrear o fluxo completo da entrada ate o consumidor final. Nao basta adicionar ao Set intermediario se o consumidor extrai do texto formatado (`partnerText`).
-- **Contexto:** T-B.2 inicial so adicionava CNPJs validados ao Set em `knownCnpjs`, mas `validateTeiaCnpjsOutput` extrai CNPJs do `partnerText` por regex. Sem incluir no partnerText, os falsos-positivos de "CNPJ nao confirmado" continuavam. O fix real foi formatar o `partner.document` validado dentro do partnerText.
-- **Impacto:** Falsos-positivos eliminados. Validacao cross-checks partnerText + knownCnpjs para cada CNPJ.
-- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
-
-### DI-2026-06-18-07: Documentos de QSA validados como CNPJ (14 digitos) antes de usar
-
-- **Decisao:** `partner.document` de QSA deve ser validado com `length === 14` antes de ser tratado como CNPJ. CPFs mascarados (`***.123.456-**`) nao devem ser passados como CNPJ para `deriveObjectiveComplexity`.
-- **Contexto:** `pickPublicDocument` suprime IDs completos por seguranca. QSA de pessoa fisica retorna CPF mascarado que infla `deriveObjectiveComplexity` como "CNPJ nao encontrado". A validacao `length === 14` filtra CPFs mascarados (11 digitos) e outros formatos invalidos.
-- **Impacto:** `deriveObjectiveComplexity` recebe apenas CNPJs reais. Complexidade do dossie calculada corretamente.
-- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
-
-### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
-
-- **Decisao:** O intervalo do deploy poll no fluxo de deploy local deve ser 2s (nao 5s). O polling mais rapido reduz o tempo de espera sem impacto significativo no rate limit da API Vercel.
-- **Contexto:** Durante o deploy da PR #379, o polling de 5s atrasava a deteccao de "Ready". O deploy polling e uma operacao local de baixa frequencia (max 1 deploy por execucao).
-- **Impacto:** Deploys ficam 3s mais rapidos em media.
-
-### DI-2026-06-18-05: Codex/CodeRabbit nao modifica config de infraestrutura local
-
-- **Decisao:** Ferramentas de codigo automatizado (Codex, CodeRabbit, Gemini Code Assist, etc.) nao devem modificar `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`, `docs/superpowers/` ou quaisquer arquivos de configuracao local/plugins — a menos que o Bruno peca explicitamente.
-- **Contexto:** O Codex modificou `.mcp.json` (substituiu deepseek, vercel, sentry), `nimbalyst-local/`, `.claude/plugins/`, escreveu `docs/superpowers/` e criou `CODEX.md` (duplicata de CLAUDE.md) sem solicitacao.
-- **Impacto:** `.mcp.json` restaurado com deepseek, vercel, sentry; `ai-actions.md` restaurado; manifest.json e 4 planos restaurados; CODEX.md removido.
-
-### DI-2026-06-18-04: CRON_DELETE_ENABLED nunca configurado
-
-- **Decisao:** `CRON_DELETE_ENABLED` nunca sera configurado em nenhum ambiente. O cron existira apenas como painel de observacao (dry-run permanente), retornando a contagem de candidatos sem excluir.
-- **Contexto:** Bruno decidiu que o cron nao deve deletar contas nao confirmadas. A flag `CRON_DELETE_ENABLED=true` que ativaria a exclusao nunca sera setada.
-- **Impacto:** Cron retorna `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`. Usuarios com contas nao confirmadas permanecem no banco.
-- **Referencia:** `api/cron-email-confirmation.ts`, `CRON_DELETE_ENABLED` env var.
-
-### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
-
-- **Decisao:** O intervalo do deploy poll no fluxo de deploy local deve ser 2s (nao 5s). O polling mais rapido reduz o tempo de espera sem impacto significativo no rate limit da API Vercel.
-- **Contexto:** Durante o deploy da PR #379, o polling de 5s atrasava a deteccao de "Ready". O deploy polling e uma operacao local de baixa frequencia (max 1 deploy por execucao).
-- **Impacto:** Deploys ficam 3s mais rapidos em media.
-
-### DI-2026-06-18-05: Codex/CodeRabbit nao modifica config de infraestrutura local
-
-- **Decisao:** Ferramentas de codigo automatizado (Codex, CodeRabbit, Gemini Code Assist, etc.) nao devem modificar `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`, `docs/superpowers/` ou quaisquer arquivos de configuracao local/plugins — a menos que o Bruno peca explicitamente.
-- **Contexto:** O Codex modificou `.mcp.json` (substituiu deepseek, vercel, sentry), `nimbalyst-local/`, `.claude/plugins/`, escreveu `docs/superpowers/` e criou `CODEX.md` (duplicata de CLAUDE.md) sem solicitacao.
-- **Impacto:** `.mcp.json` restaurado com deepseek, vercel, sentry; `ai-actions.md` restaurado; manifest.json e 4 planos restaurados; CODEX.md removido.
-
-### DI-2026-06-18-04: CRON_DELETE_ENABLED nunca configurado
-
-- **Decisao:** `CRON_DELETE_ENABLED` nunca sera configurado em nenhum ambiente. O cron existira apenas como painel de observacao (dry-run permanente), retornando a contagem de candidatos sem excluir.
-- **Contexto:** Bruno decidiu que o cron nao deve deletar contas nao confirmadas. A flag `CRON_DELETE_ENABLED=true` que ativaria a exclusao nunca sera setada.
-- **Impacto:** Cron retorna `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`. Usuarios com contas nao confirmadas permanecem no banco.
-- **Referencia:** `api/cron-email-confirmation.ts`, `CRON_DELETE_ENABLED` env var.
+## Novas Decisoes (Sessao 2026-06-18)
 
 ### DI-2026-06-18-03: Hook de conclusao e consultivo, nao bloqueante
 

@@ -486,7 +486,6 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
-
 # Sessao 2026-06-18 - Playbook nao bloqueante e cron fail-safe
 
 - **Roadmap de qualidade nao pode virar trava global de trabalho** [processo, agentes, planejamento]
@@ -497,17 +496,3 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **Hook de baixo risco pede contrato minimo, nao revisao desproporcional** [processo, hooks, validacao, agentes]
   Automacao consultiva deve ser validada pelo contrato essencial e liberar o gate principal. O hook de conclusao avisa pendencias com `decision: null`; ele nao pode criar loop nem consumir revisao desproporcional ao risco.
-
-### Sessao 2026-06-18 — PR #379 mergeada (P0 conclusao + Codex revert)
-
-- **Branch protection required_conversation_resolution bloqueia merge mesmo com threads resolvidas** [github, branch-protection, merge, pr]
-  `required_conversation_resolution: true` impede merge mesmo quando todas as threads foram resolvidas via GraphQL API. O GitHub trata resolucao via API de forma diferente de resolucao via interface web. Para mergear PR com esta protecao, desabilitar temporariamente a regra, fazer o merge e reabilitar. Afeta: fluxo de merge de PRs com revisao obrigatoria de conversas.
-
-- **Vercel GitHub App cria deployment environments orfaos que bloqueiam merge** [vercel, github, deploy, environments]
-  O Vercel GitHub App registra automaticamente environments de deploy ("Preview - novo-app", "Production - novo-app") no repositorio. Isso bloqueia merge para branches que exigem `required deployment environments`. Solucao: no dashboard GitHub > Settings > Environments, deletar os environments orfaos. Afeta: merge de PRs em projetos com Vercel integration.
-
-- **OAuth Vercel MCP expira entre sessoes — CLI e mais confiavel** [vercel, mcp, auth, sessao]
-  O token OAuth do MCP Vercel expira quando a sessao do Claude termina. Na sessao seguinte, comandos como `vercel env add` falham silenciosamente. A CLI Vercel (`vercel --token`) com token pessoal e mais confiavel para operacoes entre sessoes. Afeta: scripts de deploy e configuracao de env vars entre sessoes.
-
-- **gh api -F envia strings — para boolean/array usar --input com JSON puro** [github, gh, api, shell, json]
-  `gh api -F auto_merge=false` envia o valor como string `"false"`, nao como boolean `false`. A API do GitHub rejeita porque espera boolean. Para enviar tipos corretos (boolean, array, objeto), usar `--input -` com pipe de JSON puro: `printf '{"auto_merge":false}' | gh api --input -`. Afeta: qualquer comando `gh api` que precise de tipos booleanos ou arrays.
