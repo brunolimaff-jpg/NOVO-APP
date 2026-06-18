@@ -493,3 +493,6 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **Cron destrutivo deve iniciar em dry-run** [vercel, cron, auth, seguranca operacional]
   Configurar apenas o segredo de autenticacao pode ativar uma versao que exclui dados imediatamente. Primeiro publicar `dry-run` como padrao, revisar candidatos e so depois habilitar uma flag destrutiva separada.
+
+- **Hook de baixo risco pede contrato minimo, nao revisao desproporcional** [processo, hooks, validacao, agentes]
+  Automacao consultiva deve ser validada pelo contrato essencial e liberar o gate principal. O hook de conclusao avisa pendencias com `decision: null`; ele nao pode criar loop nem consumir revisao desproporcional ao risco.

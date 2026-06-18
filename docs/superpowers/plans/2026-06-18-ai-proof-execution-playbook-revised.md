@@ -23,8 +23,10 @@
 - [x] Verificar banner e bloqueio de senha: contrato existe para antes e depois de `2026-06-18T23:59:59-03:00`.
 - [x] Verificar cron em producao: endpoint existe, mas retornava `CRON_SECRET not configured`.
 - [x] Tornar o cron dry-run por padrao; exclusao exige `CRON_DELETE_ENABLED=true`.
-- [ ] Publicar a correcao, configurar `CRON_SECRET` e validar o dry-run em producao.
-- [ ] Habilitar exclusao somente apos revisar a contagem de candidatos e autorizar o rollout.
+- [x] Publicar no Preview, configurar `CRON_SECRET` somente na branch e validar dry-run autenticado: HTTP 200, zero candidatos e zero exclusoes.
+- [x] Tornar o hook global de conclusao consultivo (`decision: null`) e validar seu contrato minimo.
+- [ ] Apos `MERGE` explicito, configurar `CRON_SECRET` em producao e repetir o dry-run.
+- [ ] Habilitar exclusao em producao somente apos revisar candidatos e autorizar o rollout.
 
 ## Fase 0 - Fundacao
 

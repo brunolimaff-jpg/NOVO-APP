@@ -2,6 +2,13 @@
 
 ## Novas Decisoes (Sessao 2026-06-18)
 
+### DI-2026-06-18-03: Hook de conclusao e consultivo, nao bloqueante
+
+- **Decisao:** O hook global usa a versao do repo em `scripts/hooks/completion-check.sh`, retorna `decision: null` e apresenta pendencias como aviso.
+- **Contexto:** O bloqueio repetido impedia o proprio fechamento documental. Para um hook de baixo risco, o contrato minimo e avisar sem impedir a continuidade.
+- **Impacto:** Pendencias continuam visiveis, mas nao criam loop de encerramento. O teste do hook passou.
+- **Referencia:** `scripts/hooks/completion-check.sh`.
+
 ### DI-2026-06-18-02: Cron de limpeza e dry-run por padrao
 
 - **Decisao:** `api/cron-email-confirmation.ts` nao remove usuarios por padrao. A exclusao exige `CRON_DELETE_ENABLED=true`; sem a flag, o endpoint retorna a quantidade de candidatos e `cleaned: 0`.
