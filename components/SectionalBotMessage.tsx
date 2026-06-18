@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -375,13 +375,17 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
   // de markdown de uma só vez.
   const [isDossierExpanded, setIsDossierExpanded] = useState(false);
+  // Deferred value: quando o usuário expande o dossiê, React mantém o valor
+  // antigo (truncado) visível enquanto processa a expansão completa em
+  // background (lower priority). Evita freeze na main thread.
+  const deferredExpanded = useDeferredValue(isDossierExpanded);
 
   // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)
   useEffect(() => {
     setIsDossierExpanded(false);
   }, [message.id]);
 
-  const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !isDossierExpanded;
+  const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !deferredExpanded;
   const visibleSections = shouldTruncateDossier ? sections.slice(0, TRUNCATION_SECTION_THRESHOLD) : sections;
   const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
 
@@ -442,6 +446,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             key={section.key}
             data-section-kind={sellerSectionKind}
             className={`section-block group relative ${framedClass}`}
+            style={{ contentVisibility: 'auto' }}
           >
             {isPrimaryModule && (
               <div
