@@ -10,7 +10,8 @@ PR #382: publicar e validar no Preview o Cofre de tela inteira durante dossies. 
 - **Risco:** medio; mudanca no bloqueio global da UI durante geracao
 - **Validacao local:** typecheck, suite completa (1.505), contratos (64), build, E2E painel branco (3/3), lint do escopo e testes focados (44)
 - **Bloqueio:** gate `validate:chat:no-autoscroll` requer chave Pinecone ausente no ambiente local
-- **Proximo passo:** push, aguardar checks/Preview e validar Scheffer desktop + 375 px
+- **Preview validado:** Scheffer em 1280x720 e 375x812; overlay persistiu ate PostCompletion visual e liberou com painel/bot/Virtuoso/composer validos
+- **Proximo passo:** publicar o ajuste do contador de modulos e confirmar checks/smoke no SHA final
 
 ## Contexto Anterior
 

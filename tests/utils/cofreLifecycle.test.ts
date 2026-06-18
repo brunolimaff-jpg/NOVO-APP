@@ -13,6 +13,11 @@ const readySnapshot = {
 };
 
 describe('cofreLifecycle', () => {
+  it('nunca exibe mais modulos concluidos do que o total', () => {
+    expect(cofreLifecycle.resolveCofreTotalStageCount(7, 8, 8)).toBe(8);
+    expect(cofreLifecycle.resolveCofreTotalStageCount(undefined, 0, 0)).toBe(1);
+  });
+
   it('reconhece apenas render real de dossiê como pronto', () => {
     expect(typeof cofreLifecycle.isCofreRenderReady).toBe('function');
     expect(cofreLifecycle.isCofreRenderReady(readySnapshot)).toBe(true);

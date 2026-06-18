@@ -20,6 +20,7 @@ import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 import { AuthGate } from './components/AuthGate';
 import CofreOverlay, { type CofreStage } from './components/CofreOverlay';
 import { useCofreTransition } from './hooks/useCofreTransition';
+import { resolveCofreTotalStageCount } from './utils/cofreLifecycle';
 
 // Lazy-loaded — não críticos para a primeira paint
 const LoadingSmart = React.lazy(() => loadWithChunkRetry(() => import('./components/LoadingSmart')));
@@ -675,7 +676,11 @@ const App: React.FC = () => {
             empresaAlvo={currentSession?.empresaAlvo ?? null}
             cnpj={currentSession?.cnpj ?? null}
             completedStageCount={completedLoadingStatuses.length}
-            totalStageCount={loadingTotalStages ?? Math.max(cofreStages.length, 1)}
+            totalStageCount={resolveCofreTotalStageCount(
+              loadingTotalStages,
+              completedLoadingStatuses.length,
+              cofreStages.length,
+            )}
             stages={cofreStages}
             elapsedTimeMs={cofreElapsedTimeMs}
             onStop={handleStopGeneration}

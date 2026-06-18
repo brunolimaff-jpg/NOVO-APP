@@ -22,6 +22,14 @@ export function resolveGenerationKind(requestKind: 'default' | 'deep_dive', isFo
   return isFollowUp ? 'follow_up' : 'dossier';
 }
 
+export function resolveCofreTotalStageCount(
+  configuredTotal: number | undefined,
+  completedCount: number,
+  renderedStageCount: number,
+): number {
+  return Math.max(configuredTotal ?? 0, completedCount, renderedStageCount, 1);
+}
+
 export function isCofreRenderReady(snapshot: CofreRenderSnapshot): boolean {
   return (
     snapshot.generationKind === 'dossier' &&

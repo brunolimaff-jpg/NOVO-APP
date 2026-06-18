@@ -12,7 +12,9 @@ Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
 - Dissolve normal de 350 ms; aborto/erro liberam; timeout de 10 s inicia somente apos a API finalizar.
 - Validacao local: 1.505 testes + 64 contratos, typecheck, build, 44 testes focados, lint do escopo e E2E de painel branco 3/3.
 - Gate de chat bloqueado por ausencia de `PINECONE_API_KEY`/`PINECONE_DOCS_KEY` no ambiente.
-- Proximo: push na PR #382 e validacao real do Preview com Scheffer em desktop e 375 px; sem merge sem `MERGE`.
+- Preview real validado com Scheffer: cobertura integral em 1280x720 e 375x812, persistencia durante a geracao e liberacao apenas com painel, bot, Virtuoso e composer validos.
+- Preview revelou progresso `8 de 7`; total corrigido para nunca ser menor que os estagios concluidos/renderizados, com teste RED/GREEN.
+- Proximo: confirmar checks e smoke no SHA final; sem merge sem `MERGE`.
 
 ### 2026-06-18 (Sprint 1 — CNPJ QSA + catch log)
 

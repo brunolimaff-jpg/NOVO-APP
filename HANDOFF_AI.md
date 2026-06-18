@@ -12,7 +12,9 @@
 - **Fallbacks:** aborto/erro liberam com dissolve curto; timeout de 10 s comeca somente depois do fim da API.
 - **Validacao local:** typecheck; 1.505 testes; 64 contratos; build; 44 testes focados; lint do escopo; E2E de painel branco (3/3); `git diff --check`.
 - **Bloqueio de ambiente:** `validate:chat:no-autoscroll` nao executa sem `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`.
-- **Pendente imediato:** publicar o commit na PR #382 e validar o novo Preview com Scheffer em desktop e 375 px. Nenhum merge sem `MERGE` explicito.
+- **Preview Scheffer validado:** Cofre cobriu 1280x720 e 375x812, permaneceu durante a geracao e liberou com painel visivel, Virtuoso com 565 px, bot final renderizado e composer ativo.
+- **Correcao adicional do Preview:** total de modulos agora usa o maior valor entre configurado, concluido e renderizado, impedindo progresso como `8 de 7`.
+- **Pendente imediato:** confirmar checks e smoke do SHA final da PR #382. Nenhum merge sem `MERGE` explicito.
 
 - **PR #379 mergeada e em producao.** Cron protecao dry-run, hook consultivo, CI shell test.
 - **PR #380 (Sprint 1) aberta.** Branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`. Aguardando merge (CI rodando).
