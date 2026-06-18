@@ -306,7 +306,7 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 z-40 overflow-hidden ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      className={`absolute inset-0 z-40 overflow-hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
       role="status"
       aria-label="Briefing estrategico sendo preparado"
       data-testid="cofre-overlay"
