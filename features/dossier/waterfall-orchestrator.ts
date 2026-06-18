@@ -158,7 +158,13 @@ async function buildTeiaResearchContext(params: {
       qsaCount = companyData.qsa?.length || 0;
       stateHint = companyData.state || '';
       const qsaLines = (companyData.qsa || []).map(partner => {
-        const partnerText = `${partner.name || 'Socio sem nome'} — ${partner.role || 'qualificacao nao informada'} (${partner.source})`;
+        const partnerDoc = partner.document ? normalizeCnpj(partner.document) : '';
+        const isCnpj = partnerDoc.length === 14;
+        if (isCnpj) knownCnpjs.add(partnerDoc);
+        const docSuffix = isCnpj
+          ? ` (CNPJ: ${partnerDoc.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')})`
+          : '';
+        const partnerText = `${partner.name || 'Socio sem nome'}${docSuffix} — ${partner.role || 'qualificacao nao informada'} (${partner.source})`;
         if (hasHoldingSignal(partnerText)) hasHolding = true;
         return `- ${partnerText}`;
       });
