@@ -74,13 +74,12 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   } = params;
 
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
-  const recoveryKeyRef = useRef(0);
+  const [recoveryKey, setRecoveryKey] = useState(0);
   const staticTimelineFallbackSessionRef = useRef<string | null>(null);
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
   const panelSnapshotSignatureRef = useRef('');
 
-  const recoveryKey = recoveryKeyRef.current;
   const effectiveStaticTimelineFallback = forceStaticTimelineFallback;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
@@ -212,7 +211,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
       staticTimelineFallbackSessionRef.current = currentSession.id;
       setForceStaticTimelineFallback(true);
-      recoveryKeyRef.current += 1;
+      setRecoveryKey(k => k + 1);
 
       if (postWaterfallWatchdogLoggedRef.current === currentSession.id) return;
       postWaterfallWatchdogLoggedRef.current = currentSession.id;
@@ -267,7 +266,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
         staticTimelineFallbackSessionRef.current = currentSession.id;
         setForceStaticTimelineFallback(true);
-        recoveryKeyRef.current += 1;
+        setRecoveryKey(k => k + 1);
         scoutDiag.warn('BlankPanel', 'static-timeline-fallback-activated', {
           ...snapshot,
           delay,

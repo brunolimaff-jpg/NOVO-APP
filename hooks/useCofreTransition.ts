@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import type { CofrePhase } from '../components/CofreOverlay';
 
 interface UseCofreTransitionParams {
@@ -34,44 +34,56 @@ export function useCofreTransition({
 }: UseCofreTransitionParams): UseCofreTransitionResult {
   const prevIsLoadingRef = useRef(isLoading);
   const phaseRef = useRef<CofrePhase>('hidden');
-  const safetiesRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [, forceRender] = useState(0);
 
-  const clearSafeties = () => {
-    for (const t of safetiesRef.current) clearTimeout(t);
-    safetiesRef.current = [];
-  };
+  // Compute the next phase during render (same-commit, no flash).
+  // Side-effect scheduling (timers, RAF) happens in useLayoutEffect below.
+  const nextPhase = computeNextPhase();
 
-  // ── SAME-RENDER ACTIVATION ──
-  // When isLoading→false AND we have a large dossier, set the phase ref
-  // during THIS render so the Cofre overlay appears in the initial DOM
-  // commit. No 1-frame flash of frozen content.
-  if (
-    !isLoading &&
-    prevIsLoadingRef.current &&
-    hasLargeDossier &&
-    !shouldSuspendVirtualizedList &&
-    phaseRef.current === 'hidden'
-  ) {
-    phaseRef.current = 'entering';
-    clearSafeties();
+  function computeNextPhase(): CofrePhase {
+    if (isLoading && !prevIsLoadingRef.current) {
+      return 'hidden';
+    }
+    if (
+      !isLoading &&
+      prevIsLoadingRef.current &&
+      hasLargeDossier &&
+      !shouldSuspendVirtualizedList &&
+      phaseRef.current === 'hidden'
+    ) {
+      return 'entering';
+    }
+    return phaseRef.current;
+  }
 
-    // 200ms: CSS cofre-enter animation completes → transition to 'visible'
-    safetiesRef.current.push(
+  phaseRef.current = nextPhase;
+  prevIsLoadingRef.current = isLoading;
+
+  // ── Side-effects scheduled in useLayoutEffect ──
+  // Runs synchronously after DOM commit but before paint, keeping the
+  // Cofre in the same visual frame. All timers/RAF properly cleaned up.
+  useLayoutEffect(() => {
+    if (phaseRef.current !== 'entering') return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let cancelled = false;
+
+    timers.push(
       setTimeout(() => {
+        if (cancelled) return;
         phaseRef.current = 'visible';
         forceRender(n => n + 1);
 
-        // Double-RAF: once the browser has painted at least one frame with
-        // the dossier content, dissolve the overlay.
         requestAnimationFrame(() => {
+          if (cancelled) return;
           requestAnimationFrame(() => {
+            if (cancelled) return;
             phaseRef.current = 'dissolving';
             forceRender(n => n + 1);
 
-            // 350ms: CSS cofre-dissolve animation completes → remove overlay
-            safetiesRef.current.push(
+            timers.push(
               setTimeout(() => {
+                if (cancelled) return;
                 phaseRef.current = 'hidden';
                 forceRender(n => n + 1);
               }, 350),
@@ -81,34 +93,36 @@ export function useCofreTransition({
       }, 200),
     );
 
-    // ── Safety timeout: never stay visible longer than 10s ──
-    safetiesRef.current.push(
+    // Safety timeout: never stay visible longer than 10s
+    timers.push(
       setTimeout(() => {
+        if (cancelled) return;
         if (phaseRef.current === 'visible' || phaseRef.current === 'entering') {
           phaseRef.current = 'dissolving';
           forceRender(n => n + 1);
-          setTimeout(() => {
-            phaseRef.current = 'hidden';
-            forceRender(n => n + 1);
-          }, 350);
+          timers.push(
+            setTimeout(() => {
+              if (cancelled) return;
+              phaseRef.current = 'hidden';
+              forceRender(n => n + 1);
+            }, 350),
+          );
         }
       }, 10000),
     );
-  }
 
-  // ── LOADING RESUMED — immediately hide ──
-  if (isLoading && !prevIsLoadingRef.current) {
-    phaseRef.current = 'hidden';
-    clearSafeties();
-  }
+    return () => {
+      cancelled = true;
+      for (const t of timers) clearTimeout(t);
+    };
+  }, [nextPhase]);
 
-  // Store current isLoading for next render comparison
-  prevIsLoadingRef.current = isLoading;
-
-  // Cleanup on unmount
+  // Cleanup if loading resumes
   useEffect(() => {
-    return () => clearSafeties();
-  }, []);
+    if (isLoading) {
+      phaseRef.current = 'hidden';
+    }
+  }, [isLoading]);
 
   return { cofrePhase: phaseRef.current };
 }

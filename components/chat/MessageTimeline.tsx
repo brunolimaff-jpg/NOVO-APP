@@ -324,7 +324,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [isMessagesViewportReady, currentSession?.id]);
+  }, [isMessagesViewportReady, currentSession?.id, virtuosoKey]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -412,7 +412,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   // Temporizador de elapsedTimeMs para o overlay Cofre
   const [cofreElapsedTimeMs, setCofreElapsedTimeMs] = useState(0);
-  const cofreTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cofreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isLoading) {
@@ -423,7 +423,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }, 1000);
       return () => {
         if (cofreTimerRef.current !== null) {
-          clearTimeout(cofreTimerRef.current);
+          clearInterval(cofreTimerRef.current);
           cofreTimerRef.current = null;
         }
       };
