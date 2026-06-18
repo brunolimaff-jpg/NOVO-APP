@@ -166,6 +166,7 @@ async function buildTeiaResearchContext(params: {
           : '';
         const partnerText = `${partner.name || 'Socio sem nome'}${docSuffix} — ${partner.role || 'qualificacao nao informada'} (${partner.source})`;
         if (hasHoldingSignal(partnerText)) hasHolding = true;
+        if (partner.document) knownCnpjs.add(normalizeCnpj(partner.document));
         return `- ${partnerText}`;
       });
 
@@ -309,7 +310,11 @@ export async function validateInlineSourcesForPromotion(
     });
 
     // Prevent unhandled rejection when Promise.race discards this promise
-    fetchPromise.catch(() => {});
+    fetchPromise.catch((err: unknown) => {
+      scoutDiag.warn('FreezeDiag', 'inline-validation:fetch:race-discarded', {
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    });
 
     const response = await withInlineValidationBudget(
       fetchPromise,
