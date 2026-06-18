@@ -1,5 +1,17 @@
 {
   "mcpServers": {
+    "deepseek": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "deepseek-mcp-server"],
+      "env": {
+        "DEEPSEEK_API_KEY": "${DEEPSEEK_API_KEY}"
+      }
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    },
     "supabase": {
       "type": "stdio",
       "command": "npx",
@@ -20,7 +32,8 @@
     },
     "sentry": {
       "command": "./scripts/sentry-mcp.sh",
-      "args": []
+      "args": [],
+      "type": "stdio"
     }
   }
 }
