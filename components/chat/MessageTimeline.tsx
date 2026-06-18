@@ -298,7 +298,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     if (!isMessagesViewportReady) return;
 
     const timer = window.setTimeout(() => {
-      const scroller = document.querySelector<HTMLElement>('[data-testid="messages-scroller"]');
+      const scroller = messagesViewportRef.current?.querySelector<HTMLElement>('[data-testid="messages-scroller"]');
       if (!scroller) return;
 
       const cs = getComputedStyle(scroller);
