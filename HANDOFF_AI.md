@@ -35,15 +35,17 @@ Executar o P0 operacional e consolidar o Playbook de Execucao a Prova de IA como
 - RED do cron: 2 testes falharam antes da protecao dry-run.
 - GREEN do cron: 9 testes verdes apos a protecao.
 - Typecheck, build e `docs:obsidian:check` passaram.
+- PR #379 em `23177dc8`: CI, E2E Critical Browser, Preview Smoke, Vercel, CodeQL e revisoes automaticas verdes.
+- Preview: `https://scoutagro-i99c5svwe-brunolimaff-3629s-projects.vercel.app`.
 - Lint permanece vermelho por 7 erros preexistentes mapeados para a Fase 0.
 - Validador global do Vault permanece vermelho por transcricoes legadas sem frontmatter; os arquivos novos passaram na verificacao estrutural isolada.
 - Preview/producao do novo codigo: **NAO VALIDADO**, ainda sem deploy.
 
 ## Proximos Passos
 
-1. Aguardar os checks e o Preview da PR #379.
-2. Apos Preview verde, configurar `CRON_SECRET` e chamar o endpoint em dry-run.
-3. Revisar a contagem de candidatos antes de autorizar `CRON_DELETE_ENABLED=true`.
+1. Configurar `CRON_SECRET` somente depois que esta protecao chegar ao ambiente escolhido.
+2. Chamar o endpoint autenticado em dry-run e registrar a contagem.
+3. Revisar os candidatos antes de autorizar `CRON_DELETE_ENABLED=true`.
 
 ## Guardas
 
