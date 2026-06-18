@@ -4,16 +4,6 @@ Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
 
 ## Timeline
 
-### 2026-06-18 (Sprint 1 — CNPJ QSA + catch log)
-
-- PR #380 aberta (branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`).
-- T-B.2: `partner.document` validado (14 digitos) e formatado no `partnerText` para `validateTeiaCnpjsOutput` extrair via regex. Falsos-positivos de "CNPJ nao confirmado" eliminados.
-- T-B.3: `.catch(() => {})` -> `scoutDiag.warn` em `waterfall-orchestrator.ts:307`. Logs de erro agora tem contexto.
-- 1502/1502 testes verdes, typecheck limpo. PR #380 aguardando CI.
-- 3 novas licoes: fix incompleto, documento QSA (CPF mascarado), Codex nao modifica config.
-- Playbook Sprint 1 parcial: T-B.2 e T-B.3 concluidos. Proximas: Sprint 2 (T-C.1), Sprint 3 (T-D.1 + T-A.4).
-- Handoff: documentacao consolidada (este arquivo + HANDOFF_AI.md + decisions.md + CALIBER_LEARNINGS.md).
-
 ### 2026-06-18 (PR #379 mergeada + playbook verification)
 
 - PR #379 mergeada (db5a9a8d) e em producao.

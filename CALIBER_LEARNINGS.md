@@ -4,11 +4,11 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
-- **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTORICO
+- **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
   ~~Aplicado com sucesso — migracao completa de idb-keyval para Supabase.~~
-  **Removido na PR #317 (31/05/2026).** Substituido por Supabase direto como fonte unica.
+  **Removido na PR #317 (31/05/2026).** Substituído por Supabase direto como fonte única.
 
 - **Validar intencao de produto alem do evento tecnico** [ux, feedback, supabase, produto]
   Ao validar fluxos de produto, confirmar se o comportamento real representa a intencao esperada, nao apenas se o evento chegou no destino tecnico.
@@ -52,9 +52,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Catch silencioso em consulta cria duplicata no Supabase** [supabase, catch, duplicata]
   `findExistingDossier` retorna `null` no catch. O caller interpreta null como "nao existe" e cria novo registro. Nunca usar `return null` em catch de funcao de consulta sem log ou fallback.
 
-- **[HISTORICO] Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
+- **[HISTÓRICO] Cross-device: Supabase e IDB fora de sync** [offline, supabase, indexddb, sync]
   ~~`findExistingDossier` consulta Supabase, `getDossier` so le IndexedDB. Em device B, o dossier existe no Supabase mas getDossier retorna null. Toda consulta entre fontes precisa de protocolo de sync claro.~~
-  Este anti-padrao era especifico da arquitetura IDB removida na PR #317. O principio geral (nao ter duas fontes de verdade) permanece valido.
+  Este anti-padrão era específico da arquitetura IDB removida na PR #317. O princípio geral (não ter duas fontes de verdade) permanece válido.
 
 - **Componente condicional sem `key` causa estado stale** [react, key, componente]
   `DossierShareBar` sem `key={dossierId}` faz React reutilizar a instancia do componente, exibindo dados do dossier anterior. Toda renderizacao condicional que depende de props mutaveis precisa de key.
@@ -72,7 +72,7 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Strings de evento como `dossier:completed` sao literais sem constante. Um typo quebra o listener silenciosamente. Todo CustomEvent deve ter seu tipo em `types.ts`.
 
 - **isThinking:true persistido bloqueia renderizacao pos-reload** [supabase, hidratacao, ui-transiente]
-  Estados transientes de UI (`isThinking`, `loadingVariant`, `isSourcesOpen`) sao persistidos no Supabase via `content` JSONB. No reload, `ChatInterface.tsx:296` filtra mensagens com `isThinking:true` -> timeline vazia. Solucao: `stripTransientState()` no save, normalizacao no load.
+  Estados transientes de UI (`isThinking`, `loadingVariant`, `isSourcesOpen`) sao persistidos no Supabase via `content` JSONB. No reload, `ChatInterface.tsx:296` filtra mensagens com `isThinking:true` → timeline vazia. Solucao: `stripTransientState()` no save, normalizacao no load.
 
 - **Supabase .upsert() resolve com {error}, nunca rejeita** [supabase, promessas, anti-padrao]
   `Promise.allSettled` com upsert individual nunca detecta falhas porque o cliente Supabase resolve a Promise mesmo com erro. `r.status === 'rejected'` sempre captura zero. Solucao: bulk upsert (array no `.upsert()`) ou verificar `r.value.error` em cada fulfilled.
@@ -80,9 +80,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **.single() gera erro falso PGRST116 no console** [supabase, ux, log]
   `.single()` do Supabase retorna erro HTTP quando registro nao existe — mesmo em fluxo normal de "dossier ainda nao criado". Trocar por `.maybeSingle()` elimina erro falso.
 
-- **[HISTORICO] Migracao IDB->Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
+- **[HISTÓRICO] Migracao IDB→Supabase offline conta como sucesso** [migracao, offline, falha-silenciosa]
   ~~`saveDossier` retorna void sem throw quando `!isSupabaseAvailable()`. Migracao incrementa contador e seta flag permanente sem verificar se upsert real ocorreu. Solucao: verificar `isSupabaseAvailable()` no topo da migracao, retornar sem setar flag.~~
-  Migracao concluida. Flag permanente ja setada. Nao aplicavel ao codigo atual.
+  Migração concluída. Flag permanente já setada. Não aplicável ao código atual.
 
 - **deleteDossier nunca chamado pelo fluxo de UI** [delete, controller, persistencia]
   `handleDeleteSession` removia apenas do estado React. `storage.deleteDossier` existia mas nunca era chamado. Dossie "deletado" reaparecia no reload. Solucao: fire-and-forget `storage.deleteDossier(id)` no controller.
@@ -123,14 +123,14 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **generationBefore/After guard evita dossier:completed falso** [eventbus, guard, waterfall, restart-loop]
   `processMessage` salvava `generationBefore` no inicio e comparava com `generationAfter` antes de emitir `dossier:completed`. Se a geracao mudou durante a execucao (outro waterfall foi iniciado), o evento nao e emitido. Isso evita que o consumidor receba um `dossier:completed` de uma sessao que ja foi substituida.
 
-- **loadingVariant zera no finally, nao em completeLoadingProgress** [loading, freeze, hero, virtuoso]
-  `completeLoadingProgress()` so finaliza etapas. `setLoadingVariant(undefined)` junto de `setIsLoading(false)` no `finally`. Overlay/timeline usam `isLoading && variant !== 'inline'` para cobrir janela com variant undefined.
+- **loadingVariant zera no finally, não em completeLoadingProgress** [loading, freeze, hero, virtuoso]
+  `completeLoadingProgress()` só finaliza etapas. `setLoadingVariant(undefined)` junto de `setIsLoading(false)` no `finally`. Overlay/timeline usam `isLoading && variant !== 'inline'` para cobrir janela com variant undefined.
 
-- **lookupCnpj e server-only — browser deve usar fetchCompanyByCnpj via /api/cnpj** [cnpj, cors, browser, proxy]
+- **lookupCnpj é server-only — browser deve usar fetchCompanyByCnpj via /api/cnpj** [cnpj, cors, browser, proxy]
   `lib/cnpjLookup.ts:lookupCnpj` chama APIs externas (BrasilAPI, CNPJ.ws, MinhaReceita) diretamente — causa CORS garantido quando chamado do browser. Sintoma: console com "Access-Control-Allow-Origin", coluna CNAE vazia, "todas as fontes falharam". Solucao: no browser, sempre usar `fetchCompanyByCnpj` de `services/brasilApiService` que roteia via `/api/cnpj` (proxy Vercel). O `lookupCnpj` deve ser usado apenas em contexto server (API routes ou scripts Node). Adicionado comentario server-only em `lib/cnpjLookup.ts` e guardas no codigo.
 
 - **hasRenderableBotMessage deve incluir preview isThinking com texto suficiente** [waterfall, preview, timeline, blank-panel]
-  `hasRenderableBotMessage` original exigia `!isThinking`, portanto bloqueava a timeline durante TODO o waterfall mesmo com preview de >200 chars disponivel. `shouldSuspendHeroMessageTimeline` ficava `true` -> painel central vazio (blank panel) durante waterfall. Fix: considerar renderizavel quando `!isThinking || text.trim().length >= 200` (WATERFALL_PREVIEW_MIN_CHARS). O overlay hero continua visivel (via `shouldShowHeroLoadingOverlay`), mas a timeline mostra preview incremental.
+  `hasRenderableBotMessage` original exigia `!isThinking`, portanto bloqueava a timeline durante TODO o waterfall mesmo com preview de >200 chars disponivel. `shouldSuspendHeroMessageTimeline` ficava `true` → painel central vazio (blank panel) durante waterfall. Fix: considerar renderizavel quando `!isThinking || text.trim().length >= 200` (WATERFALL_PREVIEW_MIN_CHARS). O overlay hero continua visivel (via `shouldShowHeroLoadingOverlay`), mas a timeline mostra preview incremental.
 
 - **CNAE enrichment deve ser deferido com requestIdleCallback para nao bloquear main thread pos-waterfall** [performance, cnae, requestIdleCallback, freeze]
   Quando o waterfall termina e isLoading vai a false, o React monta o dossie completo + SocietaryMap dispara 6x `/api/socio-search` + CNAE enrichment em paralelo. Isso saturava o main thread e causava "Pagina sem resposta". Fix: encapsular o enrich() em `requestIdleCallback` (com fallback `setTimeout(fn, 0)`) para que o enriquecimento CNAE ocorra em tempo ocioso. Tambem usa AbortController para cancelar na desmontagem.
@@ -138,68 +138,68 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **virtuosoOverscan 1400 agrava freeze quando dossie tem SocietaryMap** [performance, virtuoso, overscan, teia]
   `virtuosoOverscan=1400` para dossies longos causava re-montagem do SocietaryMap ao rolar, disparando novos lotes de QSA + CNAE. Fix: detectar mensagens com "teia societaria" e reduzir overscan para 600 nesses casos.
 
-- **Nao fazer flushWaterfallPreview por modulo no waterfall** [performance, freeze, virtuoso]
-  Re-render da sessao inteira a cada modulo (>200 chars) montava Virtuoso durante hero loading. Remover flush por modulo; consolidar no final.
+- **Não fazer flushWaterfallPreview por módulo no waterfall** [performance, freeze, virtuoso]
+  Re-render da sessão inteira a cada módulo (>200 chars) montava Virtuoso durante hero loading. Remover flush por módulo; consolidar no final.
 
 - **Stop sem AbortController deve invalidar activeGenerationRef** [abort, stop, waterfall]
   `handleStopGeneration` limpa UI e delete `activeGenerationRef[sessionId]`; waterfall checa antes de `updateSessionById` final.
 
 - **expectedBotCharsMax deve incluir texto em isThinking** [blank-panel, virtuoso, telemetria]
-  `computeExpectedBotContent` ignorava preview do bot com `isThinking:true`. Timers e fallback proativo subestimavam o dossier em formacao. Incluir `isThinking` na contagem de chars.
+  `computeExpectedBotContent` ignorava preview do bot com `isThinking:true`. Timers e fallback proativo subestimavam o dossiê em formação. Incluir `isThinking` na contagem de chars.
 
-- **Fallback estatico proativo para dossies grandes (>=4k chars)** [virtuoso, blank-panel, performance]
-  Ao fim do loading hero, se o bot ja tem >=4.000 caracteres, ativar timeline estatica antes do Virtuoso. Evita painel branco pos-waterfall em Scheffer (~30k chars) sem depender so do detector reativo.
+- **Fallback estático proativo para dossiês grandes (≥4k chars)** [virtuoso, blank-panel, performance]
+  Ao fim do loading hero, se o bot já tem ≥4.000 caracteres, ativar timeline estática antes do Virtuoso. Evita painel branco pós-waterfall em Scheffer (~30k chars) sem depender só do detector reativo.
 
-- **Primeiro delay de blank-panel em 750ms, nao 0ms** [virtuoso, false-positive, blank-panel]
-  Checagem em 0ms pega Virtuoso antes de montar `message-row` -> falsos positivos de fallback. O proativo ja cobre dossies grandes; manter `[750, 2000, 5000, 9000]`.
+- **Primeiro delay de blank-panel em 750ms, não 0ms** [virtuoso, false-positive, blank-panel]
+  Checagem em 0ms pega Virtuoso antes de montar `message-row` → falsos positivos de fallback. O proativo já cobre dossiês grandes; manter `[750, 2000, 5000, 9000]`.
 
-- **Virtuoso mount com viewport 0x0 no handoff pos-loading** [virtuoso, blank-panel, diagnostico]
-  Logs: `virtuoso:mount` com `viewportWidth/Height: 0` seguido de `static-fallback-rendered`. `itemsRendered` nao prova DOM visivel — validar `PostCompletion` e fallback.
+- **Virtuoso mount com viewport 0×0 no handoff pós-loading** [virtuoso, blank-panel, diagnostico]
+  Logs: `virtuoso:mount` com `viewportWidth/Height: 0` seguido de `static-fallback-rendered`. `itemsRendered` não prova DOM visível — validar `PostCompletion` e fallback.
 
-- **Gemini 500 em modulo opcional nao aborta waterfall** [gemini, modular-dossier, resiliencia]
-  Bordas de Controle 500 -> ignorado; retry PORTA depois conclui. Nao confundir erro de modulo opcional com falha total do dossier.
+- **Gemini 500 em módulo opcional não aborta waterfall** [gemini, modular-dossier, resiliencia]
+  Bordas de Controle 500 → ignorado; retry PORTA depois conclui. Não confundir erro de módulo opcional com falha total do dossiê.
 
-- **Burst CNPJ socios com AbortSignal pos-dossier** [cnpj, societary-map, react]
-  Apos fim do loading, dezenas de `iniciando lookup` + `signal is aborted without reason` em CNPJs de socios. Causa provavel: effect com `[graph, cnaeMap]` remontando e abortando batch — PR separada.
+- **Burst CNPJ sócios com AbortSignal pós-dossiê** [cnpj, societary-map, react]
+  Após fim do loading, dezenas de `iniciando lookup` + `signal is aborted without reason` em CNPJs de sócios. Causa provável: effect com `[graph, cnaeMap]` remontando e abortando batch — PR separada.
 
-- **Sentry vazio nao invalida incidente de UI** [sentry, supabase, observabilidade]
-  7d sem eventos Sentry para blank/gemini; tudo em `scout_diagnostics`. Triagem de regressao visual: Supabase primeiro.
+- **Sentry vazio não invalida incidente de UI** [sentry, supabase, observabilidade]
+  7d sem eventos Sentry para blank/gemini; tudo em `scout_diagnostics`. Triagem de regressão visual: Supabase primeiro.
 
 - **E2E sem PII real nos defaults** [e2e, seguranca, playwright]
-  Defaults `E2E Operator` / `e2e.operator@example.com`; identidade real so via env em smoke local.
+  Defaults `E2E Operator` / `e2e.operator@example.com`; identidade real só via env em smoke local.
 
-- **Service Worker CacheFirst bloqueia atualizacoes em producao** [pwa, service-worker, cache, deploy]
-  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuarios em versoes antigas. Preview sem SW nunca reproduz o bug. Solucao: remover PWA/SW ou usar NetworkFirst com asset versioning.
+- **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
+  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuários em versões antigas. Preview sem SW nunca reproduz o bug. Solução: remover PWA/SW ou usar NetworkFirst com asset versioning.
 
-- **Preview sem SW vs Producao com SW cria falsa confianca** [pwa, validacao, homologacao]
-  Concluir que "preview funcionou = producao vai funcionar" sem checar configuracao de SW/PWA e enganoso. Toda validacao pre-producao deve verificar se o cache de SW esta ativo.
+- **Preview sem SW vs Produção com SW cria falsa confiança** [pwa, validacao, homologacao]
+  Concluir que "preview funcionou = produção vai funcionar" sem checar configuração de SW/PWA é enganoso. Toda validação pré-produção deve verificar se o cache de SW está ativo.
 
-- **DOM cleanup com .remove() quebra reconciliacao do React** [react, dom, overlay, cleanup]
+- **DOM cleanup com .remove() quebra reconciliação do React** [react, dom, overlay, cleanup]
   Remover elemento do DOM via `.remove()` sem React saber causa desync entre virtual DOM e real DOM. Overlay continua visualmente presente mesmo com `setIsLoading(false)`. Usar `display:none` no elemento raiz.
 
 - **useMemo deve ser puro; side effects pertencem ao useEffect** [react, usememo, performance]
-  `useMemo` e para computacao derivada sincrona. Colocar manipulacao de DOM, chamadas assincronas ou leitura de `window.location` dentro de `useMemo` quebra o contrato do React.
+  `useMemo` é para computação derivada síncrona. Colocar manipulação de DOM, chamadas assíncronas ou leitura de `window.location` dentro de `useMemo` quebra o contrato do React.
 
-- **Optional chaining deve ir ate o fim da cadeia** [typescript, null-safety, optional-chaining]
-  `text?.trim()` nao previne erro se `trim` retornar null. Cadeia completa: `text?.trim()?.length`. O ultimo acesso tambem precisa de `?.`.
+- **Optional chaining deve ir até o fim da cadeia** [typescript, null-safety, optional-chaining]
+  `text?.trim()` não previne erro se `trim` retornar null. Cadeia completa: `text?.trim()?.length`. O último acesso também precisa de `?.`.
 
-- **Sempre incluir hostname em logs de diagnostico** [debug, logging, ambiente]
-  Logs de producao e preview parecem identicos sem o hostname. Incluir `window.location.hostname` em todo log de diagnostico que depende de ambiente.
+- **Sempre incluir hostname em logs de diagnóstico** [debug, logging, ambiente]
+  Logs de produção e preview parecem idênticos sem o hostname. Incluir `window.location.hostname` em todo log de diagnóstico que depende de ambiente.
 
 - **Hard invariant como airbag contra UI quebrada** [react, invariante, ui, safety-net, waterfall]
-  Quando o estado React pode falhar (race condition, desync), um hard invariant que forcadamente libera o estado (setIsLoading(false) + display:none) funciona como ultima barreira. Deve ser acionado por condicoes observaveis (waterfallEndStatus completed/failed/partial, botMsgTextLen > 0), nao por chain de estado.
+  Quando o estado React pode falhar (race condition, desync), um hard invariant que forçadamente libera o estado (setIsLoading(false) + display:none) funciona como última barreira. Deve ser acionado por condições observáveis (waterfallEndStatus completed/failed/partial, botMsgTextLen > 0), não por chain de estado.
 
 - **NUNCA nullificar abortControllerRef fora do processMessage:finally** [waterfall, abort, processmessage, bleeding-edge]
-  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) nao deve nullificar `abortControllerRef`. Se o ref e limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca e chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, nao ao helper de UI.
+  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) não deve nullificar `abortControllerRef`. Se o ref é limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca é chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, não ao helper de UI.
 
 - **NUNCA usar TreeWalker/document.body scan para DOM cleanup** [performance, dom, treewalker, main-thread]
   `document.createTreeWalker(document.body)` percorre o DOM inteiro em busca de seletores — bloqueia a main thread por dezenas de ms em arvores grandes. Substituir por `querySelector` direto com 3 seletores alvo, sem escanear o body inteiro.
 
-- **DOM cleanup DOM display:none e safety net; React render condition e primario** [react, dom, cleanup, overlay, safety-net]
-  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net para casos onde o React nao conseguiu renderizar (erro, crash). Mas o mecanismo PRIMARIO de liberacao do overlay e a condicao de renderizacao React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
+- **DOM cleanup DOM display:none é safety net; React render condition é primário** [react, dom, cleanup, overlay, safety-net]
+  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net para casos onde o React não conseguiu renderizar (erro, crash). Mas o mecanismo PRIMÁRIO de liberação do overlay é a condição de renderização React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
 
-- **hasRenderableBotMessage como condicao em TODOS os gates de loading** [waterfall, loading, overlay, gate]
-  `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot ja e renderizavel (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay nao deve mais bloquear, independente de `isLoading` ainda ser `true`.
+- **hasRenderableBotMessage como condição em TODOS os gates de loading** [waterfall, loading, overlay, gate]
+  `hasRenderableBotMessage` deve ser verificado em qualquer gate que decida mostrar ou esconder overlay/hero. Se a mensagem do bot já é renderizável (texto >= WATERFALL_PREVIEW_MIN_CHARS), o overlay não deve mais bloquear, independente de `isLoading` ainda ser `true`.
 
 - **AbortSignal.timeout() cobre apenas conexao, nao leitura do body** [fetch, timeout, abort, body-read]
   `fetch(url, { signal: AbortSignal.timeout(N) })` aborta apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora (ou e grande), `response.json()` fica bloqueada indefinidamente. Solucao: `AbortController` explicito para timeout total + `response.text()` com race contra timeout dedicado + `JSON.parse()` manual.
@@ -269,7 +269,7 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Falha controlada de `/api/gemini` deve mostrar `error-message-card`, remover overlay e liberar input. Nao ajustar teste para aceitar estado preso.
 
 - **Modulo opcional deve falhar aberto** [waterfall, resiliencia]
-  `validate-inline-sources`, benchmark e continuity-question nao podem bloquear todo o dossier. Timeout retorna fallback seguro.
+  `validate-inline-sources`, benchmark e continuity-question nao podem bloquear todo o dossie. Timeout retorna fallback seguro.
 
 - **Validacao final deve confirmar intencao de produto** [ux, validacao]
   Checks verdes, Supabase persistido e logs saudaveis nao bastam. Fechamento exige overlay fora, input habilitado, cards/bot visiveis e ausencia de stuck/blank.
@@ -283,51 +283,51 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Ao fazer merge com `origin/main`, arquivos modificados no working tree (gemini_usage) vazaram para o merge via `--ours`. `waterfall-orchestrator.ts` ganhou `operatorId` que quebrou typecheck porque `types.ts` nao tinha o campo. Sempre fazer merge com working tree limpa ou usar `git stash`.
 
 - **display:none em flex colapsado foi REFUTADO** [css, layout, debug, flexbox]
-  A hipotese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` e FALSA. Reproducao minima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injecao de runtime, ou race condition com React hydration).
+  A hipótese de que o browser computa `display:none` automaticamente em flex items com `flex-basis:0%` + `min-h-0` é FALSA. Reprodução mínima provou que `getComputedStyle(el).display` permanece `block`/`flex`. O `display:none` real encontrado no Supabase tem origem externa (Vercel preview, injeção de runtime, ou race condition com React hydration).
 
-- **traceFullAncestorChain e superior a trace de culpado unico** [diagnostico, debug, layout]
-  `findFirstZeroDimensionAncestor` retorna apenas um no. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensao zero aparece. Preferir cadeia completa sobre busca de culpado unico em diagnosticos de layout.
+- **traceFullAncestorChain é superior a trace de culpado único** [diagnóstico, debug, layout]
+  `findFirstZeroDimensionAncestor` retorna apenas um nó. `traceFullAncestorChain` captura TODOS os ancestrais com `computedStyle` completo (display, width, height, visibility), permitindo identificar exatamente onde `display:none` ou dimensão zero aparece. Preferir cadeia completa sobre busca de culpado único em diagnósticos de layout.
 
-- **CodeQL nao bloqueia merge quando nao e check obrigatorio** [ci, codeql, merge, pr]
-  30 alertas pre-existentes em main nao impediram merge porque CodeQL nao esta na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuracao de branch protection, nao apenas o estado do check.
+- **CodeQL não bloqueia merge quando não é check obrigatório** [ci, codeql, merge, pr]
+  30 alertas pré-existentes em main não impediram merge porque CodeQL não está na lista de `required status checks`. Ao avaliar bloqueios de merge, verificar a configuração de branch protection, não apenas o estado do check.
 
 ## Bug P0 overlay hero (Junho 2026) — 14 novos aprendizados
 
-- **Service Worker CacheFirst bloqueia atualizacoes em producao** [pwa, service-worker, cache, deploy]
-  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuarios em versoes antigas. Preview sem SW nunca reproduz o bug. Solucao: remover PWA/SW ou usar NetworkFirst com asset versioning.
+- **Service Worker CacheFirst bloqueia atualizações em produção** [pwa, service-worker, cache, deploy]
+  CacheFirst para bundles JS/CSS em SPA com deploy frequente prende usuários em versões antigas. Preview sem SW nunca reproduz o bug. Solução: remover PWA/SW ou usar NetworkFirst com asset versioning.
 
-- **Preview sem SW vs Producao com SW cria falsa confianca** [pwa, validacao, homologacao]
-  Concluir que "preview funcionou = producao vai funcionar" sem checar configuracao de SW/PWA e enganoso. Toda validacao pre-producao deve verificar se o cache de SW esta ativo.
+- **Preview sem SW vs Produção com SW cria falsa confiança** [pwa, validacao, homologacao]
+  Concluir que "preview funcionou = produção vai funcionar" sem checar configuração de SW/PWA é enganoso. Toda validação pré-produção deve verificar se o cache de SW está ativo.
 
-- **DOM cleanup com .remove() quebra reconciliacao do React** [react, dom, overlay, cleanup]
+- **DOM cleanup com .remove() quebra reconciliação do React** [react, dom, overlay, cleanup]
   Remover elemento do DOM via `.remove()` sem React saber causa desync entre virtual DOM e real DOM. Overlay continua visualmente presente mesmo com `setIsLoading(false)`. Usar `display:none` no elemento raiz.
 
 - **NUNCA nullificar abortControllerRef fora do processMessage:finally** [waterfall, abort, processmessage, bleeding-edge]
-  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) nao deve nullificar `abortControllerRef`. Se o ref e limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca e chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, nao ao helper de UI.
+  `finalizeWaterfallUI` (chamado no `finally` do `processMessage`) não deve nullificar `abortControllerRef`. Se o ref é limpo antes do `processMessage:finally` terminar, `isAbort=true` detecta abort falso e `flushDiagnosticsNow` nunca é chamado. O `abortControllerRef` pertence ao ciclo de vida do `processMessage`, não ao helper de UI.
 
 - **NUNCA usar TreeWalker/document.body scan para DOM cleanup** [performance, dom, treewalker, main-thread]
-  `document.createTreeWalker(document.body)` percorre o DOM inteiro em busca de seletores — bloqueia a main thread por dezenas de ms em arvores grandes. Substituir por `querySelector` direto com 3 seletores alvo, sem escanear o body inteiro.
+  `document.createTreeWalker(document.body)` percorre o DOM inteiro em busca de seletores — bloqueia a main thread por dezenas de ms em árvores grandes. Substituir por `querySelector` direto com 3 seletores alvo, sem escanear o body inteiro.
 
-- **DOM cleanup DOM display:none e safety net; React render condition e primario** [react, dom, cleanup, overlay, safety-net]
-  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net. Mas o mecanismo PRIMARIO de liberacao do overlay e a condicao de renderizacao React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
+- **DOM cleanup DOM display:none é safety net; React render condition é primário** [react, dom, cleanup, overlay, safety-net]
+  O `requestAnimationFrame` + `querySelector` + `style.display='none'` no DOM existe como safety net. Mas o mecanismo PRIMÁRIO de liberação do overlay é a condição de renderização React (`shouldShowHeroLoadingOverlay` retornando `false`). DOM cleanup nunca deve ser o fluxo principal.
 
-- **h-full nao funciona em filho de flex item com flex-basis:0%** [css, flexbox, layout, display-none]
+- **h-full não funciona em filho de flex item com flex-basis:0%** [css, flexbox, layout, display-none]
   `height:100%` de um pai com `flex-basis:0%` (via `flex-1`) = 0px. Browser colapsa o elemento com `display:none`. O filho deve usar `flex-1` em vez de `h-full` para herdar altura real.
 
 - **absolute inset-0 causa display:none em certos contextos de flex** [css, flexbox, layout, display-none]
-  `absolute inset-0` como fallback de layout pode colapsar em contextos de flex container. Testar sempre com conteudo real grande (>20KB). Preferir `h-full w-full` + `flex-col` parent.
+  `absolute inset-0` como fallback de layout pode colapsar em contextos de flex container. Testar sempre com conteúdo real grande (>20KB). Preferir `h-full w-full` + `flex-col` parent.
 
-- **Preview Vercel revela bugs de layout que testes unitarios nao pegam** [css, layout, testing, vercel]
-  Layout rendering, CSS cascata, flex box so aparecem em browser real com dados reais. Smoke visual no preview e gate obrigatorio antes de merge para mudancas de CSS/layout.
+- **Preview Vercel revela bugs de layout que testes unitários não pegam** [css, layout, testing, vercel]
+  Layout rendering, CSS cascata, flex box só aparecem em browser real com dados reais. Smoke visual no preview é gate obrigatório antes de merge para mudanças de CSS/layout.
 
 - **Mock de scoutDiag precisa incluir debug: vi.fn()** [testing, mock, debug, scoutDiag]
-  Se `scoutDiag.debug()` e adicionado ao codigo de producao, os mocks nos testes precisam incluir `debug: vi.fn()` senao a chamada quebra silenciosamente. Toda vez que adicionar `scoutDiag.debug()`, verificar/atualizar os mocks.
+  Se `scoutDiag.debug()` é adicionado ao código de produção, os mocks nos testes precisam incluir `debug: vi.fn()` senão a chamada quebra silenciosamente. Toda vez que adicionar `scoutDiag.debug()`, verificar/atualizar os mocks.
 
-- **Sempre incluir hostname em logs de diagnostico** [debug, logging, ambiente]
-  Logs de producao e preview parecem identicos sem o hostname. `scoutagro.vercel.app` alias pode servir codigo sem estar no projeto. Incluir `window.location.hostname` em todo log de diagnostico.
+- **Sempre incluir hostname em logs de diagnóstico** [debug, logging, ambiente]
+  Logs de produção e preview parecem idênticos sem o hostname. `scoutagro.vercel.app` alias pode servir código sem estar no projeto. Incluir `window.location.hostname` em todo log de diagnóstico.
 
-- **Vercel alias orfao pode servir codigo sem estar no projeto** [vercel, deploy, domains, alias]
-  O alias `scoutagro.vercel.app` servia o mesmo codigo mas nao estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estao registrados.
+- **Vercel alias órfão pode servir código sem estar no projeto** [vercel, deploy, domains, alias]
+  O alias `scoutagro.vercel.app` servia o mesmo código mas não estava listado nos domains do projeto Vercel. Verificar dashboard Vercel > Domains para confirmar quais alias estão registrados.
 
 - **flushDiagnosticsNow sincrono pos-setState bloqueia React re-render** [react, setstate, render, settimeout, freeze]
   `flushDiagnosticsNow` chamado sincronamente no mesmo tick depois de `setIsLoading(false)` bloqueava o React re-render. O setState dispara render sincrono, mas o flush monopoliza a main thread. Playwright mostrou zero eventos pos-render. Solucao: `setTimeout(0)` com o flush, agendado ANTES do setState.
@@ -340,35 +340,34 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ---
 
-## Auditoria por exploracao paralela
+## Auditoria por exploração paralela
 
-- Dividir a auditoria por territorios aumenta a cobertura e reduz a navegacao sequencial.
+- Dividir a auditoria por territórios aumenta a cobertura e reduz a navegação sequencial.
 - Cada explorador deve informar os arquivos efetivamente lidos.
 - Resultados paralelos precisam ser consolidados sem duplicidade.
-- Toda auditoria deve terminar com uma etapa de autorrefutacao.
-- Codigo suspeito nao e automaticamente bug.
-- Uma cadeia de concorrencia precisa ser alcancavel, nao apenas teoricamente imagina-
-vel.
-- Timer sem cleanup nao e defeito sem efeito colateral demonstravel.
-- Documentacao gerada por IA deve ser confrontada com codigo e testes.
+- Toda auditoria deve terminar com uma etapa de autorrefutação.
+- Código suspeito não é automaticamente bug.
+- Uma cadeia de concorrência precisa ser alcançável, não apenas teoricamente imaginável.
+- Timer sem cleanup não é defeito sem efeito colateral demonstrável.
+- Documentação gerada por IA deve ser confrontada com código e testes.
 
-## Classificacao de incidentes mitigados
+## Classificação de incidentes mitigados
 
-Nao classificar automaticamente como P0 ativo um incidente que:
+Não classificar automaticamente como P0 ativo um incidente que:
 
 - ocorreu historicamente;
 - possui recovery funcional;
-- nao reincidiu apos a mitigacao;
+- não reincidiu após a mitigação;
 - continua apenas com causa raiz aberta.
 
-A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de gatilhos objetivos de reabertura.
+A classificação adequada é `incidente mitigado com causa aberta`, acompanhada de gatilhos objetivos de reabertura.
 
 ## Fidelidade dos testes de interface
 
-- jsdom nao reproduz integralmente layout, CSS computado, ResizeObserver e timing do navegador.
-- Virtuoso mockado nao comprova comportamento do virtual scroller real.
-- RAF sincrono em teste pode esconder condicoes temporais do navegador.
-- Incidentes de geometria e renderizacao devem ser confirmados por E2E em navegador real quando houver reincidencia.
+- jsdom não reproduz integralmente layout, CSS computado, ResizeObserver e timing do navegador.
+- Virtuoso mockado não comprova comportamento do virtual scroller real.
+- RAF síncrono em teste pode esconder condições temporais do navegador.
+- Incidentes de geometria e renderização devem ser confirmados por E2E em navegador real quando houver reincidência.
 
 ## Auth Remediation PR #372 (13 Jun 2026) — licoes consolidadas
 
@@ -466,7 +465,7 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Env vars adicionadas manualmente no Vercel Dashboard tem `internal: true` por padrao. Isso faz com que integracoes de terceiros (como Sentry Marketplace) nao consigam injetar suas proprias env vars. A integracao falha silenciosamente — o Sentry nunca recebe erros das serverless functions. Solucao: remover env vars manuais relacionadas a integracao (SENTRY_DSN, etc.) e deixar o Marketplace gerenciar.
   Afeta: configuracao de integracoes Vercel Marketplace.
 
-- **Vite define expoe variaveis ao client sem prefixo VITE_** [vite, build, env, config]
+- **Vite define expoe variaveis ao client sem prefixo VITE\_** [vite, build, env, config]
   `define` no `vite.config.ts` substitui strings em tempo de compilacao. Diferente de `import.meta.env.VITE_*`, o `define` expoe o valor SEMPRE, inclusive em testes. Para variaveis que so existem em producao (como SENTRY_DSN), usar condicional `!process.env.VITEST` no define, ou usar `import.meta.env.VITE_SENTRY_DSN` com env var real prefixada.
   Afeta: `vite.config.ts`, build config.
 
@@ -479,8 +478,8 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Afeta: scripts automatizados de env vars para preview deployments.
 
 - **CRITICO: Nunca usar backticks em comandos gh api com -f body — shell expande como comando** [seguranca, shell, gh, github, token, incidente]
-  `gh api ... -f body='text with \`command\` backticks'` faz o shell expandir os backticks como `$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
-  Afeta: qualquer comando `gh api` ou `gh pr` com corpo gerado dinamicamente.
+  `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
+Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
 <!-- caliber:managed:learnings -->
 
@@ -511,21 +510,4 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
   O token OAuth do MCP Vercel expira quando a sessao do Claude termina. Na sessao seguinte, comandos como `vercel env add` falham silenciosamente. A CLI Vercel (`vercel --token`) com token pessoal e mais confiavel para operacoes entre sessoes. Afeta: scripts de deploy e configuracao de env vars entre sessoes.
 
 - **gh api -F envia strings — para boolean/array usar --input com JSON puro** [github, gh, api, shell, json]
-  `gh api -F auto_merge=false` envia o valor como string "false", nao como boolean `false`. A API do GitHub rejeita porque espera boolean. Para enviar tipos corretos (boolean, array, objeto), usar `--input -` com pipe de JSON puro: `printf '{"auto_merge":false}' | gh api --input -`. Afeta: qualquer comando `gh api` que precise de tipos booleanos ou arrays.
-
-- **Branch protection strict mode bloqueia push mesmo de docs** [github, branch-protection, push, docs]
-  `required_status_checks.strict: true` bloqueia push se checks obrigatorios nao rodaram na branch. Para push de documentacao: desabilitar checks temporariamente -> push -> reabilitar. Afeta: fluxo de push de documentacao em branches protegidas.
-
-### Sessao 2026-06-18 — Sprint 1: CNPJ QSA + catch log (PR #380)
-
-- **Fix incompleto e pior que fix nenhum — valide o pipeline completo** [fix, validacao, pipeline, dado]
-  T-B.2 inicial so adicionava CNPJs validados ao Set em `knownCnpjs`, mas `validateTeiaCnpjsOutput` extrai CNPJs do `partnerText` por regex, nao do Set. Falsos-positivos continuavam porque faltava formatar o documento validado dentro do partnerText. Licao: sempre trace o fluxo completo do dado (Set -> consumidores) antes de declarar corrigido. Afeta: `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`, fluxo de validacao.
-
-- **Documentos de QSA podem ser CPF mascarado — validar 14 digitos** [cnpj, qsa, validacao, cpf]
-  `partner.document` vem de `pickPublicDocument` que suprime IDs completos por seguranca. CPFs mascarados (`***.123.456-**`) tem 11+ caracteres e passavam como "CNPJ" para `deriveObjectiveComplexity`. Sempre validar `length === 14` antes de tratar como CNPJ. Afeta: `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`, `deriveObjectiveComplexity`.
-
-- **Codex/CodeRabbit nao deve modificar .mcp.json, nimbalyst-local/ ou .claude/plugins/** [codex, codereview, config, infra]
-  Bot review agents poluiram o projeto com arquivos de configuracao de agente: .mcp.json (substituiu deepseek, vercel, sentry), ai-actions.md, manifest.json, 4 planos do nimbalyst, CODEX.md (duplicata de CLAUDE.md). Tudo revertido manualmente. Afeta: `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`.
-
-- **Vercel deploy poll em 2s e mais rapido que 5s sem impacto no rate limit** [vercel, deploy, poll, performance]
-  O polling de 5s atrasava a deteccao de "Ready" no deploy local. Reduzir para 2s acelera o feedback sem impacto significativo no rate limit da API Vercel (max 1 deploy por execucao). Afeta: scripts de deploy local.
+  `gh api -F auto_merge=false` envia o valor como string `"false"`, nao como boolean `false`. A API do GitHub rejeita porque espera boolean. Para enviar tipos corretos (boolean, array, objeto), usar `--input -` com pipe de JSON puro: `printf '{"auto_merge":false}' | gh api --input -`. Afeta: qualquer comando `gh api` que precise de tipos booleanos ou arrays.
