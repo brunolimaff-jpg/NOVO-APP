@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-06-18 - P0 validado no Preview; producao aguarda MERGE
+Last updated: 2026-06-18 - P0 do playbook revisado em execucao
 
 ## Timeline
 
@@ -14,15 +14,7 @@ Last updated: 2026-06-18 - P0 validado no Preview; producao aguarda MERGE
 - Cron protegido localmente com dry-run por padrao; RED e GREEN registrados.
 - Rotacao de API keys adiada e retirada do escopo atual por decisao do Bruno.
 - Handoff duravel: `Bruno Vault/20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`.
-- PR #379 aberta como draft: https://github.com/brunolimaff-jpg/NOVO-APP/pull/379; primeiro commit `73b8fb81`.
-- Checks da PR #379 verdes no commit `23177dc8`, incluindo E2E Critical Browser, Preview Smoke e Vercel.
-- Branch publicada ate o head `667fc8fc`.
-- Preview Ready: `https://scoutagro-ljs7o8dik-brunolimaff-3629s-projects.vercel.app`.
-- `CRON_SECRET` configurado somente no Preview; `CRON_DELETE_ENABLED` nao configurado.
-- Dry-run autenticado no Preview: HTTP 200, `{dryRun:true,candidates:0,cleaned:0,total:0}`.
-- Hook global instalado da versao versionada; teste PASS e encerramento apenas consultivo (`decision: null`).
-- Producao nao alterada por ausencia de `MERGE` explicito.
-- Proximo passo: revisar PR #379; apos merge autorizado, repetir o dry-run em producao antes de habilitar exclusao.
+- Proximo passo: publicar a protecao e validar dry-run antes de habilitar exclusao.
 
 ### 2026-06-17 (Registro do plano bloqueante)
 
