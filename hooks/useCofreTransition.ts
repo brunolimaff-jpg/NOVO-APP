@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { scoutDiag } from '../utils/diagnosticLog';
 import type { CofrePhase } from '../components/CofreOverlay';
 
 interface UseCofreTransitionParams {
@@ -27,6 +28,10 @@ interface UseCofreTransitionResult {
  *     'visible' (until double-RAF detects paint completion) →
  *     'dissolving' (350ms) →
  *     'hidden'
+ *
+ * P1 fix: Uses a ref-based lifecycleId to decouple the lifecycle effect
+ * from `[phase]` deps — preventing cleanup from killing RAF callbacks
+ * on phase transitions.
  */
 export function useCofreTransition({
   isLoading,
@@ -34,6 +39,7 @@ export function useCofreTransition({
   hasLargeDossier,
 }: UseCofreTransitionParams): UseCofreTransitionResult {
   const [phase, setPhase] = useState<CofrePhase>('hidden');
+  const [lifecycleId, setLifecycleId] = useState(0);
   const prevIsLoadingRef = useRef(isLoading);
   const phaseStartRef = useRef<number | null>(null);
 
@@ -41,38 +47,49 @@ export function useCofreTransition({
   const justFinishedLoading =
     !isLoading && prevIsLoadingRef.current && hasLargeDossier && !shouldSuspendVirtualizedList;
 
-  // ── Transition to 'entering' ──
-  // useLayoutEffect fires synchronously after DOM commit but before paint,
-  // so the Cofre appears in the same visual frame as the content.
+  // ── Start a new lifecycle (synchronous, before paint) ──
   useLayoutEffect(() => {
     if (justFinishedLoading && phase === 'hidden') {
       setPhase('entering');
       phaseStartRef.current = Date.now();
+      setLifecycleId(id => id + 1);
+      scoutDiag.info('Cofre', 'entering', {
+        hasLargeDossier,
+        shouldSuspendVirtualizedList,
+      });
     }
-  }, [justFinishedLoading, phase]);
+  }, [justFinishedLoading, phase, hasLargeDossier, shouldSuspendVirtualizedList]);
 
-  // ── Timer-driven phase transitions ──
+  // ── Single lifecycle effect ──
+  // Depends ONLY on lifecycleId, NOT on phase. This means when
+  // setPhase('visible') triggers a re-render, this effect does NOT
+  // re-run — its cleanup does NOT fire — so RAF callbacks survive.
   useEffect(() => {
-    if (phase !== 'entering') return;
+    if (lifecycleId === 0) return;
 
     let cancelled = false;
+    let stage: 'entering' | 'visible' | 'dissolving' | 'done' = 'entering';
 
     // 200ms: CSS cofre-enter animation completes → transition to 'visible'
     const enteringTimer = setTimeout(() => {
       if (cancelled) return;
+      stage = 'visible';
       setPhase('visible');
 
       // Double-RAF: once the browser has painted at least one frame with
       // the dossier content, dissolve the overlay.
       requestAnimationFrame(() => {
-        if (cancelled) return;
+        if (cancelled || stage !== 'visible') return;
         requestAnimationFrame(() => {
-          if (cancelled) return;
+          if (cancelled || stage !== 'visible') return;
+          stage = 'dissolving';
           setPhase('dissolving');
+          scoutDiag.info('Cofre', 'dissolve', { afterMs: Date.now() - (phaseStartRef.current ?? Date.now()) });
 
           // 350ms: CSS cofre-dissolve animation completes → remove overlay
           setTimeout(() => {
             if (cancelled) return;
+            stage = 'done';
             setPhase('hidden');
             phaseStartRef.current = null;
           }, 350);
@@ -82,15 +99,19 @@ export function useCofreTransition({
 
     // Safety timeout: never stay visible longer than 10s
     const safetyTimer = setTimeout(() => {
-      if (cancelled) return;
-      if (phaseStartRef.current !== null) {
-        setPhase('dissolving');
-        setTimeout(() => {
-          if (cancelled) return;
-          setPhase('hidden');
-          phaseStartRef.current = null;
-        }, 350);
-      }
+      if (cancelled || stage === 'done') return;
+      scoutDiag.warn('Cofre', 'safety-timeout-fired', {
+        stage,
+        elapsedMs: Date.now() - (phaseStartRef.current ?? Date.now()),
+      });
+      stage = 'dissolving';
+      setPhase('dissolving');
+      setTimeout(() => {
+        if (cancelled) return;
+        stage = 'done';
+        setPhase('hidden');
+        phaseStartRef.current = null;
+      }, 350);
     }, 10000);
 
     return () => {
@@ -98,7 +119,7 @@ export function useCofreTransition({
       clearTimeout(enteringTimer);
       clearTimeout(safetyTimer);
     };
-  }, [phase]);
+  }, [lifecycleId]);
 
   // ── Store previous isLoading for next render comparison ──
   useEffect(() => {
@@ -109,6 +130,7 @@ export function useCofreTransition({
   useEffect(() => {
     if (isLoading && phase !== 'hidden') {
       setPhase('hidden');
+      setLifecycleId(0);
       phaseStartRef.current = null;
     }
   }, [isLoading]);

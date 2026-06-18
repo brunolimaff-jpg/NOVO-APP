@@ -212,7 +212,7 @@ function StageList({ isDarkMode, stages }: { isDarkMode: boolean; stages: CofreS
               <span
                 className={`font-mono text-[10px] flex-shrink-0 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`}
               >
-                {stage.completed ? formatElapsed(stage.elapsedMs) : formatElapsed(stage.elapsedMs)}
+                {formatElapsed(stage.elapsedMs)}
               </span>
             )}
           </div>
@@ -233,9 +233,12 @@ function SkeletonCard({ isDarkMode, title, index }: { isDarkMode: boolean; title
     <div className={`rounded-2xl border overflow-hidden ${bg} ${borderColor}`} aria-hidden="true">
       {/* Card header */}
       <div className="px-5 pt-4 pb-1">
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{title}</span>
+        </div>
         <div className={`h-4 w-2/3 rounded-md ${bgLine} relative overflow-hidden`}>
           <div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shimmer"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shimmer motion-reduce:animate-none"
             style={{ animationDelay: `${index * 0.15}s` }}
           />
         </div>
@@ -250,7 +253,7 @@ function SkeletonCard({ isDarkMode, title, index }: { isDarkMode: boolean; title
             }`}
           >
             <div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shimmer"
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent animate-shimmer motion-reduce:animate-none"
               style={{ animationDelay: `${index * 0.15 + 0.1 + line * 0.1}s` }}
             />
           </div>
@@ -298,28 +301,30 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
   if (phase === 'hidden') return null;
 
   const elapsed = formatElapsed(elapsedTimeMs);
-  const isOpen = phase === 'entering' || phase === 'visible';
+  const isInteractive = phase === 'entering' || phase === 'visible' || phase === 'dissolving';
+  const isFullyVisible = phase === 'entering' || phase === 'visible';
 
   return (
     <div
       className={`absolute inset-0 z-40 overflow-hidden ${isOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
       role="status"
       aria-label="Briefing estrategico sendo preparado"
+      data-testid="cofre-overlay"
       data-cofre-phase={phase}
     >
       {/* ══ Glass backdrop layer ══ */}
       <div
         className={`absolute inset-0 transition-all ${
-          isOpen
+          isFullyVisible
             ? 'opacity-100 backdrop-blur-xl duration-200 ease-out'
-            : 'opacity-0 backdrop-blur-none duration-[350ms] ease-in'
+            : 'opacity-0 backdrop-blur-none duration-300 ease-in'
         } ${isDarkMode ? 'bg-slate-950/60' : 'bg-white/60'}`}
         style={{ transitionProperty: 'opacity, backdrop-filter, -webkit-backdrop-filter' }}
       />
 
       {/* ══ Subtle radial glow (adds depth to the glass) ══ */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 transition-opacity duration-300 ${isFullyVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
           background: `radial-gradient(ellipse 55% 45% at 50% 38%,
             ${isDarkMode ? 'rgba(5,150,105,0.04)' : 'rgba(5,150,105,0.025)'} 0%,
@@ -330,7 +335,7 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
 
       {/* ══ Subtle grid pattern (vault / blueprint feel) ══ */}
       <div
-        className={`absolute inset-0 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 transition-opacity duration-300 ${isFullyVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{
           backgroundImage: `
             linear-gradient(${isDarkMode ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.015)'} 1px, transparent 1px),
@@ -344,7 +349,7 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
       {/* ══ Content layer ══ */}
       <div
         className={`relative z-10 h-full flex flex-col items-center justify-center px-5 py-8 overflow-y-auto transition-opacity duration-200 ${
-          isOpen ? 'opacity-100' : 'opacity-0'
+          isFullyVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
         {/* Spacer to center content vertically */}
@@ -411,8 +416,6 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
                 hover:bg-red-500 hover:text-white hover:border-red-500
                 active:bg-red-600 active:scale-[0.97]
                 focus-visible:ring-2 focus-visible:ring-red-500/30 focus-visible:outline-none
-                dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/25
-                dark:hover:bg-red-500 dark:hover:text-white
                 transition-all duration-150"
             >
               <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">

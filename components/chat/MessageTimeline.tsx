@@ -324,7 +324,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     }, 2000);
 
     return () => window.clearTimeout(timer);
-  }, [isMessagesViewportReady, currentSession?.id, virtuosoKey]);
+  }, [isMessagesViewportReady, currentSession?.id]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -428,7 +428,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         }
       };
     }
-  }, [isLoading]);
+  }, [isLoading, currentSession?.id]);
 
   // Deriva os stages do Cofre a partir do objeto processing
   const derivedStages: CofreStage[] = useMemo(() => {
@@ -438,7 +438,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const stages: CofreStage[] = completed.map(label => ({
       label,
       completed: true,
-      elapsedMs: (cofreElapsedTimeMs || 0) / Math.max(completed.length || 1, 1),
+      elapsedMs: 0,
     }));
 
     if (currentStage && !completed.includes(currentStage)) {
