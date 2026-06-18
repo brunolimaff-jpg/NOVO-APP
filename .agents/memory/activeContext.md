@@ -11,6 +11,7 @@ O Playbook de Execucao a Prova de IA e um roadmap priorizado, nao uma trava de c
 - **Vault:** `20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`
 - **Fase:** P0 operacional
 - **Risco:** cron destrutivo sem protecao na versao atual de producao
+- **PR:** #379 (draft) - https://github.com/brunolimaff-jpg/NOVO-APP/pull/379
 
 ## P0
 
@@ -26,6 +27,7 @@ O Playbook de Execucao a Prova de IA e um roadmap priorizado, nao uma trava de c
 ## Estado do Projeto
 
 - PR #377 aberta e `CLEAN`; sem merge autorizado.
+- PR #379 aberta como draft para o P0; sem merge autorizado.
 - PR #378 mergeada em `ce40644a`.
 - `main` local original permanece suja e nao deve ser alterada por esta branch.
 - Pendencias tecnicas: auditoria RLS, `dossier_accesses`, duplicatas em `user_context` e monitoramento do historico.

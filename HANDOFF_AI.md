@@ -4,6 +4,7 @@
 **Branch:** `codex/p0-playbook-foundation`
 **Base:** `origin/main` (`ce40644a`)
 **Worktree:** `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/p0-playbook-foundation`
+**PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/379 (draft)
 
 ## Objetivo
 
@@ -17,6 +18,7 @@ Executar o P0 operacional e consolidar o Playbook de Execucao a Prova de IA como
 - `CODEX.md` consolidado sem trava global de agentes.
 - Rotacao de API keys ficou fora do escopo atual por decisao do Bruno; nao foi marcada como resolvida.
 - PR #377 permanece aberta e `CLEAN`; nao houve merge.
+- PR #379 aberta como draft; primeiro commit `73b8fb81`.
 
 ## P0 de Senha e Cron
 
@@ -39,10 +41,9 @@ Executar o P0 operacional e consolidar o Playbook de Execucao a Prova de IA como
 
 ## Proximos Passos
 
-1. Finalizar docs/memoria/Vault e validar os indices.
-2. Revisar diff, commitar e abrir PR desta branch.
-3. Apos Preview verde, configurar `CRON_SECRET` e chamar o endpoint em dry-run.
-4. Revisar a contagem de candidatos antes de autorizar `CRON_DELETE_ENABLED=true`.
+1. Aguardar os checks e o Preview da PR #379.
+2. Apos Preview verde, configurar `CRON_SECRET` e chamar o endpoint em dry-run.
+3. Revisar a contagem de candidatos antes de autorizar `CRON_DELETE_ENABLED=true`.
 
 ## Guardas
 
