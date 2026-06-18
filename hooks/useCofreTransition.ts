@@ -57,7 +57,11 @@ export function useCofreTransition({
   }
 
   phaseRef.current = nextPhase;
-  prevIsLoadingRef.current = isLoading;
+
+  // ── Update refs after commit (avoid render-time mutations) ──
+  useEffect(() => {
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   // ── Side-effects scheduled in useLayoutEffect ──
   // Runs synchronously after DOM commit but before paint, keeping the

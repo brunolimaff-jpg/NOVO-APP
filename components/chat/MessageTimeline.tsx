@@ -444,7 +444,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     if (currentStage && !completed.includes(currentStage)) {
       stages.push({
         label: currentStage,
-        completed: true,
+        completed: false,
         elapsedMs: cofreElapsedTimeMs || 0,
       });
     }
