@@ -46,6 +46,19 @@ jobs:
       - name: Shell hook tests
         run: bash tests/scripts/completion-check.test.sh
 
+  coverage:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run coverage
+        run: npm run test:coverage
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -57,6 +70,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Check bundle size budget
+        run: npm run check:budget
 
   e2e-critical-browser:
     name: E2E Critical Browser
@@ -76,3 +91,24 @@ jobs:
           tests-e2e/blank-center-panel-regression.spec.ts
           tests-e2e/controlled-error-state.spec.ts
           tests-e2e/loading-smart-recovery.spec.ts
+          tests-e2e/smoke.chat-shell.spec.ts
+          tests-e2e/smoke.hydration-post-reload.spec.ts
+
+  e2e-cnpj-flow:
+    name: E2E CNPJ Flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run CNPJ investigation flow
+        run: >-
+          npx playwright test
+          tests-e2e/cnpj-investigation-flow.spec.ts
+          tests-e2e/investigation-flow.spec.ts
+          tests-e2e/scheffer-cnpj-blank-panel.spec.ts

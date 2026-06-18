@@ -15,6 +15,39 @@ export default defineConfig({
     },
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: [
+        'components/**/*.tsx',
+        'hooks/**/*.ts',
+        'utils/**/*.ts',
+        'features/**/*.ts',
+        'services/**/*.ts',
+        'contexts/**/*.tsx',
+        'stores/**/*.tsx',
+        'api/**/*.ts',
+      ],
+      exclude: [
+        '**/node_modules/**',
+        'coverage/**',
+        'dist/**',
+        'tests/**',
+        'tests-e2e/**',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/setup.*',
+        'config/**',
+        'nimbalyst-local/**',
+      ],
+      thresholds: {
+        lines: 69,
+        branches: 57,
+        functions: 64,
+        statements: 69,
+      },
+    },
     // FIX: resolve conflitos de ESM entre dependências do jsdom
     server: {
       deps: {

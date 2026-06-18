@@ -1,0 +1,14 @@
+{
+  "$schema": "https://developer.chrome.com/docs/lighthouse/performance/budget-schema.json",
+  "resourceSizes": [
+    { "resourceType": "script", "budget": 5500 },
+    { "resourceType": "stylesheet", "budget": 150 },
+    { "resourceType": "font", "budget": 100 },
+    { "resourceType": "total", "budget": 6000 }
+  ],
+  "timings": [
+    { "metric": "interactive", "budget": 5000 },
+    { "metric": "first-contentful-paint", "budget": 2500 },
+    { "metric": "largest-contentful-paint", "budget": 6000 }
+  ]
+}
