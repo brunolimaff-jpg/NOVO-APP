@@ -15,6 +15,7 @@ describe('useChatLoadingProgress', () => {
     expect(result.current.requestKind).toBe('default');
     expect(result.current.loadingVariant).toBe('hero');
     expect(result.current.loadingPinnedLabel).toBeNull();
+    expect(result.current.generationKind).toBeNull();
   });
 
   it('reseta progresso regular e limpa falhas', () => {
@@ -82,11 +83,13 @@ describe('useChatLoadingProgress', () => {
       result.current.setRequestKind('deep_dive');
       result.current.setLoadingVariant('inline');
       result.current.setLoadingPinnedLabel('Deep Dive em andamento');
+      result.current.setGenerationKind('deep_dive');
     });
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.requestKind).toBe('deep_dive');
     expect(result.current.loadingVariant).toBe('inline');
     expect(result.current.loadingPinnedLabel).toBe('Deep Dive em andamento');
+    expect(result.current.generationKind).toBe('deep_dive');
   });
 });

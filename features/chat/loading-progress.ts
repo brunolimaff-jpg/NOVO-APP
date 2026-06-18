@@ -6,6 +6,7 @@ import {
 } from '../../utils/loadingStatus';
 import type { LoadingVariant, RequestKind } from '../../utils/loadingVariant';
 import { updateVisibilityState } from '../../utils/diagnosticLog';
+import type { GenerationKind } from '../../utils/cofreLifecycle';
 
 interface LoadingProgressState {
   stage: string;
@@ -36,6 +37,7 @@ export function useChatLoadingProgress() {
   const [requestKind, setRequestKind] = useState<RequestKind>('default');
   const [loadingVariant, setLoadingVariant] = useState<LoadingVariant | undefined>('hero');
   const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
+  const [generationKind, setGenerationKind] = useState<GenerationKind>(null);
 
   const loadingProgressRef = useRef<LoadingProgressState>({
     stage: INITIAL_LOADING_STAGE,
@@ -153,6 +155,8 @@ export function useChatLoadingProgress() {
     setLoadingVariant,
     loadingPinnedLabel,
     setLoadingPinnedLabel,
+    generationKind,
+    setGenerationKind,
     resetLoadingProgress,
     advanceLoadingProgress,
     replaceLoadingProgressStage,

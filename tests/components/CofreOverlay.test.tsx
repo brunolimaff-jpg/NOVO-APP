@@ -6,17 +6,19 @@ import type { CofrePhase, CofreStage } from '../../components/CofreOverlay';
 
 // ── Helpers ──
 
-function defaultProps(overrides: Partial<{
-  phase: CofrePhase;
-  isDarkMode: boolean;
-  empresaAlvo: string | null;
-  cnpj: string | null;
-  completedStageCount: number;
-  totalStageCount: number;
-  stages: CofreStage[];
-  elapsedTimeMs: number;
-  onStop: () => void;
-}> = {}) {
+function defaultProps(
+  overrides: Partial<{
+    phase: CofrePhase;
+    isDarkMode: boolean;
+    empresaAlvo: string | null;
+    cnpj: string | null;
+    completedStageCount: number;
+    totalStageCount: number;
+    stages: CofreStage[];
+    elapsedTimeMs: number;
+    onStop: () => void;
+  }> = {},
+) {
   return {
     phase: 'visible' as CofrePhase,
     isDarkMode: false,
@@ -74,18 +76,16 @@ describe('CofreOverlay', () => {
 
   it('dispara onStop ao clicar em Interromper', () => {
     const onStop = vi.fn();
-    const { getByText } = render(
-      <CofreOverlay {...defaultProps({ phase: 'visible', onStop })} />,
-    );
+    const { getByText } = render(<CofreOverlay {...defaultProps({ phase: 'visible', onStop })} />);
 
-    fireEvent.click(getByText('Interromper'));
+    const stopButton = getByText('Interromper');
+    expect(stopButton).toHaveFocus();
+    fireEvent.click(stopButton);
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
   it('não renderiza botão Interromper se onStop não for fornecido', () => {
-    const { queryByText } = render(
-      <CofreOverlay {...defaultProps({ phase: 'visible', onStop: undefined })} />,
-    );
+    const { queryByText } = render(<CofreOverlay {...defaultProps({ phase: 'visible', onStop: undefined })} />);
 
     expect(queryByText('Interromper')).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('CofreOverlay', () => {
       { label: 'Riscos', completed: false, elapsedMs: 0 },
     ];
 
-    const { getByText, container } = render(
+    const { getByText } = render(
       <CofreOverlay
         {...defaultProps({
           phase: 'visible',
@@ -174,11 +174,13 @@ describe('CofreOverlay', () => {
 
   // ── Role / Acessibilidade ──
 
-  it('possui role="status" e aria-label apropriado', () => {
+  it('bloqueia a tela inteira como dialog modal', () => {
     const { container } = render(<CofreOverlay {...defaultProps({ phase: 'visible' })} />);
 
-    const statusEl = container.querySelector('[role="status"]');
-    expect(statusEl).toBeInTheDocument();
-    expect(statusEl).toHaveAttribute('aria-label', 'Briefing estrategico sendo preparado');
+    const overlay = container.querySelector('[data-testid="cofre-overlay"]');
+    expect(overlay).toHaveClass('fixed', 'inset-0');
+    expect(overlay).toHaveAttribute('role', 'dialog');
+    expect(overlay).toHaveAttribute('aria-modal', 'true');
+    expect(overlay).toHaveAttribute('aria-label', 'Briefing estrategico sendo preparado');
   });
 });

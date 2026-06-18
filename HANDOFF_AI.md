@@ -1,10 +1,18 @@
-# Handoff — PR #379 Mergeada, PR #380 em CI, Sprint 1
+# Handoff — PR #382: Cofre Durante a Geracao
 
 **Atualizado:** 2026-06-18
-**Branch:** `main` (PR #379 mergeada `db5a9a8d`; PR #380 branch `fix/sprint1-cnpj-qsa-knowncnpjs`)
+**Branch:** `worktree-sprint2+remove-layout-trace-telemetry` (PR #382)
 **Producao:** `scoutagro.vercel.app`
 
 ## Estado Atual
+
+- **PR #382 corrigida localmente.** O Cofre abre no inicio de dossie inicial ou Nova Pesquisa, bloqueia o app com blur e mantem somente `Interromper` acessivel.
+- **Follow-up e Deep Dive preservam loading inline.** A ativacao usa `generationKind`, sem heuristica por tamanho do texto ou `loadingVariant`.
+- **Liberacao vinculada ao PostCompletion.** O overlay dissolve em 350 ms apenas quando loading acabou, resposta final esta visivel, painel nao esta vazio, Virtuoso tem altura e composer esta liberado.
+- **Fallbacks:** aborto/erro liberam com dissolve curto; timeout de 10 s comeca somente depois do fim da API.
+- **Validacao local:** typecheck; 1.505 testes; 64 contratos; build; 44 testes focados; lint do escopo; E2E de painel branco (3/3); `git diff --check`.
+- **Bloqueio de ambiente:** `validate:chat:no-autoscroll` nao executa sem `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`.
+- **Pendente imediato:** publicar o commit na PR #382 e validar o novo Preview com Scheffer em desktop e 375 px. Nenhum merge sem `MERGE` explicito.
 
 - **PR #379 mergeada e em producao.** Cron protecao dry-run, hook consultivo, CI shell test.
 - **PR #380 (Sprint 1) aberta.** Branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`. Aguardando merge (CI rodando).

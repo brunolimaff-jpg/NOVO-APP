@@ -1,25 +1,22 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCofreTransition } from '../../hooks/useCofreTransition';
+import type { GenerationKind } from '../../utils/cofreLifecycle';
 
-// ── Helpers ──
-
-function baseParams(overrides: Partial<{
-  isLoading: boolean;
-  shouldSuspendVirtualizedList: boolean;
-  hasLargeDossier: boolean;
-}> = {}) {
+function baseParams(
+  overrides: Partial<{
+    generationKind: GenerationKind;
+    isLoading: boolean;
+    sessionId: string | null;
+  }> = {},
+) {
   return {
-    isLoading: false,
-    shouldSuspendVirtualizedList: false,
-    hasLargeDossier: false,
+    generationKind: 'dossier' as GenerationKind,
+    isLoading: true,
+    sessionId: 'session-1',
     ...overrides,
   };
 }
-
-// ─────────────────────────────────────────────────────
-//  CICLO DE VIDA DO COFRE
-// ─────────────────────────────────────────────────────
 
 describe('useCofreTransition', () => {
   beforeEach(() => {
@@ -30,141 +27,100 @@ describe('useCofreTransition', () => {
     vi.useRealTimers();
   });
 
-  it('começa em hidden quando isLoading=true', () => {
-    const { result } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true }) },
-    );
-    expect(result.current.cofrePhase).toBe('hidden');
-  });
-
-  // ── Teste 1: hidden → entering ──
-
-  it('hidden → entering quando isLoading: true → false + hasLargeDossier', () => {
-    const { result, rerender } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
-
-    expect(result.current.cofrePhase).toBe('hidden');
-
-    // Transição: loading termina + dossiê grande
-    rerender(baseParams({ isLoading: false, hasLargeDossier: true }));
+  it('entra imediatamente quando uma geração de dossiê começa', () => {
+    const { result } = renderHook(() => useCofreTransition(baseParams()));
 
     expect(result.current.cofrePhase).toBe('entering');
   });
 
-  // ── Teste 2: permanece hidden sem hasLargeDossier ──
-
-  it('permanece hidden quando hasLargeDossier é false', () => {
-    const { result, rerender } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
+  it.each(['follow_up', 'deep_dive'] as const)('permanece oculto durante %s', generationKind => {
+    const { result } = renderHook(() =>
+      useCofreTransition(baseParams({ generationKind })),
     );
-
-    // Loading termina mas não tem dossiê grande
-    rerender(baseParams({ isLoading: false, hasLargeDossier: false }));
 
     expect(result.current.cofrePhase).toBe('hidden');
   });
 
-  // ── Teste 3: permanece hidden com shouldSuspendVirtualizedList ──
+  it('fica visível durante a geração e não libera apenas com isLoading=false', () => {
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
 
-  it('permanece hidden quando shouldSuspendVirtualizedList é true', () => {
-    const { result, rerender } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
+    act(() => vi.advanceTimersByTime(200));
+    expect(result.current.cofrePhase).toBe('visible');
 
-    // Loading termina, dossiê grande, mas lista suspensa
-    rerender(baseParams({
-      isLoading: false,
-      hasLargeDossier: true,
-      shouldSuspendVirtualizedList: true,
-    }));
+    rerender(baseParams({ isLoading: false }));
+    act(() => vi.advanceTimersByTime(9_999));
 
-    expect(result.current.cofrePhase).toBe('hidden');
+    expect(result.current.cofrePhase).toBe('visible');
   });
 
-  // ── Teste 4: entering → visible após 200ms ──
+  it('libera após PostCompletion válido da mesma sessão', () => {
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
 
-  it('entering → visible após 200ms', () => {
-    const { result, rerender } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
+    act(() => vi.advanceTimersByTime(200));
+    rerender(baseParams({ isLoading: false }));
 
-    // Dispara entering
-    rerender(baseParams({ isLoading: false, hasLargeDossier: true }));
-    expect(result.current.cofrePhase).toBe('entering');
-
-    // Avança 200ms — o timer do useLayoutEffect deve disparar
     act(() => {
-      vi.advanceTimersByTime(200);
+      window.dispatchEvent(
+        new CustomEvent('scout:cofre-render-ready', {
+          detail: { sessionId: 'session-1' },
+        }),
+      );
+    });
+    expect(result.current.cofrePhase).toBe('dissolving');
+
+    act(() => vi.advanceTimersByTime(350));
+    expect(result.current.cofrePhase).toBe('hidden');
+  });
+
+  it('ignora PostCompletion de outra sessão', () => {
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
+
+    act(() => vi.advanceTimersByTime(200));
+    rerender(baseParams({ isLoading: false }));
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('scout:cofre-render-ready', {
+          detail: { sessionId: 'session-2' },
+        }),
+      );
     });
 
     expect(result.current.cofrePhase).toBe('visible');
   });
 
-  // ── Teste 5: reseta para hidden quando isLoading volta a true ──
+  it('usa timeout de segurança somente depois que a API termina', () => {
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
 
-  it('reseta para hidden quando isLoading volta a true', () => {
-    const { result, rerender } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(result.current.cofrePhase).toBe('visible');
 
-    // Dispara entering
-    rerender(baseParams({ isLoading: false, hasLargeDossier: true }));
-    expect(result.current.cofrePhase).toBe('entering');
+    rerender(baseParams({ isLoading: false }));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(result.current.cofrePhase).toBe('dissolving');
 
-    // Loading reinicia
-    rerender(baseParams({
-      isLoading: true,
-      hasLargeDossier: true,
-      shouldSuspendVirtualizedList: false,
-    }));
-
+    act(() => vi.advanceTimersByTime(350));
     expect(result.current.cofrePhase).toBe('hidden');
   });
 
-  // ── Teste 6: limpeza no unmount ──
+  it('libera imediatamente quando a geração é abortada ou falha', () => {
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
 
-  it('não vaza timers após unmount', () => {
-    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    act(() => vi.advanceTimersByTime(200));
+    rerender(baseParams({ generationKind: null, isLoading: false }));
 
-    const { rerender, unmount } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
-
-    // Dispara entering — timers são agendados
-    rerender(baseParams({ isLoading: false, hasLargeDossier: true }));
-
-    unmount();
-
-    // O cleanup do useLayoutEffect deve ter chamado clearTimeout
-    // para os timers agendados (200ms + safety 10s)
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-
-    clearTimeoutSpy.mockRestore();
-  });
-
-  it('não quebra se avançar timers após unmount', () => {
-    const { rerender, unmount } = renderHook(
-      (props) => useCofreTransition(props),
-      { initialProps: baseParams({ isLoading: true, hasLargeDossier: false }) },
-    );
-
-    rerender(baseParams({ isLoading: false, hasLargeDossier: true }));
-
-    unmount();
-
-    // Avançar todos os timers — não deve lançar erro nem causar efeitos colaterais
-    expect(() => {
-      act(() => {
-        vi.advanceTimersByTime(15_000);
-      });
-    }).not.toThrow();
+    expect(result.current.cofrePhase).toBe('dissolving');
+    act(() => vi.advanceTimersByTime(350));
+    expect(result.current.cofrePhase).toBe('hidden');
   });
 });

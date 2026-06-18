@@ -10,9 +10,6 @@ import HelpCenterFloating from '../HelpCenterFloating';
 import MessageRow, { type MessageRowData } from '../MessageRow';
 import { parseSmartOptions } from '../SmartOptions';
 import type { ChatTheme, RadarProps, StartInvestigationPayload } from './contracts';
-import CofreOverlay from '../CofreOverlay';
-import type { CofreStage } from '../CofreOverlay';
-import { useCofreTransition } from '../../hooks/useCofreTransition';
 
 interface MessageTimelineProps {
   currentSession: ChatSession | null;
@@ -401,57 +398,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
-  // ── Cofre: overlay que previne freeze do Virtuoso em dossiês grandes ──
-  const hasLargeDossier = safeMessages.some(m => m.sender === Sender.Bot && (m.text?.length ?? 0) > 4000);
-
-  const { cofrePhase } = useCofreTransition({
-    isLoading,
-    shouldSuspendVirtualizedList,
-    hasLargeDossier,
-  });
-
-  // Temporizador de elapsedTimeMs para o overlay Cofre
-  const [cofreElapsedTimeMs, setCofreElapsedTimeMs] = useState(0);
-  const cofreTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (isLoading) {
-      const start = Date.now();
-      setCofreElapsedTimeMs(0);
-      cofreTimerRef.current = setInterval(() => {
-        setCofreElapsedTimeMs(Date.now() - start);
-      }, 1000);
-      return () => {
-        if (cofreTimerRef.current !== null) {
-          clearInterval(cofreTimerRef.current);
-          cofreTimerRef.current = null;
-        }
-      };
-    }
-  }, [isLoading, currentSession?.id]);
-
-  // Deriva os stages do Cofre a partir do objeto processing
-  const derivedStages: CofreStage[] = useMemo(() => {
-    const completed = processing?.completedStages ?? [];
-    const currentStage = processing?.stage;
-
-    const stages: CofreStage[] = completed.map(label => ({
-      label,
-      completed: true,
-      elapsedMs: 0,
-    }));
-
-    if (currentStage && !completed.includes(currentStage)) {
-      stages.push({
-        label: currentStage,
-        completed: false,
-        elapsedMs: cofreElapsedTimeMs || 0,
-      });
-    }
-
-    return stages;
-  }, [processing?.completedStages, processing?.stage, cofreElapsedTimeMs]);
-
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
       {showOperatorGate ? (
@@ -523,20 +469,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {cofrePhase !== 'hidden' && (
-        <CofreOverlay
-          phase={cofrePhase}
-          isDarkMode={isDarkMode}
-          empresaAlvo={currentSession?.empresaAlvo ?? null}
-          cnpj={currentSession?.cnpj ?? null}
-          completedStageCount={processing?.completedStages?.length ?? 0}
-          totalStageCount={processing?.totalStages ?? 7}
-          stages={derivedStages}
-          elapsedTimeMs={cofreElapsedTimeMs}
-          onStop={onStop}
-        />
       )}
     </div>
   );

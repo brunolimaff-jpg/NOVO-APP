@@ -1,139 +1,102 @@
-import { useRef, useState, useEffect, useLayoutEffect } from 'react';
-import { scoutDiag } from '../utils/diagnosticLog';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CofrePhase } from '../components/CofreOverlay';
+import { scoutDiag } from '../utils/diagnosticLog';
+import {
+  COFRE_RENDER_READY_EVENT,
+  type CofreRenderReadyDetail,
+  type GenerationKind,
+} from '../utils/cofreLifecycle';
 
 interface UseCofreTransitionParams {
+  generationKind: GenerationKind;
   isLoading: boolean;
-  shouldSuspendVirtualizedList: boolean;
-  hasLargeDossier: boolean;
+  sessionId: string | null;
+  onHidden?: () => void;
 }
 
 interface UseCofreTransitionResult {
   cofrePhase: CofrePhase;
 }
 
-/**
- * Controls the Cofre lifecycle — a glassmorphism overlay that covers the
- * timeline during the isLoading→false transition when a large dossier was
- * just received. Prevents Virtuoso from freezing the browser while it
- * renders 27K+ char Markdown.
- *
- * All state mutations happen in useEffect/useLayoutEffect.
- * Phase detection during render reads refs (set in previous effects)
- * and derives the next phase without mutations.
- *
- * Lifecycle:
- *   isLoading→false + hasLargeDossier →
- *     'entering' (200ms) →
- *     'visible' (until double-RAF detects paint completion) →
- *     'dissolving' (350ms) →
- *     'hidden'
- *
- * P1 fix: Uses a ref-based lifecycleId to decouple the lifecycle effect
- * from `[phase]` deps — preventing cleanup from killing RAF callbacks
- * on phase transitions.
- */
+const ENTER_DURATION_MS = 200;
+const DISSOLVE_DURATION_MS = 350;
+const POST_API_SAFETY_TIMEOUT_MS = 10_000;
+
 export function useCofreTransition({
+  generationKind,
   isLoading,
-  shouldSuspendVirtualizedList,
-  hasLargeDossier,
+  sessionId,
+  onHidden,
 }: UseCofreTransitionParams): UseCofreTransitionResult {
-  const [phase, setPhase] = useState<CofrePhase>('hidden');
-  const [lifecycleId, setLifecycleId] = useState(0);
-  const prevIsLoadingRef = useRef(isLoading);
-  const phaseStartRef = useRef<number | null>(null);
+  const [cofrePhase, setCofrePhase] = useState<CofrePhase>('hidden');
+  const phaseRef = useRef<CofrePhase>('hidden');
+  const lifecycleSessionRef = useRef<string | null>(null);
 
-  // ── Detect isLoading→false transition ──
-  const justFinishedLoading =
-    !isLoading && prevIsLoadingRef.current && hasLargeDossier && !shouldSuspendVirtualizedList;
+  const commitPhase = useCallback((nextPhase: CofrePhase) => {
+    phaseRef.current = nextPhase;
+    setCofrePhase(nextPhase);
+  }, []);
 
-  // ── Start a new lifecycle (synchronous, before paint) ──
+  const startDissolve = useCallback(
+    (reason: 'render-ready' | 'aborted-or-failed' | 'safety-timeout') => {
+      if (phaseRef.current === 'hidden' || phaseRef.current === 'dissolving') return;
+      scoutDiag.info('Cofre', 'dissolve', {
+        reason,
+        sessionId: lifecycleSessionRef.current,
+      });
+      commitPhase('dissolving');
+    },
+    [commitPhase],
+  );
+
   useLayoutEffect(() => {
-    if (justFinishedLoading && phase === 'hidden') {
-      setPhase('entering');
-      phaseStartRef.current = Date.now();
-      setLifecycleId(id => id + 1);
-      scoutDiag.info('Cofre', 'entering', {
-        hasLargeDossier,
-        shouldSuspendVirtualizedList,
-      });
-    }
-  }, [justFinishedLoading, phase, hasLargeDossier, shouldSuspendVirtualizedList]);
+    if (generationKind !== 'dossier' || !isLoading || !sessionId) return;
+    lifecycleSessionRef.current = sessionId;
+    commitPhase('entering');
+    scoutDiag.info('Cofre', 'entering', { sessionId });
+  }, [commitPhase, generationKind, isLoading, sessionId]);
 
-  // ── Single lifecycle effect ──
-  // Depends ONLY on lifecycleId, NOT on phase. This means when
-  // setPhase('visible') triggers a re-render, this effect does NOT
-  // re-run — its cleanup does NOT fire — so RAF callbacks survive.
   useEffect(() => {
-    if (lifecycleId === 0) return;
+    if (cofrePhase !== 'entering') return;
+    const timer = window.setTimeout(() => commitPhase('visible'), ENTER_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [cofrePhase, commitPhase]);
 
-    let cancelled = false;
-    let stage: 'entering' | 'visible' | 'dissolving' | 'done' = 'entering';
-
-    // 200ms: CSS cofre-enter animation completes → transition to 'visible'
-    const enteringTimer = setTimeout(() => {
-      if (cancelled) return;
-      stage = 'visible';
-      setPhase('visible');
-
-      // Double-RAF: once the browser has painted at least one frame with
-      // the dossier content, dissolve the overlay.
-      requestAnimationFrame(() => {
-        if (cancelled || stage !== 'visible') return;
-        requestAnimationFrame(() => {
-          if (cancelled || stage !== 'visible') return;
-          stage = 'dissolving';
-          setPhase('dissolving');
-          scoutDiag.info('Cofre', 'dissolve', { afterMs: Date.now() - (phaseStartRef.current ?? Date.now()) });
-
-          // 350ms: CSS cofre-dissolve animation completes → remove overlay
-          setTimeout(() => {
-            if (cancelled) return;
-            stage = 'done';
-            setPhase('hidden');
-            phaseStartRef.current = null;
-          }, 350);
-        });
-      });
-    }, 200);
-
-    // Safety timeout: never stay visible longer than 10s
-    const safetyTimer = setTimeout(() => {
-      if (cancelled || stage === 'done') return;
-      scoutDiag.warn('Cofre', 'safety-timeout-fired', {
-        stage,
-        elapsedMs: Date.now() - (phaseStartRef.current ?? Date.now()),
-      });
-      stage = 'dissolving';
-      setPhase('dissolving');
-      setTimeout(() => {
-        if (cancelled) return;
-        stage = 'done';
-        setPhase('hidden');
-        phaseStartRef.current = null;
-      }, 350);
-    }, 10000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(enteringTimer);
-      clearTimeout(safetyTimer);
+  useEffect(() => {
+    const handleReady = (event: Event) => {
+      const detail = (event as CustomEvent<CofreRenderReadyDetail>).detail;
+      if (!detail || detail.sessionId !== lifecycleSessionRef.current) return;
+      startDissolve('render-ready');
     };
-  }, [lifecycleId]);
 
-  // ── Store previous isLoading for next render comparison ──
+    window.addEventListener(COFRE_RENDER_READY_EVENT, handleReady);
+    return () => window.removeEventListener(COFRE_RENDER_READY_EVENT, handleReady);
+  }, [startDissolve]);
+
   useEffect(() => {
-    prevIsLoadingRef.current = isLoading;
-  }, [isLoading]);
+    const isOpen = cofrePhase !== 'hidden' && cofrePhase !== 'dissolving';
+    if (!isOpen || generationKind === 'dossier') return;
+    startDissolve('aborted-or-failed');
+  }, [cofrePhase, generationKind, startDissolve]);
 
-  // ── Reset if loading resumes ──
   useEffect(() => {
-    if (isLoading && phase !== 'hidden') {
-      setPhase('hidden');
-      setLifecycleId(0);
-      phaseStartRef.current = null;
-    }
-  }, [isLoading]);
+    const isWaitingForRender =
+      generationKind === 'dossier' && !isLoading && cofrePhase !== 'hidden' && cofrePhase !== 'dissolving';
+    if (!isWaitingForRender) return;
 
-  return { cofrePhase: phase };
+    const timer = window.setTimeout(() => startDissolve('safety-timeout'), POST_API_SAFETY_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [cofrePhase, generationKind, isLoading, startDissolve]);
+
+  useEffect(() => {
+    if (cofrePhase !== 'dissolving') return;
+    const timer = window.setTimeout(() => {
+      lifecycleSessionRef.current = null;
+      commitPhase('hidden');
+      onHidden?.();
+    }, DISSOLVE_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [cofrePhase, commitPhase, onHidden]);
+
+  return { cofrePhase };
 }

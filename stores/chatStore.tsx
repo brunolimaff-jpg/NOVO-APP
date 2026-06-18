@@ -67,6 +67,8 @@ export interface ChatStoreValue {
   setLoadingVariant: ReturnType<typeof useChatLoadingProgress>['setLoadingVariant'];
   loadingPinnedLabel: string | null;
   setLoadingPinnedLabel: Dispatch<SetStateAction<string | null>>;
+  generationKind: ReturnType<typeof useChatLoadingProgress>['generationKind'];
+  setGenerationKind: ReturnType<typeof useChatLoadingProgress>['setGenerationKind'];
   resetLoadingProgress: ReturnType<typeof useChatLoadingProgress>['resetLoadingProgress'];
   advanceLoadingProgress: ReturnType<typeof useChatLoadingProgress>['advanceLoadingProgress'];
   replaceLoadingProgressStage: ReturnType<typeof useChatLoadingProgress>['replaceLoadingProgressStage'];
@@ -250,6 +252,8 @@ export function ChatStoreProvider({ children }: { children: ReactNode }) {
       setLoadingVariant: loading.setLoadingVariant,
       loadingPinnedLabel: loading.loadingPinnedLabel,
       setLoadingPinnedLabel: loading.setLoadingPinnedLabel,
+      generationKind: loading.generationKind,
+      setGenerationKind: loading.setGenerationKind,
       resetLoadingProgress: loading.resetLoadingProgress,
       advanceLoadingProgress: loading.advanceLoadingProgress,
       replaceLoadingProgressStage: loading.replaceLoadingProgressStage,

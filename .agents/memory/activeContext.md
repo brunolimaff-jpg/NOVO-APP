@@ -1,8 +1,18 @@
 # Active Context
 
-Last updated: 2026-06-18 - PR #379 mergeada, PR #380 em CI (Sprint 1)
+Last updated: 2026-06-18 - PR #382 Cofre durante a geracao
 
 ## Prioridade Atual
+
+PR #382: publicar e validar no Preview o Cofre de tela inteira durante dossies. Follow-up e Deep Dive continuam inline; liberacao depende do PostCompletion visual valido.
+
+- **Branch:** `worktree-sprint2+remove-layout-trace-telemetry`
+- **Risco:** medio; mudanca no bloqueio global da UI durante geracao
+- **Validacao local:** typecheck, suite completa (1.505), contratos (64), build, E2E painel branco (3/3), lint do escopo e testes focados (44)
+- **Bloqueio:** gate `validate:chat:no-autoscroll` requer chave Pinecone ausente no ambiente local
+- **Proximo passo:** push, aguardar checks/Preview e validar Scheffer desktop + 375 px
+
+## Contexto Anterior
 
 Sprint 1 concluida (T-B.2 e T-B.3). PR #380 aguardando CI para merge. Proximo: decidir entre Sprint 2 (remover layoutTraceTelemetry.ts) ou Sprint 3 (coverage + display:none).
 

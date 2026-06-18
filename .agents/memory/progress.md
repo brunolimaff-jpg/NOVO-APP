@@ -4,6 +4,16 @@ Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
 
 ## Timeline
 
+### 2026-06-18 (PR #382 — Cofre durante a geracao)
+
+- Cofre movido de `MessageTimeline` para a raiz do `App`, cobrindo a tela inteira com blur e bloqueio de ponteiros.
+- Estado semantico `generationKind` diferencia `dossier`, `follow_up` e `deep_dive`; somente dossies ativam o Cofre.
+- PostCompletion emite prontidao apenas com bot final visivel, painel preenchido, Virtuoso dimensionado e composer liberado.
+- Dissolve normal de 350 ms; aborto/erro liberam; timeout de 10 s inicia somente apos a API finalizar.
+- Validacao local: 1.505 testes + 64 contratos, typecheck, build, 44 testes focados, lint do escopo e E2E de painel branco 3/3.
+- Gate de chat bloqueado por ausencia de `PINECONE_API_KEY`/`PINECONE_DOCS_KEY` no ambiente.
+- Proximo: push na PR #382 e validacao real do Preview com Scheffer em desktop e 375 px; sem merge sem `MERGE`.
+
 ### 2026-06-18 (Sprint 1 — CNPJ QSA + catch log)
 
 - PR #380 aberta (branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`).

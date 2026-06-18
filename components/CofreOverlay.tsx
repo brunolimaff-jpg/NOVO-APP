@@ -225,7 +225,6 @@ function StageList({ isDarkMode, stages }: { isDarkMode: boolean; stages: CofreS
 /** Skeleton card with shimmer overlay representing a dossier section being generated */
 function SkeletonCard({ isDarkMode, title, index }: { isDarkMode: boolean; title: string; index: number }) {
   const bgLine = isDarkMode ? 'bg-slate-700/50' : 'bg-slate-200/60';
-  const shimmerColor = isDarkMode ? 'via-slate-600/20' : 'via-slate-300/20';
   const borderColor = isDarkMode ? 'border-slate-700/30' : 'border-slate-200/40';
   const bg = isDarkMode ? 'bg-slate-800/30' : 'bg-white/40';
 
@@ -284,8 +283,7 @@ function SkeletonCard({ isDarkMode, title, index }: { isDarkMode: boolean; title
  *   - visible:  fully shown, waiting for render
  *   - dissolving:  fade-out + blur dissolves (350ms)
  *
- * The overlay sits inside a `relative` container and covers only the content
- * area (z-index 40, below modals at 50).
+ * The overlay covers the entire app while the dossier is generated.
  */
 const CofreOverlay: React.FC<CofreOverlayProps> = ({
   phase,
@@ -306,8 +304,9 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 z-40 overflow-hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
-      role="status"
+      className={`fixed inset-0 z-[60] overflow-hidden ${isInteractive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      role="dialog"
+      aria-modal="true"
       aria-label="Briefing estrategico sendo preparado"
       data-testid="cofre-overlay"
       data-cofre-phase={phase}
@@ -410,6 +409,7 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
           {onStop && (
             <button
               type="button"
+              autoFocus
               onClick={onStop}
               className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg text-xs font-bold
                 bg-red-500/10 border border-red-500/25 text-red-500

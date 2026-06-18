@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatMessageOrchestrator } from '../../../features/chat/message-orchestrator';
 import { Sender, type ChatSession, type LastAction, type Message } from '../../../types';
 import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant';
+import type { GenerationKind } from '../../../utils/cofreLifecycle';
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
@@ -89,6 +90,7 @@ function makeHarness(
     isLoading: false,
     loadingVariant: 'hero' as LoadingVariant,
     loadingPinnedLabel: null as string | null,
+    generationKind: null as GenerationKind,
     visibleCount: 0,
     failureCount: 0,
     lastQuery: '',
@@ -130,6 +132,9 @@ function makeHarness(
   const setLoadingPinnedLabel = vi.fn((next: string | null | ((prev: string | null) => string | null)) => {
     state.loadingPinnedLabel = applyStateUpdate(state.loadingPinnedLabel, next);
   });
+  const setGenerationKind = vi.fn((next: GenerationKind | ((prev: GenerationKind) => GenerationKind)) => {
+    state.generationKind = applyStateUpdate(state.generationKind, next);
+  });
   const setVisibleCount = vi.fn((next: number | ((prev: number) => number)) => {
     state.visibleCount = applyStateUpdate(state.visibleCount, next);
   });
@@ -164,6 +169,7 @@ function makeHarness(
     setFailureCount,
     setLoadingVariant,
     setLoadingPinnedLabel,
+    setGenerationKind,
     setVisibleCount,
     setLastQuery,
     toast,
@@ -192,6 +198,7 @@ function makeHarness(
     setFailureCount,
     setLoadingVariant,
     setLoadingPinnedLabel,
+    setGenerationKind,
     setVisibleCount,
     setLastQuery,
     toast,
@@ -212,6 +219,8 @@ describe('useChatMessageOrchestrator', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.useRealTimers();
+    document.body.innerHTML = '';
   });
 
   it('cria nova sessão no primeiro envio e usa histórico vazio', async () => {
@@ -273,6 +282,7 @@ describe('useChatMessageOrchestrator', () => {
       true,
     );
     expect(harness.state.loadingVariant).toBeUndefined();
+    expect(harness.state.generationKind).toBeNull();
   });
 
   it('insere placeholder thinking antes da resposta padrão', async () => {
@@ -290,6 +300,7 @@ describe('useChatMessageOrchestrator', () => {
     });
 
     expect(harness.state.loadingVariant).toBe('inline');
+    expect(harness.state.generationKind).toBe('dossier');
     expect(harness.state.sessions[0].messages[harness.state.sessions[0].messages.length - 1]).toMatchObject({
       id: 'message-bot',
       isThinking: true,
@@ -319,6 +330,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.sessions).toHaveLength(0);
     expect(harness.state.currentSessionId).toBeNull();
     expect(harness.state.isLoading).toBe(false);
+    expect(harness.state.generationKind).toBeNull();
   });
 
   it('anexa mensagem de erro quando o envio falha com erro de rede', async () => {
@@ -403,6 +415,57 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
+  it('emite prontidão do Cofre quando PostCompletion confirma o dossiê visível', async () => {
+    vi.useFakeTimers();
+    const rect = {
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      toJSON: () => ({}),
+    } as DOMRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rect);
+    document.body.innerHTML = `
+      <main data-testid="chat-main-panel">
+        <div data-virtuoso-scroller>
+          <div data-testid="message-row">
+            <article data-testid="bot-message-content">Dossiê completo visível</article>
+          </div>
+        </div>
+        <textarea data-testid="message-input"></textarea>
+      </main>
+    `;
+    const scroller = document.querySelector<HTMLElement>('[data-virtuoso-scroller]');
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 600 });
+
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    const readyEvent = dispatchSpy.mock.calls
+      .map(([event]) => event)
+      .find(
+        event =>
+          event.type === 'scout:cofre-render-ready' &&
+          (event as CustomEvent).detail?.sessionId === 'session-new',
+      ) as CustomEvent | undefined;
+    expect(readyEvent?.detail).toEqual({ sessionId: 'session-new' });
+  });
+
   it('anexa mensagem de erro quando waterfall falha apos limpar activeGeneration', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
@@ -427,6 +490,7 @@ describe('useChatMessageOrchestrator', () => {
       isError: true,
       text: 'Erro no processamento',
     });
+    expect(harness.state.generationKind).toBeNull();
   });
 
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
@@ -496,6 +560,7 @@ describe('useChatMessageOrchestrator', () => {
     });
 
     expect(harness.state.loadingVariant).toBe('inline');
+    expect(harness.state.generationKind).toBe('deep_dive');
     expect(harness.state.loadingPinnedLabel).toBe('Deep Dive em andamento: Tech Stack');
     expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
     expect(sendMessageToGeminiMock).toHaveBeenCalledTimes(1);
