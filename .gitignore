@@ -48,6 +48,8 @@ backup/
 # CI/CD artefatos gerados — nunca comitar
 playwright-report/
 test-results/
+coverage/
+.remember/
 .trigger-deploy
 vercel_build_tag.json
 

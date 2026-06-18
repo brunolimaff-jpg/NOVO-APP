@@ -68,6 +68,7 @@ describe('cron-email-confirmation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.CRON_DELETE_ENABLED;
     rpcMock.mockResolvedValue({ data: [], error: null });
     deleteUserMock.mockResolvedValue({ error: null });
   });
@@ -120,7 +121,7 @@ describe('cron-email-confirmation', () => {
     expect(state.body).toMatchObject({ error: 'Method not allowed' });
   });
 
-  it('deleta contas expiradas e retorna contagem', async () => {
+  it('faz dry-run por padrao sem deletar contas expiradas', async () => {
     rpcMock.mockResolvedValue({
       data: [{ id: 'user-1' }, { id: 'user-2' }],
       error: null,
@@ -130,13 +131,29 @@ describe('cron-email-confirmation', () => {
     await handler(makeMockReq(), res);
 
     expect(state.statusCode).toBe(200);
-    expect(state.body).toMatchObject({ cleaned: 2, total: 2 });
+    expect(state.body).toMatchObject({ dryRun: true, candidates: 2, cleaned: 0, total: 2 });
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('deleta contas expiradas somente quando habilitado explicitamente', async () => {
+    process.env.CRON_DELETE_ENABLED = 'true';
+    rpcMock.mockResolvedValue({
+      data: [{ id: 'user-1' }, { id: 'user-2' }],
+      error: null,
+    });
+
+    const { res, state } = makeMockRes();
+    await handler(makeMockReq(), res);
+
+    expect(state.statusCode).toBe(200);
+    expect(state.body).toMatchObject({ dryRun: false, candidates: 2, cleaned: 2, total: 2 });
     expect(deleteUserMock).toHaveBeenCalledTimes(2);
     expect(deleteUserMock).toHaveBeenCalledWith('user-1');
     expect(deleteUserMock).toHaveBeenCalledWith('user-2');
   });
 
   it('retorna erros parciais em caso de falha de delecao', async () => {
+    process.env.CRON_DELETE_ENABLED = 'true';
     rpcMock.mockResolvedValue({
       data: [{ id: 'user-1' }, { id: 'user-2' }, { id: 'user-3' }],
       error: null,

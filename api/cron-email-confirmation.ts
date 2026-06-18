@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const deletionEnabled = process.env.CRON_DELETE_ENABLED === 'true';
 
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
@@ -46,10 +47,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!expired || expired.length === 0) {
     console.log('[cron-email-confirmation] Nenhuma conta expirada.');
-    return res.status(200).json({ cleaned: 0 });
+    return res.status(200).json({ dryRun: !deletionEnabled, candidates: 0, cleaned: 0, total: 0 });
   }
 
   const expiredIds: string[] = expired.map((u: { id: string }) => u.id);
+
+  if (!deletionEnabled) {
+    console.warn(`[cron-email-confirmation] Dry-run: ${expiredIds.length} conta(s) candidata(s), nenhuma removida.`);
+    return res.status(200).json({
+      dryRun: true,
+      candidates: expiredIds.length,
+      cleaned: 0,
+      total: expiredIds.length,
+    });
+  }
+
   const errors: string[] = [];
   let deleted = 0;
 
@@ -65,6 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log(`[cron-email-confirmation] ${deleted}/${expiredIds.length} contas removidas.`);
 
   return res.status(200).json({
+    dryRun: false,
+    candidates: expiredIds.length,
     cleaned: deleted,
     total: expiredIds.length,
     errors: errors.length > 0 ? errors : undefined,

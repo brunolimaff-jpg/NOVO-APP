@@ -1,37 +1,38 @@
 # Active Context
 
-Last updated: 2026-06-15 — sessao de 3 bugs de historico: localStorage, race condition, RLS
+Last updated: 2026-06-18 - P0 do playbook revisado em execucao
 
-## Estado Atual
+## Prioridade Atual
 
-- **Branch local:** `main` (`fe6c6f9b`) — 3 commits pos-PR #376, sincronizado com `origin/main`
-- **Vercel producao:** scoutagro.vercel.app
-- **Supabase project:** `vmqfcaoirjcfucvlnpig`
-- **Deadline:** 18/06/2026 — usuarios existentes precisam cadastrar senha
-- **Git status:** limpo, sincronizado com origin/main
+O Playbook de Execucao a Prova de IA e um roadmap priorizado, nao uma trava de conversa. Mudancas de assunto nao exigem confirmacao previa.
 
-## O que foi entregue nesta sessao
+- **Branch:** `codex/p0-playbook-foundation`
+- **Plano:** `docs/superpowers/plans/2026-06-18-ai-proof-execution-playbook-revised.md`
+- **Vault:** `20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`
+- **Fase:** P0 operacional
+- **Risco:** cron destrutivo sem protecao na versao atual de producao
 
-- **Bug 1 — operator_id sumia do localStorage:** `storageRemove()` limpava `scout360:operator_id`, `getOperatorId()` so lia do localStorage. Corrigido: `storageSet(OPERATOR_ID_KEY, resolved.operatorId)` apos resolucao de auth.
-- **Bug 2 — Race condition operator-relinked:** `window.dispatchEvent(new CustomEvent('operator-relinked'))` disparava ANTES dos listeners filhos registrarem. Corrigido: `setTimeout(() => window.dispatchEvent(...), 0)`.
-- **Bug 3 — RLS bloqueando authenticated:** Policy `operator_own_dossies` criada com `TO anon`. Usuarios logados (role `authenticated`) recebiam `[]` sem erro. Corrigido: `ALTER POLICY operator_own_dossies ON public.dossies TO anon, authenticated`.
-- **Diagnostico Ananda:** 18 dossies, 80 eventos — dados intactos, RLS bloqueando.
-- **Diagnostico Wuender:** 47 dossies, 34 empresas — mesmo bug.
-- **Migration RLS aplicada** no Supabase remoto.
+## P0
 
-## Decisoes ativas
+- Banner e bloqueio de senha existem; deadline: `2026-06-18T23:59:59-03:00`.
+- Producao esta online, mas o cron retorna 500 por ausencia de `CRON_SECRET`.
+- Implementado localmente: dry-run por padrao e exclusao somente com `CRON_DELETE_ENABLED=true`.
+- Proximo passo: publicar a protecao, validar dry-run e revisar candidatos antes de habilitar exclusao.
 
-- DI-2026-06-15-05: Evento operator-relinked usa setTimeout(0)
-- DI-2026-06-15-06: RLS de dossies cobre anon + authenticated
-- DI-2026-06-15-07: Debug de sidebar vazia comeca pela network layer
-- Decisoes anteriores (DI-2026-06-15-01 a 04) permanecem ativas em `decisions.md`
+## Fora do Escopo Atual
 
-## Atencao
+- Rotacao de API keys foi adiada por decisao explicita do Bruno; nao esta resolvida.
 
-- Branch `feature/supabase-auth` pode ser deletada (local + remote).
-- Deadline 18/06 se aproximando — verificar banner e cron ativos.
-- Outras policies RLS podem ter sido criadas com `TO anon` apenas — revisar.
+## Estado do Projeto
 
-## Proximo passo
+- PR #377 aberta e `CLEAN`; sem merge autorizado.
+- PR #378 mergeada em `ce40644a`.
+- `main` local original permanece suja e nao deve ser alterada por esta branch.
+- Pendencias tecnicas: auditoria RLS, `dossier_accesses`, duplicatas em `user_context` e monitoramento do historico.
 
-Monitorar Sentry e validar se usuarios com historico vazio antes do fix agora veem seus dossies.
+## Validacao Atual
+
+- Suite final: 162 arquivos / 1.502 testes verdes.
+- Cron: RED registrado; GREEN com 9 testes.
+- Typecheck, build e docs Obsidian verdes; lint com 7 erros preexistentes.
+- Novo codigo em Preview Vercel: **NAO VALIDADO**.

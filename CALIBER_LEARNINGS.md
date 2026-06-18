@@ -415,6 +415,28 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
 - **E2E auth flow precisa de helper dedicado** [e2e, playwright, auth, supabase]
   `setupE2EAuth` + `loginViaSupabase` no `tests-e2e/helpers/auth.ts` padronizam o fluxo de login E2E. Antes, cada teste lidava com auth de forma diferente. Helper unico com force clicks, timeouts configurados e API stubs reduziu falhas intermitentes. 10 arquivos E2E atualizados, 6/6 passando no preview Vercel.
 
+## Sessao 2026-06-16 — Fix CNPJ limit + consultasocio complementar
+
+- **Testar com dados reais antes de planejar** [debug, planejamento, adversarial, workflow]
+  O planner criou um plano complexo de 5 passos (timeout, deadline, paralelizacao, UI truncada, busca incremental), mas o teste com CNPJ real (FGR INCORPORACOES S/A) mostrou que o problema era muito mais simples: limit=50 artificial e consultasocio como fallback apenas. Se tivessemos testado contra a API real antes de planejar, teriamos economizado 2 agentes (planner + adversarial review). O teste real matou o plano.
+  Afeta: fluxo de debug de busca societaria, workflow de diagnostico.
+
+- **Adversarial review revela premissas falsas que o planejador nao viu** [adversarial, review, premissas, planejamento]
+  O planner sugeriu deadline 9s para o frontend. A adversarial review mostrou que isso era tiro no pe porque as APIs externas (CNPJ Aberto, consultasocio, BrasilAPI) levam 8-15s cada. 9s de deadline significava que a maioria das buscas falharia antes mesmo de completar. A review redirecionou todo o plano para uma abordagem mais simples: ajustar limites e fontes.
+  Afeta: qualquer sugestao de timeout/deadline em fluxo com API externa.
+
+- **CNPJ Aberto e consultasocio sao fontes complementares, nao hierarquicas** [cnpj, busca-societaria, fontes, arquitetura]
+  O codigo em orchestration.ts:374 tratava CNPJ Aberto como fonte primaria e consultasocio como fallback ("se CNPJ Aberto retornou algo, nao precisa de consultasocio"). Mas as duas fontes tem dados diferentes: CNPJ Aberto tem cobertura ampla, consultasocio tem dados que CNPJ Aberto nao cobre. A condicao correta e rodar ambas sempre (para pessoas fisicas) e consolidar os resultados. Isso aumentou cobertura de descoberta de forma significativa.
+  Afeta: `services/socio-search/orchestration.ts`, arquitetura de busca societaria.
+
+- **Limites artificiais de resultado escondem capacidade real** [constantes, limite, configuracao, desempenho]
+  limit=50 no documentExtractor.ts e MAX_COMPANIES=60 em types.ts pareciam numeros razoaveis para "protecao contra overflow". Mas para grupos empresariais grandes (construcao civil com 150+ CNPJs), esses limites cortavam ~70% dos dados. O usuario via o Mapa de Poder Societario incompleto sem saber que um teto artificial estava filtrando. Sempre validar constantes de limite contra dados reais do maior caso de uso, nao contra o caso medio.
+  Afeta: `utils/documentExtractor.ts:406`, `services/socio-search/types.ts:134`.
+
+- **Cache key version e acoplada a constantes de limite** [cache, versionamento, deploy, invalidacao]
+  Mudar MAX_COMPANIES de 60 para 200 (ou limit de 50 para 200) exige invalidar o cache existente porque entries antigas tem dados parciais. A CACHE_KEY_VERSION em types.ts:136 e o mecanismo que faz isso: cada vez que uma constante de limite muda, a cache key precisa ser incrementada. De v7 para v8 neste caso. Sem esse bump, usuarios veriam dados parciais do cache antigo mesmo com o novo codigo.
+  Afeta: `services/socio-search/types.ts:136`.
+
 ## Sessao 2026-06-15 — 3 bugs de historico apos login
 
 - **RLS policy deve cobrir `authenticated` alem de `anon`** [supabase, rls, auth, authenticated]
@@ -437,8 +459,37 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
   Nenhum bug individual explica a sidebar vazia. Sao 3 bugs que se mascaram: (1) localStorage vazio porque operator_id nao foi restaurado, (2) query com temp operator_id retorna [], (3) RLS filtra o que restava. Cada um parece inofensivo isoladamente. Debuggar a network layer (nao apenas o state React) e essencial para quebrar a cadeia.
   Afeta: fluxo de diagnostico de sidebar/historico vazio.
 
+## Sessao 2026-06-16 — Sentry-Vercel + incidente de vazamento
+
+- **Env vars manuais tem internal: true e bloqueiam integracao Vercel Marketplace** [vercel, sentry, env-vars, marketplace]
+  Env vars adicionadas manualmente no Vercel Dashboard tem `internal: true` por padrao. Isso faz com que integracoes de terceiros (como Sentry Marketplace) nao consigam injetar suas proprias env vars. A integracao falha silenciosamente — o Sentry nunca recebe erros das serverless functions. Solucao: remover env vars manuais relacionadas a integracao (SENTRY_DSN, etc.) e deixar o Marketplace gerenciar.
+  Afeta: configuracao de integracoes Vercel Marketplace.
+
+- **Vite define expoe variaveis ao client sem prefixo VITE\_** [vite, build, env, config]
+  `define` no `vite.config.ts` substitui strings em tempo de compilacao. Diferente de `import.meta.env.VITE_*`, o `define` expoe o valor SEMPRE, inclusive em testes. Para variaveis que so existem em producao (como SENTRY_DSN), usar condicional `!process.env.VITEST` no define, ou usar `import.meta.env.VITE_SENTRY_DSN` com env var real prefixada.
+  Afeta: `vite.config.ts`, build config.
+
+- **Vercel Hobby nao tem log drains — serverless functions nao enviam erros ao Sentry** [vercel, hobby, log-drains, sentry, observabilidade]
+  O plano Hobby da Vercel nao suporta log drains. Isso significa que erros lancados dentro de serverless functions (`api/*.ts`) NAO sao capturados pelo Sentry — mesmo com a integracao Marketplace ativa e a DSN configurada. O Sentry so captura erros do lado cliente (browser). Para cobertura completa de server-side, e necessario plano Pro (log drains) ou implementar fallback manual (`scout_diagnostics` Supabase).
+  Afeta: observabilidade de serverless functions, planos Vercel.
+
+- **Vercel CLI 54.14.0 Preview --non-interactive bug** [vercel, cli, bug, preview]
+  `vercel env add --non-interactive --preview <env>` nao funciona na Vercel CLI 54.14.0 para ambientes Preview. O CLI recusa o valor mesmo com `--non-interactive`. Solucao: usar `--environment preview` (singular, sem `s`) em vez de `--preview`. Para ambientes Production e Development funciona normalmente com `--non-interactive`.
+  Afeta: scripts automatizados de env vars para preview deployments.
+
+- **CRITICO: Nunca usar backticks em comandos gh api com -f body — shell expande como comando** [seguranca, shell, gh, github, token, incidente]
+  `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
+Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
+# Sessao 2026-06-18 - Playbook nao bloqueante e cron fail-safe
+
+- **Roadmap de qualidade nao pode virar trava global de trabalho** [processo, agentes, planejamento]
+  Um plano prioritario deve orientar ordem e prova, sem impedir mudanca explicita de objetivo, fechamento documental ou resposta a incidentes. Decisoes substituidas ficam marcadas como `SUPERADA`, preservando o historico.
+
+- **Cron destrutivo deve iniciar em dry-run** [vercel, cron, auth, seguranca operacional]
+  Configurar apenas o segredo de autenticacao pode ativar uma versao que exclui dados imediatamente. Primeiro publicar `dry-run` como padrao, revisar candidatos e so depois habilitar uma flag destrutiva separada.
