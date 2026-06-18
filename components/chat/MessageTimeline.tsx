@@ -405,34 +405,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       hasLargeBot,
     });
 
-    // LayoutTrace: para dossiê grande, verificar se container tem dimensões válidas
-    if (hasLargeBot) {
-      requestAnimationFrame(() => {
-        import('../../utils/layoutTraceTelemetry')
-          .then(({ traceLayout }) => {
-            traceLayout(scoutDiag.info.bind(scoutDiag), 'static-fallback-mount', {
-              sessionId: currentSession?.id ?? null,
-              totalItems: safeMessages.length,
-              botTextLen: botMsg?.text?.length ?? 0,
-            });
-          })
-          .catch(() => {}); // falha silenciosa em testes
-      });
-      // PR #347: debug display:none — cadeia completa com múltiplos timings
-      requestAnimationFrame(() => {
-        import('../../utils/layoutTraceTelemetry')
-          .then(({ debugStaticFallbackDisplay }) => {
-            debugStaticFallbackDisplay(scoutDiag.warn.bind(scoutDiag), {
-              sessionId: currentSession?.id ?? null,
-              totalItems: safeMessages.length,
-              botTextLen: botMsg?.text?.length ?? 0,
-              source: 'MessageTimeline:static-fallback-rendered',
-            });
-          })
-          .catch(() => {});
-      });
-    }
-
     // PR #347: safety net — se o static fallback montar com display:none,
     // força recovery. A origem exata do display:none não foi encontrada no
     // código (nem JS inline, nem CSS), mas o Supabase confirmou o estado
