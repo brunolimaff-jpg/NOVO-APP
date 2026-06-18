@@ -17,8 +17,9 @@ interface UseCofreTransitionResult {
  * just received. Prevents Virtuoso from freezing the browser while it
  * renders 27K+ char Markdown.
  *
- * Key constraint: the phase transitions to 'entering' in the SAME render
- * commit as isLoading→false, preventing a 1-frame flash of frozen content.
+ * All state mutations happen in useEffect/useLayoutEffect.
+ * Phase detection during render reads refs (set in previous effects)
+ * and derives the next phase without mutations.
  *
  * Lifecycle:
  *   isLoading→false + hasLargeDossier →
@@ -32,101 +33,85 @@ export function useCofreTransition({
   shouldSuspendVirtualizedList,
   hasLargeDossier,
 }: UseCofreTransitionParams): UseCofreTransitionResult {
+  const [phase, setPhase] = useState<CofrePhase>('hidden');
   const prevIsLoadingRef = useRef(isLoading);
-  const phaseRef = useRef<CofrePhase>('hidden');
-  const [, forceRender] = useState(0);
+  const phaseStartRef = useRef<number | null>(null);
 
-  // Compute the next phase during render (same-commit, no flash).
-  // Side-effect scheduling (timers, RAF) happens in useLayoutEffect below.
-  const nextPhase = computeNextPhase();
+  // ── Detect isLoading→false transition ──
+  const justFinishedLoading =
+    !isLoading && prevIsLoadingRef.current && hasLargeDossier && !shouldSuspendVirtualizedList;
 
-  function computeNextPhase(): CofrePhase {
-    if (isLoading && !prevIsLoadingRef.current) {
-      return 'hidden';
+  // ── Transition to 'entering' ──
+  // useLayoutEffect fires synchronously after DOM commit but before paint,
+  // so the Cofre appears in the same visual frame as the content.
+  useLayoutEffect(() => {
+    if (justFinishedLoading && phase === 'hidden') {
+      setPhase('entering');
+      phaseStartRef.current = Date.now();
     }
-    if (
-      !isLoading &&
-      prevIsLoadingRef.current &&
-      hasLargeDossier &&
-      !shouldSuspendVirtualizedList &&
-      phaseRef.current === 'hidden'
-    ) {
-      return 'entering';
-    }
-    return phaseRef.current;
-  }
+  }, [justFinishedLoading, phase]);
 
-  phaseRef.current = nextPhase;
+  // ── Timer-driven phase transitions ──
+  useEffect(() => {
+    if (phase !== 'entering') return;
 
-  // ── Update refs after commit (avoid render-time mutations) ──
+    let cancelled = false;
+
+    // 200ms: CSS cofre-enter animation completes → transition to 'visible'
+    const enteringTimer = setTimeout(() => {
+      if (cancelled) return;
+      setPhase('visible');
+
+      // Double-RAF: once the browser has painted at least one frame with
+      // the dossier content, dissolve the overlay.
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          setPhase('dissolving');
+
+          // 350ms: CSS cofre-dissolve animation completes → remove overlay
+          setTimeout(() => {
+            if (cancelled) return;
+            setPhase('hidden');
+            phaseStartRef.current = null;
+          }, 350);
+        });
+      });
+    }, 200);
+
+    // Safety timeout: never stay visible longer than 10s
+    const safetyTimer = setTimeout(() => {
+      if (cancelled) return;
+      if (phaseStartRef.current !== null) {
+        setPhase('dissolving');
+        setTimeout(() => {
+          if (cancelled) return;
+          setPhase('hidden');
+          phaseStartRef.current = null;
+        }, 350);
+      }
+    }, 10000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(enteringTimer);
+      clearTimeout(safetyTimer);
+    };
+  }, [phase]);
+
+  // ── Store previous isLoading for next render comparison ──
   useEffect(() => {
     prevIsLoadingRef.current = isLoading;
   }, [isLoading]);
 
-  // ── Side-effects scheduled in useLayoutEffect ──
-  // Runs synchronously after DOM commit but before paint, keeping the
-  // Cofre in the same visual frame. All timers/RAF properly cleaned up.
-  useLayoutEffect(() => {
-    if (phaseRef.current !== 'entering') return;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let cancelled = false;
-
-    timers.push(
-      setTimeout(() => {
-        if (cancelled) return;
-        phaseRef.current = 'visible';
-        forceRender(n => n + 1);
-
-        requestAnimationFrame(() => {
-          if (cancelled) return;
-          requestAnimationFrame(() => {
-            if (cancelled) return;
-            phaseRef.current = 'dissolving';
-            forceRender(n => n + 1);
-
-            timers.push(
-              setTimeout(() => {
-                if (cancelled) return;
-                phaseRef.current = 'hidden';
-                forceRender(n => n + 1);
-              }, 350),
-            );
-          });
-        });
-      }, 200),
-    );
-
-    // Safety timeout: never stay visible longer than 10s
-    timers.push(
-      setTimeout(() => {
-        if (cancelled) return;
-        if (phaseRef.current === 'visible' || phaseRef.current === 'entering') {
-          phaseRef.current = 'dissolving';
-          forceRender(n => n + 1);
-          timers.push(
-            setTimeout(() => {
-              if (cancelled) return;
-              phaseRef.current = 'hidden';
-              forceRender(n => n + 1);
-            }, 350),
-          );
-        }
-      }, 10000),
-    );
-
-    return () => {
-      cancelled = true;
-      for (const t of timers) clearTimeout(t);
-    };
-  }, [nextPhase]);
-
-  // Cleanup if loading resumes
+  // ── Reset if loading resumes ──
   useEffect(() => {
-    if (isLoading) {
-      phaseRef.current = 'hidden';
+    if (isLoading && phase !== 'hidden') {
+      setPhase('hidden');
+      phaseStartRef.current = null;
     }
   }, [isLoading]);
 
-  return { cofrePhase: phaseRef.current };
+  return { cofrePhase: phase };
 }

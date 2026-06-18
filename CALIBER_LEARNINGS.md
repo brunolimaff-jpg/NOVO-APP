@@ -348,7 +348,7 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - Toda auditoria deve terminar com uma etapa de autorrefutacao.
 - Codigo suspeito nao e automaticamente bug.
 - Uma cadeia de concorrencia precisa ser alcancavel, nao apenas teoricamente imagina-
-  vel.
+vel.
 - Timer sem cleanup nao e defeito sem efeito colateral demonstravel.
 - Documentacao gerada por IA deve ser confrontada com codigo e testes.
 
@@ -466,7 +466,7 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Env vars adicionadas manualmente no Vercel Dashboard tem `internal: true` por padrao. Isso faz com que integracoes de terceiros (como Sentry Marketplace) nao consigam injetar suas proprias env vars. A integracao falha silenciosamente — o Sentry nunca recebe erros das serverless functions. Solucao: remover env vars manuais relacionadas a integracao (SENTRY_DSN, etc.) e deixar o Marketplace gerenciar.
   Afeta: configuracao de integracoes Vercel Marketplace.
 
-- **Vite define expoe variaveis ao client sem prefixo VITE\_** [vite, build, env, config]
+- **Vite define expoe variaveis ao client sem prefixo VITE_** [vite, build, env, config]
   `define` no `vite.config.ts` substitui strings em tempo de compilacao. Diferente de `import.meta.env.VITE_*`, o `define` expoe o valor SEMPRE, inclusive em testes. Para variaveis que so existem em producao (como SENTRY_DSN), usar condicional `!process.env.VITEST` no define, ou usar `import.meta.env.VITE_SENTRY_DSN` com env var real prefixada.
   Afeta: `vite.config.ts`, build config.
 
@@ -479,8 +479,8 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Afeta: scripts automatizados de env vars para preview deployments.
 
 - **CRITICO: Nunca usar backticks em comandos gh api com -f body — shell expande como comando** [seguranca, shell, gh, github, token, incidente]
-  `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
-Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
+  `gh api ... -f body='text with \`command\` backticks'` faz o shell expandir os backticks como `$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
+  Afeta: qualquer comando `gh api` ou `gh pr` com corpo gerado dinamicamente.
 
 <!-- caliber:managed:learnings -->
 
