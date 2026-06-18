@@ -1,43 +1,56 @@
 # Active Context
 
-Last updated: 2026-06-15 — sessao PR #376: 4 bugs corrigidos, E2E passando, Sentry configurado
+Last updated: 2026-06-18 - PR #379 mergeada, PR #380 em CI (Sprint 1)
 
-## Estado Atual
+## Prioridade Atual
 
-- **Branch local:** `main` (`dbfbfad5`) — sincronizado com `origin/main`
-- **PR #376:** Mergeada — 4 bugs (LoadingStuckProbes, contador 8/7, bolha inline, sidebar vazia)
-- **PR #374:** Unificada na #376 — texto mapa societario + ARIA
-- **Vercel producao:** scoutagro.vercel.app — 1501 testes passando
-- **Supabase project:** `vmqfcaoirjcfucvlnpig`
-- **Deadline:** 18/06/2026 — usuarios existentes precisam cadastrar senha
-- **Git status:** limpo, sincronizado com origin/main
+Sprint 1 concluida (T-B.2 e T-B.3). PR #380 aguardando CI para merge. Proximo: decidir entre Sprint 2 (remover layoutTraceTelemetry.ts) ou Sprint 3 (coverage + display:none).
 
-## O que foi entregue nesta sessao
+- **Branch:** `main` (PR #379 mergeada `db5a9a8d`; PR #380 branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`)
+- **Vault (manha):** `20-SESSOES/2026-06/2026-06-18T08-37-04-p0-playbook-foundation.md`
+- **Vault (tarde):** `20-SESSOES/2026-06/2026-06-18T15-00-00-sprint1-cnpj-qsa-catch.md` (pendente criacao)
+- **Fase:** Sprint 1 — T-B.2 e T-B.3 concluidos
+- **Producao:** `scoutagro.vercel.app` — cron dry-run ativo, CRON_DELETE_ENABLED nunca configurado
+- **Risco:** Nenhum bloqueio ativo
 
-- **Bug A — Safety net desarmada:** LoadingStuckProbes nunca funcionaram porque activeGenerationRef era deletado antes dos probes capturarem o valor. Corrigido: capture generationValid ANTES de deletar o ref.
-- **Bug B — Contador "8/7":** "Consolidando informacoes..." contava como etapa. Corrigido: finalizeLoadingProgress ignora esse rotulo + Math.min cap.
-- **Bug C — Bolha inline travada (stale thinking):** Guard data.isLoading + stale-thinking retorna null. useEffect auto-destruicao com graceExpired reset entre ciclos.
-- **Bug D — Sidebar vazia apos criar conta:** storageRemove() limpava localStorage, getOperatorId() so lia de la. Corrigido: storageSet(OPERATOR_ID_KEY) apos resolucao de auth.
-- **Sentry — 4 alertas:** Loading stuck timeout, waterfall leak, session persist failed, generation ref cleared.
-- **Typecheck:** MetricsDashboard.tsx com index signature.
-- **E2E tests:** auth helper (setupE2EAuth + loginViaSupabase), 10 arquivos, 6/6 preview Vercel.
-- **Code review:** Gemini + CodeRabbit feedback aplicado e resolvido.
+## Estado do Projeto
 
-## Decisoes ativas
+- PR #379 mergeada e em producao (db5a9a8d).
+- PR #380 (Sprint 1): branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`.
+  - T-B.2: `partner.document` validado (14 digitos) e formatado no `partnerText` para `validateTeiaCnpjsOutput`.
+  - T-B.3: `.catch(() => {})` -> `scoutDiag.warn` em `waterfall-orchestrator.ts:307`.
+  - 1502/1502 testes verdes, typecheck limpo.
+- Cron protecao dry-run validada (`dryRun:true, candidates:0, cleaned:0`).
+- Hook completion-check.sh consultivo com `decision: null`.
+- Codex revertido: `.mcp.json`, `ai-actions.md`, manifest.json, 4 planos restaurados.
+- Branch protection restaurada (required_conversation_resolution: true).
 
-- DI-2026-06-15-01: activeGenerationRef sobrevive aos probes
-- DI-2026-06-15-02: "Consolidando..." e rotulo de UI, nao etapa de loading
-- DI-2026-06-15-03: stale-thinking retorna null, nao erro alarmista
-- DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage
-- Decisoes anteriores permanecem em `decisions.md`
+## Playbook Status
 
-## Atencao
+| Fase   | Tarefas-chave                               | Status             |
+| ------ | ------------------------------------------- | ------------------ |
+| Fase 0 | PR #379 (P0)                                | ✅ CONCLUIDA       |
+| T-A    | Causa raiz display:none, invariante, layout | 🟡 PARCIAL / ❌ 1  |
+| T-B    | Error handling (rede, CNPJ, waterfall)      | ✅ 3 / 🟡 0 / ❌ 0 |
+| T-C    | Telemetria (layoutTraceTelemetry.ts)        | ❌ 1 (Sprint 2)    |
+| T-D    | CI/Gates (coverage, E2E, timeout, perf)     | ❌ 3 / 🟡 1        |
 
-- Branch `feature/supabase-auth` pode ser deletada (local + remote).
-- Sentry 4 novos alertas — monitorar volume inicial.
-- Deadline 18/06 se aproximando — verificar banner e cron ativos.
-- SocietaryMap texto de progresso passou por reversao — confirmar versao final.
+## Decisoes Ativas
 
-## Proximo passo
+- CRON_DELETE_ENABLED nunca configurado — cron e so painel de observacao.
+- Codex/CodeRabbit nao modifica `.mcp.json`, `nimbalyst-local/`, ou `.claude/plugins/`.
+- Vercel deploy poll: 2s, nao 5s.
+- Branch protection desabilitada temporariamente durante merge de PR com required_conversation_resolution.
+- Fix incompleto e pior que fix nenhum — validar pipeline completo (Set -> consumidores).
+- Documentos QSA = CPF mascarado ate validacao de 14 digitos.
 
-Monitorar Sentry para os 4 novos alertas e deletar branch feature/supabase-auth.
+## Fora do Escopo Atual
+
+- Rotacao de API keys permanece pendente.
+- Sprint 2 (remover layoutTraceTelemetry.ts) e Sprint 3 (coverage + display:none) nao iniciadas.
+
+## Validacao Atual
+
+- Cron producao: HTTP 200, dry-run, zero candidatos.
+- Suite de testes: 162 arquivos / 1.502+ testes verdes.
+- PR #380: 1502/1502 verdes, typecheck limpo, aguardando merge.

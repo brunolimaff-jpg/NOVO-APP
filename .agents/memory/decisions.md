@@ -1,6 +1,116 @@
 # decisions.md — NOVO-APP
 
-## Decisoes Ativas
+## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
+
+### DI-2026-06-18-08: Fix de pipeline deve cobrir o fluxo completo do dado (Set -> consumidores)
+
+- **Decisao:** Correcoes de validacao de dados devem rastrear o fluxo completo da entrada ate o consumidor final. Nao basta adicionar ao Set intermediario se o consumidor extrai do texto formatado (`partnerText`).
+- **Contexto:** T-B.2 inicial so adicionava CNPJs validados ao Set em `knownCnpjs`, mas `validateTeiaCnpjsOutput` extrai CNPJs do `partnerText` por regex. Sem incluir no partnerText, os falsos-positivos de "CNPJ nao confirmado" continuavam. O fix real foi formatar o `partner.document` validado dentro do partnerText.
+- **Impacto:** Falsos-positivos eliminados. Validacao cross-checks partnerText + knownCnpjs para cada CNPJ.
+- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
+
+### DI-2026-06-18-07: Documentos de QSA validados como CNPJ (14 digitos) antes de usar
+
+- **Decisao:** `partner.document` de QSA deve ser validado com `length === 14` antes de ser tratado como CNPJ. CPFs mascarados (`***.123.456-**`) nao devem ser passados como CNPJ para `deriveObjectiveComplexity`.
+- **Contexto:** `pickPublicDocument` suprime IDs completos por seguranca. QSA de pessoa fisica retorna CPF mascarado que infla `deriveObjectiveComplexity` como "CNPJ nao encontrado". A validacao `length === 14` filtra CPFs mascarados (11 digitos) e outros formatos invalidos.
+- **Impacto:** `deriveObjectiveComplexity` recebe apenas CNPJs reais. Complexidade do dossie calculada corretamente.
+- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
+
+### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
+
+- **Decisao:** O intervalo do deploy poll no fluxo de deploy local deve ser 2s (nao 5s). O polling mais rapido reduz o tempo de espera sem impacto significativo no rate limit da API Vercel.
+- **Contexto:** Durante o deploy da PR #379, o polling de 5s atrasava a deteccao de "Ready". O deploy polling e uma operacao local de baixa frequencia (max 1 deploy por execucao).
+- **Impacto:** Deploys ficam 3s mais rapidos em media.
+
+### DI-2026-06-18-05: Codex/CodeRabbit nao modifica config de infraestrutura local
+
+- **Decisao:** Ferramentas de codigo automatizado (Codex, CodeRabbit, Gemini Code Assist, etc.) nao devem modificar `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`, `docs/superpowers/` ou quaisquer arquivos de configuracao local/plugins — a menos que o Bruno peca explicitamente.
+- **Contexto:** O Codex modificou `.mcp.json` (substituiu deepseek, vercel, sentry), `nimbalyst-local/`, `.claude/plugins/`, escreveu `docs/superpowers/` e criou `CODEX.md` (duplicata de CLAUDE.md) sem solicitacao.
+- **Impacto:** `.mcp.json` restaurado com deepseek, vercel, sentry; `ai-actions.md` restaurado; manifest.json e 4 planos restaurados; CODEX.md removido.
+
+### DI-2026-06-18-04: CRON_DELETE_ENABLED nunca configurado
+
+- **Decisao:** `CRON_DELETE_ENABLED` nunca sera configurado em nenhum ambiente. O cron existira apenas como painel de observacao (dry-run permanente), retornando a contagem de candidatos sem excluir.
+- **Contexto:** Bruno decidiu que o cron nao deve deletar contas nao confirmadas. A flag `CRON_DELETE_ENABLED=true` que ativaria a exclusao nunca sera setada.
+- **Impacto:** Cron retorna `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`. Usuarios com contas nao confirmadas permanecem no banco.
+- **Referencia:** `api/cron-email-confirmation.ts`, `CRON_DELETE_ENABLED` env var.
+
+### DI-2026-06-18-03: Hook de conclusao e consultivo, nao bloqueante
+
+- **Decisao:** O hook global usa a versao do repo em `scripts/hooks/completion-check.sh`, retorna `decision: null` e apresenta pendencias como aviso.
+- **Contexto:** O bloqueio repetido impedia o proprio fechamento documental. Para um hook de baixo risco, o contrato minimo e avisar sem impedir a continuidade.
+- **Impacto:** Pendencias continuam visiveis, mas nao criam loop de encerramento. O teste do hook passou.
+- **Referencia:** `scripts/hooks/completion-check.sh`.
+
+### DI-2026-06-18-02: Cron de limpeza e dry-run por padrao
+
+- **Decisao:** `api/cron-email-confirmation.ts` nao remove usuarios por padrao. A exclusao exige `CRON_DELETE_ENABLED=true`; sem a flag, o endpoint retorna a quantidade de candidatos e `cleaned: 0`.
+- **Contexto:** Em 18/06, producao retornou `CRON_SECRET not configured`. Habilitar o segredo na versao antiga acionaria exclusao direta sem prova previa da contagem.
+- **Impacto:** O rollout passa a ser em duas etapas: publicar e revisar dry-run; depois autorizar a exclusao.
+- **Referencia:** `api/cron-email-confirmation.ts`, `tests/api/cron-email-confirmation.test.ts`.
+
+### DI-2026-06-18-01: Playbook priorizado, sem trava global
+
+- **Decisao:** O playbook permanece como roadmap de qualidade, mas nao bloqueia mudancas de assunto e nao exige confirmacao para pausar.
+- **Contexto:** Bruno pediu explicitamente a retirada da trava e a consolidacao do plano revisado.
+- **Impacto:** Subagentes continuam disponiveis em paralelo; o agente principal pode executar e integrar resultados sem bloqueio global.
+- **Referencia:** `docs/superpowers/plans/2026-06-18-ai-proof-execution-playbook-revised.md`.
+
+## Novas Decisoes (Sessao 2026-06-17)
+
+### DI-2026-06-17-01: Playbook de Execucao a Prova de IA como plano bloqueante [SUPERADA]
+
+- **Decisao:** O Playbook de Execucao a Prova de IA — Senior Scout 360 (16 tarefas, 5 fases) e registrado como plano bloqueante. Toda nova sessao deve carregar este plano como contexto principal. Se o usuario pedir algo fora do escopo do plano, o sistema deve perguntar: "O plano bloqueante ainda esta ativo. Quer pausar o plano e mudar de assunto, ou prefere continuar?"
+- **Contexto:** O playbook foi validado com 85% de confianca, 4 ajustes aplicados apos revisao. Contem 16 tarefas em 5 fases: Fundacao (Fase 0), Causa-raiz (Fase A), Loading declarativo (Fase B), Unificar timeout (Fase C), Liquidar divida (Fase D). A Fase 0 esta pronta para iniciar. O maior risco e T-A.1 (causa raiz de display:none desconhecida ha meses). O maior bloqueador e T-00.5 (helper timeout que bloqueia a Fase C).
+- **Impacto:** Mudancas de assunto agora exigem confirmacao explicita do Bruno. Proximas sessoes carregam automaticamente o plano.
+- **Referencia:** /Users/brunolima/Downloads/Particular e Compartilhado/Playbook de Execucao a Prova de IA — Senior Scout 360 e1af6db4856e40c88043249c0329ce7d.html
+- **Superada por:** DI-2026-06-18-01.
+
+## Novas Decisoes (Sessao 2026-06-16)
+
+### DI-2026-06-16-03: gh api com corpo nunca usa backticks — heredoc com aspas simples
+
+- **Decisao:** Comandos `gh api` que enviam corpo com texto sempre usam `cat <<'EOF' | gh api --input -` em vez de `-f body='...'`. O delimitador deve usar aspa simples (`'EOF'`) para evitar qualquer expansao de shell.
+- **Contexto:** Backticks em `gh api -f body='text with \`code\`'`foram expandidos pelo shell como substituicao de comando`$(...)`. O GITHUB_TOKEN e outros tokens de ambiente foram expostos publicamente em um comentario GitHub. O GitHub secret scanning removeu o comentario em ~8 minutos e revogou o GITHUB_TOKEN automaticamente.
+- **Impacto:** Incidente de seguranca grave. Tokens DeepSeek, Pinecone, Apify, Context7, Vercel Bypass expostos — pendentes de rotacao manual. GITHUB_TOKEN ja revogado e reautenticado.
+- **Referencia:** PR #378, commit f8af6206
+
+### DI-2026-06-16-02: Vite define SENTRY_DSN condicional (ignorar vitest)
+
+- **Decisao:** `define` no vite.config.ts para expor `SENTRY_DSN` como `VITE_SENTRY_DSN` deve ser condicional: so substituir quando `!process.env.VITEST`. Sem isso, o define tenta substituir `SENTRY_DSN` mesmo em testes onde a env var nao existe, quebrando o build.
+- **Contexto:** Sentry DSN e uma env var de producao. Em dev/test, ela nao existe. `define` sem condicional substitui a string SENTRY_DSN por `undefined` em tempo de compilacao, quebrando o build local e testes.
+- **Impacto:** Build local funciona. Testes passam.
+- **Referencia:** commit f8af6206, `vite.config.ts`
+
+### DI-2026-06-16-01: Sentry integrado via Vercel Marketplace, nao por env vars manuais
+
+- **Decisao:** Integracao Sentry-Vercel deve ser feita exclusivamente pelo Vercel Marketplace. Env vars manuais de integracao (SENTRY\_\*) devem ser removidas porque tem `internal: true` por padrao, o que bloqueia a injecao de DSN pela integracao oficial.
+- **Contexto:** O Sentry estava configurado com env vars manuais no Vercel (SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN, etc.). O Sentry nunca recebia erros das serverless functions porque a integracao Marketplace nao conseguia injetar o SENTRY_DSN automaticamente — as env vars manuais tinham prioridade e internal=true impedia o override.
+- **Impacto:** 8 env vars removidas. Sentry integrado via Marketplace. Source maps em producao.
+- **Referencia:** PR #378
+
+## Decisoes Ativas (anteriores)
+
+### DI-2026-06-15-07: Debug de sidebar vazia comeca pela network layer, nao pelo state React
+
+- **Decisao:** Ao investigar sidebar vazia com dados intactos no banco, o primeiro passo e inspecionar o network request (payload, content-length, status code), nao o estado React. Sidebar vazia com dados no banco = cadeia de bugs onde cada um mascara o proximo.
+- **Contexto:** Ananda e Wuender tinham historico vazio no app. Network request mostrava `content-length: 2` com payload `[]`. Isso revelou a cadeia: localStorage vazio -> query com temp operator_id -> RLS filtra por role authenticated -> retorna []. Cada bug individual passava despercebido porque o resultado final (`[]`) parecia normal.
+- **Impacto:** 3 bugs identificados em sequencia. Debug comecando pelo state React nao teria revelado a RLS.
+- **Referencia:** commits `4ca4339a`, `9ba0a2cc`, `fe6c6f9b`
+
+### DI-2026-06-15-06: RLS policy de dossies deve cobrir anon + authenticated
+
+- **Decisao:** Toda RLS policy que protege dados de negocios (dossies, user_context) deve explicitar `TO anon, authenticated`. Policy criada apenas com `TO anon` bloqueia silenciosamente usuarios logados (role `authenticated`) retornando `[]`.
+- **Contexto:** A policy `operator_own_dossies` foi criada com `TO anon`. Usuarios logados no Supabase usam role `authenticated`. O Supabase nao gera erro — simplesmente aplica RLS e retorna 0 rows. O sintoma era historico vazio (`HISTORICO (0)`) mesmo com 18 ou 47 dossies no banco.
+- **Impacto:** Migration aplicada. Historico de Ananda e Wuender restaurado.
+- **Referencia:** commit `fe6c6f9b`, `supabase/migrations/20260615_fix_dossies_rls_authenticated.sql`
+
+### DI-2026-06-15-05: Evento operator-relinked deve usar setTimeout(0) para garantir listeners montados
+
+- **Decisao:** `window.dispatchEvent(new CustomEvent('operator-relinked'))` deve ser encapsulado em `setTimeout(() => window.dispatchEvent(...), 0)` para garantir que os listeners dos componentes filhos ja estejam registrados.
+- **Contexto:** React executa useEffect dos pais antes dos efeitos dos filhos. Quando o dispatch era sincrono no useEffect do OperatorContext (pai), nenhum listener dos componentes filhos tinha sido registrado ainda. O evento era disparado e perdido para sempre.
+- **Impacto:** Componentes que escutam `operator-relinked` (sidebar, historico) agora recebem o evento corretamente.
+- **Referencia:** commit `9ba0a2cc`, `contexts/OperatorContext.tsx`
 
 ### DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage apos resolucao de auth
 
