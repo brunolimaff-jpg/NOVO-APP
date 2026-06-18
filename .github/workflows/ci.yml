@@ -43,6 +43,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test
+      - name: Shell hook tests
+        run: bash tests/scripts/completion-check.test.sh
 
   build:
     name: Build
