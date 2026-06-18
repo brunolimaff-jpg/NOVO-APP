@@ -370,30 +370,41 @@ describe('MessageTimeline', () => {
   });
 
   it('Virtuoso renderiza com dossiê grande (>4000 chars)', async () => {
+    const originalResizeObserver = global.ResizeObserver;
+    const originalRaf = window.requestAnimationFrame;
+    const originalCancelRaf = window.cancelAnimationFrame;
+
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
     window.requestAnimationFrame = vi.fn(() => 1);
     window.cancelAnimationFrame = vi.fn();
 
-    const largeText = 'D'.repeat(4_001);
-    const messages = [
-      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-      buildMessage('m2', Sender.Bot, largeText),
-    ];
+    try {
+      const largeText = 'D'.repeat(4_001);
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+        buildMessage('m2', Sender.Bot, largeText),
+      ];
 
-    const props = buildProps({
-      messages,
-      currentSession: buildSession(messages),
-    });
+      const props = buildProps({
+        messages,
+        currentSession: buildSession(messages),
+      });
 
-    render(<MessageTimeline {...props} />);
+      render(<MessageTimeline {...props} />);
 
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
 
-    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
-    expect(screen.getByTestId('message-row-1')).toHaveTextContent(largeText);
+      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+      expect(screen.getByTestId('message-row-1')).toHaveTextContent(largeText);
+    } finally {
+      global.ResizeObserver = originalResizeObserver;
+      window.requestAnimationFrame = originalRaf;
+      window.cancelAnimationFrame = originalCancelRaf;
+      vi.useRealTimers();
+    }
   });
 });

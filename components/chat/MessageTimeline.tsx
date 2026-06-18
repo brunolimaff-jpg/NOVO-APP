@@ -54,6 +54,7 @@ interface MessageTimelineProps {
   loadingPinnedLabel?: string | null;
   canDeepDive: boolean;
   theme: ChatTheme;
+  recoveryKey?: number;
 }
 
 const MessageTimeline: React.FC<MessageTimelineProps> = ({
@@ -88,6 +89,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   loadingPinnedLabel,
   canDeepDive,
   theme,
+  recoveryKey,
 }) => {
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -259,7 +261,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     };
 
     setIsMessagesViewportReady(false);
-    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 100);
+    emergencyTimer = window.setTimeout(() => markReady('emergency-timer'), 180);
 
     if (hasValidSize()) {
       markReady('initial-size');
@@ -293,12 +295,19 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     };
   }, [currentSession?.id, shouldSuspendVirtualizedList, showInitialHome]);
 
+  // ── Recovery: blank panel / watchdog → remount Virtuoso ──
+  useEffect(() => {
+    if (recoveryKey !== undefined && recoveryKey > 0) {
+      setVirtuosoKey(k => k + 1);
+    }
+  }, [recoveryKey]);
+
   // ── Virtuoso display:none recovery watchdog ──
   useEffect(() => {
     if (!isMessagesViewportReady) return;
 
     const timer = window.setTimeout(() => {
-      const scroller = messagesViewportRef.current?.querySelector<HTMLElement>('[data-testid="messages-scroller"]');
+      const scroller = messagesViewportRef.current?.querySelector<HTMLElement>('[data-virtuoso-scroller]');
       if (!scroller) return;
 
       const cs = getComputedStyle(scroller);
