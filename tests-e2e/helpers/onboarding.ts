@@ -59,13 +59,16 @@ export async function dismissDuplicateDossierModal(
   page: Page,
   options: DismissDuplicateDossierOptions = {},
 ) {
-  const { timeoutMs = 3_000, required = false } = options;
+  const { timeoutMs = 30_000, required = false } = options;
   await dismissMigrationBanner(page);
 
   const modalHeading = page.getByRole('heading', { name: /dossiê existente/i });
-  const visible = await modalHeading.isVisible({ timeout: timeoutMs }).catch(() => false);
+  const appeared = await modalHeading
+    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .then(() => true)
+    .catch(() => false);
 
-  if (!visible) {
+  if (!appeared) {
     if (required) {
       throw new Error('Modal "Dossiê existente" esperado mas não apareceu');
     }
@@ -76,6 +79,13 @@ export async function dismissDuplicateDossierModal(
   await expect(novaPesquisa).toBeVisible({ timeout: 5_000 });
   await novaPesquisa.click({ force: true });
   await expect(modalHeading).toBeHidden({ timeout: 30_000 });
+
+  const investigationStarted = page
+    .getByTestId('cofre-overlay')
+    .or(page.getByTestId('loading-smart-overlay'))
+    .or(page.getByTestId('inline-loading-bubble'))
+    .or(page.getByTestId('bot-message-content'));
+  await expect(investigationStarted.first()).toBeVisible({ timeout: 30_000 });
 }
 
 export async function openSidebarIfNeeded(page: Page) {

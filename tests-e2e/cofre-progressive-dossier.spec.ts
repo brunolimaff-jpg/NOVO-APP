@@ -9,6 +9,17 @@ test.use({ storageState: { cookies: [], origins: [] } });
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
 const LOADING_TIMEOUT_MS = 120_000;
+/** POST_API_SAFETY_TIMEOUT_MS (10s) + DISSOLVE_DURATION_MS (350ms) após loading terminar */
+const COFRE_DISSOLVE_TIMEOUT_MS = 15_000;
+
+async function waitForLoadingIndicatorsToHide(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  const cofre = page.getByTestId('cofre-overlay');
+  if (await cofre.isVisible().catch(() => false)) {
+    await expect(cofre).toBeHidden({ timeout: COFRE_DISSOLVE_TIMEOUT_MS });
+  }
+}
 
 async function expectValidMainPanelState(page: import('@playwright/test').Page) {
   const mainPanel = page.getByTestId('chat-main-panel');
@@ -74,19 +85,18 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
-    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
+    await expect(
+      page
+        .getByTestId('cofre-overlay')
+        .or(page.getByTestId('loading-smart-overlay'))
+        .or(page.getByTestId('inline-loading-bubble'))
+        .first(),
+    ).toBeVisible({
       timeout: 30_000,
     });
 
-    // Aguarda todos os indicadores de loading desaparecerem
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-
-    // Após LoadingSmart desaparecer, um estado válido precisa estar presente no painel central.
+    await waitForLoadingIndicatorsToHide(page);
     await expectValidMainPanelState(page);
-
-    // Input continua acessível
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
   });
 
@@ -102,14 +112,9 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
     // Input deve estar visível durante e após o loading
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
 
-    // Aguarda todos os indicadores de loading desaparecerem
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-
-    // Input continua acessível
+    await waitForLoadingIndicatorsToHide(page);
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
   });
-
 
   test('Cofre overlay aparece em investigação dossier e dissolve com dossiê stubado', async ({ page }) => {
     await completeOnboarding(page);
@@ -131,12 +136,7 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
       await expect(cofre).toHaveAttribute('data-cofre-phase', /entering|visible|dissolving/);
     }
 
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    if (await cofre.isVisible().catch(() => false)) {
-      await expect(cofre).toBeHidden({ timeout: LOADING_TIMEOUT_MS });
-    }
-
+    await waitForLoadingIndicatorsToHide(page);
     await expectValidMainPanelState(page);
   });
 
@@ -159,9 +159,7 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-
+    await waitForLoadingIndicatorsToHide(page);
     expect(unexpectedErrors).toHaveLength(0);
   });
 });
