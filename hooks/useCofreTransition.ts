@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CofrePhase } from '../components/CofreOverlay';
 import { scoutDiag } from '../utils/diagnosticLog';
-import {
-  COFRE_RENDER_READY_EVENT,
-  type CofreRenderReadyDetail,
-  type GenerationKind,
-} from '../utils/cofreLifecycle';
+import { COFRE_RENDER_READY_EVENT, type CofreRenderReadyDetail, type GenerationKind } from '../utils/cofreLifecycle';
 
 interface UseCofreTransitionParams {
   generationKind: GenerationKind;

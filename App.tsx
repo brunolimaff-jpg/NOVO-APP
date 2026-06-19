@@ -142,8 +142,7 @@ const App: React.FC = () => {
         (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
     );
     return (
-      generationKind !== 'dossier' &&
-      shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage)
+      generationKind !== 'dossier' && shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage)
     );
   }, [isLoading, loadingVariant, allMessages, generationKind]);
 

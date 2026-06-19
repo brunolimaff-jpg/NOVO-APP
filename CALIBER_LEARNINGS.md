@@ -348,7 +348,7 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - Toda auditoria deve terminar com uma etapa de autorrefutacao.
 - Codigo suspeito nao e automaticamente bug.
 - Uma cadeia de concorrencia precisa ser alcancavel, nao apenas teoricamente imagina-
-vel.
+  vel.
 - Timer sem cleanup nao e defeito sem efeito colateral demonstravel.
 - Documentacao gerada por IA deve ser confrontada com codigo e testes.
 
@@ -466,7 +466,7 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Env vars adicionadas manualmente no Vercel Dashboard tem `internal: true` por padrao. Isso faz com que integracoes de terceiros (como Sentry Marketplace) nao consigam injetar suas proprias env vars. A integracao falha silenciosamente — o Sentry nunca recebe erros das serverless functions. Solucao: remover env vars manuais relacionadas a integracao (SENTRY_DSN, etc.) e deixar o Marketplace gerenciar.
   Afeta: configuracao de integracoes Vercel Marketplace.
 
-- **Vite define expoe variaveis ao client sem prefixo VITE_** [vite, build, env, config]
+- **Vite define expoe variaveis ao client sem prefixo VITE\_** [vite, build, env, config]
   `define` no `vite.config.ts` substitui strings em tempo de compilacao. Diferente de `import.meta.env.VITE_*`, o `define` expoe o valor SEMPRE, inclusive em testes. Para variaveis que so existem em producao (como SENTRY_DSN), usar condicional `!process.env.VITEST` no define, ou usar `import.meta.env.VITE_SENTRY_DSN` com env var real prefixada.
   Afeta: `vite.config.ts`, build config.
 
@@ -479,8 +479,36 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   Afeta: scripts automatizados de env vars para preview deployments.
 
 - **CRITICO: Nunca usar backticks em comandos gh api com -f body — shell expande como comando** [seguranca, shell, gh, github, token, incidente]
-  `gh api ... -f body='text with \`command\` backticks'` faz o shell expandir os backticks como `$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
-  Afeta: qualquer comando `gh api` ou `gh pr` com corpo gerado dinamicamente.
+  `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
+Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
+
+
+### Sessao 2026-06-19 — PR #383 Fase D + PR Gate IA
+
+- **E2E blocking no GitHub nao substitui preview Vercel para UX critica** [e2e, vercel, ci, testing-trophy]
+  CI localhost/Docker diverge de modal dossie, Supabase real e serverless. Preview manual 5/5 ~1,7 min; CI E2E cancelou em 15 min. Decisao: PR Gate IA — E2E fora dos required checks; validacao sob demanda no preview. Afeta: branch protection, `.github/workflows/`, AGENTS.md.
+
+- **Playwright CI: imagem Docker noble, nao playwright-github-action em Ubuntu 24.04** [playwright, ci, docker, github-actions]
+  `microsoft/playwright-github-action@v1` quebra com `Cannot install dependencies for this linux distribution` no Ubuntu 24.04. Solucao: `mcr.microsoft.com/playwright:v1.59.1-noble`. Afeta: jobs E2E em `ci.yml`.
+
+- **Testing Trophy no topo — poucos E2E criticos no preview, vitest/coverage no CI** [testing-trophy, e2e, vitest]
+  Expandir para 17 testes E2E blocking em 2 jobs violou o trophy. Rede principal: vitest + coverage + golden. E2E: projeto `critical-ux` sob demanda no preview. Afeta: Fase D T-D.2.
+
+- **Workflow timeout deve cobrir install + suite completa** [ci, timeout, playwright]
+  Job E2E preview com limite 15 min cancelou antes de 14 testes. Timeout >= tempo medido + margem de install. Afeta: `e2e-preview.yml`.
+
+- **Responder thread de review antes de marcar resolved** [github, pr, review]
+  Marcar threads resolvidas sem comentario de tratativa quebra confianca do review. Obrigatorio: skill `gh-resolve-pr-comments`. Afeta: fluxo PR Gate.
+
+- **Commits de memoria na branch da PR ativa** [git, worktree, agents]
+  AGENTS.md continual-learning commitado na branch errada exigiu cherry-pick. Verificar branch antes de docs de memoria. Afeta: worktrees, handoff.
+
+- **console.error strict em E2E quebra com telemetria debug Scout360** [e2e, playwright, console, telemetria]
+  Specs com `page.on('console', msg => expect(msg.type()).not.toBe('error'))` falham quando o app emite logs debug legitimos (`scoutDiag`, telemetria Scout360). Solucao: allowlist de padroes conhecidos ou filtrar por origem. Afeta: `tests-e2e/`, specs `critical-ux`.
+
+- **PR Gate IA e gate definitivo para app Vercel+Supabase — CI E2E localhost nao substitui** [vercel, supabase, e2e, pr-gate, ci]
+  Para apps com preview Vercel + Supabase real + serverless, o gate de merge e: CI rapido verde + Playwright `critical-ux` no preview (agente) + comentario evidencia + **MERGE**. CI E2E Docker/localhost e instavel e nao representa UX real. Aprovado PR #383: 11/11 SHA `63f1c85e`. Afeta: branch protection, `AGENTS.md`, fluxo merge.
+
 
 <!-- caliber:managed:learnings -->
 

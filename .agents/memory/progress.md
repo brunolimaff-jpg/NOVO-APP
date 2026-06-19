@@ -1,6 +1,22 @@
 # Progress
 
-Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
+Last updated: 2026-06-19 — PR #383 Fase D FECHADA (aguarda MERGE)
+
+## Timeline
+
+### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA — FECHAMENTO)
+
+- Fase D entregue: coverage gate 69%, bundle budget, timeout edge cases (`runWithStepTimeout`), higiene P1/P2.
+- E2E expandido → enxugado para 11 specs `critical-ux` (`loading-smart-recovery` fora por duplicata cofre).
+- Auth: lockout pós-deadline removido intencionalmente (#384).
+- E2E blocking removido do CI (`e6f256d8`); CI GitHub verde sem E2E required.
+- **Decisão DI-2026-06-19-01 TRAVA FINAL:** PR Gate IA substitui E2E blocking.
+- **PR Gate IA APROVADO:** 11/11 preview SHA `63f1c85e` ~2,7 min — [evidência PR](https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777).
+- Bruno manual preview: 5/5. Threads review: 0 abertas.
+- Commits finais: `888b9487`, `72e6dd36`, `b472848c`, `63f1c85e`.
+- Design debt: Cofre skeleton 3 seções (não bloqueia merge).
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`.
+- **Próximo:** Bruno envia **MERGE** para mergear #383.
 
 ## Timeline
 

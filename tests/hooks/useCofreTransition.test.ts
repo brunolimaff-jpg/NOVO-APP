@@ -34,9 +34,7 @@ describe('useCofreTransition', () => {
   });
 
   it.each(['follow_up', 'deep_dive'] as const)('permanece oculto durante %s', generationKind => {
-    const { result } = renderHook(() =>
-      useCofreTransition(baseParams({ generationKind })),
-    );
+    const { result } = renderHook(() => useCofreTransition(baseParams({ generationKind })));
 
     expect(result.current.cofrePhase).toBe('hidden');
   });

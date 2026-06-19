@@ -1,97 +1,96 @@
-# Handoff — PR #382: Cofre Durante a Geracao
+# Handoff — PR #383 Fase D FECHADA (aguarda MERGE)
 
-**Atualizado:** 2026-06-18
-**Branch:** `worktree-sprint2+remove-layout-trace-telemetry` (PR #382)
-**Producao:** `scoutagro.vercel.app`
+**Atualizado:** 2026-06-19 (fechamento sessão)  
+**Branch:** `worktree-feat+fase-d-ci-quality-gates`  
+**HEAD:** `63f1c85e`  
+**PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/383  
+**Produção:** `scoutagro.vercel.app`
 
 ## Estado Atual
 
-- **PR #382 corrigida localmente.** O Cofre abre no inicio de dossie inicial ou Nova Pesquisa, bloqueia o app com blur e mantem somente `Interromper` acessivel.
-- **Follow-up e Deep Dive preservam loading inline.** A ativacao usa `generationKind`, sem heuristica por tamanho do texto ou `loadingVariant`.
-- **Liberacao vinculada ao PostCompletion.** O overlay dissolve em 350 ms apenas quando loading acabou, resposta final esta visivel, painel nao esta vazio, Virtuoso tem altura e composer esta liberado.
-- **Fallbacks:** aborto/erro liberam com dissolve curto; timeout de 10 s comeca somente depois do fim da API.
-- **Validacao local:** typecheck; 1.505 testes; 64 contratos; build; 44 testes focados; lint do escopo; E2E de painel branco (3/3); `git diff --check`.
-- **Bloqueio de ambiente:** `validate:chat:no-autoscroll` nao executa sem `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`.
-- **Preview Scheffer validado:** Cofre cobriu 1280x720 e 375x812, permaneceu durante a geracao e liberou com painel visivel, Virtuoso com 565 px, bot final renderizado e composer ativo.
-- **Correcao adicional do Preview:** total de modulos agora usa o maior valor entre configurado, concluido e renderizado, impedindo progresso como `8 de 7`.
-- **Pendente imediato:** confirmar checks e smoke do SHA final da PR #382. Nenhum merge sem `MERGE` explicito.
+- **Fase D entregue:** coverage gate 69%, bundle budget, timeout edge cases (`runWithStepTimeout` real), higiene P1/P2.
+- **CI GitHub:** verde — typecheck, vitest, coverage, build, dossier golden, smoke HTTP, CodeQL, Vercel preview. **Sem E2E blocking** (`e6f256d8`).
+- **PR Gate IA:** **APROVADO** 11/11 no preview SHA `63f1c85e` (~2,7 min). Evidência: https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777
+- **Bruno manual:** 5/5 no preview.
+- **Threads review:** 0 abertas.
+- **Merge:** pendente token **MERGE** na mensagem do Bruno.
+- **Design debt:** Cofre skeleton 3 seções — não bloqueia.
 
-- **PR #379 mergeada e em producao.** Cron protecao dry-run, hook consultivo, CI shell test.
-- **PR #380 (Sprint 1) aberta.** Branch `fix/sprint1-cnpj-qsa-knowncnpjs`, commit `e4fc6587`. Aguardando merge (CI rodando).
-- **CRON_DELETE_ENABLED nunca configurado.** Cron e apenas painel de observacao (decisao do Bruno).
-- **Codex revertido.** `.mcp.json` restaurado (deepseek, vercel, sentry), `ai-actions.md` restaurado (199 linhas), manifest.json e 4 planos restaurados. `CODEX.md` removido (duplicata de CLAUDE.md).
-- **Branch protection restaurada** apos merge (required_conversation_resolution: true).
-- **Playbook Sprint 1 parcial.** T-B.2 e T-B.3 concluidos na PR #380.
+## Decisão TRAVA FINAL — DI-2026-06-19-01
 
-## Playbook Status (pos-Sprint 1)
+| Gate | Status |
+|------|--------|
+| CI rápido GitHub | ✅ required |
+| E2E Critical UX / Preview Vercel CI | ❌ fora required |
+| PR Gate IA Playwright `critical-ux` no preview | ✅ 11/11 aprovado |
+| Comentário evidência na PR | ✅ |
+| Token **MERGE** | ⏳ pendente |
 
-| Fase   | Tarefa                                     | Status       |
-| ------ | ------------------------------------------ | ------------ |
-| Fase 0 | PR #379 (P0)                               | ✅ CONCLUIDA |
-| T-A.1  | Causa raiz display:none (probes/guard)     | 🟡 PARCIAL   |
-| T-A.2  | Invariante hard de loading                 | ✅           |
-| T-A.3  | Onboarding cleanup                         | ✅           |
-| T-A.4  | Layout CSS preventivo                      | 🟡 PARCIAL   |
-| T-A.5  | Promise.race (3, nao 6)                    | ❌ PENDENTE  |
-| T-B.1  | Erro generico de rede (error-message-card) | ✅           |
-| T-B.2  | CNPJ QSA omitido                           | ✅ PR #380   |
-| T-B.3  | Erro parcial waterfall granular            | ✅ PR #380   |
-| T-C.1  | layoutTraceTelemetry.ts 475 linhas         | ❌ PENDENTE  |
-| T-D.1  | CI coverage gate                           | ❌ PENDENTE  |
-| T-D.2  | E2E apos cada PR                           | 🟡           |
-| T-D.3  | Testes de timeout                          | ❌ PENDENTE  |
-| T-D.4  | CI performance budget                      | ❌ PENDENTE  |
+Vault: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
 
-## PR #380 — Sprint 1 (branch `fix/sprint1-cnpj-qsa-knowncnpjs`)
+## Commits finais (higiene + E2E)
 
-- **T-B.2 (CNPJ QSA omitido):** `partner.document` validado (14 digitos) e formatado no `partnerText` para `validateTeiaCnpjsOutput` extrair via regex. Elimina falsos-positivos de "CNPJ nao confirmado".
-- **T-B.3 (Erro parcial waterfall granular):** `.catch(() => {})` substituido por `scoutDiag.warn` em `waterfall-orchestrator.ts:307`.
-- **1502/1502 testes verdes, typecheck limpo.**
-- **Aguardando merge (CI rodando).**
+| SHA | Descrição |
+|-----|-----------|
+| `e6f256d8` | ci: remove E2E blocking dos required checks |
+| `888b9487` | higiene P1 (E2E enxugado, auth lockout removido #384) |
+| `72e6dd36` | higiene P2 |
+| `b472848c` | e2e: uniqueOperator + dismissDuplicateDossierModal |
+| `63f1c85e` | e2e: robustez controlled-error no preview |
 
-## Cron em Producao
+## Playbook Fase D
 
-- `CRON_SECRET` configurado no Vercel Production.
-- Validado: `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`.
-- `CRON_DELETE_ENABLED` NUNCA sera configurado (decisao do Bruno).
-- Cron autenticado retorna HTTP 200 com dry-run.
+| Tarefa | Status |
+|--------|--------|
+| T-D.1 CI coverage gate | ✅ |
+| T-D.2 E2E | ✅ via PR Gate IA (11 specs `critical-ux`) |
+| T-D.3 Testes timeout | ✅ |
+| T-D.4 Performance budget | ✅ |
 
-## Licoes Aprendidas (Sessao 2026-06-18)
+## O que funcionou
 
-### Merge PR #379
+- Docker `mcr.microsoft.com/playwright:v1.59.1-noble`
+- PR Gate IA Playwright `BASE_URL` preview ~2,7 min 11/11
+- Bruno manual 5/5; Vitest/coverage/golden como rede principal
+- `uniqueOperator` + `dismissDuplicateDossierModal` no preview
+- Allowlist console debug telemetry (Scout360)
 
-- **Branch protection com required_conversation_resolution bloqueia merge mesmo com threads resolvidas via GraphQL** — precisa desabilitar temporariamente.
-- **Vercel GitHub App cria deployment environments orfaos** ("Preview - novo-app", "Production - novo-app") que bloqueiam merge.
-- **OAuth Vercel MCP expira entre sessoes** — CLI e mais confiavel.
-- **gh api -F envia strings** — para boolean/array usar `--input` com JSON puro.
-- **Branch protection strict mode bloqueia push de docs** — desabilitar checks temporariamente.
+## O que NÃO funcionou
 
-### PR #380 — Sprint 1
+1. E2E blocking Fase D inchado — timeout, install hang, processo quebrado
+2. `playwright-github-action@v1` — Ubuntu 24.04
+3. CI localhost/Docker ≠ preview Vercel (modal, Supabase, serverless)
+4. Testing Trophy violado — E2E no topo do pyramid
+5. Duplicação `loading-smart-recovery` vs `cofre-progressive` (removido do `critical-ux`)
+6. Workflow preview 15 min cancelou antes da suite
+7. Scheffer flaky localhost, OK preview
+8. `gh-resolve`: responder antes de resolver thread
+9. `AGENTS.md` cherry-pick na branch errada
+10. `console.error` strict vs telemetria debug Scout360 — allowlist
+11. PR Gate IA > CI E2E para app Vercel+Supabase
 
-- **Fix incompleto e pior que fix nenhum** — T-B.2 inicial so adicionava ao Set, mas `validateTeiaCnpjsOutput` extrai CNPJs do texto. Sem incluir no partnerText, falsos-positivos continuavam. Sempre trace o fluxo completo do dado (Set -> consumidores).
-- **Documentos de QSA podem ser CPF mascarado** — `partner.document` de `pickPublicDocument` suprime IDs completos. CPFs mascarados (`***.123.456-**`) inflam `deriveObjectiveComplexity`. Sempre validar `length === 14` antes de tratar como CNPJ.
-- **Codex/CodeRabbit nao deve modificar .mcp.json, nimbalyst-local/ ou .claude/plugins/** — bots de review poluiram configuracao de agente. Revertidos: .mcp.json, ai-actions.md, manifest.json, 4 planos.
-- **Vercel deploy poll: 2s de intervalo, nao 5s** — polling de 5s atrasava deteccao de "Ready" sem necessidade.
+## E2E `critical-ux` (11 testes)
 
-## O que NAO funcionou
+Stubs Gemini/CNPJ no preview — não chama IA real. `loading-smart-recovery` fora (duplicata cofre). Auth lockout pós-deadline removido intencionalmente (#384).
 
-1. `gh api -F auto_merge=false` envia string `"false"`, nao boolean `false`. API recusa. Solucao: `--input` com JSON.
-2. `vercel env add --non-interactive --preview` (plural) nao funciona no CLI 54.14.0. Solucao: `--environment preview` (singular).
-3. Fix parcial de T-B.2 sem incluir no partnerText nao resolve o problema — os consumidores precisam do dado formatado no texto, nao apenas no Set.
-4. Branch protection strict mode (`required_status_checks.strict: true`) bloqueia push mesmo de docs se checks nao rodaram. Desabilitar temporariamente -> push -> reabilitar.
+## Coverage baseline
 
-## Proximos Passos
+Thresholds Vitest: **69 / 57 / 64 / 69** (lines / branches / functions / statements).
 
-1. Mergear PR #380 (Sprint 1) quando CI completar — T-B.2 e T-B.3 concluidos.
-2. Revisar playbook: qual fase atacar a seguir (Sprint 2 = T-C.1 remover layoutTraceTelemetry.ts)?
-3. Sprint 2: remover `layoutTraceTelemetry.ts` (475 linhas) e dependencias.
-4. Sprint 3: CI coverage gate (T-D.1) + `display:none` layout preventivo (T-A.4).
-5. Fase A: T-A.5 (Promise.race 3 em vez de 6) e T-A.1 (causa raiz display:none) pendentes.
-6. Fase D: T-D.3 (testes de timeout) e T-D.4 (performance budget) pendentes.
+## Próximo passo único
 
-## Guardas
+Bruno envia **MERGE** na mensagem para mergear #383.
 
-- CRON_DELETE_ENABLED nao configurar — documentado como decisao final do Bruno.
-- Codex/CodeRabbit nao deve modificar `.mcp.json`, `nimbalyst-local/` ou `.claude/plugins/`.
-- Vercel deploy poll: 2s de intervalo, nao 5s.
-- Branch protection strict mode: desabilitar para push de docs/docs-only.
+## Prompt retomada pós-merge
+
+```
+▎ PR #383 mergeada. Confirmar produção scoutagro.vercel.app.
+▎ Próximo: playbook pós-Fase D (Sprint 2 T-C.1 ou design debt Cofre skeleton).
+▎ Merge futuro: CI rápido + PR Gate IA preview + MERGE.
+```
+
+## Vault
+
+- Sessão: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`
+- Lições: `Bruno Vault/30-LICOES/LICOES-APRENDIDAS-E2E-CI-PR-GATE-2026-06-19.md`
+- Decisão: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
