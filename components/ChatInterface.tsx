@@ -53,6 +53,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onDeleteMessage,
   onDeepDive,
   radar,
+  toast,
 }) => {
   const { mode } = useMode();
   const {
@@ -113,6 +114,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     radar,
     operatorId,
     onSelectSession,
+    toast,
   });
 
   const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);

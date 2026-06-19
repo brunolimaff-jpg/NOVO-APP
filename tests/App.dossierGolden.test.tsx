@@ -162,6 +162,7 @@ vi.mock('../hooks/useSessionStorage', async () => {
         loadSessions: vi.fn(async () => []),
       };
     },
+    subscribeSessionPersistFailure: vi.fn(() => () => {}),
   };
 });
 
