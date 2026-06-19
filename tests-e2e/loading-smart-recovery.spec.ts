@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
-import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
+import { completeOnboarding, e2eCompanyName, startNewInvestigation } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
@@ -104,6 +104,25 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
 
     // Input continua acessível
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
+  });
+
+
+  test('stop durante loading permite nova investigação em menos de 5s', async ({ page }) => {
+    await completeOnboarding(page);
+
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Stop E2E'));
+    await page.getByTestId('investigation-city-input').fill('Cuiabá');
+    await page.getByTestId('investigation-uf-input').fill('MT');
+    await page.getByTestId('investigation-submit-button').click({ force: true });
+
+    const stopButton = page.getByTestId('loading-stop-button');
+    await expect(stopButton).toBeVisible({ timeout: 30_000 });
+    await stopButton.click({ force: true });
+
+    const startedAt = Date.now();
+    await startNewInvestigation(page);
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 5_000 });
   });
 
   test('sem erro silencioso no console durante loading', async ({ page }) => {

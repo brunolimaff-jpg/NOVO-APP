@@ -184,6 +184,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     isLoading: chatStore?.isLoading ?? false,
     loadingVariant: chatStore?.loadingVariant ?? null,
   };
+  const currentSessionIdRef = useRef(currentSessionId);
+  currentSessionIdRef.current = currentSessionId;
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -307,16 +309,39 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   // PR #349: probes de estado real pos-finalizacao do waterfall.
   // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
   // Retorna cleanup que cancela RAF + timers; caller deve compor com cleanupPostCompletionRef.
-  function scheduleLoadingStuckProbes(sessionId: string, generationValid: boolean): () => void {
+  function scheduleLoadingStuckProbes(
+    sessionId: string,
+    botMessageId: string,
+    generationValid: boolean,
+  ): () => void {
     const delays = [0, 100, 500, 1_000, 3_000, 10_000];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
     const capturedSessionId = sessionId;
+    const capturedBotMessageId = botMessageId;
     let rafSafetyNetFired = false;
     let rafHandle = 0;
 
     if (!generationValid) return () => {};
 
     rafHandle = requestAnimationFrame(() => {
+      const activeGen = activeGenerationRef.current[capturedSessionId];
+      if (activeGen !== undefined && activeGen !== capturedBotMessageId) {
+        scoutDiag.info('MessageOrchestrator', 'raf-safety-net-skipped-superseded', {
+          sessionId: capturedSessionId,
+          capturedBotMessageId,
+          activeBotMessageId: activeGen,
+        } as unknown as Record<string, unknown>);
+        return;
+      }
+
+      if (currentSessionIdRef.current !== capturedSessionId) {
+        scoutDiag.info('MessageOrchestrator', 'raf-safety-net-skipped-session-changed', {
+          sessionId: capturedSessionId,
+          currentSessionId: currentSessionIdRef.current,
+        } as unknown as Record<string, unknown>);
+        return;
+      }
+
       if (latestLoadingRef.current.isLoading) {
         rafSafetyNetFired = true;
         setIsLoading(false);
@@ -324,6 +349,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         completeLoadingProgress();
         scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
           sessionId: capturedSessionId,
+          botMessageId: capturedBotMessageId,
         } as unknown as Record<string, unknown>);
       }
     });
@@ -834,7 +860,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
-        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId, generationValid);
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();
