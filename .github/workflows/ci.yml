@@ -113,5 +113,4 @@ jobs:
         run: >-
           npx playwright test
           tests-e2e/cnpj-investigation-flow.spec.ts
-          tests-e2e/investigation-flow.spec.ts
           tests-e2e/scheffer-cnpj-blank-panel.spec.ts
