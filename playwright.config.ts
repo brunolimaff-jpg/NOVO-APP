@@ -31,7 +31,8 @@ export default defineConfig({
     {
       name: 'critical-ux',
       use: desktopChrome,
-      testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive|loading-smart).*\.spec\.ts/,
+      // loading-smart-recovery excluído: duplicata de cofre-progressive (Testing Trophy); npm run test:e2e:loading
+      testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive).*\.spec\.ts/,
     },
     {
       name: 'p1-smoke',
