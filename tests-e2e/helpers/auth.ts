@@ -8,10 +8,17 @@ import { type Page } from '@playwright/test';
  *
  * Usar no topo de cada test ou como fixture global.
  */
-export async function setupE2EAuth(page: Page) {
-  await page.addInitScript(() => {
+interface SetupE2EAuthOptions {
+  /** Evita reidratar histórico Supabase de runs anteriores com o mesmo operador fixo. */
+  uniqueOperator?: boolean;
+}
+
+export async function setupE2EAuth(page: Page, options: SetupE2EAuthOptions = {}) {
+  const { uniqueOperator = false } = options;
+  await page.addInitScript(({ useUnique }) => {
     const PREFIX = 'scout360:';
     const now = Date.now();
+    const suffix = useUnique ? `-${now}-${Math.random().toString(36).slice(2, 8)}` : '';
     const future = new Date(now + 24 * 60 * 60 * 1000).toISOString();
 
     // AuthGate: pula modal de migração
@@ -19,10 +26,10 @@ export async function setupE2EAuth(page: Page) {
     localStorage.setItem(PREFIX + 'supabase_migration_seen', 'true');
 
     // OperatorContext: email e nome para sessão guest autenticada
-    localStorage.setItem(PREFIX + 'operator_email', 'qa.e2e@senior.com.br');
+    localStorage.setItem(PREFIX + 'operator_email', `qa.e2e${suffix}@senior.com.br`);
     localStorage.setItem(PREFIX + 'operator_name', 'QA E2E Bot');
-    localStorage.setItem(PREFIX + 'operator_id', 'op_e2e_bypass');
-  });
+    localStorage.setItem(PREFIX + 'operator_id', `op_e2e_bypass${suffix}`);
+  }, { useUnique: uniqueOperator });
 }
 
 /**

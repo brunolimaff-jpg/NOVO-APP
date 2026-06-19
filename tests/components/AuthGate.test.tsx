@@ -55,7 +55,7 @@ function renderGate() {
   );
 }
 
-describe('AuthGate — antes do prazo de migracao', () => {
+describe('AuthGate — guest e migração', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -148,81 +148,6 @@ describe('AuthGate — antes do prazo de migracao', () => {
     // openAuthModal seta dismissed=false → modal aparece, banner some
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
     expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
-  });
-});
-
-describe('AuthGate — apos o prazo de migracao', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-06-19T12:00:00-03:00'));
-    vi.clearAllMocks();
-    window.localStorage.clear();
-    mockUseMaybeAuth.mockReturnValue(GUEST_STATE);
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-    window.localStorage.clear();
-  });
-
-  it('guest sem email apos deadline — tela de cadastro obrigatorio', () => {
-    renderGate();
-
-    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-    expect(screen.getByText(/crie sua conta com e-mail e senha/)).toBeInTheDocument();
-    expect(screen.getByText('Criar minha conta agora')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-  });
-
-  it('guest com email apos deadline — tela de recuperacao assistida', () => {
-    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
-
-    renderGate();
-
-    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Recuperação de acesso')).toBeInTheDocument();
-    expect(screen.getByText(/crie uma senha para sua conta/)).toBeInTheDocument();
-    expect(screen.getByText('Criar minha senha')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-  });
-
-  it('skip futuro apos deadline — ignorado, modal obrigatorio', () => {
-    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
-    const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    window.localStorage.setItem('scout360:auth_skip_until', future);
-
-    renderGate();
-
-    // Com email, mostra recuperacao assistida (nao modal, pois sobe tela full)
-    expect(screen.getByText('Recuperação de acesso')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
-  });
-
-  it('novo guest sem email — clicar em criar conta abre modal obrigatório', () => {
-    renderGate();
-
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-    expect(screen.getByText('Criar minha conta agora')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Criar minha conta agora'));
-
-    expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
-    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-  });
-
-  it('guest com email apos deadline — clicar em criar senha abre modal obrigatório', () => {
-    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
-
-    renderGate();
-
-    fireEvent.click(screen.getByText('Criar minha senha'));
-
-    expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
-    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
   });
 });
 

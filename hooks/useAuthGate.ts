@@ -31,20 +31,16 @@ export function useAuthGate(): AuthGateState {
     const skipUntil = storageGet(MIGRATION_SKIP_KEY);
     if (skipUntil) {
       const until = new Date(skipUntil);
-      if (until > new Date()) {
-        // auth_skip_until no futuro — so honra se antes do prazo
-        if (pastDeadline) return false; // Prazo vencido: ignora skip
-        return true;
-      }
+      if (until > new Date()) return true;
     }
     return false;
   });
 
-  const canSkip = hasStoredEmail && !pastDeadline;
+  const canSkip = hasStoredEmail;
   const checking = loading;
 
-  const showAuthModal = auth !== undefined && !loading && isGuest && (forcedOpen || (!pastDeadline && !dismissed));
-  const showBanner = auth !== undefined && !loading && isGuest && hasStoredEmail && dismissed && !pastDeadline;
+  const showAuthModal = auth !== undefined && !loading && isGuest && (forcedOpen || !dismissed);
+  const showBanner = auth !== undefined && !loading && isGuest && hasStoredEmail && dismissed;
 
   const openAuthModal = useCallback(() => {
     setDismissed(false);
@@ -56,11 +52,10 @@ export function useAuthGate(): AuthGateState {
   }, [canSkip]);
 
   const continueAsGuest = useCallback(() => {
-    if (pastDeadline) return; // Apos prazo: nao permite continuar como guest
     const next = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     storageSet(MIGRATION_SKIP_KEY, next);
     setDismissed(true);
-  }, [pastDeadline]);
+  }, []);
 
   return {
     showAuthModal,
