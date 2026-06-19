@@ -1,6 +1,21 @@
 # Progress
 
-Last updated: 2026-06-18 - PR #379 mergeada; playbook verificado
+Last updated: 2026-06-19 — PR #383 Fase D + PR Gate IA
+
+## Timeline
+
+### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA)
+
+- Fase D: coverage gate, performance budget, testes de timeout, E2E projeto `critical-ux`.
+- CI rápido verde: typecheck, vitest, coverage, build, dossier golden, smoke HTTP, CodeQL, Vercel.
+- E2E blocking falhou: Critical UX (Docker) + Preview Vercel — timeout install, Ubuntu 24.04, workflow 15 min.
+- Docker `mcr.microsoft.com/playwright:v1.59.1-noble` adotado para CI localhost.
+- Preview manual Bruno: 5/5 specs ~1,7 min; Scheffer OK no preview.
+- **Decisão DI-2026-06-19-01:** PR Gate IA — E2E fora dos required checks; validação preview sob demanda antes do merge.
+- Commits HEAD: `032dbf5b`, `b0603210`, `e8fe4534`.
+- Design debt: Cofre skeleton 3 seções (não bloqueia).
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`.
+- Próximo: remover E2E blocking; skill valida preview; merge com **MERGE**.
 
 ## Timeline
 

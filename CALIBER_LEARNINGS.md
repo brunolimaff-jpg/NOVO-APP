@@ -482,6 +482,28 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
 Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
+
+### Sessao 2026-06-19 — PR #383 Fase D + PR Gate IA
+
+- **E2E blocking no GitHub nao substitui preview Vercel para UX critica** [e2e, vercel, ci, testing-trophy]
+  CI localhost/Docker diverge de modal dossie, Supabase real e serverless. Preview manual 5/5 ~1,7 min; CI E2E cancelou em 15 min. Decisao: PR Gate IA — E2E fora dos required checks; validacao sob demanda no preview. Afeta: branch protection, `.github/workflows/`, AGENTS.md.
+
+- **Playwright CI: imagem Docker noble, nao playwright-github-action em Ubuntu 24.04** [playwright, ci, docker, github-actions]
+  `microsoft/playwright-github-action@v1` quebra com `Cannot install dependencies for this linux distribution` no Ubuntu 24.04. Solucao: `mcr.microsoft.com/playwright:v1.59.1-noble`. Afeta: jobs E2E em `ci.yml`.
+
+- **Testing Trophy no topo — poucos E2E criticos no preview, vitest/coverage no CI** [testing-trophy, e2e, vitest]
+  Expandir para 17 testes E2E blocking em 2 jobs violou o trophy. Rede principal: vitest + coverage + golden. E2E: projeto `critical-ux` sob demanda no preview. Afeta: Fase D T-D.2.
+
+- **Workflow timeout deve cobrir install + suite completa** [ci, timeout, playwright]
+  Job E2E preview com limite 15 min cancelou antes de 14 testes. Timeout >= tempo medido + margem de install. Afeta: `e2e-preview.yml`.
+
+- **Responder thread de review antes de marcar resolved** [github, pr, review]
+  Marcar threads resolvidas sem comentario de tratativa quebra confianca do review. Obrigatorio: skill `gh-resolve-pr-comments`. Afeta: fluxo PR Gate.
+
+- **Commits de memoria na branch da PR ativa** [git, worktree, agents]
+  AGENTS.md continual-learning commitado na branch errada exigiu cherry-pick. Verificar branch antes de docs de memoria. Afeta: worktrees, handoff.
+
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._

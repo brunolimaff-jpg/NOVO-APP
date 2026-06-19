@@ -1,5 +1,15 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-19 - PR #383 Fase D + PR Gate IA)
+
+### DI-2026-06-19-01: PR Gate IA — E2E fora dos required checks do GitHub
+
+- **Decisao:** O gate de merge no GitHub usa apenas CI rapido (typecheck, vitest, coverage, build, dossier golden, smoke HTTP). E2E Critical UX e E2E Preview Vercel **nao** sao required checks. Antes do merge, Bruno pede `valida preview PR N`; agente roda Playwright `critical-ux` no preview Vercel, comenta evidencia na PR; merge somente com token **MERGE** explicito.
+- **Contexto:** Fase D expandiu E2E blocking (17 testes, 2 jobs). Falhas: timeout install Playwright, `playwright-github-action` em Ubuntu 24.04, divergencia localhost vs preview Vercel. Preview manual 5/5 ~1,7 min provou que ambiente real funciona; CI blocking nao.
+- **Impacto:** Branch protection atualizada apos implementer remover E2E blocking. Nova skill/comando de validacao preview. PR template com secao Preview Validation IA.
+- **Referencia:** PR #383, `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`, `AGENTS.md` Learned Workspace Facts.
+
+
 ## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
 
 ### DI-2026-06-18-08: Fix de pipeline deve cobrir o fluxo completo do dado (Set -> consumidores)
