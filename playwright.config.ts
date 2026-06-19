@@ -26,7 +26,7 @@ export default defineConfig({
     {
       name: 'critical-ux',
       use: desktopChrome,
-      testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive).*\.spec\.ts/,
+      testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive|loading-smart).*\.spec\.ts/,
     },
     {
       name: 'p1-smoke',
