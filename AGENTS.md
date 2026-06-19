@@ -76,8 +76,8 @@ npm run lint
 - Trabalho relacionado ao escopo aberto deve consolidar na PR canônica existente; não abrir PR paralela sem checar overlap de escopo.
 - Responder cada thread de review de PR com a tratativa aplicada antes de marcar como resolvida (fluxo `gh-resolve-pr-comments`); não deixar comentários abertos sem resposta.
 - Uso real é no preview Vercel: respostas de review e validação de UX devem citar comportamento no preview, não só localhost do CI.
-- Merge de PR exige PR Gate IA no preview Vercel; E2E Playwright não bloqueia CI (rodar manual: `BASE_URL=<preview> npm run test:e2e:critical-ux`).
-- E2E critical-ux (painel, cofre, Scheffer): specs no repo para agente ou `workflow_dispatch`; não é gate blocking no CI.
+- Merge de PR exige PR Gate IA: agente roda E2E `critical-ux` completo no preview Vercel (`BASE_URL=<preview> npm run test:e2e:critical-ux`); Bruno valida UX no preview — não localhost nem CI Docker.
+- Testing Trophy no CI: vitest + coverage bloqueiam merge; E2E critical-ux (painel, cofre, Scheffer) fica fora do blocking — specs no repo para agente ou `workflow_dispatch`.
 
 ## Learned Workspace Facts
 
@@ -88,5 +88,6 @@ npm run lint
 - Preview Vercel é gate obrigatório para regressões de UX (PR Gate IA); smoke preview no CI não substitui validação no deploy real.
 - Handoff e memória canônica: `HANDOFF_AI.md` e `.agents/memory/*` prevalecem sobre vault Obsidian para implementação.
 - Branch com checkpoint WIP no histórico pode inflar a aba Files da PR no GitHub; o que entra em `main` é o diff líquido contra `main`, não a lista bruta de commits intermediários.
-- E2E Playwright manual/preview: container `mcr.microsoft.com/playwright:v1.59.1-noble` (browsers pré-instalados); project `critical-ux` em `playwright.config`; `e2e-preview.yml` só `workflow_dispatch` (não blocking).
+- E2E blocking no CI removido (Fase D): `playwright install` em Ubuntu estourava timeout antes dos testes; gate de merge é PR Gate IA no preview Vercel, não Docker/localhost no CI.
+- E2E Playwright manual/preview: container `mcr.microsoft.com/playwright:v1.59.1-noble`; project `critical-ux` em `playwright.config`; `e2e-preview.yml` só `workflow_dispatch`.
 - E2E Scheffer/Cofre: helper de onboarding deve iniciar nova investigação quando houver dossiê salvo (modal "Dossiê existente"); evita falha por estado duplicado no Supabase.
