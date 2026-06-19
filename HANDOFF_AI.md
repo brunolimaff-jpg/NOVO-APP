@@ -13,15 +13,15 @@
 - **Ondas 0–3:** ✅ implementadas na branch; aguardando PR Gate IA no preview pós-push Onda 3.
 - **Merge futuro:** token **MERGE** na mensagem (regra permanente).
 
-## Plano de Estabilização (4 ondas)
+## Plano de Estabilização (5 ondas: 0–4)
 
-| Onda | Foco | Status |
-|------|------|--------|
-| 0 | Sync main (#383) + gates CI | ✅ |
-| 1 | P0: persist flush, RAF re-entrância, E2E preview | ✅ |
-| 2 | P1: toast investigação, diagnosticLog backoff, socio-search budget, ADR cache Opção B | ✅ |
-| 3 | Reducer loading, extrair watchdog, probes T-A.5, cache operator-scoped | ✅ (safety nets DOM adiados) |
-| 4 | PR Gate contínuo + policy §9 auditoria | ✅ ativo (DI-2026-06-19-01) |
+| Onda | Foco                                                                                  | Status                       |
+| ---- | ------------------------------------------------------------------------------------- | ---------------------------- |
+| 0    | Sync main (#383) + gates CI                                                           | ✅                           |
+| 1    | P0: persist flush, RAF re-entrância, E2E preview                                      | ✅                           |
+| 2    | P1: toast investigação, diagnosticLog backoff, socio-search budget, ADR cache Opção B | ✅                           |
+| 3    | Reducer loading, extrair watchdog, probes T-A.5, cache operator-scoped                | ✅ (safety nets DOM adiados) |
+| 4    | PR Gate contínuo + policy §9 auditoria                                                | ✅ ativo (DI-2026-06-19-01)  |
 
 ## Próximo passo único
 

@@ -376,7 +376,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [rootData, trace, traceActive]);
+  }, [rootData, trace, traceActive, operatorId]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
