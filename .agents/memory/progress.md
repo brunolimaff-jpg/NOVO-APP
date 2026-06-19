@@ -1,8 +1,15 @@
 # Progress
 
-Last updated: 2026-06-19 — Auditoria 50 PRs reconciliada + Onda 2.5 doc-handoff
+Last updated: 2026-06-19 — Ondas 0–3 concluídas (PR #385)
 
 ## Timeline
+
+### 2026-06-19 (Plano estabilização — Ondas 1–3 na PR #385)
+
+- **Onda 3** commit `78646b43`: loading reducer, loading-watchdog (probes 6→3), cache socio-search v8 operator-scoped.
+- Gates: typecheck, 1518 testes, build, coverage, bundle budget — verdes.
+- **PR Gate IA preview SHA `78646b43`:** critical-ux 11/11 + Onda 1 specs 5/5.
+- Safety nets DOM adiados (critério 7 dias Cofre estável em produção).
 
 ### 2026-06-19 (Auditoria 50 PRs + plano estabilização — Onda 2.5)
 
