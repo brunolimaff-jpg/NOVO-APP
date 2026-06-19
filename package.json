@@ -16,6 +16,7 @@
     "pretest:e2e": "bash scripts/ensure-playwright.sh",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:critical-ux": "playwright test --project=critical-ux",
+    "test:e2e:preview": "playwright test --project=critical-ux",
     "test:e2e:p0": "npm run test:e2e:critical-ux",
     "test:e2e:smoke": "playwright test --project=p1-smoke",
     "test:e2e:cnpj:live": "playwright test --project=p2-cnpj-live",

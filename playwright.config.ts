@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const baseURL = process.env.BASE_URL || 'http://localhost:3000';
 const isExternal = !!process.env.BASE_URL;
 const desktopChrome = { ...devices['Desktop Chrome'] };
+const vercelBypassHeaders = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+  ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+  : undefined;
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -16,6 +19,7 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
     video: 'retain-on-failure',
+    ...(vercelBypassHeaders ? { extraHTTPHeaders: vercelBypassHeaders } : {}),
   },
 
   projects: [

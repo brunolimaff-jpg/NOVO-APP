@@ -1,6 +1,6 @@
 # Handoff — PR #382: Cofre Durante a Geracao
 
-**Atualizado:** 2026-06-18
+**Atualizado:** 2026-06-19
 **Branch:** `worktree-sprint2+remove-layout-trace-telemetry` (PR #382)
 **Producao:** `scoutagro.vercel.app`
 
@@ -88,6 +88,15 @@
 4. Sprint 3: CI coverage gate (T-D.1) + `display:none` layout preventivo (T-A.4).
 5. Fase A: T-A.5 (Promise.race 3 em vez de 6) e T-A.1 (causa raiz display:none) pendentes.
 6. Fase D: T-D.3 (testes de timeout) e T-D.4 (performance budget) pendentes.
+
+
+## PR #383 — Gate E2E Preview Vercel (Fase D)
+
+- **Branch:** `worktree-feat+fase-d-ci-quality-gates`
+- **Workflow:** `.github/workflows/e2e-preview.yml` — dispara em `deployment_status` (Preview) ou `workflow_dispatch`
+- **Comando:** `BASE_URL=<preview> npm run test:e2e:preview` (project `critical-ux`, sem webServer)
+- **Critério de merge:** PR **#383 não pode mergear** até o check **"E2E Preview Vercel (painel, cofre, Scheffer)"** ficar verde no preview Vercel real. CI localhost (`e2e-critical-ux` em `ci.yml`) não substitui este gate.
+- **Branch protection:** adicionar check `E2E Preview Vercel (painel, cofre, Scheffer)` como required (workflow `E2E Preview Vercel`). Secret `VERCEL_AUTOMATION_BYPASS_SECRET` obrigatório se preview protegido.
 
 ## Guardas
 

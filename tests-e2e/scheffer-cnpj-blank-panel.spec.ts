@@ -12,6 +12,7 @@ import {
 const SCHEFFER_CNPJ = '04.733.767/0001-80';
 const OPERATOR_NAME = process.env.E2E_OPERATOR_NAME ?? 'E2E Operator';
 const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? 'e2e.operator@senior.com.br';
+const isPreviewDeploy = !!process.env.BASE_URL;
 
 test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
   test.describe.configure({ timeout: 180_000 });
@@ -34,7 +35,7 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await page.getByTestId('investigation-city-input').fill('Chapecó');
     await page.getByTestId('investigation-uf-input').fill('SC');
     await page.getByTestId('investigation-submit-button').click({ force: true });
-    await dismissDuplicateDossierModal(page, { required: false });
+    await dismissDuplicateDossierModal(page, { required: isPreviewDeploy });
 
     await expect(
       page

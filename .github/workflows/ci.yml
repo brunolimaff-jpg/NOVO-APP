@@ -76,6 +76,8 @@ jobs:
       - name: Check bundle size budget
         run: npm run check:budget
 
+  # Gate localhost (feedback rápido em PR). Merge humano exige também
+  # "E2E Preview Vercel (painel, cofre, Scheffer)" verde (e2e-preview.yml).
   e2e-critical-ux:
     name: E2E Critical UX (painel, cofre, Scheffer)
     runs-on: ubuntu-latest
