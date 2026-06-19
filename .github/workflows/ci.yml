@@ -76,8 +76,8 @@ jobs:
       - name: Check bundle size budget
         run: npm run check:budget
 
-  e2e-p0:
-    name: E2E P0
+  e2e-critical-ux:
+    name: E2E Critical UX (painel, cofre, Scheffer)
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -95,10 +95,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
-      - name: Install Playwright system dependencies
-        uses: microsoft/playwright-github-action@v1
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
-      - name: Run P0 critical E2E regressions
-        run: npx playwright test --project=p0-critical
+      - name: Instalar Chromium e dependências do sistema (Playwright)
+        run: npx playwright install --with-deps chromium
+      - name: Rodar regressões E2E de UX crítica
+        run: npm run test:e2e:critical-ux

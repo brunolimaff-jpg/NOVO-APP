@@ -24,7 +24,7 @@ export default defineConfig({
       use: desktopChrome,
     },
     {
-      name: 'p0-critical',
+      name: 'critical-ux',
       use: desktopChrome,
       testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive).*\.spec\.ts/,
     },
