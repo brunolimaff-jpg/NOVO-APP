@@ -109,11 +109,19 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    // Input deve estar visível durante e após o loading
+    const loadingDuring = page
+      .getByTestId('cofre-overlay')
+      .or(page.getByTestId('loading-smart-overlay'))
+      .or(page.getByTestId('inline-loading-bubble'));
+    await expect(loadingDuring.first()).toBeVisible({ timeout: 30_000 });
+
+    // Composer visível, mas bloqueado enquanto gera (isLoading / Cofre)
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('chat-input')).toBeDisabled();
 
     await waitForLoadingIndicatorsToHide(page);
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('chat-input')).toBeEnabled({ timeout: 15_000 });
   });
 
   test('Cofre overlay aparece em investigação dossier e dissolve com dossiê stubado', async ({ page }) => {

@@ -1,50 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { buildTimeoutError, runWithStepTimeout } from '../../services/gemini/runtime';
 
-function createAbortController() {
-  const controller = new AbortController();
-  return { controller };
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  signal?: AbortSignal,
-): Promise<{ result?: T; timedOut: boolean; aborted: boolean; error?: string }> {
-  let timedOut = false;
-  let aborted = false;
-  let error: string | undefined;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    const id = setTimeout(() => {
-      timedOut = true;
-      reject(new Error(`Timeout after ${ms}ms`));
-    }, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(id);
-        aborted = true;
-        reject(new Error('Aborted'));
-      },
-      { once: true },
-    );
-  });
-
-  try {
-    const result = await Promise.race([promise, timeoutPromise]);
-    return { result, timedOut: false, aborted: false };
-  } catch (err) {
-    // Propaga o erro real, nao apenas timeout/abort
-    const message = err instanceof Error ? err.message : String(err);
-    // Se nao foi timeout nem abort, e um erro real da promise — reporta
-    if (!timedOut && !aborted) {
-      error = message;
-    }
-    return { timedOut, aborted, error };
-  }
-}
-
-async function asyncThatTakes(ms: number, shouldThrow = false): Promise<string> {
+async function delay(ms: number, shouldThrow = false): Promise<string> {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (shouldThrow) reject(new Error('Forced failure'));
@@ -53,9 +10,22 @@ async function asyncThatTakes(ms: number, shouldThrow = false): Promise<string> 
   });
 }
 
-// ── Timeout Edge Cases ──
+function actionThatRespectsAbort(signal?: AbortSignal): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => resolve('completed'), 10_000);
+    const onAbort = () => {
+      clearTimeout(id);
+      reject(new Error('Aborted'));
+    };
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
-describe('timeout edge cases', () => {
+describe('runWithStepTimeout (produção — services/gemini/runtime)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -65,126 +35,86 @@ describe('timeout edge cases', () => {
   });
 
   describe('complete antes do timeout', () => {
-    it('resolve com resultado quando promessa termina antes', async () => {
-      const promise = withTimeout(asyncThatTakes(500), 2_000);
+    it('resolve com resultado quando a action termina antes', async () => {
+      const promise = runWithStepTimeout('step', () => delay(500), undefined, 2_000);
       await vi.advanceTimersByTimeAsync(500);
-      const result = await promise;
-      expect(result.timedOut).toBe(false);
-      expect(result.aborted).toBe(false);
+      await expect(promise).resolves.toBe('completed');
     });
   });
 
   describe('timeout', () => {
-    it('retorna timedOut=true quando timeout estoura', async () => {
-      const promise = withTimeout(asyncThatTakes(10_000), 2_000);
+    it('rejeita com TimeoutError quando o timeout estoura', async () => {
+      const promise = runWithStepTimeout('step', () => delay(10_000), undefined, 2_000);
+      const assertion = expect(promise).rejects.toMatchObject({
+        name: 'TimeoutError',
+        message: 'step timeout after 2000ms',
+      });
       await vi.advanceTimersByTimeAsync(2_001);
-      const result = await promise;
-      expect(result.timedOut).toBe(true);
+      await assertion;
     });
 
-    it('timeout de 0ms retorna timedOut=true imediatamente', async () => {
-      const promise = withTimeout(asyncThatTakes(10_000), 0);
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.timedOut).toBe(true);
+    it('timeout <= 0 não aplica timer (contrato real do runtime)', async () => {
+      const promise = runWithStepTimeout('step', () => delay(10_000), undefined, 0);
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(promise).resolves.toBe('completed');
     });
 
-    it('timeout negativo trata como zero', async () => {
-      const promise = withTimeout(asyncThatTakes(100), -1);
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.timedOut).toBe(true);
+    it('timeout negativo não aplica timer', async () => {
+      const promise = runWithStepTimeout('step', () => delay(100), undefined, -1);
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(promise).resolves.toBe('completed');
     });
   });
 
   describe('abort', () => {
-    it('abort pelo signal retorna aborted=true', async () => {
-      const { controller } = createAbortController();
-      const promise = withTimeout(asyncThatTakes(10_000), 10_000, controller.signal);
+    it('abort pelo signal externo propaga para a action', async () => {
+      const controller = new AbortController();
+      const promise = runWithStepTimeout(
+        'step',
+        signal => actionThatRespectsAbort(signal),
+        controller.signal,
+        10_000,
+      );
       await vi.advanceTimersByTimeAsync(100);
       controller.abort();
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.aborted).toBe(true);
+      await expect(promise).rejects.toThrow('Aborted');
     });
 
-    it('abort antes do timeout prevalece', async () => {
-      const { controller } = createAbortController();
-      const promise = withTimeout(asyncThatTakes(10_000), 2_000, controller.signal);
+    it('abort externo antes do timeout não confunde com TimeoutError', async () => {
+      const controller = new AbortController();
+      const promise = runWithStepTimeout(
+        'step',
+        signal => actionThatRespectsAbort(signal),
+        controller.signal,
+        2_000,
+      );
       await vi.advanceTimersByTimeAsync(500);
       controller.abort();
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.aborted).toBe(true);
-      expect(result.timedOut).toBe(false);
+      await expect(promise).rejects.toThrow('Aborted');
+      await expect(promise).rejects.not.toMatchObject({ name: 'TimeoutError' });
     });
   });
 
   describe('network failure', () => {
-    it('promessa rejeitada reporta erro sem timedOut', async () => {
-      const promise = withTimeout(asyncThatTakes(100, true), 2_000);
+    it('rejeição da action propaga o erro real (não TimeoutError)', async () => {
+      const promise = runWithStepTimeout('step', () => delay(100, true), undefined, 2_000);
+      const assertion = expect(promise).rejects.toThrow('Forced failure');
       await vi.advanceTimersByTimeAsync(101);
-      const result = await promise;
-      // Erro real da promise: nao e timeout nem abort
-      expect(result.timedOut).toBe(false);
-      expect(result.aborted).toBe(false);
-      expect(result.error).toBe('Forced failure');
-    });
-
-    it('promessa rejeitada NAO confunde com timeout', async () => {
-      // Timeout em 500ms, promise falha em 100ms
-      const promise = withTimeout(asyncThatTakes(100, true), 500);
-      await vi.advanceTimersByTimeAsync(101);
-      const result = await promise;
-      // Falha real deve ser distinguivel de timeout
-      expect(result.timedOut).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-  });
-
-  describe('race condition', () => {
-    it('duas promessas: a mais rapida resolve primeiro', async () => {
-      const fast = asyncThatTakes(200);
-      const slow = asyncThatTakes(500);
-      const resultPromise = Promise.race([fast, slow]);
-      await vi.advanceTimersByTimeAsync(200);
-      const result = await resultPromise;
-      expect(result).toBe('completed');
-    });
-
-    it('timeout + abort: abort ganha se vier antes do timeout', async () => {
-      const { controller } = createAbortController();
-      // Timeout em 2s, abort em 500ms
-      const promise = withTimeout(asyncThatTakes(10_000), 2_000, controller.signal);
-      await vi.advanceTimersByTimeAsync(500);
-      controller.abort();
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.aborted).toBe(true);
-      expect(result.timedOut).toBe(false);
+      await assertion;
     });
   });
 
   describe('limites', () => {
-    it('timeout de Number.MAX_SAFE_INTEGER nao estoura (sync)', () => {
-      expect(() => {
-        withTimeout(asyncThatTakes(100), Number.MAX_SAFE_INTEGER);
-      }).not.toThrow();
+    it('buildTimeoutError usa name TimeoutError', () => {
+      const error = buildTimeoutError('label', 1_500);
+      expect(error.name).toBe('TimeoutError');
+      expect(error.message).toBe('label timeout after 1500ms');
     });
 
-    it('timeout de Number.MAX_SAFE_INTEGER resolve com resultado (async)', async () => {
-      const promise = withTimeout(asyncThatTakes(1), Number.MAX_SAFE_INTEGER);
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await promise;
-      expect(result.timedOut).toBe(false);
-      expect(result.result).toBe('completed');
-    });
-
-    it('timeout fracionario funciona', async () => {
-      const promise = withTimeout(asyncThatTakes(10), 100.5);
-      await vi.advanceTimersByTimeAsync(101);
-      const result = await promise;
-      expect(result.timedOut).toBe(false); // 10ms < 100.5ms
+    it('timeout fracionário funciona', async () => {
+      const promise = runWithStepTimeout('step', () => delay(10), undefined, 100.5);
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(promise).resolves.toBe('completed');
     });
   });
 });
