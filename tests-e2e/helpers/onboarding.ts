@@ -18,7 +18,9 @@ export async function preventMigrationNotice(page: Page) {
   await page.addInitScript(
     ({ migrationSeenKey, authSkipKey, operatorEmailKey }) => {
       localStorage.setItem(migrationSeenKey, 'true');
-      localStorage.setItem(operatorEmailKey, 'qa.e2e@senior.com.br');
+      if (!localStorage.getItem(operatorEmailKey)) {
+        localStorage.setItem(operatorEmailKey, 'qa.e2e@senior.com.br');
+      }
       localStorage.setItem(authSkipKey, new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
     },
     {
@@ -40,6 +42,20 @@ export async function dismissMigrationNotice(page: Page) {
   }
 }
 
+async function ensureInvestigationLanding(page: Page) {
+  const investigationInput = page.getByTestId('investigation-company-input');
+
+  if (await investigationInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    return;
+  }
+
+  const novaInvestigacao = page.getByRole('button', { name: /nova investigação/i }).first();
+  if (await novaInvestigacao.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await novaInvestigacao.click({ force: true });
+    await expect(investigationInput).toBeVisible({ timeout: 15_000 });
+  }
+}
+
 interface CompleteOnboardingOptions {
   email?: string;
   expectInvestigationForm?: boolean;
@@ -57,8 +73,9 @@ export async function completeOnboarding(page: Page, options: CompleteOnboarding
 
   const greeting = page.getByTestId('greeting-card');
   const investigationInput = page.getByTestId('investigation-company-input');
+  const chatShell = page.getByTestId('message-input').or(page.getByTestId('chat-main-panel'));
 
-  await expect(greeting.or(investigationInput).first()).toBeVisible({ timeout: 15_000 });
+  await expect(greeting.or(investigationInput).or(chatShell).first()).toBeVisible({ timeout: 15_000 });
 
   if (await investigationInput.isVisible().catch(() => false)) {
     return;
@@ -79,6 +96,8 @@ export async function completeOnboarding(page: Page, options: CompleteOnboarding
       await linkExistingUser.click({ force: true });
     }
   }
+
+  await ensureInvestigationLanding(page);
 
   if (expectInvestigationForm) {
     await expect(investigationInput).toBeVisible({ timeout: 15_000 });
