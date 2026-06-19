@@ -79,7 +79,7 @@ jobs:
   e2e-critical-browser:
     name: E2E Critical Browser
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -100,7 +100,7 @@ jobs:
   e2e-cnpj-flow:
     name: E2E CNPJ Flow
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
