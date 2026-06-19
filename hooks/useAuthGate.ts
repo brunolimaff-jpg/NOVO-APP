@@ -9,7 +9,6 @@ interface AuthGateState {
   showBanner: boolean;
   canSkip: boolean;
   checking: boolean;
-  pastDeadline: boolean;
   isGuest: boolean;
   hasStoredEmail: boolean;
   openAuthModal: () => void;
@@ -24,7 +23,6 @@ export function useAuthGate(): AuthGateState {
   const loading = auth?.loading ?? false;
   const isGuest = auth ? auth.isGuest : true;
   const hasStoredEmail = Boolean(storageGet('operator_email')?.trim());
-  const pastDeadline = new Date() > MIGRATION_DEADLINE;
   const [forcedOpen, setForcedOpen] = useState(false);
 
   const [dismissed, setDismissed] = useState(() => {
@@ -62,7 +60,6 @@ export function useAuthGate(): AuthGateState {
     showBanner,
     canSkip,
     checking,
-    pastDeadline,
     isGuest,
     hasStoredEmail,
     openAuthModal,

@@ -18,7 +18,7 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
-    await setupE2EAuth(page);
+    await setupE2EAuth(page, { uniqueOperator: true });
     await installFastGeminiStubs(page);
     await installCNPJStub(page);
     await preventMigrationNotice(page);

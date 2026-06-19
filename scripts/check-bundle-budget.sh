@@ -19,15 +19,17 @@ file_size_kb() {
   echo "$bytes"
 }
 
-TOTAL_JS_KB=0
+TOTAL_JS_BYTES=0
 while IFS= read -r -d '' f; do
-  TOTAL_JS_KB=$((TOTAL_JS_KB + $(file_size_kb "$f") / 1024))
+  TOTAL_JS_BYTES=$((TOTAL_JS_BYTES + $(file_size_kb "$f")))
 done < <(find "$DIST_DIR" -name '*.js' ! -name '*.map' -print0 2>/dev/null)
+TOTAL_JS_KB=$((TOTAL_JS_BYTES / 1024))
 
-TOTAL_CSS_KB=0
+TOTAL_CSS_BYTES=0
 while IFS= read -r -d '' f; do
-  TOTAL_CSS_KB=$((TOTAL_CSS_KB + $(file_size_kb "$f") / 1024))
+  TOTAL_CSS_BYTES=$((TOTAL_CSS_BYTES + $(file_size_kb "$f")))
 done < <(find "$DIST_DIR" -name '*.css' ! -name '*.map' -print0 2>/dev/null)
+TOTAL_CSS_KB=$((TOTAL_CSS_BYTES / 1024))
 
 # Budgets lidos de budget.json (fonte unica de verdade)
 BUDGET_FILE="budget.json"

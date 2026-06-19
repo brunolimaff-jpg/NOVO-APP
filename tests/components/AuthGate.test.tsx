@@ -106,7 +106,7 @@ describe('AuthGate — guest e migração', () => {
     // Clicar "continuar sem login" — deve fechar modal via onClose
     fireEvent.click(screen.getByTestId('continue-as-guest'));
 
-    // Modal some, banner aparece (guest + hasStoredEmail + dismissed + !pastDeadline)
+    // Modal some, banner aparece (guest + hasStoredEmail + dismissed)
     expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
     expect(screen.getByTestId('migration-banner')).toBeInTheDocument();
     // Conteudo protegido deve aparecer junto com o banner
@@ -148,6 +148,44 @@ describe('AuthGate — guest e migração', () => {
     // openAuthModal seta dismissed=false → modal aparece, banner some
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
     expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
+  });
+});
+
+
+describe('AuthGate — pós-deadline (guest liberado, sem lockout)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-20T12:00:00-03:00'));
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    mockUseMaybeAuth.mockReturnValue(GUEST_STATE);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    window.localStorage.clear();
+  });
+
+  it('apos deadline — legado com email ainda pode continuar como guest', () => {
+    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
+
+    renderGate();
+
+    const modal = screen.getByTestId('auth-modal');
+    expect(modal).toHaveAttribute('data-guest-option', 'true');
+    expect(screen.getByTestId('continue-as-guest')).toBeInTheDocument();
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it('apos deadline — continueAsGuest funciona e exibe banner (sem bloqueio)', () => {
+    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
+
+    renderGate();
+    fireEvent.click(screen.getByTestId('continue-as-guest'));
+
+    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('migration-banner')).toBeInTheDocument();
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
   });
 });
 
