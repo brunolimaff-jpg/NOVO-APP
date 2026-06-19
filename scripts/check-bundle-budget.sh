@@ -29,9 +29,23 @@ while IFS= read -r -d '' f; do
   TOTAL_CSS_KB=$((TOTAL_CSS_KB + $(file_size_kb "$f") / 1024))
 done < <(find "$DIST_DIR" -name '*.css' ! -name '*.map' -print0 2>/dev/null)
 
-# Budgets com 7-15% de folga sobre o valor atual (Jun 2026)
-MAX_JS_KB=5500
-MAX_CSS_KB=150
+# Budgets lidos de budget.json (fonte unica de verdade)
+BUDGET_FILE="budget.json"
+if [ ! -f "$BUDGET_FILE" ]; then
+  echo "❌ budget.json nao encontrado na raiz do projeto."
+  exit 1
+fi
+
+MAX_JS_KB=$(node -e "
+  const b = require('./budget.json');
+  const script = b.resourceSizes?.find(r => r.resourceType === 'script');
+  process.stdout.write(String(script?.budget ?? 5500));
+")
+MAX_CSS_KB=$(node -e "
+  const b = require('./budget.json');
+  const css = b.resourceSizes?.find(r => r.resourceType === 'stylesheet');
+  process.stdout.write(String(css?.budget ?? 150));
+")
 
 echo "📦 Bundle Budget Check"
 echo "  JS:   ${TOTAL_JS_KB} KB (max ${MAX_JS_KB} KB)"

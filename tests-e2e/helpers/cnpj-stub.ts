@@ -3,14 +3,9 @@ import { installFastGeminiStubs } from './gemini';
 
 const STUB_COMPANY_DATA = {
   cnpj: '04733767000180',
-  razaoSocial: 'Scheffer S.A.',
-  nomeFantasia: 'Scheffer',
-  logradouro: 'Avenida das Industrias, 1500',
-  municipio: 'Cuiaba',
-  uf: 'MT',
-  cep: '78000-000',
-  situacao: 'ATIVA',
-  naturezaJuridica: 'Sociedade Anonima',
+  companyName: 'Scheffer S.A.',
+  city: 'Chapecó',
+  state: 'SC',
 };
 
 export async function installCNPJStub(page: Page) {

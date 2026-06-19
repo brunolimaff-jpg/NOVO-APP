@@ -43,7 +43,7 @@ test.describe('Fluxo CNPJ → Investigação completa', () => {
     await submitBtn.click({ force: true });
 
     // 7. Espera resposta do bot (via stub deterministico)
-    const botResponse = page.locator('.prose').first();
+    const botResponse = page.getByTestId('bot-message-content').first();
     await expect(botResponse).toBeVisible({ timeout: GEMINI_TIMEOUT });
 
     // 8. Valida conteudo nao vazio
