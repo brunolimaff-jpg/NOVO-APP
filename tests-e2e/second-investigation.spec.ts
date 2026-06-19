@@ -11,6 +11,17 @@ import {
 } from './helpers/onboarding';
 
 const LOADING_TIMEOUT_MS = 120_000;
+/** POST_API_SAFETY_TIMEOUT_MS (10s) + DISSOLVE_DURATION_MS (350ms) após loading terminar */
+const COFRE_DISSOLVE_TIMEOUT_MS = 15_000;
+
+async function waitForLoadingIndicatorsToHide(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  const cofre = page.getByTestId('cofre-overlay');
+  if (await cofre.isVisible().catch(() => false)) {
+    await expect(cofre).toBeHidden({ timeout: COFRE_DISSOLVE_TIMEOUT_MS });
+  }
+}
 
 async function submitInvestigation(page: import('@playwright/test').Page, companyName: string) {
   await page.getByTestId('investigation-company-input').fill(companyName);
@@ -20,8 +31,7 @@ async function submitInvestigation(page: import('@playwright/test').Page, compan
 }
 
 async function waitForDossierComplete(page: import('@playwright/test').Page) {
-  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  await waitForLoadingIndicatorsToHide(page);
   const bot = page.getByTestId('chat-main-panel').getByTestId('bot-message-content').last();
   await expect(bot).toBeVisible({ timeout: 15_000 });
   await expect(bot).toContainText(E2E_DOSSIER_SENTINEL, { timeout: 15_000 });
@@ -46,7 +56,8 @@ test.describe('Segunda investigação — anti-regressão P0', () => {
     await startNewInvestigation(page);
     await dismissDuplicateDossierModal(page);
 
-    const companyB = e2eCompanyName('Fazenda Investigacao B');
+    const companyBPrefix = 'Fazenda Investigacao B';
+    const companyB = e2eCompanyName(companyBPrefix);
     await submitInvestigation(page, companyB);
 
     const loading = page
@@ -58,7 +69,8 @@ test.describe('Segunda investigação — anti-regressão P0', () => {
     await expect(page.getByText('Refinando sinais')).toHaveCount(0);
 
     await waitForDossierComplete(page);
-    await expect(page.getByTestId('chat-header-breadcrumb-session')).toContainText(companyB, {
+    // Breadcrumb usa truncate — match no prefixo estável, não no sufixo aleatório
+    await expect(page.getByTestId('chat-header-breadcrumb-session')).toContainText(companyBPrefix, {
       timeout: 15_000,
     });
   });
