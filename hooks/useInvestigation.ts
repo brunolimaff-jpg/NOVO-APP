@@ -35,7 +35,12 @@ interface UseInvestigationParams {
 
 const SESSION_LOAD_ERROR_MESSAGE = 'Não foi possível carregar esta sessão';
 
-function notifySessionLoadFailure(toast: ToastApi, dossierId: string, reason: string, details?: Record<string, unknown>): void {
+function notifySessionLoadFailure(
+  toast: ToastApi,
+  dossierId: string,
+  reason: string,
+  details?: Record<string, unknown>,
+): void {
   scoutDiag.warn('Investigation', reason, { dossierId, ...details });
   toast.error(SESSION_LOAD_ERROR_MESSAGE);
 }
@@ -149,7 +154,7 @@ export function useInvestigation({
         const { data, error } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
         if (error || !data?.content) {
           notifySessionLoadFailure(toast, dossierId, 'Falha ao carregar dossiê remoto', {
-            supabaseError: error?.message,
+            supabaseError: error?.code ?? 'unknown',
           });
           return;
         }

@@ -76,6 +76,25 @@ export function scheduleLoadingStuckProbes(
 
   for (const delay of LOADING_STUCK_PROBE_DELAYS_MS) {
     const id = setTimeout(() => {
+      const activeGen = activeGenerationRef.current[capturedSessionId];
+      if (activeGen !== undefined && activeGen !== capturedBotMessageId) {
+        scoutDiag.info('LoadingStuckProbe', 'probe-skipped-superseded', {
+          sessionId: capturedSessionId,
+          capturedBotMessageId,
+          activeBotMessageId: activeGen,
+          timing: delay,
+        } as unknown as Record<string, unknown>);
+        return;
+      }
+      if (currentSessionIdRef.current !== capturedSessionId) {
+        scoutDiag.info('LoadingStuckProbe', 'probe-skipped-session-changed', {
+          sessionId: capturedSessionId,
+          currentSessionId: currentSessionIdRef.current,
+          timing: delay,
+        } as unknown as Record<string, unknown>);
+        return;
+      }
+
       try {
         const bodyText = document.body?.textContent || '';
         const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');

@@ -5,7 +5,6 @@ const getDossiersMock = vi.hoisted(() => vi.fn());
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveAllDossiersMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
-
 const scoutDiagWarnMock = vi.hoisted(() => vi.fn());
 vi.mock('../../utils/diagnosticLog', () => ({
   scoutDiag: { warn: scoutDiagWarnMock },
@@ -313,4 +312,35 @@ describe('useSessionStorage', () => {
     unsubscribe();
   });
 
+  it('debounced persist faz retry e avisa quando save falha', async () => {
+    saveAllDossiersMock.mockRejectedValue(new Error('network down'));
+    const onFailure = vi.fn();
+    const unsubscribe = subscribeSessionPersistFailure(onFailure);
+
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => {
+      result.current.setIsInitialized(true);
+      result.current.setSessions([
+        makeSession('s-debounce', 'Debounce Test', [
+          { id: 'm1', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+        ]),
+      ]);
+    });
+
+    await waitFor(
+      () => {
+        expect(saveAllDossiersMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 5000 },
+    );
+    await waitFor(() => {
+      expect(scoutDiagWarnMock).toHaveBeenCalledWith(
+        'SessionStorage',
+        'debounced-flush-failed',
+        expect.objectContaining({ sessionCount: 1 }),
+      );
+    });
+    expect(onFailure).toHaveBeenCalled();
+    unsubscribe();
+  });
 });

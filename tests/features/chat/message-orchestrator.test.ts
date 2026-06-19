@@ -20,7 +20,6 @@ vi.mock('../../../stores/chatStore', () => ({
   }),
 }));
 
-
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
 }));
@@ -598,13 +597,12 @@ describe('useChatMessageOrchestrator', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
   it('nao dispara RAF safety net da geracao anterior quando outra geracao assumiu a sessao', async () => {
-    const rafQueue: FrameRequestCallback[] = [];
-    const rafSpy = vi
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation(cb => {
-        rafQueue.push(cb);
-        return rafQueue.length;
-      });
+    type RafCallback = Parameters<typeof window.requestAnimationFrame>[0];
+    const rafQueue: RafCallback[] = [];
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
 
     uuidv4Mock
       .mockReturnValueOnce('session-new')
@@ -636,5 +634,4 @@ describe('useChatMessageOrchestrator', () => {
     rafSpy.mockRestore();
     chatStoreLoadingState.isLoading = false;
   });
-
 });

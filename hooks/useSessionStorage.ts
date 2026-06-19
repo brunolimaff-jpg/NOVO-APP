@@ -43,7 +43,6 @@ async function flushPersistableSessions(persistable: ChatSession[], context: str
   }
 }
 
-
 function hasPersistableContent(session: ChatSession): boolean {
   return (session.messages || []).some(
     m => m.sender === Sender.Bot && !m.isError && !m.isThinking && (m.text || '').trim().length > 0,
@@ -116,14 +115,8 @@ export function useSessionStorage() {
     }
 
     debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const persistable = data.filter(hasPersistableContent);
-        if (persistable.length > 0) {
-          await storage.saveAllDossiers(persistable);
-        }
-      } catch (e) {
-        console.error('[useSessionStorage] Falha ao persistir sessões no Supabase:', e);
-      }
+      const persistable = data.filter(hasPersistableContent);
+      await flushPersistableSessions(persistable, 'debounced-flush');
     }, 1000);
   }, []);
 

@@ -277,6 +277,8 @@ const App: React.FC = () => {
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const radar = useRadar(toast);
 
   const featureAccess = getFeatureAccess();
@@ -308,8 +310,8 @@ const App: React.FC = () => {
   }, [mode]);
 
   useEffect(() => {
-    return subscribeSessionPersistFailure(message => toast.warning(message));
-  }, [toast]);
+    return subscribeSessionPersistFailure(message => toastRef.current.warning(message));
+  }, []);
 
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
 
