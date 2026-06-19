@@ -76,10 +76,10 @@ jobs:
       - name: Check bundle size budget
         run: npm run check:budget
 
-  e2e-critical-browser:
-    name: E2E Critical Browser
+  e2e-p0:
+    name: E2E P0
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,31 +87,18 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run critical browser regressions
-        run: >-
-          npx playwright test
-          tests-e2e/blank-center-panel-regression.spec.ts
-          tests-e2e/controlled-error-state.spec.ts
-          tests-e2e/loading-smart-recovery.spec.ts
-          tests-e2e/smoke.chat-shell.spec.ts
-          tests-e2e/smoke.hydration-post-reload.spec.ts
-          tests-e2e/cofre-progressive-dossier.spec.ts
-
-  e2e-cnpj-flow:
-    name: E2E CNPJ Flow
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
         with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run CNPJ investigation flow
-        run: >-
-          npx playwright test
-          tests-e2e/cnpj-investigation-flow.spec.ts
-          tests-e2e/scheffer-cnpj-blank-panel.spec.ts
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+      - name: Install Playwright system dependencies
+        uses: microsoft/playwright-github-action@v1
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Run P0 critical E2E regressions
+        run: npx playwright test --project=p0-critical
