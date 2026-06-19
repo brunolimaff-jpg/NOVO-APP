@@ -1,96 +1,69 @@
-# Handoff — PR #383 Fase D FECHADA (aguarda MERGE)
+# Handoff — Pós-auditoria 50 PRs + Plano de Estabilização
 
-**Atualizado:** 2026-06-19 (fechamento sessão)  
-**Branch:** `worktree-feat+fase-d-ci-quality-gates`  
-**HEAD:** `63f1c85e`  
-**PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/383  
-**Produção:** `scoutagro.vercel.app`
+**Atualizado:** 2026-06-19 (Onda 2.5 doc-handoff)  
+**Produção:** `scoutagro.vercel.app`  
+**Plano:** `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`
 
 ## Estado Atual
 
-- **Fase D entregue:** coverage gate 69%, bundle budget, timeout edge cases (`runWithStepTimeout` real), higiene P1/P2.
-- **CI GitHub:** verde — typecheck, vitest, coverage, build, dossier golden, smoke HTTP, CodeQL, Vercel preview. **Sem E2E blocking** (`e6f256d8`).
-- **PR Gate IA:** **APROVADO** 11/11 no preview SHA `63f1c85e` (~2,7 min). Evidência: https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777
-- **Bruno manual:** 5/5 no preview.
-- **Threads review:** 0 abertas.
-- **Merge:** pendente token **MERGE** na mensagem do Bruno.
-- **Design debt:** Cofre skeleton 3 seções — não bloqueia.
+- **Auditoria 50 PRs (#316–#382):** concluída e reconciliada com o código + delta pós-auditoria.
+- **Veredito:** parcialmente válido — loading/render/persistência ainda frágeis; auth/CI melhoraram.
+- **PR #383:** **MERGEADA** (2026-06-19) — Fase D CI, remoção lockout auth, PR Gate IA, specs `critical-ux`.
+- **PR #384:** **CLOSED** (não mergeada) — escopo absorvido por #383 (AuthGate sem lockout, helpers E2E, `cofre-progressive-dossier.spec.ts`).
+- **Onda 0:** pendente — sync `origin/main` + `validate:ci` na branch de trabalho.
+- **Onda 1:** **em andamento** — RAF safety net + persist flush + E2E 2ª investigação/stop (P0).
+- **Merge futuro:** token **MERGE** na mensagem (regra permanente).
 
-## Decisão TRAVA FINAL — DI-2026-06-19-01
+## Reconciliação Auditoria × Repo
 
-| Gate | Status |
-|------|--------|
-| CI rápido GitHub | ✅ required |
-| E2E Critical UX / Preview Vercel CI | ❌ fora required |
-| PR Gate IA Playwright `critical-ux` no preview | ✅ 11/11 aprovado |
-| Comentário evidência na PR | ✅ |
-| Token **MERGE** | ⏳ pendente |
+| Achado auditoria | Status pós-reconciliação |
+|------------------|--------------------------|
+| P0 #372 lockout auth | ✅ Resolvido — #383 remove bloqueio guest |
+| P0 #349 RAF safety net | ⚠️ Válido — Onda 1.2–1.3 |
+| P0 #358 silent persist | ⚠️ Válido — Onda 1.1 (`useSessionStorage.ts:128`) |
+| #347 display:none + !important | ⚠️ Código TS sem `!important`; causa raiz **unknown**; Cofre #382 mitiga |
+| #381 layoutTraceTelemetry | ✅ Removido — dívida diagnóstica documentada |
+| #377 200 CNPJs / 60s | ❌ Impreciso — `MAX_COMPANIES=60`, deadline 45s em socio-search |
+| Status "FRÁGIL" global | Nuanceado — CI/auth estáveis; loading/persist ainda frágeis |
 
-Vault: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
+## Plano de Estabilização (4 ondas)
 
-## Commits finais (higiene + E2E)
+| Onda | Foco | Status |
+|------|------|--------|
+| 0 | Sync main (#383) + gates CI | ⏳ pendente |
+| 1 | P0: persist flush, RAF re-entrância, E2E preview | 🔄 em andamento |
+| 2 | P1: toast investigação, diagnosticLog backoff, socio-search budget, ADR cache | ⏳ após Onda 1 |
+| 3 | Reducer loading, extrair watchdog, probes T-A.5 | ⏳ após Onda 1 estável |
+| 4 | PR Gate contínuo + policy §9 auditoria | ✅ ativo (DI-2026-06-19-01) |
 
-| SHA | Descrição |
-|-----|-----------|
-| `e6f256d8` | ci: remove E2E blocking dos required checks |
-| `888b9487` | higiene P1 (E2E enxugado, auth lockout removido #384) |
-| `72e6dd36` | higiene P2 |
-| `b472848c` | e2e: uniqueOperator + dismissDuplicateDossierModal |
-| `63f1c85e` | e2e: robustez controlled-error no preview |
+## Decisões Ativas
 
-## Playbook Fase D
+| ID | Tema | Status |
+|----|------|--------|
+| DI-2026-06-19-01 | PR Gate IA — E2E fora required GitHub | ✅ TRAVA FINAL |
+| DI-2026-06-19-02 | Cache read-only vs toast/retry (Onda 2.4) | 📋 ADR — recomenda Opção B |
 
-| Tarefa | Status |
-|--------|--------|
-| T-D.1 CI coverage gate | ✅ |
-| T-D.2 E2E | ✅ via PR Gate IA (11 specs `critical-ux`) |
-| T-D.3 Testes timeout | ✅ |
-| T-D.4 Performance budget | ✅ |
+## PRs de referência
 
-## O que funcionou
-
-- Docker `mcr.microsoft.com/playwright:v1.59.1-noble`
-- PR Gate IA Playwright `BASE_URL` preview ~2,7 min 11/11
-- Bruno manual 5/5; Vitest/coverage/golden como rede principal
-- `uniqueOperator` + `dismissDuplicateDossierModal` no preview
-- Allowlist console debug telemetry (Scout360)
-
-## O que NÃO funcionou
-
-1. E2E blocking Fase D inchado — timeout, install hang, processo quebrado
-2. `playwright-github-action@v1` — Ubuntu 24.04
-3. CI localhost/Docker ≠ preview Vercel (modal, Supabase, serverless)
-4. Testing Trophy violado — E2E no topo do pyramid
-5. Duplicação `loading-smart-recovery` vs `cofre-progressive` (removido do `critical-ux`)
-6. Workflow preview 15 min cancelou antes da suite
-7. Scheffer flaky localhost, OK preview
-8. `gh-resolve`: responder antes de resolver thread
-9. `AGENTS.md` cherry-pick na branch errada
-10. `console.error` strict vs telemetria debug Scout360 — allowlist
-11. PR Gate IA > CI E2E para app Vercel+Supabase
-
-## E2E `critical-ux` (11 testes)
-
-Stubs Gemini/CNPJ no preview — não chama IA real. `loading-smart-recovery` fora (duplicata cofre). Auth lockout pós-deadline removido intencionalmente (#384).
-
-## Coverage baseline
-
-Thresholds Vitest: **69 / 57 / 64 / 69** (lines / branches / functions / statements).
+- **#382** — Cofre overlay + `useDeferredValue` (mitigação arquitetural freeze 27k+ chars)
+- **#383** — Fase D + auth + E2E `critical-ux` (mergeada)
+- **#384** — fechada; conteúdo consolidado em #383
 
 ## Próximo passo único
 
-Bruno envia **MERGE** na mensagem para mergear #383.
+Executar **Onda 1** na branch `fix/onda-1-raf-persist-e2e`: 1.1 persist flush → 1.2 RAF → 1.3–1.5 testes/E2E preview.
 
-## Prompt retomada pós-merge
+## Prompt retomada
 
 ```
-▎ PR #383 mergeada. Confirmar produção scoutagro.vercel.app.
-▎ Próximo: playbook pós-Fase D (Sprint 2 T-C.1 ou design debt Cofre skeleton).
-▎ Merge futuro: CI rápido + PR Gate IA preview + MERGE.
+▎ Auditoria 50 PRs reconciliada. #383 mergeada; #384 absorvida.
+▎ Prioridade: Onda 1 (RAF + persist + E2E) — branch fix/onda-1-raf-persist-e2e.
+▎ Não mergear PRs que adicionem useState loading / catch {} / RAF sem cleanup.
+▎ Merge: CI rápido + PR Gate IA preview + token MERGE.
 ```
 
-## Vault
+## Vault / docs
 
-- Sessão: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`
-- Lições: `Bruno Vault/30-LICOES/LICOES-APRENDIDAS-E2E-CI-PR-GATE-2026-06-19.md`
-- Decisão: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
+- Plano: `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`
+- Auditoria fonte: `~/Downloads/auditoria-50-prs-scout360 (1).md`
+- Decisão PR Gate: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`

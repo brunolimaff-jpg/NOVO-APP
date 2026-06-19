@@ -1,5 +1,20 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-19 - Auditoria 50 PRs + Onda 2.4)
+
+### DI-2026-06-19-02: Cache read-only de sessoes vs toast/retry obrigatorio (Onda 2.4)
+
+- **Contexto:** Auditoria 50 PRs (#358) apontou remocao do fallback localStorage em PR #317. Supabase indisponivel = sidebar vazia + risco de perda de percepcao de historico. PR #383 removeu lockout auth; outage nao trava mais o app, mas leitura de sessoes falha silenciosamente em alguns paths.
+- **Opcao A — Restaurar cache read-only das ultimas N sessoes quando Supabase falha**
+  - **Pros:** Resiliencia em outage de leitura; sidebar continua util; alinha com recomendacao retroativa da auditoria (#358); UX degradada mas nao vazia; N pequeno limita stale data.
+  - **Contras:** Reintroduz segunda fonte de leitura (PR #317 removeu IDB justamente por dual-source); exige TTL, invalidacao e testes de consistencia; risco de exibir dossies desatualizados ou de outro operator se isolamento falhar; escopo de implementacao medio-alto.
+- **Opcao B — Manter sem fallback + toast/retry obrigatorio**
+  - **Pros:** Supabase permanece fonte unica de verdade (coerente com PR #317 e DI-2026-06-10-01); Onda 1.1 endereca silent data loss no flush com scoutDiag + retry visivel; implementacao menor; evita regressao de sync cross-device documentada em CALIBER.
+  - **Contras:** Sidebar vazia durante outage prolongado; usuario depende de retry manual; nao protege leitura historica offline; percepcao de "app quebrou" se toast nao for claro.
+- **Recomendacao:** **Opcao B** para Onda 2, complementada por Onda 1.1 (persist flush com toast/retry). Reavaliar Opcao A somente se metricas de producao (`operator_events`, falhas Supabase read) mostrarem outage frequente (>1/semana) ou se Bruno priorizar resiliencia offline de leitura. Criterio de reavaliacao: 30 dias pos-Onda 1 sem incidentes de sidebar vazia reportados.
+- **Status:** proposta — aguarda confirmacao do Bruno antes de implementacao Onda 2.4.
+- **Referencia:** auditoria `auditoria-50-prs-scout360 (1).md`, plano `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`, PR #317, PR #358, PR #383.
+
 ## Novas Decisoes (Sessao 2026-06-19 - PR #383 Fase D + PR Gate IA)
 
 ### DI-2026-06-19-01: PR Gate IA — E2E fora dos required checks do GitHub (TRAVA FINAL)

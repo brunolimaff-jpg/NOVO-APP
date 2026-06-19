@@ -1,8 +1,27 @@
 # Progress
 
-Last updated: 2026-06-19 — PR #383 Fase D FECHADA (aguarda MERGE)
+Last updated: 2026-06-19 — Auditoria 50 PRs reconciliada + Onda 2.5 doc-handoff
 
 ## Timeline
+
+### 2026-06-19 (Auditoria 50 PRs + plano estabilização — Onda 2.5)
+
+- Auditoria externa 50 PRs (#316–#382) validada contra repo atual + delta pós-auditoria.
+- Plano de estabilização em 4 ondas documentado: `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`.
+- **Reconciliação #383/#384:** #383 mergeada (Fase D + auth sem lockout + E2E); #384 closed — escopo absorvido.
+- Achados válidos remanescentes: RAF #349, persist silent #358, loading fragmentado (10 useState).
+- Achados resolvidos/imprecisos: lockout auth (#383), layoutTraceTelemetry removido (#381), #377 superestimado.
+- **Onda 1 declarada prioridade:** RAF + persist flush + E2E 2ª investigação/stop.
+- **ADR Onda 2.4 (DI-2026-06-19-02):** cache read-only vs toast/retry — recomenda Opção B.
+- Doc-handoff: HANDOFF_AI.md, CALIBER_LEARNINGS.md, activeContext, progress, decisions atualizados.
+- **Próximo:** implementer executa Onda 0 sync + Onda 1 na branch `fix/onda-1-raf-persist-e2e`.
+
+### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA — MERGE)
+
+- PR #383 **mergeada** em 2026-06-19T21:18:35Z.
+- Fase D entregue: coverage gate 69%, bundle budget, timeout edge cases, higiene P1/P2.
+- Lockout auth pós-deadline removido (conteúdo ex-#384 consolidado).
+- PR Gate IA APROVADO 11/11 preview — evidência na PR.
 
 ### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA — FECHAMENTO)
 
@@ -16,7 +35,7 @@ Last updated: 2026-06-19 — PR #383 Fase D FECHADA (aguarda MERGE)
 - Commits finais: `888b9487`, `72e6dd36`, `b472848c`, `63f1c85e`.
 - Design debt: Cofre skeleton 3 seções (não bloqueia merge).
 - Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`.
-- **Próximo:** Bruno envia **MERGE** para mergear #383.
+- Histórico pré-merge; ver entrada MERGE acima.
 
 ## Timeline
 
