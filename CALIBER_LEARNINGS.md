@@ -503,6 +503,12 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 - **Commits de memoria na branch da PR ativa** [git, worktree, agents]
   AGENTS.md continual-learning commitado na branch errada exigiu cherry-pick. Verificar branch antes de docs de memoria. Afeta: worktrees, handoff.
 
+- **console.error strict em E2E quebra com telemetria debug Scout360** [e2e, playwright, console, telemetria]
+  Specs com `page.on('console', msg => expect(msg.type()).not.toBe('error'))` falham quando o app emite logs debug legitimos (`scoutDiag`, telemetria Scout360). Solucao: allowlist de padroes conhecidos ou filtrar por origem. Afeta: `tests-e2e/`, specs `critical-ux`.
+
+- **PR Gate IA e gate definitivo para app Vercel+Supabase — CI E2E localhost nao substitui** [vercel, supabase, e2e, pr-gate, ci]
+  Para apps com preview Vercel + Supabase real + serverless, o gate de merge e: CI rapido verde + Playwright `critical-ux` no preview (agente) + comentario evidencia + **MERGE**. CI E2E Docker/localhost e instavel e nao representa UX real. Aprovado PR #383: 11/11 SHA `63f1c85e`. Afeta: branch protection, `AGENTS.md`, fluxo merge.
+
 
 <!-- caliber:managed:learnings -->
 

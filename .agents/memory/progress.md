@@ -1,21 +1,22 @@
 # Progress
 
-Last updated: 2026-06-19 — PR #383 Fase D + PR Gate IA
+Last updated: 2026-06-19 — PR #383 Fase D FECHADA (aguarda MERGE)
 
 ## Timeline
 
-### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA)
+### 2026-06-19 (PR #383 — Fase D CI + PR Gate IA — FECHAMENTO)
 
-- Fase D: coverage gate, performance budget, testes de timeout, E2E projeto `critical-ux`.
-- CI rápido verde: typecheck, vitest, coverage, build, dossier golden, smoke HTTP, CodeQL, Vercel.
-- E2E blocking falhou: Critical UX (Docker) + Preview Vercel — timeout install, Ubuntu 24.04, workflow 15 min.
-- Docker `mcr.microsoft.com/playwright:v1.59.1-noble` adotado para CI localhost.
-- Preview manual Bruno: 5/5 specs ~1,7 min; Scheffer OK no preview.
-- **Decisão DI-2026-06-19-01:** PR Gate IA — E2E fora dos required checks; validação preview sob demanda antes do merge.
-- Commits HEAD: `032dbf5b`, `b0603210`, `e8fe4534`.
-- Design debt: Cofre skeleton 3 seções (não bloqueia).
+- Fase D entregue: coverage gate 69%, bundle budget, timeout edge cases (`runWithStepTimeout`), higiene P1/P2.
+- E2E expandido → enxugado para 11 specs `critical-ux` (`loading-smart-recovery` fora por duplicata cofre).
+- Auth: lockout pós-deadline removido intencionalmente (#384).
+- E2E blocking removido do CI (`e6f256d8`); CI GitHub verde sem E2E required.
+- **Decisão DI-2026-06-19-01 TRAVA FINAL:** PR Gate IA substitui E2E blocking.
+- **PR Gate IA APROVADO:** 11/11 preview SHA `63f1c85e` ~2,7 min — [evidência PR](https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777).
+- Bruno manual preview: 5/5. Threads review: 0 abertas.
+- Commits finais: `888b9487`, `72e6dd36`, `b472848c`, `63f1c85e`.
+- Design debt: Cofre skeleton 3 seções (não bloqueia merge).
 - Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`.
-- Próximo: remover E2E blocking; skill valida preview; merge com **MERGE**.
+- **Próximo:** Bruno envia **MERGE** para mergear #383.
 
 ## Timeline
 
