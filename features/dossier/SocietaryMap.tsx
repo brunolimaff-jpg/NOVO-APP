@@ -23,6 +23,7 @@ import {
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
+import { useOperator } from '../../contexts/OperatorContext';
 
 const MAX_CNAE_LOOKUPS = 24;
 
@@ -43,6 +44,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   traceId,
   traceEnabled,
 }) => {
+  const { operatorId } = useOperator();
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
@@ -269,6 +271,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               rootCompanyName: rootName,
               rootCnpj,
               trace: traceActive || undefined,
+              operatorId,
             }),
             signal: controller.signal,
           });

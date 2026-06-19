@@ -12,7 +12,7 @@
   - **Pros:** Supabase permanece fonte unica de verdade (coerente com PR #317 e DI-2026-06-10-01); Onda 1.1 endereca silent data loss no flush com scoutDiag + retry visivel; implementacao menor; evita regressao de sync cross-device documentada em CALIBER.
   - **Contras:** Sidebar vazia durante outage prolongado; usuario depende de retry manual; nao protege leitura historica offline; percepcao de "app quebrou" se toast nao for claro.
 - **Recomendacao:** **Opcao B** para Onda 2, complementada por Onda 1.1 (persist flush com toast/retry). Reavaliar Opcao A somente se metricas de producao (`operator_events`, falhas Supabase read) mostrarem outage frequente (>1/semana) ou se Bruno priorizar resiliencia offline de leitura. Criterio de reavaliacao: 30 dias pos-Onda 1 sem incidentes de sidebar vazia reportados.
-- **Status:** proposta — aguarda confirmacao do Bruno antes de implementacao Onda 2.4.
+- **Status:** aceita (Opção B) — implementada via Onda 1.1 (toast/retry persist); cache read-only não restaurado.
 - **Referencia:** auditoria `auditoria-50-prs-scout360 (1).md`, plano `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`, PR #317, PR #358, PR #383.
 
 ## Novas Decisoes (Sessao 2026-06-19 - PR #383 Fase D + PR Gate IA)

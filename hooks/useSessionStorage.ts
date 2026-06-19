@@ -182,7 +182,11 @@ export function useSessionStorage() {
             });
           }
         })
-        .catch(() => {});
+        .catch(err => {
+          scoutDiag.warn('useSessionStorage', 'operator-relinked reload failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
     };
 
     window.addEventListener('operator-relinked', handler);

@@ -30,7 +30,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
   }
 
-  const cacheKey = buildCacheKey(parsed.data.rootCnpj, parsed.data.rootCompanyName, parsed.data.socioName);
+  const cacheKey = buildCacheKey(
+    parsed.data.rootCnpj,
+    parsed.data.rootCompanyName,
+    parsed.data.socioName,
+    parsed.data.operatorId,
+  );
   const persistentCacheRequired = requiresPersistentCache();
   const hasPersistentConfig = Boolean(getSupabaseCacheConfig());
   const wantsTrace = parsed.data.trace;
