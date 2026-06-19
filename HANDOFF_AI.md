@@ -2,7 +2,7 @@
 
 **Atualizado:** 2026-06-19  
 **Branch:** `worktree-feat+fase-d-ci-quality-gates`  
-**HEAD:** `032dbf5b`  
+**HEAD:** (ver `git log -1`)  
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/383  
 **Produção:** `scoutagro.vercel.app`
 
@@ -67,7 +67,7 @@ Vault: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
 
 ## Próximos Passos
 
-1. Implementer remove E2E blocking (paralelo)
+1. ~~Implementer remove E2E blocking~~ ✅ (`e6f256d8`)
 2. Skill/comando `valida preview PR N`
 3. PR template — seção Preview Validation IA
 4. Merge #383 após PR Gate IA + validação preview + **MERGE**
@@ -77,6 +77,22 @@ Vault: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
 - Sessão: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T19-30-00-pr383-fase-d-pr-gate-ia.md`
 - Lições: `Bruno Vault/30-LICOES/LICOES-APRENDIDAS-E2E-CI-PR-GATE-2026-06-19.md`
 - Decisão: `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`
+
+
+## E2E — stubs vs Gemini real
+
+- **Preview / `critical-ux`:** specs usam `installFastGeminiStubs` e `installCNPJStub` — **não** chamam Gemini real.
+- Validação com IA real: PR Gate IA no preview Vercel (agente + Bruno), não o job Docker localhost.
+- `preview-smoke.yml`: smoke HTTP de rotas; smoke Gemini real é follow-up.
+
+## Coverage baseline (Fase D)
+
+- Thresholds Vitest: **69 / 57 / 64 / 69** (lines / branches / functions / statements).
+- Calibrados na Fase D com folga ~0,8% sobre baseline medido (~69,86% statements).
+
+## Scripts E2E manuais
+
+- `npm run test:e2e:cnpj:live` (`p2-cnpj-live`): **somente manual** ou `workflow_dispatch` — fluxo CNPJ com API real; não faz parte do CI blocking.
 
 ## Guardas
 

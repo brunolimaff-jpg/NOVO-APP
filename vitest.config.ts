@@ -43,6 +43,7 @@ export default defineConfig({
         'config/**',
         'nimbalyst-local/**',
       ],
+      // Thresholds calibrados Fase D (2026-06): 69/57/64/69 — folga ~0.8% sobre baseline medido
       thresholds: {
         lines: 69,
         branches: 57,

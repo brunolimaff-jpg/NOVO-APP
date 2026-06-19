@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// E2E preview/CI usa installFastGeminiStubs — não chama Gemini real (ver HANDOFF_AI.md)
 const baseURL = process.env.BASE_URL || 'http://localhost:3000';
 const isExternal = !!process.env.BASE_URL;
 const desktopChrome = { ...devices['Desktop Chrome'] };
@@ -38,6 +39,7 @@ export default defineConfig({
       testMatch: /smoke\..*\.spec\.ts/,
     },
     {
+      // p2-cnpj-live: manual/workflow_dispatch only — npm run test:e2e:cnpj:live
       name: 'p2-cnpj-live',
       use: desktopChrome,
       testMatch: /cnpj-investigation-flow\.spec\.ts/,
