@@ -76,8 +76,8 @@ npm run lint
 - Trabalho relacionado ao escopo aberto deve consolidar na PR canônica existente; não abrir PR paralela sem checar overlap de escopo.
 - Responder cada thread de review de PR com a tratativa aplicada antes de marcar como resolvida (fluxo `gh-resolve-pr-comments`); não deixar comentários abertos sem resposta.
 - Uso real é no preview Vercel: respostas de review e validação de UX devem citar comportamento no preview, não só localhost do CI.
-- Merge de PR com E2E exige Playwright verde no preview Vercel de deploy; CI E2E em localhost/Docker não substitui essa validação.
-- E2E no CI: manter gate enxuto (Testing Trophy) — poucos fluxos críticos de UX (painel, cofre, Scheffer); evitar inflar specs, jobs ou timeouts além do necessário.
+- Merge de PR exige PR Gate IA no preview Vercel; E2E Playwright não bloqueia CI (rodar manual: `BASE_URL=<preview> npm run test:e2e:critical-ux`).
+- E2E critical-ux (painel, cofre, Scheffer): specs no repo para agente ou `workflow_dispatch`; não é gate blocking no CI.
 
 ## Learned Workspace Facts
 
@@ -85,9 +85,8 @@ npm run lint
 - LoadingSmart pós-waterfall: `health-check` no flush imediato pode registrar `overlay=true` com `domBodyLen` baixo (H-U3); critério de recuperação do overlay é evento `PostCompletion` em `scout_diagnostics`, não só o health-check.
 - CNPJ no browser: `fetchCompanyByCnpj` via `/api/cnpj`; não usar `lib/cnpjLookup` com fetch direto à BrasilAPI no cliente (CORS no preview/prod Vercel).
 - Contrato de loading/timeline/blank panel: `docs/ai-context/refactor/loading-panel-contract.md` (preview durante waterfall, static handoff, telemetria PostCompletion).
-- Preview Vercel é gate obrigatório para regressões de UX, rede e performance; testes unitários e E2E localhost não substituem Playwright no preview de deploy.
+- Preview Vercel é gate obrigatório para regressões de UX (PR Gate IA); smoke preview no CI não substitui validação no deploy real.
 - Handoff e memória canônica: `HANDOFF_AI.md` e `.agents/memory/*` prevalecem sobre vault Obsidian para implementação.
 - Branch com checkpoint WIP no histórico pode inflar a aba Files da PR no GitHub; o que entra em `main` é o diff líquido contra `main`, não a lista bruta de commits intermediários.
-- CI E2E Playwright: usar container Docker `mcr.microsoft.com/playwright:v1.59.1-noble` (browsers pré-instalados); `microsoft/playwright-github-action@v1` quebra no Ubuntu 24.04 com `Cannot install dependencies for this linux distribution`.
-- Job CI `E2E Critical UX (painel, cofre, Scheffer)` com project Playwright `critical-ux`; substitui labels genéricos tipo "E2E P0".
+- E2E Playwright manual/preview: container `mcr.microsoft.com/playwright:v1.59.1-noble` (browsers pré-instalados); project `critical-ux` em `playwright.config`; `e2e-preview.yml` só `workflow_dispatch` (não blocking).
 - E2E Scheffer/Cofre: helper de onboarding deve iniciar nova investigação quando houver dossiê salvo (modal "Dossiê existente"); evita falha por estado duplicado no Supabase.
