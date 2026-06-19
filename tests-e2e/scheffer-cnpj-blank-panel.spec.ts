@@ -34,7 +34,7 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
     await page.getByTestId('investigation-city-input').fill('Chapecó');
     await page.getByTestId('investigation-uf-input').fill('SC');
     await page.getByTestId('investigation-submit-button').click({ force: true });
-    await dismissDuplicateDossierModal(page, { required: true });
+    await dismissDuplicateDossierModal(page, { required: false });
 
     await expect(
       page

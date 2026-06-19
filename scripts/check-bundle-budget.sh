@@ -36,12 +36,12 @@ if [ ! -f "$BUDGET_FILE" ]; then
   exit 1
 fi
 
-MAX_JS_KB=$(node -e "
+MAX_JS_KB=$(node --input-type=commonjs -e "
   const b = require('./budget.json');
   const script = b.resourceSizes?.find(r => r.resourceType === 'script');
   process.stdout.write(String(script?.budget ?? 5500));
 ")
-MAX_CSS_KB=$(node -e "
+MAX_CSS_KB=$(node --input-type=commonjs -e "
   const b = require('./budget.json');
   const css = b.resourceSizes?.find(r => r.resourceType === 'stylesheet');
   process.stdout.write(String(css?.budget ?? 150));
