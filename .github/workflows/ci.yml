@@ -79,7 +79,7 @@ jobs:
   e2e-critical-ux:
     name: E2E Critical UX (painel, cofre, Scheffer)
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -95,7 +95,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
-      - name: Instalar Chromium e dependências do sistema (Playwright)
-        run: npx playwright install --with-deps chromium
+      - name: Instalar dependências do sistema (Playwright)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install-deps chromium
+      - name: Instalar Chromium (Playwright)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
       - name: Rodar regressões E2E de UX crítica
         run: npm run test:e2e:critical-ux
