@@ -557,3 +557,18 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **Vercel deploy poll em 2s e mais rapido que 5s sem impacto no rate limit** [vercel, deploy, poll, performance]
   O polling de 5s atrasava a deteccao de "Ready" no deploy local. Reduzir para 2s acelera o feedback sem impacto significativo no rate limit da API Vercel (max 1 deploy por execucao). Afeta: scripts de deploy local.
+
+### Sessao 2026-06-19 — Auditoria 50 PRs + reconciliacao pos-#383
+
+- **Causa raiz display:none permanece unknown; Cofre #382 mitiga sintoma** [loading, display-none, cofre, auditoria]
+  Auditoria 50 PRs (#316–#382) confirmou: hipotese flex-colapsado foi refutada; codigo TS atual nao contem `display:block !important` de #347. Safety nets DOM persistem em `App.tsx` e `finalizeWaterfallUI.ts`, mas a origem do `display:none` no fallback estatico nunca foi isolada. PR #382 (Cofre + `useDeferredValue`) e a primeira mitigacao arquitetural real — trata freeze de 27k+ chars, nao a causa CSS/hydration original. Manter safety nets ate 7 dias Cofre estavel em producao + metricas `scout_diagnostics`. Nao remover recovery defensivo sem causa raiz comprovada. Afeta: `hooks/useCofreTransition.ts`, `docs/wiki/pages/16-depurar-painel-branco.md`, Onda 3 do plano de estabilizacao.
+
+- **layoutTraceTelemetry removido em #381 — gap diagnostico permanente** [telemetria, debug, auditoria, pr-381]
+  `utils/layoutTraceTelemetry.ts` (7200 leituras getComputedStyle, `traceFullAncestorChain`) foi removido na PR #381 como higiene pos-Sprint 2. A auditoria classificou remocao prematura: era a unica telemetria capaz de capturar recurrence de `display:none`. `blankPanelTelemetry` compensa parcialmente, mas nao substitui cadeia completa de ancestrais. Licao: nao remover instrumentacao de causa-raiz aberta sem metrica equivalente em producao ou periodo de observacao. Afeta: decisao de reintroduzir telemetria leve (sem flood) se Cofre regredir.
+
+- **Auditoria 50 PRs: veredito parcialmente valido — reconciliar antes de agir** [auditoria, pr-review, estabilizacao]
+  Cruzar auditoria externa com estado pos-#383 evita retrabalho: lockout auth (#372) ja resolvido; #377 superestimado (MAX_COMPANIES=60, deadline 45s); catch #380 ja tem scoutDiag.warn. Achados P0 remanescentes confirmados: RAF #349 sem teste re-entrancia, persist silent #358 (`useSessionStorage.ts:128`), loading fragmentado (10 useState). Policy §9 da auditoria (sem novo useState loading, sem catch {}, sem RAF sem cleanup) adotada como bloqueador de merge no fluxo do dossie ate Onda 1 fechar. Plano: `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`.
+
+- **PR #384 fechada — escopo consolidado em #383** [pr, auth, e2e, reconciliacao]
+  PR #384 (remove lockout pos-deadline + E2E Cofre) foi closed sem merge; conteudo absorvido por #383 mergeada. Ao documentar handoff, tratar #383 como PR canonica para auth+E2E Fase D; nao reabrir #384. Afeta: HANDOFF_AI.md, threads de review que citam #384.
+

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
@@ -36,6 +35,7 @@ import {
   resolveGenerationKind,
   type GenerationKind,
 } from '../../utils/cofreLifecycle';
+import { POST_COMPLETION_PROBE_DELAYS_MS, scheduleLoadingStuckProbes } from './loading-watchdog';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -184,6 +184,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     isLoading: chatStore?.isLoading ?? false,
     loadingVariant: chatStore?.loadingVariant ?? null,
   };
+  const currentSessionIdRef = useRef(currentSessionId);
+  currentSessionIdRef.current = currentSessionId;
 
   /**
    * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
@@ -191,7 +193,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
    * Retorna função de cancelamento para limpar timers pendentes.
    */
   function schedulePostCompletionChecks(sessionId: string, generationKind: GenerationKind): () => void {
-    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    const delays = [...POST_COMPLETION_PROBE_DELAYS_MS];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
     const baselineGuard = getWaterfallGuardState(sessionId);
     const baselineGen = baselineGuard?.generationCount ?? 0;
@@ -302,102 +304,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     }
 
     return () => timerIds.forEach(id => clearTimeout(id));
-  }
-
-  // PR #349: probes de estado real pos-finalizacao do waterfall.
-  // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
-  // Retorna cleanup que cancela RAF + timers; caller deve compor com cleanupPostCompletionRef.
-  function scheduleLoadingStuckProbes(sessionId: string, generationValid: boolean): () => void {
-    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
-    const timerIds: ReturnType<typeof setTimeout>[] = [];
-    const capturedSessionId = sessionId;
-    let rafSafetyNetFired = false;
-    let rafHandle = 0;
-
-    if (!generationValid) return () => {};
-
-    rafHandle = requestAnimationFrame(() => {
-      if (latestLoadingRef.current.isLoading) {
-        rafSafetyNetFired = true;
-        setIsLoading(false);
-        (setLoadingVariant as (v: string | undefined) => void)(undefined);
-        completeLoadingProgress();
-        scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
-          sessionId: capturedSessionId,
-        } as unknown as Record<string, unknown>);
-      }
-    });
-
-    for (const delay of delays) {
-      const id = setTimeout(() => {
-        try {
-          const bodyText = document.body?.textContent || '';
-          const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
-          const stopButton = document.querySelector('[data-testid="loading-stop-button"]');
-          const composer = document.querySelector(
-            '[data-testid="chat-input"], [data-testid="composer-input"]',
-          ) as HTMLInputElement | null;
-          const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
-          const storeIsLoading = latestLoadingRef.current.isLoading;
-          const storeLoadingVariant = latestLoadingRef.current.loadingVariant ?? null;
-
-          const domHasOverlay = Boolean(loadingOverlay);
-          const domHasStopButton = Boolean(stopButton);
-          const domComposerDisabled = composer?.disabled ?? false;
-          const botTextLen = Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0));
-          const containsDossie = /dossi[eê]/i.test(bodyText);
-
-          const isStuck =
-            domHasOverlay || domHasStopButton || domComposerDisabled || storeIsLoading || storeLoadingVariant !== null;
-
-          const payload = {
-            sessionId: capturedSessionId,
-            timing: delay,
-            rafSafetyNetFired,
-            storeIsLoading,
-            storeLoadingVariant,
-            domHasOverlay,
-            domHasStopButton,
-            domComposerDisabled,
-            composerPlaceholder: composer?.placeholder ?? null,
-            botMessageCount: botMessages.length,
-            botTextLen,
-            bodyTextLen: bodyText.length,
-            containsDossie,
-            hostname: typeof window !== 'undefined' ? window.location.hostname : 'ssr',
-          };
-
-          if (isStuck) {
-            scoutDiag.warn(
-              'LoadingStuckProbe',
-              `stuck-after-completed:${delay}ms`,
-              payload as unknown as Record<string, unknown>,
-            );
-            if (delay === 10_000) {
-              Sentry.captureMessage('Scout360 loading stuck — safety probe timed out', {
-                level: 'warning',
-                tags: { area: 'loading-stuck', session_id: capturedSessionId, probe_delay: '10000' },
-                extra: payload as unknown as Record<string, unknown>,
-              });
-            }
-          } else {
-            scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
-          }
-        } catch (err: unknown) {
-          scoutDiag.warn('LoadingStuckProbe', 'probe-error', {
-            sessionId: capturedSessionId,
-            delay,
-            error: err instanceof Error ? err.message : String(err),
-          } as unknown as Record<string, unknown>);
-        }
-      }, delay);
-      timerIds.push(id);
-    }
-
-    return () => {
-      if (rafHandle) cancelAnimationFrame(rafHandle);
-      timerIds.forEach(tid => clearTimeout(tid));
-    };
   }
 
   const processMessage = useCallback(
@@ -834,7 +740,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
-        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId, generationValid, {
+          activeGenerationRef,
+          currentSessionIdRef,
+          latestLoadingRef,
+          setIsLoading,
+          setLoadingVariant,
+          completeLoadingProgress,
+        });
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();

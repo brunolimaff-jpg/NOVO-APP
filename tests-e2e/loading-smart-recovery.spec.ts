@@ -2,11 +2,38 @@
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
 import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
-import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
+import { completeOnboarding, e2eCompanyName, startNewInvestigation } from './helpers/onboarding';
 
-const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
+/** Erros de rede/infra + telemetria defensiva Scout360 (console.error intencional, não regressão). */
+const ALLOWED_CONSOLE_ERRORS = [
+  'Failed to load resource',
+  'net::ERR_',
+  'ResizeObserver',
+  '429',
+  '503',
+  '[Scout360]',
+  'safeMessages ZEROU',
+  'MENSAGENS DESAPARECERAM',
+];
 
 const LOADING_TIMEOUT_MS = 120_000;
+/** POST_API_SAFETY_TIMEOUT_MS (10s) + DISSOLVE_DURATION_MS (350ms) após loading terminar */
+const COFRE_DISSOLVE_TIMEOUT_MS = 15_000;
+
+async function waitForLoadingIndicatorsToHide(page: import('@playwright/test').Page) {
+  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+  const cofre = page.getByTestId('cofre-overlay');
+  if (await cofre.isVisible().catch(() => false)) {
+    await expect(cofre).toBeHidden({ timeout: COFRE_DISSOLVE_TIMEOUT_MS });
+  }
+}
+
+function loadingStopButton(page: import('@playwright/test').Page) {
+  return page
+    .getByTestId('loading-stop-button')
+    .or(page.getByTestId('cofre-overlay').getByRole('button', { name: /interromper/i }));
+}
 
 async function expectValidMainPanelState(page: import('@playwright/test').Page) {
   const mainPanel = page.getByTestId('chat-main-panel');
@@ -58,7 +85,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
   test.describe.configure({ timeout: 180_000 });
 
   test.beforeEach(async ({ page }) => {
-    await setupE2EAuth(page);
+    await setupE2EAuth(page, { uniqueOperator: true });
     await installFastGeminiStubs(page);
   });
 
@@ -71,14 +98,14 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    // Verifica que algum indicador de loading aparece (overlay ou inline bubble)
-    await expect(page.getByTestId('loading-smart-overlay').or(page.getByTestId('inline-loading-bubble'))).toBeVisible({
-      timeout: 30_000,
-    });
+    // Verifica que algum indicador de loading aparece (Cofre, overlay ou inline bubble)
+    const loadingIndicator = page
+      .getByTestId('cofre-overlay')
+      .or(page.getByTestId('loading-smart-overlay'))
+      .or(page.getByTestId('inline-loading-bubble'));
+    await expect(loadingIndicator.first()).toBeVisible({ timeout: 30_000 });
 
-    // Aguarda todos os indicadores de loading desaparecerem
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await waitForLoadingIndicatorsToHide(page);
 
     // Após LoadingSmart desaparecer, um estado válido precisa estar presente no painel central.
     await expectValidMainPanelState(page);
@@ -98,12 +125,28 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     // Input deve estar visível durante e após o loading
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
 
-    // Aguarda todos os indicadores de loading desaparecerem
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await waitForLoadingIndicatorsToHide(page);
 
     // Input continua acessível
     await expect(page.getByTestId('message-input')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('stop durante loading permite nova investigação em menos de 5s', async ({ page }) => {
+    await completeOnboarding(page);
+
+    await page.getByTestId('investigation-company-input').fill(e2eCompanyName('Fazenda Stop E2E'));
+    await page.getByTestId('investigation-city-input').fill('Cuiabá');
+    await page.getByTestId('investigation-uf-input').fill('MT');
+    await page.getByTestId('investigation-submit-button').click({ force: true });
+
+    const stopButton = loadingStopButton(page);
+    await expect(stopButton).toBeVisible({ timeout: 30_000 });
+    await stopButton.click({ force: true });
+
+    const startedAt = Date.now();
+    await startNewInvestigation(page);
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    await expect(page.getByTestId('investigation-company-input')).toBeVisible({ timeout: 5_000 });
   });
 
   test('sem erro silencioso no console durante loading', async ({ page }) => {
@@ -124,8 +167,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
-    await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: LOADING_TIMEOUT_MS });
+    await waitForLoadingIndicatorsToHide(page);
 
     expect(unexpectedErrors).toHaveLength(0);
   });

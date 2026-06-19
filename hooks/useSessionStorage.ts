@@ -2,6 +2,46 @@ import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateA
 import { storage } from '../services/storage';
 import { ChatSession, Sender } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
+import { scoutDiag } from '../utils/diagnosticLog';
+import { withAutoRetry } from '../utils/retry';
+
+const persistFailureHandlers = new Set<(message: string) => void>();
+
+export function subscribeSessionPersistFailure(handler: (message: string) => void): () => void {
+  persistFailureHandlers.add(handler);
+  return () => {
+    persistFailureHandlers.delete(handler);
+  };
+}
+
+function notifySessionPersistFailure(message: string) {
+  persistFailureHandlers.forEach(handler => {
+    try {
+      handler(message);
+    } catch (error) {
+      scoutDiag.warn('SessionStorage', 'persist-failure-toast-handler-error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+}
+
+async function flushPersistableSessions(persistable: ChatSession[], context: string): Promise<void> {
+  if (persistable.length === 0) return;
+  try {
+    await withAutoRetry('sessionStorage.' + context, () => storage.saveAllDossiers(persistable), {
+      maxRetries: 2,
+      baseDelayMs: 300,
+      maxDelayMs: 1500,
+    });
+  } catch (error) {
+    scoutDiag.warn('SessionStorage', context + '-failed', {
+      sessionCount: persistable.length,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    notifySessionPersistFailure('Não foi possível salvar o dossiê. Tente novamente em instantes.');
+  }
+}
 
 function hasPersistableContent(session: ChatSession): boolean {
   return (session.messages || []).some(
@@ -75,14 +115,8 @@ export function useSessionStorage() {
     }
 
     debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const persistable = data.filter(hasPersistableContent);
-        if (persistable.length > 0) {
-          await storage.saveAllDossiers(persistable);
-        }
-      } catch (e) {
-        console.error('[useSessionStorage] Falha ao persistir sessões no Supabase:', e);
-      }
+      const persistable = data.filter(hasPersistableContent);
+      await flushPersistableSessions(persistable, 'debounced-flush');
     }, 1000);
   }, []);
 
@@ -124,9 +158,7 @@ export function useSessionStorage() {
       // Flush pending write: fire-and-forget save of current sessions
       const pendingSessions = sessionsRef.current;
       const persistable = pendingSessions.filter(hasPersistableContent);
-      if (persistable.length > 0) {
-        storage.saveAllDossiers(persistable).catch(() => {});
-      }
+      void flushPersistableSessions(persistable, 'unmount-flush');
     };
   }, []);
 
@@ -143,7 +175,11 @@ export function useSessionStorage() {
             });
           }
         })
-        .catch(() => {});
+        .catch(err => {
+          scoutDiag.warn('useSessionStorage', 'operator-relinked reload failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
     };
 
     window.addEventListener('operator-relinked', handler);

@@ -7,6 +7,7 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
+import { subscribeSessionPersistFailure } from './hooks/useSessionStorage';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
 import { useChatMessageOrchestrator } from './features/chat/message-orchestrator';
@@ -276,6 +277,8 @@ const App: React.FC = () => {
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const radar = useRadar(toast);
 
   const featureAccess = getFeatureAccess();
@@ -305,6 +308,10 @@ const App: React.FC = () => {
   useEffect(() => {
     document.title = APP_NAME;
   }, [mode]);
+
+  useEffect(() => {
+    return subscribeSessionPersistFailure(message => toastRef.current.warning(message));
+  }, []);
 
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
 
@@ -602,6 +609,7 @@ const App: React.FC = () => {
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <ChatErrorBoundary isDarkMode={isDarkMode}>
               <ChatInterface
+                toast={toast}
                 currentSession={currentSession}
                 sessions={sessions}
                 onNewSession={handleNewSession}

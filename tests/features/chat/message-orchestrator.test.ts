@@ -8,6 +8,18 @@ import type { GenerationKind } from '../../../utils/cofreLifecycle';
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
 
+const chatStoreLoadingState = vi.hoisted(() => ({
+  isLoading: false,
+  loadingVariant: null as LoadingVariant | null,
+}));
+
+vi.mock('../../../stores/chatStore', () => ({
+  useMaybeChatStore: () => ({
+    isLoading: chatStoreLoadingState.isLoading,
+    loadingVariant: chatStoreLoadingState.loadingVariant,
+  }),
+}));
+
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
 }));
@@ -20,7 +32,6 @@ vi.mock('../../../services/geminiService', () => ({
 // Como vitest nao restaura mocks de modulo entre arquivos, esses mocks
 // vazam para este teste e quebram o renderHook se nao desfeitos.
 vi.unmock('../../../hooks/useToast');
-vi.unmock('../../../stores/chatStore');
 
 function applyStateUpdate<T>(current: T, next: T | ((prev: T) => T)): T {
   return typeof next === 'function' ? (next as (prev: T) => T)(current) : next;
@@ -584,5 +595,43 @@ describe('useChatMessageOrchestrator', () => {
 
     expect(harness.state.investigationLogged).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+  it('nao dispara RAF safety net da geracao anterior quando outra geracao assumiu a sessao', async () => {
+    type RafCallback = Parameters<typeof window.requestAnimationFrame>[0];
+    const rafQueue: RafCallback[] = [];
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    });
+
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user-gen1')
+      .mockReturnValueOnce('message-bot-gen1')
+      .mockReturnValueOnce('message-user-gen2')
+      .mockReturnValueOnce('message-bot-gen2');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    const falseCallsAfterGen1 = harness.setIsLoading.mock.calls.filter(call => call[0] === false).length;
+    expect(falseCallsAfterGen1).toBeGreaterThanOrEqual(1);
+    expect(rafQueue.length).toBeGreaterThan(0);
+
+    chatStoreLoadingState.isLoading = true;
+    harness.activeGenerationRef.current['session-new'] = 'message-bot-gen2';
+
+    await act(async () => {
+      rafQueue.forEach(cb => cb(0));
+    });
+
+    const falseCallsAfterRaf = harness.setIsLoading.mock.calls.filter(call => call[0] === false).length;
+    expect(falseCallsAfterRaf).toBe(falseCallsAfterGen1);
+
+    rafSpy.mockRestore();
+    chatStoreLoadingState.isLoading = false;
   });
 });

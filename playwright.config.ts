@@ -31,8 +31,9 @@ export default defineConfig({
     {
       name: 'critical-ux',
       use: desktopChrome,
-      // loading-smart-recovery excluído: duplicata de cofre-progressive (Testing Trophy); npm run test:e2e:loading
-      testMatch: /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive).*\.spec\.ts/,
+      // Onda 1 E2E P0: 2ª investigação + stop/nova investigação (PR Gate IA 16/16)
+      testMatch:
+        /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive|second-investigation|loading-smart-recovery).*\.spec\.ts/,
     },
     {
       name: 'p1-smoke',

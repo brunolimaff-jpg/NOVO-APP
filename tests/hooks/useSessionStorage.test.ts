@@ -5,6 +5,11 @@ const getDossiersMock = vi.hoisted(() => vi.fn());
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const saveAllDossiersMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
+const scoutDiagWarnMock = vi.hoisted(() => vi.fn());
+vi.mock('../../utils/diagnosticLog', () => ({
+  scoutDiag: { warn: scoutDiagWarnMock },
+}));
+
 vi.mock('../../services/storage', () => ({
   storage: {
     getDossiers: getDossiersMock,
@@ -13,7 +18,7 @@ vi.mock('../../services/storage', () => ({
   },
 }));
 
-import { useSessionStorage } from '../../hooks/useSessionStorage';
+import { useSessionStorage, subscribeSessionPersistFailure } from '../../hooks/useSessionStorage';
 import { ChatSession, Sender } from '../../types';
 
 function makeSession(id: string, title: string, messages: ChatSession['messages'] = []): ChatSession {
@@ -276,5 +281,66 @@ describe('useSessionStorage', () => {
       expect(result.current.sessionsRef.current).toHaveLength(1);
       expect(result.current.sessionsRef.current[0].title).toBe('Empresa Ref');
     });
+  });
+  it('no unmount faz retry e avisa quando flush de persistencia falha', async () => {
+    saveAllDossiersMock.mockRejectedValue(new Error('network down'));
+    const onFailure = vi.fn();
+    const unsubscribe = subscribeSessionPersistFailure(onFailure);
+
+    const { result, unmount } = renderHook(() => useSessionStorage());
+    act(() => {
+      result.current.setIsInitialized(true);
+      result.current.setSessions([
+        makeSession('s-unmount', 'Flush Test', [
+          { id: 'm1', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+        ]),
+      ]);
+    });
+
+    unmount();
+    await waitFor(() => {
+      expect(saveAllDossiersMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(scoutDiagWarnMock).toHaveBeenCalledWith(
+        'SessionStorage',
+        'unmount-flush-failed',
+        expect.objectContaining({ sessionCount: 1 }),
+      );
+    });
+    expect(onFailure).toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it('debounced persist faz retry e avisa quando save falha', async () => {
+    saveAllDossiersMock.mockRejectedValue(new Error('network down'));
+    const onFailure = vi.fn();
+    const unsubscribe = subscribeSessionPersistFailure(onFailure);
+
+    const { result } = renderHook(() => useSessionStorage());
+    act(() => {
+      result.current.setIsInitialized(true);
+      result.current.setSessions([
+        makeSession('s-debounce', 'Debounce Test', [
+          { id: 'm1', sender: Sender.Bot, text: 'Dossiê completo', timestamp: new Date() },
+        ]),
+      ]);
+    });
+
+    await waitFor(
+      () => {
+        expect(saveAllDossiersMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 5000 },
+    );
+    await waitFor(() => {
+      expect(scoutDiagWarnMock).toHaveBeenCalledWith(
+        'SessionStorage',
+        'debounced-flush-failed',
+        expect.objectContaining({ sessionCount: 1 }),
+      );
+    });
+    expect(onFailure).toHaveBeenCalled();
+    unsubscribe();
   });
 });

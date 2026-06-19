@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"🔒 Alerta: ${CLAUDE_TOOL_FILE_PATH} é um arquivo sensível (env/lock). Verifique se não está expondo chaves ou quebrando dependências.\"",
+            "command": "bash scripts/hook-sensitive-file-alert.sh",
             "timeout": 5
           }
         ]
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/check-branch-health.sh main 2>&1 || true",
+            "command": "bash scripts/check-branch-health.sh main",
             "timeout": 10
           }
         ]

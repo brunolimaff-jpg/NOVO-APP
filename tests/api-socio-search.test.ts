@@ -1415,7 +1415,7 @@ describe('api/socio-search', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
-    expect(upsertBody.id).toContain('socio-search:v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
+    expect(upsertBody.id).toContain('socio-search:v8-operator-scoped::anonymous::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
