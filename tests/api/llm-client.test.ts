@@ -189,4 +189,33 @@ describe('callLiteLLM', () => {
       temperature: 0.1,
     });
   });
+
+  it('usa budget de 85s por padrão para caber no step obrigatório de 90s', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+
+    await callLiteLLM(
+      { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
+      {
+        LITELLM_API_KEY: 'sk-test',
+        LITELLM_BASE_URL: 'https://litellm.example',
+      },
+    );
+
+    expect(timeoutSpy).toHaveBeenCalledWith(85_000);
+  });
+
+  it('respeita timeout explícito válido', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+
+    await callLiteLLM(
+      { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
+      {
+        LITELLM_API_KEY: 'sk-test',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_REQUEST_TIMEOUT_MS: '60000',
+      },
+    );
+
+    expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+  });
 });

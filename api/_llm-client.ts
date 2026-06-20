@@ -2,6 +2,8 @@ import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/
 
 type Environment = Record<string, string | undefined>;
 
+const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 85_000;
+
 const REASONING_PREFIXES = [
   /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
   /^vou analisar[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
@@ -164,8 +166,10 @@ export async function callLiteLLM(
   }
   messages.push({ role: 'user', content: input.userContent });
 
-  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || 30_000);
-  const timeoutSignal = AbortSignal.timeout(Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000);
+  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || DEFAULT_LITELLM_REQUEST_TIMEOUT_MS);
+  const timeoutSignal = AbortSignal.timeout(
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LITELLM_REQUEST_TIMEOUT_MS,
+  );
   const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
