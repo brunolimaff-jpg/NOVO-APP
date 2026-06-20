@@ -153,6 +153,10 @@ async function handleFinalizeRun(
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    return handleReport(req, res);
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -198,3 +202,99 @@ export const config = {
 
 // Exported for unit tests
 export { validateCreateRun, handleCreateRun, handleFinalizeRun, getSupabaseClient };
+
+interface DailyReportRow {
+  report_date: string;
+  experiment_id: string;
+  selected_model: string;
+  runs_valid: number | null;
+  runs_success: number | null;
+  runs_quality_failure: number | null;
+  runs_failed: number | null;
+  runs_fallback: number | null;
+  avg_cost_per_dossier: number | null;
+  total_cost: number | null;
+  avg_input_tokens: number | null;
+  avg_output_tokens: number | null;
+  avg_latency_ms: number | null;
+  p50_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  avg_report_chars: number | null;
+  avg_valid_sources: number | null;
+  avg_structural_score: number | null;
+  pct_porta_valid: number | null;
+}
+
+function toCsv(rows: DailyReportRow[]): string {
+  if (rows.length === 0) return 'report_date,experiment_id,selected_model,runs_valid,runs_success\n';
+
+  const headers = Object.keys(rows[0] ?? {}) as Array<keyof DailyReportRow>;
+  const lines = [headers.join(',')];
+
+  for (const row of rows) {
+    lines.push(headers.map(header => String(row[header] ?? '')).join(','));
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+function toMarkdown(rows: DailyReportRow[]): string {
+  if (rows.length === 0) {
+    return '# LLM Experiment Report\n\nNenhum dado disponível.\n';
+  }
+
+  const lines = [
+    '# LLM Experiment Report',
+    '',
+    '| Data | Modelo | Runs | Sucesso | Quality Fail | Fallback | Custo médio | Score |',
+    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+  ];
+
+  for (const row of rows) {
+    lines.push(
+      `| ${row.report_date} | ${row.selected_model} | ${row.runs_valid ?? 0} | ${row.runs_success ?? 0} | ${row.runs_quality_failure ?? 0} | ${row.runs_fallback ?? 0} | $${(row.avg_cost_per_dossier ?? 0).toFixed(6)} | ${row.avg_structural_score ?? 0} |`,
+    );
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+async function handleReport(req: VercelRequest, res: VercelResponse): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    res.status(500).json({ error: 'Supabase not configured' });
+    return;
+  }
+
+  const format = typeof req.query?.format === 'string' ? req.query.format : 'json';
+  const experimentId = typeof req.query?.experimentId === 'string' ? req.query.experimentId : undefined;
+
+  let query = supabase.from('llm_model_daily_report').select('*').order('report_date', { ascending: false });
+
+  if (experimentId) {
+    query = query.eq('experiment_id', experimentId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const rows = (data ?? []) as DailyReportRow[];
+
+  if (format === 'markdown') {
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.status(200).send(toMarkdown(rows));
+    return;
+  }
+
+  if (format === 'csv') {
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.status(200).send(toCsv(rows));
+    return;
+  }
+
+  res.status(200).json({ rows });
+}

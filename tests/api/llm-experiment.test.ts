@@ -32,6 +32,11 @@ function makeMockRes() {
       state.body = body;
       return res;
     },
+    setHeader: () => res,
+    send: (body: unknown) => {
+      state.body = body;
+      return res;
+    },
   };
 
   return { res, state };
@@ -82,10 +87,22 @@ describe('api/llm-experiment', () => {
     eqMock.mockResolvedValue({ error: null });
   });
 
-  it('rejeita método não-POST', async () => {
+  it('rejeita método não suportado', async () => {
     const { res, state } = makeMockRes();
-    await handler({ method: 'GET' }, res);
+    await handler({ method: 'DELETE' }, res);
     expect(state.statusCode).toBe(405);
+  });
+
+  it('GET report — retorna markdown vazio', async () => {
+    const orderMock = vi.fn().mockResolvedValue({ data: [], error: null });
+    fromMock.mockImplementation(() => ({
+      select: vi.fn().mockReturnValue({ order: orderMock }),
+    }));
+
+    const { res, state } = makeMockRes();
+    await handler({ method: 'GET', query: { format: 'markdown' } }, res);
+    expect(state.statusCode).toBe(200);
+    expect(String(state.body)).toContain('LLM Experiment Report');
   });
 
   it('createRun — retorna id', async () => {
