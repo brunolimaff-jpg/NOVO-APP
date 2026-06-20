@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
 
 const REASONING_PREFIXES = [
@@ -146,33 +145,47 @@ export interface LiteLLMCallResult {
   reasoningCharsRemoved: number;
 }
 
-function getOpenAIClient(env: NodeJS.ProcessEnv = process.env): OpenAI {
-  return new OpenAI({
-    apiKey: env.LITELLM_API_KEY,
-    baseURL: env.LITELLM_BASE_URL,
-  });
-}
-
 export async function callLiteLLM(
   input: LiteLLMCallInput,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<LiteLLMCallResult> {
-  const client = getOpenAIClient(env);
+  const baseUrl = env.LITELLM_BASE_URL?.replace(/\/$/, '');
+  const apiKey = env.LITELLM_API_KEY;
+  if (!baseUrl || !apiKey) {
+    throw new Error('LiteLLM não configurado: LITELLM_BASE_URL e LITELLM_API_KEY são obrigatórios');
+  }
 
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+  const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
   if (input.systemInstruction) {
     messages.push({ role: 'system', content: input.systemInstruction });
   }
   messages.push({ role: 'user', content: input.userContent });
 
-  const completion = await client.chat.completions.create({
-    model: input.model,
-    messages,
-    temperature: input.temperature ?? 0.1,
-    max_tokens: input.maxOutputTokens ?? 8192,
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: input.model,
+      messages,
+      temperature: input.temperature ?? 0.1,
+      max_tokens: input.maxOutputTokens ?? 8192,
+    }),
   });
 
-  const choice = completion.choices[0];
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+  }
+
+  const completion = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  };
+
+  const choice = completion.choices?.[0];
   const rawText = choice?.message?.content ?? '';
   const normalized = normalizeModelOutput(rawText);
 

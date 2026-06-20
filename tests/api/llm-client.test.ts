@@ -1,22 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const THINKING_TAG = 'redacted_' + 'thinking';
 
-const createMock = vi.hoisted(() => vi.fn());
-
-vi.mock('openai', () => ({
-  default: class MockOpenAI {
-    chat = {
-      completions: {
-        create: createMock,
-      },
-    };
-
-    constructor(_config: unknown) {
-      // noop — config validated by callLiteLLM tests via createMock args
-    }
-  },
-}));
+const fetchMock = vi.hoisted(() => vi.fn());
 
 import {
   callLiteLLM,
@@ -154,16 +140,24 @@ describe('feature flags', () => {
 
 describe('callLiteLLM', () => {
   beforeEach(() => {
-    createMock.mockReset();
-    createMock.mockResolvedValue({
-      choices: [
-        {
-          message: { content: `<${'redacted_' + 'thinking'}>x</${'redacted_' + 'thinking'}>\n# Dossiê` },
-          finish_reason: 'stop',
-        },
-      ],
-      usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: { content: `<${'redacted_' + 'thinking'}>x</${'redacted_' + 'thinking'}>\n# Dossiê` },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+      }),
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('normaliza resposta do provider', async () => {
@@ -181,12 +175,18 @@ describe('callLiteLLM', () => {
     expect(result.text).toBe('# Dossiê');
     expect(result.usage.promptTokenCount).toBe(10);
     expect(result.reasoningRemoved).toBe(true);
-    expect(createMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://litellm.example/chat/completions',
       expect.objectContaining({
-        model: 'huawei/deepseek-r1-250528',
-        max_tokens: 8192,
-        temperature: 0.1,
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer sk-test' }),
       }),
     );
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({
+      model: 'huawei/deepseek-r1-250528',
+      max_tokens: 8192,
+      temperature: 0.1,
+    });
   });
 });
