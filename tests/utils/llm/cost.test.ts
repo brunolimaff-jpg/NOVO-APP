@@ -26,6 +26,28 @@ describe('calculateCost', () => {
     expect(result.totalCostUsd).toBe(0.41);
   });
 
+  it('calcula custo real DeepSeek V3.2', () => {
+    const result = calculateCost('huawei/deepseek-v3.2', {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+    });
+
+    expect(result.inputCostUsd).toBe(0.27);
+    expect(result.outputCostUsd).toBe(0.4);
+    expect(result.totalCostUsd).toBe(0.67);
+  });
+
+  it('calcula custo real Grok 4.1 Fast', () => {
+    const result = calculateCost('oracle/xai.grok-4-1-fast-non-reasoning', {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+    });
+
+    expect(result.inputCostUsd).toBe(0.2);
+    expect(result.outputCostUsd).toBe(0.5);
+    expect(result.totalCostUsd).toBe(0.7);
+  });
+
   it('calcula custo real Kimi K2 Thinking', () => {
     const result = calculateCost('bedrock/moonshot.kimi-k2-thinking', {
       inputTokens: 1_000_000,

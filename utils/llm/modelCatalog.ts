@@ -1,9 +1,9 @@
 import type { ModelCatalogEntry } from './types.js';
 
 export const EXPERIMENT_MODELS = [
-  'huawei/deepseek-r1-250528',
   'huawei/deepseek-v4-flash',
-  'bedrock/moonshot.kimi-k2-thinking',
+  'huawei/deepseek-v3.2',
+  'oracle/xai.grok-4-1-fast-non-reasoning',
 ] as const;
 
 export type ExperimentModelId = (typeof EXPERIMENT_MODELS)[number];
@@ -26,6 +26,22 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     inputPricePerMillion: 0.14,
     outputPricePerMillion: 0.27,
     reasoning: true,
+  },
+  'huawei/deepseek-v3.2': {
+    id: 'huawei/deepseek-v3.2',
+    variant: 'D',
+    displayName: 'DeepSeek V3.2',
+    inputPricePerMillion: 0.27,
+    outputPricePerMillion: 0.4,
+    reasoning: false,
+  },
+  'oracle/xai.grok-4-1-fast-non-reasoning': {
+    id: 'oracle/xai.grok-4-1-fast-non-reasoning',
+    variant: 'E',
+    displayName: 'Grok 4.1 Fast',
+    inputPricePerMillion: 0.2,
+    outputPricePerMillion: 0.5,
+    reasoning: false,
   },
   'bedrock/moonshot.kimi-k2-thinking': {
     id: 'bedrock/moonshot.kimi-k2-thinking',

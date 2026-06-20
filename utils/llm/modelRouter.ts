@@ -54,7 +54,7 @@ export function getExperimentConfig(env?: Environment): ExperimentConfig {
     enabled: provider === 'litellm' && experimentMode !== 'off',
     provider,
     experimentMode,
-    experimentId: readConfigEnv('LLM_EXPERIMENT_ID', env) ?? 'litellm_3_modelos_v1',
+    experimentId: readConfigEnv('LLM_EXPERIMENT_ID', env) ?? 'litellm_3_modelos_v2',
     defaultModel: readConfigEnv('LLM_MODEL_DEFAULT', env) ?? models[0] ?? EXPERIMENT_MODELS[0],
     experimentModels: models,
     trafficSplit: parseTrafficSplit(readConfigEnv('LLM_EXPERIMENT_TRAFFIC_SPLIT', env), models.length),
