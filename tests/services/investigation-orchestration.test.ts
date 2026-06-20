@@ -235,6 +235,9 @@ describe('investigation-orchestration', () => {
     );
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
+    expect(proxyGenerateContentMock.mock.calls[0][0].config.systemInstruction).toMatch(
+      /foundation block[\s\S]*extra context[\s\S]*specialist block$/,
+    );
     expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain(
       'não conclua sem emitir os markers [[PORTA_*]]',
     );

@@ -554,7 +554,11 @@ export async function generateDossierModule(
   const modelToUse = options.selectedModel || STABLE_RESEARCH_MODEL_ID;
   const useLiteLLM = Boolean(options.selectedModel);
   const effectiveUsesFoundationCache = usesFoundationCache && !useLiteLLM;
-  const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
+  // OpenAI-compatible providers follow the specialist contract more reliably
+  // when it is the final instruction after the accumulated evidence.
+  const dynamicPrompt = useLiteLLM
+    ? `${socioRuralContext}\n\n${extraContext}\n\n${specialistPrompt}`.trim()
+    : `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
   const finalPrompt = effectiveUsesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
   const promptChars = effectiveUsesFoundationCache
     ? dynamicPrompt.length
