@@ -47,7 +47,7 @@ describe('api/llm-experiment', () => {
   let handler: (req: any, res: any) => Promise<any>;
 
   beforeAll(async () => {
-    process.env.VITE_SUPABASE_URL = 'https://test.supabase.co';
+    process.env.SUPABASE_URL = 'https://test.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-svc-role-key';
     process.env.LLM_PROVIDER = 'litellm';
     process.env.LLM_ALLOWLIST = 'bruno@senior.com.br';
@@ -73,7 +73,7 @@ describe('api/llm-experiment', () => {
   });
 
   afterAll(() => {
-    delete process.env.VITE_SUPABASE_URL;
+    delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.LLM_PROVIDER;
     delete process.env.LLM_ALLOWLIST;
@@ -161,19 +161,13 @@ describe('api/llm-experiment', () => {
 
   it('finalizeRun — exige id e status', async () => {
     const { res, state } = makeMockRes();
-    await handler(
-      makeMockReq({ action: 'finalizeRun', operatorEmail: 'bruno@senior.com.br' }),
-      res,
-    );
+    await handler(makeMockReq({ action: 'finalizeRun', operatorEmail: 'bruno@senior.com.br' }), res);
     expect(state.statusCode).toBe(400);
   });
 
   it('rejeita action inválida', async () => {
     const { res, state } = makeMockRes();
-    await handler(
-      makeMockReq({ action: 'unknown', operatorEmail: 'bruno@senior.com.br' }),
-      res,
-    );
+    await handler(makeMockReq({ action: 'unknown', operatorEmail: 'bruno@senior.com.br' }), res);
     expect(state.statusCode).toBe(400);
   });
 });

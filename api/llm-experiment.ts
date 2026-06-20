@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getExperimentConfig, isOperatorAllowed } from '../utils/llm/modelRouter.js';
 import type { CreateRunPayload, ExperimentRunStatus, FinalizeRunPayload } from '../utils/llm/types.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const ALLOWED_STATUSES = new Set<ExperimentRunStatus>([
