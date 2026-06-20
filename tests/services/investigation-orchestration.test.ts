@@ -228,6 +228,7 @@ describe('investigation-orchestration', () => {
         model: 'huawei/deepseek-r1-250528',
         config: expect.objectContaining({
           temperature: 0.1,
+          maxOutputTokens: 4096,
         }),
       }),
       undefined,

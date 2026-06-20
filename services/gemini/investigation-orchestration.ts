@@ -598,7 +598,7 @@ export async function generateDossierModule(
               ? {
                   systemInstruction: finalPrompt,
                   temperature: options.temperature ?? 0.2,
-                  maxOutputTokens: 8192,
+                  maxOutputTokens: 4096,
                 }
               : {
                   systemInstruction: finalPrompt,
