@@ -525,6 +525,35 @@ describe('api/gemini handler', () => {
     );
   });
 
+  it('preserva markers PORTA e TEIA seguros na resposta LiteLLM', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    callLiteLLMMock.mockResolvedValueOnce({
+      text: '# Dossiê\n[[TEIA_COMPLEXIDADE:MEDIA]]\n[[PORTA_FEED_P:7:HA:220000:CNPJS:1:FAT:R$ 1,7 bilhao]]',
+      usage: { totalTokenCount: 10 },
+      reasoningRemoved: false,
+      reasoningCharsRemoved: 0,
+    });
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
+    } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('[[PORTA_FEED_P:7:HA:220000:CNPJS:1:FAT:R$ 1,7 bilhao]]'),
+        _llm_fallback_used: false,
+      }),
+    );
+  });
+
   it('faz fallback Gemini quando LiteLLM retorna vazio', async () => {
     isLiteLLMEnabledMock.mockReturnValue(true);
     callLiteLLMMock.mockResolvedValueOnce({

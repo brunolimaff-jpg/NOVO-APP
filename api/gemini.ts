@@ -59,6 +59,8 @@ const LONG_CHAT_TIMEOUT_MS = 180_000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
+const SAFE_MACHINE_MARKER_REGEX = /^\[\[\s*(?:PORTA(?:_[A-Z_]+)?|TEIA_COMPLEXIDADE)\s*:/i;
+const SAFE_MACHINE_MARKER_GLOBAL_REGEX = /\[\[\s*(?:PORTA(?:_[A-Z_]+)?|TEIA_COMPLEXIDADE)\s*:[\s\S]*?\]\]/gi;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
   /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
   /investigacao_completa_integrada/i,
@@ -76,8 +78,10 @@ const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
 
 function stripInternalMarkersLocal(text: string): string {
   return (text || '')
-    .replace(INTERNAL_MARKER_REGEX, '')
-    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
+    .replace(INTERNAL_MARKER_REGEX, marker => (SAFE_MACHINE_MARKER_REGEX.test(marker) ? marker : ''))
+    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, marker =>
+      SAFE_MACHINE_MARKER_REGEX.test(marker) && marker.trimEnd().endsWith(']]') ? marker : '',
+    )
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\s*\]\s*$/gm, '')
     .trim();
@@ -102,7 +106,8 @@ function applyPromptLeakShieldLocal(text: string): {
 } {
   const cleaned = stripInternalMarkersLocal(text || '');
   const sample = cleaned || (text || '').trim();
-  const detection = detectPromptLeakIndicatorsLocal(sample);
+  const detectionSample = sample.replace(SAFE_MACHINE_MARKER_GLOBAL_REGEX, '').trim();
+  const detection = detectPromptLeakIndicatorsLocal(detectionSample);
 
   if (!detection.detected) {
     return { text: sample, blocked: false, indicators: [] };
