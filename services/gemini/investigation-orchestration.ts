@@ -578,7 +578,10 @@ export async function generateDossierModule(
     });
   }
 
-  const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
+  const markerReminder = useLiteLLM
+    ? '\nObrigatório: não conclua sem emitir os markers [[PORTA_*]] exigidos pelo prompt especialista, exatamente no formato solicitado.'
+    : '';
+  const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.${markerReminder}`;
   const contents = effectiveUsesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
 
   const response = await runWithStepTimeout(
