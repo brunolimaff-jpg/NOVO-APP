@@ -95,7 +95,8 @@ export function sumCosts(costs: CostResult[]): CostResult {
     totalCostUsd: roundUsd(inputCostUsd + outputCostUsd),
     estimated,
     method: estimated ? 'chars' : 'usage',
-    inputPriceUsed: costs[0]?.inputPriceUsed ?? 0,
-    outputPriceUsed: costs[0]?.outputPriceUsed ?? 0,
+    // An aggregate can contain different models, so no single unit price is representative.
+    inputPriceUsed: 0,
+    outputPriceUsed: 0,
   };
 }

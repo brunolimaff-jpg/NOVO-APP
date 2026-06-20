@@ -65,6 +65,8 @@ describe('calculateCost', () => {
     expect(total.totalCostUsd).toBeGreaterThan(0);
     expect(total.inputCostUsd).toBeGreaterThan(0);
     expect(total.outputCostUsd).toBeGreaterThan(0);
+    expect(total.inputPriceUsed).toBe(0);
+    expect(total.outputPriceUsed).toBe(0);
   });
 
   it('snapshot de preço por run', () => {

@@ -1,10 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getExperimentConfig, isOperatorAllowed } from '../utils/llm/modelRouter.js';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { authenticateExperimentRequest, isExperimentAuthError } from './_experiment-auth.js';
 import type { CreateRunPayload, ExperimentRunStatus, FinalizeRunPayload } from '../utils/llm/types.js';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const ALLOWED_STATUSES = new Set<ExperimentRunStatus>([
   'running',
@@ -23,33 +21,19 @@ interface ExperimentRequestBody extends Partial<CreateRunPayload>, Partial<Final
   action?: ExperimentAction;
 }
 
-function getSupabaseClient(): SupabaseClient | null {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
-
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function resolveOperatorEmail(req: VercelRequest, body?: ExperimentRequestBody): string | undefined {
-  const fromBody = body?.operatorEmail;
-  if (isNonEmptyString(fromBody)) return fromBody.trim().toLowerCase();
-  const fromQuery = req.query?.operatorEmail;
-  if (typeof fromQuery === 'string' && fromQuery.trim()) return fromQuery.trim().toLowerCase();
-  return undefined;
+function signRun(id: string, userId: string): string {
+  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY || '').update(`${id}:${userId}`).digest('hex');
 }
 
-function assertExperimentApiAccess(operatorEmail: string | undefined): { error: string; status: number } | null {
-  if (process.env.LLM_PROVIDER !== 'litellm') {
-    return { error: 'Experiment API disabled (LLM_PROVIDER=gemini)', status: 403 };
-  }
-  if (!isOperatorAllowed(operatorEmail, getExperimentConfig())) {
-    return { error: 'Operator not in LLM_ALLOWLIST', status: 403 };
-  }
-  return null;
+function verifyRunToken(id: string, userId: string, token: unknown): boolean {
+  if (!isNonEmptyString(token)) return false;
+  const expected = Buffer.from(signRun(id, userId));
+  const received = Buffer.from(token);
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
 function validateCreateRun(body: ExperimentRequestBody): CreateRunPayload | { error: string } {
@@ -59,8 +43,6 @@ function validateCreateRun(body: ExperimentRequestBody): CreateRunPayload | { er
   if (!isNonEmptyString(body.runId)) return { error: 'runId is required' };
   if (!isNonEmptyString(body.promptVersion)) return { error: 'promptVersion is required' };
   if (!isNonEmptyString(body.codeVersion)) return { error: 'codeVersion is required' };
-  if (!isNonEmptyString(body.operatorEmail)) return { error: 'operatorEmail is required' };
-
   return {
     experimentId: body.experimentId,
     variant: body.variant,
@@ -71,7 +53,7 @@ function validateCreateRun(body: ExperimentRequestBody): CreateRunPayload | { er
     runId: body.runId,
     sessionId: body.sessionId,
     operatorId: body.operatorId,
-    operatorEmail: body.operatorEmail.trim().toLowerCase(),
+    operatorEmail: body.operatorEmail?.trim().toLowerCase(),
     companyName: body.companyName,
     companyCnpjHash: body.companyCnpjHash,
     promptVersion: body.promptVersion,
@@ -91,7 +73,7 @@ async function handleCreateRun(
       selected_model: payload.selectedModel,
       provider: payload.provider,
       litellm_base_url: payload.litellmBaseUrl ?? null,
-      environment: payload.environment ?? 'production',
+      environment: process.env.VERCEL_ENV ?? payload.environment ?? 'production',
       run_id: payload.runId,
       session_id: payload.sessionId ?? null,
       operator_id: payload.operatorId ?? null,
@@ -189,11 +171,11 @@ async function handleFinalizeRun(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    const accessError = assertExperimentApiAccess(resolveOperatorEmail(req));
-    if (accessError) {
-      return res.status(accessError.status).json({ error: accessError.error });
+    const auth = await authenticateExperimentRequest(req);
+    if (isExperimentAuthError(auth)) {
+      return res.status(auth.status).json({ error: auth.error });
     }
-    return handleReport(req, res);
+    return handleReport(req, res, auth.supabase);
   }
 
   if (req.method !== 'POST') {
@@ -201,16 +183,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = (req.body ?? {}) as ExperimentRequestBody;
-  const accessError = assertExperimentApiAccess(resolveOperatorEmail(req, body));
-  if (accessError) {
-    return res.status(accessError.status).json({ error: accessError.error });
+  const auth = await authenticateExperimentRequest(req);
+  if (isExperimentAuthError(auth)) {
+    return res.status(auth.status).json({ error: auth.error });
   }
   const action = body.action;
-
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    return res.status(500).json({ error: 'Supabase not configured' });
-  }
+  const { supabase, user } = auth;
 
   if (action === 'createRun') {
     const validated = validateCreateRun(body);
@@ -218,18 +196,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: validated.error });
     }
 
-    const result = await handleCreateRun(supabase, validated);
+    const result = await handleCreateRun(supabase, { ...validated, operatorId: user.id, operatorEmail: user.email });
     if ('error' in result) {
       return res.status(500).json({ error: result.error });
     }
 
-    return res.status(200).json({ id: result.id });
+    return res.status(200).json({ id: result.id, runToken: signRun(result.id, user.id) });
   }
 
   if (action === 'finalizeRun') {
+    if (!isNonEmptyString(body.id)) {
+      return res.status(400).json({ error: 'id is required' });
+    }
+    if (!isNonEmptyString(body.status)) {
+      return res.status(400).json({ error: 'status is required' });
+    }
+    if (!verifyRunToken(body.id, user.id, body.runToken)) {
+      return res.status(403).json({ error: 'Invalid run token' });
+    }
     const result = await handleFinalizeRun(supabase, body as FinalizeRunPayload);
     if ('error' in result) {
-      const status = result.error === 'id is required' || result.error === 'status is required' ? 400 : 500;
+      const status = /required|Invalid status/.test(result.error) ? 400 : 500;
       return res.status(status).json({ error: result.error });
     }
 
@@ -244,7 +231,7 @@ export const config = {
 };
 
 // Exported for unit tests
-export { validateCreateRun, handleCreateRun, handleFinalizeRun, getSupabaseClient };
+export { validateCreateRun, handleCreateRun, handleFinalizeRun };
 
 interface DailyReportRow {
   report_date: string;
@@ -302,13 +289,7 @@ function toMarkdown(rows: DailyReportRow[]): string {
   return `${lines.join('\n')}\n`;
 }
 
-async function handleReport(req: VercelRequest, res: VercelResponse): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    res.status(500).json({ error: 'Supabase not configured' });
-    return;
-  }
-
+async function handleReport(req: VercelRequest, res: VercelResponse, supabase: SupabaseClient): Promise<void> {
   const format = typeof req.query?.format === 'string' ? req.query.format : 'json';
   const experimentId = typeof req.query?.experimentId === 'string' ? req.query.experimentId : undefined;
 

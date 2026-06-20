@@ -12,3 +12,15 @@ export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUr
 export function isSupabaseAvailable(): boolean {
   return supabase !== null;
 }
+
+export async function getSupabaseAuthHeaders(): Promise<Record<string, string>> {
+  if (!supabase) return {};
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  } catch {
+    return {};
+  }
+}

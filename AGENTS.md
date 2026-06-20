@@ -73,12 +73,13 @@ npm run lint
 - Entregas grandes: implementar em fases, validar por fase (`validator`), e fechar com doc-handoff (`HANDOFF_AI.md`, `CALIBER_LEARNINGS.md`, Bruno Vault, `.agents/memory/*`) listando pendências para análise posterior.
 - Auditoria externa ou review em lote: reconciliar achados com `origin/main` e PRs mergeadas recentes antes de implementar P0; evita retrabalho em branches superseded.
 - Subagentes no modelo da sessão (Composer); não sugerir troca de modelo no chat.
-- PR focada: não misturar WIP local amplo (checkpoint em branch) com escopo da PR; tratar WIP em branch/PR separada e validar merge pelo diff líquido contra `main`.
-- Trabalho relacionado ao escopo aberto deve consolidar na PR canônica existente; não abrir PR paralela sem checar overlap de escopo.
-- Responder cada thread de review de PR com a tratativa aplicada antes de marcar como resolvida (fluxo `gh-resolve-pr-comments`); não deixar comentários abertos sem resposta.
+- PR focada: escopo único na PR canônica existente; WIP amplo em branch/PR separada; validar pelo diff líquido contra `main` — não abrir PR paralela sem checar overlap.
+- Responder cada thread de review com a tratativa antes de marcar resolvida (`gh-resolve-pr-comments`); GraphQL exige scope `AddPullRequestReviewComment` no token `gh`; REST reply a inline pode 404 — usar `scripts/resolve-pr-threads.py` ou renovar scope.
 - Uso real é no preview Vercel: respostas de review e validação de UX devem citar comportamento no preview, não só localhost do CI.
-- Merge de PR exige PR Gate IA: agente roda E2E no preview Vercel — `critical-ux` 11/11 + specs Onda 1 (`second-investigation`, `loading-smart-recovery`) 5/5 = 16/16; Bruno valida UX no preview — não localhost nem CI Docker.
-- Testing Trophy no CI: vitest + coverage bloqueiam merge; E2E critical-ux (painel, cofre, Scheffer) fica fora do blocking — specs no repo para agente ou `workflow_dispatch`.
+- Validação visual/manual usa viewport desktop por padrão; mobile/375px só é obrigatório quando o escopo envolver responsividade ou o pedido citar mobile.
+- Pipeline `/ship-loop` (`.agents/skills/ship-loop/SKILL.md`): plano → gates locais → PR → CI → PR Gate IA 16/16 no preview (`critical-ux` 11/11 + Onda 1 5/5); merge só com token **MERGE** na mensagem.
+- Testing Trophy no CI: vitest + coverage bloqueiam merge; E2E critical-ux fica fora do blocking — specs no repo para agente ou `workflow_dispatch`.
+- Bruno autoriza correção de hooks globais (ex. `checkpoint-proativo.sh`) quando bloqueiam `StrReplace`/edições — pedir ou usar liberação explícita antes de alterar.
 
 ## Learned Workspace Facts
 
@@ -86,10 +87,11 @@ npm run lint
 - LoadingSmart pós-waterfall: `health-check` no flush imediato pode registrar `overlay=true` com `domBodyLen` baixo (H-U3); critério de recuperação do overlay é evento `PostCompletion` em `scout_diagnostics`, não só o health-check.
 - CNPJ no browser: `fetchCompanyByCnpj` via `/api/cnpj`; não usar `lib/cnpjLookup` com fetch direto à BrasilAPI no cliente (CORS no preview/prod Vercel).
 - Contrato de loading/timeline/blank panel: `docs/ai-context/refactor/loading-panel-contract.md` (preview durante waterfall, static handoff, telemetria PostCompletion). Safety nets DOM (`App.tsx`, `finalizeWaterfallUI.ts`): não remover até 7 dias Cofre estável em produção + métricas `scout_diagnostics`; causa `display:none` permanece unknown (CALIBER T-A.1).
-- Preview Vercel é gate obrigatório para regressões de UX (PR Gate IA); smoke preview no CI não substitui validação no deploy real.
 - Handoff e memória canônica: `HANDOFF_AI.md`, `.agents/memory/*` e `CALIBER_LEARNINGS.md` prevalecem sobre vault Obsidian para implementação; sessões grandes também registram lições no Bruno Vault.
 - Branch com checkpoint WIP no histórico pode inflar a aba Files da PR no GitHub; o que entra em `main` é o diff líquido contra `main`, não a lista bruta de commits intermediários.
-- E2E blocking no CI removido (Fase D): `playwright install` em Ubuntu estourava timeout antes dos testes; gate de merge é PR Gate IA no preview Vercel, não Docker/localhost no CI.
-- E2E Playwright manual/preview: container `mcr.microsoft.com/playwright:v1.59.1-noble`; project `critical-ux` em `playwright.config`; `e2e-preview.yml` só `workflow_dispatch`.
-- E2E Scheffer/Cofre: helper de onboarding deve iniciar nova investigação quando houver dossiê salvo (modal "Dossiê existente"); stop via botão "Interromper" no overlay Cofre; breadcrumb truncado com match parcial; evita falha por estado duplicado no Supabase.
 - Policy pós-auditoria §9 (fluxo dossiê): sem novo `useState` loading, sem `catch {}`, sem RAF sem cleanup; persist flush usa toast+retry+`scoutDiag` (DI-2026-06-19-02 Opção B, sem cache read-only).
+- LiteLLM experimento: no preview Vercel, `VITE_LLM_*` deve espelhar `LLM_*`; `llm_experiment_runs` vazio = env/allowlist/email do operador inativos; produção permanece `LLM_PROVIDER=gemini` até ativação explícita.
+- LiteLLM persistência: migration `20260620_llm_experiment.sql` aplicada no Supabase (`vmqfcaoirjcfucvlnpig`); escrita só via `api/llm-experiment.ts` (service role); RLS `deny_anon_all`.
+- Vercel Hobby: limite 12 serverless functions — consolidar handlers em `api/`; `api/_llm-client.ts` usa fetch nativo (SDK `openai` removido do bundle serverless).
+- E2E: `critical-ux` usa stubs Gemini; LiteLLM live = `tests-e2e/litellm-live-parallel.spec.ts` (timeout 150s default, 3 workers mais estável que 5); Scheffer/Cofre — helper inicia nova investigação com dossiê salvo, stop via "Interromper", breadcrumb parcial; CI E2E não blocking — gate = PR Gate IA no preview.
+- PR #385 mergeada (Ondas 1–3 estabilização pós-auditoria); PR #386 `feat/litellm-experiment` — adapter LiteLLM com fallback Gemini pós-#385.

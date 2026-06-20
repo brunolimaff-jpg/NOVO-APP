@@ -6,6 +6,8 @@ import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDia
 import { callLiteLLM, isFallbackEnabled, isLiteLLMEnabled } from './_llm-client.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
+import { authenticateExperimentRequest, isExperimentAuthError } from './_experiment-auth.js';
+import { getExperimentConfig } from '../utils/llm/modelRouter.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -299,6 +301,7 @@ async function executeLiteLLMGenerateContent(
   ai: GoogleGenAI,
   body: GenerateContentBody,
   res: VercelResponse,
+  signal?: AbortSignal,
 ): Promise<VercelResponse> {
   const model = body.model ?? DEFAULT_GEMINI_MODEL;
   const contents = body.contents;
@@ -334,6 +337,7 @@ async function executeLiteLLMGenerateContent(
       userContent,
       temperature,
       maxOutputTokens,
+      signal,
     });
 
     const leakShieldResult = applyPromptLeakShieldLocal(litellmResult.text);
@@ -348,7 +352,7 @@ async function executeLiteLLMGenerateContent(
       }
     }
 
-    const finalText = leakShieldResult.text.trim();
+    const finalText = leakShieldResult.blocked ? '' : leakShieldResult.text.trim();
     if (!finalText) {
       if (!isFallbackEnabled()) {
         await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
@@ -366,7 +370,7 @@ async function executeLiteLLMGenerateContent(
 
     await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
     return res.status(200).json({
-      text: leakShieldResult.text,
+      text: finalText,
       candidates: [],
       usageMetadata: litellmResult.usage,
       groundingChunks: [],
@@ -396,7 +400,12 @@ function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkin
   return GeminiSdkThinkingLevel.HIGH;
 }
 
-async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: VercelResponse): Promise<VercelResponse> {
+async function executeGeminiAction(
+  ai: GoogleGenAI,
+  body: ParsedBody,
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<VercelResponse> {
   switch (body.action) {
     case 'health': {
       const response = await ai.models.generateContent({
@@ -436,7 +445,17 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       const useLiteLLMPath =
         isLiteLLMEnabled() && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
       if (useLiteLLMPath) {
-        return executeLiteLLMGenerateContent(ai, body, res);
+        const auth = await authenticateExperimentRequest(req);
+        if (isExperimentAuthError(auth)) {
+          return res.status(auth.status).json({ error: auth.error });
+        }
+        const allowedModels = getExperimentConfig(process.env).experimentModels;
+        if (!allowedModels.includes(requestedModel)) {
+          return res.status(400).json({ error: 'Model not allowed for experiment' });
+        }
+        const requestController = new AbortController();
+        req.once?.('aborted', () => requestController.abort());
+        return executeLiteLLMGenerateContent(ai, body, res, requestController.signal);
       }
 
       const geminiResult = await runGeminiGenerateContent(ai, body);
@@ -705,7 +724,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (let i = 0; i < keys.length; i++) {
       try {
         const ai = new GoogleGenAI({ apiKey: keys[i] });
-        return await executeGeminiAction(ai, body, res);
+        return await executeGeminiAction(ai, body, req, res);
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {

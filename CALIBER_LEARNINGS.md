@@ -482,7 +482,6 @@ A classificacao adequada e `incidente mitigado com causa aberta`, acompanhada de
   `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
 Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
-
 ### Sessao 2026-06-19 — PR #383 Fase D + PR Gate IA
 
 - **E2E blocking no GitHub nao substitui preview Vercel para UX critica** [e2e, vercel, ci, testing-trophy]
@@ -508,7 +507,6 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
 - **PR Gate IA e gate definitivo para app Vercel+Supabase — CI E2E localhost nao substitui** [vercel, supabase, e2e, pr-gate, ci]
   Para apps com preview Vercel + Supabase real + serverless, o gate de merge e: CI rapido verde + Playwright `critical-ux` no preview (agente) + comentario evidencia + **MERGE**. CI E2E Docker/localhost e instavel e nao representa UX real. Aprovado PR #383: 11/11 SHA `63f1c85e`. Afeta: branch protection, `AGENTS.md`, fluxo merge.
-
 
 <!-- caliber:managed:learnings -->
 
@@ -572,3 +570,36 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 - **PR #384 fechada — escopo consolidado em #383** [pr, auth, e2e, reconciliacao]
   PR #384 (remove lockout pos-deadline + E2E Cofre) foi closed sem merge; conteudo absorvido por #383 mergeada. Ao documentar handoff, tratar #383 como PR canonica para auth+E2E Fase D; nao reabrir #384. Afeta: HANDOFF_AI.md, threads de review que citam #384.
 
+### Sessao 2026-06-19 — Ship-loop LiteLLM + limite Vercel functions
+
+- **Vercel Hobby limita a 12 serverless functions por deploy** [vercel, serverless, hobby, deploy]
+  Adicionar endpoints novos (`api/llm-experiment-report.ts` etc.) estoura o limite e quebra deploy. Consolidar rotas relacionadas em um unico handler (`api/llm-experiment.ts` com `?format=markdown`) antes de abrir PR. Contar `api/*.ts` no diff antes de mergear features com novos handlers. Afeta: `api/llm-experiment.ts`, qualquer PR que adicione arquivo em `api/`.
+
+- **SDK openai no serverless Vercel conflita com zod@4 e infla bundle** [vercel, openai, zod, bundle, npm]
+  `openai@4` peer-dep em conflito com `zod@4` do projeto — `npm install` falha no Vercel (ERESOLVE). Mesmo com `.npmrc legacy-peer-deps=true`, o SDK aumenta bundle serverless. Preferir **fetch nativo** para chamadas OpenAI-compatible (`api/_llm-client.ts`) em handlers Vercel. Afeta: `api/_llm-client.ts`, `package.json` — nao reintroduzir `openai` como dep de producao sem avaliar bundle + peer deps.
+
+- **Experimento LLM nao altera producao com default gemini** [llm, feature-flag, deploy]
+  `LLM_PROVIDER=gemini` (default) mantem fluxo atual em producao; experimento LiteLLM so ativa com env explicita. Validar que patches em `gemini/` / waterfall sao no-op quando provider=gemini. Afeta: PR #386, `api/gemini.ts`, env Vercel Production.
+
+- **Config LLM no browser exige prefixo VITE\_ espelhado** [vite, env, llm, browser]
+  `process.env.LLM_*` nao existe no bundle do cliente. `readConfigEnv` em `utils/llm/modelRouter.ts` le `VITE_LLM_*` via `import.meta.env`. No Vercel Preview, espelhar cada `LLM_*` server com `VITE_LLM_*` correspondente (`LLM_PROVIDER` ↔ `VITE_LLM_PROVIDER`, `LLM_ALLOWLIST` ↔ `VITE_LLM_ALLOWLIST`, etc.). Afeta: PR #386, env Vercel, `modelRouter.ts`.
+
+- **API de experimento LLM deve ter gate server-side** [llm, seguranca, api, vercel]
+  Endpoints como `api/llm-experiment.ts` retornam 403 quando `LLM_PROVIDER !== 'litellm'`. Nao confiar so em flag no client — bots de review flagam `process.env` exposto no browser. Afeta: `api/llm-experiment.ts`, `api/_llm-client.ts`.
+
+- **Allowlist vazia nega experimento para todos** [llm, auth, seguranca]
+  `LLM_ALLOWLIST` (e `VITE_LLM_ALLOWLIST` no browser) com CSV vazio → `isOperatorAllowed` retorna false para qualquer email. Experimento so roda para operadores explicitamente listados. Afeta: `utils/llm/modelRouter.ts`, env Vercel Preview.
+
+### Sessao 2026-06-19 — LiteLLM env Preview + freeze consolidação (link-status)
+
+- **Budget cliente de inline-validation deve exceder N × latencia real de link-status** [timeout, link-status, waterfall, freeze, api]
+  Freeze em "Consolidando informacoes..." com overlay bloqueando cliques: `scout_diagnostics` parou em `inline-validation:fetch:start` (6 URLs) sem eventos por ~116s. Causa confirmada (H3): `/api/link-status` demorava ~6.7s por chamada enquanto `VALIDATE_INLINE_TOTAL_TIMEOUT_MS` era 5s no agregado — promessas penduradas travam a main thread. PORTA reconciliation (H1) e resolvePortaScore (H2) foram refutadas com telemetria. Fix: timeout servidor link-status 2.5s, budget cliente 12s + hard-cap 14s retornando `[]`, `maxDuration` 15s no Vercel. Medicao pos-fix: ~3.5s por link-status. Anti-padrao: definir timeout agregado menor que pior caso serial (N URLs × latencia servidor). Afeta: `waterfall-orchestrator.ts`, `api/link-status.ts`, `vercel.json`.
+
+- **Email de teste unitario na allowlist bloqueia operador real** [llm, allowlist, env, testes]
+  `bruno@senior.com.br` era fixture de teste; email real do Bruno e `bruno.ferreira@senior.com.br`. Allowlist incorreta = experimento inativo para o operador mesmo com env `litellm`. Sempre validar allowlist contra conta real de preview, nao contra mocks de vitest. Afeta: `LLM_ALLOWLIST`, `VITE_LLM_ALLOWLIST`.
+
+- **Modelos LiteLLM 404 no servidor devem sair do catalogo Preview** [llm, litellm, deploy, feature-flag]
+  R1 e Kimi K2 retornam 404 no proxy LiteLLM do Bruno; manter no `LLM_EXPERIMENT_MODELS` gera falhas silenciosas ou fallback inesperado. Restringir Preview a modelos comprovadamente ativos (`huawei/deepseek-v4-flash`) ate configuracao no servidor. Afeta: env Vercel Preview, `utils/llm/modelCatalog.ts`.
+
+- **Instrumentacao debug (agentDebugLog) nao remover antes de validacao manual no preview** [debug, freeze, handoff]
+  Sessao debug `c352f8` adicionou `utils/agentDebugLog.ts` e regioes em waterfall/porta/geminiProxy. Remover antes de Bruno confirmar waterfall completo no preview d47bkguue perde evidencia se o fix regredir. Afeta: PR #386 merge checklist.

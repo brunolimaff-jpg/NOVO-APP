@@ -140,8 +140,8 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total de 5s
-    await vi.advanceTimersByTimeAsync(6_000);
+    // Avança o timer para disparar o timeout total de 12s
+    await vi.advanceTimersByTimeAsync(13_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
@@ -168,7 +168,7 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
     // Avança 6s para disparar o AbortController de timeout total
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(13_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
@@ -263,6 +263,18 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     // Mesmo que o servidor retorne valid, a extração já filtra domínios não-públicos
   });
 
+  it('hard-cap retorna [] quando fetch nunca resolve (proteção anti-freeze)', async () => {
+    globalThis.fetch = vi.fn(() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+
+    const text = '[Gov](https://www.gov.br/doc)';
+    const resultPromise = validateInlineSourcesForPromotion(text, []);
+
+    await vi.advanceTimersByTimeAsync(14_000);
+
+    const result = await resultPromise;
+    expect(result).toEqual([]);
+  }, 15_000);
+
   it('timeout total resulta em [] e permite continuidade do waterfall', async () => {
     // Mock: fetch ouve o AbortSignal — rejeita quando controller.abort() dispara
     globalThis.fetch = vi.fn((_url, options?: { signal?: AbortSignal }) => {
@@ -282,8 +294,8 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total (5s)
-    await vi.advanceTimersByTimeAsync(6_000);
+    // Avança o timer para disparar o timeout total (12s)
+    await vi.advanceTimersByTimeAsync(13_000);
 
     const result = await resultPromise;
     // Deve retornar [] (timeout capturado) em vez de travar

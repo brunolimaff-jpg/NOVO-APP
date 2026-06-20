@@ -552,7 +552,7 @@ export async function generateDossierModule(
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
   const usesFoundationCache = Boolean(options.foundationCacheName);
   const modelToUse = options.selectedModel || STABLE_RESEARCH_MODEL_ID;
-  const useLiteLLM = Boolean(options.selectedModel) && !options.selectedModel?.includes('gemini');
+  const useLiteLLM = Boolean(options.selectedModel);
   const effectiveUsesFoundationCache = usesFoundationCache && !useLiteLLM;
   const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
   const finalPrompt = effectiveUsesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;

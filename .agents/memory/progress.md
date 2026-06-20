@@ -1,8 +1,33 @@
 # Progress
 
-Last updated: 2026-06-19 — Ondas 0–3 concluídas (PR #385)
+Last updated: 2026-06-19 — LiteLLM env Preview + fix freeze link-status #386
 
 ## Timeline
+
+### 2026-06-19 (LiteLLM env Preview + debug freeze consolidação — PR #386)
+
+- **Env Vercel Preview:** 18 vars scoped `feat/litellm-experiment`; allowlist corrigida para `bruno.ferreira@senior.com.br`; V4 Flash only (`TRAFFIC_SPLIT=100`); R1/Kimi 404 no LiteLLM.
+- **Debug freeze** sessão `c352f8` / `scout_diagnostics` `0ea8ed46`: H3 confirmada — `/api/link-status` ~6.7s vs timeout cliente 5s em inline-validation (6 URLs).
+- **Fix:** `link-status` timeout 2.5s, `vercel.json` maxDuration 15s, `VALIDATE_INLINE_TOTAL_TIMEOUT_MS` 12s + hard-cap 14s → `[]`; `utils/agentDebugLog.ts` + instrumentação (manter até Bruno confirmar).
+- Preview fix: https://scoutagro-d47bkguue-brunolimaff-3629s-projects.vercel.app — link-status ~3.5s (antes 6.7s).
+- Testes `validate-inline-sources-freeze-diag`: 15/15. E2E `litellm-live-parallel` CNPJ falhou no preview; Scheffer stub ~27s OK.
+- Decisões: DI-2026-06-19-03 (V4-only preview), DI-2026-06-19-04 (budget link-status vs hard-cap).
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T23-45-00-litellm-env-freeze-link-status.md`.
+
+### 2026-06-19 (Ship-loop encerrado — gh-resolve + review fixes #386)
+
+- **gh-resolve:** threads PR #385 e #386 respondidas/resolvidas.
+- Commit **`67ff465c`:** auth allowlist, `VITE_LLM_*` no browser, gate server-side LiteLLM, leak shield fallback, finalize fire-and-forget, status enum.
+- **PR #386 MERGE_READY:** CI verde, Playwright **16/16** preview pós-fixes.
+- **Pendente pré-merge:** migration `20260620_llm_experiment.sql`, env Vercel Preview (`LLM_*` + `VITE_LLM_*`), token **MERGE**.
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T20-06-00-ship-loop-pr385-litellm.md`.
+
+### 2026-06-19 (Ship-loop — PR #385 merge + LiteLLM #386)
+
+- Backup: tag `backup/pre-ship-loop-20260619-200620` + stash.
+- **PR #385 MERGEADA** 2026-06-19T23:55:42Z — Ondas 0–3; PR Gate IA **16/16**; MERGE_READY.
+- **PR #386 aberta** (`feat/litellm-experiment`): LiteLLM PR1+PR2, 4 commits experimento; CI/Vercel verdes; Playwright 16/16 preview.
+- Fixes deploy: `.npmrc` legacy-peer-deps, fetch nativo (sem openai SDK), consolidar endpoint (limite 12 functions Vercel).
 
 ### 2026-06-19 (Plano estabilização — Ondas 1–3 na PR #385)
 

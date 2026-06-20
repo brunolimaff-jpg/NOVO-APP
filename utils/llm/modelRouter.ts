@@ -1,8 +1,10 @@
 import { EXPERIMENT_MODELS, getVariantForModel } from './modelCatalog.js';
 import type { ExperimentConfig, ExperimentMode, ExperimentSelection } from './types.js';
 
+type Environment = Record<string, string | undefined>;
+
 /** Lê env: parâmetro explícito (testes/server) → VITE_* (browser) → process.env. */
-function readConfigEnv(key: string, env?: NodeJS.ProcessEnv): string | undefined {
+function readConfigEnv(key: string, env?: Environment): string | undefined {
   if (env && env[key]) {
     return env[key];
   }
@@ -42,7 +44,7 @@ function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
 }
 
-export function getExperimentConfig(env: NodeJS.ProcessEnv = process.env): ExperimentConfig {
+export function getExperimentConfig(env?: Environment): ExperimentConfig {
   const provider = readConfigEnv('LLM_PROVIDER', env) === 'litellm' ? 'litellm' : 'gemini';
   const experimentMode = (readConfigEnv('LLM_EXPERIMENT_MODE', env) ?? 'off') as ExperimentMode;
   const experimentModels = parseCsv(readConfigEnv('LLM_EXPERIMENT_MODELS', env));
@@ -66,6 +68,7 @@ export function isOperatorAllowed(
   operatorEmail: string | null | undefined,
   config: ExperimentConfig = getExperimentConfig(),
 ): boolean {
+  // Fail closed: the experiment is unavailable until at least one email is explicitly allowlisted.
   if (config.allowlist.length === 0) return false;
   const normalized = normalizeEmail(operatorEmail);
   if (!normalized) return false;

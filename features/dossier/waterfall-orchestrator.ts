@@ -65,7 +65,9 @@ import {
 import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/experiment';
 import { getExperimentConfig, isOperatorAllowed, selectExperimentModel } from '../../utils/llm/modelRouter';
 import { checkReportQuality } from '../../utils/llm/reportQuality';
+import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
 import type { ExperimentSelection } from '../../utils/llm/types';
+import { agentDebugLog } from '../../utils/agentDebugLog';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -235,8 +237,17 @@ async function buildTeiaResearchContext(params: {
   };
 }
 
-const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 5_000;
-const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 3_000;
+const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 12_000;
+const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 4_000;
+
+function createInlineValidationSignal(totalMs: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(totalMs);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), totalMs);
+  return controller.signal;
+}
 
 function withInlineValidationBudget<T>(
   promise: Promise<T>,
@@ -258,6 +269,33 @@ function withInlineValidationBudget<T>(
 }
 
 export async function validateInlineSourcesForPromotion(
+  text: string,
+  existingSources: VerifiedSource[],
+): Promise<VerifiedSource[]> {
+  const HARD_CAP_MS = VALIDATE_INLINE_TOTAL_TIMEOUT_MS + 2_000;
+  return Promise.race([
+    validateInlineSourcesForPromotionCore(text, existingSources),
+    new Promise<VerifiedSource[]>(resolve => {
+      setTimeout(() => {
+        scoutDiag.info('FreezeDiag', 'inline-validation:hard-cap', {
+          budgetMs: HARD_CAP_MS,
+          reason: 'waterfall-non-blocking-fallback',
+        });
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:validate-inline',
+          'inline-validation:hard-cap',
+          { budgetMs: HARD_CAP_MS },
+          'H3',
+        );
+        // #endregion
+        resolve([]);
+      }, HARD_CAP_MS);
+    }),
+  ]);
+}
+
+async function validateInlineSourcesForPromotionCore(
   text: string,
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
@@ -287,10 +325,11 @@ export async function validateInlineSourcesForPromotion(
   }
 
   // ── Fase 2: Validação HTTP com timeout explícito ──
-  // AbortController próprio cobre fetch + leitura do body.
-  // Timeout separado para leitura do body como safety net contra
-  // streams que nunca terminam (ex: Vercel function interrompida).
   const controller = new AbortController();
+  const validationSignal = createInlineValidationSignal(VALIDATE_INLINE_TOTAL_TIMEOUT_MS);
+  const relayValidationAbort = () => controller.abort();
+  validationSignal.addEventListener('abort', relayValidationAbort, { once: true });
+
   const totalTimeoutId = setTimeout(() => {
     scoutDiag.info('FreezeDiag', 'inline-validation:timeout', {
       durationMs: Math.round(performance.now() - opStart),
@@ -305,6 +344,7 @@ export async function validateInlineSourcesForPromotion(
     scoutDiag.info('FreezeDiag', 'inline-validation:fetch:start', {
       urlCount: candidates.length,
       timestamp: Date.now(),
+      budgetMs: VALIDATE_INLINE_TOTAL_TIMEOUT_MS,
     });
 
     const fetchPromise = fetch('/api/link-status', {
@@ -314,7 +354,6 @@ export async function validateInlineSourcesForPromotion(
       signal: controller.signal,
     });
 
-    // Prevent unhandled rejection when Promise.race discards this promise
     fetchPromise.catch((err: unknown) => {
       scoutDiag.warn('FreezeDiag', 'inline-validation:fetch:race-discarded', {
         reason: err instanceof Error ? err.message : String(err),
@@ -384,6 +423,7 @@ export async function validateInlineSourcesForPromotion(
     }
 
     clearTimeout(totalTimeoutId);
+    validationSignal.removeEventListener('abort', relayValidationAbort);
     const results = data?.results || {};
     const valid = candidates.filter(source => results[source.url]?.status === 'valid');
 
@@ -398,6 +438,7 @@ export async function validateInlineSourcesForPromotion(
     return valid;
   } catch (err) {
     clearTimeout(totalTimeoutId);
+    validationSignal.removeEventListener('abort', relayValidationAbort);
     const errorDuration = performance.now() - opStart;
     const timedOut = err instanceof Error && /timeout|aborted|abort/i.test(`${err.name || ''} ${err.message || ''}`);
     scoutDiag.info('FreezeDiag', 'inline-validation:error', {
@@ -583,6 +624,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let sessionToPersist: ChatSession | null = null;
       let experimentSelection: ExperimentSelection | null = null;
       let experimentRunId: string | null = null;
+      let experimentRunToken: string | null = null;
       let experimentReportText = '';
       let experimentSourcesCount = 0;
       let experimentValidSourcesCount = 0;
@@ -598,7 +640,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         experimentSelection = selectExperimentModel({ config: experimentConfig, seed: Date.now() });
         if (experimentSelection) {
           try {
-            experimentRunId = await createExperimentRun({
+            const experimentRun = await createExperimentRun({
               experimentId: experimentSelection.experimentId,
               variant: experimentSelection.variant,
               selectedModel: experimentSelection.model,
@@ -613,6 +655,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               promptVersion: PROMPT_VERSION,
               codeVersion: APP_VERSION,
             });
+            experimentRunId = experimentRun.id;
+            experimentRunToken = experimentRun.runToken;
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao criar llm_experiment_run; continuando waterfall', {
               sessionId,
@@ -1063,6 +1107,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:consolidation',
+          'pre-porta-reconciliation',
+          { sessionId, textLen: accumulatedText.length, timeoutMs: PORTA_RECONCILIATION_TIMEOUT_MS },
+          'H1',
+        );
+        // #endregion
+        const portaReconcileStartedAt = performance.now();
         try {
           const result = await Promise.race([
             reconcileWaterfallPorta({
@@ -1108,6 +1161,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:consolidation',
+          'pos-porta-reconciliation',
+          {
+            sessionId,
+            durationMs: Math.round(performance.now() - portaReconcileStartedAt),
+            textLen: reconciledText.length,
+            portaIntegrityHold,
+          },
+          'H1',
+        );
+        // #endregion
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
@@ -1145,10 +1211,31 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           textLength: waterfallPrepared.length,
           groundingSourcesCount: waterfallGroundingSources.length,
         });
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:validate-inline',
+          'pre-validate-inline',
+          { sessionId, textLen: waterfallPrepared.length },
+          'H3',
+        );
+        const validateInlineStartedAt = performance.now();
+        // #endregion
         const promotedInlineSources = await validateInlineSourcesForPromotion(
           waterfallPrepared,
           waterfallGroundingSources,
         );
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:validate-inline',
+          'post-validate-inline',
+          {
+            sessionId,
+            durationMs: Math.round(performance.now() - validateInlineStartedAt),
+            promotedCount: promotedInlineSources.length,
+          },
+          'H3',
+        );
+        // #endregion
         scoutDiag.info('FreezeDiag', 'post-validate-inline', {
           sessionId,
           waterfallRunId,
@@ -1168,7 +1255,28 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           groundingSourcesCount: waterfallGroundingSources.length,
           poolSize: sessionSourcePool.length,
         });
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:finalize',
+          'pre-finalize-markdown',
+          { sessionId, textLen: waterfallPrepared.length },
+          'H4',
+        );
+        const finalizeStartedAt = performance.now();
+        // #endregion
         const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        // #region agent log
+        agentDebugLog(
+          'waterfall-orchestrator.ts:finalize',
+          'post-finalize-markdown',
+          {
+            sessionId,
+            durationMs: Math.round(performance.now() - finalizeStartedAt),
+            resultLen: finalized.text?.length ?? 0,
+          },
+          'H4',
+        );
+        // #endregion
         scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
           sessionId,
           waterfallRunId,
@@ -1534,7 +1642,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         waterfallEndStatus = 'completed';
       } finally {
-        if (experimentRunId) {
+        if (experimentRunId && experimentRunToken) {
           try {
             const quality = checkReportQuality({
               text: experimentReportText,
@@ -1548,12 +1656,26 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               : waterfallEndStatus === 'completed'
                 ? 'success'
                 : 'failed';
+            const estimatedTokens = estimateTokensFromChars(experimentReportText.length);
+            const estimatedCost = experimentSelection
+              ? calculateCost(experimentSelection.model, undefined, experimentReportText.length)
+              : null;
 
             void finalizeExperimentRun({
               id: experimentRunId,
+              runToken: experimentRunToken,
               status,
               structuralScore: quality.structuralScore,
               reportChars: experimentReportText.length,
+              reportTokensEstimated: estimatedTokens,
+              outputTokens: estimatedTokens,
+              totalTokens: estimatedTokens,
+              outputCostUsd: estimatedCost?.outputCostUsd,
+              totalCostUsd: estimatedCost?.totalCostUsd,
+              estimatedCost: true,
+              costEstimationMethod: estimatedCost?.method ?? 'chars',
+              inputPriceUsed: estimatedCost?.inputPriceUsed,
+              outputPriceUsed: estimatedCost?.outputPriceUsed,
               sourcesCount: experimentSourcesCount,
               validSourcesCount: experimentValidSourcesCount,
               portaMarkersValid: quality.portaMarkersValid,
@@ -1561,6 +1683,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               portaScorePresent: experimentPortaScore !== null,
               portaScore: experimentPortaScore ?? undefined,
               waterfallDurationMs: Date.now() - waterfallStartedAt,
+              totalLatencyMs: Date.now() - waterfallStartedAt,
               renderSuccess: waterfallEndStatus === 'completed',
               markdownBroken: quality.markdownBroken,
               responseEmpty: !experimentReportText.trim(),

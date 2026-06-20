@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getExperimentConfig,
   isOperatorAllowed,
@@ -7,7 +7,7 @@ import {
 } from '../../../utils/llm/modelRouter.js';
 import type { ExperimentConfig } from '../../../utils/llm/types.js';
 
-function litellmEnv(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
+function litellmEnv(overrides: Record<string, string> = {}): Record<string, string | undefined> {
   return {
     LLM_PROVIDER: 'litellm',
     LLM_EXPERIMENT_MODE: 'fixed',
@@ -19,6 +19,8 @@ function litellmEnv(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
 }
 
 describe('getExperimentConfig', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it('default gemini desabilita experimento', () => {
     const config = getExperimentConfig({});
     expect(config.provider).toBe('gemini');
@@ -29,6 +31,15 @@ describe('getExperimentConfig', () => {
     const config = getExperimentConfig(litellmEnv());
     expect(config.enabled).toBe(true);
     expect(config.experimentMode).toBe('fixed');
+  });
+
+  it('sem env explícito lê VITE_LLM_* no browser', () => {
+    vi.stubEnv('VITE_LLM_PROVIDER', 'litellm');
+    vi.stubEnv('VITE_LLM_EXPERIMENT_MODE', 'fixed');
+    vi.stubEnv('VITE_LLM_ALLOWLIST', 'bruno@senior.com.br');
+    const config = getExperimentConfig();
+    expect(config.enabled).toBe(true);
+    expect(config.allowlist).toContain('bruno@senior.com.br');
   });
 });
 

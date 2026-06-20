@@ -6,6 +6,7 @@ import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';
 import { isAbortLikeError } from '../../utils/abortHelpers';
+import { agentDebugLog } from '../../utils/agentDebugLog';
 
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS = 12000;
@@ -122,6 +123,14 @@ export async function reconcileWaterfallPorta({
   optionalStepFailures,
   setFailureCount,
 }: ReconcileWaterfallPortaArgs): Promise<ReconcileWaterfallPortaResult> {
+  // #region agent log
+  agentDebugLog(
+    'porta-reconciliation.ts:entry',
+    'reconcile-start',
+    { sessionId, textLen: accumulatedText.length },
+    'H1',
+  );
+  // #endregion
   let nextAccumulatedText = accumulatedText;
   let portaIntegrityHold = false;
 
@@ -131,7 +140,22 @@ export async function reconcileWaterfallPorta({
     nextAccumulatedText += (nextAccumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
   };
 
+  const resolveStartedAt = performance.now();
   let waterfallPortaResolution = resolvePortaScore(nextAccumulatedText);
+  // #region agent log
+  agentDebugLog(
+    'porta-reconciliation.ts:resolve',
+    'resolvePortaScore-initial',
+    {
+      sessionId,
+      durationMs: Math.round(performance.now() - resolveStartedAt),
+      textLen: nextAccumulatedText.length,
+      missingCount: waterfallPortaResolution.missingDimensions.length,
+      hasScore: Boolean(waterfallPortaResolution.score),
+    },
+    'H2',
+  );
+  // #endregion
   if (!waterfallPortaResolution.score && waterfallPortaResolution.missingDimensions.length > 0) {
     scoutDiag.warn('ModularDossier', 'dimensões PORTA ausentes após 1ª passada', {
       sessionId,
@@ -199,6 +223,18 @@ export async function reconcileWaterfallPorta({
     });
 
     try {
+      // #region agent log
+      agentDebugLog(
+        'porta-reconciliation.ts:reconciler',
+        'generateDossierModule-reconciliation-start',
+        {
+          sessionId,
+          missingDimensions: waterfallPortaResolution.missingDimensions,
+        },
+        'H1',
+      );
+      const reconcilerStartedAt = performance.now();
+      // #endregion
       const reconciliationChunk = await generateDossierModule(
         'Reconciliação PORTA',
         resolvedMegaCompany || 'Empresa',
@@ -221,6 +257,18 @@ export async function reconcileWaterfallPorta({
       );
 
       appendWaterfallChunk(reconciliationChunk);
+      // #region agent log
+      agentDebugLog(
+        'porta-reconciliation.ts:reconciler',
+        'generateDossierModule-reconciliation-end',
+        {
+          sessionId,
+          durationMs: Math.round(performance.now() - reconcilerStartedAt),
+          emittedChars: reconciliationChunk.length,
+        },
+        'H1',
+      );
+      // #endregion
       scoutDiag.info?.('ModularDossier', 'reconciliador PORTA concluído', {
         sessionId,
         company: resolvedMegaCompany || null,

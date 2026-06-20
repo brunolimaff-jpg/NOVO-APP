@@ -100,6 +100,7 @@ export interface CreateRunPayload {
 
 export interface FinalizeRunPayload {
   id: string;
+  runToken: string;
   status: ExperimentRunStatus;
   exclusionReason?: string;
   fallbackUsed?: boolean;

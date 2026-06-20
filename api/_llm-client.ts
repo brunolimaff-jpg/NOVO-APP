@@ -1,16 +1,18 @@
 import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
 
+type Environment = Record<string, string | undefined>;
+
 const REASONING_PREFIXES = [
   /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
   /^vou analisar[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
   /^i(?:'|')?ll analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
 ];
 
-export function isLiteLLMEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isLiteLLMEnabled(env: Environment = process.env): boolean {
   return env.LLM_PROVIDER === 'litellm' && Boolean(env.LITELLM_API_KEY) && Boolean(env.LITELLM_BASE_URL);
 }
 
-export function isFallbackEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isFallbackEnabled(env: Environment = process.env): boolean {
   return env.LLM_FALLBACK_ENABLED !== 'false';
 }
 
@@ -135,6 +137,7 @@ export interface LiteLLMCallInput {
   userContent: string;
   temperature?: number;
   maxOutputTokens?: number;
+  signal?: AbortSignal;
 }
 
 export interface LiteLLMCallResult {
@@ -147,7 +150,7 @@ export interface LiteLLMCallResult {
 
 export async function callLiteLLM(
   input: LiteLLMCallInput,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Environment = process.env,
 ): Promise<LiteLLMCallResult> {
   const baseUrl = env.LITELLM_BASE_URL?.replace(/\/$/, '');
   const apiKey = env.LITELLM_API_KEY;
@@ -161,6 +164,9 @@ export async function callLiteLLM(
   }
   messages.push({ role: 'user', content: input.userContent });
 
+  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || 180_000);
+  const timeoutSignal = AbortSignal.timeout(Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 180_000);
+  const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -173,6 +179,7 @@ export async function callLiteLLM(
       temperature: input.temperature ?? 0.1,
       max_tokens: input.maxOutputTokens ?? 8192,
     }),
+    signal,
   });
 
   if (!response.ok) {

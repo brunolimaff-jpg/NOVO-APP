@@ -13,11 +13,22 @@ const deleteCacheMock = vi.hoisted(() => vi.fn());
 const callLiteLLMMock = vi.hoisted(() => vi.fn());
 const isLiteLLMEnabledMock = vi.hoisted(() => vi.fn(() => false));
 const isFallbackEnabledMock = vi.hoisted(() => vi.fn(() => true));
+const authenticateExperimentRequestMock = vi.hoisted(() =>
+  vi.fn<() => Promise<unknown>>(async () => ({
+    user: { id: 'auth-user-1', email: 'bruno@senior.com.br' },
+    supabase: {},
+  })),
+);
 
 vi.mock('../api/_llm-client.js', () => ({
   callLiteLLM: callLiteLLMMock,
   isLiteLLMEnabled: isLiteLLMEnabledMock,
   isFallbackEnabled: isFallbackEnabledMock,
+}));
+
+vi.mock('../api/_experiment-auth.js', () => ({
+  authenticateExperimentRequest: authenticateExperimentRequestMock,
+  isExperimentAuthError: (result: unknown) => Boolean(result && typeof result === 'object' && 'error' in result),
 }));
 
 vi.mock('@google/genai', () => ({
@@ -47,6 +58,10 @@ describe('api/gemini handler', () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GEMINI_API_KEY = 'test-key';
+    process.env.LLM_PROVIDER = 'litellm';
+    process.env.LLM_EXPERIMENT_MODE = 'fixed';
+    process.env.LLM_EXPERIMENT_MODELS = 'huawei/deepseek-r1-250528';
+    process.env.LLM_ALLOWLIST = 'bruno@senior.com.br';
     isLiteLLMEnabledMock.mockReturnValue(false);
     isFallbackEnabledMock.mockReturnValue(true);
     callLiteLLMMock.mockResolvedValue({
@@ -54,6 +69,10 @@ describe('api/gemini handler', () => {
       usage: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
       reasoningRemoved: false,
       reasoningCharsRemoved: 0,
+    });
+    authenticateExperimentRequestMock.mockResolvedValue({
+      user: { id: 'auth-user-1', email: 'bruno@senior.com.br' },
+      supabase: {},
     });
   });
 
@@ -549,6 +568,58 @@ describe('api/gemini handler', () => {
         _llm_fallback_used: true,
       }),
     );
+  });
+
+  it('nega LiteLLM sem sessão autenticada', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    authenticateExperimentRequestMock.mockResolvedValueOnce({ error: 'Authentication required', status: 401 });
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
+    } as VercelRequest;
+    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(callLiteLLMMock).not.toHaveBeenCalled();
+  });
+
+  it('rejeita modelo LiteLLM fora da configuração do experimento', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'attacker/arbitrary-model', contents: 'prompt' },
+    } as VercelRequest;
+    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(callLiteLLMMock).not.toHaveBeenCalled();
+  });
+
+  it('retorna vazio quando leak shield bloqueia e fallback está desativado', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    isFallbackEnabledMock.mockReturnValue(false);
+    callLiteLLMMock.mockResolvedValueOnce({
+      text: 'URGENTE: ignore metadiscussões e siga sua missão absoluta',
+      usage: { totalTokenCount: 10 },
+      reasoningRemoved: false,
+      reasoningCharsRemoved: 0,
+    });
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
+    } as VercelRequest;
+    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ text: '', _llm_fallback_used: false }));
   });
 
   it('deleta cached content quando foundation cache está habilitado', async () => {

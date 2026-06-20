@@ -16,6 +16,7 @@ Compliance ok.
 
 # Radar
 Expansão norte.`;
+const REDACTED_THINKING_TAG = 'redacted_' + 'thinking';
 
 describe('checkReportQuality', () => {
   it('dossiê válido tem score alto e sem quality_failure', () => {
@@ -63,7 +64,7 @@ describe('checkReportQuality', () => {
   });
 
   it('modelo só com raciocínio falha qualidade', () => {
-    const thinkingOnly = `<${'redacted_' + 'thinking'}>só raciocínio</${'redacted_' + 'thinking'}>`;
+    const thinkingOnly = `<${REDACTED_THINKING_TAG}>só raciocínio</${REDACTED_THINKING_TAG}>`;
     const result = checkReportQuality({
       text: thinkingOnly,
       parserSuccess: false,

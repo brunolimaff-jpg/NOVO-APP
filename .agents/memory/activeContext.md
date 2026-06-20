@@ -1,20 +1,26 @@
 # Active Context
 
-Last updated: 2026-06-19 — Ondas 0–3 concluídas na PR #385
+Last updated: 2026-06-19 — LiteLLM env Preview + fix freeze link-status (#386)
 
 ## Prioridade Atual
 
-**PR Gate IA — PR #385 (`fix/onda-1-raf-persist-e2e`)**
+**PR #386 (`feat/litellm-experiment`) — aguardando validação Bruno pós-fix freeze**
 
-- Ondas 1–3 do plano implementadas.
-- Aguardando E2E preview pós-commit Onda 3.
-- Merge só com token **MERGE**.
+- Env Vercel Preview: **18 vars** configuradas; allowlist `bruno.ferreira@senior.com.br`; experimento **V4 Flash only** (R1/Kimi 404 no LiteLLM).
+- Fix freeze consolidação deployado no preview **d47bkguue** — causa H3 link-status (~6.7s) vs budget cliente (5s).
+- Instrumentação debug (`agentDebugLog`, sessão `c352f8`) **ainda no código** — remover só após Bruno confirmar.
+- Testes unitários freeze-diag: **15/15** passando.
+- **Bloqueia merge:** validação manual waterfall no preview + token **MERGE**.
 
-## Onda 3 — Entregas
+## Preview ativo
 
-| Item | Status |
-|------|--------|
-| Reducer loading (`loading-progress-reducer.ts`) | ✅ |
-| `loading-watchdog.ts` (probes 6→3) | ✅ |
-| Cache socio-search v8 operator-scoped | ✅ |
-| Remover safety nets DOM | ⏸️ adiado (7 dias prod) |
+- Fix freeze: https://scoutagro-d47bkguue-brunolimaff-3629s-projects.vercel.app
+- Anterior V4-only: `scoutagro-90mpwvvhr`
+
+## PR #385 — Concluída
+
+- Mergeada 2026-06-19 — Ondas 0–3 estabilização pós-auditoria.
+
+## Safety nets
+
+- DOM safety nets em `App.tsx` / `finalizeWaterfallUI.ts` **mantidos** (critério 7 dias Cofre estável).

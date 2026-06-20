@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHmac } from 'node:crypto';
 
 const fromMock = vi.hoisted(() => vi.fn());
 const insertMock = vi.hoisted(() => vi.fn());
@@ -6,10 +7,12 @@ const updateMock = vi.hoisted(() => vi.fn());
 const eqMock = vi.hoisted(() => vi.fn());
 const selectMock = vi.hoisted(() => vi.fn());
 const singleMock = vi.hoisted(() => vi.fn());
+const getUserMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     from: fromMock,
+    auth: { getUser: getUserMock },
   })),
 }));
 
@@ -17,7 +20,12 @@ function makeMockReq(body: Record<string, unknown>) {
   return {
     method: 'POST',
     body,
+    headers: { authorization: 'Bearer valid-user-jwt' },
   };
+}
+
+function runToken(id: string): string {
+  return createHmac('sha256', 'test-svc-role-key').update(`${id}:auth-user-1`).digest('hex');
 }
 
 function makeMockRes() {
@@ -67,6 +75,10 @@ describe('api/llm-experiment', () => {
       eq: eqMock,
     });
     eqMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({
+      data: { user: { id: 'auth-user-1', email: 'bruno@senior.com.br' } },
+      error: null,
+    });
 
     const mod = await import('../../api/llm-experiment.js');
     handler = mod.default;
@@ -89,6 +101,10 @@ describe('api/llm-experiment', () => {
     selectMock.mockReturnValue({ single: singleMock });
     updateMock.mockReturnValue({ eq: eqMock });
     eqMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({
+      data: { user: { id: 'auth-user-1', email: 'bruno@senior.com.br' } },
+      error: null,
+    });
   });
 
   it('rejeita método não suportado', async () => {
@@ -104,7 +120,10 @@ describe('api/llm-experiment', () => {
     }));
 
     const { res, state } = makeMockRes();
-    await handler({ method: 'GET', query: { format: 'markdown', operatorEmail: 'bruno@senior.com.br' } }, res);
+    await handler(
+      { method: 'GET', query: { format: 'markdown' }, headers: { authorization: 'Bearer valid-user-jwt' } },
+      res,
+    );
     expect(state.statusCode).toBe(200);
     expect(String(state.body)).toContain('LLM Experiment Report');
   });
@@ -128,7 +147,7 @@ describe('api/llm-experiment', () => {
     );
 
     expect(state.statusCode).toBe(200);
-    expect(state.body).toEqual({ id: 'run-uuid-1' });
+    expect(state.body).toEqual({ id: 'run-uuid-1', runToken: runToken('run-uuid-1') });
     expect(insertMock).toHaveBeenCalled();
   });
 
@@ -146,6 +165,7 @@ describe('api/llm-experiment', () => {
         action: 'finalizeRun',
         id: 'run-uuid-1',
         status: 'success',
+        runToken: runToken('run-uuid-1'),
         structuralScore: 90,
         totalCostUsd: 0.12,
         operatorEmail: 'bruno@senior.com.br',
@@ -169,5 +189,21 @@ describe('api/llm-experiment', () => {
     const { res, state } = makeMockRes();
     await handler(makeMockReq({ action: 'unknown', operatorEmail: 'bruno@senior.com.br' }), res);
     expect(state.statusCode).toBe(400);
+  });
+
+  it('rejeita sessão ausente mesmo quando o body contém email allowlisted', async () => {
+    const { res, state } = makeMockRes();
+    await handler({ method: 'POST', headers: {}, body: { action: 'createRun', operatorEmail: 'bruno@senior.com.br' } }, res);
+    expect(state.statusCode).toBe(401);
+  });
+
+  it('rejeita token de run que não pertence ao usuário autenticado', async () => {
+    const { res, state } = makeMockRes();
+    await handler(
+      makeMockReq({ action: 'finalizeRun', id: 'run-uuid-1', runToken: 'invalid', status: 'success' }),
+      res,
+    );
+    expect(state.statusCode).toBe(403);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

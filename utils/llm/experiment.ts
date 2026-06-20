@@ -1,17 +1,25 @@
 import type { CreateRunPayload, FinalizeRunPayload } from './types.js';
+import { getSupabaseAuthHeaders } from '../../lib/supabaseClient.js';
 
 interface ExperimentApiResponse {
   id?: string;
+  runToken?: string;
   error?: string;
+}
+
+export interface ExperimentRunHandle {
+  id: string;
+  runToken: string;
 }
 
 async function postExperimentAction(
   action: 'createRun' | 'finalizeRun',
   payload: CreateRunPayload | FinalizeRunPayload,
 ): Promise<ExperimentApiResponse> {
+  const authHeaders = await getSupabaseAuthHeaders();
   const response = await fetch('/api/llm-experiment', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({ action, ...payload }),
   });
 
@@ -23,12 +31,12 @@ async function postExperimentAction(
   return data;
 }
 
-export async function createExperimentRun(payload: CreateRunPayload): Promise<string> {
+export async function createExperimentRun(payload: CreateRunPayload): Promise<ExperimentRunHandle> {
   const result = await postExperimentAction('createRun', payload);
-  if (!result.id) {
-    throw new Error('llm-experiment createRun did not return id');
+  if (!result.id || !result.runToken) {
+    throw new Error('llm-experiment createRun did not return a run handle');
   }
-  return result.id;
+  return { id: result.id, runToken: result.runToken };
 }
 
 export async function finalizeExperimentRun(payload: FinalizeRunPayload): Promise<void> {

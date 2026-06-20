@@ -1,5 +1,23 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-19 - LiteLLM Preview + fix freeze link-status)
+
+### DI-2026-06-19-04: Budget de timeout inline-validation deve cobrir latencia real de link-status
+
+- **Contexto:** Freeze em "Consolidando informacoes..." (~2 min, Chrome "Pagina sem resposta"). `scout_diagnostics` sessao `0ea8ed46` parou em `inline-validation:fetch:start` (6 URLs) por ~116s. H1 PORTA reconciliation e H2 resolvePortaScore rejeitadas. H3 confirmada: `/api/link-status` demorava ~6.7s por URL com budget total cliente de 5s (`VALIDATE_INLINE_TOTAL_TIMEOUT_MS`).
+- **Decisao:** (1) Reduzir timeout servidor `api/link-status.ts` para 2500ms; (2) aumentar budget agregado cliente para 12s com `AbortSignal.timeout`; (3) hard-cap 14s retorna `[]` (degradacao graciosa) em vez de travar main thread; (4) `vercel.json` maxDuration 15s para handler link-status.
+- **Impacto:** link-status medido ~3.5s no preview pos-fix (antes ~6.7s). Instrumentacao debug (`agentDebugLog`) permanece ate Bruno validar waterfall completo no preview d47bkguue.
+- **Status:** implementada — aguardando validacao manual.
+- **Referencia:** `features/dossier/waterfall-orchestrator.ts`, `api/link-status.ts`, `tests/features/validate-inline-sources-freeze-diag.test.ts`, CALIBER_LEARNINGS sessao 2026-06-19.
+
+### DI-2026-06-19-03: Preview LiteLLM restrito a V4 Flash ate R1/Kimi no servidor
+
+- **Contexto:** No LiteLLM do Bruno, `huawei/deepseek-r1-250528` e Kimi K2 retornam HTTP 404; apenas `huawei/deepseek-v4-flash` responde. Allowlist usava email de teste unitario (`bruno@senior.com.br`) em vez do email real (`bruno.ferreira@senior.com.br`).
+- **Decisao:** Preview Vercel com experimento **V4 Flash only**: `LLM_EXPERIMENT_MODELS` / `VITE_LLM_EXPERIMENT_MODELS` = `huawei/deepseek-v4-flash`, `LLM_TRAFFIC_SPLIT=100`, `LLM_EXPERIMENT_MODE=fixed`. Reativar rotacao de 3 modelos somente apos configurar R1/Kimi no servidor LiteLLM.
+- **Impacto:** 18 env vars configuradas no Preview; producao permanece `LLM_PROVIDER=gemini` (default).
+- **Status:** aceita — ativa no Preview.
+- **Referencia:** PR #386, env Vercel Preview branch `feat/litellm-experiment`.
+
 ## Novas Decisoes (Sessao 2026-06-19 - Auditoria 50 PRs + Onda 2.4)
 
 ### DI-2026-06-19-02: Cache read-only de sessoes vs toast/retry obrigatorio (Onda 2.4)
@@ -24,7 +42,6 @@
 - **Aprovacao PR #383:** PR Gate IA 11/11 no preview SHA `63f1c85e` (~2,7 min). Evidencia: https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777. E2E blocking removido (`e6f256d8`). CI verde. Threads 0 abertas.
 - **Impacto:** Modelo permanente para app Vercel+Supabase. PR template com secao Preview Validation IA (follow-up).
 - **Referencia:** PR #383 HEAD `63f1c85e`, `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`, `AGENTS.md` Learned Workspace Facts.
-
 
 ## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
 
