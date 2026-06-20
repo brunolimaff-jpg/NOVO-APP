@@ -21,15 +21,16 @@ def gh_graphql(query: str) -> dict:
     return json.loads(r.stdout)
 
 
-def reply(comment_id: int, body: str) -> None:
+def reply(thread_id: str, body: str) -> None:
+    """REST /pulls/comments/{id}/replies returns 404; use GraphQL thread reply."""
+    escaped = body.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    q = (
+        f'mutation {{ addPullRequestReviewThreadReply(input: {{'
+        f'pullRequestReviewThreadId: "{thread_id}", body: "{escaped}"'
+        f"}}) {{ comment {{ id }} }} }}"
+    )
     subprocess.run(
-        [
-            "gh",
-            "api",
-            f"repos/{OWNER}/{REPO}/pulls/comments/{comment_id}/replies",
-            "-f",
-            f"body={body}",
-        ],
+        ["gh", "api", "graphql", "-f", f"query={q}"],
         check=True,
         capture_output=True,
     )
@@ -176,7 +177,7 @@ def process_pr(pr: int) -> int:
         c = t["comments"]["nodes"][0]
         msg = response_for(t["path"] or "", c["author"]["login"], c["body"], pr)
         try:
-            reply(c["databaseId"], msg)
+            reply(t["id"], msg)
             resolve(t["id"])
             ok += 1
         except subprocess.CalledProcessError as e:
