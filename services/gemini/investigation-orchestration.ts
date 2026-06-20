@@ -582,8 +582,15 @@ export async function generateDossierModule(
     });
   }
 
+  const portaMarkerTemplates = useLiteLLM
+    ? Array.from(new Set(specialistPrompt.match(/^\[\[PORTA.*]]$/gm) ?? []))
+    : [];
   const markerReminder = useLiteLLM
-    ? '\nObrigatório: não conclua sem emitir os markers [[PORTA_*]] exigidos pelo prompt especialista, exatamente no formato solicitado.'
+    ? `\nObrigatório: não conclua sem emitir os markers [[PORTA_*]] exigidos pelo prompt especialista, exatamente no formato solicitado.${
+        portaMarkerTemplates.length > 0
+          ? `\nTermine a resposta preenchendo estes templates aplicáveis:\n${portaMarkerTemplates.join('\n')}`
+          : ''
+      }`
     : '';
   const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.${markerReminder}`;
   const contents = effectiveUsesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;

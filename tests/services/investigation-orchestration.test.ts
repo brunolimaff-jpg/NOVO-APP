@@ -218,7 +218,7 @@ describe('investigation-orchestration', () => {
       'Teia Societaria — Identidade',
       'SCHEFFER & CIA LTDA',
       'foundation block',
-      'specialist block',
+      'specialist block\n[[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]',
       'extra context',
       { selectedModel: 'huawei/deepseek-r1-250528', temperature: 0.1, onLlmMetadata },
     );
@@ -236,10 +236,13 @@ describe('investigation-orchestration', () => {
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
     expect(proxyGenerateContentMock.mock.calls[0][0].config.systemInstruction).toMatch(
-      /foundation block[\s\S]*extra context[\s\S]*specialist block$/,
+      /foundation block[\s\S]*extra context[\s\S]*specialist block/,
     );
     expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain(
       'não conclua sem emitir os markers [[PORTA_*]]',
+    );
+    expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain(
+      '[[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]',
     );
     expect(onLlmMetadata).toHaveBeenCalledWith(
       {
