@@ -560,9 +560,7 @@ describe('api/gemini handler', () => {
 
     await handler(req, res);
 
-    expect(generateContentMock).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'gemini-3-flash-preview' }),
-    );
+    expect(generateContentMock).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3-flash-preview' }));
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'resposta gemini fallback',
@@ -572,20 +570,88 @@ describe('api/gemini handler', () => {
     );
   });
 
-  it('nega LiteLLM sem sessão autenticada', async () => {
+  it('faz fallback Gemini quando auth 401 e fallback habilitado', async () => {
     isLiteLLMEnabledMock.mockReturnValue(true);
+    authenticateExperimentRequestMock.mockResolvedValueOnce({ error: 'Authentication required', status: 401 });
+    generateContentMock.mockResolvedValueOnce({
+      text: 'resposta gemini auth fallback',
+      candidates: [],
+      usageMetadata: { promptTokenCount: 5 },
+    });
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
+    } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(generateContentMock).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3-flash-preview' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'resposta gemini auth fallback',
+        _llm_provider: 'gemini',
+        _llm_fallback_used: true,
+        _llm_fallback_reason: 'auth_401',
+      }),
+    );
+  });
+
+  it('retorna 401 quando auth falha e fallback está desativado', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    isFallbackEnabledMock.mockReturnValue(false);
     authenticateExperimentRequestMock.mockResolvedValueOnce({ error: 'Authentication required', status: 401 });
     const { default: handler } = await import('../api/gemini');
     const req = {
       method: 'POST',
       body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
     } as VercelRequest;
-    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
 
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('faz fallback Gemini quando auth 403 (allowlist) e fallback habilitado', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    authenticateExperimentRequestMock.mockResolvedValueOnce({ error: 'Operator not in LLM_ALLOWLIST', status: 403 });
+    generateContentMock.mockResolvedValueOnce({
+      text: 'resposta gemini allowlist fallback',
+      candidates: [],
+    });
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
+    } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(generateContentMock).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _llm_fallback_reason: 'auth_403',
+        _llm_fallback_used: true,
+      }),
+    );
   });
 
   it('rejeita modelo LiteLLM fora da configuração do experimento', async () => {
@@ -595,7 +661,11 @@ describe('api/gemini handler', () => {
       method: 'POST',
       body: { action: 'generateContent', model: 'attacker/arbitrary-model', contents: 'prompt' },
     } as VercelRequest;
-    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
 
     await handler(req, res);
 
@@ -617,7 +687,11 @@ describe('api/gemini handler', () => {
       method: 'POST',
       body: { action: 'generateContent', model: 'huawei/deepseek-r1-250528', contents: 'prompt' },
     } as VercelRequest;
-    const res = { setHeader: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() } as unknown as VercelResponse;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
 
     await handler(req, res);
 

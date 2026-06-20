@@ -1,5 +1,4 @@
 import { scoutDiag } from '../utils/diagnosticLog';
-import { agentDebugLog } from '../utils/agentDebugLog';
 import { getSupabaseAuthHeaders } from '../lib/supabaseClient';
 
 type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
@@ -188,7 +187,6 @@ async function callGeminiApi<TResponse>(
   const forwardAbort = () => controller.abort();
   signal?.addEventListener('abort', forwardAbort, { once: true });
 
-  const requestStartedAt = performance.now();
   let response: Response | null = null;
   let responseText: string;
   try {
@@ -237,30 +235,6 @@ async function callGeminiApi<TResponse>(
       status: response.status,
       bodyChars: responseText.length,
     });
-
-    if (action === 'generateContent') {
-      const moduleName =
-        typeof (payload as GeminiGenerateRequest).module === 'string'
-          ? (payload as GeminiGenerateRequest).module
-          : undefined;
-      // #region agent log
-      agentDebugLog(
-        'geminiProxy.ts:callGeminiApi',
-        'generateContent-response',
-        {
-          module: moduleName,
-          model:
-            typeof (payload as GeminiGenerateRequest).model === 'string'
-              ? (payload as GeminiGenerateRequest).model
-              : undefined,
-          durationMs: Math.round(performance.now() - requestStartedAt),
-          httpStatus: response.status,
-          bodyChars: responseText.length,
-        },
-        'H1',
-      );
-      // #endregion
-    }
 
     if (!response.ok) {
       scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {

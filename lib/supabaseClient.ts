@@ -18,9 +18,15 @@ export async function getSupabaseAuthHeaders(): Promise<Record<string, string>> 
   try {
     const {
       data: { session },
+      error,
     } = await supabase.auth.getSession();
+    if (error) {
+      console.warn('[Supabase] getSession error:', error.message);
+      return {};
+    }
     return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-  } catch {
+  } catch (err) {
+    console.warn('[Supabase] getSession failed:', err instanceof Error ? err.message : String(err));
     return {};
   }
 }

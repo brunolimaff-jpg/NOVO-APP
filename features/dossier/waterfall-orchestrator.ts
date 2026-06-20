@@ -63,11 +63,11 @@ import {
   type RunWaterfallModule,
 } from './porta-reconciliation';
 import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/experiment';
-import { getExperimentConfig, isOperatorAllowed, selectExperimentModel } from '../../utils/llm/modelRouter';
+import { resolveLiteLLMExperimentGate } from '../../utils/llm/experimentGate';
+import { getExperimentConfig, selectExperimentModel } from '../../utils/llm/modelRouter';
 import { checkReportQuality } from '../../utils/llm/reportQuality';
 import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
 import type { ExperimentSelection } from '../../utils/llm/types';
-import { agentDebugLog } from '../../utils/agentDebugLog';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -273,26 +273,22 @@ export async function validateInlineSourcesForPromotion(
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
   const HARD_CAP_MS = VALIDATE_INLINE_TOTAL_TIMEOUT_MS + 2_000;
-  return Promise.race([
-    validateInlineSourcesForPromotionCore(text, existingSources),
-    new Promise<VerifiedSource[]>(resolve => {
-      setTimeout(() => {
-        scoutDiag.info('FreezeDiag', 'inline-validation:hard-cap', {
-          budgetMs: HARD_CAP_MS,
-          reason: 'waterfall-non-blocking-fallback',
-        });
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:validate-inline',
-          'inline-validation:hard-cap',
-          { budgetMs: HARD_CAP_MS },
-          'H3',
-        );
-        // #endregion
-        resolve([]);
-      }, HARD_CAP_MS);
-    }),
-  ]);
+  let hardCapTimeoutId: ReturnType<typeof setTimeout> | undefined;
+  const hardCapPromise = new Promise<VerifiedSource[]>(resolve => {
+    hardCapTimeoutId = setTimeout(() => {
+      scoutDiag.info('FreezeDiag', 'inline-validation:hard-cap', {
+        budgetMs: HARD_CAP_MS,
+        reason: 'waterfall-non-blocking-fallback',
+      });
+      resolve([]);
+    }, HARD_CAP_MS);
+  });
+
+  try {
+    return await Promise.race([validateInlineSourcesForPromotionCore(text, existingSources), hardCapPromise]);
+  } finally {
+    if (hardCapTimeoutId) clearTimeout(hardCapTimeoutId);
+  }
 }
 
 async function validateInlineSourcesForPromotionCore(
@@ -635,10 +631,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let experimentModulesGenerated = 0;
       const waterfallStartedAt = Date.now();
 
-      const experimentConfig = getExperimentConfig();
-      const operatorAllowed = isOperatorAllowed(waterfallOperatorEmail, experimentConfig);
-      const llmEnabled = experimentConfig.enabled && operatorAllowed;
+      const experimentGate = await resolveLiteLLMExperimentGate(waterfallOperatorEmail);
+      const llmEnabled = experimentGate.llmEnabled;
+      const experimentOperatorEmail = experimentGate.operatorEmail;
+      if (!llmEnabled && experimentGate.reason) {
+        scoutDiag.info('ModularDossier', 'LiteLLM experiment gate fechado', {
+          reason: experimentGate.reason,
+          hasSupabaseSession: experimentGate.hasSupabaseSession,
+          operatorEmail: experimentOperatorEmail,
+        });
+      }
       const effectiveFoundationCacheEnabled = llmEnabled ? false : isFoundationCacheEnabled();
+      const experimentConfig = getExperimentConfig();
 
       if (llmEnabled) {
         experimentSelection = selectExperimentModel({ config: experimentConfig, seed: Date.now() });
@@ -654,7 +658,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               runId: waterfallRunId,
               sessionId,
               operatorId: waterfallOperatorId,
-              operatorEmail: waterfallOperatorEmail ?? undefined,
+              operatorEmail: experimentOperatorEmail ?? undefined,
               companyName: normalizedCompany || hintedCompany || undefined,
               promptVersion: PROMPT_VERSION,
               codeVersion: APP_VERSION,
@@ -799,13 +803,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           useGrounding: true as const,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
-          onLlmMetadata: (
-            metadata: {
-              provider?: 'gemini' | 'litellm';
-              fallbackUsed: boolean;
-              usage?: { promptTokenCount?: number; candidatesTokenCount?: number };
-            },
-          ) => {
+          onLlmMetadata: (metadata: {
+            provider?: 'gemini' | 'litellm';
+            fallbackUsed: boolean;
+            usage?: { promptTokenCount?: number; candidatesTokenCount?: number };
+          }) => {
             experimentFallbackUsed ||= metadata.fallbackUsed;
             experimentModulesGenerated += 1;
             if (metadata.provider === 'litellm' && !metadata.fallbackUsed) {
@@ -1125,15 +1127,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:consolidation',
-          'pre-porta-reconciliation',
-          { sessionId, textLen: accumulatedText.length, timeoutMs: PORTA_RECONCILIATION_TIMEOUT_MS },
-          'H1',
-        );
-        // #endregion
-        const portaReconcileStartedAt = performance.now();
         try {
           const result = await Promise.race([
             reconcileWaterfallPorta({
@@ -1179,19 +1172,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:consolidation',
-          'pos-porta-reconciliation',
-          {
-            sessionId,
-            durationMs: Math.round(performance.now() - portaReconcileStartedAt),
-            textLen: reconciledText.length,
-            portaIntegrityHold,
-          },
-          'H1',
-        );
-        // #endregion
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
@@ -1229,31 +1209,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           textLength: waterfallPrepared.length,
           groundingSourcesCount: waterfallGroundingSources.length,
         });
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:validate-inline',
-          'pre-validate-inline',
-          { sessionId, textLen: waterfallPrepared.length },
-          'H3',
-        );
-        const validateInlineStartedAt = performance.now();
-        // #endregion
         const promotedInlineSources = await validateInlineSourcesForPromotion(
           waterfallPrepared,
           waterfallGroundingSources,
         );
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:validate-inline',
-          'post-validate-inline',
-          {
-            sessionId,
-            durationMs: Math.round(performance.now() - validateInlineStartedAt),
-            promotedCount: promotedInlineSources.length,
-          },
-          'H3',
-        );
-        // #endregion
         scoutDiag.info('FreezeDiag', 'post-validate-inline', {
           sessionId,
           waterfallRunId,
@@ -1273,28 +1232,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           groundingSourcesCount: waterfallGroundingSources.length,
           poolSize: sessionSourcePool.length,
         });
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:finalize',
-          'pre-finalize-markdown',
-          { sessionId, textLen: waterfallPrepared.length },
-          'H4',
-        );
-        const finalizeStartedAt = performance.now();
-        // #endregion
         const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
-        // #region agent log
-        agentDebugLog(
-          'waterfall-orchestrator.ts:finalize',
-          'post-finalize-markdown',
-          {
-            sessionId,
-            durationMs: Math.round(performance.now() - finalizeStartedAt),
-            resultLen: finalized.text?.length ?? 0,
-          },
-          'H4',
-        );
-        // #endregion
         scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
           sessionId,
           waterfallRunId,

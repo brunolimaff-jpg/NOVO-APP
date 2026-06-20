@@ -447,6 +447,21 @@ async function executeGeminiAction(
       if (useLiteLLMPath) {
         const auth = await authenticateExperimentRequest(req);
         if (isExperimentAuthError(auth)) {
+          if (isFallbackEnabled() && (auth.status === 401 || auth.status === 403)) {
+            console.warn('[GeminiProxy] LiteLLM auth falhou; fallback Gemini', {
+              status: auth.status,
+              error: auth.error,
+            });
+            const geminiResult = await runGeminiGenerateContent(ai, { ...body, model: DEFAULT_GEMINI_MODEL });
+            await logGenerateContentModuleEnd(srvModuleName, srvRunId, DEFAULT_GEMINI_MODEL);
+            return res.status(200).json({
+              ...geminiResult,
+              groundingChunks: [],
+              _llm_provider: 'gemini',
+              _llm_fallback_used: true,
+              _llm_fallback_reason: `auth_${auth.status}`,
+            });
+          }
           return res.status(auth.status).json({ error: auth.error });
         }
         const allowedModels = getExperimentConfig(process.env).experimentModels;

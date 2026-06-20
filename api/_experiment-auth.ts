@@ -24,8 +24,12 @@ export function getServerSupabaseClient(): SupabaseClient | null {
 function getBearerToken(req: VercelRequest): string | null {
   const raw = req.headers?.authorization;
   const header = Array.isArray(raw) ? raw[0] : raw;
-  const match = header?.match(/^Bearer\s+(.+)$/i);
-  return match?.[1]?.trim() || null;
+  if (!header || typeof header !== 'string') return null;
+  const bearerPrefix = 'bearer ';
+  if (header.length <= bearerPrefix.length) return null;
+  if (header.slice(0, bearerPrefix.length).toLowerCase() !== bearerPrefix) return null;
+  const token = header.slice(bearerPrefix.length).trim();
+  return token.length > 0 ? token : null;
 }
 
 export async function authenticateExperimentRequest(
