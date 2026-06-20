@@ -14,6 +14,7 @@ import {
   PROMPT_TEIA_DEEP_MODULE,
   PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
+  SHARED_FOUNDATION_BLOCK_V5,
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import {
@@ -829,6 +830,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           companyCnpj: sessionCnpjDigits || undefined,
           companyName: resolvedMegaCompany || undefined,
         };
+        const moduleFoundationBlock = experimentSelection ? SHARED_FOUNDATION_BLOCK_V5 : SHARED_FOUNDATION_BLOCK;
 
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
@@ -884,7 +886,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           generateDossierModule(
             module.name,
             resolvedMegaCompany || 'Empresa',
-            SHARED_FOUNDATION_BLOCK,
+            moduleFoundationBlock,
             module.prompt,
             buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
             {
@@ -902,7 +904,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             identityResult = await generateDossierModule(
               'Teia Societaria — Identidade',
               resolvedMegaCompany || 'Empresa',
-              SHARED_FOUNDATION_BLOCK,
+              moduleFoundationBlock,
               PROMPT_TEIA_IDENTITY_MODULE,
               buildModuleExtraContext(accumulatedText),
               {
@@ -986,7 +988,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               const deepResult = await generateDossierModule(
                 'Teia Societaria — Profundidade',
                 resolvedMegaCompany || 'Empresa',
-                SHARED_FOUNDATION_BLOCK,
+                moduleFoundationBlock,
                 PROMPT_TEIA_DEEP_MODULE,
                 buildModuleExtraContext(combinedTeiaText),
                 {
