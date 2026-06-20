@@ -653,6 +653,14 @@ export async function generateDossierModule(
       usageMetadata: response.usageMetadata,
     });
   }
+  options.onLlmMetadata?.(
+    {
+      provider: response._llm_provider,
+      fallbackUsed: response._llm_fallback_used === true,
+      usage: response.usageMetadata,
+    },
+    moduleName,
+  );
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,

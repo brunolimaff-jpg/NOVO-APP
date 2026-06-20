@@ -560,7 +560,9 @@ describe('api/gemini handler', () => {
 
     await handler(req, res);
 
-    expect(generateContentMock).toHaveBeenCalled();
+    expect(generateContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'gemini-3-flash-preview' }),
+    );
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'resposta gemini fallback',

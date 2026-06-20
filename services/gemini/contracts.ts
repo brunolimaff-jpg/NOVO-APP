@@ -27,6 +27,14 @@ export interface DossierModuleOptions {
   useGrounding?: boolean;
   onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
   onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
+  onLlmMetadata?: (
+    metadata: {
+      provider?: 'gemini' | 'litellm';
+      fallbackUsed: boolean;
+      usage?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
+    },
+    moduleName: string,
+  ) => void;
   /** Explicit Gemini context cache name for the waterfall foundation + static dossier context. */
   foundationCacheName?: string;
   /** LiteLLM experiment model id (non-gemini) selected once per waterfall run. */

@@ -164,8 +164,8 @@ export async function callLiteLLM(
   }
   messages.push({ role: 'user', content: input.userContent });
 
-  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || 180_000);
-  const timeoutSignal = AbortSignal.timeout(Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 180_000);
+  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || 30_000);
+  const timeoutSignal = AbortSignal.timeout(Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 30_000);
   const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',

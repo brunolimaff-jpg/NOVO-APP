@@ -319,8 +319,8 @@ async function executeLiteLLMGenerateContent(
 
   const respondWithGeminiFallback = async (reason: string) => {
     console.warn(`[GeminiProxy] LiteLLM fallback para Gemini (${reason})`, { model });
-    const geminiResult = await runGeminiGenerateContent(ai, body);
-    await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
+    const geminiResult = await runGeminiGenerateContent(ai, { ...body, model: DEFAULT_GEMINI_MODEL });
+    await logGenerateContentModuleEnd(srvModuleName, srvRunId, DEFAULT_GEMINI_MODEL);
     return res.status(200).json({
       ...geminiResult,
       groundingChunks: [],

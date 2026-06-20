@@ -629,6 +629,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let experimentSourcesCount = 0;
       let experimentValidSourcesCount = 0;
       let experimentPortaScore: number | null = null;
+      let experimentFallbackUsed = false;
+      let experimentInputTokens = 0;
+      let experimentOutputTokens = 0;
+      let experimentModulesGenerated = 0;
       const waterfallStartedAt = Date.now();
 
       const experimentConfig = getExperimentConfig();
@@ -795,6 +799,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           useGrounding: true as const,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
+          onLlmMetadata: (
+            metadata: {
+              provider?: 'gemini' | 'litellm';
+              fallbackUsed: boolean;
+              usage?: { promptTokenCount?: number; candidatesTokenCount?: number };
+            },
+          ) => {
+            experimentFallbackUsed ||= metadata.fallbackUsed;
+            experimentModulesGenerated += 1;
+            if (metadata.provider === 'litellm' && !metadata.fallbackUsed) {
+              experimentInputTokens += metadata.usage?.promptTokenCount ?? 0;
+              experimentOutputTokens += metadata.usage?.candidatesTokenCount ?? 0;
+            }
+          },
           ...(foundationCacheName ? { foundationCacheName } : {}),
           ...(experimentSelection ? { selectedModel: experimentSelection.model } : {}),
           // Cost tracking (via message-orchestrator args + sessionStorage fallback)
@@ -1653,12 +1671,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
             const status = quality.isQualityFailure
               ? 'quality_failure'
-              : waterfallEndStatus === 'completed'
-                ? 'success'
-                : 'failed';
+              : waterfallEndStatus !== 'completed'
+                ? 'failed'
+                : experimentFallbackUsed
+                  ? 'fallback'
+                  : 'success';
             const estimatedTokens = estimateTokensFromChars(experimentReportText.length);
-            const estimatedCost = experimentSelection
-              ? calculateCost(experimentSelection.model, undefined, experimentReportText.length)
+            const hasMeasuredUsage = experimentInputTokens > 0 || experimentOutputTokens > 0;
+            const measuredCost = experimentSelection
+              ? calculateCost(
+                  experimentSelection.model,
+                  hasMeasuredUsage
+                    ? { inputTokens: experimentInputTokens, outputTokens: experimentOutputTokens }
+                    : undefined,
+                  experimentReportText.length,
+                )
               : null;
 
             void finalizeExperimentRun({
@@ -1666,16 +1693,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               runToken: experimentRunToken,
               status,
               structuralScore: quality.structuralScore,
+              fallbackUsed: experimentFallbackUsed,
+              fallbackModel: experimentFallbackUsed ? 'gemini-3-flash-preview' : undefined,
+              modulesGenerated: experimentModulesGenerated,
               reportChars: experimentReportText.length,
               reportTokensEstimated: estimatedTokens,
-              outputTokens: estimatedTokens,
-              totalTokens: estimatedTokens,
-              outputCostUsd: estimatedCost?.outputCostUsd,
-              totalCostUsd: estimatedCost?.totalCostUsd,
-              estimatedCost: true,
-              costEstimationMethod: estimatedCost?.method ?? 'chars',
-              inputPriceUsed: estimatedCost?.inputPriceUsed,
-              outputPriceUsed: estimatedCost?.outputPriceUsed,
+              inputTokens: hasMeasuredUsage ? experimentInputTokens : undefined,
+              outputTokens: hasMeasuredUsage ? experimentOutputTokens : estimatedTokens,
+              totalTokens: hasMeasuredUsage ? experimentInputTokens + experimentOutputTokens : estimatedTokens,
+              inputCostUsd: measuredCost?.inputCostUsd,
+              outputCostUsd: measuredCost?.outputCostUsd,
+              totalCostUsd: measuredCost?.totalCostUsd,
+              estimatedCost: measuredCost?.estimated ?? true,
+              costEstimationMethod: measuredCost?.method ?? 'chars',
+              inputPriceUsed: measuredCost?.inputPriceUsed,
+              outputPriceUsed: measuredCost?.outputPriceUsed,
               sourcesCount: experimentSourcesCount,
               validSourcesCount: experimentValidSourcesCount,
               portaMarkersValid: quality.portaMarkersValid,

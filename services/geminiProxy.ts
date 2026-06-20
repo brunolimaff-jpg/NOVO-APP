@@ -53,6 +53,9 @@ interface GeminiGenerateResponse {
   text: string;
   candidates?: unknown[];
   usageMetadata?: Record<string, unknown>;
+  _llm_provider?: 'gemini' | 'litellm';
+  _llm_fallback_used?: boolean;
+  _llm_fallback_reason?: string;
 }
 
 interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {

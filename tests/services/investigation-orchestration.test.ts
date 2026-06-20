@@ -207,13 +207,20 @@ describe('investigation-orchestration', () => {
   });
 
   it('usa LiteLLM sem googleSearch quando selectedModel não é gemini', async () => {
+    const onLlmMetadata = vi.fn();
+    proxyGenerateContentMock.mockResolvedValueOnce({
+      text: 'Módulo LiteLLM',
+      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
+      _llm_provider: 'litellm',
+      _llm_fallback_used: false,
+    });
     await generateDossierModule(
       'Teia Societaria — Identidade',
       'SCHEFFER & CIA LTDA',
       'foundation block',
       'specialist block',
       'extra context',
-      { selectedModel: 'huawei/deepseek-r1-250528', temperature: 0.1 },
+      { selectedModel: 'huawei/deepseek-r1-250528', temperature: 0.1, onLlmMetadata },
     );
 
     expect(proxyGenerateContentMock).toHaveBeenCalledWith(
@@ -227,6 +234,14 @@ describe('investigation-orchestration', () => {
     );
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
+    expect(onLlmMetadata).toHaveBeenCalledWith(
+      {
+        provider: 'litellm',
+        fallbackUsed: false,
+        usage: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
+      },
+      'Teia Societaria — Identidade',
+    );
   });
 
   it('ignora foundation cache quando selectedModel LiteLLM está ativo', async () => {
