@@ -220,7 +220,6 @@ describe('investigation-orchestration', () => {
       expect.objectContaining({
         model: 'huawei/deepseek-r1-250528',
         config: expect.objectContaining({
-          useLiteLLM: true,
           temperature: 0.1,
         }),
       }),
@@ -245,7 +244,6 @@ describe('investigation-orchestration', () => {
 
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).toMatchObject({
-      useLiteLLM: true,
       systemInstruction: expect.stringContaining('foundation block'),
     });
   });

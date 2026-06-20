@@ -599,7 +599,6 @@ export async function generateDossierModule(
                   systemInstruction: finalPrompt,
                   temperature: options.temperature ?? 0.2,
                   maxOutputTokens: 8192,
-                  useLiteLLM: true,
                 }
               : {
                   systemInstruction: finalPrompt,

@@ -608,6 +608,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               runId: waterfallRunId,
               sessionId,
               operatorId: waterfallOperatorId,
+              operatorEmail: waterfallOperatorEmail ?? undefined,
               companyName: normalizedCompany || hintedCompany || undefined,
               promptVersion: PROMPT_VERSION,
               codeVersion: APP_VERSION,
@@ -1548,7 +1549,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 ? 'success'
                 : 'failed';
 
-            await finalizeExperimentRun({
+            void finalizeExperimentRun({
               id: experimentRunId,
               status,
               structuralScore: quality.structuralScore,
@@ -1563,9 +1564,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               renderSuccess: waterfallEndStatus === 'completed',
               markdownBroken: quality.markdownBroken,
               responseEmpty: !experimentReportText.trim(),
+            }).catch(error => {
+              scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
+                sessionId,
+                waterfallRunId,
+                experimentRunId,
+                error: error instanceof Error ? error.message : String(error),
+              });
             });
           } catch (error) {
-            scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
+            scoutDiag.warn('ModularDossier', 'falha ao calcular qualidade llm_experiment_run', {
               sessionId,
               waterfallRunId,
               experimentRunId,

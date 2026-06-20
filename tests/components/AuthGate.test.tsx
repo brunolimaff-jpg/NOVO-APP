@@ -151,7 +151,6 @@ describe('AuthGate — guest e migração', () => {
   });
 });
 
-
 describe('AuthGate — pós-deadline (guest liberado, sem lockout)', () => {
   beforeEach(() => {
     vi.useFakeTimers();

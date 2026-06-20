@@ -462,7 +462,7 @@ describe('api/gemini handler', () => {
     );
   });
 
-  it('roteia generateContent para LiteLLM quando useLiteLLM e provider habilitado', async () => {
+  it('roteia generateContent para LiteLLM quando modelo não-gemini e provider habilitado', async () => {
     isLiteLLMEnabledMock.mockReturnValue(true);
 
     const { default: handler } = await import('../api/gemini');
@@ -473,7 +473,6 @@ describe('api/gemini handler', () => {
         model: 'huawei/deepseek-r1-250528',
         contents: 'Empresa alvo: ACME\nGere APENAS o bloco de Raio-X Operacional',
         config: {
-          useLiteLLM: true,
           systemInstruction: 'prompt sistema',
           temperature: 0.1,
           maxOutputTokens: 8192,
@@ -529,7 +528,6 @@ describe('api/gemini handler', () => {
         model: 'huawei/deepseek-r1-250528',
         contents: 'conteudo usuario',
         config: {
-          useLiteLLM: true,
           systemInstruction: 'prompt sistema',
         },
       },

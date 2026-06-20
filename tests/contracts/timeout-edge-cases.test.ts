@@ -69,12 +69,7 @@ describe('runWithStepTimeout (produção — services/gemini/runtime)', () => {
   describe('abort', () => {
     it('abort pelo signal externo propaga para a action', async () => {
       const controller = new AbortController();
-      const promise = runWithStepTimeout(
-        'step',
-        signal => actionThatRespectsAbort(signal),
-        controller.signal,
-        10_000,
-      );
+      const promise = runWithStepTimeout('step', signal => actionThatRespectsAbort(signal), controller.signal, 10_000);
       await vi.advanceTimersByTimeAsync(100);
       controller.abort();
       await expect(promise).rejects.toThrow('Aborted');
@@ -82,12 +77,7 @@ describe('runWithStepTimeout (produção — services/gemini/runtime)', () => {
 
     it('abort externo antes do timeout não confunde com TimeoutError', async () => {
       const controller = new AbortController();
-      const promise = runWithStepTimeout(
-        'step',
-        signal => actionThatRespectsAbort(signal),
-        controller.signal,
-        2_000,
-      );
+      const promise = runWithStepTimeout('step', signal => actionThatRespectsAbort(signal), controller.signal, 2_000);
       await vi.advanceTimersByTimeAsync(500);
       controller.abort();
       await expect(promise).rejects.toThrow('Aborted');

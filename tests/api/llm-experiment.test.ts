@@ -49,6 +49,8 @@ describe('api/llm-experiment', () => {
   beforeAll(async () => {
     process.env.VITE_SUPABASE_URL = 'https://test.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-svc-role-key';
+    process.env.LLM_PROVIDER = 'litellm';
+    process.env.LLM_ALLOWLIST = 'bruno@senior.com.br';
 
     fromMock.mockImplementation(() => ({
       insert: insertMock,
@@ -73,6 +75,8 @@ describe('api/llm-experiment', () => {
   afterAll(() => {
     delete process.env.VITE_SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_ALLOWLIST;
   });
 
   beforeEach(() => {
@@ -100,7 +104,7 @@ describe('api/llm-experiment', () => {
     }));
 
     const { res, state } = makeMockRes();
-    await handler({ method: 'GET', query: { format: 'markdown' } }, res);
+    await handler({ method: 'GET', query: { format: 'markdown', operatorEmail: 'bruno@senior.com.br' } }, res);
     expect(state.statusCode).toBe(200);
     expect(String(state.body)).toContain('LLM Experiment Report');
   });
@@ -118,6 +122,7 @@ describe('api/llm-experiment', () => {
         runId: 'wf-123',
         promptVersion: 'v1',
         codeVersion: 'abc123',
+        operatorEmail: 'bruno@senior.com.br',
       }),
       res,
     );
@@ -129,7 +134,7 @@ describe('api/llm-experiment', () => {
 
   it('createRun — valida campos obrigatórios', async () => {
     const { res, state } = makeMockRes();
-    await handler(makeMockReq({ action: 'createRun' }), res);
+    await handler(makeMockReq({ action: 'createRun', operatorEmail: 'bruno@senior.com.br' }), res);
     expect(state.statusCode).toBe(400);
     expect((state.body as { error: string }).error).toContain('experimentId');
   });
@@ -143,6 +148,7 @@ describe('api/llm-experiment', () => {
         status: 'success',
         structuralScore: 90,
         totalCostUsd: 0.12,
+        operatorEmail: 'bruno@senior.com.br',
       }),
       res,
     );
@@ -155,13 +161,19 @@ describe('api/llm-experiment', () => {
 
   it('finalizeRun — exige id e status', async () => {
     const { res, state } = makeMockRes();
-    await handler(makeMockReq({ action: 'finalizeRun' }), res);
+    await handler(
+      makeMockReq({ action: 'finalizeRun', operatorEmail: 'bruno@senior.com.br' }),
+      res,
+    );
     expect(state.statusCode).toBe(400);
   });
 
   it('rejeita action inválida', async () => {
     const { res, state } = makeMockRes();
-    await handler(makeMockReq({ action: 'unknown' }), res);
+    await handler(
+      makeMockReq({ action: 'unknown', operatorEmail: 'bruno@senior.com.br' }),
+      res,
+    );
     expect(state.statusCode).toBe(400);
   });
 });

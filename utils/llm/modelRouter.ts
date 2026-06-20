@@ -1,6 +1,24 @@
 import { EXPERIMENT_MODELS, getVariantForModel } from './modelCatalog.js';
 import type { ExperimentConfig, ExperimentMode, ExperimentSelection } from './types.js';
 
+/** Lê env: parâmetro explícito (testes/server) → VITE_* (browser) → process.env. */
+function readConfigEnv(key: string, env?: NodeJS.ProcessEnv): string | undefined {
+  if (env && env[key]) {
+    return env[key];
+  }
+  const viteKey = `VITE_${key}`;
+  if (!env && typeof import.meta !== 'undefined' && import.meta.env) {
+    const viteVal = (import.meta.env as Record<string, string | boolean | undefined>)[viteKey];
+    if (typeof viteVal === 'string' && viteVal.length > 0) {
+      return viteVal;
+    }
+  }
+  if (typeof process !== 'undefined' && process.env?.[key]) {
+    return process.env[key];
+  }
+  return undefined;
+}
+
 function parseCsv(value: string | undefined): string[] {
   if (!value) return [];
   return value
@@ -25,22 +43,22 @@ function normalizeEmail(email: string | null | undefined): string {
 }
 
 export function getExperimentConfig(env: NodeJS.ProcessEnv = process.env): ExperimentConfig {
-  const provider = env.LLM_PROVIDER === 'litellm' ? 'litellm' : 'gemini';
-  const experimentMode = (env.LLM_EXPERIMENT_MODE ?? 'off') as ExperimentMode;
-  const experimentModels = parseCsv(env.LLM_EXPERIMENT_MODELS);
+  const provider = readConfigEnv('LLM_PROVIDER', env) === 'litellm' ? 'litellm' : 'gemini';
+  const experimentMode = (readConfigEnv('LLM_EXPERIMENT_MODE', env) ?? 'off') as ExperimentMode;
+  const experimentModels = parseCsv(readConfigEnv('LLM_EXPERIMENT_MODELS', env));
   const models = experimentModels.length > 0 ? experimentModels : [...EXPERIMENT_MODELS];
 
   return {
     enabled: provider === 'litellm' && experimentMode !== 'off',
     provider,
     experimentMode,
-    experimentId: env.LLM_EXPERIMENT_ID ?? 'litellm_3_modelos_v1',
-    defaultModel: env.LLM_MODEL_DEFAULT ?? models[0] ?? EXPERIMENT_MODELS[0],
+    experimentId: readConfigEnv('LLM_EXPERIMENT_ID', env) ?? 'litellm_3_modelos_v1',
+    defaultModel: readConfigEnv('LLM_MODEL_DEFAULT', env) ?? models[0] ?? EXPERIMENT_MODELS[0],
     experimentModels: models,
-    trafficSplit: parseTrafficSplit(env.LLM_EXPERIMENT_TRAFFIC_SPLIT, models.length),
-    allowlist: parseCsv(env.LLM_ALLOWLIST).map(email => email.toLowerCase()),
-    fallbackEnabled: env.LLM_FALLBACK_ENABLED !== 'false',
-    litellmBaseUrl: env.LITELLM_BASE_URL ?? '',
+    trafficSplit: parseTrafficSplit(readConfigEnv('LLM_EXPERIMENT_TRAFFIC_SPLIT', env), models.length),
+    allowlist: parseCsv(readConfigEnv('LLM_ALLOWLIST', env)).map(email => email.toLowerCase()),
+    fallbackEnabled: readConfigEnv('LLM_FALLBACK_ENABLED', env) !== 'false',
+    litellmBaseUrl: readConfigEnv('LITELLM_BASE_URL', env) ?? '',
   };
 }
 

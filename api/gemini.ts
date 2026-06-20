@@ -343,6 +343,9 @@ async function executeLiteLLMGenerateContent(
         model,
         indicators: leakShieldResult.indicators,
       });
+      if (isFallbackEnabled()) {
+        return respondWithGeminiFallback('leak_shield_blocked');
+      }
     }
 
     const finalText = leakShieldResult.text.trim();
@@ -429,8 +432,10 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         return res.status(400).json({ error: 'Missing contents' });
       }
 
-      const configIn = (body.config ?? {}) as Record<string, unknown>;
-      if (configIn.useLiteLLM === true && isLiteLLMEnabled()) {
+      const requestedModel = body.model ?? DEFAULT_GEMINI_MODEL;
+      const useLiteLLMPath =
+        isLiteLLMEnabled() && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
+      if (useLiteLLMPath) {
         return executeLiteLLMGenerateContent(ai, body, res);
       }
 

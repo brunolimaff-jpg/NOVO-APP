@@ -91,6 +91,7 @@ export interface CreateRunPayload {
   runId: string;
   sessionId?: string;
   operatorId?: string;
+  operatorEmail?: string;
   companyName?: string;
   companyCnpjHash?: string;
   promptVersion: string;
