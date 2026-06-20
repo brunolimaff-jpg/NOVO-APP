@@ -653,14 +653,23 @@ export async function generateDossierModule(
       usageMetadata: response.usageMetadata,
     });
   }
-  options.onLlmMetadata?.(
-    {
-      provider: response._llm_provider,
-      fallbackUsed: response._llm_fallback_used === true,
-      usage: response.usageMetadata,
-    },
-    moduleName,
-  );
+  const llmMetadata = {
+    provider: response._llm_provider,
+    fallbackUsed: response._llm_fallback_used === true,
+    usage: response.usageMetadata,
+  };
+  options.onLlmMetadata?.(llmMetadata, moduleName);
+  const llmLogDetails: Record<string, unknown> = {
+    module: moduleName,
+    provider: response._llm_provider ?? (useLiteLLM ? 'litellm' : 'gemini'),
+    model: modelToUse,
+    fallback_used: response._llm_fallback_used === true,
+  };
+  if (response._llm_fallback_reason) {
+    llmLogDetails.fallback_reason = response._llm_fallback_reason;
+  }
+  console.log('🦅 [Scout360][LLM] module response', llmLogDetails);
+  scoutDiag.info('LLM', 'module response', llmLogDetails);
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,
