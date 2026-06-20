@@ -2,7 +2,7 @@ import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/
 
 type Environment = Record<string, string | undefined>;
 
-const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 85_000;
+const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 140_000;
 
 const REASONING_PREFIXES = [
   /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,

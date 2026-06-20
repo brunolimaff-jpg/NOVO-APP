@@ -190,7 +190,7 @@ describe('callLiteLLM', () => {
     });
   });
 
-  it('usa budget de 85s por padrão para caber no step obrigatório de 90s', async () => {
+  it('usa budget de 140s por padrão para caber no step obrigatório de 150s', async () => {
     const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
 
     await callLiteLLM(
@@ -201,7 +201,7 @@ describe('callLiteLLM', () => {
       },
     );
 
-    expect(timeoutSpy).toHaveBeenCalledWith(85_000);
+    expect(timeoutSpy).toHaveBeenCalledWith(140_000);
   });
 
   it('respeita timeout explícito válido', async () => {
