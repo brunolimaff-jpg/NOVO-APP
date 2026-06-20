@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
+import { callLiteLLM, isFallbackEnabled, isLiteLLMEnabled } from './_llm-client.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
 
@@ -202,7 +203,182 @@ function extractGeminiHttpStatus(error: unknown): number {
 }
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
+type GenerateContentBody = Extract<ParsedBody, { action: 'generateContent' }>;
 type ThinkingLevelInput = z.infer<typeof ThinkingLevelSchema>;
+
+function contentsToUserText(contents: unknown): string {
+  if (typeof contents === 'string') return contents;
+  if (Array.isArray(contents)) {
+    return (contents as Array<{ text?: string }>)
+      .map(part => part?.text || '')
+      .filter(Boolean)
+      .join('\n');
+  }
+  return '';
+}
+
+function extractGenerateContentWatermark(contents: unknown): {
+  contentsStr: string;
+  srvModuleName: string | null;
+  srvRunId: string;
+} {
+  const contentsStr = contentsToUserText(contents);
+  const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
+  return {
+    contentsStr,
+    srvModuleName: srvModuleMatch?.[1]?.trim() || null,
+    srvRunId: `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+  };
+}
+
+async function logGenerateContentModuleEnd(
+  srvModuleName: string | null,
+  srvRunId: string,
+  model: string,
+): Promise<void> {
+  if (!srvModuleName) return;
+  void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
+    {
+      at: new Date().toISOString(),
+      t: Date.now(),
+      runId: srvRunId,
+      area: 'ServerWaterfall',
+      event: 'module:end',
+      severity: 'info',
+      payload: { module: srvModuleName, model },
+    },
+  ]);
+}
+
+async function runGeminiGenerateContent(
+  ai: GoogleGenAI,
+  body: GenerateContentBody,
+): Promise<{ text: string; candidates: unknown[]; usageMetadata?: Record<string, unknown> }> {
+  const model = body.model ?? DEFAULT_GEMINI_MODEL;
+  const contents = body.contents;
+  const configIn = (body.config ?? {}) as Record<string, unknown>;
+  const genConfig: Record<string, unknown> = {
+    temperature: toNumberSafe(configIn.temperature, 0.2),
+    maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
+  };
+
+  if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
+  if (typeof configIn.cachedContent === 'string') {
+    genConfig.cachedContent = configIn.cachedContent;
+    if (configIn.systemInstruction !== undefined) {
+      console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
+    }
+    if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
+      console.warn('[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
+    }
+    if (configIn.toolConfig !== undefined) {
+      console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
+    }
+  } else {
+    if (typeof configIn.systemInstruction === 'string') {
+      genConfig.systemInstruction = configIn.systemInstruction;
+    }
+    if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
+    if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
+  }
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: contents as Parameters<typeof ai.models.generateContent>[0]['contents'],
+    config: genConfig,
+  });
+
+  return {
+    text: extractGeminiText(response),
+    candidates: response.candidates || [],
+    usageMetadata: extractUsageMetadata(response),
+  };
+}
+
+async function executeLiteLLMGenerateContent(
+  ai: GoogleGenAI,
+  body: GenerateContentBody,
+  res: VercelResponse,
+): Promise<VercelResponse> {
+  const model = body.model ?? DEFAULT_GEMINI_MODEL;
+  const contents = body.contents;
+  const { srvModuleName, srvRunId } = extractGenerateContentWatermark(contents);
+
+  if (!contents) {
+    return res.status(400).json({ error: 'Missing contents' });
+  }
+
+  const configIn = (body.config ?? {}) as Record<string, unknown>;
+  const temperature = toNumberSafe(configIn.temperature, 0.2);
+  const maxOutputTokens = toNumberSafe(configIn.maxOutputTokens, 8192);
+  const systemInstruction = typeof configIn.systemInstruction === 'string' ? configIn.systemInstruction : undefined;
+  const userContent = contentsToUserText(contents);
+
+  const respondWithGeminiFallback = async (reason: string) => {
+    console.warn(`[GeminiProxy] LiteLLM fallback para Gemini (${reason})`, { model });
+    const geminiResult = await runGeminiGenerateContent(ai, body);
+    await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
+    return res.status(200).json({
+      ...geminiResult,
+      groundingChunks: [],
+      _llm_provider: 'gemini',
+      _llm_fallback_used: true,
+      _llm_fallback_reason: reason,
+    });
+  };
+
+  try {
+    const litellmResult = await callLiteLLM({
+      model,
+      systemInstruction,
+      userContent,
+      temperature,
+      maxOutputTokens,
+    });
+
+    const leakShieldResult = applyPromptLeakShieldLocal(litellmResult.text);
+    if (leakShieldResult.blocked) {
+      console.warn('[PromptLeakShield][api/gemini] resposta LiteLLM bloqueada', {
+        action: body.action,
+        model,
+        indicators: leakShieldResult.indicators,
+      });
+    }
+
+    const finalText = leakShieldResult.text.trim();
+    if (!finalText) {
+      if (!isFallbackEnabled()) {
+        await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
+        return res.status(200).json({
+          text: '',
+          candidates: [],
+          usageMetadata: litellmResult.usage,
+          groundingChunks: [],
+          _llm_provider: 'litellm',
+          _llm_fallback_used: false,
+        });
+      }
+      return respondWithGeminiFallback('empty_response');
+    }
+
+    await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
+    return res.status(200).json({
+      text: leakShieldResult.text,
+      candidates: [],
+      usageMetadata: litellmResult.usage,
+      groundingChunks: [],
+      _llm_provider: 'litellm',
+      _llm_fallback_used: false,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown LiteLLM error';
+    console.error('[GeminiProxy] LiteLLM generateContent falhou:', message);
+    if (!isFallbackEnabled()) {
+      throw error;
+    }
+    return respondWithGeminiFallback('error');
+  }
+}
 
 function resolveThinkingLevel(thinkingLevel?: ThinkingLevelInput, thinkingMode?: boolean): ThinkingLevelInput {
   if (thinkingLevel) return thinkingLevel;
@@ -233,17 +409,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
     case 'generateContent': {
       const model = body.model ?? DEFAULT_GEMINI_MODEL;
       const contents = body.contents;
-
-      // ── Server-side watermark: extrai nome do modulo das contents ──
-      const contentsStr =
-        typeof contents === 'string'
-          ? contents
-          : Array.isArray(contents)
-            ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
-            : '';
-      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
-      const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
-      const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const { srvModuleName, srvRunId } = extractGenerateContentWatermark(contents);
 
       if (srvModuleName) {
         void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
@@ -264,58 +430,14 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       }
 
       const configIn = (body.config ?? {}) as Record<string, unknown>;
-      const genConfig: Record<string, unknown> = {
-        temperature: toNumberSafe(configIn.temperature, 0.2),
-        maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
-      };
-
-      if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
-      if (typeof configIn.cachedContent === 'string') {
-        genConfig.cachedContent = configIn.cachedContent;
-        if (configIn.systemInstruction !== undefined) {
-          console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
-        }
-        if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
-          console.warn(
-            '[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent',
-          );
-        }
-        if (configIn.toolConfig !== undefined) {
-          console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
-        }
-      } else {
-        if (typeof configIn.systemInstruction === 'string') {
-          genConfig.systemInstruction = configIn.systemInstruction;
-        }
-        if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
-        if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
+      if (configIn.useLiteLLM === true && isLiteLLMEnabled()) {
+        return executeLiteLLMGenerateContent(ai, body, res);
       }
 
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config: genConfig,
-      });
+      const geminiResult = await runGeminiGenerateContent(ai, body);
+      await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
 
-      if (srvModuleName) {
-        void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
-          {
-            at: new Date().toISOString(),
-            t: Date.now(),
-            runId: srvRunId,
-            area: 'ServerWaterfall',
-            event: 'module:end',
-            severity: 'info',
-            payload: { module: srvModuleName, model },
-          },
-        ]);
-      }
-
-      return res.status(200).json({
-        text: extractGeminiText(response),
-        candidates: response.candidates || [],
-        usageMetadata: extractUsageMetadata(response),
-      });
+      return res.status(200).json(geminiResult);
     }
 
     case 'createCachedContent': {

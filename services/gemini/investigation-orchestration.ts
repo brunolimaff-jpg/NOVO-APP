@@ -551,9 +551,14 @@ export async function generateDossierModule(
 ): Promise<string> {
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
   const usesFoundationCache = Boolean(options.foundationCacheName);
+  const modelToUse = options.selectedModel || STABLE_RESEARCH_MODEL_ID;
+  const useLiteLLM = Boolean(options.selectedModel) && !options.selectedModel?.includes('gemini');
+  const effectiveUsesFoundationCache = usesFoundationCache && !useLiteLLM;
   const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
-  const finalPrompt = usesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
-  const promptChars = usesFoundationCache ? dynamicPrompt.length : `${foundationBlock}\n\n${dynamicPrompt}`.length;
+  const finalPrompt = effectiveUsesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
+  const promptChars = effectiveUsesFoundationCache
+    ? dynamicPrompt.length
+    : `${foundationBlock}\n\n${dynamicPrompt}`.length;
   const startedAt = Date.now();
 
   scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
@@ -574,27 +579,34 @@ export async function generateDossierModule(
   }
 
   const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
-  const contents = usesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
+  const contents = effectiveUsesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
 
   const response = await runWithStepTimeout(
     `DossierModule:${moduleName}`,
     stepSignal =>
       proxyGenerateContent(
         {
-          model: STABLE_RESEARCH_MODEL_ID,
+          model: modelToUse,
           contents,
-          config: usesFoundationCache
+          config: effectiveUsesFoundationCache
             ? {
                 cachedContent: options.foundationCacheName,
                 temperature: options.temperature ?? 0.2,
                 maxOutputTokens: 8192,
               }
-            : {
-                systemInstruction: finalPrompt,
-                temperature: options.temperature ?? 0.2,
-                maxOutputTokens: 8192,
-                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
-              },
+            : useLiteLLM
+              ? {
+                  systemInstruction: finalPrompt,
+                  temperature: options.temperature ?? 0.2,
+                  maxOutputTokens: 8192,
+                  useLiteLLM: true,
+                }
+              : {
+                  systemInstruction: finalPrompt,
+                  temperature: options.temperature ?? 0.2,
+                  maxOutputTokens: 8192,
+                  tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
+                },
         },
         stepSignal,
       ),

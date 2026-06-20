@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { registerWaterfallStart, registerWaterfallEnd } from './waterfall-guard';
 import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
+import { APP_VERSION } from '../../constants';
 import {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
@@ -11,6 +12,7 @@ import {
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_TEIA_IDENTITY_MODULE,
   PROMPT_TEIA_DEEP_MODULE,
+  PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
@@ -60,6 +62,10 @@ import {
   type DossierWaterfallModule,
   type RunWaterfallModule,
 } from './porta-reconciliation';
+import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/experiment';
+import { getExperimentConfig, isOperatorAllowed, selectExperimentModel } from '../../utils/llm/modelRouter';
+import { checkReportQuality } from '../../utils/llm/reportQuality';
+import type { ExperimentSelection } from '../../utils/llm/types';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -575,6 +581,46 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
+      let experimentSelection: ExperimentSelection | null = null;
+      let experimentRunId: string | null = null;
+      let experimentReportText = '';
+      let experimentSourcesCount = 0;
+      let experimentValidSourcesCount = 0;
+      let experimentPortaScore: number | null = null;
+      const waterfallStartedAt = Date.now();
+
+      const experimentConfig = getExperimentConfig();
+      const operatorAllowed = isOperatorAllowed(waterfallOperatorEmail, experimentConfig);
+      const llmEnabled = experimentConfig.enabled && operatorAllowed;
+      const effectiveFoundationCacheEnabled = llmEnabled ? false : isFoundationCacheEnabled();
+
+      if (llmEnabled) {
+        experimentSelection = selectExperimentModel({ config: experimentConfig, seed: Date.now() });
+        if (experimentSelection) {
+          try {
+            experimentRunId = await createExperimentRun({
+              experimentId: experimentSelection.experimentId,
+              variant: experimentSelection.variant,
+              selectedModel: experimentSelection.model,
+              provider: experimentSelection.provider,
+              litellmBaseUrl: experimentConfig.litellmBaseUrl || undefined,
+              environment: import.meta.env.PROD ? 'production' : 'preview',
+              runId: waterfallRunId,
+              sessionId,
+              operatorId: waterfallOperatorId,
+              companyName: normalizedCompany || hintedCompany || undefined,
+              promptVersion: PROMPT_VERSION,
+              codeVersion: APP_VERSION,
+            });
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao criar llm_experiment_run; continuando waterfall', {
+              sessionId,
+              waterfallRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
 
       try {
         let accumulatedText = '';
@@ -671,7 +717,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           teiaResearchText: teiaResearchContext.text,
         });
 
-        if (isFoundationCacheEnabled()) {
+        if (effectiveFoundationCacheEnabled) {
           try {
             foundationCacheName = await createWaterfallFoundationCache({
               foundationBlock: SHARED_FOUNDATION_BLOCK,
@@ -705,6 +751,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
           ...(foundationCacheName ? { foundationCacheName } : {}),
+          ...(experimentSelection ? { selectedModel: experimentSelection.model } : {}),
           // Cost tracking (via message-orchestrator args + sessionStorage fallback)
           operatorId: waterfallOperatorId,
           operatorEmail: waterfallOperatorEmail,
@@ -1076,6 +1123,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           portaIntegrityHold || !waterfallPortaResolution
             ? null
             : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
+        experimentPortaScore = waterfallScorePorta?.score ?? null;
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallConstrainedText = sanitizeSensitivePersonalData(
           enforceSeniorEvidenceConstraints(
@@ -1130,6 +1178,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        experimentReportText = waterfallFinalText;
+        experimentSourcesCount = waterfallGroundingSources.length;
+        experimentValidSourcesCount = waterfallGroundingSources.filter(
+          source => source.verification === 'fallback' || source.verification === 'grounding',
+        ).length;
         const hasFallbackVerified =
           Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
           waterfallGroundingSources.some(source => source.verification === 'fallback');
@@ -1480,6 +1533,47 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         waterfallEndStatus = 'completed';
       } finally {
+        if (experimentRunId) {
+          try {
+            const quality = checkReportQuality({
+              text: experimentReportText,
+              sourcesCount: experimentSourcesCount,
+              validSourcesCount: experimentValidSourcesCount,
+              portaScore: experimentPortaScore,
+              parserSuccess: waterfallEndStatus === 'completed',
+            });
+            const status = quality.isQualityFailure
+              ? 'quality_failure'
+              : waterfallEndStatus === 'completed'
+                ? 'success'
+                : 'failed';
+
+            await finalizeExperimentRun({
+              id: experimentRunId,
+              status,
+              structuralScore: quality.structuralScore,
+              reportChars: experimentReportText.length,
+              sourcesCount: experimentSourcesCount,
+              validSourcesCount: experimentValidSourcesCount,
+              portaMarkersValid: quality.portaMarkersValid,
+              teiaComplexidadePresent: quality.teiaComplexidadePresent,
+              portaScorePresent: experimentPortaScore !== null,
+              portaScore: experimentPortaScore ?? undefined,
+              waterfallDurationMs: Date.now() - waterfallStartedAt,
+              renderSuccess: waterfallEndStatus === 'completed',
+              markdownBroken: quality.markdownBroken,
+              responseEmpty: !experimentReportText.trim(),
+            });
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
+              sessionId,
+              waterfallRunId,
+              experimentRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
         // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
         // Timeout de 15s com warning se a promise não resolver.
         if (foundationCacheName) {

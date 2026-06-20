@@ -206,6 +206,50 @@ describe('investigation-orchestration', () => {
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
   });
 
+  it('usa LiteLLM sem googleSearch quando selectedModel não é gemini', async () => {
+    await generateDossierModule(
+      'Teia Societaria — Identidade',
+      'SCHEFFER & CIA LTDA',
+      'foundation block',
+      'specialist block',
+      'extra context',
+      { selectedModel: 'huawei/deepseek-r1-250528', temperature: 0.1 },
+    );
+
+    expect(proxyGenerateContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'huawei/deepseek-r1-250528',
+        config: expect.objectContaining({
+          useLiteLLM: true,
+          temperature: 0.1,
+        }),
+      }),
+      undefined,
+    );
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
+  });
+
+  it('ignora foundation cache quando selectedModel LiteLLM está ativo', async () => {
+    await generateDossierModule(
+      'Operação / Cadeia de Valor',
+      'SCHEFFER & CIA LTDA',
+      'foundation block',
+      'specialist block',
+      'extra context',
+      {
+        foundationCacheName: 'cachedContents/test-cache',
+        selectedModel: 'huawei/deepseek-v4-flash',
+      },
+    );
+
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).toMatchObject({
+      useLiteLLM: true,
+      systemInstruction: expect.stringContaining('foundation block'),
+    });
+  });
+
   it('não consulta Pinecone quando o dossiê segue pela trilha mega prompt', async () => {
     await sendMessageToGemini(
       'Dossiê completo de [SCHEFFER & CIA LTDA]. Contexto cadastral obrigatório: CNPJ 04.733.767/0001-80.',

@@ -1,0 +1,186 @@
+import OpenAI from 'openai';
+import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
+
+const REASONING_PREFIXES = [
+  /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
+  /^vou analisar[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
+  /^i(?:'|')?ll analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
+];
+
+export function isLiteLLMEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.LLM_PROVIDER === 'litellm' && Boolean(env.LITELLM_API_KEY) && Boolean(env.LITELLM_BASE_URL);
+}
+
+export function isFallbackEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.LLM_FALLBACK_ENABLED !== 'false';
+}
+
+function stripClosedTag(text: string, tag: string): { text: string; removedChars: number } {
+  const regex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'gi');
+  const before = text.length;
+  const cleaned = text.replace(regex, '').trim();
+  return { text: cleaned, removedChars: before - cleaned.length };
+}
+
+function stripUnclosedTag(text: string, tag: string): { text: string; removedChars: number } {
+  const openIndex = text.search(new RegExp(`<${tag}>`, 'i'));
+  if (openIndex < 0) return { text, removedChars: 0 };
+
+  const afterOpen = text.slice(openIndex);
+  if (new RegExp(`</${tag}>`, 'i').test(afterOpen)) {
+    return { text, removedChars: 0 };
+  }
+
+  const markerOffset = afterOpen.search(/\n#+\s|\[\[PORTA|\{/);
+  if (markerOffset > 0) {
+    const cleaned = `${text.slice(0, openIndex)}${afterOpen.slice(markerOffset)}`.trimStart();
+    return { text: cleaned, removedChars: text.length - cleaned.length };
+  }
+
+  const regex = new RegExp(`<${tag}>[\\s\\S]*$`, 'i');
+  const before = text.length;
+  const cleaned = text.replace(regex, '').trim();
+  return { text: cleaned, removedChars: before - cleaned.length };
+}
+
+function stripReasoningBeforeFirstHeading(text: string): { text: string; removedChars: number } {
+  const markerIndex = text.search(/(^|\n)#+\s|\[\[PORTA|\{/);
+  if (markerIndex <= 0) return { text, removedChars: 0 };
+
+  const prefix = text.slice(0, markerIndex);
+  if (!prefix.trim()) return { text, removedChars: 0 };
+
+  const looksLikeReasoning =
+    /<(?:redacted_thinking|reasoning|analysis)>/i.test(prefix) ||
+    /^(let me|vou analisar|i(?:'|')?ll analyze)/i.test(prefix.trim());
+
+  if (!looksLikeReasoning) return { text, removedChars: 0 };
+
+  const cleaned = text.slice(markerIndex).trimStart();
+  return { text: cleaned, removedChars: prefix.length };
+}
+
+function stripExplicitPrefixes(text: string): { text: string; removedChars: number } {
+  let current = text;
+  let removedChars = 0;
+
+  for (const regex of REASONING_PREFIXES) {
+    const before = current.length;
+    current = current.replace(regex, '').trimStart();
+    removedChars += before - current.length;
+  }
+
+  return { text: current, removedChars };
+}
+
+export function normalizeModelOutput(raw: string): NormalizeModelOutputResult {
+  let text = raw ?? '';
+  let reasoningCharsRemoved = 0;
+
+  const layers: Array<(input: string) => { text: string; removedChars: number }> = [
+    input => stripClosedTag(input, 'redacted_thinking'),
+    input => stripClosedTag(input, 'reasoning'),
+    input => stripClosedTag(input, 'analysis'),
+    input => stripUnclosedTag(input, 'redacted_thinking'),
+    input => stripUnclosedTag(input, 'reasoning'),
+    input => stripUnclosedTag(input, 'analysis'),
+    stripReasoningBeforeFirstHeading,
+    stripExplicitPrefixes,
+  ];
+
+  for (const layer of layers) {
+    const result = layer(text);
+    text = result.text;
+    reasoningCharsRemoved += result.removedChars;
+  }
+
+  text = ensureMarkdownStart(text);
+
+  return {
+    text,
+    reasoningRemoved: reasoningCharsRemoved > 0,
+    reasoningCharsRemoved,
+  };
+}
+
+export function ensureMarkdownStart(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    return trimmed;
+  }
+
+  if (/^#+\s/.test(trimmed) || /\[\[PORTA/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
+export function normalizeUsage(usage?: {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}): LiteLLMUsageMetadata {
+  return {
+    promptTokenCount: usage?.prompt_tokens,
+    candidatesTokenCount: usage?.completion_tokens,
+    totalTokenCount: usage?.total_tokens,
+  };
+}
+
+export interface LiteLLMCallInput {
+  model: string;
+  systemInstruction?: string;
+  userContent: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+}
+
+export interface LiteLLMCallResult {
+  text: string;
+  usage: LiteLLMUsageMetadata;
+  finishReason?: string;
+  reasoningRemoved: boolean;
+  reasoningCharsRemoved: number;
+}
+
+function getOpenAIClient(env: NodeJS.ProcessEnv = process.env): OpenAI {
+  return new OpenAI({
+    apiKey: env.LITELLM_API_KEY,
+    baseURL: env.LITELLM_BASE_URL,
+  });
+}
+
+export async function callLiteLLM(
+  input: LiteLLMCallInput,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<LiteLLMCallResult> {
+  const client = getOpenAIClient(env);
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+  if (input.systemInstruction) {
+    messages.push({ role: 'system', content: input.systemInstruction });
+  }
+  messages.push({ role: 'user', content: input.userContent });
+
+  const completion = await client.chat.completions.create({
+    model: input.model,
+    messages,
+    temperature: input.temperature ?? 0.1,
+    max_tokens: input.maxOutputTokens ?? 8192,
+  });
+
+  const choice = completion.choices[0];
+  const rawText = choice?.message?.content ?? '';
+  const normalized = normalizeModelOutput(rawText);
+
+  return {
+    text: normalized.text,
+    usage: normalizeUsage(completion.usage),
+    finishReason: choice?.finish_reason,
+    reasoningRemoved: normalized.reasoningRemoved,
+    reasoningCharsRemoved: normalized.reasoningCharsRemoved,
+  };
+}

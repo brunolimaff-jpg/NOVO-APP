@@ -10,6 +10,15 @@ const createChatMock = vi.hoisted(() =>
 const generateContentMock = vi.hoisted(() => vi.fn());
 const createCacheMock = vi.hoisted(() => vi.fn());
 const deleteCacheMock = vi.hoisted(() => vi.fn());
+const callLiteLLMMock = vi.hoisted(() => vi.fn());
+const isLiteLLMEnabledMock = vi.hoisted(() => vi.fn(() => false));
+const isFallbackEnabledMock = vi.hoisted(() => vi.fn(() => true));
+
+vi.mock('../api/_llm-client.js', () => ({
+  callLiteLLM: callLiteLLMMock,
+  isLiteLLMEnabled: isLiteLLMEnabledMock,
+  isFallbackEnabled: isFallbackEnabledMock,
+}));
 
 vi.mock('@google/genai', () => ({
   ThinkingLevel: {
@@ -38,6 +47,14 @@ describe('api/gemini handler', () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GEMINI_API_KEY = 'test-key';
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isFallbackEnabledMock.mockReturnValue(true);
+    callLiteLLMMock.mockResolvedValue({
+      text: '# Dossiê LiteLLM',
+      usage: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 },
+      reasoningRemoved: false,
+      reasoningCharsRemoved: 0,
+    });
   });
 
   it('transforma erro HTTP do open-web-search em functionResponse de erro', async () => {
@@ -441,6 +458,97 @@ describe('api/gemini handler', () => {
         usageMetadata: expect.objectContaining({
           cachedContentTokenCount: 12000,
         }),
+      }),
+    );
+  });
+
+  it('roteia generateContent para LiteLLM quando useLiteLLM e provider habilitado', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'huawei/deepseek-r1-250528',
+        contents: 'Empresa alvo: ACME\nGere APENAS o bloco de Raio-X Operacional',
+        config: {
+          useLiteLLM: true,
+          systemInstruction: 'prompt sistema',
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(callLiteLLMMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'huawei/deepseek-r1-250528',
+        systemInstruction: 'prompt sistema',
+        temperature: 0.1,
+        maxOutputTokens: 8192,
+      }),
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '# Dossiê LiteLLM',
+        _llm_provider: 'litellm',
+        _llm_fallback_used: false,
+      }),
+    );
+  });
+
+  it('faz fallback Gemini quando LiteLLM retorna vazio', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    callLiteLLMMock.mockResolvedValueOnce({
+      text: '   ',
+      usage: { promptTokenCount: 1, candidatesTokenCount: 0, totalTokenCount: 1 },
+      reasoningRemoved: false,
+      reasoningCharsRemoved: 0,
+    });
+    generateContentMock.mockResolvedValueOnce({
+      text: 'resposta gemini fallback',
+      candidates: [],
+      usageMetadata: { promptTokenCount: 5 },
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'huawei/deepseek-r1-250528',
+        contents: 'conteudo usuario',
+        config: {
+          useLiteLLM: true,
+          systemInstruction: 'prompt sistema',
+        },
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(generateContentMock).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'resposta gemini fallback',
+        _llm_provider: 'gemini',
+        _llm_fallback_used: true,
       }),
     );
   });

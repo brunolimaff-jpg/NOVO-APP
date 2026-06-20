@@ -50,6 +50,10 @@ describe('supabaseMigrations contract — estrutura', () => {
   it('migration 20260612_cron_cleanup_function.sql existe (Phase 3)', () => {
     expect(existsSync(resolve(MIGRATIONS_DIR, '20260612_cron_cleanup_function.sql'))).toBe(true);
   });
+
+  it('migration 20260620_llm_experiment.sql existe (LiteLLM experiment)', () => {
+    expect(existsSync(resolve(MIGRATIONS_DIR, '20260620_llm_experiment.sql'))).toBe(true);
+  });
 });
 
 describe('supabaseMigrations contract — RLS policies', () => {
@@ -83,6 +87,31 @@ describe('supabaseMigrations contract — RLS policies', () => {
       });
     }
   }
+});
+
+describe('supabaseMigrations contract — llm experiment', () => {
+  const llmMigration = existsSync(resolve(MIGRATIONS_DIR, '20260620_llm_experiment.sql'))
+    ? readFileSync(resolve(MIGRATIONS_DIR, '20260620_llm_experiment.sql'), 'utf-8')
+    : '';
+
+  it('tabela llm_experiment_runs existe com RLS deny_anon_all', () => {
+    expect(llmMigration).toContain('CREATE TABLE IF NOT EXISTS llm_experiment_runs');
+    expect(llmMigration).toContain('ALTER TABLE llm_experiment_runs ENABLE ROW LEVEL SECURITY');
+    expect(llmMigration).toContain('deny_anon_all_llm_experiment_runs');
+    expect(llmMigration).toContain('TO anon');
+    expect(llmMigration).toContain('USING (false)');
+  });
+
+  it('view llm_model_daily_report agrega por modelo', () => {
+    expect(llmMigration).toContain('CREATE OR REPLACE VIEW llm_model_daily_report');
+    expect(llmMigration).toContain('runs_quality_failure');
+    expect(llmMigration).toContain('avg_structural_score');
+  });
+
+  it('índices llm_experiment_runs documentados', () => {
+    expect(llmMigration).toContain('idx_llm_runs_experiment_model');
+    expect(llmMigration).toContain('idx_llm_runs_status');
+  });
 });
 
 describe('supabaseMigrations contract — tabelas críticas documentadas', () => {
