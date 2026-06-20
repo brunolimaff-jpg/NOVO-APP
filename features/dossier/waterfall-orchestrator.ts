@@ -623,6 +623,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let experimentRunId: string | null = null;
       let experimentRunToken: string | null = null;
       let experimentReportText = '';
+      let experimentQualityText = '';
       let experimentSourcesCount = 0;
       let experimentValidSourcesCount = 0;
       let experimentPortaScore: number | null = null;
@@ -1191,6 +1192,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             ? null
             : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
         experimentPortaScore = waterfallScorePorta?.score ?? null;
+        // O texto visível remove markers internos; o gate precisa auditar o bruto reconciliado.
+        experimentQualityText = accumulatedText;
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallConstrainedText = sanitizeSensitivePersonalData(
           enforceSeniorEvidenceConstraints(
@@ -1603,7 +1606,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         if (experimentRunId && experimentRunToken) {
           try {
             const quality = checkReportQuality({
-              text: experimentReportText,
+              text: experimentQualityText || experimentReportText,
               sourcesCount: experimentSourcesCount,
               validSourcesCount: experimentValidSourcesCount,
               portaScore: experimentPortaScore,
