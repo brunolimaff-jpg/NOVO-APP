@@ -475,6 +475,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             signal,
             isFirstInteraction,
             sessionCnpjDigits,
+            operatorId: operatorId || undefined,
+            operatorEmail: operatorEmail || undefined,
           });
 
           const postGuard = getWaterfallGuardState(sessionId);
