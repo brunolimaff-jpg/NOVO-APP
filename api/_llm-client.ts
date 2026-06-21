@@ -150,10 +150,7 @@ export interface LiteLLMCallResult {
   reasoningCharsRemoved: number;
 }
 
-export async function callLiteLLM(
-  input: LiteLLMCallInput,
-  env: Environment = process.env,
-): Promise<LiteLLMCallResult> {
+export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = process.env): Promise<LiteLLMCallResult> {
   const baseUrl = env.LITELLM_BASE_URL?.replace(/\/$/, '');
   const apiKey = env.LITELLM_API_KEY;
   if (!baseUrl || !apiKey) {

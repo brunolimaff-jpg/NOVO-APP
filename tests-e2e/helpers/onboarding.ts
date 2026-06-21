@@ -55,10 +55,7 @@ interface DismissDuplicateDossierOptions {
   timeoutMs?: number;
 }
 
-export async function dismissDuplicateDossierModal(
-  page: Page,
-  options: DismissDuplicateDossierOptions = {},
-) {
+export async function dismissDuplicateDossierModal(page: Page, options: DismissDuplicateDossierOptions = {}) {
   const { timeoutMs = 30_000, required = false } = options;
   await dismissMigrationBanner(page);
 
@@ -133,9 +130,7 @@ export async function startNewInvestigation(page: Page) {
 
   await openSidebarIfNeeded(page);
 
-  const novaInvestigacao = page
-    .locator('#sessions-sidebar-panel')
-    .getByRole('button', { name: /nova investigação/i });
+  const novaInvestigacao = page.locator('#sessions-sidebar-panel').getByRole('button', { name: /nova investigação/i });
   await expect(novaInvestigacao).toBeVisible({ timeout: 5000 });
   await novaInvestigacao.evaluate(el => (el as HTMLElement).click());
   await expect(investigationInput).toBeVisible({ timeout: 15_000 });

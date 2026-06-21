@@ -193,7 +193,10 @@ describe('api/llm-experiment', () => {
 
   it('rejeita sessão ausente mesmo quando o body contém email allowlisted', async () => {
     const { res, state } = makeMockRes();
-    await handler({ method: 'POST', headers: {}, body: { action: 'createRun', operatorEmail: 'bruno@senior.com.br' } }, res);
+    await handler(
+      { method: 'POST', headers: {}, body: { action: 'createRun', operatorEmail: 'bruno@senior.com.br' } },
+      res,
+    );
     expect(state.statusCode).toBe(401);
   });
 

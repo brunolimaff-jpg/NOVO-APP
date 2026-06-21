@@ -56,6 +56,13 @@ vercel_build_tag.json
 # IDE local (Google Project IDX)
 .idx/
 
+# Supabase temp artifacts
+supabase/.temp/
+
+# Session screenshots (temporary evidence)
+pr386-*.png
+scheffer-*.png
+
 # Shared Obsidian repo graph
 .obsidian/*
 !.obsidian/core-plugins.json

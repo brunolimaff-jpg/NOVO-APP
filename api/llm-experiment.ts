@@ -26,7 +26,9 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function signRun(id: string, userId: string): string {
-  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY || '').update(`${id}:${userId}`).digest('hex');
+  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY || '')
+    .update(`${id}:${userId}`)
+    .digest('hex');
 }
 
 function verifyRunToken(id: string, userId: string, token: unknown): boolean {

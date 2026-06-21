@@ -582,9 +582,7 @@ export async function generateDossierModule(
     });
   }
 
-  const portaMarkerTemplates = useLiteLLM
-    ? Array.from(new Set(specialistPrompt.match(/^\[\[PORTA.*]]$/gm) ?? []))
-    : [];
+  const portaMarkerTemplates = useLiteLLM ? Array.from(new Set(specialistPrompt.match(/^\[\[PORTA.*]]$/gm) ?? [])) : [];
   const markerReminder = useLiteLLM
     ? `\nObrigatório: não conclua sem emitir os markers [[PORTA_*]] exigidos pelo prompt especialista, exatamente no formato solicitado.${
         portaMarkerTemplates.length > 0
