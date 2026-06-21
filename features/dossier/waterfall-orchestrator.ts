@@ -1165,53 +1165,57 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
-        scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
-        try {
-          const result = await Promise.race([
-            reconcileWaterfallPorta({
-              sessionId,
-              signal,
-              resolvedMegaCompany,
-              sessionCnpjDigits,
-              dossierSeedContext,
-              waterfallLookupContext,
-              seniorEvidenceContext,
-              staticDossierContext,
-              foundationCacheName,
-              accumulatedText,
-              modulesByName,
-              runWaterfallModule,
-              optionalStepFailures,
-              setFailureCount,
-            }),
-            new Promise<never>((_, reject) => {
-              portaTimeoutId = setTimeout(
-                () => reject(new Error('PORTA reconciliation timeout')),
-                PORTA_RECONCILIATION_TIMEOUT_MS,
-              );
-            }),
-          ]);
-          assertNotAborted();
-          reconciledText = result.accumulatedText;
-          waterfallPortaResolution = result.resolution;
-          portaIntegrityHold = result.portaIntegrityHold;
-        } catch (error) {
-          if (signal?.aborted) throw error;
-          scoutDiag.warn(
-            'ModularDossier',
-            'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
-            {
-              sessionId,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-          optionalStepFailures.add('porta-reconciliation');
-          setFailureCount((prev: number) => prev + 1);
-          portaIntegrityHold = true;
-        } finally {
-          if (portaTimeoutId) clearTimeout(portaTimeoutId);
+        if (!llmEnabled) {
+          scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
+          try {
+            const result = await Promise.race([
+              reconcileWaterfallPorta({
+                sessionId,
+                signal,
+                resolvedMegaCompany,
+                sessionCnpjDigits,
+                dossierSeedContext,
+                waterfallLookupContext,
+                seniorEvidenceContext,
+                staticDossierContext,
+                foundationCacheName,
+                accumulatedText,
+                modulesByName,
+                runWaterfallModule,
+                optionalStepFailures,
+                setFailureCount,
+              }),
+              new Promise<never>((_, reject) => {
+                portaTimeoutId = setTimeout(
+                  () => reject(new Error('PORTA reconciliation timeout')),
+                  PORTA_RECONCILIATION_TIMEOUT_MS,
+                );
+              }),
+            ]);
+            assertNotAborted();
+            reconciledText = result.accumulatedText;
+            waterfallPortaResolution = result.resolution;
+            portaIntegrityHold = result.portaIntegrityHold;
+          } catch (error) {
+            if (signal?.aborted) throw error;
+            scoutDiag.warn(
+              'ModularDossier',
+              'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
+              {
+                sessionId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            );
+            optionalStepFailures.add('porta-reconciliation');
+            setFailureCount((prev: number) => prev + 1);
+            portaIntegrityHold = true;
+          } finally {
+            if (portaTimeoutId) clearTimeout(portaTimeoutId);
+          }
+          scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
+        } else {
+          scoutDiag.info('WaterfallLifecycle', 'porta-reconciliation-skipped-llm-experiment', { sessionId, waterfallRunId });
         }
-        scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
 
