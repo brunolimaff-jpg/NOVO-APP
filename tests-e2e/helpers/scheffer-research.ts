@@ -69,10 +69,6 @@ export function captureCnpjLookup(page: Page, timeoutMs = CNPJ_LOOKUP_TIMEOUT_MS
   });
 }
 
-export function watchCnpjLookup(page: Page) {
-  return captureCnpjLookup(page);
-}
-
 export async function assertCnpjLivePayload(response: Response) {
   expect(response.ok(), `CNPJ lookup falhou com HTTP ${response.status()}`).toBeTruthy();
   const payload = (await response.json()) as CnpjLivePayload;
@@ -87,8 +83,8 @@ export function watchSocioSearchResponses(page: Page, bucket: SocioSearchCapture
 
     const status = response.status();
     const ok = response.ok();
-    let degraded = !ok;
-    let companiesCount = 0;
+    let degraded: boolean;
+    let companiesCount: number;
 
     try {
       const payload = (await response.json()) as { degraded?: boolean; companies?: unknown[] };
