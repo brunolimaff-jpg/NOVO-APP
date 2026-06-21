@@ -45,7 +45,10 @@ function isBlocked(url: string): boolean {
 
 async function braveSearch(query: string): Promise<{ content: string; sources: OpenWebSearchSource[] } | null> {
   const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn('[BraveSearch] API key ausente em process.env');
+    return null;
+  }
 
   try {
     const params = new URLSearchParams({
@@ -57,12 +60,19 @@ async function braveSearch(query: string): Promise<{ content: string; sources: O
       headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey },
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[BraveSearch] API respondeu ${res.status}`);
+      return null;
+    }
 
     const data = (await res.json()) as { web?: { results?: BraveResult[] } };
+    const rawCount = data.web?.results?.length ?? 0;
     const curated = (data.web?.results ?? []).filter(r => !isBlocked(r.url)).slice(0, 4);
 
-    if (curated.length === 0) return null;
+    if (curated.length === 0) {
+      console.log(`[BraveSearch] query="${query.slice(0, 60)}" → 0 após curadoria (${rawCount} brutos)`);
+      return null;
+    }
 
     const content = curated.map(r => `- ${r.title}: ${r.description?.slice(0, 300)}\n  ${r.url}`).join('\n\n');
     const sources: OpenWebSearchSource[] = curated.map(r => ({
@@ -72,7 +82,8 @@ async function braveSearch(query: string): Promise<{ content: string; sources: O
       provider: 'brave' as const,
     }));
     return { content, sources };
-  } catch {
+  } catch (error) {
+    console.error('[BraveSearch] exceção:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }
