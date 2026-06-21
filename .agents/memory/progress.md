@@ -1,5 +1,19 @@
 # Progress
 
+### 2026-06-21 — Fase 1 + Fase 2: refatoração LiteLLM com paridade real ao Gemini
+
+- **Fase 1 (Limpeza WIP):** 18 arquivos consolidados em 2 commits (docs + formatação). `.gitignore` atualizado com `supabase/.temp/` e screenshots.
+- **Fase 2 (Paridade LiteLLM):** 5 desabilitações silenciosas eliminadas:
+  - Catálogo: 3 modelos na rotação (Grok 4.1 Fast, DeepSeek V3.2, Grok 4 Fast Reasoning) — output ≤ $2/M
+  - Output tokens 4096→8192 (paridade Gemini)
+  - Retry com backoff exponencial (5 tentativas, 2s-30s) via `withAutoRetry`
+  - Markers PORTA em XML estruturado (`<instrucao_obrigatoria>`) + validação pós-resposta com `parsePortaMarkerV2`
+  - Grounding híbrido: novo módulo `utils/llm/groundingHybrid.ts` (CRM + Brasil API), integrado via `groundingContextBlock`
+  - Leak shield: `preserveInternalMarkersWhenSafe: true` em todos os call sites
+- **Branch-review:** 5 dimensões inspecionadas. Veredito: PRONTO. 2 findings não bloqueantes (SF1: markers sem retry — TODO anotado para Fase 3).
+- **Push:** 4 commits ahead de `0351441c`. 1609/1609 testes verdes. Typecheck limpo.
+- **Próximo:** Fase 3 (B1/B2 UI bugs) + deploy preview Vercel para validação E2E nos 3 modelos.
+
 ### 2026-06-20 — LiteLLM chave nova + modelos econômicos
 
 - Causa raiz fechada: chave/auth estavam corretas; V4 Flash falhava por timeout e o proxy removia markers `[[PORTA_*]]`, forçando `quality_failure`.

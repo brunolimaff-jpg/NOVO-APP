@@ -1,23 +1,25 @@
 # Active Context
 
-Last updated: 2026-06-20 — Scheffer live E2E + Opção B (causa raiz); implementer bloqueado
+Last updated: 2026-06-21 — Fase 1 + Fase 2 concluídas; branch-review PRONTO; push feito
 
 ## Prioridade Atual
 
-**PR #386 — LiteLLM preview verde em gates; MERGE bloqueado por UI waterfall + Bug P1**
+**PR #386 — Fase 2 (paridade LiteLLM) concluída; aguardando Fase 3 (B1/B2 UI bugs)**
 
-- **HEAD remoto:** `0351441c` — spec `scheffer-research-validation` + helper Scheffer.
-- **Gates:** CI 14/14 ✅, PR Gate IA 16/16 ✅, typecheck/vitest/build ✅.
+- **HEAD remoto:** `1ff11b2f` — TODO markers retry + Fase 2 completa.
+- **4 commits ahead** de `0351441c` (docs, style, feat, docs).
+- **Gates:** 1609/1609 testes ✅, typecheck ✅, build ✅, branch-review ✅.
 - **Scheffer live (300s):** R1 CRM ❌, R2 mapa ❌, R3 waterfall+expand ✅; `/api/cnpj` live ✅ (H1 refutada).
-- **Decisão Bruno (DI-2026-06-20-02):** Opção B — fix causa raiz B1/B2; sem workaround E2E.
-- **Implementer:** não executou (rate limit) — **nenhum fix B1/B2 commitado nesta sessão**.
-- **MERGE:** exige P1 + critério B Supabase + token **MERGE**.
+- **Decisão Bruno:** 3 modelos rotacionando (Grok 4.1 Fast, DeepSeek V3.2, Grok 4 Fast Reasoning) — output ≤ $2/M.
+- **Fase 2 entregue:** 5 desabilitações eliminadas (output tokens, retry, markers XML, grounding híbrido, leak shield).
+- **MERGE:** exige Fase 3 (B1/B2) + deploy preview + validação E2E + critério B Supabase + token **MERGE**.
 
 ## Bloqueios
 
-1. **B1:** `ClienteSeniorScore` + `SocietaryMap` não renderizam no waterfall live LiteLLM.
-2. **B2 (P1):** expand "ver relatório completo" → painel vazio (~26k chars).
+1. **B1:** `ClienteSeniorScore` + `SocietaryMap` não renderizam no waterfall live LiteLLM. ⏳ Hipótese: resolvido pela Fase 2 (8192 tokens + retry + grounding híbrido). Aguardando validação preview.
+2. **B2 (P1):** expand "ver relatório completo" → painel vazio (~26k chars). ⏳ Aguardando Fase 3.
 3. **Critério B:** Bruno ainda não escolheu `success` estrito vs `quality_failure` aceitável.
+4. **SF1:** markers PORTA ausentes detectados mas sem retry — TODO anotado para Fase 3 (`investigation-orchestration.ts:653`).
 
 ## Próximo passo
 
