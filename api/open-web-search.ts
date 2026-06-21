@@ -219,6 +219,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       providerStatus = searchResult.providerStatus;
     }
 
+    const hasBraveKey = Boolean(process.env.BRAVE_SEARCH_API_KEY);
+
     return res.status(200).json({
       content,
       source,
@@ -226,6 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       degraded,
       detail,
       providerStatus,
+      _debug: { hasBraveKey, braveAttempted: Boolean(providerStatus.find(s => s.provider === 'brave')) },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';

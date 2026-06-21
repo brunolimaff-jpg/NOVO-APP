@@ -44,7 +44,12 @@ async function searchOne(query: string): Promise<BraveWebResult[]> {
       return [];
     }
 
-    const data = (await response.json()) as WebSearchResponse;
+    const data = (await response.json()) as WebSearchResponse & {
+      _debug?: { hasBraveKey?: boolean; braveAttempted?: boolean };
+    };
+    if (data._debug) {
+      scoutDiag.info('WebSearch', 'diagnóstico do servidor', data._debug);
+    }
     return (data.results ?? []).map(r => ({
       ...r,
       snippet: stripHtml(r.snippet),
