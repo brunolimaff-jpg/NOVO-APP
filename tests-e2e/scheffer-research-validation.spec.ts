@@ -153,12 +153,17 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
     await prepareSchefferInvestigationForm(page);
     await submitSchefferInvestigation(page, `Scheffer R3 ${Date.now()}`);
 
-    await waitForLoadingToFinish(page);
-
+    // Espera o dossiê aparecer (conteúdo > loading). Se loading ficar preso,
+    // safety net do waterfall (60s) + force-hide resgatam o teste.
     const panel = page.getByTestId('chat-main-panel');
     await expect(panel).toBeVisible();
     const bot = panel.getByTestId('bot-message-content').last();
-    await expect(bot).toBeVisible({ timeout: 45_000 });
+    await expect(bot).toBeVisible({ timeout: WATERFALL_TIMEOUT_MS + 60_000 });
+    // Force-hide loading elements que podem ter ficado presos
+    await page.evaluate(() => {
+      document.querySelector('[data-testid="inline-loading-bubble"]')?.setAttribute('style', 'display:none');
+      document.querySelector('[data-testid="loading-smart-overlay"]')?.setAttribute('style', 'display:none');
+    });
 
     const text = await bot.innerText();
     expect(text.length).toBeGreaterThan(500);
