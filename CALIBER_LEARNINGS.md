@@ -604,6 +604,11 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 - **Instrumentacao debug (agentDebugLog) nao remover antes de validacao manual no preview** [debug, freeze, handoff]
   Sessao debug `c352f8` adicionou `utils/agentDebugLog.ts` e regioes em waterfall/porta/geminiProxy. Remover antes de Bruno confirmar waterfall completo no preview d47bkguue perde evidencia se o fix regredir. Afeta: PR #386 merge checklist.
 
+### Sessao 2026-06-21 — PR #386 Fase 2 LiteLLM paridade + deploy preview
+
+- **Imports externos em `api/` quebram serverless functions Vercel** [vercel, serverless, api, import, deploy]
+  `import { withAutoRetry } from '../utils/retry.js'` em `api/_llm-client.ts` causava `FUNCTION_INVOCATION_FAILED` no deploy — o bundle serverless da Vercel nao resolve imports relativos para fora de `api/`. Fix: implementar a funcao inline no proprio arquivo. Toda serverless route que precise de helpers (retry, timeout, formatacao) deve manter o codigo inline, nunca importar de `utils/`. Afeta: `api/_llm-client.ts`, qualquer serverless route nova.
+
 ### Sessao 2026-06-20 — PR #386 Fase 1 LiteLLM + resolve threads
 
 - **REST `/pulls/comments/{id}/replies` retorna 404 — usar GraphQL `addPullRequestReviewThreadReply`** [github, gh, pr, graphql]

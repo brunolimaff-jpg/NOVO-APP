@@ -1,78 +1,88 @@
-# Handoff — PR #386 LiteLLM Fase 1
+# Handoff — PR #386 LiteLLM Fase 2 (paridade)
 
-**Atualizado:** 2026-06-20 (ship-loop Fase 6 + Scheffer live E2E + Opção B)
-**Produção:** `scoutagro.vercel.app` — `LLM_PROVIDER=gemini` (sem mudança)
-**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `0351441c`
+**Atualizado:** 2026-06-21 (Fase 1 + Fase 2 concluídas; branch-review PRONTO; deploy preview com 3 modelos)
+**Producao:** `scoutagro.vercel.app` — `LLM_PROVIDER=gemini` (sem mudanca)
+**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `a9b2417a`
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-**Preview:** `https://scoutagro-2wcoh4w5m-brunolimaff-3629s-projects.vercel.app` ou `scoutagro-git-feat-litellm-ex-cad2dc-…vercel.app`
+**Preview:** `https://scoutagro-mpc5evjf7-brunolimaff-3629s-projects.vercel.app`
 **CNPJ teste:** Scheffer `04733767000180`
 
 ## Estado atual
 
-| Item                                    | Status                                                        |
-| --------------------------------------- | ------------------------------------------------------------- |
-| CI GitHub SHA `0351441c`                | ✅ 14/14                                                      |
-| Gates locais (typecheck, vitest, build) | ✅                                                            |
-| PR Gate IA 16/16 no preview             | ✅                                                            |
-| Spec `scheffer-research-validation`     | ✅ commitada `0351441c`                                       |
-| `/api/cnpj` live (6 sócios, ~1.4s)      | ✅                                                            |
-| Scheffer R3 waterfall + expand          | ✅ ~4k chars, `panelEmpty=false`                              |
-| Scheffer R1 CRM (`CLIENTE SENIOR`)      | ❌ ausente em 300s                                            |
-| Scheffer R2 `societary-map-shell`       | ❌ ausente em 300s                                            |
-| Bug P1 expand ~26k chars                | ❌ painel vazio (manual Bruno)                                |
-| `llm_experiment_runs` critério B        | ⚠️ Bruno ainda não escolheu Opção 1 vs 2                      |
-| Fix causa-raiz B1/B2                    | ❌ **não implementado** — implementer bloqueou por rate limit |
-| `mergeStateStatus`                      | **BLOCKED** — MERGE_READY = false                             |
+| Item                                                     | Status                       |
+| -------------------------------------------------------- | ---------------------------- |
+| CI GitHub SHA `a9b2417a`                                 | 14/14 (pending re-run)       |
+| Gates locais (1609 testes, typecheck, build)             | OK                           |
+| Branch-review (5 dimensoes)                              | PRONTO — 2 findings SF1/SF2  |
+| Fase 1: limpeza WIP (18 arquivos, 2 commits)             | OK                           |
+| Fase 2: paridade LiteLLM (6 arquivos, +197/-52)          | OK                           |
+| gh-resolve PR #386 (80 threads)                          | OK                           |
+| Deploy preview (3 deploys)                               | OK — qxmx4lrtn -> mpc5evjf7  |
+| Env vars atualizadas (3 modelos, traffic split 40/30/30) | OK                           |
+| Login Playwright no preview (guest vinculado)            | OK                           |
+| `mergeStateStatus`                                       | **UNSTABLE** — CI re-running |
 
-## Veredito sessão
+## O que foi entregue nesta sessao
 
-**H1 refutada:** pesquisa QSA funciona (`/api/cnpj` OK). Gargalo ≠ "modelo escreveu lixo porque pesquisa falhou".
+**Fase 1 — Limpeza WIP:**
 
-**Gargalos reais:** (1) UI waterfall live — `ClienteSeniorScore` + `SocietaryMap` não montam no budget 300s; (2) Bug P1 — expand "ver relatório completo" deixa painel vazio em dossiês ~26k chars.
+- 18 arquivos consolidados em 2 commits (docs + formatacao)
+- `.gitignore` atualizado com `supabase/.temp/` e screenshots de sessao
 
-**Decisão Bruno (Opção B):** corrigir causa raiz em CRM/SocietaryMap + P1; **sem** atalhos/workarounds no E2E.
+**Fase 2 — Paridade LiteLLM (5 desabilitacoes eliminadas):**
 
-## Scheffer live E2E (`LITELLM_WATERFALL_TIMEOUT_MS=300000`)
+- **Catalogo:** 3 novos modelos na rotacao (Grok 4.1 Fast, DeepSeek V3.2, Grok 4 Fast Reasoning); V4 Flash deprecated
+- **Output tokens:** 4096 -> 8192 (paridade com Gemini)
+- **Retry inline:** backoff exponencial 5 tentativas, 2s-30s em `api/_llm-client.ts`
+- **Markers PORTA:** XML estruturado (`instrucao_obrigatoria`) + validação pos-resposta com `parsePortaMarkerV2`
+- **Grounding hibrido:** novo modulo `utils/llm/groundingHybrid.ts` (CRM + Brasil API) via `groundingContextBlock`
+- **Leak shield:** `preserveInternalMarkersWhenSafe=true` em todos os call sites
+- **Novo modelo:** `oracle/xai.grok-4-fast-reasoning` (variant F)
 
-| Teste                  | Resultado | Evidência                                       |
-| ---------------------- | --------- | ----------------------------------------------- |
-| R1 QSA + CRM           | ❌        | `CLIENTE SENIOR CONFIRMADO` não visível em 300s |
-| R2 socio-search + mapa | ❌        | `societary-map-shell` ausente em 300s           |
-| R3 waterfall Grok      | ✅        | waterfall completo; expand `panelEmpty=false`   |
+**Branch-review:** 5 dimensoes inspecionadas. Veredito: PRONTO. 2 findings nao bloqueantes:
 
-**Arquivos:** `tests-e2e/scheffer-research-validation.spec.ts`, `tests-e2e/helpers/scheffer-research.ts`
+- SF1: markers PORTA sem retry — TODO anotado `investigation-orchestration.ts:653`
+- SF2: `extractWebSourcesFromGroundingResponse` dead code
+
+**gh-resolve-pr-comments:** PR #386 — 2 threads CodeRabbit resolvidas (watchCnpjLookup wrapper + useless assignments). Todas as ~80 threads resolvidas.
+
+**Deploy preview:** 3 deploys. Debug: `import ../utils/retry.js` quebrava serverless com `FUNCTION_INVOCATION_FAILED` — resolvido com retry inline no proprio `_llm-client.ts`.
+
+**Playwright:** Login no preview `mpc5evjf7` feito; guest vinculado (`bruno.ferreira@senior.com.br`). Scheffer iniciada, aguardando waterfall.
+
+## Mudancas arquivadas (arquivos criticos)
+
+| Arquivo                                              | Mudanca                                                        |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| `utils/llm/modelCatalog.ts`                          | 3 novos modelos, V4 Flash deprecated                           |
+| `api/_llm-client.ts`                                 | Retry inline 5x com backoff (evita import externo)             |
+| `services/gemini/investigation-orchestration.ts`     | Markers PORTA XML, tokens 8192, grounding hibrido, leak shield |
+| `services/gemini/contracts.ts`                       | `groundingContextBlock` integrado                              |
+| `utils/llm/groundingHybrid.ts`                       | NOVO — modulo de grounding hibrido                             |
+| `tests-e2e/helpers/scheffer-research.ts`             | Fix CodeRabbit (watchCnpjLookup wrapper)                       |
+| `tests/services/investigation-orchestration.test.ts` | 4096->8192, XML markers                                        |
 
 ## Bloqueios MERGE (ordem)
 
-1. **B1** — CRM + SocietaryMap no waterfall live LiteLLM (`waterfall-orchestrator.ts`, `SocietaryMap.tsx`, `investigation-orchestration.ts`)
-2. **B2** — Bug P1 expand (`SectionalBotMessage`, ~26k chars; contrato `docs/ai-context/refactor/loading-panel-contract.md`)
-3. **Critério B** — Bruno escolhe: row `status=success` (estrita) vs `quality_failure` aceitável se UX OK
-4. **Token MERGE** na mensagem
+1. **B1** — CRM + SocietaryMap no waterfall live LiteLLM. Hipoteses: resolvido pela Fase 2 (8192 tokens + retry + grounding hibrido). Aguardando validacao Playwright no preview.
+2. **B2 (P1)** — expand "ver relatorio completo" -> painel vazio (~26k chars). Aguardando Fase 3.
+3. **Criterio B** — Bruno ainda nao escolheu `success` estrito vs `quality_failure` aceitavel no `llm_experiment_runs`.
+4. **SF1** — markers PORTA sem retry (TODO em `investigation-orchestration.ts:653`). Nao bloqueante para merge atual.
 
-## Próximo passo (implementer)
+## O que NAO funcionou
 
-Retomar **B1** antes de B2. Instrumentar mount de CRM/map no waterfall; correlacionar `scout_diagnostics` + `operator_events`. Re-run R1/R2 após fix. MERGE só após A+B+C+D do plano abaixo.
+- `import ../utils/retry.js` em `api/_llm-client.ts` quebrava serverless function Vercel com `FUNCTION_INVOCATION_FAILED`. Causa: bundle serverless nao resolve o import corretamente. Solucao: implementar retry inline no mesmo arquivo.
 
-### Critérios MERGE_READY (resumo)
+## Proximo passo
 
-| #   | Critério              | Validar                                     |
-| --- | --------------------- | ------------------------------------------- |
-| A   | Bug P1                | Expand renderiza conteúdo; sem painel vazio |
-| B   | `llm_experiment_runs` | Opção 1 ou 2 documentada em `decisions.md`  |
-| C   | SHA limpo             | `0351441c` + fixes; WIP reconciliado        |
-| D   | Gates pós-fix         | CI + PR Gate 16/16 no SHA final             |
-| E   | MERGE                 | Token **MERGE** na mensagem                 |
-
-## WIP local unstaged (não mergear)
-
-`AGENTS.md`, `AuthGate.tsx`, `socio-search/types.ts`, `onboarding.ts`, `investigation-orchestration.ts`, `diagnosticLog.ts`, `pr386-desktop-waterfall-complete.png`, `scheffer-d47bkguue-expanded.png`, `supabase/.temp` — revisar antes de commit.
+Validacao Playwright no preview com os 3 modelos. Se B1/B2 resolvidos pela Fase 2 -> fechar PR #386. Senao -> Fase 3 (fix UI bugs).
 
 ## Links
 
-- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T22-45-00-pr386-scheffer-e2e-root-cause.md`
-- Decisões: DI-2026-06-20-01, **DI-2026-06-20-02** (Opção B)
-- Sessão UI break: `2026-06-20T21-30-00-scheffer-litellm-ui-break.md`
+- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-21T*-pr386-litellm-fase2-paridade.md`
+- Decisao: DI-2026-06-21-01 (retry inline vs import externo)
+- Licao: `Bruno Vault/30-LICOES/imports-externos-serverless-vercel.md`
 
 ## Prompt de retomada
 
-▎ PR #386 `feat/litellm-experiment` HEAD `0351441c`. Ship-loop verde (CI 14/14, PR Gate 16/16). Scheffer live: R1/R2 fail (CRM + SocietaryMap não montam em 300s); R3 pass; `/api/cnpj` OK — H1 refutada. Bruno escolheu **Opção B**: fix causa raiz B1 (waterfall UI CRM/SocietaryMap) + B2 (P1 expand ~26k) — sem workaround E2E. Implementer **não rodou** (rate limit). WIP unstaged fora do escopo. Próximo: implementer B1 → re-run R1/R2 → B2 P1 → critério B Supabase → gates → MERGE com token.
+▎ PR #386 `feat/litellm-experiment` HEAD `a9b2417a`. Fase 1 + Fase 2 concluidas: catalogo com 3 novos modelos, output tokens 8192, retry inline 5x, markers PORTA XML, grounding hibrido, leak shield. Branch-review PRONTO (2 findings SF1/SF2). 3 deploys preview (mpc5evjf7 fixou FUNCTION_INVOCATION_FAILED). Env vars atualizadas (3 modelos, 40/30/30). Login Playwright feito no preview. CI pending re-run. Bloqueios: B1 (aguardando validacao Playwright), B2 (Fase 3), Criterio B, SF1 (TODO). Proximo: validacao Playwright waterfall -> se passar, preparar merge.
