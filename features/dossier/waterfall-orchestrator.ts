@@ -643,6 +643,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           operatorEmail: experimentOperatorEmail,
         });
       }
+      if (llmEnabled) {
+        scoutDiag.info('ModularDossier', 'LiteLLM experiment gate aberto', {
+          authMode: experimentGate.authMode ?? 'supabase',
+          operatorEmail: experimentOperatorEmail,
+        });
+      }
       const effectiveFoundationCacheEnabled = llmEnabled ? false : isFoundationCacheEnabled();
       const experimentConfig = getExperimentConfig();
 

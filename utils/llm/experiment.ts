@@ -1,5 +1,6 @@
 import type { CreateRunPayload, FinalizeRunPayload } from './types.js';
 import { getSupabaseAuthHeaders } from '../../lib/supabaseClient.js';
+import { getExperimentConfig } from './modelRouter.js';
 
 interface ExperimentApiResponse {
   id?: string;
@@ -17,6 +18,17 @@ async function postExperimentAction(
   payload: CreateRunPayload | FinalizeRunPayload,
 ): Promise<ExperimentApiResponse> {
   const authHeaders = await getSupabaseAuthHeaders();
+
+  if (!authHeaders.Authorization) {
+    const config = getExperimentConfig();
+    if (config.previewLocalAuth) {
+      const operatorEmail = 'operatorEmail' in payload ? (payload as CreateRunPayload).operatorEmail : undefined;
+      if (operatorEmail) {
+        authHeaders['x-experiment-operator-email'] = operatorEmail;
+      }
+    }
+  }
+
   const response = await fetch('/api/llm-experiment', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders },

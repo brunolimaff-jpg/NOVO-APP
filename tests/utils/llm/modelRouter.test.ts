@@ -114,6 +114,7 @@ describe('isOperatorAllowed', () => {
     allowlist: ['bruno@senior.com.br'],
     fallbackEnabled: true,
     litellmBaseUrl: '',
+    previewLocalAuth: false,
   };
 
   it('allowlist vazia nega todos', () => {

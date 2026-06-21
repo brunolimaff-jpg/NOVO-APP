@@ -32,11 +32,40 @@ function getBearerToken(req: VercelRequest): string | null {
   return token.length > 0 ? token : null;
 }
 
+function getPreviewOperatorEmail(req: VercelRequest): string | null {
+  const raw = req.headers?.['x-experiment-operator-email'];
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (!header || typeof header !== 'string') return null;
+  return header.trim().toLowerCase() || null;
+}
+
 export async function authenticateExperimentRequest(
   req: VercelRequest,
 ): Promise<ExperimentAuthResult | ExperimentAuthError> {
   if (process.env.LLM_PROVIDER !== 'litellm') {
     return { error: 'Experiment API disabled (LLM_PROVIDER=gemini)', status: 403 };
+  }
+
+  const isPreviewLocalAuth = process.env.LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH === 'true';
+  const isPreviewEnv = process.env.VERCEL_ENV === 'preview';
+
+  if (isPreviewLocalAuth && isPreviewEnv) {
+    const operatorEmail = getPreviewOperatorEmail(req);
+    if (!operatorEmail) {
+      return { error: 'x-experiment-operator-email header required for preview local auth', status: 401 };
+    }
+    if (!isOperatorAllowed(operatorEmail, getExperimentConfig(process.env))) {
+      return { error: 'Operator not in LLM_ALLOWLIST', status: 403 };
+    }
+    const supabase = getServerSupabaseClient();
+    if (!supabase) {
+      return { error: 'Supabase not configured', status: 500 };
+    }
+    console.log(`[ExperimentAuth] preview local auth: ${operatorEmail}`);
+    return {
+      user: { id: `preview_${operatorEmail.replace(/[^a-z0-9]/g, '_')}`, email: operatorEmail } as User,
+      supabase,
+    };
   }
 
   const supabase = getServerSupabaseClient();

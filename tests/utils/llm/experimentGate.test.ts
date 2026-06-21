@@ -74,4 +74,51 @@ describe('resolveLiteLLMExperimentGate', () => {
     expect(gate.reason).toBe('operator_not_allowed');
     expect(gate.operatorEmail).toBe('outro@senior.com.br');
   });
+
+  it('abre gate via preview local auth com email na allowlist', async () => {
+    vi.stubEnv('VITE_LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', 'true');
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    const { resolveLiteLLMExperimentGate } = await import('../../../utils/llm/experimentGate');
+    const gate = await resolveLiteLLMExperimentGate('bruno@senior.com.br');
+    expect(gate.llmEnabled).toBe(true);
+    expect(gate.authMode).toBe('preview_local');
+    expect(gate.operatorEmail).toBe('bruno@senior.com.br');
+    expect(gate.hasSupabaseSession).toBe(false);
+  });
+
+  it('fecha gate via preview local auth com email fora da allowlist', async () => {
+    vi.stubEnv('VITE_LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', 'true');
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    const { resolveLiteLLMExperimentGate } = await import('../../../utils/llm/experimentGate');
+    const gate = await resolveLiteLLMExperimentGate('invasor@fora.com');
+    expect(gate.llmEnabled).toBe(false);
+    expect(gate.reason).toBe('operator_not_allowed');
+    expect(gate.authMode).toBeUndefined();
+  });
+
+  it('preview local auth não abre sem email do operador', async () => {
+    vi.stubEnv('VITE_LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', 'true');
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    const { resolveLiteLLMExperimentGate } = await import('../../../utils/llm/experimentGate');
+    const gate = await resolveLiteLLMExperimentGate(null);
+    expect(gate.llmEnabled).toBe(false);
+  });
+
+  it('supabase session prevalece sobre preview local auth', async () => {
+    vi.stubEnv('VITE_LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', 'true');
+    getSessionMock.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'token',
+          user: { email: 'bruno@senior.com.br' },
+        },
+      },
+      error: null,
+    });
+    const { resolveLiteLLMExperimentGate } = await import('../../../utils/llm/experimentGate');
+    const gate = await resolveLiteLLMExperimentGate('outro@local.com');
+    expect(gate.llmEnabled).toBe(true);
+    expect(gate.authMode).toBe('supabase');
+    expect(gate.operatorEmail).toBe('bruno@senior.com.br');
+  });
 });

@@ -23,6 +23,7 @@ export interface ExperimentConfig {
   allowlist: string[];
   fallbackEnabled: boolean;
   litellmBaseUrl: string;
+  previewLocalAuth: boolean;
 }
 
 export interface ExperimentSelection {
