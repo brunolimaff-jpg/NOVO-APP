@@ -1,6 +1,7 @@
 import type { ModelCatalogEntry } from './types.js';
 
 export const EXPERIMENT_MODELS = [
+  'huawei/deepseek-v4-pro',
   'oracle/xai.grok-4-1-fast-non-reasoning',
   'huawei/deepseek-v3.2',
   'oracle/xai.grok-4-fast-reasoning',
