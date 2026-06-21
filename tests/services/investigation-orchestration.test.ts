@@ -228,7 +228,7 @@ describe('investigation-orchestration', () => {
         model: 'huawei/deepseek-r1-250528',
         config: expect.objectContaining({
           temperature: 0.1,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         }),
       }),
       undefined,
@@ -238,9 +238,7 @@ describe('investigation-orchestration', () => {
     expect(proxyGenerateContentMock.mock.calls[0][0].config.systemInstruction).toMatch(
       /foundation block[\s\S]*extra context[\s\S]*specialist block/,
     );
-    expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain(
-      'não conclua sem emitir os markers [[PORTA_*]]',
-    );
+    expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain('<instrucao_obrigatoria>');
     expect(proxyGenerateContentMock.mock.calls[0][0].contents).toContain(
       '[[PORTA_FEED_P:[NOTA]:HA:[HECTARES]:CNPJS:[TOTAL]:FAT:[FATURAMENTO]]]',
     );

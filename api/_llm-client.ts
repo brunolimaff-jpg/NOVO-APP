@@ -1,4 +1,5 @@
 import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
+import { withAutoRetry } from '../utils/retry.js';
 
 type Environment = Record<string, string | undefined>;
 
@@ -164,44 +165,51 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
   messages.push({ role: 'user', content: input.userContent });
 
   const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || DEFAULT_LITELLM_REQUEST_TIMEOUT_MS);
-  const timeoutSignal = AbortSignal.timeout(
-    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LITELLM_REQUEST_TIMEOUT_MS,
-  );
-  const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+  const effectiveTimeoutMs =
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LITELLM_REQUEST_TIMEOUT_MS;
+
+  return withAutoRetry(
+    `LiteLLM:${input.model}`,
+    async () => {
+      const timeoutSignal = AbortSignal.timeout(effectiveTimeoutMs);
+      const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: input.model,
+          messages,
+          temperature: input.temperature ?? 0.1,
+          max_tokens: input.maxOutputTokens ?? 8192,
+        }),
+        signal,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(`LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+      }
+
+      const completion = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      };
+
+      const choice = completion.choices?.[0];
+      const rawText = choice?.message?.content ?? '';
+      const normalized = normalizeModelOutput(rawText);
+
+      return {
+        text: normalized.text,
+        usage: normalizeUsage(completion.usage),
+        finishReason: choice?.finish_reason,
+        reasoningRemoved: normalized.reasoningRemoved,
+        reasoningCharsRemoved: normalized.reasoningCharsRemoved,
+      };
     },
-    body: JSON.stringify({
-      model: input.model,
-      messages,
-      temperature: input.temperature ?? 0.1,
-      max_tokens: input.maxOutputTokens ?? 8192,
-    }),
-    signal,
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '');
-    throw new Error(`LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
-  }
-
-  const completion = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-  };
-
-  const choice = completion.choices?.[0];
-  const rawText = choice?.message?.content ?? '';
-  const normalized = normalizeModelOutput(rawText);
-
-  return {
-    text: normalized.text,
-    usage: normalizeUsage(completion.usage),
-    finishReason: choice?.finish_reason,
-    reasoningRemoved: normalized.reasoningRemoved,
-    reasoningCharsRemoved: normalized.reasoningCharsRemoved,
-  };
+    { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: input.signal },
+  );
 }

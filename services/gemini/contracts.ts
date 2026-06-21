@@ -39,6 +39,8 @@ export interface DossierModuleOptions {
   foundationCacheName?: string;
   /** LiteLLM experiment model id (non-gemini) selected once per waterfall run. */
   selectedModel?: string;
+  /** Bloco de contexto de grounding híbrido (CRM + Brasil API + web) para injetar no prompt LiteLLM. */
+  groundingContextBlock?: string;
 }
 
 export interface SpotterExtractedData {
