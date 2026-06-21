@@ -194,6 +194,11 @@ async function callGeminiApi<TResponse>(
       scoutDiag.info('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
 
       const authHeaders = await getSupabaseAuthHeaders();
+
+      if (!authHeaders.Authorization && typeof (payload as any).operatorEmail === 'string') {
+        authHeaders['x-experiment-operator-email'] = (payload as any).operatorEmail;
+      }
+
       response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
