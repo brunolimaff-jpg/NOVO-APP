@@ -8,6 +8,7 @@ interface BraveWebResult {
 
 interface WebSearchResponse {
   results?: BraveWebResult[];
+  sources?: BraveWebResult[];
   error?: string;
 }
 
@@ -50,7 +51,7 @@ async function searchOne(query: string): Promise<BraveWebResult[]> {
     if (data._debug) {
       scoutDiag.info('WebSearch', 'diagnóstico do servidor', data._debug);
     }
-    return (data.results ?? []).map(r => ({
+    return (data.results ?? data.sources ?? []).map(r => ({
       ...r,
       snippet: stripHtml(r.snippet),
     }));

@@ -56,3 +56,17 @@ export async function loginViaSupabase(page: Page, email: string, password: stri
 
   await page.getByTestId('operator-menu-button').waitFor({ state: 'visible', timeout: 15_000 });
 }
+
+export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?: string } = {}) {
+  const password = process.env.E2E_AUTH_PASSWORD;
+  if (!password) {
+    throw new Error('E2E_AUTH_PASSWORD is required when E2E_REAL_AUTH=1');
+  }
+
+  const email = options.email ?? process.env.E2E_OPERATOR_EMAIL;
+  if (!email) {
+    throw new Error('E2E_OPERATOR_EMAIL is required when E2E_REAL_AUTH=1');
+  }
+
+  await loginViaSupabase(page, email, password);
+}

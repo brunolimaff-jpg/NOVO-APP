@@ -1,5 +1,5 @@
 import { expect, type Page, type Response } from '@playwright/test';
-import { setupE2EAuth } from './auth';
+import { setupE2EAuth, setupRealSupabaseAuthFromEnv } from './auth';
 import {
   completeOnboarding,
   dismissDuplicateDossierModal,
@@ -15,6 +15,7 @@ export const SCHEFFER_CNPJ_DIGITS = '04733767000180';
 export const OPERATOR_EMAIL = process.env.E2E_OPERATOR_EMAIL ?? 'bruno@senior.com.br';
 export const OPERATOR_NAME = process.env.E2E_OPERATOR_NAME ?? 'Bruno Research QA';
 export const WATERFALL_TIMEOUT_MS = Number(process.env.LITELLM_WATERFALL_TIMEOUT_MS ?? 180_000);
+const USE_REAL_AUTH = process.env.E2E_REAL_AUTH === '1';
 /** Live preview /api/cnpj pode levar 60–90s (BrasilAPI + cold start Vercel). */
 export const CNPJ_LOOKUP_TIMEOUT_MS = Number(process.env.E2E_CNPJ_LOOKUP_TIMEOUT_MS ?? 90_000);
 
@@ -39,6 +40,12 @@ export interface SessionMetadata {
 }
 
 export async function setupSchefferResearchAuth(page: Page) {
+  if (USE_REAL_AUTH) {
+    await preventMigrationNotice(page);
+    await setupRealSupabaseAuthFromEnv(page, { email: OPERATOR_EMAIL });
+    return;
+  }
+
   await setupE2EAuth(page, { email: OPERATOR_EMAIL, name: OPERATOR_NAME });
   await preventMigrationNotice(page);
 }

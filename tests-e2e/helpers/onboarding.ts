@@ -130,7 +130,10 @@ export async function startNewInvestigation(page: Page) {
 
   await openSidebarIfNeeded(page);
 
-  const novaInvestigacao = page.locator('#sessions-sidebar-panel').getByRole('button', { name: /nova investigação/i });
+  const historyDialog = page.getByRole('dialog', { name: /histórico de investigações/i });
+  const novaInvestigacao = (await historyDialog.isVisible({ timeout: 1000 }).catch(() => false))
+    ? historyDialog.getByRole('button', { name: /nova investigação/i }).first()
+    : page.locator('#sessions-sidebar-panel').getByRole('button', { name: /nova investigação/i });
   await expect(novaInvestigacao).toBeVisible({ timeout: 5000 });
   await novaInvestigacao.evaluate(el => (el as HTMLElement).click());
   await expect(investigationInput).toBeVisible({ timeout: 15_000 });

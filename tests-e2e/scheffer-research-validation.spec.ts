@@ -27,6 +27,28 @@ import {
   type SocioSearchCapture,
 } from './helpers/scheffer-research';
 
+interface WebSearchCapture {
+  status: number;
+  source?: string;
+  resultCount: number;
+  degraded?: boolean;
+  brave?: {
+    attempted?: boolean;
+    rawCount?: number;
+    afterFinalLimitCount?: number;
+    emptyReason?: string;
+    queryVariant?: string;
+  };
+}
+
+interface ExperimentCapture {
+  status: number;
+  action?: string;
+  ok: boolean;
+  fallbackUsed?: boolean;
+  runStatus?: string;
+}
+
 test.describe('Scheffer — validação pesquisa live (preview)', () => {
   test.describe.configure({ timeout: WATERFALL_TIMEOUT_MS + 180_000 });
 
@@ -66,6 +88,67 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
   });
 
   test('R3 — waterfall Grok completo (sem stubs)', async ({ page }) => {
+    const webSearchCaptures: WebSearchCapture[] = [];
+    const experimentCaptures: ExperimentCapture[] = [];
+
+    page.on('response', async response => {
+      if (response.url().includes('/api/open-web-search') && response.request().method() === 'POST') {
+        const status = response.status();
+        try {
+          const payload = (await response.json()) as {
+            source?: string;
+            results?: unknown[];
+            sources?: unknown[];
+            degraded?: boolean;
+            _debug?: {
+              braveAttempted?: boolean;
+              brave?: {
+                rawCount?: number;
+                afterFinalLimitCount?: number;
+                emptyReason?: string;
+                queryVariant?: string;
+              };
+            };
+          };
+          webSearchCaptures.push({
+            status,
+            source: payload.source,
+            resultCount: (payload.results ?? payload.sources)?.length ?? 0,
+            degraded: payload.degraded,
+            brave: {
+              attempted: payload._debug?.braveAttempted,
+              rawCount: payload._debug?.brave?.rawCount,
+              afterFinalLimitCount: payload._debug?.brave?.afterFinalLimitCount,
+              emptyReason: payload._debug?.brave?.emptyReason,
+              queryVariant: payload._debug?.brave?.queryVariant,
+            },
+          });
+        } catch {
+          webSearchCaptures.push({ status, resultCount: 0, degraded: true });
+        }
+      }
+
+      if (response.url().includes('/api/llm-experiment') && response.request().method() === 'POST') {
+        const status = response.status();
+        let action: string | undefined;
+        let fallbackUsed: boolean | undefined;
+        let runStatus: string | undefined;
+        try {
+          const body = JSON.parse(response.request().postData() ?? '{}') as {
+            action?: string;
+            fallbackUsed?: boolean;
+            status?: string;
+          };
+          action = body.action;
+          fallbackUsed = body.fallbackUsed;
+          runStatus = body.status;
+        } catch {
+          // Corpo não parseável: manter apenas status HTTP.
+        }
+        experimentCaptures.push({ status, action, ok: response.ok(), fallbackUsed, runStatus });
+      }
+    });
+
     await setupSchefferResearchAuth(page);
     await prepareSchefferInvestigationForm(page);
     await submitSchefferInvestigation(page, `Scheffer R3 ${Date.now()}`);
@@ -95,6 +178,23 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
 
     const sessionMeta = await captureSessionMetadata(page);
     console.log('\n📎 R3 — session metadata:', sessionMeta);
+    console.log('\n📎 R3 — web search captures:', webSearchCaptures);
+    console.log('\n📎 R3 — experiment captures:', experimentCaptures);
+
+    expect(webSearchCaptures.length, 'web search precisa ser chamada durante waterfall LiteLLM').toBeGreaterThan(0);
+    expect(
+      webSearchCaptures.some(item => item.brave?.attempted && (item.brave.rawCount ?? 0) > 0),
+      'Brave precisa ser tentado com rawCount > 0',
+    ).toBeTruthy();
+    expect(
+      webSearchCaptures.some(item => item.resultCount > 0 && item.degraded !== true),
+      'web search precisa retornar fontes curadas sem degradação',
+    ).toBeTruthy();
+
+    const finalize = experimentCaptures.find(item => item.action === 'finalizeRun');
+    expect(experimentCaptures.some(item => item.action === 'createRun' && item.ok), 'createRun precisa passar').toBeTruthy();
+    expect(finalize?.ok, 'finalizeRun precisa passar').toBeTruthy();
+    expect(finalize?.fallbackUsed, 'fallback Gemini não pode ser usado como sucesso').toBe(false);
 
     console.log(`\n✅ R3 OK — dossiê ${text.length} chars`);
   });

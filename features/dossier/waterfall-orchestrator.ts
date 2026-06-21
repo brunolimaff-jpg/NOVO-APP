@@ -1671,6 +1671,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               id: experimentRunId,
               runToken: experimentRunToken,
               status,
+              operatorEmail: experimentOperatorEmail ?? undefined,
               structuralScore: quality.structuralScore,
               fallbackUsed: experimentFallbackUsed,
               fallbackModel: experimentFallbackUsed ? 'gemini-3-flash-preview' : undefined,

@@ -103,6 +103,7 @@ export interface FinalizeRunPayload {
   id: string;
   runToken: string;
   status: ExperimentRunStatus;
+  operatorEmail?: string;
   exclusionReason?: string;
   fallbackUsed?: boolean;
   fallbackModel?: string;

@@ -1,54 +1,42 @@
 # Active Context
 
-Last updated: 2026-06-21 — PR #386 3 modelos validados, descoberta foundation cache, Brave Search
+**Last updated:** 2026-06-21 16:20 -04 — PR #386 Brave grounding + finalizeRun em ajuste final
 
 ## Prioridade Atual
 
-**PR #386 — validar alternativas ao Gemini via LiteLLM + web search**
+**PR #386 — validar LiteLLM/Grok com Brave Search real antes de qualquer benchmark novo**
 
 - Branch: `feat/litellm-experiment`
-- HEAD local: `78a7805c` (6 commits: gate fix + Grok + web search)
+- HEAD remoto: `4d17ff96`
+- Estado local: ajustes pendentes de commit para contrato `sources`, `finalizeRun`, helper E2E e docs.
 - PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-- Preview c/ web search: `scoutagro-no9vz1mwu-brunolimaff-3629s-projects.vercel.app` (deploy pendente)
+- Preview atual: `https://scoutagro-git-feat-litellm-ex-cad2dc-brunolimaff-3629s-projects.vercel.app`
+- Produção: `LLM_PROVIDER=gemini`, sem mudança.
 
-## Validacao 3 Modelos (Fase 6)
+## Estado Técnico
 
-| Modelo              | Modulos | Erros      | Tempo   | Qualidade           |
-| ------------------- | ------- | ---------- | ------- | ------------------- |
-| DeepSeek V4 Flash   | 2/6     | 4 timeouts | 62-119s | Inviavel (lento)    |
-| Grok 4.20 Reasoning | 6/6     | 0          | 12-22s  | Rapido mas generico |
-| DeepSeek V4 Pro     | 1/6     | lento      | 44s     | Inviavel (lento)    |
+- Brave endpoint preview em `4d17ff96`: OK, `rawCount=6`, `afterFinalLimitCount=4`, `degraded=false`.
+- Causa raiz do grounding vazio no waterfall: `api/open-web-search` retorna `sources`; `webSearchService` lia só `results`.
+- Causa raiz do `llm_experiment_runs` sem finalização: `finalizeRun` não enviava `x-experiment-operator-email` em preview local auth.
+- E2E real com histórico cheio travava no diálogo "Histórico de investigações"; helper local agora clica `Nova investigação` dentro do diálogo.
 
-## Descoberta Critica — Foundation Cache Gap
+## Validação
 
-Gemini produz dossies excelentes porque recebe **foundation cache (~43k chars)** + **Google Search grounding**. Modelos via LiteLLM recebem apenas ~15k chars sem web search. Resultado: dossies genericos ("Nao encontrado").
+- `npm run typecheck` — OK.
+- Testes focados — OK, 36 testes.
+- `npm run build` — OK.
+- R3 no preview antigo `cad2dc`: render completou, `Ver relatório completo` sem painel vazio, mas NAO APROVADO por grounding vazio e `finalizeRun` 401.
 
-**Exemplo:** Scheffer via Gemini descobriu Colombia, R$2.8Bi, 220k ha, 28 CNPJs. Grok 4.20 mesmo prompt: tudo "Nao encontrado", 1 CNPJ.
+## Próximo Passo
 
-## Web Search Brave (Fase 10)
+1. Commitar/pushar ajustes locais.
+2. Aguardar novo preview.
+3. Reexecutar R3 Scheffer no preview novo.
+4. Só aprovar Grok+Brave com fontes curadas, `finalizeRun` 200, `fallbackUsed=false` e render final OK.
 
-**Implementado:** `api/open-web-search.ts` (Brave Search), `utils/llm/webSearchService.ts` (5 queries + curadoria), injecao no `waterfall-orchestrator.ts`.
+## Regras Críticas
 
-**Pendente:** Deploy preview + smoke com Grok + web search.
-
-## Proximo Passo
-
-1. Deploy preview `scoutagro-no9vz1mwu` com Brave Search
-2. Smoke autenticado Grok + web search
-3. Decisao: se web search nao resolver, encerrar experimento
-
-## Bloq. Ativos
-
-- **Gemini 429 credits depleted** — sem solucao
-- **LiteLLM sem foundation cache** — descoberta critica
-- **Web Search deploy pendente** — aguardando build
-
-## Regras Criticas
-
-- **NAO mergear** PR #386 — experimental
-- **NAO adicionar n8n** — fora de escopo
-- **NAO liberar bypass em producao** — so preview
-
-## Merge Guard
-
-NAO mergear. PR #386 e experimental. Token MERGE nao se aplica.
+- NAO mergear PR #386.
+- NAO adicionar n8n.
+- NAO registrar credenciais.
+- NAO aceitar fallback Gemini como sucesso.

@@ -1,21 +1,39 @@
 # Progress
 
-### 2026-06-21 — PR #386 validacao 3 modelos + descoberta cache gap + Brave Search (F6-F10)
+### 2026-06-21 — PR #386 ajuste final Brave grounding + finalizeRun (local, pendente push)
 
-- **Validacao Grok 4.20 Reasoning:** 6/6 modulos, 0 erros, 12-22s/modulo. Rapido mas dossie completamente generico — tudo "Nao encontrado", apenas 1 CNPJ.
-- **Validacao DeepSeek V4 Pro:** 1/6 modulos, 44s. Lento, inviavel.
-- Validacao DeepSeek V4 Flash ja documentada (2/6, 4 timeouts, 62-119s).
-- **DESCOBERTA CRITICA:** Gemini produz dossies excelentes porque recebe foundation cache (~43k chars) + Google Search grounding. Modelos via LiteLLM recebem ~15k chars sem web search. Este e o real diferencial, nao o modelo em si.
-- **Fase 10 — Web Search Brave implementada:**
-  - `api/open-web-search.ts`: Brave Search como provider primario, DuckDuckGo fallback
-  - `utils/llm/webSearchService.ts`: 5 queries paralelas + curadoria + grounding block
-  - `waterfall-orchestrator.ts`: injecao no sharedDossierModuleOptions.groundingContextBlock
-  - `utils/llm/modelCatalog.ts`: modelos `grok-4.20` e `deepseek-v4-pro` adicionados
-- **6 commits novos:** `69242e26` (fix auth 3 camadas), `fa6938b3` (grok-4.20 catalogo), `110fc2ad` (deepseek-v4-pro), `36754f58` (fix Bearer priority), `129a08a3` (web search), `78a7805c` (fix types + cleanup).
-- **8 arquivos alterados** no total: experimentGate.ts, types.ts, modelRouter.ts, \_experiment-auth.ts, experiment.ts, geminiProxy.ts, waterfall-orchestrator.ts, experimentGate.test.ts + novos: webSearchService.ts, open-web-search.ts.
-- **Pendente:** deploy preview `scoutagro-no9vz1mwu` com Brave Search + smoke Grok com web search.
+- **Brave endpoint preview validado:** `/api/open-web-search` em `4d17ff96` respondeu 200 com `source=Brave Search API`, `rawCount=6`, `afterFinalLimitCount=4`, `degraded=false`.
+- **Causa raiz grounding vazio:** `api/open-web-search` expõe `sources`, mas `utils/llm/webSearchService.ts` lia só `results`; corrigido localmente para aceitar ambos.
+- **Causa raiz `finalizeRun` 401:** `FinalizeRunPayload` não carregava `operatorEmail`, então preview local auth autenticava `createRun` mas não `finalizeRun`; corrigido localmente.
+- **E2E R3:** helper agora lida com diálogo "Histórico de investigações" e captura Brave + `llm-experiment`; modo real auth só via `E2E_REAL_AUTH=1` + `E2E_AUTH_PASSWORD` em env, sem gravar segredo.
+- **Rodada preview antigo `cad2dc`:** waterfall renderizou 7.696 chars, `Ver relatório completo` não ficou vazio, mas validação NAO APROVADA porque grounding efetivo ficou vazio e `finalizeRun` retornou 401.
+- **Validação local:** `npm run typecheck` OK; testes focados 36/36 OK; `npm run build` OK.
+- **Pendente:** commit/push, novo preview Vercel, R3 Scheffer com Brave fontes curadas + `finalizeRun` 200 + `fallbackUsed=false`.
 
-Last updated: 2026-06-21 — 3 modelos validados, foundation cache gap descoberto, Brave Search implementado (HEAD 78a7805c)
+### 2026-06-21 — PR #386 Fase 10 + ajustes Brave Search (12 commits, ate dd49f8ff)
+
+- **Brave Search ajustes pos-implementacao:** 6 novos commits de fix no open-web-search.ts e webSearchService.ts
+- **search_lang corrigido:** pt -> pt-br (Brave rejeitava com 422)
+- **Testes open-web-search:** atualizados para Brave + DuckDuckGo providers
+- **Logging adicionado:** console.warn/error/log em todos os caminhos do Brave Search
+- **\_debug na resposta:** hasBraveKey, braveAttempted expostos para diagnostico
+- **Modelo alternativo:** trocado para Grok 4 Fast Reasoning (6.9-11.7s, mais rapido que Grok 4.20)
+- **BLOQUEIO:** Brave Search curadoria retorna 0 resultados — provavel filtro -site: quebrando as queries
+- **Arquivos referencia:** GOLDEN_DOSSIER_SCHEFFER_Grok4.20.md, REFERENCIA_Gemini_SchefferR3.md, REFERENCIA_Gemini_Polato.md
+- **Testes:** 1613/1613 verdes, typecheck limpo, build OK
+
+### 2026-06-21 — PR #386 Brave Search + Web Search + testes (Fase 10, ate 78a7805c)
+
+- **webSearchService.ts criado:** 5 queries paralelas (razao social, CNAE, socio/fundador, holding/grupo, endereco) + curadoria (remove listas telefonicas, duplicatas) + formatacao grounding context block
+- **api/open-web-search.ts modificado:** Brave Search como provider primario, DuckDuckGo fallback
+- **waterfall-orchestrator.ts modificado:** injecao do groundingContextBlock no sharedDossierModuleOptions quando llmEnabled=true
+- **Modelos adicionados ao catalogo:** grok-4.20 (variante G), deepseek-v4-pro (variante H)
+- **Estouro limite 12 functions Vercel Hobby:** web search consolidado no api/open-web-search.ts existente
+- **Bugs corrigidos:** search_lang pt -> pt-br (422), types Brave Search, testes desatualizados
+
+### 2026-06-21 — PR #386 validacao 3 modelos + descoberta cache gap (F6-F10)
+
+(conteudo mantido — 3 modelos validados, foundation cache gap descoberto)
 
 ### 2026-06-21 — PR #386 gate fix 3 camadas + validacao DeepSeek V4 Flash (F1-F6)
 

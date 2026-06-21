@@ -22,7 +22,7 @@ async function postExperimentAction(
   if (!authHeaders.Authorization) {
     const config = getExperimentConfig();
     if (config.previewLocalAuth) {
-      const operatorEmail = 'operatorEmail' in payload ? (payload as CreateRunPayload).operatorEmail : undefined;
+      const operatorEmail = 'operatorEmail' in payload ? payload.operatorEmail : undefined;
       if (operatorEmail) {
         authHeaders['x-experiment-operator-email'] = operatorEmail;
       }
