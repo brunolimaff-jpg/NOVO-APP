@@ -4,6 +4,7 @@ export const EXPERIMENT_MODELS = [
   'oracle/xai.grok-4-1-fast-non-reasoning',
   'huawei/deepseek-v3.2',
   'oracle/xai.grok-4-fast-reasoning',
+  'oracle/xai.grok-4.20-0309-reasoning',
 ] as const;
 
 export type ExperimentModelId = (typeof EXPERIMENT_MODELS)[number];
@@ -47,6 +48,14 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     id: 'oracle/xai.grok-4-fast-reasoning',
     variant: 'F',
     displayName: 'Grok 4 Fast Reasoning',
+    inputPricePerMillion: 0.2,
+    outputPricePerMillion: 0.5,
+    reasoning: true,
+  },
+  'oracle/xai.grok-4.20-0309-reasoning': {
+    id: 'oracle/xai.grok-4.20-0309-reasoning',
+    variant: 'G',
+    displayName: 'Grok 4.20 Reasoning (0309)',
     inputPricePerMillion: 0.2,
     outputPricePerMillion: 0.5,
     reasoning: true,
