@@ -52,6 +52,14 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     outputPricePerMillion: 0.5,
     reasoning: true,
   },
+  'huawei/deepseek-v4-pro': {
+    id: 'huawei/deepseek-v4-pro',
+    variant: 'H',
+    displayName: 'DeepSeek V4 Pro',
+    inputPricePerMillion: 0.27,
+    outputPricePerMillion: 1.1,
+    reasoning: true,
+  },
   'oracle/xai.grok-4.20-0309-reasoning': {
     id: 'oracle/xai.grok-4.20-0309-reasoning',
     variant: 'G',
